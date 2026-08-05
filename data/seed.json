@@ -1,0 +1,210 @@
+{
+  "settings": {
+    "name_en": "MegaTech Arabia",
+    "name_ar": "ميجاتك العربية",
+    "tagline_en": "Turnkey technology, engineered end to end.",
+    "tagline_ar": "حلول تقنية متكاملة، من الفكرة حتى التشغيل.",
+    "intro_en": "Since 2009, MegaTech Arabia has designed and delivered audio-visual, lighting, IT and collaborative workspace systems for the Kingdom's most demanding spaces.",
+    "intro_ar": "منذ عام 2009، تصمّم ميجاتك العربية وتنفّذ أنظمة الصوتيات والمرئيات والإضاءة وتقنية المعلومات وأثاث التعاون لأكثر المساحات تطلبًا في المملكة.",
+    "about_en": "MegaTech Arabia was founded in Riyadh in 2009 as a specialist systems integrator. We bring audio-visual, lighting, IT infrastructure and office collaborative furniture together under one accountable team — delivering complete turnkey solutions from site surveys and design through to testing and commissioning. We work across every city in Saudi Arabia, translating complex requirements into rooms and buildings that simply work.",
+    "about_ar": "تأسست ميجاتك العربية في الرياض عام 2009 كمتخصص في تكامل الأنظمة. نجمع بين الصوتيات والمرئيات والإضاءة والبنية التحتية لتقنية المعلومات وأثاث المكاتب التعاوني ضمن فريق واحد مسؤول — لنقدّم حلولًا متكاملة من مسح الموقع والتصميم وصولًا إلى الاختبار والتشغيل. نعمل في كل مدن المملكة العربية السعودية، محوّلين المتطلبات المعقدة إلى قاعات ومبانٍ تعمل ببساطة.",
+    "founded_year": "2009",
+    "city_en": "Riyadh, Saudi Arabia",
+    "city_ar": "الرياض، المملكة العربية السعودية",
+    "email": "info@megatech-arabia.com",
+    "phone": "+966 11 000 0000",
+    "address_en": "King Fahd Road, Riyadh, Kingdom of Saudi Arabia",
+    "address_ar": "طريق الملك فهد، الرياض، المملكة العربية السعودية",
+    "hours_en": "Sunday – Thursday, 8:30 AM – 5:30 PM",
+    "hours_ar": "الأحد – الخميس، 8:30 صباحًا – 5:30 مساءً",
+    "linkedin": "https://www.linkedin.com/company/megatech-arabia",
+    "twitter": "https://x.com/megatecharabia",
+    "instagram": "https://www.instagram.com/megatecharabia",
+    "stat_years": "15+",
+    "stat_projects": "600+",
+    "stat_cities": "20+",
+    "stat_clients": "150+"
+  },
+  "services": [
+    {
+      "id": "svc_av",
+      "icon": "av",
+      "title_en": "Audio Visual Solutions",
+      "title_ar": "حلول الصوتيات والمرئيات",
+      "desc_en": "Boardrooms, auditoriums, control rooms and digital signage — designed, integrated and calibrated for flawless everyday use.",
+      "desc_ar": "قاعات الاجتماعات والمسارح وغرف التحكم واللافتات الرقمية — مصمّمة ومتكاملة ومعايَرة لأداء يومي مثالي."
+    },
+    {
+      "id": "svc_lighting",
+      "icon": "lighting",
+      "title_en": "Lighting Systems",
+      "title_ar": "أنظمة الإضاءة",
+      "desc_en": "Architectural, stage and controlled lighting that shapes atmosphere while meeting energy and code requirements.",
+      "desc_ar": "إضاءة معمارية ومسرحية ومتحكَّم بها تصنع الأجواء وتلبّي متطلبات الطاقة والأكواد."
+    },
+    {
+      "id": "svc_it",
+      "icon": "it",
+      "title_en": "IT Infrastructure",
+      "title_ar": "البنية التحتية لتقنية المعلومات",
+      "desc_en": "Structured cabling, networks, data and unified communications built to scale and secured from day one.",
+      "desc_ar": "كابلات منظّمة وشبكات وبيانات واتصالات موحّدة قابلة للتوسّع وآمنة منذ اليوم الأول."
+    },
+    {
+      "id": "svc_furniture",
+      "icon": "furniture",
+      "title_en": "Collaborative Furniture",
+      "title_ar": "أثاث التعاون",
+      "desc_en": "Agile workstations, huddle spaces and meeting furniture that make hybrid teams productive and comfortable.",
+      "desc_ar": "محطات عمل مرنة ومساحات اجتماعات وأثاث يجعل الفرق الهجينة أكثر إنتاجية وراحة."
+    },
+    {
+      "id": "svc_design",
+      "icon": "design",
+      "title_en": "Survey & Design",
+      "title_ar": "المسح والتصميم",
+      "desc_en": "Detailed site surveys, engineering drawings and system design that de-risk delivery before a single cable is pulled.",
+      "desc_ar": "مسوحات ميدانية مفصّلة ورسومات هندسية وتصميم أنظمة يقلّل المخاطر قبل تمديد أي كابل."
+    },
+    {
+      "id": "svc_commissioning",
+      "icon": "commissioning",
+      "title_en": "Testing & Commissioning",
+      "title_ar": "الاختبار والتشغيل",
+      "desc_en": "Rigorous testing, handover documentation and training so every system performs to specification on day one.",
+      "desc_ar": "اختبارات دقيقة ووثائق تسليم وتدريب لضمان أداء كل نظام وفق المواصفات من اليوم الأول."
+    }
+  ],
+  "projects": [
+    {
+      "id": "prj_kafd",
+      "title_en": "Financial District Auditorium",
+      "title_ar": "مسرح الحي المالي",
+      "location_en": "Riyadh",
+      "location_ar": "الرياض",
+      "year": "2022",
+      "category": "Audio Visual",
+      "desc_en": "A 400-seat auditorium with immersive audio, motorised projection and a fully redundant control system.",
+      "desc_ar": "مسرح بسعة 400 مقعد بصوت غامر وإسقاط آلي ونظام تحكم احتياطي متكامل."
+    },
+    {
+      "id": "prj_redsea",
+      "title_en": "Red Sea Visitor Centre",
+      "title_ar": "مركز زوار البحر الأحمر",
+      "location_en": "Tabuk",
+      "location_ar": "تبوك",
+      "year": "2023",
+      "category": "AV & Lighting",
+      "desc_en": "Interactive exhibits, dynamic lighting scenes and synchronised media across a coastal visitor experience.",
+      "desc_ar": "معروضات تفاعلية ومشاهد إضاءة ديناميكية ووسائط متزامنة عبر تجربة زوار ساحلية."
+    },
+    {
+      "id": "prj_aramco",
+      "title_en": "Energy Collaboration Hub",
+      "title_ar": "مركز التعاون للطاقة",
+      "location_en": "Dhahran",
+      "location_ar": "الظهران",
+      "year": "2021",
+      "category": "IT & Furniture",
+      "desc_en": "Sixty agile meeting spaces with unified booking, video and collaborative furniture on a single standard.",
+      "desc_ar": "ستون مساحة اجتماعات مرنة بحجز موحّد وفيديو وأثاث تعاوني على معيار واحد."
+    },
+    {
+      "id": "prj_neom",
+      "title_en": "Experience Center",
+      "title_ar": "مركز التجربة",
+      "location_en": "NEOM",
+      "location_ar": "نيوم",
+      "year": "2023",
+      "category": "Integrated",
+      "desc_en": "A flagship showcase blending large-format LED, spatial audio and architectural lighting into one narrative.",
+      "desc_ar": "واجهة رائدة تدمج شاشات LED كبيرة والصوت المكاني والإضاءة المعمارية في سرد واحد."
+    },
+    {
+      "id": "prj_jeddah",
+      "title_en": "Corporate HQ Boardrooms",
+      "title_ar": "قاعات المقر الرئيسي",
+      "location_en": "Jeddah",
+      "location_ar": "جدة",
+      "year": "2020",
+      "category": "AV & IT",
+      "desc_en": "Twelve executive boardrooms standardised for one-touch video conferencing and secure content sharing.",
+      "desc_ar": "اثنتا عشرة قاعة تنفيذية موحّدة لمؤتمرات الفيديو بلمسة واحدة ومشاركة محتوى آمنة."
+    },
+    {
+      "id": "prj_qiddiya",
+      "title_en": "Operations Command Center",
+      "title_ar": "مركز قيادة العمليات",
+      "location_en": "Qiddiya",
+      "location_ar": "القدية",
+      "year": "2024",
+      "category": "IT & AV",
+      "desc_en": "A 24/7 control room with a high-resolution video wall, KVM distribution and ergonomic operator consoles.",
+      "desc_ar": "غرفة تحكم على مدار الساعة بجدار فيديو عالي الدقة وتوزيع KVM ووحدات تحكم مريحة."
+    }
+  ],
+  "vendors": [
+    { "id": "ven_crestron", "name": "Crestron", "url": "https://www.crestron.com", "logo": "" },
+    { "id": "ven_extron", "name": "Extron", "url": "https://www.extron.com", "logo": "" },
+    { "id": "ven_barco", "name": "Barco", "url": "https://www.barco.com", "logo": "" },
+    { "id": "ven_cisco", "name": "Cisco", "url": "https://www.cisco.com", "logo": "" },
+    { "id": "ven_shure", "name": "Shure", "url": "https://www.shure.com", "logo": "" },
+    { "id": "ven_bose", "name": "Bose Professional", "url": "https://www.boseprofessional.com", "logo": "" },
+    { "id": "ven_samsung", "name": "Samsung", "url": "https://www.samsung.com", "logo": "" },
+    { "id": "ven_logitech", "name": "Logitech", "url": "https://www.logitech.com", "logo": "" },
+    { "id": "ven_poly", "name": "Poly", "url": "https://www.poly.com", "logo": "" },
+    { "id": "ven_hermanmiller", "name": "Herman Miller", "url": "https://www.hermanmiller.com", "logo": "" }
+  ],
+  "clients": [
+    { "id": "cli_aramco", "name": "Saudi Aramco", "logo": "" },
+    { "id": "cli_stc", "name": "stc", "logo": "" },
+    { "id": "cli_sabic", "name": "SABIC", "logo": "" },
+    { "id": "cli_moe", "name": "Ministry of Education", "logo": "" },
+    { "id": "cli_ksu", "name": "King Saud University", "logo": "" },
+    { "id": "cli_neom", "name": "NEOM", "logo": "" },
+    { "id": "cli_snb", "name": "Saudi National Bank", "logo": "" },
+    { "id": "cli_rcrc", "name": "Royal Commission", "logo": "" }
+  ],
+  "careers": [
+    {
+      "id": "job_avdesign",
+      "title_en": "Senior AV Design Engineer",
+      "title_ar": "مهندس تصميم صوتيات ومرئيات أول",
+      "dept_en": "Engineering",
+      "dept_ar": "الهندسة",
+      "location_en": "Riyadh",
+      "location_ar": "الرياض",
+      "type_en": "Full-time",
+      "type_ar": "دوام كامل",
+      "desc_en": "Lead the design of complex AV systems, produce engineering documentation and support commissioning across major projects.",
+      "desc_ar": "قيادة تصميم أنظمة الصوتيات والمرئيات المعقّدة وإعداد الوثائق الهندسية ودعم التشغيل عبر المشاريع الكبرى."
+    },
+    {
+      "id": "job_pm",
+      "title_en": "Project Manager — Systems Integration",
+      "title_ar": "مدير مشاريع — تكامل الأنظمة",
+      "dept_en": "Delivery",
+      "dept_ar": "التنفيذ",
+      "location_en": "Jeddah",
+      "location_ar": "جدة",
+      "type_en": "Full-time",
+      "type_ar": "دوام كامل",
+      "desc_en": "Own delivery from survey to commissioning, managing schedule, budget, vendors and client relationships.",
+      "desc_ar": "إدارة التنفيذ من المسح حتى التشغيل، بما يشمل الجدول والميزانية والموردين وعلاقات العملاء."
+    },
+    {
+      "id": "job_field",
+      "title_en": "Field Commissioning Technician",
+      "title_ar": "فني تشغيل ميداني",
+      "dept_en": "Operations",
+      "dept_ar": "العمليات",
+      "location_en": "Dammam",
+      "location_ar": "الدمام",
+      "type_en": "Full-time",
+      "type_ar": "دوام كامل",
+      "desc_en": "Install, test and commission AV, lighting and IT systems on site, and hand over documented, working solutions.",
+      "desc_ar": "تركيب واختبار وتشغيل أنظمة الصوتيات والمرئيات والإضاءة وتقنية المعلومات في الموقع وتسليم حلول موثّقة وجاهزة."
+    }
+  ],
+  "messages": []
+}

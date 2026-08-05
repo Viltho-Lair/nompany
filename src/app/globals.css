@@ -1,0 +1,189 @@
+@import url("https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap");
+
+/* Self-hosted signature/brush font — used for the leadership message name. */
+@font-face {
+  font-family: "Racked Brush";
+  src: url("/fonts/RackedBrushDemo.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Saira", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-signature: "Racked Brush", cursive;
+}
+
+[dir="rtl"] {
+  --font-display: "Tajawal", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans Arabic", "Tajawal", system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-white text-steel-700 font-body antialiased;
+  }
+  .dark body {
+    @apply text-slate-300;
+    /* Layered, viewport-anchored dark backdrop — deep navy with soft brand-blue
+       glows (top horizon + side accents + base) so it reads as an attractive,
+       dimensional dark theme rather than flat near-black. The Studio shell paints
+       its own opaque background, so this only shows on the public site. */
+    background-color: #162348;
+    background-image:
+      radial-gradient(85% 55% at 50% -10%, rgba(1, 89, 174, 0.22), transparent 62%),
+      radial-gradient(40% 40% at 90% 6%, rgba(2, 67, 143, 0.15), transparent 60%),
+      radial-gradient(55% 50% at 5% 40%, rgba(1, 89, 174, 0.09), transparent 66%),
+      radial-gradient(70% 55% at 50% 110%, rgba(3, 31, 93, 0.28), transparent 60%),
+      linear-gradient(180deg, #172b56 0%, #162348 48%, #111b34 100%);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-brand-950;
+  }
+  .dark h1, .dark h2, .dark h3, .dark h4 {
+    @apply text-white;
+  }
+  /* Wide, technical tracking on display headings echoes the wordmark. */
+  .display-wide {
+    letter-spacing: 0.02em;
+  }
+  ::selection {
+    background-color: #0159ae;
+    color: #ffffff;
+  }
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #0159ae;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-content px-5 sm:px-8;
+  }
+  .eyebrow {
+    @apply font-display text-xs font-600 uppercase tracking-[0.22em] text-brand-500;
+  }
+  .dark .eyebrow {
+    @apply text-white;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-brand-700 px-6 py-3 font-display text-sm font-600 tracking-wide text-white transition-colors hover:bg-brand-950;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-full border border-brand-700/25 px-6 py-3 font-display text-sm font-600 tracking-wide text-brand-700 transition-colors hover:border-brand-700 hover:bg-brand-700 hover:text-white;
+  }
+  .card {
+    @apply rounded-2xl border border-steel-400/25 bg-white p-6 transition-all duration-300;
+  }
+  .dark .card {
+    @apply border-white/10 bg-[#263965];
+  }
+  .card-hover {
+    @apply hover:border-brand-500/40 hover:shadow-[0_18px_40px_-24px_rgba(3,31,93,0.45)];
+  }
+  .field-label {
+    @apply mb-1.5 block font-display text-xs font-600 uppercase tracking-[0.14em] text-steel-700;
+  }
+  .dark .field-label {
+    @apply text-slate-400;
+  }
+  .field-input {
+    @apply w-full rounded-xl border border-steel-400/40 bg-white px-4 py-3 text-brand-950 placeholder:text-steel-400 transition-colors focus:border-brand-500;
+  }
+  .dark .field-input {
+    @apply border-white/15 bg-[#223358] text-white placeholder:text-slate-500;
+  }
+  .dark .btn-ghost {
+    @apply border-brand-500/40 text-brand-400 hover:bg-brand-500 hover:text-white;
+  }
+  /* Logos sit on a soft light tile in every theme: dark-coloured logos stay
+     legible on dark backgrounds, and it is not so bright that it blows out
+     light-coloured logos. */
+  .logo-tile {
+    background-color: #eef1f6;
+  }
+}
+
+/* Radiating signal rings — the brand signature, used behind the hero. */
+.signal-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.signal-ring {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(1, 89, 174, 0.16);
+  transform: translate(-50%, -50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .animate-pulseRing,
+  .animate-fadeUp { animation: none !important; }
+}
+
+/* Studio "Control Panel" surface tokens (Geex design system), scoped to the
+   Studio only via the studio-chrome class so the public site is untouched.
+   Light = airy lavender-white; Dark = neutral charcoal (not navy). Components
+   reference these via bg-[var(--geex-*)] so both themes are defined once. */
+html.studio-chrome {
+  --geex-page: #f4f5fa;
+  --geex-surface: #ffffff;
+  --geex-surface-2: #eef0f7;
+  --geex-border: rgba(20, 30, 72, 0.08);
+}
+html.studio-chrome.dark {
+  --geex-page: #141420;
+  --geex-surface: #20202c;
+  --geex-surface-2: #191921;
+  --geex-border: rgba(255, 255, 255, 0.07);
+}
+
+/* Branded scrollbars inside the Studio panel only (class toggled by StudioShell).
+   Track is transparent (shows the page background); the thumb is brand navy. */
+html.studio-chrome {
+  scrollbar-color: #022e72 transparent; /* Firefox: thumb track */
+  scrollbar-width: thin;
+}
+html.studio-chrome::-webkit-scrollbar,
+html.studio-chrome ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+html.studio-chrome::-webkit-scrollbar-track,
+html.studio-chrome ::-webkit-scrollbar-track {
+  background: transparent;
+}
+html.studio-chrome::-webkit-scrollbar-thumb,
+html.studio-chrome ::-webkit-scrollbar-thumb {
+  background-color: #022e72;
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+html.studio-chrome::-webkit-scrollbar-thumb:hover,
+html.studio-chrome ::-webkit-scrollbar-thumb:hover {
+  background-color: #033a92;
+}
+html.studio-chrome::-webkit-scrollbar-corner,
+html.studio-chrome ::-webkit-scrollbar-corner {
+  background: transparent;
+}
