@@ -13,7 +13,7 @@ import {
 import {
   addCollaborator, listCollaborators, getCollaboratorByUser, updateCollaborator,
 } from "@/lib/data/collaborators";
-import { listSections } from "@/lib/data/sections";
+import { listSections, listGrants, setGrant, removeGrant } from "@/lib/data/sections";
 import {
   createJoinRequest, listPendingForStudio, getJoinRequest, decideJoinRequest,
   APPROVED, DECLINED,
@@ -88,6 +88,37 @@ export function canAdminister(studio, collaborator) {
   return Boolean(collaborator && (collaborator.role === "owner" || collaborator.isAdmin));
 }
 
+// ---- section permissions ---------------------------------------------------
+// DEFAULT DENY: a newly approved collaborator sees nothing until a section is
+// granted to them. Granting everything on approval would recreate the very
+// problem this exists to solve. Owners and studio admins always see everything —
+// they cannot lock themselves out.
+function grantsFor(grants, collaborator, sectionId) {
+  return (grants || []).filter(
+    (g) => g.subjectType === "collaborator" && g.subjectId === collaborator?.id && g.sectionId === sectionId
+  );
+}
+
+export function canViewSection(studio, collaborator, sectionId, grants) {
+  if (canAdminister(studio, collaborator)) return true;
+  const rows = grantsFor(grants, collaborator, sectionId);
+  if (rows.some((g) => g.effect === "deny" && g.action === "view")) return false; // deny wins
+  return rows.some((g) => g.effect === "allow" && (g.action === "view" || g.action === "manage"));
+}
+
+// Manage implies view; a manage grant alone is enough to see the section too.
+export function canManageSection(studio, collaborator, sectionId, grants) {
+  if (canAdminister(studio, collaborator)) return true;
+  const rows = grantsFor(grants, collaborator, sectionId);
+  if (rows.some((g) => g.effect === "deny" && g.action === "manage")) return false;
+  return rows.some((g) => g.effect === "allow" && g.action === "manage");
+}
+
+// The sections this person may actually open — what the studio nav renders.
+export function visibleSections(studio, collaborator, sections, grants) {
+  return (sections || []).filter((s) => s.enabled !== false && canViewSection(studio, collaborator, s.id, grants));
+}
+
 // ---- joining someone else's studio by company code -------------------------
 // Typing a code only ever RAISES A REQUEST. We deliberately report whether the
 // code matched a studio (the slug is a public address anyway), but never who is
@@ -135,7 +166,31 @@ export async function declineJoinRequest({ studio, actingCollaborator, requestId
   return decideJoinRequest(requestId, { status: DECLINED, decidedByCollaboratorId: actingCollaborator.id });
 }
 
+// Turn a grant on or off. `enabled:false` removes the matching row rather than
+// writing a deny, so "not granted" and "explicitly denied" stay distinguishable.
+export async function toggleGrant(studioId, { collaboratorId, sectionId, action, enabled }) {
+  if (!collaboratorId || !sectionId || !["view", "manage"].includes(action)) return { error: "missing" };
+  const rows = await listGrants(studioId);
+  const match = rows.find(
+    (g) => g.subjectType === "collaborator" && g.subjectId === collaboratorId && g.sectionId === sectionId && g.action === action
+  );
+  if (enabled) {
+    if (match && match.effect === "allow") return { ok: true };
+    return setGrant(studioId, { subjectType: "collaborator", subjectId: collaboratorId, sectionId, action, effect: "allow" });
+  }
+  if (match) await removeGrant(studioId, match.id);
+  // Revoking manage leaves view untouched; revoking view also drops manage,
+  // since manage without view would be unreachable.
+  if (action === "view") {
+    const implied = rows.find(
+      (g) => g.subjectType === "collaborator" && g.subjectId === collaboratorId && g.sectionId === sectionId && g.action === "manage"
+    );
+    if (implied) await removeGrant(studioId, implied.id);
+  }
+  return { ok: true };
+}
+
 export {
-  listCollaborators, updateCollaborator, listSections,
+  listCollaborators, updateCollaborator, listSections, listGrants,
   getStudioById, getStudioBySlug, changeStudioSlug,
 };

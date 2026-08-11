@@ -48,16 +48,24 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
               );
             })}
           </ul>
-          <Link
-            href={`/${studio.slug}/people`}
-            className={`mt-3 block rounded-lg px-3 py-2.5 text-sm font-600 transition-colors ${
-              activeKey === "people"
-                ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
-                : "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5"
-            }`}
-          >
-            {me.canAdminister ? "People & requests" : "People"}
-          </Link>
+          <div className="mt-3 space-y-0.5 border-t border-slate-200/70 pt-3 dark:border-white/10">
+            {[
+              { href: `/${studio.slug}/people`, key: "people", label: me.canAdminister ? "People & requests" : "People", show: true },
+              { href: `/${studio.slug}/access`, key: "access", label: "Access", show: me.canAdminister },
+            ].filter((i) => i.show).map((i) => (
+              <Link
+                key={i.key}
+                href={i.href}
+                className={`block rounded-lg px-3 py-2.5 text-sm font-600 transition-colors ${
+                  activeKey === i.key
+                    ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
+                    : "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5"
+                }`}
+              >
+                {i.label}
+              </Link>
+            ))}
+          </div>
         </nav>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
