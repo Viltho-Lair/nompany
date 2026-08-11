@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
+import LangMenu from "@/components/LangMenu";
+import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 // Full-page account. Left rail for navigation, right panel for the section —
@@ -20,7 +24,6 @@ const SHELL = "mx-auto w-full max-w-[1400px] px-5 py-8 sm:px-8";
 const STACK = "space-y-6";
 const PANEL = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const H2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
-const H3 = "font-display text-sm font-700 text-slate-900 dark:text-white";
 const SUB = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const INPUT =
   "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white dark:placeholder:text-slate-500";
@@ -55,7 +58,7 @@ const RAIL_ITEM = "flex h-12 w-full items-center gap-4 rounded-full px-4 text-st
 const RAIL_ON = "bg-white text-slate-900 dark:bg-[#20202c] dark:text-white";
 const RAIL_OFF = "text-slate-600 hover:bg-white/60 dark:text-slate-300 dark:hover:bg-white/5";
 
-export default function AccountHome({ locale }) {
+export default function AccountHome({ locale, chrome }) {
   const [identity, setIdentity] = useState(null);
   const [studios, setStudios] = useState({ owned: null, collaborations: [] });
   const [devices, setDevices] = useState([]);
@@ -88,9 +91,37 @@ export default function AccountHome({ locale }) {
   const name = identity?.profile?.fullName || identity?.user?.email || "there";
   const go = (key) => { setActive(key); document.getElementById("acct-panel")?.scrollTo({ top: 0, behavior: "smooth" }); };
 
+  const langOptions = [
+    { code: "en", label: "English", short: "EN", href: "/en/account" },
+    { code: "ar", label: "العربية", short: "AR", href: "/ar/account" },
+  ];
+
   return (
     <div className={PAGE}>
       <div className={SHELL}>
+        {/* The site header is suppressed on this route (Nav returns null), so
+            its items live here instead: brand link home, theme, language. */}
+        <div className="mb-2 flex items-center justify-between gap-4 text-slate-900 dark:text-white">
+          <Link href={`/${locale}`} className="flex items-center gap-2.5">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#eef1f6] p-[3px] dark:bg-white/5 sm:h-10 sm:w-10">
+              <Image src="/brand/logo-icon.png" alt="" width={40} height={40} className="h-full w-full object-contain" priority />
+            </span>
+            <span className="font-display text-base font-700 tracking-tight sm:text-lg">{chrome?.brand || "nompany"}</span>
+          </Link>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden sm:block">
+              <ThemeToggle labels={chrome?.theme} />
+            </div>
+            <LangMenu
+              current={locale}
+              options={langOptions}
+              label={chrome?.language}
+              triggerClass="inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current"
+              align="end"
+            />
+          </div>
+        </div>
+
         <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
           {/* navigation rail */}
           <nav className="lg:w-64 lg:shrink-0">
@@ -141,7 +172,7 @@ export default function AccountHome({ locale }) {
               </div>
             </header>
 
-            {active === "home" && <Overview identity={identity} studios={studios} onGo={go} />}
+            {active === "home" && <Overview studios={studios} onGo={go} />}
             {active === "studio" && <MyStudio studio={studios.owned} onCreated={load} />}
             {active === "collabs" && <Collaborations studios={studios.collaborations} onJoined={load} />}
             {active === "personal" && <PersonalInfo profile={identity?.profile || {}} onSaved={load} />}
@@ -154,8 +185,7 @@ export default function AccountHome({ locale }) {
 }
 
 // ---- overview ---------------------------------------------------------------
-function Overview({ identity, studios, onGo }) {
-  const q = identity?.questionnaire || {};
+function Overview({ studios, onGo }) {
   const tiles = [
     { key: "studio", label: "My Studio", value: studios.owned ? studios.owned.name : "Not created", hint: studios.owned ? `nompany.com/${studios.owned.slug}` : "Create one to get started" },
     { key: "collabs", label: "Collaborations", value: String(studios.collaborations.length), hint: studios.collaborations.length ? "Studios you can enter" : "Join one with a company code" },
@@ -181,32 +211,6 @@ function Overview({ identity, studios, onGo }) {
         </div>
       </section>
 
-      {studios.owned && (
-        <section className={PANEL}>
-          <h2 className={H2}>Your studio is live</h2>
-          <p className={SUB}>Share your company code so teammates can request access — you approve each one.</p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <code className={CHIP}>{studios.owned.slug}</code>
-            <a href={`/${studios.owned.slug}`} className={BTN}>Open Studio</a>
-          </div>
-        </section>
-      )}
-
-      {q.completedAt && (
-        <section className={PANEL}>
-          <h2 className={H2}>About your company</h2>
-          <p className={SUB}>What you told us when you signed up.</p>
-          <dl className="mt-4 grid gap-4 sm:grid-cols-3">
-            {[["Goal", q.intent === "create" ? "Create a studio" : q.intent === "join" ? "Join a studio" : "—"],
-              ["Field", q.field || "—"], ["Location", [q.city, q.country].filter(Boolean).join(", ") || "—"]].map(([k, v]) => (
-              <div key={k}>
-                <dt className={LABEL}>{k}</dt>
-                <dd className="text-sm text-slate-900 dark:text-white">{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      )}
     </div>
   );
 }

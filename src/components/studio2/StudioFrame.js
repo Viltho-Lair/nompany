@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { Icon } from "@/components/studio2/icons";
+import ThemeToggle from "@/components/ThemeToggle";
 
 // Studio chrome for the restructured model: the studio's identity, its sections
 // (each a real row with its own SectionID), and who you are INSIDE this studio.
@@ -137,6 +138,10 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Light / Dark / Device — writes the same `theme` cookie and `.dark`
+                class the public site uses, so the Studio follows the choice
+                everywhere and the no-flash script picks it up on next load. */}
+            <ThemeToggle labels={{ theme: "Theme", light: "Light", dark: "Dark", system: "Device" }} />
             <span className="hidden text-sm text-slate-500 dark:text-slate-400 sm:inline">
               {me.alias || "Member"}
               <span className="ms-2 rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">

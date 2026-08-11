@@ -17,5 +17,19 @@ export async function generateMetadata({ params }) {
 export default async function AccountPage({ params }) {
   const { locale } = await params;
   if (!(await currentUser())) redirect(`/${locale}/login`);
-  return <AccountHome locale={locale} />;
+  const dict = getDict(locale);
+  // This route renders without the site header (Nav returns null here), so the
+  // brand link, theme control and language switcher move into the page and
+  // need their strings passed down.
+  const chrome = {
+    brand: dict.common.brand,
+    language: dict.common.language,
+    theme: {
+      theme: dict.common.theme,
+      light: dict.common.themeLight,
+      dark: dict.common.themeDark,
+      system: dict.common.themeSystem,
+    },
+  };
+  return <AccountHome locale={locale} chrome={chrome} />;
 }

@@ -92,6 +92,11 @@ export default function Nav({ locale, dict }) {
   const langTrigger =
     "inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current";
 
+  // The account hub is a full-screen app surface — no site header and no
+  // footer (see Footer.js `isBare`). It carries the brand link, theme control
+  // and language switcher inside the page instead.
+  if (pathname === `/${locale}/account`) return null;
+
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-steel-400/15 bg-white/85 backdrop-blur-md dark:border-white/10 dark:bg-steel-900/85">
