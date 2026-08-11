@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Icon } from "@/components/studio2/icons";
 import { cn } from "@/lib/utils";
 
 // Full-page account. Left rail for navigation, right panel for the section —
@@ -39,12 +40,20 @@ const slugify = (s) => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
 const NAV = [
-  { key: "home", label: "Overview" },
-  { key: "studio", label: "My Studio" },
-  { key: "collabs", label: "Collaborations" },
-  { key: "personal", label: "Personal info" },
-  { key: "security", label: "Security" },
+  { key: "home", label: "Overview", icon: "dashboard" },
+  { key: "studio", label: "My Studio", icon: "projects" },
+  { key: "collabs", label: "Collaborations", icon: "team" },
+  { key: "personal", label: "Personal info", icon: "clients" },
+  { key: "security", label: "Security", icon: "lock" },
 ];
+
+// Google Account's navigation rail: the rail itself is transparent on the page
+// background, and only the selected item carries a fully-rounded `surface-bright`
+// pill. Geometry from its CSS — 16px leading/trailing space, 24px icon, 16px
+// icon↔label gap, 0.875rem/500 label, 4px between items.
+const RAIL_ITEM = "flex h-12 w-full items-center gap-4 rounded-full px-4 text-start text-sm font-500 transition-colors";
+const RAIL_ON = "bg-white text-slate-900 dark:bg-[#20202c] dark:text-white";
+const RAIL_OFF = "text-slate-600 hover:bg-white/60 dark:text-slate-300 dark:hover:bg-white/5";
 
 export default function AccountHome({ locale }) {
   const [identity, setIdentity] = useState(null);
@@ -82,57 +91,56 @@ export default function AccountHome({ locale }) {
   return (
     <div className={PAGE}>
       <div className={SHELL}>
-        {/* identity header */}
-        <header className="mb-6 flex flex-wrap items-center gap-4">
-          <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-700 font-display text-xl font-800 text-white">
-            {initialsOf(identity?.profile?.fullName || identity?.user?.email)}
-          </span>
-          <div className="min-w-0 flex-1">
-            <h1 className="font-display text-lg font-800 text-slate-900 dark:text-white sm:text-2xl">{name}</h1>
-            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-              <span className="break-all">{identity?.user?.email}</span>
-              {identity?.emailVerified && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-600 text-emerald-600 dark:text-emerald-400">
-                  ✓ Verified
-                </span>
-              )}
-            </p>
-          </div>
-          <button
-            type="button"
-            className={BTN_GHOST}
-            onClick={async () => { await fetch("/api/identity/logout", { method: "POST" }); window.location.assign(`/${locale}/login`); }}
-          >
-            Sign out
-          </button>
-        </header>
-
         <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
-          {/* left rail */}
-          <nav className="lg:w-56 lg:shrink-0">
+          {/* navigation rail */}
+          <nav className="lg:w-64 lg:shrink-0">
             <ul className="flex flex-wrap gap-1 lg:flex-col">
-              {NAV.map((item) => (
-                <li key={item.key}>
-                  <button
-                    type="button"
-                    onClick={() => go(item.key)}
-                    aria-current={active === item.key ? "page" : undefined}
-                    className={cn(
-                      "w-full rounded-lg px-3 py-2.5 text-start text-sm font-500 transition-colors",
-                      active === item.key
-                        ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white",
-                    )}
-                  >
-                    {item.label}
-                  </button>
-                </li>
-              ))}
+              {NAV.map((item) => {
+                const on = active === item.key;
+                return (
+                  <li key={item.key}>
+                    <button
+                      type="button"
+                      onClick={() => go(item.key)}
+                      aria-current={on ? "page" : undefined}
+                      className={cn(RAIL_ITEM, on ? RAIL_ON : RAIL_OFF)}
+                    >
+                      <Icon name={item.icon} className="h-6 w-6 shrink-0" />
+                      {item.label}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </nav>
 
-          {/* panel */}
-          <div id="acct-panel" className="min-w-0 flex-1">
+          {/* panel — Google Account's 888px content column */}
+          <div id="acct-panel" className="mx-auto w-full min-w-0 max-w-[888px] flex-1">
+            {/* identity header: centred column, 100px avatar, 2rem/500 name, email */}
+            <header className="mb-8 mt-8 flex flex-col items-center gap-4 text-center sm:mt-[52px]">
+              <span className="inline-flex h-[100px] w-[100px] shrink-0 items-center justify-center rounded-full bg-brand-700 font-display text-3xl font-800 text-white">
+                {initialsOf(identity?.profile?.fullName || identity?.user?.email)}
+              </span>
+              <div className="flex flex-col items-center gap-2">
+                <h1 className="font-display text-[2rem] font-500 leading-[1.25] text-slate-900 dark:text-white">{name}</h1>
+                <p className="flex flex-wrap items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                  <span className="break-all">{identity?.user?.email}</span>
+                  {identity?.emailVerified && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-600 text-emerald-600 dark:text-emerald-400">
+                      ✓ Verified
+                    </span>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  className={cn(BTN_GHOST, "mt-2")}
+                  onClick={async () => { await fetch("/api/identity/logout", { method: "POST" }); window.location.assign(`/${locale}/login`); }}
+                >
+                  Sign out
+                </button>
+              </div>
+            </header>
+
             {active === "home" && <Overview identity={identity} studios={studios} onGo={go} />}
             {active === "studio" && <MyStudio studio={studios.owned} onCreated={load} />}
             {active === "collabs" && <Collaborations studios={studios.collaborations} onJoined={load} />}
