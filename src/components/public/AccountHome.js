@@ -7,30 +7,33 @@ import { cn } from "@/lib/utils";
 // the shape people expect from an account/settings area, rather than one long
 // scroll. Data comes from /api/identity/* and /api/studios.
 //
-// Styling is lifted verbatim from the Old System's account page
-// (studio/(panel)/profile → EmployeeSelfProfile): a `space-y-5` stack of geex
-// cards, slate-50 rounded-xl inputs with uppercase micro-labels, and pill
-// buttons. The class names are identical, so `brand-700`/`brand-950` resolve to
-// this project's royal blue rather than the Old System's navy.
+// Styling matches the studio's People & requests screen
+// ([StudioPeople](src/components/studio2/StudioPeople.js)) — the page that
+// carries the company code and the join-request flow, so the two halves of
+// "join a studio" read as one design. Constants below are its constants:
+// shadowless geex panels, text-lg/800 headings over text-sm sub-copy, and the
+// tighter px-4 py-2 control size.
 
 const PAGE = "min-h-screen bg-geex-bg dark:bg-[#141420]";
 const SHELL = "mx-auto w-full max-w-[1400px] px-5 py-8 sm:px-8";
-const STACK = "space-y-5";
-const CARD =
-  "rounded-geex border border-slate-200/70 bg-white p-6 shadow-geex-sm dark:border-white/10 dark:bg-[#20202c]";
-const H2 = "mb-1 font-display text-base font-700 text-slate-900 dark:text-white";
-const H3 = "mb-1 font-display text-sm font-700 text-slate-900 dark:text-white";
-const SUB = "text-xs text-slate-500 dark:text-slate-400";
-const DIVIDER = "mt-6 border-t border-slate-100 pt-5 dark:border-white/10";
+const STACK = "space-y-6";
+const PANEL = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
+const H2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
+const H3 = "font-display text-sm font-700 text-slate-900 dark:text-white";
+const SUB = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const INPUT =
-  "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-[#191921] dark:text-white dark:placeholder:text-slate-500";
-const LABEL = "mb-1.5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
+  "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white dark:placeholder:text-slate-500";
+const LABEL = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 const BTN =
-  "inline-flex items-center justify-center gap-1.5 rounded-full bg-brand-700 px-5 py-2.5 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
+  "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
 const BTN_GHOST =
-  "inline-flex items-center justify-center rounded-full border border-slate-200 px-5 py-2.5 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
-const OK = "text-sm text-emerald-600 dark:text-emerald-400";
-const ERR = "text-sm text-red-600 dark:text-red-400";
+  "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
+const BTN_DANGER =
+  "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
+const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
+const BANNER_GOOD = "rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300";
+const CHIP =
+  "rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 font-mono text-base font-700 text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 
 const slugify = (s) => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
@@ -42,10 +45,6 @@ const NAV = [
   { key: "personal", label: "Personal info" },
   { key: "security", label: "Security" },
 ];
-
-function Card({ className, children }) {
-  return <div className={cn(CARD, className)}>{children}</div>;
-}
 
 export default function AccountHome({ locale }) {
   const [identity, setIdentity] = useState(null);
@@ -72,7 +71,7 @@ export default function AccountHome({ locale }) {
   if (loading) {
     return (
       <div className={cn(PAGE, "flex items-center justify-center")}>
-        <div className="text-sm text-slate-400">Loading…</div>
+        <p className="text-sm text-slate-500">Loading your account…</p>
       </div>
     );
   }
@@ -85,15 +84,15 @@ export default function AccountHome({ locale }) {
       <div className={SHELL}>
         {/* identity header */}
         <header className="mb-6 flex flex-wrap items-center gap-4">
-          <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-700 font-display text-xl font-700 text-white">
+          <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-700 font-display text-xl font-800 text-white">
             {initialsOf(identity?.profile?.fullName || identity?.user?.email)}
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className="font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">{name}</h1>
-            <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <h1 className="font-display text-lg font-800 text-slate-900 dark:text-white sm:text-2xl">{name}</h1>
+            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <span className="break-all">{identity?.user?.email}</span>
               {identity?.emailVerified && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-600 text-emerald-600 dark:text-emerald-400">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-600 text-emerald-600 dark:text-emerald-400">
                   ✓ Verified
                 </span>
               )}
@@ -134,7 +133,7 @@ export default function AccountHome({ locale }) {
 
           {/* panel */}
           <div id="acct-panel" className="min-w-0 flex-1">
-            {active === "home" && <Overview identity={identity} studios={studios} onGo={go} locale={locale} />}
+            {active === "home" && <Overview identity={identity} studios={studios} onGo={go} />}
             {active === "studio" && <MyStudio studio={studios.owned} onCreated={load} />}
             {active === "collabs" && <Collaborations studios={studios.collaborations} onJoined={load} />}
             {active === "personal" && <PersonalInfo profile={identity?.profile || {}} onSaved={load} />}
@@ -147,7 +146,7 @@ export default function AccountHome({ locale }) {
 }
 
 // ---- overview ---------------------------------------------------------------
-function Overview({ identity, studios, onGo, locale }) {
+function Overview({ identity, studios, onGo }) {
   const q = identity?.questionnaire || {};
   const tiles = [
     { key: "studio", label: "My Studio", value: studios.owned ? studios.owned.name : "Not created", hint: studios.owned ? `nompany.com/${studios.owned.slug}` : "Create one to get started" },
@@ -155,10 +154,10 @@ function Overview({ identity, studios, onGo, locale }) {
   ];
   return (
     <div className={STACK}>
-      <Card>
+      <section className={PANEL}>
         <h2 className={H2}>Overview</h2>
-        <p className={cn(SUB, "mb-5")}>Everything tied to your account lives here.</p>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <p className={SUB}>Everything tied to your account lives here.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {tiles.map((t) => (
             <button
               key={t.key}
@@ -172,23 +171,24 @@ function Overview({ identity, studios, onGo, locale }) {
             </button>
           ))}
         </div>
-      </Card>
+      </section>
 
       {studios.owned && (
-        <Card>
+        <section className={PANEL}>
           <h2 className={H2}>Your studio is live</h2>
-          <p className={cn(SUB, "mb-4")}>
-            Share the code <span className="font-600 text-slate-700 dark:text-slate-200">{studios.owned.slug}</span> so teammates can request access.
-          </p>
-          <a href={`/${studios.owned.slug}`} className={BTN}>Open Studio</a>
-        </Card>
+          <p className={SUB}>Share your company code so teammates can request access — you approve each one.</p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <code className={CHIP}>{studios.owned.slug}</code>
+            <a href={`/${studios.owned.slug}`} className={BTN}>Open Studio</a>
+          </div>
+        </section>
       )}
 
       {q.completedAt && (
-        <Card>
+        <section className={PANEL}>
           <h2 className={H2}>About your company</h2>
-          <p className={cn(SUB, "mb-5")}>What you told us when you signed up.</p>
-          <dl className="grid gap-4 sm:grid-cols-3">
+          <p className={SUB}>What you told us when you signed up.</p>
+          <dl className="mt-4 grid gap-4 sm:grid-cols-3">
             {[["Goal", q.intent === "create" ? "Create a studio" : q.intent === "join" ? "Join a studio" : "—"],
               ["Field", q.field || "—"], ["Location", [q.city, q.country].filter(Boolean).join(", ") || "—"]].map(([k, v]) => (
               <div key={k}>
@@ -197,7 +197,7 @@ function Overview({ identity, studios, onGo, locale }) {
               </div>
             ))}
           </dl>
-        </Card>
+        </section>
       )}
     </div>
   );
@@ -225,23 +225,27 @@ function MyStudio({ studio, onCreated }) {
   if (studio) {
     return (
       <div className={STACK}>
-        <Card>
+        <section className={PANEL}>
           <h2 className={H2}>My Studio</h2>
-          <p className={cn(SUB, "mb-5")}>Your company&apos;s workspace. You own exactly one.</p>
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
+          <p className={SUB}>Your company&apos;s workspace. You own exactly one.</p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
             <div>
               <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{studio.name}</p>
               <p className="mt-0.5 font-mono text-xs text-slate-500 dark:text-slate-400">nompany.com/{studio.slug}</p>
             </div>
             <a href={`/${studio.slug}`} className={BTN}>Open Studio</a>
           </div>
-          <div className={DIVIDER}>
-            <h3 className={H3}>Company code</h3>
-            <p className={SUB}>
-              Teammates join by entering <span className="font-600 text-slate-700 dark:text-slate-200">{studio.slug}</span> on their own account page — you approve each request inside the studio.
-            </p>
+        </section>
+
+        <section className={PANEL}>
+          <h2 className={H2}>Company code</h2>
+          <p className={SUB}>
+            Teammates enter this on their own account page — you approve each request inside the studio.
+          </p>
+          <div className="mt-4">
+            <code className={CHIP}>{studio.slug}</code>
           </div>
-        </Card>
+        </section>
       </div>
     );
   }
@@ -268,11 +272,11 @@ function MyStudio({ studio, onCreated }) {
 
   return (
     <div className={STACK}>
-      <Card>
+      {error && <p className={BANNER_BAD}>{error}</p>}
+      <section className={PANEL}>
         <h2 className={H2}>Create your Studio</h2>
-        <p className={cn(SUB, "mb-5")}>Your company&apos;s workspace, at its own address.</p>
-        {error && <p className={cn(ERR, "mb-4")}>{error}</p>}
-        <div className="grid max-w-md gap-3">
+        <p className={SUB}>Your company&apos;s workspace, at its own address.</p>
+        <div className="mt-4 grid max-w-md gap-3">
           <div>
             <label className={LABEL}>Company name</label>
             <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Trading Co." />
@@ -289,7 +293,7 @@ function MyStudio({ studio, onCreated }) {
               />
             </div>
             {effectiveSlug && status && (
-              <p className={cn("mt-1 text-xs font-600", status.available ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+              <p className={cn("mt-1 text-xs font-600", status.available ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-300")}>
                 {status.available ? `“${status.slug}” is available`
                   : status.reason === "taken" ? `“${status.slug}” is already taken`
                   : status.reason === "reserved" ? `“${status.slug}” is reserved`
@@ -303,7 +307,7 @@ function MyStudio({ studio, onCreated }) {
             </button>
           </div>
         </div>
-      </Card>
+      </section>
     </div>
   );
 }
@@ -337,15 +341,15 @@ function Collaborations({ studios, onJoined }) {
 
   return (
     <div className={STACK}>
-      <Card>
+      {msg && <p className={msg.tone === "good" ? BANNER_GOOD : BANNER_BAD}>{msg.text}</p>}
+
+      <section className={PANEL}>
         <h2 className={H2}>Collaboration Studios</h2>
-        <p className={cn(SUB, "mb-5")}>Studios you&apos;ve been given access to, alongside your own.</p>
+        <p className={SUB}>Studios you&apos;ve been given access to, alongside your own.</p>
         {studios.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500 dark:border-white/15 dark:text-slate-400">
-            You&apos;re not collaborating in any studio yet.
-          </p>
+          <p className="mt-4 text-sm text-slate-400">You&apos;re not collaborating in any studio yet.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="mt-4 space-y-2">
             {studios.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
                 <div>
@@ -357,13 +361,12 @@ function Collaborations({ studios, onJoined }) {
             ))}
           </ul>
         )}
-      </Card>
+      </section>
 
-      <Card>
+      <section className={PANEL}>
         <h2 className={H2}>Join a studio</h2>
-        <p className={cn(SUB, "mb-5")}>Enter the company code you were given. They&apos;ll approve your request.</p>
-        {msg && <p className={cn(msg.tone === "good" ? OK : ERR, "mb-4")}>{msg.text}</p>}
-        <div className="grid max-w-md gap-3">
+        <p className={SUB}>Enter the company code you were given. They&apos;ll approve your request.</p>
+        <div className="mt-4 grid max-w-md gap-3">
           <div>
             <label className={LABEL}>Company code</label>
             <input className={INPUT} value={code} onChange={(e) => setCode(e.target.value)} placeholder="acme-trading" />
@@ -374,7 +377,7 @@ function Collaborations({ studios, onJoined }) {
             </button>
           </div>
         </div>
-      </Card>
+      </section>
     </div>
   );
 }
@@ -407,11 +410,11 @@ function PersonalInfo({ profile, onSaved }) {
 
   return (
     <div className={STACK}>
-      <Card>
+      {saved && <p className={BANNER_GOOD}>Profile updated.</p>}
+      <section className={PANEL}>
         <h2 className={H2}>Personal information</h2>
-        <p className={cn(SUB, "mb-5")}>Yours alone. Studios you join keep their own name for you and never see this.</p>
-        {saved && <p className={cn(OK, "mb-4")}>Profile updated.</p>}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <p className={SUB}>Yours alone. Studios you join keep their own name for you and never see this.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {fields.map(([key, labelText]) => (
             <div key={key}>
               <label className={LABEL}>{labelText}</label>
@@ -419,10 +422,10 @@ function PersonalInfo({ profile, onSaved }) {
             </div>
           ))}
         </div>
-        <div className="mt-5">
+        <div className="mt-4">
           <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : "Save changes"}</button>
         </div>
-      </Card>
+      </section>
     </div>
   );
 }
@@ -441,14 +444,14 @@ function Security({ devices, onChanged, locale, user }) {
   }
   return (
     <div className={STACK}>
-      <Card>
+      <section className={PANEL}>
         <h2 className={H2}>Trusted devices</h2>
-        <p className={cn(SUB, "mb-5")}>Browsers that can sign in without a one-time code. Remove one and its next sign-in needs a fresh code.</p>
+        <p className={SUB}>Browsers that can sign in without a one-time code. Remove one and its next sign-in needs a fresh code.</p>
         {devices.length === 0 ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400">No trusted devices.</p>
+          <p className="mt-4 text-sm text-slate-400">No trusted devices.</p>
         ) : (
           <>
-            <ul className="space-y-2">
+            <ul className="mt-4 space-y-2">
               {devices.map((d) => (
                 <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/15 dark:bg-[#191921]">
                   <span className="text-sm font-600 text-slate-900 dark:text-white">{d.label || "Unknown device"}</span>
@@ -456,14 +459,14 @@ function Security({ devices, onChanged, locale, user }) {
                 </li>
               ))}
             </ul>
-            <div className="mt-5">
-              <button className={BTN_GHOST} onClick={revokeAll} disabled={busy}>{busy ? "Removing…" : "Remove all devices"}</button>
+            <div className="mt-4">
+              <button className={BTN_DANGER} onClick={revokeAll} disabled={busy}>{busy ? "Removing…" : "Remove all devices"}</button>
             </div>
           </>
         )}
-      </Card>
+      </section>
 
-      <Card>
+      <section className={PANEL}>
         <h2 className={H2}>How you sign in</h2>
         {providerName ? (
           <>
@@ -471,15 +474,17 @@ function Security({ devices, onChanged, locale, user }) {
               You sign in with <span className="font-600 text-slate-700 dark:text-slate-200">{providerName}</span>, which is
               also how your email was verified — so you&apos;ve never set a password here.
             </p>
-            <p className={cn(SUB, "mb-5 mt-2")}>
+            <p className={SUB}>
               Want to sign in with an email and password too? Set one below — your {providerName} button keeps working either way.
             </p>
           </>
         ) : (
-          <p className={cn(SUB, "mb-5")}>You sign in with your email and password. Changing it signs you out everywhere and forgets every trusted device.</p>
+          <p className={SUB}>You sign in with your email and password. Changing it signs you out everywhere and forgets every trusted device.</p>
         )}
-        <a href={`/${locale}/forgot`} className={BTN_GHOST}>{providerName ? "Set a password" : "Reset password"}</a>
-      </Card>
+        <div className="mt-4">
+          <a href={`/${locale}/forgot`} className={BTN_GHOST}>{providerName ? "Set a password" : "Reset password"}</a>
+        </div>
+      </section>
     </div>
   );
 }

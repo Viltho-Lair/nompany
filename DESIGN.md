@@ -74,37 +74,40 @@ A full-screen app surface, not a marketing page: [`Footer`](src/components/Foote
 returns `null` on this route (`isBare`, the same idiom as the contact page), so
 only the site `Nav` sits above it.
 
-[`AccountHome`](src/components/public/AccountHome.js) uses the **Old System's
-account-page design** — its `studio/(panel)/profile` screen
-(`EmployeeSelfProfile`). The class strings are copied verbatim, which is why
-`brand-700`/`brand-950` resolve to this project's royal blue rather than the Old
-System's navy:
+[`AccountHome`](src/components/public/AccountHome.js) matches the studio's
+**People & requests** screen ([`StudioPeople`](src/components/studio2/StudioPeople.js)) —
+the page that carries the company code and the join-request flow, so both halves
+of "join a studio" read as one design:
 
 | Element | Spec |
 | --- | --- |
 | Page | `bg-geex-bg` · dark `#141420` |
-| Section stack | `space-y-5` |
-| Card | `rounded-geex border-slate-200/70 bg-white p-6 shadow-geex-sm` · dark `#20202c` |
-| Card heading / sub | `font-display text-base font-700` · `text-xs text-slate-500` |
-| In-card divider | `mt-6 border-t border-slate-100 pt-5` |
-| Input | `rounded-xl border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm`, `focus:bg-white` + `ring-brand-500/20` · dark `#191921` |
-| Label | `text-xs font-600 uppercase tracking-wide text-slate-500` |
-| Primary / ghost button | pill, `bg-brand-700` → `hover:bg-brand-950` · bordered `slate-200` |
-| Field grid | `grid gap-4 sm:grid-cols-2`, or `grid max-w-md gap-3` for narrow forms |
+| Section stack | `space-y-6` |
+| Panel | `rounded-geex border-slate-200/70 bg-white p-6` — **no shadow** · dark `#20202c` |
+| Heading / sub | `font-display text-lg font-800` · `mt-1 text-sm text-slate-500` |
+| Content after sub | `mt-4` |
+| Input | `rounded-xl border-slate-200 bg-slate-50 px-3.5 py-2 text-sm`, `focus:bg-white` + `ring-brand-500/20` · dark `#191921` |
+| Label | `mb-1 text-xs font-600 uppercase tracking-wide` |
+| Buttons | pill `px-4 py-2`: `bg-brand-700` primary · `slate-200` ghost · `rose-200` danger |
+| Code chip | `rounded-xl bg-slate-50 px-4 py-2.5 font-mono text-base font-700` |
+| Banners | `rounded-xl px-4 py-3 text-sm`, rose or emerald tint |
 
-**No MUI here.** The Old System's fields are plain Tailwind inputs with a label
-*above* the box, not Material's notched floating label, so matching the design
-meant dropping the `TextField`s this page previously used. MUI stays installed
-and available (see [Styling stack](#styling-stack)); it is simply not what this
-page is built from.
+**No MUI here.** These are plain Tailwind inputs with the label *above* the box,
+not Material's notched floating label, so the `TextField`s this page once used
+were dropped. MUI stays installed and available (see
+[Styling stack](#styling-stack)); it is simply not what this page is built from.
 
-Two deliberate deviations, since the Old System's version lives *inside* the
-Studio and nompany's is standalone:
+**There is no "access token".** Studio access tokens were
+[removed by design](src/lib/data/studios.js) on 2026-08-11 — joining is
+company-code → request → owner approval, and a shareable token would be a
+second, weaker way in. The code chip on this page shows the company code, which
+is not a secret.
 
-- **The five-section left rail is kept.** The Old System profile is a plain
-  `space-y-5` stack because the Studio sidebar is its navigation. Dropping the
-  rail here would remove real navigation, so it stays, styled with the Old
-  System's own nav-item classes.
+Two deliberate deviations, since `StudioPeople` sits inside the Studio and this
+page is standalone:
+
+- **The five-section left rail is kept** — dropping it would remove real
+  navigation. It uses the Studio's own nav-item classes.
 - **No `studio-chrome`.** The Cabin typeface and the three-size type scale are
   Studio chrome, so this page keeps the site's display face and its literal
   `text-*` sizes.
