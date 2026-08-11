@@ -118,7 +118,7 @@ export const SECTION_COLLECTIONS = {
   sales: ["salesClients", "salesTickets"],
   technical: ["rfqs", "quotations"],
   projects: ["projects", "projectSheets", "overtimes", "slas"],
-  inventory: ["inventoryVendors", "inventoryItems", "inventoryStock", "deliveries", "materialOrders", "awbAirlines", "awbShipments"],
+  inventory: ["inventoryVendors", "inventoryItems", "inventoryStock", "deliveries", "materialOrders"],
   hr: ["departments", "positions", "certifications", "vacations"],
   finance: ["cashSheets"],
   operations: ["workTasks", "permits", "locations", "trackingPositions"],
