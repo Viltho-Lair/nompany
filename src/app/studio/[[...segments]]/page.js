@@ -7,6 +7,7 @@ import { listSections } from "@/lib/data/sections";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import StudioPeople from "@/components/studio2/StudioPeople";
 import StudioAccess from "@/components/studio2/StudioAccess";
+import StudioSales from "@/components/studio2/StudioSales";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Studio", robots: { index: false, follow: false } };
@@ -63,6 +64,7 @@ export default async function StudioPage({ params }) {
       {isPeople ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} />
         : isAccess ? <StudioAccess slug={studio.slug} />
         : deniedSection ? <NoSectionAccess />
+        : active?.key === "sales" ? <StudioSales slug={studio.slug} />
         : active ? <SectionPlaceholder section={active} studio={studio}
             canManage={canManageSection(studio, collaborator, active.id, grants)} />
         : <NothingGranted admin={admin} slug={studio.slug} />}

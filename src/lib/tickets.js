@@ -14,7 +14,7 @@ export const POST_APPROVAL_STATUSES = [
   "Closed Lost",
   "Cancelled by Client",
   "On-Hold",
-  "Dropped by MTA",
+  "Dropped",
 ];
 export const TICKET_STATUSES = ["Lead", "Opportunity", ...POST_APPROVAL_STATUSES];
 export const DEFAULT_STATUS = "Lead";
