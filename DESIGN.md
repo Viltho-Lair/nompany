@@ -19,7 +19,7 @@ Three layers, app-wide. Reach for them in this order:
 3. **MUI** — for complex behaviour that isn't worth rebuilding (data grids,
    pickers, menus, autocomplete). Core only (`@mui/material` + emotion); no
    icons package — the studio has its own set in
-   [`icons.js`](src/components/studio/icons.js).
+   [`icons.js`](src/components/studio2/icons.js).
 
 ### How the three coexist
 
@@ -64,9 +64,9 @@ layout, with the theme in [`muiTheme.js`](src/lib/muiTheme.js):
 **Known gap — MUI in RTL.** Emotion needs `stylis-plugin-rtl` to mirror MUI's
 own generated styles, and it isn't installed. Fonts and Tailwind classes flip
 correctly; MUI's internal padding/positioning will not. Add the plugin before
-putting MUI components on an Arabic screen. **This is now live on `/ar/account`,
-whose form fields are MUI `TextField`s** — the notched outline label and the
-`nompany.com/` start adornment stay left-anchored under `dir="rtl"`.
+putting MUI components on an Arabic screen. Nothing ships MUI on a user-facing
+screen today — `/account` moved to plain Tailwind inputs when it adopted the Old
+System's design — so the gap is latent rather than live.
 
 ## Account hub (`/[locale]/account`)
 
@@ -74,27 +74,40 @@ A full-screen app surface, not a marketing page: [`Footer`](src/components/Foote
 returns `null` on this route (`isBare`, the same idiom as the contact page), so
 only the site `Nav` sits above it.
 
-[`AccountHome`](src/components/public/AccountHome.js) follows the **Google
-Account "stack" grammar**, remapped onto the palette above. The metrics are
-taken from Google's own CSS, not eyeballed:
+[`AccountHome`](src/components/public/AccountHome.js) uses the **Old System's
+account-page design** — its `studio/(panel)/profile` screen
+(`EmployeeSelfProfile`). The class strings are copied verbatim, which is why
+`brand-700`/`brand-950` resolve to this project's royal blue rather than the Old
+System's navy:
 
-| Element | Spec | Token |
-| --- | --- | --- |
-| Content column | `888px`, centred | `max-w-[888px]` |
-| Page title | `1.75rem` / 500 / lh 1.286 | matches the Studio "Title" size |
-| Stack item | `min-height:56px`, `padding:12px 16px`, `gap:12px` | `ROW` |
-| Stack corners | first 20px top · last 20px bottom · middle 4px | `first:`/`last:` variants |
-| Gaps | 2px between rows · 16px between groups | `gap-[2px]` · `gap-4` |
-| Row label / value | `1rem`/500 · `0.875rem`/400 muted, ellipsis | `ROW_LABEL` / `ROW_VALUE` |
-| Page / row surface | `#f0f4f9` / `#fff` | `steel-50` / `white` |
-| Active nav pill | `primary-container` on `on-primary-container`, 48px, full radius | `brand-100` on `brand-800` |
-| Buttons | Material pill, 40px, sentence case | `PILL` |
-| Form fields | Material outlined + notched floating label, 56px | MUI `<TextField size="medium">` |
+| Element | Spec |
+| --- | --- |
+| Page | `bg-geex-bg` · dark `#141420` |
+| Section stack | `space-y-5` |
+| Card | `rounded-geex border-slate-200/70 bg-white p-6 shadow-geex-sm` · dark `#20202c` |
+| Card heading / sub | `font-display text-base font-700` · `text-xs text-slate-500` |
+| In-card divider | `mt-6 border-t border-slate-100 pt-5` |
+| Input | `rounded-xl border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm`, `focus:bg-white` + `ring-brand-500/20` · dark `#191921` |
+| Label | `text-xs font-600 uppercase tracking-wide text-slate-500` |
+| Primary / ghost button | pill, `bg-brand-700` → `hover:bg-brand-950` · bordered `slate-200` |
+| Field grid | `grid gap-4 sm:grid-cols-2`, or `grid max-w-md gap-3` for narrow forms |
 
-The stack radius trick relies on `first:`/`last:` carrying a pseudo-class, which
-outranks the base `rounded-[4px]`; a lone row matches both and ends up fully
-rounded. Rows are built from one `Row` component whose `as` prop swaps the tag
-(div / button / link) without changing the metrics.
+**No MUI here.** The Old System's fields are plain Tailwind inputs with a label
+*above* the box, not Material's notched floating label, so matching the design
+meant dropping the `TextField`s this page previously used. MUI stays installed
+and available (see [Styling stack](#styling-stack)); it is simply not what this
+page is built from.
+
+Two deliberate deviations, since the Old System's version lives *inside* the
+Studio and nompany's is standalone:
+
+- **The five-section left rail is kept.** The Old System profile is a plain
+  `space-y-5` stack because the Studio sidebar is its navigation. Dropping the
+  rail here would remove real navigation, so it stays, styled with the Old
+  System's own nav-item classes.
+- **No `studio-chrome`.** The Cabin typeface and the three-size type scale are
+  Studio chrome, so this page keeps the site's display face and its literal
+  `text-*` sizes.
 
 ## Studio chrome (`/<slug>/…`)
 
