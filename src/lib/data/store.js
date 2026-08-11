@@ -54,6 +54,44 @@ export async function delKeys(...keys) {
   return n;
 }
 
+// ---- serialised read-modify-write ------------------------------------------
+// A collection lives in ONE key holding the whole array, so "read it, change one
+// row, write it back" loses data whenever two of those overlap: both read the
+// same array, and the second write erases the first one's change. Two people
+// ticking different checklist items, or editing different rows, is enough.
+//
+// mutate() takes a short lock on the key for the duration, so those turns are
+// taken one at a time. The lock is the same SET NX primitive as claim(), with a
+// TTL so a crashed request can never wedge a collection shut.
+const LOCK_TTL_SEC = 5;
+const LOCK_WAIT_MS = 2000;
+
+export async function mutate(key, fn) {
+  const token = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const lockKey = `lock:${key}`;
+  const client = await r();
+
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  let held = false;
+  while (Date.now() < deadline) {
+    held = (await client.sendCommand(["SET", lockKey, token, "NX", "EX", String(LOCK_TTL_SEC)])) === "OK";
+    if (held) break;
+    await new Promise((resolve) => setTimeout(resolve, 15 + Math.floor(Math.random() * 25)));
+  }
+  // Waiting longer than the lock's own TTL would mean the holder is already
+  // gone, so proceeding is safer than failing the write outright.
+  try {
+    return await fn();
+  } finally {
+    if (held) {
+      // Only release OUR lock — if it expired and someone else took it, theirs
+      // must survive.
+      const current = await client.get(lockKey);
+      if (current === token) await client.del(lockKey);
+    }
+  }
+}
+
 // ---- uniqueness claims / TTL indexes ---------------------------------------
 // claim(key, value[, ttlSec]) → true if WE claimed it (SET NX), false if taken.
 export async function claim(key, value, ttlSec) {

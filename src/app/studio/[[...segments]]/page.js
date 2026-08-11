@@ -13,6 +13,7 @@ import StudioProjects from "@/components/studio2/StudioProjects";
 import StudioHr from "@/components/studio2/StudioHr";
 import StudioInventory from "@/components/studio2/StudioInventory";
 import StudioFinance from "@/components/studio2/StudioFinance";
+import StudioTasks from "@/components/studio2/StudioTasks";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Studio", robots: { index: false, follow: false } };
@@ -75,6 +76,7 @@ export default async function StudioPage({ params }) {
         : active?.key === "hr" ? <StudioHr slug={studio.slug} />
         : active?.key === "inventory" ? <StudioInventory slug={studio.slug} />
         : active?.key === "finance" ? <StudioFinance slug={studio.slug} />
+        : active?.key === "tasks" ? <StudioTasks slug={studio.slug} />
         : active ? <SectionPlaceholder section={active} studio={studio}
             canManage={canManageSection(studio, collaborator, active.id, grants)} />
         : <NothingGranted admin={admin} slug={studio.slug} />}

@@ -11,7 +11,7 @@
 // and live in s:<StudioID>:grants.
 
 import { S, SEC, ID, SECTION_COLLECTIONS } from "@/lib/data/keys";
-import { readArr, writeArr } from "@/lib/data/store";
+import { readArr, writeArr, mutate } from "@/lib/data/store";
 
 // ---- section rows ----------------------------------------------------------
 export async function listSections(studioId) {
@@ -69,29 +69,43 @@ export async function readCol(studioId, sectionId, name) {
 export async function writeCol(studioId, sectionId, name, rows) {
   await writeArr(SEC.col(studioId, sectionId, name), rows);
 }
+// The three mutators re-read INSIDE the lock, so each one works from the
+// collection as it actually stands rather than from a copy taken before the
+// wait. Concurrent writes to the same collection queue up instead of
+// overwriting each other.
 export async function addRow(studioId, sectionId, name, item) {
-  const rows = await readCol(studioId, sectionId, name);
-  const row = { id: item.id || ID.row(name), ...item, studioId, sectionId };
-  await writeCol(studioId, sectionId, name, [row, ...rows]);
-  return row;
+  return mutate(SEC.col(studioId, sectionId, name), async () => {
+    const rows = await readCol(studioId, sectionId, name);
+    const row = { id: item.id || ID.row(name), ...item, studioId, sectionId };
+    await writeCol(studioId, sectionId, name, [row, ...rows]);
+    return row;
+  });
 }
+
+// `patch` may be a function of the current row, which is how a caller expresses
+// "flip this field" rather than "set it to what I last saw".
 export async function updateRow(studioId, sectionId, name, rowId, patch) {
-  const rows = await readCol(studioId, sectionId, name);
-  let updated = null;
-  const next = rows.map((r) => {
-    if (r.id !== rowId) return r;
-    updated = { ...r, ...patch, id: r.id, studioId: r.studioId, sectionId: r.sectionId };
+  return mutate(SEC.col(studioId, sectionId, name), async () => {
+    const rows = await readCol(studioId, sectionId, name);
+    let updated = null;
+    const next = rows.map((r) => {
+      if (r.id !== rowId) return r;
+      const changes = typeof patch === "function" ? patch(r) : patch;
+      updated = { ...r, ...changes, id: r.id, studioId: r.studioId, sectionId: r.sectionId };
+      return updated;
+    });
+    if (updated) await writeCol(studioId, sectionId, name, next);
     return updated;
   });
-  if (updated) await writeCol(studioId, sectionId, name, next);
-  return updated;
 }
 export async function deleteRow(studioId, sectionId, name, rowId) {
-  const rows = await readCol(studioId, sectionId, name);
-  const next = rows.filter((r) => r.id !== rowId);
-  const removed = next.length !== rows.length;
-  if (removed) await writeCol(studioId, sectionId, name, next);
-  return removed;
+  return mutate(SEC.col(studioId, sectionId, name), async () => {
+    const rows = await readCol(studioId, sectionId, name);
+    const next = rows.filter((r) => r.id !== rowId);
+    const removed = next.length !== rows.length;
+    if (removed) await writeCol(studioId, sectionId, name, next);
+    return removed;
+  });
 }
 
 // ---- access grants (subject = collaborator or department; target = section) -
