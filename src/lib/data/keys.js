@@ -121,7 +121,7 @@ export const SECTION_COLLECTIONS = {
   inventory: ["inventoryVendors", "inventoryItems", "inventoryStock", "deliveries", "materialOrders"],
   hr: ["departments", "positions", "certifications", "vacations"],
   finance: ["invoices", "expenses"],
-  operations: ["workTasks", "permits", "locations", "trackingPositions"],
+  operations: ["locations", "permits", "shifts"],
   website: ["services", "careers", "previousProjects", "galleryImages", "reviews", "messages", "applications", "signatures", "docImages"],
   tasks: ["tasks"],
 };

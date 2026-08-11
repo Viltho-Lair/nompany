@@ -1,121 +1,414 @@
-// Operations calendar + expiry helpers (client-safe, no Node imports).
+// OPERATIONS — where the work happens, who is on site when, and what paperwork
+// says they are allowed to be there.
+//
+// Rows live under the studio's *operations section*:
+//   s:<StudioID>:sec:<SectionID>:c:locations
+//   s:<StudioID>:sec:<SectionID>:c:permits
+//   s:<StudioID>:sec:<SectionID>:c:shifts
+//
+// This module deliberately does NOT hold a second to-do list: discrete work
+// items are Tasks. Operations answers a different question — coverage. A shift
+// says a person is at a place for a stretch of time, which is why it can clash
+// with another shift, or with leave that HR has already approved.
+//
+// Permit validity and shift hours are DERIVED from their dates, never stored,
+// so neither can quietly go stale.
 
-export const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
+import { listCollaborators } from "@/lib/data/collaborators";
+import { currentUser } from "@/lib/identity";
 
-// The "Overtime" legend entry — a fixed, always-present type whose colour is the
-// OT bar colour on the Work Calendar. Recolourable in settings, never removable.
-export const OT_LEGEND_ID = "ot";
-export const OT_LEGEND = { id: OT_LEGEND_ID, label: "Overtime", color: "#c4b5fd" };
+const LOCATIONS = "locations";
+const PERMITS = "permits";
+const SHIFTS = "shifts";
+const VACATIONS = "vacations";
+const PROJECTS = "projects";
 
-// Calendar legend — work-task types with colours (+ the fixed OT type).
-// Overridable in settings (settings.operationsLegend); items are recolourable
-// but the set is fixed (no add/delete). Colours are soft fills.
-export const DEFAULT_LEGEND = [
-  { id: "project", label: "Project Related", color: "#bfdbfe" },
-  { id: "installation", label: "Installation", color: "#fef08a" },
-  { id: "sla", label: "SLA", color: "#bbf7d0" },
-  { ...OT_LEGEND },
-];
+export const LOCATION_KINDS = ["Site", "Office", "Warehouse", "Client premises"];
+export const PERMIT_TYPES = ["Work permit", "Hot work", "Height work", "Confined space", "Electrical", "Vehicle access", "Other"];
+// How far ahead a permit counts as "expiring", so it can be renewed in time.
+export const EXPIRY_WINDOW_DAYS = 30;
 
-// Default working hours — Sunday–Thursday 08:00–17:00 (KSA week), Fri/Sat off.
-export const DEFAULT_SCHEDULE = DAYS.reduce((acc, d) => {
-  const working = d !== "Friday" && d !== "Saturday";
-  acc[d] = { on: working, from: working ? "08:00" : "", to: working ? "17:00" : "" };
-  return acc;
-}, {});
+const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+const clock = (v) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+const today = () => new Date().toISOString().slice(0, 10);
 
-export function normalizeSchedule(ws) {
-  const out = {};
-  for (const d of DAYS) {
-    const v = (ws && ws[d]) || DEFAULT_SCHEDULE[d];
-    out[d] = { on: !!v.on, from: v.from || "", to: v.to || "" };
+export async function operationsContext(user, slug) {
+  const context = await studioContext(user, slug);
+  if (context.error) return context;
+  const { studio, collaborator } = context;
+
+  const section = await getSectionByKey(studio.id, "operations");
+  if (!section) return { error: "no-section" };
+
+  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
+
+  return {
+    studio, collaborator, section,
+    canManage: canManageSection(studio, collaborator, section.id, grants),
+    nav: sectionNav(studio, collaborator, sections, grants),
+  };
+}
+
+export async function operationsGuard(paramsPromise, { write } = {}) {
+  const user = await currentUser();
+  if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
+  const { slug } = await paramsPromise;
+  const ops = await operationsContext(user, slug);
+  if (ops.error) {
+    const status = ops.error === "notfound" || ops.error === "no-section" ? 404 : 403;
+    return { fail: Response.json({ error: ops.error }, { status }) };
   }
-  return out;
+  if (write && !ops.canManage) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
+  return ops;
 }
 
-export function normalizeLegend(legend) {
-  const arr = Array.isArray(legend) && legend.length ? legend : DEFAULT_LEGEND;
-  const out = arr.map((t) => ({ id: t.id || t.label, label: t.label || "", color: t.color || "#e2e8f0" }));
-  // The OT type is always present (older saved legends gain it).
-  if (!out.some((t) => t.id === OT_LEGEND_ID)) out.push({ ...OT_LEGEND });
-  return out;
+// ---- locations -------------------------------------------------------------
+export async function listLocations({ studio, section }) {
+  const rows = await readCol(studio.id, section.id, LOCATIONS);
+  return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
-// "HH:MM" → fractional hours (e.g. "08:30" → 8.5). Empty → fallback.
-export function hhmmToHours(hhmm, fallback = 0) {
-  if (!hhmm || typeof hhmm !== "string" || !hhmm.includes(":")) return fallback;
-  const [h, m] = hhmm.split(":").map((n) => parseInt(n, 10));
-  if (Number.isNaN(h)) return fallback;
-  return h + (Number.isNaN(m) ? 0 : m) / 60;
+export async function createLocation(ctx, body) {
+  const { studio, section } = ctx;
+  const name = str(body?.name, 160);
+  if (!name) return { error: "name" };
+
+  const rows = await readCol(studio.id, section.id, LOCATIONS);
+  if (rows.some((l) => l.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
+
+  const location = await addRow(studio.id, section.id, LOCATIONS, {
+    name,
+    kind: LOCATION_KINDS.includes(body?.kind) ? body.kind : LOCATION_KINDS[0],
+    address: str(body?.address, 300),
+    city: str(body?.city, 80),
+    mapUrl: str(body?.mapUrl, 500),
+    notes: str(body?.notes, 1000),
+    createdAt: new Date().toISOString(),
+  });
+  return { location };
 }
 
-// Fractional hour of a Date (local): e.g. 14:30 → 14.5.
-export function dateToHours(d) {
-  return d.getHours() + d.getMinutes() / 60;
-}
-
-// Is `now` within the configured working hours? Evaluated in KSA local time
-// (UTC+3, no DST) so it's correct regardless of the server's or visitor's own
-// timezone. Used by the website chat to show an out-of-hours notice.
-export function isWithinWorkingHours(schedule, now = new Date()) {
-  const s = normalizeSchedule(schedule);
-  const ksa = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-  const e = s[DAYS[ksa.getUTCDay()]];
-  if (!e || !e.on) return false;
-  const h = ksa.getUTCHours() + ksa.getUTCMinutes() / 60;
-  return h >= hhmmToHours(e.from, 0) && h < hhmmToHours(e.to, 24);
-}
-
-// Local YYYY-MM-DD key for a Date.
-export function dayKey(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-// The Sunday (00:00 local) that starts the week containing `d`.
-export function startOfWeekSunday(d) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  x.setDate(x.getDate() - x.getDay()); // getDay: Sun=0
-  return x;
-}
-
-export function addDays(d, n) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-}
-
-export function fmtDMY(d) {
-  return d.toLocaleDateString("en-GB");
-}
-
-// Whole days from today until `dateStr` (YYYY-MM-DD). Negative = already past.
-export function daysUntil(dateStr) {
-  if (!dateStr) return null;
-  const target = new Date(dateStr);
-  if (Number.isNaN(target.getTime())) return null;
-  target.setHours(0, 0, 0, 0);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.round((target - today) / 86400000);
-}
-
-// The visible hour window for the calendar. Full = [0,24]; working-hours mode =
-// [min from, max to] across enabled days (fallback 8–17 if nothing configured).
-export function visibleWindow(schedule, workingOnly) {
-  if (!workingOnly) return [0, 24];
-  let min = 24, max = 0;
-  for (const d of DAYS) {
-    const s = schedule[d];
-    if (!s || !s.on) continue;
-    const from = hhmmToHours(s.from, 8);
-    const to = hhmmToHours(s.to, 17);
-    if (from < min) min = from;
-    if (to > max) max = to;
+export async function editLocation(ctx, id, body) {
+  const { studio, section } = ctx;
+  const patch = {};
+  if (body?.name !== undefined) {
+    const name = str(body.name, 160);
+    if (!name) return { error: "name" };
+    const rows = await readCol(studio.id, section.id, LOCATIONS);
+    if (rows.some((l) => l.id !== id && l.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
+    patch.name = name;
   }
-  if (min >= max) return [8, 17];
-  return [Math.floor(min), Math.ceil(max)];
+  if (body?.kind !== undefined && LOCATION_KINDS.includes(body.kind)) patch.kind = body.kind;
+  for (const f of ["address", "mapUrl"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 500);
+  if (body?.city !== undefined) patch.city = str(body.city, 80);
+  if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
+
+  const location = await updateRow(studio.id, section.id, LOCATIONS, id, patch);
+  return location ? { location } : { error: "notfound" };
+}
+
+// Refuses while permits or shifts still point at it — deleting would leave a
+// rota and a stack of paperwork referring to a place that no longer exists.
+export async function removeLocation(ctx, id) {
+  const { studio, section } = ctx;
+  const [permits, shifts] = await Promise.all([
+    readCol(studio.id, section.id, PERMITS),
+    readCol(studio.id, section.id, SHIFTS),
+  ]);
+  const p = permits.filter((x) => x.locationId === id).length;
+  const s = shifts.filter((x) => x.locationId === id).length;
+  if (p || s) return { error: "in-use", permits: p, shifts: s };
+
+  const removed = await deleteRow(studio.id, section.id, LOCATIONS, id);
+  return removed ? { ok: true } : { error: "notfound" };
+}
+
+// ---- permits ---------------------------------------------------------------
+// Validity is computed from the dates every time it is read.
+export function permitState(permit, when = today()) {
+  if (permit.validFrom && when < permit.validFrom) return "Not yet valid";
+  if (!permit.validTo) return "Valid";
+  if (when > permit.validTo) return "Expired";
+  const limit = new Date(`${when}T00:00:00`);
+  limit.setDate(limit.getDate() + EXPIRY_WINDOW_DAYS);
+  return new Date(`${permit.validTo}T00:00:00`) <= limit ? "Expiring" : "Valid";
+}
+
+export async function listPermits({ studio, section }) {
+  const [permits, locations, people, projects] = await Promise.all([
+    readCol(studio.id, section.id, PERMITS),
+    readCol(studio.id, section.id, LOCATIONS),
+    listCollaborators(studio.id),
+    projectRows({ studio }),
+  ]);
+  const locName = Object.fromEntries(locations.map((l) => [l.id, l.name]));
+  const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
+  const projectNumber = Object.fromEntries(projects.map((p) => [p.id, p.number]));
+  const now = today();
+
+  return [...permits]
+    .sort((a, b) => (a.validTo || "9999").localeCompare(b.validTo || "9999"))
+    .map((p) => ({
+      ...p,
+      locationName: locName[p.locationId] || "",
+      projectNumber: projectNumber[p.projectId] || "",
+      holderAliases: (p.holderCollaboratorIds || []).map((id) => alias[id] || "—"),
+      state: permitState(p, now),
+      daysLeft: p.validTo ? Math.ceil((new Date(`${p.validTo}T00:00:00`) - new Date(`${now}T00:00:00`)) / 86400000) : null,
+    }));
+}
+
+export async function createPermit(ctx, body) {
+  const { studio, section, collaborator } = ctx;
+  const title = str(body?.title, 200);
+  if (!title) return { error: "title" };
+
+  const locationId = str(body?.locationId, 60);
+  if (locationId) {
+    const locations = await readCol(studio.id, section.id, LOCATIONS);
+    if (!locations.some((l) => l.id === locationId)) return { error: "location" };
+  }
+  const projectId = str(body?.projectId, 60);
+  if (projectId) {
+    const projects = await projectRows(ctx);
+    if (!projects.some((p) => p.id === projectId)) return { error: "project" };
+  }
+
+  const validFrom = day(body?.validFrom);
+  const validTo = day(body?.validTo);
+  if (validFrom && validTo && validTo < validFrom) return { error: "range" };
+
+  const permits = await readCol(studio.id, section.id, PERMITS);
+  const permit = await addRow(studio.id, section.id, PERMITS, {
+    reference: `PMT-${String(permits.length + 1).padStart(4, "0")}`,
+    title,
+    type: PERMIT_TYPES.includes(body?.type) ? body.type : PERMIT_TYPES[0],
+    number: str(body?.number, 80),
+    issuer: str(body?.issuer, 160),
+    locationId, projectId,
+    validFrom, validTo,
+    holderCollaboratorIds: await validHolders(studio.id, body?.holderCollaboratorIds),
+    notes: str(body?.notes, 1000),
+    createdByCollaboratorId: collaborator.id,
+    createdAt: new Date().toISOString(),
+  });
+  return { permit };
+}
+
+export async function editPermit(ctx, id, body) {
+  const { studio, section } = ctx;
+  const rows = await readCol(studio.id, section.id, PERMITS);
+  const current = rows.find((p) => p.id === id);
+  if (!current) return { error: "notfound" };
+
+  const patch = {};
+  if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
+  if (body?.type !== undefined && PERMIT_TYPES.includes(body.type)) patch.type = body.type;
+  if (body?.number !== undefined) patch.number = str(body.number, 80);
+  if (body?.issuer !== undefined) patch.issuer = str(body.issuer, 160);
+  if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
+  if (body?.locationId !== undefined) {
+    const locationId = str(body.locationId, 60);
+    if (locationId) {
+      const locations = await readCol(studio.id, section.id, LOCATIONS);
+      if (!locations.some((l) => l.id === locationId)) return { error: "location" };
+    }
+    patch.locationId = locationId;
+  }
+  if (body?.holderCollaboratorIds !== undefined) {
+    patch.holderCollaboratorIds = await validHolders(studio.id, body.holderCollaboratorIds);
+  }
+  if (body?.validFrom !== undefined || body?.validTo !== undefined) {
+    const validFrom = body?.validFrom !== undefined ? day(body.validFrom) : current.validFrom;
+    const validTo = body?.validTo !== undefined ? day(body.validTo) : current.validTo;
+    if (validFrom && validTo && validTo < validFrom) return { error: "range" };
+    patch.validFrom = validFrom;
+    patch.validTo = validTo;
+  }
+
+  const permit = await updateRow(studio.id, section.id, PERMITS, id, patch);
+  return permit ? { permit } : { error: "notfound" };
+}
+
+export async function removePermit(ctx, id) {
+  const removed = await deleteRow(ctx.studio.id, ctx.section.id, PERMITS, id);
+  return removed ? { ok: true } : { error: "notfound" };
+}
+
+async function validHolders(studioId, ids) {
+  const people = await listCollaborators(studioId);
+  const known = new Set(people.map((c) => c.id));
+  return (Array.isArray(ids) ? ids : []).map((x) => str(x, 60)).filter((x) => known.has(x)).slice(0, 100);
+}
+
+// ---- shifts (the rota) -----------------------------------------------------
+export function shiftHours(shift) {
+  if (!shift.startTime || !shift.endTime) return 0;
+  const [sh, sm] = shift.startTime.split(":").map(Number);
+  const [eh, em] = shift.endTime.split(":").map(Number);
+  // An end time before the start means the shift runs past midnight.
+  const minutes = (eh * 60 + em) - (sh * 60 + sm) + (eh * 60 + em <= sh * 60 + sm ? 24 * 60 : 0);
+  return Math.round((minutes / 60) * 100) / 100;
+}
+
+export async function listShifts({ studio, section }, { from = "", to = "" } = {}) {
+  const [shifts, locations, people] = await Promise.all([
+    readCol(studio.id, section.id, SHIFTS),
+    readCol(studio.id, section.id, LOCATIONS),
+    listCollaborators(studio.id),
+  ]);
+  const locName = Object.fromEntries(locations.map((l) => [l.id, l.name]));
+  const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
+
+  return [...shifts]
+    .filter((s) => (!from || s.date >= from) && (!to || s.date <= to))
+    .sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.startTime || "").localeCompare(b.startTime || ""))
+    .map((s) => ({
+      ...s,
+      locationName: locName[s.locationId] || "",
+      alias: alias[s.collaboratorId] || "Unknown",
+      hours: shiftHours(s),
+    }));
+}
+
+export async function createShift(ctx, body) {
+  const { studio, section, collaborator } = ctx;
+  const date = day(body?.date);
+  if (!date) return { error: "date" };
+
+  const collaboratorId = str(body?.collaboratorId, 60);
+  const people = await listCollaborators(studio.id);
+  if (!people.some((c) => c.id === collaboratorId)) return { error: "person" };
+
+  const locationId = str(body?.locationId, 60);
+  if (locationId) {
+    const locations = await readCol(studio.id, section.id, LOCATIONS);
+    if (!locations.some((l) => l.id === locationId)) return { error: "location" };
+  }
+
+  const startTime = clock(body?.startTime);
+  const endTime = clock(body?.endTime);
+  if (!startTime || !endTime) return { error: "time" };
+
+  // Two shifts for the same person at the same time is a scheduling mistake,
+  // not something to silently accept.
+  const shifts = await readCol(studio.id, section.id, SHIFTS);
+  const clash = shifts.find((s) => s.collaboratorId === collaboratorId && s.date === date
+    && overlaps(s.startTime, s.endTime, startTime, endTime));
+  if (clash) return { error: "clash", startTime: clash.startTime, endTime: clash.endTime };
+
+  // Scheduling someone HR has already approved leave for is the same kind of
+  // mistake, so it is caught here rather than discovered on the day.
+  const onLeave = await approvedLeaveOn(ctx, collaboratorId, date);
+  if (onLeave) return { error: "on-leave", from: onLeave.from, to: onLeave.to, type: onLeave.type };
+
+  const shift = await addRow(studio.id, section.id, SHIFTS, {
+    date, collaboratorId, locationId, startTime, endTime,
+    role: str(body?.role, 120),
+    notes: str(body?.notes, 500),
+    createdByCollaboratorId: collaborator.id,
+    createdAt: new Date().toISOString(),
+  });
+  return { shift: { ...shift, hours: shiftHours(shift) } };
+}
+
+export async function editShift(ctx, id, body) {
+  const { studio, section } = ctx;
+  const rows = await readCol(studio.id, section.id, SHIFTS);
+  const current = rows.find((s) => s.id === id);
+  if (!current) return { error: "notfound" };
+
+  const date = body?.date !== undefined ? day(body.date) : current.date;
+  const startTime = body?.startTime !== undefined ? clock(body.startTime) : current.startTime;
+  const endTime = body?.endTime !== undefined ? clock(body.endTime) : current.endTime;
+  if (!date || !startTime || !endTime) return { error: "time" };
+
+  const clash = rows.find((s) => s.id !== id && s.collaboratorId === current.collaboratorId
+    && s.date === date && overlaps(s.startTime, s.endTime, startTime, endTime));
+  if (clash) return { error: "clash", startTime: clash.startTime, endTime: clash.endTime };
+
+  const patch = { date, startTime, endTime };
+  if (body?.role !== undefined) patch.role = str(body.role, 120);
+  if (body?.notes !== undefined) patch.notes = str(body.notes, 500);
+  if (body?.locationId !== undefined) {
+    const locationId = str(body.locationId, 60);
+    if (locationId) {
+      const locations = await readCol(studio.id, section.id, LOCATIONS);
+      if (!locations.some((l) => l.id === locationId)) return { error: "location" };
+    }
+    patch.locationId = locationId;
+  }
+
+  const shift = await updateRow(studio.id, section.id, SHIFTS, id, patch);
+  return shift ? { shift: { ...shift, hours: shiftHours(shift) } } : { error: "notfound" };
+}
+
+export async function removeShift(ctx, id) {
+  const removed = await deleteRow(ctx.studio.id, ctx.section.id, SHIFTS, id);
+  return removed ? { ok: true } : { error: "notfound" };
+}
+
+// Half-open comparison: a shift ending at 12:00 and one starting at 12:00 do
+// not overlap. Overnight shifts are compared on a 48-hour line so the wrap is
+// handled without special cases.
+function overlaps(aStart, aEnd, bStart, bEnd) {
+  const m = (t) => { const [h, min] = t.split(":").map(Number); return h * 60 + min; };
+  const span = (s, e) => { const a = m(s); let b = m(e); if (b <= a) b += 24 * 60; return [a, b]; };
+  const [a1, a2] = span(aStart, aEnd);
+  const [b1, b2] = span(bStart, bEnd);
+  return a1 < b2 && b1 < a2;
+}
+
+// HR owns leave. Operations reads it to avoid scheduling over it — naming
+// someone's approved absence is not the same as being allowed to open HR.
+async function approvedLeaveOn({ studio }, collaboratorId, date) {
+  const hr = await getSectionByKey(studio.id, "hr");
+  if (!hr) return null;
+  const rows = await readCol(studio.id, hr.id, VACATIONS);
+  return rows.find((v) => v.collaboratorId === collaboratorId && v.status === "Approved"
+    && v.from <= date && v.to >= date) || null;
+}
+
+async function projectRows({ studio }) {
+  const section = await getSectionByKey(studio.id, "projects");
+  if (!section) return [];
+  return readCol(studio.id, section.id, PROJECTS);
+}
+
+export async function operationsProjects(ctx) {
+  const rows = await projectRows(ctx);
+  return rows.filter((p) => p.stage !== "Completed").map((p) => ({ id: p.id, number: p.number }));
+}
+
+export async function schedulablePeople({ studio }) {
+  const rows = await listCollaborators(studio.id);
+  return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" }));
+}
+
+// The week a rota is usually planned around: today plus the next six days.
+//
+// Parsed as UTC, not local. "2026-08-11T00:00:00" is local midnight, and
+// converting that back with toISOString() shifts the date backwards anywhere
+// east of Greenwich — which quietly made the window six days long instead of
+// seven. Dates here are calendar days, so they are handled in one zone
+// throughout.
+export function weekWindow(from = today()) {
+  const end = new Date(`${from}T00:00:00Z`);
+  end.setUTCDate(end.getUTCDate() + 6);
+  return { from, to: end.toISOString().slice(0, 10) };
+}
+
+export function summarise(permits, shifts, locations, window) {
+  const thisWeek = shifts.filter((s) => s.date >= window.from && s.date <= window.to);
+  return {
+    locations: locations.length,
+    permitsExpiring: permits.filter((p) => p.state === "Expiring").length,
+    permitsExpired: permits.filter((p) => p.state === "Expired").length,
+    shiftsThisWeek: thisWeek.length,
+    hoursThisWeek: Math.round(thisWeek.reduce((n, s) => n + s.hours, 0) * 100) / 100,
+  };
 }
