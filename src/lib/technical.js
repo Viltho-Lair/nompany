@@ -11,8 +11,8 @@
 //   • raising an RFQ is a SALES act on their ticket   -> needs Sales:manage
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection } from "@/lib/studios";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { RFQ_STATUSES } from "@/lib/rfqs";
 
@@ -41,13 +41,14 @@ export async function technicalContext(user, slug) {
   ]);
   if (!technical) return { error: "no-section" };
 
-  const grants = await listGrants(studio.id);
+  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   if (!canViewSection(studio, collaborator, technical.id, grants)) return { error: "forbidden" };
 
   return {
     studio, collaborator, section: technical, salesSection: sales,
     canManage: canManageSection(studio, collaborator, technical.id, grants),
     canManageSales: Boolean(sales) && canManageSection(studio, collaborator, sales.id, grants),
+    nav: sectionNav(studio, collaborator, sections, grants),
   };
 }
 

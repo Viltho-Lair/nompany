@@ -8,8 +8,8 @@
 // A project may only be opened from an APPROVED quotation — that approval is the
 // commercial gate, and it lives in Technical/Sales, not here.
 
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection } from "@/lib/studios";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
@@ -32,12 +32,13 @@ export async function projectsContext(user, slug) {
   ]);
   if (!section) return { error: "no-section" };
 
-  const grants = await listGrants(studio.id);
+  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
 
   return {
     studio, collaborator, section, technicalSection: technical,
     canManage: canManageSection(studio, collaborator, section.id, grants),
+    nav: sectionNav(studio, collaborator, sections, grants),
   };
 }
 

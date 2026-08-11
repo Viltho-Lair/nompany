@@ -10,8 +10,8 @@
 // refer to someone's identity *inside this studio*, so nothing leaks across
 // studios and a removed collaborator doesn't drag a user account with them.
 
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection } from "@/lib/studios";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES } from "@/lib/tickets";
 import { normaliseClientName, clientSlug } from "@/lib/salesClients";
@@ -32,13 +32,14 @@ export async function salesContext(user, slug) {
   const section = await getSectionByKey(studio.id, "sales");
   if (!section) return { error: "no-section" };
 
-  const grants = await listGrants(studio.id);
+  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const canView = canViewSection(studio, collaborator, section.id, grants);
   if (!canView) return { error: "forbidden" };
 
   return {
     studio, collaborator, section,
     canManage: canManageSection(studio, collaborator, section.id, grants),
+    nav: sectionNav(studio, collaborator, sections, grants),
   };
 }
 

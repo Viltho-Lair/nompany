@@ -25,6 +25,7 @@ export async function GET(request, ctx) {
   ]);
   return Response.json({
     canManage: sales.canManage,
+    nav: sales.nav,
     clients, tickets, people,
     vocabulary: { statuses: TICKET_STATUSES, urgencies: TICKET_URGENCIES, industries: TICKET_INDUSTRIES },
   });

@@ -31,6 +31,7 @@ export async function GET(request, ctx) {
   ]);
   return Response.json({
     canManage: c.canManage,
+    nav: c.nav,
     projects,
     // Only approved, not-yet-delivering quotations can open a project.
     approvedQuotations: quotations,

@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import RecordLink from "@/components/studio2/RecordLink";
+import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
+import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/lib/studioLinks";
 
 // Projects: delivery work opened from an approved quotation. Progress comes from
 // the milestone checklist, so the bar and the stage can never disagree with what
@@ -27,14 +30,19 @@ export default function StudioProjects({ slug }) {
   const [error, setError] = useState("");
   const [opening, setOpening] = useState(false);
   const [open, setOpen] = useState(null); // expanded project
+  const focus = useFocusedRecord("project");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/projects`, { cache: "no-store" });
     if (!res.ok) { setError("You don't have access to Projects in this studio."); return; }
     const next = await res.json();
     setData(next);
-    setOpen((cur) => (cur ? next.projects.find((p) => p.id === cur.id) || null : null));
-  }, [slug]);
+    setOpen((cur) => {
+      const keep = cur ? next.projects.find((p) => p.id === cur.id) : null;
+      // Arriving via a deep link opens that project straight away.
+      return keep || next.projects.find((p) => p.id === focus.focusedId) || null;
+    });
+  }, [slug, focus.focusedId]);
   useEffect(() => { load(); }, [load]);
 
   async function send(method, payload) {
@@ -60,7 +68,7 @@ export default function StudioProjects({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Projects…</p>;
 
-  const { canManage, projects, approvedQuotations, people, vocabulary } = data;
+  const { canManage, projects, approvedQuotations, people, vocabulary, nav } = data;
   const aliasOf = Object.fromEntries(people.map((p) => [p.id, p.alias]));
 
   return (
@@ -95,7 +103,7 @@ export default function StudioProjects({ slug }) {
         <div className="space-y-3">
           {projects.map((p) => (
             <ProjectCard key={p.id} project={p} expanded={open?.id === p.id} canManage={canManage}
-              stages={vocabulary.stages} people={people} aliasOf={aliasOf}
+              stages={vocabulary.stages} people={people} aliasOf={aliasOf} slug={slug} nav={nav} focus={focus}
               onToggle={() => setOpen(open?.id === p.id ? null : p)}
               onSave={(patch) => send("PUT", { id: p.id, ...patch })}
               onDelete={() => send("DELETE", { id: p.id })} />
@@ -106,7 +114,7 @@ export default function StudioProjects({ slug }) {
   );
 }
 
-function ProjectCard({ project: p, expanded, canManage, stages, people, aliasOf, onToggle, onSave, onDelete }) {
+function ProjectCard({ project: p, expanded, canManage, stages, people, aliasOf, slug, nav, focus, onToggle, onSave, onDelete }) {
   const [milestones, setMilestones] = useState(p.milestones || []);
   useEffect(() => { setMilestones(p.milestones || []); }, [p.milestones]);
 
@@ -117,7 +125,7 @@ function ProjectCard({ project: p, expanded, canManage, stages, people, aliasOf,
   }
 
   return (
-    <section className={panel}>
+    <section {...focus.focusProps(p.id)} className={`${panel} ${focus.focusProps(p.id).className || ""}`}>
       <button type="button" onClick={onToggle} className="flex w-full flex-wrap items-center justify-between gap-3 text-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -145,9 +153,13 @@ function ProjectCard({ project: p, expanded, canManage, stages, people, aliasOf,
           {/* lineage — the chain this project came from */}
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span className="font-600 uppercase tracking-wide">From</span>
-            {[p.ticketId && "Ticket", p.rfqId && "RFQ", p.quotationNumber].filter(Boolean).map((x, i, arr) => (
-              <span key={x + i} className="flex items-center gap-2">
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono dark:bg-white/5">{x}</span>
+            {[
+              p.ticketId && { label: "Ticket", href: linkIf(nav?.sales, linkToTicket(slug, p.ticketId)) },
+              p.rfqId && { label: "RFQ", href: linkIf(nav?.technical, linkToRfq(slug, p.rfqId)) },
+              p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.technical, linkToQuotation(slug, p.quotationId)) },
+            ].filter(Boolean).map((step, i, arr) => (
+              <span key={step.label + i} className="flex items-center gap-2">
+                <RecordLink href={step.href} title={`Open ${step.label}`}>{step.label}</RecordLink>
                 {i < arr.length - 1 && <span aria-hidden="true">→</span>}
               </span>
             ))}

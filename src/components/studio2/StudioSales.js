@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import RecordLink from "@/components/studio2/RecordLink";
+import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
+import { linkToClient } from "@/lib/studioLinks";
 
 // Sales: clients and the tickets raised against them. Read access shows
 // everything; the Manage grant is what reveals the create/edit controls — and
@@ -29,9 +32,17 @@ const URGENCY_TONE = {
 
 export default function StudioSales({ slug }) {
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState("tickets");
+  const focusTicket = useFocusedRecord("ticket");
+  const focusClient = useFocusedRecord("client");
+  // A deep link decides which tab opens, so the record you asked for is visible.
+  const [tab, setTab] = useState(focusClient.focusedId ? "clients" : "tickets");
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(null); // {kind:'client'|'ticket', row}
+
+  // Following a link that lands on this same page never remounts it, so the tab
+  // has to react to the query changing too — not just to the first render.
+  useEffect(() => { if (focusClient.focusedId) setTab("clients"); }, [focusClient.focusedId]);
+  useEffect(() => { if (focusTicket.focusedId) setTab("tickets"); }, [focusTicket.focusedId]);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/sales`, { cache: "no-store" });
@@ -65,7 +76,7 @@ export default function StudioSales({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Sales…</p>;
 
-  const { canManage, clients, tickets, people, vocabulary } = data;
+  const { canManage, clients, tickets, people, vocabulary, nav } = data;
 
   return (
     <div className="space-y-6">
@@ -99,11 +110,11 @@ export default function StudioSales({ slug }) {
       )}
 
       {tab === "tickets"
-        ? <Tickets tickets={tickets} people={people} canManage={canManage}
+        ? <Tickets tickets={tickets} people={people} canManage={canManage} slug={slug} nav={nav} focus={focusTicket}
             onEdit={(row) => setEditing({ kind: "ticket", row })}
             onDelete={(row) => send("tickets", "DELETE", { id: row.id })}
             noClients={clients.length === 0} />
-        : <Clients clients={clients} canManage={canManage}
+        : <Clients clients={clients} canManage={canManage} focus={focusClient}
             onEdit={(row) => setEditing({ kind: "client", row })}
             onDelete={(row) => send("clients", "DELETE", { id: row.id })} />}
     </div>
@@ -111,7 +122,7 @@ export default function StudioSales({ slug }) {
 }
 
 // ---- tickets ---------------------------------------------------------------
-function Tickets({ tickets, people, canManage, onEdit, onDelete, noClients }) {
+function Tickets({ tickets, people, canManage, slug, nav, focus, onEdit, onDelete, noClients }) {
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
 
   if (noClients) {
@@ -133,7 +144,7 @@ function Tickets({ tickets, people, canManage, onEdit, onDelete, noClients }) {
           </thead>
           <tbody>
             {tickets.map((t) => (
-              <tr key={t.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
+              <tr key={t.id} {...focus.focusProps(t.id)} className={`border-b border-slate-100 last:border-0 dark:border-white/5 ${focus.focusProps(t.id).className || ""}`}>
                 <td className="py-3 pe-3 font-mono text-xs text-slate-500 dark:text-slate-400">{t.ref}</td>
                 <td className="py-3 pe-3">
                   <span className="font-600 text-slate-900 dark:text-white">{t.title}</span>
@@ -141,7 +152,11 @@ function Tickets({ tickets, people, canManage, onEdit, onDelete, noClients }) {
                     <span className={`ms-2 text-xs font-600 ${URGENCY_TONE[t.urgency] || "text-slate-400"}`}>{t.urgency}</span>
                   )}
                 </td>
-                <td className="py-3 pe-3 text-slate-600 dark:text-slate-300">{t.clientName || "—"}</td>
+                <td className="py-3 pe-3">
+                  {t.clientName
+                    ? <RecordLink href={linkToClient(slug, t.clientId)} mono={false} title={`Open ${t.clientName}`}>{t.clientName}</RecordLink>
+                    : <span className="text-slate-400">—</span>}
+                </td>
                 <td className="py-3 pe-3">
                   <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STATUS_TONE[t.status] || STATUS_TONE.Lead}`}>{t.status}</span>
                 </td>
@@ -164,14 +179,14 @@ function Tickets({ tickets, people, canManage, onEdit, onDelete, noClients }) {
 }
 
 // ---- clients ---------------------------------------------------------------
-function Clients({ clients, canManage, onEdit, onDelete }) {
+function Clients({ clients, canManage, focus, onEdit, onDelete }) {
   if (clients.length === 0) {
     return <Empty title="No clients yet" body="Add the companies you sell to. Tickets, and later quotations and projects, hang off them." />;
   }
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {clients.map((c) => (
-        <section key={c.id} className={panel}>
+        <section key={c.id} {...focus.focusProps(c.id)} className={`${panel} ${focus.focusProps(c.id).className || ""}`}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{c.name}</h3>

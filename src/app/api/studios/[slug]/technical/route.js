@@ -26,6 +26,7 @@ export async function GET(request, ctx) {
     canManage: tech.canManage,
     // Raising an RFQ is a Sales action, so the button depends on a different grant.
     canRequestRfq: tech.canManageSales,
+    nav: tech.nav,
     rfqs, quotations, openTickets: tickets, people,
     vocabulary: { rfqStatuses: RFQ_STATUSES, quotationStatuses: QUOTATION_STATUSES, defaultVatRate: DEFAULT_VAT_RATE },
   });

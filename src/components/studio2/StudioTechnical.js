@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import RecordLink from "@/components/studio2/RecordLink";
+import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
+import { linkToTicket, linkToRfq, linkIf } from "@/lib/studioLinks";
 
 // Technical: RFQs raised by Sales, and the quotations they become.
 // Two different grants are in play — raising an RFQ needs Sales:manage, working
@@ -30,7 +33,14 @@ const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, max
 
 export default function StudioTechnical({ slug }) {
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState("rfqs");
+  const focusRfq = useFocusedRecord("rfq");
+  const focusQuote = useFocusedRecord("quotation");
+  // A deep link decides which tab opens.
+  const [tab, setTab] = useState(focusQuote.focusedId ? "quotations" : "rfqs");
+  // Following a link that lands on this same page never remounts it, so the tab
+  // has to react to the query changing too — not just to the first render.
+  useEffect(() => { if (focusQuote.focusedId) setTab("quotations"); }, [focusQuote.focusedId]);
+  useEffect(() => { if (focusRfq.focusedId) setTab("rfqs"); }, [focusRfq.focusedId]);
   const [error, setError] = useState("");
   const [raising, setRaising] = useState(false);
   const [converting, setConverting] = useState(null);
@@ -67,7 +77,7 @@ export default function StudioTechnical({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Technical…</p>;
 
-  const { canManage, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary } = data;
+  const { canManage, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, nav } = data;
   const aliasOf = Object.fromEntries(people.map((p) => [p.id, p.alias]));
 
   return (
@@ -100,10 +110,15 @@ export default function StudioTechnical({ slug }) {
         : <section className={panel}>
             <ul className="divide-y divide-slate-100 dark:divide-white/5">
               {rfqs.map((r) => (
-                <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0">
+                <li key={r.id} {...focusRfq.focusProps(r.id)} className={`flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0 ${focusRfq.focusProps(r.id).className || ""}`}>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-xs text-slate-400">{r.reference}</span>
+                      {r.ticketRef && (
+                        <RecordLink href={linkIf(nav?.sales, linkToTicket(slug, r.ticketId))} title="Open the originating ticket">
+                          {r.ticketRef}
+                        </RecordLink>
+                      )}
                       <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${RFQ_TONE[r.status] || RFQ_TONE.New}`}>{r.status}</span>
                       {r.urgency && r.urgency !== "Normal" && <span className="text-xs font-600 text-amber-600 dark:text-amber-400">{r.urgency}</span>}
                     </div>
@@ -136,9 +151,15 @@ export default function StudioTechnical({ slug }) {
                 </thead>
                 <tbody>
                   {quotations.map((q) => (
-                    <tr key={q.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
+                    <tr key={q.id} {...focusQuote.focusProps(q.id)} className={`border-b border-slate-100 last:border-0 dark:border-white/5 ${focusQuote.focusProps(q.id).className || ""}`}>
                       <td className="py-3 pe-3 font-mono text-xs text-slate-500 dark:text-slate-400">{q.number}</td>
-                      <td className="py-3 pe-3 font-600 text-slate-900 dark:text-white">{q.title}</td>
+                      <td className="py-3 pe-3">
+                        <span className="font-600 text-slate-900 dark:text-white">{q.title}</span>
+                        <span className="ms-2 inline-flex gap-1">
+                          {q.rfqId && <RecordLink href={linkToRfq(slug, q.rfqId)} title="Open the RFQ">RFQ</RecordLink>}
+                          {q.ticketId && <RecordLink href={linkIf(nav?.sales, linkToTicket(slug, q.ticketId))} title="Open the ticket">Ticket</RecordLink>}
+                        </span>
+                      </td>
                       <td className="py-3 pe-3 text-slate-600 dark:text-slate-300">{q.clientName || "—"}</td>
                       <td className="py-3 pe-3"><span className={`rounded-full px-2.5 py-1 text-xs font-600 ${Q_TONE[q.status] || Q_TONE.Draft}`}>{q.status}</span></td>
                       <td className="py-3 pe-3 text-end font-600 tabular-nums text-slate-900 dark:text-white">{money(q.total)}</td>

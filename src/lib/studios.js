@@ -119,6 +119,13 @@ export function visibleSections(studio, collaborator, sections, grants) {
   return (sections || []).filter((s) => s.enabled !== false && canViewSection(studio, collaborator, s.id, grants));
 }
 
+// { sales: true, technical: false, … } — used by the modules to decide whether a
+// cross-record reference should be a link or plain text.
+export function sectionNav(studio, collaborator, sections, grants) {
+  const visible = new Set(visibleSections(studio, collaborator, sections, grants).map((s) => s.key));
+  return Object.fromEntries((sections || []).map((s) => [s.key, visible.has(s.key)]));
+}
+
 // ---- joining someone else's studio by company code -------------------------
 // Typing a code only ever RAISES A REQUEST. We deliberately report whether the
 // code matched a studio (the slug is a public address anyway), but never who is
