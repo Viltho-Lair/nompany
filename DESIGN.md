@@ -96,6 +96,38 @@ outranks the base `rounded-[4px]`; a lone row matches both and ends up fully
 rounded. Rows are built from one `Row` component whose `as` prop swaps the tag
 (div / button / link) without changing the metrics.
 
+## Studio chrome (`/<slug>/…`)
+
+The Studio uses the **Old System's Geex control-panel design**, rendered in this
+project's own `brand-*`/`steel-*` palette rather than the Old System's navy.
+Built in [`StudioFrame`](src/components/studio2/StudioFrame.js):
+
+| Element | Spec |
+| --- | --- |
+| Page | `min-h-screen bg-[var(--geex-page)]` |
+| Sidebar | Floating + rounded: `fixed inset-y-4 start-4 w-64 rounded-geex bg-[var(--geex-surface)] shadow-geex`, `lg:block` |
+| Content | Offset `lg:ps-72`; `<main>` capped at `max-w-[1400px]` |
+| Header | `sticky top-0` on the page colour; section title + studio name; 40px round avatar with `shadow-geex-sm` |
+| Nav item | `rounded-lg px-3 py-2.5 text-sm font-500`, 18px icon, active `bg-brand-500/10 text-brand-700` (dark `brand-500/20` / `brand-400`) |
+| Card | `rounded-geex border-slate-200/70 bg-white p-6 shadow-geex-sm` · dark `#20202c` |
+| Mobile | Below `lg`, the sidebar becomes an overlay drawer opened by a round menu button |
+
+The nav is **DB-driven** — sections come from the tenant, so unlike the Old
+System there is no hardcoded route list. Section keys map to icons in
+[`icons.js`](src/components/studio2/icons.js) (ported from the Old System's set),
+falling back to a neutral dot for anything unrecognised.
+
+### `html.studio-chrome` is set server-side
+
+Everything above depends on that class: the `--geex-*` tokens, the Cabin
+typeface and the [three-size type scale](#studio-font-sizes) are **all** scoped
+to `html.studio-chrome` in [`globals.css`](src/app/globals.css). The Old System
+added the class from an effect inside its shell; here the root
+[`layout.js`](src/app/layout.js) sets it from the proxy's `x-studio-slug`
+header instead, so it lands server-side and there is no flash of untokenised
+background. Public routes never get the header, so the class — and the whole
+Studio scale — stays off the marketing site.
+
 ## Typography
 
 ### Studio font sizes

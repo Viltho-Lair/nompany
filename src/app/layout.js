@@ -58,14 +58,22 @@ export const viewport = {
 export default async function RootLayout({ children }) {
   // The proxy sets x-locale so the correct lang/dir land on <html> for the
   // bilingual (EN/AR) site; default to English for non-localised routes.
-  const headerLocale = (await headers()).get("x-locale");
+  const h = await headers();
+  const headerLocale = h.get("x-locale");
   const locale = isLocale(headerLocale) ? headerLocale : defaultLocale;
   const dir = dirFor(locale);
+
+  // The Studio's whole design system — the --geex-* surface tokens, the Cabin
+  // typeface and the three-size type scale — is scoped to `html.studio-chrome`
+  // in globals.css. The proxy sets x-studio-slug on exactly the tenant
+  // addresses, so tag <html> here: server-side, which avoids the flash of
+  // untokenised background you get from setting the class in an effect.
+  const isStudio = Boolean(h.get("x-studio-slug"));
 
   const settings = await getSiteSettings();
 
   return (
-    <html lang={locale} dir={dir} suppressHydrationWarning>
+    <html lang={locale} dir={dir} className={isStudio ? "studio-chrome" : undefined} suppressHydrationWarning>
       <body>
         {/* Apply the saved/system theme, and any saved studio RTL choice,
             before paint to avoid a flash. */}
