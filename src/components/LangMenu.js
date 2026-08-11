@@ -1,0 +1,82 @@
+"use client";
+
+import Link from "next/link";
+
+// Hover-/focus-expandable language control. Collapsed it shows a globe icon +
+// the current language's short code; on hover (or keyboard focus) a small
+// dropdown reveals every language — mirroring the ThemeToggle interaction.
+//
+// Each option is either a Link (main site: navigating swaps the locale) or a
+// button (Studio: a client-side dir/lang switch), decided by whether `href` is
+// present. Trigger styling is passed in so it matches its surrounding chrome.
+function GlobeIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z" />
+    </svg>
+  );
+}
+
+export default function LangMenu({
+  current,
+  options,
+  label = "Language",
+  triggerClass = "",
+  align = "end", // "end" | "start" — which edge the dropdown aligns to
+  direction = "down", // "down" | "up" — which way the dropdown opens
+}) {
+  const cur = options.find((o) => o.code === current) || options[0];
+  const panelPos =
+    direction === "up"
+      ? "bottom-full pb-2 translate-y-1 group-hover:translate-y-0 group-focus-within:translate-y-0"
+      : "top-full pt-2 -translate-y-1 group-hover:translate-y-0 group-focus-within:translate-y-0";
+  const edge = align === "start" ? "start-0" : "end-0";
+
+  return (
+    <div role="group" aria-label={label} className="group relative inline-flex">
+      <button type="button" aria-haspopup="menu" className={triggerClass}>
+        <GlobeIcon className="h-4 w-4 shrink-0" />
+        <span>{cur?.short || cur?.label}</span>
+        <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0 opacity-60 transition-transform duration-200 group-hover:rotate-180" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      <div
+        className={`invisible absolute z-50 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${edge} ${panelPos}`}
+      >
+        <div className="min-w-[150px] overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-[#20202c]">
+          {options.map((o) => {
+            const active = o.code === current;
+            const cls = `flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-start text-sm font-600 normal-case tracking-normal transition-colors ${
+              active
+                ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+            }`;
+            const inner = (
+              <>
+                <span lang={o.code}>{o.label}</span>
+                {active && (
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12l5 5L20 7" />
+                  </svg>
+                )}
+              </>
+            );
+            return o.href ? (
+              <Link key={o.code} href={o.href} onClick={o.onSelect} className={cls}>
+                {inner}
+              </Link>
+            ) : (
+              <button key={o.code} type="button" onClick={o.onSelect} className={cls}>
+                {inner}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -14,7 +14,7 @@
 //   • RESEND_API_KEY   — required to actually send. When absent, sends are
 //                        skipped (logged as a no-op) so local dev still works.
 //   • RESEND_FROM      — default "From" address, e.g.
-//                        "MegaTech Arabia <no-reply@yourdomain.com>".
+//                        "nompany <no-reply@nompany.com>".
 //                        Falls back to Resend's shared testing sender, which can
 //                        only deliver to the Resend account owner's own address.
 //   • RESEND_REPLY_TO  — optional default Reply-To for every message.
@@ -24,16 +24,24 @@ const RESEND_ENDPOINT = "https://api.resend.com/emails";
 // Resend's shared sandbox sender. Works with any API key WITHOUT verifying a
 // domain, but only delivers to the email that owns the Resend account — good
 // enough to smoke-test the integration before a domain is set up.
-const DEFAULT_FROM = "MegaTech Arabia <onboarding@resend.dev>";
+const DEFAULT_FROM = "nompany <onboarding@resend.dev>";
 
 export function getApiKey() {
   return process.env.RESEND_API_KEY || "";
 }
 
-// True when a real API key is present. Feature code can branch on this to avoid
-// building a payload it can't send.
+// GLOBAL KILL-SWITCH. All outbound email is suppressed unless EMAILS_ENABLED is
+// explicitly "true". Lets us stand up the platform (migration, logins, signups)
+// WITHOUT sending anything until the owner approves. Set EMAILS_ENABLED=true in
+// Vercel to resume delivery. See [[nompany-super-studio-split]].
+export function emailsEnabled() {
+  return String(process.env.EMAILS_ENABLED || "").trim().toLowerCase() === "true";
+}
+
+// True when a real API key is present AND sending is enabled. Feature code can
+// branch on this to avoid building a payload it can't/shouldn't send.
 export function isEmailConfigured() {
-  return Boolean(getApiKey());
+  return Boolean(getApiKey()) && emailsEnabled();
 }
 
 function defaultFrom() {
@@ -72,7 +80,13 @@ export async function sendEmail(opts = {}) {
   if (!subject) return { ok: false, error: "No subject provided." };
   if (!html && !text) return { ok: false, error: "Email has neither html nor text body." };
 
-  if (!isEmailConfigured()) {
+  // Global kill-switch — suppress ALL delivery until explicitly enabled.
+  if (!emailsEnabled()) {
+    console.warn(`[email] EMAILS_ENABLED is not "true" — suppressing email "${subject}" to ${recipients.join(", ")}`);
+    return { ok: false, skipped: true, error: "Email sending disabled (EMAILS_ENABLED)" };
+  }
+
+  if (!getApiKey()) {
     // Soft no-op so local dev and misconfigured environments never crash.
     console.warn(`[email] RESEND_API_KEY not set — skipping email "${subject}" to ${recipients.join(", ")}`);
     return { ok: false, skipped: true, error: "RESEND_API_KEY not configured" };

@@ -1,4 +1,4 @@
-// Reusable email templates for MegaTech Arabia.
+// Reusable email templates for nompany.
 //
 // Templates return a plain `{ subject, html, text }` object that can be spread
 // straight into `sendEmail()`. Each one is built on the shared `layout()`
@@ -6,8 +6,8 @@
 // here rather than hand-rolling HTML at the call site.
 
 const BRAND = {
-  name: "MegaTech Arabia",
-  color: "#0b5cff", // primary accent used for the header bar / buttons
+  name: "nompany",
+  color: "#2563eb", // nompany royal blue — header bar / buttons
   muted: "#6b7280",
   text: "#111827",
   border: "#e5e7eb",
@@ -84,7 +84,7 @@ function detailRow(label, value) {
 // @returns {{ subject: string, html: string, text: string }}
 export function loginNotificationEmail({ name, userId, time, ip, userAgent } = {}) {
   const greetingName = name || userId || "there";
-  const subject = "New sign-in to your MegaTech Arabia account";
+  const subject = "New sign-in to your nompany account";
 
   const details = [
     detailRow("Account", userId),
@@ -121,4 +121,112 @@ export function loginNotificationEmail({ name, userId, time, ip, userAgent } = {
     .join("\n");
 
   return { subject, html: layout({ title: subject, bodyHtml, preheader: "A new sign-in to your account was detected." }), text };
+}
+
+// A primary call-to-action button.
+function ctaButton(label, url) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+    <tr><td style="border-radius:8px;background:${BRAND.color};">
+      <a href="${esc(url)}" style="display:inline-block;padding:12px 26px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">${esc(label)}</a>
+    </td></tr>
+  </table>`;
+}
+
+// Email-verification message. Verifying unlocks Studio access; the link expires
+// in 24 hours (a fresh one can be requested from the account page).
+export function verifyEmailEmail({ name, url } = {}) {
+  const greetingName = name || "there";
+  const subject = "Confirm your nompany email";
+  const bodyHtml = `
+    <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Confirm your email</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
+      Hi ${esc(greetingName)}, welcome to nompany. Confirm this email address to unlock your Studio workspace.
+    </p>
+    ${ctaButton("Confirm email", url)}
+    <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
+      This link expires in 24 hours. If it lapses, you can request a new one from your account page. If you didn't create a nompany account, you can ignore this message.
+    </p>`;
+  const text = `Confirm your nompany email\n\nHi ${greetingName}, welcome to nompany.\nConfirm your email to unlock your Studio workspace: ${url}\n\nThis link expires in 24 hours. If you didn't create an account, ignore this message.`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: "Confirm your nompany email address." }), text };
+}
+
+// A large, selectable one-time code block.
+function codeBlock(code) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+    <tr><td style="border-radius:10px;background:#f1f5f9;border:1px solid #e2e8f0;padding:16px 28px;">
+      <span style="font-family:ui-monospace,Consolas,monospace;font-size:30px;font-weight:700;letter-spacing:8px;color:${BRAND.text};">${esc(code)}</span>
+    </td></tr>
+  </table>`;
+}
+
+// RESTRUCTURED IDENTITY: email verification is a CODE the person types (their
+// own unique code tied to their email), not a link. See [[nompany-db-restructure]].
+export function verificationCodeEmail({ name, code } = {}) {
+  const greetingName = name || "there";
+  const subject = "Your nompany verification code";
+  const bodyHtml = `
+    <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Confirm your email</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
+      Hi ${esc(greetingName)}, welcome to nompany. Enter this code to confirm your email address.
+    </p>
+    ${codeBlock(code)}
+    <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
+      This code expires in 24 hours. If you didn't create a nompany account, you can ignore this message.
+    </p>`;
+  const text = `Your nompany verification code\n\nHi ${greetingName},\nEnter this code to confirm your email: ${code}\n\nIt expires in 24 hours. If you didn't create an account, ignore this message.`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: `Your code is ${code}` }), text };
+}
+
+// Password reset — also a typed code (same model as verification).
+export function passwordResetCodeEmail({ name, code } = {}) {
+  const greetingName = name || "there";
+  const subject = "Your nompany password reset code";
+  const bodyHtml = `
+    <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Reset your password</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
+      Hi ${esc(greetingName)}, enter this code to choose a new password.
+    </p>
+    ${codeBlock(code)}
+    <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
+      This code expires in 1 hour. If you didn't request a reset, you can safely ignore this message — your password stays unchanged.
+    </p>`;
+  const text = `Your nompany password reset code\n\nHi ${greetingName},\nEnter this code to set a new password: ${code}\n\nIt expires in 1 hour. If you didn't request it, ignore this message.`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: `Your reset code is ${code}` }), text };
+}
+
+// Studio invitation — a manager invited this address to join their studio.
+// Names the person who invited them (and their email) per the studio's request.
+export function studioInviteEmail({ companyName, url, invitedByName, invitedByEmail } = {}) {
+  const studio = companyName || "a nompany studio";
+  const inviter = invitedByName || "A studio manager";
+  const subject = `You're invited to join ${studio} on nompany`;
+  const bodyHtml = `
+    <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Join ${esc(studio)}</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
+      <strong>${esc(inviter)}</strong>${invitedByEmail ? ` (${esc(invitedByEmail)})` : ""} has invited you to join
+      <strong>${esc(studio)}</strong>'s Studio on nompany. Click below to confirm and become a member.
+    </p>
+    ${ctaButton("Approve & join", url)}
+    <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
+      This invitation link expires in 7 days. If you weren't expecting it, you can ignore this message.
+    </p>`;
+  const text = `You're invited to join ${studio} on nompany\n\n${inviter}${invitedByEmail ? ` (${invitedByEmail})` : ""} invited you to join ${studio}'s Studio.\nApprove & join: ${url}\n\nThis link expires in 7 days. If you weren't expecting it, ignore this message.`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: `${inviter} invited you to ${studio}.` }), text };
+}
+
+// Password-reset message.
+export function passwordResetEmail({ name, url } = {}) {
+  const greetingName = name || "there";
+  const subject = "Reset your nompany password";
+  const bodyHtml = `
+    <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Reset your password</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
+      Hi ${esc(greetingName)}, we received a request to reset your nompany password. This link expires in 1 hour.
+    </p>
+    ${ctaButton("Reset password", url)}
+    <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
+      If you didn't request this, you can safely ignore this email — your password won't change.
+    </p>`;
+  const text = `Reset your nompany password\n\nHi ${greetingName}, reset your password (expires in 1 hour): ${url}\n\nIf you didn't request this, ignore this email.`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: "Reset your nompany password." }), text };
 }

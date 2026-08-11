@@ -1,0 +1,105 @@
+// USER repository — the single identity (merges the old companies-auth +
+// users-login split). A User owns exactly its own satellites:
+//   u:<UserID>:profile        1:1 editable personal information
+//   u:<UserID>:verification   1:1 email-verification + reset codes
+//   u:<UserID>:questionnaire  1:1 personal questionnaire (exclusively theirs)
+//   u:<UserID>:sessions       1:N login sessions (ix:session:<token> has EX)
+//
+// USER-scoped data lives HERE and only here — never on a studio.
+// Deletion goes through cascade.js (cascadeDeleteUser), never this file.
+
+import { REG, U, IX, ID, normEmail } from "@/lib/data/keys";
+import { readArr, writeArr, getJSON, setJSON, claim, getIndex, release } from "@/lib/data/store";
+import { newSessionToken } from "@/lib/passwords";
+
+// ---- create ----------------------------------------------------------------
+// Claims the email index FIRST (SET NX) so two concurrent signups can never
+// share an address, then writes the registry row + all three 1:1 satellites.
+export async function createUser({ email, passwordHash, fullName = "" }) {
+  const mail = normEmail(email);
+  if (!mail) return { error: "email" };
+  const id = ID.user();
+  if (!(await claim(IX.email(mail), id))) return { error: "exists" };
+  try {
+    const user = { id, email: mail, passwordHash, status: "active", createdAt: new Date().toISOString() };
+    await setJSON(U.profile(id), { fullName, shortName: "", phone: "", dob: "", photo: "", language: "en", workAddress: "" });
+    await setJSON(U.verification(id), { emailCode: "", emailCodeExpires: 0, emailVerifiedAt: "", lastSentAt: 0, resetCode: "", resetCodeExpires: 0 });
+    await setJSON(U.questionnaire(id), { intent: "", field: "", country: "", city: "", erps: [], packageKey: "", completedAt: "" });
+    const rows = await readArr(REG.users);
+    await writeArr(REG.users, [user, ...rows]);
+    return { user };
+  } catch (e) {
+    await release(IX.email(mail)); // roll back the claim so the email isn't stranded
+    throw e;
+  }
+}
+
+// ---- lookups ---------------------------------------------------------------
+export async function getUserById(userId) {
+  if (!userId) return null;
+  const rows = await readArr(REG.users);
+  return rows.find((u) => u.id === userId) || null;
+}
+export async function getUserByEmail(email) {
+  const id = await getIndex(IX.email(email));
+  return id ? getUserById(id) : null;
+}
+export async function listUsers() {
+  return readArr(REG.users);
+}
+
+// ---- registry updates (id/email are immutable here) ------------------------
+export async function updateUser(userId, patch) {
+  const rows = await readArr(REG.users);
+  let updated = null;
+  const next = rows.map((u) => {
+    if (u.id !== userId) return u;
+    const { id, email, ...safe } = patch || {};
+    updated = { ...u, ...safe, id: u.id, email: u.email };
+    return updated;
+  });
+  if (updated) await writeArr(REG.users, next);
+  return updated;
+}
+
+// ---- 1:1 satellites (merge-patch semantics) --------------------------------
+const patchDoc = (key) => async (userId, patch) => {
+  const cur = (await getJSON(key(userId))) || {};
+  const next = { ...cur, ...patch };
+  await setJSON(key(userId), next);
+  return next;
+};
+export const getProfile = (userId) => getJSON(U.profile(userId));
+export const updateProfile = patchDoc(U.profile);
+export const getVerification = (userId) => getJSON(U.verification(userId));
+export const updateVerification = patchDoc(U.verification);
+export const getQuestionnaire = (userId) => getJSON(U.questionnaire(userId));
+export const updateQuestionnaire = patchDoc(U.questionnaire);
+
+// ---- sessions (1:N; expiry enforced by Redis EX on the index key) ----------
+export async function mintSession(userId, ttlSec) {
+  const token = newSessionToken();
+  const now = Date.now();
+  await claim(IX.session(token), userId, ttlSec); // fresh random token — claim always succeeds
+  const sessions = await readArr(U.sessions(userId));
+  const next = [{ token, createdAt: now, expiresAt: now + ttlSec * 1000 }, ...sessions]
+    .filter((s) => s.expiresAt > now)
+    .slice(0, 10); // bound per user
+  await writeArr(U.sessions(userId), next);
+  return token;
+}
+export async function findUserBySession(token) {
+  if (!token) return null;
+  const userId = await getIndex(IX.session(token));
+  return userId ? getUserById(userId) : null;
+}
+export async function revokeSession(userId, token) {
+  await release(IX.session(token));
+  const sessions = await readArr(U.sessions(userId));
+  await writeArr(U.sessions(userId), sessions.filter((s) => s.token !== token));
+}
+export async function revokeAllSessions(userId) {
+  const sessions = await readArr(U.sessions(userId));
+  for (const s of sessions) await release(IX.session(s.token));
+  await writeArr(U.sessions(userId), []);
+}

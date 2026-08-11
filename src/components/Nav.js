@@ -5,35 +5,68 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
-import { field } from "@/lib/i18n";
+import LangMenu from "@/components/LangMenu";
+import AccountMenu from "@/components/AccountMenu";
+import Skeleton from "@/components/Skeleton";
 import { track, pageLabelFromPath } from "@/lib/track";
+import { CONTACT, PRICING_LOCKED } from "@/lib/site";
 
 // Minimal editorial header (inspired by the reference site): a slim bar with the
 // wordmark, theme + language controls and a Menu button that opens a full-screen
 // overlay carrying the navigation. No hovering/glowing logo.
-export default function Nav({ locale, dict, settings }) {
+export default function Nav({ locale, dict }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const siteName = field(settings, "site_name", locale) || dict.common.brand;
+  // Auth state has three values so the header never flashes the wrong buttons:
+  //   undefined = still loading (unknown) → skeleton
+  //   null      = guest                   → Login / Sign-up
+  //   object    = signed-in SaaS account  → AccountMenu
+  // The value is preserved across route changes (we don't reset to undefined on
+  // re-fetch), so the skeleton only appears on the very first load.
+  const [company, setCompany] = useState(undefined);
+  const authLoading = company === undefined;
+  const siteName = dict.common.brand;
+
+  // Reflect the SaaS session in the header (re-checked on navigation) so a
+  // signed-in user sees their account menu instead of Login/Sign-up.
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/identity/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive) setCompany(d?.user ? { email: d.user.email, name: d.profile?.fullName || "" } : null); })
+      .catch(() => { if (alive) setCompany(null); }); // resolve to guest so the skeleton never hangs
+    return () => { alive = false; };
+  }, [pathname]);
+
+  async function signOut() {
+    try { await fetch("/api/identity/logout", { method: "POST" }); } catch { /* ignore */ }
+    setCompany(null);
+    setOpen(false);
+  }
 
   const links = [
     { href: `/${locale}`, label: dict.nav.home, exact: true },
-    { href: `/${locale}/services`, label: dict.nav.services },
-    { href: `/${locale}/projects`, label: dict.nav.projects },
-    { href: `/${locale}/clients`, label: dict.nav.clients },
-    { href: `/${locale}/vendors`, label: dict.nav.vendors },
-    { href: `/${locale}/team`, label: dict.nav.team },
+    { href: `/${locale}/features`, label: dict.nav.features },
+    ...(PRICING_LOCKED ? [] : [{ href: `/${locale}/pricing`, label: dict.nav.pricing }]),
     { href: `/${locale}/about`, label: dict.nav.about },
+    { href: `/${locale}/team`, label: dict.nav.team },
     { href: `/${locale}/careers`, label: dict.nav.careers },
     { href: `/${locale}/contact`, label: dict.nav.contact },
   ];
 
+  // Primary auth actions → public SaaS sign-up / login.
+  const loginHref = `/${locale}/login`;
+  const signupHref = `/${locale}/signup?package=micro`;
+
   const isActive = (href, exact) => (exact ? pathname === href : pathname.startsWith(href));
 
-  // Swap locale while preserving the current sub-path.
-  const other = locale === "en" ? "ar" : "en";
+  // Language options preserve the current sub-path and just swap the locale
+  // segment. Each label is shown in its own script; English is the default.
   const rest = pathname.replace(/^\/(en|ar)/, "") || "";
-  const otherHref = `/${other}${rest}`;
+  const langOptions = [
+    { code: "en", label: "English", short: "EN", href: `/en${rest}` },
+    { code: "ar", label: "العربية", short: "AR", href: `/ar${rest}` },
+  ];
 
   const themeLabels = {
     theme: dict.common.theme,
@@ -56,12 +89,12 @@ export default function Nav({ locale, dict, settings }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const langPill =
-    "rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current";
+  const langTrigger =
+    "inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current";
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-steel-400/15 bg-white/85 backdrop-blur-md dark:border-white/10 dark:bg-[#0b1633]/85">
+      <header className="sticky top-0 z-50 border-b border-steel-400/15 bg-white/85 backdrop-blur-md dark:border-white/10 dark:bg-steel-900/85">
         <nav className="container-page flex h-16 items-center justify-between gap-4 sm:h-[74px]">
           <Link href={`/${locale}`} className="flex items-center gap-2.5 text-brand-950 dark:text-white">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#eef1f6] p-[3px] sm:h-10 sm:w-10">
@@ -74,7 +107,32 @@ export default function Nav({ locale, dict, settings }) {
             <div className="hidden sm:block">
               <ThemeToggle labels={themeLabels} />
             </div>
-            <Link href={otherHref} className={langPill}>{dict.common.langSwitch}</Link>
+            <LangMenu current={locale} options={langOptions} label={dict.common.language} triggerClass={langTrigger} align="end" />
+            {authLoading ? (
+              <div className="hidden items-center gap-2.5 sm:flex" aria-hidden="true">
+                <Skeleton className="h-4 w-12" rounded="rounded" />
+                <Skeleton className="h-8 w-20" rounded="rounded-full" />
+              </div>
+            ) : company ? (
+              <div className="hidden sm:block">
+                <AccountMenu locale={locale} company={company} dict={dict} onSignedOut={() => setCompany(null)} />
+              </div>
+            ) : (
+              <>
+                <Link
+                  href={loginHref}
+                  className="hidden font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:text-brand-600 dark:hover:text-brand-300 sm:inline"
+                >
+                  {dict.nav.login}
+                </Link>
+                <Link
+                  href={signupHref}
+                  className="hidden rounded-full bg-brand-600 px-4 py-2 font-display text-xs font-700 uppercase tracking-[0.12em] text-white transition-colors hover:bg-brand-700 sm:inline-block"
+                >
+                  {dict.nav.signup}
+                </Link>
+              </>
+            )}
             <button
               type="button"
               onClick={() => setOpen(true)}
@@ -96,7 +154,7 @@ export default function Nav({ locale, dict, settings }) {
         className={`fixed inset-0 z-[70] transition-opacity duration-300 ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
         aria-hidden={!open}
       >
-        <div className="absolute inset-0 bg-brand-950 text-white">
+        <div className="absolute inset-0 bg-steel-900 text-white">
           <div className="container-page flex h-16 items-center justify-between sm:h-[74px]">
             <span className="font-display text-base font-700 tracking-tight sm:text-lg">{siteName}</span>
             <button
@@ -129,14 +187,64 @@ export default function Nav({ locale, dict, settings }) {
               ))}
             </nav>
 
+            <div className="mb-6 flex flex-wrap items-center gap-3 sm:hidden">
+              {authLoading ? (
+                <>
+                  <Skeleton className="h-12 w-40" rounded="rounded-full" bg="bg-white/15" />
+                  <Skeleton className="h-12 w-28" rounded="rounded-full" bg="bg-white/15" />
+                </>
+              ) : company ? (
+                <>
+                  <Link
+                    href={`/${locale}/account`}
+                    onClick={() => setOpen(false)}
+                    className="rounded-full bg-brand-600 px-6 py-3 font-display text-sm font-700 uppercase tracking-[0.12em] text-white transition-colors hover:bg-brand-700"
+                  >
+                    {dict.nav.account || "My account"}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    className="rounded-full border border-white/40 px-6 py-3 font-display text-sm font-700 uppercase tracking-[0.12em] text-white transition-colors hover:border-white"
+                  >
+                    {dict.nav.signout || "Sign out"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href={signupHref}
+                    onClick={() => setOpen(false)}
+                    className="rounded-full bg-brand-600 px-6 py-3 font-display text-sm font-700 uppercase tracking-[0.12em] text-white transition-colors hover:bg-brand-700"
+                  >
+                    {dict.nav.signup}
+                  </Link>
+                  <Link
+                    href={loginHref}
+                    onClick={() => setOpen(false)}
+                    className="rounded-full border border-white/40 px-6 py-3 font-display text-sm font-700 uppercase tracking-[0.12em] text-white transition-colors hover:border-white"
+                  >
+                    {dict.nav.login}
+                  </Link>
+                </>
+              )}
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6 text-white">
               <div className="flex items-center gap-3">
                 <ThemeToggle labels={themeLabels} />
-                <Link href={otherHref} onClick={() => setOpen(false)} className={langPill}>{dict.common.langSwitch}</Link>
+                <LangMenu
+                  current={locale}
+                  options={langOptions.map((o) => ({ ...o, onSelect: () => setOpen(false) }))}
+                  label={dict.common.language}
+                  triggerClass={langTrigger}
+                  align="start"
+                  direction="up"
+                />
               </div>
-              {settings?.email && (
-                <a href={`mailto:${settings.email}`} className="font-display text-sm font-600 tracking-wide text-white/80 transition-colors hover:text-white">
-                  {settings.email}
+              {CONTACT.email && (
+                <a href={`mailto:${CONTACT.email}`} className="font-display text-sm font-600 tracking-wide text-white/80 transition-colors hover:text-white">
+                  {CONTACT.email}
                 </a>
               )}
             </div>

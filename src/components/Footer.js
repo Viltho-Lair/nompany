@@ -2,40 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { field } from "@/lib/i18n";
+import { CONTACT, PRICING_LOCKED } from "@/lib/site";
 
 // Editorial footer (adapted from the reference site): a big "Let's connect"
 // band, then a minimal dark strip with an Explore nav list, the office / contact
 // block, and a thin copyright bar. Solid navy on every page.
-export default function Footer({ locale, dict, settings }) {
+export default function Footer({ locale, dict }) {
   const pathname = usePathname();
   const isContact = pathname === `/${locale}/contact`;
   const year = new Date().getFullYear();
 
   const nav = [
-    { href: `/${locale}/services`, label: dict.nav.services },
-    { href: `/${locale}/projects`, label: dict.nav.projects },
-    { href: `/${locale}/clients`, label: dict.nav.clients },
-    { href: `/${locale}/vendors`, label: dict.nav.vendors },
-    { href: `/${locale}/team`, label: dict.nav.team },
+    { href: `/${locale}/features`, label: dict.nav.features },
+    ...(PRICING_LOCKED ? [] : [{ href: `/${locale}/pricing`, label: dict.nav.pricing }]),
     { href: `/${locale}/about`, label: dict.nav.about },
+    { href: `/${locale}/team`, label: dict.nav.team },
     { href: `/${locale}/careers`, label: dict.nav.careers },
     { href: `/${locale}/contact`, label: dict.nav.contact },
+    { href: `/${locale}/terms`, label: dict.nav.terms },
   ];
 
-  const socials = [
-    { href: settings.linkedin, label: "LinkedIn" },
-    { href: settings.twitter, label: "X" },
-    { href: settings.instagram, label: "Instagram" },
-  ].filter((s) => s.href);
-
-  const addressText = field(settings, "address", locale);
-  const siteName = field(settings, "site_name", locale) || dict.common.brand;
+  const socials = CONTACT.socials;
+  const addressText = CONTACT.address[locale] || CONTACT.address.en;
+  const siteName = dict.common.brand;
   const heading = "mb-5 font-display text-xs font-700 uppercase tracking-[0.24em] text-brand-300";
   const link = "text-sm text-white/70 transition-colors hover:text-white";
 
   return (
-    <footer className="bg-brand-950 text-white">
+    <footer className="bg-steel-900 text-white">
       {/* Shared "Let's connect" band — the editorial contact call-to-action that
           sits above the footer on every page except the contact page itself. */}
       {!isContact && (
@@ -67,7 +61,7 @@ export default function Footer({ locale, dict, settings }) {
         <div>
           <p className="font-display text-2xl font-800 uppercase tracking-tight text-white">{siteName}</p>
           <p className="mt-4 font-display text-xs uppercase tracking-[0.18em] text-brand-300">
-            {dict.common.established} {settings.founded_year} · {field(settings, "city", locale)}
+            {dict.common.footerTagline}
           </p>
           {socials.length > 0 && (
             <div className="mt-6 flex flex-wrap gap-3">
@@ -104,21 +98,17 @@ export default function Footer({ locale, dict, settings }) {
           <ul className="space-y-3 text-sm">
             {addressText && (
               <li className="max-w-xs font-display text-sm font-600 uppercase leading-relaxed tracking-[0.08em] text-white/85">
-                {settings.maps_url ? (
-                  <a href={settings.maps_url} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-white">{addressText}</a>
-                ) : (
-                  addressText
-                )}
+                {addressText}
               </li>
             )}
-            {settings.phone && (
+            {CONTACT.phone && (
               <li dir="ltr" className="rtl:text-end">
-                <a href={`tel:${settings.phone.replace(/\s/g, "")}`} className={link}>{settings.phone}</a>
+                <a href={`tel:${CONTACT.phone.replace(/\s/g, "")}`} className={link}>{CONTACT.phone}</a>
               </li>
             )}
-            {settings.email && (
+            {CONTACT.email && (
               <li>
-                <a href={`mailto:${settings.email}`} className={link}>{settings.email}</a>
+                <a href={`mailto:${CONTACT.email}`} className={link}>{CONTACT.email}</a>
               </li>
             )}
           </ul>
@@ -128,7 +118,7 @@ export default function Footer({ locale, dict, settings }) {
       {/* Copyright bar */}
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col items-center justify-between gap-2 py-5 text-xs text-white/50 sm:flex-row">
-          <p>© {year} {field(settings, "name", locale)}. {dict.common.allRightsReserved}</p>
+          <p>© {year} {siteName}. {dict.common.allRightsReserved}</p>
           <Link href="/studio" className="transition-colors hover:text-white">{dict.common.admin}</Link>
         </div>
       </div>

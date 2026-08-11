@@ -11,22 +11,45 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Brand blues (from the supplied Icon Colors sheet)
+        // nompany brand — royal blue (from the ERP Color Palette spec).
+        // Primary #2563EB (blue-600); dark-mode primary #3B82F6 (blue-500).
+        // Mapped onto the Tailwind blue scale so every existing `brand-*` class
+        // adopts the new palette without touching each component.
         brand: {
-          950: "#031f5d", // darkest navy
-          900: "#022e72",
-          700: "#02438f",
-          600: "#024a9c",
-          500: "#0159ae", // bright blue
-          400: "#3d84d6", // lighter blue — legible on dark surfaces
-          300: "#74abea", // light blue — active/hover accents in dark mode
+          50: "#eff6ff",
+          100: "#dbeafe",
+          200: "#bfdbfe",
+          300: "#93c5fd", // light accent on dark surfaces
+          400: "#60a5fa", // legible on dark
+          500: "#3b82f6", // dark-mode primary
+          600: "#2563eb", // PRIMARY brand
+          700: "#1d4ed8",
+          800: "#1e40af",
+          900: "#1e3a8a",
+          950: "#172554",
         },
-        // Brand greys (from the supplied Icon Colors sheet)
+        // Neutrals — desaturated blue-gray (Slate) for data-dense, low-fatigue
+        // surfaces. Kept under the legacy `steel` name so existing classes work;
+        // values are the Tailwind slate scale from the palette spec.
         steel: {
-          400: "#8f8f8f",
-          500: "#767677",
-          700: "#5c5c5e",
+          50: "#f8fafc",  // app background (light)
+          100: "#f1f5f9",
+          200: "#e2e8f0", // borders / lines (light)
+          300: "#cbd5e1",
+          400: "#94a3b8", // secondary text (dark) / muted
+          500: "#64748b",
+          600: "#475569", // secondary text (light)
+          700: "#334155", // borders / lines (dark)
+          800: "#1e293b", // surface / cards (dark)
+          900: "#0f172a", // app background (dark) / deep sections
         },
+        // Semantic status colors (ERP statuses) — used by status pills across
+        // the studio + /super console. In dark mode, use these at ~15% opacity
+        // for backgrounds and full strength for text/icons.
+        success: "#059669", // Emerald — Approved
+        warning: "#d97706", // Amber — Pending
+        danger: "#e11d48",  // Rose — Failed
+        info: "#0284c7",    // Sky — In Progress
         // Geex "Control Panel" secondary accent (purple) — used as a highlight
         // alongside the MegaTech blue primary. Plus the design's light page/
         // surface tones so the Studio matches the Figma system.

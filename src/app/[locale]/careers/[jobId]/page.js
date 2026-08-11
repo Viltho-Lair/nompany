@@ -4,14 +4,14 @@ import EditorialHeader from "@/components/public/EditorialHeader";
 import ApplyForm from "@/components/ApplyForm";
 import JsonLd from "@/components/JsonLd";
 import RichText from "@/components/RichText";
-import { getCollection, getSettings } from "@/lib/db";
+import { getSiteCollection, getSiteSettings } from "@/lib/data/site";
 import { getDict, field } from "@/lib/i18n";
 import { urlFor, alternatesFor, breadcrumbLd, jobPostingLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 async function findJob(jobId) {
-  const jobs = await getCollection("careers");
+  const jobs = await getSiteCollection("careers");
   return jobs.find((j) => j.id === jobId) || null;
 }
 
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }) {
     title,
     description,
     alternates: { canonical, languages: alternatesFor(path) },
-    openGraph: { type: "website", url: canonical, siteName: "MegaTech Arabia", title, description },
+    openGraph: { type: "website", url: canonical, siteName: "nompany", title, description },
     twitter: { card: "summary_large_image", title, description },
   };
 }
@@ -41,7 +41,7 @@ export default async function JobApplicationPage({ params }) {
   const job = await findJob(jobId);
   if (!job) notFound();
 
-  const s = await getSettings();
+  const s = await getSiteSettings();
   const title = field(job, "title", locale);
 
   const structured = [

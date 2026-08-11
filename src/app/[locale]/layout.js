@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import ChatWidget from "@/components/ChatWidget";
 import SiteTracker from "@/components/SiteTracker";
-import { getSettings } from "@/lib/db";
+import { getSiteSettings } from "@/lib/data/site";
 import { getDict, dirFor, isLocale, locales } from "@/lib/i18n";
 
 export function generateStaticParams() {
@@ -19,7 +18,7 @@ export default async function LocaleLayout({ children, params }) {
   if (!isLocale(locale)) notFound();
 
   const dict = getDict(locale);
-  const settings = await getSettings();
+  const settings = await getSiteSettings();
   const dir = dirFor(locale);
 
   return (
@@ -27,7 +26,6 @@ export default async function LocaleLayout({ children, params }) {
       <Nav locale={locale} dict={dict} settings={settings} />
       <main className="flex-1">{children}</main>
       <Footer locale={locale} dict={dict} settings={settings} />
-      <ChatWidget locale={locale} schedule={settings.workSchedule || {}} />
       <SiteTracker />
     </div>
   );

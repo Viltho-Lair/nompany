@@ -1,7 +1,7 @@
 import { renderCard, size, contentType } from "@/lib/ogImage";
 
 export { size, contentType };
-export const alt = "MegaTech Arabia — Audio-Visual, Lighting & IT Systems Integration";
+export const alt = "nompany — run every department from one platform";
 
 export default function TwitterImage() {
   return renderCard();

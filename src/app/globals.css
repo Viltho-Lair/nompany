@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Saira:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap");
 
 /* Self-hosted signature/brush font — used for the leadership message name. */
 @font-face {
@@ -155,6 +155,54 @@ html.studio-chrome.dark {
   --geex-surface: #20202c;
   --geex-surface-2: #191921;
   --geex-border: rgba(255, 255, 255, 0.07);
+}
+
+/* Studio typeface (see DESIGN.md): Cabin for all Latin/English Studio text,
+   including display headings (the .font-display utility is overridden here so
+   nothing in the Studio escapes Cabin). The public site keeps Saira/IBM Plex. */
+html.studio-chrome,
+html.studio-chrome body,
+html.studio-chrome .font-display {
+  font-family: "Cabin", system-ui, sans-serif;
+}
+/* Arabic (RTL) Studio uses the display family per design spec. dir="rtl" is set
+   on the <html> element by the Studio language switcher. */
+html.studio-chrome[dir="rtl"],
+html.studio-chrome[dir="rtl"] body,
+html.studio-chrome[dir="rtl"] .font-display {
+  font-family: var(--font-display), Saira, system-ui, sans-serif;
+}
+
+/* Studio type scale — the ONLY three font sizes allowed in the Studio
+   (see DESIGN.md): title 1.75rem, heading 1rem, normal 0.875rem.
+   Enforced studio-wide by collapsing Tailwind's text-size utilities into
+   these three buckets within the studio-chrome scope, so the public site is
+   untouched and no per-page edits are needed. Substring [class*=] matching
+   also catches responsive variants (sm:text-2xl, lg:text-lg, …). Arbitrary
+   sizes like text-[11px] are intentionally left alone to avoid colliding with
+   arbitrary colours (text-[#hex]). */
+html.studio-chrome body {
+  font-size: 0.875rem; /* default "normal" for elements with no size utility */
+}
+/* Title — 1.75rem */
+html.studio-chrome [class*="text-4xl"],
+html.studio-chrome [class*="text-3xl"],
+html.studio-chrome [class*="text-2xl"],
+html.studio-chrome [class*="text-xl"] {
+  font-size: 1.75rem !important;
+  line-height: 1.25 !important;
+}
+/* Heading — 1rem */
+html.studio-chrome [class*="text-lg"],
+html.studio-chrome [class*="text-base"] {
+  font-size: 1rem !important;
+  line-height: 1.4 !important;
+}
+/* Normal — 0.875rem */
+html.studio-chrome [class*="text-sm"],
+html.studio-chrome [class*="text-xs"] {
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
 }
 
 /* Branded scrollbars inside the Studio panel only (class toggled by StudioShell).
