@@ -65,6 +65,9 @@ export const OTP = {
 export const RL = {
   otpEmail: (email) => `rl:otp:e:${normEmail(email)}`,
   otpIp: (ip) => `rl:otp:i:${String(ip || "unknown")}`,
+  // Public contact form, per IP — the one place an unauthenticated caller can
+  // write anything.
+  contactIp: (ip) => `rl:contact:i:${String(ip || "unknown")}`,
 };
 
 // ---- per-studio keys (die with the studio) ---------------------------------
@@ -122,7 +125,7 @@ export const SECTION_COLLECTIONS = {
   hr: ["departments", "positions", "certifications", "vacations"],
   finance: ["invoices", "expenses"],
   operations: ["locations", "permits", "shifts"],
-  website: ["services", "careers", "previousProjects", "galleryImages", "reviews", "messages", "applications", "signatures", "docImages"],
+  website: ["siteProfile", "services", "previousProjects", "messages"],
   tasks: ["tasks"],
 };
 
@@ -132,7 +135,7 @@ export const RESERVED_SLUGS = new Set([
   "www", "api", "studio", "super", "account", "login", "signup", "admin", "join",
   "app", "mail", "onboarding", "subscribe", "pricing", "contact", "about", "team",
   "careers", "terms", "features", "verify", "reset", "forgot", "en", "ar",
-  "robots", "sitemap", "manifest", "icon", "favicon", "brand", "_next",
+  "robots", "sitemap", "manifest", "icon", "favicon", "brand", "_next", "c",
 ]);
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,63}$/;
 export function isValidSlug(slug) {

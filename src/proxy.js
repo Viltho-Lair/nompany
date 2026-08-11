@@ -18,7 +18,9 @@ import { locales, defaultLocale } from "@/lib/i18n";
 const LOGIN_PATH = `/${defaultLocale}/login`;
 
 // Root paths that belong to the platform and can never be a studio slug.
-const PLATFORM = new Set(["api", "_next", "super", "brand", "favicon.ico", "robots.txt", "sitemap.xml", "manifest.webmanifest", "studio"]);
+// "c" is the public company-profile prefix (/c/<slug>) — kept off the root so a
+// published page can never collide with the private studio at /<slug>.
+const PLATFORM = new Set(["api", "_next", "super", "brand", "favicon.ico", "robots.txt", "sitemap.xml", "manifest.webmanifest", "studio", "c"]);
 
 export function proxy(request) {
   const { pathname } = request.nextUrl;
