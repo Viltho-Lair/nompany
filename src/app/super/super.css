@@ -1,0 +1,475 @@
+/* ---------------------------------------------------------------------------
+   /super — "Admindek" design system, scoped.
+   ---------------------------------------------------------------------------
+   Every token, reset and component class here is scoped to `.admindek`, the
+   wrapper rendered by src/app/super/layout.js. Nothing leaks into the public
+   site or the Studio, and nothing outside this folder had to change.
+
+   Colour values are lifted verbatim from the reference build
+   (admindek-next.dashboardpack.com), which ships Tailwind v4 `@theme` tokens.
+   This project is on Tailwind v3, so they live as plain custom properties and
+   are consumed either through the `.ad-*` component classes below or through
+   arbitrary values (`bg-[var(--ad-card)]`).
+
+   DARK MODE is inherited from the main website: the root layout toggles
+   `html.dark` from the `theme` cookie (light | dark | system) before paint, so
+   `.dark .admindek` is all that is needed here — no second theme store, no
+   flash, and the header's theme control writes that same cookie.
+
+   CASCADE LAYERS matter (see globals.css): component classes go in
+   `tw-components` so Tailwind utilities in `tw-utilities` always win, and the
+   element resets go in `tw-base` at a specificity that clears globals' own
+   `h1..h4` / `.dark h1..h4` base rules.
+--------------------------------------------------------------------------- */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+/* ---- tokens -------------------------------------------------------------- */
+
+.admindek {
+  --ad-background: #f4f7fa;
+  --ad-foreground: #262626;
+  --ad-card: #ffffff;
+  --ad-card-foreground: #262626;
+  --ad-popover: #ffffff;
+  --ad-popover-foreground: #262626;
+  --ad-primary: #4680ff;
+  --ad-primary-foreground: #ffffff;
+  --ad-secondary: #f3f5f7;
+  --ad-secondary-foreground: #262626;
+  --ad-muted: #f3f5f7;
+  --ad-muted-foreground: #888888;
+  --ad-accent: #f3f5f7;
+  --ad-accent-foreground: #262626;
+  --ad-destructive: #dc2626;
+  --ad-destructive-foreground: #ffffff;
+  --ad-success: #2ca87f;
+  --ad-success-foreground: #ffffff;
+  --ad-warning: #e58a00;
+  --ad-warning-foreground: #262626;
+  --ad-info: #04a9f5;
+  --ad-info-foreground: #ffffff;
+  --ad-border: #dbe0e5;
+  --ad-input: #dbe0e5;
+  --ad-ring: #4680ff;
+
+  --ad-chart-1: #4680ff;
+  --ad-chart-2: #1abc9c;
+  --ad-chart-3: #e58a00;
+  --ad-chart-4: #7c4dff;
+  --ad-chart-5: #3ebfea;
+
+  --ad-sidebar: #263544;
+  --ad-sidebar-foreground: #a9b7d0;
+  --ad-sidebar-caption: #e8edf7;
+  --ad-sidebar-primary: #4680ff;
+  --ad-sidebar-primary-foreground: #ffffff;
+  --ad-sidebar-accent: rgba(0, 0, 0, 0.1);
+  --ad-sidebar-accent-foreground: #ffffff;
+  --ad-sidebar-border: rgba(255, 255, 255, 0.08);
+  --ad-sidebar-shadow: 1px 0 20px 0 rgba(38, 53, 68, 1);
+
+  --ad-radius: 0.25rem;
+  --ad-header-height: 74px;
+  --ad-sidebar-width: 264px;
+  --ad-sidebar-collapsed-width: 80px;
+
+  --ad-shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --ad-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
+.dark .admindek {
+  --ad-background: #212224;
+  --ad-foreground: #d3d5d9;
+  --ad-card: #2a2b2e;
+  --ad-card-foreground: #d3d5d9;
+  --ad-popover: #2a2b2e;
+  --ad-popover-foreground: #d3d5d9;
+  --ad-primary: #5a8eff;
+  --ad-primary-foreground: #ffffff;
+  --ad-secondary: #2f3033;
+  --ad-secondary-foreground: #d3d5d9;
+  --ad-muted: #2f3033;
+  --ad-muted-foreground: #8996a4;
+  --ad-accent: #333538;
+  --ad-accent-foreground: #d3d5d9;
+  --ad-destructive: #dc2626;
+  --ad-destructive-foreground: #d3d5d9;
+  --ad-success: #2ca87f;
+  --ad-success-foreground: #212224;
+  --ad-warning: #e58a00;
+  --ad-warning-foreground: #212224;
+  --ad-info: #04a9f5;
+  --ad-info-foreground: #212224;
+  --ad-border: #3e4249;
+  --ad-input: #3e4249;
+  --ad-ring: #5a8eff;
+
+  --ad-chart-1: #5a8eff;
+  --ad-chart-4: #9775ff;
+
+  --ad-sidebar: #1a1b1d;
+  --ad-sidebar-primary: #5a8eff;
+  --ad-sidebar-accent: rgba(255, 255, 255, 0.06);
+  --ad-sidebar-border: rgba(255, 255, 255, 0.06);
+  --ad-sidebar-shadow: 1px 0 20px 0 rgba(0, 0, 0, 0.6);
+
+  --ad-shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --ad-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+}
+
+/* Sidebar can be forced light/dark independently of the page (the reference
+   calls this "sidebar theme"); the customizer sets these classes on the shell. */
+.admindek.ad-sidebar-light {
+  --ad-sidebar: #ffffff;
+  --ad-sidebar-foreground: #5b6b79;
+  --ad-sidebar-caption: #8a95a1;
+  --ad-sidebar-accent: rgba(70, 128, 255, 0.08);
+  --ad-sidebar-accent-foreground: #262626;
+  --ad-sidebar-border: rgba(0, 0, 0, 0.08);
+  --ad-sidebar-shadow: 1px 0 20px 0 rgba(38, 53, 68, 0.12);
+}
+
+/* ---- resets -------------------------------------------------------------- */
+/* globals.css sets `h1..h4 { font-family: display; color: brand-950 }` and a
+   `.dark h1..h4 { color: white }` in the base layer. Both are neutralised here
+   at (0,2,0) — higher than `.dark h1` (0,1,1) — while `:where()` keeps the
+   element selectors at zero specificity so Tailwind text-colour utilities in
+   the `tw-utilities` layer still win. */
+@layer tw-base {
+  .admindek.ad-scope :where(h1, h2, h3, h4, h5, h6) {
+    font-family: inherit;
+    color: inherit;
+    font-weight: inherit;
+  }
+  .admindek.ad-scope :where(a):focus-visible,
+  .admindek.ad-scope :where(button):focus-visible,
+  .admindek.ad-scope :where(input, select, textarea):focus-visible {
+    outline: 2px solid var(--ad-ring);
+    outline-offset: 2px;
+  }
+}
+
+.admindek {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  background-color: var(--ad-background);
+  color: var(--ad-foreground);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  scrollbar-color: var(--ad-border) transparent;
+  scrollbar-width: thin;
+}
+
+.admindek ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.admindek ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.admindek ::-webkit-scrollbar-thumb {
+  background-color: var(--ad-border);
+  border-radius: 9999px;
+}
+.admindek ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ad-muted-foreground);
+}
+
+/* ---- components ---------------------------------------------------------- */
+
+@layer tw-components {
+  /* Card ------------------------------------------------------------------ */
+  .ad-card {
+    border-radius: 0.75rem;
+    border: 1px solid var(--ad-border);
+    background-color: var(--ad-card);
+    color: var(--ad-card-foreground);
+    box-shadow: var(--ad-shadow-card);
+    transition: box-shadow 0.2s;
+  }
+  .ad-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  }
+  .ad-card-head {
+    display: flex;
+    padding: 1.5rem;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .ad-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .ad-card-sub {
+    margin-top: 0.125rem;
+    font-size: 0.75rem;
+    color: var(--ad-muted-foreground);
+  }
+  .ad-card-body {
+    padding: 0 1.5rem 1.5rem;
+  }
+  .ad-card-body-full {
+    padding: 1.5rem;
+  }
+
+  /* Buttons --------------------------------------------------------------- */
+  .ad-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    border-radius: var(--ad-radius);
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+  .ad-btn:disabled {
+    pointer-events: none;
+    opacity: 0.5;
+  }
+  .ad-btn-primary {
+    background-color: var(--ad-primary);
+    color: var(--ad-primary-foreground);
+  }
+  .ad-btn-primary:hover {
+    opacity: 0.9;
+  }
+  .ad-btn-outline {
+    border-color: var(--ad-border);
+    color: var(--ad-foreground);
+    background-color: transparent;
+  }
+  .ad-btn-outline:hover {
+    background-color: var(--ad-accent);
+  }
+  .ad-btn-ghost {
+    color: var(--ad-muted-foreground);
+    background-color: transparent;
+  }
+  .ad-btn-ghost:hover {
+    background-color: var(--ad-accent);
+    color: var(--ad-foreground);
+  }
+  .ad-btn-destructive {
+    background-color: var(--ad-destructive);
+    color: #fff;
+  }
+  .ad-btn-destructive:hover {
+    opacity: 0.9;
+  }
+  .ad-btn-sm {
+    padding: 0.3125rem 0.75rem;
+    font-size: 0.75rem;
+  }
+  .ad-icon-btn {
+    display: inline-flex;
+    height: 2.75rem;
+    width: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: var(--ad-muted-foreground);
+    transition: colors 0.15s;
+  }
+  .ad-icon-btn:hover {
+    background-color: var(--ad-accent);
+    color: var(--ad-foreground);
+  }
+
+  /* Form controls --------------------------------------------------------- */
+  .ad-label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ad-foreground);
+  }
+  .ad-input,
+  .ad-select,
+  .ad-textarea {
+    width: 100%;
+    border-radius: var(--ad-radius);
+    border: 1px solid var(--ad-border);
+    background-color: var(--ad-background);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--ad-foreground);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .ad-input::placeholder,
+  .ad-textarea::placeholder {
+    color: var(--ad-muted-foreground);
+  }
+  .ad-input:focus,
+  .ad-select:focus,
+  .ad-textarea:focus {
+    outline: none;
+    border-color: var(--ad-primary);
+    box-shadow: 0 0 0 1px var(--ad-primary);
+  }
+  .ad-input:disabled,
+  .ad-select:disabled,
+  .ad-textarea:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .ad-check {
+    height: 1rem;
+    width: 1rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--ad-border);
+    accent-color: var(--ad-primary);
+  }
+
+  /* Badges ---------------------------------------------------------------- */
+  .ad-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    padding: 0.125rem 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  /* Table ----------------------------------------------------------------- */
+  .ad-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .ad-table thead th {
+    padding: 0.75rem 1.5rem;
+    text-align: start;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ad-muted-foreground);
+    border-bottom: 1px solid var(--ad-border);
+    white-space: nowrap;
+  }
+  .ad-table tbody td {
+    padding: 0.875rem 1.5rem;
+    border-bottom: 1px solid var(--ad-border);
+    vertical-align: middle;
+  }
+  .ad-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .ad-table tbody tr {
+    transition: background-color 0.15s;
+  }
+  .ad-table tbody tr:hover {
+    background-color: var(--ad-accent);
+  }
+
+  /* Sidebar link ---------------------------------------------------------- */
+  .ad-nav-link {
+    position: relative;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    font-size: 0.875rem;
+    padding: 0.625rem 1.25rem;
+    color: var(--ad-sidebar-foreground);
+    border-inline-start: 3px solid transparent;
+    /* Only the paint properties animate — putting `all` here would transition
+       padding and border-width too, which makes the rail jitter on hover. */
+    transition: color 0.08s cubic-bezier(0.37, 0.24, 0.53, 0.99),
+      background-color 0.08s cubic-bezier(0.37, 0.24, 0.53, 0.99),
+      border-color 0.08s cubic-bezier(0.37, 0.24, 0.53, 0.99);
+  }
+  .ad-nav-link:hover {
+    color: var(--ad-sidebar-accent-foreground);
+    background-color: var(--ad-sidebar-accent);
+    border-inline-start-color: var(--ad-sidebar-primary);
+  }
+  .ad-nav-link[data-active="true"] {
+    color: var(--ad-sidebar-accent-foreground);
+    background-color: var(--ad-sidebar-accent);
+    border-inline-start-color: var(--ad-sidebar-primary);
+  }
+  .ad-nav-sublink {
+    position: relative;
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    /* Logical padding mirrors under dir="rtl" on its own — no override rule,
+       and nothing for the transition to catch mid-flight. */
+    padding-block: 0.4375rem;
+    padding-inline-start: 3.75rem;
+    padding-inline-end: 1.875rem;
+    color: var(--ad-sidebar-foreground);
+    transition: color 0.08s cubic-bezier(0.37, 0.24, 0.53, 0.99);
+  }
+  .ad-nav-sublink:hover {
+    color: var(--ad-sidebar-accent-foreground);
+  }
+  .ad-nav-sublink[data-active="true"] {
+    color: var(--ad-sidebar-primary);
+    font-weight: 500;
+  }
+  .ad-nav-caption {
+    padding: 0.625rem 1.4375rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ad-sidebar-caption);
+  }
+
+  /* Misc ------------------------------------------------------------------ */
+  .ad-divider {
+    height: 1px;
+    background-color: var(--ad-border);
+  }
+  .ad-scrollarea {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+}
+
+/* Sidebar collapse (icon-rail) — driven by `.ad-collapsed` on the shell. */
+.admindek.ad-collapsed .ad-sidebar-el {
+  width: var(--ad-sidebar-collapsed-width);
+}
+.admindek.ad-collapsed .ad-nav-caption,
+.admindek.ad-collapsed .ad-nav-label,
+.admindek.ad-collapsed .ad-nav-chevron,
+.admindek.ad-collapsed .ad-nav-sub {
+  display: none;
+}
+.admindek.ad-collapsed .ad-nav-link {
+  justify-content: center;
+  padding-inline: 0;
+}
+.admindek.ad-collapsed .ad-content {
+  margin-inline-start: var(--ad-sidebar-collapsed-width);
+}
+
+@media (max-width: 1023px) {
+  .admindek .ad-content {
+    margin-inline-start: 0 !important;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .admindek *,
+  .admindek *::before,
+  .admindek *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
