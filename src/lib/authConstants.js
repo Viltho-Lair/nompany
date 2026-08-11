@@ -2,6 +2,10 @@
 // import them without pulling in lib/auth.js (which touches DB + Node built-ins).
 
 export const SESSION_COOKIE = "mt_admin";
+// Non-secret companion to the studio session: the tenant's address slug, so the
+// edge proxy can map /<slug>/… ⇄ /studio/… without a DB lookup. Set whenever a
+// studio session is minted, cleared on logout. See [[nompany-multitenancy]].
+export const STUDIO_SLUG_COOKIE = "studio_slug";
 export const ADMIN_TAG = "admin";
 // `Leader` is a cross-module modifier: paired with `Technical` it means "see
 // all Quotations / RFQs across the team", paired with `Sales` it means "see

@@ -17,7 +17,7 @@ export function renderCard() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "72px",
-          background: "linear-gradient(135deg, #031f5d 0%, #0a3fa8 60%, #1e6ff0 100%)",
+          background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #2563eb 100%)",
           color: "#ffffff",
           fontFamily: "sans-serif",
         }}
@@ -36,10 +36,10 @@ export function renderCard() {
               fontWeight: 800,
             }}
           >
-            M
+            n
           </div>
           <div style={{ display: "flex", fontSize: "30px", fontWeight: 700, letterSpacing: "-0.5px" }}>
-            MegaTech Arabia
+            nompany
           </div>
         </div>
 
@@ -50,18 +50,18 @@ export function renderCard() {
               fontSize: "22px",
               fontWeight: 600,
               letterSpacing: "3px",
-              color: "#9ec3ff",
+              color: "#93c5fd",
             }}
           >
-            SYSTEMS INTEGRATION · SINCE 2009
+            MODULAR ERP · PAY FOR WHAT YOU USE
           </div>
           <div style={{ display: "flex", fontSize: "62px", fontWeight: 800, lineHeight: 1.1, maxWidth: "980px" }}>
-            Audio-Visual, Lighting &amp; IT Systems Integration
+            Run every department from one platform
           </div>
         </div>
 
         <div style={{ display: "flex", fontSize: "26px", color: "rgba(255,255,255,0.82)" }}>
-          Turnkey technology across Saudi Arabia — surveyed, designed, commissioned.
+          Sales · Projects · Inventory · HR · Finance — add only the modules you use.
         </div>
       </div>
     ),

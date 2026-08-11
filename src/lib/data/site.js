@@ -1,0 +1,42 @@
+// PLATFORM SITE CONTENT — nompany's own public marketing site.
+//
+// This is NOT tenant data: it belongs to the platform, sits outside every
+// cascade, and no user or studio owns it. Keys live under `g:site:*`, matching
+// the other global registries.
+//
+// (A subscriber studio's own website content is different — that lives in its
+// `website` section, under s:<StudioID>:sec:<SectionID>:c:*.)
+
+import { readArr, writeArr, getJSON, setJSON } from "@/lib/data/store";
+
+const COLLECTIONS = new Set([
+  "services", "careers", "previousProjects", "galleryImages",
+  "reviews", "messages", "applications",
+]);
+
+const key = (name) => `g:site:${name}`;
+
+export async function getSiteCollection(name) {
+  if (!COLLECTIONS.has(name)) throw new Error(`Unknown site collection: ${name}`);
+  return readArr(key(name));
+}
+
+export async function addSiteRow(name, row) {
+  if (!COLLECTIONS.has(name)) throw new Error(`Unknown site collection: ${name}`);
+  const rows = await readArr(key(name));
+  const record = { id: row.id || `${name.slice(0, 3)}_${Date.now().toString(36)}`, ...row };
+  await writeArr(key(name), [record, ...rows]);
+  return record;
+}
+
+// Brand / contact / marketing copy for the public pages. Returns {} until the
+// owner console writes some — the pages fall back to lib/site.js + i18n.
+export async function getSiteSettings() {
+  return (await getJSON(key("settings"))) || {};
+}
+
+export async function updateSiteSettings(patch) {
+  const next = { ...(await getSiteSettings()), ...patch };
+  await setJSON(key("settings"), next);
+  return next;
+}

@@ -1,5 +1,6 @@
 import { locales, defaultLocale } from "@/lib/i18n";
 import { youtubeVideoId, youtubeThumbnailUrl } from "@/lib/youtube";
+import { CONTACT, SITE_DESCRIPTION } from "@/lib/site";
 
 // Canonical site origin. Override with NEXT_PUBLIC_SITE_URL when a custom
 // domain is connected; falls back to the current production URL.
@@ -15,135 +16,122 @@ const OG_LOCALE = { en: "en_US", ar: "ar_SA" };
 export const PAGES = {
   "": {
     en: {
-      title: "Audio Visual, Lighting & IT Systems Integrator in Saudi Arabia",
+      title: "Run your company's whole operation from one platform",
       description:
-        "MegaTech Arabia designs, installs and commissions audio-visual, lighting, IT infrastructure and collaborative workspace systems across Saudi Arabia. Turnkey AV integration since 2009.",
+        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Start free and pay only for the modules you use.",
     },
     ar: {
-      title: "تكامل أنظمة الصوت والمرئيات والإضاءة وتقنية المعلومات في السعودية",
+      title: "أدِر عمليات شركتك بالكامل من منصة واحدة",
       description:
-        "تصمّم ميجاتك العربية وتركّب وتشغّل أنظمة الصوتيات والمرئيات والإضاءة والبنية التحتية لتقنية المعلومات وأثاث التعاون في جميع أنحاء المملكة العربية السعودية. حلول متكاملة منذ 2009.",
+        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. ابدأ مجانًا وادفع فقط مقابل ما تستخدمه.",
     },
   },
-  "/services": {
+  "/features": {
     en: {
-      title: "AV, Lighting & IT Integration Services",
+      title: "Modular business applications for every department",
       description:
-        "Turnkey audio-visual, professional lighting, IT infrastructure and collaborative furniture services — from site survey and system design to testing and commissioning across the Kingdom.",
+        "Switch on the business applications your company needs — Sales, Projects, Inventory, Operations, HR and Finance — each with its own dashboards and statistics. One login, pay per module.",
     },
     ar: {
-      title: "خدمات تكامل الصوتيات والمرئيات والإضاءة وتقنية المعلومات",
+      title: "تطبيقات أعمال معيارية لكل قسم",
       description:
-        "حلول متكاملة في الصوتيات والمرئيات والإضاءة الاحترافية والبنية التحتية لتقنية المعلومات وأثاث التعاون — من مسح الموقع والتصميم حتى الاختبار والتشغيل في جميع أنحاء المملكة.",
+        "فعّل تطبيقات الأعمال التي تحتاجها شركتك — المبيعات والمشاريع والمخزون والعمليات والموارد البشرية والمالية — لكل منها لوحاته وإحصائياته. تسجيل دخول واحد، وادفع لكل وحدة على حدة.",
     },
   },
-  "/projects": {
+  "/about": {
     en: {
-      title: "AV & Systems Integration Projects",
+      title: "One platform for company operations",
       description:
-        "Explore auditoriums, control rooms, visitor centres and collaborative workspaces MegaTech Arabia has surveyed, designed and commissioned across Saudi Arabia.",
+        "nompany helps companies and corporates run their entire operation from a single platform — paying only for the departments and applications they actually use.",
     },
     ar: {
-      title: "مشاريع تكامل الصوتيات والمرئيات والأنظمة",
+      title: "منصة واحدة لعمليات الشركة",
       description:
-        "استكشف القاعات وغرف التحكم ومراكز الزوار ومساحات العمل التعاونية التي قامت ميجاتك العربية بمسحها وتصميمها وتشغيلها في جميع أنحاء المملكة العربية السعودية.",
-    },
-  },
-  "/vendors": {
-    en: {
-      title: "Technology Partners & AV Vendors",
-      description:
-        "MegaTech Arabia partners with leading audio-visual, lighting and IT brands to deliver reliable, professional-grade systems integration for Saudi organisations.",
-    },
-    ar: {
-      title: "الشركاء التقنيون وموردو أنظمة الصوت والمرئيات",
-      description:
-        "تتعاون ميجاتك العربية مع أبرز العلامات التجارية في الصوتيات والمرئيات والإضاءة وتقنية المعلومات لتقديم تكامل أنظمة موثوق واحترافي للمؤسسات السعودية.",
-    },
-  },
-  "/clients": {
-    en: {
-      title: "Our Clients Across the Kingdom",
-      description:
-        "Government, education and enterprise organisations across Saudi Arabia trust MegaTech Arabia with their audio-visual, lighting and IT spaces.",
-    },
-    ar: {
-      title: "عملاؤنا في جميع أنحاء المملكة",
-      description:
-        "تثق الجهات الحكومية والتعليمية ومؤسسات القطاع الخاص في جميع أنحاء المملكة العربية السعودية بميجاتك العربية في مساحات الصوت والمرئيات والإضاءة وتقنية المعلومات.",
+        "يساعد nompany الشركات والمؤسسات على إدارة عملياتها بالكامل من منصة واحدة — مع الدفع فقط مقابل الأقسام والتطبيقات التي تستخدمها فعليًا.",
     },
   },
   "/careers": {
     en: {
-      title: "Careers in AV Systems Integration",
+      title: "Careers",
       description:
-        "Join MegaTech Arabia and help build the Kingdom's most demanding audio-visual, lighting and IT spaces. View current openings across Saudi Arabia.",
+        "Join nompany and help build the platform companies run on. View our current openings.",
     },
     ar: {
-      title: "وظائف في تكامل أنظمة الصوت والمرئيات",
+      title: "الوظائف",
       description:
-        "انضم إلى ميجاتك العربية وساهم في بناء أكثر المساحات تطلبًا في المملكة في مجالات الصوتيات والمرئيات والإضاءة وتقنية المعلومات. اطّلع على الوظائف الشاغرة.",
+        "انضم إلى nompany وساهم في بناء المنصة التي تُدير الشركات أعمالها عليها. اطّلع على الوظائف الشاغرة.",
     },
   },
   "/team": {
     en: {
-      title: "Our Team",
+      title: "Team",
       description:
-        "Meet the AV, lighting and IT engineers who survey, design, integrate and commission every MegaTech Arabia project across Saudi Arabia.",
+        "Meet the team building nompany — the modular ERP that lets any company run its whole operation from one platform.",
     },
     ar: {
-      title: "فريقنا",
+      title: "الفريق",
       description:
-        "تعرّف على مهندسي الصوتيات والمرئيات والإضاءة وتقنية المعلومات الذين يقومون بمسح وتصميم وتكامل وتشغيل كل مشروع لدى ميجاتك العربية في المملكة العربية السعودية.",
-    },
-  },
-  "/gallery": {
-    en: {
-      title: "Project Gallery",
-      description:
-        "Browse photos of audio-visual, lighting and IT spaces MegaTech Arabia has surveyed, designed and commissioned across Saudi Arabia.",
-    },
-    ar: {
-      title: "معرض المشاريع",
-      description:
-        "تصفّح صور مساحات الصوتيات والمرئيات والإضاءة وتقنية المعلومات التي قامت ميجاتك العربية بمسحها وتصميمها وتشغيلها في جميع أنحاء المملكة العربية السعودية.",
+        "تعرّف على الفريق الذي يبني nompany — نظام تخطيط الموارد المرن الذي يتيح لأي شركة إدارة عملياتها من منصة واحدة.",
     },
   },
   "/contact": {
     en: {
       title: "Contact Us",
       description:
-        "Tell us about your audio-visual, lighting or IT project in Saudi Arabia. MegaTech Arabia responds within one business day.",
+        "Questions about nompany, pricing, or getting your company set up? We respond within one business day.",
     },
     ar: {
       title: "تواصل معنا",
       description:
-        "أخبرنا عن مشروعك في الصوتيات والمرئيات أو الإضاءة أو تقنية المعلومات في المملكة العربية السعودية. ترد ميجاتك العربية خلال يوم عمل واحد.",
+        "لديك أسئلة عن nompany أو الأسعار أو تهيئة شركتك؟ نرد خلال يوم عمل واحد.",
+    },
+  },
+  "/terms": {
+    en: {
+      title: "Terms & Conditions",
+      description:
+        "The terms governing use of the nompany ERP platform — subscriptions, payments and refunds, GDPR and EMEA data protection, and data retention.",
+    },
+    ar: {
+      title: "الشروط والأحكام",
+      description:
+        "الشروط التي تحكم استخدام منصة nompany لتخطيط موارد المؤسسات — الاشتراكات والمدفوعات والاستردادات وحماية البيانات وفق اللائحة الأوروبية (GDPR) وأنظمة منطقة EMEA والاحتفاظ بالبيانات.",
     },
   },
 };
 
 const KEYWORDS = {
   en: [
-    "audio visual integration",
-    "AV systems integrator Saudi Arabia",
-    "systems integration Riyadh",
-    "professional lighting systems",
-    "IT infrastructure",
-    "collaborative workspace",
-    "boardroom AV",
-    "digital signage",
-    "commissioning",
+    "modular ERP",
+    "ERP software",
+    "company management platform",
+    "business applications suite",
+    "business operations software",
+    "corporate management software",
+    "business statistics and analytics",
+    "à la carte ERP modules",
+    "sales CRM",
+    "project management software",
+    "inventory management",
+    "HR software",
+    "finance module",
+    "bilingual ERP Arabic English",
   ],
   ar: [
-    "تكامل الصوتيات والمرئيات",
-    "متكامل أنظمة في السعودية",
-    "تكامل الأنظمة في الرياض",
-    "أنظمة الإضاءة الاحترافية",
-    "البنية التحتية لتقنية المعلومات",
-    "مساحات العمل التعاونية",
-    "أنظمة قاعات الاجتماعات",
-    "اللافتات الرقمية",
+    "نظام تخطيط موارد مرن",
+    "برنامج تخطيط موارد المؤسسات",
+    "منصة إدارة الشركات",
+    "تطبيقات الأعمال",
+    "برنامج إدارة العمليات",
+    "برنامج إدارة الشركات والمؤسسات",
+    "إحصائيات وتحليلات الأعمال",
+    "وحدات ERP حسب الطلب",
+    "إدارة المبيعات والعملاء",
+    "برنامج إدارة المشاريع",
+    "إدارة المخزون",
+    "برنامج الموارد البشرية",
+    "الوحدة المالية",
+    "نظام ثنائي اللغة عربي إنجليزي",
   ],
 };
 
@@ -178,7 +166,7 @@ export function buildMetadata({ locale, path = "" }) {
     openGraph: {
       type: "website",
       url: canonical,
-      siteName: "MegaTech Arabia",
+      siteName: "nompany",
       title,
       description,
       locale: OG_LOCALE[locale] || OG_LOCALE.en,
@@ -196,32 +184,30 @@ export function buildMetadata({ locale, path = "" }) {
 
 // ---- Structured data (JSON-LD) -------------------------------------------
 
-function sameAs(settings) {
-  return [settings.linkedin, settings.twitter, settings.instagram].filter(Boolean);
+function sameAs() {
+  return CONTACT.socials.map((s) => s.href).filter(Boolean);
 }
 
 export function organizationLd(settings, locale = defaultLocale) {
-  const name = locale === "ar" ? settings.name_ar : settings.name_en;
+  const name = "nompany";
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
     name,
-    legalName: settings.name_en,
+    legalName: "nompany",
     url: SITE_URL,
     logo: `${SITE_URL}/brand/logo-full.png`,
-    foundingDate: settings.founded_year,
-    description: locale === "ar" ? settings.intro_ar : settings.intro_en,
-    email: settings.email,
-    telephone: settings.phone,
+    description: SITE_DESCRIPTION[locale] || SITE_DESCRIPTION.en,
+    email: CONTACT.email,
+    telephone: CONTACT.phone,
     areaServed: { "@type": "Country", name: "Saudi Arabia" },
     address: {
       "@type": "PostalAddress",
-      streetAddress: locale === "ar" ? settings.address_ar : settings.address_en,
       addressLocality: "Riyadh",
       addressCountry: "SA",
     },
-    sameAs: sameAs(settings),
+    sameAs: sameAs(),
   };
 }
 
@@ -231,7 +217,7 @@ export function websiteLd(settings, locale = defaultLocale) {
     "@type": "WebSite",
     "@id": `${SITE_URL}/#website`,
     url: SITE_URL,
-    name: locale === "ar" ? settings.name_ar : settings.name_en,
+    name: "nompany",
     inLanguage: locale,
     publisher: { "@id": `${SITE_URL}/#organization` },
   };
@@ -248,7 +234,7 @@ function openingHours() {
 }
 
 export function localBusinessLd(settings, locale = defaultLocale) {
-  const name = locale === "ar" ? settings.name_ar : settings.name_en;
+  const name = "nompany";
   return {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
@@ -256,20 +242,18 @@ export function localBusinessLd(settings, locale = defaultLocale) {
     name,
     image: `${SITE_URL}/brand/logo-full.png`,
     url: SITE_URL,
-    email: settings.email,
-    telephone: settings.phone,
+    email: CONTACT.email,
+    telephone: CONTACT.phone,
     priceRange: "$$$",
-    foundingDate: settings.founded_year,
-    description: locale === "ar" ? settings.about_ar : settings.about_en,
+    description: SITE_DESCRIPTION[locale] || SITE_DESCRIPTION.en,
     address: {
       "@type": "PostalAddress",
-      streetAddress: locale === "ar" ? settings.address_ar : settings.address_en,
       addressLocality: "Riyadh",
       addressCountry: "SA",
     },
     areaServed: { "@type": "Country", name: "Saudi Arabia" },
     openingHoursSpecification: [openingHours()],
-    sameAs: sameAs(settings),
+    sameAs: sameAs(),
   };
 }
 
@@ -323,7 +307,7 @@ export function jobPostingLd(job, settings, locale) {
     employmentType,
     hiringOrganization: {
       "@type": "Organization",
-      name: settings.name_en,
+      name: "nompany",
       sameAs: SITE_URL,
       logo: `${SITE_URL}/brand/logo-full.png`,
     },
@@ -336,7 +320,7 @@ export function jobPostingLd(job, settings, locale) {
         addressCountry: "SA",
       },
     },
-    industry: "Audio Visual Systems Integration",
+    industry: "Enterprise Software (ERP / SaaS)",
     datePosted: new Date().toISOString().slice(0, 10),
   };
 }

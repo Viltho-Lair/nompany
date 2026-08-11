@@ -1,4 +1,4 @@
-import { getRedisClient } from "@/lib/db";
+import { getRedisClient } from "@/lib/data/redis";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

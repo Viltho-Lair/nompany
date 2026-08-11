@@ -1,11 +1,11 @@
 import Link from "next/link";
 import EditorialHeader from "@/components/public/EditorialHeader";
 import Reveal from "@/components/Reveal";
-import { getCollection, getSettings } from "@/lib/db";
 import { getDict, field } from "@/lib/i18n";
-import { buildMetadata, breadcrumbLd, jobPostingLd, urlFor } from "@/lib/seo";
+import { buildMetadata, breadcrumbLd, urlFor } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 import RichText from "@/components/RichText";
+import { getSiteCollection } from "@/lib/data/site";
 
 export const dynamic = "force-dynamic";
 
@@ -17,15 +17,15 @@ export async function generateMetadata({ params }) {
 export default async function CareersPage({ params }) {
   const { locale } = await params;
   const dict = getDict(locale);
-  const jobs = await getCollection("careers");
-  const s = await getSettings();
+  // nompany's own job openings, managed in the Super console (Careers). Public
+  // pages default to the nompany tenant, so this reads nompany's postings.
+  const jobs = await getSiteCollection("careers");
 
   const structured = [
     breadcrumbLd([
       { name: dict.nav.home, url: urlFor(locale, "") },
       { name: dict.careers.title, url: urlFor(locale, "/careers") },
     ]),
-    ...jobs.map((job) => jobPostingLd(job, s, locale)),
   ];
 
   return (

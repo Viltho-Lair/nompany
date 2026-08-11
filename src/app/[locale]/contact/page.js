@@ -1,8 +1,9 @@
 import EditorialHeader from "@/components/public/EditorialHeader";
 import ContactForm from "@/components/ContactForm";
-import { getSettings } from "@/lib/db";
-import { getDict, field } from "@/lib/i18n";
+import { getSiteSettings } from "@/lib/data/site";
+import { getDict } from "@/lib/i18n";
 import { buildMetadata, localBusinessLd, breadcrumbLd, urlFor } from "@/lib/seo";
+import { CONTACT } from "@/lib/site";
 import JsonLd from "@/components/JsonLd";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export async function generateMetadata({ params }) {
 export default async function ContactPage({ params }) {
   const { locale } = await params;
   const dict = getDict(locale);
-  const s = await getSettings();
+  const s = await getSiteSettings();
 
   const structured = [
     localBusinessLd(s, locale),
@@ -26,13 +27,11 @@ export default async function ContactPage({ params }) {
   ];
 
   const details = [
-    { label: dict.contact.reachUs, lines: [s.email, s.phone], ltrLast: true },
+    { label: dict.contact.reachUs, lines: [CONTACT.email, CONTACT.phone], ltrLast: true },
     {
       label: dict.contact.address,
-      lines: [field(s, "address", locale), field(s, "city", locale)],
-      href: s.maps_url || null,
+      lines: [CONTACT.address[locale] || CONTACT.address.en],
     },
-    { label: dict.contact.officeHours, lines: [field(s, "hours", locale)] },
   ];
 
   return (
@@ -71,7 +70,7 @@ export default async function ContactPage({ params }) {
             </div>
           ))}
         </div>
-        <div className="rounded-3xl border border-steel-400/20 bg-white p-6 dark:border-white/10 dark:bg-[#263965] sm:p-8">
+        <div className="rounded-3xl border border-steel-400/20 bg-white p-6 dark:border-white/10 dark:bg-steel-800 sm:p-8">
           <ContactForm dict={dict} />
         </div>
       </section>
