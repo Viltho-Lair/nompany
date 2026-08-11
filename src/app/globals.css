@@ -9,9 +9,27 @@
   font-display: swap;
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Cascade layers, lowest priority first. MUI's emotion styles land in `mui`
+   (via `enableCssLayer` on AppRouterCacheProvider), so this ordering decides
+   who wins between the two systems:
+     tw-base       — Tailwind preflight. MUST rank below `mui`, or preflight's
+                     `input { padding:0; border:0 }` guts MUI's text fields.
+     tw-components — @layer components rules.
+     mui           — MUI's generated component styles.
+     tw-utilities  — Tailwind utilities, on top, so `className` beats MUI
+                     without `!important` or `sx`.
+   Anything unlayered still outranks all of these. */
+@layer tw-base, tw-components, mui, tw-utilities;
+
+@layer tw-base {
+  @tailwind base;
+}
+@layer tw-components {
+  @tailwind components;
+}
+@layer tw-utilities {
+  @tailwind utilities;
+}
 
 :root {
   --font-display: "Saira", system-ui, sans-serif;

@@ -1,6 +1,7 @@
 import "./globals.css";
 import { headers } from "next/headers";
 import JsonLd from "@/components/JsonLd";
+import MuiProvider from "@/components/MuiProvider";
 import { getSiteSettings } from "@/lib/data/site";
 import { organizationLd, websiteLd, SITE_URL } from "@/lib/seo";
 import { dirFor, isLocale, defaultLocale } from "@/lib/i18n";
@@ -75,7 +76,7 @@ export default async function RootLayout({ children }) {
           }}
         />
         <JsonLd data={[organizationLd(settings, locale), websiteLd(settings, locale)]} />
-        {children}
+        <MuiProvider>{children}</MuiProvider>
       </body>
     </html>
   );

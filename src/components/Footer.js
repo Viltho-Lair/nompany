@@ -10,6 +10,9 @@ import { CONTACT, PRICING_LOCKED } from "@/lib/site";
 export default function Footer({ locale, dict }) {
   const pathname = usePathname();
   const isContact = pathname === `/${locale}/contact`;
+  // The account hub is a full-screen app surface, not a marketing page — no
+  // footer, so the left rail + panel own the whole viewport.
+  const isBare = pathname === `/${locale}/account`;
   const year = new Date().getFullYear();
 
   const nav = [
@@ -27,6 +30,8 @@ export default function Footer({ locale, dict }) {
   const siteName = dict.common.brand;
   const heading = "mb-5 font-display text-xs font-700 uppercase tracking-[0.24em] text-brand-300";
   const link = "text-sm text-white/70 transition-colors hover:text-white";
+
+  if (isBare) return null;
 
   return (
     <footer className="bg-steel-900 text-white">

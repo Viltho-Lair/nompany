@@ -1,20 +1,38 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Button from "@mui/material/Button";
+import InputAdornment from "@mui/material/InputAdornment";
+import TextField from "@mui/material/TextField";
+import { cn } from "@/lib/utils";
 
 // Full-page account. Left rail for navigation, right panel for the section —
 // the shape people expect from an account/settings area, rather than one long
 // scroll. Data comes from /api/identity/* and /api/studios.
+//
+// Styling follows the Google Account "stack" grammar: an 888px content column,
+// a 1.75rem/500 page title, and grouped rows that read as one rounded slab —
+// 20px on the outer corners, 4px on the inner ones, 2px between rows, 16px
+// between groups. Row metrics (56px min-height, 12px/16px padding, 12px gap,
+// 1rem/500 label over a 0.875rem/400 muted value) come straight from the same
+// spec, remapped onto this project's brand/steel palette.
 
-const card = "rounded-geex border border-steel-200 bg-white p-6 shadow-geex-sm dark:border-white/10 dark:bg-steel-800";
-const panelH1 = "font-display text-2xl font-800 tracking-tight text-brand-950 dark:text-white";
-const panelSub = "mt-1.5 text-sm text-steel-600 dark:text-slate-300";
-const h3 = "font-display text-base font-700 text-brand-950 dark:text-white";
-const input =
-  "w-full rounded-xl border border-steel-200 bg-white px-4 py-2.5 text-sm text-brand-950 placeholder:text-steel-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-steel-900 dark:text-white";
-const label = "mb-1.5 block text-xs font-600 uppercase tracking-wide text-steel-500 dark:text-slate-400";
-const btn = "rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white transition-colors hover:bg-brand-700 disabled:opacity-60";
-const btnGhost = "rounded-full border border-steel-200 px-5 py-2.5 font-display text-sm font-600 text-steel-600 transition-colors hover:bg-steel-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
+const PAGE = "min-h-screen bg-steel-50 dark:bg-steel-900";
+const SHELL = "mx-auto w-full max-w-[888px] px-4 py-8 sm:px-6";
+const TITLE = "font-display text-[1.75rem] font-500 leading-[1.2857] text-brand-950 dark:text-white";
+const SUB = "mt-2 text-sm leading-relaxed text-steel-600 dark:text-slate-400";
+const GROUPS = "flex flex-col gap-4";
+const STACK = "flex flex-col gap-[2px]";
+// Stack item. `first:`/`last:` carry a pseudo-class so they outrank the base
+// 4px radius; a lone row matches both and ends up fully rounded.
+const ROW =
+  "flex min-h-[56px] w-full items-center gap-3 rounded-[4px] bg-white px-4 py-3 text-start first:rounded-t-[20px] last:rounded-b-[20px] dark:bg-steel-800";
+const ROW_TAP = "transition-colors hover:bg-steel-100 dark:hover:bg-white/5";
+const ROW_LABEL = "text-base font-500 leading-normal text-brand-950 dark:text-white";
+const ROW_VALUE = "truncate text-sm leading-[1.4286] text-steel-600 dark:text-slate-400";
+const GROUP_LABEL = "px-4 pb-1 pt-2 text-sm font-500 text-steel-600 dark:text-slate-400";
+// Material's pill button: 40px tall, fully rounded, sentence case.
+const PILL = "h-10 rounded-full px-6 font-display text-sm font-600 normal-case";
 
 const slugify = (s) => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
@@ -26,6 +44,41 @@ const NAV = [
   { key: "personal", label: "Personal info" },
   { key: "security", label: "Security" },
 ];
+
+// Trailing affordance on rows that navigate, mirroring the chevron Google puts
+// on its navigational stack items. Flips with the writing direction.
+function Chevron() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true"
+      className="ms-auto h-5 w-5 shrink-0 text-steel-400 rtl:-scale-x-100 dark:text-slate-500"
+      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+// One stack item: label above an optional muted value. `as` lets the same row
+// be a div, a button or a link without changing its metrics.
+function Row({ as: Tag = "div", label, value, className, children, ...rest }) {
+  return (
+    <Tag className={cn(ROW, className)} {...rest}>
+      <div className="flex min-w-0 flex-col justify-center">
+        <span className={ROW_LABEL}>{label}</span>
+        {value != null && <span className={ROW_VALUE}>{value}</span>}
+      </div>
+      {children}
+    </Tag>
+  );
+}
+
+function SectionHead({ title, children }) {
+  return (
+    <header className="pb-2">
+      <h2 className={TITLE}>{title}</h2>
+      {children && <p className={SUB}>{children}</p>}
+    </header>
+  );
+}
 
 export default function AccountHome({ locale }) {
   const [identity, setIdentity] = useState(null);
@@ -50,54 +103,60 @@ export default function AccountHome({ locale }) {
   useEffect(() => { load(); }, [load]);
 
   if (loading) {
-    return <div className="flex min-h-[60vh] items-center justify-center"><p className="text-sm text-steel-500">Loading your account…</p></div>;
+    return (
+      <div className={cn(PAGE, "flex items-center justify-center")}>
+        <p className="text-sm text-steel-500">Loading your account…</p>
+      </div>
+    );
   }
 
   const name = identity?.profile?.fullName || identity?.user?.email || "there";
   const go = (key) => { setActive(key); document.getElementById("acct-panel")?.scrollTo({ top: 0, behavior: "smooth" }); };
 
   return (
-    <div className="bg-steel-50/60 dark:bg-steel-900/40">
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
+    <div className={PAGE}>
+      <div className={SHELL}>
         {/* identity header */}
         <header className="mb-8 flex flex-wrap items-center gap-4">
-          <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-brand-600 font-display text-xl font-800 text-white">
+          <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-600 font-display text-xl font-600 text-white">
             {initialsOf(identity?.profile?.fullName || identity?.user?.email)}
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className={panelH1}>{name}</h1>
-            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-steel-600 dark:text-slate-300">
+            <h1 className={TITLE}>{name}</h1>
+            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-steel-600 dark:text-slate-400">
               <span className="break-all">{identity?.user?.email}</span>
               {identity?.emailVerified && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-600 text-emerald-600 dark:text-emerald-400">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-500 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300">
                   ✓ Verified
                 </span>
               )}
             </p>
           </div>
-          <button
-            type="button"
-            className={btnGhost}
+          <Button
+            variant="outlined"
+            className={PILL}
             onClick={async () => { await fetch("/api/identity/logout", { method: "POST" }); window.location.assign(`/${locale}/login`); }}
           >
             Sign out
-          </button>
+          </Button>
         </header>
 
-        <div className="flex flex-col gap-8 lg:flex-row">
-          {/* left rail */}
-          <nav className="lg:w-56 lg:shrink-0">
-            <ul className="flex flex-wrap gap-1 lg:flex-col">
+        <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
+          {/* left rail — pill items, tonal active state */}
+          <nav className="-mx-4 px-4 lg:mx-0 lg:w-[220px] lg:shrink-0 lg:px-0">
+            <ul className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
               {NAV.map((item) => (
-                <li key={item.key}>
+                <li key={item.key} className="shrink-0 lg:shrink">
                   <button
                     type="button"
                     onClick={() => go(item.key)}
-                    className={`w-full rounded-xl px-4 py-2.5 text-start text-sm font-600 transition-colors ${
+                    aria-current={active === item.key ? "page" : undefined}
+                    className={cn(
+                      "flex h-12 w-full items-center rounded-full px-4 text-start text-sm font-500 transition-colors",
                       active === item.key
-                        ? "bg-brand-600 text-white"
-                        : "text-steel-600 hover:bg-white hover:text-brand-950 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
-                    }`}
+                        ? "bg-brand-100 text-brand-800 dark:bg-brand-500/20 dark:text-brand-100"
+                        : "text-steel-600 hover:bg-steel-100 dark:text-slate-300 dark:hover:bg-white/5",
+                    )}
                   >
                     {item.label}
                   </button>
@@ -107,7 +166,7 @@ export default function AccountHome({ locale }) {
           </nav>
 
           {/* panel */}
-          <div id="acct-panel" className="min-w-0 flex-1 space-y-6">
+          <div id="acct-panel" className="min-w-0 flex-1">
             {active === "home" && <Overview identity={identity} studios={studios} onGo={go} locale={locale} />}
             {active === "studio" && <MyStudio studio={studios.owned} onCreated={load} />}
             {active === "collabs" && <Collaborations studios={studios.collaborations} onJoined={load} />}
@@ -128,45 +187,53 @@ function Overview({ identity, studios, onGo, locale }) {
     { key: "collabs", label: "Collaborations", value: String(studios.collaborations.length), hint: studios.collaborations.length ? "Studios you can enter" : "Join one with a company code" },
   ];
   return (
-    <>
-      <section className={card}>
-        <h2 className={panelH1}>Overview</h2>
-        <p className={panelSub}>Everything tied to your account lives here.</p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          {tiles.map((t) => (
-            <button key={t.key} type="button" onClick={() => onGo(t.key)}
-              className="rounded-geex border border-steel-100 bg-steel-50 p-5 text-start transition-colors hover:border-brand-300 dark:border-white/10 dark:bg-steel-900 dark:hover:border-brand-500/40">
-              <p className="text-xs font-600 uppercase tracking-wide text-steel-500 dark:text-slate-400">{t.label}</p>
-              <p className="mt-2 font-display text-lg font-800 text-brand-950 dark:text-white">{t.value}</p>
-              <p className="mt-1 font-mono text-xs text-steel-500 dark:text-slate-400">{t.hint}</p>
-            </button>
-          ))}
-        </div>
-      </section>
+    <div className={GROUPS}>
+      <SectionHead title="Overview">Everything tied to your account lives here.</SectionHead>
+
+      <div className={STACK}>
+        {tiles.map((t) => (
+          <Row
+            key={t.key}
+            as="button"
+            type="button"
+            onClick={() => onGo(t.key)}
+            className={ROW_TAP}
+            label={t.label}
+            value={`${t.value} · ${t.hint}`}
+          >
+            <Chevron />
+          </Row>
+        ))}
+      </div>
 
       {studios.owned && (
-        <section className={card}>
-          <h3 className={h3}>Your studio is live</h3>
-          <p className={panelSub}>Share the code <span className="font-mono font-700">{studios.owned.slug}</span> so teammates can request access.</p>
-          <div className="mt-4"><a href={`/${studios.owned.slug}`} className={btn}>Open Studio</a></div>
-        </section>
+        <div>
+          <p className={GROUP_LABEL}>Your studio is live</p>
+          <div className={STACK}>
+            <Row
+              label={studios.owned.name}
+              value={`Share the code ${studios.owned.slug} so teammates can request access.`}
+            >
+              <span className="ms-auto shrink-0">
+                <Button variant="contained" href={`/${studios.owned.slug}`} className={PILL}>Open Studio</Button>
+              </span>
+            </Row>
+          </div>
+        </div>
       )}
 
       {q.completedAt && (
-        <section className={card}>
-          <h3 className={h3}>About your company</h3>
-          <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div>
+          <p className={GROUP_LABEL}>About your company</p>
+          <div className={STACK}>
             {[["Goal", q.intent === "create" ? "Create a studio" : q.intent === "join" ? "Join a studio" : "—"],
               ["Field", q.field || "—"], ["Location", [q.city, q.country].filter(Boolean).join(", ") || "—"]].map(([k, v]) => (
-              <div key={k}>
-                <dt className="text-xs font-600 uppercase tracking-wide text-steel-500 dark:text-slate-400">{k}</dt>
-                <dd className="mt-1 text-sm text-brand-950 dark:text-white">{v}</dd>
-              </div>
+              <Row key={k} label={k} value={v} />
             ))}
-          </dl>
-        </section>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -191,20 +258,20 @@ function MyStudio({ studio, onCreated }) {
 
   if (studio) {
     return (
-      <section className={card}>
-        <h2 className={panelH1}>My Studio</h2>
-        <p className={panelSub}>Your company's workspace. You own exactly one.</p>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-geex border border-steel-100 bg-steel-50 p-5 dark:border-white/10 dark:bg-steel-900">
-          <div>
-            <p className="font-display text-lg font-800 text-brand-950 dark:text-white">{studio.name}</p>
-            <p className="mt-0.5 font-mono text-sm text-steel-500 dark:text-slate-400">nompany.com/{studio.slug}</p>
-          </div>
-          <a href={`/${studio.slug}`} className={btn}>Open Studio</a>
+      <div className={GROUPS}>
+        <SectionHead title="My Studio">Your company&apos;s workspace. You own exactly one.</SectionHead>
+        <div className={STACK}>
+          <Row label={studio.name} value={`nompany.com/${studio.slug}`}>
+            <span className="ms-auto shrink-0">
+              <Button variant="contained" href={`/${studio.slug}`} className={PILL}>Open Studio</Button>
+            </span>
+          </Row>
+          <Row
+            label="Company code"
+            value={`Teammates join by entering ${studio.slug} on their own account page — you approve each request inside the studio.`}
+          />
         </div>
-        <p className="mt-4 text-sm text-steel-600 dark:text-slate-300">
-          Teammates join by entering your company code <span className="font-mono font-700">{studio.slug}</span> on their own account page — you approve each request inside the studio.
-        </p>
-      </section>
+      </div>
     );
   }
 
@@ -228,39 +295,45 @@ function MyStudio({ studio, onCreated }) {
     );
   }
 
+  const slugHelp = effectiveSlug && status
+    ? status.available ? `“${status.slug}” is available`
+      : status.reason === "taken" ? `“${status.slug}” is already taken`
+      : status.reason === "reserved" ? `“${status.slug}” is reserved`
+      : "Use 3+ letters, numbers or dashes"
+    : " ";
+
   return (
-    <section className={card}>
-      <h2 className={panelH1}>Create your Studio</h2>
-      <p className={panelSub}>Your company's workspace, at its own address.</p>
-      <div className="mt-5 grid gap-4">
-        <div>
-          <label className={label}>Company name</label>
-          <input className={input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Trading Co." />
+    <div className={GROUPS}>
+      <SectionHead title="Create your Studio">Your company&apos;s workspace, at its own address.</SectionHead>
+      <div className="rounded-[20px] bg-white p-4 dark:bg-steel-800 sm:p-6">
+        <div className="grid gap-5">
+          <TextField
+            label="Company name" fullWidth size="medium"
+            value={name} onChange={(e) => setName(e.target.value)}
+            placeholder="Acme Trading Co."
+          />
+          <TextField
+            label="Studio address (company code)" fullWidth size="medium"
+            value={touched ? slug : effectiveSlug}
+            onChange={(e) => { setTouched(true); setSlug(e.target.value); }}
+            placeholder="acme-trading"
+            error={Boolean(effectiveSlug && status && !status.available)}
+            helperText={slugHelp}
+            slotProps={{
+              input: {
+                startAdornment: <InputAdornment position="start">nompany.com/</InputAdornment>,
+              },
+            }}
+          />
         </div>
-        <div>
-          <label className={label}>Studio address (company code)</label>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-sm text-steel-500 dark:text-slate-400">nompany.com/</span>
-            <input className={input} value={touched ? slug : effectiveSlug}
-              onChange={(e) => { setTouched(true); setSlug(e.target.value); }} placeholder="acme-trading" />
-          </div>
-          {effectiveSlug && status && (
-            <p className={`mt-1.5 text-xs font-600 ${status.available ? "text-emerald-600 dark:text-emerald-400" : "text-danger"}`}>
-              {status.available ? `“${status.slug}” is available`
-                : status.reason === "taken" ? `“${status.slug}” is already taken`
-                : status.reason === "reserved" ? `“${status.slug}” is reserved`
-                : "Use 3+ letters, numbers or dashes"}
-            </p>
-          )}
+        {error && <p className="mt-4 text-sm text-danger">{error}</p>}
+        <div className="mt-5">
+          <Button variant="contained" className={PILL} onClick={create} disabled={busy || !name || !status?.available}>
+            {busy ? "Creating…" : "Create Studio"}
+          </Button>
         </div>
       </div>
-      {error && <p className="mt-4 text-sm text-danger">{error}</p>}
-      <div className="mt-5">
-        <button className={btn} onClick={create} disabled={busy || !name || !status?.available}>
-          {busy ? "Creating…" : "Create Studio"}
-        </button>
-      </div>
-    </section>
+    </div>
   );
 }
 
@@ -292,42 +365,48 @@ function Collaborations({ studios, onJoined }) {
   }
 
   return (
-    <>
-      <section className={card}>
-        <h2 className={panelH1}>Collaboration Studios</h2>
-        <p className={panelSub}>Studios you've been given access to, alongside your own.</p>
-        {studios.length === 0 ? (
-          <p className="mt-5 rounded-xl border border-dashed border-steel-200 p-6 text-center text-sm text-steel-500 dark:border-white/10 dark:text-slate-400">
-            You're not collaborating in any studio yet.
-          </p>
-        ) : (
-          <ul className="mt-5 space-y-2">
-            {studios.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-geex border border-steel-100 bg-steel-50 p-4 dark:border-white/10 dark:bg-steel-900">
-                <div>
-                  <p className="font-display font-700 text-brand-950 dark:text-white">{s.name}</p>
-                  <p className="font-mono text-xs text-steel-500 dark:text-slate-400">nompany.com/{s.slug}</p>
-                </div>
-                <a href={`/${s.slug}`} className={btnGhost}>Open</a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+    <div className={GROUPS}>
+      <SectionHead title="Collaboration Studios">Studios you&apos;ve been given access to, alongside your own.</SectionHead>
 
-      <section className={card}>
-        <h3 className={h3}>Join a studio</h3>
-        <p className={panelSub}>Enter the company code you were given. They'll approve your request.</p>
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <div className="min-w-[220px] flex-1">
-            <label className={label}>Company code</label>
-            <input className={input} value={code} onChange={(e) => setCode(e.target.value)} placeholder="acme-trading" />
+      <div className={STACK}>
+        {studios.length === 0 ? (
+          <Row label="No collaborations yet" value="You're not collaborating in any studio yet." />
+        ) : (
+          studios.map((s) => (
+            <Row key={s.id} label={s.name} value={`nompany.com/${s.slug}`}>
+              <span className="ms-auto shrink-0">
+                <Button variant="outlined" href={`/${s.slug}`} className={PILL}>Open</Button>
+              </span>
+            </Row>
+          ))
+        )}
+      </div>
+
+      <div>
+        <p className={GROUP_LABEL}>Join a studio</p>
+        <div className="rounded-[20px] bg-white p-4 dark:bg-steel-800 sm:p-6">
+          <p className="mb-4 text-sm text-steel-600 dark:text-slate-400">
+            Enter the company code you were given. They&apos;ll approve your request.
+          </p>
+          <div className="flex flex-wrap items-start gap-3">
+            <TextField
+              label="Company code" size="medium"
+              className="min-w-[220px] flex-1"
+              value={code} onChange={(e) => setCode(e.target.value)}
+              placeholder="acme-trading"
+            />
+            <Button variant="contained" className={cn(PILL, "h-14")} onClick={join} disabled={busy || !code.trim()}>
+              {busy ? "Sending…" : "Request access"}
+            </Button>
           </div>
-          <button className={btn} onClick={join} disabled={busy || !code.trim()}>{busy ? "Sending…" : "Request access"}</button>
+          {msg && (
+            <p className={cn("mt-3 text-sm", msg.tone === "good" ? "text-emerald-700 dark:text-emerald-400" : "text-danger")}>
+              {msg.text}
+            </p>
+          )}
         </div>
-        {msg && <p className={`mt-3 text-sm ${msg.tone === "good" ? "text-emerald-600 dark:text-emerald-400" : "text-danger"}`}>{msg.text}</p>}
-      </section>
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -350,21 +429,32 @@ function PersonalInfo({ profile, onSaved }) {
     if (res.ok) { setSaved(true); onSaved(); }
   }
 
+  const fields = [
+    ["fullName", "Full name"],
+    ["shortName", "Short name"],
+    ["phone", "Phone"],
+    ["workAddress", "Address"],
+  ];
+
   return (
-    <section className={card}>
-      <h2 className={panelH1}>Personal information</h2>
-      <p className={panelSub}>Yours alone. Studios you join keep their own name for you and never see this.</p>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div><label className={label}>Full name</label><input className={input} value={form.fullName} onChange={set("fullName")} /></div>
-        <div><label className={label}>Short name</label><input className={input} value={form.shortName} onChange={set("shortName")} /></div>
-        <div><label className={label}>Phone</label><input className={input} value={form.phone} onChange={set("phone")} /></div>
-        <div><label className={label}>Address</label><input className={input} value={form.workAddress} onChange={set("workAddress")} /></div>
+    <div className={GROUPS}>
+      <SectionHead title="Personal information">
+        Yours alone. Studios you join keep their own name for you and never see this.
+      </SectionHead>
+      <div className="rounded-[20px] bg-white p-4 dark:bg-steel-800 sm:p-6">
+        <div className="grid gap-5 sm:grid-cols-2">
+          {fields.map(([key, labelText]) => (
+            <TextField key={key} label={labelText} fullWidth size="medium" value={form[key]} onChange={set(key)} />
+          ))}
+        </div>
+        <div className="mt-6 flex items-center gap-3">
+          <Button variant="contained" className={PILL} onClick={save} disabled={busy}>
+            {busy ? "Saving…" : "Save changes"}
+          </Button>
+          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+        </div>
       </div>
-      <div className="mt-5 flex items-center gap-3">
-        <button className={btn} onClick={save} disabled={busy}>{busy ? "Saving…" : "Save changes"}</button>
-        {saved && <span className="text-sm text-emerald-600 dark:text-emerald-400">Saved</span>}
-      </div>
-    </section>
+    </div>
   );
 }
 
@@ -381,45 +471,60 @@ function Security({ devices, onChanged, locale, user }) {
     setBusy(false); onChanged();
   }
   return (
-    <>
-      <section className={card}>
-        <h2 className={panelH1}>Trusted devices</h2>
-        <p className={panelSub}>Browsers that can sign in without a one-time code. Remove one and its next sign-in needs a fresh code.</p>
+    <div className={GROUPS}>
+      <SectionHead title="Trusted devices">
+        Browsers that can sign in without a one-time code. Remove one and its next sign-in needs a fresh code.
+      </SectionHead>
+
+      <div className={STACK}>
         {devices.length === 0 ? (
-          <p className="mt-5 text-sm text-steel-500 dark:text-slate-400">No trusted devices.</p>
+          <Row label="No trusted devices" />
         ) : (
-          <>
-            <ul className="mt-5 space-y-2">
-              {devices.map((d) => (
-                <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-steel-100 px-4 py-3 text-sm dark:border-white/10">
-                  <span className="font-600 text-brand-950 dark:text-white">{d.label || "Unknown device"}</span>
-                  <span className="text-xs text-steel-500 dark:text-slate-400">last used {new Date(d.lastSeenAt).toLocaleDateString("en-GB")}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-5"><button className={btnGhost} onClick={revokeAll} disabled={busy}>{busy ? "Removing…" : "Remove all devices"}</button></div>
-          </>
+          devices.map((d) => (
+            <Row
+              key={d.id}
+              label={d.label || "Unknown device"}
+              value={`last used ${new Date(d.lastSeenAt).toLocaleDateString("en-GB")}`}
+            />
+          ))
         )}
-      </section>
-      <section className={card}>
-        <h3 className={h3}>How you sign in</h3>
-        {providerName ? (
-          <>
-            <p className={panelSub}>
-              You sign in with <span className="font-600 text-brand-950 dark:text-white">{providerName}</span>, which is
-              also how your email was verified — so you've never set a password here.
-            </p>
-            <p className="mt-2 text-sm text-steel-600 dark:text-slate-300">
-              Want to sign in with an email and password too? Set one below — your {providerName} button keeps working either way.
-            </p>
-          </>
-        ) : (
-          <p className={panelSub}>You sign in with your email and password. Changing it signs you out everywhere and forgets every trusted device.</p>
-        )}
-        <div className="mt-4">
-          <a href={`/${locale}/forgot`} className={btnGhost}>{providerName ? "Set a password" : "Reset password"}</a>
+      </div>
+
+      {devices.length > 0 && (
+        <div>
+          <Button variant="outlined" className={PILL} onClick={revokeAll} disabled={busy}>
+            {busy ? "Removing…" : "Remove all devices"}
+          </Button>
         </div>
-      </section>
-    </>
+      )}
+
+      <div>
+        <p className={GROUP_LABEL}>How you sign in</p>
+        <div className={STACK}>
+          {providerName ? (
+            <>
+              <Row
+                label={providerName}
+                value={`You sign in with ${providerName}, which is also how your email was verified — so you've never set a password here.`}
+              />
+              <Row
+                label="Password"
+                value={`Want to sign in with an email and password too? Set one below — your ${providerName} button keeps working either way.`}
+              />
+            </>
+          ) : (
+            <Row
+              label="Email and password"
+              value="Changing it signs you out everywhere and forgets every trusted device."
+            />
+          )}
+        </div>
+        <div className="mt-4">
+          <Button variant="outlined" href={`/${locale}/forgot`} className={PILL}>
+            {providerName ? "Set a password" : "Reset password"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
