@@ -120,7 +120,7 @@ export const SECTION_COLLECTIONS = {
   projects: ["projects", "projectSheets", "overtimes", "slas"],
   inventory: ["inventoryVendors", "inventoryItems", "inventoryStock", "deliveries", "materialOrders"],
   hr: ["departments", "positions", "certifications", "vacations"],
-  finance: ["cashSheets"],
+  finance: ["invoices", "expenses"],
   operations: ["workTasks", "permits", "locations", "trackingPositions"],
   website: ["services", "careers", "previousProjects", "galleryImages", "reviews", "messages", "applications", "signatures", "docImages"],
   tasks: ["tasks"],
