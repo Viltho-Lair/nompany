@@ -23,8 +23,6 @@ const BTN = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 t
 const BTN_GHOST = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
 const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
 
-const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-
 export default function StudioSettings({ slug }) {
   const [studio, setStudio] = useState(null);
   const [canManage, setCanManage] = useState(false);
@@ -55,8 +53,9 @@ export default function StudioSettings({ slug }) {
       </p>
 
       <div className={`${STACK} mt-4`}>
-        {/* Logo: icon on the left, the logo itself as a circle at the RIGHT end
-            of the row — the same shape as the profile picture row. */}
+        {/* Logo: icon on the left, the logo itself at the RIGHT end of the row.
+            The row borrows Personal info's geometry, but NOT its circle — a
+            profile picture is a face and crops well, a company mark does not. */}
         <button
           type="button"
           disabled={!canManage}
@@ -70,15 +69,21 @@ export default function StudioSettings({ slug }) {
           <span className="flex min-w-0 flex-1 flex-col justify-center">
             <span className={ROW_LABEL}>Studio logo</span>
             <span className={ROW_VALUE}>
-              {studio.logo ? "Shown wherever this studio is listed" : "No logo yet — the studio shows its initials"}
+              {studio.logo
+                ? "Shown at the top of this studio, and on its card in every member's account"
+                : "Using the nompany mark — the default for a new studio"}
             </span>
           </span>
-          <span className="ms-auto inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-950 font-display text-sm font-700 text-white dark:bg-brand-500/20 dark:text-brand-300">
+          {/* A tile, not a circle: this is a company's mark and it is shown
+              WHOLE. Contained rather than cropped, so a wide wordmark keeps both
+              ends and the tile's own shape stops mattering. */}
+          <span className="ms-auto inline-flex h-10 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-geex-sm dark:bg-white/5">
             {studio.logo
               /* A stored data URI, so next/image would only get in the way. */
               /* eslint-disable-next-line @next/next/no-img-element */
-              ? <img src={studio.logo} alt="" className="h-full w-full object-cover" />
-              : initialsOf(studio.name)}
+              ? <img src={studio.logo} alt="" className="h-full w-full object-contain" />
+              /* eslint-disable-next-line @next/next/no-img-element */
+              : <img src="/brand/logo-icon.png" alt="" className="h-full w-full object-contain" />}
           </span>
         </button>
       </div>
@@ -86,7 +91,6 @@ export default function StudioSettings({ slug }) {
       {logoOpen && (
         <LogoDialog
           slug={slug}
-          name={studio.name}
           logo={studio.logo}
           onClose={() => setLogoOpen(false)}
           onSaved={load}
@@ -98,7 +102,7 @@ export default function StudioSettings({ slug }) {
 
 // The same dialog shape as the account hub's profile picture: a large preview,
 // Change, and Remove.
-function LogoDialog({ slug, name, logo, onClose, onSaved }) {
+function LogoDialog({ slug, logo, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const fileRef = useRef(null);
@@ -154,15 +158,20 @@ function LogoDialog({ slug, name, logo, onClose, onSaved }) {
           </button>
         </div>
         <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">
-          Shown wherever this studio is listed, including on the account page of everyone who works in it.
+          Stands at the top of this studio in place of the nompany mark, and on the studio&apos;s
+          card in the account of everyone who works in it.
         </p>
 
-        <div className="flex justify-center py-6">
-          <span className="inline-flex h-[136px] w-[136px] items-center justify-center overflow-hidden rounded-full bg-brand-950 font-display text-4xl font-800 text-white dark:bg-brand-500/20 dark:text-brand-300">
+        {/* A WIDE frame, because the preview has to tell the truth about how the
+            logo will sit: contained and whole. A square preview would quietly
+            imply the mark gets cropped to one. */}
+        <div className="flex justify-center px-6 py-6">
+          <span className="inline-flex h-[136px] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-geex border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
             {logo
               /* eslint-disable-next-line @next/next/no-img-element */
-              ? <img src={logo} alt="" className="h-full w-full object-cover" />
-              : initialsOf(name)}
+              ? <img src={logo} alt="" className="h-full w-full object-contain" />
+              /* eslint-disable-next-line @next/next/no-img-element */
+              : <img src="/brand/logo-icon.png" alt="" className="h-full w-full object-contain opacity-70" />}
           </span>
         </div>
 

@@ -100,7 +100,7 @@ export default async function StudioPage({ params }) {
     : active?.key;
 
   const frameProps = {
-    studio: { name: studio.name, slug: studio.slug },
+    studio: { name: studio.name, slug: studio.slug, logo: studio.logo || "" },
     me: { alias: collaborator.alias || "", role: collaborator.role, canAdminister: admin },
     // parentId drives the expandable nav.
     sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),

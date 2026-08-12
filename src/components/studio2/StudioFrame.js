@@ -195,8 +195,17 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
   const sidebar = (
     <div className="flex h-full flex-col bg-[var(--geex-surface)]">
       <Link href={`/${studio.slug}`} className="flex items-center gap-2.5 px-6 py-5" onClick={() => setOpen(false)}>
-        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-[3px] shadow-geex-sm dark:bg-white/5">
-          <Image src="/brand/logo-icon.png" alt="" width={36} height={36} className="h-full w-full object-contain" />
+        {/* The studio's own logo stands here once it has one; the nompany mark
+            is the default every new studio starts with. Shown whole rather than
+            cropped to a circle — it is a company's mark, not a face — so it is
+            contained inside the tile and may be any shape.
+            A plain <img> because the logo is a stored data URI, which next/image
+            would try to optimise and cannot. */}
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-[3px] shadow-geex-sm dark:bg-white/5">
+          {studio.logo
+            /* eslint-disable-next-line @next/next/no-img-element */
+            ? <img src={studio.logo} alt="" className="h-full w-full object-contain" />
+            : <Image src="/brand/logo-icon.png" alt="" width={36} height={36} className="h-full w-full object-contain" />}
         </span>
         <span className="flex min-w-0 flex-col leading-tight">
           <span className="truncate font-display text-[15px] font-700 tracking-tight text-slate-900 dark:text-white">

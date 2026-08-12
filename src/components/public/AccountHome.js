@@ -228,7 +228,9 @@ function StudioCard({ studio, compact = false }) {
       <span className={cn("flex aspect-square items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white transition-colors group-hover:border-brand-500 dark:border-white/10 dark:bg-[#20202c] dark:group-hover:border-brand-500/50", w)}>
         {studio.logo
           ? /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={studio.logo} alt="" className="h-full w-full object-cover" />
+            /* object-CONTAIN, not cover: a logo is a whole mark, and cropping
+               it to fill a square is how you lose half a wordmark. */
+            <img src={studio.logo} alt="" className="h-full w-full object-contain p-2" />
           : <span className={cn("font-display font-800 text-brand-700 dark:text-brand-300", compact ? "text-xl" : "text-2xl")}>{initialsOf(studio.name)}</span>}
       </span>
       <span className="mt-2 block truncate text-center text-sm font-600 text-slate-900 dark:text-white">{studio.name}</span>
