@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import {
-  verifyOtp, sessionCookie, clearedOtpCookie, deviceCookie, deviceLabel,
+  verifyOtp, sessionCookie, clearedOtpCookie, deviceCookie, deviceFingerprint,
   requestIsHttps, publicUser, OTP_COOKIE,
 } from "@/lib/identity";
 
@@ -21,7 +21,7 @@ export async function POST(request) {
     code: body.code,
     remember: body.remember,
     trustThisDevice: body.trustThisDevice,
-    label: deviceLabel(request),
+    device: deviceFingerprint(request),
   });
   if (result.error) {
     const status = result.error === "suspended" ? 403 : result.error === "notfound" ? 404 : 400;

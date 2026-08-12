@@ -11,7 +11,11 @@ export async function GET() {
   const user = await currentUser();
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
   const devices = (await listDevices(user.id)).map((d) => ({
-    id: d.id, label: d.label, createdAt: d.createdAt, lastSeenAt: d.lastSeenAt, expiresAt: d.expiresAt,
+    id: d.id, label: d.label, deviceType: d.deviceType || "", location: d.location || "",
+    // The address itself is never stored — only a keyed digest, surfaced as a
+    // short fingerprint so two sign-ins can be told apart without exposing it.
+    ipFingerprint: (d.ipHash || "").slice(0, 8),
+    createdAt: d.createdAt, lastSeenAt: d.lastSeenAt, expiresAt: d.expiresAt,
   }));
   return Response.json({ devices });
 }

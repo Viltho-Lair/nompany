@@ -70,6 +70,37 @@ export function deviceCookie(deviceId, isHttps) {
   return `${DEVICE_COOKIE}=${deviceId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(DEVICE_TTL_MS / 1000)}${secure}`;
 }
 // Best-effort client label for the trusted-device list ("Chrome on Windows").
+// What we record about a device, and deliberately what we do NOT.
+//
+// The IP is never stored. It is HMAC'd with the server's key and only the
+// digest is kept, so two sign-ins from the same address still match each other
+// while the address itself cannot be recovered from the database — and, because
+// the HMAC is keyed, it cannot be brute-forced from the tiny IPv4 space either,
+// which a plain hash could be.
+//
+// Location is COARSE and comes from the edge (Vercel geo headers), not from the
+// browser: city and country only, never coordinates, and no permission prompt.
+export function deviceFingerprint(request) {
+  const h = request?.headers;
+  const ua = h?.get?.("user-agent") || "";
+  const ip = h?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || h?.get?.("x-real-ip") || "";
+  const city = h?.get?.("x-vercel-ip-city") || "";
+  const country = h?.get?.("x-vercel-ip-country") || "";
+  return {
+    label: deviceLabel(request),
+    deviceType: /iPad|Tablet/i.test(ua) ? "Tablet" : /Mobi|Android|iPhone/i.test(ua) ? "Phone" : "Computer",
+    location: [decodeURIComponent(city), country].filter(Boolean).join(", "),
+    ipHash: ip ? hashIp(ip) : "",
+  };
+}
+
+// Keyed digest, truncated: enough to compare two sign-ins, useless as a lookup.
+function hashIp(ip) {
+  const key = process.env.FIELD_ENCRYPTION_KEY || "";
+  if (!key) return "";
+  return crypto.createHmac("sha256", key).update(String(ip)).digest("hex").slice(0, 24);
+}
+
 export function deviceLabel(request) {
   const ua = request?.headers?.get?.("user-agent") || "";
   const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /Firefox\//.test(ua) ? "Firefox" : "Browser";
@@ -129,7 +160,7 @@ async function deliverCode(to, name, code, template) {
 // ---- OTP verification (completes signup OR an untrusted login) -------------
 // Success always proves control of the address, so it stamps emailVerifiedAt
 // for both purposes, mints the session, and optionally remembers the device.
-export async function verifyOtp({ challengeId, code, remember, trustThisDevice, label }) {
+export async function verifyOtp({ challengeId, code, remember, trustThisDevice, device }) {
   const result = await verifyChallenge(challengeId, code);
   if (result.error) return { error: result.error, attemptsLeft: result.attemptsLeft };
 
@@ -143,7 +174,7 @@ export async function verifyOtp({ challengeId, code, remember, trustThisDevice, 
 
   const ttl = remember ? REMEMBER_TTL : SESSION_TTL;
   const token = await mintSession(userId, ttl);
-  const deviceId = trustThisDevice ? await trustDevice(userId, { label }) : "";
+  const deviceId = trustThisDevice ? await trustDevice(userId, device || {}) : "";
   return { user, token, ttl, deviceId };
 }
 

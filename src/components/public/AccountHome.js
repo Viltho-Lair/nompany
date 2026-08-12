@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
@@ -173,16 +173,6 @@ export default function AccountHome({ locale, chrome }) {
                 );
               })}
             </ul>
-
-          </div>
-
-          {/* Pinned to the BOTTOM of the rail column, not trailing the nav items. */}
-          <div className="hidden shrink-0 flex-wrap gap-x-4 gap-y-2 px-4 pb-4 text-xs text-slate-500 dark:text-slate-400 lg:flex">
-            <Link href={`/${locale}/terms`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Terms</Link>
-            <Link href={`/${locale}/contact`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Help</Link>
-            {owned[0]
-              ? <a href={`/${owned[0].slug}/documentation`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Documentation</a>
-              : <span className="text-slate-400 dark:text-slate-500">Documentation</span>}
           </div>
         </nav>
 
@@ -201,15 +191,22 @@ export default function AccountHome({ locale, chrome }) {
         </main>
       </div>
 
-      {/* Pinned to the BOTTOM OF THE SCREEN, outside the scrolling region. */}
-      <footer className="shrink-0 px-5 pb-4 pt-2 sm:px-8">
-        <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+      {/* One row on the viewport's bottom edge: the rail's links sit in a
+          column the same width as the rail, so they line up with the rail
+          above AND share a baseline with the note beside them. */}
+      <footer className="flex shrink-0 items-center gap-6 px-5 pb-4 pt-2 sm:px-8">
+        <div className={cn(RAIL_W, "hidden shrink-0 flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 lg:flex")}>
+          <Link href={`/${locale}/terms`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Terms</Link>
+          <Link href={`/${locale}/contact`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Help</Link>
+          {owned[0]
+            ? <a href={`/${owned[0].slug}/documentation`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Documentation</a>
+            : <span className="text-slate-400 dark:text-slate-500">Documentation</span>}
+        </div>
+        <p className="min-w-0 flex-1 text-center text-xs text-slate-500 dark:text-slate-400">
           These settings are yours alone. Studios you join keep their own profile for you and never see what&apos;s here.
         </p>
-        <div className="mt-2 flex justify-center gap-4 text-xs text-slate-500 dark:text-slate-400 lg:hidden">
-          <Link href={`/${locale}/terms`} className="hover:underline">Terms</Link>
-          <Link href={`/${locale}/contact`} className="hover:underline">Help</Link>
-        </div>
+        {/* Balances the links column so the note is centred in the window. */}
+        <div className={cn(RAIL_W, "hidden shrink-0 lg:block")} aria-hidden="true" />
       </footer>
     </div>
   );
@@ -518,9 +515,9 @@ function PersonalInfo({ identity, onSaved }) {
             <span className={ROW_VALUE}>A picture helps people recognise you</span>
           </span>
           <span className="ms-auto inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-sm font-700 text-white">
-            {profile.photoUrl
+            {profile.photo
               /* eslint-disable-next-line @next/next/no-img-element */
-              ? <img src={profile.photoUrl} alt="" className="h-full w-full object-cover" />
+              ? <img src={profile.photo} alt="" className="h-full w-full object-cover" />
               : initialsOf(name)}
           </span>
         </button>
@@ -570,7 +567,7 @@ function PersonalInfo({ identity, onSaved }) {
         })}
       </div>
 
-      {photoOpen && <PhotoDialog name={name} photoUrl={profile.photoUrl} onClose={() => setPhotoOpen(false)} />}
+      {photoOpen && <PhotoDialog name={name} photoUrl={profile.photo} onClose={() => setPhotoOpen(false)} onSaved={onSaved} />}
     </div>
   );
 }
@@ -579,7 +576,41 @@ function PersonalInfo({ identity, onSaved }) {
 // (aria-haspopup="dialog", aria-label="Change profile photo") — Google builds the
 // dialog itself on click, so its markup was not in the file to copy. This mirrors
 // its shape and options, minus Google Photos as asked.
-function PhotoDialog({ name, photoUrl, onClose }) {
+function PhotoDialog({ name, photoUrl, onClose, onSaved }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const fileRef = useRef(null);
+
+  async function upload(file) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setErr("Choose an image file."); return; }
+    if (file.size > 2 * 1024 * 1024) { setErr("Images must be 2 MB or smaller."); return; }
+    setBusy(true); setErr("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const up = await fetch("/api/media", { method: "POST", body: form });
+      const media = await up.json().catch(() => ({}));
+      if (!up.ok || !media.url) throw new Error(media.error || "upload");
+      const res = await fetch("/api/identity/profile", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photo: media.url }),
+      });
+      if (!res.ok) throw new Error("save");
+      onSaved(); onClose();
+    } catch { setErr("We couldn't upload that picture."); }
+    finally { setBusy(false); }
+  }
+
+  async function remove() {
+    setBusy(true); setErr("");
+    const res = await fetch("/api/identity/profile", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ photo: "" }),
+    });
+    setBusy(false);
+    if (res.ok) { onSaved(); onClose(); } else setErr("We couldn't remove that picture.");
+  }
+
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -612,14 +643,22 @@ function PhotoDialog({ name, photoUrl, onClose }) {
           </span>
         </div>
 
+        {err && <p className={cn(BANNER_BAD, "mx-6 mb-4")}>{err}</p>}
+
         <div className="flex flex-wrap justify-center gap-3 px-6 pb-6">
-          <button type="button" className={BTN} disabled title="Uploading is not wired up yet">
-            <span className="inline-flex items-center gap-1.5"><Icon name="camera" className="h-4 w-4" /> Change</span>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden"
+            onChange={(e) => upload(e.target.files?.[0])} />
+          <button type="button" className={BTN} disabled={busy} onClick={() => fileRef.current?.click()}>
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="camera" className="h-4 w-4" /> {busy ? "Uploading…" : "Change"}
+            </span>
           </button>
-          <button type="button" className={BTN_GHOST} disabled={!photoUrl} title={photoUrl ? "" : "No picture to remove"}>
+          <button type="button" className={BTN_GHOST} disabled={busy || !photoUrl} onClick={remove}
+            title={photoUrl ? "" : "No picture to remove"}>
             Remove
           </button>
         </div>
+        <p className="px-6 pb-6 text-center text-xs text-slate-400">JPG, PNG or WebP, up to 2 MB.</p>
       </div>
     </div>
   );
@@ -628,6 +667,13 @@ function PhotoDialog({ name, photoUrl, onClose }) {
 // ---- security ----------------------------------------------------------------
 function Security({ devices, onChanged, locale, user }) {
   const [busy, setBusy] = useState(false);
+  async function revokeOne(deviceId) {
+    setBusy(true);
+    await fetch("/api/identity/devices", {
+      method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deviceId }),
+    });
+    setBusy(false); onChanged();
+  }
   const provider = user?.provider || "";
   const providerName = provider === "google" ? "Google" : provider === "microsoft" ? "Microsoft" : "";
   async function revokeAll() {
@@ -642,7 +688,10 @@ function Security({ devices, onChanged, locale, user }) {
     <div className="space-y-4">
       <div>
         <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">Security</h2>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">How you sign in, and the browsers that stay trusted.</p>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          How you sign in, and the browsers that stay trusted. A device that isn&apos;t on this list
+          has to pass a one-time code before it can sign in. Removing one sends it back through that check.
+        </p>
       </div>
 
       <div className={STACK}>
@@ -676,12 +725,20 @@ function Security({ devices, onChanged, locale, user }) {
         ) : devices.map((d) => (
           <div key={d.id} className={ROW}>
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
-              <Icon name="shield" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+              <Icon name={d.deviceType === "Phone" ? "call" : d.deviceType === "Tablet" ? "gallery" : "shield"}
+                className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
             </span>
             <div className="flex min-w-0 flex-col justify-center">
               <span className={ROW_LABEL}>{d.label || "Unknown device"}</span>
-              <span className={ROW_VALUE}>last used {new Date(d.lastSeenAt).toLocaleDateString("en-GB")}</span>
+              <span className={ROW_VALUE}>
+                {[d.deviceType, d.location || "Location unknown",
+                  `last used ${new Date(d.lastSeenAt).toLocaleDateString("en-GB")}`].filter(Boolean).join(" · ")}
+              </span>
             </div>
+            <button type="button" onClick={() => revokeOne(d.id)} disabled={busy}
+              className="ms-auto shrink-0 rounded-full px-3 py-1.5 text-xs font-600 text-rose-600 hover:bg-rose-50 disabled:opacity-60 dark:text-rose-300 dark:hover:bg-rose-500/10">
+              Remove
+            </button>
           </div>
         ))}
       </div>

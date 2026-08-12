@@ -123,11 +123,20 @@ export async function resendChallenge(challengeId, { ip } = {}) {
 // ---- trusted devices (risk-based login) ------------------------------------
 const liveDevices = (rows) => (Array.isArray(rows) ? rows : []).filter((d) => (d.expiresAt || 0) > Date.now());
 
-export async function trustDevice(userId, { label = "" } = {}) {
+export async function trustDevice(userId, { label = "", deviceType = "", location = "", ipHash = "" } = {}) {
   const deviceId = makeId("dev");
   await editArr(U.devices(userId), (rows) => ({
     next: [
-      { id: deviceId, label: String(label).slice(0, 120), createdAt: Date.now(), lastSeenAt: Date.now(), expiresAt: Date.now() + DEVICE_TTL_MS },
+      {
+        id: deviceId,
+        label: String(label).slice(0, 120),
+        deviceType: String(deviceType).slice(0, 20),
+        location: String(location).slice(0, 80),
+        // Digest only — see deviceFingerprint() for why the address itself is
+        // never written here.
+        ipHash: String(ipHash).slice(0, 64),
+        createdAt: Date.now(), lastSeenAt: Date.now(), expiresAt: Date.now() + DEVICE_TTL_MS,
+      },
       ...liveDevices(rows),
     ].slice(0, MAX_DEVICES),
   }));
