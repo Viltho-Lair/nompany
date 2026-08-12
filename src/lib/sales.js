@@ -389,7 +389,10 @@ export async function createTicket(ctx, body) {
     serviceRequirements,
     clientBudget,
     value: 0,                               // auto — set from a completed quotation
-    assignedToCollaboratorId: str(body?.assignedToCollaboratorId, 60),
+    // The owner IS whoever raised the ticket, so it is taken from the session
+    // rather than the payload — there is no owner field on the form to send,
+    // and a crafted request cannot raise a ticket in someone else's name.
+    assignedToCollaboratorId: collaborator.id,
     createdByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
@@ -405,7 +408,9 @@ export async function editTicket(ctx, id, body) {
   for (const f of ["contactName", "industry", "deadline"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 120);
   if (body?.description !== undefined) patch.description = str(body.description, 4000);
   if (body?.value !== undefined) patch.value = Number(body.value) > 0 ? Number(body.value) : 0;
-  if (body?.assignedToCollaboratorId !== undefined) patch.assignedToCollaboratorId = str(body.assignedToCollaboratorId, 60);
+  // Ownership is not editable: it means "who raised this", which cannot change
+  // after the fact. Editing a ticket therefore leaves the owner alone, and an
+  // assignedToCollaboratorId in the payload is ignored rather than honoured.
 
   const ticket = await updateRow(studio.id, ticketsSection.id, TICKETS, id, patch);
   return ticket ? { ticket } : { error: "notfound" };

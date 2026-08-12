@@ -141,7 +141,7 @@ export default function StudioSales({ slug, view = "sales" }) {
             description="Fields marked * are required."
             onClose={closeEditing}
           >
-            <TicketForm row={editing.row} clients={clients} people={people} vocabulary={vocabulary}
+            <TicketForm row={editing.row} clients={clients} vocabulary={vocabulary}
               services={services || []} cities={data.salesCities || []} positions={data.salesContactPositions || []}
               onCancel={closeEditing}
               onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
@@ -502,7 +502,7 @@ function ClientForm({ row, onSave, onCancel }) {
   );
 }
 
-function TicketForm({ row, clients, people, vocabulary, services = [], cities = [], positions = [], onSave, onCancel }) {
+function TicketForm({ row, clients, vocabulary, services = [], cities = [], positions = [], onSave, onCancel }) {
   // Fields mirror the Old System's ticket. Mandatory: title, client, deadline,
   // type of industry. Status, urgency and value are NOT here on purpose —
   // status is automated ("Lead" → "Opportunity" on RFQ request), urgency is a
@@ -517,7 +517,6 @@ function TicketForm({ row, clients, people, vocabulary, services = [], cities = 
     locationName: row?.location?.name || "", locationCity: row?.location?.city || "", locationUrl: row?.location?.url || "",
     deadline: row?.deadline || "", industry: row?.industry || "",
     clientBudget: row?.clientBudget ?? "",
-    assignedToCollaboratorId: row?.assignedToCollaboratorId || "",
     description: row?.description || "",
   });
   const [serviceIds, setServiceIds] = useState(row?.serviceIds || []);
@@ -538,8 +537,10 @@ function TicketForm({ row, clients, people, vocabulary, services = [], cities = 
         <div>
           <label className={label}>Client *</label>
           {/* Free text with suggestions: an unknown name creates the client. */}
-          <input className={input} list="sales-client-names" value={f.clientName} onChange={set("clientName")} placeholder="Acme Trading" disabled={!!row} />
-          <datalist id="sales-client-names">{clients.map((c) => <option key={c.id} value={c.name} />)}</datalist>
+          {/* freeSolo matters here: typing a name that is not on the list is how
+              a new client gets created, which the datalist also allowed. */}
+          <Combo value={f.clientName} onChange={(v) => setF((p) => ({ ...p, clientName: v }))}
+            options={clients.map((c) => c.name)} placeholder="Acme Trading" disabled={!!row} />
         </div>
         <div>
           <label className={label}>Deadline *</label>
@@ -558,8 +559,8 @@ function TicketForm({ row, clients, people, vocabulary, services = [], cities = 
         <div><label className={label}>Name</label><input className={input} value={f.contactName} onChange={set("contactName")} /></div>
         <div>
           <label className={label}>Position</label>
-          <input className={input} list="sales-positions" value={f.contactPosition} onChange={set("contactPosition")} />
-          <datalist id="sales-positions">{positions.map((x) => <option key={x} value={x} />)}</datalist>
+          <Combo value={f.contactPosition} onChange={(v) => setF((p) => ({ ...p, contactPosition: v }))}
+            options={positions} placeholder="Procurement Manager" />
         </div>
         <div><label className={label}>Email</label><input className={input} type="email" value={f.contactEmail} onChange={set("contactEmail")} /></div>
         <div><label className={label}>Phone</label><input className={input} value={f.contactPhone} onChange={set("contactPhone")} /></div>
@@ -609,15 +610,6 @@ function TicketForm({ row, clients, people, vocabulary, services = [], cities = 
         </div>
       )}
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className={label}>Owner</label>
-          <select className={input} value={f.assignedToCollaboratorId} onChange={set("assignedToCollaboratorId")}>
-            <option value="">Unassigned</option>
-            {people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
-          </select>
-        </div>
-      </div>
       <div className="mt-4"><label className={label}>Description</label><textarea rows={3} className={input} value={f.description} onChange={set("description")} /></div>
 
       <div className="mt-5 flex gap-3">
@@ -631,7 +623,6 @@ function TicketForm({ row, clients, people, vocabulary, services = [], cities = 
             deadline: f.deadline, industry: f.industry,
             serviceIds, serviceRequirements: reqs,
             clientBudget: f.clientBudget === "" ? null : f.clientBudget,
-            assignedToCollaboratorId: f.assignedToCollaboratorId,
             description: f.description,
           });
           setBusy(false);
