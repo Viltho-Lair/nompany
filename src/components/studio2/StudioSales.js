@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
+import { Icon } from "@/components/studio2/icons";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import { linkToClient } from "@/lib/studioLinks";
 
@@ -44,6 +45,9 @@ export default function StudioSales({ slug, view = "sales" }) {
   const focusClient = useFocusedRecord("client");
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(null); // {kind:'client'|'ticket', row}
+  // Stable, so the dialog's key/scroll-lock effect binds once instead of on
+  // every keystroke in the form.
+  const closeEditing = useCallback(() => setEditing(null), []);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/sales`, { cache: "no-store" });
@@ -126,11 +130,20 @@ export default function StudioSales({ slug, view = "sales" }) {
       <div className="space-y-6">
         {banner}
         <Toolbar canManage={canManage} label="New ticket" onAdd={() => setEditing({ kind: "ticket", row: null })} />
+        {/* Raising a ticket opens a DIALOG rather than unfolding a panel above
+            the table: the form is long enough that inline it pushed the list
+            it is about off the screen. */}
         {editing?.kind === "ticket" && (
-          <TicketForm row={editing.row} clients={clients} people={people} vocabulary={vocabulary}
-            services={services || []} cities={data.salesCities || []} positions={data.salesContactPositions || []}
-            onCancel={() => setEditing(null)}
-            onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
+          <Dialog
+            title={editing.row ? `Edit ${editing.row.ref}` : "New ticket"}
+            description="Fields marked * are required."
+            onClose={closeEditing}
+          >
+            <TicketForm row={editing.row} clients={clients} people={people} vocabulary={vocabulary}
+              services={services || []} cities={data.salesCities || []} positions={data.salesContactPositions || []}
+              onCancel={closeEditing}
+              onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
+          </Dialog>
         )}
         <Tickets tickets={tickets} people={people} canManage={canManage} slug={slug} nav={nav} focus={focusTicket}
           onEdit={(row) => setEditing({ kind: "ticket", row })}
@@ -144,6 +157,40 @@ export default function StudioSales({ slug, view = "sales" }) {
     <div className="space-y-6">
       {banner}
       <SalesDashboard slug={slug} tickets={tickets} clients={clients} />
+    </div>
+  );
+}
+
+// Modal shell for the Sales forms — backdrop, Escape, a locked page scroll and
+// a titled header, matching the dialogs on the account pages so they open and
+// dismiss the same way. The ticket form is taller than most viewports, so the
+// BODY scrolls inside a dialog capped below the viewport height; the page
+// behind it stays put rather than scrolling two things at once.
+function Dialog({ title, description, onClose, children, width = "max-w-[720px]" }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div className={`relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c] ${width}`}>
+        <div className="flex items-start gap-3 border-b border-slate-200/70 px-6 py-4 dark:border-white/10">
+          <div className="min-w-0">
+            <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
+            {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close"
+            className="ms-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5">
+            <Icon name="close" className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-5">{children}</div>
+      </div>
     </div>
   );
 }
@@ -459,12 +506,11 @@ function TicketForm({ row, clients, people, vocabulary, services = [], cities = 
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const ready = f.title.trim() && f.clientName.trim() && f.deadline && f.industry.trim() && serviceIds.length > 0;
 
+  // The title, the close button and the scrolling belong to the Dialog this
+  // opens inside, so the form itself renders fields only.
   return (
-    <section className={`${panel} border-brand-500/40`}>
-      <h2 className={h2}>{row ? `Edit ${row.ref}` : "New ticket"}</h2>
-      <p className={sub}>Fields marked * are required.</p>
-
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2"><label className={label}>Title *</label><input className={input} value={f.title} onChange={set("title")} placeholder="Site survey for new branch" /></div>
 
         <div>
@@ -570,6 +616,6 @@ function TicketForm({ row, clients, people, vocabulary, services = [], cities = 
         }}>{busy ? "Saving…" : "Save ticket"}</button>
         <button className={btnGhost} onClick={onCancel}>Cancel</button>
       </div>
-    </section>
+    </>
   );
 }
