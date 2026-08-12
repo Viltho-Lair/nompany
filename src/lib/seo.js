@@ -11,10 +11,20 @@ export const SITE_URL = (
 // OpenGraph locale codes for each app locale.
 const OG_LOCALE = { en: "en_US", ar: "ar_SA" };
 
-// Per-page SEO copy for the routes this app still serves. The home entry went
-// with the marketing site; the root now redirects to www and never renders, so
-// its copy lives in the marketing deployment's own metadata.
+// Per-page SEO copy, keyed by route path ("" = the landing page).
 export const PAGES = {
+  "": {
+    en: {
+      title: "Run your company's whole operation from one platform",
+      description:
+        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Start free and pay only for the modules you use.",
+    },
+    ar: {
+      title: "أدِر عمليات شركتك بالكامل من منصة واحدة",
+      description:
+        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. ابدأ مجانًا وادفع فقط مقابل ما تستخدمه.",
+    },
+  },
   "/careers": {
     en: {
       title: "Careers",

@@ -9,7 +9,7 @@ import LangMenu from "@/components/LangMenu";
 import AccountMenu from "@/components/AccountMenu";
 import Skeleton from "@/components/Skeleton";
 import { track, pageLabelFromPath } from "@/lib/track";
-import { CONTACT, marketingUrl } from "@/lib/site";
+import { CONTACT } from "@/lib/site";
 
 // Minimal editorial header (inspired by the reference site): a slim bar with the
 // wordmark, theme + language controls and a Menu button that opens a full-screen
@@ -44,11 +44,11 @@ export default function Nav({ locale, dict }) {
     setOpen(false);
   }
 
-  // Home, features, pricing, about, team and contact now live on the standalone
-  // marketing site, which is a single page with no deep links — so they collapse
-  // into one outbound entry. Careers and terms are still served from here.
+  // The landing page absorbed features, pricing, about, team and contact as
+  // in-page views, so "Home" is the only entry point they need. Careers and
+  // terms remain real routes.
   const links = [
-    { href: marketingUrl(), label: dict.nav.home, external: true },
+    { href: `/${locale}`, label: dict.nav.home, exact: true },
     { href: `/${locale}/careers`, label: dict.nav.careers },
     { href: `/${locale}/terms`, label: dict.nav.terms },
   ];
@@ -57,8 +57,7 @@ export default function Nav({ locale, dict }) {
   const loginHref = `/${locale}/login`;
   const signupHref = `/${locale}/signup?package=micro`;
 
-  // External entries can never match the current path.
-  const isActive = (href, external) => !external && pathname.startsWith(href);
+  const isActive = (href, exact) => (exact ? pathname === href : pathname.startsWith(href));
 
   // Language options preserve the current sub-path and just swap the locale
   // segment. Each label is shown in its own script; English is the default.
@@ -92,16 +91,17 @@ export default function Nav({ locale, dict }) {
   const langTrigger =
     "inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current";
 
-  // The account hub is a full-screen app surface — no site header and no
-  // footer (see Footer.js `isBare`). It carries the brand link, theme control
-  // and language switcher inside the page instead.
-  if (pathname === `/${locale}/account`) return null;
+  // Two routes own their whole viewport and bring their own chrome, so the
+  // site header is suppressed on both (Footer.js does the same):
+  //   /account  — the full-screen account hub
+  //   /         — the landing page, which has its own dark TopNav
+  if (pathname === `/${locale}/account` || pathname === `/${locale}`) return null;
 
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-steel-400/15 bg-white/85 backdrop-blur-md dark:border-white/10 dark:bg-steel-900/85">
         <nav className="container-page flex h-16 items-center justify-between gap-4 sm:h-[74px]">
-          <Link href={marketingUrl()} className="flex items-center gap-2.5 text-brand-950 dark:text-white">
+          <Link href={`/${locale}`} className="flex items-center gap-2.5 text-brand-950 dark:text-white">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#eef1f6] p-[3px] sm:h-10 sm:w-10">
               <Image src="/brand/logo-icon.png" alt="" width={40} height={40} className="h-full w-full object-contain" priority />
             </span>
@@ -183,7 +183,7 @@ export default function Nav({ locale, dict }) {
                   href={l.href}
                   onClick={() => { setOpen(false); track("section_open", { section: pageLabelFromPath(l.href) }); }}
                   className={`group flex items-baseline gap-4 font-display text-3xl font-800 uppercase tracking-tight transition-colors sm:text-5xl ${
-                    isActive(l.href, l.external) ? "text-brand-400" : "text-white/85 hover:text-brand-400"
+                    isActive(l.href, l.exact) ? "text-brand-400" : "text-white/85 hover:text-brand-400"
                   }`}
                 >
                   <span className="font-mono text-xs font-500 text-white/30 sm:text-sm">{String(i + 1).padStart(2, "0")}</span>

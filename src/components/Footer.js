@@ -2,22 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CONTACT, marketingUrl } from "@/lib/site";
+import { CONTACT } from "@/lib/site";
 
 // Editorial footer (adapted from the reference site): a big "Let's connect"
 // band, then a minimal dark strip with an Explore nav list, the office / contact
 // block, and a thin copyright bar. Solid navy on every page.
 export default function Footer({ locale, dict }) {
   const pathname = usePathname();
-  // The account hub is a full-screen app surface, not a marketing page — no
-  // footer, so the left rail + panel own the whole viewport.
-  const isBare = pathname === `/${locale}/account`;
+  // Two routes own their whole viewport and bring their own chrome (Nav.js
+  // does the same): the full-screen account hub, and the landing page, which
+  // carries its own dark footer.
+  const isBare =
+    pathname === `/${locale}/account` || pathname === `/${locale}`;
   const year = new Date().getFullYear();
 
-  // Marketing pages moved to the standalone site; only careers and terms are
-  // still served from this app.
+  // Features, pricing, about, team and contact are in-page views on the
+  // landing page now, so they collapse into "Home".
   const nav = [
-    { href: marketingUrl(), label: dict.nav.home },
+    { href: `/${locale}`, label: dict.nav.home },
     { href: `/${locale}/careers`, label: dict.nav.careers },
     { href: `/${locale}/terms`, label: dict.nav.terms },
   ];
@@ -32,8 +34,8 @@ export default function Footer({ locale, dict }) {
 
   return (
     <footer className="bg-steel-900 text-white">
-      {/* Shared "Let's connect" band. The contact form lives on the marketing
-          site now, so the call-to-action points there. */}
+      {/* Shared "Let's connect" band. The contact form is a view on the
+          landing page now, so the call-to-action points there. */}
       <section className="border-b border-white/10">
         <div className="container-page py-16 sm:py-24">
           <p className="font-display text-xs font-700 uppercase tracking-[0.3em] text-brand-300">{dict.common.contactEyebrow}</p>
@@ -42,7 +44,7 @@ export default function Footer({ locale, dict }) {
               {dict.common.letsConnect}
             </h2>
             <Link
-              href={marketingUrl()}
+              href={`/${locale}`}
               className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-7 py-3.5 font-display text-sm font-700 uppercase tracking-[0.12em] text-brand-950 transition-colors hover:bg-brand-300"
             >
               {dict.common.getInTouch}

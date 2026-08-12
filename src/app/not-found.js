@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { getDict, isLocale, defaultLocale, dirFor } from "@/lib/i18n";
-import { marketingUrl } from "@/lib/site";
 import BackButton from "@/components/public/BackButton";
 
 // Root 404 for URLs that match no route (e.g. old removed pages). Renders inside
@@ -13,8 +12,7 @@ export default async function NotFound() {
   const dict = getDict(locale);
   const nf = dict.notFound;
   const dir = dirFor(locale);
-  // "Home" is the marketing site now — /{locale} only redirects there anyway.
-  const homeHref = marketingUrl();
+  const homeHref = `/${locale}`;
 
   return (
     <main dir={dir} lang={locale} className="relative flex min-h-screen items-center overflow-hidden bg-steel-900">

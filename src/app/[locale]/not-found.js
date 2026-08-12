@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { getDict, isLocale, defaultLocale } from "@/lib/i18n";
-import { marketingUrl } from "@/lib/site";
 import BackButton from "@/components/public/BackButton";
 
 // Custom 404 in the nompany design. Renders inside the [locale] layout, so the
@@ -12,8 +11,7 @@ export default async function NotFound() {
   const locale = isLocale(headerLocale) ? headerLocale : defaultLocale;
   const dict = getDict(locale);
   const nf = dict.notFound;
-  // "Home" is the marketing site now — /{locale} only redirects there anyway.
-  const homeHref = marketingUrl();
+  const homeHref = `/${locale}`;
 
   return (
     <section className="relative flex min-h-[80vh] items-center overflow-hidden bg-steel-900">
