@@ -5,6 +5,7 @@ import { currentUser } from "@/lib/identity";
 import { studioContext, canAdminister, visibleSections, canManageSection, listGrants } from "@/lib/studios";
 import { listSections } from "@/lib/data/sections";
 import StudioFrame from "@/components/studio2/StudioFrame";
+import StudioDocs from "@/components/studio2/StudioDocs";
 import StudioPeople from "@/components/studio2/StudioPeople";
 import StudioAccess from "@/components/studio2/StudioAccess";
 import StudioSales from "@/components/studio2/StudioSales";
@@ -47,6 +48,15 @@ export default async function StudioPage({ params }) {
 
   const { segments = [] } = await params;
   const requested = segments[0] || "";
+
+  // The manual is full-screen: it renders OUTSIDE StudioFrame, so it returns
+  // before the shell is built. Membership was already established above, so it
+  // is available to every member regardless of section grants. Checked ahead of
+  // the section lookup, so it wins over a section that happened to use the key.
+  if (requested === "documentation") {
+    return <StudioDocs studio={{ name: studio.name, slug: studio.slug }} />;
+  }
+
   const isPeople = requested === "people";
   const isAccess = requested === "access";
 
@@ -62,7 +72,8 @@ export default async function StudioPage({ params }) {
   const frameProps = {
     studio: { name: studio.name, slug: studio.slug },
     me: { alias: collaborator.alias || "", role: collaborator.role, canAdminister: admin },
-    sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled })),
+    // parentId drives the expandable nav; it is absent until sub-sections exist.
+    sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),
     activeKey: isPeople ? "people" : isAccess ? "access" : (active?.key || ""),
   };
 

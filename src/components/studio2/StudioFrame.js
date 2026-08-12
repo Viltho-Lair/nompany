@@ -46,6 +46,20 @@ const iconClass = (active) =>
 export default function StudioFrame({ studio, me, sections, activeKey, children }) {
   const [open, setOpen] = useState(false);
 
+  // Nav tree. A section with `parentId` is a sub-section; its parent renders as
+  // an expandable group. Until sub-sections exist in the data every row is a
+  // parent, so this degrades to the flat list it replaces.
+  const tree = (sections || [])
+    .filter((s) => !s.parentId)
+    .map((s) => ({ ...s, children: (sections || []).filter((c) => c.parentId === s.id) }));
+
+  // Which groups are open. A group holding the active child starts expanded and
+  // stays that way; `expanded` only records what the user has since toggled.
+  const [expanded, setExpanded] = useState({});
+  const hasActiveChild = (node) => node.children.some((c) => c.key === activeKey);
+  const isOpen = (node) => expanded[node.key] ?? hasActiveChild(node);
+  const toggle = (key, next) => setExpanded((e) => ({ ...e, [key]: next }));
+
   const admin = [
     { href: `/${studio.slug}/people`, key: "people", label: me.canAdminister ? "People & requests" : "People", show: true },
     { href: `/${studio.slug}/access`, key: "access", label: "Access", show: me.canAdminister },
@@ -55,6 +69,38 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
     sections.find((s) => s.key === activeKey)?.name ||
     admin.find((i) => i.key === activeKey)?.label ||
     studio.name;
+
+  // A parent that owns sub-sections is a disclosure, not a link: it expands to
+  // reveal them rather than navigating. Parents with no children stay links.
+  const navGroup = (node) => {
+    if (node.children.length === 0) return navLink(`/${studio.slug}/${node.key}`, node.key, node.name);
+    const shown = isOpen(node);
+    const active = node.key === activeKey || hasActiveChild(node);
+    return (
+      <div key={node.key}>
+        <button
+          type="button"
+          onClick={() => toggle(node.key, !shown)}
+          aria-expanded={shown}
+          className={`${itemClass(active)} w-full`}
+        >
+          <span className="flex items-center gap-3">
+            <Icon name={SECTION_ICONS[node.key] || "dot"} className={iconClass(active)} />
+            {node.name}
+          </span>
+          <Icon
+            name={shown ? "chevronUp" : "chevronDown"}
+            className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500"
+          />
+        </button>
+        {shown && (
+          <div className="mt-0.5 space-y-0.5 ps-4">
+            {node.children.map((c) => navLink(`/${studio.slug}/${c.key}`, c.key, c.name))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const navLink = (href, key, label, extraClass = "") => {
     const active = key === activeKey;
@@ -85,7 +131,7 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
       </Link>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
-        {sections.map((s) => navLink(`/${studio.slug}/${s.key}`, s.key, s.name))}
+        {tree.map((node) => navGroup(node))}
 
         {admin.length > 0 && (
           <div className="mt-6 space-y-0.5 border-t border-[var(--geex-border)] pt-4">
@@ -95,6 +141,15 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
       </nav>
 
       <div className="space-y-0.5 border-t border-[var(--geex-border)] p-4">
+        {/* Full-screen manual — opens outside the studio chrome. */}
+        <Link
+          href={`/${studio.slug}/documentation`}
+          onClick={() => setOpen(false)}
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+        >
+          <Icon name="services" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+          Documentation
+        </Link>
         <Link
           href="/en/account"
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
