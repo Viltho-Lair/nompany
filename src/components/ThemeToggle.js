@@ -25,7 +25,8 @@ function readTheme() {
 
 function writeTheme(mode) {
   try {
-    document.cookie = `theme=${mode}; path=/; max-age=31536000; samesite=lax`;
+    const secure = location.protocol === "https:" ? "; secure" : "";
+    document.cookie = `theme=${mode}; path=/; max-age=31536000; samesite=lax${secure}`;
   } catch {}
 }
 

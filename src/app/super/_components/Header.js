@@ -52,7 +52,8 @@ function useTheme() {
   const choose = useCallback((next) => {
     setMode(next);
     try {
-      document.cookie = `theme=${next}; path=/; max-age=31536000; samesite=lax`;
+      const secure = location.protocol === "https:" ? "; secure" : "";
+      document.cookie = `theme=${next}; path=/; max-age=31536000; samesite=lax${secure}`;
     } catch {}
     applyTheme(next);
   }, []);

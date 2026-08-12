@@ -1,5 +1,5 @@
 import "./globals.css";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import JsonLd from "@/components/JsonLd";
 import MuiProvider from "@/components/MuiProvider";
 import { getSiteSettings } from "@/lib/data/site";
@@ -70,21 +70,38 @@ export default async function RootLayout({ children }) {
   // untokenised background you get from setting the class in an effect.
   const isStudio = Boolean(h.get("x-studio-slug"));
 
+  // THEME, RESOLVED ON THE SERVER.
+  //
+  // The saved choice is a cookie, so it is readable here — which means the
+  // `dark` class ships in the first byte of HTML instead of being applied by a
+  // script after paint. A saved preference therefore survives a refresh even if
+  // the script never runs. Only "system" is undecidable server-side (it depends
+  // on the visitor's OS), so that one case still falls to the script below.
+  const themeChoice = (await cookies()).get("theme")?.value || "";
+  const pathname = h.get("x-pathname") || "";
+  const isMarketing =
+    pathname === "/" || /^\/(en|ar)(\/(login|signup|forgot))?\/?$/.test(pathname);
+  const theme = themeChoice || (isMarketing ? "dark" : "light");
+  const htmlClass = [isStudio && "studio-chrome", theme === "dark" && "dark"]
+    .filter(Boolean)
+    .join(" ");
+
   const settings = await getSiteSettings();
 
   return (
-    <html lang={locale} dir={dir} className={isStudio ? "studio-chrome" : undefined} suppressHydrationWarning>
+    <html lang={locale} dir={dir} className={htmlClass || undefined} suppressHydrationWarning>
       <body>
         {/* Apply the saved/system theme, and any saved studio RTL choice,
             before paint to avoid a flash. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              // An explicit choice (the `theme` cookie) always wins and carries
-              // across every surface. With no choice yet, the DEFAULT differs by
-              // surface: the landing page and auth screens are a dark design, so
-              // they start dark; the app starts light as it always has.
-              "(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]+)/);var t=m?decodeURIComponent(m[1]):'';var p=location.pathname;var marketing=(p==='/')||/^\\/(en|ar)(\\/(login|signup|forgot))?\\/?$/.test(p);if(!t)t=marketing?'dark':'light';var sys=window.matchMedia('(prefers-color-scheme: dark)').matches;var d=(t==='dark')||(t==='system'&&sys);document.documentElement.classList.toggle('dark',d);var sd=localStorage.getItem('studio-dir');if((sd==='rtl'||sd==='ltr')&&location.pathname.indexOf('/studio')===0){document.documentElement.setAttribute('dir',sd);document.documentElement.setAttribute('lang',sd==='rtl'?'ar':'en');}}catch(e){}})();",
+              // The server already resolved light/dark from the cookie above.
+              // This only has to handle "system", which depends on the visitor's
+              // OS and so cannot be known server-side. It also refreshes the
+              // cookie's year-long expiry on every visit, so a preference kept
+              // in continuous use never quietly lapses back to the default.
+              "(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]+)/);var t=m?decodeURIComponent(m[1]):'';if(t){document.cookie='theme='+t+'; path=/; max-age=31536000; samesite=lax'+(location.protocol==='https:'?'; secure':'');}if(t==='system'){var sys=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',sys);}var sd=localStorage.getItem('studio-dir');if((sd==='rtl'||sd==='ltr')&&location.pathname.indexOf('/studio')===0){document.documentElement.setAttribute('dir',sd);document.documentElement.setAttribute('lang',sd==='rtl'?'ar':'en');}}catch(e){}})();",
           }}
         />
         <JsonLd data={[organizationLd(settings, locale), websiteLd(settings, locale)]} />

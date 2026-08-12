@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
+import PasswordInput from "@/components/public/PasswordInput";
 import { PASSWORD_RULES, checkPassword, describeFailures } from "@/lib/passwordPolicy";
 
 const input = "landing-field";
@@ -81,9 +82,15 @@ export default function SignupForm({ locale, dict, providers = [] }) {
         <input id="email" type="email" className={input} value={form.email} onChange={set("email")} autoComplete="email" required />
         <p className="mt-1 text-xs text-fg-muted">Capitals are fine — we store and match your address in lowercase.</p>
       </div>
-      <div>
-        <label className={label} htmlFor="password">{t.passwordLabel || "Password"}</label>
-        <input id="password" type="password" className={input} value={form.password} onChange={set("password")} autoComplete="new-password" required />
+      <PasswordInput
+        id="password"
+        labelText={t.passwordLabel || "Password"}
+        labelClassName={label}
+        className={input}
+        value={form.password}
+        onChange={set("password")}
+        autoComplete="new-password"
+      >
         <ul className="mt-2 space-y-1">
           {PASSWORD_RULES.map((rule) => {
             const met = rule.test(form.password);
@@ -98,18 +105,17 @@ export default function SignupForm({ locale, dict, providers = [] }) {
             );
           })}
         </ul>
-      </div>
+      </PasswordInput>
       <div>
-        <label className={label} htmlFor="confirm">Confirm password</label>
-        <input
+        <PasswordInput
           id="confirm"
-          type="password"
+          labelText="Confirm password"
+          labelClassName={label}
           className={`${input} ${mismatch ? "border-danger focus:border-danger focus:ring-danger/20" : ""}`}
           value={form.confirm}
           onChange={set("confirm")}
           autoComplete="new-password"
-          aria-invalid={mismatch || undefined}
-          required
+          ariaInvalid={mismatch}
         />
         {mismatch && <p className="mt-1 text-xs text-danger">The two passwords don't match.</p>}
       </div>

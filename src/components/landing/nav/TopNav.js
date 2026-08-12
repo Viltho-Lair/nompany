@@ -1,7 +1,9 @@
 "use client";
 import { motion, useMotionValueEvent, useScroll } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
+import { initialsOf } from "@/lib/initials";
+import Skeleton from "@/components/Skeleton";
 import ThemeToggle from "@/components/ThemeToggle";
 import { LogoMark, Wordmark } from "../Logo";
 import { MagneticButton } from "../ui/MagneticButton";
@@ -12,6 +14,23 @@ import { VIEWS } from "../views/views";
 export function TopNav({ view, onNavigate, locale = "en" }) {
     const { scrollY } = useScroll();
     const [condensed, setCondensed] = useState(false);
+    // Three states, never two — `undefined` means "still asking", so the header
+    // shows a skeleton instead of flashing "Log in" at someone who is already
+    // signed in and then swapping it for their avatar.
+    const [account, setAccount] = useState(undefined);
+    useEffect(() => {
+        let alive = true;
+        fetch("/api/identity/me", { cache: "no-store" })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => {
+            if (!alive) return;
+            setAccount(d?.user
+                ? { name: d.profile?.fullName || "", email: d.user.email, photo: d.profile?.photo || "" }
+                : null);
+        })
+            .catch(() => { if (alive) setAccount(null); }); // resolve to guest so the skeleton never hangs
+        return () => { alive = false; };
+    }, []);
     // Single boolean flip, not a per-pixel state update.
     useMotionValueEvent(scrollY, "change", (v) => {
         const next = v > 24;
@@ -50,18 +69,32 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
           <ThemeToggle labels={{ theme: "Theme", light: "Light", dark: "Dark", system: "System" }} />
         </div>
 
-        {/* Log in — a real route in this app, not one of the in-page views, so
-            it is an anchor rather than a tab. */}
-        <a href={`/${locale}/login`} aria-label="Log in" className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-2 text-xs font-medium text-fg-muted transition-colors duration-300 hover:border-iris/50 hover:text-fg focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink focus-visible:outline-none sm:px-4 sm:text-sm">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="shrink-0 transition-transform duration-300 ease-out group-hover:translate-x-0.5">
-            <path d="M6.5 2.5h5a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-5M9 8H2.5m0 0 2.5-2.5M2.5 8 5 10.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span className="hidden sm:inline">Log in</span>
-        </a>
+        {/* Signed out → "Log in". Signed in → the person's avatar, linking to
+            their account. While the answer is unknown, a skeleton in the same
+            footprint so the header does not reflow when it resolves. */}
+        {account === undefined ? (
+            <Skeleton className="h-9 w-9 shrink-0" rounded="rounded-full" bg="bg-line"/>
+        ) : account ? (
+            <a href={`/${locale}/account`} aria-label={account.name || account.email || "Your account"} title={account.name || account.email} className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink">
+              {account.photo ? (
+                  // A stored data URI, so next/image would only get in the way.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={account.photo} alt="" className="h-9 w-9 rounded-full border border-line object-cover"/>
+              ) : (
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-r from-iris to-violet font-display text-xs font-semibold text-white">
+                    {initialsOf(account.name || account.email)}
+                  </span>
+              )}
+            </a>
+        ) : (
+            <a href={`/${locale}/login`} className="inline-flex shrink-0 items-center rounded-full border border-line px-3 py-2 text-xs font-medium text-fg-muted transition-colors duration-300 hover:border-iris/50 hover:text-fg focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink focus-visible:outline-none sm:px-4 sm:text-sm">
+              Log in
+            </a>
+        )}
 
         <div className="hidden md:block">
-          <MagneticButton variant="ghost" strength={8} className="px-5 py-2 text-xs" onClick={() => onNavigate("contact")}>
-            Book a demo
+          <MagneticButton variant="ghost" strength={8} className="px-5 py-2 text-xs" href={`/${locale}/signup`}>
+            Start free
           </MagneticButton>
         </div>
       </motion.nav>

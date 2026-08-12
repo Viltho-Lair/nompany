@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
+import PasswordInput from "@/components/public/PasswordInput";
 
 const input = "landing-field";
 const label = "landing-label";
@@ -75,10 +76,15 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         <label className={label} htmlFor="email">{t.emailLabel || "Email"}</label>
         <input id="email" type="email" className={input} value={form.email} onChange={set("email")} autoComplete="email" required />
       </div>
-      <div>
-        <label className={label} htmlFor="password">{t.passwordLabel || "Password"}</label>
-        <input id="password" type="password" className={input} value={form.password} onChange={set("password")} autoComplete="current-password" required />
-      </div>
+      <PasswordInput
+        id="password"
+        labelText={t.passwordLabel || "Password"}
+        labelClassName={label}
+        className={input}
+        value={form.password}
+        onChange={set("password")}
+        autoComplete="current-password"
+      />
       <div className="flex items-center justify-between gap-3">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
           <input

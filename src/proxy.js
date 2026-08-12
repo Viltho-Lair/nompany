@@ -44,6 +44,10 @@ export function proxy(request) {
     const locale = pathname.startsWith("/ar") ? "ar" : defaultLocale;
     const headers = new Headers(request.headers);
     headers.set("x-locale", locale);
+    // The root layout resolves the saved theme server-side and needs to know
+    // which surface it is rendering, because the no-choice default differs
+    // between the marketing pages and the app.
+    headers.set("x-pathname", pathname);
     return NextResponse.next({ request: { headers } });
   }
 
