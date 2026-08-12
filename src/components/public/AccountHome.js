@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
+import PhoneInput from "@/components/public/PhoneInput";
+import { parsePhone } from "@/lib/countries";
 import LangMenu from "@/components/LangMenu";
 import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
@@ -524,14 +526,25 @@ function PersonalInfo({ identity, onSaved }) {
   });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
 
   async function save() {
+    // The phone is optional, so an empty field saves fine — but a number that
+    // is present and too short to dial is a typo, not a choice, and PhoneInput
+    // already renders the error state for it.
+    if (editing === "phone" && form.phone) {
+      // Split on the dial code rather than on whitespace: the field keeps the
+      // spacing the person typed, so "+31 576 908 413" would otherwise look
+      // like a three-digit number.
+      const digits = parsePhone(form.phone).number.replace(/\D/g, "");
+      if (digits.length < 4) { setPhoneError("Please enter a valid phone number"); return; }
+    }
     setBusy(true);
     const res = await fetch("/api/identity/profile", {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form),
     });
     setBusy(false);
-    if (res.ok) { setSaved(true); setEditing(null); onSaved(); }
+    if (res.ok) { setSaved(true); setEditing(null); setPhoneError(""); onSaved(); }
   }
 
   const name = form.fullName || identity?.user?.email || "?";
@@ -585,8 +598,17 @@ function PersonalInfo({ identity, onSaved }) {
                   <span className={ROW_LABEL}>{r.label}</span>
                 </div>
                 <div className="mt-3 w-full ps-[52px]">
-                  <input className={INPUT} value={form[r.key]} autoFocus
-                    onChange={(e) => setForm((f) => ({ ...f, [r.key]: e.target.value }))} />
+                  {r.key === "phone" ? (
+                    <PhoneInput
+                      value={form.phone}
+                      error={phoneError}
+                      autoFocus
+                      onChange={(v) => { setPhoneError(""); setForm((f) => ({ ...f, phone: v })); }}
+                    />
+                  ) : (
+                    <input className={INPUT} value={form[r.key]} autoFocus
+                      onChange={(e) => setForm((f) => ({ ...f, [r.key]: e.target.value }))} />
+                  )}
                   <div className="mt-3 flex gap-3">
                     <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
                     <button className={BTN_GHOST} onClick={() => setEditing(null)}>Cancel</button>

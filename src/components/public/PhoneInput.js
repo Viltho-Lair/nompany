@@ -10,9 +10,13 @@ import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji, parsePhone } from "@/lib/countri
 // "+<dial> <number>" via onChange so the account stores a single string. The
 // country list is portalled to <body> and prefers opening ABOVE the field, so a
 // scrollable modal never clips it.
+//
+// The left button carries the FLAG and a chevron only — the dial code lives
+// inside the field as a greyed prefix, so the number reads as one continuous
+// "+31 576 908 413" rather than being split across two controls.
 const POP_H = 300;
 
-export default function PhoneInput({ value, onChange, autoFocus = false }) {
+export default function PhoneInput({ value, onChange, autoFocus = false, error = "" }) {
   const init = useMemo(() => parsePhone(value), []); // seed once from the stored value
   const [code, setCode] = useState(init.code);
   const [number, setNumber] = useState(init.number);
@@ -54,39 +58,82 @@ export default function PhoneInput({ value, onChange, autoFocus = false }) {
     };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // RANKED, not merely filtered. A plain substring match puts Brunei and Guinea
+  // above Nepal for "Ne", which is not what someone typing "Ne" is after. Names
+  // starting with the query come first, then names with a WORD starting with it
+  // ("New Zealand"), and only then matches buried mid-word — which stay
+  // reachable rather than disappearing.
   const filtered = useMemo(() => {
     const s = query.trim().toLowerCase();
     if (!s) return COUNTRIES;
-    return COUNTRIES.filter((c) => c.name.toLowerCase().includes(s) || c.dial.includes(s) || c.code.toLowerCase() === s);
+    const bare = s.replace(/^\+/, "");
+    const scored = [];
+    for (const c of COUNTRIES) {
+      const name = c.name.toLowerCase();
+      let rank;
+      if (name.startsWith(s)) rank = 0;
+      else if (c.code.toLowerCase() === s) rank = 1;
+      else if (name.split(/[\s-]+/).some((w) => w.startsWith(s))) rank = 2;
+      else if (bare && c.dial.replace("+", "").startsWith(bare)) rank = 3;
+      else if (name.includes(s)) rank = 4;
+      else continue;
+      scored.push({ c, rank });
+    }
+    return scored.sort((a, b) => a.rank - b.rank || a.c.name.localeCompare(b.c.name)).map((x) => x.c);
   }, [query]);
 
   const pick = (c) => { setCode(c.code); setOpen(false); setQuery(""); emit(c.dial, number); };
 
   return (
     <div className="relative">
-      <div className="flex items-stretch overflow-hidden rounded-xl border border-steel-300 transition-colors focus-within:border-brand-500 dark:border-white/15">
+      <div
+        className={`flex items-stretch overflow-hidden rounded-xl border transition-colors ${
+          error
+            ? "border-rose-400 bg-rose-50/60 dark:border-rose-500/60 dark:bg-rose-500/10"
+            : "border-steel-300 hover:border-steel-400 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 dark:border-white/15 dark:hover:border-white/25"
+        }`}
+      >
         <button
           ref={triggerRef}
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-haspopup="listbox"
           aria-expanded={open}
-          className="flex items-center gap-1.5 border-e border-steel-300 bg-steel-50 px-3 text-sm text-brand-950 transition-colors hover:bg-steel-100 dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+          aria-label={`Country code: ${country.name} (${country.dial})`}
+          className={`flex shrink-0 items-center gap-1.5 border-e px-3 text-sm transition-colors ${
+            error
+              ? "border-rose-300 text-rose-900 hover:bg-rose-100/50 dark:border-rose-500/40 dark:text-white"
+              : "border-steel-300 text-brand-950 hover:bg-steel-100 dark:border-white/15 dark:text-white dark:hover:bg-white/10"
+          }`}
         >
           <span className="text-lg leading-none">{flagEmoji(country.code)}</span>
-          <span className="tabular-nums">{country.dial}</span>
-          <svg viewBox="0 0 24 24" className="h-4 w-4 opacity-50" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+          <svg viewBox="0 0 24 24" className={`h-4 w-4 opacity-50 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
         </button>
-        <input
-          type="tel"
-          inputMode="tel"
-          autoFocus={autoFocus}
-          value={number}
-          onChange={(e) => { setNumber(e.target.value); emit(country.dial, e.target.value); }}
-          placeholder="55 000 0000"
-          className="w-full min-w-0 border-0 bg-white px-3 py-2.5 text-sm text-brand-950 outline-none placeholder:text-steel-400 dark:bg-steel-900 dark:text-white"
-        />
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 px-3">
+          {/* Static, not editable: the dial code belongs to the country chosen
+              on the left, so it cannot be retyped or deleted by accident. */}
+          <span className="shrink-0 text-sm tabular-nums text-steel-400 dark:text-slate-500">{country.dial}</span>
+          <input
+            type="tel"
+            inputMode="tel"
+            autoFocus={autoFocus}
+            value={number}
+            onChange={(e) => {
+              // Digits and separators only — the plus belongs to the prefix.
+              const next = e.target.value.replace(/[^\d\s-]/g, "");
+              setNumber(next);
+              emit(country.dial, next);
+            }}
+            placeholder="55 000 0000"
+            aria-invalid={Boolean(error)}
+            className="w-full min-w-0 border-0 bg-transparent py-2.5 text-sm text-brand-950 outline-none placeholder:text-steel-400 dark:text-white"
+          />
+        </div>
       </div>
+
+      {error && (
+        <p className="mt-1 text-[11px] font-600 uppercase tracking-wide text-rose-600 dark:text-rose-400">{error}</p>
+      )}
 
       {open && pos && createPortal(
         <div
