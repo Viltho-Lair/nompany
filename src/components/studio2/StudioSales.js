@@ -177,7 +177,11 @@ function Dialog({ title, description, onClose, children, width = "max-w-[720px]"
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      {/* Light touch on purpose: a heavy tint flattened the whole studio —
+          sidebar, header and the ticket list — into grey while the form was
+          open. The blur separates the dialog from what is behind it, so the
+          studio stays legible instead of being blanked out. */}
+      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm dark:bg-slate-950/30" onClick={onClose} />
       <div className={`relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c] ${width}`}>
         <div className="flex items-start gap-3 border-b border-slate-200/70 px-6 py-4 dark:border-white/10">
           <div className="min-w-0">
