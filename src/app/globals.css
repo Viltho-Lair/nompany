@@ -211,6 +211,15 @@
     backface-visibility: hidden;
   }
 
+  /* Edge draws its own reveal (and clear) control inside password inputs, which
+     lands next to ours and shows two eyes in the same field. Ours is the one to
+     keep: it is styled with the field and works in Firefox and Safari, which
+     ship no native control at all. */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
+
   /* Form primitives for the auth screens, so LoginForm/SignupForm/OtpStep can
      adopt the landing palette without each restating a dozen utilities. */
   .landing-label {

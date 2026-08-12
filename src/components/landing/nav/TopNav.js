@@ -92,10 +92,17 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
             </a>
         )}
 
+        {/* "Start free" follows the same rule as "Log in": both are for people
+            who are not signed in, so both give way to the avatar. Skeleton
+            while auth is unknown, so the bar does not jump when it resolves. */}
         <div className="hidden md:block">
-          <MagneticButton variant="ghost" strength={8} className="px-5 py-2 text-xs" href={`/${locale}/signup`}>
-            Start free
-          </MagneticButton>
+          {account === undefined ? (
+              <Skeleton className="h-9 w-[104px]" rounded="rounded-full" bg="bg-line"/>
+          ) : account ? null : (
+              <MagneticButton variant="ghost" strength={8} className="px-5 py-2 text-xs" href={`/${locale}/signup`}>
+                Start free
+              </MagneticButton>
+          )}
         </div>
       </motion.nav>
     </motion.header>);
