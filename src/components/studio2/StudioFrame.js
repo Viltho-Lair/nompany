@@ -31,6 +31,11 @@ const SECTION_ICONS = {
   hr: "team",
   people: "clients",
   access: "lock",
+  // Sales sub-sections carry their own icons rather than falling back to the
+  // neutral dot, so the group reads as three destinations instead of a list.
+  "sales-tickets": "ticket",
+  "sales-clients": "group",
+  "sales-live": "live",
 };
 
 // The row's shell — shape and colour, no padding. A plain row adds the padding

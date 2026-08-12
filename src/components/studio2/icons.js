@@ -158,4 +158,37 @@ const PATHS = {
       <path d="M6 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" />
     </>
   ),
+  // Sales sub-section icons. `group` is the three-figure crowd (one forward,
+  // two behind) rather than the two-figure `clients` above — Clients is a list
+  // of companies, so the fuller group reads as "everyone we sell to".
+  group: (
+    <>
+      <circle cx="5" cy="6.9" r="2.4" />
+      <path d="M1.7 16.3a4.4 4.4 0 013.5-2.6" />
+      <circle cx="19" cy="6.9" r="2.4" />
+      <path d="M22.3 16.3a4.4 4.4 0 00-3.5-2.6" />
+      <circle cx="12" cy="7.9" r="3.3" />
+      <path d="M6.6 19.5a5.4 5.4 0 0110.8 0" />
+    </>
+  ),
+  // Broadcast: a play mark inside two pairs of arcs radiating from it. The set
+  // is stroke-only, so the triangle is an outline rather than the solid glyph.
+  live: (
+    <>
+      <path d="M10.2 9.2l4.6 2.8-4.6 2.8z" />
+      <path d="M8 8.5A5.5 5.5 0 008 15.5" />
+      <path d="M16 8.5A5.5 5.5 0 0116 15.5" />
+      <path d="M5.2 6.2A9 9 0 005.2 17.8" />
+      <path d="M18.8 6.2A9 9 0 0118.8 17.8" />
+    </>
+  ),
+  // The notches are what make this a ticket rather than a card, so they carry
+  // the shape; the stub's perforation is dashed for the same reason.
+  ticket: (
+    <>
+      <path d="M3 10V9a1.5 1.5 0 011.5-1.5h15A1.5 1.5 0 0121 9v1a2 2 0 000 4v1a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 16v-1a2 2 0 000-4z" />
+      <path d="M15 7.5v2M15 11v2M15 14.5v2" />
+      <path d="M6.5 10.8h4M6.5 13.4h5" />
+    </>
+  ),
 };
