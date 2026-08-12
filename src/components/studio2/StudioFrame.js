@@ -49,9 +49,15 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
   // Nav tree. A section with `parentId` is a sub-section; its parent renders as
   // an expandable group. Until sub-sections exist in the data every row is a
   // parent, so this degrades to the flat list it replaces.
-  const tree = (sections || [])
-    .filter((s) => !s.parentId)
-    .map((s) => ({ ...s, children: (sections || []).filter((c) => c.parentId === s.id) }));
+  //
+  // A sub-section can be granted WITHOUT its parent — access is per id and does
+  // not cascade — so a child whose parent is not visible is promoted to the top
+  // level rather than being hidden under a group that was filtered out.
+  const all = sections || [];
+  const visibleIds = new Set(all.map((s) => s.id));
+  const tree = all
+    .filter((s) => !s.parentId || !visibleIds.has(s.parentId))
+    .map((s) => ({ ...s, children: all.filter((c) => c.parentId === s.id) }));
 
   // Which groups are open. A group holding the active child starts expanded and
   // stays that way; `expanded` only records what the user has since toggled.

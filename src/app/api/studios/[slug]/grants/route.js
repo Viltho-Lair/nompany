@@ -36,7 +36,9 @@ export async function GET(request, ctx) {
       id: c.id, alias: c.alias, role: c.role, isAdmin: c.isAdmin,
       alwaysFullAccess: c.role === "owner" || c.isAdmin,
     })),
-    sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name })),
+    // parentId lets the Access screen render the tree. Every row — parent and
+    // sub-section alike — is granted on its OWN id; there is no cascade.
+    sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, parentId: s.parentId || null })),
   });
 }
 

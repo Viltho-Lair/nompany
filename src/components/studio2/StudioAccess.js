@@ -9,6 +9,12 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 //
 // Default is DENY — a newly approved person sees nothing until granted, which is
 // why this screen exists.
+//
+// EVERY ROW IS GRANTED ON ITS OWN ID. A sub-section has a SectionID of its own,
+// so granting "Sales" does NOT grant Tickets or Clients — the same rule the Old
+// System used. The tree here is presentation only; it groups rows so the list
+// stays readable at ~30 sections, and the "all"/"none" shortcut writes an
+// explicit grant per row rather than introducing a cascade.
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -56,11 +62,29 @@ export default function StudioAccess({ slug }) {
     await toggle(collaboratorId, sectionId, "manage", enabled);
   }
 
+  // Grant or revoke View across a whole group for one person. This is a
+  // convenience, NOT a cascade: it writes one explicit grant per id, so the
+  // result is identical to ticking each row by hand.
+  async function setGroupView(collaboratorId, ids, enabled) {
+    for (const id of ids) {
+      if (has(collaboratorId, id, "view") === enabled) continue;
+      // Revoking View must drop Manage too, or a stale manage grant would
+      // survive on a section the person can no longer open.
+      if (!enabled && has(collaboratorId, id, "manage")) await toggle(collaboratorId, id, "manage", false);
+      await toggle(collaboratorId, id, "view", enabled);
+    }
+  }
+
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading access…</p>;
 
   const editable = data.collaborators.filter((c) => !c.alwaysFullAccess);
   const fullAccess = data.collaborators.filter((c) => c.alwaysFullAccess);
+
+  // Presentation tree: parents in order, each followed by its sub-sections.
+  const tree = data.sections
+    .filter((x) => !x.parentId)
+    .map((x) => ({ ...x, children: data.sections.filter((c) => c.parentId === x.id) }));
 
   return (
     <div className="space-y-6">
@@ -70,6 +94,7 @@ export default function StudioAccess({ slug }) {
         <h2 className={h2}>Section access</h2>
         <p className={sub}>
           People see nothing until you grant it. <b>View</b> lets them open a section; <b>Manage</b> also lets them change things in it.
+          Each row is granted on its own id, so granting a section does <b>not</b> grant its sub-sections — use <b>all</b> for that.
         </p>
 
         {editable.length === 0 ? (
@@ -91,9 +116,43 @@ export default function StudioAccess({ slug }) {
                 </tr>
               </thead>
               <tbody>
-                {data.sections.map((s) => (
-                  <tr key={s.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
-                    <td className="py-3 pe-4 font-600 text-slate-700 dark:text-slate-200">{s.name}</td>
+                {tree.flatMap((group) => {
+                  const groupIds = [group.id, ...group.children.map((c) => c.id)];
+                  return [
+                    // Parent row, with the group shortcut per person.
+                    <tr key={group.id} className="border-b border-slate-100 bg-slate-50/60 last:border-0 dark:border-white/5 dark:bg-white/[0.02]">
+                      <td className="py-3 pe-4 font-700 text-slate-900 dark:text-white">
+                        {group.name}
+                        {group.children.length > 0 && (
+                          <span className="ms-2 text-[11px] font-500 text-slate-400">
+                            {group.children.length} sub-section{group.children.length === 1 ? "" : "s"}
+                          </span>
+                        )}
+                      </td>
+                      {editable.map((c) => {
+                        const all = groupIds.every((id) => has(c.id, id, "view"));
+                        const none = groupIds.every((id) => !has(c.id, id, "view"));
+                        return (
+                          <td key={c.id} className="px-3 py-3 text-center">
+                            <div className="flex items-center justify-center gap-2 text-[11px]">
+                              <button type="button" disabled={all} onClick={() => setGroupView(c.id, groupIds, true)}
+                                className={`rounded-full px-2 py-0.5 font-600 ${all ? "text-slate-300 dark:text-slate-600" : "text-brand-700 hover:bg-brand-500/10 dark:text-brand-300"}`}>
+                                all
+                              </button>
+                              <button type="button" disabled={none} onClick={() => setGroupView(c.id, groupIds, false)}
+                                className={`rounded-full px-2 py-0.5 font-600 ${none ? "text-slate-300 dark:text-slate-600" : "text-slate-500 hover:bg-slate-200/70 dark:text-slate-400 dark:hover:bg-white/5"}`}>
+                                none
+                              </button>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>,
+                    ...[group, ...group.children].map((s) => (
+                  <tr key={`row-${s.id}`} className="border-b border-slate-100 last:border-0 dark:border-white/5">
+                    <td className={`py-3 pe-4 text-slate-700 dark:text-slate-200 ${s.parentId ? "ps-6 font-500" : "font-600"}`}>
+                      {s.parentId ? s.name : `${s.name} (section itself)`}
+                    </td>
                     {editable.map((c) => {
                       const view = has(c.id, s.id, "view");
                       const manage = has(c.id, s.id, "manage");
@@ -124,7 +183,9 @@ export default function StudioAccess({ slug }) {
                       );
                     })}
                   </tr>
-                ))}
+                    )),
+                  ];
+                })}
               </tbody>
             </table>
           </div>
