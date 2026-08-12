@@ -2,10 +2,33 @@
 // Redis record, which still feeds MegaTech's ERP). Single source of truth for
 // the footer, Contact page and JSON-LD. See [[nompany-pivot]].
 
-// Feature flag: when true the public /pricing marketing route is LOCKED — the
-// page 404s and every link to it is hidden (nav, footer, Features CTA, sitemap).
-// Flip to false to unlock. Does NOT affect the in-app /subscribe module picker.
-export const PRICING_LOCKED = false;
+// WHERE THE MARKETING SITE LIVES.
+//
+// The public marketing site (home, features, pricing, about, team, contact) was
+// removed from this app on 2026-08-12 and replaced wholesale by the standalone
+// `nompany-main-website` deployment. This app now keeps only the surfaces that
+// site does not serve: authentication, the account hub, careers and terms —
+// plus the studio slug routing that owns the apex.
+//
+// The domain split:
+//   www.nompany.com  → the marketing site (one page, no routes)
+//   nompany.com      → this app: studio slugs, auth, account, careers, terms
+// Override with NEXT_PUBLIC_MARKETING_URL to point at a preview deployment or
+// a local run of the marketing site.
+//
+// NB: the host must NOT also carry a www → apex redirect. This app redirects
+// "/" to www; if www redirected back, that is an immediate infinite loop — the
+// same ERR_TOO_MANY_REDIRECTS failure proxy.js warns about for slug routing.
+export const MARKETING_URL = (
+  process.env.NEXT_PUBLIC_MARKETING_URL || "https://www.nompany.com"
+).replace(/\/$/, "");
+
+// The marketing site is a SINGLE PAGE — it has no routes and no locale prefix,
+// so every link into it lands on the root. This helper exists to keep that fact
+// in one place: if the site ever grows real paths, only it has to change.
+export function marketingUrl() {
+  return MARKETING_URL;
+}
 
 export const CONTACT = {
   email: "info@nompany.com",

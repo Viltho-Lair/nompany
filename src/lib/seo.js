@@ -11,45 +11,10 @@ export const SITE_URL = (
 // OpenGraph locale codes for each app locale.
 const OG_LOCALE = { en: "en_US", ar: "ar_SA" };
 
-// Per-page SEO copy, written for the audio-visual / systems-integration
-// industry with Saudi Arabia geo-targeting. Keyed by route path ("" = home).
+// Per-page SEO copy for the routes this app still serves. The home entry went
+// with the marketing site; the root now redirects to www and never renders, so
+// its copy lives in the marketing deployment's own metadata.
 export const PAGES = {
-  "": {
-    en: {
-      title: "Run your company's whole operation from one platform",
-      description:
-        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Start free and pay only for the modules you use.",
-    },
-    ar: {
-      title: "أدِر عمليات شركتك بالكامل من منصة واحدة",
-      description:
-        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. ابدأ مجانًا وادفع فقط مقابل ما تستخدمه.",
-    },
-  },
-  "/features": {
-    en: {
-      title: "Modular business applications for every department",
-      description:
-        "Switch on the business applications your company needs — Sales, Projects, Inventory, Operations, HR and Finance — each with its own dashboards and statistics. One login, pay per module.",
-    },
-    ar: {
-      title: "تطبيقات أعمال معيارية لكل قسم",
-      description:
-        "فعّل تطبيقات الأعمال التي تحتاجها شركتك — المبيعات والمشاريع والمخزون والعمليات والموارد البشرية والمالية — لكل منها لوحاته وإحصائياته. تسجيل دخول واحد، وادفع لكل وحدة على حدة.",
-    },
-  },
-  "/about": {
-    en: {
-      title: "One platform for company operations",
-      description:
-        "nompany helps companies and corporates run their entire operation from a single platform — paying only for the departments and applications they actually use.",
-    },
-    ar: {
-      title: "منصة واحدة لعمليات الشركة",
-      description:
-        "يساعد nompany الشركات والمؤسسات على إدارة عملياتها بالكامل من منصة واحدة — مع الدفع فقط مقابل الأقسام والتطبيقات التي تستخدمها فعليًا.",
-    },
-  },
   "/careers": {
     en: {
       title: "Careers",
@@ -60,30 +25,6 @@ export const PAGES = {
       title: "الوظائف",
       description:
         "انضم إلى nompany وساهم في بناء المنصة التي تُدير الشركات أعمالها عليها. اطّلع على الوظائف الشاغرة.",
-    },
-  },
-  "/team": {
-    en: {
-      title: "Team",
-      description:
-        "Meet the team building nompany — the modular ERP that lets any company run its whole operation from one platform.",
-    },
-    ar: {
-      title: "الفريق",
-      description:
-        "تعرّف على الفريق الذي يبني nompany — نظام تخطيط الموارد المرن الذي يتيح لأي شركة إدارة عملياتها من منصة واحدة.",
-    },
-  },
-  "/contact": {
-    en: {
-      title: "Contact Us",
-      description:
-        "Questions about nompany, pricing, or getting your company set up? We respond within one business day.",
-    },
-    ar: {
-      title: "تواصل معنا",
-      description:
-        "لديك أسئلة عن nompany أو الأسعار أو تهيئة شركتك؟ نرد خلال يوم عمل واحد.",
     },
   },
   "/terms": {

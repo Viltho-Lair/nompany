@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { locales, defaultLocale } from "@/lib/i18n";
+import { MARKETING_URL } from "@/lib/site";
 
 // SLUG-DRIVEN ROUTING.
 //
@@ -38,6 +39,13 @@ export function proxy(request) {
 
   if (seg1 === "super") return NextResponse.next();
 
+  // The marketing site moved to its own deployment on 2026-08-12. Neither the
+  // root nor a bare locale index has a page here any more, so both leave for it.
+  // Anything deeper under a locale (/en/login, /en/careers, …) still lives here.
+  if (pathname === "/" || locales.some((loc) => pathname === `/${loc}`)) {
+    return NextResponse.redirect(MARKETING_URL);
+  }
+
   // Public site: locale-prefixed.
   const hasLocale = locales.some((loc) => pathname === `/${loc}` || pathname.startsWith(`/${loc}/`));
   if (hasLocale) {
@@ -45,13 +53,6 @@ export function proxy(request) {
     const headers = new Headers(request.headers);
     headers.set("x-locale", locale);
     return NextResponse.next({ request: { headers } });
-  }
-
-  // Root itself → default locale.
-  if (pathname === "/") {
-    const url = request.nextUrl.clone();
-    url.pathname = `/${defaultLocale}`;
-    return NextResponse.redirect(url);
   }
 
   // A studio address: /<slug>/… → internal studio route, URL unchanged.
