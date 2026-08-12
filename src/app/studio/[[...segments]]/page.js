@@ -10,6 +10,7 @@ import StudioSalesLive from "@/components/studio2/StudioSalesLive";
 import StudioTechnicalLive from "@/components/studio2/StudioTechnicalLive";
 import StudioPeople from "@/components/studio2/StudioPeople";
 import StudioAccess from "@/components/studio2/StudioAccess";
+import StudioSettings from "@/components/studio2/StudioSettings";
 import StudioSales from "@/components/studio2/StudioSales";
 import StudioTechnical from "@/components/studio2/StudioTechnical";
 import StudioProjects from "@/components/studio2/StudioProjects";
@@ -76,14 +77,18 @@ export default async function StudioPage({ params }) {
 
   const isPeople = requested === "people";
   const isAccess = requested === "access";
+  // Keyed "studio-settings", not "settings": section keys are tenant data, and a
+  // studio is free to name a section "settings" (Sales already has a settings
+  // sub-section). A distinct key means this screen can never shadow one.
+  const isSettings = requested === "studio-settings";
 
   // Admin-only screens.
   if (isAccess && !admin) return <Denied studio={studio} sections={sections} me={collaborator} admin={admin} what="manage access" />;
 
-  const active = isPeople || isAccess ? null : (sections.find((s) => s.key === requested) || sections[0] || null);
+  const active = isPeople || isAccess || isSettings ? null : (sections.find((s) => s.key === requested) || sections[0] || null);
   // Asked for a real section they haven't been granted → say so rather than
   // silently showing something else.
-  const deniedSection = !isPeople && !isAccess && requested && !sections.some((s) => s.key === requested)
+  const deniedSection = !isPeople && !isAccess && !isSettings && requested && !sections.some((s) => s.key === requested)
     && allSections.some((s) => s.key === requested);
 
   // Which component to render: a sub-section resolves to its parent's module.
@@ -99,13 +104,14 @@ export default async function StudioPage({ params }) {
     me: { alias: collaborator.alias || "", role: collaborator.role, canAdminister: admin },
     // parentId drives the expandable nav.
     sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),
-    activeKey: isPeople ? "people" : isAccess ? "access" : (active?.key || ""),
+    activeKey: isPeople ? "people" : isAccess ? "access" : isSettings ? "studio-settings" : (active?.key || ""),
   };
 
   return (
     <StudioFrame {...frameProps}>
       {isPeople ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} />
         : isAccess ? <StudioAccess slug={studio.slug} />
+        : isSettings ? <StudioSettings slug={studio.slug} />
         : deniedSection ? <NoSectionAccess />
         : screenKey === "sales" ? <StudioSales slug={studio.slug} view={active?.key} />
         : screenKey === "technical" ? <StudioTechnical slug={studio.slug} view={active?.key} />

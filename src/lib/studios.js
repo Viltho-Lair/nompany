@@ -70,7 +70,7 @@ export async function studiosForUser(userId) {
     listUserCollaborations(userId),
     studioVisitCounts(userId),
   ]);
-  const shape = (s) => ({ id: s.id, name: s.name, slug: s.slug, visits: visits[s.id] || 0 });
+  const shape = (s) => ({ id: s.id, name: s.name, slug: s.slug, logo: s.logo || "", visits: visits[s.id] || 0 });
   const byVisits = (a, b) => b.visits - a.visits || String(a.name).localeCompare(String(b.name));
 
   // Creating a studio seeds its owner as a Collaborator row, so the owner is a

@@ -218,12 +218,20 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
           <Icon name="services" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
           Documentation
         </Link>
+        {/* This slot used to hold "My account". The account is the PERSON and
+            belongs with the header avatar, which now carries it; the sidebar
+            belongs to the studio, so the studio's own settings live here. */}
         <Link
-          href="/en/account"
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+          href={`/${studio.slug}/studio-settings`}
+          onClick={() => setOpen(false)}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 ${
+            activeKey === "studio-settings"
+              ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+          }`}
         >
-          <Icon name="external" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
-          My account
+          <Icon name="gears" className={`h-[18px] w-[18px] ${activeKey === "studio-settings" ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"}`} />
+          Studio settings
         </Link>
       </div>
     </div>

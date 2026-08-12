@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
+import Combo from "@/components/studio2/Combo";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import { linkToClient } from "@/lib/studioLinks";
 
@@ -546,8 +547,8 @@ function TicketForm({ row, clients, people, vocabulary, services = [], cities = 
         </div>
         <div>
           <label className={label}>Type of industry *</label>
-          <input className={input} list="sales-industries" value={f.industry} onChange={set("industry")} placeholder="Retail" />
-          <datalist id="sales-industries">{(vocabulary.industries || []).map((i) => <option key={i} value={i} />)}</datalist>
+          <Combo value={f.industry} onChange={(v) => setF((p) => ({ ...p, industry: v }))}
+            options={vocabulary.industries || []} placeholder="Retail" />
         </div>
         <div><label className={label}>Client budget</label><input className={input} type="number" min="0" value={f.clientBudget} onChange={set("clientBudget")} placeholder="Optional reference figure" /></div>
       </div>
@@ -569,8 +570,8 @@ function TicketForm({ row, clients, people, vocabulary, services = [], cities = 
         <div><label className={label}>Site name</label><input className={input} value={f.locationName} onChange={set("locationName")} /></div>
         <div>
           <label className={label}>City</label>
-          <input className={input} list="sales-cities" value={f.locationCity} onChange={set("locationCity")} />
-          <datalist id="sales-cities">{cities.map((x) => <option key={x} value={x} />)}</datalist>
+          <Combo value={f.locationCity} onChange={(v) => setF((p) => ({ ...p, locationCity: v }))}
+            options={cities} placeholder="Riyadh" />
         </div>
         <div><label className={label}>Map link</label><input className={input} value={f.locationUrl} onChange={set("locationUrl")} /></div>
       </div>

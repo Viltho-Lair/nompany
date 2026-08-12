@@ -219,16 +219,16 @@ export default function AccountHome({ locale, chrome }) {
 
 // ---- studio cards ------------------------------------------------------------
 // A studio is a square tile: logo when the studio has one, initials otherwise,
-// with the name underneath. Studio rows carry no logo field yet, so today every
-// tile falls back to initials.
+// with the name underneath. The logo is set in the studio's own settings, so a
+// studio that has not set one still falls back to initials.
 function StudioCard({ studio, compact = false }) {
   const w = compact ? "w-[104px]" : "w-[132px]";
   return (
     <a href={`/${studio.slug}`} className={cn("group block shrink-0", w)}>
       <span className={cn("flex aspect-square items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white transition-colors group-hover:border-brand-500 dark:border-white/10 dark:bg-[#20202c] dark:group-hover:border-brand-500/50", w)}>
-        {studio.logoUrl
+        {studio.logo
           ? /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={studio.logoUrl} alt="" className="h-full w-full object-cover" />
+            <img src={studio.logo} alt="" className="h-full w-full object-cover" />
           : <span className={cn("font-display font-800 text-brand-700 dark:text-brand-300", compact ? "text-xl" : "text-2xl")}>{initialsOf(studio.name)}</span>}
       </span>
       <span className="mt-2 block truncate text-center text-sm font-600 text-slate-900 dark:text-white">{studio.name}</span>
