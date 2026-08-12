@@ -82,7 +82,11 @@ export default async function RootLayout({ children }) {
   const isMarketing =
     pathname === "/" || /^\/(en|ar)(\/(login|signup|forgot))?\/?$/.test(pathname);
   const theme = themeChoice || (isMarketing ? "dark" : "light");
-  const htmlClass = [isStudio && "studio-chrome", theme === "dark" && "dark"]
+  // `light` ships too, not just `dark`: MUI scopes its light variables to
+  // `.light`, so without it MUI components render unstyled until its provider
+  // hydrates. "system" is the one case the server cannot decide, so it emits
+  // neither and the script below settles it before paint.
+  const htmlClass = [isStudio && "studio-chrome", theme === "dark" && "dark", theme === "light" && "light"]
     .filter(Boolean)
     .join(" ");
 
@@ -101,11 +105,14 @@ export default async function RootLayout({ children }) {
               // OS and so cannot be known server-side. It also refreshes the
               // cookie's year-long expiry on every visit, so a preference kept
               // in continuous use never quietly lapses back to the default.
-              "(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]+)/);var t=m?decodeURIComponent(m[1]):'';if(t){document.cookie='theme='+t+'; path=/; max-age=31536000; samesite=lax'+(location.protocol==='https:'?'; secure':'');}if(t==='system'){var sys=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',sys);}var sd=localStorage.getItem('studio-dir');if((sd==='rtl'||sd==='ltr')&&location.pathname.indexOf('/studio')===0){document.documentElement.setAttribute('dir',sd);document.documentElement.setAttribute('lang',sd==='rtl'?'ar':'en');}}catch(e){}})();",
+              "(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]+)/);var t=m?decodeURIComponent(m[1]):'';if(t){document.cookie='theme='+t+'; path=/; max-age=31536000; samesite=lax'+(location.protocol==='https:'?'; secure':'');}if(t==='system'){var sys=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',sys);document.documentElement.classList.toggle('light',!sys);}var sd=localStorage.getItem('studio-dir');if((sd==='rtl'||sd==='ltr')&&location.pathname.indexOf('/studio')===0){document.documentElement.setAttribute('dir',sd);document.documentElement.setAttribute('lang',sd==='rtl'?'ar':'en');}}catch(e){}})();",
           }}
         />
         <JsonLd data={[organizationLd(settings, locale), websiteLd(settings, locale)]} />
-        <MuiProvider>{children}</MuiProvider>
+        {/* MUI owns the `dark` class (see MuiProvider) — hand it the same
+            answer the server just reached so it re-applies it instead of
+            replacing it with the OS preference. */}
+        <MuiProvider mode={theme}>{children}</MuiProvider>
       </body>
     </html>
   );

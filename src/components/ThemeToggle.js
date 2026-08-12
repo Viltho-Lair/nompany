@@ -27,13 +27,22 @@ function writeTheme(mode) {
   try {
     const secure = location.protocol === "https:" ? "; secure" : "";
     document.cookie = `theme=${mode}; path=/; max-age=31536000; samesite=lax${secure}`;
+    // MUI's CssVarsProvider is the other writer of the `dark` class, and it
+    // prefers its own persisted mode over the `defaultMode` the server passes.
+    // Writing its key here means the two can never disagree — whichever one
+    // runs first on the next load reaches the same answer.
+    localStorage.setItem("mui-mode", mode);
   } catch {}
 }
 
 function applyTheme(mode) {
   const sys = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const dark = mode === "dark" || (mode === "system" && sys);
+  // Both classes, not just `dark`: MUI scopes its light variables to `.light`
+  // and its dark ones to `.dark`, so leaving a stale `light` behind would light
+  // every MUI component on a dark page.
   document.documentElement.classList.toggle("dark", dark);
+  document.documentElement.classList.toggle("light", !dark);
 }
 
 export default function ThemeToggle({ labels }) {
