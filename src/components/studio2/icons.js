@@ -182,6 +182,44 @@ const PATHS = {
       <path d="M18.8 6.2A9 9 0 0118.8 17.8" />
     </>
   ),
+  // Projects sub-section icons.
+  //
+  // Blueprint — a rolled sheet with a floor plan on it. The curl down the left
+  // edge is what makes it a drawing rather than a page, and the plan inside is
+  // walls plus one room, not ruled text lines: that is the whole difference from
+  // `report`, which is a page with writing on it.
+  blueprint: (
+    <>
+      <path d="M7 4.2h13a1.5 1.5 0 011.5 1.5v13.1a1.5 1.5 0 01-1.5 1.5H6a3 3 0 01-3-3V7.2a3 3 0 013-3h1z" />
+      <path d="M7 4.2v11H6a3 3 0 00-3 3" />
+      <path d="M11 7.8v9.4M11 12.6h7" />
+      <rect x="14.6" y="12.6" width="4.4" height="4.6" />
+    </>
+  ),
+  // Tools — a wrench and a screwdriver crossed. Two tools, not one: the studio's
+  // Technical section already wears a single wrench (`techService`), and SLA is
+  // about upkeep rather than one job.
+  tools: (
+    <>
+      <path d="M17.3 3.2a4.2 4.2 0 00-4.7 6.5l-7.7 7.7a1.9 1.9 0 002.7 2.7l7.7-7.7a4.2 4.2 0 006.5-4.7l-2.8 2.8-2.6-.6-.6-2.6z" />
+      <path d="M4.1 3.1l2.6 2.6-1.5 1.5-2.6-2.6a1 1 0 011.5-1.5z" />
+      <path d="M6.7 5.7l7 7" />
+    </>
+  ),
+  // Overtime — a clock wearing an OT badge, as in the reference. The clock is
+  // deliberately shrunk and the badge enlarged: at the 18px the nav actually
+  // renders, two letters inside a small badge collapse into a smudge, so the
+  // badge has to be big enough to carry them. The face keeps hands but no tick
+  // marks for the same reason.
+  overtime: (
+    <>
+      <circle cx="8.6" cy="8.6" r="6.6" />
+      <path d="M8.6 4.5v4.1h2.8" />
+      <rect x="10.4" y="11.6" width="12.2" height="10" rx="2.4" />
+      <text x="16.5" y="19.2" fontSize="8.6" fontFamily="Arial, Helvetica, sans-serif" fontWeight="700"
+        textAnchor="middle" fill="currentColor" stroke="none">OT</text>
+    </>
+  ),
   // Technical sub-section icons.
   //
   // Report — a page being WRITTEN: folded corner, ruled lines, pencil laid over

@@ -42,6 +42,10 @@ const SECTION_ICONS = {
   "technical-quotations": "report",
   "technical-rfq": "rfp",
   "technical-live": "live",
+  // Projects sub-sections.
+  "projects-list": "blueprint",
+  "projects-sla": "tools",
+  "projects-overtimes": "overtime",
 };
 
 // The row's shell — shape and colour, no padding. A plain row adds the padding
