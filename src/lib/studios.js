@@ -73,16 +73,24 @@ export async function studiosForUser(userId) {
   const shape = (s) => ({ id: s.id, name: s.name, slug: s.slug, visits: visits[s.id] || 0 });
   const byVisits = (a, b) => b.visits - a.visits || String(a.name).localeCompare(String(b.name));
 
+  // Creating a studio seeds its owner as a Collaborator row, so the owner is a
+  // member of their own studio and `ix:collab` legitimately points at it. That
+  // keeps People uniform, but it means "collaborations" would otherwise include
+  // the studio you own. Collaboration means a studio SOMEONE ELSE let you into,
+  // so the owned one is subtracted here — at the source, where every caller and
+  // the visit ranking both get it right.
+  const joined = owned ? collaborations.filter((s) => s.id !== owned.id) : collaborations;
+
   // We already hold the live set, so drop tallies for studios this person can no
   // longer reach. Fire-and-forget, and it only writes when something is stale.
-  const live = [...(owned ? [owned.id] : []), ...collaborations.map((s) => s.id)];
+  const live = [...(owned ? [owned.id] : []), ...joined.map((s) => s.id)];
   if (Object.keys(visits).some((id) => !live.includes(id))) {
     pruneStudioVisits(userId, live).catch(() => {});
   }
 
   return {
     owned: owned ? shape(owned) : null,
-    collaborations: collaborations.map(shape).sort(byVisits),
+    collaborations: joined.map(shape).sort(byVisits),
   };
 }
 

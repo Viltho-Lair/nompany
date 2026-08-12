@@ -187,7 +187,7 @@ export default function AccountHome({ locale, chrome }) {
         <main className={cn("min-w-0 flex-1", view === "overview" ? "overflow-y-auto lg:overflow-hidden" : "overflow-y-auto")}>
           {view === "overview" && <Overview identity={identity} owned={owned} collabs={collabs} onGo={setView} onChanged={load} />}
           {view === "studios" && <StudioGrid title="My Studios" note="Workspaces you own." studios={owned} empty="You don't own a studio yet." />}
-          {view === "collabs" && <StudioGrid title="My Collaborations" note="Studios you've been given access to." studios={collabs} empty="You're not collaborating in any studio yet." />}
+          {view === "collabs" && <StudioGrid title="My Collaborations" note="Studios other people have given you access to. Your own studio is under My Studios." studios={collabs} empty="You're not collaborating in any studio yet." />}
           {view === "personal" && <PersonalInfo identity={identity} onSaved={load} />}
           {view === "security" && <Security devices={devices} onChanged={load} locale={locale} user={identity?.user} />}
 
@@ -331,32 +331,66 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
           {owned.length > 4 && " Showing the four you open most."}
         </p>
         <StudioStrip
-          action={<ActionTile icon="plus" label="Create a studio" onClick={() => { setCreating((v) => !v); setJoining(false); }} />}
+          action={<ActionTile icon="plus" label="Create a studio" onClick={() => setCreating(true)} compact />}
           studios={owned}
           onViewAll={() => onGo("studios")}
         />
-        {creating && <CreateStudio onDone={() => { setCreating(false); onChanged(); }} onCancel={() => setCreating(false)} />}
+        {creating && <CreateStudio onDone={() => { setCreating(false); onChanged(); }} onClose={() => setCreating(false)} />}
       </section>
 
       <section>
         <h3 className={H2}>Your collaborations</h3>
         <p className={SUB}>
-          Studios you&apos;ve been given access to, alongside your own.
+          Studios other people have given you access to.
           {collabs.length > 4 && " Showing the four you open most."}
         </p>
         <StudioStrip
-          action={<ActionTile icon="team" label="Join a studio" onClick={() => { setJoining((v) => !v); setCreating(false); }} />}
+          action={<ActionTile icon="team" label="Join a studio" onClick={() => setJoining(true)} compact />}
           studios={collabs}
           onViewAll={() => onGo("collabs")}
         />
-        {joining && <JoinStudio onDone={() => { setJoining(false); onChanged(); }} onCancel={() => setJoining(false)} />}
+        {joining && <JoinStudio onChanged={onChanged} onClose={() => setJoining(false)} />}
       </section>
     </div>
   );
 }
 
+// ---- dialog ------------------------------------------------------------------
+// One modal shell for every dialog here: backdrop, Escape, a locked body scroll
+// and a titled header with a close button. Create, Join and the profile picture
+// all wear it, so they open, dismiss and read the same way.
+function Dialog({ title, description, onClose, children, width = "max-w-[512px]" }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div className={cn("relative w-full overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]", width)}>
+        <div className="flex items-center gap-3 px-6 pt-5">
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{title}</h3>
+          <button type="button" onClick={onClose} aria-label="Close"
+            className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5">
+            <Icon name="close" className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+        {description && <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+        <div className="px-6 pb-6 pt-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 // ---- create / join -----------------------------------------------------------
-function CreateStudio({ onDone, onCancel }) {
+// Both are dialogs rather than panels that unfold under the tile: Overview is
+// sized to fit the window and must never scroll, so growing the page by a form's
+// height is the one thing it cannot absorb.
+function CreateStudio({ onDone, onClose }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [touched, setTouched] = useState(false);
@@ -395,9 +429,10 @@ function CreateStudio({ onDone, onCancel }) {
   }
 
   return (
-    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
+    <Dialog title="Create a studio" onClose={onClose}
+      description="A studio is your company's workspace, at its own address on nompany.com.">
       {error && <p className={cn(BANNER_BAD, "mb-4")}>{error}</p>}
-      <div className="grid max-w-md gap-3">
+      <div className="grid gap-3">
         <div><label className={LABEL}>Company name</label><input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Trading Co." /></div>
         <div>
           <label className={LABEL}>Studio address (company code)</label>
@@ -414,16 +449,19 @@ function CreateStudio({ onDone, onCancel }) {
             </p>
           )}
         </div>
-        <div className="flex gap-3">
+        <div className="mt-1 flex gap-3">
           <button className={BTN} onClick={create} disabled={busy || !name || !status?.available}>{busy ? "Creating…" : "Create studio"}</button>
-          <button className={BTN_GHOST} onClick={onCancel}>Cancel</button>
+          <button className={BTN_GHOST} onClick={onClose}>Cancel</button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
-function JoinStudio({ onDone, onCancel }) {
+// A join is a REQUEST, so nothing appears in the strip when it succeeds — the
+// confirmation is the only feedback there is. The dialog therefore stays open on
+// success and the user dismisses it, rather than closing over its own message.
+function JoinStudio({ onChanged, onClose }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -438,7 +476,7 @@ function JoinStudio({ onDone, onCancel }) {
     if (res.ok) {
       setCode("");
       setMsg({ tone: "good", text: `Request sent to ${data.studio?.name || "the studio"}. You'll get access once they approve.` });
-      onDone();
+      onChanged();
       return;
     }
     setMsg({ tone: "bad", text:
@@ -449,17 +487,24 @@ function JoinStudio({ onDone, onCancel }) {
       : "We couldn't send that request." });
   }
 
+  const sent = msg?.tone === "good";
+
   return (
-    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
-      {msg && <p className={cn(msg.tone === "good" ? BANNER_GOOD : BANNER_BAD, "mb-4")}>{msg.text}</p>}
-      <div className="grid max-w-md gap-3">
-        <div><label className={LABEL}>Company code</label><input className={INPUT} value={code} onChange={(e) => setCode(e.target.value)} placeholder="acme-trading" /></div>
-        <div className="flex gap-3">
-          <button className={BTN} onClick={join} disabled={busy || !code.trim()}>{busy ? "Sending…" : "Request access"}</button>
-          <button className={BTN_GHOST} onClick={onCancel}>Cancel</button>
+    <Dialog title="Join a studio" onClose={onClose}
+      description="Ask a studio for access using its company code. Someone there approves the request.">
+      {msg && <p className={cn(sent ? BANNER_GOOD : BANNER_BAD, "mb-4")}>{msg.text}</p>}
+      {sent ? (
+        <button className={BTN} onClick={onClose}>Done</button>
+      ) : (
+        <div className="grid gap-3">
+          <div><label className={LABEL}>Company code</label><input className={INPUT} value={code} onChange={(e) => setCode(e.target.value)} placeholder="acme-trading" /></div>
+          <div className="mt-1 flex gap-3">
+            <button className={BTN} onClick={join} disabled={busy || !code.trim()}>{busy ? "Sending…" : "Request access"}</button>
+            <button className={BTN_GHOST} onClick={onClose}>Cancel</button>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </Dialog>
   );
 }
 
@@ -617,56 +662,35 @@ function PhotoDialog({ name, photoUrl, onClose, onSaved }) {
     if (res.ok) { onSaved(); onClose(); } else setErr("We couldn't remove that picture.");
   }
 
-  useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Change profile photo">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="relative w-full max-w-[512px] overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]">
-        <div className="flex items-center gap-3 px-6 pt-5">
-          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Profile picture</h3>
-          <button type="button" onClick={onClose} aria-label="Close"
-            className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5">
-            <Icon name="close" className="h-[18px] w-[18px]" />
-          </button>
-        </div>
-        <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">
-          A picture helps people recognise you and shows when you're signed in.
-        </p>
-
-        <div className="flex justify-center py-6">
-          <span className="inline-flex h-[136px] w-[136px] items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-4xl font-800 text-white">
-            {photoUrl
-              /* eslint-disable-next-line @next/next/no-img-element */
-              ? <img src={photoUrl} alt="" className="h-full w-full object-cover" />
-              : initialsOf(name)}
-          </span>
-        </div>
-
-        {err && <p className={cn(BANNER_BAD, "mx-6 mb-4")}>{err}</p>}
-
-        <div className="flex flex-wrap justify-center gap-3 px-6 pb-6">
-          <input ref={fileRef} type="file" accept="image/*" className="hidden"
-            onChange={(e) => upload(e.target.files?.[0])} />
-          <button type="button" className={BTN} disabled={busy} onClick={() => fileRef.current?.click()}>
-            <span className="inline-flex items-center gap-1.5">
-              <Icon name="camera" className="h-4 w-4" /> {busy ? "Uploading…" : "Change"}
-            </span>
-          </button>
-          <button type="button" className={BTN_GHOST} disabled={busy || !photoUrl} onClick={remove}
-            title={photoUrl ? "" : "No picture to remove"}>
-            Remove
-          </button>
-        </div>
-        <p className="px-6 pb-6 text-center text-xs text-slate-400">JPG, PNG or WebP, up to 2 MB.</p>
+    <Dialog title="Profile picture" onClose={onClose}
+      description="A picture helps people recognise you and shows when you're signed in.">
+      <div className="flex justify-center pb-6 pt-2">
+        <span className="inline-flex h-[136px] w-[136px] items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-4xl font-800 text-white">
+          {photoUrl
+            /* eslint-disable-next-line @next/next/no-img-element */
+            ? <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+            : initialsOf(name)}
+        </span>
       </div>
-    </div>
+
+      {err && <p className={cn(BANNER_BAD, "mb-4")}>{err}</p>}
+
+      <div className="flex flex-wrap justify-center gap-3">
+        <input ref={fileRef} type="file" accept="image/*" className="hidden"
+          onChange={(e) => upload(e.target.files?.[0])} />
+        <button type="button" className={BTN} disabled={busy} onClick={() => fileRef.current?.click()}>
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="camera" className="h-4 w-4" /> {busy ? "Uploading…" : "Change"}
+          </span>
+        </button>
+        <button type="button" className={BTN_GHOST} disabled={busy || !photoUrl} onClick={remove}
+          title={photoUrl ? "" : "No picture to remove"}>
+          Remove
+        </button>
+      </div>
+      <p className="mt-4 text-center text-xs text-slate-400">JPG, PNG or WebP, up to 2 MB.</p>
+    </Dialog>
   );
 }
 
