@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/lib/studioLinks";
 
@@ -51,6 +52,8 @@ export default function StudioInventory({ slug }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+  // Stock, deliveries and orders change from the floor — stay current.
+  useLiveUpdates(slug, "inventory", load);
 
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);

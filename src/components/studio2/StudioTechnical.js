@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import { linkToTicket, linkToRfq, linkIf } from "@/lib/studioLinks";
@@ -52,6 +53,8 @@ export default function StudioTechnical({ slug }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+  // Sales raised an RFQ, or someone revised a quotation — pick it up live.
+  useLiveUpdates(slug, "technical", load);
 
   async function send(kind, method, payload) {
     setError("");

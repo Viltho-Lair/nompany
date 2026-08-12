@@ -11,7 +11,8 @@
 // and live in s:<StudioID>:grants.
 
 import { S, SEC, ID, SECTION_COLLECTIONS } from "@/lib/data/keys";
-import { readArr, writeArr, mutate } from "@/lib/data/store";
+import { readArr, editArr } from "@/lib/data/store";
+import { emit, SCOPE, TYPE } from "@/lib/data/events";
 
 // ---- section rows ----------------------------------------------------------
 export async function listSections(studioId) {
@@ -27,33 +28,35 @@ export async function getSectionByKey(studioId, key) {
   return rows.find((s) => s.key === key) || null;
 }
 
-// Append a new section — UNIQUE(StudioID, key); always a fresh SectionID.
+// Append a new section — UNIQUE(StudioID, key); always a fresh SectionID. The
+// uniqueness check runs inside the atomic write, and sortOrder is derived from
+// the list as it actually stands, so two appends cannot collide on either.
 export async function appendSection(studioId, { key, name }) {
   const cleanKey = String(key || "").trim().toLowerCase();
   const cleanName = String(name || "").trim();
   if (!cleanKey || !cleanName) return { error: "missing" };
-  const rows = await readArr(S.sections(studioId));
-  if (rows.some((s) => s.key === cleanKey)) return { error: "exists" };
-  const section = {
-    id: ID.section(), studioId, key: cleanKey, name: cleanName,
-    enabled: true, sortOrder: rows.length, settings: {}, createdAt: new Date().toISOString(),
-  };
-  await writeArr(S.sections(studioId), [...rows, section]);
-  return { section };
+  return editArr(S.sections(studioId), (rows) => {
+    if (rows.some((s) => s.key === cleanKey)) return { result: { error: "exists" } };
+    const section = {
+      id: ID.section(), studioId, key: cleanKey, name: cleanName,
+      enabled: true, sortOrder: rows.length, settings: {}, createdAt: new Date().toISOString(),
+    };
+    return { next: [...rows, section], result: { section } };
+  });
 }
 
 // id / studioId / key are immutable — name, enabled, sortOrder, settings patch.
 export async function updateSection(studioId, sectionId, patch) {
-  const rows = await readArr(S.sections(studioId));
-  let updated = null;
-  const next = rows.map((s) => {
-    if (s.id !== sectionId) return s;
-    const { id, studioId: sid, key, ...safe } = patch || {};
-    updated = { ...s, ...safe, id: s.id, studioId: s.studioId, key: s.key };
-    return updated;
+  return editArr(S.sections(studioId), (rows) => {
+    let updated = null;
+    const next = rows.map((s) => {
+      if (s.id !== sectionId) return s;
+      const { id, studioId: sid, key, ...safe } = patch || {};
+      updated = { ...s, ...safe, id: s.id, studioId: s.studioId, key: s.key };
+      return updated;
+    });
+    return updated ? { next, result: updated } : { result: null };
   });
-  if (updated) await writeArr(S.sections(studioId), next);
-  return updated;
 }
 
 // The collection names a section key is allowed to hold (from the fixed map);
@@ -63,65 +66,71 @@ export function collectionsForKey(sectionKey) {
 }
 
 // ---- operational rows (each carries studioId + sectionId) ------------------
+// Reading is free-form; WRITING is only ever addRow/updateRow/deleteRow. There
+// is deliberately no writeCol(): a blind whole-collection write is exactly the
+// lost update those three exist to prevent, so the door is not left open.
 export async function readCol(studioId, sectionId, name) {
   return readArr(SEC.col(studioId, sectionId, name));
 }
-export async function writeCol(studioId, sectionId, name, rows) {
-  await writeArr(SEC.col(studioId, sectionId, name), rows);
-}
-// The three mutators re-read INSIDE the lock, so each one works from the
-// collection as it actually stands rather than from a copy taken before the
-// wait. Concurrent writes to the same collection queue up instead of
-// overwriting each other.
+// The three mutators each apply their change to the collection AS IT ACTUALLY
+// STANDS at the instant of the write, not to a copy read moments earlier. Two
+// people ticking different checklist items on the same board both land.
 export async function addRow(studioId, sectionId, name, item) {
-  return mutate(SEC.col(studioId, sectionId, name), async () => {
-    const rows = await readCol(studioId, sectionId, name);
-    const row = { id: item.id || ID.row(name), ...item, studioId, sectionId };
-    await writeCol(studioId, sectionId, name, [row, ...rows]);
-    return row;
+  const row = await editArr(SEC.col(studioId, sectionId, name), (rows) => {
+    const created = { id: item.id || ID.row(name), ...item, studioId, sectionId };
+    return { next: [created, ...rows], result: created };
   });
+  await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name, rowId: row.id });
+  return row;
 }
 
 // `patch` may be a function of the current row, which is how a caller expresses
-// "flip this field" rather than "set it to what I last saw".
+// "flip this field" rather than "set it to what I last saw". On a contended
+// write the function is re-applied to the row as it now is — so the flip stays
+// a flip instead of silently reverting someone else's change.
 export async function updateRow(studioId, sectionId, name, rowId, patch) {
-  return mutate(SEC.col(studioId, sectionId, name), async () => {
-    const rows = await readCol(studioId, sectionId, name);
-    let updated = null;
+  const updated = await editArr(SEC.col(studioId, sectionId, name), (rows) => {
+    let hit = null;
     const next = rows.map((r) => {
       if (r.id !== rowId) return r;
       const changes = typeof patch === "function" ? patch(r) : patch;
-      updated = { ...r, ...changes, id: r.id, studioId: r.studioId, sectionId: r.sectionId };
-      return updated;
+      hit = { ...r, ...changes, id: r.id, studioId: r.studioId, sectionId: r.sectionId };
+      return hit;
     });
-    if (updated) await writeCol(studioId, sectionId, name, next);
-    return updated;
+    return hit ? { next, result: hit } : { result: null };
   });
+  // Only a real change is announced — a miss changed nothing to tell anyone about.
+  if (updated) await emit(studioId, { type: TYPE.rowUpdated, sectionId, collection: name, rowId });
+  return updated;
 }
 export async function deleteRow(studioId, sectionId, name, rowId) {
-  return mutate(SEC.col(studioId, sectionId, name), async () => {
-    const rows = await readCol(studioId, sectionId, name);
+  const removed = await editArr(SEC.col(studioId, sectionId, name), (rows) => {
     const next = rows.filter((r) => r.id !== rowId);
-    const removed = next.length !== rows.length;
-    if (removed) await writeCol(studioId, sectionId, name, next);
-    return removed;
+    return next.length === rows.length ? { result: false } : { next, result: true };
   });
+  if (removed) await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name, rowId });
+  return removed;
 }
 
 // ---- access grants (subject = collaborator or department; target = section) -
 export async function listGrants(studioId) {
   return readArr(S.grants(studioId));
 }
+// Atomic because this is the permission table: two admins granting two
+// different people access at the same moment must both take effect. A lost
+// write here is a silent access-control error, not a cosmetic one.
 export async function setGrant(studioId, { subjectType, subjectId, sectionId, action, effect }) {
   if (!["collaborator", "department"].includes(subjectType)) return { error: "subject" };
   if (!subjectId || !sectionId || !action) return { error: "missing" };
-  const rows = await readArr(S.grants(studioId));
-  const without = rows.filter((g) => !(g.subjectType === subjectType && g.subjectId === subjectId && g.sectionId === sectionId && g.action === action));
-  const grant = { id: ID.grant(), studioId, subjectType, subjectId, sectionId, action, effect: effect === "deny" ? "deny" : "allow" };
-  await writeArr(S.grants(studioId), [...without, grant]);
-  return { grant };
+  const outcome = await editArr(S.grants(studioId), (rows) => {
+    const without = rows.filter((g) => !(g.subjectType === subjectType && g.subjectId === subjectId && g.sectionId === sectionId && g.action === action));
+    const grant = { id: ID.grant(), studioId, subjectType, subjectId, sectionId, action, effect: effect === "deny" ? "deny" : "allow" };
+    return { next: [...without, grant], result: { grant } };
+  });
+  await emit(studioId, { type: TYPE.grantsChanged, scope: SCOPE.PEOPLE, sectionId });
+  return outcome;
 }
 export async function removeGrant(studioId, grantId) {
-  const rows = await readArr(S.grants(studioId));
-  await writeArr(S.grants(studioId), rows.filter((g) => g.id !== grantId));
+  await editArr(S.grants(studioId), (rows) => ({ next: rows.filter((g) => g.id !== grantId) }));
+  await emit(studioId, { type: TYPE.grantsChanged, scope: SCOPE.PEOPLE });
 }

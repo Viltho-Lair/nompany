@@ -20,7 +20,7 @@
 //  COLLABORATOR → row → their grants → their notifications → ix back-pointer.
 
 import { REG, U, S, SEC, IX } from "@/lib/data/keys";
-import { readArr, writeArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "@/lib/data/store";
+import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "@/lib/data/store";
 
 // ---- collaborator ----------------------------------------------------------
 export async function cascadeDeleteCollaborator(studioId, collaboratorId) {
@@ -28,15 +28,19 @@ export async function cascadeDeleteCollaborator(studioId, collaboratorId) {
   const row = rows.find((c) => c.id === collaboratorId);
   if (!row) return false; // already gone — idempotent
 
-  // children first: grants + notifications addressed to this collaborator
-  const grants = await readArr(S.grants(studioId));
-  await writeArr(S.grants(studioId), grants.filter((g) => !(g.subjectType === "collaborator" && g.subjectId === collaboratorId)));
-  const notifs = await readArr(S.notifications(studioId));
-  await writeArr(S.notifications(studioId), notifs.filter((n) => n.recipientId !== collaboratorId));
+  // children first: grants + notifications addressed to this collaborator.
+  // Each removal is atomic, so a grant written for SOMEONE ELSE while this
+  // cascade runs is not swept away with the departing person's.
+  await editArr(S.grants(studioId), (grants) => ({
+    next: grants.filter((g) => !(g.subjectType === "collaborator" && g.subjectId === collaboratorId)),
+  }));
+  await editArr(S.notifications(studioId), (notifs) => ({
+    next: notifs.filter((n) => n.recipientId !== collaboratorId),
+  }));
 
   // back-pointer, then the row itself
   await sRem(IX.collab(row.userId), studioId);
-  await writeArr(S.collaborators(studioId), rows.filter((c) => c.id !== collaboratorId));
+  await editArr(S.collaborators(studioId), (all) => ({ next: all.filter((c) => c.id !== collaboratorId) }));
   return true;
 }
 
@@ -47,10 +51,9 @@ export async function cascadeDeleteSection(studioId, sectionId) {
 
   // children first: every operational collection under the section prefix
   await delPrefix(SEC.prefix(studioId, sectionId));
-  const grants = await readArr(S.grants(studioId));
-  await writeArr(S.grants(studioId), grants.filter((g) => g.sectionId !== sectionId));
+  await editArr(S.grants(studioId), (grants) => ({ next: grants.filter((g) => g.sectionId !== sectionId) }));
 
-  if (row) await writeArr(S.sections(studioId), rows.filter((s) => s.id !== sectionId));
+  if (row) await editArr(S.sections(studioId), (all) => ({ next: all.filter((s) => s.id !== sectionId) }));
   return Boolean(row);
 }
 
@@ -78,11 +81,11 @@ export async function cascadeDeleteStudio(studioId) {
   }
 
   // join-requests targeting this studio
-  const jrs = await readArr(REG.joinRequests);
-  await writeArr(REG.joinRequests, jrs.filter((r) => r.studioId !== studioId));
+  await editArr(REG.joinRequests, (jrs) => ({ next: jrs.filter((r) => r.studioId !== studioId) }));
 
-  // registry last
-  if (studio) await writeArr(REG.studios, studios.filter((s) => s.id !== studioId));
+  // registry last — atomic, so a studio created while this one is being deleted
+  // is not erased along with it.
+  if (studio) await editArr(REG.studios, (all) => ({ next: all.filter((s) => s.id !== studioId) }));
   return Boolean(studio);
 }
 
@@ -112,13 +115,12 @@ export async function cascadeDeleteUser(userId) {
   await delPrefix(U.prefix(userId));
 
   // 4) their join-requests + remaining indexes
-  const jrs = await readArr(REG.joinRequests);
-  await writeArr(REG.joinRequests, jrs.filter((r) => r.userId !== userId));
+  await editArr(REG.joinRequests, (jrs) => ({ next: jrs.filter((r) => r.userId !== userId) }));
   if (user) await release(IX.email(user.email));
   await delKeys(IX.collab(userId));
 
-  // 5) registry last
-  if (user) await writeArr(REG.users, users.filter((u) => u.id !== userId));
+  // 5) registry last — atomic, so a signup landing mid-cascade survives.
+  if (user) await editArr(REG.users, (all) => ({ next: all.filter((u) => u.id !== userId) }));
   return Boolean(user);
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/lib/studioLinks";
 
@@ -37,6 +38,8 @@ export default function StudioOperations({ slug }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+  // Shifts and permits change from more than one desk — stay current.
+  useLiveUpdates(slug, "operations", load);
 
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);

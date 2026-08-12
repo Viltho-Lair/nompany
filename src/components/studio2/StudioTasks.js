@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import RecordLink from "@/components/studio2/RecordLink";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { linkToProject, linkIf } from "@/lib/studioLinks";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
@@ -41,6 +42,8 @@ export default function StudioTasks({ slug }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+  // Someone else moved a task on this board — pick it up without a refresh.
+  useLiveUpdates(slug, "tasks", load);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);

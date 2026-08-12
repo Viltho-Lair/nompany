@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 
 // Who can open which sections. A grid of people × sections with two toggles per
 // cell: View (can open it) and Manage (can change things in it). Manage implies
@@ -25,6 +26,8 @@ export default function StudioAccess({ slug }) {
   }, [slug]);
 
   useEffect(() => { load(); }, [load]);
+  // Another admin changed someone's access — reflect it immediately.
+  useLiveUpdates(slug, "people", load);
 
   const has = (collaboratorId, sectionId, action) =>
     (data?.grants || []).some(

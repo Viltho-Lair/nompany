@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -33,6 +34,8 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
   }, [slug, canAdminister]);
 
   useEffect(() => { load(); }, [load]);
+  // A join request or a membership change — show it as it happens.
+  useLiveUpdates(slug, "people", load);
 
   async function decide(request, action, alias, role) {
     setBusyId(request.id); setError("");

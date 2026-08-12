@@ -13,7 +13,7 @@
 // Deletion goes through cascade.js (cascadeDeleteStudio).
 
 import { REG, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/lib/data/keys";
-import { readArr, writeArr, setJSON, claim, getIndex, release, sMembers } from "@/lib/data/store";
+import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, sMembers } from "@/lib/data/store";
 import { addCollaborator } from "@/lib/data/collaborators";
 
 export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" }) {
@@ -46,8 +46,9 @@ export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" })
     const seeded = await addCollaborator(id, { userId: ownerUserId, alias: ownerAlias, role: "owner", isAdmin: true });
     if (seeded.error) throw new Error(`owner collaborator: ${seeded.error}`);
 
-    const rows = await readArr(REG.studios);
-    await writeArr(REG.studios, [studio, ...rows]);
+    // Atomic — a lost registry row here would strand the slug and owner claims
+    // made above, permanently burning that slug.
+    await editArr(REG.studios, (rows) => ({ next: [studio, ...rows] }));
     return { studio, sections };
   } catch (e) {
     await release(IX.owner(ownerUserId));
@@ -86,16 +87,16 @@ export async function listUserCollaborations(userId) {
 
 // ---- registry updates (id/ownerUserId immutable; slug via changeStudioSlug) -
 export async function updateStudio(studioId, patch) {
-  const rows = await readArr(REG.studios);
-  let updated = null;
-  const next = rows.map((s) => {
-    if (s.id !== studioId) return s;
-    const { id, ownerUserId, slug, ...safe } = patch || {};
-    updated = { ...s, ...safe, id: s.id, ownerUserId: s.ownerUserId, slug: s.slug };
-    return updated;
+  return editArr(REG.studios, (rows) => {
+    let updated = null;
+    const next = rows.map((s) => {
+      if (s.id !== studioId) return s;
+      const { id, ownerUserId, slug, ...safe } = patch || {};
+      updated = { ...s, ...safe, id: s.id, ownerUserId: s.ownerUserId, slug: s.slug };
+      return updated;
+    });
+    return updated ? { next, result: updated } : { result: null };
   });
-  if (updated) await writeArr(REG.studios, next);
-  return updated;
 }
 
 // Slug change = claim the new address, then release the old one (never a gap
@@ -107,8 +108,9 @@ export async function changeStudioSlug(studioId, newSlug) {
   if (!studio) return { error: "notfound" };
   if (studio.slug === clean) return { studio };
   if (!(await claim(IX.slug(clean), studioId))) return { error: "slug-taken" };
-  const rows = await readArr(REG.studios);
-  await writeArr(REG.studios, rows.map((s) => (s.id === studioId ? { ...s, slug: clean } : s)));
+  await editArr(REG.studios, (rows) => ({
+    next: rows.map((s) => (s.id === studioId ? { ...s, slug: clean } : s)),
+  }));
   await release(IX.slug(studio.slug));
   return { studio: { ...studio, slug: clean } };
 }

@@ -14,7 +14,8 @@
 // Row deletion goes through cascade.js (cascadeDeleteCollaborator).
 
 import { S, IX, ID } from "@/lib/data/keys";
-import { readArr, writeArr, sAdd } from "@/lib/data/store";
+import { readArr, editArr, sAdd } from "@/lib/data/store";
+import { emit, SCOPE, TYPE } from "@/lib/data/events";
 
 // HR fields carried on the merged row (studio-scoped, admin/HR-editable).
 const HR_DEFAULTS = {
@@ -24,25 +25,33 @@ const HR_DEFAULTS = {
   idImage: "", passportImage: "",
 };
 
+// UNIQUE(StudioID, UserID) is enforced INSIDE the atomic write, so two approvals
+// racing on the same person cannot both pass the check and both insert a row.
 export async function addCollaborator(studioId, { userId, alias = "", role = "member", isAdmin = false, ...hr }) {
   if (!studioId || !userId) return { error: "missing" };
-  const rows = await readArr(S.collaborators(studioId));
-  if (rows.some((c) => c.userId === userId)) return { error: "already" }; // UNIQUE(StudioID, UserID)
-  const collaborator = {
-    id: ID.collaborator(),
-    studioId,
-    userId,
-    alias,
-    role,                    // "owner" | "member" | studio-defined
-    isAdmin: !!isAdmin,      // studio-scoped admin flag (never global)
-    settings: {},            // internal display settings, this studio only
-    ...HR_DEFAULTS,
-    ...hr,
-    createdAt: new Date().toISOString(),
-  };
-  await writeArr(S.collaborators(studioId), [collaborator, ...rows]);
-  await sAdd(IX.collab(userId), studioId);
-  return { collaborator };
+  const outcome = await editArr(S.collaborators(studioId), (rows) => {
+    if (rows.some((c) => c.userId === userId)) return { result: { error: "already" } };
+    const collaborator = {
+      id: ID.collaborator(),
+      studioId,
+      userId,
+      alias,
+      role,                    // "owner" | "member" | studio-defined
+      isAdmin: !!isAdmin,      // studio-scoped admin flag (never global)
+      settings: {},            // internal display settings, this studio only
+      ...HR_DEFAULTS,
+      ...hr,
+      createdAt: new Date().toISOString(),
+    };
+    return { next: [collaborator, ...rows], result: { collaborator } };
+  });
+  // The back-pointer only after the row is really there — never for a rejected
+  // duplicate, which would leave the user "collaborating" in a studio twice.
+  if (outcome.collaborator) {
+    await sAdd(IX.collab(userId), studioId);
+    await emit(studioId, { type: TYPE.peopleChanged, scope: SCOPE.PEOPLE });
+  }
+  return outcome;
 }
 
 export async function listCollaborators(studioId) {
@@ -59,14 +68,16 @@ export async function getCollaboratorByUser(studioId, userId) {
 
 // id / studioId / userId are immutable — everything else is patchable.
 export async function updateCollaborator(studioId, collaboratorId, patch) {
-  const rows = await readArr(S.collaborators(studioId));
-  let updated = null;
-  const next = rows.map((c) => {
-    if (c.id !== collaboratorId) return c;
-    const { id, studioId: sid, userId, ...safe } = patch || {};
-    updated = { ...c, ...safe, id: c.id, studioId: c.studioId, userId: c.userId };
-    return updated;
+  const updated = await editArr(S.collaborators(studioId), (rows) => {
+    let hit = null;
+    const next = rows.map((c) => {
+      if (c.id !== collaboratorId) return c;
+      const { id, studioId: sid, userId, ...safe } = patch || {};
+      hit = { ...c, ...safe, id: c.id, studioId: c.studioId, userId: c.userId };
+      return hit;
+    });
+    return hit ? { next, result: hit } : { result: null };
   });
-  if (updated) await writeArr(S.collaborators(studioId), next);
+  if (updated) await emit(studioId, { type: TYPE.peopleChanged, scope: SCOPE.PEOPLE });
   return updated;
 }

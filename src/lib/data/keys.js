@@ -80,6 +80,10 @@ export const S = {
   settings: (studioId) => `s:${studioId}:settings`,
   notifications: (studioId) => `s:${studioId}:notifications`,
   activityLog: (studioId) => `s:${studioId}:activityLog`,
+  // The studio's EVENT LOG (a Redis Stream, not a JSON array). Ordered, capped,
+  // and addressable by cursor — it is what "what changed since I last looked?"
+  // reads. Under the studio prefix, so it cascades with the studio for free.
+  events: (studioId) => `s:${studioId}:events`,
   media: (studioId, mediaId) => `s:${studioId}:media:${mediaId}`,
   mediaPrefix: (studioId) => `s:${studioId}:media:`,
 };

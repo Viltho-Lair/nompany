@@ -15,7 +15,7 @@
 
 import crypto from "node:crypto";
 import { OTP, RL, U, makeId } from "@/lib/data/keys";
-import { getJSON, setJSONEx, consume, incrWithTTL, readArr, writeArr } from "@/lib/data/store";
+import { getJSON, setJSONEx, consume, incrWithTTL, readArr, editArr, editJSON } from "@/lib/data/store";
 
 export const CODE_TTL_SEC = 10 * 60;               // a code is valid 10 minutes
 export const MAX_ATTEMPTS = 5;                     // wrong guesses per challenge
@@ -77,15 +77,26 @@ export async function getChallenge(challengeId) {
 
 // Verify a submitted code. On success the challenge is CONSUMED atomically, so
 // a code can never be replayed and two parallel verifications cannot both win.
+// The attempt counter is incremented ATOMICALLY, which is what makes
+// MAX_ATTEMPTS a real limit: a burst of parallel guesses used to read the same
+// `attempts` value, all pass the check, and have every increment but one
+// overwritten — multiplying the guess budget by the burst size. KEEPTTL leaves
+// the challenge's own expiry running, so a wrong guess can never extend it.
 export async function verifyChallenge(challengeId, code) {
   const challenge = await getChallenge(challengeId);
   if (!challenge) return { error: "expired" };            // TTL elapsed or already used
   if ((challenge.attempts || 0) >= MAX_ATTEMPTS) return { error: "locked" };
 
   if (!sameHash(challenge.codeHash, hashCode(challengeId, code))) {
-    const attempts = (challenge.attempts || 0) + 1;
-    const remainingTtl = Math.max(1, CODE_TTL_SEC - Math.floor((Date.now() - challenge.createdAt) / 1000));
-    await setJSONEx(OTP.challenge(challengeId), { ...challenge, attempts }, remainingTtl);
+    const attempts = await editJSON(
+      OTP.challenge(challengeId),
+      (cur) => {
+        if (!cur) return { result: MAX_ATTEMPTS };        // expired or consumed mid-guess
+        const n = (cur.attempts || 0) + 1;
+        return { next: { ...cur, attempts: n }, result: n };
+      },
+      { keepTTL: true },
+    );
     return { error: attempts >= MAX_ATTEMPTS ? "locked" : "invalid", attemptsLeft: Math.max(0, MAX_ATTEMPTS - attempts) };
   }
   if (!(await consume(OTP.challenge(challengeId)))) return { error: "expired" };
@@ -114,10 +125,12 @@ const liveDevices = (rows) => (Array.isArray(rows) ? rows : []).filter((d) => (d
 
 export async function trustDevice(userId, { label = "" } = {}) {
   const deviceId = makeId("dev");
-  const rows = liveDevices(await readArr(U.devices(userId)));
-  const next = [{ id: deviceId, label: String(label).slice(0, 120), createdAt: Date.now(), lastSeenAt: Date.now(), expiresAt: Date.now() + DEVICE_TTL_MS }, ...rows]
-    .slice(0, MAX_DEVICES);
-  await writeArr(U.devices(userId), next);
+  await editArr(U.devices(userId), (rows) => ({
+    next: [
+      { id: deviceId, label: String(label).slice(0, 120), createdAt: Date.now(), lastSeenAt: Date.now(), expiresAt: Date.now() + DEVICE_TTL_MS },
+      ...liveDevices(rows),
+    ].slice(0, MAX_DEVICES),
+  }));
   return deviceId;
 }
 
@@ -125,21 +138,27 @@ export async function trustDevice(userId, { label = "" } = {}) {
 // cookie from another account can never skip this user's challenge.
 export async function isTrustedDevice(userId, deviceId) {
   if (!userId || !deviceId) return false;
-  const rows = liveDevices(await readArr(U.devices(userId)));
-  const hit = rows.find((d) => d.id === deviceId);
-  if (!hit) return false;
-  await writeArr(U.devices(userId), rows.map((d) => (d.id === deviceId ? { ...d, lastSeenAt: Date.now() } : d)));
-  return true;
+  return editArr(U.devices(userId), (rows) => {
+    const live = liveDevices(rows);
+    if (!live.some((d) => d.id === deviceId)) return { result: false };
+    return {
+      next: live.map((d) => (d.id === deviceId ? { ...d, lastSeenAt: Date.now() } : d)),
+      result: true,
+    };
+  });
 }
 
 export async function listDevices(userId) {
   return liveDevices(await readArr(U.devices(userId)));
 }
 export async function revokeDevice(userId, deviceId) {
-  const rows = liveDevices(await readArr(U.devices(userId)));
-  await writeArr(U.devices(userId), rows.filter((d) => d.id !== deviceId));
+  await editArr(U.devices(userId), (rows) => ({
+    next: liveDevices(rows).filter((d) => d.id !== deviceId),
+  }));
 }
 // The lockout escape hatch: forget every device, forcing OTP on next sign-in.
+// Atomic so a device trusted mid-revoke is caught by the retry rather than
+// surviving the purge.
 export async function revokeAllDevices(userId) {
-  await writeArr(U.devices(userId), []);
+  await editArr(U.devices(userId), () => ({ next: [] }));
 }

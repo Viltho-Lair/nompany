@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/lib/studioLinks";
@@ -44,6 +45,8 @@ export default function StudioProjects({ slug }) {
     });
   }, [slug, focus.focusedId]);
   useEffect(() => { load(); }, [load]);
+  // Project rows move from several desks at once — stay current.
+  useLiveUpdates(slug, "projects", load);
 
   async function send(method, payload) {
     setError("");

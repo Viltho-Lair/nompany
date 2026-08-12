@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/lib/studioLinks";
 
@@ -39,6 +40,8 @@ export default function StudioFinance({ slug }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+  // Invoices and expenses land from elsewhere — reflect them live.
+  useLiveUpdates(slug, "finance", load);
 
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);

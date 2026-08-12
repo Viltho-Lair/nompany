@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const input =
@@ -33,6 +34,8 @@ export default function StudioWebsite({ slug }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+  // A public enquiry can arrive at any moment — show it as it lands.
+  useLiveUpdates(slug, "website", load);
 
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);

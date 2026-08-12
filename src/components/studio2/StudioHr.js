@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const input =
@@ -37,6 +38,8 @@ export default function StudioHr({ slug }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+  // HR records change from more than one desk — stay current.
+  useLiveUpdates(slug, "hr", load);
 
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);

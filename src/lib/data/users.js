@@ -9,7 +9,7 @@
 // Deletion goes through cascade.js (cascadeDeleteUser), never this file.
 
 import { REG, U, IX, ID, normEmail } from "@/lib/data/keys";
-import { readArr, writeArr, getJSON, setJSON, claim, getIndex, release } from "@/lib/data/store";
+import { readArr, editArr, editJSON, getJSON, setJSON, claim, getIndex, release } from "@/lib/data/store";
 import { newSessionToken } from "@/lib/passwords";
 
 // ---- create ----------------------------------------------------------------
@@ -25,8 +25,7 @@ export async function createUser({ email, passwordHash, fullName = "" }) {
     await setJSON(U.profile(id), { fullName, shortName: "", phone: "", dob: "", photo: "", language: "en", workAddress: "" });
     await setJSON(U.verification(id), { emailCode: "", emailCodeExpires: 0, emailVerifiedAt: "", lastSentAt: 0, resetCode: "", resetCodeExpires: 0 });
     await setJSON(U.questionnaire(id), { intent: "", field: "", country: "", city: "", erps: [], packageKey: "", completedAt: "" });
-    const rows = await readArr(REG.users);
-    await writeArr(REG.users, [user, ...rows]);
+    await editArr(REG.users, (rows) => ({ next: [user, ...rows] }));
     return { user };
   } catch (e) {
     await release(IX.email(mail)); // roll back the claim so the email isn't stranded
@@ -50,24 +49,26 @@ export async function listUsers() {
 
 // ---- registry updates (id/email are immutable here) ------------------------
 export async function updateUser(userId, patch) {
-  const rows = await readArr(REG.users);
-  let updated = null;
-  const next = rows.map((u) => {
-    if (u.id !== userId) return u;
-    const { id, email, ...safe } = patch || {};
-    updated = { ...u, ...safe, id: u.id, email: u.email };
-    return updated;
+  return editArr(REG.users, (rows) => {
+    let updated = null;
+    const next = rows.map((u) => {
+      if (u.id !== userId) return u;
+      const { id, email, ...safe } = patch || {};
+      updated = { ...u, ...safe, id: u.id, email: u.email };
+      return updated;
+    });
+    return updated ? { next, result: updated } : { result: null };
   });
-  if (updated) await writeArr(REG.users, next);
-  return updated;
 }
 
 // ---- 1:1 satellites (merge-patch semantics) --------------------------------
+// Atomic merge: editing your phone number while another tab writes your photo
+// keeps both, instead of whichever request finished second winning outright.
 const patchDoc = (key) => async (userId, patch) => {
-  const cur = (await getJSON(key(userId))) || {};
-  const next = { ...cur, ...patch };
-  await setJSON(key(userId), next);
-  return next;
+  return editJSON(key(userId), (cur) => {
+    const next = { ...(cur || {}), ...patch };
+    return { next, result: next };
+  });
 };
 export const getProfile = (userId) => getJSON(U.profile(userId));
 export const updateProfile = patchDoc(U.profile);
@@ -81,11 +82,13 @@ export async function mintSession(userId, ttlSec) {
   const token = newSessionToken();
   const now = Date.now();
   await claim(IX.session(token), userId, ttlSec); // fresh random token — claim always succeeds
-  const sessions = await readArr(U.sessions(userId));
-  const next = [{ token, createdAt: now, expiresAt: now + ttlSec * 1000 }, ...sessions]
-    .filter((s) => s.expiresAt > now)
-    .slice(0, 10); // bound per user
-  await writeArr(U.sessions(userId), next);
+  // Atomic: signing in on two devices at once must list BOTH sessions. A lost
+  // row here leaves a live session that "sign out everywhere" cannot see.
+  await editArr(U.sessions(userId), (sessions) => ({
+    next: [{ token, createdAt: now, expiresAt: now + ttlSec * 1000 }, ...sessions]
+      .filter((s) => s.expiresAt > now)
+      .slice(0, 10), // bound per user
+  }));
   return token;
 }
 export async function findUserBySession(token) {
@@ -95,11 +98,12 @@ export async function findUserBySession(token) {
 }
 export async function revokeSession(userId, token) {
   await release(IX.session(token));
-  const sessions = await readArr(U.sessions(userId));
-  await writeArr(U.sessions(userId), sessions.filter((s) => s.token !== token));
+  await editArr(U.sessions(userId), (sessions) => ({ next: sessions.filter((s) => s.token !== token) }));
 }
+// The list is emptied atomically and the indexes released from the list AS IT
+// WAS EMPTIED — so a session minted mid-revoke is either revoked with the rest
+// or lands after, never left live-but-unlisted.
 export async function revokeAllSessions(userId) {
-  const sessions = await readArr(U.sessions(userId));
-  for (const s of sessions) await release(IX.session(s.token));
-  await writeArr(U.sessions(userId), []);
+  const revoked = await editArr(U.sessions(userId), (sessions) => ({ next: [], result: sessions }));
+  for (const s of revoked) await release(IX.session(s.token));
 }

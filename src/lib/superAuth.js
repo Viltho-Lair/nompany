@@ -10,7 +10,7 @@
 //   passwordSetAt }.
 
 import { REG, makeId } from "@/lib/data/keys";
-import { readArr, writeArr } from "@/lib/data/store";
+import { readArr, editArr } from "@/lib/data/store";
 import { hashPassword, verifyPassword, newSessionToken, generatePassword } from "@/lib/passwords";
 
 export const SUPER_COOKIE = "nc_super";
@@ -21,16 +21,20 @@ function normEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
+// Atomic — this is how session tokens are added and removed, so a lost write
+// would either drop a live sign-in from the list or resurrect a revoked one.
+// `patch` may be a function of the current row so callers can express "append to
+// whatever tokens are there now" rather than "to the ones I last read".
 async function patchAdmin(id, patch) {
-  const rows = await readArr(REG.superAdmins);
-  let updated = null;
-  const next = rows.map((a) => {
-    if (a.id !== id) return a;
-    updated = { ...a, ...patch, id: a.id };
-    return updated;
+  return editArr(REG.superAdmins, (rows) => {
+    let updated = null;
+    const next = rows.map((a) => {
+      if (a.id !== id) return a;
+      updated = { ...a, ...(typeof patch === "function" ? patch(a) : patch), id: a.id };
+      return updated;
+    });
+    return updated ? { next, result: updated } : { result: null };
   });
-  if (updated) await writeArr(REG.superAdmins, next);
-  return updated;
 }
 
 export async function findSuperByEmail(email) {
@@ -52,9 +56,6 @@ export async function findSuperBySession(token) {
 export async function seedSuperAdmin({ email, password } = {}) {
   const mail = normEmail(email);
   if (!EMAIL_RE.test(mail)) return { error: "email" };
-  const existing = await findSuperByEmail(mail);
-  if (existing) return { admin: existing, existed: true };
-
   const plain = password || generatePassword(16);
   const now = new Date().toISOString();
   const admin = {
@@ -65,9 +66,13 @@ export async function seedSuperAdmin({ email, password } = {}) {
     createdAt: now,
     passwordSetAt: now,
   };
-  const rows = await readArr(REG.superAdmins);
-  await writeArr(REG.superAdmins, [admin, ...rows]);
-  return { admin, password: plain, existed: false };
+  // Idempotence on email is decided INSIDE the write, so seeding twice at once
+  // yields one super-admin, not two accounts sharing an address.
+  return editArr(REG.superAdmins, (rows) => {
+    const existing = rows.find((a) => normEmail(a.email) === mail);
+    if (existing) return { result: { admin: existing, existed: true } };
+    return { next: [admin, ...rows], result: { admin, password: plain, existed: false } };
+  });
 }
 
 // Verify credentials, mint a new session token. Generic failure (never reveals
@@ -77,18 +82,22 @@ export async function loginSuper(email, password) {
   if (!admin) return null;
   if (!(await verifyPassword(password, admin.passwordHash))) return null;
   const token = newSessionToken();
-  const prior = Array.isArray(admin.sessionTokens) ? admin.sessionTokens : [];
-  const next = [token, ...prior.filter(Boolean)].slice(0, MAX_SESSIONS);
-  await patchAdmin(admin.id, { sessionTokens: next });
-  return { ...admin, sessionTokens: next, token };
+  // Appended to the token list as it stands at the moment of the write — two
+  // simultaneous sign-ins both end up signed in.
+  const updated = await patchAdmin(admin.id, (a) => ({
+    sessionTokens: [token, ...(Array.isArray(a.sessionTokens) ? a.sessionTokens : []).filter(Boolean)]
+      .slice(0, MAX_SESSIONS),
+  }));
+  return { ...admin, sessionTokens: updated?.sessionTokens || [token], token };
 }
 
 // Invalidate only the presented token (other devices stay signed in).
 export async function logoutSuper(token) {
   const admin = await findSuperBySession(token);
   if (!admin) return;
-  const next = (admin.sessionTokens || []).filter((t) => t && t !== token);
-  await patchAdmin(admin.id, { sessionTokens: next });
+  await patchAdmin(admin.id, (a) => ({
+    sessionTokens: (a.sessionTokens || []).filter((t) => t && t !== token),
+  }));
 }
 
 // Client-safe projection — never the hash or tokens.

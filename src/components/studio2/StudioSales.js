@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import { linkToClient } from "@/lib/studioLinks";
@@ -50,6 +51,8 @@ export default function StudioSales({ slug }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+  // A colleague raised or moved a ticket — reflect it without a refresh.
+  useLiveUpdates(slug, "sales", load);
 
   async function send(kind, method, payload) {
     setError("");
