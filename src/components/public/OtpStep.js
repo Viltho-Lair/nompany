@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 // Submits automatically once six digits are present, so the common case is
 // "read code, type it, done" with no button press.
 const box =
-  "h-14 w-11 rounded-xl border border-steel-200 bg-white text-center font-display text-2xl font-700 text-brand-950 transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60 dark:border-white/15 dark:bg-steel-800 dark:text-white";
+  "h-14 w-11 rounded-xl border border-line bg-ink-soft/60 text-center font-display text-2xl font-700 text-fg transition-colors focus:border-iris focus:outline-none focus:ring-2 focus:ring-iris/25 disabled:opacity-60";
 
 export default function OtpStep({ email, onVerified, onError, trustPrompt = true, submitLabel = "Verify" }) {
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
@@ -106,8 +106,8 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="font-display text-lg font-700 text-brand-950 dark:text-white">Enter your code</h2>
-        <p className="mt-1 text-sm text-steel-600 dark:text-slate-300">
+        <h2 className="font-display text-lg font-700 text-fg">Enter your code</h2>
+        <p className="mt-1 text-sm text-fg-muted">
           We sent a 6-digit code to {email ? <span className="font-600 break-all">{email}</span> : "your email"}. It expires in 10 minutes.
         </p>
       </div>
@@ -131,21 +131,21 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
       </div>
 
       {trustPrompt && (
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-steel-600 dark:text-slate-300">
-          <input type="checkbox" checked={trust} onChange={(e) => setTrust(e.target.checked)} className="h-4 w-4 cursor-pointer accent-brand-600" />
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
+          <input type="checkbox" checked={trust} onChange={(e) => setTrust(e.target.checked)} className="h-4 w-4 cursor-pointer accent-iris" />
           Trust this device for 30 days
         </label>
       )}
 
       {error && <p className="text-sm text-danger" role="alert">{error}</p>}
-      {notice && <p className="text-sm text-brand-600 dark:text-brand-400">{notice}</p>}
+      {notice && <p className="text-sm text-iris-bright">{notice}</p>}
 
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => submit(code)}
           disabled={busy || code.length !== 6}
-          className="rounded-full bg-brand-600 px-6 py-3 font-display text-sm font-700 uppercase tracking-[0.12em] text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
+          className="landing-submit w-auto"
         >
           {busy ? "Checking…" : submitLabel}
         </button>
@@ -153,7 +153,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
           type="button"
           onClick={resend}
           disabled={busy || cooldown > 0}
-          className="text-sm font-600 text-brand-600 hover:underline disabled:opacity-60 disabled:no-underline dark:text-brand-400"
+          className="text-sm font-600 text-iris-bright hover:underline disabled:opacity-60 disabled:no-underline"
         >
           {cooldown > 0 ? `Resend in ${cooldown}s` : "Send a new code"}
         </button>

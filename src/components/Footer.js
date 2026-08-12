@@ -3,17 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CONTACT } from "@/lib/site";
+import { BARE_ROUTES } from "@/components/Nav";
 
 // Editorial footer (adapted from the reference site): a big "Let's connect"
 // band, then a minimal dark strip with an Explore nav list, the office / contact
 // block, and a thin copyright bar. Solid navy on every page.
 export default function Footer({ locale, dict }) {
   const pathname = usePathname();
-  // Two routes own their whole viewport and bring their own chrome (Nav.js
-  // does the same): the full-screen account hub, and the landing page, which
-  // carries its own dark footer.
-  const isBare =
-    pathname === `/${locale}/account` || pathname === `/${locale}`;
+  // The landing page, the auth screens and the account hub each own their
+  // whole viewport and bring their own chrome (Nav.js suppresses itself on the
+  // same list).
+  const isBare = BARE_ROUTES.some((r) => pathname === `/${locale}${r}`);
   const year = new Date().getFullYear();
 
   // Features, pricing, about, team and contact are in-page views on the

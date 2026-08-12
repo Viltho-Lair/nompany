@@ -12,7 +12,12 @@ const OPTIONS = ["light", "dark", "system"];
 function readTheme() {
   try {
     const m = document.cookie.match(/(?:^|; )theme=([^;]+)/);
-    return m ? decodeURIComponent(m[1]) : "light";
+    if (m) return decodeURIComponent(m[1]);
+    // No explicit choice yet — fall back to whatever the no-flash script in the
+    // root layout already resolved, so the control never contradicts the page
+    // it is sitting on (that default is per-surface: dark on marketing, light
+    // in the app).
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
   } catch {
     return "light";
   }

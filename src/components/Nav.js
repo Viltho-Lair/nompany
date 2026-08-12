@@ -11,6 +11,10 @@ import Skeleton from "@/components/Skeleton";
 import { track, pageLabelFromPath } from "@/lib/track";
 import { CONTACT } from "@/lib/site";
 
+// Locale-relative routes that render their own full-screen chrome. Shared with
+// Footer.js — keep the two in step.
+export const BARE_ROUTES = ["", "/login", "/signup", "/forgot", "/account"];
+
 // Minimal editorial header (inspired by the reference site): a slim bar with the
 // wordmark, theme + language controls and a Menu button that opens a full-screen
 // overlay carrying the navigation. No hovering/glowing logo.
@@ -91,11 +95,12 @@ export default function Nav({ locale, dict }) {
   const langTrigger =
     "inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current";
 
-  // Two routes own their whole viewport and bring their own chrome, so the
-  // site header is suppressed on both (Footer.js does the same):
+  // These routes own their whole viewport and bring their own chrome, so the
+  // site header is suppressed on all of them (Footer.js does the same):
+  //   /         — the landing page, which has its own TopNav
+  //   /login, /signup — full-screen auth, in the landing design
   //   /account  — the full-screen account hub
-  //   /         — the landing page, which has its own dark TopNav
-  if (pathname === `/${locale}/account` || pathname === `/${locale}`) return null;
+  if (BARE_ROUTES.some((r) => pathname === `/${locale}${r}`)) return null;
 
   return (
     <>

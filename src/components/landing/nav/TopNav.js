@@ -2,6 +2,7 @@
 import { motion, useMotionValueEvent, useScroll } from "motion/react";
 import { useState } from "react";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
+import ThemeToggle from "@/components/ThemeToggle";
 import { LogoMark, Wordmark } from "../Logo";
 import { MagneticButton } from "../ui/MagneticButton";
 import { VIEWS } from "../views/views";
@@ -39,6 +40,14 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
                 <span className="relative z-10">{v.label}</span>
               </button>);
         })}
+        </div>
+
+        {/* Light / dark / system. Writes the same `theme` cookie the account
+            hub and studio read, so the choice follows the visitor across every
+            surface. Inherits `currentColor`, so it needs no landing-specific
+            styling of its own. */}
+        <div className="shrink-0 text-fg-muted">
+          <ThemeToggle labels={{ theme: "Theme", light: "Light", dark: "Dark", system: "System" }} />
         </div>
 
         {/* Log in — a real route in this app, not one of the in-page views, so

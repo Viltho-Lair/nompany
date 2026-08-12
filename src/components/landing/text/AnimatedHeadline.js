@@ -30,7 +30,23 @@ export function AnimatedHeadline({ lines, className = "", delay = 0, highlight =
         className="block overflow-hidden pb-[0.14em] -mb-[0.14em]" aria-hidden="true">
           {line.split(" ").map((word, wordIndex) => {
                 const isHighlighted = highlight[lineIndex]?.includes(wordIndex) ?? false;
-                return (<span key={wordIndex} className={`inline-block whitespace-nowrap ${isHighlighted ? "text-gradient" : ""}`}>
+                // A gradient word animates as ONE unit, with the gradient on a
+                // static child of the animated span rather than on an ancestor
+                // of it. `background-clip: text` cannot paint through a
+                // descendant that has its own transform / will-change — that
+                // descendant gets its own compositing layer, so the clipped
+                // background never reaches its glyphs and they render with the
+                // inherited `transparent`. Keeping the transform strictly
+                // OUTSIDE the gradient element is what makes it visible.
+                if (isHighlighted) {
+                    const d = delay + charIndex * 0.022;
+                    charIndex += word.length;
+                    return (<motion.span key={wordIndex} className="inline-block whitespace-nowrap will-change-transform" variants={charVariants} custom={d}>
+                <span className="text-gradient">{word}</span>
+                <span className="inline-block">&nbsp;</span>
+              </motion.span>);
+                }
+                return (<span key={wordIndex} className="inline-block whitespace-nowrap">
                 {word.split("").map((char, i) => {
                         const d = delay + charIndex * 0.022;
                         charIndex += 1;

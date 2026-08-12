@@ -43,30 +43,72 @@
 }
 
 /* ------------------------------------------------------------------
-   PUBLIC LANDING PAGE
-   The marketing page at /[locale] is permanently dark and runs its own
-   palette and typography, independent of the app's light/dark theming.
-   These --color-* values mirror the `ink/line/fg/iris/violet/cyan/mint/
-   gold` entries in tailwind.config.js — the page's color-mix() gradients
-   read them directly, so the two must stay in sync.
+   PUBLIC LANDING PAGE + AUTH SCREENS
+   These surfaces run their own palette, separate from the app's steel/
+   brand scales, and follow the same `.dark` class the rest of the app
+   uses — so the theme choice carries across the landing page, sign-in,
+   the account hub and the studio.
+
+   Channel triples feed the Tailwind tokens (`bg-ink`, `text-fg-muted`,
+   `ring-iris/60`, …); the plain --color-* aliases below are what the
+   page's color-mix() gradients read. Both come from the same triple,
+   so there is only ever one value to change.
 ------------------------------------------------------------------ */
 :root {
-  --color-ink: #05070f;
-  --color-ink-soft: #0a0e1b;
-  --color-ink-card: #0d1222;
-  --color-line: #1b2338;
-  --color-line-soft: #141a2b;
-  --color-iris: #6366f1;
-  --color-iris-bright: #818cf8;
-  --color-violet: #a855f7;
-  --color-cyan: #22d3ee;
-  --color-mint: #34d399;
-  --color-gold: #fbbf24;
-  --color-fg: #eef2ff;
-  --color-fg-muted: #98a3bd;
-  --color-fg-dim: #626d87;
+  /* Light */
+  --color-ink-rgb: 255 255 255;
+  --color-ink-soft-rgb: 248 250 252;
+  --color-ink-card-rgb: 255 255 255;
+  --color-line-rgb: 226 232 240;
+  --color-line-soft-rgb: 241 245 249;
+  --color-fg-rgb: 15 23 42;
+  --color-fg-muted-rgb: 71 85 105;
+  --color-fg-dim-rgb: 148 163 184;
+  /* Accents step down a shade on light so they hold contrast on white. */
+  --color-iris-rgb: 79 70 229;
+  --color-iris-bright-rgb: 99 102 241;
+  --color-violet-rgb: 124 58 237;
+  --color-cyan-rgb: 8 145 178;
+  --color-mint-rgb: 5 150 105;
+  --color-gold-rgb: 217 119 6;
+
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.dark {
+  --color-ink-rgb: 5 7 15;
+  --color-ink-soft-rgb: 10 14 27;
+  --color-ink-card-rgb: 13 18 34;
+  --color-line-rgb: 27 35 56;
+  --color-line-soft-rgb: 20 26 43;
+  --color-fg-rgb: 238 242 255;
+  --color-fg-muted-rgb: 152 163 189;
+  --color-fg-dim-rgb: 98 109 135;
+  --color-iris-rgb: 99 102 241;
+  --color-iris-bright-rgb: 129 140 248;
+  --color-violet-rgb: 168 85 247;
+  --color-cyan-rgb: 34 211 238;
+  --color-mint-rgb: 52 211 153;
+  --color-gold-rgb: 251 191 36;
+}
+
+/* Aliases for color-mix()/gradient use in inline styles. */
+:root {
+  --color-ink: rgb(var(--color-ink-rgb));
+  --color-ink-soft: rgb(var(--color-ink-soft-rgb));
+  --color-ink-card: rgb(var(--color-ink-card-rgb));
+  --color-line: rgb(var(--color-line-rgb));
+  --color-line-soft: rgb(var(--color-line-soft-rgb));
+  --color-fg: rgb(var(--color-fg-rgb));
+  --color-fg-muted: rgb(var(--color-fg-muted-rgb));
+  --color-fg-dim: rgb(var(--color-fg-dim-rgb));
+  --color-iris: rgb(var(--color-iris-rgb));
+  --color-iris-bright: rgb(var(--color-iris-bright-rgb));
+  --color-violet: rgb(var(--color-violet-rgb));
+  --color-cyan: rgb(var(--color-cyan-rgb));
+  --color-mint: rgb(var(--color-mint-rgb));
+  --color-gold: rgb(var(--color-gold-rgb));
 }
 
 /* Scoped so the rest of the app keeps Saira/IBM Plex and its own surfaces. */
@@ -80,6 +122,15 @@
 .landing-page ::selection {
   background: color-mix(in oklab, var(--color-iris) 45%, transparent);
   color: #fff;
+}
+
+/* The ambient blobs are tuned for a near-black page. On light they would
+   read as bruises, so the whole layer is dialled back. */
+.landing-ambient {
+  opacity: 0.45;
+}
+.dark .landing-ambient {
+  opacity: 1;
 }
 
 @layer base {
@@ -158,6 +209,30 @@
   .gpu {
     transform: translateZ(0);
     backface-visibility: hidden;
+  }
+
+  /* Form primitives for the auth screens, so LoginForm/SignupForm/OtpStep can
+     adopt the landing palette without each restating a dozen utilities. */
+  .landing-label {
+    @apply mb-1.5 block text-[0.7rem] font-600 uppercase tracking-[0.14em] text-fg-dim;
+  }
+  .landing-field {
+    @apply w-full rounded-xl border border-line bg-ink-soft/60 px-4 py-3 text-sm text-fg
+           placeholder:text-fg-dim transition-colors
+           focus:border-iris focus:outline-none focus:ring-2 focus:ring-iris/25;
+  }
+  .landing-submit {
+    @apply w-full rounded-full bg-gradient-to-r from-iris to-violet px-6 py-3 font-display
+           text-sm font-600 tracking-wide text-white transition-opacity
+           hover:opacity-90 disabled:opacity-60;
+  }
+  .landing-secondary {
+    @apply inline-flex items-center justify-center gap-2.5 rounded-xl border border-line
+           bg-ink-soft/60 px-4 py-3 text-sm font-600 text-fg transition-colors
+           hover:border-iris/50;
+  }
+  .landing-link {
+    @apply font-600 text-iris-bright hover:underline;
   }
 
   .container-page {

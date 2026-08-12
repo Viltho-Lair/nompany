@@ -6,9 +6,8 @@ import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
 import { PASSWORD_RULES, checkPassword, describeFailures } from "@/lib/passwordPolicy";
 
-const input =
-  "w-full rounded-xl border border-steel-200 bg-white px-4 py-3 text-sm text-brand-950 placeholder:text-steel-400 transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-steel-800 dark:text-white";
-const label = "mb-1.5 block text-xs font-600 uppercase tracking-wide text-steel-500 dark:text-slate-400";
+const input = "landing-field";
+const label = "landing-label";
 
 // Sign-up is OTP-first: the account is created, but no session exists until the
 // emailed code is entered — so an unproven address can never be signed in.
@@ -80,7 +79,7 @@ export default function SignupForm({ locale, dict, providers = [] }) {
       <div>
         <label className={label} htmlFor="email">{t.emailLabel || "Email"}</label>
         <input id="email" type="email" className={input} value={form.email} onChange={set("email")} autoComplete="email" required />
-        <p className="mt-1 text-xs text-steel-500 dark:text-slate-400">Capitals are fine — we store and match your address in lowercase.</p>
+        <p className="mt-1 text-xs text-fg-muted">Capitals are fine — we store and match your address in lowercase.</p>
       </div>
       <div>
         <label className={label} htmlFor="password">{t.passwordLabel || "Password"}</label>
@@ -90,8 +89,8 @@ export default function SignupForm({ locale, dict, providers = [] }) {
             const met = rule.test(form.password);
             const idle = form.password.length === 0;
             return (
-              <li key={rule.key} className={`flex items-center gap-2 text-xs ${idle ? "text-steel-500 dark:text-slate-400" : met ? "text-emerald-600 dark:text-emerald-400" : "text-steel-500 dark:text-slate-400"}`}>
-                <span aria-hidden="true" className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-700 ${met ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-steel-200/60 text-steel-500 dark:bg-white/10 dark:text-slate-400"}`}>
+              <li key={rule.key} className={`flex items-center gap-2 text-xs ${idle ? "text-fg-muted" : met ? "text-emerald-600 dark:text-emerald-400" : "text-fg-muted"}`}>
+                <span aria-hidden="true" className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-700 ${met ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-line text-fg-dim"}`}>
                   {met ? "✓" : "•"}
                 </span>
                 {rule.label}
@@ -118,13 +117,13 @@ export default function SignupForm({ locale, dict, providers = [] }) {
       <button
         type="submit"
         disabled={loading || !canSubmit}
-        className="w-full rounded-full bg-brand-600 px-6 py-3 font-display text-sm font-700 uppercase tracking-[0.12em] text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
+        className="landing-submit"
       >
         {loading ? "Creating…" : (t.signupCta || "Create account")}
       </button>
-      <p className="pt-2 text-center text-sm text-steel-500 dark:text-slate-400">
+      <p className="pt-2 text-center text-sm text-fg-muted">
         {t.haveAccount || "Already have an account?"}{" "}
-        <Link href={`/${locale}/login`} className="font-600 text-brand-600 hover:underline dark:text-brand-400">
+        <Link href={`/${locale}/login`} className="font-600 text-iris-bright hover:underline">
           {t.loginLink || "Sign in"}
         </Link>
       </p>

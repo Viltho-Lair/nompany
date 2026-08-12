@@ -80,7 +80,11 @@ export default async function RootLayout({ children }) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]+)/);var t=m?decodeURIComponent(m[1]):'light';var sys=window.matchMedia('(prefers-color-scheme: dark)').matches;var d=(t==='dark')||(t==='system'&&sys);document.documentElement.classList.toggle('dark',d);var sd=localStorage.getItem('studio-dir');if((sd==='rtl'||sd==='ltr')&&location.pathname.indexOf('/studio')===0){document.documentElement.setAttribute('dir',sd);document.documentElement.setAttribute('lang',sd==='rtl'?'ar':'en');}}catch(e){}})();",
+              // An explicit choice (the `theme` cookie) always wins and carries
+              // across every surface. With no choice yet, the DEFAULT differs by
+              // surface: the landing page and auth screens are a dark design, so
+              // they start dark; the app starts light as it always has.
+              "(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]+)/);var t=m?decodeURIComponent(m[1]):'';var p=location.pathname;var marketing=(p==='/')||/^\\/(en|ar)(\\/(login|signup|forgot))?\\/?$/.test(p);if(!t)t=marketing?'dark':'light';var sys=window.matchMedia('(prefers-color-scheme: dark)').matches;var d=(t==='dark')||(t==='system'&&sys);document.documentElement.classList.toggle('dark',d);var sd=localStorage.getItem('studio-dir');if((sd==='rtl'||sd==='ltr')&&location.pathname.indexOf('/studio')===0){document.documentElement.setAttribute('dir',sd);document.documentElement.setAttribute('lang',sd==='rtl'?'ar':'en');}}catch(e){}})();",
           }}
         />
         <JsonLd data={[organizationLd(settings, locale), websiteLd(settings, locale)]} />

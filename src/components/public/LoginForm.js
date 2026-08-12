@@ -5,9 +5,8 @@ import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
 
-const input =
-  "w-full rounded-xl border border-steel-200 bg-white px-4 py-3 text-sm text-brand-950 placeholder:text-steel-400 transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-steel-800 dark:text-white";
-const label = "mb-1.5 block text-xs font-600 uppercase tracking-wide text-steel-500 dark:text-slate-400";
+const input = "landing-field";
+const label = "landing-label";
 
 // Risk-based sign-in: password first, then a one-time code ONLY when this
 // browser isn't already trusted. A recognised device goes straight through.
@@ -61,7 +60,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
           submitLabel="Sign in"
           onVerified={() => window.location.assign(`/${locale}/questionnaire`)}
         />
-        <button type="button" onClick={() => { setStage("credentials"); setLoading(false); }} className="text-sm font-600 text-steel-500 hover:underline dark:text-slate-400">
+        <button type="button" onClick={() => { setStage("credentials"); setLoading(false); }} className="text-sm font-600 text-fg-muted hover:underline">
           Use a different account
         </button>
       </div>
@@ -81,16 +80,16 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         <input id="password" type="password" className={input} value={form.password} onChange={set("password")} autoComplete="current-password" required />
       </div>
       <div className="flex items-center justify-between gap-3">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-steel-600 dark:text-slate-300">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
           <input
             type="checkbox"
             checked={form.remember}
             onChange={(e) => setForm((f) => ({ ...f, remember: e.target.checked }))}
-            className="h-4 w-4 cursor-pointer accent-brand-600"
+            className="h-4 w-4 cursor-pointer accent-iris"
           />
           {t.rememberMe || "Keep me signed in"}
         </label>
-        <Link href={`/${locale}/forgot`} className="text-sm font-600 text-brand-600 hover:underline dark:text-brand-400">
+        <Link href={`/${locale}/forgot`} className="text-sm font-600 text-iris-bright hover:underline">
           {t.forgotLink || "Forgot password?"}
         </Link>
       </div>
@@ -98,13 +97,13 @@ export default function LoginForm({ locale, dict, providers = [] }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-full bg-brand-600 px-6 py-3 font-display text-sm font-700 uppercase tracking-[0.12em] text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
+        className="landing-submit"
       >
         {loading ? (t.loginLoading || "Signing in…") : (t.loginCta || "Sign in")}
       </button>
-      <p className="pt-2 text-center text-sm text-steel-500 dark:text-slate-400">
+      <p className="pt-2 text-center text-sm text-fg-muted">
         {t.noAccount || "No account yet?"}{" "}
-        <Link href={`/${locale}/signup`} className="font-600 text-brand-600 hover:underline dark:text-brand-400">
+        <Link href={`/${locale}/signup`} className="font-600 text-iris-bright hover:underline">
           {t.signupLink || "Create one"}
         </Link>
       </p>

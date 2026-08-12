@@ -29,7 +29,7 @@ export function AmbientBackground() {
     const gridRotateX = useTransform(sy, [-0.5, 0.5], [58, 68]);
     const gridX = useTransform(sx, [-0.5, 0.5], [40, -40]);
     const still = Boolean(reduceMotion);
-    return (<div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-ink">
+    return (<div aria-hidden="true" className="landing-ambient pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-ink">
       {/* ---------- Layer 1: mesh gradient blobs ---------- */}
       <motion.div className="absolute inset-0" style={still ? undefined : { x: blobX, y: blobY }}>
         <div className={`absolute -top-[18vh] left-[6vw] h-[62vh] w-[62vh] rounded-full blur-[110px] gpu ${still ? "" : "animate-blob-a"}`} style={{

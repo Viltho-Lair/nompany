@@ -67,24 +67,38 @@ module.exports = {
           ink: "#2b2b40",     // body text (dark navy)
         },
         // ---- Public landing page ----------------------------------------
-        // The marketing page is permanently dark and has its own palette,
-        // independent of the app's light/dark theming. Two of its tokens are
-        // renamed to avoid colliding with the app's: its indigo accent is
-        // `iris` (the app's `brand` is the royal-blue scale above) and its
-        // amber is `gold` (the app has live `amber-*` usages).
+        // The landing page has its own palette, separate from the app's. Two
+        // tokens are renamed to avoid colliding: its indigo accent is `iris`
+        // (the app's `brand` is the royal-blue scale above) and its amber is
+        // `gold` (the app has live `amber-*` usages).
         //
-        // These hex values are duplicated as --color-* variables in
-        // globals.css, which the page's color-mix() gradients read. Keep the
-        // two in sync — Tailwind needs literal hex here so that opacity
-        // modifiers like `bg-iris/20` and `ring-iris/60` can be computed.
-        ink: { DEFAULT: "#05070f", soft: "#0a0e1b", card: "#0d1222" },
-        line: { DEFAULT: "#1b2338", soft: "#141a2b" },
-        fg: { DEFAULT: "#eef2ff", muted: "#98a3bd", dim: "#626d87" },
-        iris: { DEFAULT: "#6366f1", bright: "#818cf8" },
-        violet: "#a855f7",
-        cyan: "#22d3ee",
-        mint: "#34d399",
-        gold: "#fbbf24",
+        // Each is `rgb(var(--…-rgb) / <alpha-value>)` rather than a literal,
+        // for two reasons at once: opacity modifiers like `bg-iris/20` still
+        // compile, AND the values follow the light/dark channel triples
+        // defined in globals.css. Never inline a hex here — that would freeze
+        // the page in one theme.
+        ink: {
+          DEFAULT: "rgb(var(--color-ink-rgb) / <alpha-value>)",
+          soft: "rgb(var(--color-ink-soft-rgb) / <alpha-value>)",
+          card: "rgb(var(--color-ink-card-rgb) / <alpha-value>)",
+        },
+        line: {
+          DEFAULT: "rgb(var(--color-line-rgb) / <alpha-value>)",
+          soft: "rgb(var(--color-line-soft-rgb) / <alpha-value>)",
+        },
+        fg: {
+          DEFAULT: "rgb(var(--color-fg-rgb) / <alpha-value>)",
+          muted: "rgb(var(--color-fg-muted-rgb) / <alpha-value>)",
+          dim: "rgb(var(--color-fg-dim-rgb) / <alpha-value>)",
+        },
+        iris: {
+          DEFAULT: "rgb(var(--color-iris-rgb) / <alpha-value>)",
+          bright: "rgb(var(--color-iris-bright-rgb) / <alpha-value>)",
+        },
+        violet: "rgb(var(--color-violet-rgb) / <alpha-value>)",
+        cyan: "rgb(var(--color-cyan-rgb) / <alpha-value>)",
+        mint: "rgb(var(--color-mint-rgb) / <alpha-value>)",
+        gold: "rgb(var(--color-gold-rgb) / <alpha-value>)",
       },
       boxShadow: {
         geex: "0 14px 40px -18px rgba(20, 30, 72, 0.16)",

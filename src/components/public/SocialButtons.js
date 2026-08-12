@@ -33,7 +33,7 @@ export default function SocialButtons({ providers = [], mode = "login" }) {
             <a
               key={p}
               href={`/api/auth/oauth/${p}/start`}
-              className="inline-flex items-center justify-center gap-2.5 rounded-xl border border-steel-200 bg-white px-4 py-3 text-sm font-600 text-brand-950 transition-colors hover:bg-steel-50 dark:border-white/15 dark:bg-steel-800 dark:text-white dark:hover:bg-white/5"
+              className="landing-secondary"
             >
               {Mark ? <Mark /> : null}
               {verb} with {LABELS[p] || p}
@@ -42,9 +42,9 @@ export default function SocialButtons({ providers = [], mode = "login" }) {
         })}
       </div>
       <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-steel-200 dark:bg-white/10" />
-        <span className="text-xs font-600 uppercase tracking-wide text-steel-400">or</span>
-        <span className="h-px flex-1 bg-steel-200 dark:bg-white/10" />
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-xs font-600 uppercase tracking-wide text-fg-dim">or</span>
+        <span className="h-px flex-1 bg-line" />
       </div>
     </div>
   );
