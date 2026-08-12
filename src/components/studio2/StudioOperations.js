@@ -6,6 +6,8 @@ import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/lib/studioLinks";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
+const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
+const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const input =
   "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -26,9 +28,12 @@ const dayName = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("
 // OPERATIONS — where the work happens, who is on site when, and the paperwork
 // that says they may be there. Discrete work items live in Tasks; this is about
 // coverage, which is why a shift can clash with another or with approved leave.
-export default function StudioOperations({ slug }) {
+// `view` is the ACTIVE SUB-SECTION key: the parent renders a dashboard and each
+// sub-section selects its screen. The remaining tabs are tabs of one screen.
+export default function StudioOperations({ slug, view = "operations" }) {
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState("schedule");
+  const [tab, setTab] = useState(view === "operations-tracking" ? "tracking" : "schedule");
+  useEffect(() => { setTab(view === "operations-tracking" ? "tracking" : "schedule"); }, [view]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -63,6 +68,14 @@ export default function StudioOperations({ slug }) {
     ["permits", `Permits (${permits.length})`],
     ["locations", `Locations (${locations.length})`],
   ];
+
+  if (view === "operations") {
+    return (
+      <div className="space-y-6">
+        <OperationsDashboard slug={slug} data={data} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -502,5 +515,28 @@ function Empty({ title, body }) {
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{body}</p>
     </div>
+  );
+}
+
+
+// Deliberately empty of analytics for now — the parent section is a place.
+function OperationsDashboard({ slug, data }) {
+  const tiles = [{ label: "Locations", value: (data.locations || []).length, key: "operations" },
+    { label: "Permits", value: (data.permits || []).length, key: "operations" },
+    { label: "Tracking", value: "Open", key: "operations-tracking" }];
+  return (
+    <section className={panel}>
+      <h2 className={h2}>Operations</h2>
+      <p className={sub}>An overview of this section. Nothing is reported here yet.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {tiles.map((t) => (
+          <a key={t.label} href={`/${slug}/${t.key}`}
+            className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
+            <p className="mb-1 text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{t.label}</p>
+            <p className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.value}</p>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }

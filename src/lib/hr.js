@@ -17,7 +17,7 @@
 // viewer who can *manage* HR. Everyone else sees that a document is on file and
 // when it expires — never the number.
 
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
 import { encryptField, decryptField } from "@/lib/fieldCrypto";
@@ -44,15 +44,20 @@ export async function hrContext(user, slug) {
   if (context.error) return context;
   const { studio, collaborator } = context;
 
-  const section = await getSectionByKey(studio.id, "hr");
-  if (!section) return { error: "no-section" };
-
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
+  const section = byKey["hr"];
+  if (!section) return { error: "no-section" };
   if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
 
+  // Employees owns the reference lists (departments/positions/certifications);
+  // vacations stay on the parent as studio-wide HR settings.
+  const employeesSection = byKey["hr-employees"] || section;
+
   return {
-    studio, collaborator, section,
+    studio, collaborator, section, employeesSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
+    canManageEmployees: canManageSection(studio, collaborator, employeesSection.id, grants),
     nav: sectionNav(studio, collaborator, sections, grants),
   };
 }
@@ -75,7 +80,7 @@ export async function hrGuard(paramsPromise, { write } = {}) {
 
 // ---- departments -----------------------------------------------------------
 export async function listDepartments({ studio, section }) {
-  const rows = await readCol(studio.id, section.id, DEPARTMENTS);
+  const rows = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
@@ -84,10 +89,10 @@ export async function createDepartment(ctx, body) {
   const name = str(body?.name, 120);
   if (!name) return { error: "name" };
 
-  const rows = await readCol(studio.id, section.id, DEPARTMENTS);
+  const rows = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
   if (rows.some((d) => d.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
 
-  const department = await addRow(studio.id, section.id, DEPARTMENTS, {
+  const department = await addRow(studio.id, employeesSection.id, DEPARTMENTS, {
     name,
     code: str(body?.code, 12).toUpperCase() || autoCode(name, rows),
     description: str(body?.description, 1000),
@@ -102,14 +107,14 @@ export async function editDepartment(ctx, id, body) {
   if (body?.name !== undefined) {
     const name = str(body.name, 120);
     if (!name) return { error: "name" };
-    const rows = await readCol(studio.id, section.id, DEPARTMENTS);
+    const rows = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
     if (rows.some((d) => d.id !== id && d.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
   if (body?.code !== undefined) patch.code = str(body.code, 12).toUpperCase();
   if (body?.description !== undefined) patch.description = str(body.description, 1000);
 
-  const department = await updateRow(studio.id, section.id, DEPARTMENTS, id, patch);
+  const department = await updateRow(studio.id, employeesSection.id, DEPARTMENTS, id, patch);
   return department ? { department } : { error: "notfound" };
 }
 
@@ -119,13 +124,13 @@ export async function removeDepartment(ctx, id) {
   const { studio, section } = ctx;
   const [people, positions] = await Promise.all([
     listCollaborators(studio.id),
-    readCol(studio.id, section.id, POSITIONS),
+    readCol(studio.id, employeesSection.id, POSITIONS),
   ]);
   const staff = people.filter((c) => c.departmentId === id).length;
   const roles = positions.filter((p) => p.departmentId === id).length;
   if (staff || roles) return { error: "in-use", people: staff, positions: roles };
 
-  const removed = await deleteRow(studio.id, section.id, DEPARTMENTS, id);
+  const removed = await deleteRow(studio.id, employeesSection.id, DEPARTMENTS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -141,8 +146,8 @@ function autoCode(name, rows) {
 // ---- positions -------------------------------------------------------------
 export async function listPositions({ studio, section }) {
   const [rows, departments] = await Promise.all([
-    readCol(studio.id, section.id, POSITIONS),
-    readCol(studio.id, section.id, DEPARTMENTS),
+    readCol(studio.id, employeesSection.id, POSITIONS),
+    readCol(studio.id, employeesSection.id, DEPARTMENTS),
   ]);
   const nameById = Object.fromEntries(departments.map((d) => [d.id, d.name]));
   return [...rows]
@@ -157,16 +162,16 @@ export async function createPosition(ctx, body) {
 
   const departmentId = str(body?.departmentId, 60);
   if (departmentId) {
-    const departments = await readCol(studio.id, section.id, DEPARTMENTS);
+    const departments = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
     if (!departments.some((d) => d.id === departmentId)) return { error: "department" };
   }
 
-  const rows = await readCol(studio.id, section.id, POSITIONS);
+  const rows = await readCol(studio.id, employeesSection.id, POSITIONS);
   if (rows.some((p) => p.title.toLowerCase() === title.toLowerCase() && p.departmentId === departmentId)) {
     return { error: "duplicate" };
   }
 
-  const position = await addRow(studio.id, section.id, POSITIONS, {
+  const position = await addRow(studio.id, employeesSection.id, POSITIONS, {
     title,
     departmentId,
     description: str(body?.description, 1000),
@@ -183,7 +188,7 @@ export async function editPosition(ctx, id, body) {
   if (body?.departmentId !== undefined) {
     const departmentId = str(body.departmentId, 60);
     if (departmentId) {
-      const departments = await readCol(studio.id, section.id, DEPARTMENTS);
+      const departments = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
       if (!departments.some((d) => d.id === departmentId)) return { error: "department" };
     }
     patch.departmentId = departmentId;
@@ -191,7 +196,7 @@ export async function editPosition(ctx, id, body) {
   if (body?.description !== undefined) patch.description = str(body.description, 1000);
   if (body?.headcountTarget !== undefined) patch.headcountTarget = Number(body.headcountTarget) > 0 ? Math.floor(Number(body.headcountTarget)) : 0;
 
-  const position = await updateRow(studio.id, section.id, POSITIONS, id, patch);
+  const position = await updateRow(studio.id, employeesSection.id, POSITIONS, id, patch);
   return position ? { position } : { error: "notfound" };
 }
 
@@ -201,13 +206,13 @@ export async function removePosition(ctx, id) {
   const held = people.filter((c) => c.positionId === id).length;
   if (held) return { error: "in-use", people: held };
 
-  const removed = await deleteRow(studio.id, section.id, POSITIONS, id);
+  const removed = await deleteRow(studio.id, employeesSection.id, POSITIONS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
 // ---- certifications --------------------------------------------------------
 export async function listCertifications({ studio, section }) {
-  const rows = await readCol(studio.id, section.id, CERTIFICATIONS);
+  const rows = await readCol(studio.id, employeesSection.id, CERTIFICATIONS);
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
@@ -216,10 +221,10 @@ export async function createCertification(ctx, body) {
   const name = str(body?.name, 140);
   if (!name) return { error: "name" };
 
-  const rows = await readCol(studio.id, section.id, CERTIFICATIONS);
+  const rows = await readCol(studio.id, employeesSection.id, CERTIFICATIONS);
   if (rows.some((c) => c.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
 
-  const certification = await addRow(studio.id, section.id, CERTIFICATIONS, {
+  const certification = await addRow(studio.id, employeesSection.id, CERTIFICATIONS, {
     name,
     issuer: str(body?.issuer, 140),
     validityMonths: Number(body?.validityMonths) > 0 ? Math.floor(Number(body.validityMonths)) : 0,
@@ -235,7 +240,7 @@ export async function editCertification(ctx, id, body) {
   if (body?.name !== undefined) {
     const name = str(body.name, 140);
     if (!name) return { error: "name" };
-    const rows = await readCol(studio.id, section.id, CERTIFICATIONS);
+    const rows = await readCol(studio.id, employeesSection.id, CERTIFICATIONS);
     if (rows.some((c) => c.id !== id && c.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
@@ -243,7 +248,7 @@ export async function editCertification(ctx, id, body) {
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.validityMonths !== undefined) patch.validityMonths = Number(body.validityMonths) > 0 ? Math.floor(Number(body.validityMonths)) : 0;
 
-  const certification = await updateRow(studio.id, section.id, CERTIFICATIONS, id, patch);
+  const certification = await updateRow(studio.id, employeesSection.id, CERTIFICATIONS, id, patch);
   return certification ? { certification } : { error: "notfound" };
 }
 
@@ -253,7 +258,7 @@ export async function removeCertification(ctx, id) {
   const held = people.filter((c) => (c.certificationIds || []).includes(id)).length;
   if (held) return { error: "in-use", people: held };
 
-  const removed = await deleteRow(studio.id, section.id, CERTIFICATIONS, id);
+  const removed = await deleteRow(studio.id, employeesSection.id, CERTIFICATIONS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -264,8 +269,8 @@ export async function removeCertification(ctx, id) {
 export async function listEmployees({ studio, section }, reveal = false) {
   const [people, departments, positions] = await Promise.all([
     listCollaborators(studio.id),
-    readCol(studio.id, section.id, DEPARTMENTS),
-    readCol(studio.id, section.id, POSITIONS),
+    readCol(studio.id, employeesSection.id, DEPARTMENTS),
+    readCol(studio.id, employeesSection.id, POSITIONS),
   ]);
   const depName = Object.fromEntries(departments.map((d) => [d.id, d.name]));
   const posTitle = Object.fromEntries(positions.map((p) => [p.id, p.title]));
@@ -304,7 +309,7 @@ export async function saveEmployment(ctx, collaboratorId, body) {
   if (body?.departmentId !== undefined) {
     const departmentId = str(body.departmentId, 60);
     if (departmentId) {
-      const departments = await readCol(studio.id, section.id, DEPARTMENTS);
+      const departments = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
       if (!departments.some((d) => d.id === departmentId)) return { error: "department" };
     }
     patch.departmentId = departmentId;
@@ -312,7 +317,7 @@ export async function saveEmployment(ctx, collaboratorId, body) {
   if (body?.positionId !== undefined) {
     const positionId = str(body.positionId, 60);
     if (positionId) {
-      const positions = await readCol(studio.id, section.id, POSITIONS);
+      const positions = await readCol(studio.id, employeesSection.id, POSITIONS);
       const position = positions.find((p) => p.id === positionId);
       if (!position) return { error: "position" };
       // A position belonging to a department implies that department, so the two
@@ -333,7 +338,7 @@ export async function saveEmployment(ctx, collaboratorId, body) {
   if (body?.passportNumber !== undefined) patch.passportNumber = encryptField(str(body.passportNumber, 60));
 
   if (body?.certificationIds !== undefined) {
-    const certs = await readCol(studio.id, section.id, CERTIFICATIONS);
+    const certs = await readCol(studio.id, employeesSection.id, CERTIFICATIONS);
     const valid = new Set(certs.map((c) => c.id));
     patch.certificationIds = (Array.isArray(body.certificationIds) ? body.certificationIds : [])
       .map((x) => str(x, 60)).filter((x) => valid.has(x)).slice(0, 50);

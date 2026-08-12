@@ -46,6 +46,34 @@ export const TICKET_INDUSTRIES = [
   "Utilities",
 ];
 
+// Columns the Sales Live view can show. The chosen subset is stored on the
+// sales-settings sub-section (settings.liveColumns) and picked in Settings, so
+// the Live screen is a projection of the Tickets list, not a second data source.
+export const TICKET_LIVE_COLUMNS = [
+  { key: "ref", label: "Ref" },
+  { key: "title", label: "Title" },
+  { key: "clientName", label: "Client" },
+  { key: "status", label: "Status" },
+  { key: "urgency", label: "Urgency" },
+  { key: "industry", label: "Industry" },
+  { key: "deadline", label: "Deadline" },
+  { key: "value", label: "Value" },
+  { key: "clientBudget", label: "Client budget" },
+  { key: "contactName", label: "Contact" },
+  { key: "contactPhone", label: "Phone" },
+  { key: "locationCity", label: "City" },
+  { key: "owner", label: "Owner" },
+  { key: "createdAt", label: "Created" },
+];
+export const TICKET_LIVE_COLUMN_KEYS = TICKET_LIVE_COLUMNS.map((c) => c.key);
+export const DEFAULT_LIVE_COLUMNS = ["ref", "title", "clientName", "status", "deadline"];
+
+// Keep only known keys, preserve the caller's order, fall back to the default.
+export function cleanLiveColumns(value) {
+  const picked = Array.isArray(value) ? value.filter((k) => TICKET_LIVE_COLUMN_KEYS.includes(k)) : [];
+  return picked.length ? [...new Set(picked)] : [...DEFAULT_LIVE_COLUMNS];
+}
+
 // Same gate as "sees every ticket in Sales" — admin, or Sales+Leader.
 export function canSetUrgency(user) {
   return canSeeAllIn(user, SALES_TAG);

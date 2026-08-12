@@ -1,5 +1,5 @@
 import { currentUser } from "@/lib/identity";
-import { technicalContext, convertRfq, updateQuotation, removeQuotation } from "@/lib/technical";
+import { technicalContext, convertRfq, createQuotation, updateQuotation, removeQuotation } from "@/lib/technical";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,14 +19,19 @@ async function guard(paramsPromise) {
 }
 const body = async (r) => { try { return await r.json(); } catch { return {}; } };
 
-// Convert an RFQ into a quotation (the hand-back to Sales).
+// Two ways a quotation is born, distinguished by whether an rfqId is given:
+// converting an RFQ (the hand-back to Sales), or creating one straight from the
+// Quotations screen, which is Internal and needs number/description/handledBy.
 export async function POST(request, ctx) {
   const g = await guard(ctx.params);
   if (g.fail) return g.fail;
 
-  const result = await convertRfq(g, await body(request));
+  const b = await body(request);
+  const result = b.rfqId ? await convertRfq(g, b) : await createQuotation(g, b);
   if (result.error) {
-    return Response.json({ error: result.error }, { status: result.error === "already" ? 409 : result.error === "notfound" ? 404 : 400 });
+    const status = result.error === "already" || result.error === "duplicate" ? 409
+      : result.error === "notfound" ? 404 : 400;
+    return Response.json({ error: result.error }, { status });
   }
   return Response.json({ ok: true, quotation: result.quotation }, { status: 201 });
 }

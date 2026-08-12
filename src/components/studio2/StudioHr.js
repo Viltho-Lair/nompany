@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
+const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
+const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const input =
   "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -26,7 +28,11 @@ const fmt = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-G
 // HUMAN RESOURCES. The employee record IS the collaborator row, so this screen
 // edits the person who is already in the studio rather than creating a parallel
 // people list — someone's department exists only here, inside this studio.
-export default function StudioHr({ slug }) {
+// `view` is the ACTIVE SUB-SECTION key. HR has exactly one sub-section —
+// Employees — so the parent renders a dashboard and hr-employees renders the
+// existing tabbed screen (People / Departments / Positions / Certifications /
+// Leave), which are tabs of one screen rather than sub-sections of their own.
+export default function StudioHr({ slug, view = "hr" }) {
   const [data, setData] = useState(null);
   const [tab, setTab] = useState("people");
   const [error, setError] = useState("");
@@ -78,6 +84,14 @@ export default function StudioHr({ slug }) {
     ["certifications", `Certifications (${certifications.length})`],
     ["leave", `Leave${pendingLeave ? ` (${pendingLeave})` : ""}`],
   ];
+
+  if (view === "hr") {
+    return (
+      <div className="space-y-6">
+        <HrDashboard slug={slug} employees={employees} departments={departments} positions={positions} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -689,5 +703,30 @@ function Empty({ title, body }) {
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{body}</p>
     </div>
+  );
+}
+
+
+// The HR dashboard is deliberately empty of analytics for now.
+function HrDashboard({ slug, employees, departments, positions }) {
+  const tiles = [
+    { label: "Employees", value: employees.length },
+    { label: "Departments", value: departments.length },
+    { label: "Positions", value: positions.length },
+  ];
+  return (
+    <section className={panel}>
+      <h2 className={h2}>Human Resources</h2>
+      <p className={sub}>An overview of this section. Nothing is reported here yet.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {tiles.map((t) => (
+          <a key={t.label} href={`/${slug}/hr-employees`}
+            className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
+            <p className="mb-1 text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{t.label}</p>
+            <p className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.value}</p>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }

@@ -6,6 +6,8 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { linkToProject, linkIf } from "@/lib/studioLinks";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
+const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
+const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const input =
   "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -28,7 +30,10 @@ const fmt = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-G
 
 // TASKS. Managers run the board; everyone else gets on with their own work —
 // moving a task assigned to them and ticking its checklist.
-export default function StudioTasks({ slug }) {
+// `view` is the ACTIVE SUB-SECTION key. Tasks keeps its LIST on the parent —
+// in the Old System the Tasks nav item is the list itself — and Task settings
+// is its only sub-section.
+export default function StudioTasks({ slug, view = "tasks" }) {
   const [data, setData] = useState(null);
   const [filter, setFilter] = useState("open");
   const [error, setError] = useState("");
@@ -44,6 +49,16 @@ export default function StudioTasks({ slug }) {
   useEffect(() => { load(); }, [load]);
   // Someone else moved a task on this board — pick it up without a refresh.
   useLiveUpdates(slug, "tasks", load);
+
+  const saveSettings = useCallback(async (payload) => {
+    setError("");
+    const res = await fetch(`/api/studios/${slug}/tasks/settings`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    if (!res.ok) { setError("Only a manager can change task settings."); return false; }
+    await load();
+    return true;
+  }, [slug, load]);
 
   const send = useCallback(async (method, payload) => {
     setError(""); setBusy(true);
@@ -85,6 +100,21 @@ export default function StudioTasks({ slug }) {
     ["overdue", `Overdue (${summary.overdue})`],
     ["done", `Done (${summary.done})`],
   ];
+
+  if (view === "tasks-settings") {
+    return (
+      <div className="space-y-6">
+        <TaskSettings
+          authorities={data.authorities || []}
+          typeAuthorities={data.typeAuthorities || {}}
+          assignees={data.taskAssignees || {}}
+          people={people}
+          canManage={data.canManageSettings}
+          onSave={(next) => saveSettings({ taskAssignees: next })}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -325,5 +355,72 @@ function Empty({ title, body }) {
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{body}</p>
     </div>
+  );
+}
+
+
+// Task settings: who holds each authority. A task TYPE routes to one or more
+// authorities, and two-party types need both to complete — so this screen shows
+// which types each authority is on rather than leaving that implicit.
+function TaskSettings({ authorities, typeAuthorities, assignees, people, canManage, onSave }) {
+  const [map, setMap] = useState(assignees);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const toggle = (code, id) => {
+    setSaved(false);
+    setMap((m) => {
+      const cur = m[code] || [];
+      return { ...m, [code]: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] };
+    });
+  };
+  const typesFor = (code) => Object.entries(typeAuthorities).filter(([, cs]) => cs.includes(code)).map(([t]) => t);
+
+  return (
+    <section className={panel}>
+      <h2 className={h2}>Task settings</h2>
+      <p className={sub}>
+        Who holds each authority. Appointing someone routes the matching tasks to them straight away,
+        existing ones included — assignment is read from here, not copied onto the task.
+      </p>
+      <div className="mt-4 space-y-3">
+        {authorities.map((a) => {
+          const types = typesFor(a.code);
+          return (
+            <div key={a.code} className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{a.label}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {types.length ? types.join(", ") : "no task types"}
+                </p>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {people.length === 0 && <span className="text-xs text-slate-400">Nobody in this studio yet.</span>}
+                {people.map((p) => {
+                  const on = (map[a.code] || []).includes(p.id);
+                  return (
+                    <button key={p.id} type="button" disabled={!canManage} onClick={() => toggle(a.code, p.id)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-600 transition-colors ${on
+                        ? "bg-brand-500/15 text-brand-700 dark:text-brand-300"
+                        : "bg-slate-200/60 text-slate-500 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-400"}`}>
+                      {p.alias || "Member"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {canManage ? (
+        <div className="mt-5 flex items-center gap-3">
+          <button className={btn} disabled={busy} onClick={async () => { setBusy(true); const ok = await onSave(map); setBusy(false); setSaved(!!ok); }}>
+            {busy ? "Saving..." : "Save task settings"}
+          </button>
+          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+        </div>
+      ) : (
+        <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">You have view-only access to Task settings.</p>
+      )}
+    </section>
   );
 }

@@ -8,7 +8,7 @@
 // A project may only be opened from an APPROVED quotation — that approval is the
 // commercial gate, and it lives in Technical/Sales, not here.
 
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 
@@ -26,20 +26,45 @@ export async function projectsContext(user, slug) {
   if (context.error) return context;
   const { studio, collaborator } = context;
 
-  const [section, technical] = await Promise.all([
-    getSectionByKey(studio.id, "projects"),
-    getSectionByKey(studio.id, "technical"),
-  ]);
-  if (!section) return { error: "no-section" };
-
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
+  const section = byKey["projects"];
+  const technical = byKey["technical"];
+  if (!section) return { error: "no-section" };
   if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
+
+  // Sub-sections own the collections; the parent is the fallback for a studio
+  // predating the model. Quotations still live under Technical.
+  const listSection = byKey["projects-list"] || section;
+  const slaSection = byKey["projects-sla"] || section;
+  const overtimesSection = byKey["projects-overtimes"] || section;
+  const settingsSection = byKey["projects-settings"] || section;
+  const quotationsSection = byKey["technical-quotations"] || technical;
 
   return {
     studio, collaborator, section, technicalSection: technical,
+    listSection, slaSection, overtimesSection, settingsSection, quotationsSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
+    canManageList: canManageSection(studio, collaborator, listSection.id, grants),
+    canManageSla: canManageSection(studio, collaborator, slaSection.id, grants),
+    canManageOvertimes: canManageSection(studio, collaborator, overtimesSection.id, grants),
+    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
+    settings: settingsSection.settings || {},
     nav: sectionNav(studio, collaborator, sections, grants),
   };
+}
+
+// Projects Settings live on the projects-settings sub-section's own `settings`
+// object, so they need no key of their own and die with the sub-section.
+export async function saveProjectsSettings(ctx, body) {
+  const { studio, settingsSection } = ctx;
+  const next = { ...(settingsSection.settings || {}) };
+  if (body?.stages !== undefined) {
+    next.stages = (Array.isArray(body.stages) ? body.stages : [])
+      .map((v) => String(v ?? "").trim().slice(0, 120)).filter(Boolean).slice(0, 40);
+  }
+  const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
+  return updated ? { settings: next } : { error: "notfound" };
 }
 
 // Progress is DERIVED from the milestone checklist — never stored independently,
@@ -50,8 +75,8 @@ export function progressOf(milestones) {
   return Math.round((list.filter((m) => m.done).length / list.length) * 100);
 }
 
-export async function listProjects({ studio, section }) {
-  const rows = await readCol(studio.id, section.id, PROJECTS);
+export async function listProjects({ studio, listSection }) {
+  const rows = await readCol(studio.id, listSection.id, PROJECTS);
   return [...rows]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((p) => ({ ...p, progress: progressOf(p.milestones) }));
@@ -59,11 +84,11 @@ export async function listProjects({ studio, section }) {
 
 // Quotations that are Approved and not already delivering — what "open a
 // project" can choose from.
-export async function approvedQuotations({ studio, section, technicalSection }) {
-  if (!technicalSection) return [];
+export async function approvedQuotations({ studio, listSection, quotationsSection }) {
+  if (!quotationsSection) return [];
   const [quotes, projects] = await Promise.all([
-    readCol(studio.id, technicalSection.id, QUOTATIONS),
-    readCol(studio.id, section.id, PROJECTS),
+    readCol(studio.id, quotationsSection.id, QUOTATIONS),
+    readCol(studio.id, listSection.id, PROJECTS),
   ]);
   const used = new Set(projects.map((p) => p.quotationId).filter(Boolean));
   return quotes
@@ -72,21 +97,21 @@ export async function approvedQuotations({ studio, section, technicalSection }) 
 }
 
 export async function openProject(ctx, body) {
-  const { studio, section, technicalSection, collaborator } = ctx;
+  const { studio, listSection, technicalSection, collaborator } = ctx;
   if (!technicalSection) return { error: "no-technical" };
 
   const quotationId = str(body?.quotationId, 60);
-  const quotes = await readCol(studio.id, technicalSection.id, QUOTATIONS);
+  const quotes = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
   const quote = quotes.find((q) => q.id === quotationId);
   if (!quote) return { error: "quotation" };
   // The commercial gate: only approved work becomes a project.
   if (quote.status !== "Approved") return { error: "not-approved" };
 
-  const existing = await readCol(studio.id, section.id, PROJECTS);
+  const existing = await readCol(studio.id, listSection.id, PROJECTS);
   if (existing.some((p) => p.quotationId === quotationId)) return { error: "already" };
 
   const now = new Date().toISOString();
-  const project = await addRow(studio.id, section.id, PROJECTS, {
+  const project = await addRow(studio.id, listSection.id, PROJECTS, {
     number: `PRJ-${String(existing.length + 1).padStart(4, "0")}`,
     title: str(body?.title, 200) || quote.title,
     // Lineage — the whole chain, snapshotted.
@@ -108,8 +133,8 @@ export async function openProject(ctx, body) {
 }
 
 export async function updateProject(ctx, id, body) {
-  const { studio, section } = ctx;
-  const rows = await readCol(studio.id, section.id, PROJECTS);
+  const { studio, listSection } = ctx;
+  const rows = await readCol(studio.id, listSection.id, PROJECTS);
   const current = rows.find((p) => p.id === id);
   if (!current) return { error: "notfound" };
 
@@ -139,12 +164,12 @@ export async function updateProject(ctx, id, body) {
     if (done < 100 && stage === "Completed") patch.stage = "In Progress";
   }
 
-  const project = await updateRow(studio.id, section.id, PROJECTS, id, patch);
+  const project = await updateRow(studio.id, listSection.id, PROJECTS, id, patch);
   return { project: { ...project, progress: progressOf(project.milestones) } };
 }
 
 export async function removeProject(ctx, id) {
-  const removed = await deleteRow(ctx.studio.id, ctx.section.id, PROJECTS, id);
+  const removed = await deleteRow(ctx.studio.id, ctx.listSection.id, PROJECTS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 

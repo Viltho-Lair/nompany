@@ -14,7 +14,7 @@
 // Permit validity and shift hours are DERIVED from their dates, never stored,
 // so neither can quietly go stale.
 
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
@@ -40,17 +40,44 @@ export async function operationsContext(user, slug) {
   if (context.error) return context;
   const { studio, collaborator } = context;
 
-  const section = await getSectionByKey(studio.id, "operations");
-  if (!section) return { error: "no-section" };
-
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
+  const section = byKey["operations"];
+  if (!section) return { error: "no-section" };
   if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
 
+  // locations / permits / shifts stay on the PARENT: they are tabs of one
+  // screen, not sub-sections. Tracking and Settings are the real sub-sections.
+  const trackingSection = byKey["operations-tracking"] || section;
+  const settingsSection = byKey["operations-settings"] || section;
+  const hrSection = byKey["hr"] || null;
+  const projectsListSection = byKey["projects-list"] || byKey["projects"] || null;
+
   return {
-    studio, collaborator, section,
+    studio, collaborator, section, trackingSection, settingsSection, hrSection, projectsListSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
+    canManageTracking: canManageSection(studio, collaborator, trackingSection.id, grants),
+    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
+    settings: settingsSection.settings || {},
     nav: sectionNav(studio, collaborator, sections, grants),
   };
+}
+
+// Operations Settings (working hours) live on the operations-settings
+// sub-section's own `settings` object, so they need no key of their own.
+export async function saveOperationsSettings(ctx, body) {
+  const { studio, settingsSection } = ctx;
+  const next = { ...(settingsSection.settings || {}) };
+  if (body?.workingHours !== undefined) {
+    const wh = body.workingHours && typeof body.workingHours === "object" ? body.workingHours : {};
+    next.workingHours = {
+      start: String(wh.start ?? "").trim().slice(0, 5),
+      end: String(wh.end ?? "").trim().slice(0, 5),
+      days: (Array.isArray(wh.days) ? wh.days : []).map((d) => String(d).trim().slice(0, 12)).filter(Boolean).slice(0, 7),
+    };
+  }
+  const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
+  return updated ? { settings: next } : { error: "notfound" };
 }
 
 export async function operationsGuard(paramsPromise, { write } = {}) {

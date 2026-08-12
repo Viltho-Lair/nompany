@@ -12,6 +12,7 @@ import { linkToTicket, linkToRfq, linkIf } from "@/lib/studioLinks";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
+const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const input =
   "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 const label = "mb-1.5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -32,17 +33,21 @@ const Q_TONE = {
 };
 const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
 
-export default function StudioTechnical({ slug }) {
+// `view` is the ACTIVE SUB-SECTION key, so each sub-section is its own screen:
+//   technical            -> dashboard (empty for now)
+//   technical-quotations -> the quotations list, editor and direct creation
+//   technical-rfq        -> the RFQ queue and conversion
+//   technical-settings   -> Live view columns + quotation cover copy
+// technical-live renders full-screen outside the studio frame.
+export default function StudioTechnical({ slug, view = "technical" }) {
   const [data, setData] = useState(null);
   const focusRfq = useFocusedRecord("rfq");
   const focusQuote = useFocusedRecord("quotation");
-  // A deep link decides which tab opens.
-  const [tab, setTab] = useState(focusQuote.focusedId ? "quotations" : "rfqs");
-  // Following a link that lands on this same page never remounts it, so the tab
-  // has to react to the query changing too — not just to the first render.
-  useEffect(() => { if (focusQuote.focusedId) setTab("quotations"); }, [focusQuote.focusedId]);
-  useEffect(() => { if (focusRfq.focusedId) setTab("rfqs"); }, [focusRfq.focusedId]);
+  // The sidebar decides the screen now, so a deep link only needs to highlight
+  // its row — no tab state to keep in sync.
+  const tab = view === "technical-rfq" ? "rfqs" : "quotations";
   const [error, setError] = useState("");
+  const [creatingQuote, setCreatingQuote] = useState(false);
   const [raising, setRaising] = useState(false);
   const [converting, setConverting] = useState(null);
   const [editingQuote, setEditingQuote] = useState(null);
@@ -58,7 +63,8 @@ export default function StudioTechnical({ slug }) {
 
   async function send(kind, method, payload) {
     setError("");
-    const res = await fetch(`/api/studios/${slug}/technical/${kind}`, {
+    const url = kind ? `/api/studios/${slug}/technical/${kind}` : `/api/studios/${slug}/technical`;
+    const res = await fetch(url, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
     const out = await res.json().catch(() => ({}));
@@ -83,27 +89,47 @@ export default function StudioTechnical({ slug }) {
   const { canManage, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, nav } = data;
   const aliasOf = Object.fromEntries(people.map((p) => [p.id, p.alias]));
 
+  const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
+
+  if (view === "technical-settings") {
+    return (
+      <div className="space-y-6">
+        {banner}
+        <TechnicalSettings
+          options={vocabulary.liveColumnOptions || []}
+          selected={data.liveColumns || []}
+          cover={data.cover || {}}
+          canManage={data.canManageSettings}
+          onSave={(patch) => send("", "PUT", patch)}
+        />
+      </div>
+    );
+  }
+
+  if (view === "technical") {
+    return (
+      <div className="space-y-6">
+        {banner}
+        <TechnicalDashboard slug={slug} rfqs={rfqs} quotations={quotations} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+      {banner}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
-          {[["rfqs", `RFQs (${rfqs.length})`], ["quotations", `Quotations (${quotations.length})`]].map(([k, text]) => (
-            <button key={k} type="button" onClick={() => setTab(k)}
-              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-white text-brand-950 shadow-sm dark:bg-[#20202c] dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
-              {text}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          {tab === "rfqs" && canRequestRfq && (
-            <button className={btn} onClick={() => setRaising(true)} disabled={openTickets.length === 0}>Raise RFQ</button>
-          )}
-          {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {tab === "rfqs" && canRequestRfq && (
+          <button className={btn} onClick={() => setRaising(true)} disabled={openTickets.length === 0}>Raise RFQ</button>
+        )}
+        {tab === "quotations" && canManage && (
+          <button className={btn} onClick={() => setCreatingQuote(true)}>New quotation</button>
+        )}
+        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
       </div>
 
+      {creatingQuote && <NewQuotation onCancel={() => setCreatingQuote(false)} onSave={(p) => send("quotations", "POST", p)} />}
       {raising && <RaiseRfq tickets={openTickets} onCancel={() => setRaising(false)} onSave={(p) => send("rfqs", "POST", p)} />}
       {converting && <ConvertRfq rfq={converting} vat={vocabulary.defaultVatRate} onCancel={() => setConverting(null)} onSave={(p) => send("quotations", "POST", { ...p, rfqId: converting.id })} />}
       {editingQuote && <QuoteEditor quote={editingQuote} statuses={vocabulary.quotationStatuses} onCancel={() => setEditingQuote(null)} onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id })} />}
@@ -299,5 +325,110 @@ function LineItems({ items, setItems, vatRate, setVatRate }) {
         </dl>
       </div>
     </>
+  );
+}
+
+
+// The Technical dashboard is deliberately empty of analytics for now.
+function TechnicalDashboard({ slug, rfqs, quotations }) {
+  const open = rfqs.filter((r) => r.status !== "Converted").length;
+  const tiles = [
+    { label: "Open RFQs", value: open, key: "technical-rfq" },
+    { label: "Quotations", value: quotations.length, key: "technical-quotations" },
+    { label: "Live view", value: "Open", key: "technical-live" },
+  ];
+  return (
+    <section className={panel}>
+      <h2 className={h2}>Technical</h2>
+      <p className={sub}>An overview of this section. Nothing is reported here yet.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {tiles.map((t) => (
+          <a key={t.key} href={`/${slug}/${t.key}`}
+            className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
+            <p className="mb-1 text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{t.label}</p>
+            <p className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.value}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// A quotation raised straight from the Quotations screen, with no RFQ behind
+// it. Number, description and handled-by are all required, per the Old System.
+function NewQuotation({ onSave, onCancel }) {
+  const [f, setF] = useState({ number: "", description: "", handledBy: "" });
+  const [busy, setBusy] = useState(false);
+  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
+  const ready = f.number.trim() && f.description.trim() && f.handledBy.trim();
+  return (
+    <section className={`${panel} border-brand-500/40`}>
+      <h2 className={h2}>New quotation</h2>
+      <p className={sub}>Created without an RFQ, so it is marked Internal. Fields marked * are required.</p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div><label className={label}>Number *</label><input className={input} value={f.number} onChange={set("number")} placeholder="Q-0001" /></div>
+        <div><label className={label}>Handled by *</label><input className={input} value={f.handledBy} onChange={set("handledBy")} /></div>
+        <div className="sm:col-span-3"><label className={label}>Description *</label><textarea rows={2} className={input} value={f.description} onChange={set("description")} /></div>
+      </div>
+      <div className="mt-5 flex gap-3">
+        <button className={btn} disabled={busy || !ready} onClick={async () => { setBusy(true); await onSave(f); setBusy(false); }}>
+          {busy ? "Saving..." : "Create quotation"}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+      </div>
+    </section>
+  );
+}
+
+// Technical Settings: the Live view's columns, and the standing cover copy that
+// heads a quotation document (the Old System's "Cover copy settings").
+function TechnicalSettings({ options, selected, cover, canManage, onSave }) {
+  const [cols, setCols] = useState(selected);
+  const [c, setC] = useState({ title: cover.title || "", intro: cover.intro || "", terms: cover.terms || "" });
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const toggle = (k) => { setSaved(false); setCols((v) => v.includes(k) ? v.filter((x) => x !== k) : [...v, k]); };
+  const save = async (patch) => { setBusy(true); const ok = await onSave(patch); setBusy(false); setSaved(!!ok); };
+
+  return (
+    <div className="space-y-6">
+      <section className={panel}>
+        <h2 className={h2}>Cover copy</h2>
+        <p className={sub}>The standing text that heads a quotation document.</p>
+        <div className="mt-4 grid gap-4">
+          <div><label className={label}>Title</label><input className={input} value={c.title} disabled={!canManage} onChange={(e) => setC((v) => ({ ...v, title: e.target.value }))} /></div>
+          <div><label className={label}>Introduction</label><textarea rows={3} className={input} value={c.intro} disabled={!canManage} onChange={(e) => setC((v) => ({ ...v, intro: e.target.value }))} /></div>
+          <div><label className={label}>Terms</label><textarea rows={3} className={input} value={c.terms} disabled={!canManage} onChange={(e) => setC((v) => ({ ...v, terms: e.target.value }))} /></div>
+        </div>
+        {canManage && (
+          <div className="mt-5">
+            <button className={btn} disabled={busy} onClick={() => save({ coverTitle: c.title, coverIntro: c.intro, coverTerms: c.terms })}>
+              {busy ? "Saving..." : "Save cover copy"}
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className={panel}>
+        <h2 className={h2}>Live view</h2>
+        <p className={sub}>Choose the quotation columns the Live view shows. At least one is kept.</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          {options.map((o) => (
+            <label key={o.key} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm dark:border-white/15 dark:bg-[#191921]">
+              <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={cols.includes(o.key)} disabled={!canManage} onChange={() => toggle(o.key)} />
+              <span className="text-slate-900 dark:text-white">{o.label}</span>
+            </label>
+          ))}
+        </div>
+        {canManage ? (
+          <div className="mt-5 flex items-center gap-3">
+            <button className={btn} disabled={busy} onClick={() => save({ liveColumns: cols })}>{busy ? "Saving..." : "Save columns"}</button>
+            {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+          </div>
+        ) : (
+          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">You have view-only access to Technical settings.</p>
+        )}
+      </section>
+    </div>
   );
 }

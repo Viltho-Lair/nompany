@@ -6,6 +6,8 @@ import { studioContext, canAdminister, visibleSections, canManageSection, listGr
 import { listSections } from "@/lib/data/sections";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import StudioDocs from "@/components/studio2/StudioDocs";
+import StudioSalesLive from "@/components/studio2/StudioSalesLive";
+import StudioTechnicalLive from "@/components/studio2/StudioTechnicalLive";
 import StudioPeople from "@/components/studio2/StudioPeople";
 import StudioAccess from "@/components/studio2/StudioAccess";
 import StudioSales from "@/components/studio2/StudioSales";
@@ -57,6 +59,15 @@ export default async function StudioPage({ params }) {
     return <StudioDocs studio={{ name: studio.name, slug: studio.slug }} />;
   }
 
+  // Sales Live view is full-screen too, so it also returns before the shell.
+  // It needs the Sales grant, which its own API call re-checks server-side.
+  if (requested === "sales-live") {
+    return <StudioSalesLive studio={{ name: studio.name, slug: studio.slug }} />;
+  }
+  if (requested === "technical-live") {
+    return <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />;
+  }
+
   const isPeople = requested === "people";
   const isAccess = requested === "access";
 
@@ -69,11 +80,10 @@ export default async function StudioPage({ params }) {
   const deniedSection = !isPeople && !isAccess && requested && !sections.some((s) => s.key === requested)
     && allSections.some((s) => s.key === requested);
 
-  // Which screen to render. Each section's UI is still one component per
-  // PARENT, so a sub-section resolves to its parent's screen — Tickets and
-  // Clients both show StudioSales for now. Splitting them into their own
-  // screens is the per-section porting work; this keeps every sub-section
-  // reachable in the meantime instead of dropping to a placeholder.
+  // Which component to render: a sub-section resolves to its parent's module.
+  // The module then decides the screen from the ACTIVE key — Sales does this
+  // properly (dashboard / tickets / clients / settings), while the not-yet-
+  // ported modules ignore it and show their single combined screen.
   const screenKey = active?.parentId
     ? (allSections.find((s) => s.id === active.parentId)?.key || active.key)
     : active?.key;
@@ -91,14 +101,14 @@ export default async function StudioPage({ params }) {
       {isPeople ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} />
         : isAccess ? <StudioAccess slug={studio.slug} />
         : deniedSection ? <NoSectionAccess />
-        : screenKey === "sales" ? <StudioSales slug={studio.slug} />
-        : screenKey === "technical" ? <StudioTechnical slug={studio.slug} />
-        : screenKey === "projects" ? <StudioProjects slug={studio.slug} />
-        : screenKey === "hr" ? <StudioHr slug={studio.slug} />
-        : screenKey === "inventory" ? <StudioInventory slug={studio.slug} />
-        : screenKey === "finance" ? <StudioFinance slug={studio.slug} />
-        : screenKey === "tasks" ? <StudioTasks slug={studio.slug} />
-        : screenKey === "operations" ? <StudioOperations slug={studio.slug} />
+        : screenKey === "sales" ? <StudioSales slug={studio.slug} view={active?.key} />
+        : screenKey === "technical" ? <StudioTechnical slug={studio.slug} view={active?.key} />
+        : screenKey === "projects" ? <StudioProjects slug={studio.slug} view={active?.key} />
+        : screenKey === "hr" ? <StudioHr slug={studio.slug} view={active?.key} />
+        : screenKey === "inventory" ? <StudioInventory slug={studio.slug} view={active?.key} />
+        : screenKey === "finance" ? <StudioFinance slug={studio.slug} view={active?.key} />
+        : screenKey === "tasks" ? <StudioTasks slug={studio.slug} view={active?.key} />
+        : screenKey === "operations" ? <StudioOperations slug={studio.slug} view={active?.key} />
         : active ? <SectionPlaceholder section={active} studio={studio}
             canManage={canManageSection(studio, collaborator, active.id, grants)} />
         : <NothingGranted admin={admin} slug={studio.slug} />}

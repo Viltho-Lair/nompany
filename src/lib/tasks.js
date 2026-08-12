@@ -16,7 +16,7 @@
 // Progress comes from the checklist, never stored separately, so it cannot
 // drift from the items it counts.
 
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
@@ -37,17 +37,87 @@ export async function tasksContext(user, slug) {
   if (context.error) return context;
   const { studio, collaborator } = context;
 
-  const section = await getSectionByKey(studio.id, "tasks");
-  if (!section) return { error: "no-section" };
-
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
+  const section = byKey["tasks"];
+  if (!section) return { error: "no-section" };
   if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
 
+  // The task list stays on the PARENT — in the Old System the Tasks nav item is
+  // the list itself, with Settings as its only sub-item.
+  const settingsSection = byKey["tasks-settings"] || section;
+  const projectsListSection = byKey["projects-list"] || byKey["projects"] || null;
+
   return {
-    studio, collaborator, section,
+    studio, collaborator, section, settingsSection, projectsListSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
+    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
+    taskAssignees: readTaskAssignees(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants),
   };
+}
+
+// ---- task routing -----------------------------------------------------------
+// The Old System routes each TYPE of task to one or more AUTHORITIES, and Task
+// settings records who currently holds each authority. Appointing someone there
+// grants them the matching tasks immediately — existing ones included — which is
+// why assignment is resolved from settings rather than copied onto the row.
+export const TASK_AUTHORITIES = [
+  { code: "mng", label: "Management" },
+  { code: "fin", label: "Finance" },
+  { code: "sales", label: "Sales" },
+  { code: "log", label: "Logistics" },
+  { code: "hr", label: "Human Resources" },
+  { code: "permit", label: "Permit team" },
+];
+const AUTHORITY_CODES = TASK_AUTHORITIES.map((a) => a.code);
+
+// Two-party types need BOTH authorities to complete, per the Old System.
+export const TASK_TYPE_AUTHORITIES = {
+  approval: ["sales", "mng"],
+  po: ["mng", "fin"],
+  "material-po": ["fin", "mng"],
+  delivery: ["log"],
+  "delivery-return": ["log"],
+  "id-update": ["hr"],
+  "permit-request": ["permit"],
+};
+export const TASK_TYPES = Object.keys(TASK_TYPE_AUTHORITIES);
+
+// { authorityCode: [CollaboratorID] } — CollaboratorIDs, never UserIDs.
+export function readTaskAssignees(settingsSection) {
+  const raw = settingsSection?.settings?.taskAssignees || {};
+  const out = {};
+  for (const code of AUTHORITY_CODES) {
+    const ids = Array.isArray(raw[code]) ? raw[code] : [];
+    out[code] = [...new Set(ids.map((v) => String(v ?? "").trim()).filter(Boolean))].slice(0, 50);
+  }
+  return out;
+}
+
+// Who owns a task right now, derived from CURRENT settings.
+export function resolveTaskAssignees(task, taskAssignees) {
+  const codes = TASK_TYPE_AUTHORITIES[task?.type] || [];
+  const byAuthority = {};
+  const flat = new Set();
+  for (const c of codes) {
+    byAuthority[c] = taskAssignees?.[c] || [];
+    for (const id of byAuthority[c]) flat.add(id);
+  }
+  return { authorities: codes, byAuthority, assigneeIds: [...flat] };
+}
+
+export async function saveTasksSettings(ctx, body) {
+  const { studio, settingsSection, collaborator } = ctx;
+  const next = { ...(settingsSection.settings || {}) };
+  if (body?.taskAssignees !== undefined) {
+    const incoming = body.taskAssignees && typeof body.taskAssignees === "object" ? body.taskAssignees : {};
+    // Only known authority codes are stored, so a typo cannot create a silent
+    // bucket that never routes to anyone.
+    next.taskAssignees = readTaskAssignees({ settings: { taskAssignees: incoming } });
+  }
+  const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
+  return updated ? { taskAssignees: readTaskAssignees({ settings: next }) } : { error: "notfound" };
 }
 
 export async function tasksGuard(paramsPromise, { write } = {}) {

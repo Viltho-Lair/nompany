@@ -15,7 +15,7 @@
 // plus expenses booked here. Nothing is copied into Finance and left to rot —
 // it is recomputed on every read.
 
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
@@ -43,17 +43,53 @@ export async function financeContext(user, slug) {
   if (context.error) return context;
   const { studio, collaborator } = context;
 
-  const section = await getSectionByKey(studio.id, "finance");
-  if (!section) return { error: "no-section" };
-
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
+  const section = byKey["finance"];
+  if (!section) return { error: "no-section" };
   if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
 
+  // Cash owns the money rows; Settings owns the categories they are filed under.
+  const cashSection = byKey["finance-cash"] || section;
+  const settingsSection = byKey["finance-settings"] || section;
+  const projectsListSection = byKey["projects-list"] || byKey["projects"] || null;
+  const sheetsSection = byKey["inventory-sheets"] || byKey["inventory"] || null;
+
   return {
-    studio, collaborator, section,
+    studio, collaborator, section, cashSection, settingsSection, projectsListSection, sheetsSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
+    canManageCash: canManageSection(studio, collaborator, cashSection.id, grants),
+    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
+    cashCategories: readCashCategories(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants),
   };
+}
+
+// The Old System's "Finance Settings - Cash categories": the list an expense is
+// filed under. Stored on the finance-settings sub-section's own settings object.
+export const DEFAULT_CASH_CATEGORIES = ["Materials", "Transport", "Accommodation", "Fuel", "Tools", "Other"];
+
+export function readCashCategories(settingsSection) {
+  const raw = settingsSection?.settings?.cashCategories;
+  const out = [];
+  const seen = new Set();
+  for (const v of Array.isArray(raw) ? raw : []) {
+    const t = String(v ?? "").trim().slice(0, 80);
+    if (!t || seen.has(t.toLowerCase())) continue;
+    seen.add(t.toLowerCase());
+    out.push(t);
+  }
+  return out.length ? out : [...DEFAULT_CASH_CATEGORIES];
+}
+
+export async function saveFinanceSettings(ctx, body) {
+  const { studio, settingsSection } = ctx;
+  const next = { ...(settingsSection.settings || {}) };
+  if (body?.cashCategories !== undefined) {
+    next.cashCategories = readCashCategories({ settings: { cashCategories: body.cashCategories } });
+  }
+  const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
+  return updated ? { cashCategories: readCashCategories({ settings: next }) } : { error: "notfound" };
 }
 
 export async function financeGuard(paramsPromise, { write } = {}) {
@@ -89,9 +125,9 @@ function statusFor(invoice, totals) {
 }
 
 // ---- invoices --------------------------------------------------------------
-export async function listInvoices({ studio, section }) {
+export async function listInvoices({ studio, cashSection }) {
   const [invoices, projects] = await Promise.all([
-    readCol(studio.id, section.id, INVOICES),
+    readCol(studio.id, cashSection.id, INVOICES),
     projectRows({ studio }),
   ]);
   const projectNumber = Object.fromEntries(projects.map((p) => [p.id, p.number]));
@@ -112,7 +148,7 @@ export async function listInvoices({ studio, section }) {
 }
 
 export async function createInvoice(ctx, body) {
-  const { studio, section, collaborator } = ctx;
+  const { studio, cashSection, collaborator } = ctx;
   const projectId = str(body?.projectId, 60);
   let clientName = str(body?.clientName, 160);
 
@@ -129,9 +165,9 @@ export async function createInvoice(ctx, body) {
   const lines = cleanLines(body?.lines);
   if (!lines.length) return { error: "lines" };
 
-  const invoices = await readCol(studio.id, section.id, INVOICES);
+  const invoices = await readCol(studio.id, cashSection.id, INVOICES);
   const today = new Date().toISOString().slice(0, 10);
-  const invoice = await addRow(studio.id, section.id, INVOICES, {
+  const invoice = await addRow(studio.id, cashSection.id, INVOICES, {
     reference: `INV-${String(invoices.length + 1).padStart(4, "0")}`,
     projectId, clientName,
     lines,
@@ -149,7 +185,7 @@ export async function createInvoice(ctx, body) {
 
 export async function editInvoice(ctx, id, body) {
   const { studio, section } = ctx;
-  const invoices = await readCol(studio.id, section.id, INVOICES);
+  const invoices = await readCol(studio.id, cashSection.id, INVOICES);
   const current = invoices.find((i) => i.id === id);
   if (!current) return { error: "notfound" };
 
@@ -189,15 +225,15 @@ export async function editInvoice(ctx, id, body) {
   if (body?.issueDate !== undefined) patch.issueDate = day(body.issueDate);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);
 
-  const updated = await updateRow(studio.id, section.id, INVOICES, id, patch);
+  const updated = await updateRow(studio.id, cashSection.id, INVOICES, id, patch);
   return updated ? { invoice: { ...updated, ...invoiceTotals(updated) } } : { error: "notfound" };
 }
 
 // Recording a payment is append-only: the history of what was received, and
 // when, is what makes the balance defensible.
 export async function recordPayment(ctx, id, body) {
-  const { studio, section, collaborator } = ctx;
-  const invoices = await readCol(studio.id, section.id, INVOICES);
+  const { studio, cashSection, collaborator } = ctx;
+  const invoices = await readCol(studio.id, cashSection.id, INVOICES);
   const invoice = invoices.find((i) => i.id === id);
   if (!invoice) return { error: "notfound" };
   if (invoice.status === "Draft") return { error: "not-issued" };
@@ -220,26 +256,26 @@ export async function recordPayment(ctx, id, body) {
     byCollaboratorId: collaborator.id,
   }];
 
-  const updated = await updateRow(studio.id, section.id, INVOICES, id, { payments });
+  const updated = await updateRow(studio.id, cashSection.id, INVOICES, id, { payments });
   return { invoice: { ...updated, ...invoiceTotals(updated), status: statusFor(updated, invoiceTotals(updated)) } };
 }
 
 // Only a draft can be deleted. Once issued it is part of the record — cancel it.
 export async function removeInvoice(ctx, id) {
   const { studio, section } = ctx;
-  const invoices = await readCol(studio.id, section.id, INVOICES);
+  const invoices = await readCol(studio.id, cashSection.id, INVOICES);
   const invoice = invoices.find((i) => i.id === id);
   if (!invoice) return { error: "notfound" };
   if (invoice.status !== "Draft") return { error: "issued" };
 
-  const removed = await deleteRow(studio.id, section.id, INVOICES, id);
+  const removed = await deleteRow(studio.id, cashSection.id, INVOICES, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
 // ---- expenses --------------------------------------------------------------
-export async function listExpenses({ studio, section }) {
+export async function listExpenses({ studio, cashSection }) {
   const [expenses, projects, people] = await Promise.all([
-    readCol(studio.id, section.id, EXPENSES),
+    readCol(studio.id, cashSection.id, EXPENSES),
     projectRows({ studio }),
     listCollaborators(studio.id),
   ]);
@@ -256,7 +292,7 @@ export async function listExpenses({ studio, section }) {
 }
 
 export async function createExpense(ctx, body) {
-  const { studio, section, collaborator } = ctx;
+  const { studio, cashSection, collaborator } = ctx;
   const amount = cash(body?.amount);
   if (!amount) return { error: "amount" };
 
@@ -266,8 +302,8 @@ export async function createExpense(ctx, body) {
     if (!projects.some((p) => p.id === projectId)) return { error: "project" };
   }
 
-  const expenses = await readCol(studio.id, section.id, EXPENSES);
-  const expense = await addRow(studio.id, section.id, EXPENSES, {
+  const expenses = await readCol(studio.id, cashSection.id, EXPENSES);
+  const expense = await addRow(studio.id, cashSection.id, EXPENSES, {
     reference: `EXP-${String(expenses.length + 1).padStart(4, "0")}`,
     description: str(body?.description, 300),
     category: EXPENSE_CATEGORIES.includes(body?.category) ? body.category : "Other",
@@ -300,12 +336,12 @@ export async function editExpense(ctx, id, body) {
     patch.projectId = projectId;
   }
 
-  const expense = await updateRow(studio.id, section.id, EXPENSES, id, patch);
+  const expense = await updateRow(studio.id, cashSection.id, EXPENSES, id, patch);
   return expense ? { expense } : { error: "notfound" };
 }
 
 export async function removeExpense(ctx, id) {
-  const removed = await deleteRow(ctx.studio.id, ctx.section.id, EXPENSES, id);
+  const removed = await deleteRow(ctx.studio.id, ctx.cashSection.id, EXPENSES, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 

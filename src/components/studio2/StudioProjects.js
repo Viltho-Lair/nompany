@@ -12,6 +12,7 @@ import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/lib/studioLi
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
+const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const input =
   "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 const label = "mb-1.5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -26,7 +27,10 @@ const STAGE_TONE = {
 };
 const money = (n) => new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(Number(n) || 0);
 
-export default function StudioProjects({ slug }) {
+// `view` is the ACTIVE SUB-SECTION key. The parent renders a dashboard; the
+// sub-sections render the project list (SLA and Overtimes still share it until
+// their own screens are built).
+export default function StudioProjects({ slug, view = "projects" }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [opening, setOpening] = useState(false);
@@ -73,6 +77,14 @@ export default function StudioProjects({ slug }) {
 
   const { canManage, projects, approvedQuotations, people, vocabulary, nav } = data;
   const aliasOf = Object.fromEntries(people.map((p) => [p.id, p.alias]));
+
+  if (view === "projects") {
+    return (
+      <div className="space-y-6">
+        <ProjectsDashboard slug={slug} projects={projects} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -259,5 +271,32 @@ function Empty({ title, body }) {
       <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{title}</h3>
       <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">{body}</p>
     </div>
+  );
+}
+
+
+// The Projects dashboard is deliberately empty of analytics for now.
+function ProjectsDashboard({ slug, projects }) {
+  const live = projects.filter((p) => p.status && p.status !== "Completed").length;
+  const tiles = [
+    { label: "Projects", value: projects.length, key: "projects-list" },
+    { label: "In progress", value: live, key: "projects-list" },
+    { label: "SLA", value: "Open", key: "projects-sla" },
+    { label: "Overtimes", value: "Open", key: "projects-overtimes" },
+  ];
+  return (
+    <section className={panel}>
+      <h2 className={h2}>Projects</h2>
+      <p className={sub}>An overview of this section. Nothing is reported here yet.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+        {tiles.map((t, i) => (
+          <a key={i} href={`/${slug}/${t.key}`}
+            className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
+            <p className="mb-1 text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{t.label}</p>
+            <p className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.value}</p>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }

@@ -2,6 +2,7 @@ import {
   tasksGuard, listTasks, createTask, updateTask, removeTask,
   taskProjects, assignablePeople, summarise,
   TASK_STATUSES, TASK_PRIORITIES,
+  TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES,
 } from "@/lib/tasks";
 
 export const runtime = "nodejs";
@@ -17,6 +18,10 @@ export async function GET(request, ctx) {
   const [tasks, people, projects] = await Promise.all([listTasks(g), assignablePeople(g), taskProjects(g)]);
   return Response.json({
     canManage: g.canManage,
+    canManageSettings: g.canManageSettings,
+    taskAssignees: g.taskAssignees,
+    authorities: TASK_AUTHORITIES,
+    typeAuthorities: TASK_TYPE_AUTHORITIES,
     nav: g.nav,
     me: { collaboratorId: g.collaborator.id },
     tasks, people, projects,

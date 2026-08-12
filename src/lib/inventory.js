@@ -17,7 +17,7 @@
 // project (stock out). Receiving and issuing never touch quantities directly;
 // they append movements, and the balance follows.
 
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
@@ -47,18 +47,31 @@ export async function inventoryContext(user, slug) {
   if (context.error) return context;
   const { studio, collaborator } = context;
 
-  const [section, projects] = await Promise.all([
-    getSectionByKey(studio.id, "inventory"),
-    getSectionByKey(studio.id, "projects"),
-  ]);
-  if (!section) return { error: "no-section" };
-
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
+  const section = byKey["inventory"];
+  const projects = byKey["projects"];
+  if (!section) return { error: "no-section" };
   if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
+
+  // Each collection sits under the sub-section that owns it. `deliveries` stays
+  // on the parent: it is raised from several places, not from one screen.
+  const stockSection = byKey["inventory-stock"] || section;
+  const vendorsSection = byKey["inventory-vendors"] || section;
+  const itemsSection = byKey["inventory-items"] || section;
+  const sheetsSection = byKey["inventory-sheets"] || section;
+  const awbSection = byKey["inventory-awb"] || section;
+  const projectsListSection = byKey["projects-list"] || projects;
 
   return {
     studio, collaborator, section, projectsSection: projects,
+    stockSection, vendorsSection, itemsSection, sheetsSection, awbSection, projectsListSection,
+    deliveriesSection: section,
     canManage: canManageSection(studio, collaborator, section.id, grants),
+    canManageStock: canManageSection(studio, collaborator, stockSection.id, grants),
+    canManageVendors: canManageSection(studio, collaborator, vendorsSection.id, grants),
+    canManageItems: canManageSection(studio, collaborator, itemsSection.id, grants),
+    canManageSheets: canManageSection(studio, collaborator, sheetsSection.id, grants),
     nav: sectionNav(studio, collaborator, sections, grants),
   };
 }
@@ -78,7 +91,7 @@ export async function inventoryGuard(paramsPromise, { write } = {}) {
 
 // ---- vendors ---------------------------------------------------------------
 export async function listVendors({ studio, section }) {
-  const rows = await readCol(studio.id, section.id, VENDORS);
+  const rows = await readCol(studio.id, vendorsSection.id, VENDORS);
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
@@ -87,10 +100,10 @@ export async function createVendor(ctx, body) {
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
 
-  const rows = await readCol(studio.id, section.id, VENDORS);
+  const rows = await readCol(studio.id, vendorsSection.id, VENDORS);
   if (rows.some((v) => v.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
 
-  const vendor = await addRow(studio.id, section.id, VENDORS, {
+  const vendor = await addRow(studio.id, vendorsSection.id, VENDORS, {
     name,
     contactName: str(body?.contactName, 120),
     email: str(body?.email, 160).toLowerCase(),
@@ -107,7 +120,7 @@ export async function editVendor(ctx, id, body) {
   if (body?.name !== undefined) {
     const name = str(body.name, 160);
     if (!name) return { error: "name" };
-    const rows = await readCol(studio.id, section.id, VENDORS);
+    const rows = await readCol(studio.id, vendorsSection.id, VENDORS);
     if (rows.some((v) => v.id !== id && v.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
@@ -115,30 +128,30 @@ export async function editVendor(ctx, id, body) {
   if (body?.email !== undefined) patch.email = str(body.email, 160).toLowerCase();
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
 
-  const vendor = await updateRow(studio.id, section.id, VENDORS, id, patch);
+  const vendor = await updateRow(studio.id, vendorsSection.id, VENDORS, id, patch);
   return vendor ? { vendor } : { error: "notfound" };
 }
 
 export async function removeVendor(ctx, id) {
   const { studio, section } = ctx;
   const [items, orders] = await Promise.all([
-    readCol(studio.id, section.id, ITEMS),
-    readCol(studio.id, section.id, ORDERS),
+    readCol(studio.id, itemsSection.id, ITEMS),
+    readCol(studio.id, sheetsSection.id, ORDERS),
   ]);
   const used = items.filter((i) => i.vendorId === id).length;
   const ordered = orders.filter((o) => o.vendorId === id).length;
   if (used || ordered) return { error: "in-use", items: used, orders: ordered };
 
-  const removed = await deleteRow(studio.id, section.id, VENDORS, id);
+  const removed = await deleteRow(studio.id, vendorsSection.id, VENDORS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
 // ---- items -----------------------------------------------------------------
 export async function listItems({ studio, section }) {
   const [items, vendors, movements] = await Promise.all([
-    readCol(studio.id, section.id, ITEMS),
-    readCol(studio.id, section.id, VENDORS),
-    readCol(studio.id, section.id, STOCK),
+    readCol(studio.id, itemsSection.id, ITEMS),
+    readCol(studio.id, vendorsSection.id, VENDORS),
+    readCol(studio.id, stockSection.id, STOCK),
   ]);
   const vendorName = Object.fromEntries(vendors.map((v) => [v.id, v.name]));
   const onHand = balances(movements);
@@ -161,15 +174,15 @@ export async function createItem(ctx, body) {
 
   const vendorId = str(body?.vendorId, 60);
   if (vendorId) {
-    const vendors = await readCol(studio.id, section.id, VENDORS);
+    const vendors = await readCol(studio.id, vendorsSection.id, VENDORS);
     if (!vendors.some((v) => v.id === vendorId)) return { error: "vendor" };
   }
 
-  const rows = await readCol(studio.id, section.id, ITEMS);
+  const rows = await readCol(studio.id, itemsSection.id, ITEMS);
   const sku = str(body?.sku, 40).toUpperCase() || nextSku(rows);
   if (rows.some((i) => i.sku.toUpperCase() === sku)) return { error: "duplicate-sku" };
 
-  const item = await addRow(studio.id, section.id, ITEMS, {
+  const item = await addRow(studio.id, itemsSection.id, ITEMS, {
     sku, name,
     unit: UNITS.includes(body?.unit) ? body.unit : UNITS[0],
     category: str(body?.category, 80),
@@ -189,14 +202,14 @@ export async function editItem(ctx, id, body) {
   if (body?.sku !== undefined) {
     const sku = str(body.sku, 40).toUpperCase();
     if (!sku) return { error: "sku" };
-    const rows = await readCol(studio.id, section.id, ITEMS);
+    const rows = await readCol(studio.id, itemsSection.id, ITEMS);
     if (rows.some((i) => i.id !== id && i.sku.toUpperCase() === sku)) return { error: "duplicate-sku" };
     patch.sku = sku;
   }
   if (body?.vendorId !== undefined) {
     const vendorId = str(body.vendorId, 60);
     if (vendorId) {
-      const vendors = await readCol(studio.id, section.id, VENDORS);
+      const vendors = await readCol(studio.id, vendorsSection.id, VENDORS);
       if (!vendors.some((v) => v.id === vendorId)) return { error: "vendor" };
     }
     patch.vendorId = vendorId;
@@ -207,7 +220,7 @@ export async function editItem(ctx, id, body) {
   if (body?.reorderLevel !== undefined) patch.reorderLevel = qty(body.reorderLevel) > 0 ? qty(body.reorderLevel) : 0;
   if (body?.unitCost !== undefined) patch.unitCost = money(body.unitCost);
 
-  const item = await updateRow(studio.id, section.id, ITEMS, id, patch);
+  const item = await updateRow(studio.id, itemsSection.id, ITEMS, id, patch);
   return item ? { item } : { error: "notfound" };
 }
 
@@ -216,16 +229,16 @@ export async function editItem(ctx, id, body) {
 export async function removeItem(ctx, id) {
   const { studio, section } = ctx;
   const [movements, orders, deliveries] = await Promise.all([
-    readCol(studio.id, section.id, STOCK),
-    readCol(studio.id, section.id, ORDERS),
-    readCol(studio.id, section.id, DELIVERIES),
+    readCol(studio.id, stockSection.id, STOCK),
+    readCol(studio.id, sheetsSection.id, ORDERS),
+    readCol(studio.id, deliveriesSection.id, DELIVERIES),
   ]);
   const moved = movements.filter((m) => m.itemId === id).length;
   const onOrder = orders.filter((o) => (o.lines || []).some((l) => l.itemId === id)).length;
   const onDn = deliveries.filter((d) => (d.lines || []).some((l) => l.itemId === id)).length;
   if (moved || onOrder || onDn) return { error: "in-use", movements: moved, orders: onOrder, deliveries: onDn };
 
-  const removed = await deleteRow(studio.id, section.id, ITEMS, id);
+  const removed = await deleteRow(studio.id, itemsSection.id, ITEMS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -254,8 +267,8 @@ export function balances(movements) {
 
 export async function listMovements({ studio, section }, { limit = 200 } = {}) {
   const [movements, items, people] = await Promise.all([
-    readCol(studio.id, section.id, STOCK),
-    readCol(studio.id, section.id, ITEMS),
+    readCol(studio.id, stockSection.id, STOCK),
+    readCol(studio.id, itemsSection.id, ITEMS),
     listCollaborators(studio.id),
   ]);
   const itemName = Object.fromEntries(items.map((i) => [i.id, `${i.sku} · ${i.name}`]));
@@ -271,7 +284,7 @@ export async function listMovements({ studio, section }, { limit = 200 } = {}) {
 // exactly one way for a balance to move.
 async function record(ctx, { itemId, kind, quantity, reason, sourceType = "", sourceId = "" }) {
   const { studio, section, collaborator } = ctx;
-  return addRow(studio.id, section.id, STOCK, {
+  return addRow(studio.id, stockSection.id, STOCK, {
     itemId,
     kind: MOVEMENT_KINDS.includes(kind) ? kind : "adjust",
     qty: quantity,
@@ -286,7 +299,7 @@ async function record(ctx, { itemId, kind, quantity, reason, sourceType = "", so
 export async function adjustStock(ctx, body) {
   const { studio, section } = ctx;
   const itemId = str(body?.itemId, 60);
-  const items = await readCol(studio.id, section.id, ITEMS);
+  const items = await readCol(studio.id, itemsSection.id, ITEMS);
   if (!items.some((i) => i.id === itemId)) return { error: "item" };
 
   const amount = qty(body?.qty);
@@ -295,7 +308,7 @@ export async function adjustStock(ctx, body) {
   // A negative adjustment can't take an item below zero — you cannot have less
   // than none of something.
   if (amount < 0) {
-    const movements = await readCol(studio.id, section.id, STOCK);
+    const movements = await readCol(studio.id, stockSection.id, STOCK);
     const have = balances(movements)[itemId] || 0;
     if (have + amount < 0) return { error: "insufficient", have, needed: Math.abs(amount) };
   }
@@ -311,9 +324,9 @@ export async function adjustStock(ctx, body) {
 // ---- purchase orders -------------------------------------------------------
 export async function listOrders({ studio, section }) {
   const [orders, vendors, items, projects] = await Promise.all([
-    readCol(studio.id, section.id, ORDERS),
-    readCol(studio.id, section.id, VENDORS),
-    readCol(studio.id, section.id, ITEMS),
+    readCol(studio.id, sheetsSection.id, ORDERS),
+    readCol(studio.id, vendorsSection.id, VENDORS),
+    readCol(studio.id, itemsSection.id, ITEMS),
     projectRows({ studio, section }),
   ]);
   const vendorName = Object.fromEntries(vendors.map((v) => [v.id, v.name]));
@@ -342,18 +355,18 @@ export function orderTotal(lines) {
 export async function createOrder(ctx, body) {
   const { studio, section } = ctx;
   const vendorId = str(body?.vendorId, 60);
-  const vendors = await readCol(studio.id, section.id, VENDORS);
+  const vendors = await readCol(studio.id, vendorsSection.id, VENDORS);
   if (!vendors.some((v) => v.id === vendorId)) return { error: "vendor" };
 
   const projectId = str(body?.projectId, 60);
   if (projectId && !(await projectExists(ctx, projectId))) return { error: "project" };
 
-  const items = await readCol(studio.id, section.id, ITEMS);
+  const items = await readCol(studio.id, itemsSection.id, ITEMS);
   const lines = cleanLines(body?.lines, items);
   if (!lines.length) return { error: "lines" };
 
-  const orders = await readCol(studio.id, section.id, ORDERS);
-  const order = await addRow(studio.id, section.id, ORDERS, {
+  const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
+  const order = await addRow(studio.id, sheetsSection.id, ORDERS, {
     reference: `PO-${String(orders.length + 1).padStart(4, "0")}`,
     vendorId, projectId,
     lines,
@@ -368,7 +381,7 @@ export async function createOrder(ctx, body) {
 
 export async function editOrder(ctx, id, body) {
   const { studio, section } = ctx;
-  const orders = await readCol(studio.id, section.id, ORDERS);
+  const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
 
@@ -385,7 +398,7 @@ export async function editOrder(ctx, id, body) {
   if (body?.lines !== undefined) {
     // Lines are frozen once anything has been received against them.
     if ((order.lines || []).some((l) => (l.received || 0) > 0)) return { error: "received-already" };
-    const items = await readCol(studio.id, section.id, ITEMS);
+    const items = await readCol(studio.id, itemsSection.id, ITEMS);
     const lines = cleanLines(body.lines, items);
     if (!lines.length) return { error: "lines" };
     patch.lines = lines;
@@ -396,7 +409,7 @@ export async function editOrder(ctx, id, body) {
     patch.projectId = projectId;
   }
 
-  const updated = await updateRow(studio.id, section.id, ORDERS, id, patch);
+  const updated = await updateRow(studio.id, sheetsSection.id, ORDERS, id, patch);
   return updated ? { order: updated } : { error: "notfound" };
 }
 
@@ -404,7 +417,7 @@ export async function editOrder(ctx, id, body) {
 // movement per line received and lets the status follow the numbers.
 export async function receiveOrder(ctx, id, body) {
   const { studio, section } = ctx;
-  const orders = await readCol(studio.id, section.id, ORDERS);
+  const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
   if (order.status === "Cancelled") return { error: "cancelled" };
@@ -438,7 +451,7 @@ export async function receiveOrder(ctx, id, body) {
   }
 
   const complete = lines.every((l) => (l.received || 0) >= l.qty);
-  const updated = await updateRow(studio.id, section.id, ORDERS, id, {
+  const updated = await updateRow(studio.id, sheetsSection.id, ORDERS, id, {
     lines,
     status: complete ? "Received" : "Partly received",
     receivedAt: complete ? new Date().toISOString() : order.receivedAt || "",
@@ -450,20 +463,20 @@ export async function receiveOrder(ctx, id, body) {
 // are real. Cancel it instead.
 export async function removeOrder(ctx, id) {
   const { studio, section } = ctx;
-  const orders = await readCol(studio.id, section.id, ORDERS);
+  const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
   if ((order.lines || []).some((l) => (l.received || 0) > 0)) return { error: "received-already" };
 
-  const removed = await deleteRow(studio.id, section.id, ORDERS, id);
+  const removed = await deleteRow(studio.id, sheetsSection.id, ORDERS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
 // ---- deliveries (stock out, to a project) ----------------------------------
 export async function listDeliveries({ studio, section }) {
   const [deliveries, items, projects, people] = await Promise.all([
-    readCol(studio.id, section.id, DELIVERIES),
-    readCol(studio.id, section.id, ITEMS),
+    readCol(studio.id, deliveriesSection.id, DELIVERIES),
+    readCol(studio.id, itemsSection.id, ITEMS),
     projectRows({ studio, section }),
     listCollaborators(studio.id),
   ]);
@@ -488,12 +501,12 @@ export async function createDelivery(ctx, body) {
   if (!projectId) return { error: "project" };
   if (!(await projectExists(ctx, projectId))) return { error: "project" };
 
-  const items = await readCol(studio.id, section.id, ITEMS);
+  const items = await readCol(studio.id, itemsSection.id, ITEMS);
   const lines = cleanLines(body?.lines, items).map(({ itemId, qty: q }) => ({ itemId, qty: q }));
   if (!lines.length) return { error: "lines" };
 
-  const deliveries = await readCol(studio.id, section.id, DELIVERIES);
-  const delivery = await addRow(studio.id, section.id, DELIVERIES, {
+  const deliveries = await readCol(studio.id, deliveriesSection.id, DELIVERIES);
+  const delivery = await addRow(studio.id, deliveriesSection.id, DELIVERIES, {
     reference: `DN-${String(deliveries.length + 1).padStart(4, "0")}`,
     projectId, lines,
     status: "Draft",
@@ -509,8 +522,8 @@ export async function createDelivery(ctx, body) {
 export async function issueDelivery(ctx, id) {
   const { studio, section } = ctx;
   const [deliveries, movements] = await Promise.all([
-    readCol(studio.id, section.id, DELIVERIES),
-    readCol(studio.id, section.id, STOCK),
+    readCol(studio.id, deliveriesSection.id, DELIVERIES),
+    readCol(studio.id, stockSection.id, STOCK),
   ]);
   const delivery = deliveries.find((d) => d.id === id);
   if (!delivery) return { error: "notfound" };
@@ -533,7 +546,7 @@ export async function issueDelivery(ctx, id) {
     });
   }
 
-  const updated = await updateRow(studio.id, section.id, DELIVERIES, id, {
+  const updated = await updateRow(studio.id, deliveriesSection.id, DELIVERIES, id, {
     status: "Issued",
     issuedAt: new Date().toISOString(),
     issuedByCollaboratorId: ctx.collaborator.id,
@@ -543,12 +556,12 @@ export async function issueDelivery(ctx, id) {
 
 export async function removeDelivery(ctx, id) {
   const { studio, section } = ctx;
-  const deliveries = await readCol(studio.id, section.id, DELIVERIES);
+  const deliveries = await readCol(studio.id, deliveriesSection.id, DELIVERIES);
   const delivery = deliveries.find((d) => d.id === id);
   if (!delivery) return { error: "notfound" };
   if (delivery.status === "Issued") return { error: "already-issued" };
 
-  const removed = await deleteRow(studio.id, section.id, DELIVERIES, id);
+  const removed = await deleteRow(studio.id, deliveriesSection.id, DELIVERIES, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -572,7 +585,7 @@ function cleanLines(list, items) {
 async function projectRows({ studio, section }) {
   const projectsSection = await getSectionByKey(studio.id, "projects");
   if (!projectsSection) return [];
-  return readCol(studio.id, projectsSection.id, PROJECTS);
+  return readCol(studio.id, projectsListSection.id, PROJECTS);
 }
 
 async function projectExists(ctx, projectId) {

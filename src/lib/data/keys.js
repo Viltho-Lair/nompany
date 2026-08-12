@@ -143,11 +143,12 @@ export const SECTION_DEFS = [
     { key: "inventory-sheets", name: "Project Sheets" },
     { key: "inventory-awb", name: "AWB Tracking" },
   ] },
+  // Employees is the only HR sub-section. The Old System's Users, Careers and
+  // Applications are deliberately not carried over: login accounts are the
+  // studio's Collaborator rows (People & requests), and recruitment is out of
+  // scope here.
   { key: "hr", name: "Human Resources", children: [
     { key: "hr-employees", name: "Employees" },
-    { key: "hr-users", name: "Users" },
-    { key: "hr-careers", name: "Careers" },
-    { key: "hr-applications", name: "Applications" },
   ] },
   { key: "finance", name: "Finance", children: [
     { key: "finance-cash", name: "Cash" },
@@ -177,6 +178,11 @@ export const SECTION_COLLECTIONS = {
   // sales
   "sales-tickets": ["salesTickets"],
   "sales-clients": ["salesClients"],
+  // The service catalogue a ticket picks from. It needs real ids, so it is a
+  // collection rather than a vocabulary list on the settings row. In the Old
+  // System this was a GLOBAL `services` collection shared with the public
+  // site; that site is gone, so Sales Settings owns it outright.
+  "sales-settings": ["salesServices"],
   // technical
   "technical-quotations": ["quotations"],
   "technical-rfq": ["rfqs"],

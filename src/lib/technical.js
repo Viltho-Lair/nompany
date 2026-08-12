@@ -11,7 +11,7 @@
 //   • raising an RFQ is a SALES act on their ticket   -> needs Sales:manage
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { RFQ_STATUSES } from "@/lib/rfqs";
@@ -35,21 +35,79 @@ export async function technicalContext(user, slug) {
   if (context.error) return context;
   const { studio, collaborator } = context;
 
-  const [technical, sales] = await Promise.all([
-    getSectionByKey(studio.id, "technical"),
-    getSectionByKey(studio.id, "sales"),
-  ]);
+  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
+  const technical = byKey["technical"];
+  const sales = byKey["sales"];
   if (!technical) return { error: "no-section" };
 
-  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   if (!canViewSection(studio, collaborator, technical.id, grants)) return { error: "forbidden" };
+
+  // Sub-sections own the collections; the parent is the fallback for any studio
+  // predating the sub-section model. Tickets still live under Sales.
+  const quotationsSection = byKey["technical-quotations"] || technical;
+  const rfqSection = byKey["technical-rfq"] || technical;
+  const settingsSection = byKey["technical-settings"] || technical;
+  const salesTicketsSection = byKey["sales-tickets"] || sales;
+  const salesClientsSection = byKey["sales-clients"] || sales;
 
   return {
     studio, collaborator, section: technical, salesSection: sales,
+    quotationsSection, rfqSection, settingsSection, salesTicketsSection, salesClientsSection,
     canManage: canManageSection(studio, collaborator, technical.id, grants),
+    canManageQuotations: canManageSection(studio, collaborator, quotationsSection.id, grants),
+    canManageRfq: canManageSection(studio, collaborator, rfqSection.id, grants),
+    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
     canManageSales: Boolean(sales) && canManageSection(studio, collaborator, sales.id, grants),
+    ...readTechnicalSettings(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants),
   };
+}
+
+// ---- technical settings -----------------------------------------------------
+// Live-view columns and the quotation cover copy, both on the
+// technical-settings sub-section's own `settings` object — no key of their own.
+export const QUOTATION_LIVE_COLUMNS = [
+  { key: "number", label: "Number" },
+  { key: "revision", label: "Rev" },
+  { key: "title", label: "Title" },
+  { key: "clientName", label: "Client" },
+  { key: "status", label: "Status" },
+  { key: "handledBy", label: "Handled by" },
+  { key: "leadLabel", label: "Lead" },
+  { key: "total", label: "Total" },
+  { key: "createdAt", label: "Created" },
+];
+const QUOTATION_LIVE_KEYS = QUOTATION_LIVE_COLUMNS.map((c) => c.key);
+export const DEFAULT_QUOTATION_LIVE_COLUMNS = ["number", "title", "clientName", "status", "total"];
+
+export function cleanQuotationLiveColumns(value) {
+  const picked = Array.isArray(value) ? value.filter((k) => QUOTATION_LIVE_KEYS.includes(k)) : [];
+  return picked.length ? [...new Set(picked)] : [...DEFAULT_QUOTATION_LIVE_COLUMNS];
+}
+
+export function readTechnicalSettings(settingsSection) {
+  const s = settingsSection?.settings || {};
+  return {
+    liveColumns: cleanQuotationLiveColumns(s.liveColumns),
+    // The Old System's "Cover copy settings": the standing text that heads a
+    // quotation document.
+    coverTitle: str(s.coverTitle, 200),
+    coverIntro: str(s.coverIntro, 4000),
+    coverTerms: str(s.coverTerms, 4000),
+  };
+}
+
+export async function saveTechnicalSettings(ctx, body) {
+  const { studio, settingsSection } = ctx;
+  const next = { ...(settingsSection.settings || {}) };
+  if (body?.liveColumns !== undefined) next.liveColumns = cleanQuotationLiveColumns(body.liveColumns);
+  if (body?.coverTitle !== undefined) next.coverTitle = str(body.coverTitle, 200);
+  if (body?.coverIntro !== undefined) next.coverIntro = str(body.coverIntro, 4000);
+  if (body?.coverTerms !== undefined) next.coverTerms = str(body.coverTerms, 4000);
+
+  const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
+  return updated ? readTechnicalSettings({ settings: next }) : { error: "notfound" };
 }
 
 // ---- money -----------------------------------------------------------------
@@ -70,30 +128,30 @@ export function computeTotals(items, vatRate) {
 const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 // ---- RFQs ------------------------------------------------------------------
-export async function listRfqs({ studio, section }) {
-  const rows = await readCol(studio.id, section.id, RFQS);
+export async function listRfqs({ studio, rfqSection }) {
+  const rows = await readCol(studio.id, rfqSection.id, RFQS);
   return [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
 // Raised FROM a Sales ticket. Snapshots the ticket so Technical never has to
 // read Sales to display it.
 export async function requestRfq(ctx, body) {
-  const { studio, section, salesSection, collaborator, canManageSales } = ctx;
+  const { studio, rfqSection, salesSection, salesTicketsSection, salesClientsSection, collaborator, canManageSales } = ctx;
   if (!canManageSales) return { error: "sales-required" };
   if (!salesSection) return { error: "no-sales" };
 
   const ticketId = str(body?.ticketId, 60);
   const [tickets, clients, existing] = await Promise.all([
-    readCol(studio.id, salesSection.id, TICKETS),
-    readCol(studio.id, salesSection.id, CLIENTS),
-    readCol(studio.id, section.id, RFQS),
+    readCol(studio.id, salesTicketsSection.id, TICKETS),
+    readCol(studio.id, salesClientsSection.id, CLIENTS),
+    readCol(studio.id, rfqSection.id, RFQS),
   ]);
   const ticket = tickets.find((t) => t.id === ticketId);
   if (!ticket) return { error: "ticket" };
   if (existing.some((r) => r.ticketId === ticketId && r.status !== "Rejected")) return { error: "already" };
 
   const client = clients.find((c) => c.id === ticket.clientId);
-  const rfq = await addRow(studio.id, section.id, RFQS, {
+  const rfq = await addRow(studio.id, rfqSection.id, RFQS, {
     reference: `RFQ-${ticket.ref}`,
     ticketId,
     // Read-only snapshot of the Sales side.
@@ -113,7 +171,7 @@ export async function requestRfq(ctx, body) {
 }
 
 export async function updateRfq(ctx, id, body) {
-  const { studio, section } = ctx;
+  const { studio, rfqSection } = ctx;
   const patch = {};
   if (body?.status !== undefined) {
     if (!RFQ_STATUSES.includes(body.status)) return { error: "status" };
@@ -122,32 +180,76 @@ export async function updateRfq(ctx, id, body) {
   if (body?.handledByCollaboratorId !== undefined) patch.handledByCollaboratorId = str(body.handledByCollaboratorId, 60);
   if (body?.description !== undefined) patch.description = str(body.description, 4000);
 
-  const rfq = await updateRow(studio.id, section.id, RFQS, id, patch);
+  const rfq = await updateRow(studio.id, rfqSection.id, RFQS, id, patch);
   return rfq ? { rfq } : { error: "notfound" };
 }
 
 // ---- quotations ------------------------------------------------------------
-export async function listQuotations({ studio, section }) {
-  const rows = await readCol(studio.id, section.id, QUOTATIONS);
+export async function listQuotations({ studio, quotationsSection }) {
+  const rows = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
   return [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
 // Turning an RFQ into a quotation is the hand-back to Sales. The RFQ is marked
 // Converted so it can't be converted twice.
+// Created straight from the Quotations screen, with no RFQ behind it.
+//
+// MANDATORY, per the Old System: number, description, handledBy. The number is
+// UNIQUE case-insensitively so search stays predictable, and such a quotation
+// is marked Internal — `lead` is what an RFQ conversion overwrites with the
+// source ticket.
+export const LEAD_INTERNAL = "Internal";
+
+export async function createQuotation(ctx, body) {
+  const { studio, quotationsSection, collaborator } = ctx;
+  const number = str(body?.number, 60);
+  const description = str(body?.description, 2000);
+  const handledBy = str(body?.handledBy, 120);
+  if (!number) return { error: "number" };
+  if (!description) return { error: "description" };
+  if (!handledBy) return { error: "handledBy" };
+
+  const quotations = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
+  if (quotations.some((q) => String(q.number || "").toLowerCase() === number.toLowerCase())) {
+    return { error: "duplicate" };
+  }
+
+  const items = cleanItems(body?.items);
+  const vatRate = body?.vatRate === undefined ? DEFAULT_VAT_RATE : num(body.vatRate);
+  const quotation = await addRow(studio.id, quotationsSection.id, QUOTATIONS, {
+    number,
+    revision: 1,
+    description,
+    handledBy,
+    title: str(body?.title, 200) || description.slice(0, 200),
+    status: DEFAULT_QUOTATION_STATUS,
+    items,
+    vatRate,
+    ...computeTotals(items, vatRate),
+    comments: [],
+    lead: LEAD_INTERNAL,
+    leadLabel: LEAD_INTERNAL,
+    completedAt: null,
+    preparedByCollaboratorId: collaborator.id,
+    createdAt: new Date().toISOString(),
+  });
+  return { quotation };
+}
+
 export async function convertRfq(ctx, body) {
-  const { studio, section, collaborator } = ctx;
+  const { studio, rfqSection, quotationsSection, collaborator } = ctx;
   const rfqId = str(body?.rfqId, 60);
-  const rfqs = await readCol(studio.id, section.id, RFQS);
+  const rfqs = await readCol(studio.id, rfqSection.id, RFQS);
   const rfq = rfqs.find((r) => r.id === rfqId);
   if (!rfq) return { error: "notfound" };
   if (rfq.status === "Converted") return { error: "already" };
 
-  const quotations = await readCol(studio.id, section.id, QUOTATIONS);
+  const quotations = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
   const number = `Q-${String(quotations.length + 1).padStart(4, "0")}`;
 
   const items = cleanItems(body?.items);
   const vatRate = body?.vatRate === undefined ? DEFAULT_VAT_RATE : num(body.vatRate);
-  const quotation = await addRow(studio.id, section.id, QUOTATIONS, {
+  const quotation = await addRow(studio.id, quotationsSection.id, QUOTATIONS, {
     number,
     revision: 1,
     rfqId,
@@ -159,16 +261,24 @@ export async function convertRfq(ctx, body) {
     items,
     vatRate,
     ...computeTotals(items, vatRate),
+    description: str(rfq.title, 2000),
+    handledBy: str(body?.handledBy, 120),
+    comments: [],
+    // Converted from an RFQ, so the lead is the source ticket rather than
+    // Internal — this is the one field that distinguishes the two paths.
+    lead: rfq.ticketId || LEAD_INTERNAL,
+    leadLabel: rfq.ticketRef || rfq.title || LEAD_INTERNAL,
+    completedAt: null,
     preparedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
-  await updateRow(studio.id, section.id, RFQS, rfqId, { status: "Converted", quotationId: quotation.id });
+  await updateRow(studio.id, rfqSection.id, RFQS, rfqId, { status: "Converted", quotationId: quotation.id });
   return { quotation };
 }
 
 export async function updateQuotation(ctx, id, body) {
-  const { studio, section } = ctx;
-  const rows = await readCol(studio.id, section.id, QUOTATIONS);
+  const { studio, quotationsSection } = ctx;
+  const rows = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
   const current = rows.find((q) => q.id === id);
   if (!current) return { error: "notfound" };
 
@@ -186,21 +296,21 @@ export async function updateQuotation(ctx, id, body) {
     Object.assign(patch, { items, vatRate }, computeTotals(items, vatRate));
   }
 
-  const quotation = await updateRow(studio.id, section.id, QUOTATIONS, id, patch);
+  const quotation = await updateRow(studio.id, quotationsSection.id, QUOTATIONS, id, patch);
   return { quotation };
 }
 
 export async function removeQuotation(ctx, id) {
-  const removed = await deleteRow(ctx.studio.id, ctx.section.id, QUOTATIONS, id);
+  const removed = await deleteRow(ctx.studio.id, ctx.quotationsSection.id, QUOTATIONS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
 // Sales tickets that don't yet have a live RFQ — what "raise an RFQ" can pick.
-export async function openTickets({ studio, section, salesSection }) {
+export async function openTickets({ studio, salesSection, salesTicketsSection, salesClientsSection }) {
   if (!salesSection) return [];
   const [tickets, rfqs] = await Promise.all([
-    readCol(studio.id, salesSection.id, TICKETS),
-    readCol(studio.id, section.id, RFQS),
+    readCol(studio.id, salesTicketsSection.id, TICKETS),
+    readCol(studio.id, rfqSection.id, RFQS),
   ]);
   const taken = new Set(rfqs.filter((r) => r.status !== "Rejected").map((r) => r.ticketId));
   return tickets.filter((t) => !taken.has(t.id)).map((t) => ({ id: t.id, ref: t.ref, title: t.title }));

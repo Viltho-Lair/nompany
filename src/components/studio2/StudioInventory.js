@@ -40,9 +40,23 @@ const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, max
 
 // INVENTORY. On-hand is summed from the movement ledger, so every number on this
 // screen can be traced to the movements that produced it.
-export default function StudioInventory({ slug }) {
+// `view` is the ACTIVE SUB-SECTION key. Inventory already had internal tabs,
+// so each sub-section now selects one and the tab bar becomes redundant — the
+// sidebar is the navigation. Registered Items and Stock Management are the two
+// halves of what used to be one "stock" tab.
+const VIEW_TO_TAB = {
+  "inventory-stock": "stock",
+  "inventory-items": "stock",
+  "inventory-vendors": "vendors",
+  "inventory-sheets": "orders",
+  "inventory-awb": "deliveries",
+};
+
+export default function StudioInventory({ slug, view = "inventory" }) {
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState("stock");
+  const [tab, setTab] = useState(VIEW_TO_TAB[view] || "stock");
+  // Navigating between sub-sections re-selects the matching tab.
+  useEffect(() => { setTab(VIEW_TO_TAB[view] || "stock"); }, [view]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
