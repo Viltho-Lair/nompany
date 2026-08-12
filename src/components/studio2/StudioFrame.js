@@ -93,12 +93,20 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
     .filter((s) => !s.parentId || !visibleIds.has(s.parentId))
     .map((s) => ({ ...s, children: all.filter((c) => c.parentId === s.id) }));
 
-  // Which groups are open. A group holding the active child starts expanded and
-  // stays that way; `expanded` only records what the user has since toggled.
-  const [expanded, setExpanded] = useState({});
-  const hasActiveChild = (node) => node.children.some((c) => c.key === activeKey);
-  const isOpen = (node) => expanded[node.key] ?? hasActiveChild(node);
-  const toggle = (key, next) => setExpanded((e) => ({ ...e, [key]: next }));
+  // AT MOST ONE group is expanded, and which one FOLLOWS THE PAGE YOU ARE ON.
+  // The previous version remembered every group you had ever opened, so nothing
+  // ever collapsed: opening a second section left the first hanging open, and
+  // walking into a different section's sub-section left both.
+  //
+  // Deriving it from `activeKey` closes the old group on every navigation for
+  // free — a different section, a different section's sub-section, or People /
+  // Access outside the tree entirely (no group matches → all closed).
+  const groupKeyFor = (key) =>
+    tree.find((n) => n.key === key || n.children.some((c) => c.key === key))?.key || null;
+  const [openKey, setOpenKey] = useState(() => groupKeyFor(activeKey));
+  useEffect(() => { setOpenKey(groupKeyFor(activeKey)); }, [activeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const isOpen = (node) => openKey === node.key;
+  const toggleGroup = (key) => setOpenKey((k) => (k === key ? null : key));
 
   const admin = [
     { href: `/${studio.slug}/people`, key: "people", label: me.canAdminister ? "People & requests" : "People", show: true },
@@ -126,7 +134,10 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
         <div className={`${rowClass(active)} pe-1`}>
           <Link
             href={`/${studio.slug}/${node.key}`}
-            onClick={() => setOpen(false)}
+            // Clicking the section you are ALREADY on has no navigation to
+            // trigger the effect above, so it collapses the group by hand —
+            // otherwise the one section you cannot close is the open one.
+            onClick={() => { setOpen(false); if (active) toggleGroup(node.key); }}
             className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5"
           >
             <Icon name={SECTION_ICONS[node.key] || "dot"} className={iconClass(active)} />
@@ -134,7 +145,7 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
           </Link>
           <button
             type="button"
-            onClick={() => toggle(node.key, !shown)}
+            onClick={() => toggleGroup(node.key)}
             aria-expanded={shown}
             aria-label={`${shown ? "Collapse" : "Expand"} ${node.name}`}
             className="shrink-0 rounded-md p-2 hover:bg-black/5 dark:hover:bg-white/10"
