@@ -207,6 +207,20 @@ export async function sMembers(key) {
   return (await r()).sMembers(key);
 }
 
+// ---- counters ---------------------------------------------------------------
+// A hash of tallies. HINCRBY is atomic server-side, so two tabs bumping the same
+// counter cannot lose a write the way a read-modify-write on JSON would.
+export async function hIncrBy(key, field, by = 1) {
+  return (await r()).hIncrBy(key, String(field), by);
+}
+export async function hGetAll(key) {
+  return (await r()).hGetAll(key);
+}
+export async function hDel(key, ...fields) {
+  if (!fields.length) return 0;
+  return (await r()).hDel(key, fields.map(String));
+}
+
 // ---- streams (the append-only event log) -----------------------------------
 // A Stream is the one Redis type that is ordered, durable and addressable by
 // cursor at the same time, which is exactly what "replay what I missed" needs.

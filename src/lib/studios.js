@@ -9,6 +9,7 @@
 import {
   createStudio, getStudioById, getStudioBySlug, getOwnedStudio,
   listUserCollaborations, changeStudioSlug,
+  recordStudioVisit, studioVisitCounts, pruneStudioVisits,
 } from "@/lib/data/studios";
 import {
   addCollaborator, listCollaborators, getCollaboratorByUser, updateCollaborator,
@@ -58,15 +59,30 @@ export async function slugAvailability(rawSlug) {
 }
 
 // ---- what a user can see: their own studio + the ones they collaborate in ---
+// Studios come back ORDERED BY HOW OFTEN THIS PERSON OPENS THEM, most-visited
+// first, so a caller showing only the first few is showing the ones that
+// actually matter to them rather than an arbitrary slice. Ties fall back to
+// alphabetical, which keeps the order stable for someone who has visited
+// nothing yet instead of letting it drift between requests.
 export async function studiosForUser(userId) {
-  const [owned, collaborations] = await Promise.all([
+  const [owned, collaborations, visits] = await Promise.all([
     getOwnedStudio(userId),
     listUserCollaborations(userId),
+    studioVisitCounts(userId),
   ]);
-  const shape = (s) => ({ id: s.id, name: s.name, slug: s.slug });
+  const shape = (s) => ({ id: s.id, name: s.name, slug: s.slug, visits: visits[s.id] || 0 });
+  const byVisits = (a, b) => b.visits - a.visits || String(a.name).localeCompare(String(b.name));
+
+  // We already hold the live set, so drop tallies for studios this person can no
+  // longer reach. Fire-and-forget, and it only writes when something is stale.
+  const live = [...(owned ? [owned.id] : []), ...collaborations.map((s) => s.id)];
+  if (Object.keys(visits).some((id) => !live.includes(id))) {
+    pruneStudioVisits(userId, live).catch(() => {});
+  }
+
   return {
     owned: owned ? shape(owned) : null,
-    collaborations: collaborations.map(shape),
+    collaborations: collaborations.map(shape).sort(byVisits),
   };
 }
 
@@ -201,3 +217,5 @@ export {
   listCollaborators, updateCollaborator, listSections, listGrants,
   getStudioById, getStudioBySlug, changeStudioSlug,
 };
+
+export { recordStudioVisit, studioVisitCounts, pruneStudioVisits };

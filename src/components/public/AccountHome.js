@@ -233,8 +233,10 @@ function ActionTile({ icon, label, onClick }) {
   );
 }
 
-// Action tile + a horizontal row of studio tiles. Past four studios the row
-// stops and a View all takes over, so the strip never wraps out of the window.
+// Action tile + a horizontal row of studio tiles. The list arrives already
+// ordered by how often this person opens each studio, so the first four ARE the
+// four they use most — no choice to make, and no scrolling to find the one they
+// wanted. Past four, a View all tile takes over.
 function StudioStrip({ action, studios, onViewAll }) {
   const shown = studios.slice(0, 4);
   return (

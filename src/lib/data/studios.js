@@ -12,8 +12,8 @@
 // STUDIO-scoped data lives ONLY under s:<StudioID>:* — never on a user.
 // Deletion goes through cascade.js (cascadeDeleteStudio).
 
-import { REG, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/lib/data/keys";
-import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, sMembers } from "@/lib/data/store";
+import { REG, U, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/lib/data/keys";
+import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, sMembers, hIncrBy, hGetAll, hDel } from "@/lib/data/store";
 import { addCollaborator } from "@/lib/data/collaborators";
 
 export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" }) {
@@ -130,3 +130,31 @@ export async function changeStudioSlug(studioId, newSlug) {
 // NB: studio ACCESS TOKENS were removed by design (2026-08-11). Joining a studio
 // is now "type the company code (its slug) → request → owner approves", so a
 // shareable token would be a second, weaker way in. See data/joinRequests.js.
+
+// ---- how often this person opens each studio --------------------------------
+// Used to rank the studios shown on the account overview, so the few on display
+// are the ones actually being worked in. Deliberately a plain tally: no history
+// is kept, nothing is written about WHEN, and nobody but the person themselves
+// can read it — it lives under their own key prefix.
+export async function recordStudioVisit(userId, studioId) {
+  if (!userId || !studioId) return;
+  await hIncrBy(U.studioVisits(userId), studioId, 1);
+}
+
+export async function studioVisitCounts(userId) {
+  const raw = await hGetAll(U.studioVisits(userId));
+  const out = {};
+  for (const [id, n] of Object.entries(raw || {})) out[id] = Number(n) || 0;
+  return out;
+}
+
+// A studio this person can no longer reach leaves a tally behind. It is inert —
+// ranking only ever sorts studios already in hand — but pruning keeps the hash
+// from growing without bound across a long-lived account.
+export async function pruneStudioVisits(userId, liveStudioIds) {
+  const counts = await studioVisitCounts(userId);
+  const live = new Set(liveStudioIds);
+  const stale = Object.keys(counts).filter((id) => !live.has(id));
+  if (stale.length) await hDel(U.studioVisits(userId), ...stale);
+  return stale.length;
+}

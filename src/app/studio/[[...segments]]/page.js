@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { currentUser } from "@/lib/identity";
-import { studioContext, canAdminister, visibleSections, canManageSection, listGrants } from "@/lib/studios";
+import { studioContext, canAdminister, visibleSections, canManageSection, listGrants, recordStudioVisit } from "@/lib/studios";
 import { listSections } from "@/lib/data/sections";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import StudioDocs from "@/components/studio2/StudioDocs";
@@ -44,6 +44,12 @@ export default async function StudioPage({ params }) {
   }
 
   const { studio, collaborator } = context;
+
+  // Tally the visit so the account overview can rank studios by how much this
+  // person actually uses them. Fire-and-forget: ranking is a convenience, and a
+  // failed tally must never cost the page a render or a millisecond of latency.
+  recordStudioVisit(user.id, studio.id).catch(() => {});
+
   const admin = canAdminister(studio, collaborator);
   const [allSections, grants] = await Promise.all([listSections(studio.id), listGrants(studio.id)]);
   const sections = visibleSections(studio, collaborator, allSections, grants);

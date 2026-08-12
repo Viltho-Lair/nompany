@@ -49,6 +49,10 @@ export const U = {
   // Trusted devices are USER data (this person's remembered browsers), so they
   // live under the user prefix and die with the user automatically.
   devices: (userId) => `u:${userId}:devices`,
+  // How often THIS person has opened each studio: a hash of StudioID -> count.
+  // It is a property of the person, not of any studio, so it belongs under the
+  // user prefix and is reaped by the user cascade like everything else here.
+  studioVisits: (userId) => `u:${userId}:studioVisits`,
 };
 
 // ---- OTP challenges (NOT user-scoped, deliberately) ------------------------
