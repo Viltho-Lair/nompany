@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
@@ -167,6 +168,19 @@ export default function StudioSales({ slug, view = "sales" }) {
 // BODY scrolls inside a dialog capped below the viewport height; the page
 // behind it stays put rather than scrolling two things at once.
 function Dialog({ title, description, onClose, children, width = "max-w-[720px]" }) {
+  // RENDERED INTO document.body, not where it is written. `position: fixed` is
+  // only viewport-relative while no ancestor establishes a containing block —
+  // any transform, filter, backdrop-filter, perspective, contain or
+  // will-change on something above it silently re-anchors `inset-0` to THAT
+  // element's box instead. In the studio the dialog is written deep inside the
+  // shell (page → ps-72 column → sticky header sibling → main), so one such
+  // property anywhere up that chain crops the backdrop to the content column
+  // and pushes it below the header. Portalling to the body puts the dialog
+  // outside the whole chain, so it cannot be caught by a style added later
+  // somewhere else.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -175,7 +189,9 @@ function Dialog({ title, description, onClose, children, width = "max-w-[720px]"
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [onClose]);
 
-  return (
+  if (!mounted) return null; // no document to portal into until the client runs
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
       {/* Light touch on purpose: a heavy tint flattened the whole studio —
           sidebar, header and the ticket list — into grey while the form was
@@ -195,7 +211,8 @@ function Dialog({ title, description, onClose, children, width = "max-w-[720px]"
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
