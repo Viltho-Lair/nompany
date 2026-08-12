@@ -17,7 +17,7 @@
 // project (stock out). Receiving and issuing never touch quantities directly;
 // they append movements, and the balance follows.
 
-import { readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
@@ -90,13 +90,13 @@ export async function inventoryGuard(paramsPromise, { write } = {}) {
 }
 
 // ---- vendors ---------------------------------------------------------------
-export async function listVendors({ studio, section }) {
+export async function listVendors({ studio, vendorsSection }) {
   const rows = await readCol(studio.id, vendorsSection.id, VENDORS);
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
 export async function createVendor(ctx, body) {
-  const { studio, section } = ctx;
+  const { studio, vendorsSection } = ctx;
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
 
@@ -115,7 +115,7 @@ export async function createVendor(ctx, body) {
 }
 
 export async function editVendor(ctx, id, body) {
-  const { studio, section } = ctx;
+  const { studio, vendorsSection } = ctx;
   const patch = {};
   if (body?.name !== undefined) {
     const name = str(body.name, 160);
@@ -133,7 +133,7 @@ export async function editVendor(ctx, id, body) {
 }
 
 export async function removeVendor(ctx, id) {
-  const { studio, section } = ctx;
+  const { studio, vendorsSection, sheetsSection, itemsSection } = ctx;
   const [items, orders] = await Promise.all([
     readCol(studio.id, itemsSection.id, ITEMS),
     readCol(studio.id, sheetsSection.id, ORDERS),
@@ -147,7 +147,7 @@ export async function removeVendor(ctx, id) {
 }
 
 // ---- items -----------------------------------------------------------------
-export async function listItems({ studio, section }) {
+export async function listItems({ studio, itemsSection, vendorsSection, stockSection }) {
   const [items, vendors, movements] = await Promise.all([
     readCol(studio.id, itemsSection.id, ITEMS),
     readCol(studio.id, vendorsSection.id, VENDORS),
@@ -168,7 +168,7 @@ export async function listItems({ studio, section }) {
 }
 
 export async function createItem(ctx, body) {
-  const { studio, section } = ctx;
+  const { studio, vendorsSection, itemsSection } = ctx;
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
 
@@ -196,7 +196,7 @@ export async function createItem(ctx, body) {
 }
 
 export async function editItem(ctx, id, body) {
-  const { studio, section } = ctx;
+  const { studio, vendorsSection, itemsSection } = ctx;
   const patch = {};
   if (body?.name !== undefined) { const v = str(body.name, 160); if (!v) return { error: "name" }; patch.name = v; }
   if (body?.sku !== undefined) {
@@ -227,7 +227,7 @@ export async function editItem(ctx, id, body) {
 // An item with movement history is never deleted — that would erase the record
 // of stock that really moved. Items with a clean history can go.
 export async function removeItem(ctx, id) {
-  const { studio, section } = ctx;
+  const { studio, itemsSection, sheetsSection, deliveriesSection, stockSection } = ctx;
   const [movements, orders, deliveries] = await Promise.all([
     readCol(studio.id, stockSection.id, STOCK),
     readCol(studio.id, sheetsSection.id, ORDERS),
@@ -265,7 +265,7 @@ export function balances(movements) {
   return out;
 }
 
-export async function listMovements({ studio, section }, { limit = 200 } = {}) {
+export async function listMovements({ studio, stockSection, itemsSection }, { limit = 200 } = {}) {
   const [movements, items, people] = await Promise.all([
     readCol(studio.id, stockSection.id, STOCK),
     readCol(studio.id, itemsSection.id, ITEMS),
@@ -283,7 +283,7 @@ export async function listMovements({ studio, section }, { limit = 200 } = {}) {
 // Append-only. Everything that changes stock goes through here, so there is
 // exactly one way for a balance to move.
 async function record(ctx, { itemId, kind, quantity, reason, sourceType = "", sourceId = "" }) {
-  const { studio, section, collaborator } = ctx;
+  const { studio, stockSection, collaborator } = ctx;
   return addRow(studio.id, stockSection.id, STOCK, {
     itemId,
     kind: MOVEMENT_KINDS.includes(kind) ? kind : "adjust",
@@ -297,7 +297,7 @@ async function record(ctx, { itemId, kind, quantity, reason, sourceType = "", so
 
 // A manual correction — stock-take differences, damage, opening balances.
 export async function adjustStock(ctx, body) {
-  const { studio, section } = ctx;
+  const { studio, stockSection, itemsSection } = ctx;
   const itemId = str(body?.itemId, 60);
   const items = await readCol(studio.id, itemsSection.id, ITEMS);
   if (!items.some((i) => i.id === itemId)) return { error: "item" };
@@ -322,12 +322,12 @@ export async function adjustStock(ctx, body) {
 }
 
 // ---- purchase orders -------------------------------------------------------
-export async function listOrders({ studio, section }) {
+export async function listOrders({ studio, sheetsSection, vendorsSection, itemsSection }) {
   const [orders, vendors, items, projects] = await Promise.all([
     readCol(studio.id, sheetsSection.id, ORDERS),
     readCol(studio.id, vendorsSection.id, VENDORS),
     readCol(studio.id, itemsSection.id, ITEMS),
-    projectRows({ studio, section }),
+    projectRows({ studio }),
   ]);
   const vendorName = Object.fromEntries(vendors.map((v) => [v.id, v.name]));
   const itemLabel = Object.fromEntries(items.map((i) => [i.id, `${i.sku} · ${i.name}`]));
@@ -353,7 +353,7 @@ export function orderTotal(lines) {
 }
 
 export async function createOrder(ctx, body) {
-  const { studio, section } = ctx;
+  const { studio, itemsSection, sheetsSection, vendorsSection } = ctx;
   const vendorId = str(body?.vendorId, 60);
   const vendors = await readCol(studio.id, vendorsSection.id, VENDORS);
   if (!vendors.some((v) => v.id === vendorId)) return { error: "vendor" };
@@ -380,7 +380,7 @@ export async function createOrder(ctx, body) {
 }
 
 export async function editOrder(ctx, id, body) {
-  const { studio, section } = ctx;
+  const { studio, itemsSection, sheetsSection } = ctx;
   const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
@@ -416,7 +416,7 @@ export async function editOrder(ctx, id, body) {
 // Receiving is the only way stock comes IN from an order. It appends one
 // movement per line received and lets the status follow the numbers.
 export async function receiveOrder(ctx, id, body) {
-  const { studio, section } = ctx;
+  const { studio, sheetsSection } = ctx;
   const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
@@ -462,7 +462,7 @@ export async function receiveOrder(ctx, id, body) {
 // An order that has received stock is never deleted — the movements it created
 // are real. Cancel it instead.
 export async function removeOrder(ctx, id) {
-  const { studio, section } = ctx;
+  const { studio, sheetsSection } = ctx;
   const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
@@ -473,11 +473,11 @@ export async function removeOrder(ctx, id) {
 }
 
 // ---- deliveries (stock out, to a project) ----------------------------------
-export async function listDeliveries({ studio, section }) {
+export async function listDeliveries({ studio, itemsSection, deliveriesSection }) {
   const [deliveries, items, projects, people] = await Promise.all([
     readCol(studio.id, deliveriesSection.id, DELIVERIES),
     readCol(studio.id, itemsSection.id, ITEMS),
-    projectRows({ studio, section }),
+    projectRows({ studio }),
     listCollaborators(studio.id),
   ]);
   const itemLabel = Object.fromEntries(items.map((i) => [i.id, `${i.sku} · ${i.name}`]));
@@ -496,7 +496,7 @@ export async function listDeliveries({ studio, section }) {
 }
 
 export async function createDelivery(ctx, body) {
-  const { studio, section } = ctx;
+  const { studio, itemsSection, deliveriesSection } = ctx;
   const projectId = str(body?.projectId, 60);
   if (!projectId) return { error: "project" };
   if (!(await projectExists(ctx, projectId))) return { error: "project" };
@@ -520,7 +520,7 @@ export async function createDelivery(ctx, body) {
 // Issuing is the only way stock goes OUT to a project. Availability is checked
 // against the ledger at the moment of issue, not when the note was drafted.
 export async function issueDelivery(ctx, id) {
-  const { studio, section } = ctx;
+  const { studio, stockSection, deliveriesSection } = ctx;
   const [deliveries, movements] = await Promise.all([
     readCol(studio.id, deliveriesSection.id, DELIVERIES),
     readCol(studio.id, stockSection.id, STOCK),
@@ -555,7 +555,7 @@ export async function issueDelivery(ctx, id) {
 }
 
 export async function removeDelivery(ctx, id) {
-  const { studio, section } = ctx;
+  const { studio, deliveriesSection } = ctx;
   const deliveries = await readCol(studio.id, deliveriesSection.id, DELIVERIES);
   const delivery = deliveries.find((d) => d.id === id);
   if (!delivery) return { error: "notfound" };
@@ -582,10 +582,16 @@ function cleanLines(list, items) {
 // Projects live in another section, so they're read directly rather than through
 // projectsContext — inventory shouldn't need Projects access to name a project
 // it is buying for. The links to them are still permission-gated in the UI.
-async function projectRows({ studio, section }) {
-  const projectsSection = await getSectionByKey(studio.id, "projects");
-  if (!projectsSection) return [];
-  return readCol(studio.id, projectsListSection.id, PROJECTS);
+// Cross-section reads resolve the sub-section that OWNS the collection, falling
+// back to the parent so a studio predating the sub-section model still works.
+async function ownerOf(studioId, childKey, parentKey) {
+  return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
+}
+
+async function projectRows({ studio }) {
+  const owner = await ownerOf(studio.id, "projects-list", "projects");
+  if (!owner) return [];
+  return readCol(studio.id, owner.id, PROJECTS);
 }
 
 async function projectExists(ctx, projectId) {

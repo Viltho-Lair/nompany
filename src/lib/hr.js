@@ -79,13 +79,13 @@ export async function hrGuard(paramsPromise, { write } = {}) {
 }
 
 // ---- departments -----------------------------------------------------------
-export async function listDepartments({ studio, section }) {
+export async function listDepartments({ studio, employeesSection }) {
   const rows = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
 export async function createDepartment(ctx, body) {
-  const { studio, section } = ctx;
+  const { studio, employeesSection } = ctx;
   const name = str(body?.name, 120);
   if (!name) return { error: "name" };
 
@@ -102,7 +102,7 @@ export async function createDepartment(ctx, body) {
 }
 
 export async function editDepartment(ctx, id, body) {
-  const { studio, section } = ctx;
+  const { studio, employeesSection } = ctx;
   const patch = {};
   if (body?.name !== undefined) {
     const name = str(body.name, 120);
@@ -121,7 +121,7 @@ export async function editDepartment(ctx, id, body) {
 // Refuses while anyone is still in the department, or a position belongs to it —
 // a delete must never leave a person pointing at something that no longer exists.
 export async function removeDepartment(ctx, id) {
-  const { studio, section } = ctx;
+  const { studio, employeesSection } = ctx;
   const [people, positions] = await Promise.all([
     listCollaborators(studio.id),
     readCol(studio.id, employeesSection.id, POSITIONS),
@@ -144,7 +144,7 @@ function autoCode(name, rows) {
 }
 
 // ---- positions -------------------------------------------------------------
-export async function listPositions({ studio, section }) {
+export async function listPositions({ studio, employeesSection }) {
   const [rows, departments] = await Promise.all([
     readCol(studio.id, employeesSection.id, POSITIONS),
     readCol(studio.id, employeesSection.id, DEPARTMENTS),
@@ -156,7 +156,7 @@ export async function listPositions({ studio, section }) {
 }
 
 export async function createPosition(ctx, body) {
-  const { studio, section } = ctx;
+  const { studio, employeesSection } = ctx;
   const title = str(body?.title, 120);
   if (!title) return { error: "title" };
 
@@ -182,7 +182,7 @@ export async function createPosition(ctx, body) {
 }
 
 export async function editPosition(ctx, id, body) {
-  const { studio, section } = ctx;
+  const { studio, employeesSection } = ctx;
   const patch = {};
   if (body?.title !== undefined) { const v = str(body.title, 120); if (!v) return { error: "title" }; patch.title = v; }
   if (body?.departmentId !== undefined) {
@@ -201,7 +201,7 @@ export async function editPosition(ctx, id, body) {
 }
 
 export async function removePosition(ctx, id) {
-  const { studio, section } = ctx;
+  const { studio, employeesSection } = ctx;
   const people = await listCollaborators(studio.id);
   const held = people.filter((c) => c.positionId === id).length;
   if (held) return { error: "in-use", people: held };
@@ -211,13 +211,13 @@ export async function removePosition(ctx, id) {
 }
 
 // ---- certifications --------------------------------------------------------
-export async function listCertifications({ studio, section }) {
+export async function listCertifications({ studio, employeesSection }) {
   const rows = await readCol(studio.id, employeesSection.id, CERTIFICATIONS);
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
 export async function createCertification(ctx, body) {
-  const { studio, section } = ctx;
+  const { studio, employeesSection } = ctx;
   const name = str(body?.name, 140);
   if (!name) return { error: "name" };
 
@@ -235,7 +235,7 @@ export async function createCertification(ctx, body) {
 }
 
 export async function editCertification(ctx, id, body) {
-  const { studio, section } = ctx;
+  const { studio, employeesSection } = ctx;
   const patch = {};
   if (body?.name !== undefined) {
     const name = str(body.name, 140);
@@ -253,7 +253,7 @@ export async function editCertification(ctx, id, body) {
 }
 
 export async function removeCertification(ctx, id) {
-  const { studio, section } = ctx;
+  const { studio, employeesSection } = ctx;
   const people = await listCollaborators(studio.id);
   const held = people.filter((c) => (c.certificationIds || []).includes(id)).length;
   if (held) return { error: "in-use", people: held };
@@ -266,7 +266,7 @@ export async function removeCertification(ctx, id) {
 // `reveal` decrypts the ID/passport numbers, and is only ever passed true for a
 // viewer who can manage HR. The shape is otherwise identical either way, so the
 // screen never has to branch on permission to render a row.
-export async function listEmployees({ studio, section }, reveal = false) {
+export async function listEmployees({ studio, employeesSection }, reveal = false) {
   const [people, departments, positions] = await Promise.all([
     listCollaborators(studio.id),
     readCol(studio.id, employeesSection.id, DEPARTMENTS),
@@ -300,7 +300,7 @@ export async function listEmployees({ studio, section }, reveal = false) {
 
 // Write the HR fields onto someone's studio-local row. Manage-only.
 export async function saveEmployment(ctx, collaboratorId, body) {
-  const { studio, section } = ctx;
+  const { studio, employeesSection } = ctx;
   const person = await getCollaborator(studio.id, collaboratorId);
   if (!person) return { error: "notfound" };
 

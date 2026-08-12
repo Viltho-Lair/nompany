@@ -300,7 +300,7 @@ export async function listTickets({ studio, ticketsSection, clientsSection }) {
 // allowed. The contact and location used here are folded into the client
 // record without disturbing any other contact/location already on file.
 export async function createTicket(ctx, body) {
-  const { studio, ticketsSection, clientsSection, collaborator } = ctx;
+  const { studio, ticketsSection, clientsSection, collaborator, settingsSection } = ctx;
 
   const title = str(body?.title, 200);
   const clientName = str(body?.clientName, 160);

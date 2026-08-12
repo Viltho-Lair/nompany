@@ -16,7 +16,7 @@
 // Progress comes from the checklist, never stored separately, so it cannot
 // drift from the items it counts.
 
-import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
@@ -305,10 +305,16 @@ function cleanChecklist(list) {
 // Projects live in another section — read directly, because naming the project
 // a task belongs to is not the same as being allowed to open Projects. The link
 // itself stays permission-gated in the UI.
+// Cross-section reads resolve the sub-section that OWNS the collection, falling
+// back to the parent so a studio predating the sub-section model still works.
+async function ownerOf(studioId, childKey, parentKey) {
+  return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
+}
+
 async function projectRows({ studio }) {
-  const section = await getSectionByKey(studio.id, "projects");
-  if (!section) return [];
-  return readCol(studio.id, section.id, PROJECTS);
+  const owner = await ownerOf(studio.id, "projects-list", "projects");
+  if (!owner) return [];
+  return readCol(studio.id, owner.id, PROJECTS);
 }
 
 export async function taskProjects(ctx) {

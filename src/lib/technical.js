@@ -306,7 +306,7 @@ export async function removeQuotation(ctx, id) {
 }
 
 // Sales tickets that don't yet have a live RFQ — what "raise an RFQ" can pick.
-export async function openTickets({ studio, salesSection, salesTicketsSection, salesClientsSection }) {
+export async function openTickets({ studio, salesSection, salesTicketsSection, salesClientsSection, rfqSection }) {
   if (!salesSection) return [];
   const [tickets, rfqs] = await Promise.all([
     readCol(studio.id, salesTicketsSection.id, TICKETS),

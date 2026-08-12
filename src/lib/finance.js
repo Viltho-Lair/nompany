@@ -15,7 +15,7 @@
 // plus expenses booked here. Nothing is copied into Finance and left to rot —
 // it is recomputed on every read.
 
-import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
@@ -184,7 +184,7 @@ export async function createInvoice(ctx, body) {
 }
 
 export async function editInvoice(ctx, id, body) {
-  const { studio, section } = ctx;
+  const { studio, cashSection } = ctx;
   const invoices = await readCol(studio.id, cashSection.id, INVOICES);
   const current = invoices.find((i) => i.id === id);
   if (!current) return { error: "notfound" };
@@ -262,7 +262,7 @@ export async function recordPayment(ctx, id, body) {
 
 // Only a draft can be deleted. Once issued it is part of the record — cancel it.
 export async function removeInvoice(ctx, id) {
-  const { studio, section } = ctx;
+  const { studio, cashSection } = ctx;
   const invoices = await readCol(studio.id, cashSection.id, INVOICES);
   const invoice = invoices.find((i) => i.id === id);
   if (!invoice) return { error: "notfound" };
@@ -319,7 +319,7 @@ export async function createExpense(ctx, body) {
 }
 
 export async function editExpense(ctx, id, body) {
-  const { studio, section } = ctx;
+  const { studio, cashSection } = ctx;
   const patch = {};
   if (body?.amount !== undefined) { const v = cash(body.amount); if (!v) return { error: "amount" }; patch.amount = v; }
   if (body?.description !== undefined) patch.description = str(body.description, 300);
@@ -389,16 +389,22 @@ function cleanLines(list) {
 // Projects and purchase orders live in other sections. They're read directly:
 // Finance needs to name them and cost them, which is not the same as being
 // allowed to open those screens — the links to them stay permission-gated.
+// Cross-section reads resolve the sub-section that OWNS the collection, falling
+// back to the parent so a studio predating the sub-section model still works.
+async function ownerOf(studioId, childKey, parentKey) {
+  return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
+}
+
 async function projectRows({ studio }) {
-  const section = await getSectionByKey(studio.id, "projects");
-  if (!section) return [];
-  return readCol(studio.id, section.id, PROJECTS);
+  const owner = await ownerOf(studio.id, "projects-list", "projects");
+  if (!owner) return [];
+  return readCol(studio.id, owner.id, PROJECTS);
 }
 
 async function orderRows({ studio }) {
-  const section = await getSectionByKey(studio.id, "inventory");
-  if (!section) return [];
-  return readCol(studio.id, section.id, ORDERS);
+  const owner = await ownerOf(studio.id, "inventory-sheets", "inventory");
+  if (!owner) return [];
+  return readCol(studio.id, owner.id, ORDERS);
 }
 
 export async function billableProjects(ctx) {

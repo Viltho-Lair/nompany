@@ -97,7 +97,7 @@ export async function approvedQuotations({ studio, listSection, quotationsSectio
 }
 
 export async function openProject(ctx, body) {
-  const { studio, listSection, technicalSection, collaborator } = ctx;
+  const { studio, listSection, technicalSection, collaborator, quotationsSection } = ctx;
   if (!technicalSection) return { error: "no-technical" };
 
   const quotationId = str(body?.quotationId, 60);
