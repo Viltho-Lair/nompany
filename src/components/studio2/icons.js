@@ -101,6 +101,42 @@ const PATHS = {
       <path d="M17.5 14.2v1M17.5 19.8v1M14.2 17.5h1M19.8 17.5h1" />
     </>
   ),
+  chevronUp: <path d="M6 15l6-6 6 6" />,
+  chevronDown: <path d="M6 9l6 6 6-6" />,
+  chevronRight: <path d="M9 6l6 6-6 6" />,
+  check: <path d="M4 12l5 5L20 6" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  shield: (
+    <>
+      <path d="M12 3l8 3v6c0 4.2-3.1 7.9-8 9-4.9-1.1-8-4.8-8-9V6z" />
+      <path d="M9 12l2 2 4-4" />
+    </>
+  ),
+  person: (
+    <>
+      <circle cx="12" cy="8" r="3.6" />
+      <path d="M4.5 20a7.5 7.5 0 0115 0" />
+    </>
+  ),
+  building: (
+    <>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2" />
+    </>
+  ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9.2a2.5 2.5 0 114.1 2.2c-.9.7-1.7 1.2-1.7 2.3" />
+      <path d="M12 17.2h.01" />
+    </>
+  ),
+  book: (
+    <>
+      <path d="M4 5.5A2.5 2.5 0 016.5 3H19v16H6.5A2.5 2.5 0 004 21.5z" />
+      <path d="M8 7h7M8 11h7" />
+    </>
+  ),
   techService: (
     <>
       <path d="M14.7 6.3a3.7 3.7 0 004.9 4.9l-8.5 8.5a2.2 2.2 0 01-3.1-3.1z" />
