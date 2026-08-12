@@ -36,6 +36,12 @@ const SECTION_ICONS = {
   "sales-tickets": "ticket",
   "sales-clients": "group",
   "sales-live": "live",
+  // Technical sub-sections, same idea. Live view reuses the broadcast mark the
+  // Sales one already uses — it is the same kind of screen, so it should not
+  // arrive wearing a different badge.
+  "technical-quotations": "report",
+  "technical-rfq": "rfp",
+  "technical-live": "live",
 };
 
 // The row's shell — shape and colour, no padding. A plain row adds the padding

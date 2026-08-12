@@ -182,6 +182,31 @@ const PATHS = {
       <path d="M18.8 6.2A9 9 0 0118.8 17.8" />
     </>
   ),
+  // Technical sub-section icons.
+  //
+  // Report — a page being WRITTEN: folded corner, ruled lines, pencil laid over
+  // the right edge. The pencil is what separates it from a plain document, so it
+  // crosses the page outline rather than sitting politely beside it.
+  report: (
+    <>
+      <path d="M3.8 3.5h7.4l3.3 3.3V20a1 1 0 01-1 1H4.8a1 1 0 01-1-1V4.5a1 1 0 011-1z" />
+      <path d="M11.2 3.5v3.3h3.3" />
+      <path d="M6.8 11.5h4.5M6.8 14.5h3.5" />
+      <path d="M18.6 7.1l2.3 2.3-6.4 6.4-3 .7.7-3z" />
+    </>
+  ),
+  // Request for proposal — a document ANSWERED: the page carries its two bars,
+  // and the reply is the check badge overlapping its lower corner. Drawn clear
+  // of the page's outline, since a stroke-only set has no white ring to punch
+  // the badge out with.
+  rfp: (
+    <>
+      <path d="M14.5 12.2V5a2 2 0 00-2-2h-7a2 2 0 00-2 2v11a2 2 0 002 2h5.7" />
+      <path d="M6.8 7h5M6.8 10.5h2.5" />
+      <circle cx="17.2" cy="16.2" r="4.6" />
+      <path d="M15.2 16.3l1.4 1.4 2.8-2.9" />
+    </>
+  ),
   // The notches are what make this a ticket rather than a card, so they carry
   // the shape; the stub's perforation is dashed for the same reason.
   ticket: (
