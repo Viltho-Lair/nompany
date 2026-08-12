@@ -115,7 +115,6 @@ export const SECTION_DEFS = [
   { key: "hr", name: "Human Resources" },
   { key: "finance", name: "Finance" },
   { key: "operations", name: "Operations" },
-  { key: "website", name: "Website" },
   { key: "tasks", name: "Tasks" },
 ];
 
@@ -129,7 +128,6 @@ export const SECTION_COLLECTIONS = {
   hr: ["departments", "positions", "certifications", "vacations"],
   finance: ["invoices", "expenses"],
   operations: ["locations", "permits", "shifts"],
-  website: ["siteProfile", "services", "previousProjects", "messages"],
   tasks: ["tasks"],
 };
 

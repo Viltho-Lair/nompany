@@ -4,8 +4,9 @@
 // cascade, and no user or studio owns it. Keys live under `g:site:*`, matching
 // the other global registries.
 //
-// (A subscriber studio's own website content is different — that lives in its
-// `website` section, under s:<StudioID>:sec:<SectionID>:c:*.)
+// (Studios have no public site of their own. The `website` section and the
+// /c/<slug> profile it powered were removed on 2026-08-12 — nompany.com hosts
+// only the platform's own marketing site.)
 
 import { readArr, editArr, editJSON, getJSON } from "@/lib/data/store";
 

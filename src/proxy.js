@@ -18,8 +18,10 @@ import { locales, defaultLocale } from "@/lib/i18n";
 const LOGIN_PATH = `/${defaultLocale}/login`;
 
 // Root paths that belong to the platform and can never be a studio slug.
-// "c" is the public company-profile prefix (/c/<slug>) — kept off the root so a
-// published page can never collide with the private studio at /<slug>.
+// "c" served the public company profile (/c/<slug>) until that feature was
+// removed on 2026-08-12 — studios have no public site under nompany.com. It
+// stays reserved here (and in RESERVED_SLUGS) so the prefix can never be
+// claimed as a studio slug, which would resurrect the collision it prevented.
 const PLATFORM = new Set(["api", "_next", "super", "brand", "favicon.ico", "robots.txt", "sitemap.xml", "manifest.webmanifest", "studio", "c"]);
 
 export function proxy(request) {
