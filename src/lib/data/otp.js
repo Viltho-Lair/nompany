@@ -123,36 +123,64 @@ export async function resendChallenge(challengeId, { ip } = {}) {
 // ---- trusted devices (risk-based login) ------------------------------------
 const liveDevices = (rows) => (Array.isArray(rows) ? rows : []).filter((d) => (d.expiresAt || 0) > Date.now());
 
-export async function trustDevice(userId, { label = "", deviceType = "", location = "", ipHash = "" } = {}) {
-  const deviceId = makeId("dev");
-  await editArr(U.devices(userId), (rows) => ({
-    next: [
-      {
-        id: deviceId,
-        label: String(label).slice(0, 120),
-        deviceType: String(deviceType).slice(0, 20),
-        location: String(location).slice(0, 80),
-        // Digest only — see deviceFingerprint() for why the address itself is
-        // never written here.
-        ipHash: String(ipHash).slice(0, 64),
-        createdAt: Date.now(), lastSeenAt: Date.now(), expiresAt: Date.now() + DEVICE_TTL_MS,
-      },
-      ...liveDevices(rows),
-    ].slice(0, MAX_DEVICES),
-  }));
-  return deviceId;
+// Record the browser this sign-in came from, and say whether it may SKIP the
+// one-time code next time.
+//
+// Recording and trusting are deliberately separate. Every successful sign-in is
+// recorded, so Security can show where the account has been used; only a device
+// the person actually ticked "trust" skips the code. Before this split a device
+// was written ONLY when the box was ticked, which is why the list could sit
+// empty for someone who signs in regularly.
+//
+// Upserts on `deviceId`: a browser that signs in repeatedly updates its own row
+// — refreshing where it was last seen — instead of adding a duplicate each time.
+export async function recordDevice(userId, deviceId, { label = "", deviceType = "", location = "", ipHash = "" } = {}, { trusted = true } = {}) {
+  const id = deviceId && String(deviceId).startsWith("dev") ? deviceId : makeId("dev");
+  const facts = {
+    label: String(label).slice(0, 120),
+    deviceType: String(deviceType).slice(0, 20),
+    location: String(location).slice(0, 80),
+    // Digest only — see deviceFingerprint() for why the address itself is
+    // never written here.
+    ipHash: String(ipHash).slice(0, 64),
+  };
+  await editArr(U.devices(userId), (rows) => {
+    const live = liveDevices(rows);
+    const existing = live.find((d) => d.id === id);
+    const row = {
+      ...existing,
+      ...facts,
+      id,
+      trusted: Boolean(trusted),
+      createdAt: existing?.createdAt || Date.now(),
+      lastSeenAt: Date.now(),
+      expiresAt: Date.now() + DEVICE_TTL_MS,
+    };
+    return { next: [row, ...live.filter((d) => d.id !== id)].slice(0, MAX_DEVICES) };
+  });
+  return id;
 }
 
 // True only for a live, unexpired device belonging to THIS user — a device
 // cookie from another account can never skip this user's challenge.
-export async function isTrustedDevice(userId, deviceId) {
+// Rows written before recording and trusting were separated carry no `trusted`
+// field, and every one of those was created only when the box WAS ticked — so a
+// missing flag means trusted. Only an explicit false is untrusted.
+export async function isTrustedDevice(userId, deviceId, facts = null) {
   if (!userId || !deviceId) return false;
   return editArr(U.devices(userId), (rows) => {
     const live = liveDevices(rows);
-    if (!live.some((d) => d.id === deviceId)) return { result: false };
+    const found = live.find((d) => d.id === deviceId);
+    if (!found) return { result: false };
+    // Seen again: refresh when and where, so the Security list reflects the last
+    // sign-in rather than the first. Details only, never the trust flag.
+    const fresh = facts
+      ? { label: facts.label || found.label, deviceType: facts.deviceType || found.deviceType,
+          location: facts.location || found.location, ipHash: facts.ipHash || found.ipHash }
+      : {};
     return {
-      next: live.map((d) => (d.id === deviceId ? { ...d, lastSeenAt: Date.now() } : d)),
-      result: true,
+      next: live.map((d) => (d.id === deviceId ? { ...d, ...fresh, lastSeenAt: Date.now() } : d)),
+      result: found.trusted !== false,
     };
   });
 }

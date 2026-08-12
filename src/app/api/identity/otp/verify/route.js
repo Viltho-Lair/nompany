@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import {
   verifyOtp, sessionCookie, clearedOtpCookie, deviceCookie, deviceFingerprint,
-  requestIsHttps, publicUser, OTP_COOKIE,
+  requestIsHttps, publicUser, OTP_COOKIE, DEVICE_COOKIE,
 } from "@/lib/identity";
 
 export const runtime = "nodejs";
@@ -13,7 +13,8 @@ export async function POST(request) {
   let body = {};
   try { body = await request.json(); } catch { body = {}; }
 
-  const challengeId = (await cookies()).get(OTP_COOKIE)?.value || "";
+  const jar = await cookies();
+  const challengeId = jar.get(OTP_COOKIE)?.value || "";
   if (!challengeId) return Response.json({ error: "expired" }, { status: 400 });
 
   const result = await verifyOtp({
@@ -22,6 +23,8 @@ export async function POST(request) {
     remember: body.remember,
     trustThisDevice: body.trustThisDevice,
     device: deviceFingerprint(request),
+    // Reuse this browser's existing row rather than adding a duplicate.
+    deviceId: jar.get(DEVICE_COOKIE)?.value || "",
   });
   if (result.error) {
     const status = result.error === "suspended" ? 403 : result.error === "notfound" ? 404 : 400;

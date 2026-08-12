@@ -12,6 +12,9 @@ export async function GET() {
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
   const devices = (await listDevices(user.id)).map((d) => ({
     id: d.id, label: d.label, deviceType: d.deviceType || "", location: d.location || "",
+    // Missing flag = written before recording and trusting were separated, and
+    // those rows only ever existed when the person ticked trust.
+    trusted: d.trusted !== false,
     // The address itself is never stored — only a keyed digest, surfaced as a
     // short fingerprint so two sign-ins can be told apart without exposing it.
     ipFingerprint: (d.ipHash || "").slice(0, 8),

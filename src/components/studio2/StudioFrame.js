@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -33,18 +33,52 @@ const SECTION_ICONS = {
   access: "lock",
 };
 
-const itemClass = (active) =>
-  `flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-500 transition-colors ${
+// The row's shell — shape and colour, no padding. A plain row adds the padding
+// itself (itemClass); a parent group hands it to the link and the chevron
+// button separately, so each is a full-height hit target of its own.
+const rowClass = (active) =>
+  `flex items-center justify-between gap-3 rounded-lg text-sm font-500 transition-colors ${
     active
       ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
   }`;
+
+const itemClass = (active) => `${rowClass(active)} px-3 py-2.5`;
 
 const iconClass = (active) =>
   `h-[18px] w-[18px] ${active ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"}`;
 
 export default function StudioFrame({ studio, me, sections, activeKey, children }) {
   const [open, setOpen] = useState(false);
+  // The header avatar is the ACCOUNT, not the studio membership: `me` carries a
+  // studio-local alias and role, but the picture belongs to the person and lives
+  // on their profile, so it comes from the identity endpoint like it does in the
+  // public header and the account hub.
+  const [account, setAccount] = useState(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/identity/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d?.user) setAccount({ email: d.user.email, photo: d.profile?.photo || "" }); })
+      .catch(() => {}); // the avatar just falls back to initials
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const close = () => setAccountOpen(false);
+    const onKey = (e) => e.key === "Escape" && setAccountOpen(false);
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
+  }, [accountOpen]);
+
+  async function signOut() {
+    try { await fetch("/api/identity/logout", { method: "POST" }); } catch { /* sign out locally anyway */ }
+    window.location.assign("/en/login");
+  }
 
   // Nav tree. A section with `parentId` is a sub-section; its parent renders as
   // an expandable group. Until sub-sections exist in the data every row is a
@@ -76,29 +110,41 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
     admin.find((i) => i.key === activeKey)?.label ||
     studio.name;
 
-  // A parent that owns sub-sections is a disclosure, not a link: it expands to
-  // reveal them rather than navigating. Parents with no children stay links.
+  // EVERY section is a link to its own dashboard — a parent that owns
+  // sub-sections is BOTH: the row navigates to the parent's dashboard, and the
+  // chevron beside it expands the children without leaving the page. The two
+  // are separate hit targets so neither steals the other's click.
   const navGroup = (node) => {
     if (node.children.length === 0) return navLink(`/${studio.slug}/${node.key}`, node.key, node.name);
     const shown = isOpen(node);
-    const active = node.key === activeKey || hasActiveChild(node);
+    // Highlight the exact page you are on. A child being active expands the
+    // group (see isOpen) but no longer dresses the parent up as the current
+    // screen — the parent is now a destination of its own.
+    const active = node.key === activeKey;
     return (
       <div key={node.key}>
-        <button
-          type="button"
-          onClick={() => toggle(node.key, !shown)}
-          aria-expanded={shown}
-          className={`${itemClass(active)} w-full`}
-        >
-          <span className="flex items-center gap-3">
+        <div className={`${rowClass(active)} pe-1`}>
+          <Link
+            href={`/${studio.slug}/${node.key}`}
+            onClick={() => setOpen(false)}
+            className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5"
+          >
             <Icon name={SECTION_ICONS[node.key] || "dot"} className={iconClass(active)} />
-            {node.name}
-          </span>
-          <Icon
-            name={shown ? "chevronUp" : "chevronDown"}
-            className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500"
-          />
-        </button>
+            <span className="truncate">{node.name}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => toggle(node.key, !shown)}
+            aria-expanded={shown}
+            aria-label={`${shown ? "Collapse" : "Expand"} ${node.name}`}
+            className="shrink-0 rounded-md p-2 hover:bg-black/5 dark:hover:bg-white/10"
+          >
+            <Icon
+              name={shown ? "chevronUp" : "chevronDown"}
+              className="h-4 w-4 text-slate-400 dark:text-slate-500"
+            />
+          </button>
+        </div>
         {shown && (
           <div className="mt-0.5 space-y-0.5 ps-4">
             {node.children.map((c) => navLink(`/${studio.slug}/${c.key}`, c.key, c.name))}
@@ -209,13 +255,51 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
                 {me.role}
               </span>
             </span>
-            <Link
-              href="/en/account"
-              className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-950 font-display text-sm font-700 text-white shadow-geex-sm transition-shadow hover:ring-2 hover:ring-brand-500/40 dark:bg-brand-500/20 dark:text-brand-300"
-              title={me.alias ? `${me.alias} — my account` : "My account"}
-            >
-              {avatarLetter}
-            </Link>
+            {/* The avatar is a menu, not a link: going to the account and
+                signing out are both reachable from it, and sign-out lives
+                nowhere else in the studio. */}
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setAccountOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={accountOpen}
+                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-950 font-display text-sm font-700 text-white shadow-geex-sm transition-shadow hover:ring-2 hover:ring-brand-500/40 dark:bg-brand-500/20 dark:text-brand-300"
+                title={me.alias ? `${me.alias} — my account` : "My account"}
+              >
+                {account?.photo
+                  /* A stored data URI, so next/image would only get in the way. */
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  ? <img src={account.photo} alt="" className="h-full w-full object-cover" />
+                  : avatarLetter}
+              </button>
+
+              {accountOpen && (
+                <div role="menu" className="absolute end-0 z-50 mt-2 w-56 overflow-hidden rounded-geex bg-[var(--geex-surface)] py-1 shadow-geex">
+                  <p className="truncate px-3 py-2 text-xs text-slate-400 dark:text-slate-500">
+                    {account?.email || me.alias || "Signed in"}
+                  </p>
+                  <Link
+                    href="/en/account"
+                    role="menuitem"
+                    onClick={() => setAccountOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm font-500 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"
+                  >
+                    <Icon name="person" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+                    Go to account
+                  </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={signOut}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-start text-sm font-500 text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                  >
+                    <Icon name="lock" className="h-[18px] w-[18px]" />
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
         <main className="mx-auto max-w-[1400px] px-5 pb-8 sm:px-8">{children}</main>

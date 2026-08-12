@@ -86,6 +86,18 @@ export default function StudioInventory({ slug, view = "inventory" }) {
 
   const { canManage, vendors, items, movements, orders, deliveries, projects, summary, vocabulary, nav } = data;
 
+  // The parent section is a place of its own, like every other section: its own
+  // dashboard rather than a redirect into whichever sub-section came first.
+  if (view === "inventory") {
+    return (
+      <div className="space-y-6">
+        {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+        <Summary summary={summary} />
+        <InventoryDashboard slug={slug} items={items} vendors={vendors} orders={orders} deliveries={deliveries} />
+      </div>
+    );
+  }
+
   const tabs = [
     ["stock", `Stock (${items.length})`],
     ["vendors", `Vendors (${vendors.length})`],
@@ -149,6 +161,34 @@ function message(out) {
   if (out.error === "project") return "Pick a project.";
   if (out.error === "nothing") return "Enter what actually arrived.";
   return "That didn't save.";
+}
+
+// The Inventory dashboard is deliberately empty of analytics for now — it
+// exists so the parent section is a place rather than a redirect. The tiles are
+// counts and a way into each sub-section.
+function InventoryDashboard({ slug, items, vendors, orders, deliveries }) {
+  const tiles = [
+    { label: "Registered items", value: items.length, key: "inventory-items" },
+    { label: "Stock management", value: "Open", key: "inventory-stock" },
+    { label: "Vendors", value: vendors.length, key: "inventory-vendors" },
+    { label: "Project sheets", value: orders.length, key: "inventory-sheets" },
+    { label: "AWB tracking", value: deliveries.length, key: "inventory-awb" },
+  ];
+  return (
+    <section className={panel}>
+      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">Inventory</h2>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">An overview of this section. Nothing is reported here yet.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {tiles.map((t) => (
+          <a key={t.key} href={`/${slug}/${t.key}`}
+            className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
+            <p className={label}>{t.label}</p>
+            <p className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.value}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 // ---- summary ---------------------------------------------------------------

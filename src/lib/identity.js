@@ -21,7 +21,7 @@ import {
 import { getOwnedStudio, listUserCollaborations } from "@/lib/data/studios";
 import {
   createChallenge, verifyChallenge, resendChallenge,
-  trustDevice, isTrustedDevice, revokeAllDevices,
+  recordDevice, isTrustedDevice, revokeAllDevices,
   CODE_TTL_SEC, DEVICE_TTL_MS, MAX_ATTEMPTS,
 } from "@/lib/data/otp";
 import { hashPassword, verifyPassword, generatePassword } from "@/lib/passwords";
@@ -160,7 +160,7 @@ async function deliverCode(to, name, code, template) {
 // ---- OTP verification (completes signup OR an untrusted login) -------------
 // Success always proves control of the address, so it stamps emailVerifiedAt
 // for both purposes, mints the session, and optionally remembers the device.
-export async function verifyOtp({ challengeId, code, remember, trustThisDevice, device }) {
+export async function verifyOtp({ challengeId, code, remember, trustThisDevice, device, deviceId }) {
   const result = await verifyChallenge(challengeId, code);
   if (result.error) return { error: result.error, attemptsLeft: result.attemptsLeft };
 
@@ -174,8 +174,12 @@ export async function verifyOtp({ challengeId, code, remember, trustThisDevice, 
 
   const ttl = remember ? REMEMBER_TTL : SESSION_TTL;
   const token = await mintSession(userId, ttl);
-  const deviceId = trustThisDevice ? await trustDevice(userId, device || {}) : "";
-  return { user, token, ttl, deviceId };
+  // ALWAYS record the browser, so Security can show where this account has been
+  // signed in from. The checkbox decides only whether it may skip the code next
+  // time, not whether it is remembered at all — the two used to be the same
+  // decision, which is why a regular sign-in left the list empty.
+  const recordedId = await recordDevice(userId, deviceId, device || {}, { trusted: Boolean(trustThisDevice) });
+  return { user, token, ttl, deviceId: recordedId };
 }
 
 // Re-send the code for an in-flight challenge (new code, attempts reset).
@@ -225,13 +229,16 @@ export async function signInWithProvider({ email, fullName, provider }) {
 // Returns either { user, token } for a trusted device, or { otpRequired } with
 // a challenge to complete. Credentials are always checked FIRST, so a code is
 // never sent to an address whose password was not supplied correctly.
-export async function login({ email, password, remember, deviceId, ip }) {
+export async function login({ email, password, remember, deviceId, ip, device }) {
   const user = await getUserByEmail(email);
   if (!user) return { error: "invalid" };                 // generic — never reveals existence
   if (user.status === "suspended") return { error: "suspended" };
   if (!(await verifyPassword(String(password || ""), user.passwordHash))) return { error: "invalid" };
 
-  if (await isTrustedDevice(user.id, deviceId)) {
+  // Passing the fingerprint here refreshes the stored row on every sign-in, so
+  // the Security list shows where the browser was LAST used rather than where it
+  // first was. It cannot grant trust — only the code step can do that.
+  if (await isTrustedDevice(user.id, deviceId, device)) {
     const ttl = remember ? REMEMBER_TTL : SESSION_TTL;
     return { user, token: await mintSession(user.id, ttl), ttl };
   }

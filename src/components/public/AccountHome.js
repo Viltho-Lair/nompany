@@ -781,7 +781,17 @@ function Security({ devices, onChanged, locale, user }) {
                 className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
             </span>
             <div className="flex min-w-0 flex-col justify-center">
-              <span className={ROW_LABEL}>{d.label || "Unknown device"}</span>
+              <span className="flex flex-wrap items-center gap-2">
+                <span className={ROW_LABEL}>{d.label || "Unknown device"}</span>
+                {/* Every browser that signs in is listed; only the ones marked
+                    trusted skip the emailed code. Saying which is which is the
+                    point of the list. */}
+                {d.trusted ? (
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-600 text-emerald-700 dark:text-emerald-300">Trusted</span>
+                ) : (
+                  <span className="rounded-full bg-slate-500/10 px-2 py-0.5 text-[11px] font-600 text-slate-600 dark:text-slate-300">Asks for a code</span>
+                )}
+              </span>
               <span className={ROW_VALUE}>
                 {[d.deviceType, d.location || "Location unknown",
                   `last used ${new Date(d.lastSeenAt).toLocaleDateString("en-GB")}`].filter(Boolean).join(" · ")}

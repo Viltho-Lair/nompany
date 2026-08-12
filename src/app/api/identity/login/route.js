@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import {
-  login, sessionCookie, otpCookie, requestIsHttps, clientIp, publicUser, DEVICE_COOKIE,
+  login, sessionCookie, otpCookie, requestIsHttps, clientIp, publicUser, deviceFingerprint, DEVICE_COOKIE,
 } from "@/lib/identity";
 
 export const runtime = "nodejs";
@@ -19,6 +19,10 @@ export async function POST(request) {
     remember: body.remember,
     deviceId,
     ip: clientIp(request),
+    // Everything we can learn about this browser from the request itself —
+    // label, type and coarse location — so a recognised device's row is kept
+    // current instead of frozen at whenever it was first trusted.
+    device: deviceFingerprint(request),
   });
 
   if (result.error) {

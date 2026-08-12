@@ -115,14 +115,20 @@ export default async function StudioPage({ params }) {
         : screenKey === "finance" ? <StudioFinance slug={studio.slug} view={active?.key} />
         : screenKey === "tasks" ? <StudioTasks slug={studio.slug} view={active?.key} />
         : screenKey === "operations" ? <StudioOperations slug={studio.slug} view={active?.key} />
-        : active ? <SectionPlaceholder section={active} studio={studio}
+        : active ? <SectionDashboard section={active} studio={studio}
+            subsections={sections.filter((s) => s.parentId === active.id)}
             canManage={canManageSection(studio, collaborator, active.id, grants)} />
         : <NothingGranted admin={admin} slug={studio.slug} />}
     </StudioFrame>
   );
 }
 
-function SectionPlaceholder({ section, studio, canManage }) {
+// EVERY section owns a dashboard, and this is the one for sections that have no
+// module of their own yet — Main, and any section a studio appends later. It is
+// deliberately empty of analytics: it exists so that clicking a section always
+// lands somewhere that belongs to that SectionID rather than nowhere at all.
+// Sub-sections, when the section has any, are the way onward from here.
+function SectionDashboard({ section, studio, subsections = [], canManage }) {
   return (
     <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
       <div className="flex flex-wrap items-center gap-3">
@@ -134,10 +140,22 @@ function SectionPlaceholder({ section, studio, canManage }) {
         </span>
       </div>
       <p className="mt-2 max-w-prose text-sm text-slate-500 dark:text-slate-400">
-        This section is live on the new data model — it has its own SectionID
-        (<code className="font-mono text-xs">{section.id}</code>) and its records will be stored under it,
-        scoped to {studio.name}. The module's screens are being rebuilt on this foundation.
+        An overview of this section. Nothing is reported here yet — it has its own SectionID
+        (<code className="font-mono text-xs">{section.id}</code>) and its records are stored under it,
+        scoped to {studio.name}.
       </p>
+
+      {subsections.length > 0 && (
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          {subsections.map((s) => (
+            <Link key={s.id} href={`/${studio.slug}/${s.key}`}
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
+              <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{s.name}</p>
+              <p className="mt-0.5 font-mono text-[11px] text-slate-400 dark:text-slate-500">{s.key}</p>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
