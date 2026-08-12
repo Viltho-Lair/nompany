@@ -25,6 +25,7 @@ export const ID = {
   studio: () => makeId("std"),
   collaborator: () => makeId("col"),
   section: () => makeId("sec"),
+  subsection: () => makeId("sub"),
   grant: () => makeId("grt"),
   media: () => makeId("med"),
   row: (collection) => makeId(collection.slice(0, 3)),
@@ -107,27 +108,98 @@ export const IX = {
 export { normEmail };
 
 // ---- fixed section list (seeded at studio creation; appendable) ------------
+//
+// A section may own SUB-SECTIONS. Each is a row in the same
+// s:<StudioID>:sections array carrying `parentId`, and each gets its own id
+// (minted `sub_…`) — so a sub-section is grantable, owns collections and
+// cascades exactly like a section, with no separate registry.
+//
+// The tree is ONE level deep by design: a sub-section may not have children.
+// Shape mirrors the Old System's studio nav.
 export const SECTION_DEFS = [
-  { key: "sales", name: "Sales" },
-  { key: "technical", name: "Technical" },
-  { key: "projects", name: "Projects" },
-  { key: "inventory", name: "Inventory" },
-  { key: "hr", name: "Human Resources" },
-  { key: "finance", name: "Finance" },
-  { key: "operations", name: "Operations" },
-  { key: "tasks", name: "Tasks" },
+  { key: "main", name: "Main" },
+  { key: "sales", name: "Sales", children: [
+    { key: "sales-tickets", name: "Tickets" },
+    { key: "sales-clients", name: "Clients" },
+    { key: "sales-live", name: "Live view" },
+    { key: "sales-settings", name: "Settings" },
+  ] },
+  { key: "technical", name: "Technical", children: [
+    { key: "technical-quotations", name: "Quotations" },
+    { key: "technical-rfq", name: "RFQ" },
+    { key: "technical-live", name: "Live view" },
+    { key: "technical-settings", name: "Settings" },
+  ] },
+  { key: "projects", name: "Projects", children: [
+    { key: "projects-list", name: "Project list" },
+    { key: "projects-sla", name: "SLA" },
+    { key: "projects-overtimes", name: "Overtimes" },
+    { key: "projects-settings", name: "Settings" },
+  ] },
+  { key: "inventory", name: "Inventory", children: [
+    { key: "inventory-stock", name: "Stock Management" },
+    { key: "inventory-vendors", name: "Vendors" },
+    { key: "inventory-items", name: "Registered Items" },
+    { key: "inventory-sheets", name: "Project Sheets" },
+    { key: "inventory-awb", name: "AWB Tracking" },
+  ] },
+  { key: "hr", name: "Human Resources", children: [
+    { key: "hr-employees", name: "Employees" },
+    { key: "hr-users", name: "Users" },
+    { key: "hr-careers", name: "Careers" },
+    { key: "hr-applications", name: "Applications" },
+  ] },
+  { key: "finance", name: "Finance", children: [
+    { key: "finance-cash", name: "Cash" },
+    { key: "finance-settings", name: "Settings" },
+  ] },
+  { key: "operations", name: "Operations", children: [
+    { key: "operations-tracking", name: "Tracking" },
+    { key: "operations-settings", name: "Settings" },
+  ] },
+  { key: "tasks", name: "Tasks", children: [
+    { key: "tasks-settings", name: "Task settings" },
+  ] },
 ];
 
-// Which operational collections belong to which section KEY. Every record in
+// Flat list of every seeded key, parents and children alike.
+export const ALL_SECTION_KEYS = SECTION_DEFS.flatMap((d) => [d.key, ...(d.children || []).map((c) => c.key)]);
+
+// Which operational collections belong to which section key. Every record in
 // these collections carries { studioId, sectionId } and dies with its section.
+//
+// A collection is owned by the MOST SPECIFIC section that holds it, so deleting
+// that sub-section takes its data with it. Collections that genuinely span a
+// section's sub-sections stay on the parent — `deliveries` is raised from
+// several places, and Operations' locations/permits/shifts are tabs of one
+// screen rather than separate sub-sections.
 export const SECTION_COLLECTIONS = {
-  sales: ["salesClients", "salesTickets"],
-  technical: ["rfqs", "quotations"],
-  projects: ["projects", "projectSheets", "overtimes", "slas"],
-  inventory: ["inventoryVendors", "inventoryItems", "inventoryStock", "deliveries", "materialOrders"],
-  hr: ["departments", "positions", "certifications", "vacations"],
-  finance: ["invoices", "expenses"],
+  // sales
+  "sales-tickets": ["salesTickets"],
+  "sales-clients": ["salesClients"],
+  // technical
+  "technical-quotations": ["quotations"],
+  "technical-rfq": ["rfqs"],
+  // projects
+  "projects-list": ["projects"],
+  "projects-sla": ["slas"],
+  "projects-overtimes": ["overtimes"],
+  // inventory — Project Sheets owns the sheets and their orders sub-sheet,
+  // matching the Old System, where Sheets lives under Inventory (not Projects).
+  inventory: ["deliveries"],
+  "inventory-stock": ["inventoryStock"],
+  "inventory-vendors": ["inventoryVendors"],
+  "inventory-items": ["inventoryItems"],
+  "inventory-sheets": ["projectSheets", "materialOrders"],
+  // hr — the reference lists belong to the Employees screen; vacations are
+  // studio-wide HR settings.
+  hr: ["vacations"],
+  "hr-employees": ["departments", "positions", "certifications"],
+  // finance
+  "finance-cash": ["invoices", "expenses"],
+  // operations — Main/Employees/Permits/Locations are tabs, not sub-sections.
   operations: ["locations", "permits", "shifts"],
+  // tasks
   tasks: ["tasks"],
 };
 

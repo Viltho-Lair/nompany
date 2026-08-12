@@ -45,15 +45,23 @@ export async function cascadeDeleteCollaborator(studioId, collaboratorId) {
 }
 
 // ---- section ---------------------------------------------------------------
+// Deleting a PARENT takes its sub-sections with it. Each sub-section owns its
+// own key prefix and its own grants, so both are reaped per id — children
+// first, then the parent, then the rows. Deleting a sub-section on its own
+// leaves the parent untouched.
 export async function cascadeDeleteSection(studioId, sectionId) {
   const rows = await readArr(S.sections(studioId));
   const row = rows.find((s) => s.id === sectionId);
+  const children = rows.filter((s) => s.parentId === sectionId);
+  const doomed = [...children.map((c) => c.id), sectionId];
 
-  // children first: every operational collection under the section prefix
-  await delPrefix(SEC.prefix(studioId, sectionId));
-  await editArr(S.grants(studioId), (grants) => ({ next: grants.filter((g) => g.sectionId !== sectionId) }));
+  // children first: every operational collection under each doomed id
+  for (const id of doomed) await delPrefix(SEC.prefix(studioId, id));
+  await editArr(S.grants(studioId), (grants) => ({ next: grants.filter((g) => !doomed.includes(g.sectionId)) }));
 
-  if (row) await editArr(S.sections(studioId), (all) => ({ next: all.filter((s) => s.id !== sectionId) }));
+  if (row) {
+    await editArr(S.sections(studioId), (all) => ({ next: all.filter((s) => !doomed.includes(s.id)) }));
+  }
   return Boolean(row);
 }
 

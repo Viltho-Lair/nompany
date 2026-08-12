@@ -31,28 +31,37 @@ export async function getSectionByKey(studioId, key) {
 // Append a new section — UNIQUE(StudioID, key); always a fresh SectionID. The
 // uniqueness check runs inside the atomic write, and sortOrder is derived from
 // the list as it actually stands, so two appends cannot collide on either.
-export async function appendSection(studioId, { key, name }) {
+export async function appendSection(studioId, { key, name, parentId = null }) {
   const cleanKey = String(key || "").trim().toLowerCase();
   const cleanName = String(name || "").trim();
   if (!cleanKey || !cleanName) return { error: "missing" };
   return editArr(S.sections(studioId), (rows) => {
     if (rows.some((s) => s.key === cleanKey)) return { result: { error: "exists" } };
+    if (parentId) {
+      const parent = rows.find((s) => s.id === parentId);
+      // The tree is one level deep: a sub-section cannot own sub-sections.
+      if (!parent) return { result: { error: "parent" } };
+      if (parent.parentId) return { result: { error: "nested" } };
+    }
     const section = {
-      id: ID.section(), studioId, key: cleanKey, name: cleanName,
+      id: parentId ? ID.subsection() : ID.section(),
+      studioId, key: cleanKey, name: cleanName, parentId: parentId || null,
       enabled: true, sortOrder: rows.length, settings: {}, createdAt: new Date().toISOString(),
     };
     return { next: [...rows, section], result: { section } };
   });
 }
 
-// id / studioId / key are immutable — name, enabled, sortOrder, settings patch.
+// id / studioId / key / parentId are immutable — name, enabled, sortOrder and
+// settings patch. parentId is fixed because re-parenting would move a row out
+// from under the cascade that owns its data.
 export async function updateSection(studioId, sectionId, patch) {
   return editArr(S.sections(studioId), (rows) => {
     let updated = null;
     const next = rows.map((s) => {
       if (s.id !== sectionId) return s;
-      const { id, studioId: sid, key, ...safe } = patch || {};
-      updated = { ...s, ...safe, id: s.id, studioId: s.studioId, key: s.key };
+      const { id, studioId: sid, key, parentId, ...safe } = patch || {};
+      updated = { ...s, ...safe, id: s.id, studioId: s.studioId, key: s.key, parentId: s.parentId ?? null };
       return updated;
     });
     return updated ? { next, result: updated } : { result: null };

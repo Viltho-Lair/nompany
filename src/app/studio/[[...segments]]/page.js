@@ -69,10 +69,19 @@ export default async function StudioPage({ params }) {
   const deniedSection = !isPeople && !isAccess && requested && !sections.some((s) => s.key === requested)
     && allSections.some((s) => s.key === requested);
 
+  // Which screen to render. Each section's UI is still one component per
+  // PARENT, so a sub-section resolves to its parent's screen — Tickets and
+  // Clients both show StudioSales for now. Splitting them into their own
+  // screens is the per-section porting work; this keeps every sub-section
+  // reachable in the meantime instead of dropping to a placeholder.
+  const screenKey = active?.parentId
+    ? (allSections.find((s) => s.id === active.parentId)?.key || active.key)
+    : active?.key;
+
   const frameProps = {
     studio: { name: studio.name, slug: studio.slug },
     me: { alias: collaborator.alias || "", role: collaborator.role, canAdminister: admin },
-    // parentId drives the expandable nav; it is absent until sub-sections exist.
+    // parentId drives the expandable nav.
     sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),
     activeKey: isPeople ? "people" : isAccess ? "access" : (active?.key || ""),
   };
@@ -82,14 +91,14 @@ export default async function StudioPage({ params }) {
       {isPeople ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} />
         : isAccess ? <StudioAccess slug={studio.slug} />
         : deniedSection ? <NoSectionAccess />
-        : active?.key === "sales" ? <StudioSales slug={studio.slug} />
-        : active?.key === "technical" ? <StudioTechnical slug={studio.slug} />
-        : active?.key === "projects" ? <StudioProjects slug={studio.slug} />
-        : active?.key === "hr" ? <StudioHr slug={studio.slug} />
-        : active?.key === "inventory" ? <StudioInventory slug={studio.slug} />
-        : active?.key === "finance" ? <StudioFinance slug={studio.slug} />
-        : active?.key === "tasks" ? <StudioTasks slug={studio.slug} />
-        : active?.key === "operations" ? <StudioOperations slug={studio.slug} />
+        : screenKey === "sales" ? <StudioSales slug={studio.slug} />
+        : screenKey === "technical" ? <StudioTechnical slug={studio.slug} />
+        : screenKey === "projects" ? <StudioProjects slug={studio.slug} />
+        : screenKey === "hr" ? <StudioHr slug={studio.slug} />
+        : screenKey === "inventory" ? <StudioInventory slug={studio.slug} />
+        : screenKey === "finance" ? <StudioFinance slug={studio.slug} />
+        : screenKey === "tasks" ? <StudioTasks slug={studio.slug} />
+        : screenKey === "operations" ? <StudioOperations slug={studio.slug} />
         : active ? <SectionPlaceholder section={active} studio={studio}
             canManage={canManageSection(studio, collaborator, active.id, grants)} />
         : <NothingGranted admin={admin} slug={studio.slug} />}

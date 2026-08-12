@@ -34,11 +34,23 @@ export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" })
     const now = new Date().toISOString();
     const studio = { id, ownerUserId, name: cleanName, slug: cleanSlug, plan: "free", status: "active", createdAt: now };
 
-    // Seed the fixed section list — every section gets its own unique SectionID.
-    const sections = SECTION_DEFS.map((d, i) => ({
-      id: ID.section(), studioId: id, key: d.key, name: d.name,
-      enabled: true, sortOrder: i, settings: {}, createdAt: now,
-    }));
+    // Seed the fixed section list. Parents get a SectionID, sub-sections get
+    // their own id and point at their parent — one flat array, one id space,
+    // so grants and the cascade treat both alike.
+    const sections = [];
+    SECTION_DEFS.forEach((d) => {
+      const parent = {
+        id: ID.section(), studioId: id, key: d.key, name: d.name, parentId: null,
+        enabled: true, sortOrder: sections.length, settings: {}, createdAt: now,
+      };
+      sections.push(parent);
+      (d.children || []).forEach((c) => {
+        sections.push({
+          id: ID.subsection(), studioId: id, key: c.key, name: c.name, parentId: parent.id,
+          enabled: true, sortOrder: sections.length, settings: {}, createdAt: now,
+        });
+      });
+    });
     await writeArr(S.sections(id), sections);
     await setJSON(S.settings(id), {});
 
