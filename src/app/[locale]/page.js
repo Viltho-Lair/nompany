@@ -1,9 +1,10 @@
+import { buildMetadata, localBusinessLd } from "@/lib/seo";
 import { getSiteSettings } from "@/lib/data/site";
-import { getDict } from "@/lib/i18n";
-import { localBusinessLd, buildMetadata } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
-import EditorialHome from "@/components/experience/EditorialHome";
+import LandingPage from "@/components/landing/LandingPage";
 
+// The public landing page. It renders its own header/footer and background, so
+// `Nav` and `Footer` opt out of this route (see the `isLanding` checks there).
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }) {
@@ -13,17 +14,12 @@ export async function generateMetadata({ params }) {
 
 export default async function HomePage({ params }) {
   const { locale } = await params;
-  const dict = getDict(locale);
-  const s = await getSiteSettings();
+  const settings = await getSiteSettings();
 
-  // nompany marketing home is driven entirely by code (dict), NOT by the shared
-  // ERP collections. The old "Trusted by" logos (salesClients) and testimonials
-  // (reviews) are intentionally not fetched here — they are live operational
-  // data. TODO(phase 6): wire these to nompany-owned content when it exists.
   return (
     <>
-      <JsonLd data={localBusinessLd(s, locale)} />
-      <EditorialHome locale={locale} dict={dict} />
+      <JsonLd data={localBusinessLd(settings, locale)} />
+      <LandingPage locale={locale} />
     </>
   );
 }

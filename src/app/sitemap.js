@@ -1,10 +1,11 @@
 import { locales } from "@/lib/i18n";
 import { urlFor, alternatesFor } from "@/lib/seo";
-import { PRICING_LOCKED } from "@/lib/site";
 
-// Public routes (relative to a locale). Admin and API are excluded on purpose.
-// /pricing is omitted while locked.
-const PATHS = ["", "/features", ...(PRICING_LOCKED ? [] : ["/pricing"]), "/about", "/team", "/careers", "/contact", "/terms", "/signup", "/login"];
+// Public routes (relative to a locale). "" is the landing page, which carries
+// features, pricing and contact as in-page views rather than routes of their
+// own — so there is nothing else to list for them. Admin and API are excluded
+// on purpose.
+const PATHS = ["", "/careers", "/terms", "/signup", "/login"];
 
 export default async function sitemap() {
   const now = new Date();

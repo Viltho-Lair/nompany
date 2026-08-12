@@ -2,10 +2,10 @@
 // Redis record, which still feeds MegaTech's ERP). Single source of truth for
 // the footer, Contact page and JSON-LD. See [[nompany-pivot]].
 
-// Feature flag: when true the public /pricing marketing route is LOCKED — the
-// page 404s and every link to it is hidden (nav, footer, Features CTA, sitemap).
-// Flip to false to unlock. Does NOT affect the in-app /subscribe module picker.
-export const PRICING_LOCKED = false;
+// The public marketing site was rebuilt on 2026-08-12 and now lives at
+// `/[locale]` in this app (see src/components/landing). It is a SINGLE PAGE:
+// features, pricing and contact are in-page views, not routes, so the only
+// public marketing URL is the locale root itself.
 
 export const CONTACT = {
   email: "info@nompany.com",

@@ -2,26 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CONTACT, PRICING_LOCKED } from "@/lib/site";
+import { CONTACT } from "@/lib/site";
 
 // Editorial footer (adapted from the reference site): a big "Let's connect"
 // band, then a minimal dark strip with an Explore nav list, the office / contact
 // block, and a thin copyright bar. Solid navy on every page.
 export default function Footer({ locale, dict }) {
   const pathname = usePathname();
-  const isContact = pathname === `/${locale}/contact`;
-  // The account hub is a full-screen app surface, not a marketing page — no
-  // footer, so the left rail + panel own the whole viewport.
-  const isBare = pathname === `/${locale}/account`;
+  // Two routes own their whole viewport and bring their own chrome (Nav.js
+  // does the same): the full-screen account hub, and the landing page, which
+  // carries its own dark footer.
+  const isBare =
+    pathname === `/${locale}/account` || pathname === `/${locale}`;
   const year = new Date().getFullYear();
 
+  // Features, pricing, about, team and contact are in-page views on the
+  // landing page now, so they collapse into "Home".
   const nav = [
-    { href: `/${locale}/features`, label: dict.nav.features },
-    ...(PRICING_LOCKED ? [] : [{ href: `/${locale}/pricing`, label: dict.nav.pricing }]),
-    { href: `/${locale}/about`, label: dict.nav.about },
-    { href: `/${locale}/team`, label: dict.nav.team },
+    { href: `/${locale}`, label: dict.nav.home },
     { href: `/${locale}/careers`, label: dict.nav.careers },
-    { href: `/${locale}/contact`, label: dict.nav.contact },
     { href: `/${locale}/terms`, label: dict.nav.terms },
   ];
 
@@ -35,30 +34,28 @@ export default function Footer({ locale, dict }) {
 
   return (
     <footer className="bg-steel-900 text-white">
-      {/* Shared "Let's connect" band — the editorial contact call-to-action that
-          sits above the footer on every page except the contact page itself. */}
-      {!isContact && (
-        <section className="border-b border-white/10">
-          <div className="container-page py-16 sm:py-24">
-            <p className="font-display text-xs font-700 uppercase tracking-[0.3em] text-brand-300">{dict.common.contactEyebrow}</p>
-            <div className="mt-4 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-              <h2 className="max-w-3xl font-display text-4xl font-800 uppercase leading-[1.05] tracking-tight text-white sm:text-6xl">
-                {dict.common.letsConnect}
-              </h2>
-              <Link
-                href={`/${locale}/contact`}
-                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-7 py-3.5 font-display text-sm font-700 uppercase tracking-[0.12em] text-brand-950 transition-colors hover:bg-brand-300"
-              >
-                {dict.common.getInTouch}
-                <svg viewBox="0 0 24 24" className="h-4 w-4 rtl:-scale-x-100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14M13 6l6 6-6 6" />
-                </svg>
-              </Link>
-            </div>
-            <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/70">{dict.common.connectLead}</p>
+      {/* Shared "Let's connect" band. The contact form is a view on the
+          landing page now, so the call-to-action points there. */}
+      <section className="border-b border-white/10">
+        <div className="container-page py-16 sm:py-24">
+          <p className="font-display text-xs font-700 uppercase tracking-[0.3em] text-brand-300">{dict.common.contactEyebrow}</p>
+          <div className="mt-4 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <h2 className="max-w-3xl font-display text-4xl font-800 uppercase leading-[1.05] tracking-tight text-white sm:text-6xl">
+              {dict.common.letsConnect}
+            </h2>
+            <Link
+              href={`/${locale}`}
+              className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-7 py-3.5 font-display text-sm font-700 uppercase tracking-[0.12em] text-brand-950 transition-colors hover:bg-brand-300"
+            >
+              {dict.common.getInTouch}
+              <svg viewBox="0 0 24 24" className="h-4 w-4 rtl:-scale-x-100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </Link>
           </div>
-        </section>
-      )}
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/70">{dict.common.connectLead}</p>
+        </div>
+      </section>
 
       {/* Minimal footer strip */}
       <div className="container-page grid gap-12 py-16 md:grid-cols-[1.3fr_1fr_1.2fr]">

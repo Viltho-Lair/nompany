@@ -47,7 +47,7 @@ export function proxy(request) {
     return NextResponse.next({ request: { headers } });
   }
 
-  // Root itself → default locale.
+  // Root itself → default locale (the landing page).
   if (pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = `/${defaultLocale}`;

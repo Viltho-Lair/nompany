@@ -9,7 +9,7 @@ import LangMenu from "@/components/LangMenu";
 import AccountMenu from "@/components/AccountMenu";
 import Skeleton from "@/components/Skeleton";
 import { track, pageLabelFromPath } from "@/lib/track";
-import { CONTACT, PRICING_LOCKED } from "@/lib/site";
+import { CONTACT } from "@/lib/site";
 
 // Minimal editorial header (inspired by the reference site): a slim bar with the
 // wordmark, theme + language controls and a Menu button that opens a full-screen
@@ -44,14 +44,13 @@ export default function Nav({ locale, dict }) {
     setOpen(false);
   }
 
+  // The landing page absorbed features, pricing, about, team and contact as
+  // in-page views, so "Home" is the only entry point they need. Careers and
+  // terms remain real routes.
   const links = [
     { href: `/${locale}`, label: dict.nav.home, exact: true },
-    { href: `/${locale}/features`, label: dict.nav.features },
-    ...(PRICING_LOCKED ? [] : [{ href: `/${locale}/pricing`, label: dict.nav.pricing }]),
-    { href: `/${locale}/about`, label: dict.nav.about },
-    { href: `/${locale}/team`, label: dict.nav.team },
     { href: `/${locale}/careers`, label: dict.nav.careers },
-    { href: `/${locale}/contact`, label: dict.nav.contact },
+    { href: `/${locale}/terms`, label: dict.nav.terms },
   ];
 
   // Primary auth actions → public SaaS sign-up / login.
@@ -92,10 +91,11 @@ export default function Nav({ locale, dict }) {
   const langTrigger =
     "inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current";
 
-  // The account hub is a full-screen app surface — no site header and no
-  // footer (see Footer.js `isBare`). It carries the brand link, theme control
-  // and language switcher inside the page instead.
-  if (pathname === `/${locale}/account`) return null;
+  // Two routes own their whole viewport and bring their own chrome, so the
+  // site header is suppressed on both (Footer.js does the same):
+  //   /account  — the full-screen account hub
+  //   /         — the landing page, which has its own dark TopNav
+  if (pathname === `/${locale}/account` || pathname === `/${locale}`) return null;
 
   return (
     <>
