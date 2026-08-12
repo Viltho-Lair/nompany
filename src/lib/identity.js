@@ -109,13 +109,19 @@ export async function signup({ email, password, fullName, ip }) {
   return { user: created.user, challengeId: challenge.challengeId, emailSent };
 }
 
-// Delivery is now CRITICAL PATH: a code that never arrives is a locked-out
-// person, so we inspect sendEmail's result (it never throws) and log loudly.
+// Delivery is CRITICAL PATH: a code that never arrives is a locked-out person.
+// sendEmail retries transient failures itself within a bounded budget, so by the
+// time we see `ok:false` the address has been refused or the provider stayed
+// down through every attempt — either way it is worth logging loudly, with the
+// attempt count, so the difference is visible afterwards.
 async function deliverCode(to, name, code, template) {
   const msg = template({ name, code });
   const res = await sendEmail({ to, subject: msg.subject, html: msg.html, text: msg.text });
   if (!res?.ok) {
-    console.error(`[identity] OTP delivery FAILED to ${to}: ${res?.error || "unknown error"}${res?.skipped ? " (suppressed)" : ""}`);
+    console.error(
+      `[identity] OTP delivery FAILED to ${to} after ${res?.attempts ?? 0} attempt(s): `
+      + `${res?.error || "unknown error"}${res?.skipped ? " (suppressed)" : ""}`,
+    );
   }
   return Boolean(res?.ok);
 }
