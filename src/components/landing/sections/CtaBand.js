@@ -1,8 +1,37 @@
 "use client";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { MagneticButton } from "../ui/MagneticButton";
 export function CtaBand({ onNavigate }) {
+    // The primary action follows where the visitor actually is: a stranger is
+    // asked to start, someone signed in without a studio is asked to create one,
+    // and someone who already has one is simply let back into it.
+    const [session, setSession] = useState(null); // null = still unknown
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            try {
+                const me = await fetch("/api/identity/me", { cache: "no-store" });
+                if (!me.ok) { if (alive) setSession({ signedIn: false }); return; }
+                const st = await fetch("/api/studios", { cache: "no-store" });
+                const studios = st.ok ? await st.json() : { owned: null };
+                if (alive) setSession({ signedIn: true, studio: studios.owned || null });
+            } catch {
+                if (alive) setSession({ signedIn: false }); // resolve to guest, never hang
+            }
+        })();
+        return () => { alive = false; };
+    }, []);
+
+    const cta = !session
+        ? { label: "Start free now", href: "/en/signup" }              // unknown yet: safe default
+        : !session.signedIn
+            ? { label: "Start free now", href: "/en/signup" }
+            : session.studio
+                ? { label: "Go to Studio", href: `/${session.studio.slug}` }
+                : { label: "Create your studio", href: "/en/account" };
+
     return (<section className="relative mx-auto max-w-7xl px-6 pt-8 pb-28">
       <motion.div variants={stagger(0.09)} initial="hidden" whileInView="show" viewport={VIEWPORT} className="surface relative overflow-hidden rounded-3xl px-8 py-16 text-center md:px-16">
         {/* Slowly rotating conic sheen behind the copy */}
@@ -20,8 +49,8 @@ export function CtaBand({ onNavigate }) {
             processes, retire the spreadsheets.
           </motion.p>
           <motion.div variants={fadeUp} className="mt-9 flex flex-wrap items-center justify-center gap-3">
-            <MagneticButton onClick={() => onNavigate("contact")}>
-              Request demo
+            <MagneticButton onClick={() => { window.location.assign(cta.href); }}>
+              {cta.label}
             </MagneticButton>
             <MagneticButton variant="ghost" strength={8} onClick={() => onNavigate("pricing")}>
               See pricing

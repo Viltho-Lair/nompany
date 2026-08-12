@@ -123,10 +123,13 @@ export default function AccountHome({ locale, chrome }) {
             <button
               type="button" onClick={() => setMenuOpen((o) => !o)}
               aria-haspopup="menu" aria-expanded={menuOpen}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand-700 font-display text-sm font-700 text-white transition-shadow hover:ring-2 hover:ring-brand-500/40"
+              className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-sm font-700 text-white transition-shadow hover:ring-2 hover:ring-brand-500/40"
               title={identity?.user?.email || "Account"}
             >
-              {initialsOf(name)}
+              {identity?.profile?.photo
+                /* eslint-disable-next-line @next/next/no-img-element */
+                ? <img src={identity.profile.photo} alt="" className="h-full w-full object-cover" />
+                : initialsOf(name)}
             </button>
             {menuOpen && (
               <div role="menu" className="absolute end-0 z-30 mt-2 w-56 overflow-hidden rounded-geex border border-slate-200/70 bg-white py-1 shadow-geex dark:border-white/10 dark:bg-[#20202c]">
@@ -296,8 +299,11 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
       {/* Identity, centred and unboxed — it reads as the page's subject rather
           than as one more card among the sections below it. */}
       <section className="flex flex-col items-center gap-2 text-center">
-        <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-brand-700 font-display text-xl font-800 text-white">
-          {initialsOf(name)}
+        <span className="inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-xl font-800 text-white">
+          {identity?.profile?.photo
+            /* eslint-disable-next-line @next/next/no-img-element */
+            ? <img src={identity.profile.photo} alt="" className="h-full w-full object-cover" />
+            : initialsOf(name)}
         </span>
         <div>
           <h2 className="font-display text-[1.75rem] font-500 leading-[1.25] text-slate-900 dark:text-white">{name}</h2>

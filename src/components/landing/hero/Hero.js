@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { EASE_OUT_EXPO, fadeUp, stagger } from "@/components/landing/lib/motion";
 import { AnimatedHeadline } from "../text/AnimatedHeadline";
 import { Typewriter } from "../text/Typewriter";
-import { EmailCapture } from "../ui/EmailCapture";
 import { DashboardAssembly } from "./DashboardAssembly";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 /* The hero stitches together techniques 1b, 3, 4 and 5. */
@@ -41,9 +40,9 @@ export function Hero({ dataReady }) {
             </span>
           </motion.p>
 
-          {/* TECHNIQUE 5: magnetic CTA + validated email capture */}
+          {/* The work-email + Request demo pair was removed from the hero on
+              2026-08-12; it is archived verbatim in /extracode.js. */}
           <motion.div variants={fadeUp} className="space-y-4">
-            <EmailCapture />
             <p className="text-xs text-fg-dim">
               14-day sandbox · SOC 2 Type II · No card required
             </p>
