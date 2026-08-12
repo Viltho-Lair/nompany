@@ -13,12 +13,17 @@ import { cn } from "@/lib/utils";
 //   • fixed left sidebar, one coloured icon per destination
 //   • the content column fits the window so nothing needs horizontal scroll
 //   • profile avatar top-right — the ONLY place sign-out lives
-//   • Terms / Help / Documentation bottom-left, scope note bottom-centre
+//   • Terms / Help / Documentation pinned to the BOTTOM OF THE RAIL, and the
+//     scope note pinned to the BOTTOM OF THE SCREEN — both anchored to the
+//     viewport, not trailing the content
 //
 // Each sidebar button shows completely different content; the identity block
 // and the create/join actions belong to Overview alone.
 
-const PAGE = "min-h-screen bg-geex-bg dark:bg-[#141420]";
+// The shell is a fixed-height flex column, not normal document flow: that is
+// what lets the rail footer and the scope note sit ON the viewport edges, and
+// what lets Overview be sized to fit rather than scroll.
+const PAGE = "flex h-screen flex-col overflow-hidden bg-geex-bg dark:bg-[#141420]";
 const RAIL_W = "lg:w-[280px]";
 const PANEL = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const H2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -141,10 +146,10 @@ export default function AccountHome({ locale, chrome }) {
         </div>
       </header>
 
-      <div className="flex flex-col gap-6 px-5 pb-8 sm:px-8 lg:flex-row lg:gap-10">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 px-5 sm:px-8 lg:flex-row lg:gap-10">
         {/* fixed rail */}
-        <nav className={cn(RAIL_W, "lg:shrink-0")}>
-          <div className="lg:sticky lg:top-6">
+        <nav className={cn(RAIL_W, "lg:flex lg:shrink-0 lg:flex-col")}>
+          <div className="lg:flex-1">
             <ul className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
               {NAV.map((item) => {
                 const on = view === item.key;
@@ -169,35 +174,43 @@ export default function AccountHome({ locale, chrome }) {
               })}
             </ul>
 
-            {/* bottom-left links */}
-            <div className="mt-8 hidden flex-wrap gap-x-4 gap-y-2 px-4 text-xs text-slate-500 dark:text-slate-400 lg:flex">
-              <Link href={`/${locale}/terms`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Terms</Link>
-              <Link href={`/${locale}/contact`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Help</Link>
-              {owned[0]
-                ? <a href={`/${owned[0].slug}/documentation`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Documentation</a>
-                : <span className="text-slate-400 dark:text-slate-500">Documentation</span>}
-            </div>
+          </div>
+
+          {/* Pinned to the BOTTOM of the rail column, not trailing the nav items. */}
+          <div className="hidden shrink-0 flex-wrap gap-x-4 gap-y-2 px-4 pb-4 text-xs text-slate-500 dark:text-slate-400 lg:flex">
+            <Link href={`/${locale}/terms`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Terms</Link>
+            <Link href={`/${locale}/contact`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Help</Link>
+            {owned[0]
+              ? <a href={`/${owned[0].slug}/documentation`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Documentation</a>
+              : <span className="text-slate-400 dark:text-slate-500">Documentation</span>}
           </div>
         </nav>
 
         {/* content — sized to the window so nothing scrolls sideways */}
-        <main className="min-w-0 flex-1">
+        {/* Overview is sized to fit, so it is clipped rather than scrollable.
+            The other views hold lists that can legitimately run long. Below lg
+            the viewport is too short to guarantee a fit, so scrolling returns —
+            clipping content out of reach would be worse than a scrollbar. */}
+        <main className={cn("min-w-0 flex-1", view === "overview" ? "overflow-y-auto lg:overflow-hidden" : "overflow-y-auto")}>
           {view === "overview" && <Overview identity={identity} owned={owned} collabs={collabs} onGo={setView} onChanged={load} />}
           {view === "studios" && <StudioGrid title="My Studios" note="Workspaces you own." studios={owned} empty="You don't own a studio yet." />}
           {view === "collabs" && <StudioGrid title="My Collaborations" note="Studios you've been given access to." studios={collabs} empty="You're not collaborating in any studio yet." />}
           {view === "personal" && <PersonalInfo identity={identity} onSaved={load} />}
           {view === "security" && <Security devices={devices} onChanged={load} locale={locale} user={identity?.user} />}
 
-          {/* bottom-centre scope note */}
-          <p className="mt-10 text-center text-xs text-slate-500 dark:text-slate-400">
-            These settings are yours alone. Studios you join keep their own profile for you and never see what's here.
-          </p>
-          <div className="mt-4 flex justify-center gap-4 text-xs text-slate-500 dark:text-slate-400 lg:hidden">
-            <Link href={`/${locale}/terms`} className="hover:underline">Terms</Link>
-            <Link href={`/${locale}/contact`} className="hover:underline">Help</Link>
-          </div>
         </main>
       </div>
+
+      {/* Pinned to the BOTTOM OF THE SCREEN, outside the scrolling region. */}
+      <footer className="shrink-0 px-5 pb-4 pt-2 sm:px-8">
+        <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+          These settings are yours alone. Studios you join keep their own profile for you and never see what&apos;s here.
+        </p>
+        <div className="mt-2 flex justify-center gap-4 text-xs text-slate-500 dark:text-slate-400 lg:hidden">
+          <Link href={`/${locale}/terms`} className="hover:underline">Terms</Link>
+          <Link href={`/${locale}/contact`} className="hover:underline">Help</Link>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -206,27 +219,31 @@ export default function AccountHome({ locale, chrome }) {
 // A studio is a square tile: logo when the studio has one, initials otherwise,
 // with the name underneath. Studio rows carry no logo field yet, so today every
 // tile falls back to initials.
-function StudioCard({ studio }) {
+function StudioCard({ studio, compact = false }) {
+  const w = compact ? "w-[104px]" : "w-[132px]";
   return (
-    <a href={`/${studio.slug}`} className="group block w-[132px] shrink-0">
-      <span className="flex aspect-square w-[132px] items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white transition-colors group-hover:border-brand-500 dark:border-white/10 dark:bg-[#20202c] dark:group-hover:border-brand-500/50">
+    <a href={`/${studio.slug}`} className={cn("group block shrink-0", w)}>
+      <span className={cn("flex aspect-square items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white transition-colors group-hover:border-brand-500 dark:border-white/10 dark:bg-[#20202c] dark:group-hover:border-brand-500/50", w)}>
         {studio.logoUrl
           ? /* eslint-disable-next-line @next/next/no-img-element */
             <img src={studio.logoUrl} alt="" className="h-full w-full object-cover" />
-          : <span className="font-display text-2xl font-800 text-brand-700 dark:text-brand-300">{initialsOf(studio.name)}</span>}
+          : <span className={cn("font-display font-800 text-brand-700 dark:text-brand-300", compact ? "text-xl" : "text-2xl")}>{initialsOf(studio.name)}</span>}
       </span>
       <span className="mt-2 block truncate text-center text-sm font-600 text-slate-900 dark:text-white">{studio.name}</span>
-      <span className="block truncate text-center font-mono text-[11px] text-slate-400">nompany.com/{studio.slug}</span>
+      {/* The address is useful when browsing every studio, but in the overview
+          strip it is a third line of text competing with the tile itself. */}
+      {!compact && <span className="block truncate text-center font-mono text-[11px] text-slate-400">nompany.com/{studio.slug}</span>}
     </a>
   );
 }
 
 // The square action tile that sits to the LEFT of a row of studio tiles.
-function ActionTile({ icon, label, onClick }) {
+function ActionTile({ icon, label, onClick, compact = false }) {
+  const w = compact ? "w-[104px]" : "w-[132px]";
   return (
-    <button type="button" onClick={onClick} className="group block w-[132px] shrink-0 text-start">
-      <span className="flex aspect-square w-[132px] flex-col items-center justify-center gap-2 rounded-geex border border-dashed border-slate-300 bg-white/60 transition-colors group-hover:border-brand-500 group-hover:bg-white dark:border-white/20 dark:bg-white/[0.03] dark:group-hover:border-brand-500/50">
-        <Icon name={icon} className="h-7 w-7 text-brand-600 dark:text-brand-400" />
+    <button type="button" onClick={onClick} className={cn("group block shrink-0 text-start", w)}>
+      <span className={cn("flex aspect-square flex-col items-center justify-center gap-2 rounded-geex border border-dashed border-slate-300 bg-white/60 transition-colors group-hover:border-brand-500 group-hover:bg-white dark:border-white/20 dark:bg-white/[0.03] dark:group-hover:border-brand-500/50", w)}>
+        <Icon name={icon} className="h-6 w-6 text-brand-600 dark:text-brand-400" />
       </span>
       <span className="mt-2 block text-center text-sm font-600 text-slate-900 dark:text-white">{label}</span>
     </button>
@@ -240,14 +257,14 @@ function ActionTile({ icon, label, onClick }) {
 function StudioStrip({ action, studios, onViewAll }) {
   const shown = studios.slice(0, 4);
   return (
-    <div className="mt-4 flex items-start gap-4 overflow-x-auto pb-1">
+    <div className="mt-2 flex items-start gap-3 overflow-x-auto">
       {action}
-      {shown.map((s) => <StudioCard key={s.id} studio={s} />)}
+      {shown.map((s) => <StudioCard key={s.id} studio={s} compact />)}
       {studios.length > 4 && (
-        <button type="button" onClick={onViewAll} className="flex aspect-square w-[132px] shrink-0 flex-col items-center justify-center gap-1 rounded-geex border border-slate-200/70 bg-white text-sm font-600 text-brand-700 transition-colors hover:border-brand-500 dark:border-white/10 dark:bg-[#20202c] dark:text-brand-300">
+        <button type="button" onClick={onViewAll} className="flex aspect-square w-[104px] shrink-0 flex-col items-center justify-center gap-1 rounded-geex border border-slate-200/70 bg-white text-xs font-600 text-brand-700 transition-colors hover:border-brand-500 dark:border-white/10 dark:bg-[#20202c] dark:text-brand-300">
           <Icon name="chevronRight" className="h-5 w-5 rtl:-scale-x-100" />
           View all
-          <span className="text-xs font-500 text-slate-400">{studios.length} total</span>
+          <span className="text-[11px] font-500 text-slate-400">{studios.length} total</span>
         </button>
       )}
     </div>
@@ -278,35 +295,38 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
   const verified = Boolean(identity?.emailVerified);
 
   return (
-    <div className="space-y-6">
-      {/* identity — Overview only */}
-      <section className={PANEL}>
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-700 font-display text-xl font-800 text-white">
-            {initialsOf(name)}
-          </span>
-          <div className="min-w-0">
-            <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{name}</h2>
-            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-              <span className="break-all">{identity?.user?.email}</span>
-              {verified ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-600 text-emerald-700 dark:text-emerald-300">
-                  <Icon name="check" className="h-3.5 w-3.5" /> Verified
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-600 text-amber-700 dark:text-amber-300">
-                  Requires verification
-                </span>
-              )}
-            </p>
-          </div>
+    <div className="mx-auto flex h-full max-w-[888px] flex-col justify-center gap-4 py-2">
+      {/* Identity, centred and unboxed — it reads as the page's subject rather
+          than as one more card among the sections below it. */}
+      <section className="flex flex-col items-center gap-2 text-center">
+        <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-brand-700 font-display text-xl font-800 text-white">
+          {initialsOf(name)}
+        </span>
+        <div>
+          <h2 className="font-display text-[1.75rem] font-500 leading-[1.25] text-slate-900 dark:text-white">{name}</h2>
+          <p className="mt-1 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <span className="break-all">{identity?.user?.email}</span>
+            {verified ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-600 text-emerald-700 dark:text-emerald-300">
+                <Icon name="check" className="h-3.5 w-3.5" /> Verified
+              </span>
+            ) : (
+              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-600 text-amber-700 dark:text-amber-300">
+                Requires verification
+              </span>
+            )}
+          </p>
         </div>
       </section>
 
-      {/* owned */}
-      <section className={PANEL}>
-        <h2 className={H2}>Your studios</h2>
-        <p className={SUB}>A studio is your company's workspace, at its own address.</p>
+      {/* Unboxed: the tiles are the objects here, so a panel behind them would
+          just be a second frame around things that already have their own. */}
+      <section>
+        <h3 className={H2}>Your studios</h3>
+        <p className={SUB}>
+          A studio is your company&apos;s workspace, at its own address.
+          {owned.length > 4 && " Showing the four you open most."}
+        </p>
         <StudioStrip
           action={<ActionTile icon="plus" label="Create a studio" onClick={() => { setCreating((v) => !v); setJoining(false); }} />}
           studios={owned}
@@ -315,10 +335,12 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
         {creating && <CreateStudio onDone={() => { setCreating(false); onChanged(); }} onCancel={() => setCreating(false)} />}
       </section>
 
-      {/* collaborations */}
-      <section className={PANEL}>
-        <h2 className={H2}>Your collaborations</h2>
-        <p className={SUB}>Studios you've been given access to, alongside your own.</p>
+      <section>
+        <h3 className={H2}>Your collaborations</h3>
+        <p className={SUB}>
+          Studios you&apos;ve been given access to, alongside your own.
+          {collabs.length > 4 && " Showing the four you open most."}
+        </p>
         <StudioStrip
           action={<ActionTile icon="team" label="Join a studio" onClick={() => { setJoining((v) => !v); setCreating(false); }} />}
           studios={collabs}
@@ -439,12 +461,15 @@ function JoinStudio({ onDone, onCancel }) {
 }
 
 // ---- personal info -----------------------------------------------------------
-// Laid out exactly like Google Account's Personal info: a stack of rows, each an
-// icon slot, a label, and the current value. Clicking a row opens it for edit
-// in place rather than navigating away.
+// Laid out like Google Account's Personal info: a stack of rows in a NARROW
+// CENTRED COLUMN (.WxnH6c is max-width:640px there, roughly half the window),
+// each row an icon slot, a label and the current value. The whole row is the
+// control — pressing anywhere on it opens that field — rather than a separate
+// Edit affordance.
 function PersonalInfo({ identity, onSaved }) {
   const profile = identity?.profile || {};
   const [editing, setEditing] = useState(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [form, setForm] = useState({
     fullName: profile.fullName || "", shortName: profile.shortName || "",
     phone: profile.phone || "", workAddress: profile.workAddress || "",
@@ -461,68 +486,140 @@ function PersonalInfo({ identity, onSaved }) {
     if (res.ok) { setSaved(true); setEditing(null); onSaved(); }
   }
 
+  const name = form.fullName || identity?.user?.email || "?";
   const rows = [
-    { key: "avatar", icon: "person", label: "Profile picture", value: "Add a photo to personalise your account", readOnly: true },
     { key: "fullName", icon: "person", label: "Name", value: form.fullName || "—" },
     { key: "shortName", icon: "person", label: "Short name", value: form.shortName || "—" },
-    { key: "email", icon: "external", label: "Email", value: identity?.user?.email || "—", readOnly: true,
+    { key: "email", icon: "email", label: "Email", value: identity?.user?.email || "—", readOnly: true,
       badge: identity?.emailVerified ? null : "Requires verification" },
-    { key: "phone", icon: "clients", label: "Phone", value: form.phone || "—" },
+    { key: "phone", icon: "call", label: "Phone", value: form.phone || "—" },
     { key: "workAddress", icon: "location", label: "Address", value: form.workAddress || "—" },
   ];
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">Personal info</h2>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Your profile information and how to reach you. Only you can see this.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-[640px] py-6">
+      <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">Personal info</h2>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+        Your profile information and how to reach you. Only you can see this.
+      </p>
 
-      {saved && <p className={BANNER_GOOD}>Profile updated.</p>}
+      {saved && <p className={cn(BANNER_GOOD, "mt-4")}>Profile updated.</p>}
 
-      <div className={STACK}>
+      <div className={cn(STACK, "mt-4")}>
+        {/* Profile picture: camera icon on the left, the picture itself as a
+            circle at the RIGHT end of the row. */}
+        <button type="button" onClick={() => { setSaved(false); setPhotoOpen(true); }}
+          aria-haspopup="dialog" className={cn(ROW, ROW_TAP)}>
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+            <Icon name="camera" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col justify-center">
+            <span className={ROW_LABEL}>Profile picture</span>
+            <span className={ROW_VALUE}>A picture helps people recognise you</span>
+          </span>
+          <span className="ms-auto inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-sm font-700 text-white">
+            {profile.photoUrl
+              /* eslint-disable-next-line @next/next/no-img-element */
+              ? <img src={profile.photoUrl} alt="" className="h-full w-full object-cover" />
+              : initialsOf(name)}
+          </span>
+        </button>
+
         {rows.map((r) => {
           const open = editing === r.key;
-          return (
-            <div key={r.key} className={cn(ROW, !r.readOnly && ROW_TAP, "flex-col items-stretch sm:flex-row sm:items-center")}>
-              <div className="flex w-full items-center gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-                  <Icon name={r.icon} className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col justify-center">
+          if (open) {
+            return (
+              <div key={r.key} className={cn(ROW, "flex-col items-stretch")}>
+                <div className="flex w-full items-center gap-3">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+                    <Icon name={r.icon} className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+                  </span>
                   <span className={ROW_LABEL}>{r.label}</span>
-                  {!open && (
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className={ROW_VALUE}>{r.value}</span>
-                      {r.badge && (
-                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-600 text-amber-700 dark:text-amber-300">{r.badge}</span>
-                      )}
-                    </span>
-                  )}
                 </div>
-                {!r.readOnly && !open && (
-                  <button type="button" onClick={() => { setSaved(false); setEditing(r.key); }}
-                    className="ms-auto shrink-0 rounded-full px-3 py-1.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
-                    Edit
-                  </button>
-                )}
-              </div>
-
-              {open && (
                 <div className="mt-3 w-full ps-[52px]">
-                  <input className={cn(INPUT, "max-w-md")} value={form[r.key]} autoFocus
+                  <input className={INPUT} value={form[r.key]} autoFocus
                     onChange={(e) => setForm((f) => ({ ...f, [r.key]: e.target.value }))} />
                   <div className="mt-3 flex gap-3">
                     <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
                     <button className={BTN_GHOST} onClick={() => setEditing(null)}>Cancel</button>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            );
+          }
+          // Read-only rows stay a div so they are not announced as pressable.
+          const Tag = r.readOnly ? "div" : "button";
+          return (
+            <Tag key={r.key} {...(r.readOnly ? {} : { type: "button", onClick: () => { setSaved(false); setEditing(r.key); } })}
+              className={cn(ROW, !r.readOnly && ROW_TAP)}>
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+                <Icon name={r.icon} className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col justify-center">
+                <span className={ROW_LABEL}>{r.label}</span>
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className={ROW_VALUE}>{r.value}</span>
+                  {r.badge && (
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-600 text-amber-700 dark:text-amber-300">{r.badge}</span>
+                  )}
+                </span>
+              </span>
+              {!r.readOnly && <Icon name="chevronRight" className="ms-auto h-5 w-5 shrink-0 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />}
+            </Tag>
           );
         })}
+      </div>
+
+      {photoOpen && <PhotoDialog name={name} photoUrl={profile.photoUrl} onClose={() => setPhotoOpen(false)} />}
+    </div>
+  );
+}
+
+// The "Change profile photo" dialog. The saved page only contains the TRIGGER
+// (aria-haspopup="dialog", aria-label="Change profile photo") — Google builds the
+// dialog itself on click, so its markup was not in the file to copy. This mirrors
+// its shape and options, minus Google Photos as asked.
+function PhotoDialog({ name, photoUrl, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Change profile photo">
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div className="relative w-full max-w-[512px] overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]">
+        <div className="flex items-center gap-3 px-6 pt-5">
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Profile picture</h3>
+          <button type="button" onClick={onClose} aria-label="Close"
+            className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5">
+            <Icon name="close" className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+        <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">
+          A picture helps people recognise you and shows when you're signed in.
+        </p>
+
+        <div className="flex justify-center py-6">
+          <span className="inline-flex h-[136px] w-[136px] items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-4xl font-800 text-white">
+            {photoUrl
+              /* eslint-disable-next-line @next/next/no-img-element */
+              ? <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+              : initialsOf(name)}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-3 px-6 pb-6">
+          <button type="button" className={BTN} disabled title="Uploading is not wired up yet">
+            <span className="inline-flex items-center gap-1.5"><Icon name="camera" className="h-4 w-4" /> Change</span>
+          </button>
+          <button type="button" className={BTN_GHOST} disabled={!photoUrl} title={photoUrl ? "" : "No picture to remove"}>
+            Remove
+          </button>
+        </div>
       </div>
     </div>
   );
