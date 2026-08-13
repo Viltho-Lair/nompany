@@ -16,8 +16,9 @@ import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listS
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES,
-  TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns } from "@/lib/tickets";
+  TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "@/lib/tickets";
 import { normaliseClientName, normaliseContactName, clientSlug } from "@/lib/salesClients";
+import { requestRfq } from "@/lib/technical";
 
 export { TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, DEFAULT_STATUS, DEFAULT_URGENCY,
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS };
@@ -25,7 +26,12 @@ export { TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, DEFAULT_STATUS, D
 const CLIENTS = "salesClients";
 const TICKETS = "salesTickets";
 const SERVICES = "salesServices";
+// Technical's collections. Sales never WRITES them — it reads them so a ticket
+// can report what happened to it after Sales handed it over.
+const RFQS = "rfqs";
+const QUOTATIONS = "quotations";
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+const now = () => new Date().toISOString();
 
 // Fold a contact into a client's list: match on name (case-insensitive) and
 // fill in blanks, else match a nameless duplicate on email/phone, else append.
@@ -86,12 +92,22 @@ export async function salesContext(user, slug) {
   const clientsSection = byKey["sales-clients"] || section;
   const settingsSection = byKey["sales-settings"] || section;
 
+  // Technical, when this studio has it. What became of a ticket after Sales
+  // raised an RFQ is part of the ticket's own story, so the Sales screens show
+  // it — read-only, and NOT gated on a Technical grant: this is the state of
+  // their own record, not a window into Technical's queue. A studio without a
+  // Technical section simply has no RFQ column and no "Request RFQ" button.
+  const technicalSection = byKey["technical"] || null;
+  const rfqSection = technicalSection ? (byKey["technical-rfq"] || technicalSection) : null;
+  const quotationsSection = technicalSection ? (byKey["technical-quotations"] || technicalSection) : null;
+
   // Seeing Sales at all is the parent grant; the per-collection grants are
   // checked against the sub-section that owns each one.
   if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
 
   return {
     studio, collaborator, section, ticketsSection, clientsSection, settingsSection,
+    technicalSection, rfqSection, quotationsSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canViewTickets: canViewSection(studio, collaborator, ticketsSection.id, grants),
     canManageTickets: canManageSection(studio, collaborator, ticketsSection.id, grants),
@@ -274,15 +290,80 @@ function cleanLocations(list) {
 }
 
 // ---- tickets ---------------------------------------------------------------
-export async function listTickets({ studio, ticketsSection, clientsSection }) {
-  const [tickets, clients] = await Promise.all([
+// The RFQ side of a ticket, folded in from Technical. A ticket can be sent over
+// more than once (a second RFQ after the first was quoted), so the LATEST one is
+// what the ticket reports, and `rfqCount` is how many were ever raised.
+//
+// VALUE IS DERIVED, never typed: the Old System sets a ticket's value from the
+// latest completed quotation, so here it is the newest APPROVED quotation behind
+// any of the ticket's RFQs. A stored value still wins when one was set, which is
+// what keeps a manual correction from being overwritten on the next read.
+function rfqSummary(ticket, rfqs, quotations) {
+  const mine = rfqs
+    .filter((r) => r.ticketId === ticket.id)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  if (mine.length === 0) return { rfqCount: 0, rfq: null, quotedValue: 0 };
+
+  const quoteOf = (r) => (r.quotationId ? quotations.find((q) => q.id === r.quotationId) || null : null);
+  const latest = mine[0];
+  const quote = quoteOf(latest);
+
+  const approved = mine
+    .map(quoteOf)
+    .filter((q) => q && q.status === "Approved")
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0];
+
+  return {
+    rfqCount: mine.length,
+    rfq: {
+      id: latest.id,
+      reference: latest.reference || "",
+      status: latest.status || "",
+      handledByCollaboratorId: quote?.handledByCollaboratorId || latest.handledByCollaboratorId || "",
+      quotationId: quote?.id || "",
+      quotationNumber: quote?.number || "",
+      quotationStatus: quote?.status || "",
+      quotationTotal: Number(quote?.total) || 0,
+    },
+    quotedValue: Number(approved?.total) || 0,
+  };
+}
+
+export async function listTickets({ studio, ticketsSection, clientsSection, rfqSection, quotationsSection }) {
+  const [tickets, clients, rfqs, quotations] = await Promise.all([
     readCol(studio.id, ticketsSection.id, TICKETS),
     readCol(studio.id, clientsSection.id, CLIENTS),
+    rfqSection ? readCol(studio.id, rfqSection.id, RFQS) : [],
+    quotationsSection ? readCol(studio.id, quotationsSection.id, QUOTATIONS) : [],
   ]);
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
   return [...tickets]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-    .map((t) => ({ ...t, clientName: nameById[t.clientId] || "" }));
+    .map((t) => {
+      const { rfqCount, rfq, quotedValue } = rfqSummary(t, rfqs, quotations);
+      return {
+        ...t,
+        clientName: nameById[t.clientId] || t.clientName || "",
+        rfqCount,
+        rfq,
+        value: Number(t.value) > 0 ? Number(t.value) : quotedValue,
+      };
+    });
+}
+
+// Send a ticket over to Technical. Raising an RFQ is a SALES act on a SALES
+// record, so the permission checked is Sales:manage — the same call from the
+// Technical screen goes through technicalContext and lands in the same place.
+export async function requestTicketRfq(ctx, body) {
+  const { studio, collaborator, section, ticketsSection, clientsSection, rfqSection } = ctx;
+  if (!rfqSection) return { error: "no-technical" };
+  return requestRfq({
+    studio, collaborator, rfqSection,
+    salesSection: section,
+    salesTicketsSection: ticketsSection,
+    salesClientsSection: clientsSection,
+    canManageSales: true, // the route already established Sales:manage
+  }, { ticketId: str(body?.ticketId, 60) });
 }
 
 // Ticket creation follows the Old System's contract.
@@ -388,6 +469,9 @@ export async function createTicket(ctx, body) {
     serviceIds,
     serviceRequirements,
     clientBudget,
+    // Sales' own read on how likely this is to close. Drives the weighted
+    // forecast on the dashboard, so it is a number, not a mood.
+    probability: normaliseProbability(body?.probability, 0),
     value: 0,                               // auto — set from a completed quotation
     // The owner IS whoever raised the ticket, so it is taken from the session
     // rather than the payload — there is no owner field on the form to send,
@@ -395,22 +479,57 @@ export async function createTicket(ctx, body) {
     assignedToCollaboratorId: collaborator.id,
     createdByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   });
   return { ticket };
 }
 
+// Everything the ticket form can change. The CLIENT is not on the list: moving a
+// ticket to another company would rewrite its reference and orphan the contacts
+// and locations folded into the old one, so it stays where it was raised.
 export async function editTicket(ctx, id, body) {
-  const { studio, ticketsSection } = ctx;
+  const { studio, ticketsSection, settingsSection } = ctx;
   const patch = {};
   if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
   if (body?.status !== undefined && TICKET_STATUSES.includes(body.status)) patch.status = body.status;
   if (body?.urgency !== undefined && TICKET_URGENCIES.includes(body.urgency)) patch.urgency = body.urgency;
-  for (const f of ["contactName", "industry", "deadline"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 120);
+  if (body?.industry !== undefined) { const v = str(body.industry, 80); if (!v) return { error: "industry" }; patch.industry = v; }
+  if (body?.deadline !== undefined) { const v = str(body.deadline, 10); if (!v) return { error: "deadline" }; patch.deadline = v; }
+  if (body?.contactName !== undefined) patch.contactName = str(body.contactName, 120);
+  if (body?.contactEmail !== undefined) patch.contactEmail = str(body.contactEmail, 200);
+  if (body?.contactPhone !== undefined) patch.contactPhone = str(body.contactPhone, 60);
+  if (body?.contactPosition !== undefined) patch.contactPosition = str(body.contactPosition, 120);
+  if (body?.location !== undefined) {
+    const loc = body.location && typeof body.location === "object" ? body.location : {};
+    patch.location = { name: str(loc.name, 160), city: str(loc.city, 120), url: str(loc.url, 500) };
+  }
   if (body?.description !== undefined) patch.description = str(body.description, 4000);
+  if (body?.probability !== undefined) patch.probability = normaliseProbability(body.probability, 0);
+  if (body?.clientBudget !== undefined) {
+    const raw = body.clientBudget;
+    const budget = raw === "" || raw == null ? null : Number(raw);
+    if (budget != null && (!Number.isFinite(budget) || budget < 0)) return { error: "budget" };
+    patch.clientBudget = budget;
+  }
+  // Same rule as creation: unknown service ids are dropped, not trusted, and a
+  // ticket is never left with none.
+  if (body?.serviceIds !== undefined) {
+    const known = new Set((await readCol(studio.id, settingsSection.id, SERVICES)).map((s) => s.id));
+    const serviceIds = [...new Set((Array.isArray(body.serviceIds) ? body.serviceIds : []).map(String))]
+      .filter((sid) => known.has(sid));
+    if (serviceIds.length === 0) return { error: "services" };
+    patch.serviceIds = serviceIds;
+    const rawSR = body?.serviceRequirements && typeof body.serviceRequirements === "object" ? body.serviceRequirements : {};
+    patch.serviceRequirements = Object.fromEntries(serviceIds.map((sid) => {
+      const e = rawSR[sid] || {};
+      return [sid, { withoutInstallation: !!e.withoutInstallation, withoutProgramming: !!e.withoutProgramming }];
+    }));
+  }
   if (body?.value !== undefined) patch.value = Number(body.value) > 0 ? Number(body.value) : 0;
   // Ownership is not editable: it means "who raised this", which cannot change
   // after the fact. Editing a ticket therefore leaves the owner alone, and an
   // assignedToCollaboratorId in the payload is ignored rather than honoured.
+  patch.updatedAt = now();
 
   const ticket = await updateRow(studio.id, ticketsSection.id, TICKETS, id, patch);
   return ticket ? { ticket } : { error: "notfound" };

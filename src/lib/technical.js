@@ -15,6 +15,7 @@ import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listS
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { RFQ_STATUSES } from "@/lib/rfqs";
+import { DEFAULT_STATUS } from "@/lib/tickets";
 
 export const QUOTATION_STATUSES = ["Draft", "Sent", "Approved", "Rejected"];
 export const DEFAULT_QUOTATION_STATUS = "Draft";
@@ -167,6 +168,17 @@ export async function requestRfq(ctx, body) {
     requestedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
+
+  // Ticket status is AUTOMATED up to approval: raising the first RFQ is what
+  // turns a Lead into an Opportunity. Done here rather than on the Sales side so
+  // both entry points — the Sales list's "Request RFQ" and Technical's "Raise
+  // RFQ" — move the ticket identically. A ticket already past Lead is left
+  // alone: a second RFQ must not drag it backwards.
+  if (ticket.status === DEFAULT_STATUS) {
+    await updateRow(studio.id, salesTicketsSection.id, TICKETS, ticketId, {
+      status: "Opportunity", updatedAt: new Date().toISOString(),
+    });
+  }
   return { rfq };
 }
 

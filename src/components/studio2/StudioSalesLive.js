@@ -1,9 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import { rfqInfo } from "@/lib/salesAnalytics";
+
+// How often the table pulls a fresh copy while someone is watching it. This
+// screen is the one people leave up on a wall, so unlike the rest of the studio
+// it does not wait for the event cursor — it re-reads on a short timer.
+const REFRESH_MS = 5000;
+
+const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
 
 // Sales Live view: full-screen, rendered OUTSIDE StudioFrame so the table gets
 // the whole viewport. It is a PROJECTION of the tickets list — same rows, only
@@ -12,20 +20,41 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 export default function StudioSalesLive({ studio }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [lastFetched, setLastFetched] = useState(null);
+  const [paused, setPaused] = useState(false);
+  const timer = useRef(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${studio.slug}/sales`, { cache: "no-store" });
     if (!res.ok) { setError("You don't have access to Sales in this studio."); return; }
     setData(await res.json());
+    setLastFetched(new Date());
+    setError("");
   }, [studio.slug]);
   useEffect(() => { load(); }, [load]);
   useLiveUpdates(studio.slug, "sales", load);
+  useLiveUpdates(studio.slug, "technical", load);
 
-  const cell = (t, key, aliasOf) =>
-    key === "owner" ? (aliasOf[t.assignedToCollaboratorId] || "—")
-    : key === "locationCity" ? (t.location?.city || "—")
-    : key === "createdAt" ? String(t.createdAt || "").slice(0, 10)
-    : (t[key] === "" || t[key] == null ? "—" : String(t[key]));
+  // The timer runs only while the tab is visible and nobody has paused it — a
+  // screen nobody is looking at should not be asking the server anything.
+  useEffect(() => {
+    const stop = () => { if (timer.current) { clearInterval(timer.current); timer.current = null; } };
+    const start = () => { if (!timer.current && !paused && !document.hidden) timer.current = setInterval(load, REFRESH_MS); };
+    const onVisibility = () => (document.hidden ? stop() : start());
+    document.addEventListener("visibilitychange", onVisibility);
+    start();
+    return () => { document.removeEventListener("visibilitychange", onVisibility); stop(); };
+  }, [load, paused]);
+
+  const cell = (t, key, aliasOf) => {
+    if (key === "owner") return aliasOf[t.assignedToCollaboratorId] || "—";
+    if (key === "locationCity") return t.location?.city || "—";
+    if (key === "createdAt" || key === "updatedAt") return String(t[key] || t.createdAt || "").slice(0, 10) || "—";
+    if (key === "value" || key === "clientBudget") return t[key] == null || t[key] === "" ? "—" : money(t[key]);
+    if (key === "probability") return `${Number(t.probability ?? 0)}%`;
+    if (key === "rfq") return rfqInfo(t).text;
+    return t[key] === "" || t[key] == null ? "—" : String(t[key]);
+  };
 
   const options = data?.vocabulary?.liveColumnOptions || [];
   const columns = options.filter((c) => (data?.liveColumns || []).includes(c.key));
@@ -34,7 +63,7 @@ export default function StudioSalesLive({ studio }) {
   return (
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
       <header className="sticky top-0 z-20 border-b border-[var(--geex-border)] bg-[var(--geex-page)]">
-        <div className="flex items-center gap-3 px-5 py-4 sm:px-8">
+        <div className="flex flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
           <Link
             href={`/${studio.slug}/sales`}
             title="Back to Sales"
@@ -46,7 +75,26 @@ export default function StudioSalesLive({ studio }) {
             <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">Sales — Live view</h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
               {studio.name} · {data ? `${data.tickets.length} ticket${data.tickets.length === 1 ? "" : "s"}` : "loading"}
+              {" · "}refreshes every {REFRESH_MS / 1000}s
+              {lastFetched && ` · last ${lastFetched.toLocaleTimeString("en-GB")}`}
             </p>
+          </div>
+          <div className="ms-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPaused((p) => !p)}
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
+            >
+              {paused ? "Resume" : "Pause"}
+            </button>
+            {data?.nav?.["sales-settings"] && (
+              <Link
+                href={`/${studio.slug}/sales-settings`}
+                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
+              >
+                Change columns
+              </Link>
+            )}
           </div>
         </div>
       </header>

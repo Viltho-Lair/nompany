@@ -63,7 +63,10 @@ export const TICKET_LIVE_COLUMNS = [
   { key: "contactPhone", label: "Phone" },
   { key: "locationCity", label: "City" },
   { key: "owner", label: "Owner" },
+  { key: "probability", label: "Probability" },
+  { key: "rfq", label: "RFQ" },
   { key: "createdAt", label: "Created" },
+  { key: "updatedAt", label: "Updated" },
 ];
 export const TICKET_LIVE_COLUMN_KEYS = TICKET_LIVE_COLUMNS.map((c) => c.key);
 export const DEFAULT_LIVE_COLUMNS = ["ref", "title", "clientName", "status", "deadline"];

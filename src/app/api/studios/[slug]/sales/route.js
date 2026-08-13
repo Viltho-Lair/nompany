@@ -27,6 +27,10 @@ export async function GET(request, ctx) {
     canManage: sales.canManage,
     canManageSettings: sales.canManageSettings,
     nav: sales.nav,
+    // Whether there is a Technical section to send an RFQ to at all. Without
+    // one the tickets list drops the RFQ column rather than offering a button
+    // that could only ever fail.
+    hasTechnical: Boolean(sales.rfqSection),
     clients, tickets, people, services,
     // Which columns the Live view shows, and everything it could show.
     liveColumns: sales.liveColumns,
