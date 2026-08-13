@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardHead, CardBody, Table, Button, Badge } from "@/app/super/_components/ui";
+import { toneOf } from "@/lib/planColors";
 
 // Packages and Tiers are the same screen with different fields, so they are one
 // component driven by a field list rather than two that drift apart. A row is
@@ -41,7 +42,8 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
     return true;
   }
 
-  const blank = Object.fromEntries(fields.map((f) => [f.key, f.type === "switch" ? false : f.type === "services" ? [] : ""]));
+  const blank = Object.fromEntries(fields.map((f) => [f.key,
+    f.type === "switch" ? false : f.type === "services" ? [] : f.type === "choice" ? (f.choices?.[0] ?? "") : ""]));
 
   async function save() {
     const ok = draft.id ? await send("PUT", draft) : await send("POST", draft);
@@ -94,6 +96,12 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
                     >
                       <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${draft[f.key] ? "left-[22px]" : "left-0.5"}`} />
                     </button>
+                  ) : f.type === "choice" ? (
+                    <select id={`f-${f.key}`} className={input}
+                      value={draft[f.key] ?? ""}
+                      onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}>
+                      {(f.choices || []).map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   ) : f.type === "services" ? (
                     <ServicePicker
                       services={services || []}
@@ -136,6 +144,17 @@ function render(f, it, services) {
     return (
       <span className="flex flex-wrap gap-1">
         {names.map((n) => <Badge key={n} tone="secondary">{n}</Badge>)}
+      </span>
+    );
+  }
+  if (f.type === "choice") {
+    // Shown as the thing it controls rather than as its own name: a colour
+    // field that prints the word "green" tells you less than a green dot.
+    const t = toneOf(v);
+    return (
+      <span className="inline-flex items-center gap-2">
+        <span className="inline-block h-3.5 w-3.5 rounded-full" style={{ backgroundColor: t.fg }} />
+        <span className="capitalize">{v || "—"}</span>
       </span>
     );
   }

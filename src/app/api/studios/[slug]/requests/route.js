@@ -51,7 +51,12 @@ export async function POST(request, ctx) {
     : await approveJoinRequest({ ...common, alias: body.alias, role: body.role });
 
   if (result.error) {
-    return Response.json({ error: result.error }, { status: result.error === "notfound" ? 404 : 400 });
+    // `limit` rides along so the refusal can say what the ceiling actually is
+    // instead of leaving the studio to guess.
+    return Response.json(
+      { error: result.error, ...(result.limit !== undefined ? { limit: result.limit } : {}) },
+      { status: result.error === "notfound" ? 404 : 400 },
+    );
   }
   return Response.json({
     ok: true,

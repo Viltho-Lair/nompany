@@ -47,7 +47,12 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
     setBusyId("");
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error === "already-decided" ? "That request was already handled." : "We couldn't complete that.");
+      setError(
+        data.error === "already-decided" ? "That request was already handled."
+        // The package sets the ceiling, so the message says what to do about it
+        // rather than just refusing.
+        : data.error === "member-limit" ? `Your package allows ${data.limit} member${data.limit === 1 ? "" : "s"}. Upgrade, or remove someone first.`
+        : "We couldn't complete that.");
     }
     load();
   }

@@ -1,8 +1,11 @@
-import { PageHeader, Card, CardHead, CardBody, Row, Col, Table, Badge } from "../../../_components/ui";
+import { PageHeader, Card, CardHead, Row, Col, Table } from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
 import { readArr } from "@/lib/data/store";
 import { REG } from "@/lib/data/keys";
 import { listCollaborators } from "@/lib/data/collaborators";
+import { getUserById, getProfile } from "@/lib/data/users";
+import { loadCatalogues, planOf } from "@/lib/plans";
+import StudiosTable from "@/components/super/StudiosTable";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Studios" };
@@ -22,24 +25,46 @@ const fmtDate = (iso) => {
 };
 
 export default async function StudiosPage() {
-  const studios = await readArr(REG.studios);
-  const counts = await Promise.all(studios.map(async (s) => (await listCollaborators(s.id)).length));
+  const [studios, { packages, tiers }] = await Promise.all([readArr(REG.studios), loadCatalogues()]);
+
+  // Per studio: its members, and who owns it. Both are reads per row, which is
+  // fine for a console listing tens of studios and is the line to revisit if it
+  // ever lists thousands.
+  const extra = await Promise.all(studios.map(async (s) => {
+    const [members, owner, profile] = await Promise.all([
+      listCollaborators(s.id).then((c) => c.length),
+      getUserById(s.ownerUserId),
+      getProfile(s.ownerUserId),
+    ]);
+    return { members, owner, profile };
+  }));
+
   const rows = studios
-    .map((s, i) => ({
-      id: s.id,
-      name: s.name || "Untitled",
-      slug: s.slug || "",
-      plan: s.plan || "free",
-      status: s.status || "active",
-      members: counts[i],
-      createdAt: s.createdAt || "",
-    }))
+    .map((s, i) => {
+      const plan = planOf(s, packages, tiers);
+      const { members, owner, profile } = extra[i];
+      return {
+        id: s.id,
+        name: s.name || "Untitled",
+        slug: s.slug || "",
+        status: s.status || "active",
+        members,
+        ownerName: (profile?.fullName || "").trim() || (owner?.email || "").split("@")[0] || "",
+        ownerEmail: owner?.email || "",
+        ownerPhone: profile?.phone || "",
+        createdAt: s.createdAt || "",
+        created: fmtDate(s.createdAt),
+        ...plan,
+      };
+    })
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 
+  // "Plans are packages" — the breakdown groups by the package a studio is on,
+  // not by the old free-text plan field.
   const groupBy = (key) => {
     const map = new Map();
     for (const r of rows) {
-      const k = r[key];
+      const k = r[key] || "—";
       const cur = map.get(k) || { label: k, studios: 0, members: 0 };
       cur.studios += 1;
       cur.members += r.members;
@@ -47,7 +72,7 @@ export default async function StudiosPage() {
     }
     return [...map.values()].sort((a, b) => b.studios - a.studios);
   };
-  const byPlan = groupBy("plan");
+  const byPackage = groupBy("packageName");
   const byStatus = groupBy("status");
   const totalMembers = rows.reduce((n, r) => n + r.members, 0);
 
@@ -61,13 +86,13 @@ export default async function StudiosPage() {
       <Row className="mb-6">
         <Col span={6}>
           <Card className="h-full">
-            <CardHead title="Compact Table" sub="Studios by plan" />
-            <Table head={["Plan", "Studios", { label: "Members", align: "end" }]}>
-              {byPlan.length === 0 ? (
+            <CardHead title="Compact Table" sub="Studios by package" />
+            <Table head={["Package", "Studios", { label: "Members", align: "end" }]}>
+              {byPackage.length === 0 ? (
                 <tr><td colSpan={3} className="text-[var(--ad-muted-foreground)]">No studios yet.</td></tr>
-              ) : byPlan.map((r) => (
+              ) : byPackage.map((r) => (
                 <tr key={r.label}>
-                  <td className="font-medium capitalize">{r.label}</td>
+                  <td className="font-medium">{r.label}</td>
                   <td className="text-[var(--ad-muted-foreground)]">{r.studios.toLocaleString()}</td>
                   <td className="text-end font-medium">{r.members.toLocaleString()}</td>
                 </tr>
@@ -106,28 +131,13 @@ export default async function StudiosPage() {
         </Col>
       </Row>
 
-      <Card>
-        <CardHead title="All studios" sub={`${rows.length} registered`} />
-        <CardBody full>
-          <Table head={["Studio", "Address", "Plan", "Status", "Members", { label: "Created", align: "end" }]}>
-            {rows.length === 0 ? (
-              <tr><td colSpan={6} className="text-[var(--ad-muted-foreground)]">No studios yet.</td></tr>
-            ) : rows.map((r) => (
-              <tr key={r.id}>
-                <td>
-                  <span className="font-medium">{r.name}</span>
-                  <span className="block font-mono text-xs text-[var(--ad-muted-foreground)]">{r.id}</span>
-                </td>
-                <td className="font-mono text-xs">nompany.com/{r.slug}</td>
-                <td className="capitalize">{r.plan}</td>
-                <td><Badge tone={r.status === "active" ? "success" : "secondary"}>{r.status}</Badge></td>
-                <td className="text-[var(--ad-muted-foreground)]">{r.members}</td>
-                <td className="text-end whitespace-nowrap text-[var(--ad-muted-foreground)]">{fmtDate(r.createdAt)}</td>
-              </tr>
-            ))}
-          </Table>
-        </CardBody>
-      </Card>
+      {/* Search, the row dialog and the plan edit are all client-side; the data
+          above is resolved on the server so the first paint is already right. */}
+      <StudiosTable
+        rows={rows}
+        packages={packages.map((p) => ({ id: p.id, name: p.name, color: p.color, maxEmployees: p.maxEmployees }))}
+        tiers={tiers.map((t) => ({ id: t.id, name: t.name }))}
+      />
     </>
   );
 }

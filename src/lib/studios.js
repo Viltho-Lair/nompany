@@ -22,6 +22,7 @@ import {
 import { getIndex } from "@/lib/data/store";
 import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/lib/data/keys";
 import { getVerification, getProfile } from "@/lib/data/users";
+import { memberLimitOf } from "@/lib/plans";
 import { slugify } from "@/lib/slug";
 
 // ---- creating the one studio a user may own --------------------------------
@@ -176,6 +177,15 @@ export async function listJoinRequests(studioId) {
 export async function approveJoinRequest({ studio, actingCollaborator, requestId, alias, role }) {
   const request = await getJoinRequest(requestId);
   if (!request || request.studioId !== studio.id) return { error: "notfound" };
+
+  // THE PACKAGE'S CEILING, checked before the request is marked approved —
+  // approving and then failing to add would leave the person told yes and still
+  // outside. A package with no limit set returns null and nothing is enforced.
+  const limit = await memberLimitOf(studio);
+  if (limit !== null) {
+    const current = (await listCollaborators(studio.id)).length;
+    if (current >= limit) return { error: "member-limit", limit };
+  }
 
   const decided = await decideJoinRequest(requestId, { status: APPROVED, decidedByCollaboratorId: actingCollaborator.id });
   if (decided.error) return decided;

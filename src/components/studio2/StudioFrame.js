@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
 import ThemeToggle from "@/components/ThemeToggle";
+import { toneOf } from "@/lib/planColors";
 
 // Studio chrome for the restructured model: the studio's identity, its sections
 // (each a real row with its own SectionID), and who you are INSIDE this studio.
@@ -213,6 +214,24 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
           </span>
           <span className="truncate font-mono text-[10px] font-500 tracking-tight text-slate-400 dark:text-slate-500">
             nompany.com/{studio.slug}
+          </span>
+          {/* What this studio is on. Free and Standard until the console says
+              otherwise, so the tags are never absent — a studio always has a
+              plan, and showing it here is how anyone inside knows which. */}
+          <span className="mt-1.5 flex flex-wrap items-center gap-1">
+            <span
+              className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-700"
+              style={{ backgroundColor: toneOf(studio.packageColor).bg, color: toneOf(studio.packageColor).fg }}
+              title={`Package: ${studio.packageName}`}
+            >
+              {studio.packageName}
+            </span>
+            <span
+              className="inline-flex rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] font-700 text-slate-600 dark:text-slate-300"
+              title={`Tier: ${studio.tierName}`}
+            >
+              {studio.tierName}
+            </span>
           </span>
         </span>
       </Link>

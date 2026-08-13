@@ -4,6 +4,7 @@ import Link from "next/link";
 import { currentUser, needsQuestionnaire } from "@/lib/identity";
 import { studioContext, canAdminister, visibleSections, canManageSection, listGrants, recordStudioVisit } from "@/lib/studios";
 import { listSections } from "@/lib/data/sections";
+import { loadCatalogues, planOf } from "@/lib/plans";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import StudioDocs from "@/components/studio2/StudioDocs";
 import StudioSalesLive from "@/components/studio2/StudioSalesLive";
@@ -56,7 +57,8 @@ export default async function StudioPage({ params }) {
   recordStudioVisit(user.id, studio.id).catch(() => {});
 
   const admin = canAdminister(studio, collaborator);
-  const [allSections, grants] = await Promise.all([listSections(studio.id), listGrants(studio.id)]);
+  const [allSections, grants, catalogues] = await Promise.all([listSections(studio.id), listGrants(studio.id), loadCatalogues()]);
+  const plan = planOf(studio, catalogues.packages, catalogues.tiers);
   const sections = visibleSections(studio, collaborator, allSections, grants);
 
   const { segments = [] } = await params;
@@ -104,7 +106,10 @@ export default async function StudioPage({ params }) {
     : active?.key;
 
   const frameProps = {
-    studio: { name: studio.name, slug: studio.slug, logo: studio.logo || "" },
+    studio: {
+      name: studio.name, slug: studio.slug, logo: studio.logo || "",
+      packageName: plan.packageName, packageColor: plan.packageColor, tierName: plan.tierName,
+    },
     me: { alias: collaborator.alias || "", role: collaborator.role, canAdminister: admin },
     // parentId drives the expandable nav.
     sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),

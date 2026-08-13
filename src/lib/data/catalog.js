@@ -8,8 +8,15 @@
 
 import { readArr, editArr } from "@/lib/data/store";
 import { ID, REG } from "@/lib/data/keys";
+import { PACKAGE_COLORS } from "@/lib/planColors";
 
 const now = () => new Date().toISOString();
+
+// The palette a package can wear, and the sensible first guess for each of the
+// four names the product ships with.
+
+const NAME_COLORS = { free: "green", small: "yellow", medium: "orange", large: "red" };
+const colorForName = (name) => NAME_COLORS[String(name || "").trim().toLowerCase()] || "grey";
 const str = (v, max) => String(v ?? "").trim().slice(0, max);
 const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };
 
@@ -30,6 +37,10 @@ export const KINDS = {
       // which meant the state could not be expressed at all.
       durationMonths: num(b.durationMonths),
       isPublic: Boolean(b.isPublic),
+      // How the package shows up wherever a studio's plan is displayed. Stored,
+      // not derived from the name: a package can be renamed without silently
+      // changing colour, and a new one can pick any of these.
+      color: PACKAGE_COLORS.includes(b.color) ? b.color : colorForName(b.name),
     }),
   },
   tiers: {
@@ -97,4 +108,38 @@ export async function deleteCatalogItem(kind, id) {
     }));
   }
   return gone;
+}
+
+// ---- what every studio starts on --------------------------------------------
+// A studio is created with a package and a tier, so both have to exist before
+// the first one is. Seeded lazily and guarded by name, the same way the
+// registration questionnaire is planted: a migration can be forgotten in an
+// environment, a lazy seed cannot.
+//
+// Free is created with NO member limit rather than a number invented here. The
+// limit is a commercial decision and belongs in the console; until it is set,
+// nothing is enforced, which is the safe direction to be wrong in.
+export const DEFAULT_PACKAGE = "Free";
+export const DEFAULT_TIER = "Standard";
+
+const byName = (rows, name) =>
+  rows.find((r) => String(r.name || "").trim().toLowerCase() === name.toLowerCase()) || null;
+
+export async function ensureDefaultPlan() {
+  const [packages, tiers] = await Promise.all([listCatalog("packages"), listCatalog("tiers")]);
+
+  let pkg = byName(packages, DEFAULT_PACKAGE);
+  if (!pkg) {
+    pkg = await createCatalogItem("packages", {
+      name: DEFAULT_PACKAGE, minEmployees: 0, maxEmployees: 0, cost: 0,
+      durationMonths: 0, isPublic: true, color: "green",
+    });
+  }
+  let tier = byName(tiers, DEFAULT_TIER);
+  if (!tier) {
+    tier = await createCatalogItem("tiers", {
+      name: DEFAULT_TIER, serviceIds: [], cost: 0, durationMonths: 0, isPublic: true,
+    });
+  }
+  return { packageId: pkg.id, tierId: tier.id };
 }

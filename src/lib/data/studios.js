@@ -15,6 +15,7 @@
 import { REG, U, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/lib/data/keys";
 import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, sMembers, hIncrBy, hGetAll, hDel } from "@/lib/data/store";
 import { addCollaborator } from "@/lib/data/collaborators";
+import { ensureDefaultPlan } from "@/lib/data/catalog";
 
 export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" }) {
   const cleanName = String(name || "").trim();
@@ -32,7 +33,15 @@ export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" })
   }
   try {
     const now = new Date().toISOString();
-    const studio = { id, ownerUserId, name: cleanName, slug: cleanSlug, plan: "free", status: "active", createdAt: now };
+    // Every studio starts on the Free package and the Standard tier. Both are
+    // planted if they do not exist yet, so the very first studio created in an
+    // environment still lands on a real plan rather than a dangling id.
+    const { packageId, tierId } = await ensureDefaultPlan();
+    const studio = {
+      id, ownerUserId, name: cleanName, slug: cleanSlug,
+      plan: "free", packageId, tierId,
+      status: "active", createdAt: now,
+    };
 
     // Seed the fixed section list. Parents get a SectionID, sub-sections get
     // their own id and point at their parent — one flat array, one id space,
