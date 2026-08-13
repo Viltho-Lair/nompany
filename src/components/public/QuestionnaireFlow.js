@@ -10,7 +10,7 @@ import { COUNTRIES } from "@/lib/countries";
 import { citiesFor } from "@/lib/cities";
 import {
   AVERAGE_MINUTES, ERP_NONE, ERP_OTHER, ERP_SYSTEMS,
-  fieldOf, isAllComplete, isPageComplete, packageLabel,
+  fieldOf, isPageComplete, packageLabel,
 } from "@/lib/questionnaire";
 
 // The one-time survey between finishing registration and reaching the account.
@@ -52,6 +52,10 @@ const nameToCode = (name) =>
 
 export default function QuestionnaireFlow({ locale, initialPackage = "", email = "", pages = [], questionnaireId = "" }) {
   const [page, setPage] = useState(0);
+  // The furthest page reached, so a page with nothing mandatory on it counts
+  // once it has actually been shown rather than from the moment the survey
+  // opens. Without this the bar starts part-full, which makes it a liar.
+  const [furthest, setFurthest] = useState(0);
   const [answers, setAnswers] = useState({ intent: "", field: "", country: "", city: "", erps: [], otherErp: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -60,10 +64,14 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
   const total = pages.length;
   const first = page === 0;
   const last = page === total - 1;
-  const complete = isAllComplete(pages, answers);
   const canAdvance = isPageComplete(current, answers);
 
   const set = (patch) => setAnswers((a) => ({ ...a, ...patch }));
+  const goNext = () => setPage((p) => {
+    const nextPage = Math.min(total - 1, p + 1);
+    setFurthest((f) => Math.max(f, nextPage));
+    return nextPage;
+  });
 
   // A questionnaire authored with no pages yet must not take the screen down.
   if (!current) {
@@ -97,8 +105,11 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
   }
 
   // Progress reflects PAGES DONE, not the page you happen to be looking at, so
-  // stepping back to check an answer doesn't make the bar retreat.
-  const done = pages.filter((p) => isPageComplete(p, answers)).length;
+  // stepping back to check an answer doesn't make the bar retreat. A page only
+  // counts once it has been reached: a page whose questions are all optional is
+  // "complete" the instant the survey loads, and crediting that before it has
+  // been seen would show progress nobody has made.
+  const done = pages.filter((p, i) => i <= furthest && isPageComplete(p, answers)).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
@@ -149,16 +160,20 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
 
             {error && <p className="mt-3 shrink-0 text-center text-sm text-rose-500">{error}</p>}
 
-            {/* Appears only once every page would pass on its own — the survey
-                can be finished from wherever you are, not just the last page. */}
+            {/* The end of the survey is the END of the survey: submit appears on
+                the last page, once that page is answered. Because forward is
+                gated the same way, being here at all means every page before it
+                is answered too. */}
             <div className="mt-4 flex h-11 shrink-0 items-center justify-center">
-              {complete ? (
+              {last && canAdvance ? (
                 <button type="button" onClick={submit} disabled={saving} className="btn-primary disabled:opacity-60">
                   {saving ? "Saving…" : "Complete and continue"}
                 </button>
               ) : (
                 <p className="text-xs text-fg-dim">
-                  {canAdvance ? "Answered — carry on when you're ready." : "Answer the question above to continue."}
+                  {!canAdvance
+                    ? "Answer the required questions to continue."
+                    : "Answered — carry on to the next page."}
                 </p>
               )}
             </div>
@@ -176,7 +191,10 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
               <div className="h-full rounded-full bg-gradient-to-r from-iris to-violet transition-[width] duration-500"
                 style={{ width: `${pct}%` }} />
             </div>
-            <Arrow dir="next" disabled={last} onClick={() => setPage((p) => Math.min(total - 1, p + 1))} />
+            {/* Forward is earned: the page you are on has to be answered before
+                it opens. Back is always free — checking what you put earlier is
+                not a reason to be trapped. */}
+            <Arrow dir="next" disabled={last || !canAdvance} onClick={goNext} />
           </div>
           <p className="mt-1.5 text-center text-[11px] text-fg-dim">Page {page + 1} of {total}</p>
         </footer>
