@@ -28,6 +28,9 @@ export const ID = {
   subsection: () => makeId("sub"),
   grant: () => makeId("grt"),
   media: () => makeId("med"),
+  questionnaire: () => makeId("qst"),
+  qpage: () => makeId("qpg"),
+  question: () => makeId("qsn"),
   row: (collection) => makeId(collection.slice(0, 3)),
 };
 
@@ -37,6 +40,10 @@ export const REG = {
   studios: "g:studios",
   superAdmins: "g:superAdmins",
   joinRequests: "g:joinRequests",
+  // Questionnaire DEFINITIONS authored in /super — the forms themselves, not
+  // anyone's answers. Platform-level like the studio registry, because a
+  // questionnaire belongs to a route rather than to a studio or a user.
+  questionnaires: "g:questionnaires",
 };
 
 // ---- per-user keys (1:1 / 1:N satellites; die with the user) ---------------

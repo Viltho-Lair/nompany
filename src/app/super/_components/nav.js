@@ -60,6 +60,9 @@ export const NAV = [
     caption: "Forms",
     items: [
       { label: "Form Elements", icon: "form", href: `${BASE}/forms/form-elements` },
+      // Full-page app: it opens outside the console chrome (see (full)),
+      // which is why its href leaves the /forms group behind.
+      { label: "Questionnaires", icon: "form", href: `${BASE}/questionnaires` },
       { label: "Form Wizard", icon: "wizard", href: `${BASE}/forms/wizard` },
       { label: "Editor", icon: "edit", href: `${BASE}/forms/editor` },
     ],
