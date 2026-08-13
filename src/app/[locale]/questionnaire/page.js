@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/identity";
 import { getQuestionnaire } from "@/lib/data/users";
-import { isPackageKey } from "@/lib/questionnaire";
+import { isPackageKey, QUESTION_PAGES, REGISTRATION_NAME, REGISTRATION_ROUTE } from "@/lib/questionnaire";
+import { ensureQuestionnaireForRoute } from "@/lib/data/questionnaires";
 import QuestionnaireFlow from "@/components/public/QuestionnaireFlow";
 
 export const dynamic = "force-dynamic";
@@ -21,5 +22,22 @@ export default async function QuestionnairePage({ params, searchParams }) {
   // A package chosen on the pricing page rides along on ?package=.
   const sp = await searchParams;
   const requested = String(sp?.package || "");
-  return <QuestionnaireFlow locale={locale} email={user.email} initialPackage={isPackageKey(requested) ? requested : ""} />;
+  // The questions come from the BUILDER, not from this file. The definition is
+  // planted on first use and read every time after, so editing "Registration
+  // questionnaire" in /super changes what someone registering actually sees.
+  // The built-in definition is the seed and the fallback — if the registry can
+  // not be reached, registration must not become a dead end.
+  let def = null;
+  try { def = await ensureQuestionnaireForRoute({ route: REGISTRATION_ROUTE, name: REGISTRATION_NAME, pages: QUESTION_PAGES }); } catch { def = null; }
+  const pages = def?.pages?.length ? def.pages : QUESTION_PAGES;
+
+  return (
+    <QuestionnaireFlow
+      locale={locale}
+      email={user.email}
+      pages={pages}
+      questionnaireId={def?.id || ""}
+      initialPackage={isPackageKey(requested) ? requested : ""}
+    />
+  );
 }

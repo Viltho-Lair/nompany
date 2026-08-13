@@ -339,6 +339,35 @@ function Settings({ q, onPatch, onRemove }) {
             options or bounds that belong to the old one. Delete and re-add. */}
       </div>
 
+      {/* What this question BINDS TO. The key is the field its answer is stored
+          under — leave it blank and the answer is filed under the question's own
+          id, which is fine for a new survey and wrong for one whose answers
+          other code already reads. */}
+      <div>
+        <h3 className="text-xs font-700 uppercase tracking-wide text-slate-400">Stored as</h3>
+        <input value={q.key || ""} onChange={(e) => onPatch({ key: e.target.value.trim() })}
+          className={`${field} mt-2 font-mono text-xs`} placeholder={q.id} />
+      </div>
+
+      {hasOptions(q.type) && (
+        <div>
+          <h3 className="text-xs font-700 uppercase tracking-wide text-slate-400">Choices from</h3>
+          {/* Some lists are far too long to type and two of them depend on
+              another answer, so they are bound rather than authored. */}
+          <select value={q.source || ""} onChange={(e) => onPatch({ source: e.target.value })} className={`${field} mt-2`}>
+            <option value="">Choices below</option>
+            <option value="industries">Industries</option>
+            <option value="countries">Countries</option>
+            <option value="cities">Cities (follows a country answer)</option>
+            <option value="erps">ERP systems</option>
+          </select>
+          {q.source === "cities" && (
+            <input value={q.dependsOn || ""} onChange={(e) => onPatch({ dependsOn: e.target.value.trim() })}
+              className={`${field} mt-2 font-mono text-xs`} placeholder="country" />
+          )}
+        </div>
+      )}
+
       {supports.length > 0 && (
         <div className="space-y-1">
           {supports.map((key) => (
@@ -352,7 +381,13 @@ function Settings({ q, onPatch, onRemove }) {
         </div>
       )}
 
-      {hasOptions(q.type) && <OptionEditor options={q.options || []} onChange={(options) => onPatch({ options })} />}
+      {hasOptions(q.type) && !q.source && (
+        <OptionEditor
+          options={q.options || []}
+          values={q.optionValues}
+          onChange={(options, optionValues) => onPatch(optionValues ? { options, optionValues } : { options })}
+        />
+      )}
 
       {(q.type === "nps" || q.type === "opinion-scale" || q.type === "rating" || q.type === "number") && (
         <div className="grid grid-cols-2 gap-2">
@@ -383,22 +418,27 @@ function Settings({ q, onPatch, onRemove }) {
   );
 }
 
-function OptionEditor({ options, onChange }) {
+function OptionEditor({ options, values, onChange }) {
+  const paired = Array.isArray(values);
   return (
     <div>
       <h3 className="text-xs font-700 uppercase tracking-wide text-slate-400">Choices</h3>
       <div className="mt-2 space-y-2">
         {options.map((o, i) => (
           <div key={i} className="flex items-center gap-1.5">
-            <input value={o} className={field}
-              onChange={(e) => onChange(options.map((x, j) => (j === i ? e.target.value : x)))} />
+            <input value={o} className={field} placeholder="Label"
+              onChange={(e) => onChange(options.map((x, j) => (j === i ? e.target.value : x)), values)} />
+            {paired && (
+              <input value={values[i] ?? ""} className={`${field} w-24 font-mono text-xs`} placeholder="value"
+                onChange={(e) => onChange(options, values.map((x, j) => (j === i ? e.target.value : x)))} />
+            )}
             <button type="button" aria-label="Remove choice" className="px-1.5 text-slate-400 hover:text-rose-600"
-              onClick={() => onChange(options.filter((_, j) => j !== i))}>×</button>
+              onClick={() => onChange(options.filter((_, j) => j !== i), paired ? values.filter((_, j) => j !== i) : values)}>×</button>
           </div>
         ))}
       </div>
       <button type="button" className="mt-2 text-sm font-600 text-slate-600 underline hover:text-slate-900"
-        onClick={() => onChange([...options, `Choice ${options.length + 1}`])}>Add choice</button>
+        onClick={() => onChange([...options, `Choice ${options.length + 1}`], paired ? [...values, ""] : values)}>Add choice</button>
     </div>
   );
 }

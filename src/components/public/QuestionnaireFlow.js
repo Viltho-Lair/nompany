@@ -9,8 +9,8 @@ import { INDUSTRIES } from "@/lib/industries";
 import { COUNTRIES } from "@/lib/countries";
 import { citiesFor } from "@/lib/cities";
 import {
-  AVERAGE_MINUTES, ERP_NONE, ERP_OTHER, ERP_SYSTEMS, QUESTION_PAGES,
-  isAllComplete, isPageComplete, packageLabel,
+  AVERAGE_MINUTES, ERP_NONE, ERP_OTHER, ERP_SYSTEMS,
+  fieldOf, isAllComplete, isPageComplete, packageLabel,
 } from "@/lib/questionnaire";
 
 // The one-time survey between finishing registration and reaching the account.
@@ -40,7 +40,8 @@ function optionsFor(question, answers) {
   switch (question.source) {
     case "industries": return INDUSTRIES;
     case "countries": return COUNTRIES.map((c) => c.name);
-    case "cities": return citiesFor(nameToCode(answers.country));
+    // Cities follow whichever question the author bound this one to.
+    case "cities": return citiesFor(nameToCode(answers[question.dependsOn || "country"]));
     case "erps": return ERP_SYSTEMS;
     default: return question.options || [];
   }
@@ -49,20 +50,29 @@ function optionsFor(question, answers) {
 const nameToCode = (name) =>
   COUNTRIES.find((c) => c.name === name)?.code || "";
 
-export default function QuestionnaireFlow({ locale, initialPackage = "", email = "" }) {
+export default function QuestionnaireFlow({ locale, initialPackage = "", email = "", pages = [], questionnaireId = "" }) {
   const [page, setPage] = useState(0);
   const [answers, setAnswers] = useState({ intent: "", field: "", country: "", city: "", erps: [], otherErp: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const current = QUESTION_PAGES[page];
-  const total = QUESTION_PAGES.length;
+  const current = pages[page];
+  const total = pages.length;
   const first = page === 0;
   const last = page === total - 1;
-  const complete = isAllComplete(answers);
+  const complete = isAllComplete(pages, answers);
   const canAdvance = isPageComplete(current, answers);
 
   const set = (patch) => setAnswers((a) => ({ ...a, ...patch }));
+
+  // A questionnaire authored with no pages yet must not take the screen down.
+  if (!current) {
+    return (
+      <div className="landing-page flex h-screen items-center justify-center px-6 text-center">
+        <p className="text-sm text-fg-muted">This questionnaire has no questions yet.</p>
+      </div>
+    );
+  }
 
   async function submit() {
     setSaving(true); setError("");
@@ -88,8 +98,8 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
 
   // Progress reflects PAGES DONE, not the page you happen to be looking at, so
   // stepping back to check an answer doesn't make the bar retreat.
-  const done = QUESTION_PAGES.filter((p) => isPageComplete(p, answers)).length;
-  const pct = Math.round((done / total) * 100);
+  const done = pages.filter((p) => isPageComplete(p, answers)).length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
     <PointerProvider>
@@ -219,34 +229,40 @@ function NovaCorner({ hint }) {
 // ---- one question ------------------------------------------------------------
 function Question({ question, answers, set }) {
   const options = useMemo(() => optionsFor(question, answers), [question, answers]);
-  const value = answers[question.id];
+  const key = fieldOf(question);
+  const value = answers[key];
 
-  if (question.type === "choice") {
+  if (question.type === "multiple-choice" && !question.multiple) {
     return (
       <Field question={question}>
         <div className="grid gap-3 sm:grid-cols-2">
-          {(question.options || []).map((o) => (
+          {(question.options || []).map((label, i) => {
+            // What gets STORED can differ from what is shown — see optionValues.
+            const v = question.optionValues?.[i] ?? label;
+            return (
             <button
-              key={o.value}
+              key={label}
               type="button"
-              onClick={() => set({ [question.id]: o.value })}
-              aria-pressed={value === o.value}
+              onClick={() => set({ [key]: v })}
+              aria-pressed={value === v}
               className={`rounded-xl border p-4 text-start transition-colors ${
-                value === o.value
+                value === v
                   ? "border-iris bg-iris/10"
                   : "border-line hover:border-iris/50"
               }`}
             >
-              <span className="block font-display text-base font-semibold text-fg">{o.title}</span>
-              <span className="mt-1 block text-sm leading-relaxed text-fg-muted">{o.body}</span>
-            </button>
-          ))}
+              <span className="block font-display text-base font-semibold text-fg">{label}</span>
+              {question.optionNotes?.[i] && (
+                <span className="mt-1 block text-sm leading-relaxed text-fg-muted">{question.optionNotes[i]}</span>
+              )}
+            </button>);
+          })}
         </div>
       </Field>
     );
   }
 
-  if (question.type === "combo") {
+  if (question.type === "dropdown") {
     // A dependent question stays put but goes quiet until its parent is answered
     // — removing it would make the page jump as you fill the one above.
     const blocked = question.dependsOn && !answers[question.dependsOn];
@@ -259,14 +275,40 @@ function Question({ question, answers, set }) {
           placeholder={blocked ? `Choose a ${question.dependsOn} first` : (question.placeholder || "")}
           inputClassName={FIELD}
           paperClassName="mt-1 card !p-0 overflow-hidden"
-          onChange={(v) => set({ [question.id]: v, ...Object.fromEntries((question.resets || []).map((k) => [k, ""])) })}
+          onChange={(v) => set({ [key]: v, ...Object.fromEntries((question.resets || []).map((k) => [k, ""])) })}
         />
       </Field>
     );
   }
 
-  if (question.type === "multi") return <MultiSelect question={question} options={options} answers={answers} set={set} />;
-  return null;
+  if (question.type === "multiple-choice" && question.multiple) {
+    return <MultiSelect question={question} options={options} answers={answers} set={set} />;
+  }
+  if (["short-text", "email", "long-text", "number", "date", "website", "phone"].includes(question.type)) {
+    const Tag = question.type === "long-text" ? "textarea" : "input";
+    const inputType = question.type === "number" ? "number" : question.type === "date" ? "date"
+      : question.type === "email" ? "email" : "text";
+    return (
+      <Field question={question}>
+        <Tag
+          {...(Tag === "input" ? { type: inputType } : { rows: 3 })}
+          value={value || ""}
+          onChange={(e) => set({ [key]: e.target.value })}
+          placeholder={question.placeholder || ""}
+          className={FIELD}
+        />
+      </Field>
+    );
+  }
+  // An element the builder can add but this screen does not render yet. Saying
+  // so beats a blank space that looks like a bug.
+  return (
+    <Field question={question}>
+      <p className="rounded-xl border border-dashed border-line px-3 py-2 text-sm text-fg-dim">
+        “{question.type}” isn&apos;t supported on this screen yet.
+      </p>
+    </Field>
+  );
 }
 
 function Field({ question, children }) {
@@ -283,7 +325,8 @@ function Field({ question, children }) {
 // clears it. Saying you run no ERP and then naming one is not an answer.
 function MultiSelect({ question, options, answers, set }) {
   const [query, setQuery] = useState("");
-  const picked = Array.isArray(answers[question.id]) ? answers[question.id] : [];
+  const key = fieldOf(question);
+  const picked = Array.isArray(answers[key]) ? answers[key] : [];
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -298,7 +341,7 @@ function MultiSelect({ question, options, answers, set }) {
     else {
       next = has ? picked.filter((p) => p !== option) : [...picked.filter((p) => p !== ERP_NONE), option];
     }
-    set({ [question.id]: next });
+    set({ [key]: next });
   }
 
   return (

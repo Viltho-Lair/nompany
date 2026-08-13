@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 
 // The questionnaires home: everything authored in the console, newest first.
@@ -140,18 +141,14 @@ export default function QuestionnaireList() {
                     <td className="px-3 py-3 text-end text-slate-600">{r.responses || "-"}</td>
                     <td className="px-3 py-3 text-end text-slate-600">{r.completed || "-"}</td>
                     <td className="px-3 py-3 text-end text-slate-500">{fmt(r.updatedAt)}</td>
-                    <td className="relative px-3 py-3 text-end" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" aria-label="Actions" className={GHOST}
-                        onClick={() => setMenuFor(menuFor === r.id ? "" : r.id)}>···</button>
-                      {menuFor === r.id && (
-                        <div className="absolute end-3 z-20 mt-1 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-start shadow-lg">
-                          <Link href={`/super/questionnaires/${r.id}`} className="block px-3 py-2 text-sm hover:bg-slate-50">Open</Link>
-                          <button type="button" className="block w-full px-3 py-2 text-start text-sm hover:bg-slate-50"
-                            onClick={() => send({ duplicateOf: r.id })}>Duplicate</button>
-                          <button type="button" className="block w-full px-3 py-2 text-start text-sm text-rose-600 hover:bg-rose-50"
-                            onClick={() => send(null, "DELETE", r.id)}>Delete</button>
-                        </div>
-                      )}
+                    <td className="px-3 py-3 text-end" onClick={(e) => e.stopPropagation()}>
+                      <RowMenu
+                        open={menuFor === r.id}
+                        onToggle={() => setMenuFor(menuFor === r.id ? "" : r.id)}
+                        href={`/super/questionnaires/${r.id}`}
+                        onDuplicate={() => send({ duplicateOf: r.id })}
+                        onDelete={() => send(null, "DELETE", r.id)}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -175,6 +172,54 @@ export default function QuestionnaireList() {
         )}
       </main>
     </div>
+  );
+}
+
+// The row menu lives in a PORTAL, not in the cell. The table sits inside a
+// rounded, overflow-hidden panel — which is what gives it its clipped corners
+// and is also what was swallowing this menu whole. Rendering it to <body> at
+// fixed coordinates puts it above both the row and the list, with nothing left
+// to clip it.
+function RowMenu({ open, onToggle, href, onDuplicate, onDelete }) {
+  const btnRef = useRef(null);
+  const [at, setAt] = useState(null);
+
+  useEffect(() => {
+    if (!open) { setAt(null); return; }
+    const place = () => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const W = 160, H = 124;
+      setAt({
+        // Flip above the button when there is no room below, so the last row's
+        // menu is never half off the bottom of the window.
+        top: r.bottom + H > window.innerHeight ? Math.max(8, r.top - H) : r.bottom + 4,
+        left: Math.min(Math.max(8, r.right - W), window.innerWidth - W - 8),
+        width: W,
+      });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
+  }, [open]);
+
+  return (
+    <>
+      <button ref={btnRef} type="button" aria-label="Actions" aria-haspopup="menu" aria-expanded={open}
+        className={GHOST} onClick={onToggle}>···</button>
+      {open && at && typeof document !== "undefined" && createPortal(
+        <div role="menu" style={{ position: "fixed", top: at.top, left: at.left, width: at.width }}
+          className="z-[100] overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-start shadow-xl"
+          onClick={(e) => e.stopPropagation()}>
+          <Link href={href} role="menuitem" className="block px-3 py-2 text-sm hover:bg-slate-50">Open</Link>
+          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm hover:bg-slate-50"
+            onClick={onDuplicate}>Duplicate</button>
+          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm text-rose-600 hover:bg-rose-50"
+            onClick={onDelete}>Delete</button>
+        </div>,
+        document.body)}
+    </>
   );
 }
 

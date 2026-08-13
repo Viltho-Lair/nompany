@@ -89,3 +89,40 @@ export async function duplicateQuestionnaireDef(id, createdBy = "") {
   await editArr(REG.questionnaires, (rows) => ({ next: [copy, ...rows] }));
   return copy;
 }
+
+// A route belongs to at most one questionnaire — that is what makes "the
+// questionnaire at this route" a meaningful thing to ask for.
+export async function getQuestionnaireByRoute(route) {
+  const want = String(route || "").trim();
+  if (!want) return null;
+  return (await readArr(REG.questionnaires)).find((q) => (q.route || "") === want) || null;
+}
+
+// Plant the registration questionnaire in the builder the first time it is
+// wanted, then leave it alone.
+//
+// Seeded lazily rather than by a migration because it has to exist in every
+// environment that ever serves the page, and a lazy seed cannot be forgotten on
+// one of them. It is guarded by the route lookup, so it writes once: after that
+// this is a read, and whatever an author has since changed is what comes back.
+export async function ensureQuestionnaireForRoute({ route, name, pages }) {
+  const existing = await getQuestionnaireByRoute(route);
+  if (existing) return existing;
+  const row = {
+    id: ID.questionnaire(),
+    name: String(name || "Questionnaire").slice(0, 120),
+    route: String(route || "").slice(0, 200),
+    status: "live",
+    pages: structuredClone(pages || []),
+    responses: 0,
+    completed: 0,
+    createdBy: "system",
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  // Re-check inside the write: two first requests at once must not both plant it.
+  await editArr(REG.questionnaires, (rows) => (
+    rows.some((q) => (q.route || "") === row.route) ? { next: rows } : { next: [row, ...rows] }
+  ));
+  return (await getQuestionnaireByRoute(route)) || row;
+}

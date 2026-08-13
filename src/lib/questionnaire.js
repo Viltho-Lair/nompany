@@ -62,73 +62,86 @@ export const ERP_SYSTEMS = [
   ERP_OTHER,
 ];
 
-// ---- the questionnaire itself ----------------------------------------------
-// PAGES of questions, not steps: a page carries one question or several, and the
-// flow renders whatever is here. This is the shape /super will eventually feed,
-// so adding a question later means adding a row here (or serving the same shape
-// from the database) rather than writing another screen.
+// ---- the registration questionnaire ----------------------------------------
+// This is the SEED for the questionnaire everyone answers after registering. It
+// is written in the BUILDER'S OWN SHAPE — the same pages-and-elements a
+// questionnaire authored in /super produces — so it is not a second format that
+// has to be kept in step. On first use it is planted in the builder under the
+// name below, attached to the route below, and from then on the live screen
+// reads the builder's copy: edit it there and the change is what people see.
 //
-// Every `id` is a field the stored answer already has — intent, field, country,
-// city, erps — so this describes the EXISTING questionnaire rather than asking
-// for anything new. Nothing about what is saved changes.
+// `key` is what makes a question bind to a stored answer field. Without one an
+// element is just a question; with one, what it collects lands on that field of
+// the saved record. The five keys here are exactly the fields the record has
+// always had, so wiring the screen to the builder changed no stored data.
 //
-// Types the renderer understands:
-//   choice — one of a few options, shown as cards
-//   combo  — a searchable list you may also type a value not on it
-//   multi  — a searchable list you may pick several from
+// `source` binds an option list to a built-in list rather than typed choices —
+// industries, countries, cities and ERPs are far too long to author by hand and
+// two of them depend on other answers.
+export const REGISTRATION_ROUTE = "/questionnaire";
+export const REGISTRATION_NAME = "Registration questionnaire";
 export const AVERAGE_MINUTES = 2;
 
 export const QUESTION_PAGES = [
   {
-    id: "goal",
+    id: "qpg_reg_goal",
     title: "What brings you to nompany?",
     lead: "This just shapes what we show you next — you can do both later.",
-    // What Nova says while this page is open.
     hint: "No wrong answer here — you can create a studio and join others later.",
     questions: [
       {
-        id: "intent",
-        type: "choice",
+        id: "qsn_reg_intent",
+        type: "multiple-choice",
+        key: "intent",
         label: "",
+        description: "",
         required: true,
-        options: [
-          { value: "create", title: "Create a studio", body: "Set up your company's workspace and invite your team into it." },
-          { value: "join", title: "Join a studio", body: "Someone shared a company code with you and you're joining their workspace." },
+        vertical: true,
+        multiple: false,
+        options: ["Create a studio", "Join a studio"],
+        // The record stores "create"/"join", not the wording on the card, so the
+        // label can be reworded without invalidating every answer already given.
+        optionValues: ["create", "join"],
+        optionNotes: [
+          "Set up your company's workspace and invite your team into it.",
+          "Someone shared a company code with you and you're joining their workspace.",
         ],
       },
     ],
   },
   {
-    id: "company",
+    id: "qpg_reg_company",
     title: "Tell us about your company",
     lead: "It helps us tune your defaults. Nothing here is published anywhere.",
     hint: "Can't find your industry or city? Type it in — the list is only a shortcut.",
     questions: [
-      { id: "field", type: "combo", label: "What field does your company work in?", source: "industries", required: true, placeholder: "Construction" },
-      { id: "country", type: "combo", label: "Country", source: "countries", required: true, resets: ["city"] },
-      { id: "city", type: "combo", label: "City", source: "cities", dependsOn: "country" },
+      { id: "qsn_reg_field", type: "dropdown", key: "field", label: "What field does your company work in?", required: true, source: "industries", placeholder: "Construction", options: [] },
+      { id: "qsn_reg_country", type: "dropdown", key: "country", label: "Country", required: true, source: "countries", options: [], resets: ["city"] },
+      { id: "qsn_reg_city", type: "dropdown", key: "city", label: "City", required: false, source: "cities", dependsOn: "country", options: [] },
     ],
   },
   {
-    id: "systems",
+    id: "qpg_reg_systems",
     title: "Which systems are you running today?",
     lead: "Knowing what you already have tells us what nompany needs to sit alongside.",
     hint: "Pick as many as apply. If you run none, say so — that is a real answer.",
     questions: [
-      { id: "erps", type: "multi", label: "ERPs your company already has", source: "erps" },
+      { id: "qsn_reg_erps", type: "multiple-choice", key: "erps", label: "ERPs your company already has", required: false, multiple: true, source: "erps", options: [], vertical: false },
     ],
   },
 ];
 
-// A question counts as answered when it has a value; only required ones gate.
+// A question binds to `key` when it has one; otherwise it answers to its own id,
+// which is what an author-created question does until it is given a field.
+export const fieldOf = (q) => q?.key || q?.id;
+
 export function isAnswered(question, answers) {
-  const v = answers?.[question.id];
+  const v = answers?.[fieldOf(question)];
   return Array.isArray(v) ? v.length > 0 : Boolean(String(v ?? "").trim());
 }
 export function isPageComplete(page, answers) {
   return (page?.questions || []).every((q) => !q.required || isAnswered(q, answers));
 }
-// The submit button only exists once every page would pass on its own.
-export function isAllComplete(answers) {
-  return QUESTION_PAGES.every((p) => isPageComplete(p, answers));
+export function isAllComplete(pages, answers) {
+  return (pages || []).every((p) => isPageComplete(p, answers));
 }
