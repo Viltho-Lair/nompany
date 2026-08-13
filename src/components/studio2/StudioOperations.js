@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/lib/studioLinks";
+import { microLabel } from "@/components/studio2/ui";
+import {
+  DAYS, normalizeSchedule, normalizeLegend, visibleWindow, startOfWeekSunday, addDays as addCalendarDays,
+  dayKey, barGeometry, dayRoster,
+} from "@/lib/operationsCalendar";
+import { loadGoogleMaps, defaultMapOptions, googleMapsKey } from "@/lib/googleMaps";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -32,8 +38,11 @@ const dayName = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("
 // sub-section selects its screen. The remaining tabs are tabs of one screen.
 export default function StudioOperations({ slug, view = "operations" }) {
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState(view === "operations-tracking" ? "tracking" : "schedule");
-  useEffect(() => { setTab(view === "operations-tracking" ? "tracking" : "schedule"); }, [view]);
+  // Tabs belong to the MAIN screen only. Tracking and Settings are real
+  // sub-sections with screens of their own — previously they both fell through
+  // to this tab state, which left /operations-tracking selecting a tab that
+  // matched no case and rendering nothing at all under the tab bar.
+  const [tab, setTab] = useState("schedule");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -46,9 +55,11 @@ export default function StudioOperations({ slug, view = "operations" }) {
   // Shifts and permits change from more than one desk — stay current.
   useLiveUpdates(slug, "operations", load);
 
+  // `kind` is the sub-path: "" addresses the section itself (settings).
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);
-    const res = await fetch(`/api/studios/${slug}/operations/${kind}`, {
+    const url = kind ? `/api/studios/${slug}/operations/${kind}` : `/api/studios/${slug}/operations`;
+    const res = await fetch(url, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
     const out = await res.json().catch(() => ({}));
@@ -61,7 +72,31 @@ export default function StudioOperations({ slug, view = "operations" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Operations…</p>;
 
-  const { canManage, locations, permits, shifts, projects, people, window, summary, vocabulary, nav } = data;
+  const {
+    canManage, canManageTracking, canManageSettings,
+    locations, permits, shifts, projects, people, window, positions, settings, summary, vocabulary, nav, me,
+  } = data;
+  const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
+
+  if (view === "operations-tracking") {
+    return (
+      <div className="space-y-6">
+        {banner}
+        <Tracking slug={slug} positions={positions} meId={me.collaboratorId} canManageTracking={canManageTracking}
+          onClear={(collaboratorId) => send("tracking", "DELETE", { collaboratorId })} onRefresh={load} />
+      </div>
+    );
+  }
+
+  if (view === "operations-settings") {
+    return (
+      <div className="space-y-6">
+        {banner}
+        <OperationsSettings settings={settings} canManage={canManageSettings} busy={busy}
+          onSave={(patch) => send("", "PATCH", patch)} />
+      </div>
+    );
+  }
 
   const tabs = [
     ["schedule", `Schedule (${summary.shiftsThisWeek})`],
@@ -69,17 +104,9 @@ export default function StudioOperations({ slug, view = "operations" }) {
     ["locations", `Locations (${locations.length})`],
   ];
 
-  if (view === "operations") {
-    return (
-      <div className="space-y-6">
-        <OperationsDashboard slug={slug} data={data} />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+      {banner}
 
       <section className={panel}>
         <div className="flex flex-wrap gap-8">
@@ -110,7 +137,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
 
       {tab === "schedule" && (
         <Schedule shifts={shifts} people={people} locations={locations} window={window}
-          canManage={canManage} busy={busy} send={send} />
+          settings={settings} canManage={canManage} busy={busy} send={send} />
       )}
       {tab === "permits" && (
         <Permits rows={permits} locations={locations} people={people} projects={projects} types={vocabulary.permitTypes}
@@ -141,8 +168,14 @@ function message(out) {
 }
 
 // ---- schedule --------------------------------------------------------------
-function Schedule({ shifts, people, locations, window, canManage, busy, send }) {
+// Two readings of the same rota: the CALENDAR, which answers "who is where at
+// 10am on Tuesday", and the LIST, which is easier to scan and to remove from.
+function Schedule({ shifts, people, locations, window, settings, canManage, busy, send }) {
   const [adding, setAdding] = useState(false);
+  const [mode, setMode] = useState("calendar");
+  // Which week the calendar is showing, as an offset from the current one — so
+  // "next week" survives a live refetch instead of snapping back to today.
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // Group by day so the rota reads as a week, not a list. Stepped in UTC, the
   // same zone the server builds the window in — walking these in local time
@@ -162,15 +195,29 @@ function Schedule({ shifts, people, locations, window, canManage, busy, send }) 
 
   return (
     <>
-      {canManage && !adding && (
-        <button className={btn} onClick={() => setAdding(true)} disabled={people.length === 0}>Schedule a shift</button>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
+          {[["calendar", "Calendar"], ["list", "List"]].map(([k, text]) => (
+            <button key={k} type="button" onClick={() => setMode(k)}
+              className={`rounded-full px-4 py-1.5 text-sm font-600 transition-colors ${mode === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
+              {text}
+            </button>
+          ))}
+        </div>
+        {canManage && (
+          <button className={`${btn} ms-auto`} onClick={() => setAdding(true)} disabled={people.length === 0}>Schedule a shift</button>
+        )}
+      </div>
+
       {adding && (
         <ShiftForm people={people} locations={locations} busy={busy}
           onCancel={() => setAdding(false)}
           onSave={async (v) => { if (await send("shifts", "POST", v)) setAdding(false); }} />
       )}
 
+      {mode === "calendar" ? (
+        <WorkCalendar shifts={shifts} settings={settings} weekOffset={weekOffset} onWeek={setWeekOffset} />
+      ) : (
       <section className={panel}>
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
           {fmt(window.from)} – {fmt(window.to)}
@@ -212,7 +259,136 @@ function Schedule({ shifts, people, locations, window, canManage, busy, send }) 
           </p>
         )}
       </section>
+      )}
     </>
+  );
+}
+
+// The week grid. Each shift is a bar placed by its start and end against the
+// hour window the studio configured, so the picture and the times can never
+// disagree — the geometry IS the times.
+function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
+  const [copied, setCopied] = useState("");
+  const schedule = useMemo(() => normalizeSchedule(settings?.workSchedule), [settings]);
+  const legend = useMemo(() => normalizeLegend(settings?.legend), [settings]);
+  const [windowFrom, windowTo] = useMemo(
+    () => visibleWindow(schedule, settings?.showWorkingHoursOnly),
+    [schedule, settings],
+  );
+
+  // The week being shown, walked in LOCAL time — this grid is a picture of
+  // somebody's own week, unlike the server's rota window which is calendar days.
+  const weekStart = useMemo(
+    () => addCalendarDays(startOfWeekSunday(new Date()), weekOffset * 7),
+    [weekOffset],
+  );
+  const columns = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+    const date = addCalendarDays(weekStart, i);
+    const iso = dayKey(date);
+    return {
+      iso, date,
+      dayName: DAYS[date.getDay()],
+      working: schedule[DAYS[date.getDay()]]?.on,
+      today: iso === dayKey(new Date()),
+      shifts: shifts.filter((s) => s.date === iso),
+    };
+  }), [weekStart, schedule, shifts]);
+
+  const hours = [];
+  for (let h = Math.floor(windowFrom); h < Math.ceil(windowTo); h++) hours.push(h);
+  const colourOf = (s) => (legend.find((t) => t.id === s.kind) || legend[0]).color;
+
+  async function copyRoster(column) {
+    const text = dayRoster(`${column.dayName} ${fmt(column.iso)}`, column.shifts, settings?.rosterPrefix || "");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(column.iso);
+      setTimeout(() => setCopied(""), 2000);
+    } catch { /* clipboard blocked — the roster is still readable on screen */ }
+  }
+
+  return (
+    <section className={panel}>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1">
+          <button type="button" className={btnGhost} onClick={() => onWeek(weekOffset - 1)}>←</button>
+          <button type="button" className={btnGhost} onClick={() => onWeek(0)}>This week</button>
+          <button type="button" className={btnGhost} onClick={() => onWeek(weekOffset + 1)}>→</button>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {fmt(dayKey(weekStart))} – {fmt(dayKey(addCalendarDays(weekStart, 6)))}
+        </p>
+        <div className="ms-auto flex flex-wrap items-center gap-3">
+          {legend.map((t) => (
+            <span key={t.id} className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: t.color }} />
+              {t.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <div className="grid min-w-[780px] grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px">
+          <div />
+          {columns.map((c) => (
+            <div key={c.iso} className={`pb-2 text-center ${c.today ? "text-brand-700 dark:text-brand-300" : "text-slate-500 dark:text-slate-400"}`}>
+              <p className="text-xs font-700 uppercase tracking-wide">{c.dayName.slice(0, 3)}</p>
+              <p className="text-[11px]">{fmt(c.iso).slice(0, 5)}</p>
+              {c.shifts.length > 0 && (
+                <button type="button" onClick={() => copyRoster(c)}
+                  className="mt-0.5 text-[10px] font-600 text-brand-700 hover:underline dark:text-brand-300">
+                  {copied === c.iso ? "copied" : "copy roster"}
+                </button>
+              )}
+            </div>
+          ))}
+
+          {/* The hour rail, then one column per day with its bars positioned
+              inside it. Height is fixed per hour so the two stay in step. */}
+          <div>
+            {hours.map((h) => (
+              <div key={h} className="h-12 border-t border-slate-100 pe-2 text-end text-[10px] text-slate-400 dark:border-white/5">
+                {String(h).padStart(2, "0")}:00
+              </div>
+            ))}
+          </div>
+          {columns.map((c) => (
+            <div key={c.iso} className={`relative ${c.working ? "" : "bg-slate-50 dark:bg-white/[0.03]"}`}>
+              {hours.map((h) => (
+                <div key={h} className="h-12 border-t border-slate-100 dark:border-white/5" />
+              ))}
+              {c.shifts.map((s) => {
+                const geo = barGeometry(s.startTime, s.endTime, [windowFrom, windowTo]);
+                // A shift entirely outside the drawn window has nowhere to go.
+                // It is named under the grid rather than silently dropped.
+                if (!geo) return null;
+                return (
+                  <div key={s.id} title={`${s.startTime}–${s.endTime} · ${s.alias}${s.locationName ? ` · ${s.locationName}` : ""}`}
+                    className="absolute inset-x-1 overflow-hidden rounded-md px-1.5 py-0.5 text-[10px] leading-tight text-slate-800"
+                    style={{ top: `${geo.top}%`, height: `${geo.height}%`, backgroundColor: colourOf(s) }}>
+                    <span className="block truncate font-700">{s.alias}</span>
+                    <span className="block truncate">{s.startTime}–{s.endTime}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {(() => {
+        const hidden = columns.flatMap((c) => c.shifts.filter((s) => !barGeometry(s.startTime, s.endTime, [windowFrom, windowTo])));
+        if (hidden.length === 0) return null;
+        return (
+          <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-amber-700 dark:border-white/5 dark:text-amber-300">
+            {hidden.length} shift{hidden.length === 1 ? "" : "s"} fall outside the hours shown
+            ({hidden.map((s) => `${s.alias} ${s.startTime}–${s.endTime}`).join(", ")}).
+            Turn off &quot;working hours only&quot; in Settings to see them.
+          </p>
+        );
+      })()}
+    </section>
   );
 }
 
@@ -519,24 +695,295 @@ function Empty({ title, body }) {
 }
 
 
-// Deliberately empty of analytics for now — the parent section is a place.
-function OperationsDashboard({ slug, data }) {
-  const tiles = [{ label: "Locations", value: (data.locations || []).length, key: "operations" },
-    { label: "Permits", value: (data.permits || []).length, key: "operations" },
-    { label: "Tracking", value: "Open", key: "operations-tracking" }];
+// ---- tracking --------------------------------------------------------------
+// WHERE PEOPLE ARE RIGHT NOW, and deliberately nothing more. Sharing is opt-in
+// per session and stops the moment the page closes; the server keeps one row
+// per person and overwrites it, so there is no trail of where anybody has been.
+const STALE_MS = 5 * 60 * 1000;
+const ageText = (iso) => {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms)) return "—";
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  return `${Math.floor(m / 60)}h ${m % 60}m ago`;
+};
+
+function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh }) {
+  const [sharing, setSharing] = useState(false);
+  const [status, setStatus] = useState({ text: "Not sharing", tone: "idle" });
+  const [fix, setFix] = useState(null);
+  const [mapError, setMapError] = useState("");
+  const mapRef = useRef(null);
+  const gRef = useRef(null);
+  const mapObj = useRef(null);
+  const markers = useRef({});
+  const watchId = useRef(null);
+  const lastSent = useRef(0);
+  const mine = positions.find((p) => p.collaboratorId === meId);
+
+  const tone = { live: "text-emerald-600 dark:text-emerald-400", warn: "text-amber-600 dark:text-amber-400", stop: "text-rose-600 dark:text-rose-400", idle: "text-slate-500 dark:text-slate-400" };
+
+  // Build the map once, if there is a key to build it with.
+  useEffect(() => {
+    if (!googleMapsKey()) return undefined;
+    let alive = true;
+    loadGoogleMaps()
+      .then((g) => {
+        if (!alive || !mapRef.current) return;
+        gRef.current = g;
+        mapObj.current = new g.maps.Map(mapRef.current, defaultMapOptions());
+      })
+      .catch((e) => { if (alive) setMapError(e.message); });
+    return () => { alive = false; };
+  }, []);
+
+  // Redraw whenever the reported positions change.
+  useEffect(() => {
+    const g = gRef.current, map = mapObj.current;
+    if (!g || !map) return;
+    const seen = new Set();
+    const bounds = new g.maps.LatLngBounds();
+    for (const p of positions) {
+      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) continue;
+      seen.add(p.collaboratorId);
+      const stale = Date.now() - new Date(p.at).getTime() > STALE_MS;
+      const at = { lat: p.lat, lng: p.lng };
+      bounds.extend(at);
+      let m = markers.current[p.collaboratorId];
+      if (!m) {
+        m = new g.maps.Marker({ map, position: at });
+        markers.current[p.collaboratorId] = m;
+      }
+      m.setPosition(at);
+      m.setTitle(`${p.alias} — ${stale ? `last seen ${ageText(p.at)}` : "live"}`);
+      m.setLabel({ text: p.alias, fontSize: "11px", fontWeight: "700", color: stale ? "#6b7280" : "#065f46" });
+      m.setIcon({ path: g.maps.SymbolPath.CIRCLE, scale: 8, fillColor: stale ? "#9ca3af" : "#059669", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 });
+    }
+    // Drop markers for anyone who has come off the map.
+    for (const id of Object.keys(markers.current)) {
+      if (!seen.has(id)) { markers.current[id].setMap(null); delete markers.current[id]; }
+    }
+    if (!bounds.isEmpty()) map.fitBounds(bounds, 80);
+  }, [positions]);
+
+  const send = useCallback(async (lat, lng, accuracy) => {
+    // At most one write every 10 seconds — a phone reports far more often than
+    // a dispatcher needs, and every fix is a write.
+    if (Date.now() - lastSent.current < 10000) return;
+    lastSent.current = Date.now();
+    try {
+      await fetch(`/api/studios/${slug}/operations/tracking`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lng, accuracy }), keepalive: true,
+      });
+      onRefresh();
+    } catch { /* the next fix tries again */ }
+  }, [slug, onRefresh]);
+
+  const stopWatch = useCallback(() => {
+    if (watchId.current !== null) { navigator.geolocation.clearWatch(watchId.current); watchId.current = null; }
+  }, []);
+
+  const beginWatch = useCallback(() => {
+    if (!("geolocation" in navigator)) { setStatus({ text: "This browser can't report a location.", tone: "stop" }); return; }
+    if (!window.isSecureContext) { setStatus({ text: "Location needs a secure connection.", tone: "stop" }); return; }
+    setStatus({ text: "Acquiring signal…", tone: "warn" });
+    watchId.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setFix({ lat: latitude, lng: longitude, accuracy, at: pos.timestamp });
+        setStatus({ text: "Sharing", tone: "live" });
+        send(latitude, longitude, accuracy);
+      },
+      (err) => setStatus({
+        text: { 1: "Permission denied — allow location for this site.", 2: "No fix available.", 3: "Timed out waiting for a fix." }[err.code] || "Location error",
+        tone: "stop",
+      }),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 },
+    );
+  }, [send]);
+
+  // Sharing pauses with the tab and stops entirely on unmount — leaving the
+  // page IS how you stop being tracked, so it must actually stop.
+  useEffect(() => {
+    if (!sharing) return undefined;
+    const onVisibility = () => {
+      if (document.hidden) { stopWatch(); setStatus({ text: "Paused — page not in focus", tone: "warn" }); }
+      else if (watchId.current === null) beginWatch();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [sharing, beginWatch, stopWatch]);
+  useEffect(() => stopWatch, [stopWatch]);
+
+  function start() { setSharing(true); beginWatch(); }
+  function stop() {
+    setSharing(false); stopWatch(); setFix(null);
+    setStatus({ text: "Not sharing", tone: "idle" });
+    onClear(meId);
+  }
+
   return (
-    <section className={panel}>
-      <h2 className={h2}>Operations</h2>
-      <p className={sub}>An overview of this section. Nothing is reported here yet.</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {tiles.map((t) => (
-          <a key={t.label} href={`/${slug}/${t.key}`}
-            className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
-            <p className="mb-1 text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{t.label}</p>
-            <p className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.value}</p>
-          </a>
-        ))}
-      </div>
-    </section>
+    <>
+      <section className={panel}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className={h2}>Tracking</h2>
+            <p className={sub}>
+              Where the team is right now. Sharing is per session — it stops when you close this page, and only your
+              latest position is kept, never a history of where you have been.
+            </p>
+          </div>
+          <span className={`text-sm font-600 ${tone[status.tone]}`}>{status.text}</span>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {sharing
+            ? <button className={btnGhost} onClick={stop}>Stop sharing</button>
+            : <button className={btn} onClick={start}>Share my location</button>}
+          {mine && !sharing && (
+            <button className={btnGhost} onClick={() => onClear(meId)}>Remove my last position</button>
+          )}
+          {fix && (
+            <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+              {fix.lat.toFixed(5)}, {fix.lng.toFixed(5)} · ±{Math.round(fix.accuracy)} m
+            </span>
+          )}
+        </div>
+      </section>
+
+      {!googleMapsKey() ? (
+        <Empty title="No map configured" body="The list below still works. A map needs NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to be set." />
+      ) : (
+        <section className={`${panel} p-0`}>
+          <div ref={mapRef} className="h-[420px] w-full overflow-hidden rounded-geex" />
+          {mapError && <p className="p-4 text-sm text-rose-600 dark:text-rose-400">{mapError}</p>}
+        </section>
+      )}
+
+      <section className={panel}>
+        <p className={microLabel}>Reported positions</p>
+        {positions.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-400">Nobody is sharing right now.</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-slate-100 dark:divide-white/5">
+            {positions.map((p) => {
+              const stale = Date.now() - new Date(p.at).getTime() > STALE_MS;
+              return (
+                <li key={p.collaboratorId} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${stale ? "bg-slate-400" : "bg-emerald-500"}`} />
+                    <span className="truncate font-600 text-slate-900 dark:text-white">{p.alias}</span>
+                    {p.collaboratorId === meId && <span className="text-xs text-slate-400">(you)</span>}
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span className={`text-xs font-600 ${stale ? "text-slate-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                      {stale ? `last seen ${ageText(p.at)}` : `live · ${ageText(p.at)}`}
+                    </span>
+                    {(canManageTracking || p.collaboratorId === meId) && (
+                      <button className="text-xs font-600 text-rose-600 hover:underline dark:text-rose-400"
+                        onClick={() => onClear(p.collaboratorId)}>remove</button>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </>
+  );
+}
+
+// ---- settings --------------------------------------------------------------
+function OperationsSettings({ settings, canManage, busy, onSave }) {
+  const [schedule, setSchedule] = useState(() => normalizeSchedule(settings?.workSchedule));
+  const [legend, setLegend] = useState(() => normalizeLegend(settings?.legend));
+  const [workingOnly, setWorkingOnly] = useState(!!settings?.showWorkingHoursOnly);
+  const [rosterPrefix, setRosterPrefix] = useState(settings?.rosterPrefix || "");
+  const [saved, setSaved] = useState(false);
+
+  const dirty = () => setSaved(false);
+  const setDay = (d, patch) => { setSchedule((s) => ({ ...s, [d]: { ...s[d], ...patch } })); dirty(); };
+  const setLegendItem = (i, patch) => { setLegend((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x))); dirty(); };
+  const [from, to] = visibleWindow(schedule, workingOnly);
+
+  async function save() {
+    const ok = await onSave({ workSchedule: schedule, legend, showWorkingHoursOnly: workingOnly, rosterPrefix });
+    setSaved(!!ok);
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className={panel}>
+        <h2 className={h2}>Working hours</h2>
+        <p className={sub}>The weekly schedule the calendar is drawn against. Days that are off are shaded on the grid.</p>
+
+        <label className={`mt-4 flex w-fit items-center gap-2.5 text-sm ${canManage ? "cursor-pointer" : ""} text-slate-700 dark:text-slate-200`}>
+          <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={workingOnly} disabled={!canManage}
+            onChange={(e) => { setWorkingOnly(e.target.checked); dirty(); }} />
+          Show only working hours on the calendar
+        </label>
+        <p className="mt-1 text-xs text-slate-400">
+          The grid would run {String(from).padStart(2, "0")}:00–{String(to).padStart(2, "0")}:00.
+          Anything scheduled outside that is listed under the calendar rather than drawn.
+        </p>
+
+        <div className="mt-4 space-y-1.5">
+          <div className="grid grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 text-[10px] font-600 uppercase tracking-wide text-slate-400">
+            <span /><span className="text-center">From</span><span className="text-center">To</span>
+          </div>
+          {DAYS.map((d) => {
+            const s = schedule[d];
+            return (
+              <div key={d} className={`grid grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 rounded-lg px-1 py-1 ${s.on ? "" : "bg-slate-50 dark:bg-white/[0.03]"}`}>
+                <label className={`flex items-center gap-2 text-sm ${canManage ? "cursor-pointer" : ""} text-slate-700 dark:text-slate-200`}>
+                  <input type="checkbox" className="h-3.5 w-3.5 shrink-0 accent-brand-600" checked={s.on} disabled={!canManage}
+                    onChange={(e) => setDay(d, { on: e.target.checked })} />
+                  {d.slice(0, 3)}
+                </label>
+                <input type="time" className={input} value={s.from} disabled={!canManage || !s.on} onChange={(e) => setDay(d, { from: e.target.value })} />
+                <input type="time" className={input} value={s.to} disabled={!canManage || !s.on} onChange={(e) => setDay(d, { to: e.target.value })} />
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className={panel}>
+        <h2 className={h2}>Calendar legend</h2>
+        <p className={sub}>
+          The colours the calendar draws shifts in. These kinds are fixed — recolour or rename them, but they cannot be
+          added to or removed, because a shift whose kind has no entry would have no colour to be drawn in.
+        </p>
+        <div className="mt-4 space-y-2">
+          {legend.map((t, i) => (
+            <div key={t.id} className="flex items-center gap-2">
+              <input type="color" value={t.color} disabled={!canManage} onChange={(e) => setLegendItem(i, { color: e.target.value })}
+                className="h-9 w-12 shrink-0 cursor-pointer rounded border border-slate-200 disabled:cursor-not-allowed dark:border-white/15" />
+              <input className={input} value={t.label} disabled={!canManage} onChange={(e) => setLegendItem(i, { label: e.target.value })} />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className={panel}>
+        <h2 className={h2}>Day roster prefix</h2>
+        <p className={sub}>Optional text added above the copied roster for a day — a greeting, or a standing note.</p>
+        <textarea rows={3} className={`${input} mt-4`} value={rosterPrefix} disabled={!canManage}
+          onChange={(e) => { setRosterPrefix(e.target.value); dirty(); }}
+          placeholder="e.g. Good morning team, here is today's schedule:" />
+      </section>
+
+      {canManage ? (
+        <div className="flex items-center gap-3">
+          <button className={btn} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save settings"}</button>
+          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500 dark:text-slate-400">You have view-only access to Operations settings.</p>
+      )}
+    </div>
   );
 }

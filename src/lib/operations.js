@@ -18,10 +18,12 @@ import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, 
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
+import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "@/lib/operationsCalendar";
 
 const LOCATIONS = "locations";
 const PERMITS = "permits";
 const SHIFTS = "shifts";
+const POSITIONS = "trackingPositions";
 const VACATIONS = "vacations";
 const PROJECTS = "projects";
 
@@ -63,21 +65,111 @@ export async function operationsContext(user, slug) {
   };
 }
 
-// Operations Settings (working hours) live on the operations-settings
-// sub-section's own `settings` object, so they need no key of their own.
+// Operations Settings live on the operations-settings sub-section's own
+// `settings` object, so they need no key of their own and die with it.
+// Patch semantics: only the keys present in the body are touched.
 export async function saveOperationsSettings(ctx, body) {
   const { studio, settingsSection } = ctx;
   const next = { ...(settingsSection.settings || {}) };
-  if (body?.workingHours !== undefined) {
-    const wh = body.workingHours && typeof body.workingHours === "object" ? body.workingHours : {};
-    next.workingHours = {
-      start: String(wh.start ?? "").trim().slice(0, 5),
-      end: String(wh.end ?? "").trim().slice(0, 5),
-      days: (Array.isArray(wh.days) ? wh.days : []).map((d) => String(d).trim().slice(0, 12)).filter(Boolean).slice(0, 7),
-    };
+
+  // The weekly schedule the calendar is drawn against: seven named days, each
+  // worked or not, each with a start and an end.
+  if (body?.workSchedule !== undefined) {
+    const ws = body.workSchedule && typeof body.workSchedule === "object" ? body.workSchedule : {};
+    next.workSchedule = Object.fromEntries(DAYS.map((d) => {
+      const v = ws[d] || {};
+      return [d, { on: !!v.on, from: clock(v.from), to: clock(v.to) }];
+    }));
   }
+  // Recolourable and renamable, but the SET is fixed — a bar whose kind has no
+  // legend entry would have no colour to be drawn in.
+  if (body?.legend !== undefined) {
+    const byId = Object.fromEntries((Array.isArray(body.legend) ? body.legend : [])
+      .map((t) => [str(t?.id, 40), t]));
+    next.legend = normalizeLegend(DEFAULT_LEGEND.map((d) => {
+      const given = byId[d.id];
+      return {
+        id: d.id,
+        label: str(given?.label, 60) || d.label,
+        // Hex only. Anything else falls back to the default rather than being
+        // written into a style attribute unchecked.
+        color: /^#[0-9a-fA-F]{6}$/.test(String(given?.color || "")) ? given.color : d.color,
+      };
+    }));
+  }
+  if (body?.showWorkingHoursOnly !== undefined) next.showWorkingHoursOnly = !!body.showWorkingHoursOnly;
+  if (body?.rosterPrefix !== undefined) next.rosterPrefix = str(body.rosterPrefix, 500);
+
   const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
-  return updated ? { settings: next } : { error: "notfound" };
+  return updated ? { settings: readOperationsSettings({ settings: next }) } : { error: "notfound" };
+}
+
+export function readOperationsSettings(settingsSection) {
+  const s = settingsSection?.settings || {};
+  return {
+    workSchedule: normalizeSchedule(s.workSchedule),
+    legend: normalizeLegend(s.legend),
+    showWorkingHoursOnly: !!s.showWorkingHoursOnly,
+    rosterPrefix: str(s.rosterPrefix, 500),
+  };
+}
+
+// ---- tracking ---------------------------------------------------------------
+// WHERE PEOPLE ARE RIGHT NOW, and deliberately nothing more. There is ONE ROW
+// PER PERSON and each fix overwrites it, so this is a last-known position and
+// never a movement history — a trail of where somebody has been all week is a
+// different and far more invasive product, and it is not this one. Nothing is
+// recorded at all unless that person has the page open and has agreed to share.
+export async function listPositions({ studio, trackingSection }) {
+  const [rows, people] = await Promise.all([
+    readCol(studio.id, trackingSection.id, POSITIONS),
+    listCollaborators(studio.id),
+  ]);
+  const aliasOf = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
+  return [...rows]
+    .filter((r) => aliasOf[r.collaboratorId]) // somebody who has left stops being plotted
+    .map((r) => ({ ...r, alias: aliasOf[r.collaboratorId] }))
+    .sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+}
+
+// A person reports only their OWN position: the collaborator id comes from the
+// session, never the payload, so no one can place somebody else on the map.
+export async function reportPosition(ctx, body) {
+  const { studio, trackingSection, collaborator } = ctx;
+  const lat = Number(body?.lat);
+  const lng = Number(body?.lng);
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) return { error: "coords" };
+  if (!Number.isFinite(lng) || lng < -180 || lng > 180) return { error: "coords" };
+
+  const accuracy = Number(body?.accuracy);
+  const row = {
+    collaboratorId: collaborator.id,
+    lat: Math.round(lat * 1e6) / 1e6,
+    lng: Math.round(lng * 1e6) / 1e6,
+    accuracy: Number.isFinite(accuracy) && accuracy >= 0 ? Math.round(accuracy) : 0,
+    at: new Date().toISOString(),
+  };
+
+  const rows = await readCol(studio.id, trackingSection.id, POSITIONS);
+  const mine = rows.find((r) => r.collaboratorId === collaborator.id);
+  const position = mine
+    ? await updateRow(studio.id, trackingSection.id, POSITIONS, mine.id, row)
+    : await addRow(studio.id, trackingSection.id, POSITIONS, row);
+  return { position };
+}
+
+// Stop being on the map. Anyone may clear their own; managing tracking lets you
+// clear somebody else's, which is what you need when a phone is left logged in.
+export async function clearPosition(ctx, collaboratorId) {
+  const { studio, trackingSection, collaborator, canManageTracking } = ctx;
+  const target = str(collaboratorId, 60) || collaborator.id;
+  if (target !== collaborator.id && !canManageTracking) return { error: "forbidden" };
+
+  const rows = await readCol(studio.id, trackingSection.id, POSITIONS);
+  const mine = rows.find((r) => r.collaboratorId === target);
+  if (!mine) return { ok: true };
+  const removed = await deleteRow(studio.id, trackingSection.id, POSITIONS, mine.id);
+  return removed ? { ok: true } : { error: "notfound" };
 }
 
 export async function operationsGuard(paramsPromise, { write } = {}) {

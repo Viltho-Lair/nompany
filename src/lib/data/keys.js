@@ -248,8 +248,10 @@ export const SECTION_COLLECTIONS = {
   "hr-employees": ["departments", "positions", "certifications"],
   // finance
   "finance-cash": ["invoices", "expenses"],
-  // operations — Main/Employees/Permits/Locations are tabs, not sub-sections.
+  // operations — Permits/Locations are tabs of the main screen, not sub-sections.
   operations: ["locations", "permits", "shifts"],
+  // One last-known position per person, never a movement trail.
+  "operations-tracking": ["trackingPositions"],
   // tasks
   tasks: ["tasks"],
 };
