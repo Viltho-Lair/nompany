@@ -371,3 +371,16 @@ export async function saveQuestionnaire(userId, answers = {}) {
   return { questionnaire: await updateQuestionnaire(userId, clean) };
 }
 export { getQuestionnaire };
+
+// ONBOARDING GATE. The questionnaire is not optional: nobody reaches their
+// account or a studio until it is answered, so every surface behind sign-in
+// asks this one question rather than each deciding for itself.
+//
+// It is the exact complement of the check on the questionnaire page itself
+// (which sends anyone already finished to their account), so the two can never
+// bounce a request back and forth.
+export async function needsQuestionnaire(userId) {
+  if (!userId) return false;                    // not signed in — a different gate's problem
+  const answers = await getQuestionnaire(userId);
+  return !answers?.completedAt;
+}

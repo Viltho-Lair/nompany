@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getDict } from "@/lib/i18n";
-import { currentUser } from "@/lib/identity";
+import { currentUser, needsQuestionnaire } from "@/lib/identity";
 import AccountHome from "@/components/public/AccountHome";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,11 @@ export async function generateMetadata({ params }) {
 // from /api/identity/* and /api/studios.
 export default async function AccountPage({ params }) {
   const { locale } = await params;
-  if (!(await currentUser())) redirect(`/${locale}/login`);
+  const user = await currentUser();
+  if (!user) redirect(`/${locale}/login`);
+  // The survey comes first. Anyone who has not finished it is sent back to a
+  // fresh one rather than shown an account they cannot have reached yet.
+  if (await needsQuestionnaire(user.id)) redirect(`/${locale}/questionnaire`);
   const dict = getDict(locale);
   // This route renders without the site header (Nav returns null here), so the
   // brand link, theme control and language switcher move into the page and

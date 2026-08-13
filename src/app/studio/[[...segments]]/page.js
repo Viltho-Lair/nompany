@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { currentUser } from "@/lib/identity";
+import { currentUser, needsQuestionnaire } from "@/lib/identity";
 import { studioContext, canAdminister, visibleSections, canManageSection, listGrants, recordStudioVisit } from "@/lib/studios";
 import { listSections } from "@/lib/data/sections";
 import StudioFrame from "@/components/studio2/StudioFrame";
@@ -35,6 +35,10 @@ export default async function StudioPage({ params }) {
 
   const user = await currentUser();
   if (!user) redirect(`/en/login`);
+  // Same gate as the account hub, checked BEFORE membership: someone who has
+  // not answered the survey has no business inside a studio either, and this
+  // way the studio's own 404-for-non-members never fires first and hides why.
+  if (await needsQuestionnaire(user.id)) redirect(`/en/questionnaire`);
 
   const context = await studioContext(user, slug);
   // "No such studio" and "not a member" both render 404 on purpose — membership
