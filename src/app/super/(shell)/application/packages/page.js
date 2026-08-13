@@ -13,7 +13,8 @@ const FIELDS = [
   { key: "maxEmployees", label: "Max employees", type: "number", zeroLabel: "No limit", hint: "0 means no upper limit." },
   { key: "cost", label: "Cost", type: "number", prefix: "SAR " },
   { key: "durationMonths", label: "Duration (months)", type: "number", suffix: " mo", zeroLabel: "Endless", hint: "0 means endless — the package never expires." },
-  { key: "color", label: "Colour", type: "choice", choices: ["green", "yellow", "orange", "red", "grey"], hint: "Free green, Small yellow, Medium orange, Large red." },
+  { key: "supportTicketsPerMonth", label: "Support tickets / month", type: "number", zeroLabel: "Unlimited", hint: "0 means unlimited." },
+  { key: "color", label: "Colour", type: "color", hint: "Pick any colour, or start from one of the four." },
   { key: "isPublic", label: "Public", type: "switch" },
 ];
 

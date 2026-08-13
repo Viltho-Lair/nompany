@@ -8,15 +8,14 @@
 
 import { readArr, editArr } from "@/lib/data/store";
 import { ID, REG } from "@/lib/data/keys";
-import { PACKAGE_COLORS } from "@/lib/planColors";
+import { normalizeColor, hexForName } from "@/lib/planColors";
 
 const now = () => new Date().toISOString();
 
 // The palette a package can wear, and the sensible first guess for each of the
 // four names the product ships with.
 
-const NAME_COLORS = { free: "green", small: "yellow", medium: "orange", large: "red" };
-const colorForName = (name) => NAME_COLORS[String(name || "").trim().toLowerCase()] || "grey";
+
 const str = (v, max) => String(v ?? "").trim().slice(0, max);
 const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };
 
@@ -40,7 +39,12 @@ export const KINDS = {
       // How the package shows up wherever a studio's plan is displayed. Stored,
       // not derived from the name: a package can be renamed without silently
       // changing colour, and a new one can pick any of these.
-      color: PACKAGE_COLORS.includes(b.color) ? b.color : colorForName(b.name),
+      // Any hex the author picked; falls back to the colour the four shipped
+      // names imply, so "Free" still arrives green without being told to.
+      color: normalizeColor(b.color) || hexForName(b.name),
+      // 0 = unlimited, the same convention duration and max employees use on
+      // this screen.
+      supportTicketsPerMonth: num(b.supportTicketsPerMonth),
     }),
   },
   tiers: {
@@ -132,7 +136,7 @@ export async function ensureDefaultPlan() {
   if (!pkg) {
     pkg = await createCatalogItem("packages", {
       name: DEFAULT_PACKAGE, minEmployees: 0, maxEmployees: 0, cost: 0,
-      durationMonths: 0, isPublic: true, color: "green",
+      durationMonths: 0, isPublic: true, color: "green", supportTicketsPerMonth: 0,
     });
   }
   let tier = byName(tiers, DEFAULT_TIER);

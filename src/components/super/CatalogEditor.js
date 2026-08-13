@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardHead, CardBody, Table, Button, Badge } from "@/app/super/_components/ui";
-import { toneOf } from "@/lib/planColors";
+import { toneOf, normalizeColor, PRESETS, DEFAULT_HEX } from "@/lib/planColors";
 
 // Packages and Tiers are the same screen with different fields, so they are one
 // component driven by a field list rather than two that drift apart. A row is
@@ -43,7 +43,7 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
   }
 
   const blank = Object.fromEntries(fields.map((f) => [f.key,
-    f.type === "switch" ? false : f.type === "services" ? [] : f.type === "choice" ? (f.choices?.[0] ?? "") : ""]));
+    f.type === "switch" ? false : f.type === "services" ? [] : f.type === "color" ? DEFAULT_HEX : ""]));
 
   async function save() {
     const ok = draft.id ? await send("PUT", draft) : await send("POST", draft);
@@ -96,12 +96,12 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
                     >
                       <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${draft[f.key] ? "left-[22px]" : "left-0.5"}`} />
                     </button>
-                  ) : f.type === "choice" ? (
-                    <select id={`f-${f.key}`} className={input}
-                      value={draft[f.key] ?? ""}
-                      onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}>
-                      {(f.choices || []).map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                  ) : f.type === "color" ? (
+                    <ColorField
+                      id={`f-${f.key}`}
+                      value={draft[f.key]}
+                      onChange={(color) => setDraft((d) => ({ ...d, [f.key]: color }))}
+                    />
                   ) : f.type === "services" ? (
                     <ServicePicker
                       services={services || []}
@@ -147,14 +147,16 @@ function render(f, it, services) {
       </span>
     );
   }
-  if (f.type === "choice") {
-    // Shown as the thing it controls rather than as its own name: a colour
-    // field that prints the word "green" tells you less than a green dot.
+  if (f.type === "color") {
+    // Shown as the thing it controls rather than as its own name — and as the
+    // BADGE it will actually become, since that is what the colour is for.
     const t = toneOf(v);
     return (
       <span className="inline-flex items-center gap-2">
-        <span className="inline-block h-3.5 w-3.5 rounded-full" style={{ backgroundColor: t.fg }} />
-        <span className="capitalize">{v || "—"}</span>
+        <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-600" style={{ backgroundColor: t.bg, color: t.fg }}>
+          {it.name || "Package"}
+        </span>
+        <span className="font-mono text-[11px] text-[var(--ad-muted-foreground)]">{t.hex}</span>
       </span>
     );
   }
@@ -165,6 +167,53 @@ function render(f, it, services) {
     return <span>{f.prefix || ""}{Number(v || 0).toLocaleString()}{f.suffix || ""}</span>;
   }
   return <span className="font-medium">{v || "—"}</span>;
+}
+
+// A colour, chosen three ways: the system picker for anything, a hex box for
+// pasting an exact brand colour, and the shipped four as one-click swatches.
+// The live badge is the point — a hex tells you nothing about whether the text
+// on it will be readable, and the badge is derived from the same value.
+function ColorField({ id, value, onChange }) {
+  const hex = normalizeColor(value) || DEFAULT_HEX;
+  const t = toneOf(hex);
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <input
+          id={id}
+          type="color"
+          value={hex}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 w-12 cursor-pointer rounded border bg-transparent p-0.5"
+          style={{ borderColor: "var(--ad-border)" }}
+          aria-label="Pick a colour"
+        />
+        <input
+          className={`${input} w-28 font-mono text-xs`}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={DEFAULT_HEX}
+          aria-label="Colour hex"
+        />
+        <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-600" style={{ backgroundColor: t.bg, color: t.fg }}>
+          Preview
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {PRESETS.map((p) => (
+          <button
+            key={p.name}
+            type="button"
+            title={p.name}
+            aria-label={p.name}
+            onClick={() => onChange(p.hex)}
+            className="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
+            style={{ backgroundColor: p.hex, borderColor: hex === p.hex ? "var(--ad-foreground)" : "transparent" }}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function ServicePicker({ services, picked, onChange }) {
