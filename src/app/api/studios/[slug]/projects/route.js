@@ -1,8 +1,10 @@
 import { currentUser } from "@/lib/identity";
 import {
   projectsContext, listProjects, approvedQuotations, projectPeople,
+  listSlas, listOvertimes, overtimeDirectory, readProjectsSettings, saveProjectsSettings,
   openProject, updateProject, removeProject, PROJECT_STAGES,
 } from "@/lib/projects";
+import { REQUIREMENT_WEIGHTS } from "@/lib/projectSchedule";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,23 +23,45 @@ async function context(paramsPromise, { write } = {}) {
 }
 const body = async (r) => { try { return await r.json(); } catch { return {}; } };
 
-// One read for the whole Projects screen.
+// One read for the whole Projects screen — the list, its SLA contracts, the
+// overtime logged against it, and the directory the pickers need.
 export async function GET(request, ctx) {
   const c = await context(ctx.params);
   if (c.fail) return c.fail;
 
-  const [projects, quotations, people] = await Promise.all([
+  const [projects, quotations, people, slas, overtimes, directory] = await Promise.all([
     listProjects(c), approvedQuotations(c), projectPeople(c),
+    listSlas(c), listOvertimes(c), overtimeDirectory(c),
   ]);
   return Response.json({
     canManage: c.canManage,
+    canManageList: c.canManageList,
+    canManageSla: c.canManageSla,
+    canManageOvertimes: c.canManageOvertimes,
+    canManageSettings: c.canManageSettings,
     nav: c.nav,
     projects,
     // Only approved, not-yet-delivering quotations can open a project.
     approvedQuotations: quotations,
     people,
-    vocabulary: { stages: PROJECT_STAGES },
+    slas,
+    overtimes,
+    directory,
+    settings: readProjectsSettings(c.settingsSection),
+    vocabulary: { stages: PROJECT_STAGES, requirementWeights: REQUIREMENT_WEIGHTS },
   });
+}
+
+// Projects Settings — requirement weights, the default overtime department and
+// the stage vocabulary.
+export async function PATCH(request, ctx) {
+  const c = await context(ctx.params);
+  if (c.fail) return c.fail;
+  if (!c.canManageSettings) return Response.json({ error: "read-only" }, { status: 403 });
+
+  const result = await saveProjectsSettings(c, await body(request));
+  if (result.error) return Response.json({ error: result.error }, { status: 400 });
+  return Response.json({ ok: true, settings: readProjectsSettings({ settings: result.settings }) });
 }
 
 export async function POST(request, ctx) {
