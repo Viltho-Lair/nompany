@@ -87,6 +87,12 @@ export async function listStudios() {
   return readArr(REG.studios);
 }
 
+// The two back-pointers on their own, for callers that already hold the studio
+// registry and only need ids (listing every user's studios would otherwise
+// re-read g:studios once per person).
+export const ownedStudioId = (userId) => getIndex(IX.owner(userId));
+export const collaborationStudioIds = (userId) => sMembers(IX.collab(userId));
+
 // The studios a user COLLABORATES in (their own is via getOwnedStudio). Derived
 // from the ix:collab back-pointer set — never stored twice.
 export async function listUserCollaborations(userId) {

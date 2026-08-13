@@ -49,6 +49,14 @@ export async function findSuperByEmail(email) {
   return rows.find((a) => normEmail(a.email) === e) || null;
 }
 
+// Every owner address, lowercased — how the Users console tells which of its
+// rows is a super admin. A super admin is a separate identity from the User of
+// the same address, so the match is on email and nothing else.
+export async function listSuperAdminEmails() {
+  const rows = await readArr(REG.superAdmins);
+  return new Set(rows.map((a) => normEmail(a.email)).filter(Boolean));
+}
+
 export async function findSuperBySession(token) {
   if (!token) return null;
   const rows = await readArr(REG.superAdmins);

@@ -16,7 +16,7 @@ import {
   getProfile, updateProfile,
   getVerification, updateVerification,
   getQuestionnaire, updateQuestionnaire,
-  mintSession, findUserBySession, revokeSession, revokeAllSessions,
+  mintSession, findUserBySession, revokeSession, revokeAllSessions, touchLastLogin,
 } from "@/lib/data/users";
 import { getOwnedStudio, listUserCollaborations } from "@/lib/data/studios";
 import {
@@ -174,6 +174,7 @@ export async function verifyOtp({ challengeId, code, remember, trustThisDevice, 
 
   const ttl = remember ? REMEMBER_TTL : SESSION_TTL;
   const token = await mintSession(userId, ttl);
+  await touchLastLogin(userId);
   // ALWAYS record the browser, so Security can show where this account has been
   // signed in from. The checkbox decides only whether it may skip the code next
   // time, not whether it is remembered at all — the two used to be the same
@@ -222,7 +223,9 @@ export async function signInWithProvider({ email, fullName, provider }) {
   const v = (await getVerification(user.id)) || {};
   if (!v.emailVerifiedAt) await updateVerification(user.id, { emailVerifiedAt: new Date().toISOString() });
 
-  return { user, token: await mintSession(user.id, REMEMBER_TTL), ttl: REMEMBER_TTL };
+  const token = await mintSession(user.id, REMEMBER_TTL);
+  await touchLastLogin(user.id);
+  return { user, token, ttl: REMEMBER_TTL };
 }
 
 // ---- login (risk-based: OTP only from an unrecognised device) --------------
@@ -240,7 +243,9 @@ export async function login({ email, password, remember, deviceId, ip, device })
   // first was. It cannot grant trust — only the code step can do that.
   if (await isTrustedDevice(user.id, deviceId, device)) {
     const ttl = remember ? REMEMBER_TTL : SESSION_TTL;
-    return { user, token: await mintSession(user.id, ttl), ttl };
+    const token = await mintSession(user.id, ttl);
+    await touchLastLogin(user.id);
+    return { user, token, ttl };
   }
 
   const challenge = await createChallenge({ purpose: "login", email: user.email, userId: user.id, ip });

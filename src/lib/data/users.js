@@ -11,6 +11,8 @@
 import { REG, U, IX, ID, normEmail } from "@/lib/data/keys";
 import { readArr, editArr, editJSON, getJSON, setJSON, claim, getIndex, release } from "@/lib/data/store";
 import { newSessionToken } from "@/lib/passwords";
+import { listStudios, ownedStudioId, collaborationStudioIds } from "@/lib/data/studios";
+import { isAssignableRole } from "@/lib/platformRoles";
 
 // ---- create ----------------------------------------------------------------
 // Claims the email index FIRST (SET NX) so two concurrent signups can never
@@ -59,6 +61,61 @@ export async function updateUser(userId, patch) {
     });
     return updated ? { next, result: updated } : { result: null };
   });
+}
+
+// ---- platform role + activity ----------------------------------------------
+// `platformRole` is the owner-assigned, platform-wide label (see
+// src/lib/platformRoles.js). An empty field means Member, so clearing a role is
+// how someone goes back to being one — there is no "Member" value to store.
+export async function setPlatformRole(userId, role) {
+  const value = String(role || "");
+  if (value && !isAssignableRole(value)) return { error: "role" };
+  const updated = await updateUser(userId, { platformRole: value });
+  return updated ? { user: updated } : { error: "notfound" };
+}
+
+// Stamped on the registry row at every sign-in, because nothing else can answer
+// "active in the last 30 days": a session lasts 8 hours and a device row 30
+// days, so both are gone or stale long before the question stops mattering.
+// One field on a key the console already reads, rather than a per-user scan.
+export async function touchLastLogin(userId) {
+  if (!userId) return;
+  await updateUser(userId, { lastLoginAt: new Date().toISOString() });
+}
+
+// Every user with the fields the owner console lists. The studio registry is
+// read ONCE and shared; only the two per-user back-pointers are fetched per
+// person, in parallel.
+export async function listUsersForConsole() {
+  const [rows, studios] = await Promise.all([readArr(REG.users), listStudios()]);
+  const byId = new Map(studios.map((s) => [s.id, s]));
+  const nameOf = (id) => byId.get(id)?.name || byId.get(id)?.slug || "";
+
+  return Promise.all(
+    rows.map(async (u) => {
+      const [profile, ownedId, collabIds] = await Promise.all([
+        getProfile(u.id),
+        ownedStudioId(u.id),
+        collaborationStudioIds(u.id),
+      ]);
+      // Owned first — it is the studio that dies with them — then the ones they
+      // were let into, deduped in case the owner also holds a collaborator row.
+      const names = [ownedId, ...(collabIds || [])]
+        .filter(Boolean)
+        .map(nameOf)
+        .filter(Boolean);
+      return {
+        id: u.id,
+        email: u.email,
+        status: u.status || "",
+        platformRole: u.platformRole || "",
+        createdAt: u.createdAt || "",
+        lastLoginAt: u.lastLoginAt || "",
+        fullName: profile?.fullName || "",
+        studios: [...new Set(names)],
+      };
+    })
+  );
 }
 
 // ---- 1:1 satellites (merge-patch semantics) --------------------------------
