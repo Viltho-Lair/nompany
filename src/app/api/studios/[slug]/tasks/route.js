@@ -1,8 +1,8 @@
 import {
-  tasksGuard, listTasks, createTask, updateTask, removeTask,
+  tasksGuard, listTasks, createTask, updateTask, decideTask, removeTask,
   taskProjects, assignablePeople, summarise,
   TASK_STATUSES, TASK_PRIORITIES,
-  TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES,
+  TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES, TASK_TYPE_LABELS,
 } from "@/lib/tasks";
 
 export const runtime = "nodejs";
@@ -26,7 +26,7 @@ export async function GET(request, ctx) {
     me: { collaboratorId: g.collaborator.id },
     tasks, people, projects,
     summary: summarise(tasks, g.collaborator.id),
-    vocabulary: { statuses: TASK_STATUSES, priorities: TASK_PRIORITIES },
+    vocabulary: { statuses: TASK_STATUSES, priorities: TASK_PRIORITIES, typeLabels: TASK_TYPE_LABELS },
   });
 }
 
@@ -46,6 +46,19 @@ export async function PUT(request, ctx) {
   if (g.fail) return g.fail;
   const b = await body(request);
   if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+
+  // Deciding a typed task is its own act, gated on holding the authority rather
+  // than on running the board — that is the point of appointing people.
+  if (b.authority !== undefined) {
+    const decided = await decideTask(g, b.id, b);
+    if (decided.error) {
+      const status = decided.error === "notfound" ? 404
+        : decided.error === "not-yours" ? 403
+        : decided.error === "cooldown" ? 429 : 400;
+      return Response.json({ error: decided.error, waitMs: decided.waitMs }, { status });
+    }
+    return Response.json({ ok: true, task: decided.task });
+  }
 
   const result = await updateTask(g, b.id, b);
   if (result.error) {

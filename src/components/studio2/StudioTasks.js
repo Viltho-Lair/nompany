@@ -73,6 +73,10 @@ export default function StudioTasks({ slug, view = "tasks" }) {
         : out.error === "forbidden" ? "You can only change tasks assigned to you."
         : out.error === "forbidden-field" ? "You can move your task and tick its checklist — the rest is the manager's to change."
         : out.error === "title" ? "Give the task a title."
+        : out.error === "not-yours" ? "That decision belongs to whoever holds that authority."
+        : out.error === "authority" ? "That authority isn't part of this task."
+        : out.error === "not-approval" ? "That task isn't an approval."
+        : out.error === "cooldown" ? `An approval was just withdrawn — try again in ${Math.ceil((out.waitMs || 0) / 60000)} min.`
         : "That didn't save."
       );
       return false;
@@ -83,6 +87,10 @@ export default function StudioTasks({ slug, view = "tasks" }) {
 
   const shown = useMemo(() => {
     if (!data) return [];
+    if (filter === "awaiting") {
+      // Decisions genuinely waiting on this person — not merely visible to them.
+      return data.tasks.filter((t) => t.status !== "Done" && (t.myAuthorities || []).some((c) => !t.approvals?.[c]?.approved));
+    }
     if (filter === "mine") return data.tasks.filter((t) => t.mine && t.status !== "Done");
     if (filter === "done") return data.tasks.filter((t) => t.status === "Done");
     if (filter === "overdue") return data.tasks.filter((t) => t.overdue);
@@ -96,6 +104,9 @@ export default function StudioTasks({ slug, view = "tasks" }) {
 
   const filters = [
     ["open", `Open (${summary.open})`],
+    // Decisions waiting on you lead, because that is what this screen is for
+    // once approval tasks are flowing through it.
+    ["awaiting", `Needs you (${summary.awaitingMe})`],
     ["mine", `Mine (${summary.mine})`],
     ["overdue", `Overdue (${summary.overdue})`],
     ["done", `Done (${summary.done})`],
@@ -122,7 +133,8 @@ export default function StudioTasks({ slug, view = "tasks" }) {
 
       <section className={panel}>
         <div className="flex flex-wrap gap-8">
-          {[["Open", summary.open, ""], ["Assigned to you", summary.mine, ""],
+          {[["Open", summary.open, ""],
+            ["Needs your decision", summary.awaitingMe, summary.awaitingMe > 0 ? "text-brand-700 dark:text-brand-300" : ""],
             ["Overdue", summary.overdue, summary.overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""],
             ["Unassigned", summary.unassigned, summary.unassigned > 0 ? "text-amber-600 dark:text-amber-400" : ""]].map(([name, value, tone]) => (
             <div key={name}>
@@ -131,6 +143,15 @@ export default function StudioTasks({ slug, view = "tasks" }) {
             </div>
           ))}
         </div>
+        {/* A typed task routed to an authority nobody holds can never finish,
+            and only Task settings can unstick it — so it is named here rather
+            than left to be discovered. */}
+        {summary.stuck > 0 && (
+          <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+            {summary.stuck} {summary.stuck === 1 ? "task is" : "tasks are"} waiting on an authority nobody has been
+            appointed to{nav?.["tasks-settings"] ? <> — <a href={`/${slug}/tasks-settings`} className="font-600 underline">appoint someone in Task settings</a></> : " — an admin can appoint someone in Task settings"}.
+          </p>
+        )}
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -150,6 +171,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
 
       {(drafting || editing) && (
         <TaskForm task={editing} people={people} projects={projects} vocab={vocabulary} busy={busy}
+          typeAuthorities={data.typeAuthorities || {}} authorities={data.authorities || []}
           onCancel={() => { setDrafting(false); setEditing(null); }}
           onSave={async (v) => {
             const okd = await send(editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v);
@@ -165,7 +187,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
             {shown.map((t) => (
               <TaskRow key={t.id} task={t} canManage={canManage} meId={me.collaboratorId} busy={busy}
-                slug={slug} nav={nav} statuses={vocabulary.statuses}
+                slug={slug} nav={nav} statuses={vocabulary.statuses} typeLabels={vocabulary.typeLabels || {}}
                 onEdit={() => setEditing(t)} onSend={send} />
             ))}
           </ul>
@@ -175,10 +197,14 @@ export default function StudioTasks({ slug, view = "tasks" }) {
   );
 }
 
-function TaskRow({ task: t, canManage, meId, busy, slug, nav, statuses, onEdit, onSend }) {
+function TaskRow({ task: t, canManage, meId, busy, slug, nav, statuses, typeLabels, onEdit, onSend }) {
   const [open, setOpen] = useState(false);
   // The assignee can act even without Manage — that is the whole point.
   const canAct = canManage || t.assigneeCollaboratorId === meId;
+  // A TYPED task is a decision, not a to-do: it is not moved along by hand or
+  // ticked off, it is approved by whoever holds each authority.
+  const typed = (t.authorityStates || []).length > 0;
+  const meta = typeLabels[t.type];
 
   // Send WHICH item was ticked, not the whole list — the server flips it against
   // the current row, so fast clicks can't overwrite each other with stale copies.
@@ -202,8 +228,47 @@ function TaskRow({ task: t, canManage, meId, busy, slug, nav, statuses, onEdit, 
             {t.progress !== null && <span className="ms-2 text-xs font-400 text-slate-400">{t.progress}%</span>}
           </p>
 
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {t.assigneeAlias ? <>{t.assigneeAlias}{t.mine && <span className="text-slate-400"> (you)</span>}</> : <span className="text-amber-600 dark:text-amber-400">Unassigned</span>}
+          {/* Who is being waited on. Each authority shows its own state, so a
+              half-approved task reads as half-approved rather than just
+              "pending" — and the button is only offered to the person who
+              actually holds that authority. */}
+          {typed && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {t.authorityStates.map((a) => {
+                const mine = (t.myAuthorities || []).includes(a.code);
+                const canDecide = mine || canManage;
+                return (
+                  <span key={a.code}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-600 ${a.approved
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                      : a.orphaned
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                        : "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300"}`}
+                    title={a.approved
+                      ? `Approved by ${a.byAlias || "someone"}${a.at ? ` on ${new Date(a.at).toLocaleString("en-GB")}` : ""}`
+                      : a.orphaned
+                        ? "Nobody is appointed to this authority yet"
+                        : `Waiting on ${a.holders.join(", ") || "nobody"}`}>
+                    {a.approved ? "✓" : a.orphaned ? "!" : "•"} {a.label}
+                    {canDecide && !busy && (
+                      <button type="button"
+                        className="ms-1 font-700 underline underline-offset-2"
+                        onClick={() => onSend("PUT", { id: t.id, authority: a.code, approved: !a.approved })}>
+                        {a.approved ? "withdraw" : "approve"}
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {typed
+              ? <>{meta?.label || t.type}{t.approvalState && <> · {t.approvalState.approved} of {t.approvalState.required} approved</>}</>
+              : t.assigneeAlias
+                ? <>{t.assigneeAlias}{t.mine && <span className="text-slate-400"> (you)</span>}</>
+                : <span className="text-amber-600 dark:text-amber-400">Unassigned</span>}
             {t.dueDate && <> · due {fmt(t.dueDate)}</>}
             {(t.description || (t.checklist || []).length > 0) && (
               <button type="button" className="ms-2 text-brand-700 hover:underline dark:text-brand-300" onClick={() => setOpen(!open)}>
@@ -239,7 +304,10 @@ function TaskRow({ task: t, canManage, meId, busy, slug, nav, statuses, onEdit, 
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {canAct && (
+          {/* A typed task's status follows its approvals, so offering a status
+              picker would let somebody claim it is Done while an authority has
+              not signed. */}
+          {canAct && !typed && (
             <select className={`${input} w-auto`} value={t.status} disabled={busy}
               onChange={(e) => onSend("PUT", { id: t.id, status: e.target.value })}>
               {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -257,9 +325,10 @@ function TaskRow({ task: t, canManage, meId, busy, slug, nav, statuses, onEdit, 
   );
 }
 
-function TaskForm({ task, people, projects, vocab, busy, onCancel, onSave }) {
+function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, authorities, onCancel, onSave }) {
   const [form, setForm] = useState({
     title: task?.title || "",
+    type: task?.type || "",
     description: task?.description || "",
     assigneeCollaboratorId: task?.assigneeCollaboratorId || "",
     projectId: task?.projectId || "",
@@ -279,6 +348,29 @@ function TaskForm({ task, people, projects, vocab, busy, onCancel, onSave }) {
           <label className={label}>Title <span className="text-rose-500">*</span></label>
           <input className={input} value={form.title} onChange={set("title")} />
         </div>
+        <div className="sm:col-span-2 lg:col-span-3">
+          <label className={label}>Kind</label>
+          {/* An ordinary task is assigned to a person. A typed one is routed to
+              whoever holds its authorities in Task settings, so the assignee
+              picker below stops applying. */}
+          <select className={input} value={form.type} disabled={!!task}
+            onChange={(e) => setForm((f) => ({ ...f, type: e.target.value, assigneeCollaboratorId: "" }))}>
+            <option value="">Ordinary task — assigned to a person</option>
+            {Object.entries(vocab.typeLabels || {}).map(([code, meta]) => (
+              <option key={code} value={code}>{meta.label}</option>
+            ))}
+          </select>
+          {form.type ? (
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+              {vocab.typeLabels?.[form.type]?.hint} Routed to:{" "}
+              {(typeAuthorities[form.type] || [])
+                .map((c) => authorities.find((a) => a.code === c)?.label || c).join(" and ")}.
+            </p>
+          ) : (
+            task && <p className="mt-1 text-[11px] text-slate-400">A task&apos;s kind is fixed once it exists.</p>
+          )}
+        </div>
+        {!form.type && (
         <div>
           <label className={label}>Assign to</label>
           <select className={input} value={form.assigneeCollaboratorId} onChange={set("assigneeCollaboratorId")}>
@@ -286,6 +378,7 @@ function TaskForm({ task, people, projects, vocab, busy, onCancel, onSave }) {
             {people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
           </select>
         </div>
+        )}
         <div>
           <label className={label}>Project</label>
           <select className={input} value={form.projectId} onChange={set("projectId")}>

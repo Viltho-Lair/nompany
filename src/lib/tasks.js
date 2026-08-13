@@ -20,6 +20,11 @@ import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, 
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
+import {
+  TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES, TASK_TYPES, TASK_TYPE_LABELS,
+  APPROVAL_COOLDOWN_MS, isApprovalTask, readTaskAssignees, resolveTaskAssignees,
+  enrichTask, canSeeTask, progressOf, summarise,
+} from "@/lib/taskRouting";
 
 const TASKS = "tasks";
 const PROJECTS = "projects";
@@ -58,54 +63,14 @@ export async function tasksContext(user, slug) {
 }
 
 // ---- task routing -----------------------------------------------------------
-// The Old System routes each TYPE of task to one or more AUTHORITIES, and Task
-// settings records who currently holds each authority. Appointing someone there
-// grants them the matching tasks immediately — existing ones included — which is
-// why assignment is resolved from settings rather than copied onto the row.
-export const TASK_AUTHORITIES = [
-  { code: "mng", label: "Management" },
-  { code: "fin", label: "Finance" },
-  { code: "sales", label: "Sales" },
-  { code: "log", label: "Logistics" },
-  { code: "hr", label: "Human Resources" },
-  { code: "permit", label: "Permit team" },
-];
-const AUTHORITY_CODES = TASK_AUTHORITIES.map((a) => a.code);
-
-// Two-party types need BOTH authorities to complete, per the Old System.
-export const TASK_TYPE_AUTHORITIES = {
-  approval: ["sales", "mng"],
-  po: ["mng", "fin"],
-  "material-po": ["fin", "mng"],
-  delivery: ["log"],
-  "delivery-return": ["log"],
-  "id-update": ["hr"],
-  "permit-request": ["permit"],
+// Lives in lib/taskRouting.js so the board can import it without pulling this
+// module's Redis-backed store in with it. Re-exported here so every server-side
+// caller keeps one import.
+export {
+  TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES, TASK_TYPES, TASK_TYPE_LABELS,
+  APPROVAL_COOLDOWN_MS, isApprovalTask, readTaskAssignees, resolveTaskAssignees,
+  enrichTask, canSeeTask, progressOf, summarise,
 };
-export const TASK_TYPES = Object.keys(TASK_TYPE_AUTHORITIES);
-
-// { authorityCode: [CollaboratorID] } — CollaboratorIDs, never UserIDs.
-export function readTaskAssignees(settingsSection) {
-  const raw = settingsSection?.settings?.taskAssignees || {};
-  const out = {};
-  for (const code of AUTHORITY_CODES) {
-    const ids = Array.isArray(raw[code]) ? raw[code] : [];
-    out[code] = [...new Set(ids.map((v) => String(v ?? "").trim()).filter(Boolean))].slice(0, 50);
-  }
-  return out;
-}
-
-// Who owns a task right now, derived from CURRENT settings.
-export function resolveTaskAssignees(task, taskAssignees) {
-  const codes = TASK_TYPE_AUTHORITIES[task?.type] || [];
-  const byAuthority = {};
-  const flat = new Set();
-  for (const c of codes) {
-    byAuthority[c] = taskAssignees?.[c] || [];
-    for (const id of byAuthority[c]) flat.add(id);
-  }
-  return { authorities: codes, byAuthority, assigneeIds: [...flat] };
-}
 
 export async function saveTasksSettings(ctx, body) {
   const { studio, settingsSection, collaborator } = ctx;
@@ -133,14 +98,8 @@ export async function tasksGuard(paramsPromise, { write } = {}) {
   return t;
 }
 
-// Checklist progress, derived on every read.
-export function progressOf(checklist) {
-  const list = Array.isArray(checklist) ? checklist : [];
-  if (!list.length) return null; // no checklist is different from an empty one
-  return Math.round((list.filter((c) => c.done).length / list.length) * 100);
-}
-
-export async function listTasks({ studio, section, collaborator }) {
+export async function listTasks(ctx) {
+  const { studio, section, collaborator, canManage, taskAssignees } = ctx;
   const [tasks, people, projects] = await Promise.all([
     readCol(studio.id, section.id, TASKS),
     listCollaborators(studio.id),
@@ -151,6 +110,10 @@ export async function listTasks({ studio, section, collaborator }) {
   const today = new Date().toISOString().slice(0, 10);
 
   return [...tasks]
+    // Routing is resolved BEFORE anything is filtered or sorted, because who a
+    // task belongs to is what decides whether it is shown at all.
+    .map((t) => enrichTask(t, taskAssignees, collaborator.id))
+    .filter((t) => canSeeTask(t, { meId: collaborator.id, canManage }))
     .sort((a, b) => {
       // Open work first, then by due date, then newest.
       const done = (t) => (t.status === "Done" ? 1 : 0);
@@ -167,7 +130,23 @@ export async function listTasks({ studio, section, collaborator }) {
       progress: progressOf(t.checklist),
       // Both derived, so neither can go stale.
       overdue: t.status !== "Done" && !!t.dueDate && t.dueDate < today,
-      mine: t.assigneeCollaboratorId === collaborator.id,
+      // "Mine" means it is waiting on ME: assigned to me, or — on a typed task —
+      // routed to an authority I hold and not yet decided by me.
+      mine: t.assigneeCollaboratorId === collaborator.id
+        || (t.myAuthorities || []).some((c) => !t.approvals?.[c]?.approved),
+      // Each authority resolved to names, so the board can say who is being
+      // waited on rather than printing a list of ids.
+      authorityStates: (t.authorities || []).map((code) => ({
+        code,
+        label: TASK_AUTHORITIES.find((a) => a.code === code)?.label || code,
+        holders: (t.byAuthority?.[code] || []).map((id) => alias[id]).filter(Boolean),
+        approved: !!t.approvals?.[code]?.approved,
+        byAlias: alias[t.approvals?.[code]?.byCollaboratorId] || "",
+        at: t.approvals?.[code]?.at || "",
+        // Nobody has been appointed to this authority, so this task is stuck —
+        // worth saying out loud rather than letting it sit there forever.
+        orphaned: (t.byAuthority?.[code] || []).length === 0,
+      })),
     }));
 }
 
@@ -188,8 +167,15 @@ export async function createTask(ctx, body) {
     if (!projects.some((p) => p.id === projectId)) return { error: "project" };
   }
 
+  // A typed task is routed by its type and needs no assignee — who holds it is
+  // read from Task settings, and changes the moment those settings change.
+  const type = TASK_TYPES.includes(body?.type) ? body.type : "";
+
   const task = await addRow(studio.id, section.id, TASKS, {
     title,
+    type,
+    approvals: {},
+    approvalWithdrawnAt: "",
     description: str(body?.description, 4000),
     status: TASK_STATUSES.includes(body?.status) ? body.status : DEFAULT_STATUS,
     priority: TASK_PRIORITIES.includes(body?.priority) ? body.priority : DEFAULT_PRIORITY,
@@ -289,6 +275,62 @@ export async function updateTask(ctx, id, body) {
   return task ? { task: { ...task, progress: progressOf(task.checklist) } } : { error: "notfound" };
 }
 
+// Record — or withdraw — ONE authority's decision on a typed task.
+//
+// The authority is checked against the settings as they stand at the moment of
+// the write, not against anything the client sent: the Sales approver approves
+// for Sales and can never approve for Management, whatever the payload claims.
+// A manager may act for any authority, which is what makes the board unblockable
+// when somebody is away.
+export async function decideTask(ctx, id, body) {
+  const { studio, section, collaborator, canManage, taskAssignees } = ctx;
+  const rows = await readCol(studio.id, section.id, TASKS);
+  const current = rows.find((t) => t.id === id);
+  if (!current) return { error: "notfound" };
+  if (!isApprovalTask(current)) return { error: "not-approval" };
+
+  const authority = str(body?.authority, 20);
+  const { authorities, byAuthority } = resolveTaskAssignees(current, taskAssignees);
+  if (!authorities.includes(authority)) return { error: "authority" };
+  const holds = (byAuthority[authority] || []).includes(collaborator.id);
+  if (!holds && !canManage) return { error: "not-yours" };
+
+  const approved = body?.approved !== false;
+
+  // Withdrawing starts a cooldown, so a decision cannot be flipped back and
+  // forth at people faster than they can read it.
+  if (!approved) {
+    const since = Date.parse(current.approvalWithdrawnAt || "");
+    if (Number.isFinite(since) && Date.now() - since < APPROVAL_COOLDOWN_MS) {
+      return { error: "cooldown", waitMs: APPROVAL_COOLDOWN_MS - (Date.now() - since) };
+    }
+  }
+
+  // Applied to the live row inside the write lock: two authorities deciding at
+  // the same moment must not overwrite each other's approval.
+  const apply = (row) => {
+    const approvals = { ...(row.approvals && typeof row.approvals === "object" ? row.approvals : {}) };
+    if (approved) {
+      approvals[authority] = { approved: true, byCollaboratorId: collaborator.id, at: new Date().toISOString() };
+    } else {
+      delete approvals[authority];
+    }
+    const changes = { approvals };
+    if (!approved) changes.approvalWithdrawnAt = new Date().toISOString();
+
+    // Every required authority has signed off, so the decision is made. Taking
+    // one back reopens it, so the status can never claim more than the
+    // approvals under it actually say.
+    const complete = authorities.every((c) => approvals[c]?.approved);
+    if (complete && row.status !== "Done") { changes.status = "Done"; changes.completedAt = row.completedAt || new Date().toISOString(); }
+    if (!complete && row.status === "Done") { changes.status = "In progress"; changes.completedAt = ""; }
+    return changes;
+  };
+
+  const task = await updateRow(studio.id, section.id, TASKS, id, apply);
+  return task ? { task } : { error: "notfound" };
+}
+
 export async function removeTask(ctx, id) {
   const removed = await deleteRow(ctx.studio.id, ctx.section.id, TASKS, id);
   return removed ? { ok: true } : { error: "notfound" };
@@ -329,14 +371,3 @@ export async function assignablePeople({ studio }) {
   return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" }));
 }
 
-// Headline counts, including how much is landing on the person looking.
-export function summarise(tasks, meId) {
-  const live = tasks.filter((t) => t.status !== "Done");
-  return {
-    open: live.length,
-    mine: live.filter((t) => t.assigneeCollaboratorId === meId).length,
-    overdue: live.filter((t) => t.overdue).length,
-    unassigned: live.filter((t) => !t.assigneeCollaboratorId).length,
-    done: tasks.length - live.length,
-  };
-}
