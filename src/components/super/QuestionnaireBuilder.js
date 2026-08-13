@@ -5,6 +5,19 @@ import Link from "next/link";
 import {
   ELEMENTS, GROUPS, TOGGLES, byType, hasOptions, isStructure, newQuestion,
 } from "@/lib/questionnaireElements";
+import { INDUSTRIES } from "@/lib/industries";
+import { COUNTRIES } from "@/lib/countries";
+import { ERP_SYSTEMS } from "@/lib/questionnaire";
+
+// What each bound source actually contains, so a question wired to one can SHOW
+// its choices instead of naming a list the author has to take on trust.
+// These live in code rather than in the questionnaire, which is why they are
+// read-only here — see the note the panel prints.
+const SOURCE_LISTS = {
+  industries: INDUSTRIES,
+  countries: COUNTRIES.map((c) => c.name),
+  erps: ERP_SYSTEMS,
+};
 
 // The questionnaire builder — Typeform's three-pane shape, for authoring only.
 //
@@ -259,11 +272,17 @@ function renderAnswer(q) {
       return (
         <div className={q.vertical === false ? "flex flex-wrap gap-2" : "space-y-2"}>
           {opts.map((o, i) => (
-            <div key={`${o}-${i}`} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-slate-300 bg-white text-[10px] font-600 text-slate-500">
+            <div key={`${o}-${i}`} className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+              <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-slate-300 bg-white text-[10px] font-600 text-slate-500">
                 {letters[i] || "•"}
               </span>
-              {o}
+              <span className="min-w-0">
+                {o}
+                {/* Only when there is one — an empty description leaves no trace. */}
+                {q.optionNotes?.[i]?.trim() && (
+                  <span className="mt-0.5 block text-xs text-slate-500">{q.optionNotes[i]}</span>
+                )}
+              </span>
             </div>
           ))}
         </div>
@@ -365,6 +384,7 @@ function Settings({ q, onPatch, onRemove }) {
             <input value={q.dependsOn || ""} onChange={(e) => onPatch({ dependsOn: e.target.value.trim() })}
               className={`${field} mt-2 font-mono text-xs`} placeholder="country" />
           )}
+          {q.source && <SourcePreview source={q.source} dependsOn={q.dependsOn} />}
         </div>
       )}
 
@@ -385,7 +405,12 @@ function Settings({ q, onPatch, onRemove }) {
         <OptionEditor
           options={q.options || []}
           values={q.optionValues}
-          onChange={(options, optionValues) => onPatch(optionValues ? { options, optionValues } : { options })}
+          notes={q.optionNotes}
+          // Per-choice descriptions only reach the screen on the types that
+          // render choices as CARDS. A chip or a dropdown row has nowhere to put
+          // a second line, so offering the field there would be a lie.
+          allowNotes={q.type === "multiple-choice" || q.type === "picture-choice"}
+          onChange={(next) => onPatch(next)}
         />
       )}
 
@@ -418,27 +443,101 @@ function Settings({ q, onPatch, onRemove }) {
   );
 }
 
-function OptionEditor({ options, values, onChange }) {
+// A bound list, shown rather than merely named. It is read-only: these lists
+// are shared by the whole product — the same industries feed a studio's ticket
+// form — so editing one here would quietly change it everywhere. Switching
+// "Choices from" back to "Choices below" is how you get an editable list.
+function SourcePreview({ source, dependsOn }) {
+  const [open, setOpen] = useState(false);
+  if (source === "cities") {
+    return (
+      <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+        Follows the <span className="font-mono">{dependsOn || "country"}</span> answer — the cities of whichever
+        country was chosen.
+      </p>
+    );
+  }
+  const list = SOURCE_LISTS[source] || [];
+  return (
+    <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2">
+      <button type="button" onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between text-xs font-600 text-slate-600">
+        {list.length} built-in choices
+        <span className="text-slate-400">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open && (
+        <ul className="mt-2 max-h-40 space-y-0.5 overflow-y-auto text-xs text-slate-500">
+          {list.map((o) => <li key={o}>{o}</li>)}
+        </ul>
+      )}
+      <p className="mt-2 text-[11px] leading-snug text-slate-400">
+        Shared across the product, so read-only here. Switch to “Choices below” to write your own.
+      </p>
+    </div>
+  );
+}
+
+function OptionEditor({ options, values, notes, allowNotes, onChange }) {
   const paired = Array.isArray(values);
+  const noted = Array.isArray(notes);
+
+  // One place builds the patch, so the parallel arrays can never end up
+  // different lengths after an add or a remove.
+  const emit = (nextOptions, nextValues, nextNotes) => {
+    const patch = { options: nextOptions };
+    if (paired) patch.optionValues = nextValues;
+    // The notes array only starts existing once something is actually typed
+    // into it, and disappears again when every line is emptied — so a question
+    // with no descriptions carries no descriptions.
+    const cleaned = (nextNotes || []).slice(0, nextOptions.length);
+    if (cleaned.some((n) => String(n || "").trim())) patch.optionNotes = cleaned;
+    else if (noted) patch.optionNotes = undefined;
+    return onChange(patch);
+  };
+
+  const at = (arr, i) => (Array.isArray(arr) ? arr[i] ?? "" : "");
+
   return (
     <div>
       <h3 className="text-xs font-700 uppercase tracking-wide text-slate-400">Choices</h3>
-      <div className="mt-2 space-y-2">
+      <div className="mt-2 space-y-3">
         {options.map((o, i) => (
-          <div key={i} className="flex items-center gap-1.5">
-            <input value={o} className={field} placeholder="Label"
-              onChange={(e) => onChange(options.map((x, j) => (j === i ? e.target.value : x)), values)} />
-            {paired && (
-              <input value={values[i] ?? ""} className={`${field} w-24 font-mono text-xs`} placeholder="value"
-                onChange={(e) => onChange(options, values.map((x, j) => (j === i ? e.target.value : x)))} />
+          <div key={i} className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <input value={o} className={field} placeholder="Label"
+                onChange={(e) => emit(options.map((x, j) => (j === i ? e.target.value : x)), values, notes)} />
+              {paired && (
+                <input value={at(values, i)} className={`${field} w-24 font-mono text-xs`} placeholder="value"
+                  onChange={(e) => emit(options, values.map((x, j) => (j === i ? e.target.value : x)), notes)} />
+              )}
+              <button type="button" aria-label="Remove choice" className="px-1.5 text-slate-400 hover:text-rose-600"
+                onClick={() => emit(
+                  options.filter((_, j) => j !== i),
+                  paired ? values.filter((_, j) => j !== i) : values,
+                  noted ? notes.filter((_, j) => j !== i) : notes,
+                )}>×</button>
+            </div>
+            {allowNotes && (
+              <input
+                value={at(notes, i)}
+                className={`${field} text-xs`}
+                placeholder="Description (optional)"
+                onChange={(e) => {
+                  const base = Array.from({ length: options.length }, (_, j) => at(notes, j));
+                  base[i] = e.target.value;
+                  emit(options, values, base);
+                }}
+              />
             )}
-            <button type="button" aria-label="Remove choice" className="px-1.5 text-slate-400 hover:text-rose-600"
-              onClick={() => onChange(options.filter((_, j) => j !== i), paired ? values.filter((_, j) => j !== i) : values)}>×</button>
           </div>
         ))}
       </div>
       <button type="button" className="mt-2 text-sm font-600 text-slate-600 underline hover:text-slate-900"
-        onClick={() => onChange([...options, `Choice ${options.length + 1}`], paired ? [...values, ""] : values)}>Add choice</button>
+        onClick={() => emit(
+          [...options, `Choice ${options.length + 1}`],
+          paired ? [...values, ""] : values,
+          noted ? [...notes, ""] : notes,
+        )}>Add choice</button>
     </div>
   );
 }
