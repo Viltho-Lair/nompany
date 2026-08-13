@@ -4,7 +4,9 @@ import Link from "next/link";
 import { currentUser, needsQuestionnaire } from "@/lib/identity";
 import { studioContext, canAdminister, visibleSections, canManageSection, listGrants, recordStudioVisit } from "@/lib/studios";
 import { listSections } from "@/lib/data/sections";
-import { loadCatalogues, planOf } from "@/lib/plans";
+import { getProfile } from "@/lib/data/users";
+import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
+import { chatDisplayName } from "@/lib/chatConstants";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import StudioDocs from "@/components/studio2/StudioDocs";
 import StudioSalesLive from "@/components/studio2/StudioSalesLive";
@@ -57,9 +59,19 @@ export default async function StudioPage({ params }) {
   recordStudioVisit(user.id, studio.id).catch(() => {});
 
   const admin = canAdminister(studio, collaborator);
-  const [allSections, grants, catalogues] = await Promise.all([listSections(studio.id), listGrants(studio.id), loadCatalogues()]);
+  const [allSections, grants, catalogues, profile] = await Promise.all([
+    listSections(studio.id), listGrants(studio.id), loadCatalogues(), getProfile(user.id),
+  ]);
   const plan = planOf(studio, catalogues.packages, catalogues.tiers);
   const sections = visibleSections(studio, collaborator, allSections, grants);
+
+  // Live chat with nompany: every package except Free. Computed here so the
+  // shell knows whether to draw the button at all; /api/chat/start decides the
+  // same question again for the request, which is the answer that binds.
+  const chat = {
+    enabled: hasLiveChat(plan),
+    userName: chatDisplayName({ alias: collaborator.alias, profile, email: user.email }),
+  };
 
   const { segments = [] } = await params;
   const requested = segments[0] || "";
@@ -114,6 +126,7 @@ export default async function StudioPage({ params }) {
     // parentId drives the expandable nav.
     sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),
     activeKey: isPeople ? "people" : isAccess ? "access" : isSettings ? "studio-settings" : (active?.key || ""),
+    chat,
   };
 
   return (

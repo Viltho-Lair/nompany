@@ -34,6 +34,7 @@ export const ID = {
   erpService: () => makeId("svc"),
   qpage: () => makeId("qpg"),
   question: () => makeId("qsn"),
+  chatRoom: () => makeId("cht"),
   row: (collection) => makeId(collection.slice(0, 3)),
 };
 
@@ -78,6 +79,22 @@ export const U = {
 // EX expires it for free (nothing to clean up, nothing to cascade).
 export const OTP = {
   challenge: (challengeId) => `otp:${challengeId}`,
+};
+
+// ---- live chat rooms (ephemeral, like OTP: owned by nobody) ----------------
+// A conversation between someone inside a studio and nompany. It is NOT studio
+// data and NOT user data — it is never kept, so it deliberately lives outside
+// every prefix: no cascade has to know about it, and Redis' own TTL is the only
+// retention policy there is. Ending a chat leaves a short grace window so both
+// sides can download the transcript, and then it is gone for good.
+//
+//   chat:room:<RoomID>        the room document (messages included)
+//   chat:room:<RoomID>:held   the NX claim that makes "accept" first-wins
+//   chat:live                 the set of room ids currently in play
+export const CHAT = {
+  room: (roomId) => `chat:room:${roomId}`,
+  held: (roomId) => `chat:room:${roomId}:held`,
+  live: "chat:live",
 };
 
 // ---- rate limiting (ephemeral counters, owned by nobody) -------------------

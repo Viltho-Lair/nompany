@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
+import StudioChat from "@/components/studio2/StudioChat";
 import ThemeToggle from "@/components/ThemeToggle";
 import { toneOf } from "@/lib/planColors";
 
@@ -64,7 +65,7 @@ const itemClass = (active) => `${rowClass(active)} px-3 py-2.5`;
 const iconClass = (active) =>
   `h-[18px] w-[18px] ${active ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"}`;
 
-export default function StudioFrame({ studio, me, sections, activeKey, children }) {
+export default function StudioFrame({ studio, me, sections, activeKey, chat = null, children }) {
   const [open, setOpen] = useState(false);
   // The header avatar is the ACCOUNT, not the studio membership: `me` carries a
   // studio-local alias and role, but the picture belongs to the person and lives
@@ -366,6 +367,17 @@ export default function StudioFrame({ studio, me, sections, activeKey, children 
         </header>
         <main className="mx-auto max-w-[1400px] px-5 pb-8 sm:px-8">{children}</main>
       </div>
+
+      {/* Live chat with nompany. It lives on the SHELL rather than on a page, so
+          it is reachable from wherever someone happens to be when they need it —
+          and, just as deliberately, nowhere the shell isn't: the account hub and
+          the public site have no chat button because they don't render this. */}
+      <StudioChat
+        enabled={Boolean(chat?.enabled)}
+        slug={studio.slug}
+        studioName={studio.name}
+        userName={chat?.userName || me.alias || "You"}
+      />
     </div>
   );
 }

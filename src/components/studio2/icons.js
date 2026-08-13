@@ -116,6 +116,21 @@ const PATHS = {
   call: (
     <path d="M7 3.5l2.2 4-1.7 1.7a12 12 0 005.3 5.3l1.7-1.7 4 2.2v3.1a1.7 1.7 0 01-1.9 1.7A16.5 16.5 0 013.5 5.4 1.7 1.7 0 015.2 3.5z" />
   ),
+  // A speech bubble with a tail — the live-chat launcher. Deliberately empty
+  // inside: it sits at 24px in a floating button where ruled "text" lines would
+  // only read as noise.
+  chat: <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />,
+  // Send is an arrow, not a paper plane: the set is stroke-only and a plane at
+  // 16px collapses into a smudge, while an arrow stays legible and mirrors
+  // cleanly under RTL (the caller flips it).
+  send: <path d="M4 12h15M13 6l6 6-6 6" />,
+  download: (
+    <>
+      <path d="M12 3v12" />
+      <path d="M7.5 10.5L12 15l4.5-4.5" />
+      <path d="M4 18.5V20a1 1 0 001 1h14a1 1 0 001-1v-1.5" />
+    </>
+  ),
   chevronUp: <path d="M6 15l6-6 6 6" />,
   chevronDown: <path d="M6 9l6 6 6-6" />,
   chevronRight: <path d="M9 6l6 6-6 6" />,

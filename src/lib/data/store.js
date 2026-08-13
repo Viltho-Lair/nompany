@@ -30,6 +30,14 @@ export async function setJSON(key, value) {
 export async function setJSONEx(key, value, ttlSec) {
   await (await r()).sendCommand(["SET", key, JSON.stringify(value), "EX", String(ttlSec)]);
 }
+// Re-arm (or shorten) the expiry on a key that already exists. editJSON with
+// keepTTL leaves the countdown where it was, which is right for a challenge and
+// wrong for anything whose TTL means "idle for this long" — a live chat room
+// has to start counting again on every message. Returns false when the key is
+// already gone, which is how a caller learns its TTL elapsed mid-write.
+export async function touchTTL(key, ttlSec) {
+  return (await (await r()).expire(key, ttlSec)) === 1;
+}
 // Atomic single-use consume: returns true only for the caller that removed it,
 // so two parallel verifications of the same code can never both succeed.
 export async function consume(key) {

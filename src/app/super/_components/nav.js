@@ -37,6 +37,9 @@ export const NAV = [
     caption: "Application",
     items: [
       { label: "Email", icon: "mail", href: `${BASE}/application/email` },
+      // Live chat with studios. Promoted out of "To be worked" when it stopped
+      // being a template demo and started carrying real rooms.
+      { label: "Chat", icon: "chat", href: `${BASE}/application/chat` },
       { label: "Users", icon: "users", href: `${BASE}/application/users` },
       { label: "Studios", icon: "briefcase", href: `${BASE}/application/studios` },
       { label: "Packages", icon: "package", href: `${BASE}/application/packages` },
@@ -55,7 +58,6 @@ export const NAV = [
     caption: "To be worked",
     items: [
       { label: "Calendar", icon: "calendar", href: `${BASE}/application/calendar` },
-      { label: "Chat", icon: "chat", href: `${BASE}/application/chat` },
       { label: "Task Board", icon: "kanban", href: `${BASE}/application/task-board` },
       { label: "Notifications", icon: "bell", href: `${BASE}/application/notifications` },
       { label: "Invoices", icon: "invoice", href: `${BASE}/application/invoices` },
