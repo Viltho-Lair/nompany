@@ -197,6 +197,18 @@ export default function QuestionnaireBuilder({ id }) {
                   placeholder="Page description (optional)"
                   className="mt-1 w-full rounded-md px-1.5 py-1 text-sm text-slate-500 outline-none hover:bg-slate-50 focus:bg-slate-50"
                 />
+                {/* What Nova says while this page is open. She only appears when
+                    there is something for her to say, so leaving this empty is
+                    how you keep her off a page. */}
+                <label className="mt-3 block border-t border-slate-100 pt-3">
+                  <span className="text-xs font-700 uppercase tracking-wide text-slate-400">Nova says</span>
+                  <input
+                    value={page.hint || ""}
+                    onChange={(e) => edit((d) => { d.pages[pageIdx].hint = e.target.value; })}
+                    placeholder="Leave empty and Nova stays away"
+                    className="mt-1 w-full rounded-md px-1.5 py-1 text-sm outline-none hover:bg-slate-50 focus:bg-slate-50"
+                  />
+                </label>
               </div>
 
               {page.questions.length === 0 ? (

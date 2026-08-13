@@ -32,6 +32,26 @@ import {
 // follow the visitor's saved choice with no work here.
 
 const FIELD = "field-input w-full pe-9 text-sm";
+// Marks "Other chosen, nothing typed yet" so the field can open before there is
+// an answer to store.
+const OTHER_SENTINEL = "__other__";
+
+// "Other" and "None" are the same two ideas wherever they appear. A question can
+// switch them on with its own toggles, and the ERP list happens to carry its own
+// wording for them inside the built-in options — both are recognised here so the
+// behaviour is one rule rather than a special case per question.
+const OTHER_LABELS = ["Other", ERP_OTHER];
+const NONE_LABELS = ["None", ERP_NONE];
+const isOther = (v) => OTHER_LABELS.includes(v);
+const isNone = (v) => NONE_LABELS.includes(v);
+
+// The full choice list a question offers, including the two it switches on.
+function choicesOf(question, options) {
+  const extra = [];
+  if (question.other && !options.some(isOther)) extra.push("Other");
+  if (question.none && !options.some(isNone)) extra.push("None");
+  return [...options, ...extra];
+}
 
 // The option lists a question's `source` names. /super will eventually serve
 // these alongside the questions; until then they come from the same modules the
@@ -66,7 +86,10 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
   const last = page === total - 1;
   const canAdvance = isPageComplete(current, answers);
 
-  const set = (patch) => setAnswers((a) => ({ ...a, ...patch }));
+  // Accepts a patch, or a function of the CURRENT answers returning one. The
+  // second form matters for multi-select: building the next list from a value
+  // captured at render time loses a pick if two arrive before a re-render.
+  const set = (patch) => setAnswers((a) => ({ ...a, ...(typeof patch === "function" ? patch(a) : patch) }));
   const goNext = () => setPage((p) => {
     const nextPage = Math.min(total - 1, p + 1);
     setFurthest((f) => Math.max(f, nextPage));
@@ -249,22 +272,36 @@ function Question({ question, answers, set }) {
   const options = useMemo(() => optionsFor(question, answers), [question, answers]);
   const key = fieldOf(question);
   const value = answers[key];
+  // Other is "selected" whenever the stored answer is not one of the listed
+  // choices — the sentinel covers the moment before anything has been typed.
+  const listed = [
+    ...(question.options || []).map((o, i) => question.optionValues?.[i] ?? o),
+    ...NONE_LABELS,
+  ];
+  const otherPicked = Boolean(question.other) && Boolean(value) && !listed.includes(value);
 
   if (question.type === "multiple-choice" && !question.multiple) {
     return (
       <Field question={question}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(question.options || []).map((label, i) => {
+        {/* Vertical alignment stacks the choices in one column; off, they sit
+            side by side. Matches the toggle in the builder. */}
+        {/* flex-col, not space-y: the choices are <button>s, which are inline-
+            block, so vertical margin leaves them sitting side by side. */}
+        <div className={question.vertical === false ? "grid gap-3 sm:grid-cols-2" : "flex flex-col gap-3"}>
+          {choicesOf(question, question.options || []).map((label, i) => {
             // What gets STORED can differ from what is shown — see optionValues.
-            const v = question.optionValues?.[i] ?? label;
+            // Other and None have no stored value of their own; Other's answer is
+            // whatever gets typed into the field it opens, None's is "None".
+            const v = isOther(label) ? OTHER_SENTINEL : question.optionValues?.[i] ?? label;
+            const on = isOther(label) ? otherPicked : value === v;
             return (
             <button
               key={label}
               type="button"
-              onClick={() => set({ [key]: v })}
-              aria-pressed={value === v}
+              onClick={() => set({ [key]: isOther(label) ? OTHER_SENTINEL : v })}
+              aria-pressed={on}
               className={`rounded-xl border p-4 text-start transition-colors ${
-                value === v
+                on
                   ? "border-iris bg-iris/10"
                   : "border-line hover:border-iris/50"
               }`}
@@ -276,6 +313,16 @@ function Question({ question, answers, set }) {
             </button>);
           })}
         </div>
+        {/* Opened by choosing Other; what is typed here IS the answer. */}
+        {otherPicked && (
+          <input
+            autoFocus
+            value={value === OTHER_SENTINEL ? "" : value || ""}
+            onChange={(e) => set({ [key]: e.target.value || OTHER_SENTINEL })}
+            placeholder="Tell us"
+            className={`${FIELD} mt-3`}
+          />
+        )}
       </Field>
     );
   }
@@ -345,29 +392,36 @@ function MultiSelect({ question, options, answers, set }) {
   const [query, setQuery] = useState("");
   const key = fieldOf(question);
   const picked = Array.isArray(answers[key]) ? answers[key] : [];
+  const all = choicesOf(question, options);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => String(o).toLowerCase().includes(q));
-  }, [options, query]);
+    if (!q) return all;
+    return all.filter((o) => String(o).toLowerCase().includes(q));
+  }, [all, query]);
 
   function toggle(option) {
-    const has = picked.includes(option);
-    let next;
-    if (option === ERP_NONE) next = has ? [] : [ERP_NONE];
-    else {
-      next = has ? picked.filter((p) => p !== option) : [...picked.filter((p) => p !== ERP_NONE), option];
-    }
-    set({ [key]: next });
+    set((a) => {
+      const cur = Array.isArray(a[key]) ? a[key] : [];
+      const has = cur.includes(option);
+      // None is exclusive both ways: choosing it clears everything else, and
+      // choosing anything else clears it. "None, and also these three" is not
+      // an answer.
+      const next = isNone(option)
+        ? (has ? [] : [option])
+        : (has ? cur.filter((p) => p !== option) : [...cur.filter((p) => !isNone(p)), option]);
+      return { [key]: next };
+    });
   }
+
+  const otherOn = picked.some(isOther);
 
   return (
     <Field question={question}>
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search systems"
+        placeholder="Search"
         className={FIELD}
       />
       <div className="mt-3 flex flex-wrap gap-2">
@@ -390,7 +444,7 @@ function MultiSelect({ question, options, answers, set }) {
         {shown.length === 0 && <p className="text-sm text-fg-dim">Nothing matches “{query}”.</p>}
       </div>
 
-      {picked.includes(ERP_OTHER) && (
+      {otherOn && (
         <input
           value={answers.otherErp || ""}
           onChange={(e) => set({ otherErp: e.target.value })}
