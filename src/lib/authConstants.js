@@ -2,6 +2,12 @@
 // import them without pulling in lib/auth.js (which touches DB + Node built-ins).
 
 export const SESSION_COOKIE = "mt_admin";
+// The platform owner's session for /super. A SEPARATE identity from the studio
+// session above — an owner is not a subscriber — so it gets its own cookie and
+// never grants (or is granted by) anything in the studio world. It lives here
+// rather than in lib/superAuth.js because the edge proxy needs the name to gate
+// /super/* and cannot import that module (bcrypt + Redis).
+export const SUPER_COOKIE = "nc_super";
 // Non-secret companion to the studio session: the tenant's address slug, so the
 // edge proxy can map /<slug>/… ⇄ /studio/… without a DB lookup. Set whenever a
 // studio session is minted, cleared on logout. See [[nompany-multitenancy]].

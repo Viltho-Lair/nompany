@@ -73,6 +73,10 @@ export const RL = {
   // Public contact form, per IP — the one place an unauthenticated caller can
   // write anything.
   contactIp: (ip) => `rl:contact:i:${String(ip || "unknown")}`,
+  // /super sign-in, per IP. The console has exactly one door and a handful of
+  // legitimate attempts a day, so the window can be far tighter than the
+  // subscriber-facing limits.
+  superLoginIp: (ip) => `rl:super:i:${String(ip || "unknown")}`,
 };
 
 // ---- per-studio keys (die with the studio) ---------------------------------

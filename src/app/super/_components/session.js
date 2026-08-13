@@ -1,11 +1,13 @@
 // The /super console's identity, as design data.
 //
-// This route is a DESIGN surface only — it deliberately does not read or write
-// the database. `src/lib/superAuth.js` already owns the real super-admin record
-// (registry key `g:superAdmins`, see src/lib/data/keys.js) and is untouched
-// here; when this console is wired up, `SUPER_ADMINS` below is the allowlist to
-// seed through `seedSuperAdmin()` and the header identity should come from
-// `publicSuperAdmin(await findSuperBySession(...))` instead of this constant.
+// AUTH IS REAL: `src/lib/superAuth.js` owns the super-admin record (registry key
+// `g:superAdmins`), (shell)/layout.js gates every console page on it, and the
+// header's identity comes from that session — not from `CURRENT_USER` below.
+//
+// What is left here is presentation: the display name and initials for the one
+// seeded owner (the record itself stores only an email), and `SUPER_ADMINS` as
+// the allowlist to seed through `seedSuperAdmin()`. The remaining console pages
+// are still design surfaces and read these constants for their sample rows.
 
 export const SUPER_ADMIN_EMAIL = "abdullahabuhammed@gmail.com";
 

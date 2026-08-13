@@ -9,11 +9,16 @@
 // A superAdmin record: { id, email, passwordHash, sessionTokens[], createdAt,
 //   passwordSetAt }.
 
+import { cookies } from "next/headers";
 import { REG, makeId } from "@/lib/data/keys";
 import { readArr, editArr } from "@/lib/data/store";
 import { hashPassword, verifyPassword, newSessionToken, generatePassword } from "@/lib/passwords";
+import { SUPER_COOKIE } from "@/lib/authConstants";
 
-export const SUPER_COOKIE = "nc_super";
+export { SUPER_COOKIE };
+// A console session lasts a working day and is never "remembered" — the owner
+// signs in again tomorrow. There is no long-lived variant on purpose.
+export const SUPER_TTL_SEC = 60 * 60 * 12;
 const MAX_SESSIONS = 6;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -104,4 +109,25 @@ export async function logoutSuper(token) {
 export function publicSuperAdmin(a) {
   if (!a) return null;
   return { id: a.id, email: a.email };
+}
+
+/* ---- the session cookie -------------------------------------------------- */
+
+export function superCookie(token, isHttps) {
+  const secure = isHttps ? "; Secure" : "";
+  return `${SUPER_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SUPER_TTL_SEC}${secure}`;
+}
+
+export function clearedSuperCookie() {
+  return `${SUPER_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
+// THE gate for every /super server component and API route: the cookie is only
+// a claim, and this is where it is checked against the stored token list. The
+// edge proxy's cookie-presence test (src/proxy.js) is a convenience redirect,
+// never authorisation — a forged cookie gets past it and dies here.
+export async function currentSuperAdmin() {
+  const token = (await cookies()).get(SUPER_COOKIE)?.value;
+  if (!token) return null;
+  return findSuperBySession(token);
 }

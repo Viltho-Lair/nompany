@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { locales, defaultLocale } from "@/lib/i18n";
+import { SUPER_COOKIE } from "@/lib/authConstants";
 
 // SLUG-DRIVEN ROUTING.
 //
@@ -36,7 +37,24 @@ export function proxy(request) {
     return NextResponse.redirect(url);
   }
 
-  if (seg1 === "super") return NextResponse.next();
+  // The owner's console. Everything under /super except the sign-in page itself
+  // requires a session; someone without one is sent to the door rather than
+  // being shown a console shell that would only redirect a moment later.
+  //
+  // This checks that the cookie EXISTS, nothing more — the edge cannot reach
+  // Redis, so it cannot know whether the token is real. Authorisation happens
+  // in src/app/super/(shell)/layout.js, which verifies it against the stored
+  // token list before rendering anything.
+  if (seg1 === "super") {
+    const signInPage = pathname === "/super" || pathname === "/super/";
+    if (!signInPage && !request.cookies.get(SUPER_COOKIE)?.value) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/super";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
 
   // Public site: locale-prefixed.
   const hasLocale = locales.some((loc) => pathname === `/${loc}` || pathname.startsWith(`/${loc}/`));

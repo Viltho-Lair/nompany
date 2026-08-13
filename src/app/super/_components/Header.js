@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./Icon";
 import { FLAT, BASE } from "./nav";
-import { CURRENT_USER } from "./session";
+import { CURRENT_USER, ROLE } from "./session";
+import { initialsOf } from "@/lib/initials";
 
 /* ---- theme ---------------------------------------------------------------
    The site-wide control: the same `theme` cookie the public site and Studio
@@ -224,9 +225,30 @@ const TONE_FG = {
 
 /* ---- header -------------------------------------------------------------- */
 
-export default function Header({ collapsed, onToggleCollapse, onOpenMobile, onOpenCustomizer }) {
+export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobile, onOpenCustomizer }) {
   const [mode, setMode] = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const router = useRouter();
+
+  // Identity comes from the SESSION (`admin`), not from the design constant.
+  // The record holds only an email, so the display name is the console's own
+  // when it is that person, and the address otherwise.
+  const user = useMemo(() => {
+    const email = admin?.email || CURRENT_USER.email;
+    const name = email === CURRENT_USER.email ? CURRENT_USER.name : email.split("@")[0];
+    return { email, name, initials: initialsOf(name), role: ROLE };
+  }, [admin]);
+
+  const signOut = useCallback(async () => {
+    try {
+      await fetch("/api/super/logout", { method: "POST" });
+    } catch {
+      // The cookie may survive a failed call, so land on /super either way —
+      // a still-valid session simply bounces back to the dashboard.
+    }
+    router.replace("/super");
+    router.refresh();
+  }, [router]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -376,7 +398,7 @@ export default function Header({ collapsed, onToggleCollapse, onOpenMobile, onOp
                 className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold text-white transition-shadow"
                 style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, #fff), var(--ad-primary))" }}
               >
-                {CURRENT_USER.initials}
+                {user.initials}
               </span>
             }
           >
@@ -386,18 +408,18 @@ export default function Header({ collapsed, onToggleCollapse, onOpenMobile, onOp
                   className="flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold text-white"
                   style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, #fff), var(--ad-primary))" }}
                 >
-                  {CURRENT_USER.initials}
+                  {user.initials}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{CURRENT_USER.name}</p>
-                  <p className="truncate text-xs text-[var(--ad-muted-foreground)]">{CURRENT_USER.email}</p>
+                  <p className="truncate text-sm font-semibold">{user.name}</p>
+                  <p className="truncate text-xs text-[var(--ad-muted-foreground)]">{user.email}</p>
                 </div>
               </div>
               <span
                 className="ad-badge mt-3"
                 style={{ backgroundColor: "rgba(70,128,255,.12)", color: "var(--ad-primary)" }}
               >
-                {CURRENT_USER.role}
+                {user.role}
               </span>
             </div>
             <div className="py-1">
@@ -412,9 +434,9 @@ export default function Header({ collapsed, onToggleCollapse, onOpenMobile, onOp
               </Link>
             </div>
             <div className="border-t py-1" style={{ borderColor: "var(--ad-border)" }}>
-              <Link href={BASE} className={menuItem} style={{ color: "var(--ad-destructive)" }}>
+              <button type="button" onClick={signOut} className={menuItem} style={{ color: "var(--ad-destructive)" }}>
                 <Icon name="logout" className="h-4 w-4" /> Sign out
-              </Link>
+              </button>
             </div>
           </Menu>
         </div>

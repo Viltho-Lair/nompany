@@ -21,7 +21,7 @@ const DEFAULTS = {
 
 const STORE_KEY = "super-customizer";
 
-export default function Shell({ children }) {
+export default function Shell({ children, admin }) {
   const [state, setState] = useState(DEFAULTS);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [customizerOpen, setCustomizerOpen] = useState(false);
@@ -83,6 +83,7 @@ export default function Shell({ children }) {
         }}
       >
         <Header
+          admin={admin}
           collapsed={state.collapsed}
           onToggleCollapse={() => set("collapsed", !state.collapsed)}
           onOpenMobile={() => setMobileOpen(true)}
