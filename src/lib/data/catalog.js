@@ -8,7 +8,7 @@
 
 import { readArr, editArr } from "@/lib/data/store";
 import { ID, REG } from "@/lib/data/keys";
-import { normalizeColor, hexForName } from "@/lib/planColors";
+import { normalizeColor, hexForName, DEFAULT_HEX } from "@/lib/planColors";
 
 const now = () => new Date().toISOString();
 
@@ -58,6 +58,10 @@ export const KINDS = {
       cost: num(b.cost),
       durationMonths: num(b.durationMonths),   // 0 = endless, as above
       isPublic: Boolean(b.isPublic),
+      // Same picker as a package's, so a tier is as recognisable at a glance.
+      // No name-based default here: tier names are the studio's own invention,
+      // not a fixed four, so an unpicked colour is simply grey.
+      color: normalizeColor(b.color) || DEFAULT_HEX,
     }),
   },
   services: {
@@ -142,7 +146,7 @@ export async function ensureDefaultPlan() {
   let tier = byName(tiers, DEFAULT_TIER);
   if (!tier) {
     tier = await createCatalogItem("tiers", {
-      name: DEFAULT_TIER, serviceIds: [], cost: 0, durationMonths: 0, isPublic: true,
+      name: DEFAULT_TIER, serviceIds: [], cost: 0, durationMonths: 0, isPublic: true, color: "#64748b",
     });
   }
   return { packageId: pkg.id, tierId: tier.id };

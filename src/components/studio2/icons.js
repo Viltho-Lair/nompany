@@ -13,7 +13,42 @@ const base = {
   strokeLinejoin: "round",
 };
 
+// Icons supplied as PNG artwork rather than drawn here. They are rendered as a
+// CSS MASK, not an <img>: the artwork's alpha becomes the shape and the fill is
+// `currentColor`, so a supplied icon still darkens on hover and turns brand
+// blue when its section is the active one — which an <img> could not do. It
+// also means the artwork's own colour is irrelevant, so a monochrome and a
+// coloured file behave identically here.
+const IMAGES = {
+  report: "report.png",
+  rfp: "request-for-proposal.png",
+  blueprint: "blueprint.png",
+  tools: "support.png",
+  overtime: "overtime.png",
+  ticket: "ticket.png",
+  group: "multiple-users-silhouette.png",
+  gears: "gear.png",
+  verified: "verified.png",
+};
+
 export function Icon({ name, className = "h-5 w-5" }) {
+  const file = IMAGES[name];
+  if (file) {
+    const url = `url(/icons/${file})`;
+    return (
+      <span
+        aria-hidden="true"
+        className={`inline-block shrink-0 ${className}`}
+        style={{
+          backgroundColor: "currentColor",
+          WebkitMaskImage: url, maskImage: url,
+          WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center", maskPosition: "center",
+          WebkitMaskSize: "contain", maskSize: "contain",
+        }}
+      />
+    );
+  }
   const paths = PATHS[name] || PATHS.dot;
   return (
     <svg {...base} className={className} aria-hidden="true">

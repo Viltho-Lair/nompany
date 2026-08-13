@@ -136,7 +136,7 @@ export default async function StudiosPage() {
       <StudiosTable
         rows={rows}
         packages={packages.map((p) => ({ id: p.id, name: p.name, color: p.color, maxEmployees: p.maxEmployees }))}
-        tiers={tiers.map((t) => ({ id: t.id, name: t.name }))}
+        tiers={tiers.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
       />
     </>
   );

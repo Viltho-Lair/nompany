@@ -26,6 +26,7 @@ export default function TiersScreen() {
     { key: "serviceIds", label: "ERP services", type: "services" },
     { key: "cost", label: "Cost", type: "number", prefix: "SAR " },
     { key: "durationMonths", label: "Duration (months)", type: "number", suffix: " mo", zeroLabel: "Endless", hint: "0 means endless — the tier never expires." },
+    { key: "color", label: "Colour", type: "color", hint: "Shown wherever the tier is named." },
     { key: "isPublic", label: "Public", type: "switch" },
   ];
 

@@ -120,7 +120,8 @@ export default async function StudioPage({ params }) {
   const frameProps = {
     studio: {
       name: studio.name, slug: studio.slug, logo: studio.logo || "",
-      packageName: plan.packageName, packageColor: plan.packageColor, tierName: plan.tierName,
+      packageName: plan.packageName, packageColor: plan.packageColor,
+      tierName: plan.tierName, tierColor: plan.tierColor,
     },
     me: { alias: collaborator.alias || "", role: collaborator.role, canAdminister: admin },
     // parentId drives the expandable nav.

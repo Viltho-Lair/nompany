@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardHead, CardBody, Table, Button, Badge } from "@/app/super/_components/ui";
+import { Card, CardHead, CardBody, Table, Button } from "@/app/super/_components/ui";
 import { toneOf } from "@/lib/planColors";
 
 // Every studio, searchable, with its plan editable in place.
@@ -11,7 +11,7 @@ import { toneOf } from "@/lib/planColors";
 // selects would be more navigation than decision. The name, address and owner
 // are shown but STATIC — they belong to the studio's own people, not to us.
 
-const PkgBadge = ({ name, color }) => {
+const Tag = ({ name, color }) => {
   const t = toneOf(color);
   return (
     <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-600" style={{ backgroundColor: t.bg, color: t.fg }}>
@@ -76,8 +76,8 @@ export default function StudiosTable({ rows, packages, tiers }) {
                 <span>{r.ownerName || "—"}</span>
                 <span className="block text-xs text-[var(--ad-muted-foreground)]">{r.ownerEmail}</span>
               </td>
-              <td><PkgBadge name={r.packageName} color={r.packageColor} /></td>
-              <td><Badge tone="secondary">{r.tierName}</Badge></td>
+              <td><Tag name={r.packageName} color={r.packageColor} /></td>
+              <td><Tag name={r.tierName} color={r.tierColor} /></td>
               <td className="text-[var(--ad-muted-foreground)]">
                 {r.members}{r.maxMembers > 0 ? ` / ${r.maxMembers}` : ""}
               </td>
@@ -134,6 +134,7 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
       packageColor: pkg?.color || "grey",
       maxMembers: Number(pkg?.maxEmployees || 0),
       tierName: tier?.name || "—",
+      tierColor: tier?.color || "",
     });
   }
 

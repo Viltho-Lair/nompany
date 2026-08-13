@@ -228,7 +228,8 @@ export default function StudioFrame({ studio, me, sections, activeKey, chat = nu
               {studio.packageName}
             </span>
             <span
-              className="inline-flex rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] font-700 text-slate-600 dark:text-slate-300"
+              className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-700"
+              style={{ backgroundColor: toneOf(studio.tierColor).bg, color: toneOf(studio.tierColor).fg }}
               title={`Tier: ${studio.tierName}`}
             >
               {studio.tierName}

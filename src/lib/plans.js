@@ -22,6 +22,7 @@ export function planOf(studio, packages, tiers) {
     maxMembers: Number(pkg?.maxEmployees || 0),
     tierId: tier?.id || "",
     tierName: tier?.name || DEFAULT_TIER,
+    tierColor: tier?.color || "",
   };
 }
 
