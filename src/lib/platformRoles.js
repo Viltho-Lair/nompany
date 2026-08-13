@@ -37,11 +37,21 @@ const ACTIVE_WINDOW_MS = ACTIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 // clock: a suspended account that signed in yesterday is suspended, not active.
 // Everyone else is judged purely on whether they have signed in inside the
 // window — never having signed in counts as inactive, not as invited.
+// The most recent evidence this person was here.
+export function lastAround(user) {
+  const seen = Date.parse(user?.lastSeenAt || "");
+  const login = Date.parse(user?.lastLoginAt || "");
+  const best = Math.max(Number.isFinite(seen) ? seen : 0, Number.isFinite(login) ? login : 0);
+  return best || NaN;
+}
+
 export function statusOf(user, now = Date.now()) {
   const state = String(user?.status || "").toLowerCase();
   if (state === "suspended") return STATUS.suspended;
   if (state === "invited") return STATUS.invited;
-  const last = Date.parse(user?.lastLoginAt || "");
+  // Whichever is later: signing in counts as being around, but so does using
+  // the product a week into a session that started before that.
+  const last = lastAround(user);
   if (Number.isFinite(last) && now - last <= ACTIVE_WINDOW_MS) return STATUS.active;
   return STATUS.inactive;
 }

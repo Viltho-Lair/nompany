@@ -83,6 +83,27 @@ export async function touchLastLogin(userId) {
   await updateUser(userId, { lastLoginAt: new Date().toISOString() });
 }
 
+// LAST SEEN, as distinct from last signed in.
+//
+// lastLoginAt answers "when did they last authenticate", which is the wrong
+// question for "are they around": a remember-me session lasts 30 days, so
+// somebody using the product daily still looked a month stale.
+//
+// Called on every authenticated request, so it is THROTTLED: it only writes
+// when the stored stamp is older than the window below. That turns one write
+// per request into at most one per user per few minutes, which is the whole
+// reason this is affordable to do at all.
+export const SEEN_THROTTLE_MS = 3 * 60 * 1000;
+
+export async function touchLastSeen(userId) {
+  if (!userId) return;
+  const user = await getUserById(userId);
+  if (!user) return;
+  const last = Date.parse(user.lastSeenAt || "");
+  if (Number.isFinite(last) && Date.now() - last < SEEN_THROTTLE_MS) return;
+  await updateUser(userId, { lastSeenAt: new Date().toISOString() });
+}
+
 // Every user with the fields the owner console lists. The studio registry is
 // read ONCE and shared; only the two per-user back-pointers are fetched per
 // person, in parallel.
@@ -111,6 +132,7 @@ export async function listUsersForConsole() {
         platformRole: u.platformRole || "",
         createdAt: u.createdAt || "",
         lastLoginAt: u.lastLoginAt || "",
+        lastSeenAt: u.lastSeenAt || "",
         fullName: profile?.fullName || "",
         studios: [...new Set(names)],
       };

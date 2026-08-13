@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Card, CardHead, CardBody, Badge, Avatar, Table, Icon } from "../../../_components/ui";
 import { ASSIGNABLE_ROLES, ROLE_OPTIONS, MEMBER_ROLE, SUPER_ROLE, STATUS } from "@/lib/platformRoles";
 
@@ -34,10 +35,15 @@ function pageWindow(current, pages) {
 function RoleMenu({ row, onPick, busy }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onDown = (e) => {
+      const inTrigger = ref.current?.contains(e.target);
+      const inMenu = menuRef.current?.contains(e.target);
+      if (!inTrigger && !inMenu) setOpen(false);
+    };
     const onKey = (e) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -48,6 +54,31 @@ function RoleMenu({ row, onPick, busy }) {
   }, [open]);
 
   const item = "flex w-full items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-[var(--ad-accent)] text-start";
+
+  // PORTALLED to <body>. The table scrolls sideways inside an overflow-x-auto
+  // wrapper, and that wrapper clips anything positioned outside the cell — so an
+  // absolutely-placed menu was being cut off by the row it belongs to. Fixed
+  // coordinates put it over the row and over the list instead of inside them.
+  const [at, setAt] = useState(null);
+  useEffect(() => {
+    if (!open) { setAt(null); return; }
+    const place = () => {
+      const r = ref.current?.getBoundingClientRect();
+      if (!r) return;
+      const W = 208, H = 200;
+      setAt({
+        // Flip above when the row is near the bottom, so the last user's menu
+        // is not half off the window.
+        top: r.bottom + H > window.innerHeight ? Math.max(8, r.top - H) : r.bottom + 6,
+        left: Math.min(Math.max(8, r.right - W), window.innerWidth - W - 8),
+        width: W,
+      });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
+  }, [open]);
 
   return (
     <div className="relative inline-block" ref={ref}>
@@ -62,15 +93,17 @@ function RoleMenu({ row, onPick, busy }) {
       >
         <Icon name={busy ? "refresh" : "more"} className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
       </button>
-      {open ? (
+      {open && at && typeof document !== "undefined" ? createPortal(
         <div
           role="menu"
-          className="absolute top-[calc(100%+6px)] z-40 w-52 overflow-hidden rounded-lg border shadow-lg ltr:right-0 rtl:left-0"
+          ref={menuRef}
           style={{
+            position: "fixed", top: at.top, left: at.left, width: at.width,
             backgroundColor: "var(--ad-popover)",
             borderColor: "var(--ad-border)",
             color: "var(--ad-popover-foreground)",
           }}
+          className="z-[100] overflow-hidden rounded-lg border shadow-xl"
         >
           {row.roleLocked ? (
             // The owner's own row. Their role comes from the super-admin record,
@@ -110,7 +143,8 @@ function RoleMenu({ row, onPick, busy }) {
               </div>
             </>
           )}
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );

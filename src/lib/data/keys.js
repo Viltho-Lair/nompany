@@ -29,6 +29,9 @@ export const ID = {
   grant: () => makeId("grt"),
   media: () => makeId("med"),
   questionnaire: () => makeId("qst"),
+  package: () => makeId("pkg"),
+  tier: () => makeId("tir"),
+  erpService: () => makeId("svc"),
   qpage: () => makeId("qpg"),
   question: () => makeId("qsn"),
   row: (collection) => makeId(collection.slice(0, 3)),
@@ -44,6 +47,13 @@ export const REG = {
   // anyone's answers. Platform-level like the studio registry, because a
   // questionnaire belongs to a route rather than to a studio or a user.
   questionnaires: "g:questionnaires",
+  // What a studio can BUY. Platform-level, like the studio registry: a package
+  // or tier is offered by nompany, not owned by any one studio.
+  packages: "g:packages",
+  tiers: "g:tiers",
+  // The ERP services a tier is made of — a shared catalogue so two tiers can
+  // name the same service and mean it.
+  erpServices: "g:erpServices",
 };
 
 // ---- per-user keys (1:1 / 1:N satellites; die with the user) ---------------

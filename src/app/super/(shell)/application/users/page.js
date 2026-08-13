@@ -4,7 +4,7 @@ import UsersTable from "./UsersTable";
 import { listUsersForConsole } from "@/lib/data/users";
 import { listSuperAdminEmails } from "@/lib/superAuth";
 import {
-  statusOf, compareUsers, STATUS, SUPER_ROLE, MEMBER_ROLE, ACTIVE_WINDOW_DAYS,
+  statusOf, compareUsers, lastAround, STATUS, SUPER_ROLE, MEMBER_ROLE, ACTIVE_WINDOW_DAYS,
 } from "@/lib/platformRoles";
 
 export const metadata = { title: "Users" };
@@ -22,8 +22,7 @@ const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-function lastActiveLabel(iso, now) {
-  const t = Date.parse(iso || "");
+function lastActiveLabel(t, now) {
   if (!Number.isFinite(t)) return "Never";
   const ago = now - t;
   if (ago < 2 * MINUTE) return "Just now";
@@ -53,7 +52,7 @@ export default async function UsersPage() {
         roleLocked: isSuper,
         status: statusOf(u, now),
         studios: u.studios,
-        lastActive: lastActiveLabel(u.lastLoginAt, now),
+        lastActive: lastActiveLabel(lastAround(u), now),
       };
     })
     .sort(compareUsers);

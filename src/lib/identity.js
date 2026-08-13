@@ -16,7 +16,7 @@ import {
   getProfile, updateProfile,
   getVerification, updateVerification,
   getQuestionnaire, updateQuestionnaire,
-  mintSession, findUserBySession, revokeSession, revokeAllSessions, touchLastLogin,
+  mintSession, findUserBySession, revokeSession, revokeAllSessions, touchLastLogin, touchLastSeen,
 } from "@/lib/data/users";
 import { getOwnedStudio, listUserCollaborations } from "@/lib/data/studios";
 import {
@@ -263,7 +263,13 @@ export async function logout(token) {
 // The signed-in User for this request, or null.
 export async function currentUser() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  return token ? findUserBySession(token) : null;
+  if (!token) return null;
+  const user = await findUserBySession(token);
+  // Every authenticated request passes through here, which makes it the one
+  // place that knows someone is actually around. Fire-and-forget and throttled
+  // inside, so presence never costs a request its latency or fails it.
+  if (user) touchLastSeen(user.id).catch(() => {});
+  return user;
 }
 
 // Everything the account UI needs, in one read. `studio` = the ONE studio they
