@@ -139,7 +139,12 @@ function render(f, it, services) {
       </span>
     );
   }
-  if (f.type === "number") return <span>{f.prefix || ""}{Number(v || 0).toLocaleString()}{f.suffix || ""}</span>;
+  if (f.type === "number") {
+    // Some zeros are a quantity and some are a meaning — "0 mo" reads as a
+    // mistake where "Endless" reads as a decision.
+    if (f.zeroLabel && Number(v || 0) === 0) return <span className="font-medium">{f.zeroLabel}</span>;
+    return <span>{f.prefix || ""}{Number(v || 0).toLocaleString()}{f.suffix || ""}</span>;
+  }
   return <span className="font-medium">{v || "—"}</span>;
 }
 

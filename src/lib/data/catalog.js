@@ -25,7 +25,10 @@ export const KINDS = {
       minEmployees: num(b.minEmployees),
       maxEmployees: num(b.maxEmployees),
       cost: num(b.cost),
-      durationMonths: num(b.durationMonths) || 1,
+      // ZERO IS A VALUE, not a missing one: a package with no duration runs
+      // endlessly. `|| 1` here used to quietly turn "endless" into "one month",
+      // which meant the state could not be expressed at all.
+      durationMonths: num(b.durationMonths),
       isPublic: Boolean(b.isPublic),
     }),
   },
@@ -38,7 +41,7 @@ export const KINDS = {
       // that include it.
       serviceIds: Array.isArray(b.serviceIds) ? [...new Set(b.serviceIds.map((x) => str(x, 40)))].filter(Boolean).slice(0, 200) : [],
       cost: num(b.cost),
-      durationMonths: num(b.durationMonths) || 1,
+      durationMonths: num(b.durationMonths),   // 0 = endless, as above
       isPublic: Boolean(b.isPublic),
     }),
   },

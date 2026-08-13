@@ -10,9 +10,9 @@ export const metadata = { title: "Packages" };
 const FIELDS = [
   { key: "name", label: "Name", type: "text", placeholder: "Growth" },
   { key: "minEmployees", label: "Min employees", type: "number" },
-  { key: "maxEmployees", label: "Max employees", type: "number", hint: "0 means no upper limit." },
+  { key: "maxEmployees", label: "Max employees", type: "number", zeroLabel: "No limit", hint: "0 means no upper limit." },
   { key: "cost", label: "Cost", type: "number", prefix: "SAR " },
-  { key: "durationMonths", label: "Duration (months)", type: "number", suffix: " mo" },
+  { key: "durationMonths", label: "Duration (months)", type: "number", suffix: " mo", zeroLabel: "Endless", hint: "0 means endless — the package never expires." },
   { key: "isPublic", label: "Public", type: "switch" },
 ];
 
