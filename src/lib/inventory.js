@@ -38,6 +38,36 @@ const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 const qty = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : 0; };
 const money = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
+const weeks = (v) => (v === "" || v == null ? "" : Math.max(0, Math.round(Number(v)) || 0));
+
+// What a vendor supplies, and how long each kind takes to arrive. Picking a type
+// on an item is what fills in its delivery estimate, so the estimate is the
+// vendor's own promise rather than a number somebody retyped per item.
+function cleanItemTypes(list) {
+  const seen = new Set();
+  return (Array.isArray(list) ? list : []).slice(0, 60).map((t) => ({
+    type: str(t?.type, 80),
+    weeks: weeks(t?.weeks),
+  })).filter((t) => {
+    if (!t.type) return false;
+    const key = t.type.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// Serial numbers held for an item. De-duplicated and trimmed; the ORDER is kept
+// because it is the order they were entered in, which is usually the order they
+// arrived in.
+function cleanSerials(list) {
+  const seen = new Set();
+  return (Array.isArray(list) ? list : []).slice(0, 2000).map((s) => str(s, 80)).filter((s) => {
+    if (!s || seen.has(s)) return false;
+    seen.add(s);
+    return true;
+  });
+}
 
 // Resolve studio + membership + the inventory section. The PROJECTS section is
 // resolved too but is optional — inventory works without it; you just can't
@@ -72,6 +102,7 @@ export async function inventoryContext(user, slug) {
     canManageVendors: canManageSection(studio, collaborator, vendorsSection.id, grants),
     canManageItems: canManageSection(studio, collaborator, itemsSection.id, grants),
     canManageSheets: canManageSection(studio, collaborator, sheetsSection.id, grants),
+    canManageAwb: canManageSection(studio, collaborator, awbSection.id, grants),
     nav: sectionNav(studio, collaborator, sections, grants),
   };
 }
@@ -109,6 +140,7 @@ export async function createVendor(ctx, body) {
     email: str(body?.email, 160).toLowerCase(),
     phone: str(body?.phone, 40),
     notes: str(body?.notes, 1000),
+    itemTypes: cleanItemTypes(body?.itemTypes),
     createdAt: new Date().toISOString(),
   });
   return { vendor };
@@ -127,6 +159,7 @@ export async function editVendor(ctx, id, body) {
   for (const f of ["contactName", "phone"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 120);
   if (body?.email !== undefined) patch.email = str(body.email, 160).toLowerCase();
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
+  if (body?.itemTypes !== undefined) patch.itemTypes = cleanItemTypes(body.itemTypes);
 
   const vendor = await updateRow(studio.id, vendorsSection.id, VENDORS, id, patch);
   return vendor ? { vendor } : { error: "notfound" };
@@ -158,13 +191,23 @@ export async function listItems({ studio, itemsSection, vendorsSection, stockSec
 
   return [...items]
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-    .map((i) => ({
-      ...i,
-      vendorName: vendorName[i.vendorId] || "",
-      onHand: onHand[i.id] || 0,
-      // "Below reorder level" is derived, so it can never be a stale flag.
-      low: i.reorderLevel > 0 && (onHand[i.id] || 0) <= i.reorderLevel,
-    }));
+    .map((i) => {
+      const serials = Array.isArray(i.serials) ? i.serials : [];
+      const held = onHand[i.id] || 0;
+      return {
+        ...i,
+        serials,
+        vendorName: vendorName[i.vendorId] || "",
+        onHand: held,
+        // "Below reorder level" is derived, so it can never be a stale flag.
+        low: i.reorderLevel > 0 && held <= i.reorderLevel,
+        // On-hand is the LEDGER's answer; the serial list is a record of which
+        // units are held. When a serial-tracked item's two disagree, somebody
+        // has moved stock without noting the serial — worth saying so out loud
+        // rather than quietly trusting one of them.
+        serialMismatch: serials.length > 0 && serials.length !== held,
+      };
+    });
 }
 
 export async function createItem(ctx, body) {
@@ -184,9 +227,23 @@ export async function createItem(ctx, body) {
 
   const item = await addRow(studio.id, itemsSection.id, ITEMS, {
     sku, name,
+    // The vendor's own part number, which is what a purchase order quotes and
+    // what somebody searches for when the name is ambiguous.
+    modelNumber: str(body?.modelNumber, 80),
     unit: UNITS.includes(body?.unit) ? body.unit : UNITS[0],
     category: str(body?.category, 80),
     vendorId,
+    // Picked from the vendor's own list of what it supplies; the estimate comes
+    // with it rather than being typed again per item.
+    itemType: str(body?.itemType, 80),
+    deliveryWeeks: weeks(body?.deliveryWeeks),
+    // Scope: does this thing need fitting, or configuring, once it lands? The
+    // ticket's per-service "without installation/programming" opts out of it.
+    needsInstallation: !!body?.needsInstallation,
+    needsProgramming: !!body?.needsProgramming,
+    // Serials for a serial-tracked item. On-hand still comes from the LEDGER —
+    // this records WHICH units are held, not how many.
+    serials: cleanSerials(body?.serials),
     reorderLevel: qty(body?.reorderLevel) > 0 ? qty(body.reorderLevel) : 0,
     unitCost: money(body?.unitCost),
     notes: str(body?.notes, 1000),
@@ -216,6 +273,12 @@ export async function editItem(ctx, id, body) {
   }
   if (body?.unit !== undefined && UNITS.includes(body.unit)) patch.unit = body.unit;
   if (body?.category !== undefined) patch.category = str(body.category, 80);
+  if (body?.modelNumber !== undefined) patch.modelNumber = str(body.modelNumber, 80);
+  if (body?.itemType !== undefined) patch.itemType = str(body.itemType, 80);
+  if (body?.deliveryWeeks !== undefined) patch.deliveryWeeks = weeks(body.deliveryWeeks);
+  if (body?.needsInstallation !== undefined) patch.needsInstallation = !!body.needsInstallation;
+  if (body?.needsProgramming !== undefined) patch.needsProgramming = !!body.needsProgramming;
+  if (body?.serials !== undefined) patch.serials = cleanSerials(body.serials);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.reorderLevel !== undefined) patch.reorderLevel = qty(body.reorderLevel) > 0 ? qty(body.reorderLevel) : 0;
   if (body?.unitCost !== undefined) patch.unitCost = money(body.unitCost);

@@ -239,6 +239,9 @@ export const SECTION_COLLECTIONS = {
   "inventory-vendors": ["inventoryVendors"],
   "inventory-items": ["inventoryItems"],
   "inventory-sheets": ["projectSheets", "materialOrders"],
+  // AWB tracking owns the shipments it follows and the airline registry that
+  // resolves a waybill's 3-digit prefix to a carrier.
+  "inventory-awb": ["awbShipments", "awbAirlines"],
   // hr — the reference lists belong to the Employees screen; vacations are
   // studio-wide HR settings.
   hr: ["vacations"],
