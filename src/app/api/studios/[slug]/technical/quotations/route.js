@@ -44,7 +44,10 @@ export async function PUT(request, ctx) {
   if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
 
   const result = await updateQuotation(g, b.id, b);
-  if (result.error) return Response.json({ error: result.error }, { status: result.error === "notfound" ? 404 : 400 });
+  if (result.error) {
+    const status = result.error === "notfound" ? 404 : result.error === "locked" ? 409 : 400;
+    return Response.json({ error: result.error }, { status });
+  }
   return Response.json({ ok: true, quotation: result.quotation });
 }
 

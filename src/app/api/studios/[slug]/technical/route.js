@@ -3,6 +3,7 @@ import {
   technicalContext, listRfqs, listQuotations, openTickets, technicalPeople,
   RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_VAT_RATE, QUOTATION_LIVE_COLUMNS, saveTechnicalSettings,
 } from "@/lib/technical";
+import { TICKET_URGENCIES } from "@/lib/tickets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,9 @@ export async function GET(request, ctx) {
     nav: tech.nav,
     rfqs, quotations, openTickets: tickets, people,
     vocabulary: { rfqStatuses: RFQ_STATUSES, quotationStatuses: QUOTATION_STATUSES, defaultVatRate: DEFAULT_VAT_RATE,
+      // Urgency is Sales' field, carried here read-only — the Technical screens
+      // filter by it, so they need the same list Sales uses.
+      urgencies: TICKET_URGENCIES,
       liveColumnOptions: QUOTATION_LIVE_COLUMNS },
   });
 }

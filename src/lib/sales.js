@@ -319,7 +319,9 @@ function rfqSummary(ticket, rfqs, quotations) {
       id: latest.id,
       reference: latest.reference || "",
       status: latest.status || "",
-      handledByCollaboratorId: quote?.handledByCollaboratorId || latest.handledByCollaboratorId || "",
+      // A quotation names its handler in `handledBy`; before one exists, the
+      // RFQ's own assignee is who Sales should be chasing.
+      handledByCollaboratorId: quote?.handledBy || latest.handledByCollaboratorId || "",
       quotationId: quote?.id || "",
       quotationNumber: quote?.number || "",
       quotationStatus: quote?.status || "",

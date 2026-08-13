@@ -1,12 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
+import {
+  panel, h2, sub, input, microLabel, label, btn, btnGhost, btnAmber, th, stripeOn, stripeOff,
+  URGENCY_BADGE, URGENCY_TONE, URGENCY_DOT, money, fmtDate, prefKey, loadPref, savePref,
+  Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty, StatTile,
+  WidgetTitle, FunnelChart, BarBreakdown,
+} from "@/components/studio2/ui";
 import { linkToClient } from "@/lib/studioLinks";
 import { salesFunnel, probabilityBuckets, atRiskTickets, rfqInfo, isUnresolved } from "@/lib/salesAnalytics";
 import { daysUntil } from "@/lib/sla";
@@ -14,18 +19,8 @@ import { daysUntil } from "@/lib/sla";
 // Sales: clients and the tickets raised against them. Read access shows
 // everything; the Manage grant is what reveals the create/edit controls — and
 // the API enforces the same rule, so hiding a button is never the only defence.
-
-const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
-const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
-const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
-const input =
-  "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
-const microLabel = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
-const label = "mb-1.5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
-const btn = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
-const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
-const btnAmber = "rounded-full bg-amber-600 px-3 py-1.5 text-xs font-600 text-white transition-colors hover:bg-amber-700 disabled:opacity-60";
-const th = "pb-3 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
+// The chrome — dialogs, toolbars, charts — comes from studio2/ui so this screen
+// and Technical's are the same product rather than two lookalikes.
 
 const STATUS_TONE = {
   "Lead": "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
@@ -37,26 +32,6 @@ const STATUS_TONE = {
   "On-Hold": "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
   "Dropped": "bg-rose-500/15 text-rose-700 dark:text-rose-300",
 };
-const URGENCY_TONE = {
-  Critical: "text-rose-600 dark:text-rose-400",
-  High: "text-amber-600 dark:text-amber-400",
-};
-const URGENCY_BADGE = {
-  Low: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  Normal: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  High: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  Critical: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-};
-const URGENCY_DOT = {
-  Critical: "bg-rose-500",
-  High: "bg-amber-500",
-  Normal: "bg-brand-500",
-  Low: "bg-slate-400",
-};
-
-const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
-const fmtDate = (v) => (v ? String(v).slice(0, 10) : "—");
-
 // Columns the tickets table can show. Every one is toggleable; the Actions
 // column is not on the list because it is always drawn.
 const TICKET_COLUMNS = [
@@ -82,21 +57,6 @@ const EMPTY_FILTERS = {
   deadlineFrom: "", deadlineTo: "",
   updatedFrom: "", updatedTo: "",
 };
-
-// Column and filter choices are a PERSONAL working preference, not studio data:
-// they say how one person likes to read the list, so they live in that browser
-// keyed by studio rather than costing a row and a write on the server.
-const prefKey = (slug, name) => `nompany-sales-${name}:${slug}`;
-function loadPref(slug, name, fallback) {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = window.localStorage.getItem(prefKey(slug, name));
-    return raw ? (JSON.parse(raw) ?? fallback) : fallback;
-  } catch { return fallback; }
-}
-function savePref(slug, name, value) {
-  try { window.localStorage.setItem(prefKey(slug, name), JSON.stringify(value)); } catch { /* private mode, full disk — a preference is not worth an error */ }
-}
 
 // `view` is the ACTIVE SUB-SECTION key, so each sub-section is its own screen:
 //   sales           -> the dashboard: pipeline aggregates and analytics
@@ -243,73 +203,6 @@ export default function StudioSales({ slug, view = "sales" }) {
   );
 }
 
-// Modal shell for the Sales forms — backdrop, Escape, a locked page scroll and
-// a titled header, matching the dialogs on the account pages so they open and
-// dismiss the same way. The ticket form is taller than most viewports, so the
-// BODY scrolls inside a dialog capped below the viewport height; the page
-// behind it stays put rather than scrolling two things at once.
-function Dialog({ title, description, onClose, children, width = "max-w-[720px]" }) {
-  // RENDERED INTO document.body, not where it is written. `position: fixed` is
-  // only viewport-relative while no ancestor establishes a containing block —
-  // any transform, filter, backdrop-filter, perspective, contain or
-  // will-change on something above it silently re-anchors `inset-0` to THAT
-  // element's box instead. In the studio the dialog is written deep inside the
-  // shell (page → ps-72 column → sticky header sibling → main), so one such
-  // property anywhere up that chain crops the backdrop to the content column
-  // and pushes it below the header. Portalling to the body puts the dialog
-  // outside the whole chain, so it cannot be caught by a style added later
-  // somewhere else.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
-
-  if (!mounted) return null; // no document to portal into until the client runs
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
-      {/* Light touch on purpose: a heavy tint flattened the whole studio —
-          sidebar, header and the ticket list — into grey while the form was
-          open. The blur separates the dialog from what is behind it, so the
-          studio stays legible instead of being blanked out. */}
-      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm dark:bg-slate-950/30" onClick={onClose} />
-      <div className={`relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c] ${width}`}>
-        <div className="flex items-start gap-3 border-b border-slate-200/70 px-6 py-4 dark:border-white/10">
-          <div className="min-w-0">
-            <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
-            {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close"
-            className="ms-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5">
-            <Icon name="close" className="h-[18px] w-[18px]" />
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-5">{children}</div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
-function Toolbar({ canManage, label: addLabel, onAdd, children }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {children}
-      <span className="ms-auto">
-        {canManage
-          ? <button type="button" className={btn} onClick={onAdd}>{addLabel}</button>
-          : <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
-      </span>
-    </div>
-  );
-}
-
 // ---- dashboard -------------------------------------------------------------
 // Opportunities, leads and tickets across the sales team: the aggregates first,
 // then the whole list, then the pipeline analytics underneath.
@@ -344,11 +237,7 @@ function SalesDashboard({ slug, tickets, clients, people, nav }) {
         <p className={sub}>Opportunities, leads and tickets across the sales team. {clients.length} client{clients.length === 1 ? "" : "s"} on file.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {tiles.map((t) => (
-            <a key={t.label} href={`/${slug}/${t.key}`}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
-              <p className={microLabel}>{t.label}</p>
-              <p className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.value}</p>
-            </a>
+            <StatTile key={t.label} label={t.label} value={t.value} href={nav?.[t.key] ? `/${slug}/${t.key}` : ""} />
           ))}
         </div>
       </section>
@@ -484,54 +373,6 @@ function SalesAnalytics({ slug, tickets, nav }) {
   );
 }
 
-function WidgetTitle({ children, hint }) {
-  return (
-    <div className="mb-3">
-      <p className={microLabel}>{children}</p>
-      {hint && <p className="text-xs text-slate-400 dark:text-slate-500">{hint}</p>}
-    </div>
-  );
-}
-
-// Horizontal funnel: bars scaled to the largest value, drawn top → bottom.
-function FunnelChart({ data }) {
-  const max = Math.max(1, ...data.map((d) => d.value));
-  if (data.every((d) => d.value === 0)) return <p className="py-6 text-center text-sm text-slate-400">No data yet.</p>;
-  return (
-    <div className="space-y-2">
-      {data.map((d, i) => (
-        <div key={d.label} className="flex items-center gap-3">
-          <span className="w-24 shrink-0 text-xs font-600 text-slate-500 dark:text-slate-400">{d.label}</span>
-          <div className="relative h-7 flex-1 overflow-hidden rounded-lg bg-slate-100 dark:bg-white/5">
-            <div className="h-full rounded-lg bg-brand-500/80 dark:bg-brand-500/60"
-              style={{ width: `${Math.max(Math.round((d.value / max) * 100), d.value > 0 ? 6 : 0)}%`, opacity: 1 - i * 0.13 }} />
-            <span className="absolute inset-y-0 end-2 flex items-center text-xs font-700 text-slate-700 dark:text-white">{d.value}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Labelled horizontal bars for a categorical breakdown.
-function BarBreakdown({ data }) {
-  const max = Math.max(1, ...data.map((d) => d.value));
-  if (data.every((d) => d.value === 0)) return <p className="py-6 text-center text-sm text-slate-400">No data yet.</p>;
-  return (
-    <div className="space-y-2.5">
-      {data.map((d) => (
-        <div key={d.label} className="flex items-center gap-3">
-          <span className="w-20 shrink-0 text-xs font-600 text-slate-500 dark:text-slate-400">{d.label}</span>
-          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
-            <div className="h-full rounded-full bg-brand-500" style={{ width: `${(d.value / max) * 100}%` }} />
-          </div>
-          <span className="w-8 shrink-0 text-end text-xs font-700 text-slate-700 dark:text-slate-200">{d.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ---- tickets ---------------------------------------------------------------
 function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, statuses, urgencies, onAdd, onEdit, onDelete, onRequestRfq }) {
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
@@ -545,21 +386,23 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
   // Read the saved preferences AFTER mount: localStorage does not exist on the
   // server, so reading it during render would make the first paint disagree
   // with the markup React sent.
+  const colsKey = prefKey("sales", slug, "cols");
+  const filtersKey = prefKey("sales", slug, "filters");
   useEffect(() => {
-    const saved = loadPref(slug, "cols", null);
+    const saved = loadPref(colsKey, null);
     setColumns(Array.isArray(saved) && saved.length ? saved.filter((k) => TICKET_COLUMNS.some((c) => c.key === k)) : DEFAULT_TICKET_COLUMNS);
-    setFilters({ ...EMPTY_FILTERS, ...(loadPref(slug, "filters", null) || {}) });
-  }, [slug]);
+    setFilters({ ...EMPTY_FILTERS, ...(loadPref(filtersKey, null) || {}) });
+  }, [colsKey, filtersKey]);
 
   const col = (key) => columns.includes(key) && (key !== "rfq" || hasTechnical);
   const toggleCol = (key) => setColumns((prev) => {
     const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
-    savePref(slug, "cols", next);
+    savePref(colsKey, next);
     return next;
   });
-  const resetCols = () => { setColumns(DEFAULT_TICKET_COLUMNS); savePref(slug, "cols", DEFAULT_TICKET_COLUMNS); };
-  const setFilter = (patch) => setFilters((prev) => { const next = { ...prev, ...patch }; savePref(slug, "filters", next); return next; });
-  const clearFilters = () => { setFilters(EMPTY_FILTERS); savePref(slug, "filters", EMPTY_FILTERS); };
+  const resetCols = () => { setColumns(DEFAULT_TICKET_COLUMNS); savePref(colsKey, DEFAULT_TICKET_COLUMNS); };
+  const setFilter = (patch) => setFilters((prev) => { const next = { ...prev, ...patch }; savePref(filtersKey, next); return next; });
+  const clearFilters = () => { setFilters(EMPTY_FILTERS); savePref(filtersKey, EMPTY_FILTERS); };
   const activeFilters = Object.values(filters).filter((v) => v !== "").length;
 
   const filtered = useMemo(() => {
@@ -614,18 +457,12 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
       <Toolbar canManage={canManage} label="New ticket" onAdd={onAdd}>
         <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search title, client, ref or description…"
           value={query} onChange={(e) => setQuery(e.target.value)} />
-        <button type="button" onClick={() => setShowFilters((v) => !v)}
-          className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-600 transition-colors ${activeFilters
-            ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:border-brand-400 dark:text-brand-300"
-            : "border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"}`}>
-          Filters{activeFilters ? ` (${activeFilters})` : ""}
-          <Icon name={showFilters ? "chevronUp" : "chevronDown"} className="h-3.5 w-3.5" />
-        </button>
+        <FilterButton active={activeFilters} open={showFilters} onClick={() => setShowFilters((v) => !v)} />
         <button type="button" className={btnGhost} onClick={() => setShowColumns(true)}>Columns</button>
       </Toolbar>
 
       {showFilters && (
-        <div className="grid gap-3 rounded-geex border border-slate-200/70 bg-slate-50 p-4 dark:border-white/10 dark:bg-[#191921] sm:grid-cols-2 lg:grid-cols-3">
+        <FilterPanel onClear={clearFilters}>
           <div>
             <label className={microLabel}>Client</label>
             <input className={input} placeholder="Client contains…" value={filters.client} onChange={(e) => setFilter({ client: e.target.value })} />
@@ -684,32 +521,16 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
               <input type="date" className={input} value={filters.updatedTo} onChange={(e) => setFilter({ updatedTo: e.target.value })} />
             </div>
           </div>
-          <div className="flex items-end justify-end sm:col-span-2 lg:col-span-3">
-            <button type="button" onClick={clearFilters} className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">Clear all filters</button>
-          </div>
-        </div>
+        </FilterPanel>
       )}
 
       {showColumns && (
-        <Dialog title="Ticket columns" description="The Actions column is always shown. Your choice is kept in this browser." onClose={() => setShowColumns(false)} width="max-w-[520px]">
-          <div className="grid grid-cols-2 gap-2">
-            {TICKET_COLUMNS.filter((c) => c.key !== "rfq" || hasTechnical).map((c) => {
-              const on = columns.includes(c.key);
-              return (
-                <label key={c.key} className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm transition-colors ${on
-                  ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:border-brand-400 dark:bg-brand-500/15 dark:text-brand-300"
-                  : "border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"}`}>
-                  <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={on} onChange={() => toggleCol(c.key)} />
-                  {c.label}
-                </label>
-              );
-            })}
-          </div>
-          <div className="mt-5 flex items-center justify-between">
-            <button type="button" onClick={resetCols} className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">Reset to default</button>
-            <button type="button" className={btn} onClick={() => setShowColumns(false)}>Done</button>
-          </div>
-        </Dialog>
+        <ColumnPicker
+          title="Ticket columns"
+          columns={TICKET_COLUMNS.filter((c) => c.key !== "rfq" || hasTechnical)}
+          selected={columns} onToggle={toggleCol} onReset={resetCols}
+          onClose={() => setShowColumns(false)}
+        />
       )}
 
       <p className="text-sm text-slate-500 dark:text-slate-400">{filtered.length} of {tickets.length} ticket{tickets.length === 1 ? "" : "s"}.</p>
@@ -740,7 +561,7 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
                   return (
                     <tr key={t.id} {...focus.focusProps(t.id)}
                       className={`border-s-4 border-b border-slate-100 last:border-b-0 dark:border-white/5 ${
-                        unresolved ? "border-s-amber-400 bg-amber-50/40 dark:border-s-amber-500/70 dark:bg-amber-500/[0.06]" : "border-s-transparent"
+                        unresolved ? stripeOn : stripeOff
                       } ${focus.focusProps(t.id).className || ""}`}>
                       {col("createdAt") && <td className="py-3 pe-3 ps-2 text-slate-500 dark:text-slate-400">{fmtDate(t.createdAt)}</td>}
                       {col("ref") && <td className="py-3 pe-3 ps-2 font-mono text-xs text-slate-500 dark:text-slate-400">{t.ref}</td>}
@@ -924,15 +745,6 @@ function Clients({ clients, tickets, people, canManage, focus, onAdd, onEdit, on
         )}
       </section>
     </>
-  );
-}
-
-function Empty({ title, body }) {
-  return (
-    <div className="rounded-geex border border-dashed border-slate-200 p-10 text-center dark:border-white/10">
-      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{title}</h3>
-      <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">{body}</p>
-    </div>
   );
 }
 

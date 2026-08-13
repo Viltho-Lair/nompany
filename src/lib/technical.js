@@ -16,11 +16,13 @@ import { studioContext, canViewSection, canManageSection, sectionNav } from "@/l
 import { listCollaborators } from "@/lib/data/collaborators";
 import { RFQ_STATUSES } from "@/lib/rfqs";
 import { DEFAULT_STATUS } from "@/lib/tickets";
+import {
+  QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
+  QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
+} from "@/lib/quotations";
 
-export const QUOTATION_STATUSES = ["Draft", "Sent", "Approved", "Rejected"];
-export const DEFAULT_QUOTATION_STATUS = "Draft";
-export const DEFAULT_VAT_RATE = 15; // KSA standard rate; per-quotation override
-export { RFQ_STATUSES };
+export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
+  QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns };
 
 const RFQS = "rfqs";
 const QUOTATIONS = "quotations";
@@ -68,25 +70,6 @@ export async function technicalContext(user, slug) {
 // ---- technical settings -----------------------------------------------------
 // Live-view columns and the quotation cover copy, both on the
 // technical-settings sub-section's own `settings` object — no key of their own.
-export const QUOTATION_LIVE_COLUMNS = [
-  { key: "number", label: "Number" },
-  { key: "revision", label: "Rev" },
-  { key: "title", label: "Title" },
-  { key: "clientName", label: "Client" },
-  { key: "status", label: "Status" },
-  { key: "handledBy", label: "Handled by" },
-  { key: "leadLabel", label: "Lead" },
-  { key: "total", label: "Total" },
-  { key: "createdAt", label: "Created" },
-];
-const QUOTATION_LIVE_KEYS = QUOTATION_LIVE_COLUMNS.map((c) => c.key);
-export const DEFAULT_QUOTATION_LIVE_COLUMNS = ["number", "title", "clientName", "status", "total"];
-
-export function cleanQuotationLiveColumns(value) {
-  const picked = Array.isArray(value) ? value.filter((k) => QUOTATION_LIVE_KEYS.includes(k)) : [];
-  return picked.length ? [...new Set(picked)] : [...DEFAULT_QUOTATION_LIVE_COLUMNS];
-}
-
 export function readTechnicalSettings(settingsSection) {
   const s = settingsSection?.settings || {};
   return {
@@ -162,6 +145,10 @@ export async function requestRfq(ctx, body) {
     clientName: client?.name || "",
     urgency: ticket.urgency || "Normal",
     industry: ticket.industry || "",
+    // Carried so the quotation can show what Sales asked for without Technical
+    // reading the Sales section — the same reason the ref and client are here.
+    serviceIds: Array.isArray(ticket.serviceIds) ? ticket.serviceIds : [],
+    deadline: ticket.deadline || "",
     description: str(body?.description, 4000) || ticket.description || "",
     status: RFQ_STATUSES[0], // "New"
     handledByCollaboratorId: "",
@@ -202,16 +189,12 @@ export async function listQuotations({ studio, quotationsSection }) {
   return [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
-// Turning an RFQ into a quotation is the hand-back to Sales. The RFQ is marked
-// Converted so it can't be converted twice.
 // Created straight from the Quotations screen, with no RFQ behind it.
 //
 // MANDATORY, per the Old System: number, description, handledBy. The number is
 // UNIQUE case-insensitively so search stays predictable, and such a quotation
 // is marked Internal — `lead` is what an RFQ conversion overwrites with the
 // source ticket.
-export const LEAD_INTERNAL = "Internal";
-
 export async function createQuotation(ctx, body) {
   const { studio, quotationsSection, collaborator } = ctx;
   const number = str(body?.number, 60);
@@ -239,6 +222,7 @@ export async function createQuotation(ctx, body) {
     vatRate,
     ...computeTotals(items, vatRate),
     comments: [],
+    locked: false,
     lead: LEAD_INTERNAL,
     leadLabel: LEAD_INTERNAL,
     completedAt: null,
@@ -269,13 +253,20 @@ export async function convertRfq(ctx, body) {
     title: rfq.title,
     clientId: rfq.clientId,
     clientName: rfq.clientName,
+    // Read-only on this side: urgency belongs to Sales (a Leader sets it on the
+    // ticket) and industry/services are what Sales sold. Technical sees them so
+    // it can price the right thing, and cannot edit them.
+    urgency: rfq.urgency || "Normal",
+    industry: rfq.industry || "",
+    serviceIds: Array.isArray(rfq.serviceIds) ? rfq.serviceIds : [],
     status: DEFAULT_QUOTATION_STATUS,
     items,
     vatRate,
     ...computeTotals(items, vatRate),
-    description: str(rfq.title, 2000),
+    description: str(body?.description, 2000) || str(rfq.description, 2000) || str(rfq.title, 2000),
     handledBy: str(body?.handledBy, 120),
     comments: [],
+    locked: false,
     // Converted from an RFQ, so the lead is the source ticket rather than
     // Internal — this is the one field that distinguishes the two paths.
     lead: rfq.ticketId || LEAD_INTERNAL,
@@ -289,23 +280,50 @@ export async function convertRfq(ctx, body) {
 }
 
 export async function updateQuotation(ctx, id, body) {
-  const { studio, quotationsSection } = ctx;
+  const { studio, quotationsSection, collaborator } = ctx;
   const rows = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
   const current = rows.find((q) => q.id === id);
   if (!current) return { error: "notfound" };
+  // A LOCKED quotation is finished business — the priced document a client was
+  // given. Nothing about it may change again, including the lock itself, so the
+  // refusal comes before any field is read.
+  if (current.locked) return { error: "locked" };
 
   const patch = {};
   if (body?.title !== undefined) patch.title = str(body.title, 200);
   if (body?.status !== undefined) {
     if (!QUOTATION_STATUSES.includes(body.status)) return { error: "status" };
     patch.status = body.status;
+    // When it lands on Approved, stamp WHEN — that date is what the dashboard
+    // measures turnaround from, and it must not move if it is approved twice.
+    if (body.status === "Approved" && !current.completedAt) patch.completedAt = new Date().toISOString();
   }
+  // The NUMBER is deliberately absent: it is locked to the quotation once
+  // assigned, because it is the reference a client already holds.
+  if (body?.description !== undefined) patch.description = str(body.description, 2000);
+  if (body?.handledBy !== undefined) patch.handledBy = str(body.handledBy, 120);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 4000);
   // Any change to pricing recomputes the totals server-side.
   if (body?.items !== undefined || body?.vatRate !== undefined) {
     const items = body?.items !== undefined ? cleanItems(body.items) : current.items;
     const vatRate = body?.vatRate !== undefined ? num(body.vatRate) : current.vatRate;
     Object.assign(patch, { items, vatRate }, computeTotals(items, vatRate));
+  }
+  // Comments are APPENDED, never replaced: the client sends the one line it
+  // wants added, so two people commenting at once cannot overwrite each other,
+  // and the author and time are taken from the session rather than the payload.
+  const comment = str(body?.newComment, 4000);
+  if (comment) {
+    patch.comments = [
+      ...(Array.isArray(current.comments) ? current.comments : []),
+      { id: `c${Date.now().toString(36)}`, text: comment, byCollaboratorId: collaborator.id, createdAt: new Date().toISOString() },
+    ];
+  }
+  // Locking is ONE-WAY and only from Approved — there is no unlock, which is
+  // the point of it.
+  if (body?.locked === true) {
+    if ((patch.status || current.status) !== "Approved") return { error: "not-approved" };
+    patch.locked = true;
   }
 
   const quotation = await updateRow(studio.id, quotationsSection.id, QUOTATIONS, id, patch);
