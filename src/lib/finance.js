@@ -350,7 +350,8 @@ export async function removeExpense(ctx, id) {
 // what it has cost. Recomputed on every read from the sections that own each
 // number, so Finance never holds a stale copy of anyone else's data.
 export async function profitability(ctx, { invoices, expenses }) {
-  const [projects, orders] = await Promise.all([projectRows(ctx), orderRows(ctx)]);
+  const [projects, orders, people] = await Promise.all([projectRows(ctx), orderRows(ctx), listCollaborators(ctx.studio.id)]);
+  const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
 
   return projects.map((p) => {
     const mine = invoices.filter((i) => i.projectId === p.id && i.status !== "Cancelled");
@@ -366,6 +367,15 @@ export async function profitability(ctx, { invoices, expenses }) {
 
     return {
       id: p.id, number: p.number, title: p.title || "", clientName: p.clientName || "", stage: p.stage,
+      // The commercial identifiers Finance works by. `quotationNumber` comes
+      // from the quotation the project opened from; the other two are Finance's
+      // own and are entered here — see setCommercials.
+      quotationNumber: p.quotationNumber || "",
+      poNumber: p.poNumber || "",
+      projectNumber: p.projectNumber || "",
+      managerAlias: alias[p.managerCollaboratorId] || "",
+      location: p.location || "",
+      endDate: p.endDate || "",
       value, invoiced, collected, materials, expenses: booked, cost,
       margin: round(value - cost),
       marginPct: value > 0 ? Math.round(((value - cost) / value) * 100) : 0,
@@ -410,6 +420,29 @@ async function orderRows({ studio }) {
 export async function billableProjects(ctx) {
   const rows = await projectRows(ctx);
   return rows.map((p) => ({ id: p.id, number: p.number, title: p.title || "", clientName: p.clientName || "" }));
+}
+
+// The PO number and the project number are FINANCE'S OWN FIELDS, even though
+// they are stored on the project — in the Old System, Management issues the PO
+// number and Finance enters the project number, and neither is Delivery's to
+// set. So they are written here, behind Finance's Manage grant, and the Projects
+// screen never offers them. Nothing else on the project can be touched from
+// this route: a Finance grant is not a licence to rename somebody's project.
+export async function setCommercials(ctx, id, body) {
+  const { studio } = ctx;
+  const owner = await ownerOf(studio.id, "projects-list", "projects");
+  if (!owner) return { error: "no-projects" };
+
+  const rows = await readCol(studio.id, owner.id, PROJECTS);
+  if (!rows.some((p) => p.id === id)) return { error: "notfound" };
+
+  const patch = {};
+  if (body?.poNumber !== undefined) patch.poNumber = str(body.poNumber, 60);
+  if (body?.projectNumber !== undefined) patch.projectNumber = str(body.projectNumber, 60);
+  if (Object.keys(patch).length === 0) return { error: "nothing" };
+
+  const project = await updateRow(studio.id, owner.id, PROJECTS, id, patch);
+  return project ? { project } : { error: "notfound" };
 }
 
 // Headline numbers for the whole studio.

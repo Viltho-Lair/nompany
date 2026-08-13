@@ -22,6 +22,7 @@ import StudioInventory from "@/components/studio2/StudioInventory";
 import StudioFinance from "@/components/studio2/StudioFinance";
 import StudioTasks from "@/components/studio2/StudioTasks";
 import StudioOperations from "@/components/studio2/StudioOperations";
+import StudioMain from "@/components/studio2/StudioMain";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Studio", robots: { index: false, follow: false } };
@@ -144,6 +145,7 @@ export default async function StudioPage({ params }) {
         : screenKey === "finance" ? <StudioFinance slug={studio.slug} view={active?.key} />
         : screenKey === "tasks" ? <StudioTasks slug={studio.slug} view={active?.key} />
         : screenKey === "operations" ? <StudioOperations slug={studio.slug} view={active?.key} />
+        : screenKey === "main" ? <StudioMain slug={studio.slug} />
         : active ? <SectionDashboard section={active} studio={studio}
             subsections={sections.filter((s) => s.parentId === active.id)}
             canManage={canManageSection(studio, collaborator, active.id, grants)} />
