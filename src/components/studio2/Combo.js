@@ -25,7 +25,7 @@ import Autocomplete from "@mui/material/Autocomplete";
 const INPUT =
   "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pe-9 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 
-export default function Combo({ value, onChange, options = [], placeholder = "", disabled = false, id }) {
+export default function Combo({ value, onChange, options = [], placeholder = "", disabled = false, id, inputClassName = INPUT, paperClassName = "" }) {
   return (
     <Autocomplete
       freeSolo
@@ -58,7 +58,7 @@ export default function Combo({ value, onChange, options = [], placeholder = "",
       }}
       slotProps={{
         paper: {
-          className: "mt-1 rounded-xl border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]",
+          className: paperClassName || "mt-1 rounded-xl border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]",
         },
         listbox: { className: "max-h-[240px] py-1 text-sm" },
       }}
@@ -82,7 +82,7 @@ export default function Combo({ value, onChange, options = [], placeholder = "",
         const { className: _muiClass, ...htmlInput } = params.slotProps?.htmlInput || {};
         return (
           <div ref={ref} onMouseDown={onMouseDown} className="relative">
-            <input {...htmlInput} id={id} disabled={disabled} placeholder={placeholder} className={INPUT} />
+            <input {...htmlInput} id={id} disabled={disabled} placeholder={placeholder} className={inputClassName} />
             {/* The affordance the datalist never had: something that says this
                 opens. Not focusable — the input already owns the interaction. */}
             <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 end-0 flex w-9 items-center justify-center text-slate-400">

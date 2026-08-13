@@ -61,3 +61,74 @@ export const ERP_SYSTEMS = [
   "Local Application",
   ERP_OTHER,
 ];
+
+// ---- the questionnaire itself ----------------------------------------------
+// PAGES of questions, not steps: a page carries one question or several, and the
+// flow renders whatever is here. This is the shape /super will eventually feed,
+// so adding a question later means adding a row here (or serving the same shape
+// from the database) rather than writing another screen.
+//
+// Every `id` is a field the stored answer already has — intent, field, country,
+// city, erps — so this describes the EXISTING questionnaire rather than asking
+// for anything new. Nothing about what is saved changes.
+//
+// Types the renderer understands:
+//   choice — one of a few options, shown as cards
+//   combo  — a searchable list you may also type a value not on it
+//   multi  — a searchable list you may pick several from
+export const AVERAGE_MINUTES = 2;
+
+export const QUESTION_PAGES = [
+  {
+    id: "goal",
+    title: "What brings you to nompany?",
+    lead: "This just shapes what we show you next — you can do both later.",
+    // What Nova says while this page is open.
+    hint: "No wrong answer here — you can create a studio and join others later.",
+    questions: [
+      {
+        id: "intent",
+        type: "choice",
+        label: "",
+        required: true,
+        options: [
+          { value: "create", title: "Create a studio", body: "Set up your company's workspace and invite your team into it." },
+          { value: "join", title: "Join a studio", body: "Someone shared a company code with you and you're joining their workspace." },
+        ],
+      },
+    ],
+  },
+  {
+    id: "company",
+    title: "Tell us about your company",
+    lead: "It helps us tune your defaults. Nothing here is published anywhere.",
+    hint: "Can't find your industry or city? Type it in — the list is only a shortcut.",
+    questions: [
+      { id: "field", type: "combo", label: "What field does your company work in?", source: "industries", required: true, placeholder: "Construction" },
+      { id: "country", type: "combo", label: "Country", source: "countries", required: true, resets: ["city"] },
+      { id: "city", type: "combo", label: "City", source: "cities", dependsOn: "country" },
+    ],
+  },
+  {
+    id: "systems",
+    title: "Which systems are you running today?",
+    lead: "Knowing what you already have tells us what nompany needs to sit alongside.",
+    hint: "Pick as many as apply. If you run none, say so — that is a real answer.",
+    questions: [
+      { id: "erps", type: "multi", label: "ERPs your company already has", source: "erps" },
+    ],
+  },
+];
+
+// A question counts as answered when it has a value; only required ones gate.
+export function isAnswered(question, answers) {
+  const v = answers?.[question.id];
+  return Array.isArray(v) ? v.length > 0 : Boolean(String(v ?? "").trim());
+}
+export function isPageComplete(page, answers) {
+  return (page?.questions || []).every((q) => !q.required || isAnswered(q, answers));
+}
+// The submit button only exists once every page would pass on its own.
+export function isAllComplete(answers) {
+  return QUESTION_PAGES.every((p) => isPageComplete(p, answers));
+}

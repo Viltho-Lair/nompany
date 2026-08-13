@@ -13,7 +13,7 @@ import { CONTACT } from "@/lib/site";
 
 // Locale-relative routes that render their own full-screen chrome. Shared with
 // Footer.js — keep the two in step.
-export const BARE_ROUTES = ["", "/login", "/signup", "/forgot", "/account"];
+export const BARE_ROUTES = ["", "/login", "/signup", "/forgot", "/account", "/questionnaire"];
 
 // Minimal editorial header (inspired by the reference site): a slim bar with the
 // wordmark, theme + language controls and a Menu button that opens a full-screen

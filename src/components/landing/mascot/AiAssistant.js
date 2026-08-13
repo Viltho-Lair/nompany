@@ -48,8 +48,12 @@ export function AiAssistant({ size = 280 }) {
         <motion.svg viewBox="0 0 240 240" className="h-full w-full overflow-visible" fill="none" role="img" aria-label="Nova, the Nompany AI assistant">
           <defs>
             <linearGradient id="nova-body" x1="60" y1="40" x2="190" y2="220">
-              <stop offset="0%" stopColor="#1a2340"/>
-              <stop offset="100%" stopColor="#0b1020"/>
+              {/* Theme-aware: her shell was a hardcoded navy, which read as a
+                  dark blob once the page could be light. These two tokens flip
+                  with the theme, so she is a pale robot on a light page and the
+                  same navy one she always was on a dark page. */}
+              <stop offset="0%" stopColor="var(--color-ink-card)"/>
+              <stop offset="100%" stopColor="var(--color-ink-soft)"/>
             </linearGradient>
             <linearGradient id="nova-visor" x1="70" y1="80" x2="170" y2="140">
               <stop offset="0%" stopColor="var(--color-iris)"/>

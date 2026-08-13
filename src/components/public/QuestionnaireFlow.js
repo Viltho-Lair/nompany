@@ -1,245 +1,342 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Combo from "@/components/studio2/Combo";
+import { AiAssistant } from "@/components/landing/mascot/AiAssistant";
+import { PointerProvider } from "@/components/landing/providers/PointerProvider";
+import { LogoMark, Wordmark } from "@/components/landing/Logo";
 import { INDUSTRIES } from "@/lib/industries";
-import { COUNTRIES, flagEmoji, DEFAULT_COUNTRY } from "@/lib/countries";
+import { COUNTRIES } from "@/lib/countries";
 import { citiesFor } from "@/lib/cities";
-import { ERP_SYSTEMS, ERP_NONE, ERP_OTHER } from "@/lib/questionnaire";
+import {
+  AVERAGE_MINUTES, ERP_NONE, ERP_OTHER, ERP_SYSTEMS, QUESTION_PAGES,
+  isAllComplete, isPageComplete, packageLabel,
+} from "@/lib/questionnaire";
 
-// Full-screen onboarding survey, shown once between finishing registration and
-// reaching the account. Three steps, one question-set each, so nothing feels
-// like a form dump. Answers land on the user's own questionnaire document.
+// The one-time survey between finishing registration and reaching the account.
+//
+// A FIXED, NON-SCROLLING SCREEN. The whole thing is one viewport tall and the
+// page itself never scrolls: header, question area and footer are the three
+// rows of a flex column, and only the question area may scroll INSIDE itself
+// when a list is long. A survey that scrolls hides how much is left, which is
+// the one thing the progress bar exists to tell you.
+//
+// The layout follows the wireframe exactly: logo top-left, title and lead top-
+// centre, who you signed up as top-right, questions dead centre, Nova bottom-
+// right with a speech bubble above her, and the timing + progress row along the
+// bottom with its two arrows.
+//
+// It wears the LANDING design, not the studio's, because this is still the
+// public side of the product — and it uses the landing's own themed component
+// classes (.card, .field-input, .btn-primary), so light, dark and system all
+// follow the visitor's saved choice with no work here.
 
-const STEPS = ["Your goal", "Your company", "Your systems"];
+const FIELD = "field-input w-full pe-9 text-sm";
 
-const field =
-  "w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40 transition-colors focus:border-brand-400 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-brand-400/30";
-const labelCls = "mb-2 block text-xs font-600 uppercase tracking-[0.14em] text-white/50";
+// The option lists a question's `source` names. /super will eventually serve
+// these alongside the questions; until then they come from the same modules the
+// rest of the app uses.
+function optionsFor(question, answers) {
+  switch (question.source) {
+    case "industries": return INDUSTRIES;
+    case "countries": return COUNTRIES.map((c) => c.name);
+    case "cities": return citiesFor(nameToCode(answers.country));
+    case "erps": return ERP_SYSTEMS;
+    default: return question.options || [];
+  }
+}
+// citiesFor() keys on the ISO code, while the visible answer is a country NAME.
+const nameToCode = (name) =>
+  COUNTRIES.find((c) => c.name === name)?.code || "";
 
-export default function QuestionnaireFlow({ locale, initialPackage = "" }) {
-  const [step, setStep] = useState(0);
+export default function QuestionnaireFlow({ locale, initialPackage = "", email = "" }) {
+  const [page, setPage] = useState(0);
+  const [answers, setAnswers] = useState({ intent: "", field: "", country: "", city: "", erps: [], otherErp: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [a, setA] = useState({
-    intent: "", field: "", country: DEFAULT_COUNTRY, city: "",
-    erps: [], erpOther: "", packageKey: initialPackage,
-  });
-  const set = (patch) => setA((prev) => ({ ...prev, ...patch }));
 
-  const canNext = step === 0 ? !!a.intent : step === 1 ? !!a.field && !!a.country : true;
+  const current = QUESTION_PAGES[page];
+  const total = QUESTION_PAGES.length;
+  const first = page === 0;
+  const last = page === total - 1;
+  const complete = isAllComplete(answers);
+  const canAdvance = isPageComplete(current, answers);
 
-  async function finish() {
+  const set = (patch) => setAnswers((a) => ({ ...a, ...patch }));
+
+  async function submit() {
     setSaving(true); setError("");
-    const erps = a.erps.includes(ERP_OTHER) && a.erpOther.trim()
-      ? [...a.erps.filter((e) => e !== ERP_OTHER), `${ERP_OTHER}: ${a.erpOther.trim()}`]
-      : a.erps;
+    // The stored questionnaire has no field for the "Not Listed" free text, so
+    // it is folded into the ERP list as "Not Listed: <what they typed>" — the
+    // same way it has always been saved. Sending it as its own key would look
+    // like it worked and be dropped by the API's whitelist.
+    const erps = answers.erps.includes(ERP_OTHER) && answers.otherErp.trim()
+      ? [...answers.erps.filter((e) => e !== ERP_OTHER), `${ERP_OTHER}: ${answers.otherErp.trim()}`]
+      : answers.erps;
     try {
       const res = await fetch("/api/identity/questionnaire", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...a, erps }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...answers, erps, packageKey: initialPackage }),
       });
-      if (!res.ok) { setError("We couldn't save your answers. Try again."); setSaving(false); return; }
-      window.location.assign(`/${locale}/account`);
+      if (res.ok) { window.location.assign(`/${locale}/account`); return; }
+      setError("We couldn't save your answers. Try again.");
     } catch {
       setError("Something went wrong. Try again.");
-      setSaving(false);
     }
+    setSaving(false);
   }
 
-  return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-steel-900 px-5 py-16">
-      <span aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(70%_120%_at_15%_0%,rgba(37,99,235,0.42),transparent),radial-gradient(60%_100%_at_100%_100%,rgba(59,130,246,0.28),transparent)]" />
+  // Progress reflects PAGES DONE, not the page you happen to be looking at, so
+  // stepping back to check an answer doesn't make the bar retreat.
+  const done = QUESTION_PAGES.filter((p) => isPageComplete(p, answers)).length;
+  const pct = Math.round((done / total) * 100);
 
-      <div className="relative z-10 w-full max-w-2xl">
-        {/* progress */}
-        <div className="mb-10">
-          <div className="flex items-center justify-between gap-4">
-            {STEPS.map((s, i) => (
-              <div key={s} className="flex flex-1 flex-col gap-2">
-                <span className={`h-1 rounded-full transition-colors ${i <= step ? "bg-brand-400" : "bg-white/15"}`} />
-                <span className={`text-[11px] font-600 uppercase tracking-[0.14em] ${i <= step ? "text-brand-300" : "text-white/35"}`}>
-                  {s}
-                </span>
+  return (
+    <PointerProvider>
+      <div className="landing-page flex h-screen flex-col overflow-hidden">
+        {/* ---- top row: logo · title · who you are ---- */}
+        <header className="grid shrink-0 grid-cols-2 items-start gap-4 px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr]">
+          <a href={`/${locale}`} className="flex items-center gap-2.5 justify-self-start">
+            <LogoMark size={34} />
+            <Wordmark className="hidden text-lg sm:block" />
+          </a>
+
+          {/* On narrow screens the title drops below the logo row rather than
+              fighting it for width. */}
+          <div className="order-last col-span-2 text-center lg:order-none lg:col-span-1">
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-fg sm:text-3xl">Questionnaire</h1>
+            <p className="mt-1 text-sm text-fg-muted">Don&apos;t worry, it won&apos;t take long.</p>
+          </div>
+
+          <div className="justify-self-end text-end">
+            <p className="max-w-[46vw] truncate text-sm font-500 text-fg sm:max-w-none">{email || "Signed in"}</p>
+            <p className="mt-0.5 text-xs text-fg-muted">
+              {/* Everyone starts on Free unless they arrived from a paid plan. */}
+              {packageLabel(initialPackage, locale) || "Free"}
+            </p>
+          </div>
+        </header>
+
+        {/* ---- middle: the questions ---- */}
+        <main className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-5 sm:px-8">
+          <div className="flex max-h-full w-full max-w-3xl flex-col">
+            {current.title && (
+              <div className="shrink-0 text-center">
+                <h2 className="font-display text-xl font-semibold text-fg sm:text-2xl">{current.title}</h2>
+                {current.lead && <p className="mx-auto mt-1.5 max-w-xl text-sm text-fg-muted">{current.lead}</p>}
               </div>
-            ))}
+            )}
+
+            {/* The ONLY scrollable region on the screen: a long option list
+                scrolls here rather than growing the page. */}
+            <div className="card mt-4 min-h-0 flex-1 overflow-y-auto">
+              <div className="space-y-5">
+                {current.questions.map((q) => (
+                  <Question key={q.id} question={q} answers={answers} set={set} />
+                ))}
+              </div>
+            </div>
+
+            {error && <p className="mt-3 shrink-0 text-center text-sm text-rose-500">{error}</p>}
+
+            {/* Appears only once every page would pass on its own — the survey
+                can be finished from wherever you are, not just the last page. */}
+            <div className="mt-4 flex h-11 shrink-0 items-center justify-center">
+              {complete ? (
+                <button type="button" onClick={submit} disabled={saving} className="btn-primary disabled:opacity-60">
+                  {saving ? "Saving…" : "Complete and continue"}
+                </button>
+              ) : (
+                <p className="text-xs text-fg-dim">
+                  {canAdvance ? "Answered — carry on when you're ready." : "Answer the question above to continue."}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
 
-        {step === 0 && <GoalStep value={a.intent} onPick={(intent) => { set({ intent }); setStep(1); }} />}
-        {step === 1 && <CompanyStep a={a} set={set} />}
-        {step === 2 && <SystemsStep a={a} set={set} />}
+          <NovaCorner hint={current.hint} />
+        </main>
 
-        {error && <p className="mt-6 text-sm text-rose-300" role="alert">{error}</p>}
-
-        <div className="mt-10 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            disabled={step === 0 || saving}
-            className="text-sm font-600 text-white/50 transition-colors hover:text-white disabled:invisible"
-          >
-            ← Back
-          </button>
-
-          {step < 2 ? (
-            <button
-              type="button"
-              onClick={() => setStep((s) => s + 1)}
-              disabled={!canNext}
-              className="rounded-full bg-white px-7 py-3 font-display text-sm font-700 uppercase tracking-[0.12em] text-brand-950 transition-colors hover:bg-white/90 disabled:opacity-40"
-            >
-              Continue
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={finish}
-              disabled={saving}
-              className="rounded-full bg-white px-7 py-3 font-display text-sm font-700 uppercase tracking-[0.12em] text-brand-950 transition-colors hover:bg-white/90 disabled:opacity-60"
-            >
-              {saving ? "Finishing…" : "Finish setup"}
-            </button>
-          )}
-        </div>
+        {/* ---- bottom: how long, and where you are ---- */}
+        <footer className="shrink-0 px-5 pb-6 sm:px-8">
+          <p className="text-center text-xs text-fg-dim">Average completion time: {AVERAGE_MINUTES} mins~</p>
+          <div className="mx-auto mt-2 flex w-full max-w-xl items-center gap-2">
+            <Arrow dir="prev" disabled={first} onClick={() => setPage((p) => Math.max(0, p - 1))} />
+            <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-line-soft">
+              <div className="h-full rounded-full bg-gradient-to-r from-iris to-violet transition-[width] duration-500"
+                style={{ width: `${pct}%` }} />
+            </div>
+            <Arrow dir="next" disabled={last} onClick={() => setPage((p) => Math.min(total - 1, p + 1))} />
+          </div>
+          <p className="mt-1.5 text-center text-[11px] text-fg-dim">Page {page + 1} of {total}</p>
+        </footer>
       </div>
-    </main>
+    </PointerProvider>
   );
 }
 
-// ---- step 1: why are you here ----------------------------------------------
-function GoalStep({ value, onPick }) {
-  const options = [
-    { key: "create", title: "Create a studio", body: "Set up your company's workspace and invite your team into it." },
-    { key: "join", title: "Join a studio", body: "Someone shared a company code with you and you're joining their workspace." },
-  ];
+// ---- the arrows either side of the bar --------------------------------------
+// Disabled at each end rather than hidden, so the control keeps its shape and
+// the bar never shifts sideways between pages.
+function Arrow({ dir, disabled, onClick }) {
+  const back = dir === "prev";
   return (
-    <section>
-      <Heading kicker="Welcome aboard" title="What brings you to nompany?" lead="This just shapes what we show you next — you can do both later." />
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        {options.map((o) => (
-          <button
-            key={o.key}
-            type="button"
-            onClick={() => onPick(o.key)}
-            className={`group rounded-geex border p-6 text-start transition-all ${
-              value === o.key
-                ? "border-brand-400 bg-white/10"
-                : "border-white/15 bg-white/[0.04] hover:border-white/30 hover:bg-white/[0.07]"
-            }`}
-          >
-            <h3 className="font-display text-lg font-700 text-white">{o.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-white/60">{o.body}</p>
-            <span className="mt-4 inline-block text-sm font-600 text-brand-300 opacity-0 transition-opacity group-hover:opacity-100">
-              Choose →
-            </span>
-          </button>
-        ))}
-      </div>
-    </section>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={back ? "Previous page" : "Next page"}
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-fg-muted transition-colors hover:border-iris hover:text-fg disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-line disabled:hover:text-fg-muted"
+    >
+      <svg viewBox="0 0 24 24" className={`h-4 w-4 ${back ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m9 6 6 6-6 6" />
+      </svg>
+    </button>
   );
 }
 
-// ---- step 2: company details ------------------------------------------------
-function CompanyStep({ a, set }) {
-  const cities = useMemo(() => citiesFor(a.country), [a.country]);
+// ---- Nova, bottom right ------------------------------------------------------
+// Hidden below `xl`: she is company, not content, and on a screen this height
+// she would otherwise crowd the questions she is meant to be helping with.
+function NovaCorner({ hint }) {
+  if (!hint) return null;
   return (
-    <section>
-      <Heading kicker="Step 2 of 3" title="Tell us about your company" lead="It helps us tune defaults — nothing here is published anywhere." />
-      <div className="mt-8 space-y-5">
-        <div>
-          <label className={labelCls} htmlFor="industry">What field does your company work in?</label>
-          <input
-            id="industry" list="industry-options" className={field} value={a.field}
-            onChange={(e) => set({ field: e.target.value })} placeholder="Start typing — e.g. Construction"
-          />
-          <datalist id="industry-options">
-            {INDUSTRIES.map((i) => <option key={i} value={i} />)}
-          </datalist>
+    <div aria-hidden="true" className="pointer-events-none absolute bottom-0 end-0 hidden items-end xl:flex">
+      <div className="relative">
+        {/* Speech bubble, above her head, with a tail pointing down at her. */}
+        <div className="surface absolute -top-2 end-16 w-60 rounded-2xl rounded-br-sm p-3.5 text-sm leading-snug text-fg-muted shadow-lg">
+          {hint}
+          <span className="absolute -bottom-1.5 end-6 h-3 w-3 rotate-45 border-b border-e border-line bg-[var(--color-ink-card)]" />
         </div>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label className={labelCls} htmlFor="country">Country</label>
-            <select
-              id="country" className={`${field} [&>option]:bg-steel-900`} value={a.country}
-              onChange={(e) => set({ country: e.target.value, city: "" })}
-            >
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>{flagEmoji(c.code)} {c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className={labelCls} htmlFor="city">City</label>
-            <input
-              id="city" list="city-options" className={field} value={a.city}
-              onChange={(e) => set({ city: e.target.value })} placeholder={cities[0] || "Your city"}
-            />
-            <datalist id="city-options">
-              {cities.map((c) => <option key={c} value={c} />)}
-            </datalist>
-          </div>
+        <div className="translate-y-6">
+          <AiAssistant size={190} />
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
-// ---- step 3: existing systems ----------------------------------------------
-function SystemsStep({ a, set }) {
+// ---- one question ------------------------------------------------------------
+function Question({ question, answers, set }) {
+  const options = useMemo(() => optionsFor(question, answers), [question, answers]);
+  const value = answers[question.id];
+
+  if (question.type === "choice") {
+    return (
+      <Field question={question}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(question.options || []).map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => set({ [question.id]: o.value })}
+              aria-pressed={value === o.value}
+              className={`rounded-xl border p-4 text-start transition-colors ${
+                value === o.value
+                  ? "border-iris bg-iris/10"
+                  : "border-line hover:border-iris/50"
+              }`}
+            >
+              <span className="block font-display text-base font-semibold text-fg">{o.title}</span>
+              <span className="mt-1 block text-sm leading-relaxed text-fg-muted">{o.body}</span>
+            </button>
+          ))}
+        </div>
+      </Field>
+    );
+  }
+
+  if (question.type === "combo") {
+    // A dependent question stays put but goes quiet until its parent is answered
+    // — removing it would make the page jump as you fill the one above.
+    const blocked = question.dependsOn && !answers[question.dependsOn];
+    return (
+      <Field question={question}>
+        <Combo
+          value={value || ""}
+          disabled={Boolean(blocked)}
+          options={options}
+          placeholder={blocked ? `Choose a ${question.dependsOn} first` : (question.placeholder || "")}
+          inputClassName={FIELD}
+          paperClassName="mt-1 card !p-0 overflow-hidden"
+          onChange={(v) => set({ [question.id]: v, ...Object.fromEntries((question.resets || []).map((k) => [k, ""])) })}
+        />
+      </Field>
+    );
+  }
+
+  if (question.type === "multi") return <MultiSelect question={question} options={options} answers={answers} set={set} />;
+  return null;
+}
+
+function Field({ question, children }) {
+  return (
+    <div>
+      {question.label && <label className="field-label">{question.label}</label>}
+      {children}
+    </div>
+  );
+}
+
+// ---- multi-select with a search box ------------------------------------------
+// "None" is exclusive: choosing it clears the rest, and choosing anything else
+// clears it. Saying you run no ERP and then naming one is not an answer.
+function MultiSelect({ question, options, answers, set }) {
   const [query, setQuery] = useState("");
-  const none = a.erps.includes(ERP_NONE);
-  const shown = ERP_SYSTEMS.filter((s) => s.toLowerCase().includes(query.trim().toLowerCase()));
+  const picked = Array.isArray(answers[question.id]) ? answers[question.id] : [];
 
-  function toggle(system) {
-    if (system === ERP_NONE) { set({ erps: none ? [] : [ERP_NONE] }); return; }
-    const next = a.erps.filter((e) => e !== ERP_NONE);
-    set({ erps: next.includes(system) ? next.filter((e) => e !== system) : [...next, system] });
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => String(o).toLowerCase().includes(q));
+  }, [options, query]);
+
+  function toggle(option) {
+    const has = picked.includes(option);
+    let next;
+    if (option === ERP_NONE) next = has ? [] : [ERP_NONE];
+    else {
+      next = has ? picked.filter((p) => p !== option) : [...picked.filter((p) => p !== ERP_NONE), option];
+    }
+    set({ [question.id]: next });
   }
 
   return (
-    <section>
-      <Heading kicker="Step 3 of 3" title="Which systems do you use today?" lead="Pick any that apply — it tells us what you may want to bring across. Optional." />
-      <div className="mt-8">
-        <input
-          className={field} value={query} onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search systems…" aria-label="Search systems"
-        />
-        <div className="mt-4 flex max-h-64 flex-wrap gap-2 overflow-y-auto pe-1">
-          {shown.map((s) => {
-            const on = a.erps.includes(s);
-            const dimmed = none && s !== ERP_NONE;
-            return (
-              <button
-                key={s} type="button" onClick={() => toggle(s)} disabled={dimmed}
-                className={`rounded-full border px-3.5 py-2 text-sm transition-colors ${
-                  on ? "border-brand-400 bg-brand-400/20 text-white"
-                     : "border-white/15 bg-white/[0.04] text-white/70 hover:border-white/30 hover:text-white"
-                } ${dimmed ? "opacity-30" : ""}`}
-              >
-                {s}
-              </button>
-            );
-          })}
-          {shown.length === 0 && <p className="text-sm text-white/40">Nothing matches “{query}”.</p>}
-        </div>
-        {a.erps.includes(ERP_OTHER) && (
-          <input
-            className={`${field} mt-4`} value={a.erpOther}
-            onChange={(e) => set({ erpOther: e.target.value })} placeholder="Which system is it?"
-          />
-        )}
+    <Field question={question}>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search systems"
+        className={FIELD}
+      />
+      <div className="mt-3 flex flex-wrap gap-2">
+        {shown.map((o) => {
+          const on = picked.includes(o);
+          return (
+            <button
+              key={o}
+              type="button"
+              onClick={() => toggle(o)}
+              aria-pressed={on}
+              className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                on ? "border-iris bg-iris/15 text-fg" : "border-line text-fg-muted hover:border-iris/50 hover:text-fg"
+              }`}
+            >
+              {o}
+            </button>
+          );
+        })}
+        {shown.length === 0 && <p className="text-sm text-fg-dim">Nothing matches “{query}”.</p>}
       </div>
-    </section>
-  );
-}
 
-function Heading({ kicker, title, lead }) {
-  return (
-    <header>
-      <p className="text-xs font-600 uppercase tracking-[0.16em] text-brand-300">{kicker}</p>
-      <h1 className="mt-3 font-display text-3xl font-800 tracking-tight text-white sm:text-4xl" style={{ textWrap: "balance" }}>{title}</h1>
-      <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/60">{lead}</p>
-    </header>
+      {picked.includes(ERP_OTHER) && (
+        <input
+          value={answers.otherErp || ""}
+          onChange={(e) => set({ otherErp: e.target.value })}
+          placeholder="Which one?"
+          className={`${FIELD} mt-3`}
+        />
+      )}
+    </Field>
   );
 }

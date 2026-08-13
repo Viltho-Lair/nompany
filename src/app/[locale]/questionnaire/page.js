@@ -21,5 +21,5 @@ export default async function QuestionnairePage({ params, searchParams }) {
   // A package chosen on the pricing page rides along on ?package=.
   const sp = await searchParams;
   const requested = String(sp?.package || "");
-  return <QuestionnaireFlow locale={locale} initialPackage={isPackageKey(requested) ? requested : ""} />;
+  return <QuestionnaireFlow locale={locale} email={user.email} initialPackage={isPackageKey(requested) ? requested : ""} />;
 }
