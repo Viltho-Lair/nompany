@@ -29,6 +29,16 @@ const IMAGES = {
   group: "multiple-users-silhouette.png",
   gears: "gear.png",
   verified: "verified.png",
+  registeredItems: "menu.png",
+  engineering: "engineering.png",
+  sheets: "paper.png",
+  readyStock: "ready-stock.png",
+  selection: "selection.png",
+  tracking: "tracking.png",
+  sales: "sales.png",
+  technicalSupport: "technical-support.png",
+  user: "user.png",
+  cash: "money.png",
 };
 
 export function Icon({ name, className = "h-5 w-5" }) {

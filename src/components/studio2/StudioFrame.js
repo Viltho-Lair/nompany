@@ -23,15 +23,18 @@ import { toneOf } from "@/lib/planColors";
 // to a neutral dot for anything unrecognised.
 const SECTION_ICONS = {
   tasks: "checkDouble",
-  sales: "money",
-  technical: "techService",
+  sales: "sales",
+  technical: "technicalSupport",
   projects: "projects",
-  operations: "gears",
+  // Engineering, not the plain gear: Operations is a section of its own, and
+  // sharing the gear with every module's Settings made the parent and its own
+  // Settings child render identically side by side.
+  operations: "engineering",
   inventory: "vendors",
   finance: "services",
   website: "gallery",
   hr: "team",
-  people: "clients",
+  people: "user",
   access: "lock",
   // Sales sub-sections carry their own icons rather than falling back to the
   // neutral dot, so the group reads as three destinations instead of a list.
@@ -48,6 +51,12 @@ const SECTION_ICONS = {
   "projects-list": "blueprint",
   "projects-sla": "tools",
   "projects-overtimes": "overtime",
+  // Inventory sub-sections.
+  "inventory-items": "registeredItems",
+  "inventory-stock": "readyStock",
+  "inventory-vendors": "selection",
+  "inventory-sheets": "sheets",
+  "finance-cash": "cash",
   // Every module's Settings wears the same gear. They are the same KIND of
   // screen in five different places, so giving each its own mark would imply a
   // difference that is not there.

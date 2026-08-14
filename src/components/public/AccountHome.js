@@ -314,8 +314,13 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
           <p className="mt-1 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
             <span className="break-all">{identity?.user?.email}</span>
             {verified ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-600 text-emerald-700 dark:text-emerald-300">
-                <Icon name="check" className="h-3.5 w-3.5" /> Verified
+              // The mark alone: a verification badge is a symbol people already
+              // read, so the tick and the word "Verified" beside it were saying
+              // the same thing three times. The label moves to the tooltip and
+              // to assistive tech, which is where it is still needed.
+              <span className="inline-flex items-center text-sky-500" title="Email verified">
+                <Icon name="verified" className="h-4 w-4" />
+                <span className="sr-only">Email verified</span>
               </span>
             ) : (
               <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-600 text-amber-700 dark:text-amber-300">
