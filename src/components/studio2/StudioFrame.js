@@ -48,6 +48,14 @@ const SECTION_ICONS = {
   "projects-list": "blueprint",
   "projects-sla": "tools",
   "projects-overtimes": "overtime",
+  // Every module's Settings wears the same gear. They are the same KIND of
+  // screen in five different places, so giving each its own mark would imply a
+  // difference that is not there.
+  "sales-settings": "gears",
+  "technical-settings": "gears",
+  "projects-settings": "gears",
+  "finance-settings": "gears",
+  "operations-settings": "gears",
 };
 
 // The row's shell — shape and colour, no padding. A plain row adds the padding
