@@ -39,6 +39,9 @@ const IMAGES = {
   technicalSupport: "technical-support.png",
   user: "user.png",
   cash: "money.png",
+  home: "home.png",
+  locations: "locations.png",
+  teamwork: "teamwork.png",
 };
 
 export function Icon({ name, className = "h-5 w-5" }) {

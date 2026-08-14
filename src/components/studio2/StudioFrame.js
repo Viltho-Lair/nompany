@@ -22,6 +22,7 @@ import { toneOf } from "@/lib/planColors";
 // Section keys are tenant data, so the icon map is best-effort and falls back
 // to a neutral dot for anything unrecognised.
 const SECTION_ICONS = {
+  main: "home",
   tasks: "checkDouble",
   sales: "sales",
   technical: "technicalSupport",
@@ -56,7 +57,9 @@ const SECTION_ICONS = {
   "inventory-stock": "readyStock",
   "inventory-vendors": "selection",
   "inventory-sheets": "sheets",
+  "hr-employees": "teamwork",
   "finance-cash": "cash",
+  "operations-tracking": "locations",
   // Every module's Settings wears the same gear. They are the same KIND of
   // screen in five different places, so giving each its own mark would imply a
   // difference that is not there.
