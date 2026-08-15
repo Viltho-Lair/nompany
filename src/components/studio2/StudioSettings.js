@@ -183,6 +183,12 @@ export default function StudioSettings({ slug }) {
         </button>
       </div>
 
+      <LegalInfo
+        rows={Array.isArray(studio.legalInfo) ? studio.legalInfo : []}
+        canManage={canManage}
+        onSave={save}
+      />
+
       {/* ENDING THE STUDIO. Kept apart from the settings above and framed in red,
           because it is not a setting — it is the end of the thing the settings
           describe. Owner only, and reversible for thirty days. */}
@@ -312,6 +318,79 @@ function ConfirmDelete({ name, onClose, onConfirm }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// The studio's legal identity, as PAIRS it names itself — CR number, VAT
+// number, whatever its jurisdiction expects. Fixed fields would mean guessing a
+// country and being wrong for every other one.
+//
+// Edited as a whole and saved once, like the working week: this is one block of
+// information, and saving it row by row would let it sit half-updated.
+function LegalInfo({ rows, canManage, onSave }) {
+  const [draft, setDraft] = useState(() => (rows.length ? rows.map((r) => ({ ...r })) : [{ key: "", value: "" }]));
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const set = (i, patch) => {
+    setDraft((d) => d.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+    setSaved(false);
+  };
+  const add = () => { setDraft((d) => [...d, { key: "", value: "" }]); setSaved(false); };
+  const remove = (i) => { setDraft((d) => (d.length === 1 ? [{ key: "", value: "" }] : d.filter((_, j) => j !== i))); setSaved(false); };
+
+  async function save() {
+    setBusy(true);
+    // Blank rows are the form's, not the record's — an empty pair left at the
+    // bottom is somewhere to type, not something to store.
+    const ok = await onSave({ legalInfo: draft.filter((r) => r.key.trim()) });
+    setBusy(false);
+    setSaved(ok !== false);
+  }
+
+  return (
+    <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
+      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">Legal information</h3>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        Whatever this studio has to state about itself — registration number, VAT number,
+        licence. Each one is a label and what it says.
+      </p>
+
+      <div className="mt-4 space-y-2">
+        {draft.map((row, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              className={`${INPUT} sm:w-56`}
+              value={row.key}
+              disabled={!canManage}
+              placeholder="CR number"
+              aria-label={`Legal information label ${i + 1}`}
+              onChange={(e) => set(i, { key: e.target.value })}
+            />
+            <input
+              className={INPUT}
+              value={row.value}
+              disabled={!canManage}
+              placeholder="1010XXXXXX"
+              aria-label={`Legal information value ${i + 1}`}
+              onChange={(e) => set(i, { value: e.target.value })}
+            />
+            {canManage && (
+              <button type="button" aria-label={`Remove ${row.key || `row ${i + 1}`}`}
+                className="shrink-0 px-1.5 text-slate-400 transition-colors hover:text-rose-600"
+                onClick={() => remove(i)}>×</button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {canManage && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : saved ? "Saved" : "Save"}</button>
+          <button className={BTN_GHOST} onClick={add}>Add another</button>
+        </div>
+      )}
+    </section>
   );
 }
 

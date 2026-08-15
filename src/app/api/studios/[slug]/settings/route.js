@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 // Explicit allowlist. updateStudio() takes any patch except id/ownerUserId/slug,
 // so the boundary that decides what a request may write has to be here.
-const FIELDS = ["logo", "country", "city", "location", "currency", "workingHours"];
+const FIELDS = ["logo", "country", "city", "location", "currency", "workingHours", "legalInfo"];
 
 // Mon-first, which is how a working week is read here.
 export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -42,6 +42,19 @@ function cleanHours(v) {
   return out;
 }
 
+// Legal information is a LIST OF PAIRS the studio names itself — CR number, VAT
+// number, whatever its jurisdiction expects — rather than a fixed set of fields.
+// Fixing the fields here would mean guessing which country a studio is in and
+// being wrong for every other one.
+//
+// A row with no key is dropped: a value nobody labelled cannot be read later.
+function cleanLegal(v) {
+  return (Array.isArray(v) ? v : []).slice(0, 40).map((row) => ({
+    key: String(row?.key ?? "").trim().slice(0, 80),
+    value: String(row?.value ?? "").trim().slice(0, 300),
+  })).filter((row) => row.key);
+}
+
 const clean = (studio) => ({
   id: studio.id, name: studio.name, slug: studio.slug, logo: studio.logo || "",
   country: studio.country || "", city: studio.city || "", location: studio.location || "",
@@ -51,6 +64,7 @@ const clean = (studio) => ({
     ? new Date(Date.parse(studio.deletionRequestedAt) + GRACE_MS).toISOString()
     : "",
   workingHours: studio.workingHours || null,
+  legalInfo: Array.isArray(studio.legalInfo) ? studio.legalInfo : [],
 });
 
 export async function GET(request, ctx) {
@@ -106,7 +120,9 @@ export async function PUT(request, ctx) {
     if (!(key in body)) continue;
     // Working hours is the one structured field; everything else is text, and
     // "" is a real value — it is how the logo is removed.
-    patch[key] = key === "workingHours" ? cleanHours(body[key]) : String(body[key] ?? "").slice(0, 500);
+    patch[key] = key === "workingHours" ? cleanHours(body[key])
+      : key === "legalInfo" ? cleanLegal(body[key])
+      : String(body[key] ?? "").slice(0, 500);
   }
   if (Object.keys(patch).length === 0) return Response.json({ error: "nothing" }, { status: 400 });
 
