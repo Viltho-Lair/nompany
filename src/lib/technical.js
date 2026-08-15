@@ -11,6 +11,7 @@
 //   • raising an RFQ is a SALES act on their ticket   -> needs Sales:manage
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
+import { nextUniqueRef } from "@/lib/sales";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -79,6 +80,9 @@ export function readTechnicalSettings(settingsSection) {
     coverTitle: str(s.coverTitle, 200),
     coverIntro: str(s.coverIntro, 4000),
     coverTerms: str(s.coverTerms, 4000),
+    // Where quotation numbers start. Read through readNumbering so a settings
+    // row saved before this existed still answers with the defaults.
+    numbering: readNumbering(s),
   };
 }
 
@@ -89,6 +93,9 @@ export async function saveTechnicalSettings(ctx, body) {
   if (body?.coverTitle !== undefined) next.coverTitle = str(body.coverTitle, 200);
   if (body?.coverIntro !== undefined) next.coverIntro = str(body.coverIntro, 4000);
   if (body?.coverTerms !== undefined) next.coverTerms = str(body.coverTerms, 4000);
+  // Cleaned on the way in, so a mode or a start typed by hand cannot put the
+  // generator into a state it has to defend against later.
+  if (body?.numbering !== undefined) next.numbering = readNumbering({ numbering: body.numbering });
 
   const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
   return updated ? readTechnicalSettings({ settings: next }) : { error: "notfound" };
@@ -119,6 +126,16 @@ export async function listRfqs({ studio, rfqSection }) {
 
 // Raised FROM a Sales ticket. Snapshots the ticket so Technical never has to
 // read Sales to display it.
+// RFQ-ACME-001, then RFQ-ACME-001-2 and so on. The suffix is only reached when
+// the plain form is taken, so the common case stays the readable one.
+function uniqueRfqReference(rows, base) {
+  const taken = new Set((rows || []).map((r) => String(r?.reference || "").toUpperCase()));
+  if (!taken.has(base.toUpperCase())) return base;
+  let n = 2;
+  while (taken.has(`${base}-${n}`.toUpperCase())) n += 1;
+  return `${base}-${n}`;
+}
+
 export async function requestRfq(ctx, body) {
   const { studio, rfqSection, salesSection, salesTicketsSection, salesClientsSection, collaborator, canManageSales } = ctx;
   if (!canManageSales) return { error: "sales-required" };
@@ -136,7 +153,10 @@ export async function requestRfq(ctx, body) {
 
   const client = clients.find((c) => c.id === ticket.clientId);
   const rfq = await addRow(studio.id, rfqSection.id, RFQS, {
-    reference: `RFQ-${ticket.ref}`,
+    // One ticket can be sent over more than once — a second RFQ after the first
+    // was rejected — so the ticket's own ref is a STARTING POINT, not the
+    // answer. Suffixed until it is nobody else's.
+    reference: uniqueRfqReference(existing, `RFQ-${ticket.ref}`),
     ticketId,
     // Read-only snapshot of the Sales side.
     ticketRef: ticket.ref,
@@ -181,6 +201,27 @@ export async function updateRfq(ctx, id, body) {
 
   const rfq = await updateRow(studio.id, rfqSection.id, RFQS, id, patch);
   return rfq ? { rfq } : { error: "notfound" };
+}
+
+// ---- numbering ---------------------------------------------------------------
+// The studio chooses where quotation numbers start: fresh from 1, or continuing
+// a run that began in whatever system it used before. The prefix is fixed by the
+// studio and never changes on its own; only the number moves.
+export const DEFAULT_NUMBERING = { mode: "fresh", prefix: "Q", start: 1 };
+
+export function readNumbering(settings) {
+  const n = settings?.numbering || {};
+  const prefix = String(n.prefix || DEFAULT_NUMBERING.prefix).trim().slice(0, 12) || DEFAULT_NUMBERING.prefix;
+  const start = Number.isFinite(Number(n.start)) && Number(n.start) > 0 ? Math.floor(Number(n.start)) : 1;
+  return { mode: n.mode === "from" ? "from" : "fresh", prefix, start };
+}
+
+// Fresh starts at 1; "from" starts at the number the studio gave. Either way the
+// next one is past the highest already issued, so switching the setting later
+// can never reach back and reuse a number.
+export function nextQuotationNumber(quotations, settings) {
+  const { mode, prefix, start } = readNumbering(settings);
+  return nextUniqueRef(quotations, "number", prefix, 4, mode === "from" ? start : 1);
 }
 
 // ---- quotations ------------------------------------------------------------
@@ -233,7 +274,7 @@ export async function createQuotation(ctx, body) {
 }
 
 export async function convertRfq(ctx, body) {
-  const { studio, rfqSection, quotationsSection, collaborator } = ctx;
+  const { studio, rfqSection, quotationsSection, settingsSection, collaborator } = ctx;
   const rfqId = str(body?.rfqId, 60);
   const rfqs = await readCol(studio.id, rfqSection.id, RFQS);
   const rfq = rfqs.find((r) => r.id === rfqId);
@@ -241,7 +282,10 @@ export async function convertRfq(ctx, body) {
   if (rfq.status === "Converted") return { error: "already" };
 
   const quotations = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
-  const number = `Q-${String(quotations.length + 1).padStart(4, "0")}`;
+  // Same rule as everywhere else: derived from the highest already issued, not
+  // from how many exist, and stepped past anything that collides. A quotation
+  // number is what a client quotes back at you — it cannot be reused.
+  const number = nextQuotationNumber(quotations, settingsSection?.settings);
 
   const items = cleanItems(body?.items);
   const vatRate = body?.vatRate === undefined ? DEFAULT_VAT_RATE : num(body.vatRate);

@@ -299,6 +299,30 @@ function cleanLocations(list) {
   })).filter((l) => l.name || l.city);
 }
 
+// A reference nobody else holds.
+//
+// Numbers are derived from the HIGHEST one already issued under the same prefix
+// rather than from how many rows exist, so a gap can never hand out a reference
+// twice. The final loop is belt and braces: it steps past anything that somehow
+// still matches, including a reference typed in by hand.
+export function nextUniqueRef(rows, field, prefix, pad = 3, startAt = 0) {
+  const taken = new Set((rows || []).map((r) => String(r?.[field] || "").toUpperCase()));
+  const head = `${prefix}-`.toUpperCase();
+  let highest = startAt - 1;
+  for (const value of taken) {
+    if (!value.startsWith(head)) continue;
+    const n = Number.parseInt(value.slice(head.length), 10);
+    if (Number.isFinite(n) && n > highest) highest = n;
+  }
+  let n = Math.max(highest + 1, startAt, 1);
+  let candidate = `${prefix}-${String(n).padStart(pad, "0")}`;
+  while (taken.has(candidate.toUpperCase())) {
+    n += 1;
+    candidate = `${prefix}-${String(n).padStart(pad, "0")}`;
+  }
+  return candidate;
+}
+
 // ---- tickets ---------------------------------------------------------------
 // The RFQ side of a ticket, folded in from Technical. A ticket can be sent over
 // more than once (a second RFQ after the first was quoted), so the LATEST one is
@@ -465,8 +489,13 @@ export async function createTicket(ctx, body) {
 
   // Reference is per-client and human-readable: ACME-001, ACME-002, …
   const tickets = await readCol(studio.id, ticketsSection.id, TICKETS);
-  const seq = tickets.filter((t) => t.clientId === client.id).length + 1;
-  const ref = `${String(client.code || clientSlug(client.name)).toUpperCase()}-${String(seq).padStart(3, "0")}`;
+  // COUNTING IS NOT NUMBERING. `count + 1` repeats a reference the moment any
+  // gap exists — a removed row, or two tickets raised in the same moment — and a
+  // reference a client already holds must never point at two things. Take the
+  // highest number already used for this client and step past it, then walk on
+  // while anything still collides.
+  const base = String(client.code || clientSlug(client.name)).toUpperCase();
+  const ref = nextUniqueRef(tickets, "ref", base, 3);
 
   const ticket = await addRow(studio.id, ticketsSection.id, TICKETS, {
     ref,
