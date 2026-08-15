@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { btn, btnGhost, input, label, money } from "@/components/studio2/ui";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
-import { MAX_TABLES, MAX_TABLE_ROWS } from "@/lib/quotations";
+import { MAX_TABLES, MAX_TABLE_ROWS, netUnitPrice } from "@/lib/quotations";
 
 // The Quotation Builder: the full screen where a quotation is actually built.
 //
@@ -17,7 +17,7 @@ import { MAX_TABLES, MAX_TABLE_ROWS } from "@/lib/quotations";
 // so two quotations for the same client can be laid out differently.
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const blankRow = () => ({ id: uid(), itemId: "", description: "", unit: "", qty: 1, unitPrice: 0 });
+const blankRow = () => ({ id: uid(), itemId: "", description: "", unit: "", qty: 1, unitPrice: 0, discount: 0 });
 const blankTable = () => ({ id: uid(), title: "", rows: [blankRow()] });
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -63,19 +63,20 @@ export default function QuotationBuilder({ quote, catalogue = [], canManage, onS
   const itemByName = useMemo(
     () => Object.fromEntries(catalogue.map((i) => [i.name.toLowerCase(), i])), [catalogue]);
 
-  // Picking a registered item carries its UNIT across, because that is a fact
-  // about the thing. The price is not: what stock cost is not what a client is
-  // quoted, so filling it in here would quietly undersell the studio.
+  // Picking a registered item brings its UNIT and PRICE across, so neither is
+  // asked for. Both are COPIED onto the line rather than looked up later: a
+  // quotation is a document somebody was given, and re-pricing it from today's
+  // catalogue would rewrite what was quoted last month.
   const pickItem = (i, k, name) => {
     const found = itemByName[String(name).trim().toLowerCase()];
     setRow(i, k, found
-      ? { description: name, itemId: found.id, unit: found.unit || "" }
-      : { description: name, itemId: "" });
+      ? { description: name, itemId: found.id, unit: found.unit || "", unitPrice: found.unitPrice || 0 }
+      : { description: name, itemId: "", unit: "", unitPrice: 0 });
   };
 
   const totals = useMemo(() => {
     const subtotal = tables.reduce((sum, t) =>
-      sum + t.rows.reduce((s, r) => s + num(r.qty) * num(r.unitPrice), 0), 0);
+      sum + t.rows.reduce((s, r) => s + num(r.qty) * netUnitPrice(r), 0), 0);
     const vat = subtotal * (num(vatRate) / 100);
     return { subtotal, vat, total: subtotal + vat };
   }, [tables, vatRate]);
@@ -147,7 +148,7 @@ export default function QuotationBuilder({ quote, catalogue = [], canManage, onS
       <div className="flex-1 overflow-y-auto px-5 py-6">
         <div className="mx-auto max-w-5xl space-y-6">
           {tables.map((table, i) => {
-            const sum = table.rows.reduce((s, r) => s + num(r.qty) * num(r.unitPrice), 0);
+            const sum = table.rows.reduce((s, r) => s + num(r.qty) * netUnitPrice(r), 0);
             return (
               <section key={table.id} className="rounded-geex border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
                 <div className="flex items-center gap-3">
@@ -167,14 +168,14 @@ export default function QuotationBuilder({ quote, catalogue = [], canManage, onS
                 </div>
 
                 <div className="mt-3 overflow-x-auto">
-                  <table className="w-full min-w-[640px] border-collapse text-sm">
+                  <table className="w-full min-w-[680px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 text-start text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:text-slate-400">
                         <th className="py-2 pe-3 text-start font-600">Item</th>
-                        <th className="w-24 py-2 pe-3 text-start font-600">Unit</th>
+                        <th className="w-20 py-2 pe-3 text-start font-600">Unit</th>
                         <th className="w-24 py-2 pe-3 text-start font-600">Qty</th>
-                        <th className="w-32 py-2 pe-3 text-start font-600">Unit price</th>
-                        <th className="w-32 py-2 pe-3 text-end font-600">Line</th>
+                        <th className="w-28 py-2 pe-3 text-end font-600">Unit price</th>
+                        <th className="w-28 py-2 pe-3 text-start font-600">Discount</th>
                         <th className="w-8" />
                       </tr>
                     </thead>
@@ -187,23 +188,26 @@ export default function QuotationBuilder({ quote, catalogue = [], canManage, onS
                               inputClassName={cell}
                               onChange={(v) => pickItem(i, k, v)} />
                           </td>
-                          <td className="py-1.5 pe-3">
-                            <input className={cell} value={row.unit} disabled={locked} placeholder="ea"
-                              aria-label={`Table ${i + 1} row ${k + 1} unit`}
-                              onChange={(e) => setRow(i, k, { unit: e.target.value })} />
+                          {/* Unit and price BELONG TO THE ITEM, so they are
+                              shown rather than asked for. A line typed instead
+                              of picked has neither, and reads as a dash. */}
+                          <td className="py-1.5 pe-3 text-slate-600 dark:text-slate-300">
+                            {row.unit || <span className="text-slate-400">—</span>}
                           </td>
                           <td className="py-1.5 pe-3">
                             <input className={cell} value={row.qty} disabled={locked} inputMode="decimal"
                               aria-label={`Table ${i + 1} row ${k + 1} quantity`}
                               onChange={(e) => setRow(i, k, { qty: e.target.value })} />
                           </td>
-                          <td className="py-1.5 pe-3">
-                            <input className={cell} value={row.unitPrice} disabled={locked} inputMode="decimal"
-                              aria-label={`Table ${i + 1} row ${k + 1} unit price`}
-                              onChange={(e) => setRow(i, k, { unitPrice: e.target.value })} />
-                          </td>
                           <td className="py-1.5 pe-3 text-end font-mono text-xs text-slate-600 dark:text-slate-300">
-                            {money(num(row.qty) * num(row.unitPrice))}
+                            {row.itemId || num(row.unitPrice)
+                              ? money(num(row.unitPrice))
+                              : <span className="font-sans text-slate-400">—</span>}
+                          </td>
+                          <td className="py-1.5 pe-3">
+                            <input className={cell} value={row.discount ?? 0} disabled={locked} inputMode="decimal"
+                              aria-label={`Table ${i + 1} row ${k + 1} discount per unit`}
+                              onChange={(e) => setRow(i, k, { discount: e.target.value })} />
                           </td>
                           <td className="py-1.5 text-end">
                             {!locked && table.rows.length > 1 && (

@@ -78,7 +78,14 @@ export function cleanQuotationTables(value) {
       description: String(r?.description ?? "").trim().slice(0, 300),
       unit: String(r?.unit ?? "").trim().slice(0, 30),
       qty: n(r?.qty),
+      // COPIED off the registered item when the line was picked, not looked up
+      // when the quotation is read. A quotation is a document somebody was
+      // given: re-pricing it from today's catalogue would rewrite what was
+      // quoted last month.
       unitPrice: n(r?.unitPrice),
+      // Taken off each unit before the line is multiplied out, so a discount
+      // scales with quantity the way whoever typed it expects.
+      discount: n(r?.discount),
     })).filter((r) => r.description),
   }));
 }
@@ -92,6 +99,13 @@ export function itemsFromTables(tables) {
     (t.rows || []).map((r) => ({
       description: t.title ? `${t.title} — ${r.description}` : r.description,
       qty: r.qty,
-      unitPrice: r.unitPrice,
+      // The NET price per unit. The gross price and the discount both stay on
+      // the table row, which is what the document shows; `items` is the priced
+      // list the totals run over, and it should already have the discount taken
+      // off so nothing downstream has to know discounts exist.
+      unitPrice: netUnitPrice(r),
     })));
 }
+
+// Never below zero: a discount bigger than the price is a typo, not a refund.
+export const netUnitPrice = (r) => Math.max(0, n(r?.unitPrice) - n(r?.discount));

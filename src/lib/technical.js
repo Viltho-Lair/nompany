@@ -442,7 +442,13 @@ export async function catalogueItems({ studio, inventoryItemsSection }) {
   const rows = await readCol(studio.id, inventoryItemsSection.id, INVENTORY_ITEMS);
   return rows
     .filter((r) => r?.name)
-    .map((r) => ({ id: r.id, name: String(r.name), sku: String(r.sku || ""), unit: String(r.unit || "") }))
+    // Unit and price come off the registered item, so the builder does not ask
+    // for either. unitCost is the only price Registered Items holds — if the
+    // studio needs to quote above cost, that margin belongs on the item.
+    .map((r) => ({
+      id: r.id, name: String(r.name), sku: String(r.sku || ""),
+      unit: String(r.unit || ""), unitPrice: Number(r.unitCost) || 0,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
