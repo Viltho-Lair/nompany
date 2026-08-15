@@ -1,4 +1,5 @@
-import { isKnownCurrency } from "@/lib/currencies";
+import { isKnownCurrency, crossRate } from "@/lib/currencies";
+import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { currentUser } from "@/lib/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { updateStudio } from "@/lib/data/studios";
@@ -83,6 +84,20 @@ const clean = (studio) => ({
   favoriteCurrencies: Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : [],
 });
 
+// Rates from the studio's own currency out to each favourite. Anything the
+// snapshot does not quote comes back null rather than absent, so the row can say
+// so instead of rendering a blank.
+async function favouriteRates(studio) {
+  const base = String(studio.currency || "").trim().toUpperCase();
+  const codes = Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : [];
+  if (!base || codes.length === 0) return { base, rates: {}, updatedAt: 0, stale: false };
+
+  const snap = await getExchangeSnapshot();
+  const rates = {};
+  for (const code of codes) rates[code] = snap.rates ? crossRate(snap.rates, base, code) : null;
+  return { base, rates, updatedAt: snap.updatedAt || 0, stale: Boolean(snap.stale) };
+}
+
 export async function GET(request, ctx) {
   const user = await currentUser();
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
@@ -95,6 +110,11 @@ export async function GET(request, ctx) {
   const { studio, collaborator } = context;
   return Response.json({
     studio: clean(studio),
+    // Today's rate for each favourite, against the STUDIO's currency. Only the
+    // handful of numbers the page shows go over the wire — /super ships the
+    // whole USD table because it lets you re-pick the base, and this page does
+    // not. The snapshot is a shared daily read, so this costs no API call.
+    fx: await favouriteRates(studio),
     canManage: canAdminister(studio, collaborator),
     // Asking for deletion is the OWNER's call, not an admin's: it ends the
     // studio for everybody in it.

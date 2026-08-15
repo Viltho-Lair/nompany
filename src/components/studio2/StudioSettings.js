@@ -1,6 +1,6 @@
 "use client";
 
-import { CURRENCIES_FROM_EXCHANGE_API, searchCurrencies, currency as currencyOf } from "@/lib/currencies";
+import { CURRENCIES_FROM_EXCHANGE_API, searchCurrencies, currency as currencyOf, fmtRate } from "@/lib/currencies";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
@@ -29,7 +29,6 @@ const BTN_GHOST = "rounded-full border border-slate-200 px-4 py-2 font-display t
 const INPUT = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 // The currencies a studio is likely to price in. Free text is still allowed —
 // the list is a shortcut, not a restriction.
-const CURRENCIES = ["SAR", "AED", "QAR", "KWD", "BHD", "OMR", "EGP", "JOD", "USD", "EUR", "GBP"];
 const DAYS = [["mon", "Monday"], ["tue", "Tuesday"], ["wed", "Wednesday"], ["thu", "Thursday"], ["fri", "Friday"], ["sat", "Saturday"], ["sun", "Sunday"]];
 const DEFAULT_HOURS = Object.fromEntries(DAYS.map(([d]) => [d, { open: !["fri", "sat"].includes(d), from: "09:00", to: "17:00" }]));
 // citiesFor keys on the ISO code while the stored answer is a country NAME.
@@ -51,6 +50,7 @@ const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:b
 export default function StudioSettings({ slug }) {
   const [studio, setStudio] = useState(null);
   const [canManage, setCanManage] = useState(false);
+  const [fx, setFx] = useState(null);
   const [logoOpen, setLogoOpen] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -64,6 +64,7 @@ export default function StudioSettings({ slug }) {
       const d = await res.json();
       setStudio(d.studio);
       setCanManage(Boolean(d.canManage));
+      setFx(d.fx || null);
       setIsOwner(Boolean(d.isOwner));
     }
     setLoading(false);
@@ -165,7 +166,15 @@ export default function StudioSettings({ slug }) {
           hint="Not set — amounts show without one."
           onSave={(v) => save({ currency: v })}
           render={(draft, set) => (
-            <Combo value={draft} onChange={set} options={CURRENCIES} placeholder="SAR" inputClassName={INPUT} />
+            /* The full ExchangeRate-API list, the same vocabulary the
+               favourites are picked from — and a real select, because a
+               free-typed currency is one nothing can be priced against. */
+            <select className={INPUT} value={draft} onChange={(e) => set(e.target.value)}>
+              <option value="">— not set —</option>
+              {CURRENCIES_FROM_EXCHANGE_API.map((c) => (
+                <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+              ))}
+            </select>
           )}
         />
 
@@ -186,6 +195,8 @@ export default function StudioSettings({ slug }) {
 
       <FavouriteCurrencies
         codes={Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : []}
+        base={studio.currency || ""}
+        fx={fx}
         canManage={canManage}
         onSave={save}
       />
@@ -410,7 +421,7 @@ function LegalInfo({ rows, canManage, onSave }) {
 // Only CODES are stored. A saved list never goes stale when a name changes, and
 // a code the vocabulary does not know is dropped on the way in rather than kept
 // as a label nobody can price against.
-function FavouriteCurrencies({ codes, canManage, onSave }) {
+function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState(codes);
@@ -432,18 +443,53 @@ function FavouriteCurrencies({ codes, canManage, onSave }) {
     <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
       <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">Favourite currencies</h3>
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        The few this studio deals in, so pickers elsewhere can offer them first.
+        The few this studio deals in, each against {base
+          ? <><CurrencySymbol code={base} /> {base}</>
+          : "the studio currency"}.
       </p>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {codes.length === 0 && <span className="text-sm text-slate-400">None chosen yet.</span>}
-        {codes.map((code) => (
-          <span key={code} title={currencyOf(code).name}
-            className="rounded-full bg-slate-100 px-3 py-1 text-xs font-700 text-slate-700 dark:bg-white/10 dark:text-slate-200">
-            {code}
-          </span>
-        ))}
-      </div>
+      {/* ONE ROW PER CURRENCY, each showing what one unit of the studio's own
+          money buys. Chips side by side said which currencies mattered but not
+          what they were worth, which is the thing somebody opens this to see. */}
+      {codes.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-400">None chosen yet.</p>
+      ) : !base ? (
+        <p className="mt-3 text-sm text-slate-400">
+          Set the studio currency above and these will show an exchange rate against it.
+        </p>
+      ) : (
+        <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
+          {codes.map((code) => {
+            const rate = fx?.rates?.[code];
+            return (
+              <li key={code} className="flex items-center gap-3 py-2.5">
+                <span className="w-14 shrink-0 font-mono text-xs font-700 text-slate-700 dark:text-slate-200">{code}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-600 dark:text-slate-300">{currencyOf(code).name}</span>
+                <span className="shrink-0 text-sm tabular-nums text-slate-500 dark:text-slate-400">
+                  {code === base ? (
+                    <span className="text-slate-400">base</span>
+                  ) : rate == null ? (
+                    <span className="text-slate-400">no rate today</span>
+                  ) : (
+                    <>
+                      1 <CurrencySymbol code={base} /> ={" "}
+                      <span className="font-600 text-slate-700 dark:text-slate-200">{fmtRate(rate)}</span>{" "}
+                      <CurrencySymbol code={code} />
+                    </>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {base && fx?.updatedAt > 0 && (
+        <p className="mt-3 text-xs text-slate-400">
+          Rates as of {new Date(fx.updatedAt * 1000).toLocaleDateString()}
+          {fx.stale ? " — today's refresh hasn't landed yet." : "."}
+        </p>
+      )}
 
       {canManage && (
         <button className={`${BTN_GHOST} mt-4`} onClick={() => { setPicked(codes); setQuery(""); setOpen(true); }}>
