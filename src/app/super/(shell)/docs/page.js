@@ -174,9 +174,6 @@ export default function DocsPage() {
                 <button type="button" className="ad-btn ad-btn-primary">
                   <Icon name="chat" className="h-4 w-4" /> Start a conversation
                 </button>
-                <Link href={`${BASE}/application/email`} className="ad-btn ad-btn-outline">
-                  <Icon name="mail" className="h-4 w-4" /> Email support
-                </Link>
               </CardBody>
             </Card>
           </div>

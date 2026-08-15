@@ -4,11 +4,9 @@
 // The console started as a 1:1 mirror of a reference admin template, so most of
 // what follows was demonstration rather than product. The two groups at the
 // bottom are the triage of that: "to be worked" is template screens that will
-// become real, "to be removed" is template screens that will not. Nothing is
-// deleted here — every route still exists and still works. This only changes
-// where the sidebar files them, so the distinction is visible while it lasts.
-//
-// The groups above them are the console as it actually is today.
+// become real. The "to be removed" group and every screen under it are GONE —
+// template pages that were never going to be part of the product, deleted
+// rather than left to be navigated into by accident.
 
 export const BASE = "/super";
 
@@ -24,7 +22,6 @@ export const NAV = [
           { label: "CRM", href: `${BASE}/dashboard/crm` },
           { label: "eCommerce", href: `${BASE}/dashboard/ecommerce` },
           { label: "Finance", href: `${BASE}/dashboard/finance` },
-          { label: "Crypto", href: `${BASE}/dashboard/crypto` },
           { label: "Project", href: `${BASE}/dashboard/project` },
           { label: "SaaS", href: `${BASE}/dashboard/saas` },
           { label: "HR", href: `${BASE}/dashboard/hr` },
@@ -36,7 +33,6 @@ export const NAV = [
   {
     caption: "Application",
     items: [
-      { label: "Email", icon: "mail", href: `${BASE}/application/email` },
       // Live chat with studios. Promoted out of "To be worked" when it stopped
       // being a template demo and started carrying real rooms.
       { label: "Chat", icon: "chat", href: `${BASE}/application/chat` },
@@ -104,26 +100,6 @@ export const NAV = [
       },
       { label: "Documentation", icon: "book", href: `${BASE}/docs` },
       { label: "Settings", icon: "settings", href: `${BASE}/settings/profile` },
-    ],
-  },
-  {
-    caption: "To be removed",
-    items: [
-      { label: "File Manager", icon: "folder", href: `${BASE}/application/file-manager` },
-      { label: "Gallery", icon: "image", href: `${BASE}/application/gallery` },
-      { label: "Products", icon: "package", href: `${BASE}/ecommerce/products` },
-      { label: "Cart", icon: "cart", href: `${BASE}/ecommerce/cart` },
-      { label: "Wishlist", icon: "heart", href: `${BASE}/ecommerce/wishlist` },
-      { label: "Typography", icon: "type", href: `${BASE}/elements/typography` },
-      { label: "Components", icon: "layers", href: `${BASE}/elements/components` },
-      { label: "Icons", icon: "smile", href: `${BASE}/elements/icons` },
-      { label: "Form Elements", icon: "form", href: `${BASE}/forms/form-elements` },
-      { label: "Form Wizard", icon: "wizard", href: `${BASE}/forms/wizard` },
-      { label: "Editor", icon: "edit", href: `${BASE}/forms/editor` },
-      { label: "Data Tables", icon: "table", href: `${BASE}/tables/data-tables` },
-      { label: "Charts", icon: "pie", href: `${BASE}/charts/apex-charts` },
-      { label: "Sample Page", icon: "file", href: `${BASE}/other/sample-page` },
-      { label: "Pricing", icon: "tag", href: `${BASE}/other/pricing` },
     ],
   },
 ];

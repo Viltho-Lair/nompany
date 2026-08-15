@@ -89,9 +89,6 @@ export default function LandingPage() {
             <Link href={`${BASE}/v2/register`} className="ad-btn ad-btn-primary px-7 py-3">
               Start free <Icon name="arrowRight" className="h-4 w-4" />
             </Link>
-            <Link href={`${BASE}/other/pricing`} className="ad-btn ad-btn-outline px-7 py-3">
-              See pricing
-            </Link>
           </div>
           <p className="mt-4 text-xs text-[var(--ad-muted-foreground)]">No card required · 14-day trial · cancel any time</p>
         </div>
