@@ -170,11 +170,17 @@ export default function StudioTechnical({ slug, view = "technical" }) {
               onCancel={closeConvert} onSave={(p) => send("quotations", "POST", { ...p, rfqId: converting.id })} />
           </Dialog>
         )}
-        <Rfqs rfqs={rfqs} canManage={canManage} canRequestRfq={canRequestRfq} openTickets={openTickets}
-          slug={slug} nav={nav} focus={focusRfq} aliasOf={aliasOf} statuses={vocabulary.rfqStatuses || []}
+        <RfqHandler
+          rfqs={rfqs}
+          canManage={canManage}
+          canRequestRfq={canRequestRfq}
+          aliasOf={aliasOf}
+          people={people}
+          statuses={vocabulary.rfqStatuses || []}
+          busy={false}
           onRaise={() => setRaising(true)}
-          onConvert={(r) => setConverting(r)}
-          onStatus={(r, status) => send("rfqs", "PUT", { id: r.id, status })} />
+          onSave={(id, patch) => send("rfqs", "PUT", { id, ...patch })}
+          onConvert={(r) => setConverting(r)} />
       </div>
     );
   }
@@ -339,116 +345,197 @@ function TechnicalDashboard({ slug, rfqs, quotations, nav, handlerName }) {
 // ---- RFQ queue -------------------------------------------------------------
 // Requests for quotation sent by Sales. A New one is what Technical owes an
 // answer on, so it carries the amber stripe until somebody picks it up.
-function Rfqs({ rfqs, canManage, canRequestRfq, openTickets, slug, nav, focus, aliasOf, statuses, onRaise, onConvert, onStatus }) {
+// ---- RFQ handler -------------------------------------------------------------
+// Every RFQ Sales has sent over, and one of them open beside the list.
+//
+// TWO PANES, not a table. An RFQ is a thing you work ON — read what Sales asked,
+// decide who takes it, write down what you found, then convert it — and a table
+// row has nowhere to do that. The list stays on screen so the queue is never out
+// of sight while one is being handled.
+//
+// The information box is a DRAFT until Save. Nothing is written as you type,
+// because half a decision saved is worse than none. Convert saves first and then
+// opens the quotation, so converting can never silently discard what was typed.
+function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses, busy, onRaise, onSave, onConvert }) {
+  const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
-  const filtered = useMemo(() => {
+  const [draft, setDraft] = useState(null);
+  const [saved, setSaved] = useState(false);
+
+  const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rfqs;
-    return rfqs.filter((r) => `${r.reference || ""} ${r.ticketRef || ""} ${r.title || ""} ${r.clientName || ""} ${r.description || ""}`.toLowerCase().includes(q));
+    return rfqs.filter((r) =>
+      [r.title, r.reference, r.clientName, r.industry, r.status]
+        .some((v) => String(v || "").toLowerCase().includes(q)));
   }, [rfqs, query]);
 
-  const toolbar = (
-    <Toolbar canManage={canRequestRfq} label="Raise RFQ" onAdd={onRaise}>
-      {rfqs.length > 0 && (
-        <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search reference, ticket, client or title…"
-          value={query} onChange={(e) => setQuery(e.target.value)} />
-      )}
-    </Toolbar>
-  );
+  const selected = rfqs.find((r) => r.id === selectedId) || null;
 
-  if (rfqs.length === 0) {
-    return (
-      <>
-        {toolbar}
-        <Empty title="No RFQs yet" body="Sales raises an RFQ from a ticket when they need pricing. It arrives here for Technical to work." />
-      </>
-    );
+  // Opening an RFQ starts a fresh draft from it. Keyed on the id alone, so a
+  // live update arriving underneath cannot wipe what is being typed.
+  useEffect(() => {
+    if (!selected) { setDraft(null); return; }
+    setDraft({
+      status: selected.status || statuses[0] || "New",
+      description: selected.description || "",
+      handledByCollaboratorId: selected.handledByCollaboratorId || "",
+    });
+    setSaved(false);
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dirty = Boolean(draft && selected && (
+    draft.status !== (selected.status || "")
+    || draft.description !== (selected.description || "")
+    || draft.handledByCollaboratorId !== (selected.handledByCollaboratorId || "")
+  ));
+
+  const set = (patch) => { setDraft((d) => ({ ...d, ...patch })); setSaved(false); };
+
+  async function save() {
+    if (!selected) return false;
+    const ok = await onSave(selected.id, draft);
+    setSaved(Boolean(ok));
+    return ok;
   }
 
   return (
-    <>
-      {toolbar}
-      {canRequestRfq && openTickets.length === 0 && (
-        <p className="text-xs text-slate-500 dark:text-slate-400">Every open ticket already has an RFQ — there is nothing left to raise.</p>
-      )}
-      <p className="text-sm text-slate-500 dark:text-slate-400">
-        Requests for quotation sent by Sales. Convert one to a quotation once it has been reviewed. {filtered.length} of {rfqs.length}.
-      </p>
+    <section className={panel}>
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          className={`${input} max-w-sm`}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search"
+          aria-label="Search RFQs"
+        />
+        <p className="text-sm text-slate-500 dark:text-slate-400">{shown.length} of {rfqs.length}</p>
+        {canRequestRfq && <button className={`${btn} ms-auto`} onClick={onRaise}>Raise an RFQ</button>}
+      </div>
 
-      <section className={panel}>
-        {filtered.length === 0 ? (
-          <p className="py-10 text-center text-sm text-slate-400">No RFQs match that search.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-white/10">
-                  {["Reference", "Client", "Urgency", "Title", "Requested by", "Status", "Received"].map((head) => (
-                    <th key={head} className={`${th} ps-2 text-start`}>{head}</th>
-                  ))}
-                  <th className={`${th} text-end`}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.id} {...focus.focusProps(r.id)}
-                    className={`border-s-4 border-b border-slate-100 align-top last:border-b-0 dark:border-white/5 ${
-                      isUnworked(r) ? stripeOn : stripeOff
-                    } ${focus.focusProps(r.id).className || ""}`}>
-                    <td className="py-3 pe-3 ps-2">
-                      <p className="font-mono text-xs text-slate-500 dark:text-slate-400">{r.reference}</p>
-                      {r.ticketRef && (
-                        <RecordLink href={linkIf(nav?.sales, linkToTicket(slug, r.ticketId))} title="Open the originating ticket">
-                          {r.ticketRef}
-                        </RecordLink>
-                      )}
-                    </td>
-                    <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{r.clientName || "—"}</td>
-                    <td className="py-3 pe-3 ps-2">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[r.urgency] || URGENCY_BADGE.Normal}`}>
-                        {r.urgency || "Normal"}
-                      </span>
-                    </td>
-                    <td className="max-w-sm py-3 pe-3 ps-2">
-                      <p className="font-600 text-slate-900 dark:text-white">{r.title}</p>
-                      {r.description && <p className="truncate text-xs text-slate-500 dark:text-slate-400" title={r.description}>{r.description}</p>}
-                    </td>
-                    <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{aliasOf[r.requestedByCollaboratorId] || "—"}</td>
-                    <td className="py-3 pe-3 ps-2">
-                      {/* "Converted" is never chosen by hand — it is what the
-                          Convert button does. It is still listed when a row
-                          already is Converted, or the select would have no
-                          value to show. */}
-                      {canManage && r.status !== "Converted" ? (
-                        <select value={r.status} onChange={(e) => onStatus(r, e.target.value)}
-                          className={`rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-600 focus:border-brand-500 focus:outline-none dark:border-white/15 dark:bg-[#191921] ${
-                            r.status === "Rejected" ? "text-rose-600 dark:text-rose-400" : "text-slate-700 dark:text-slate-200"}`}>
-                          {statuses.filter((s) => s !== "Converted").map((s) => (<option key={s} value={s}>{s}</option>))}
-                        </select>
-                      ) : (
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${RFQ_TONE[r.status] || RFQ_TONE.New}`}>{r.status}</span>
-                      )}
-                    </td>
-                    <td className="py-3 pe-3 ps-2 text-slate-500 dark:text-slate-400">{fmtDate(r.createdAt)}</td>
-                    <td className="py-3 text-end">
-                      {canManage && (
-                        r.status === "Converted"
-                          ? <span className="text-xs font-600 text-emerald-700 dark:text-emerald-300">Converted</span>
-                          : <button className={btn} onClick={() => onConvert(r)}>Convert →</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        {/* ---- the queue ---- */}
+        <div className="max-h-[560px] min-h-[240px] overflow-y-auto rounded-geex border border-slate-200/70 dark:border-white/10">
+          {shown.length === 0 ? (
+            <p className="p-4 text-sm text-slate-400">
+              {query ? `Nothing matches “${query}”.` : "No RFQs have come over from Sales yet."}
+            </p>
+          ) : shown.map((r) => {
+            const on = r.id === selectedId;
+            return (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => setSelectedId(r.id)}
+                aria-pressed={on}
+                className={`block w-full border-b border-slate-100 px-4 py-3 text-start transition-colors last:border-b-0 dark:border-white/5 ${
+                  on ? "bg-brand-500/10" : "hover:bg-slate-50 dark:hover:bg-white/5"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate text-sm font-600 text-slate-900 dark:text-white">{r.title}</span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-700 ${URGENCY_BADGE[r.urgency] || URGENCY_BADGE.Normal}`}>
+                    {r.urgency || "Normal"}
+                  </span>
+                </span>
+                <span className="mt-0.5 block text-[11px] text-slate-400">
+                  Received: {fmtDate(r.createdAt)} / Deadline: {r.deadline ? fmtDate(r.deadline) : "—"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ---- the one being handled ---- */}
+        <div className="min-h-[240px] rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
+          {!selected ? (
+            <p className="text-sm text-slate-400">Choose an RFQ to see it here.</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-start gap-3">
+                {canManage && (
+                  <button className={btn} onClick={save} disabled={busy || !dirty}>
+                    {saved && !dirty ? "Saved" : "Save"}
+                  </button>
+                )}
+                <div className="min-w-0">
+                  <h3 className="truncate font-display text-lg font-800 text-slate-900 dark:text-white">RFQ information</h3>
+                  <p className="truncate font-mono text-xs text-slate-400">{selected.reference}</p>
+                </div>
+              </div>
+
+              {/* What Sales sent. Read-only here: urgency belongs to a Sales
+                  Leader, and the client, industry and deadline are what was sold. */}
+              <dl className="mt-5 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                <RfqInfo label="Client" value={selected.clientName} />
+                <RfqInfo label="Ticket" value={selected.ticketRef} mono />
+                <RfqInfo label="Industry" value={selected.industry} />
+                <RfqInfo label="Deadline" value={selected.deadline ? fmtDate(selected.deadline) : ""} />
+                <RfqInfo label="Received" value={fmtDate(selected.createdAt)} />
+                <RfqInfo label="Requested by" value={aliasOf[selected.requestedByCollaboratorId]} />
+              </dl>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={label}>Status</label>
+                  {/* Converted is never chosen by hand — it is what Convert does. */}
+                  <select className={input} value={draft.status} disabled={!canManage || selected.status === "Converted"}
+                    onChange={(e) => set({ status: e.target.value })}>
+                    {statuses.filter((s) => s !== "Converted" || selected.status === "Converted")
+                      .map((s) => (<option key={s} value={s}>{s}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className={label}>Handled by</label>
+                  <select className={input} value={draft.handledByCollaboratorId} disabled={!canManage}
+                    onChange={(e) => set({ handledByCollaboratorId: e.target.value })}>
+                    <option value="">Unassigned</option>
+                    {people.map((p) => (<option key={p.id} value={p.id}>{p.alias}</option>))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className={label}>Description</label>
+                <textarea rows={5} className={input} value={draft.description} disabled={!canManage}
+                  onChange={(e) => set({ description: e.target.value })} />
+              </div>
+
+              {canManage && selected.status !== "Converted" && (
+                <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Convert into a quotation for{" "}
+                    <span className="font-600 text-slate-700 dark:text-slate-200">
+                      {aliasOf[draft.handledByCollaboratorId] || "whoever takes it"}
+                    </span>.
+                  </p>
+                  {/* Saves first: converting must never be the thing that loses
+                      what was just typed into the box above it. */}
+                  <button className={`${btn} ms-auto`} disabled={busy}
+                    onClick={async () => { if (dirty && !(await save())) return; onConvert(selected); }}>
+                    Convert
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 
-// ---- quotations ------------------------------------------------------------
+function RfqInfo({ label: text, value, mono }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs font-600 uppercase tracking-wide text-slate-400">{text}</dt>
+      <dd className={`mt-0.5 truncate text-sm text-slate-700 dark:text-slate-200 ${mono ? "font-mono text-xs" : ""}`}>
+        {value || <span className="text-slate-400">—</span>}
+      </dd>
+    </div>
+  );
+}
+
 function Quotations({ quotations, canManage, slug, nav, focus, handlerName, people, statuses, urgencies, onAdd, onOpen, onStatus, onLock }) {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
