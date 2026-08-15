@@ -1,4 +1,5 @@
 import { getRedisClient } from "@/lib/data/redis";
+import { continentOf, CONTINENT_KEYS } from "@/lib/continents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,12 @@ export async function POST(request) {
       const page = slug(body.page || "home") || "home";
       await inc(`pv:${page}`);
       await inc("pv:__total");
+      // WHERE FROM, at continent granularity. The edge hands us a country code
+      // on the request; it is mapped to a continent here and thrown away, so
+      // what lands in Redis is coarser and less identifying than what arrived.
+      // No IP, no city, nothing tied to the visitor id.
+      const continent = continentOf(request.headers.get("x-vercel-ip-country"));
+      await inc(`geo:${CONTINENT_KEYS[continent] || "other"}`);
       if (vid) {
         const vkey = `stat:vis:${day}`;
         await client.sAdd(vkey, vid);

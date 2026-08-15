@@ -31,7 +31,7 @@ export const STATUS = {
 };
 
 export const ACTIVE_WINDOW_DAYS = 30;
-const ACTIVE_WINDOW_MS = ACTIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+export const ACTIVE_WINDOW_MS = ACTIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
 // Suspended and invited are STATES OF THE ACCOUNT and outrank the activity
 // clock: a suspended account that signed in yesterday is suspended, not active.
@@ -54,6 +54,17 @@ export function statusOf(user, now = Date.now()) {
   const last = lastAround(user);
   if (Number.isFinite(last) && now - last <= ACTIVE_WINDOW_MS) return STATUS.active;
   return STATUS.inactive;
+}
+
+// Was this user active AS OF some earlier moment? The same test statusOf makes,
+// run against a clock in the past: seen before that moment, and recently enough
+// at that moment to have counted then.
+//
+// This is what makes a week-over-week figure honest — the timestamps are
+// already stored, so the past is re-read rather than separately recorded.
+export function wasActiveAt(user, at) {
+  const last = lastAround(user);
+  return Number.isFinite(last) && last <= at && at - last <= ACTIVE_WINDOW_MS;
 }
 
 // ---- ordering ---------------------------------------------------------------

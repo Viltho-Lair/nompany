@@ -1,4 +1,5 @@
 import { getRedisClient } from "@/lib/data/redis";
+import { CONTINENTS, CONTINENT_KEYS } from "@/lib/continents";
 
 // Reading the public website's traffic counters back out.
 //
@@ -83,6 +84,31 @@ export async function readPages(days) {
   return Object.entries(totals)
     .map(([page, views]) => ({ page, views }))
     .sort((a, b) => b.views - a.views);
+}
+
+// Visits per continent across a span, in the dashboard's column order. Every
+// continent is present even at zero, so the bars do not reshuffle as traffic
+// arrives from somewhere new.
+export async function readContinents(days) {
+  const client = await getRedisClient();
+  const hashes = days.length
+    ? await Promise.all(days.map((day) => client.hGetAll(key(day)).catch(() => ({}))))
+    : [];
+  const totals = Object.fromEntries(CONTINENTS.map((c) => [c, 0]));
+  for (const h of hashes) {
+    for (const name of CONTINENTS) {
+      totals[name] += n((h || {})[`geo:${CONTINENT_KEYS[name]}`]);
+    }
+  }
+  const max = Math.max(...Object.values(totals), 0);
+  return CONTINENTS.map((name) => ({
+    name,
+    visits: totals[name],
+    // Bars are drawn RELATIVE TO THE BIGGEST, not to the total: the point of
+    // the row is which regions dominate, and four slices of a pie flattened
+    // into bars would make the small ones invisible.
+    pct: max > 0 ? Math.round((totals[name] / max) * 100) : 0,
+  }));
 }
 
 // Roll daily rows up into the twelve months of a year. Months that have not

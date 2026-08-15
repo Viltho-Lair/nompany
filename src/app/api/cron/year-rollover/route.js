@@ -1,5 +1,5 @@
 import { sendEmail } from "@/lib/email";
-import { readDays, readPages, daysOfYear, clearDays } from "@/lib/data/siteStats";
+import { readDays, readPages, readContinents, daysOfYear, clearDays } from "@/lib/data/siteStats";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export async function GET(request) {
 
   const year = now.getUTCFullYear() - 1;
   const days = daysOfYear(year);
-  const [rows, pages] = await Promise.all([readDays(days), readPages(days)]);
+  const [rows, pages, continents] = await Promise.all([readDays(days), readPages(days), readContinents(days)]);
 
   const sessions = rows.reduce((s, r) => s + r.sessions, 0);
   const pageViews = rows.reduce((s, r) => s + r.pageViews, 0);

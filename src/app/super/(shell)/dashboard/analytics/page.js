@@ -17,8 +17,34 @@ import { AreaChart, ChartFrame, BarList, Radial } from "../../../_components/cha
 import { BASE } from "../../../_components/nav";
 import CurrencyRates from "./CurrencyRates";
 import RealtimeAnalytics from "./RealtimeAnalytics";
+import GlobalDistribution from "./GlobalDistribution";
+import { listUsersForConsole } from "@/lib/data/users";
+import { statusOf, wasActiveAt, STATUS } from "@/lib/platformRoles";
 
 export const metadata = { title: "Analytics" };
+
+// ACTIVE USERS, counted exactly the way /application/users counts them —
+// statusOf() over the same records — so the tile and the console can never
+// disagree about who is around.
+//
+// The delta is real too. A user was active a week ago if their last sign-in or
+// last page was within the active window AS OF THEN; the same test, run against
+// a clock seven days back. The timestamps are already stored, so this is a
+// second reading of history rather than a second thing to record.
+async function activeUsers() {
+  const users = await listUsersForConsole();
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+  const current = users.filter((u) => statusOf(u, now) === STATUS.active).length;
+  const before = users.filter((u) => wasActiveAt(u, weekAgo)).length;
+
+  // No baseline means no percentage. "+100%" off nothing says more than it
+  // knows, so the tile simply drops the delta until there is something to
+  // compare against.
+  const delta = before > 0 ? Math.round(((current - before) / before) * 1000) / 10 : null;
+  return { current, delta };
+}
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -33,12 +59,6 @@ const DEVICES = [
   { label: "Tablet", value: 15.5, color: "var(--ad-chart-3)" },
 ];
 
-const REGIONS_MAP = [
-  { label: "USA", value: "24.5K", pct: 100, color: "var(--ad-chart-1)" },
-  { label: "Europe", value: "18.2K", pct: 74, color: "var(--ad-chart-2)" },
-  { label: "Asia", value: "12.8K", pct: 52, color: "var(--ad-chart-4)" },
-  { label: "Others", value: "8.1K", pct: 33, color: "var(--ad-chart-5)" },
-];
 
 const TRANSACTIONS = [
   { name: "John Doe", email: "john@example.com", product: "Admin Dashboard", amount: "$890.00", status: "Completed", date: "Mar 28, 2026" },
@@ -106,7 +126,9 @@ function CenterStat({ value, label, sub, tone = "primary" }) {
   );
 }
 
-export default function AnalyticsPage() {
+export default async function AnalyticsPage() {
+  const active = await activeUsers();
+
   return (
     <>
       <PageHeader
@@ -124,7 +146,7 @@ export default function AnalyticsPage() {
           <KpiTile label="Total Revenue" value="$2,965,515" delta={12.5} deltaLabel="from last month" icon="wallet" color="var(--ad-primary)" />
         </Col>
         <Col span={3}>
-          <KpiTile label="Active Users" value="86,412" delta={8.2} deltaLabel="from last week" icon="users" color="#2ca87f" />
+          <KpiTile label="Active Users" value={active.current.toLocaleString()} delta={active.delta ?? undefined} deltaLabel={active.delta == null ? "no data last week" : "from last week"} icon="users" color="#2ca87f" />
         </Col>
         <Col span={3}>
           <KpiTile label="Orders" value="6,465" delta={-2.1} deltaLabel="from yesterday" icon="cart" color="#e58a00" />
@@ -180,33 +202,12 @@ export default function AnalyticsPage() {
           <Card>
             <CardHead
               title="Global User Distribution"
-              action={<span className="text-xs text-[var(--ad-muted-foreground)]">Last 30 Days</span>}
             />
             <CardBody>
-              <div className="grid gap-6 sm:grid-cols-4">
-                {REGIONS_MAP.map((r) => (
-                  <div key={r.label}>
-                    <p className="text-xl font-semibold" style={{ color: r.color }}>
-                      {r.value}
-                    </p>
-                    <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{r.label}</p>
-                    <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--ad-muted)]">
-                      <div className="h-full rounded-full" style={{ width: `${r.pct}%`, backgroundColor: r.color }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6">
-                <ChartFrame height={180} labels={MONTHS}>
-                  <AreaChart
-                    height={180}
-                    showY={false}
-                    yTicks={3}
-                    labels={MONTHS}
-                    series={[{ name: "Users", data: [18, 24, 21, 30, 27, 36, 33, 42, 38, 47, 44, 52], color: "var(--ad-chart-1)" }]}
-                  />
-                </ChartFrame>
-              </div>
+              {/* Continents and the trend beneath both come from the same daily
+                  counters as Real-time Analytics, so both are cleared and
+                  mailed by the same new-year rollover. */}
+              <GlobalDistribution />
             </CardBody>
           </Card>
         </Col>
