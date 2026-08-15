@@ -111,6 +111,37 @@ export async function readContinents(days) {
   }));
 }
 
+// HOW MANY USERS WERE ACTIVE ON A GIVEN DAY.
+//
+// This has to be RECORDED, not derived. A user carries one "last seen"
+// timestamp, so the moment they come back, the evidence that they were also
+// around last week is overwritten — asking "who was active seven days ago"
+// of today's records systematically answers with only the people who have not
+// returned since. A week-over-week figure built that way is not merely missing,
+// it is biased downwards.
+//
+// So each day's count is written down once and read back later. hSetNX means
+// the FIRST writer of a day wins: whichever of the cron or a dashboard view
+// happens first records it, and nothing overwrites it afterwards, so the number
+// is a consistent single reading rather than drifting with each page load.
+const ACTIVE_FIELD = "users:active";
+
+export async function recordActiveUsers(count, day = isoDay(new Date())) {
+  const client = await getRedisClient();
+  try { await client.hSetNX(key(day), ACTIVE_FIELD, String(Math.max(0, Math.trunc(count)))); }
+  catch { /* a missed snapshot costs one day of comparison, never a page */ }
+}
+
+// Null, not zero, when a day was never recorded — "we did not measure" and
+// "nobody was here" must not read the same, or the delta would invent a number.
+export async function readActiveUsers(day) {
+  const client = await getRedisClient();
+  try {
+    const v = await client.hGet(key(day), ACTIVE_FIELD);
+    return v == null ? null : n(v);
+  } catch { return null; }
+}
+
 // Roll daily rows up into the twelve months of a year. Months that have not
 // happened yet are still present at zero: a year chart that stops in August
 // looks broken, whereas one that flatlines reads as "not yet".

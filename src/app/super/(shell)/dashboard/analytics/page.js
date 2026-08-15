@@ -19,32 +19,40 @@ import CurrencyRates from "./CurrencyRates";
 import RealtimeAnalytics from "./RealtimeAnalytics";
 import GlobalDistribution from "./GlobalDistribution";
 import { listUsersForConsole } from "@/lib/data/users";
-import { statusOf, wasActiveAt, STATUS } from "@/lib/platformRoles";
+import { statusOf, STATUS } from "@/lib/platformRoles";
+import { recordActiveUsers, readActiveUsers, isoDay } from "@/lib/data/siteStats";
 
 export const metadata = { title: "Analytics" };
 
-// ACTIVE USERS, counted exactly the way /application/users counts them —
-// statusOf() over the same records — so the tile and the console can never
+// ACTIVE USERS, counted exactly the way /application/users counts it —
+// statusOf() over the same records — so the tile and the console cannot
 // disagree about who is around.
 //
-// The delta is real too. A user was active a week ago if their last sign-in or
-// last page was within the active window AS OF THEN; the same test, run against
-// a clock seven days back. The timestamps are already stored, so this is a
-// second reading of history rather than a second thing to record.
+// The week-over-week figure compares against a RECORDED SNAPSHOT rather than
+// re-reading history. It has to: a user carries one "last seen" timestamp, so
+// anyone who has come back since has erased the evidence that they were also
+// here last week. Asking today's records who was active seven days ago answers
+// only with the people who never returned.
 async function activeUsers() {
   const users = await listUsersForConsole();
   const now = Date.now();
-  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-
   const current = users.filter((u) => statusOf(u, now) === STATUS.active).length;
-  const before = users.filter((u) => wasActiveAt(u, weekAgo)).length;
 
-  // No baseline means no percentage. "+100%" off nothing says more than it
-  // knows, so the tile simply drops the delta until there is something to
-  // compare against.
-  const delta = before > 0 ? Math.round(((current - before) / before) * 1000) / 10 : null;
+  // Today's count is written down for a future week to compare against. First
+  // writer of the day wins, so this and the daily cron cannot fight.
+  await recordActiveUsers(current);
+
+  const weekAgo = isoDay(new Date(now - 7 * 24 * 60 * 60 * 1000));
+  const before = await readActiveUsers(weekAgo);
+
+  // A day nobody recorded, or a week with nobody in it, gives no percentage.
+  // "+100%" off nothing claims more than it knows.
+  const delta = before != null && before > 0
+    ? Math.round(((current - before) / before) * 1000) / 10
+    : null;
   return { current, delta };
 }
+
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -146,7 +154,7 @@ export default async function AnalyticsPage() {
           <KpiTile label="Total Revenue" value="$2,965,515" delta={12.5} deltaLabel="from last month" icon="wallet" color="var(--ad-primary)" />
         </Col>
         <Col span={3}>
-          <KpiTile label="Active Users" value={active.current.toLocaleString()} delta={active.delta ?? undefined} deltaLabel={active.delta == null ? "no data last week" : "from last week"} icon="users" color="#2ca87f" />
+          <KpiTile label="Active Users" value={active.current.toLocaleString()} delta={active.delta} deltaLabel={active.delta == null ? "· no reading from last week yet" : "from last week"} icon="users" color="#2ca87f" />
         </Col>
         <Col span={3}>
           <KpiTile label="Orders" value="6,465" delta={-2.1} deltaLabel="from yesterday" icon="cart" color="#e58a00" />

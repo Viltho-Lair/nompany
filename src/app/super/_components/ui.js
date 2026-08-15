@@ -198,11 +198,16 @@ export function KpiTile({ label, value, delta, deltaLabel, icon, color = "var(--
         <div className="min-w-0">
           <p className="text-sm text-white/80">{label}</p>
           <h4 className="mt-0.5 text-2xl font-semibold leading-tight">{value}</h4>
-          {delta !== undefined ? (
+          {/* A tile with no delta still keeps its third line if it has
+              something to say there. Dropping the line entirely made the tile
+              change height and told the reader nothing about why. */}
+          {delta != null ? (
             <p className="mt-1 text-xs text-white/75">
               {delta >= 0 ? "+" : ""}
               {delta}% {deltaLabel}
             </p>
+          ) : deltaLabel ? (
+            <p className="mt-1 text-xs text-white/60">{deltaLabel}</p>
           ) : null}
         </div>
       </div>

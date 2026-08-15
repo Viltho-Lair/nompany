@@ -1,5 +1,7 @@
 import { sendEmail } from "@/lib/email";
-import { readDays, readPages, readContinents, daysOfYear, clearDays } from "@/lib/data/siteStats";
+import { readDays, readPages, readContinents, daysOfYear, clearDays, recordActiveUsers } from "@/lib/data/siteStats";
+import { listUsersForConsole } from "@/lib/data/users";
+import { statusOf, STATUS } from "@/lib/platformRoles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +26,17 @@ export async function GET(request) {
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
+
+  // EVERY day, before the new-year check: today's active-user count, so the
+  // dashboard has a baseline to compare against a week from now even if nobody
+  // opens it. First writer of the day wins, so this is safe to repeat.
+  try {
+    const users = await listUsersForConsole();
+    await recordActiveUsers(users.filter((u) => statusOf(u, Date.now()) === STATUS.active).length);
+  } catch (err) {
+    console.error("Active-user snapshot failed:", err.message);
+  }
+
   // Month and day only: this is "is it 1 January", not "is it 1 January 2027".
   if (!today.endsWith("-01-01")) {
     return Response.json({ ok: true, skipped: "not new year", today });
