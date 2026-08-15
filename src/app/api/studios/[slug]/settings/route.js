@@ -22,6 +22,11 @@ const FIELDS = ["logo", "country", "city", "location", "currency", "workingHours
 export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+// A studio is not deleted the moment it is asked for. Thirty days of grace,
+// during which the owner can change their mind and everything keeps working.
+export const GRACE_DAYS = 30;
+export const GRACE_MS = GRACE_DAYS * 24 * 60 * 60 * 1000;
+
 // Working hours are a fixed SHAPE, not free JSON: seven known days, each open or
 // closed with a from/to. Anything else in the payload is dropped, so a bad
 // request cannot put an eighth day or a malformed time into the record.
@@ -41,6 +46,10 @@ const clean = (studio) => ({
   id: studio.id, name: studio.name, slug: studio.slug, logo: studio.logo || "",
   country: studio.country || "", city: studio.city || "", location: studio.location || "",
   currency: studio.currency || "",
+  deletionRequestedAt: studio.deletionRequestedAt || "",
+  deletionFinalisesAt: studio.deletionRequestedAt
+    ? new Date(Date.parse(studio.deletionRequestedAt) + GRACE_MS).toISOString()
+    : "",
   workingHours: studio.workingHours || null,
 });
 
@@ -54,7 +63,13 @@ export async function GET(request, ctx) {
     return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
   }
   const { studio, collaborator } = context;
-  return Response.json({ studio: clean(studio), canManage: canAdminister(studio, collaborator) });
+  return Response.json({
+    studio: clean(studio),
+    canManage: canAdminister(studio, collaborator),
+    // Asking for deletion is the OWNER's call, not an admin's: it ends the
+    // studio for everybody in it.
+    isOwner: collaborator.role === "owner",
+  });
 }
 
 export async function PUT(request, ctx) {
@@ -71,6 +86,20 @@ export async function PUT(request, ctx) {
 
   let body = {};
   try { body = await request.json(); } catch { body = {}; }
+
+  // Requesting or cancelling deletion is handled apart from the ordinary
+  // settings and is the OWNER's alone — an admin can change the logo, not end
+  // the studio. Cancelling is deliberately as easy as asking: the grace period
+  // is only worth having if changing your mind is one click.
+  if ("requestDeletion" in body) {
+    if (collaborator.role !== "owner") return Response.json({ error: "owner-only" }, { status: 403 });
+    const updated = await updateStudio(studio.id, {
+      deletionRequestedAt: body.requestDeletion ? new Date().toISOString() : "",
+    });
+    return updated
+      ? Response.json({ ok: true, studio: clean(updated) })
+      : Response.json({ error: "notfound" }, { status: 404 });
+  }
 
   const patch = {};
   for (const key of FIELDS) {

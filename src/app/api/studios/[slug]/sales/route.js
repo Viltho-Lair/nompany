@@ -35,7 +35,12 @@ export async function GET(request, ctx) {
     // Where the studio itself is. A new ticket starts here and the person
     // raising it can change either, which is why these are defaults rather
     // than the answer.
-    studioDefaults: { country: sales.studio.country || "", city: sales.studio.city || "" },
+    studioDefaults: {
+      country: sales.studio.country || "", city: sales.studio.city || "",
+      // Money on a ticket is the studio's money, so its symbol comes from
+      // the studio rather than being guessed per amount.
+      currency: sales.studio.currency || "",
+    },
     // Which columns the Live view shows, and everything it could show.
     liveColumns: sales.liveColumns,
     salesCities: sales.salesCities,

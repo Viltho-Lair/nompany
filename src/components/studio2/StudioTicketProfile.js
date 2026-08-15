@@ -6,6 +6,7 @@ import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, input, btn, btnGhost, money, fmtDate, Dialog } from "@/components/studio2/ui";
 import { TicketForm } from "@/components/studio2/StudioSales";
+import { Money } from "@/components/Currency";
 
 // ONE TICKET, on its own page — the layout in the brief: the ticket's own
 // information on the left with the client and the timeline down the right, and
@@ -75,6 +76,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
     );
   }
 
+  const currency = data.studioDefaults?.currency || "";
   const contact = { name: ticket.contactName, phone: ticket.contactPhone, email: ticket.contactEmail };
   // The timeline is built from what the ticket already records, so it cannot
   // drift from the row: no separate event log to keep in step.
@@ -108,8 +110,8 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               <Field label="Deadline" value={fmtDate(ticket.deadline)} />
               <Field label="Industry" value={ticket.industry} />
               <Field label="Owner" value={aliasOf[ticket.assignedToCollaboratorId] || "Unassigned"} />
-              <Field label="Value" value={ticket.value ? money(ticket.value) : "—"} />
-              <Field label="Client budget" value={ticket.clientBudget ? money(ticket.clientBudget) : "—"} />
+              <Field label="Value" value={ticket.value ? <Money amount={ticket.value} currency={currency} /> : ""} />
+              <Field label="Client budget" value={ticket.clientBudget ? <Money amount={ticket.clientBudget} currency={currency} /> : ""} />
               <Field label="Site" value={ticket.location?.name} />
               <Field label="Country" value={ticket.location?.country} />
               <Field label="City" value={ticket.location?.city} />

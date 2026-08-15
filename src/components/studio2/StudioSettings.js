@@ -5,6 +5,7 @@ import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
 import { COUNTRIES } from "@/lib/countries";
 import { citiesFor } from "@/lib/cities";
+import { CurrencySymbol } from "@/components/Currency";
 
 // Studio settings — the studio's own identity, reached from the sidebar where
 // "My account" used to sit. The account itself is still one click away, behind
@@ -51,6 +52,8 @@ export default function StudioSettings({ slug }) {
   const [canManage, setCanManage] = useState(false);
   const [logoOpen, setLogoOpen] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -60,6 +63,7 @@ export default function StudioSettings({ slug }) {
       const d = await res.json();
       setStudio(d.studio);
       setCanManage(Boolean(d.canManage));
+      setIsOwner(Boolean(d.isOwner));
     }
     setLoading(false);
   }, [slug]);
@@ -153,7 +157,10 @@ export default function StudioSettings({ slug }) {
         />
 
         <EditRow
-          icon="cash" label="Currency" value={studio.currency} canManage={canManage}
+          icon="cash" label="Currency" canManage={canManage}
+          value={studio.currency
+            ? <span className="inline-flex items-center gap-2"><CurrencySymbol code={studio.currency} /> {studio.currency}</span>
+            : ""}
           hint="Not set — amounts show without one."
           onSave={(v) => save({ currency: v })}
           render={(draft, set) => (
@@ -176,6 +183,53 @@ export default function StudioSettings({ slug }) {
         </button>
       </div>
 
+      {/* ENDING THE STUDIO. Kept apart from the settings above and framed in red,
+          because it is not a setting — it is the end of the thing the settings
+          describe. Owner only, and reversible for thirty days. */}
+      {isOwner && (
+        <div className="mt-8 rounded-geex border border-rose-200 p-5 dark:border-rose-500/30">
+          <h3 className="font-display text-base font-700 text-rose-700 dark:text-rose-300">Delete this studio</h3>
+          {studio.deletionRequestedAt ? (
+            <>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Scheduled for deletion. Everything keeps working until then, and cancelling
+                undoes it completely.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <Countdown until={studio.deletionFinalisesAt} />
+                <button
+                  className={BTN}
+                  onClick={() => save({ requestDeletion: false })}
+                >
+                  Cancel deletion
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Deleting {studio.name} removes it for everyone in it, along with every
+                section, ticket and record inside.
+              </p>
+              <button
+                className="mt-3 rounded-full bg-rose-600 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-rose-700"
+                onClick={() => setConfirmDelete(true)}
+              >
+                Delete studio
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmDelete
+          name={studio.name}
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={async () => { await save({ requestDeletion: true }); setConfirmDelete(false); }}
+        />
+      )}
+
       {hoursOpen && (
         <HoursDialog
           slug={slug}
@@ -193,6 +247,70 @@ export default function StudioSettings({ slug }) {
           onSaved={load}
         />
       )}
+    </div>
+  );
+}
+
+// How long is left, counted down live. A date alone ("3 September") makes
+// somebody work out whether they still have time; a running clock does not.
+function Countdown({ until }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const left = Math.max(0, Date.parse(until || "") - now);
+  if (!Number.isFinite(left)) return null;
+  const d = Math.floor(left / 86400000);
+  const h = Math.floor((left % 86400000) / 3600000);
+  const m = Math.floor((left % 3600000) / 60000);
+  const sec = Math.floor((left % 60000) / 1000);
+  return (
+    <span className="inline-flex items-baseline gap-1 rounded-full bg-rose-500/10 px-3 py-1.5 font-mono text-sm font-600 tabular-nums text-rose-700 dark:text-rose-300">
+      {d}d {String(h).padStart(2, "0")}:{String(m).padStart(2, "0")}:{String(sec).padStart(2, "0")}
+      <span className="font-sans text-xs font-500 opacity-70">left</span>
+    </span>
+  );
+}
+
+// The alert. It states the thirty days plainly, because that is the part that
+// makes the decision reversible and the part somebody needs to have read.
+function ConfirmDelete({ name, onClose, onConfirm }) {
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label="Delete studio">
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div className="relative w-full max-w-[480px] overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]">
+        <div className="px-6 pt-6">
+          <h3 className="font-display text-lg font-700 text-rose-700 dark:text-rose-300">Delete {name}?</h3>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            Deletion of this studio will take <strong>30 days</strong> to finalise. Until then
+            nothing changes — everyone keeps their access and all of its work stays where it is.
+          </p>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            You can cancel at any point in those 30 days and the studio carries on as if you
+            had never asked.
+          </p>
+        </div>
+        <div className="flex gap-3 px-6 pb-6 pt-5">
+          <button
+            className="rounded-full bg-rose-600 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-rose-700 disabled:opacity-60"
+            disabled={busy}
+            onClick={async () => { setBusy(true); await onConfirm(); setBusy(false); }}
+          >
+            {busy ? "Scheduling…" : "Schedule deletion"}
+          </button>
+          <button className={BTN_GHOST} onClick={onClose}>Keep the studio</button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
 import { linkToClient } from "@/lib/studioLinks";
 import { COUNTRIES } from "@/lib/countries";
 import { citiesFor } from "@/lib/cities";
+import { CurrencySymbol } from "@/components/Currency";
 import { salesFunnel, probabilityBuckets, atRiskTickets, rfqInfo, isUnresolved } from "@/lib/salesAnalytics";
 import { daysUntil } from "@/lib/sla";
 
@@ -988,7 +989,17 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
         </div>
         <div>
           <label className={label}>Client budget</label>
-          <input className={input} type="number" min="0" value={f.clientBudget} onChange={set("clientBudget")} placeholder="Optional reference figure" />
+          {/* The studio's currency sits IN the field rather than beside the
+              label, so the number is read together with what it is in. */}
+          <div className="relative">
+            {studioDefaults.currency && (
+              <span className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-sm text-slate-400">
+                <CurrencySymbol code={studioDefaults.currency} />
+              </span>
+            )}
+            <input className={`${input} ${studioDefaults.currency ? "ps-10" : ""}`} type="number" min="0"
+              value={f.clientBudget} onChange={set("clientBudget")} placeholder="Optional reference figure" />
+          </div>
           <p className="mt-1 text-[11px] text-slate-400">The ticket&apos;s <span className="font-600">Value</span> is set automatically from an approved quotation.</p>
         </div>
 
