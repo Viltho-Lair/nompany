@@ -2,8 +2,20 @@
 // components can import them without pulling the Redis-backed section store in
 // with them — the same split lib/tickets.js makes for Sales.
 
-export const QUOTATION_STATUSES = ["Draft", "Sent", "Approved", "Rejected"];
-export const DEFAULT_QUOTATION_STATUS = "Draft";
+// A quotation's status is READ OFF WHAT PEOPLE DO TO IT rather than chosen from
+// a menu. It arrives New, turns into a Draft the moment somebody opens the
+// builder on it, and is only Completed when they submit from inside the builder.
+// SAVING IS NOT FINISHING — that distinction is the whole point of the pair.
+//
+// Sent/Approved/Rejected live on past Completed: what happens to the document
+// once it leaves the studio. They stay hand-set, and rows already carrying them
+// keep working.
+export const QUOTATION_STATUSES = ["New", "Draft", "Completed", "Sent", "Approved", "Rejected"];
+export const DEFAULT_QUOTATION_STATUS = "New";
+
+// The three the BUILDER owns. Nobody hand-winds a quotation back into these —
+// they are consequences of opening and submitting.
+export const BUILDER_STATUSES = ["New", "Draft", "Completed"];
 export const DEFAULT_VAT_RATE = 15; // KSA standard rate; per-quotation override
 
 // A quotation raised straight from the Quotations screen has no RFQ behind it,
@@ -36,6 +48,45 @@ export function cleanQuotationLiveColumns(value) {
   return picked.length ? [...new Set(picked)] : [...DEFAULT_QUOTATION_LIVE_COLUMNS];
 }
 
-// A quotation still sitting in its opening status — nobody has sent it, so it
-// is what the list's amber stripe marks.
-export const isUnsent = (q) => q?.status === DEFAULT_QUOTATION_STATUS;
+// A quotation nobody has finished — either untouched or mid-build. That is what
+// the list's amber stripe marks: work still owed, not work still unsent.
+export const isUnfinished = (q) => q?.status === "New" || q?.status === "Draft";
+
+const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+export const MAX_TABLES = 20;
+export const MAX_TABLE_ROWS = 200;
+
+// A quotation carries ITS OWN SETUP: the tables it is divided into, the rows in
+// each, and a quantity per row. Two quotations for the same client can be built
+// differently, so the shape belongs to the quotation and not to a studio-wide
+// template.
+//
+// A row with no description is dropped — a priced line nobody named cannot be
+// read on the finished document.
+export function cleanQuotationTables(value) {
+  return (Array.isArray(value) ? value : []).slice(0, MAX_TABLES).map((t, i) => ({
+    id: String(t?.id || `t${i + 1}`).slice(0, 40),
+    title: String(t?.title ?? "").trim().slice(0, 120),
+    rows: (Array.isArray(t?.rows) ? t.rows : []).slice(0, MAX_TABLE_ROWS).map((r, j) => ({
+      id: String(r?.id || `r${j + 1}`).slice(0, 40),
+      description: String(r?.description ?? "").trim().slice(0, 300),
+      unit: String(r?.unit ?? "").trim().slice(0, 30),
+      qty: n(r?.qty),
+      unitPrice: n(r?.unitPrice),
+    })).filter((r) => r.description),
+  }));
+}
+
+// The tables are the setup; `items` stays the flat priced list every other
+// screen already reads. DERIVING one from the other means the totals, the live
+// columns and the analytics keep working without knowing tables exist — and
+// there is still only one place a price is stored.
+export function itemsFromTables(tables) {
+  return (tables || []).flatMap((t) =>
+    (t.rows || []).map((r) => ({
+      description: t.title ? `${t.title} — ${r.description}` : r.description,
+      qty: r.qty,
+      unitPrice: r.unitPrice,
+    })));
+}

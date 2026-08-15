@@ -12,7 +12,8 @@ import {
   WidgetTitle, FunnelChart, BarBreakdown, Leaderboard, TimelineChart, ScatterChart,
 } from "@/components/studio2/ui";
 import { linkToTicket, linkToRfq, linkIf } from "@/lib/studioLinks";
-import { isUnsent } from "@/lib/quotations";
+import { isUnfinished } from "@/lib/quotations";
+import QuotationBuilder from "@/components/studio2/QuotationBuilder";
 import {
   quotationStats, rfqFunnel, urgencyBreakdown, handlerLeaderboard,
   quotationTimeline, completionScatter, averageTurnaround, quotationValue, isUnworked,
@@ -30,14 +31,18 @@ const RFQ_TONE = {
   Rejected: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
 };
 const Q_TONE = {
-  Draft: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
+  New: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
+  Draft: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  Completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   Sent: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
   Approved: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   Rejected: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
 };
 // The same tones as plain text, for the inline status <select>.
 const Q_TEXT = {
-  Draft: "text-slate-600 dark:text-slate-300",
+  New: "text-brand-700 dark:text-brand-300",
+  Draft: "text-amber-700 dark:text-amber-300",
+  Completed: "text-emerald-700 dark:text-emerald-300",
   Sent: "text-brand-700 dark:text-brand-300",
   Approved: "text-emerald-700 dark:text-emerald-300",
   Rejected: "text-rose-600 dark:text-rose-400",
@@ -100,7 +105,11 @@ export default function StudioTechnical({ slug, view = "technical" }) {
   // "Raise RFQ" list is watched too.
   useLiveUpdates(slug, "sales", load);
 
-  async function send(kind, method, payload) {
+  // keepOpen is for the BUILDER. Every other caller is a dialog that should
+  // close once its one job is done; the builder saves repeatedly and must stay
+  // where it is, so it opts out of the closing rather than the closing being
+  // spread across every caller.
+  async function send(kind, method, payload, keepOpen = false) {
     setError("");
     const url = kind ? `/api/studios/${slug}/technical/${kind}` : `/api/studios/${slug}/technical`;
     const res = await fetch(url, {
@@ -123,7 +132,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
       );
       return false;
     }
-    setRaising(false); setConverting(null); setEditingQuote(null); setCreatingQuote(false);
+    if (!keepOpen) { setRaising(false); setConverting(null); setEditingQuote(null); setCreatingQuote(false); }
     await load();
     return true;
   }
@@ -194,13 +203,11 @@ export default function StudioTechnical({ slug, view = "technical" }) {
           </Dialog>
         )}
         {editingQuote && (
-          <Dialog title={`${editingQuote.number} · ${editingQuote.title || ""}`}
-            description={editingQuote.locked ? "Locked — view only." : "The number is fixed once assigned. Pricing recomputes on save."}
-            onClose={closeEdit} width="max-w-[820px]">
-            <QuoteEditor quote={editingQuote} statuses={vocabulary.quotationStatuses} people={people}
-              aliasOf={aliasOf} canManage={canManage}
-              onCancel={closeEdit} onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id })} />
-          </Dialog>
+          <QuotationBuilder
+            quote={quotations.find((q) => q.id === editingQuote.id) || editingQuote}
+            canManage={canManage}
+            onClose={closeEdit}
+            onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />
         )}
         <Quotations quotations={quotations} canManage={canManage} slug={slug} nav={nav} focus={focusQuote}
           handlerName={handlerName} people={people}
@@ -673,9 +680,9 @@ function Quotations({ quotations, canManage, slug, nav, focus, handlerName, peop
               <tbody>
                 {filtered.map((q) => {
                   const comment = latestComment(q);
-                  // A quotation still in Draft is one nobody has sent — the
-                  // same thing the sidebar's badge counts.
-                  const unsent = isUnsent(q);
+                  // New or Draft: work still owed. The stripe marks quotations
+                  // nobody has finished, which is what the sidebar counts too.
+                  const unsent = isUnfinished(q);
                   return (
                     <tr key={q.id} {...focus.focusProps(q.id)}
                       onClick={() => onOpen(q)}
@@ -791,7 +798,6 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
   // No items and no VAT. Converting says a quotation exists, who owns it and
   // what it is called; what goes ON it belongs to the builder.
   const [handledBy, setHandledBy] = useState("");
-  const [description, setDescription] = useState(rfq.description || rfq.title || "");
   const [busy, setBusy] = useState(false);
   return (
     <>
@@ -815,23 +821,23 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
         <div><label className={label}>Industry <span className="font-500 normal-case text-slate-400">(set by Sales)</span></label><input className={inputRO} value={rfq.industry || "—"} readOnly /></div>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className={label}>Handled by</label>
-          <select className={input} value={handledBy} onChange={(e) => setHandledBy(e.target.value)}>
-            <option value="">— nobody yet —</option>
-            {people.map((p) => (<option key={p.id} value={p.id}>{p.alias}</option>))}
-          </select>
-        </div>
-        <div><label className={label}>Description</label><input className={input} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+      {/* One question, because converting only decides WHO takes it. The
+          description comes across from the RFQ; retyping it here would give the
+          same sentence two homes. */}
+      <div className="mt-4 sm:max-w-xs">
+        <label className={label}>Handled by</label>
+        <select className={input} value={handledBy} onChange={(e) => setHandledBy(e.target.value)}>
+          <option value="">— nobody yet —</option>
+          {people.map((p) => (<option key={p.id} value={p.id}>{p.alias}</option>))}
+        </select>
       </div>
 
       <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
         The quotation is numbered automatically and its lead is set to <span className="font-600">{rfq.ticketRef || rfq.reference}</span>.
       </p>
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !handledBy} onClick={async () => { setBusy(true); await onSave({ handledByCollaboratorId: handledBy, description }); setBusy(false); }}>
-          {busy ? "Creating…" : "Create quotation"}
+        <button className={btn} disabled={busy || !handledBy} onClick={async () => { setBusy(true); await onSave({ handledByCollaboratorId: handledBy }); setBusy(false); }}>
+          {busy ? "Converting…" : "Convert"}
         </button>
         <button className={btnGhost} onClick={onCancel}>Cancel</button>
       </div>
@@ -869,153 +875,6 @@ function NewQuotation({ people, onSave, onCancel }) {
   );
 }
 
-function QuoteEditor({ quote, statuses, people, aliasOf, canManage, onSave, onCancel }) {
-  const [items, setItems] = useState(quote.items?.length ? quote.items : [{ description: "", qty: 1, unitPrice: 0 }]);
-  const [vatRate, setVatRate] = useState(quote.vatRate ?? 15);
-  const [status, setStatus] = useState(quote.status);
-  const [handledBy, setHandledBy] = useState(quote.handledBy || "");
-  const [description, setDescription] = useState(quote.description || "");
-  const [newComment, setNewComment] = useState("");
-  const [busy, setBusy] = useState(false);
-  const readOnly = quote.locked || !canManage;
-  const comments = useMemo(
-    () => [...(quote.comments || [])].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
-    [quote.comments],
-  );
-
-  return (
-    <>
-      {/* Carried from Sales via the RFQ, and not editable here. */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div><label className={label}>Client</label><input className={inputRO} value={quote.clientName || "—"} readOnly /></div>
-        <div>
-          <label className={label}>Urgency <span className="font-500 normal-case text-slate-400">(set by Sales)</span></label>
-          <div className={`${inputRO} flex items-center`}>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[quote.urgency] || URGENCY_BADGE.Normal}`}>{quote.urgency || "Normal"}</span>
-          </div>
-        </div>
-        <div><label className={label}>From</label><input className={inputRO} value={quote.leadLabel || "Internal"} readOnly /></div>
-      </div>
-
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <div>
-          <label className={label}>Number <span className="font-500 normal-case text-slate-400">(locked)</span></label>
-          <input className={inputRO} value={quote.number} readOnly title="A quotation's number is fixed once assigned — it is the reference the client holds." />
-        </div>
-        <div>
-          <label className={label}>Handled by</label>
-          <select className={input} value={handledBy} disabled={readOnly} onChange={(e) => setHandledBy(e.target.value)}>
-            <option value="">— nobody yet —</option>
-            {people.map((p) => (<option key={p.id} value={p.id}>{p.alias}</option>))}
-            {/* A handler typed in before collaborators were pickable still has
-                to render, or saving would silently reassign the quotation. */}
-            {handledBy && !people.some((p) => p.id === handledBy) && <option value={handledBy}>{handledBy}</option>}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Status</label>
-          <select className={input} value={status} disabled={readOnly} onChange={(e) => setStatus(e.target.value)}>
-            {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div className="sm:col-span-3">
-          <label className={label}>Description</label>
-          <textarea rows={2} className={input} value={description} disabled={readOnly} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-      </div>
-
-      <LineItems items={items} setItems={setItems} vatRate={vatRate} setVatRate={setVatRate} disabled={readOnly} />
-
-      <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
-        <p className={microLabel}>Comments</p>
-        {comments.length === 0 ? (
-          <p className="text-sm text-slate-400">No comments yet.</p>
-        ) : (
-          <ul className="mb-3 max-h-40 space-y-2 overflow-y-auto text-sm">
-            {comments.map((c) => (
-              <li key={c.id} className="rounded-lg bg-white p-2.5 text-slate-700 dark:bg-[#20202c] dark:text-slate-300">
-                <div className="mb-0.5 text-[11px] text-slate-400 dark:text-slate-500">
-                  {aliasOf[c.byCollaboratorId] || "Someone"} · {fmtDateTime(c.createdAt)}
-                </div>
-                <div className="whitespace-pre-wrap">{c.text}</div>
-              </li>
-            ))}
-          </ul>
-        )}
-        {!readOnly && (
-          <>
-            <label className={label}>Add a comment</label>
-            <textarea rows={2} className={input} value={newComment} onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Appended on save and attributed to you." />
-          </>
-        )}
-      </div>
-
-      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-        Created {fmtDateTime(quote.createdAt)}{quote.completedAt ? ` · approved ${fmtDateTime(quote.completedAt)}` : ""}. The creation date cannot be changed.
-      </p>
-
-      <div className="mt-5 flex gap-3">
-        {!readOnly && (
-          <button className={btn} disabled={busy} onClick={async () => {
-            setBusy(true);
-            await onSave({ items, vatRate, status, handledBy, description, ...(newComment.trim() ? { newComment } : {}) });
-            setBusy(false);
-          }}>{busy ? "Saving…" : "Save quotation"}</button>
-        )}
-        <button className={btnGhost} onClick={onCancel}>Close</button>
-      </div>
-    </>
-  );
-}
-
-// Shared line-item editor. Totals shown here are a preview — the server always
-// recomputes them, so a tampered client can't change what's stored.
-function LineItems({ items, setItems, vatRate, setVatRate, disabled = false }) {
-  const totals = useMemo(() => {
-    const subtotal = items.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.unitPrice) || 0), 0);
-    const vat = subtotal * ((Number(vatRate) || 0) / 100);
-    return { subtotal, vat, total: subtotal + vat };
-  }, [items, vatRate]);
-  const set = (idx, key, value) => setItems(items.map((it, i) => (i === idx ? { ...it, [key]: value } : it)));
-
-  return (
-    <>
-      <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">Lines</p>
-      <div className="mt-2 space-y-2">
-        {items.map((it, idx) => (
-          <div key={idx} className="grid gap-2 sm:grid-cols-[1fr_90px_120px_40px]">
-            <input className={input} placeholder="Description" value={it.description} disabled={disabled} onChange={(e) => set(idx, "description", e.target.value)} />
-            <input className={input} type="number" min="0" placeholder="Qty" value={it.qty} disabled={disabled} onChange={(e) => set(idx, "qty", e.target.value)} />
-            <input className={input} type="number" min="0" step="0.01" placeholder="Unit price" value={it.unitPrice} disabled={disabled} onChange={(e) => set(idx, "unitPrice", e.target.value)} />
-            <button type="button" disabled={disabled} className="rounded-xl border border-slate-200 text-slate-400 hover:text-rose-600 disabled:opacity-40 dark:border-white/15"
-              onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove line">×</button>
-          </div>
-        ))}
-      </div>
-      {!disabled && (
-        <button type="button" className={`${btnGhost} mt-3`} onClick={() => setItems([...items, { description: "", qty: 1, unitPrice: 0 }])}>
-          Add line
-        </button>
-      )}
-
-      <div className="mt-5 flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 pt-4 dark:border-white/5">
-        <div className="w-32">
-          <label className={label}>VAT %</label>
-          <input className={input} type="number" min="0" max="100" value={vatRate} disabled={disabled} onChange={(e) => setVatRate(e.target.value)} />
-        </div>
-        <dl className="text-sm tabular-nums">
-          <div className="flex justify-between gap-8"><dt className="text-slate-500 dark:text-slate-400">Subtotal</dt><dd className="text-slate-700 dark:text-slate-200">{money(totals.subtotal)}</dd></div>
-          <div className="flex justify-between gap-8"><dt className="text-slate-500 dark:text-slate-400">VAT</dt><dd className="text-slate-700 dark:text-slate-200">{money(totals.vat)}</dd></div>
-          <div className="mt-1 flex justify-between gap-8 border-t border-slate-100 pt-1 dark:border-white/5">
-            <dt className="font-700 text-slate-900 dark:text-white">Total</dt>
-            <dd className="font-700 text-slate-900 dark:text-white">{money(totals.total)}</dd>
-          </div>
-        </dl>
-      </div>
-    </>
-  );
-}
 
 // ---- settings --------------------------------------------------------------
 // Technical Settings: the Live view's columns, and the standing cover copy that

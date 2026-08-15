@@ -1,0 +1,240 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { btn, btnGhost, input, label, money } from "@/components/studio2/ui";
+import { Icon } from "@/components/studio2/icons";
+import { MAX_TABLES, MAX_TABLE_ROWS } from "@/lib/quotations";
+
+// The Quotation Builder: the full screen where a quotation is actually built.
+//
+// It takes the whole viewport rather than a dialog because building a quotation
+// is the task, not a detour from the list behind it — and a table of priced
+// lines needs the width.
+//
+// The quotation carries its OWN setup: which tables it is divided into, the
+// rows in each and a quantity per row. Nothing here is a studio-wide template,
+// so two quotations for the same client can be laid out differently.
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+const blankRow = () => ({ id: uid(), description: "", unit: "", qty: 1, unitPrice: 0 });
+const blankTable = () => ({ id: uid(), title: "", rows: [blankRow()] });
+
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+// A cell that holds a number but is typed as text: forcing an <input
+// type="number"> back to a number on every keystroke fights whoever is halfway
+// through typing "1.5".
+const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
+
+export default function QuotationBuilder({ quote, canManage, onSave, onClose }) {
+  const locked = Boolean(quote.locked) || !canManage;
+  const [tables, setTables] = useState(() => {
+    const stored = Array.isArray(quote.tables) ? quote.tables : [];
+    return stored.length
+      ? stored.map((t) => ({ ...t, rows: (t.rows || []).map((r) => ({ ...r })) }))
+      : [blankTable()];
+  });
+  const [vatRate, setVatRate] = useState(num(quote.vatRate));
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState("");
+
+  // Opening the builder is what makes a New quotation a Draft. Reported once,
+  // on arrival — the server decides whether that actually changes anything, so
+  // reopening a finished quotation does not reset it.
+  const announced = useRef(false);
+  useEffect(() => {
+    if (announced.current || locked || quote.status !== "New") return;
+    announced.current = true;
+    onSave({ opened: true });
+  }, [locked, quote.status, onSave]);
+
+  const setTable = (i, patch) =>
+    setTables((ts) => ts.map((t, j) => (j === i ? { ...t, ...patch } : t)));
+  const setRow = (i, k, patch) =>
+    setTables((ts) => ts.map((t, j) => (j === i
+      ? { ...t, rows: t.rows.map((r, m) => (m === k ? { ...r, ...patch } : r)) }
+      : t)));
+
+  const totals = useMemo(() => {
+    const subtotal = tables.reduce((sum, t) =>
+      sum + t.rows.reduce((s, r) => s + num(r.qty) * num(r.unitPrice), 0), 0);
+    const vat = subtotal * (num(vatRate) / 100);
+    return { subtotal, vat, total: subtotal + vat };
+  }, [tables, vatRate]);
+
+  const lines = tables.reduce((n, t) => n + t.rows.filter((r) => r.description.trim()).length, 0);
+
+  async function commit(status) {
+    setBusy(true);
+    // Submit is the only thing that finishes a quotation. Save deliberately
+    // sends no status, which leaves the server to keep it a Draft.
+    const ok = await onSave(status ? { tables, vatRate, status } : { tables, vatRate });
+    setBusy(false);
+    if (ok === false) return;
+    setSaved(status ? "submitted" : "saved");
+    if (status) onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex flex-col bg-slate-50 dark:bg-[#0b1020]">
+      {/* ---------------------------------------------------------- header */}
+      <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-5 py-3 dark:border-white/10 dark:bg-white/5">
+        <button className="rounded-geex p-1.5 text-slate-500 transition-colors hover:bg-slate-100 dark:hover:bg-white/10"
+          onClick={onClose} aria-label="Close the builder">
+          <Icon name="close" className="h-5 w-5" />
+        </button>
+        <div className="min-w-0">
+          <p className="truncate font-display text-base font-700 text-slate-900 dark:text-white">
+            {quote.title || "Quotation"}
+          </p>
+          <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+            <span className="font-mono">{quote.number}</span>
+            {quote.clientName ? ` · ${quote.clientName}` : ""} · {quote.status}
+          </p>
+        </div>
+
+        <div className="ms-auto flex items-center gap-2">
+          {locked ? (
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-700 text-slate-500 dark:bg-white/5 dark:text-slate-300">
+              {quote.locked ? "Locked — view only" : "View only"}
+            </span>
+          ) : (
+            <>
+              <button className={btnGhost} onClick={() => commit(null)} disabled={busy}>
+                {busy ? "Saving…" : saved === "saved" ? "Saved" : "Save"}
+              </button>
+              {/* Submitting is what marks it Completed, so it says what it does
+                  rather than leaving somebody to set a status afterwards. */}
+              <button className={btn} onClick={() => commit("Completed")} disabled={busy || !lines}>
+                Submit
+              </button>
+            </>
+          )}
+        </div>
+      </header>
+
+      {!locked && !lines && (
+        <p className="border-b border-amber-500/20 bg-amber-500/10 px-5 py-2 text-xs text-amber-700 dark:text-amber-300">
+          Add at least one described line before submitting.
+        </p>
+      )}
+
+      {/* ----------------------------------------------------------- tables */}
+      <div className="flex-1 overflow-y-auto px-5 py-6">
+        <div className="mx-auto max-w-5xl space-y-6">
+          {tables.map((table, i) => {
+            const sum = table.rows.reduce((s, r) => s + num(r.qty) * num(r.unitPrice), 0);
+            return (
+              <section key={table.id} className="rounded-geex border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+                <div className="flex items-center gap-3">
+                  <input
+                    className={`${input} font-600`}
+                    value={table.title}
+                    disabled={locked}
+                    placeholder={`Table ${i + 1} — what this section covers`}
+                    aria-label={`Table ${i + 1} title`}
+                    onChange={(e) => setTable(i, { title: e.target.value })}
+                  />
+                  {!locked && tables.length > 1 && (
+                    <button className="shrink-0 px-1.5 text-slate-400 transition-colors hover:text-rose-600"
+                      aria-label={`Remove table ${i + 1}`}
+                      onClick={() => setTables((ts) => ts.filter((_, j) => j !== i))}>×</button>
+                  )}
+                </div>
+
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[640px] border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-start text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:text-slate-400">
+                        <th className="py-2 pe-3 text-start font-600">Item</th>
+                        <th className="w-24 py-2 pe-3 text-start font-600">Unit</th>
+                        <th className="w-24 py-2 pe-3 text-start font-600">Qty</th>
+                        <th className="w-32 py-2 pe-3 text-start font-600">Unit price</th>
+                        <th className="w-32 py-2 pe-3 text-end font-600">Line</th>
+                        <th className="w-8" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {table.rows.map((row, k) => (
+                        <tr key={row.id} className="border-b border-slate-100 last:border-b-0 dark:border-white/5">
+                          <td className="py-1.5 pe-3">
+                            <input className={cell} value={row.description} disabled={locked}
+                              placeholder="What is being quoted"
+                              aria-label={`Table ${i + 1} row ${k + 1} item`}
+                              onChange={(e) => setRow(i, k, { description: e.target.value })} />
+                          </td>
+                          <td className="py-1.5 pe-3">
+                            <input className={cell} value={row.unit} disabled={locked} placeholder="ea"
+                              aria-label={`Table ${i + 1} row ${k + 1} unit`}
+                              onChange={(e) => setRow(i, k, { unit: e.target.value })} />
+                          </td>
+                          <td className="py-1.5 pe-3">
+                            <input className={cell} value={row.qty} disabled={locked} inputMode="decimal"
+                              aria-label={`Table ${i + 1} row ${k + 1} quantity`}
+                              onChange={(e) => setRow(i, k, { qty: e.target.value })} />
+                          </td>
+                          <td className="py-1.5 pe-3">
+                            <input className={cell} value={row.unitPrice} disabled={locked} inputMode="decimal"
+                              aria-label={`Table ${i + 1} row ${k + 1} unit price`}
+                              onChange={(e) => setRow(i, k, { unitPrice: e.target.value })} />
+                          </td>
+                          <td className="py-1.5 pe-3 text-end font-mono text-xs text-slate-600 dark:text-slate-300">
+                            {money(num(row.qty) * num(row.unitPrice))}
+                          </td>
+                          <td className="py-1.5 text-end">
+                            {!locked && table.rows.length > 1 && (
+                              <button className="px-1 text-slate-400 transition-colors hover:text-rose-600"
+                                aria-label={`Remove row ${k + 1} of table ${i + 1}`}
+                                onClick={() => setTables((ts) => ts.map((t, j) => (j === i ? { ...t, rows: t.rows.filter((_, m) => m !== k) } : t)))}>×</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  {!locked && table.rows.length < MAX_TABLE_ROWS ? (
+                    <button className={btnGhost}
+                      onClick={() => setTable(i, { rows: [...table.rows, blankRow()] })}>Add row</button>
+                  ) : <span />}
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Table total <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(sum)}</span>
+                  </p>
+                </div>
+              </section>
+            );
+          })}
+
+          {!locked && tables.length < MAX_TABLES && (
+            <button className={btnGhost} onClick={() => setTables((ts) => [...ts, blankTable()])}>
+              Add table
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ----------------------------------------------------------- totals */}
+      <footer className="border-t border-slate-200 bg-white px-5 py-3 dark:border-white/10 dark:bg-white/5">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-x-8 gap-y-2 text-sm">
+          <span className="text-slate-500 dark:text-slate-400">
+            {lines} line{lines === 1 ? "" : "s"}
+          </span>
+          <span className="text-slate-500 dark:text-slate-400">
+            Subtotal <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(totals.subtotal)}</span>
+          </span>
+          <span className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+            <label className={`${label} mb-0`} htmlFor="qb-vat">VAT %</label>
+            <input id="qb-vat" className={`${cell} w-20`} value={vatRate} disabled={locked} inputMode="decimal"
+              onChange={(e) => setVatRate(e.target.value)} />
+            <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(totals.vat)}</span>
+          </span>
+          <span className="font-display text-base font-700 text-slate-900 dark:text-white">
+            {money(totals.total)}
+          </span>
+        </div>
+      </footer>
+    </div>
+  );
+}

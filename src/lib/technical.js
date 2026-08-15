@@ -20,6 +20,7 @@ import { DEFAULT_STATUS } from "@/lib/tickets";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
+  cleanQuotationTables, itemsFromTables,
 } from "@/lib/quotations";
 
 export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
@@ -264,6 +265,7 @@ export async function createQuotation(ctx, body) {
     handledBy,
     title: str(body?.title, 200) || description.slice(0, 200),
     status: DEFAULT_QUOTATION_STATUS,
+    tables: [],
     items,
     vatRate,
     ...computeTotals(items, vatRate),
@@ -314,6 +316,7 @@ export async function convertRfq(ctx, body) {
     industry: rfq.industry || "",
     serviceIds: Array.isArray(rfq.serviceIds) ? rfq.serviceIds : [],
     status: DEFAULT_QUOTATION_STATUS,
+    tables: [],
     items,
     vatRate,
     ...computeTotals(items, vatRate),
@@ -357,14 +360,34 @@ export async function updateQuotation(ctx, id, body) {
     // When it lands on Approved, stamp WHEN — that date is what the dashboard
     // measures turnaround from, and it must not move if it is approved twice.
     if (body.status === "Approved" && !current.completedAt) patch.completedAt = new Date().toISOString();
+    // Submitting is a moment worth keeping: it is when the studio said the
+    // document was finished, which is not when a client later approved it.
+    if (body.status === "Completed" && !current.submittedAt) patch.submittedAt = new Date().toISOString();
   }
   // The NUMBER is deliberately absent: it is locked to the quotation once
   // assigned, because it is the reference a client already holds.
   if (body?.description !== undefined) patch.description = str(body.description, 2000);
   if (body?.handledBy !== undefined) patch.handledBy = str(body.handledBy, 120);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 4000);
+  // OPENING the builder is what turns a New quotation into a Draft. The client
+  // reports that it opened; the SERVER decides what that means, so a stale tab
+  // cannot wind a finished quotation backwards.
+  if (body?.opened && current.status === DEFAULT_QUOTATION_STATUS) patch.status = "Draft";
+
+  // The builder sends its whole setup. Items are derived from it rather than
+  // sent alongside, so the tables and the priced list can never disagree.
+  if (body?.tables !== undefined) {
+    const tables = cleanQuotationTables(body.tables);
+    const items = cleanItems(itemsFromTables(tables));
+    const vatRate = body?.vatRate !== undefined ? num(body.vatRate) : current.vatRate;
+    Object.assign(patch, { tables, items, vatRate }, computeTotals(items, vatRate));
+    // Saving keeps it a Draft. Only Submit finishes it, and that arrives as an
+    // explicit status the block above has already set.
+    if (!patch.status && current.status === DEFAULT_QUOTATION_STATUS) patch.status = "Draft";
+  }
+
   // Any change to pricing recomputes the totals server-side.
-  if (body?.items !== undefined || body?.vatRate !== undefined) {
+  if (body?.tables === undefined && (body?.items !== undefined || body?.vatRate !== undefined)) {
     const items = body?.items !== undefined ? cleanItems(body.items) : current.items;
     const vatRate = body?.vatRate !== undefined ? num(body.vatRate) : current.vatRate;
     Object.assign(patch, { items, vatRate }, computeTotals(items, vatRate));
