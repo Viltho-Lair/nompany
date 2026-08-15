@@ -581,7 +581,12 @@ function Quotations({ quotations, canManage, slug, nav, focus, handlerName, peop
                   const unsent = isUnsent(q);
                   return (
                     <tr key={q.id} {...focus.focusProps(q.id)}
-                      className={`border-s-4 border-b border-slate-100 align-top last:border-b-0 dark:border-white/5 ${
+                      onClick={() => onOpen(q)}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`${q.locked || !canManage ? "View" : "Open"} ${q.ref || "quotation"}`}
+                      onKeyDown={(e) => { if (e.key === "Enter") onOpen(q); }}
+                      className={`cursor-pointer border-s-4 border-b border-slate-100 align-top last:border-b-0 dark:border-white/5 ${
                         unsent ? stripeOn : stripeOff
                       } ${focus.focusProps(q.id).className || ""}`}>
                       {col("number") && (
@@ -623,7 +628,7 @@ function Quotations({ quotations, canManage, slug, nav, focus, handlerName, peop
                       {col("status") && (
                         <td className="py-3 pe-3 ps-2">
                           {canManage && !q.locked ? (
-                            <select value={q.status} onChange={(e) => onStatus(q, e.target.value)}
+                            <select value={q.status} onClick={(e) => e.stopPropagation()} onChange={(e) => onStatus(q, e.target.value)}
                               className={`rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-600 focus:border-brand-500 focus:outline-none dark:border-white/15 dark:bg-[#191921] ${Q_TEXT[q.status] || ""}`}>
                               {statuses.map((s) => (<option key={s} value={s}>{s}</option>))}
                             </select>
@@ -634,9 +639,8 @@ function Quotations({ quotations, canManage, slug, nav, focus, handlerName, peop
                       )}
                       <td className="py-3 text-end">
                         <span className="inline-flex gap-2">
-                          <button className={btnGhost} onClick={() => onOpen(q)}>{q.locked || !canManage ? "View" : "Open"}</button>
                           {canManage && q.status === "Approved" && !q.locked && (
-                            <button className={btnGhost} title="Lock permanently — it becomes view-only" onClick={() => onLock(q)}>Lock</button>
+                            <button className={btnGhost} title="Lock permanently — it becomes view-only" onClick={(e) => { e.stopPropagation(); onLock(q); }}>Lock</button>
                           )}
                         </span>
                       </td>

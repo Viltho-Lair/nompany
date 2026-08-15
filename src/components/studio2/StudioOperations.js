@@ -454,11 +454,17 @@ function Permits({ rows, locations, people, projects, types, windowDays, slug, n
 
   return (
     <>
-      {canManage && !adding && !editing && <button className={btn} onClick={() => setAdding(true)}>Add permit</button>}
+      {canManage && <button className={btn} onClick={() => setAdding(true)}>Add permit</button>}
       {(adding || editing) && (
-        <PermitForm permit={editing} locations={locations} people={people} projects={projects} types={types} busy={busy}
-          onCancel={() => { setAdding(false); setEditing(null); }}
-          onSave={async (v) => { if (await send("permits", editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v)) { setAdding(false); setEditing(null); } }} />
+        <Dialog
+          title={editing ? "Edit permit" : "New permit"}
+          description="What is permitted, where, and until when."
+          onClose={() => { setAdding(false); setEditing(null); }}
+        >
+          <PermitForm permit={editing} locations={locations} people={people} projects={projects} types={types} busy={busy}
+            onCancel={() => { setAdding(false); setEditing(null); }}
+            onSave={async (v) => { if (await send("permits", editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v)) { setAdding(false); setEditing(null); } }} />
+        </Dialog>
       )}
 
       {attention.length > 0 && (
@@ -608,8 +614,13 @@ function Locations({ rows, kinds, canManage, busy, send }) {
 
   return (
     <>
-      {canManage && !adding && !editing && <button className={btn} onClick={() => setAdding(true)}>Add location</button>}
+      {canManage && <button className={btn} onClick={() => setAdding(true)}>Add location</button>}
       {(adding || editing) && (
+        <Dialog
+          title={editing ? "Edit location" : "New location"}
+          description="A place work happens — a site, an office, a warehouse."
+          onClose={() => { setAdding(false); setEditing(null); }}
+        >
         <SimpleForm title={editing ? "Edit location" : "New location"} busy={busy}
           fields={[
             { key: "name", label: "Name", required: true, value: editing?.name || "" },
@@ -621,6 +632,7 @@ function Locations({ rows, kinds, canManage, busy, send }) {
           ]}
           onCancel={() => { setAdding(false); setEditing(null); }}
           onSave={async (v) => { if (await send("locations", editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v)) { setAdding(false); setEditing(null); } }} />
+        </Dialog>
       )}
 
       {rows.length === 0 ? <Empty title="No locations yet" body="Locations are the places work happens — sites, offices, warehouses. Shifts and permits point at them." /> : (
