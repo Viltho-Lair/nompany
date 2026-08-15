@@ -111,6 +111,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               <Field label="Value" value={ticket.value ? money(ticket.value) : "—"} />
               <Field label="Client budget" value={ticket.clientBudget ? money(ticket.clientBudget) : "—"} />
               <Field label="Site" value={ticket.location?.name} />
+              <Field label="Country" value={ticket.location?.country} />
               <Field label="City" value={ticket.location?.city} />
               {ticket.location?.url && (
                 <Field label="Map" value={<a href={ticket.location.url} target="_blank" rel="noopener noreferrer" className="text-brand-700 underline dark:text-brand-300">Open map</a>} />

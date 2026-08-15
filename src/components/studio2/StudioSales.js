@@ -13,6 +13,8 @@ import {
   WidgetTitle, FunnelChart, BarBreakdown,
 } from "@/components/studio2/ui";
 import { linkToClient } from "@/lib/studioLinks";
+import { COUNTRIES } from "@/lib/countries";
+import { citiesFor } from "@/lib/cities";
 import { salesFunnel, probabilityBuckets, atRiskTickets, rfqInfo, isUnresolved } from "@/lib/salesAnalytics";
 import { daysUntil } from "@/lib/sla";
 
@@ -48,6 +50,10 @@ const TICKET_COLUMNS = [
   { key: "probability", label: "Prob." },
   { key: "updatedAt", label: "Updated" },
 ];
+const COUNTRY_NAMES = COUNTRIES.map((c) => c.name);
+// citiesFor keys on the ISO code while the answer people give is a NAME.
+const codeOfCountry = (name) => COUNTRIES.find((c) => c.name === name)?.code || "";
+
 const DEFAULT_TICKET_COLUMNS = ["ref", "title", "client", "status", "owner", "deadline", "rfq"];
 const EMPTY_FILTERS = {
   client: "", status: "", urgency: "",
@@ -80,6 +86,21 @@ export default function StudioSales({ slug, view = "sales" }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+
+  // The ticket page's Edit button links back here with ?edit=<id>, because the
+  // form lives with the list that owns it rather than being duplicated there.
+  // Consumed once and stripped from the URL, so a refresh does not reopen it.
+  useEffect(() => {
+    if (!data) return;
+    const want = new URLSearchParams(window.location.search).get("edit");
+    if (!want) return;
+    const row = (data.tickets || []).find((t) => t.id === want);
+    if (row) setEditing({ kind: "ticket", row });
+    const url = new URL(window.location.href);
+    url.searchParams.delete("edit");
+    window.history.replaceState({}, "", url);
+  }, [data]);
+
   // A colleague raised or moved a ticket - reflect it without a refresh.
   useLiveUpdates(slug, "sales", load);
   // An RFQ raised on a ticket changes what its RFQ column says, and that
@@ -180,6 +201,7 @@ export default function StudioSales({ slug, view = "sales" }) {
           >
             <TicketForm row={editing.row} clients={clients} vocabulary={vocabulary}
               services={services || []} cities={data.salesCities || []} positions={data.salesContactPositions || []}
+              studioDefaults={data.studioDefaults || {}}
               onCancel={closeEditing}
               onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
           </Dialog>
@@ -843,25 +865,41 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
   );
 }
 
-function TicketForm({ row, clients, vocabulary, services = [], cities = [], positions = [], onSave, onCancel }) {
+function TicketForm({ row, clients, vocabulary, services = [], cities = [], positions = [], studioDefaults = {}, onSave, onCancel }) {
   // Fields mirror the Old System's ticket. Mandatory: title, client, deadline,
   // type of industry. Value is NOT here on purpose — it is filled from an
   // approved quotation, and Client Budget is the client's own manual figure.
   // Status and urgency appear only when EDITING: on creation status is always
   // Lead (→ Opportunity on RFQ request) and urgency always Normal.
   const existing = row ? clients.find((c) => c.id === row.clientId) : null;
+
   const [f, setF] = useState({
     title: row?.title || "",
     clientName: row?.clientName || existing?.name || "",
     contactName: row?.contactName || "", contactEmail: row?.contactEmail || "",
     contactPhone: row?.contactPhone || "", contactPosition: row?.contactPosition || "",
-    locationName: row?.location?.name || "", locationCity: row?.location?.city || "", locationUrl: row?.location?.url || "",
+    locationName: row?.location?.name || "",
+    // A NEW ticket starts at the studio's own country and city; an existing
+    // one keeps whatever it was raised with.
+    locationCountry: row?.location?.country || (row ? "" : studioDefaults.country || ""),
+    locationCity: row?.location?.city || (row ? "" : studioDefaults.city || ""),
+    locationUrl: row?.location?.url || "",
     deadline: row?.deadline || "", industry: row?.industry || "",
     clientBudget: row?.clientBudget ?? "",
     description: row?.description || "",
     status: row?.status || "Lead", urgency: row?.urgency || "Normal",
     probability: Number(row?.probability ?? 0),
   });
+  // The sites this client already has — what Site name searches, and where a
+  // chosen site's country, city and map link are read back from. Locations are
+  // stored on the CLIENT, so a site named once is offered on every later
+  // ticket for them instead of being retyped.
+  const clientLocations = useMemo(() => {
+    const name = String(f.clientName || "").trim().toLowerCase();
+    const c = clients.find((x) => String(x.name || "").trim().toLowerCase() === name);
+    return Array.isArray(c?.locations) ? c.locations : [];
+  }, [clients, f.clientName]);
+
   const [serviceIds, setServiceIds] = useState(row?.serviceIds || []);
   const [reqs, setReqs] = useState(row?.serviceRequirements || {});
   const toggleService = (id) => setServiceIds((v) => v.includes(id) ? v.filter((x) => x !== id) : [...v, id]);
@@ -969,11 +1007,33 @@ function TicketForm({ row, clients, vocabulary, services = [], cities = [], posi
 
       <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">Location</p>
       <div className="mt-2 grid gap-4 sm:grid-cols-3">
-        <div><label className={label}>Site name</label><input className={input} value={f.locationName} onChange={set("locationName")} /></div>
+        <div>
+          <label className={label}>Site name</label>
+          {/* Behaves like Contact name: search the sites this client already
+              has, or type a new one. Choosing a saved site fills the rest of
+              this block from what was stored with it. */}
+          <Combo
+            value={f.locationName}
+            onChange={(v) => setF((p) => {
+              const saved = clientLocations.find((l) => String(l.name || "").trim().toLowerCase() === v.trim().toLowerCase());
+              return saved
+                ? { ...p, locationName: v, locationCountry: saved.country || p.locationCountry, locationCity: saved.city || "", locationUrl: saved.url || "" }
+                : { ...p, locationName: v };
+            })}
+            options={clientLocations.map((l) => l.name).filter(Boolean)}
+            placeholder="Head office"
+          />
+        </div>
+        <div>
+          <label className={label}>Country</label>
+          <Combo value={f.locationCountry} onChange={(v) => setF((p) => ({ ...p, locationCountry: v, locationCity: "" }))}
+            options={COUNTRY_NAMES} placeholder={studioDefaults.country || "Saudi Arabia"} />
+        </div>
         <div>
           <label className={label}>City</label>
           <Combo value={f.locationCity} onChange={(v) => setF((p) => ({ ...p, locationCity: v }))}
-            options={cities} placeholder="Riyadh" />
+            options={f.locationCountry ? citiesFor(codeOfCountry(f.locationCountry)) : cities}
+            placeholder={studioDefaults.city || "Riyadh"} />
         </div>
         <div><label className={label}>Map link</label><input className={input} value={f.locationUrl} onChange={set("locationUrl")} /></div>
       </div>
@@ -1020,7 +1080,7 @@ function TicketForm({ row, clients, vocabulary, services = [], cities = [], posi
             title: f.title, clientName: f.clientName,
             contactName: f.contactName, contactEmail: f.contactEmail,
             contactPhone: f.contactPhone, contactPosition: f.contactPosition,
-            location: { name: f.locationName, city: f.locationCity, url: f.locationUrl },
+            location: { name: f.locationName, country: f.locationCountry, city: f.locationCity, url: f.locationUrl },
             deadline: f.deadline, industry: f.industry,
             serviceIds, serviceRequirements: reqs,
             clientBudget: f.clientBudget === "" ? null : f.clientBudget,

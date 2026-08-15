@@ -58,19 +58,24 @@ function upsertContact(existing, { name, email, phone, position }) {
 }
 
 // Same idea for a site/location. A location with no name is not worth storing.
-function upsertLocation(existing, { name, city, url }) {
+function upsertLocation(existing, { name, country, city, url }) {
   const locations = Array.isArray(existing) ? [...existing] : [];
   if (!name) return existing ?? [];
   const norm = name.toLowerCase().replace(/\s+/g, " ");
   const i = locations.findIndex((l) => String(l.name || "").trim().toLowerCase().replace(/\s+/g, " ") === norm);
   if (i >= 0) {
     const cur = locations[i];
-    const merged = { ...cur, name, city: city || cur.city || "", url: url || cur.url || "" };
-    if (merged.city === cur.city && merged.url === cur.url) return existing ?? [];
+    const merged = {
+      ...cur, name,
+      country: country || cur.country || "",
+      city: city || cur.city || "",
+      url: url || cur.url || "",
+    };
+    if (merged.country === cur.country && merged.city === cur.city && merged.url === cur.url) return existing ?? [];
     locations[i] = merged;
     return locations;
   }
-  locations.push({ name, city, url });
+  locations.push({ name, country, city, url });
   return locations;
 }
 
@@ -398,7 +403,12 @@ export async function createTicket(ctx, body) {
     position: str(body?.contactPosition, 120),
   };
   const loc = body?.location && typeof body.location === "object" ? body.location : {};
-  const location = { name: str(loc.name, 160), city: str(loc.city, 120), url: str(loc.url, 500) };
+  // Country joins city and map link on the site: a site is somewhere, and the
+  // studio's own country is only the default it starts from.
+  const location = {
+    name: str(loc.name, 160), country: str(loc.country, 80),
+    city: str(loc.city, 120), url: str(loc.url, 500),
+  };
 
   const rawBudget = body?.clientBudget;
   const clientBudget = rawBudget === "" || rawBudget == null ? null : Number(rawBudget);

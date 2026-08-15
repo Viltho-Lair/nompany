@@ -32,6 +32,10 @@ export async function GET(request, ctx) {
     // that could only ever fail.
     hasTechnical: Boolean(sales.rfqSection),
     clients, tickets, people, services,
+    // Where the studio itself is. A new ticket starts here and the person
+    // raising it can change either, which is why these are defaults rather
+    // than the answer.
+    studioDefaults: { country: sales.studio.country || "", city: sales.studio.city || "" },
     // Which columns the Live view shows, and everything it could show.
     liveColumns: sales.liveColumns,
     salesCities: sales.salesCities,
