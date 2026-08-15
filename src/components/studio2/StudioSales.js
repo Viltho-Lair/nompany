@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
@@ -86,20 +86,6 @@ export default function StudioSales({ slug, view = "sales" }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
-
-  // The ticket page's Edit button links back here with ?edit=<id>, because the
-  // form lives with the list that owns it rather than being duplicated there.
-  // Consumed once and stripped from the URL, so a refresh does not reopen it.
-  useEffect(() => {
-    if (!data) return;
-    const want = new URLSearchParams(window.location.search).get("edit");
-    if (!want) return;
-    const row = (data.tickets || []).find((t) => t.id === want);
-    if (row) setEditing({ kind: "ticket", row });
-    const url = new URL(window.location.href);
-    url.searchParams.delete("edit");
-    window.history.replaceState({}, "", url);
-  }, [data]);
 
   // A colleague raised or moved a ticket - reflect it without a refresh.
   useLiveUpdates(slug, "sales", load);
@@ -811,9 +797,54 @@ function RowList({ title, help, rows, columns, onChange, addLabel }) {
   );
 }
 
+// A client's own mark, uploaded the same way the studio's is and shown WHOLE
+// rather than cropped — it is a company logo, not a face.
+function ClientLogoField({ value, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const fileRef = useRef(null);
+
+  async function upload(file) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setErr("Choose an image file."); return; }
+    if (file.size > 2 * 1024 * 1024) { setErr("Images must be 2 MB or smaller."); return; }
+    setBusy(true); setErr("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const up = await fetch("/api/media", { method: "POST", body: form });
+      const media = await up.json().catch(() => ({}));
+      if (!up.ok || !media.url) throw new Error("upload");
+      onChange(media.url);
+    } catch { setErr("We couldn't upload that logo."); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div>
+      <label className={label}>Logo</label>
+      <div className="flex items-center gap-3">
+        <span className="inline-flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1 dark:border-white/10 dark:bg-white/5">
+          {value
+            /* eslint-disable-next-line @next/next/no-img-element */
+            ? <img src={value} alt="" className="h-full w-full object-contain" />
+            : <span className="text-[10px] text-slate-400">None</span>}
+        </span>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
+        <button type="button" className={btnGhost} disabled={busy} onClick={() => fileRef.current?.click()}>
+          {busy ? "Uploading…" : value ? "Change" : "Upload"}
+        </button>
+        {value && <button type="button" className={btnGhost} onClick={() => onChange("")}>Remove</button>}
+      </div>
+      {err && <p className="mt-1.5 text-xs text-rose-600 dark:text-rose-300">{err}</p>}
+    </div>
+  );
+}
+
 function ClientForm({ row, cities, positions, onSave, onCancel }) {
   const [f, setF] = useState({
-    name: row?.name || "", industry: row?.industry || "", website: row?.website || "", notes: row?.notes || "",
+    name: row?.name || "", industry: row?.industry || "", website: row?.website || "",
+    logo: row?.logo || "", notes: row?.notes || "",
   });
   // Every contact and location the client already has, edited in place — the
   // form sends the WHOLE list back, so anything it doesn't show would be lost.
@@ -828,6 +859,7 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
         <div><label className={label}>Company name *</label><input className={input} value={f.name} onChange={set("name")} placeholder="Acme Trading Co." /></div>
         <div><label className={label}>Industry</label><input className={input} value={f.industry} onChange={set("industry")} /></div>
         <div><label className={label}>Website</label><input className={input} value={f.website} onChange={set("website")} placeholder="acme.com" /></div>
+        <ClientLogoField value={f.logo} onChange={(logo) => setF((p) => ({ ...p, logo }))} />
       </div>
 
       <RowList
@@ -846,6 +878,7 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
         rows={locations} onChange={setLocations} addLabel="Add location"
         columns={[
           { key: "name", label: "Site name" },
+          { key: "country", label: "Country", options: COUNTRY_NAMES, placeholder: "Saudi Arabia" },
           { key: "city", label: "City", options: cities, placeholder: "Riyadh" },
           { key: "url", label: "Map link" },
         ]}
@@ -856,7 +889,7 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !f.name.trim()} onClick={async () => {
           setBusy(true);
-          await onSave({ name: f.name, industry: f.industry, website: f.website, notes: f.notes, contacts, locations });
+          await onSave({ name: f.name, industry: f.industry, website: f.website, logo: f.logo, notes: f.notes, contacts, locations });
           setBusy(false);
         }}>{busy ? "Saving…" : "Save client"}</button>
         <button className={btnGhost} onClick={onCancel}>Cancel</button>
@@ -865,7 +898,7 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
   );
 }
 
-function TicketForm({ row, clients, vocabulary, services = [], cities = [], positions = [], studioDefaults = {}, onSave, onCancel }) {
+export function TicketForm({ row, clients, vocabulary, services = [], cities = [], positions = [], studioDefaults = {}, onSave, onCancel }) {
   // Fields mirror the Old System's ticket. Mandatory: title, client, deadline,
   // type of industry. Value is NOT here on purpose — it is filled from an
   // approved quotation, and Client Budget is the client's own manual figure.

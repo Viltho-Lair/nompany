@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, input, btn, btnGhost, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, input, btn, btnGhost, money, fmtDate, Dialog } from "@/components/studio2/ui";
+import { TicketForm } from "@/components/studio2/StudioSales";
 
 // ONE TICKET, on its own page — the layout in the brief: the ticket's own
 // information on the left with the client and the timeline down the right, and
@@ -22,6 +23,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   const [quotations, setQuotations] = useState([]);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -96,9 +98,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
             <div className="flex items-start justify-between gap-3">
               <h2 className={h2}>Ticket info</h2>
               {data.canManage && (
-                // Editing lives on the list, which owns the form — this links
-                // back to it rather than keeping a second copy of it here.
-                <Link href={`/${slug}/sales-tickets?edit=${ticket.id}`} className={btnGhost}>Edit</Link>
+                <button type="button" className={btnGhost} onClick={() => setEditing(true)}>Edit</button>
               )}
             </div>
             <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -215,6 +215,37 @@ export default function StudioTicketProfile({ slug, ticketId }) {
           </section>
         </div>
       </div>
+
+      {/* The SAME form the list uses, opened here. Editing a ticket from its own
+          page should not send you back to a list to do it — and importing the
+          form rather than copying it means the two can never diverge. */}
+      {editing && (
+        <Dialog
+          title={`Edit ${ticket.ref}`}
+          description="Fields marked * are required."
+          onClose={() => setEditing(false)}
+        >
+          <TicketForm
+            row={ticket}
+            clients={data.clients || []}
+            vocabulary={data.vocabulary || {}}
+            services={data.services || []}
+            cities={data.salesCities || []}
+            positions={data.salesContactPositions || []}
+            studioDefaults={data.studioDefaults || {}}
+            onCancel={() => setEditing(false)}
+            onSave={async (payload) => {
+              const res = await fetch(`/api/studios/${slug}/sales/tickets`, {
+                method: "PUT", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...payload, id: ticket.id }),
+              });
+              if (!res.ok) { setError("That didn't save."); return; }
+              setEditing(false);
+              await load();
+            }}
+          />
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -25,6 +25,9 @@ const ROW_VALUE = "truncate text-sm leading-[1.4286] text-slate-500 dark:text-sl
 const BTN = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
 const BTN_GHOST = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
 const INPUT = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
+// The currencies a studio is likely to price in. Free text is still allowed —
+// the list is a shortcut, not a restriction.
+const CURRENCIES = ["SAR", "AED", "QAR", "KWD", "BHD", "OMR", "EGP", "JOD", "USD", "EUR", "GBP"];
 const DAYS = [["mon", "Monday"], ["tue", "Tuesday"], ["wed", "Wednesday"], ["thu", "Thursday"], ["fri", "Friday"], ["sat", "Saturday"], ["sun", "Sunday"]];
 const DEFAULT_HOURS = Object.fromEntries(DAYS.map(([d]) => [d, { open: !["fri", "sat"].includes(d), from: "09:00", to: "17:00" }]));
 // citiesFor keys on the ISO code while the stored answer is a country NAME.
@@ -146,6 +149,15 @@ export default function StudioSettings({ slug }) {
           onSave={(v) => save({ location: v })}
           render={(draft, set) => (
             <input className={INPUT} value={draft} onChange={(e) => set(e.target.value)} placeholder="Address, or a map link" />
+          )}
+        />
+
+        <EditRow
+          icon="cash" label="Currency" value={studio.currency} canManage={canManage}
+          hint="Not set — amounts show without one."
+          onSave={(v) => save({ currency: v })}
+          render={(draft, set) => (
+            <Combo value={draft} onChange={set} options={CURRENCIES} placeholder="SAR" inputClassName={INPUT} />
           )}
         />
 

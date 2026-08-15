@@ -242,6 +242,8 @@ export async function createClient(ctx, body) {
     code: clientSlug(name),
     industry: str(body?.industry, 80),
     website: str(body?.website, 200),
+    // A stored data URI, same as the studio's own mark.
+    logo: str(body?.logo, 400000),
     notes: str(body?.notes, 2000),
     contacts: cleanContacts(body?.contacts),
     locations: cleanLocations(body?.locations),
@@ -265,6 +267,8 @@ export async function editClient(ctx, id, body) {
     patch.code = clientSlug(name);
   }
   for (const f of ["industry", "website", "notes"]) if (body?.[f] !== undefined) patch[f] = str(body[f], f === "notes" ? 2000 : 200);
+  // "" is a real value — it is how a logo is removed.
+  if (body?.logo !== undefined) patch.logo = str(body.logo, 400000);
   if (body?.contacts !== undefined) patch.contacts = cleanContacts(body.contacts);
   if (body?.locations !== undefined) patch.locations = cleanLocations(body.locations);
 
@@ -290,7 +294,8 @@ function cleanContacts(list) {
 }
 function cleanLocations(list) {
   return (Array.isArray(list) ? list : []).slice(0, 20).map((l) => ({
-    name: str(l?.name, 120), city: str(l?.city, 80), url: str(l?.url, 300),
+    name: str(l?.name, 120), country: str(l?.country, 80),
+    city: str(l?.city, 80), url: str(l?.url, 300),
   })).filter((l) => l.name || l.city);
 }
 

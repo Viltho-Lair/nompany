@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 // Explicit allowlist. updateStudio() takes any patch except id/ownerUserId/slug,
 // so the boundary that decides what a request may write has to be here.
-const FIELDS = ["logo", "country", "city", "location", "workingHours"];
+const FIELDS = ["logo", "country", "city", "location", "currency", "workingHours"];
 
 // Mon-first, which is how a working week is read here.
 export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -40,6 +40,7 @@ function cleanHours(v) {
 const clean = (studio) => ({
   id: studio.id, name: studio.name, slug: studio.slug, logo: studio.logo || "",
   country: studio.country || "", city: studio.city || "", location: studio.location || "",
+  currency: studio.currency || "",
   workingHours: studio.workingHours || null,
 });
 
