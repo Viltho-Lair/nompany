@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
@@ -11,7 +10,6 @@ import {
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty, StatTile,
   WidgetTitle, FunnelChart, BarBreakdown, Leaderboard, TimelineChart, ScatterChart,
 } from "@/components/studio2/ui";
-import { linkToTicket, linkToRfq, linkIf } from "@/lib/studioLinks";
 import { isUnfinished } from "@/lib/quotations";
 import QuotationBuilder from "@/components/studio2/QuotationBuilder";
 import {
@@ -699,13 +697,14 @@ function Quotations({ quotations, canManage, slug, nav, focus, handlerName, peop
                             : <span className="text-slate-400">—</span>}
                         </td>
                       )}
+                      {/* Title only. The RFQ and Ticket chips are gone: the whole
+                          row already opens the builder, so two smaller targets
+                          inside it sent people somewhere else by accident. The
+                          links are still on the quotation itself — hidden here,
+                          not severed. */}
                       {col("title") && (
                         <td className="py-3 pe-3 ps-2">
                           <span className="font-600 text-slate-900 dark:text-white">{q.title || "—"}</span>
-                          <span className="ms-2 inline-flex gap-1">
-                            {q.rfqId && <RecordLink href={linkIf(nav?.["technical-rfq"], linkToRfq(slug, q.rfqId))} title="Open the RFQ">RFQ</RecordLink>}
-                            {q.ticketId && <RecordLink href={linkIf(nav?.sales, linkToTicket(slug, q.ticketId))} title="Open the ticket">Ticket</RecordLink>}
-                          </span>
                         </td>
                       )}
                       {col("clientName") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{q.clientName || "—"}</td>}
