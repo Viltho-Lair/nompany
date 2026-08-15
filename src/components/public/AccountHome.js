@@ -182,11 +182,13 @@ export default function AccountHome({ locale, chrome }) {
         </nav>
 
         {/* content — sized to the window so nothing scrolls sideways */}
-        {/* Overview is sized to fit, so it is clipped rather than scrollable.
-            The other views hold lists that can legitimately run long. Below lg
-            the viewport is too short to guarantee a fit, so scrolling returns —
-            clipping content out of reach would be worse than a scrollbar. */}
-        <main className={cn("min-w-0 flex-1", view === "overview" ? "overflow-y-auto lg:overflow-hidden" : "overflow-y-auto")}>
+        {/* Overview is still sized to fit, but it is no longer CLIPPED when it
+            does not. Doubling the avatar spent 4rem of a budget that only ever
+            just balanced, and on a shorter laptop that pushed the tiles past the
+            edge — where, being clipped, they could not be reached at all.
+            overflow-y-auto keeps the scrollbar away whenever it does fit, which
+            is the behaviour the clip was there to get. */}
+        <main className="min-w-0 flex-1 overflow-y-auto">
           {view === "overview" && <Overview identity={identity} owned={owned} collabs={collabs} onGo={setView} onChanged={load} />}
           {view === "studios" && <StudioGrid title="My Studios" note="Workspaces you own." studios={owned} empty="You don't own a studio yet." />}
           {view === "collabs" && <StudioGrid title="My Collaborations" note="Studios other people have given you access to. Your own studio is under My Studios." studios={collabs} empty="You're not collaborating in any studio yet." />}
@@ -303,7 +305,9 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
       {/* Identity, centred and unboxed — it reads as the page's subject rather
           than as one more card among the sections below it. */}
       <section className="flex flex-col items-center gap-2 text-center">
-        <span className="inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-xl font-800 text-white">
+        {/* Twice the old 16 (4rem -> 8rem). The initials scale with it, or a
+            two-letter fallback would sit lost in the middle of the circle. */}
+        <span className="inline-flex h-32 w-32 items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-4xl font-800 text-white">
           {identity?.profile?.photo
             /* eslint-disable-next-line @next/next/no-img-element */
             ? <img src={identity.profile.photo} alt="" className="h-full w-full object-cover" />
@@ -744,16 +748,18 @@ function Security({ devices, onChanged, locale, user }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">Security</h2>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          How you sign in, and the browsers that stay trusted. A device that isn&apos;t on this list
-          has to pass a one-time code before it can sign in. Removing one sends it back through that check.
-        </p>
-      </div>
+    // The SAME frame as Personal info: one narrow centred column, heading and
+    // blurb sitting directly on it, then the stack. Both pages are a list of
+    // rows about one person, so reading them at two different widths made them
+    // look like two different products.
+    <div className="mx-auto w-full max-w-[640px] py-6">
+      <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">Security</h2>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+        How you sign in, and the browsers that stay trusted. A device that isn&apos;t on this list
+        has to pass a one-time code before it can sign in. Removing one sends it back through that check.
+      </p>
 
-      <div className={STACK}>
+      <div className={cn(STACK, "mt-4")}>
         <div className={ROW}>
           <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
             <Icon name="lock" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
@@ -813,7 +819,7 @@ function Security({ devices, onChanged, locale, user }) {
       </div>
 
       {devices.length > 0 && (
-        <button className={BTN_GHOST} onClick={revokeAll} disabled={busy}>{busy ? "Removing…" : "Remove all devices"}</button>
+        <button className={cn(BTN_GHOST, "mt-4")} onClick={revokeAll} disabled={busy}>{busy ? "Removing…" : "Remove all devices"}</button>
       )}
     </div>
   );
