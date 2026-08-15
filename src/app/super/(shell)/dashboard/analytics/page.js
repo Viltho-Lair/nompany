@@ -18,6 +18,8 @@ import { BASE } from "../../../_components/nav";
 import CurrencyRates from "./CurrencyRates";
 import RealtimeAnalytics from "./RealtimeAnalytics";
 import GlobalDistribution from "./GlobalDistribution";
+import DeviceAnalytics from "./DeviceAnalytics";
+import { satisfaction } from "@/lib/data/ratings";
 import { listUsersForConsole } from "@/lib/data/users";
 import { statusOf, STATUS } from "@/lib/platformRoles";
 import { recordActiveUsers, readActiveUsers, isoDay } from "@/lib/data/siteStats";
@@ -61,11 +63,6 @@ const REVENUE_ACTUAL = [32, 41, 38, 52, 47, 61, 58, 69, 64, 76, 71, 80];
 const REVENUE_FORECAST = [30, 39, 41, 49, 51, 58, 62, 66, 70, 73, 77, 82];
 const REVENUE_TARGET = [35, 40, 45, 50, 55, 60, 62, 65, 68, 72, 75, 78];
 
-const DEVICES = [
-  { label: "Desktop", value: 45.8, color: "var(--ad-chart-1)" },
-  { label: "Mobile", value: 38.7, color: "var(--ad-chart-2)" },
-  { label: "Tablet", value: 15.5, color: "var(--ad-chart-3)" },
-];
 
 
 const TRANSACTIONS = [
@@ -135,7 +132,7 @@ function CenterStat({ value, label, sub, tone = "primary" }) {
 }
 
 export default async function AnalyticsPage() {
-  const active = await activeUsers();
+  const [active, sat] = await Promise.all([activeUsers(), satisfaction()]);
 
   return (
     <>
@@ -188,17 +185,7 @@ export default async function AnalyticsPage() {
           <Card className="h-full">
             <CardHead title="Device Analytics" sub="Share of sessions by device" />
             <CardBody>
-              <BarList items={DEVICES} />
-              <div className="mt-7 grid grid-cols-3 gap-3 border-t pt-5 text-center" style={{ borderColor: "var(--ad-border)" }}>
-                {DEVICES.map((d) => (
-                  <div key={d.label}>
-                    <p className="text-base font-semibold" style={{ color: d.color }}>
-                      {d.value}%
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-[var(--ad-muted-foreground)]">{d.label}</p>
-                  </div>
-                ))}
-              </div>
+              <DeviceAnalytics />
             </CardBody>
           </Card>
         </Col>
@@ -223,30 +210,36 @@ export default async function AnalyticsPage() {
         <Col span={4}>
           <div className="flex h-full flex-col gap-6">
             <Card>
-              <CardHead title="Customer Sentiment" />
+              <CardHead title="Customer Satisfaction" />
               <CardBody>
-                <div className="flex h-2.5 w-full overflow-hidden rounded-full">
-                  <span style={{ width: "24%", backgroundColor: "var(--ad-destructive)" }} />
-                  <span style={{ width: "76%", backgroundColor: "var(--ad-success)" }} />
-                </div>
-                <div className="mt-4 flex items-start justify-between">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ad-destructive)]">Negative</p>
-                    <p className="mt-0.5 text-lg font-semibold">24%</p>
-                    <p className="text-xs text-[var(--ad-muted-foreground)]">287 Reviews</p>
-                  </div>
-                  <div className="text-end">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ad-success)]">Positive</p>
-                    <p className="mt-0.5 text-lg font-semibold">76%</p>
-                    <p className="text-xs text-[var(--ad-muted-foreground)]">892 Reviews</p>
-                  </div>
-                </div>
-                <Link
-                  href={`${BASE}/application/users`}
-                  className="mt-5 flex items-center justify-center gap-1.5 text-sm font-medium text-[var(--ad-primary)] hover:underline"
-                >
-                  View All Reviews <Icon name="chevronRight" className="h-3.5 w-3.5" />
-                </Link>
+                {/* The share of RATINGS of 4 or 5 against those of 3 or below.
+                    People who closed the prompt without answering are excluded:
+                    a non-answer is not an unhappy customer, and counting it as
+                    one would let a quiet month look like a bad one. */}
+                {sat.total === 0 ? (
+                  <p className="py-6 text-center text-sm text-[var(--ad-muted-foreground)]">
+                    No ratings yet. Users are asked once, fifteen days in.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex h-2.5 w-full overflow-hidden rounded-full">
+                      <span style={{ width: `${sat.negativePct}%`, backgroundColor: "var(--ad-destructive)" }} />
+                      <span style={{ width: `${sat.positivePct}%`, backgroundColor: "var(--ad-success)" }} />
+                    </div>
+                    <div className="mt-4 flex items-start justify-between">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ad-destructive)]">3 and below</p>
+                        <p className="mt-0.5 text-lg font-semibold">{sat.negativePct}%</p>
+                        <p className="text-xs text-[var(--ad-muted-foreground)]">{sat.negative} rating{sat.negative === 1 ? "" : "s"}</p>
+                      </div>
+                      <div className="text-end">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ad-success)]">4 and above</p>
+                        <p className="mt-0.5 text-lg font-semibold">{sat.positivePct}%</p>
+                        <p className="text-xs text-[var(--ad-muted-foreground)]">{sat.positive} rating{sat.positive === 1 ? "" : "s"}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardBody>
             </Card>
 

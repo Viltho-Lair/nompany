@@ -1,5 +1,6 @@
 import { getRedisClient } from "@/lib/data/redis";
 import { continentOf, CONTINENT_KEYS } from "@/lib/continents";
+import { deviceOf, DEVICE_KEYS } from "@/lib/devices";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,11 @@ export async function POST(request) {
       // No IP, no city, nothing tied to the visitor id.
       const continent = continentOf(request.headers.get("x-vercel-ip-country"));
       await inc(`geo:${CONTINENT_KEYS[continent] || "other"}`);
+      // WHAT KIND OF MACHINE, the same way: the user-agent is reduced to one of
+      // three words and discarded. A full UA string is a fingerprint; "mobile"
+      // is not, and is all the dashboard asks for.
+      const device = deviceOf(request.headers.get("user-agent"));
+      await inc(`dev:${DEVICE_KEYS[device] || "desktop"}`);
       if (vid) {
         const vkey = `stat:vis:${day}`;
         await client.sAdd(vkey, vid);

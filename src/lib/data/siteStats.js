@@ -1,5 +1,6 @@
 import { getRedisClient } from "@/lib/data/redis";
 import { CONTINENTS, CONTINENT_KEYS } from "@/lib/continents";
+import { DEVICES, DEVICE_KEYS } from "@/lib/devices";
 
 // Reading the public website's traffic counters back out.
 //
@@ -108,6 +109,28 @@ export async function readContinents(days) {
     // the row is which regions dominate, and four slices of a pie flattened
     // into bars would make the small ones invisible.
     pct: max > 0 ? Math.round((totals[name] / max) * 100) : 0,
+  }));
+}
+
+// Visits per device across a span, as a SHARE of the three. Percentages rather
+// than counts, because the card asks which kind of machine people use, not how
+// many of them there were.
+export async function readDevices(days) {
+  const client = await getRedisClient();
+  const hashes = days.length
+    ? await Promise.all(days.map((day) => client.hGetAll(key(day)).catch(() => ({}))))
+    : [];
+  const totals = Object.fromEntries(DEVICES.map((d) => [d, 0]));
+  for (const h of hashes) {
+    for (const name of DEVICES) totals[name] += n((h || {})[`dev:${DEVICE_KEYS[name]}`]);
+  }
+  const sum = Object.values(totals).reduce((a, b) => a + b, 0);
+  return DEVICES.map((name) => ({
+    label: name,
+    visits: totals[name],
+    // One decimal, and 0 when there is nothing yet — a bar of NaN% is worse
+    // than a bar of nothing.
+    value: sum > 0 ? Math.round((totals[name] / sum) * 1000) / 10 : 0,
   }));
 }
 

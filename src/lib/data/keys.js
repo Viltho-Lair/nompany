@@ -55,6 +55,10 @@ export const REG = {
   // The ERP services a tier is made of — a shared catalogue so two tiers can
   // name the same service and mean it.
   erpServices: "g:erpServices",
+  // What people think of nompany. One field per user, so a rating is inherently
+  // unique to them and re-rating replaces rather than accumulates. Platform-
+  // level because the opinion is about the product, not about a studio.
+  ratings: "g:ratings",
 };
 
 // ---- per-user keys (1:1 / 1:N satellites; die with the user) ---------------

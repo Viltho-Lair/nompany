@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
 import StudioChat from "@/components/studio2/StudioChat";
+import RateNompany from "@/components/studio2/RateNompany";
 import ThemeToggle from "@/components/ThemeToggle";
 import { toneOf } from "@/lib/planColors";
 
@@ -409,6 +410,12 @@ export default function StudioFrame({ studio, me, sections, activeKey, chat = nu
         studioName={studio.name}
         userName={chat?.userName || me.alias || "You"}
       />
+
+      {/* Asked once, fifteen days in, and only HERE — a studio is where somebody
+          is actually using the product, so it is the only place the question
+          means anything. It decides nothing itself; the server says whether to
+          ask. */}
+      <RateNompany />
     </div>
   );
 }

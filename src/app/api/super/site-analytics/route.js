@@ -1,5 +1,5 @@
 import { currentSuperAdmin } from "@/lib/superAuth";
-import { readDays, readPages, readContinents, byMonth, daysBack, daysOfYear } from "@/lib/data/siteStats";
+import { readDays, readPages, readContinents, readDevices, byMonth, daysBack, daysOfYear } from "@/lib/data/siteStats";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,9 @@ export async function GET(request) {
   const year = new Date().getUTCFullYear();
 
   const days = range === "1y" ? daysOfYear(year) : daysBack(range === "7d" ? 7 : 30);
-  const [rows, pages, continents] = await Promise.all([readDays(days), readPages(days), readContinents(days)]);
+  const [rows, pages, continents, devices] = await Promise.all([
+    readDays(days), readPages(days), readContinents(days), readDevices(days),
+  ]);
 
   const points = range === "1y"
     ? byMonth(rows, year).map((m, i) => ({ label: MONTHS[i], sessions: m.sessions, pageViews: m.pageViews }))
@@ -30,6 +32,7 @@ export async function GET(request) {
     points,
     pages,
     continents,
+    devices,
     // The totals shown above the chart are the SUM OF WHAT IS PLOTTED, so the
     // headline and the picture can never tell different stories.
     sessions: points.reduce((s, p) => s + p.sessions, 0),
