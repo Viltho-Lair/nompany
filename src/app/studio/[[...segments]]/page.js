@@ -15,6 +15,7 @@ import StudioPeople from "@/components/studio2/StudioPeople";
 import StudioAccess from "@/components/studio2/StudioAccess";
 import StudioSettings from "@/components/studio2/StudioSettings";
 import StudioSales from "@/components/studio2/StudioSales";
+import StudioTicketProfile from "@/components/studio2/StudioTicketProfile";
 import StudioTechnical from "@/components/studio2/StudioTechnical";
 import StudioProjects from "@/components/studio2/StudioProjects";
 import StudioHr from "@/components/studio2/StudioHr";
@@ -94,6 +95,11 @@ export default async function StudioPage({ params }) {
     return <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />;
   }
 
+  // A second segment on a sales-tickets URL names ONE ticket: /<slug>/
+  // sales-tickets/<id> is that ticket's own page. It still resolves through
+  // the sales-tickets section, so the same grant governs it.
+  const ticketId = requested === "sales-tickets" ? (segments[1] || "") : "";
+
   const isPeople = requested === "people";
   const isAccess = requested === "access";
   // Keyed "studio-settings", not "settings": section keys are tenant data, and a
@@ -137,6 +143,7 @@ export default async function StudioPage({ params }) {
         : isAccess ? <StudioAccess slug={studio.slug} />
         : isSettings ? <StudioSettings slug={studio.slug} />
         : deniedSection ? <NoSectionAccess />
+        : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
         : screenKey === "sales" ? <StudioSales slug={studio.slug} view={active?.key} />
         : screenKey === "technical" ? <StudioTechnical slug={studio.slug} view={active?.key} />
         : screenKey === "projects" ? <StudioProjects slug={studio.slug} view={active?.key} />

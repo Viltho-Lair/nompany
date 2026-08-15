@@ -188,7 +188,6 @@ export default function StudioSales({ slug, view = "sales" }) {
           hasTechnical={hasTechnical} statuses={vocabulary.statuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setEditing({ kind: "ticket", row: null })}
           onEdit={(row) => setEditing({ kind: "ticket", row })}
-          onDelete={(row) => send("tickets", "DELETE", { id: row.id })}
           onRequestRfq={(row) => send("tickets/rfq", "POST", { ticketId: row.id })} />
       </div>
     );
@@ -374,7 +373,7 @@ function SalesAnalytics({ slug, tickets, nav }) {
 }
 
 // ---- tickets ---------------------------------------------------------------
-function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, statuses, urgencies, onAdd, onEdit, onDelete, onRequestRfq }) {
+function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, statuses, urgencies, onAdd, onEdit, onRequestRfq }) {
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -548,7 +547,6 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
                   {TICKET_COLUMNS.filter((c) => col(c.key)).map((c) => (
                     <th key={c.key} className={`${th} ps-2 text-start`}>{c.label}</th>
                   ))}
-                  <th className={`${th} text-end`} />
                 </tr>
               </thead>
               <tbody>
@@ -560,7 +558,12 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
                   const unresolved = hasTechnical && isUnresolved(t);
                   return (
                     <tr key={t.id} {...focus.focusProps(t.id)}
-                      className={`border-s-4 border-b border-slate-100 last:border-b-0 dark:border-white/5 ${
+                      onClick={() => { window.location.assign(`/${slug}/sales-tickets/${t.id}`); }}
+                      tabIndex={0}
+                      role="link"
+                      aria-label={`Open ${t.ref}`}
+                      onKeyDown={(e) => { if (e.key === "Enter") window.location.assign(`/${slug}/sales-tickets/${t.id}`); }}
+                      className={`cursor-pointer border-s-4 border-b border-slate-100 last:border-b-0 dark:border-white/5 ${
                         unresolved ? stripeOn : stripeOff
                       } ${focus.focusProps(t.id).className || ""}`}>
                       {col("createdAt") && <td className="py-3 pe-3 ps-2 text-slate-500 dark:text-slate-400">{fmtDate(t.createdAt)}</td>}
@@ -611,14 +614,6 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
                       )}
                       {col("probability") && <td className="py-3 pe-3 ps-2 font-600 tabular-nums text-slate-700 dark:text-slate-200">{Number(t.probability ?? 0)}%</td>}
                       {col("updatedAt") && <td className="py-3 pe-3 ps-2 text-slate-500 dark:text-slate-400">{fmtDate(t.updatedAt || t.createdAt)}</td>}
-                      <td className="py-3 text-end">
-                        {canManage && (
-                          <span className="inline-flex gap-2">
-                            <button className={btnGhost} onClick={() => onEdit(t)}>Edit</button>
-                            <button className={btnGhost} onClick={() => onDelete(t)}>Delete</button>
-                          </span>
-                        )}
-                      </td>
                     </tr>
                   );
                 })}

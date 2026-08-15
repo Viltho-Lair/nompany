@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
+import Combo from "@/components/studio2/Combo";
+import { COUNTRIES } from "@/lib/countries";
+import { citiesFor } from "@/lib/cities";
 
 // Studio settings — the studio's own identity, reached from the sidebar where
 // "My account" used to sit. The account itself is still one click away, behind
@@ -21,13 +24,32 @@ const ROW_LABEL = "text-base font-500 leading-normal text-slate-900 dark:text-wh
 const ROW_VALUE = "truncate text-sm leading-[1.4286] text-slate-500 dark:text-slate-400";
 const BTN = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
 const BTN_GHOST = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
+const INPUT = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
+const DAYS = [["mon", "Monday"], ["tue", "Tuesday"], ["wed", "Wednesday"], ["thu", "Thursday"], ["fri", "Friday"], ["sat", "Saturday"], ["sun", "Sunday"]];
+const DEFAULT_HOURS = Object.fromEntries(DAYS.map(([d]) => [d, { open: !["fri", "sat"].includes(d), from: "09:00", to: "17:00" }]));
+// citiesFor keys on the ISO code while the stored answer is a country NAME.
+const codeOf = (name) => COUNTRIES.find((c) => c.name === name)?.code || "";
+const hoursSummary = (h) => {
+  if (!h) return "Not set";
+  const open = DAYS.filter(([d]) => h[d]?.open);
+  if (open.length === 0) return "Closed every day";
+  const [, first] = open[0];
+  const same = open.every(([d]) => h[d].from === h[open[0][0]].from && h[d].to === h[open[0][0]].to);
+  const span = h[open[0][0]];
+  return same
+    ? `${open.length} day${open.length === 1 ? "" : "s"} · ${span.from}–${span.to}`
+    : `${open.length} days · varies`;
+};
+
 const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
 
 export default function StudioSettings({ slug }) {
   const [studio, setStudio] = useState(null);
   const [canManage, setCanManage] = useState(false);
   const [logoOpen, setLogoOpen] = useState(false);
+  const [hoursOpen, setHoursOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/settings`, { cache: "no-store" });
@@ -41,6 +63,18 @@ export default function StudioSettings({ slug }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // One writer for every row, so a saved value is re-read from the server
+  // rather than assumed — the API cleans what it stores.
+  const save = useCallback(async (patch) => {
+    setError("");
+    const res = await fetch(`/api/studios/${slug}/settings`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
+    });
+    if (!res.ok) { setError("That didn't save."); return false; }
+    await load();
+    return true;
+  }, [slug, load]);
+
   if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">Loading settings…</p>;
   if (!studio) return <p className={BANNER_BAD}>We couldn&apos;t load this studio&apos;s settings.</p>;
 
@@ -51,6 +85,8 @@ export default function StudioSettings({ slug }) {
         How {studio.name} appears to everyone working in it.
         {!canManage && " Only an admin can change these."}
       </p>
+
+      {error && <p className={`${BANNER_BAD} mt-4`}>{error}</p>}
 
       <div className={`${STACK} mt-4`}>
         {/* Logo: icon on the left, the logo itself at the RIGHT end of the row.
@@ -86,7 +122,56 @@ export default function StudioSettings({ slug }) {
               : <img src="/brand/logo-icon.png" alt="" className="h-full w-full object-contain" />}
           </span>
         </button>
+
+        {/* Where the studio is. Country and city are also what a new sales
+            ticket starts from, so they are the studio's default location and
+            not merely a description of it. */}
+        <EditRow
+          icon="locations" label="Country" value={studio.country} canManage={canManage}
+          onSave={(v) => save({ country: v, ...(v !== studio.country ? { city: "" } : {}) })}
+          render={(draft, set) => (
+            <Combo value={draft} onChange={set} options={COUNTRIES.map((c) => c.name)} placeholder="Saudi Arabia" inputClassName={INPUT} />
+          )}
+        />
+        <EditRow
+          icon="locations" label="City" value={studio.city} canManage={canManage}
+          hint={studio.country ? "" : "Choose a country first."}
+          onSave={(v) => save({ city: v })}
+          render={(draft, set) => (
+            <Combo value={draft} onChange={set} options={citiesFor(codeOf(studio.country))} placeholder="Riyadh" inputClassName={INPUT} />
+          )}
+        />
+        <EditRow
+          icon="location" label="Location" value={studio.location} canManage={canManage}
+          onSave={(v) => save({ location: v })}
+          render={(draft, set) => (
+            <input className={INPUT} value={draft} onChange={(e) => set(e.target.value)} placeholder="Address, or a map link" />
+          )}
+        />
+
+        <button
+          type="button" disabled={!canManage} onClick={() => setHoursOpen(true)} aria-haspopup="dialog"
+          className={`${ROW} ${canManage ? ROW_TAP : "cursor-default"}`}
+        >
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+            <Icon name="overtime" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col justify-center">
+            <span className={ROW_LABEL}>Working hours</span>
+            <span className={ROW_VALUE}>{hoursSummary(studio.workingHours)}</span>
+          </span>
+          {canManage && <Icon name="chevronRight" className="ms-auto h-5 w-5 shrink-0 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />}
+        </button>
       </div>
+
+      {hoursOpen && (
+        <HoursDialog
+          slug={slug}
+          hours={studio.workingHours || DEFAULT_HOURS}
+          onClose={() => setHoursOpen(false)}
+          onSaved={load}
+        />
+      )}
 
       {logoOpen && (
         <LogoDialog
@@ -96,6 +181,138 @@ export default function StudioSettings({ slug }) {
           onSaved={load}
         />
       )}
+    </div>
+  );
+}
+
+// A row that edits ONE value in place. Pressing it opens the editor beneath the
+// label rather than in a dialog: these are single fields, and a modal for one
+// field is more ceremony than the change deserves.
+function EditRow({ icon, label, value, canManage, hint, onSave, render }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value || "");
+  const [busy, setBusy] = useState(false);
+
+  function start() { setDraft(value || ""); setOpen(true); }
+  async function commit() {
+    setBusy(true);
+    const ok = await onSave(String(draft || "").trim());
+    setBusy(false);
+    if (ok !== false) setOpen(false);
+  }
+
+  if (open) {
+    return (
+      <div className={`${ROW} flex-col items-stretch`}>
+        <div className="flex w-full items-center gap-3">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+            <Icon name={icon} className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+          </span>
+          <span className={ROW_LABEL}>{label}</span>
+        </div>
+        <div className="mt-3 w-full ps-[52px]">
+          {render(draft, setDraft)}
+          <div className="mt-3 flex gap-3">
+            <button className={BTN} onClick={commit} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+            <button className={BTN_GHOST} onClick={() => setOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" disabled={!canManage} onClick={start}
+      className={`${ROW} ${canManage ? ROW_TAP : "cursor-default"}`}>
+      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+        <Icon name={icon} className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col justify-center">
+        <span className={ROW_LABEL}>{label}</span>
+        <span className={ROW_VALUE}>{value || hint || "Not set"}</span>
+      </span>
+      {canManage && <Icon name="chevronRight" className="ms-auto h-5 w-5 shrink-0 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />}
+    </button>
+  );
+}
+
+// Seven days, each with its own switch and span. Edited as a whole and saved
+// once: a week is one decision, and saving day by day would let the record sit
+// half-changed.
+function HoursDialog({ slug, hours, onClose, onSaved }) {
+  const [draft, setDraft] = useState(() => structuredClone(hours));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  const set = (day, patch) => setDraft((d) => ({ ...d, [day]: { ...d[day], ...patch } }));
+
+  async function save() {
+    setBusy(true); setErr("");
+    const res = await fetch(`/api/studios/${slug}/settings`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workingHours: draft }),
+    });
+    setBusy(false);
+    if (!res.ok) { setErr("We couldn't save those hours."); return; }
+    onSaved(); onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Working hours">
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div className="relative w-full max-w-[520px] overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]">
+        <div className="flex items-center gap-3 px-6 pt-5">
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Working hours</h3>
+          <button type="button" onClick={onClose} aria-label="Close"
+            className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5">
+            <Icon name="close" className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+        <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">
+          The days and hours this studio works. Turn a day off to mark it closed.
+        </p>
+
+        <div className="max-h-[52vh] space-y-2 overflow-y-auto px-6 py-5">
+          {DAYS.map(([key, name]) => {
+            const row = draft[key] || { open: false, from: "09:00", to: "17:00" };
+            return (
+              <div key={key} className="flex items-center gap-3">
+                <button
+                  type="button" role="switch" aria-checked={row.open} aria-label={name}
+                  onClick={() => set(key, { open: !row.open })}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${row.open ? "bg-brand-600" : "bg-slate-200 dark:bg-white/15"}`}
+                >
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${row.open ? "left-[22px]" : "left-0.5"}`} />
+                </button>
+                <span className="w-24 shrink-0 text-sm font-500 text-slate-900 dark:text-white">{name}</span>
+                {row.open ? (
+                  <span className="flex items-center gap-2">
+                    <input type="time" className={`${INPUT} w-28`} value={row.from} onChange={(e) => set(key, { from: e.target.value })} aria-label={`${name} from`} />
+                    <span className="text-slate-400">–</span>
+                    <input type="time" className={`${INPUT} w-28`} value={row.to} onChange={(e) => set(key, { to: e.target.value })} aria-label={`${name} to`} />
+                  </span>
+                ) : (
+                  <span className="text-sm text-slate-400">Closed</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {err && <p className={`${BANNER_BAD} mx-6 mb-4`}>{err}</p>}
+
+        <div className="flex gap-3 px-6 pb-6">
+          <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : "Save hours"}</button>
+          <button className={BTN_GHOST} onClick={onClose}>Cancel</button>
+        </div>
+      </div>
     </div>
   );
 }

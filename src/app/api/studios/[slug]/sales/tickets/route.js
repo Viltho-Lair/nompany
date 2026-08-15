@@ -1,5 +1,5 @@
 import { currentUser } from "@/lib/identity";
-import { salesContext, createTicket, editTicket, removeTicket } from "@/lib/sales";
+import { salesContext, createTicket, editTicket } from "@/lib/sales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,12 +36,7 @@ export async function PUT(request, ctx) {
   return Response.json({ ok: true, ticket: result.ticket });
 }
 
-export async function DELETE(request, ctx) {
-  const g = await guard(ctx.params);
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removeTicket(g, b.id);
-  if (result.error) return Response.json({ error: result.error }, { status: 404 });
-  return Response.json({ ok: true });
-}
+// NO DELETE. A ticket is a record of something that happened — it is closed,
+// not erased — and the quotations, RFQs and comments hanging off it would be
+// orphaned by removing it. Withdrawing the endpoint is the enforcement; hiding
+// the button alone would not be.

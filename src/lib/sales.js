@@ -490,8 +490,27 @@ export async function createTicket(ctx, body) {
 // ticket to another company would rewrite its reference and orphan the contacts
 // and locations folded into the old one, so it stays where it was raised.
 export async function editTicket(ctx, id, body) {
-  const { studio, ticketsSection, settingsSection } = ctx;
+  const { studio, ticketsSection, settingsSection, collaborator } = ctx;
   const patch = {};
+
+  // COMMENTS ARE APPEND-ONLY. One line of text arrives, never a list to
+  // overwrite: a discussion records who said what and when, and accepting the
+  // whole array would let a single edit rewrite all of it.
+  if (typeof body?.addComment === "string" && body.addComment.trim()) {
+    const existing = (await readCol(studio.id, ticketsSection.id, TICKETS)).find((t) => t.id === id);
+    if (!existing) return { error: "notfound" };
+    const comment = {
+      id: `cmt_${Math.random().toString(36).slice(2, 10)}`,
+      byCollaboratorId: collaborator?.id || "",
+      text: str(body.addComment, 2000),
+      at: new Date().toISOString(),
+    };
+    const ticket = await updateRow(studio.id, ticketsSection.id, TICKETS, id, {
+      comments: [...(Array.isArray(existing.comments) ? existing.comments : []), comment].slice(-200),
+    });
+    return ticket ? { ticket } : { error: "notfound" };
+  }
+
   if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
   if (body?.status !== undefined && TICKET_STATUSES.includes(body.status)) patch.status = body.status;
   if (body?.urgency !== undefined && TICKET_URGENCIES.includes(body.urgency)) patch.urgency = body.urgency;
@@ -537,10 +556,8 @@ export async function editTicket(ctx, id, body) {
   return ticket ? { ticket } : { error: "notfound" };
 }
 
-export async function removeTicket(ctx, id) {
-  const removed = await deleteRow(ctx.studio.id, ctx.ticketsSection.id, TICKETS, id);
-  return removed ? { ok: true } : { error: "notfound" };
-}
+// removeTicket is gone with the endpoint that called it. A ticket is closed,
+// not erased: its quotations, RFQs and comments all point back at it.
 
 // People who can be assigned work — this studio's collaborators, by their
 // studio-local alias.
