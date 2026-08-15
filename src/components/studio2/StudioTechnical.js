@@ -38,15 +38,6 @@ const Q_TONE = {
   Approved: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   Rejected: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
 };
-// The same tones as plain text, for the inline status <select>.
-const Q_TEXT = {
-  New: "text-brand-700 dark:text-brand-300",
-  Draft: "text-amber-700 dark:text-amber-300",
-  Completed: "text-emerald-700 dark:text-emerald-300",
-  Sent: "text-brand-700 dark:text-brand-300",
-  Approved: "text-emerald-700 dark:text-emerald-300",
-  Rejected: "text-rose-600 dark:text-rose-400",
-};
 
 // Columns the quotations table can show. Actions is always drawn, so it is not
 // on the list.
@@ -206,6 +197,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
           <QuotationBuilder
             quote={quotations.find((q) => q.id === editingQuote.id) || editingQuote}
             canManage={canManage}
+            catalogue={data.catalogue || []}
             onClose={closeEdit}
             onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />
         )}
@@ -214,7 +206,6 @@ export default function StudioTechnical({ slug, view = "technical" }) {
           statuses={vocabulary.quotationStatuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setCreatingQuote(true)}
           onOpen={(q) => setEditingQuote(q)}
-          onStatus={(q, status) => send("quotations", "PUT", { id: q.id, status })}
           onLock={(q) => send("quotations", "PUT", { id: q.id, locked: true })} />
       </div>
     );
@@ -553,7 +544,7 @@ function RfqInfo({ label: text, value, mono }) {
   );
 }
 
-function Quotations({ quotations, canManage, slug, nav, focus, handlerName, people, statuses, urgencies, onAdd, onOpen, onStatus, onLock }) {
+function Quotations({ quotations, canManage, slug, nav, focus, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock }) {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
@@ -731,14 +722,12 @@ function Quotations({ quotations, canManage, slug, nav, focus, handlerName, peop
                       {col("createdAt") && <td className="py-3 pe-3 ps-2 text-slate-500 dark:text-slate-400">{fmtDate(q.createdAt)}</td>}
                       {col("status") && (
                         <td className="py-3 pe-3 ps-2">
-                          {canManage && !q.locked ? (
-                            <select value={q.status} onClick={(e) => e.stopPropagation()} onChange={(e) => onStatus(q, e.target.value)}
-                              className={`rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-600 focus:border-brand-500 focus:outline-none dark:border-white/15 dark:bg-[#191921] ${Q_TEXT[q.status] || ""}`}>
-                              {statuses.map((s) => (<option key={s} value={s}>{s}</option>))}
-                            </select>
-                          ) : (
-                            <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${Q_TONE[q.status] || Q_TONE.Draft}`}>{q.status}</span>
-                          )}
+                          {/* READ, never set. A quotation's status is what has
+                              happened to it — New until somebody opens the
+                              builder, Draft while it is being built, Completed
+                              when they submit. Offering it as a dropdown here
+                              invited people to contradict the record. */}
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${Q_TONE[q.status] || Q_TONE.Draft}`}>{q.status}</span>
                         </td>
                       )}
                       <td className="py-3 text-end">

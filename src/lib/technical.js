@@ -28,6 +28,7 @@ export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT
 
 const RFQS = "rfqs";
 const QUOTATIONS = "quotations";
+const INVENTORY_ITEMS = "inventoryItems";
 const TICKETS = "salesTickets";
 const CLIENTS = "salesClients";
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
@@ -55,10 +56,15 @@ export async function technicalContext(user, slug) {
   const settingsSection = byKey["technical-settings"] || technical;
   const salesTicketsSection = byKey["sales-tickets"] || sales;
   const salesClientsSection = byKey["sales-clients"] || sales;
+  // Registered Items lives under Inventory. Technical READS it to fill the
+  // builder's item picker and never writes it — a studio without the section
+  // simply gets an empty list rather than a broken screen.
+  const inventoryItemsSection = byKey["inventory-items"] || byKey["inventory"] || null;
 
   return {
     studio, collaborator, section: technical, salesSection: sales,
     quotationsSection, rfqSection, settingsSection, salesTicketsSection, salesClientsSection,
+    inventoryItemsSection,
     canManage: canManageSection(studio, collaborator, technical.id, grants),
     canManageQuotations: canManageSection(studio, collaborator, quotationsSection.id, grants),
     canManageRfq: canManageSection(studio, collaborator, rfqSection.id, grants),
@@ -427,6 +433,17 @@ export async function openTickets({ studio, salesSection, salesTicketsSection, s
   ]);
   const taken = new Set(rfqs.filter((r) => r.status !== "Rejected").map((r) => r.ticketId));
   return tickets.filter((t) => !taken.has(t.id)).map((t) => ({ id: t.id, ref: t.ref, title: t.title }));
+}
+
+// The catalogue as the BUILDER needs it: what a line may be, and nothing more.
+// Sorted by name because that is what somebody types.
+export async function catalogueItems({ studio, inventoryItemsSection }) {
+  if (!inventoryItemsSection) return [];
+  const rows = await readCol(studio.id, inventoryItemsSection.id, INVENTORY_ITEMS);
+  return rows
+    .filter((r) => r?.name)
+    .map((r) => ({ id: r.id, name: String(r.name), sku: String(r.sku || ""), unit: String(r.unit || "") }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function technicalPeople({ studio }) {

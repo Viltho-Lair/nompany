@@ -1,7 +1,7 @@
 import { nextQuotationNumber } from "@/lib/technical";
 import { currentUser } from "@/lib/identity";
 import {
-  technicalContext, listRfqs, listQuotations, openTickets, technicalPeople,
+  technicalContext, listRfqs, listQuotations, openTickets, technicalPeople, catalogueItems,
   RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_VAT_RATE, QUOTATION_LIVE_COLUMNS, saveTechnicalSettings,
 } from "@/lib/technical";
 import { TICKET_URGENCIES } from "@/lib/tickets";
@@ -21,8 +21,8 @@ export async function GET(request, ctx) {
     return Response.json({ error: tech.error }, { status });
   }
 
-  const [rfqs, quotations, tickets, people] = await Promise.all([
-    listRfqs(tech), listQuotations(tech), openTickets(tech), technicalPeople(tech),
+  const [rfqs, quotations, tickets, people, catalogue] = await Promise.all([
+    listRfqs(tech), listQuotations(tech), openTickets(tech), technicalPeople(tech), catalogueItems(tech),
   ]);
   return Response.json({
     canManage: tech.canManage,
@@ -33,6 +33,8 @@ export async function GET(request, ctx) {
     canRequestRfq: tech.canManageSales,
     nav: tech.nav,
     rfqs, quotations, openTickets: tickets, people,
+    // Registered Items, for the builder's line picker.
+    catalogue,
     // The number the NEXT quotation will carry, so Convert can show it instead
     // of asking for one. Advisory: the number is issued again on save, because
     // another conversion may land between this page loading and that click.

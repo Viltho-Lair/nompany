@@ -70,6 +70,11 @@ export function cleanQuotationTables(value) {
     title: String(t?.title ?? "").trim().slice(0, 120),
     rows: (Array.isArray(t?.rows) ? t.rows : []).slice(0, MAX_TABLE_ROWS).map((r, j) => ({
       id: String(r?.id || `r${j + 1}`).slice(0, 40),
+      // WHICH registered item this line came from, kept beside the text rather
+      // than instead of it. The text is what the client was quoted and must
+      // still read correctly if the catalogue entry is later renamed or
+      // deleted; the id is what ties the line back to its home while it exists.
+      itemId: String(r?.itemId ?? "").slice(0, 60),
       description: String(r?.description ?? "").trim().slice(0, 300),
       unit: String(r?.unit ?? "").trim().slice(0, 30),
       qty: n(r?.qty),

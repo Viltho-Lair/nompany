@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { btn, btnGhost, input, label, money } from "@/components/studio2/ui";
 import { Icon } from "@/components/studio2/icons";
+import Combo from "@/components/studio2/Combo";
 import { MAX_TABLES, MAX_TABLE_ROWS } from "@/lib/quotations";
 
 // The Quotation Builder: the full screen where a quotation is actually built.
@@ -16,7 +17,7 @@ import { MAX_TABLES, MAX_TABLE_ROWS } from "@/lib/quotations";
 // so two quotations for the same client can be laid out differently.
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const blankRow = () => ({ id: uid(), description: "", unit: "", qty: 1, unitPrice: 0 });
+const blankRow = () => ({ id: uid(), itemId: "", description: "", unit: "", qty: 1, unitPrice: 0 });
 const blankTable = () => ({ id: uid(), title: "", rows: [blankRow()] });
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -26,7 +27,7 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 // through typing "1.5".
 const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-export default function QuotationBuilder({ quote, canManage, onSave, onClose }) {
+export default function QuotationBuilder({ quote, catalogue = [], canManage, onSave, onClose }) {
   const locked = Boolean(quote.locked) || !canManage;
   const [tables, setTables] = useState(() => {
     const stored = Array.isArray(quote.tables) ? quote.tables : [];
@@ -54,6 +55,23 @@ export default function QuotationBuilder({ quote, canManage, onSave, onClose }) 
     setTables((ts) => ts.map((t, j) => (j === i
       ? { ...t, rows: t.rows.map((r, m) => (m === k ? { ...r, ...patch } : r)) }
       : t)));
+
+  // Registered Items, by name — what somebody types. THIS PICKER NEVER CREATES
+  // ANYTHING: an unlisted line is quoted on this document and nowhere else, so
+  // the catalogue stays something Inventory owns.
+  const itemNames = useMemo(() => catalogue.map((i) => i.name), [catalogue]);
+  const itemByName = useMemo(
+    () => Object.fromEntries(catalogue.map((i) => [i.name.toLowerCase(), i])), [catalogue]);
+
+  // Picking a registered item carries its UNIT across, because that is a fact
+  // about the thing. The price is not: what stock cost is not what a client is
+  // quoted, so filling it in here would quietly undersell the studio.
+  const pickItem = (i, k, name) => {
+    const found = itemByName[String(name).trim().toLowerCase()];
+    setRow(i, k, found
+      ? { description: name, itemId: found.id, unit: found.unit || "" }
+      : { description: name, itemId: "" });
+  };
 
   const totals = useMemo(() => {
     const subtotal = tables.reduce((sum, t) =>
@@ -113,6 +131,12 @@ export default function QuotationBuilder({ quote, canManage, onSave, onClose }) 
         </div>
       </header>
 
+      {!locked && !catalogue.length && (
+        <p className="border-b border-slate-200 bg-slate-100 px-5 py-2 text-xs text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+          Nothing in Registered Items yet — lines can still be typed, and typing one here does not register it.
+        </p>
+      )}
+
       {!locked && !lines && (
         <p className="border-b border-amber-500/20 bg-amber-500/10 px-5 py-2 text-xs text-amber-700 dark:text-amber-300">
           Add at least one described line before submitting.
@@ -158,10 +182,10 @@ export default function QuotationBuilder({ quote, canManage, onSave, onClose }) 
                       {table.rows.map((row, k) => (
                         <tr key={row.id} className="border-b border-slate-100 last:border-b-0 dark:border-white/5">
                           <td className="py-1.5 pe-3">
-                            <input className={cell} value={row.description} disabled={locked}
+                            <Combo value={row.description} options={itemNames} disabled={locked}
                               placeholder="What is being quoted"
-                              aria-label={`Table ${i + 1} row ${k + 1} item`}
-                              onChange={(e) => setRow(i, k, { description: e.target.value })} />
+                              inputClassName={cell}
+                              onChange={(v) => pickItem(i, k, v)} />
                           </td>
                           <td className="py-1.5 pe-3">
                             <input className={cell} value={row.unit} disabled={locked} placeholder="ea"
