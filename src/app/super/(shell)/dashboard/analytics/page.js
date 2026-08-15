@@ -15,6 +15,7 @@ import {
 } from "../../../_components/ui";
 import { AreaChart, ChartFrame, BarList, Radial } from "../../../_components/charts";
 import { BASE } from "../../../_components/nav";
+import CurrencyRates from "./CurrencyRates";
 
 export const metadata = { title: "Analytics" };
 
@@ -160,6 +161,13 @@ export default function AnalyticsPage() {
         </Col>
         <Col span={3}>
           <KpiTile label="Conversion Rate" value="12.15%" delta={0.3} deltaLabel="from last month" icon="target" color="#04a9f5" />
+        </Col>
+      </Row>
+
+      {/* ---- today's exchange rates ---------------------------------------- */}
+      <Row className="mb-6">
+        <Col span={12}>
+          <CurrencyRates />
         </Col>
       </Row>
 

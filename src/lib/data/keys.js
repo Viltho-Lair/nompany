@@ -97,6 +97,21 @@ export const CHAT = {
   live: "chat:live",
 };
 
+// ---- foreign-exchange rates (a shared daily snapshot, owned by nobody) -----
+// ExchangeRate-API quotes every currency against ONE base per call, so the
+// platform caches a single USD-based table and derives every other pair from it
+// by division. It belongs to no user and no studio — it is the same number for
+// everybody — so like OTP and CHAT it lives outside the ownership prefixes and
+// no cascade has to know about it.
+//
+//   fx:usd    the cached payload (rates + the API's own next-update stamp)
+//   fx:lock   the NX claim that makes "refetch" first-wins, so a burst of page
+//             loads at midnight UTC still spends exactly one API call
+export const FX = {
+  snapshot: "fx:usd",
+  lock: "fx:lock",
+};
+
 // ---- rate limiting (ephemeral counters, owned by nobody) -------------------
 // NB: `normEmail` is declared further down as a const arrow function. That is
 // fine here because it is only dereferenced when the builder is CALLED, by
