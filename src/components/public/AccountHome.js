@@ -190,7 +190,7 @@ export default function AccountHome({ locale, chrome }) {
             is the behaviour the clip was there to get. */}
         <main className="min-w-0 flex-1 overflow-y-auto">
           {view === "overview" && <Overview identity={identity} owned={owned} collabs={collabs} onGo={setView} onChanged={load} />}
-          {view === "studios" && <StudioGrid title="My Studios" note="Workspaces you own." studios={owned} empty="You don't own a studio yet." />}
+          {view === "studios" && <StudioList title="My Studios" note="Workspaces you own. Renaming one, or changing its link, takes effect at 12:00 am." studios={owned} empty="You don't own a studio yet." onChanged={load} />}
           {view === "collabs" && <StudioGrid title="My Collaborations" note="Studios other people have given you access to. Your own studio is under My Studios." studios={collabs} empty="You're not collaborating in any studio yet." />}
           {view === "personal" && <PersonalInfo identity={identity} onSaved={load} />}
           {view === "security" && <Security devices={devices} onChanged={load} locale={locale} user={identity?.user} />}
@@ -288,6 +288,111 @@ function StudioGrid({ title, note, studios, empty }) {
         <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-4">
           {studios.map((s) => <StudioCard key={s.id} studio={s} />)}
         </div>
+      )}
+    </section>
+  );
+}
+
+// ---- my studios ----------------------------------------------------------------
+// A LIST, not a grid of tiles. A studio you own is a thing you administer, not
+// a thing you pick from a shelf: each row carries its logo, its name and its
+// address, and the name and address are editable in place.
+//
+// THE LOGO IS NOT A LINK any more. When the row holds editable fields, a
+// clickable picture beside them is a trap — you go to change the name, miss,
+// and land in the studio instead. Opening it is now its own labelled button.
+function StudioRow({ studio, onSaved }) {
+  const [name, setName] = useState(studio.name || "");
+  const [slug, setSlug] = useState(studio.slug || "");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  const pending = studio.renameAt
+    ? [studio.pendingName && `name to “${studio.pendingName}”`,
+       studio.pendingSlug && `address to nompany.com/${studio.pendingSlug}`].filter(Boolean).join(" and ")
+    : "";
+  const dirty = name.trim() !== studio.name || slug.trim().toLowerCase() !== studio.slug;
+
+  async function save() {
+    setBusy(true); setErr(""); setMsg("");
+    try {
+      const res = await fetch(`/api/studios/${studio.slug}/settings`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestRename: { name: name.trim(), slug: slug.trim().toLowerCase() } }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErr(out.error === "slug-taken" ? "That address is already taken."
+          : out.error === "slug-invalid" ? "An address is 3–64 characters: lowercase letters, numbers and hyphens."
+          : out.error === "owner-only" ? "Only the owner can rename a studio."
+          : "That didn't save.");
+        return;
+      }
+      // The ALERT the save exists to raise. It is not a confirmation that
+      // anything changed — nothing has yet — so it says when it will.
+      setMsg(out.scheduled
+        ? "Saved. Studio names and addresses change at 12:00 am — the studio keeps its current name and link until then."
+        : "Nothing to change.");
+      onSaved?.();
+    } catch {
+      setErr("That didn't save.");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <li className="flex flex-col gap-3 border-b border-slate-100 py-4 last:border-b-0 dark:border-white/5 sm:flex-row sm:items-start sm:gap-4">
+      {/* Presentational only — no link, no button. */}
+      <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white dark:border-white/10 dark:bg-[#20202c]">
+        {studio.logo
+          /* eslint-disable-next-line @next/next/no-img-element */
+          ? <img src={studio.logo} alt="" className="h-full w-full object-contain p-1.5" />
+          : <span className="font-display text-xl font-800 text-brand-700 dark:text-brand-300">{initialsOf(studio.name)}</span>}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Studio name</span>
+            <input className={INPUT} value={name} onChange={(e) => { setName(e.target.value); setMsg(""); setErr(""); }} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Studio link</span>
+            <span className="flex items-center gap-1">
+              <span className="shrink-0 font-mono text-xs text-slate-400">nompany.com/</span>
+              <input className={INPUT} value={slug} onChange={(e) => { setSlug(e.target.value); setMsg(""); setErr(""); }} />
+            </span>
+          </label>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button className={BTN} onClick={save} disabled={busy || !dirty}>{busy ? "Saving…" : "Save"}</button>
+          <a href={`/${studio.slug}`} className={BTN_GHOST}>Open studio</a>
+        </div>
+
+        {msg && <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{msg}</p>}
+        {err && <p className="mt-2 text-sm text-rose-600 dark:text-rose-300">{err}</p>}
+        {!msg && pending && (
+          <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+            Scheduled: {pending}, at 12:00 am.
+          </p>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function StudioList({ title, note, studios, empty, onChanged }) {
+  return (
+    <section className={PANEL}>
+      <h2 className={H2}>{title}</h2>
+      <p className={SUB}>{note}</p>
+      {studios.length === 0 ? (
+        <p className="mt-4 text-sm text-slate-400">{empty}</p>
+      ) : (
+        <ul className="mt-2">
+          {studios.map((s) => <StudioRow key={s.id} studio={s} onSaved={onChanged} />)}
+        </ul>
       )}
     </section>
   );

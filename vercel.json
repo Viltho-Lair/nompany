@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/year-rollover",
       "schedule": "5 0 * * *"
+    },
+    {
+      "path": "/api/cron/apply-renames",
+      "schedule": "0 0 * * *"
     }
   ]
 }

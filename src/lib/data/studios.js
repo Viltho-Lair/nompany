@@ -163,6 +163,87 @@ export async function changeStudioSlug(studioId, newSlug) {
   return { studio: { ...studio, slug: clean } };
 }
 
+// ---- deferred renames --------------------------------------------------------
+// A studio's name and its slug do not change the moment somebody presses Save.
+// They are REQUESTED, and applied at midnight.
+//
+// The slug is the reason. It is the tenant handle and the public address, so
+// changing it mid-afternoon breaks every open tab, every bookmark and every
+// link anyone has shared, with no warning to the people it happens to. Doing it
+// at midnight does not make the old address work, but it makes the moment
+// predictable and puts it when the fewest people are mid-task.
+//
+// The name rides along with it so the two stay in step: a studio should not
+// spend twelve hours calling itself one thing at an address named for another.
+
+// The next 00:00 UTC. UTC because every other scheduled thing here runs on it —
+// a rename that fires on the server's local midnight would drift with the
+// deployment region.
+export function nextMidnight(from = new Date()) {
+  const d = new Date(from);
+  d.setUTCHours(24, 0, 0, 0);
+  return d.toISOString();
+}
+
+// Requesting is NOT claiming. The new slug is checked for shape and for being
+// free, so the person is told now rather than at midnight, but it is not
+// reserved — holding an address for hours on the strength of an unconfirmed
+// intention would let anyone park every good name they could think of.
+export async function requestStudioRename(studioId, { name, slug }) {
+  const studio = await getStudioById(studioId);
+  if (!studio) return { error: "notfound" };
+
+  const patch = { renameAt: null, pendingName: "", pendingSlug: "" };
+  const cleanName = String(name ?? "").trim().slice(0, 120);
+  const cleanSlug = String(slug ?? "").trim().toLowerCase();
+
+  if (cleanName && cleanName !== studio.name) patch.pendingName = cleanName;
+  if (cleanSlug && cleanSlug !== studio.slug) {
+    if (!isValidSlug(cleanSlug)) return { error: "slug-invalid" };
+    const holder = await getIndex(IX.slug(cleanSlug));
+    if (holder && holder !== studioId) return { error: "slug-taken" };
+    patch.pendingSlug = cleanSlug;
+  }
+
+  // Nothing different: clear any earlier request rather than schedule a no-op.
+  if (!patch.pendingName && !patch.pendingSlug) {
+    await updateStudio(studioId, patch);
+    return { scheduled: false, studio: { ...studio, ...patch } };
+  }
+
+  patch.renameAt = nextMidnight();
+  const updated = await updateStudio(studioId, patch);
+  return { scheduled: true, at: patch.renameAt, studio: updated };
+}
+
+// Applied by the midnight cron. Each studio is handled on its own so one bad
+// slug cannot stop the rest, and the request is CLEARED whatever happens —
+// a rename that cannot be applied must not be retried silently for ever.
+export async function applyDueRenames(now = new Date()) {
+  const studios = await listStudios();
+  const due = studios.filter((s) => s.renameAt && Date.parse(s.renameAt) <= now.getTime());
+  const results = [];
+
+  for (const studio of due) {
+    let error = "";
+    if (studio.pendingSlug) {
+      // Re-checked here, not trusted from request time: hours have passed and
+      // somebody else may have taken the address in between.
+      const out = await changeStudioSlug(studio.id, studio.pendingSlug);
+      if (out.error) error = out.error;
+    }
+    if (!error && studio.pendingName) await updateStudio(studio.id, { name: studio.pendingName });
+    await updateStudio(studio.id, { renameAt: null, pendingName: "", pendingSlug: "" });
+    results.push({
+      id: studio.id,
+      name: error ? undefined : (studio.pendingName || studio.name),
+      slug: error ? studio.slug : (studio.pendingSlug || studio.slug),
+      error: error || undefined,
+    });
+  }
+  return results;
+}
+
 // NB: studio ACCESS TOKENS were removed by design (2026-08-11). Joining a studio
 // is now "type the company code (its slug) → request → owner approves", so a
 // shareable token would be a second, weaker way in. See data/joinRequests.js.

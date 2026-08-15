@@ -71,7 +71,14 @@ export async function studiosForUser(userId) {
     listUserCollaborations(userId),
     studioVisitCounts(userId),
   ]);
-  const shape = (s) => ({ id: s.id, name: s.name, slug: s.slug, logo: s.logo || "", visits: visits[s.id] || 0 });
+  // A queued rename travels with the studio, so My Studios can say what is
+  // already scheduled instead of showing the current name as if nothing were
+  // pending. Owned studios are the only ones renameable, but the shape is
+  // shared and the extra three fields are empty for the rest.
+  const shape = (s) => ({
+    id: s.id, name: s.name, slug: s.slug, logo: s.logo || "", visits: visits[s.id] || 0,
+    pendingName: s.pendingName || "", pendingSlug: s.pendingSlug || "", renameAt: s.renameAt || null,
+  });
   const byVisits = (a, b) => b.visits - a.visits || String(a.name).localeCompare(String(b.name));
 
   // Creating a studio seeds its owner as a Collaborator row, so the owner is a

@@ -1,3 +1,4 @@
+import { requestStudioRename } from "@/lib/data/studios";
 import { isKnownCurrency, crossRate } from "@/lib/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { currentUser } from "@/lib/identity";
@@ -82,6 +83,10 @@ const clean = (studio) => ({
   workingHours: studio.workingHours || null,
   legalInfo: Array.isArray(studio.legalInfo) ? studio.legalInfo : [],
   favoriteCurrencies: Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : [],
+  // A rename that has been asked for but has not happened yet.
+  pendingName: studio.pendingName || "",
+  pendingSlug: studio.pendingSlug || "",
+  renameAt: studio.renameAt || null,
 });
 
 // Rates from the studio's own currency out to each favourite. Anything the
@@ -149,6 +154,15 @@ export async function PUT(request, ctx) {
     return updated
       ? Response.json({ ok: true, studio: clean(updated) })
       : Response.json({ error: "notfound" }, { status: 404 });
+  }
+
+  // RENAMING is the owner's call and does not take effect now. It is stored as
+  // a request and applied at midnight — see requestStudioRename for why.
+  if (body?.requestRename) {
+    if (collaborator.role !== "owner") return Response.json({ error: "owner-only" }, { status: 403 });
+    const out = await requestStudioRename(studio.id, body.requestRename);
+    if (out.error) return Response.json(out, { status: out.error === "notfound" ? 404 : 400 });
+    return Response.json({ scheduled: out.scheduled, at: out.at || null });
   }
 
   const patch = {};
