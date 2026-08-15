@@ -35,6 +35,9 @@ export async function GET(request, ctx) {
     rfqs, quotations, openTickets: tickets, people,
     // Registered Items, for the builder's line picker.
     catalogue,
+    // What this studio prices in. The builder shows it beside every figure, so
+    // nobody has to remember which money a number is in.
+    currency: tech.studio?.currency || "",
     // The number the NEXT quotation will carry, so Convert can show it instead
     // of asking for one. Advisory: the number is issued again on save, because
     // another conversion may land between this page loading and that click.

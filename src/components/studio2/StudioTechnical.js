@@ -198,6 +198,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
             quote={quotations.find((q) => q.id === editingQuote.id) || editingQuote}
             canManage={canManage}
             catalogue={data.catalogue || []}
+            currency={data.currency || ""}
             onClose={closeEdit}
             onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />
         )}

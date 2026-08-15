@@ -1,3 +1,4 @@
+import { isKnownCurrency } from "@/lib/currencies";
 import { currentUser } from "@/lib/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { updateStudio } from "@/lib/data/studios";
@@ -16,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 // Explicit allowlist. updateStudio() takes any patch except id/ownerUserId/slug,
 // so the boundary that decides what a request may write has to be here.
-const FIELDS = ["logo", "country", "city", "location", "currency", "workingHours", "legalInfo"];
+const FIELDS = ["logo", "country", "city", "location", "currency", "workingHours", "legalInfo", "favoriteCurrencies"];
 
 // Mon-first, which is how a working week is read here.
 export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -48,6 +49,20 @@ function cleanHours(v) {
 // being wrong for every other one.
 //
 // A row with no key is dropped: a value nobody labelled cannot be read later.
+// The handful of currencies this studio actually deals in, picked out of the
+// full ExchangeRate-API list. Codes only — the names come from the vocabulary in
+// lib/currencies, so a studio's saved list never goes stale when a name changes.
+// Unknown codes are dropped, duplicates collapse, order is the caller's.
+function cleanFavourites(v) {
+  const seen = new Set();
+  for (const raw of Array.isArray(v) ? v : []) {
+    const code = String(raw ?? "").trim().toUpperCase();
+    if (isKnownCurrency(code)) seen.add(code);
+    if (seen.size >= 25) break;
+  }
+  return [...seen];
+}
+
 function cleanLegal(v) {
   return (Array.isArray(v) ? v : []).slice(0, 40).map((row) => ({
     key: String(row?.key ?? "").trim().slice(0, 80),
@@ -65,6 +80,7 @@ const clean = (studio) => ({
     : "",
   workingHours: studio.workingHours || null,
   legalInfo: Array.isArray(studio.legalInfo) ? studio.legalInfo : [],
+  favoriteCurrencies: Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : [],
 });
 
 export async function GET(request, ctx) {
@@ -122,6 +138,7 @@ export async function PUT(request, ctx) {
     // "" is a real value — it is how the logo is removed.
     patch[key] = key === "workingHours" ? cleanHours(body[key])
       : key === "legalInfo" ? cleanLegal(body[key])
+      : key === "favoriteCurrencies" ? cleanFavourites(body[key])
       : String(body[key] ?? "").slice(0, 500);
   }
   if (Object.keys(patch).length === 0) return Response.json({ error: "nothing" }, { status: 400 });

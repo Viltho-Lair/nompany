@@ -17,7 +17,7 @@ import { MAX_TABLES, MAX_TABLE_ROWS, netUnitPrice } from "@/lib/quotations";
 // so two quotations for the same client can be laid out differently.
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const blankRow = () => ({ id: uid(), itemId: "", description: "", unit: "", qty: 1, unitPrice: 0, discount: 0 });
+const blankRow = () => ({ id: uid(), itemId: "", description: "", image: "", unit: "", qty: 1, unitPrice: 0, discount: 0 });
 const blankTable = () => ({ id: uid(), title: "", rows: [blankRow()] });
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -27,7 +27,7 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 // through typing "1.5".
 const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-export default function QuotationBuilder({ quote, catalogue = [], canManage, onSave, onClose }) {
+export default function QuotationBuilder({ quote, catalogue = [], currency = "", canManage, onSave, onClose }) {
   const locked = Boolean(quote.locked) || !canManage;
   const [tables, setTables] = useState(() => {
     const stored = Array.isArray(quote.tables) ? quote.tables : [];
@@ -70,8 +70,8 @@ export default function QuotationBuilder({ quote, catalogue = [], canManage, onS
   const pickItem = (i, k, name) => {
     const found = itemByName[String(name).trim().toLowerCase()];
     setRow(i, k, found
-      ? { description: name, itemId: found.id, unit: found.unit || "", unitPrice: found.unitPrice || 0 }
-      : { description: name, itemId: "", unit: "", unitPrice: 0 });
+      ? { description: name, itemId: found.id, unit: found.unit || "", unitPrice: found.unitPrice || 0, image: found.image || "" }
+      : { description: name, itemId: "", unit: "", unitPrice: 0, image: "" });
   };
 
   const totals = useMemo(() => {
@@ -171,6 +171,7 @@ export default function QuotationBuilder({ quote, catalogue = [], canManage, onS
                   <table className="w-full min-w-[680px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 text-start text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:text-slate-400">
+                        <th className="w-14 py-2 pe-3 text-start font-600"><span className="sr-only">Item image</span></th>
                         <th className="py-2 pe-3 text-start font-600">Item</th>
                         <th className="w-20 py-2 pe-3 text-start font-600">Unit</th>
                         <th className="w-24 py-2 pe-3 text-start font-600">Qty</th>
@@ -182,6 +183,18 @@ export default function QuotationBuilder({ quote, catalogue = [], canManage, onS
                     <tbody>
                       {table.rows.map((row, k) => (
                         <tr key={row.id} className="border-b border-slate-100 last:border-b-0 dark:border-white/5">
+                          {/* The picture registered against the item, copied
+                              onto the line with everything else so the document
+                              still shows what was quoted if the catalogue entry
+                              later changes. */}
+                          <td className="py-1.5 pe-3">
+                            <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              {row.image
+                                ? <img src={row.image} alt="" className="h-full w-full object-cover" />
+                                : <Icon name="services" className="h-4 w-4 text-slate-300" />}
+                            </span>
+                          </td>
                           <td className="py-1.5 pe-3">
                             <Combo value={row.description} options={itemNames} disabled={locked}
                               placeholder="What is being quoted"
@@ -201,7 +214,7 @@ export default function QuotationBuilder({ quote, catalogue = [], canManage, onS
                           </td>
                           <td className="py-1.5 pe-3 text-end font-mono text-xs text-slate-600 dark:text-slate-300">
                             {row.itemId || num(row.unitPrice)
-                              ? money(num(row.unitPrice))
+                              ? <>{money(num(row.unitPrice))} <span className="text-slate-400">{currency}</span></>
                               : <span className="font-sans text-slate-400">—</span>}
                           </td>
                           <td className="py-1.5 pe-3">
@@ -229,6 +242,7 @@ export default function QuotationBuilder({ quote, catalogue = [], canManage, onS
                   ) : <span />}
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Table total <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(sum)}</span>
+                    {currency && <span className="ms-1 text-slate-400">{currency}</span>}
                   </p>
                 </div>
               </section>
@@ -244,23 +258,37 @@ export default function QuotationBuilder({ quote, catalogue = [], canManage, onS
       </div>
 
       {/* ----------------------------------------------------------- totals */}
+      {/* Three lines, in the order the document reads: what the work comes to,
+          what the tax on it is, and what the client owes. The VAT rate sits
+          inside its own line because it is the one figure here that is typed
+          rather than added up. */}
       <footer className="border-t border-slate-200 bg-white px-5 py-3 dark:border-white/10 dark:bg-white/5">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-x-8 gap-y-2 text-sm">
-          <span className="text-slate-500 dark:text-slate-400">
-            {lines} line{lines === 1 ? "" : "s"}
-          </span>
-          <span className="text-slate-500 dark:text-slate-400">
-            Subtotal <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(totals.subtotal)}</span>
-          </span>
-          <span className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-            <label className={`${label} mb-0`} htmlFor="qb-vat">VAT %</label>
-            <input id="qb-vat" className={`${cell} w-20`} value={vatRate} disabled={locked} inputMode="decimal"
-              onChange={(e) => setVatRate(e.target.value)} />
-            <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(totals.vat)}</span>
-          </span>
-          <span className="font-display text-base font-700 text-slate-900 dark:text-white">
-            {money(totals.total)}
-          </span>
+        <div className="mx-auto max-w-5xl">
+          <p className="mb-1 text-xs text-slate-400">{lines} line{lines === 1 ? "" : "s"}</p>
+          <dl className="ms-auto w-full max-w-sm space-y-1 text-sm">
+            <div className="flex items-baseline gap-3">
+              <dt className="text-slate-500 dark:text-slate-400">Subtotal</dt>
+              <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">
+                {money(totals.subtotal)} <span className="text-slate-400">{currency}</span>
+              </dd>
+            </div>
+            <div className="flex items-baseline gap-3">
+              <dt className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                <label htmlFor="qb-vat">VAT %</label>
+                <input id="qb-vat" className={`${cell} w-16`} value={vatRate} disabled={locked} inputMode="decimal"
+                  onChange={(e) => setVatRate(e.target.value)} />
+              </dt>
+              <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">
+                {money(totals.vat)} <span className="text-slate-400">{currency}</span>
+              </dd>
+            </div>
+            <div className="flex items-baseline gap-3 border-t border-slate-200 pt-1 dark:border-white/10">
+              <dt className="sr-only">Total</dt>
+              <dd className="ms-auto font-display text-base font-700 tabular-nums text-slate-900 dark:text-white">
+                {money(totals.total)} <span className="text-sm font-600 text-slate-400">{currency}</span>
+              </dd>
+            </div>
+          </dl>
         </div>
       </footer>
     </div>

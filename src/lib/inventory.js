@@ -17,6 +17,7 @@
 // project (stock out). Receiving and issuing never touch quantities directly;
 // they append movements, and the balance follows.
 
+import { isKnownCurrency } from "@/lib/currencies";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -24,6 +25,16 @@ import { currentUser } from "@/lib/identity";
 
 const VENDORS = "inventoryVendors";
 const ITEMS = "inventoryItems";
+
+// A currency CODE, or nothing. Unknown codes are dropped rather than stored:
+// a three-letter string nobody can price against is worse than no answer.
+const cur = (v) => {
+  const c = String(v ?? "").trim().toUpperCase();
+  return isKnownCurrency(c) ? c : "";
+};
+// A picture of the thing, held as the URL /api/media hands back — the same way
+// the studio and client logos are held. The bytes never touch the item row.
+const img = (v) => String(v ?? "").trim().slice(0, 500);
 const STOCK = "inventoryStock";
 const ORDERS = "materialOrders";
 const DELIVERIES = "deliveries";
@@ -158,6 +169,9 @@ export async function editVendor(ctx, id, body) {
   }
   for (const f of ["contactName", "phone"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 120);
   if (body?.email !== undefined) patch.email = str(body.email, 160).toLowerCase();
+  if (body?.currency !== undefined) patch.currency = cur(body.currency);
+  // "" is a real value — it is how a picture is removed.
+  if (body?.image !== undefined) patch.image = img(body.image);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.itemTypes !== undefined) patch.itemTypes = cleanItemTypes(body.itemTypes);
 
@@ -246,6 +260,10 @@ export async function createItem(ctx, body) {
     serials: cleanSerials(body?.serials),
     reorderLevel: qty(body?.reorderLevel) > 0 ? qty(body.reorderLevel) : 0,
     unitCost: money(body?.unitCost),
+    // What that cost is IN. Blank means the studio's own currency, so an item
+    // priced in the studio's money needs nothing said about it.
+    currency: cur(body?.currency),
+    image: img(body?.image),
     notes: str(body?.notes, 1000),
     createdAt: new Date().toISOString(),
   });

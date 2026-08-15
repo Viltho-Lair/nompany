@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { CURRENCIES_FROM_EXCHANGE_API, searchCurrencies, currency as currencyOf } from "@/lib/currencies";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
 import { COUNTRIES } from "@/lib/countries";
@@ -182,6 +183,12 @@ export default function StudioSettings({ slug }) {
           {canManage && <Icon name="chevronRight" className="ms-auto h-5 w-5 shrink-0 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />}
         </button>
       </div>
+
+      <FavouriteCurrencies
+        codes={Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : []}
+        canManage={canManage}
+        onSave={save}
+      />
 
       <LegalInfo
         rows={Array.isArray(studio.legalInfo) ? studio.legalInfo : []}
@@ -388,6 +395,100 @@ function LegalInfo({ rows, canManage, onSave }) {
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : saved ? "Saved" : "Save"}</button>
           <button className={BTN_GHOST} onClick={add}>Add another</button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// The currencies this studio actually deals in, picked out of the full
+// ExchangeRate-API list in lib/currencies — 166 codes, held as a static
+// vocabulary rather than fetched, so the picker opens instantly and works
+// offline. Names and countries change about once a decade; RATES are the part
+// that moves, and they live elsewhere.
+//
+// Only CODES are stored. A saved list never goes stale when a name changes, and
+// a code the vocabulary does not know is dropped on the way in rather than kept
+// as a label nobody can price against.
+function FavouriteCurrencies({ codes, canManage, onSave }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState(codes);
+  const [busy, setBusy] = useState(false);
+
+  const results = useMemo(() => searchCurrencies(query).slice(0, 60), [query]);
+  const has = (code) => picked.includes(code);
+  const toggle = (code) =>
+    setPicked((p) => (p.includes(code) ? p.filter((c) => c !== code) : [...p, code]));
+
+  async function save() {
+    setBusy(true);
+    const ok = await onSave({ favoriteCurrencies: picked });
+    setBusy(false);
+    if (ok !== false) setOpen(false);
+  }
+
+  return (
+    <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
+      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">Favourite currencies</h3>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        The few this studio deals in, so pickers elsewhere can offer them first.
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {codes.length === 0 && <span className="text-sm text-slate-400">None chosen yet.</span>}
+        {codes.map((code) => (
+          <span key={code} title={currencyOf(code).name}
+            className="rounded-full bg-slate-100 px-3 py-1 text-xs font-700 text-slate-700 dark:bg-white/10 dark:text-slate-200">
+            {code}
+          </span>
+        ))}
+      </div>
+
+      {canManage && (
+        <button className={`${BTN_GHOST} mt-4`} onClick={() => { setPicked(codes); setQuery(""); setOpen(true); }}>
+          {codes.length ? "Change" : "Choose currencies"}
+        </button>
+      )}
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Favourite currencies">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
+          <div className="relative flex max-h-[80vh] w-full max-w-[520px] flex-col overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]">
+            <div className="flex items-center gap-3 px-6 pt-5">
+              <h4 className="font-display text-lg font-700 text-slate-900 dark:text-white">Favourite currencies</h4>
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close"
+                className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5">
+                <Icon name="close" className="h-[18px] w-[18px]" />
+              </button>
+            </div>
+            <div className="px-6 pt-3">
+              {/* Code, name OR country — somebody looking for the riyal may know
+                  any of the three. */}
+              <input className={INPUT} value={query} autoFocus placeholder="Search code, name or country"
+                aria-label="Search currencies" onChange={(e) => setQuery(e.target.value)} />
+              <p className="mt-2 text-xs text-slate-400">
+                {picked.length} chosen · {CURRENCIES_FROM_EXCHANGE_API.length} available
+              </p>
+            </div>
+            <ul className="mt-3 flex-1 overflow-y-auto px-6">
+              {results.length === 0 && <li className="py-6 text-center text-sm text-slate-400">Nothing matches that.</li>}
+              {results.map((c) => (
+                <li key={c.code}>
+                  <label className="flex cursor-pointer items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5">
+                    <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={has(c.code)} onChange={() => toggle(c.code)} />
+                    <span className="w-12 shrink-0 font-mono text-xs font-700 text-slate-700 dark:text-slate-200">{c.code}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{c.name}</span>
+                    <span className="hidden shrink-0 text-xs text-slate-400 sm:block">{c.country}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-3 border-t border-slate-100 px-6 py-4 dark:border-white/10">
+              <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+              <button className={BTN_GHOST} onClick={() => setOpen(false)}>Cancel</button>
+            </div>
+          </div>
         </div>
       )}
     </section>

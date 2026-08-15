@@ -1,5 +1,6 @@
 "use client";
 
+import { CURRENCIES_FROM_EXCHANGE_API } from "@/lib/currencies";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
@@ -295,6 +296,55 @@ function Items({ items, vendors, units, canManage, busy, send }) {
   );
 }
 
+// HALF A MEGABYTE, deliberately: an item picture is a thumbnail in a quotation
+// table, not a photograph. The cap is checked before the upload leaves the
+// browser so somebody dragging a 12 MP photo in is told immediately.
+const MAX_ITEM_IMAGE = 500 * 1024;
+
+function ItemImage({ value, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function pick(file) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setErr("Choose an image file."); return; }
+    if (file.size > MAX_ITEM_IMAGE) { setErr("Images must be 500 KB or smaller."); return; }
+    setBusy(true); setErr("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const up = await fetch("/api/media", { method: "POST", body: form });
+      const media = await up.json().catch(() => ({}));
+      if (!up.ok || !media.url) throw new Error("upload");
+      onChange(media.url);
+    } catch { setErr("We couldn't upload that image."); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div>
+      <label className={label}>Image <span className="font-400 normal-case text-slate-400">(500 KB max)</span></label>
+      <div className="flex items-center gap-3">
+        <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-white/15 dark:bg-[#191921]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {value ? <img src={value} alt="" className="h-full w-full object-cover" />
+                 : <Icon name="services" className="h-5 w-5 text-slate-300" />}
+        </span>
+        <div className="min-w-0">
+          <input type="file" accept="image/*" disabled={busy}
+            className="block w-full text-xs text-slate-500 file:me-3 file:rounded-full file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-600 file:text-slate-700 dark:file:bg-white/10 dark:file:text-slate-200"
+            onChange={(e) => pick(e.target.files?.[0])} />
+          {value && !busy && (
+            <button type="button" className="mt-1 text-xs text-slate-400 hover:text-rose-600" onClick={() => onChange("")}>Remove</button>
+          )}
+          {busy && <p className="mt-1 text-xs text-slate-400">Uploading…</p>}
+          {err && <p className="mt-1 text-xs text-rose-600">{err}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ItemForm({ row, vendors, units, busy, onSave, onCancel }) {
   const [f, setF] = useState({
     name: row?.name || "", sku: row?.sku || "", modelNumber: row?.modelNumber || "",
@@ -302,6 +352,7 @@ function ItemForm({ row, vendors, units, busy, onSave, onCancel }) {
     itemType: row?.itemType || "", deliveryWeeks: row?.deliveryWeeks ?? "",
     needsInstallation: !!row?.needsInstallation, needsProgramming: !!row?.needsProgramming,
     reorderLevel: row?.reorderLevel || "", unitCost: row?.unitCost || "", notes: row?.notes || "",
+    currency: row?.currency || "", image: row?.image || "",
   });
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const vendor = vendors.find((v) => v.id === f.vendorId);
@@ -355,8 +406,20 @@ function ItemForm({ row, vendors, units, busy, onSave, onCancel }) {
           )}
         </div>
         <div><label className={label}>Category</label><input className={input} value={f.category} onChange={set("category")} /></div>
-        <div><label className={label}>Unit cost</label><input type="number" min="0" step="0.01" className={input} value={f.unitCost} onChange={set("unitCost")} /></div>
+        <div className="grid grid-cols-[1fr,7.5rem] gap-3">
+          <div><label className={label}>Unit cost</label><input type="number" min="0" step="0.01" className={input} value={f.unitCost} onChange={set("unitCost")} /></div>
+          {/* What that cost is IN. Blank means the studio's own currency, so an
+              item priced in the studio's money needs nothing said about it. */}
+          <div>
+            <label className={label}>Currency</label>
+            <select className={input} value={f.currency} onChange={set("currency")}>
+              <option value="">Studio</option>
+              {CURRENCIES_FROM_EXCHANGE_API.map((c) => (<option key={c.code} value={c.code}>{c.code}</option>))}
+            </select>
+          </div>
+        </div>
         <div><label className={label}>Reorder level</label><input type="number" min="0" className={input} value={f.reorderLevel} onChange={set("reorderLevel")} /></div>
+        <ItemImage value={f.image} onChange={(v) => setF((st) => ({ ...st, image: v }))} />
       </div>
 
       <div className="mt-4">

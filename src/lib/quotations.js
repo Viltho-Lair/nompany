@@ -75,6 +75,10 @@ export function cleanQuotationTables(value) {
       // still read correctly if the catalogue entry is later renamed or
       // deleted; the id is what ties the line back to its home while it exists.
       itemId: String(r?.itemId ?? "").slice(0, 60),
+      // The picture as it stood when the line was made, alongside the id, for
+      // the same reason the price is: the document must keep showing what was
+      // quoted even after the catalogue entry moves on.
+      image: String(r?.image ?? "").slice(0, 500),
       description: String(r?.description ?? "").trim().slice(0, 300),
       unit: String(r?.unit ?? "").trim().slice(0, 30),
       qty: n(r?.qty),

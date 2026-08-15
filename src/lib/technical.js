@@ -448,6 +448,7 @@ export async function catalogueItems({ studio, inventoryItemsSection }) {
     .map((r) => ({
       id: r.id, name: String(r.name), sku: String(r.sku || ""),
       unit: String(r.unit || ""), unitPrice: Number(r.unitCost) || 0,
+      currency: String(r.currency || ""), image: String(r.image || ""),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
