@@ -534,7 +534,7 @@ export async function createTicket(ctx, body) {
 // ticket to another company would rewrite its reference and orphan the contacts
 // and locations folded into the old one, so it stays where it was raised.
 export async function editTicket(ctx, id, body) {
-  const { studio, ticketsSection, settingsSection, collaborator } = ctx;
+  const { studio, ticketsSection, clientsSection, settingsSection, collaborator } = ctx;
   const patch = {};
 
   // COMMENTS ARE APPEND-ONLY. One line of text arrives, never a list to
@@ -566,7 +566,13 @@ export async function editTicket(ctx, id, body) {
   if (body?.contactPosition !== undefined) patch.contactPosition = str(body.contactPosition, 120);
   if (body?.location !== undefined) {
     const loc = body.location && typeof body.location === "object" ? body.location : {};
-    patch.location = { name: str(loc.name, 160), city: str(loc.city, 120), url: str(loc.url, 500) };
+    // COUNTRY belongs here exactly as it does on create. It was missing, so
+    // editing a ticket rebuilt the location without it and silently dropped
+    // whatever country the ticket had.
+    patch.location = {
+      name: str(loc.name, 160), country: str(loc.country, 80),
+      city: str(loc.city, 120), url: str(loc.url, 500),
+    };
   }
   if (body?.description !== undefined) patch.description = str(body.description, 4000);
   if (body?.probability !== undefined) patch.probability = normaliseProbability(body.probability, 0);
@@ -597,7 +603,29 @@ export async function editTicket(ctx, id, body) {
   patch.updatedAt = now();
 
   const ticket = await updateRow(studio.id, ticketsSection.id, TICKETS, id, patch);
-  return ticket ? { ticket } : { error: "notfound" };
+  if (!ticket) return { error: "notfound" };
+
+  // AND FOLD THE SITE BACK INTO THE CLIENT, the same way creating a ticket
+  // does. Only create did it, so a site first named or corrected on an edit
+  // never reached Client Locations — the ticket knew where the work was and the
+  // client did not.
+  //
+  // upsertLocation merges by name and returns the SAME array when nothing
+  // changed, so this writes only when there is something new to record.
+  if (patch.location && patch.location.name && clientsSection) {
+    const clientId = ticket.clientId || existing.clientId;
+    if (clientId) {
+      const clients = await readCol(studio.id, clientsSection.id, CLIENTS);
+      const client = clients.find((c) => c.id === clientId);
+      if (client) {
+        const nextLocations = upsertLocation(client.locations, patch.location);
+        if (nextLocations !== client.locations) {
+          await updateRow(studio.id, clientsSection.id, CLIENTS, client.id, { locations: nextLocations });
+        }
+      }
+    }
+  }
+  return { ticket };
 }
 
 // removeTicket is gone with the endpoint that called it. A ticket is closed,
