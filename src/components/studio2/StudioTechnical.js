@@ -75,7 +75,6 @@ const latestComment = (row) => {
 // technical-live renders full-screen outside the studio frame.
 export default function StudioTechnical({ slug, view = "technical" }) {
   const [data, setData] = useState(null);
-  const focusRfq = useFocusedRecord("rfq");
   const focusQuote = useFocusedRecord("quotation");
   const [error, setError] = useState("");
   const [creatingQuote, setCreatingQuote] = useState(false);
@@ -359,7 +358,9 @@ function TechnicalDashboard({ slug, rfqs, quotations, nav, handlerName }) {
 function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses, busy, onRaise, onSave, onConvert }) {
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
-  const [draft, setDraft] = useState(null);
+  // { id, values } — whose edits these are, so a draft can never be shown
+  // against a different RFQ than the one it was typed into.
+  const [edit, setEdit] = useState({ id: "", values: null });
   const [saved, setSaved] = useState(false);
 
   const shown = useMemo(() => {
@@ -372,17 +373,21 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
 
   const selected = rfqs.find((r) => r.id === selectedId) || null;
 
-  // Opening an RFQ starts a fresh draft from it. Keyed on the id alone, so a
-  // live update arriving underneath cannot wipe what is being typed.
-  useEffect(() => {
-    if (!selected) { setDraft(null); return; }
-    setDraft({
-      status: selected.status || statuses[0] || "New",
-      description: selected.description || "",
-      handledByCollaboratorId: selected.handledByCollaboratorId || "",
-    });
-    setSaved(false);
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // DERIVED DURING RENDER, not in an effect. An effect runs after the render
+  // that scheduled it, so the first frame of a newly opened RFQ had a record but
+  // no draft — and the pane below reads the draft, which is why opening one
+  // threw. Computing it here means the draft exists the moment the record does.
+  //
+  // Edits are kept against the id they were typed into, so a live update
+  // arriving underneath cannot wipe them and switching RFQ cannot show them
+  // against the wrong record.
+  const draft = (edit.id === selectedId && edit.values)
+    ? edit.values
+    : (selected ? {
+        status: selected.status || statuses[0] || "New",
+        description: selected.description || "",
+        handledByCollaboratorId: selected.handledByCollaboratorId || "",
+      } : null);
 
   const dirty = Boolean(draft && selected && (
     draft.status !== (selected.status || "")
@@ -390,11 +395,15 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
     || draft.handledByCollaboratorId !== (selected.handledByCollaboratorId || "")
   ));
 
-  const set = (patch) => { setDraft((d) => ({ ...d, ...patch })); setSaved(false); };
+  const set = (patch) => {
+    setEdit({ id: selectedId, values: { ...draft, ...patch } });
+    setSaved(false);
+  };
 
   async function save() {
     if (!selected) return false;
     const ok = await onSave(selected.id, draft);
+    if (ok) setEdit({ id: "", values: null });
     setSaved(Boolean(ok));
     return ok;
   }
@@ -426,7 +435,7 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
               <button
                 key={r.id}
                 type="button"
-                onClick={() => setSelectedId(r.id)}
+                onClick={() => { setSelectedId(r.id); setSaved(false); }}
                 aria-pressed={on}
                 className={`block w-full border-b border-slate-100 px-4 py-3 text-start transition-colors last:border-b-0 dark:border-white/5 ${
                   on ? "bg-brand-500/10" : "hover:bg-slate-50 dark:hover:bg-white/5"
