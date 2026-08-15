@@ -250,8 +250,13 @@ export async function createQuotation(ctx, body) {
     return { error: "duplicate" };
   }
 
-  const items = cleanItems(body?.items);
-  const vatRate = body?.vatRate === undefined ? DEFAULT_VAT_RATE : num(body.vatRate);
+  // NO LINES AND NO VAT HERE. Converting decides that a quotation exists, who
+  // owns it and what number it carries; what is ON it is the builder's job.
+  // Pricing an empty quotation into being was the RFQ screen doing the builder's
+  // work badly.
+  const items = [];
+  const vatRate = DEFAULT_VAT_RATE;
+  const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60);
   const quotation = await addRow(studio.id, quotationsSection.id, QUOTATIONS, {
     number,
     revision: 1,
@@ -287,8 +292,13 @@ export async function convertRfq(ctx, body) {
   // number is what a client quotes back at you — it cannot be reused.
   const number = nextQuotationNumber(quotations, settingsSection?.settings);
 
-  const items = cleanItems(body?.items);
-  const vatRate = body?.vatRate === undefined ? DEFAULT_VAT_RATE : num(body.vatRate);
+  // NO LINES AND NO VAT HERE. Converting decides that a quotation exists, who
+  // owns it and what number it carries; what is ON it is the builder's job.
+  // Pricing an empty quotation into being was the RFQ screen doing the builder's
+  // work badly.
+  const items = [];
+  const vatRate = DEFAULT_VAT_RATE;
+  const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60);
   const quotation = await addRow(studio.id, quotationsSection.id, QUOTATIONS, {
     number,
     revision: 1,
@@ -308,6 +318,7 @@ export async function convertRfq(ctx, body) {
     vatRate,
     ...computeTotals(items, vatRate),
     description: str(body?.description, 2000) || str(rfq.description, 2000) || str(rfq.title, 2000),
+    handledByCollaboratorId,
     handledBy: str(body?.handledBy, 120),
     comments: [],
     locked: false,
@@ -319,7 +330,12 @@ export async function convertRfq(ctx, body) {
     preparedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
-  await updateRow(studio.id, rfqSection.id, RFQS, rfqId, { status: "Converted", quotationId: quotation.id });
+  // The RFQ records who took it, not just that it went. The queue shows that
+  // name on the converted row, and reading it back off the quotation every time
+  // would make the list depend on a second collection to render one tag.
+  await updateRow(studio.id, rfqSection.id, RFQS, rfqId, {
+    status: "Converted", quotationId: quotation.id, handledByCollaboratorId,
+  });
   return { quotation };
 }
 

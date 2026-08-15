@@ -131,7 +131,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Technical…</p>;
 
-  const { canManage, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, nav } = data;
+  const { canManage, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, nav, nextQuotationNumber } = data;
   const aliasOf = Object.fromEntries(people.map((p) => [p.id, p.alias]));
   // Handlers are collaborator ids, but a quotation created before that — or by
   // typing a name — holds the name itself. Show whichever resolves.
@@ -165,7 +165,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
         )}
         {converting && (
           <Dialog title={`Quote ${converting.reference}`} description={`${converting.title} · ${converting.clientName || "—"}`} onClose={closeConvert}>
-            <ConvertRfq rfq={converting} vat={vocabulary.defaultVatRate} people={people}
+            <ConvertRfq rfq={converting} nextNumber={nextQuotationNumber} people={people}
               onCancel={closeConvert} onSave={(p) => send("quotations", "POST", { ...p, rfqId: converting.id })} />
           </Dialog>
         )}
@@ -389,7 +389,9 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
         handledByCollaboratorId: selected.handledByCollaboratorId || "",
       } : null);
 
-  const dirty = Boolean(draft && selected && (
+  const converted = selected?.status === "Converted";
+  const handlerName = aliasOf[selected?.handledByCollaboratorId] || "";
+  const dirty = Boolean(draft && selected && !converted && (
     draft.status !== (selected.status || "")
     || draft.description !== (selected.description || "")
     || draft.handledByCollaboratorId !== (selected.handledByCollaboratorId || "")
@@ -462,7 +464,14 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
           ) : (
             <>
               <div className="flex flex-wrap items-start gap-3">
-                {canManage && (
+                {/* A converted RFQ is finished. Its quotation is what carries the
+                    work now, so the record behind it stops being editable rather
+                    than offering changes that would no longer mean anything. */}
+                {converted ? (
+                  <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-700 text-emerald-700 dark:text-emerald-300">
+                    Converted{handlerName ? ` · handled by ${handlerName}` : ""}
+                  </span>
+                ) : canManage && (
                   <button className={btn} onClick={save} disabled={busy || !dirty}>
                     {saved && !dirty ? "Saved" : "Save"}
                   </button>
@@ -477,6 +486,7 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
                   Leader, and the client, industry and deadline are what was sold. */}
               <dl className="mt-5 grid gap-x-6 gap-y-3 sm:grid-cols-2">
                 <RfqInfo label="Client" value={selected.clientName} />
+                <RfqInfo label="Title" value={selected.title} />
                 <RfqInfo label="Ticket" value={selected.ticketRef} mono />
                 <RfqInfo label="Industry" value={selected.industry} />
                 <RfqInfo label="Deadline" value={selected.deadline ? fmtDate(selected.deadline) : ""} />
@@ -487,36 +497,27 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className={label}>Status</label>
-                  {/* Converted is never chosen by hand — it is what Convert does. */}
-                  <select className={input} value={draft.status} disabled={!canManage || selected.status === "Converted"}
+                  {/* Converted is never chosen by hand — it is what Convert does.
+                      Who handles it is asked once, at conversion, rather than
+                      being a second place to answer the same question. */}
+                  <select className={input} value={draft.status} disabled={!canManage || converted}
                     onChange={(e) => set({ status: e.target.value })}>
-                    {statuses.filter((s) => s !== "Converted" || selected.status === "Converted")
+                    {statuses.filter((s) => s !== "Converted" || converted)
                       .map((s) => (<option key={s} value={s}>{s}</option>))}
-                  </select>
-                </div>
-                <div>
-                  <label className={label}>Handled by</label>
-                  <select className={input} value={draft.handledByCollaboratorId} disabled={!canManage}
-                    onChange={(e) => set({ handledByCollaboratorId: e.target.value })}>
-                    <option value="">Unassigned</option>
-                    {people.map((p) => (<option key={p.id} value={p.id}>{p.alias}</option>))}
                   </select>
                 </div>
               </div>
 
               <div className="mt-4">
                 <label className={label}>Description</label>
-                <textarea rows={5} className={input} value={draft.description} disabled={!canManage}
+                <textarea rows={5} className={input} value={draft.description} disabled={!canManage || converted}
                   onChange={(e) => set({ description: e.target.value })} />
               </div>
 
-              {canManage && selected.status !== "Converted" && (
+              {canManage && !converted && (
                 <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Convert into a quotation for{" "}
-                    <span className="font-600 text-slate-700 dark:text-slate-200">
-                      {aliasOf[draft.handledByCollaboratorId] || "whoever takes it"}
-                    </span>.
+                    Convert this RFQ into a quotation. You choose who handles it next.
                   </p>
                   {/* Saves first: converting must never be the thing that loses
                       what was just typed into the box above it. */}
@@ -786,9 +787,9 @@ function RaiseRfq({ tickets, onSave, onCancel }) {
   );
 }
 
-function ConvertRfq({ rfq, vat, people, onSave, onCancel }) {
-  const [items, setItems] = useState([{ description: "", qty: 1, unitPrice: 0 }]);
-  const [vatRate, setVatRate] = useState(vat);
+function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
+  // No items and no VAT. Converting says a quotation exists, who owns it and
+  // what it is called; what goes ON it belongs to the builder.
   const [handledBy, setHandledBy] = useState("");
   const [description, setDescription] = useState(rfq.description || rfq.title || "");
   const [busy, setBusy] = useState(false);
@@ -797,7 +798,14 @@ function ConvertRfq({ rfq, vat, people, onSave, onCancel }) {
       {/* What Sales sent over. Read-only here: urgency belongs to a Sales
           Leader, and the industry and services are what was sold. */}
       <div className="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className={label}>Quotation number</label>
+          {/* Issued by the studio's numbering, not typed: a number somebody
+              chose by hand is a number somebody can choose twice. */}
+          <input className={inputRO} value={nextNumber || "Assigned on save"} readOnly />
+        </div>
         <div><label className={label}>Client</label><input className={inputRO} value={rfq.clientName || "—"} readOnly /></div>
+        <div><label className={label}>Title</label><input className={inputRO} value={rfq.title || "—"} readOnly /></div>
         <div>
           <label className={label}>Urgency <span className="font-500 normal-case text-slate-400">(set by Sales)</span></label>
           <div className={`${inputRO} flex items-center`}>
@@ -818,12 +826,11 @@ function ConvertRfq({ rfq, vat, people, onSave, onCancel }) {
         <div><label className={label}>Description</label><input className={input} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
       </div>
 
-      <LineItems items={items} setItems={setItems} vatRate={vatRate} setVatRate={setVatRate} />
       <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
         The quotation is numbered automatically and its lead is set to <span className="font-600">{rfq.ticketRef || rfq.reference}</span>.
       </p>
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy} onClick={async () => { setBusy(true); await onSave({ items, vatRate, handledBy, description }); setBusy(false); }}>
+        <button className={btn} disabled={busy || !handledBy} onClick={async () => { setBusy(true); await onSave({ handledByCollaboratorId: handledBy, description }); setBusy(false); }}>
           {busy ? "Creating…" : "Create quotation"}
         </button>
         <button className={btnGhost} onClick={onCancel}>Cancel</button>

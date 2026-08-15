@@ -1,3 +1,4 @@
+import { nextQuotationNumber } from "@/lib/technical";
 import { currentUser } from "@/lib/identity";
 import {
   technicalContext, listRfqs, listQuotations, openTickets, technicalPeople,
@@ -32,6 +33,10 @@ export async function GET(request, ctx) {
     canRequestRfq: tech.canManageSales,
     nav: tech.nav,
     rfqs, quotations, openTickets: tickets, people,
+    // The number the NEXT quotation will carry, so Convert can show it instead
+    // of asking for one. Advisory: the number is issued again on save, because
+    // another conversion may land between this page loading and that click.
+    nextQuotationNumber: nextQuotationNumber(quotations, tech.settingsSection?.settings),
     vocabulary: { rfqStatuses: RFQ_STATUSES, quotationStatuses: QUOTATION_STATUSES, defaultVatRate: DEFAULT_VAT_RATE,
       // Urgency is Sales' field, carried here read-only — the Technical screens
       // filter by it, so they need the same list Sales uses.
