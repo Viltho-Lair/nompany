@@ -7,7 +7,12 @@ export const dynamic = "force-dynamic";
 // Stores atomic per-day counters in a Redis hash `stat:day:<YYYY-MM-DD>` plus a
 // per-day visitor set `stat:vis:<YYYY-MM-DD>`. Both keys carry a ~8-month TTL,
 // so old data auto-expires (retention) without a cron.
-const RETENTION_SEC = 240 * 24 * 60 * 60; // ~8 months
+// LONGER THAN A CALENDAR YEAR, deliberately. Retention is now the new-year
+// rollover's job (/api/cron/year-rollover mails the closed year to the super
+// admin, then clears it); this TTL is only a backstop so nothing lingers for
+// ever if that job is removed. At 8 months it was expiring January before
+// December could report it.
+const RETENTION_SEC = 400 * 24 * 60 * 60;
 
 const slug = (s, max = 40) => String(s || "").toLowerCase().replace(/[^a-z0-9\-_/]/g, "").slice(0, max);
 const today = () => new Date().toISOString().slice(0, 10);

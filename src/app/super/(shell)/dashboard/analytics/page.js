@@ -16,13 +16,12 @@ import {
 import { AreaChart, ChartFrame, BarList, Radial } from "../../../_components/charts";
 import { BASE } from "../../../_components/nav";
 import CurrencyRates from "./CurrencyRates";
+import RealtimeAnalytics from "./RealtimeAnalytics";
 
 export const metadata = { title: "Analytics" };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const SESSIONS = [42, 55, 48, 63, 58, 74, 68, 82, 76, 91, 85, 97];
-const PAGEVIEWS = [28, 36, 33, 45, 41, 52, 49, 58, 54, 66, 61, 72];
 
 const REVENUE_ACTUAL = [32, 41, 38, 52, 47, 61, 58, 69, 64, 76, 71, 80];
 const REVENUE_FORECAST = [30, 39, 41, 49, 51, 58, 62, 66, 70, 73, 77, 82];
@@ -92,35 +91,6 @@ const GOALS = [
   { label: "Annual", value: 65, color: "var(--ad-chart-4)" },
 ];
 
-function RangeTabs() {
-  return (
-    <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--ad-border)" }}>
-      {["7d", "30d", "90d"].map((r, i) => (
-        <button
-          key={r}
-          type="button"
-          className="rounded px-2.5 py-1 text-xs font-medium transition-colors"
-          style={
-            i === 1
-              ? { backgroundColor: "var(--ad-primary)", color: "var(--ad-primary-foreground)" }
-              : { color: "var(--ad-muted-foreground)" }
-          }
-        >
-          {r}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function MiniStat({ label, value }) {
-  return (
-    <div>
-      <p className="text-xs text-[var(--ad-muted-foreground)]">{label}</p>
-      <p className="mt-0.5 text-lg font-semibold">{value}</p>
-    </div>
-  );
-}
 
 function CenterStat({ value, label, sub, tone = "primary" }) {
   return (
@@ -175,31 +145,11 @@ export default function AnalyticsPage() {
       <Row className="mb-6">
         <Col span={8}>
           <Card>
-            <CardHead title="Real-time Analytics" action={<RangeTabs />} />
+            <CardHead title="Real-time Analytics" />
             <CardBody>
-              <div className="mb-5 flex gap-10">
-                <MiniStat label="Sessions" value="47,829" />
-                <MiniStat label="Page Views" value="186,247" />
-              </div>
-              <ChartFrame
-                height={280}
-                labels={MONTHS}
-                yLabels={["0", "20", "40", "60", "80", "100"]}
-                legend={[
-                  { name: "Sessions", color: "var(--ad-chart-1)" },
-                  { name: "Page Views", color: "var(--ad-chart-2)" },
-                ]}
-              >
-                <AreaChart
-                  height={280}
-                  showY={false}
-                  labels={MONTHS}
-                  series={[
-                    { name: "Sessions", data: SESSIONS, color: "var(--ad-chart-1)" },
-                    { name: "Page Views", data: PAGEVIEWS, color: "var(--ad-chart-2)" },
-                  ]}
-                />
-              </ChartFrame>
+              {/* Real counters, and the range buttons that drive them, both
+                  live in the client component — the card is just its frame. */}
+              <RealtimeAnalytics />
             </CardBody>
           </Card>
         </Col>
