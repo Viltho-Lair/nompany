@@ -69,7 +69,12 @@ export function AreaChart({
   const plotW = W - padL - padR;
   const plotH = height - padB;
 
-  const all = series.flatMap((s) => s.data);
+  // Series arrive from the network now, not from a hard-coded array, so an
+  // EMPTY one is an ordinary state: the first render before a fetch resolves,
+  // or a range with no traffic in it. Dropping them here means the rest of this
+  // function can still assume every series it draws has points.
+  const drawable = series.filter((s) => Array.isArray(s.data) && s.data.length > 0);
+  const all = drawable.flatMap((s) => s.data);
   const rawMax = Math.max(...all, 1);
   const step = Math.pow(10, Math.floor(Math.log10(rawMax))) / 2 || 1;
   const max = Math.ceil(rawMax / step) * step;
@@ -101,7 +106,7 @@ export function AreaChart({
         />
       ))}
 
-      {series.map((s, si) => {
+      {drawable.map((s, si) => {
         const color = s.color || PALETTE[si % PALETTE.length];
         const pts = s.data.map((v, i) => [x(i, s.data.length), y(v)]);
         const d = smooth ? smoothPath(pts) : linePath(pts);
