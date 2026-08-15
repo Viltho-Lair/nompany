@@ -1,5 +1,7 @@
 import { getRedisClient } from "@/lib/data/redis";
 import { REG } from "@/lib/data/keys";
+import { emitPlatform, PLATFORM } from "@/lib/data/events";
+import { notifySuper, NOTIFY } from "@/lib/data/notifications";
 
 // How people rate nompany, out of five.
 //
@@ -25,6 +27,24 @@ export async function setRating(userId, stars) {
   if (!userId || value === null) return { error: "stars" };
   const client = await getRedisClient();
   await client.hSet(REG.ratings, String(userId), String(value));
+
+  await emitPlatform({
+    type: PLATFORM.ratingLeft,
+    title: `nompany rated ${value}/5`,
+    body: "Someone answered the rating prompt.",
+    refId: String(userId),
+  });
+  // A poor score is worth interrupting an owner over; a good one belongs in the
+  // history with the rest. The bell is a limited resource — everything put in
+  // it makes everything else in it less likely to be read.
+  if (value <= 2) {
+    await notifySuper({
+      type: NOTIFY.system,
+      title: `Low rating: ${value}/5`,
+      body: "Someone rated nompany poorly.",
+      tone: "danger",
+    });
+  }
   return { rating: value };
 }
 

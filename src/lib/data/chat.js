@@ -24,6 +24,8 @@ import {
 // The vocabulary is shared with the client — a status string means the same
 // thing in the widget as it does here, so there is exactly one definition of it.
 import { WAITING, ACTIVE, ENDED, STUDIO, NOMPANY } from "@/lib/chatConstants";
+import { emitPlatform, PLATFORM } from "@/lib/data/events";
+import { notifySuper, NOTIFY } from "@/lib/data/notifications";
 
 // Idle life of a running room. Every message re-arms it (see touchTTL below),
 // so this is "nobody has said anything for two hours", not "two hours total".
@@ -73,6 +75,26 @@ export async function openRoom({ studio, userId, userName }) {
   };
   await setJSONEx(CHAT.room(room.id), room, ROOM_TTL_SEC);
   await sAdd(CHAT.live, room.id);
+
+  // The one platform event that is genuinely urgent: a person is waiting, right
+  // now, for someone at nompany to answer. Unlike a signup this DOES ring the
+  // bell — and the early return above means it rings once per conversation, not
+  // once per time the widget is reopened.
+  await emitPlatform({
+    type: PLATFORM.chatWaiting,
+    title: "Someone is waiting in chat",
+    body: `${room.userName} — ${room.studioName}`,
+    href: "/super/application/chat",
+    refId: room.id,
+  });
+  await notifySuper({
+    type: NOTIFY.system,
+    title: "Live chat request",
+    body: `${room.userName} from ${room.studioName} is waiting.`,
+    href: "/super/application/chat",
+    tone: "warning",
+  });
+
   return room;
 }
 

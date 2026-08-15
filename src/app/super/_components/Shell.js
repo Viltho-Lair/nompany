@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import Customizer, { PRESETS } from "./Customizer";
+import SuperLiveProvider from "@/components/super/SuperLiveProvider";
 
 // The sidebar + header chrome. Client-side because the rail collapses, the
 // mobile drawer opens and the customizer writes CSS custom properties — all of
@@ -57,6 +58,10 @@ export default function Shell({ children, admin }) {
     .join(" ");
 
   return (
+    // The console's one live connection, opened on the shell so the header's
+    // bell and every page below share it — see SuperLiveProvider for why it is
+    // one per tab rather than one per consumer.
+    <SuperLiveProvider>
     <div
       className={classes}
       dir={state.dir}
@@ -114,5 +119,6 @@ export default function Shell({ children, admin }) {
         <style>{`.admindek .ad-nav-caption{display:none}`}</style>
       ) : null}
     </div>
+    </SuperLiveProvider>
   );
 }

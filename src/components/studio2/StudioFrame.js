@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
 import StudioChat from "@/components/studio2/StudioChat";
 import RateNompany from "@/components/studio2/RateNompany";
+import LiveProvider from "@/components/studio2/LiveProvider";
+import NotificationBell from "@/components/studio2/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 import { toneOf } from "@/lib/planColors";
 
@@ -311,6 +313,11 @@ export default function StudioFrame({ studio, me, sections, activeKey, chat = nu
   const avatarLetter = (me.alias?.[0] || me.role?.[0] || "?").toUpperCase();
 
   return (
+    // The studio's one live connection, opened here on the SHELL so every board
+    // shares it. Boards subscribe through useLiveUpdates and never open a
+    // connection of their own — see the note in LiveProvider about why that is
+    // a hard requirement rather than a preference.
+    <LiveProvider slug={studio.slug}>
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
       {/* Floating rounded sidebar — Geex control-panel style */}
       <aside className="fixed inset-y-4 start-4 z-30 hidden w-64 overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex lg:block">
@@ -344,6 +351,10 @@ export default function StudioFrame({ studio, me, sections, activeKey, chat = nu
                 class the public site uses, so the Studio follows the choice
                 everywhere and the no-flash script picks it up on next load. */}
             <ThemeToggle labels={{ theme: "Theme", light: "Light", dark: "Dark", system: "Device" }} />
+            {/* Beside the theme toggle rather than in the sidebar: it belongs
+                with the other things that are about YOU here, not with the
+                studio's sections. */}
+            <NotificationBell slug={studio.slug} />
             <span className="hidden text-sm text-slate-500 dark:text-slate-400 sm:inline">
               {me.alias || "Member"}
               <span className="ms-2 rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">
@@ -417,5 +428,6 @@ export default function StudioFrame({ studio, me, sections, activeKey, chat = nu
           ask. */}
       <RateNompany />
     </div>
+    </LiveProvider>
   );
 }

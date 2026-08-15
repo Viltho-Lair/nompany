@@ -1,0 +1,186 @@
+// NOTIFICATIONS — the things a person should be told, and whether they've seen
+// them yet.
+//
+// NOT THE SAME THING AS THE EVENT LOG. The event log (events.js) says "section
+// X moved" so a board knows to refetch; it is machinery, it carries no words,
+// and it is forgotten as soon as every client has caught up. A notification is
+// addressed to a PERSON, says something in a sentence, links somewhere, and
+// persists until they have read it — it survives sign-out, and the bell has to
+// show a count on a fresh page load with nothing streamed yet.
+//
+// ONE ROW PER RECIPIENT ("fan out on write"). Writing a notification for five
+// people writes five rows. The alternative — one row plus a set of who has read
+// it — saves a little space and costs a great deal: read state would have to
+// live somewhere else, which means a second key per person, which means
+// something new for the cascade to know about. Here `readAt` is just a field on
+// the recipient's own row. Studios hold tens of collaborators, not thousands,
+// so the copies are cheap and every question ("my unread count") is answered by
+// filtering one array.
+//
+// WHERE THEY LIVE, AND WHY NOTHING NEW HAD TO BE INVENTED:
+//   s:<StudioID>:notifications   already declared in keys.js, and already swept
+//                                by cascadeDeleteCollaborator (which filters on
+//                                exactly the recipientId field used here) and by
+//                                the studio's own prefix delete. Adding this
+//                                changes no existing document and teaches the
+//                                cascade nothing new.
+//   g:superNotifications         the console's equivalent. Platform-level, so
+//                                deliberately outside every cascade.
+//
+// Writing one also rings the doorbell, so an open bell updates immediately
+// rather than at the next page load.
+
+import { S, REG, makeId } from "@/lib/data/keys";
+import { readArr, editArr } from "@/lib/data/store";
+import { publish, CH } from "@/lib/data/bus";
+
+// Enough that nobody reaches the end of their bell in normal use, small enough
+// that the array stays a cheap read. Older rows fall off; they are notices, not
+// records, and the thing they pointed at is still there.
+const MAX_PER_STUDIO = 200;
+const MAX_SUPER = 200;
+
+export const NOTIFY = {
+  joinRequested: "join.requested",
+  joinDecided: "join.decided",
+  peopleChanged: "people.changed",
+  taskAssigned: "task.assigned",
+  mention: "mention",
+  system: "system",
+};
+
+function build({ type, title, body = "", href = "", tone = "primary" }) {
+  return {
+    id: makeId("ntf"),
+    type,
+    title,
+    body,
+    href,
+    tone,
+    at: new Date().toISOString(),
+    readAt: "",
+  };
+}
+
+// ---- studio-scoped ---------------------------------------------------------
+
+/**
+ * Notify one or more collaborators inside a studio.
+ *
+ * Best-effort by the same rule as events.emit(): the thing being announced has
+ * already happened, so failing to announce it must never fail the request that
+ * caused it.
+ *
+ * @param {string} studioId
+ * @param {string[]} recipientIds  CollaboratorIDs (never UserIDs — see the note
+ *                                 at the top of collaborators.js)
+ * @param {{type: string, title: string, body?: string, href?: string, tone?: string}} notice
+ *        `href` is STUDIO-RELATIVE ("people", "sales/tickets") — the bell
+ *        prefixes it with the studio's slug. Storing the slug here would bake
+ *        in an address that can be renamed, leaving old notifications pointing
+ *        at a studio that no longer answers to that name.
+ * @param {{userIdOf?: (collaboratorId: string) => string}} [opts] lets the
+ *        caller map recipients to UserIDs so the doorbell can be rung on the
+ *        right per-person channel
+ */
+export async function notifyCollaborators(studioId, recipientIds, notice, opts = {}) {
+  const ids = [...new Set((recipientIds || []).filter(Boolean))];
+  if (!studioId || !ids.length || !notice?.type || !notice?.title) return [];
+
+  try {
+    const rows = ids.map((recipientId) => ({ ...build(notice), recipientId, studioId }));
+
+    await editArr(S.notifications(studioId), (current) => ({
+      // Newest first, then truncate: the bell reads from the front, so the cap
+      // costs nothing at read time.
+      next: [...rows, ...current].slice(0, MAX_PER_STUDIO),
+    }));
+
+    // Ring each recipient's own channel. Per person, not per studio: a
+    // notification has an audience of one, and broadcasting it to the studio
+    // would hand everyone else a copy of a message addressed to someone else.
+    await Promise.all(
+      rows.map((row) => {
+        const userId = opts.userIdOf?.(row.recipientId);
+        return userId ? publish(CH.user(userId), { kind: "notif", ...row }) : null;
+      }).filter(Boolean),
+    );
+
+    return rows;
+  } catch (e) {
+    console.error(`[notifications] write failed on ${studioId}: ${e.message}`);
+    return [];
+  }
+}
+
+/** This collaborator's notifications, newest first. */
+export async function listForCollaborator(studioId, collaboratorId) {
+  if (!studioId || !collaboratorId) return [];
+  const rows = await readArr(S.notifications(studioId));
+  return rows.filter((n) => n.recipientId === collaboratorId);
+}
+
+/**
+ * Mark as read. `ids` empty means "all of mine".
+ *
+ * Scoped to the caller inside the atomic write, not before it: the filter is
+ * part of what gets committed, so a request naming someone else's notification
+ * id cannot mark it read no matter what it claims.
+ */
+export async function markRead(studioId, collaboratorId, ids) {
+  if (!studioId || !collaboratorId) return 0;
+  const wanted = ids?.length ? new Set(ids) : null;
+  const at = new Date().toISOString();
+
+  return editArr(S.notifications(studioId), (rows) => {
+    let changed = 0;
+    const next = rows.map((n) => {
+      if (n.recipientId !== collaboratorId || n.readAt) return n;
+      if (wanted && !wanted.has(n.id)) return n;
+      changed++;
+      return { ...n, readAt: at };
+    });
+    return changed ? { next, result: changed } : { result: 0 };
+  });
+}
+
+// ---- platform-scoped (the /super console) ----------------------------------
+
+/**
+ * Notify nompany's owners. Recipient is left empty on purpose: unlike a studio,
+ * where a notice is addressed to one person, the console's audience is "whoever
+ * is on duty" — every owner sees the same list.
+ */
+export async function notifySuper(notice) {
+  if (!notice?.type || !notice?.title) return null;
+  try {
+    const row = build(notice);
+    await editArr(REG.superNotifications, (current) => ({
+      next: [row, ...current].slice(0, MAX_SUPER),
+    }));
+    await publish(CH.super, { kind: "notif", ...row });
+    return row;
+  } catch (e) {
+    console.error(`[notifications] super write failed: ${e.message}`);
+    return null;
+  }
+}
+
+export async function listSuper() {
+  return readArr(REG.superNotifications);
+}
+
+export async function markSuperRead(ids) {
+  const wanted = ids?.length ? new Set(ids) : null;
+  const at = new Date().toISOString();
+  return editArr(REG.superNotifications, (rows) => {
+    let changed = 0;
+    const next = rows.map((n) => {
+      if (n.readAt) return n;
+      if (wanted && !wanted.has(n.id)) return n;
+      changed++;
+      return { ...n, readAt: at };
+    });
+    return changed ? { next, result: changed } : { result: 0 };
+  });
+}

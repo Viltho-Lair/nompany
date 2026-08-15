@@ -16,6 +16,8 @@ import { REG, U, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/lib/data/keys";
 import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, sMembers, hIncrBy, hGetAll, hDel } from "@/lib/data/store";
 import { addCollaborator } from "@/lib/data/collaborators";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
+import { emitPlatform, PLATFORM } from "@/lib/data/events";
+import { notifySuper, NOTIFY } from "@/lib/data/notifications";
 
 export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" }) {
   const cleanName = String(name || "").trim();
@@ -70,6 +72,25 @@ export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" })
     // Atomic — a lost registry row here would strand the slug and owner claims
     // made above, permanently burning that slug.
     await editArr(REG.studios, (rows) => ({ next: [studio, ...rows] }));
+
+    // Tell the console. AFTER the registry write, so the notification can never
+    // describe a studio that does not exist — and best-effort inside, so a
+    // failure to announce cannot undo a studio that does.
+    await emitPlatform({
+      type: PLATFORM.studioCreated,
+      title: "New studio registered",
+      body: `${cleanName} (/${cleanSlug}) completed onboarding.`,
+      href: `/super/application/studios`,
+      refId: id,
+    });
+    await notifySuper({
+      type: NOTIFY.system,
+      title: "New studio registered",
+      body: `${cleanName} — nompany.com/${cleanSlug}`,
+      href: `/super/application/studios`,
+      tone: "success",
+    });
+
     return { studio, sections };
   } catch (e) {
     await release(IX.owner(ownerUserId));

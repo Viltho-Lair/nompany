@@ -7,6 +7,8 @@ import Icon from "./Icon";
 import { FLAT, BASE } from "./nav";
 import { CURRENT_USER, ROLE } from "./session";
 import { initialsOf } from "@/lib/initials";
+import useSuperNotifications from "@/components/super/useSuperNotifications";
+import { ago } from "@/lib/format";
 
 /* ---- theme ---------------------------------------------------------------
    The site-wide control: the same `theme` cookie the public site and Studio
@@ -202,13 +204,11 @@ function CommandPalette({ open, onClose }) {
 }
 
 /* ---- notifications ------------------------------------------------------- */
-
-const NOTIFICATIONS = [
-  { id: 1, tone: "primary", icon: "user", title: "New studio registered", body: "Falcon Contracting completed onboarding.", time: "2 min ago", unread: true },
-  { id: 2, tone: "success", icon: "wallet", title: "Payment received", body: "Invoice INV-2291 settled — SAR 12,400.", time: "26 min ago", unread: true },
-  { id: 3, tone: "warning", icon: "alert", title: "Storage at 82%", body: "Media bucket approaching its quota.", time: "3 hours ago" },
-  { id: 4, tone: "info", icon: "refresh", title: "Deployment finished", body: "Release 4.2.0 is live in production.", time: "Yesterday" },
-];
+//
+// These used to be four hardcoded rows — "Falcon Contracting", "INV-2291" —
+// that looked like a working bell and were not one. They now come from
+// g:superNotifications over the console's live connection; see
+// useSuperNotifications.
 
 const TONE_BG = {
   primary: "rgba(70,128,255,.14)",
@@ -261,7 +261,7 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  const unread = NOTIFICATIONS.filter((n) => n.unread).length;
+  const { notifications, unread, loaded, status, markAllRead } = useSuperNotifications();
   const activeMode = MODES.find((m) => m.id === mode) || MODES[0];
 
   return (
@@ -342,11 +342,21 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
                 <Icon name="bell" className="h-[18px] w-[18px]" />
                 {unread ? (
                   <span
-                    className="absolute -top-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ltr:-right-0.5 rtl:-left-0.5"
+                    className="absolute -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ltr:-right-0.5 rtl:-left-0.5"
                     style={{ backgroundColor: "var(--ad-success)", color: "var(--ad-success-foreground)" }}
                   >
-                    {unread}
+                    {unread > 99 ? "99+" : unread}
                   </span>
+                ) : null}
+                {/* The console has no polling fallback behind it either: if the
+                    stream cannot be established, this says so rather than
+                    letting the page look merely quiet. */}
+                {status === "offline" ? (
+                  <span
+                    className="absolute bottom-0 h-2.5 w-2.5 rounded-full ltr:right-0 rtl:left-0"
+                    style={{ backgroundColor: "var(--ad-warning)" }}
+                    title="Not receiving live updates — reconnecting"
+                  />
                 ) : null}
               </span>
             }
@@ -356,29 +366,59 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
               style={{ borderColor: "var(--ad-border)" }}
             >
               <span className="text-sm font-semibold">Notifications</span>
-              <span className="text-xs text-[var(--ad-primary)]">Mark all read</span>
+              {unread ? (
+                <button
+                  type="button"
+                  onClick={markAllRead}
+                  className="text-xs text-[var(--ad-primary)] hover:underline"
+                >
+                  Mark all read
+                </button>
+              ) : null}
             </div>
+            {status === "offline" ? (
+              <p
+                className="border-b px-4 py-2 text-xs"
+                style={{ borderColor: "var(--ad-border)", color: "var(--ad-warning)" }}
+              >
+                Not receiving live updates. Reconnecting…
+              </p>
+            ) : null}
             <ul className="max-h-80 overflow-y-auto">
-              {NOTIFICATIONS.map((n) => (
-                <li key={n.id}>
-                  <Link href={`${BASE}/application/notifications`} className="flex gap-3 px-4 py-3 hover:bg-[var(--ad-accent)]">
-                    <span
-                      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                      style={{ backgroundColor: TONE_BG[n.tone], color: TONE_FG[n.tone] }}
-                    >
-                      <Icon name={n.icon} className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">{n.title}</span>
-                      <span className="mt-0.5 block text-xs text-[var(--ad-muted-foreground)]">{n.body}</span>
-                      <span className="mt-1 block text-[11px] text-[var(--ad-muted-foreground)]">{n.time}</span>
-                    </span>
-                    {n.unread ? (
-                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "var(--ad-primary)" }} />
-                    ) : null}
-                  </Link>
+              {notifications.length === 0 ? (
+                <li className="px-4 py-8 text-center text-sm text-[var(--ad-muted-foreground)]">
+                  {loaded ? "Nothing yet." : "Loading…"}
                 </li>
-              ))}
+              ) : (
+                notifications.slice(0, 20).map((n) => (
+                  <li key={n.id}>
+                    <Link
+                      href={n.href || `${BASE}/application/notifications`}
+                      className="flex gap-3 px-4 py-3 hover:bg-[var(--ad-accent)]"
+                    >
+                      <span
+                        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                        style={{
+                          backgroundColor: TONE_BG[n.tone] || TONE_BG.primary,
+                          color: TONE_FG[n.tone] || TONE_FG.primary,
+                        }}
+                      >
+                        <Icon name="bell" className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium">{n.title}</span>
+                        {n.body ? (
+                          <span className="mt-0.5 block text-xs text-[var(--ad-muted-foreground)]">{n.body}</span>
+                        ) : null}
+                        <span className="mt-1 block text-[11px] text-[var(--ad-muted-foreground)]">{ago(n.at)}</span>
+                      </span>
+                      {!n.readAt ? (
+                        <span className="mt-2 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "var(--ad-primary)" }} />
+                      ) : null}
+                    </Link>
+                  </li>
+                ))
+              )}
             </ul>
             <Link
               href={`${BASE}/application/notifications`}

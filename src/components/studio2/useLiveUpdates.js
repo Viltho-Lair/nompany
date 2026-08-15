@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useLive } from "@/components/studio2/LiveProvider";
 
 // LIVE UPDATES for a studio board.
 //
@@ -8,81 +9,51 @@ import { useEffect, useRef } from "react";
 // anything new?" and calls load() when the answer concerns THIS board — so a
 // page refetches when its own data really moved, and never on a timer.
 //
-// Why polling a cursor rather than a socket: the question is tiny and the answer
-// is usually "nothing", so it costs a fraction of refetching the board, needs no
-// third-party service, and cannot run up a bill. When the studio outgrows it,
-// only this file changes — a socket would push the same "something changed"
-// signal into the same load().
+// The signal now arrives over the studio's SSE connection (LiveProvider) rather
+// than being fetched on a 30s cycle, so a change made by a colleague lands in
+// well under a second instead of up to half a minute. The hook's shape is
+// unchanged, deliberately: every board that called it still calls it the same
+// way, and none of them had to learn anything about transports.
 //
-// Two things keep it cheap:
-//  • A HIDDEN TAB POLLS NOTHING. Most open tabs are background tabs; they cost
-//    nothing until someone looks at them, and catch up the moment they do.
-//  • The cursor means the server answers "nothing" with an empty list rather
-//    than re-sending state.
-const POLL_MS = 30_000;
+// The connection itself is NOT opened here. It is opened once per tab by
+// LiveProvider and shared — see the note there about the browser's six
+// connections per domain, which 21 call sites would otherwise exhaust.
+//
+// Still true, and still the point:
+//  • A HIDDEN TAB COSTS NOTHING. The provider drops the connection after a
+//    minute out of sight and replays from its cursor on return.
+//  • The server sends "something changed", never the data itself, so the board
+//    decides what to refetch and nothing here can go stale.
 
 /**
- * @param {string} slug     the studio
+ * @param {string} slug     the studio (kept for call-site compatibility; the
+ *                          connection's studio comes from LiveProvider)
  * @param {string} watch    a section key ("tasks", "finance", …) or "people"
  * @param {Function} onChange  called when something this board shows has changed
  */
 export default function useLiveUpdates(slug, watch, onChange) {
-  // Held in refs so a re-render with a new closure never restarts the poll loop.
-  const cursor = useRef(null);
+  const live = useLive();
+  // Held in a ref so a re-render with a new closure never re-subscribes.
   const latest = useRef(onChange);
   latest.current = onChange;
 
+  const subscribe = live?.subscribe;
+
+  // A board rendered OUTSIDE LiveProvider would simply never update — no error,
+  // no failed request, just a screen that quietly stops being true. That is the
+  // one failure this hook can have, and it already caught the two full-screen
+  // Live views, which render outside StudioFrame. So say so, loudly, in dev.
   useEffect(() => {
-    if (!slug || !watch) return undefined;
-
-    let alive = true;
-    let timer = null;
-
-    // People/permission changes are studio-wide and carry no section; section
-    // events carry the key of the section they happened in.
-    const concerns = (e) => (watch === "people" ? e.scope === "people" : e.section === watch);
-
-    const schedule = () => {
-      clearTimeout(timer);
-      timer = setTimeout(poll, POLL_MS);
-    };
-
-    async function poll() {
-      if (!alive) return;
-      // Nobody is looking — don't spend a request. The visibility listener
-      // brings us straight back when they return.
-      if (typeof document !== "undefined" && document.hidden) return schedule();
-
-      try {
-        const qs = cursor.current ? `?since=${encodeURIComponent(cursor.current)}` : "";
-        const res = await fetch(`/api/studios/${slug}/events${qs}`, { cache: "no-store" });
-        if (!alive) return;
-        if (res.ok) {
-          const out = await res.json();
-          if (!alive) return;
-          cursor.current = out.cursor || cursor.current;
-          if (Array.isArray(out.events) && out.events.some(concerns)) latest.current?.();
-          // The server had more than it would send at once — come straight back
-          // rather than leaving the board a poll interval behind.
-          if (out.truncated) return void poll();
-        }
-      } catch {
-        // Offline, navigating away, or a blip. The next tick tries again; there
-        // is nothing to tell the user about a background check that missed.
-      }
-      schedule();
+    if (!live && process.env.NODE_ENV !== "production") {
+      console.error(
+        `[useLiveUpdates] "${watch}" is outside <LiveProvider>, so this board will never update. ` +
+        `Wrap the page in LiveProvider (StudioFrame already does).`,
+      );
     }
+  }, [live, watch]);
 
-    // The first call carries no cursor: it just adopts the studio's current
-    // position, so opening a board never replays history.
-    poll();
-
-    const onVisibility = () => { if (!document.hidden) poll(); };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [slug, watch]);
+  useEffect(() => {
+    if (!subscribe || !watch) return undefined;
+    return subscribe(watch, () => latest.current?.());
+  }, [subscribe, watch]);
 }

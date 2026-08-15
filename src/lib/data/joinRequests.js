@@ -13,7 +13,9 @@
 
 import { REG, ID } from "@/lib/data/keys";
 import { readArr, editArr } from "@/lib/data/store";
-import { emit, SCOPE, TYPE } from "@/lib/data/events";
+import { emit, emitPlatform, SCOPE, TYPE, PLATFORM } from "@/lib/data/events";
+import { listCollaborators } from "@/lib/data/collaborators";
+import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
 
 export const PENDING = "pending";
 export const APPROVED = "approved";
@@ -40,7 +42,34 @@ export async function createJoinRequest({ studioId, userId }) {
   });
   // The request lives in a GLOBAL registry, but it is the target studio's
   // admins who need to hear about it, so the event goes to that studio's log.
-  if (outcome.request) await emit(studioId, { type: TYPE.joinRequested, scope: SCOPE.PEOPLE });
+  if (outcome.request) {
+    await emit(studioId, { type: TYPE.joinRequested, scope: SCOPE.PEOPLE });
+
+    // And, unlike a row change, this one is worth INTERRUPTING somebody over:
+    // it sits there until a human decides it. The event above refreshes a board
+    // that happens to be open; this reaches an admin who is somewhere else.
+    const admins = (await listCollaborators(studioId)).filter((c) => c.isAdmin || c.role === "owner");
+    const userIdOf = new Map(admins.map((c) => [c.id, c.userId]));
+    await notifyCollaborators(
+      studioId,
+      admins.map((c) => c.id),
+      {
+        type: NOTIFY.joinRequested,
+        title: "Someone asked to join",
+        body: "A request is waiting in People & requests.",
+        href: "people",
+        tone: "primary",
+      },
+      { userIdOf: (id) => userIdOf.get(id) },
+    );
+
+    await emitPlatform({
+      type: PLATFORM.joinRequested,
+      title: "Join request raised",
+      body: "Someone asked to join a studio.",
+      refId: studioId,
+    });
+  }
   return outcome;
 }
 

@@ -59,6 +59,16 @@ export const REG = {
   // unique to them and re-rating replaces rather than accumulates. Platform-
   // level because the opinion is about the product, not about a studio.
   ratings: "g:ratings",
+  // THE PLATFORM EVENT LOG — the /super console's equivalent of a studio's
+  // s:<StudioID>:events. A Redis Stream, capped and cursor-addressable, so the
+  // console resumes exactly like a studio board does. It is platform data: it
+  // outlives every studio and every user, and no cascade touches it (a studio
+  // being deleted is itself one of the things it records).
+  events: "g:events",
+  // Notifications addressed to nompany's OWNERS. The studio-side equivalent is
+  // s:<StudioID>:notifications, which cascades with its studio; this one does
+  // not, for the same reason g:events does not.
+  superNotifications: "g:superNotifications",
 };
 
 // ---- per-user keys (1:1 / 1:N satellites; die with the user) ---------------

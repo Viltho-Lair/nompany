@@ -8,6 +8,7 @@ import { getProfile } from "@/lib/data/users";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
 import { chatDisplayName } from "@/lib/chatConstants";
 import StudioFrame from "@/components/studio2/StudioFrame";
+import LiveProvider from "@/components/studio2/LiveProvider";
 import StudioDocs from "@/components/studio2/StudioDocs";
 import StudioSalesLive from "@/components/studio2/StudioSalesLive";
 import StudioTechnicalLive from "@/components/studio2/StudioTechnicalLive";
@@ -88,11 +89,24 @@ export default async function StudioPage({ params }) {
 
   // Sales Live view is full-screen too, so it also returns before the shell.
   // It needs the Sales grant, which its own API call re-checks server-side.
+  //
+  // Each carries its OWN LiveProvider. StudioFrame normally supplies it, and
+  // these two deliberately render outside the shell — so without this they
+  // would be the only boards in the studio with no live connection, which on a
+  // screen literally called "Live view" is the worst possible place for it.
   if (requested === "sales-live") {
-    return <StudioSalesLive studio={{ name: studio.name, slug: studio.slug }} />;
+    return (
+      <LiveProvider slug={studio.slug}>
+        <StudioSalesLive studio={{ name: studio.name, slug: studio.slug }} />
+      </LiveProvider>
+    );
   }
   if (requested === "technical-live") {
-    return <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />;
+    return (
+      <LiveProvider slug={studio.slug}>
+        <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />
+      </LiveProvider>
+    );
   }
 
   // A second segment on a sales-tickets URL names ONE ticket: /<slug>/

@@ -21,6 +21,7 @@
 
 import { REG, U, S, SEC, IX } from "@/lib/data/keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "@/lib/data/store";
+import { emitPlatform, PLATFORM } from "@/lib/data/events";
 
 // ---- collaborator ----------------------------------------------------------
 export async function cascadeDeleteCollaborator(studioId, collaboratorId) {
@@ -94,6 +95,18 @@ export async function cascadeDeleteStudio(studioId) {
   // registry last — atomic, so a studio created while this one is being deleted
   // is not erased along with it.
   if (studio) await editArr(REG.studios, (all) => ({ next: all.filter((s) => s.id !== studioId) }));
+
+  // The console's log records this; the studio's own log cannot, having just
+  // been deleted along with everything else under its prefix. That asymmetry is
+  // exactly why the platform log lives outside every cascade.
+  if (studio) {
+    await emitPlatform({
+      type: PLATFORM.studioDeleted,
+      title: "Studio deleted",
+      body: `${studio.name} (/${studio.slug}) and all of its data were removed.`,
+      refId: studioId,
+    });
+  }
   return Boolean(studio);
 }
 

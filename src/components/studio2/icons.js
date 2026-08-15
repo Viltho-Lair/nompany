@@ -123,6 +123,14 @@ const PATHS = {
   close: <path d="M6 6l12 12M18 6L6 18" />,
   star: <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="currentColor" stroke="none" />,
   dot: <circle cx="12" cy="12" r="3" />,
+  // The bell body is one stroke from rim to rim, so the clapper below it reads
+  // as a separate mark rather than as part of the outline.
+  bell: (
+    <>
+      <path d="M18 8.5a6 6 0 10-12 0c0 4.2-1.2 5.9-2 6.8-.3.4 0 .95.5.95h15c.5 0 .8-.55.5-.95-.8-.9-2-2.6-2-6.8z" />
+      <path d="M10.2 19.5a2 2 0 003.6 0" />
+    </>
+  ),
   checkDouble: (
     <>
       <path d="M1 12l4.5 4.5L14 8" />

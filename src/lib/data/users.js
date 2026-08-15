@@ -13,6 +13,7 @@ import { readArr, editArr, editJSON, getJSON, setJSON, claim, getIndex, release 
 import { newSessionToken } from "@/lib/passwords";
 import { listStudios, ownedStudioId, collaborationStudioIds } from "@/lib/data/studios";
 import { isAssignableRole } from "@/lib/platformRoles";
+import { emitPlatform, PLATFORM } from "@/lib/data/events";
 
 // ---- create ----------------------------------------------------------------
 // Claims the email index FIRST (SET NX) so two concurrent signups can never
@@ -28,6 +29,16 @@ export async function createUser({ email, passwordHash, fullName = "" }) {
     await setJSON(U.verification(id), { emailCode: "", emailCodeExpires: 0, emailVerifiedAt: "", lastSentAt: 0, resetCode: "", resetCodeExpires: 0 });
     await setJSON(U.questionnaire(id), { intent: "", field: "", country: "", city: "", erps: [], packageKey: "", completedAt: "" });
     await editArr(REG.users, (rows) => ({ next: [user, ...rows] }));
+    // The console's feed. An event, not a notification: signups are routine and
+    // wanted in the history, but they are not something an owner has to act on,
+    // and a bell that rings for every one of them stops being read.
+    await emitPlatform({
+      type: PLATFORM.userSignedUp,
+      title: "New user signed up",
+      body: mail,
+      href: "/super/application/users",
+      refId: id,
+    });
     return { user };
   } catch (e) {
     await release(IX.email(mail)); // roll back the claim so the email isn't stranded
