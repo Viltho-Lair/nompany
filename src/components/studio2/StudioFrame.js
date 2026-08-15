@@ -85,6 +85,28 @@ const itemClass = (active) => `${rowClass(active)} px-3 py-2.5`;
 const iconClass = (active) =>
   `h-[18px] w-[18px] ${active ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"}`;
 
+// The plan chips. Every colour the tag needs is handed to CSS as a variable
+// rather than set inline, because which text colour is readable depends on the
+// theme and inline styles cannot answer that — the stylesheet picks (.plan-tag).
+function PlanTag({ color, label, children }) {
+  const t = toneOf(color);
+  return (
+    <span
+      className="plan-tag inline-flex rounded-full px-2 py-0.5 text-[10px] font-700"
+      style={{
+        "--tag-bg": t.bg,
+        "--tag-bg-dark": t.bgDark,
+        "--tag-fg": t.fg,
+        "--tag-fg-dark": t.fgDark,
+        "--tag-metal": t.metal,
+      }}
+      title={label}
+    >
+      {children}
+    </span>
+  );
+}
+
 export default function StudioFrame({ studio, me, sections, activeKey, chat = null, children }) {
   const [open, setOpen] = useState(false);
   // The header avatar is the ACCOUNT, not the studio membership: `me` carries a
@@ -240,20 +262,8 @@ export default function StudioFrame({ studio, me, sections, activeKey, chat = nu
               otherwise, so the tags are never absent — a studio always has a
               plan, and showing it here is how anyone inside knows which. */}
           <span className="mt-1.5 flex flex-wrap items-center gap-1">
-            <span
-              className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-700"
-              style={{ backgroundColor: toneOf(studio.packageColor).bg, color: toneOf(studio.packageColor).fg }}
-              title={`Package: ${studio.packageName}`}
-            >
-              {studio.packageName}
-            </span>
-            <span
-              className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-700"
-              style={{ backgroundColor: toneOf(studio.tierColor).bg, color: toneOf(studio.tierColor).fg }}
-              title={`Tier: ${studio.tierName}`}
-            >
-              {studio.tierName}
-            </span>
+            <PlanTag color={studio.packageColor} label={`Package: ${studio.packageName}`}>{studio.packageName}</PlanTag>
+            <PlanTag color={studio.tierColor} label={`Tier: ${studio.tierName}`}>{studio.tierName}</PlanTag>
           </span>
         </span>
       </Link>

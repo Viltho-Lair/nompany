@@ -408,3 +408,70 @@ html.studio-chrome::-webkit-scrollbar-corner,
 html.studio-chrome ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* ---- plan tags (package / tier) -------------------------------------------
+   A struck-metal chip in the plan's own colour. Three layers, in order:
+
+     base   the pale wash — the ONLY thing behind the text, so the contrast
+            checked for both themes is the contrast that actually applies
+     ::before  the metal itself: the same hue lightened along the top and
+            deepened below, held at low opacity so it tints rather than covers
+     ::after   the shine: a narrow white band swept across on a long loop
+
+   Text colour is a variable rather than a fixed value because the readable
+   choice differs by theme — darkened on light, lifted toward white on dark. */
+.plan-tag {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--tag-bg);
+  color: var(--tag-fg);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), inset 0 -1px 0 rgb(0 0 0 / 0.12);
+}
+.dark .plan-tag {
+  background-color: var(--tag-bg-dark);
+  color: var(--tag-fg-dark);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.16), inset 0 -1px 0 rgb(0 0 0 / 0.3);
+}
+.plan-tag::before,
+.plan-tag::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+.plan-tag::before {
+  background-image: var(--tag-metal);
+  opacity: 0.28;
+}
+.dark .plan-tag::before { opacity: 0.34; }
+.plan-tag::after {
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgb(255 255 255 / 0.55) 48%,
+    rgb(255 255 255 / 0.75) 51%,
+    transparent 64%
+  );
+  transform: translateX(-120%);
+  animation: plan-tag-shine 5.5s ease-in-out infinite;
+}
+.dark .plan-tag::after {
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgb(255 255 255 / 0.28) 48%,
+    rgb(255 255 255 / 0.42) 51%,
+    transparent 64%
+  );
+}
+@keyframes plan-tag-shine {
+  /* Most of the loop is the pause: a sheen that never rests reads as a loading
+     state rather than as a surface catching the light. */
+  0%, 62% { transform: translateX(-120%); }
+  78%, 100% { transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-tag::after { animation: none; opacity: 0; }
+}

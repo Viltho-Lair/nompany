@@ -36,9 +36,16 @@ export const hexForName = (name) =>
 
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 
-// A badge needs two colours from one: a wash to sit on, and text dark enough to
-// read on it. Derived rather than stored, so picking a colour is one decision
-// instead of three, and a pale pick can never produce unreadable text.
+// A badge needs several colours from one, and the right ones differ by theme.
+//
+// DARK MODE WAS THE BUG. The text colour is derived by DARKENING the hex, which
+// reads well on a pale wash over a light page — and badly on the same wash over
+// a dark one, where dark-on-dark is what you get. So both are produced here and
+// the stylesheet picks: `fg` on light, `fgDark` on dark.
+//
+// The gradient stops are the same hue lightened and darkened a little, which is
+// what makes the tag look like a struck piece of metal rather than a flat
+// swatch — the shine is that gradient plus a highlight swept across it in CSS.
 export function toneOf(color) {
   const hex = normalizeColor(color) || DEFAULT_HEX;
   const [r, g, b] = rgb(hex);
@@ -47,9 +54,18 @@ export function toneOf(color) {
   const lum = (r * 299 + g * 587 + b * 114) / 1000;
   const k = lum > 170 ? 0.45 : lum > 110 ? 0.62 : 0.78;
   const dark = [r, g, b].map((c) => Math.round(c * k));
+  // On a dark page the text goes the other way — toward white — and a dim
+  // colour is lifted further than a bright one so both stay legible.
+  const lift = lum < 80 ? 0.72 : lum < 140 ? 0.5 : 0.34;
+  const light = [r, g, b].map((c) => Math.round(c + (255 - c) * lift));
+  const shade = (f) => `rgb(${[r, g, b].map((c) => Math.round(Math.min(255, c * f))).join(", ")})`;
   return {
     bg: `rgba(${r}, ${g}, ${b}, 0.16)`,
+    bgDark: `rgba(${r}, ${g}, ${b}, 0.26)`,
     fg: `rgb(${dark[0]}, ${dark[1]}, ${dark[2]})`,
+    fgDark: `rgb(${light[0]}, ${light[1]}, ${light[2]})`,
+    // Top-lit: brighter along the top edge, deeper at the bottom.
+    metal: `linear-gradient(160deg, ${shade(1.35)} 0%, ${shade(1.05)} 38%, ${shade(0.82)} 62%, ${shade(1.12)} 100%)`,
     hex,
   };
 }
