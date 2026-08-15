@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/lib/studioLinks";
-import { microLabel } from "@/components/studio2/ui";
+import { microLabel, Dialog } from "@/components/studio2/ui";
 import {
   DAYS, normalizeSchedule, normalizeLegend, visibleWindow, startOfWeekSunday, addDays as addCalendarDays,
   dayKey, barGeometry, dayRoster,
@@ -108,21 +108,6 @@ export default function StudioOperations({ slug, view = "operations" }) {
     <div className="space-y-6">
       {banner}
 
-      <section className={panel}>
-        <div className="flex flex-wrap gap-8">
-          {[["Shifts this week", summary.shiftsThisWeek, ""],
-            ["Hours scheduled", summary.hoursThisWeek, ""],
-            ["Permits expiring", summary.permitsExpiring, summary.permitsExpiring > 0 ? "text-amber-600 dark:text-amber-400" : ""],
-            ["Permits expired", summary.permitsExpired, summary.permitsExpired > 0 ? "text-rose-600 dark:text-rose-400" : ""],
-            ["Locations", summary.locations, ""]].map(([name, value, tone]) => (
-            <div key={name}>
-              <p className={`font-display text-3xl font-800 ${tone || "text-slate-900 dark:text-white"}`}>{value}</p>
-              <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{name}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
           {tabs.map(([k, text]) => (
@@ -210,9 +195,11 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
       </div>
 
       {adding && (
-        <ShiftForm people={people} locations={locations} busy={busy}
-          onCancel={() => setAdding(false)}
-          onSave={async (v) => { if (await send("shifts", "POST", v)) setAdding(false); }} />
+        <Dialog title="Schedule a shift" description="Who is working, when, and where." onClose={() => setAdding(false)}>
+          <ShiftForm people={people} locations={locations} busy={busy}
+            onCancel={() => setAdding(false)}
+            onSave={async (v) => { if (await send("shifts", "POST", v)) setAdding(false); }} />
+        </Dialog>
       )}
 
       {mode === "calendar" ? (
@@ -282,7 +269,8 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
     () => addCalendarDays(startOfWeekSunday(new Date()), weekOffset * 7),
     [weekOffset],
   );
-  const columns = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+  // Seven ROWS now — one per day — each carrying that day's shifts.
+  const rows = useMemo(() => Array.from({ length: 7 }, (_, i) => {
     const date = addCalendarDays(weekStart, i);
     const iso = dayKey(date);
     return {
@@ -298,11 +286,11 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
   for (let h = Math.floor(windowFrom); h < Math.ceil(windowTo); h++) hours.push(h);
   const colourOf = (s) => (legend.find((t) => t.id === s.kind) || legend[0]).color;
 
-  async function copyRoster(column) {
-    const text = dayRoster(`${column.dayName} ${fmt(column.iso)}`, column.shifts, settings?.rosterPrefix || "");
+  async function copyRoster(row) {
+    const text = dayRoster(`${row.dayName} ${fmt(row.iso)}`, row.shifts, settings?.rosterPrefix || "");
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(column.iso);
+      setCopied(row.iso);
       setTimeout(() => setCopied(""), 2000);
     } catch { /* clipboard blocked — the roster is still readable on screen */ }
   }
@@ -328,57 +316,72 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
         </div>
       </div>
 
+      {/* TRANSPOSED: days down the side, hours across the top. A week reads as
+          seven rows the way a rota is written, and the hour axis gets the wide
+          dimension — which is the one that needs the room, since a shift is a
+          span of hours rather than a span of days. */}
       <div className="overflow-x-auto">
-        <div className="grid min-w-[780px] grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px">
-          <div />
-          {columns.map((c) => (
-            <div key={c.iso} className={`pb-2 text-center ${c.today ? "text-brand-700 dark:text-brand-300" : "text-slate-500 dark:text-slate-400"}`}>
-              <p className="text-xs font-700 uppercase tracking-wide">{c.dayName.slice(0, 3)}</p>
-              <p className="text-[11px]">{fmt(c.iso).slice(0, 5)}</p>
-              {c.shifts.length > 0 && (
-                <button type="button" onClick={() => copyRoster(c)}
-                  className="mt-0.5 text-[10px] font-600 text-brand-700 hover:underline dark:text-brand-300">
-                  {copied === c.iso ? "copied" : "copy roster"}
-                </button>
-              )}
-            </div>
-          ))}
-
-          {/* The hour rail, then one column per day with its bars positioned
-              inside it. Height is fixed per hour so the two stay in step. */}
-          <div>
-            {hours.map((h) => (
-              <div key={h} className="h-12 border-t border-slate-100 pe-2 text-end text-[10px] text-slate-400 dark:border-white/5">
-                {String(h).padStart(2, "0")}:00
-              </div>
-            ))}
-          </div>
-          {columns.map((c) => (
-            <div key={c.iso} className={`relative ${c.working ? "" : "bg-slate-50 dark:bg-white/[0.03]"}`}>
-              {hours.map((h) => (
-                <div key={h} className="h-12 border-t border-slate-100 dark:border-white/5" />
+        <div className="min-w-[780px]">
+          {/* Hour ruler. The first column matches the day labels beneath it so
+              the two grids line up. */}
+          <div className="grid grid-cols-[7rem_minmax(0,1fr)]">
+            <div />
+            <div className="relative h-6">
+              {hours.map((h, i) => (
+                <span
+                  key={h}
+                  className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] text-slate-400"
+                  style={{ left: `${(i / hours.length) * 100}%` }}
+                >
+                  {String(h).padStart(2, "0")}:00
+                </span>
               ))}
-              {c.shifts.map((s) => {
-                const geo = barGeometry(s.startTime, s.endTime, [windowFrom, windowTo]);
-                // A shift entirely outside the drawn window has nowhere to go.
-                // It is named under the grid rather than silently dropped.
-                if (!geo) return null;
-                return (
-                  <div key={s.id} title={`${s.startTime}–${s.endTime} · ${s.alias}${s.locationName ? ` · ${s.locationName}` : ""}`}
-                    className="absolute inset-x-1 overflow-hidden rounded-md px-1.5 py-0.5 text-[10px] leading-tight text-slate-800"
-                    style={{ top: `${geo.top}%`, height: `${geo.height}%`, backgroundColor: colourOf(s) }}>
-                    <span className="block truncate font-700">{s.alias}</span>
-                    <span className="block truncate">{s.startTime}–{s.endTime}</span>
-                  </div>
-                );
-              })}
+            </div>
+          </div>
+
+          {rows.map((c) => (
+            <div key={c.iso} className="grid grid-cols-[7rem_minmax(0,1fr)] border-t border-slate-100 dark:border-white/5">
+              <div className={`flex items-center gap-2 py-2 pe-3 ${c.today ? "text-brand-700 dark:text-brand-300" : "text-slate-600 dark:text-slate-300"}`}>
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-700 uppercase tracking-wide">{c.dayName}</span>
+                  <span className="block text-[11px] text-slate-400">{fmt(c.iso).slice(0, 5)}</span>
+                </span>
+                {c.shifts.length > 0 && (
+                  <button type="button" onClick={() => copyRoster(c)}
+                    className="ms-auto shrink-0 text-[10px] font-600 text-brand-700 hover:underline dark:text-brand-300">
+                    {copied === c.iso ? "copied" : "copy"}
+                  </button>
+                )}
+              </div>
+
+              <div className={`relative h-14 ${c.working ? "" : "bg-slate-50 dark:bg-white/[0.03]"}`}>
+                {/* One divider per hour, so the bars can be read against the ruler. */}
+                {hours.map((h, i) => (
+                  <div key={h} className="absolute inset-y-0 border-s border-slate-100 dark:border-white/5"
+                    style={{ left: `${(i / hours.length) * 100}%` }} />
+                ))}
+                {c.shifts.map((s) => {
+                  const geo = barGeometry(s.startTime, s.endTime, [windowFrom, windowTo]);
+                  // A shift entirely outside the drawn window has nowhere to go.
+                  // It is named under the grid rather than silently dropped.
+                  if (!geo) return null;
+                  return (
+                    <div key={s.id} title={`${s.startTime}–${s.endTime} · ${s.alias}${s.locationName ? ` · ${s.locationName}` : ""}`}
+                      className="absolute inset-y-1 overflow-hidden rounded-md px-1.5 py-0.5 text-[10px] leading-tight text-slate-800"
+                      style={{ left: `${geo.top}%`, width: `${geo.height}%`, backgroundColor: colourOf(s) }}>
+                      <span className="block truncate font-700">{s.alias}</span>
+                      <span className="block truncate">{s.startTime}–{s.endTime}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>
       </div>
 
       {(() => {
-        const hidden = columns.flatMap((c) => c.shifts.filter((s) => !barGeometry(s.startTime, s.endTime, [windowFrom, windowTo])));
+        const hidden = rows.flatMap((c) => c.shifts.filter((s) => !barGeometry(s.startTime, s.endTime, [windowFrom, windowTo])));
         if (hidden.length === 0) return null;
         return (
           <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-amber-700 dark:border-white/5 dark:text-amber-300">
@@ -898,28 +901,34 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
 
 // ---- settings --------------------------------------------------------------
 function OperationsSettings({ settings, canManage, busy, onSave }) {
-  const [schedule, setSchedule] = useState(() => normalizeSchedule(settings?.workSchedule));
+  // Read-only here: the week belongs to Studio settings now. It is still
+  // needed to work out what the grid's hour window would be.
+  const schedule = normalizeSchedule(settings?.workSchedule);
   const [legend, setLegend] = useState(() => normalizeLegend(settings?.legend));
   const [workingOnly, setWorkingOnly] = useState(!!settings?.showWorkingHoursOnly);
   const [rosterPrefix, setRosterPrefix] = useState(settings?.rosterPrefix || "");
   const [saved, setSaved] = useState(false);
 
   const dirty = () => setSaved(false);
-  const setDay = (d, patch) => { setSchedule((s) => ({ ...s, [d]: { ...s[d], ...patch } })); dirty(); };
   const setLegendItem = (i, patch) => { setLegend((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x))); dirty(); };
   const [from, to] = visibleWindow(schedule, workingOnly);
 
   async function save() {
-    const ok = await onSave({ workSchedule: schedule, legend, showWorkingHoursOnly: workingOnly, rosterPrefix });
+    const ok = await onSave({ legend, showWorkingHoursOnly: workingOnly, rosterPrefix });
     setSaved(!!ok);
   }
 
   return (
     <div className="space-y-6">
+      {/* The working week is the STUDIO's, set in Studio settings, so it is
+          described once rather than kept here as a second answer. */}
       <section className={panel}>
         <h2 className={h2}>Working hours</h2>
-        <p className={sub}>The weekly schedule the calendar is drawn against. Days that are off are shaded on the grid.</p>
-
+        <p className={sub}>
+          Taken from Studio settings — the days and hours the studio works are one
+          answer for the whole product, not a per-section one. The calendar shades
+          days that are off and draws against those hours.
+        </p>
         <label className={`mt-4 flex w-fit items-center gap-2.5 text-sm ${canManage ? "cursor-pointer" : ""} text-slate-700 dark:text-slate-200`}>
           <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={workingOnly} disabled={!canManage}
             onChange={(e) => { setWorkingOnly(e.target.checked); dirty(); }} />
@@ -929,26 +938,6 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
           The grid would run {String(from).padStart(2, "0")}:00–{String(to).padStart(2, "0")}:00.
           Anything scheduled outside that is listed under the calendar rather than drawn.
         </p>
-
-        <div className="mt-4 space-y-1.5">
-          <div className="grid grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 text-[10px] font-600 uppercase tracking-wide text-slate-400">
-            <span /><span className="text-center">From</span><span className="text-center">To</span>
-          </div>
-          {DAYS.map((d) => {
-            const s = schedule[d];
-            return (
-              <div key={d} className={`grid grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 rounded-lg px-1 py-1 ${s.on ? "" : "bg-slate-50 dark:bg-white/[0.03]"}`}>
-                <label className={`flex items-center gap-2 text-sm ${canManage ? "cursor-pointer" : ""} text-slate-700 dark:text-slate-200`}>
-                  <input type="checkbox" className="h-3.5 w-3.5 shrink-0 accent-brand-600" checked={s.on} disabled={!canManage}
-                    onChange={(e) => setDay(d, { on: e.target.checked })} />
-                  {d.slice(0, 3)}
-                </label>
-                <input type="time" className={input} value={s.from} disabled={!canManage || !s.on} onChange={(e) => setDay(d, { from: e.target.value })} />
-                <input type="time" className={input} value={s.to} disabled={!canManage || !s.on} onChange={(e) => setDay(d, { to: e.target.value })} />
-              </div>
-            );
-          })}
-        </div>
       </section>
 
       <section className={panel}>

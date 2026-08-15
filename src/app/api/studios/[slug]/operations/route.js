@@ -12,6 +12,23 @@ const body = async (r) => { try { return await r.json(); } catch { return {}; } 
 
 // One read for the whole Operations screen. Permit validity and shift hours are
 // computed from their dates here, never stored.
+// mon/tue/… with open/from/to is how the studio stores its week; the calendar
+// wants Sunday-first full names with `on`. One translation, in one place.
+const STUDIO_DAY_KEYS = { Sunday: "sun", Monday: "mon", Tuesday: "tue", Wednesday: "wed", Thursday: "thu", Friday: "fri", Saturday: "sat" };
+function scheduleFromStudio(studio) {
+  const hours = studio?.workingHours || null;
+  const out = {};
+  for (const [name, key] of Object.entries(STUDIO_DAY_KEYS)) {
+    const row = hours?.[key];
+    out[name] = row
+      ? { on: Boolean(row.open), from: row.from || "09:00", to: row.to || "17:00" }
+      // No hours set yet: assume a working day rather than shading the whole
+      // grid, which would read as "this studio never works".
+      : { on: true, from: "09:00", to: "17:00" };
+  }
+  return out;
+}
+
 export async function GET(request, ctx) {
   const g = await operationsGuard(ctx.params);
   if (g.fail) return g.fail;
@@ -29,7 +46,10 @@ export async function GET(request, ctx) {
     nav: g.nav,
     me: { collaboratorId: g.collaborator.id },
     locations, permits, shifts, projects, people, window, positions,
-    settings: readOperationsSettings(g.settingsSection),
+    // The week comes from STUDIO SETTINGS. Operations used to keep its own
+    // copy, which meant one studio could describe two different working
+    // weeks depending on which screen you asked.
+    settings: { ...readOperationsSettings(g.settingsSection), workSchedule: scheduleFromStudio(g.studio) },
     summary: summarise(permits, shifts, locations, window),
     vocabulary: { locationKinds: LOCATION_KINDS, permitTypes: PERMIT_TYPES, expiryWindowDays: EXPIRY_WINDOW_DAYS },
   });
