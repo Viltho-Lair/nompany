@@ -16,7 +16,7 @@ import {
 import {
   addCollaborator, listCollaborators, getCollaboratorByUser, updateCollaborator,
 } from "@/lib/data/collaborators";
-import { listSections, listGrants, setGrant, removeGrant } from "@/lib/data/sections";
+import { listSections, listGrants } from "@/lib/data/sections";
 import {
   createJoinRequest, listPendingForStudio, getJoinRequest, decideJoinRequest,
   APPROVED, DECLINED,
@@ -230,29 +230,6 @@ export async function declineJoinRequest({ studio, actingCollaborator, requestId
   return decideJoinRequest(requestId, { status: DECLINED, decidedByCollaboratorId: actingCollaborator.id });
 }
 
-// Turn a grant on or off. `enabled:false` removes the matching row rather than
-// writing a deny, so "not granted" and "explicitly denied" stay distinguishable.
-export async function toggleGrant(studioId, { collaboratorId, sectionId, action, enabled }) {
-  if (!collaboratorId || !sectionId || !["view", "manage"].includes(action)) return { error: "missing" };
-  const rows = await listGrants(studioId);
-  const match = rows.find(
-    (g) => g.subjectType === "collaborator" && g.subjectId === collaboratorId && g.sectionId === sectionId && g.action === action
-  );
-  if (enabled) {
-    if (match && match.effect === "allow") return { ok: true };
-    return setGrant(studioId, { subjectType: "collaborator", subjectId: collaboratorId, sectionId, action, effect: "allow" });
-  }
-  if (match) await removeGrant(studioId, match.id);
-  // Revoking manage leaves view untouched; revoking view also drops manage,
-  // since manage without view would be unreachable.
-  if (action === "view") {
-    const implied = rows.find(
-      (g) => g.subjectType === "collaborator" && g.subjectId === collaboratorId && g.sectionId === sectionId && g.action === "manage"
-    );
-    if (implied) await removeGrant(studioId, implied.id);
-  }
-  return { ok: true };
-}
 
 export {
   listCollaborators, updateCollaborator, listSections, listGrants,
