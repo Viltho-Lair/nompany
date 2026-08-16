@@ -262,7 +262,10 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
       </div>
       {canAdminister && !isOwner && (
         <div className="flex flex-wrap gap-2">
-          <button className={btnGhost} disabled={busy} onClick={() => setEditing(true)}>Rename</button>
+          {/* Not "Rename" any more: this row now sets the studio name AND the role,
+              and a button that names half of what it opens sends people looking
+              for the other half somewhere else. */}
+          <button className={btnGhost} disabled={busy} onClick={() => setEditing(true)}>Edit</button>
           <button
             className={btnGhost}
             disabled={busy}
