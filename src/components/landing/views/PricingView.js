@@ -36,7 +36,6 @@ const COPY = {
   currency: "Currency",
   monthly: "Monthly",
   yearly: "Yearly",
-  yearlySave: "Save 15%",
   freePrice: "Free",
   freeNote: "Always free",
   perMaxUsers: "for up to {n} users / month",
@@ -44,7 +43,6 @@ const COPY = {
   billedYearly: "billed yearly",
   invoicedMonthly: "Invoiced monthly",
   invoicedNote: "Billed at the end of each month based on your number of employees.",
-  approxNote: "Prices in currencies other than SAR are approximate.",
   mostPopular: "Most popular",
   featuresLabel: "Includes",
   ctaStart: "Start free",
@@ -62,8 +60,8 @@ const ASSURANCES = [
     body: "Micro is free forever for up to 9 employees — English and Arabic, RTL-ready, no card required.",
   },
   {
-    title: "Yearly saves 15%",
-    body: "All prices include 15% VAT. Companies of 250+ are invoiced monthly on actual headcount instead.",
+    title: "Pay yearly, pay less",
+    body: "Switch to yearly billing and the discount comes off every plan. Companies of 250+ are invoiced monthly on actual headcount instead.",
   },
 ];
 
@@ -139,14 +137,20 @@ export function PricingView({ onNavigate, locale = "en" }) {
     }));
   }, [live, locale]);
 
-  const approx = currency !== "SAR";
-  // Converted with TODAY's rate when we have one, and only then. A stale static
-  // table quoting a price to two decimals is more misleading than an honest
-  // fallback, so an unquoted currency simply stays in SAR.
+  // The saving is whatever the gear in /super says, not a number baked in
+  // here — two places claiming a discount is how they end up disagreeing.
+  const discountPct = live?.yearlyDiscountPct ?? 0;
+  // Converted with TODAY's rate when we have one, and only then — an unquoted
+  // currency simply stays in SAR rather than being converted by a guess.
+  //
+  // ROUNDED UP, to a whole unit. A price is a promise about what will be
+  // charged, and rounding down would advertise a figure fractionally below it.
+  // Up also means the number carries no decimals to argue about, which is why
+  // the "approximately" mark is gone with it.
   const rate = live?.rates?.[currency];
   const money = (sar) => {
-    const amount = rate != null ? sar * rate : sar;
-    return `${approx && rate != null ? "≈ " : ""}${fmtCurrencyAmount(amount, currency)}`;
+    const amount = rate != null ? Math.ceil(sar * rate) : sar;
+    return fmtCurrencyAmount(amount, currency);
   };
 
   // Package key carried to signup — banded plans include the chosen band.
@@ -160,7 +164,7 @@ export function PricingView({ onNavigate, locale = "en" }) {
   // Fixed by the card type, not chosen per package: the words are a promise
   // about what pressing the button does, and that follows from the shape.
   const ctaLabel = (plan) =>
-    plan.type === "free" ? "Start Free" : plan.type === "premium" ? "Contact Sales" : "Get Started →";
+    plan.type === "free" ? "Start Free" : plan.type === "premium" ? "Contact Sales" : "Get Started";
 
   const Sym = ({ big = false }) =>
     currency === "SAR" ? (
@@ -222,7 +226,7 @@ export function PricingView({ onNavigate, locale = "en" }) {
                         isActive ? "bg-white/20 text-white" : "bg-mint/15 text-mint"
                       }`}
                     >
-                      {COPY.yearlySave}
+                      Save {discountPct}%
                     </span>
                   )}
                 </span>
@@ -417,9 +421,6 @@ export function PricingView({ onNavigate, locale = "en" }) {
         })}
       </motion.div>
 
-      {approx && (
-        <p className="mt-8 text-center text-xs leading-relaxed text-fg-dim">{COPY.approxNote}</p>
-      )}
 
       {/* Assurances — all three are statements the pricing model actually backs. */}
       <motion.div
