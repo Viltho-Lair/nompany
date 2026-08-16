@@ -65,9 +65,9 @@ export async function financeContext(user, slug) {
 
   return {
     studio, collaborator, access, roles, section, cashSection, settingsSection, projectsListSection, sheetsSection,
-    canManage: sectionManageable(access, section.key),
-    canManageCash: sectionManageable(access, cashSection.key),
-    canManageSettings: sectionManageable(access, settingsSection.key),
+    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
+    canManageCash: sectionManageable(access, cashSection.key, (sections || []).map((x) => x.key)),
+    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     cashCategories: readCashCategories(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.

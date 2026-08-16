@@ -64,8 +64,8 @@ export async function hrContext(user, slug) {
 
   return {
     studio, collaborator, access, roles, section, employeesSection,
-    canManage: sectionManageable(access, section.key),
-    canManageEmployees: sectionManageable(access, employeesSection.key),
+    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
+    canManageEmployees: sectionManageable(access, employeesSection.key, (sections || []).map((x) => x.key)),
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, grants, access),

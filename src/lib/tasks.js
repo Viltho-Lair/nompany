@@ -63,8 +63,8 @@ export async function tasksContext(user, slug) {
 
   return {
     studio, collaborator, section, settingsSection, projectsListSection,
-    canManage: sectionManageable(access, section.key),
-    canManageSettings: sectionManageable(access, settingsSection.key),
+    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
+    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     taskAssignees: readTaskAssignees(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants, access),
   };

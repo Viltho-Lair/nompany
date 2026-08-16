@@ -129,8 +129,13 @@ export function sectionViewable(access, sectionKey, allKeys = []) {
 // A section's screens are editable if the person holds ANY write on its areas.
 // Deliberately coarse: this only decides whether buttons are offered. What each
 // button actually does is guarded by its own key at the point of doing it.
-export function sectionManageable(access, sectionKey) {
-  return anyKey(access, sectionKey, ["create", "edit", "delete"]);
+export function sectionManageable(access, sectionKey, allKeys = []) {
+  if (SECTION_AREAS[sectionKey]) return anyKey(access, sectionKey, ["create", "edit", "delete"]);
+  // A HEADING has no areas of its own — "sales" is a nav parent, not a right.
+  // Without this it answered false for everybody, owners included, and asking
+  // "may they manage Sales?" is exactly what raising an RFQ does.
+  const children = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
+  return children.some((k) => sectionManageable(access, k, allKeys));
 }
 
 // ---- assigning access to somebody ------------------------------------------

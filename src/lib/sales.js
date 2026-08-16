@@ -121,12 +121,12 @@ export async function salesContext(user, slug) {
   return {
     studio, collaborator, access, roles, section, ticketsSection, clientsSection, settingsSection,
     technicalSection, rfqSection, quotationsSection,
-    canManage: sectionManageable(access, section.key),
+    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canViewTickets: sectionViewable(access, ticketsSection.key, sections.map((s) => s.key)),
-    canManageTickets: sectionManageable(access, ticketsSection.key),
+    canManageTickets: sectionManageable(access, ticketsSection.key, (sections || []).map((x) => x.key)),
     canViewClients: sectionViewable(access, clientsSection.key, sections.map((s) => s.key)),
-    canManageClients: sectionManageable(access, clientsSection.key),
-    canManageSettings: sectionManageable(access, settingsSection.key),
+    canManageClients: sectionManageable(access, clientsSection.key, (sections || []).map((x) => x.key)),
+    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     ...readSalesVocab(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.

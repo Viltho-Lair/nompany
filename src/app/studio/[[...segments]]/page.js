@@ -185,7 +185,7 @@ export default async function StudioPage({ params }) {
         : screenKey === "main" ? <StudioMain slug={studio.slug} />
         : active ? <SectionDashboard section={active} studio={studio}
             subsections={sections.filter((s) => s.parentId === active.id)}
-            canManage={sectionManageable(access, active.key)} />
+            canManage={sectionManageable(access, active.key, sections.map((x) => x.key))} />
         : <NothingGranted admin={admin} slug={studio.slug} />}
     </StudioFrame>
   );

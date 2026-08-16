@@ -65,9 +65,9 @@ export async function operationsContext(user, slug) {
 
   return {
     studio, collaborator, access, roles, section, trackingSection, settingsSection, hrSection, projectsListSection,
-    canManage: sectionManageable(access, section.key),
-    canManageTracking: sectionManageable(access, trackingSection.key),
-    canManageSettings: sectionManageable(access, settingsSection.key),
+    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
+    canManageTracking: sectionManageable(access, trackingSection.key, (sections || []).map((x) => x.key)),
+    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     settings: settingsSection.settings || {},
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.

@@ -133,13 +133,20 @@ console.log("\n== the nav reads the same source as the guards");
   ok("an untouched heading is hidden", !view(only, "hr"));
   ok("the dashboard home has nothing to protect", view(only, "main"));
 
-  ok("buttons appear where a write is held", A.sectionManageable(only, "sales-tickets"));
+  ok("buttons appear where a write is held", A.sectionManageable(only, "sales-tickets", keys));
+  // The bug that broke "raise an RFQ": a heading has no areas of its own, so
+  // asking whether somebody may manage "sales" answered false for EVERYONE,
+  // owners included, until it started asking its children.
+  ok("a heading is manageable when a child is", A.sectionManageable(only, "sales", keys));
+  ok("...and not when no child is", !A.sectionManageable(only, "hr", keys));
+  ok("an owner may manage a heading",
+    A.sectionManageable(res({ role: "owner" }), "sales", keys));
   ok("...and not where only view is held",
-    !A.sectionManageable(res({ roleIds: ["r_hr"] }), "hr-employees"));
+    !A.sectionManageable(res({ roleIds: ["r_hr"] }), "hr-employees", keys));
 
   // The whole point of the rewire: one source, so these cannot disagree.
   const canWrite = A.can(only, "sales.tickets.edit");
-  ok("nav and guard agree", A.sectionManageable(only, "sales-tickets") === canWrite);
+  ok("nav and guard agree", A.sectionManageable(only, "sales-tickets", keys) === canWrite);
 }
 
 

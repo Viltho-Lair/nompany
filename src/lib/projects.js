@@ -62,11 +62,11 @@ export async function projectsContext(user, slug) {
   return {
     studio, collaborator, access, roles, section, technicalSection: technical, hrEmployeesSection,
     listSection, slaSection, overtimesSection, settingsSection, quotationsSection,
-    canManage: sectionManageable(access, section.key),
-    canManageList: sectionManageable(access, listSection.key),
-    canManageSla: sectionManageable(access, slaSection.key),
-    canManageOvertimes: sectionManageable(access, overtimesSection.key),
-    canManageSettings: sectionManageable(access, settingsSection.key),
+    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
+    canManageList: sectionManageable(access, listSection.key, (sections || []).map((x) => x.key)),
+    canManageSla: sectionManageable(access, slaSection.key, (sections || []).map((x) => x.key)),
+    canManageOvertimes: sectionManageable(access, overtimesSection.key, (sections || []).map((x) => x.key)),
+    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     settings: settingsSection.settings || {},
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.

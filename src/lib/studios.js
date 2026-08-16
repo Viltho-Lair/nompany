@@ -167,7 +167,7 @@ export function sectionNav(studio, collaborator, sections, grants, access) {
 // separate canManageX prop per sub-section was how the parent's answer ended up
 // standing in for all of them.
 export function manageMap(studio, collaborator, sections, grants, access) {
-  return Object.fromEntries((sections || []).map((s) => [s.key, sectionManageable(access, s.key)]));
+  return Object.fromEntries((sections || []).map((s) => [s.key, sectionManageable(access, s.key, (sections || []).map((x) => x.key))]));
 }
 
 // Re-exported so a service module can guard a mutation without importing two
