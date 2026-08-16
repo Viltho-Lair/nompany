@@ -112,5 +112,22 @@ ok("requirePermission passes when held", A.requirePermission(eng, "sales.tickets
 ok("...refuses when not", A.requirePermission(eng, "sales.tickets.delete")?.error === "forbidden");
 ok("...catches a typo'd key", A.requirePermission(eng, "sales.tickets.remove")?.error === "unknown-permission");
 
+
+console.log("\n== the guard, as a service function calls it");
+// Exactly the shape sales.js uses: resolve once, guard before touching anything.
+const guard = (access, key) => {
+  const denied = A.requirePermission(access, key);
+  return denied ? `refused (${denied.error})` : "allowed";
+};
+const viewer = res({ roleIds: ["r_eng"] });
+ok("engineer may create a ticket", guard(viewer, "sales.tickets.create") === "allowed");
+ok("engineer may NOT delete a client", guard(viewer, "sales.clients.delete") === "refused (forbidden)");
+ok("engineer may NOT touch settings", guard(viewer, "sales.settings.edit") === "refused (forbidden)");
+ok("a mistyped key fails loudly, not silently",
+  guard(viewer, "sales.tickets.destroy") === "refused (unknown-permission)");
+ok("owner passes every guard",
+  ["sales.tickets.delete", "hr.employees.salary", "finance.cash.delete"]
+    .every((k) => guard(res({ role: "owner" }), k) === "allowed"));
+
 console.log(fails ? `\n${fails} FAILURES\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

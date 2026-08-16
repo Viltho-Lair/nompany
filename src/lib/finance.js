@@ -41,7 +41,9 @@ const round = (n) => Math.round((Number(n) || 0) * 100) / 100;
 export async function financeContext(user, slug) {
   const context = await studioContext(user, slug);
   if (context.error) return context;
-  const { studio, collaborator } = context;
+  // `access` is resolved in studioContext; forwarding it is what lets every
+  // service function guard itself without resolving anything again.
+  const { studio, collaborator, access } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
@@ -56,7 +58,7 @@ export async function financeContext(user, slug) {
   const sheetsSection = byKey["inventory-sheets"] || byKey["inventory"] || null;
 
   return {
-    studio, collaborator, section, cashSection, settingsSection, projectsListSection, sheetsSection,
+    studio, collaborator, access, section, cashSection, settingsSection, projectsListSection, sheetsSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canManageCash: canManageSection(studio, collaborator, cashSection.id, grants),
     canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),

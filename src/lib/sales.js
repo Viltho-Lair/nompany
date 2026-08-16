@@ -12,6 +12,7 @@
 // refer to someone's identity *inside this studio*, so nothing leaks across
 // studios and a removed collaborator doesn't drag a user account with them.
 
+import { requirePermission } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -84,7 +85,9 @@ function upsertLocation(existing, { name, country, city, url }) {
 export async function salesContext(user, slug) {
   const context = await studioContext(user, slug);
   if (context.error) return context;
-  const { studio, collaborator } = context;
+  // `access` is resolved in studioContext; forwarding it is what lets every
+  // service function guard itself without resolving anything again.
+  const { studio, collaborator, access } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
@@ -111,7 +114,7 @@ export async function salesContext(user, slug) {
   if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
 
   return {
-    studio, collaborator, section, ticketsSection, clientsSection, settingsSection,
+    studio, collaborator, access, section, ticketsSection, clientsSection, settingsSection,
     technicalSection, rfqSection, quotationsSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canViewTickets: canViewSection(studio, collaborator, ticketsSection.id, grants),
@@ -177,6 +180,12 @@ export async function listServices({ studio, settingsSection }) {
 }
 
 export async function createService(ctx, body) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
+  // added and forgotten, whereas the function that does the work cannot be
+  // reached around.
+  const denied = requirePermission(ctx.access, "sales.settings.edit");
+  if (denied) return denied;
+
   const { studio, settingsSection, collaborator } = ctx;
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
@@ -195,6 +204,12 @@ export async function createService(ctx, body) {
 }
 
 export async function editService(ctx, id, body) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
+  // added and forgotten, whereas the function that does the work cannot be
+  // reached around.
+  const denied = requirePermission(ctx.access, "sales.settings.edit");
+  if (denied) return denied;
+
   const { studio, settingsSection } = ctx;
   const patch = {};
   if (body?.name !== undefined) {
@@ -214,6 +229,12 @@ export async function editService(ctx, id, body) {
 // Refuses while tickets still reference the service, so a delete can't leave a
 // ticket pointing at a serviceId that no longer resolves.
 export async function removeService(ctx, id) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
+  // added and forgotten, whereas the function that does the work cannot be
+  // reached around.
+  const denied = requirePermission(ctx.access, "sales.settings.edit");
+  if (denied) return denied;
+
   const { studio, settingsSection, ticketsSection } = ctx;
   const tickets = await readCol(studio.id, ticketsSection.id, TICKETS);
   const used = tickets.filter((t) => (t.serviceIds || []).includes(id)).length;
@@ -229,6 +250,12 @@ export async function listClients({ studio, clientsSection }) {
 }
 
 export async function createClient(ctx, body) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
+  // added and forgotten, whereas the function that does the work cannot be
+  // reached around.
+  const denied = requirePermission(ctx.access, "sales.clients.create");
+  if (denied) return denied;
+
   const { studio, clientsSection, collaborator } = ctx;
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
@@ -256,6 +283,12 @@ export async function createClient(ctx, body) {
 }
 
 export async function editClient(ctx, id, body) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
+  // added and forgotten, whereas the function that does the work cannot be
+  // reached around.
+  const denied = requirePermission(ctx.access, "sales.clients.edit");
+  if (denied) return denied;
+
   const { studio, clientsSection } = ctx;
   const patch = {};
   if (body?.name !== undefined) {
@@ -280,6 +313,12 @@ export async function editClient(ctx, id, body) {
 
 // Refuses while tickets still reference the client, so a delete can't orphan work.
 export async function removeClient(ctx, id) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
+  // added and forgotten, whereas the function that does the work cannot be
+  // reached around.
+  const denied = requirePermission(ctx.access, "sales.clients.delete");
+  if (denied) return denied;
+
   const { studio, clientsSection, ticketsSection } = ctx;
   const tickets = await readCol(studio.id, ticketsSection.id, TICKETS);
   const used = tickets.filter((t) => t.clientId === id).length;
@@ -419,6 +458,12 @@ export async function requestTicketRfq(ctx, body) {
 // allowed. The contact and location used here are folded into the client
 // record without disturbing any other contact/location already on file.
 export async function createTicket(ctx, body) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
+  // added and forgotten, whereas the function that does the work cannot be
+  // reached around.
+  const denied = requirePermission(ctx.access, "sales.tickets.create");
+  if (denied) return denied;
+
   const { studio, ticketsSection, clientsSection, collaborator, settingsSection } = ctx;
 
   const title = str(body?.title, 200);
@@ -536,6 +581,12 @@ export async function createTicket(ctx, body) {
 // ticket to another company would rewrite its reference and orphan the contacts
 // and locations folded into the old one, so it stays where it was raised.
 export async function editTicket(ctx, id, body) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
+  // added and forgotten, whereas the function that does the work cannot be
+  // reached around.
+  const denied = requirePermission(ctx.access, "sales.tickets.edit");
+  if (denied) return denied;
+
   const { studio, ticketsSection, clientsSection, settingsSection, collaborator } = ctx;
   const patch = {};
 

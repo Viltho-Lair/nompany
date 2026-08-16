@@ -71,6 +71,11 @@ export async function PUT(request, ctx) {
   if (!tech.canManageSettings) return Response.json({ error: "read-only" }, { status: 403 });
 
   const result = await saveTechnicalSettings(tech, await request.json().catch(() => ({})));
-  if (result.error) return Response.json({ error: result.error }, { status: 400 });
+  if (result.error) {
+    // A refusal is not a malformed request. 403 so a client can tell "you may
+    // not" from "you sent nonsense" — they need different handling.
+    const status = result.error === "forbidden" ? 403 : result.error === "unknown-permission" ? 500 : 400;
+    return Response.json({ error: result.error }, { status });
+  }
   return Response.json(result);
 }

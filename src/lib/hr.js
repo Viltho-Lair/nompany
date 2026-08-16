@@ -42,7 +42,9 @@ const day = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v
 export async function hrContext(user, slug) {
   const context = await studioContext(user, slug);
   if (context.error) return context;
-  const { studio, collaborator } = context;
+  // `access` is resolved in studioContext; forwarding it is what lets every
+  // service function guard itself without resolving anything again.
+  const { studio, collaborator, access } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
@@ -55,7 +57,7 @@ export async function hrContext(user, slug) {
   const employeesSection = byKey["hr-employees"] || section;
 
   return {
-    studio, collaborator, section, employeesSection,
+    studio, collaborator, access, section, employeesSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canManageEmployees: canManageSection(studio, collaborator, employeesSection.id, grants),
     nav: sectionNav(studio, collaborator, sections, grants),

@@ -31,7 +31,9 @@ const nonNeg = (v, fallback = 0) => { const n = Number(v); return Number.isFinit
 export async function projectsContext(user, slug) {
   const context = await studioContext(user, slug);
   if (context.error) return context;
-  const { studio, collaborator } = context;
+  // `access` is resolved in studioContext; forwarding it is what lets every
+  // service function guard itself without resolving anything again.
+  const { studio, collaborator, access } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
@@ -52,7 +54,7 @@ export async function projectsContext(user, slug) {
   const hrEmployeesSection = byKey["hr-employees"] || byKey["hr"] || null;
 
   return {
-    studio, collaborator, section, technicalSection: technical, hrEmployeesSection,
+    studio, collaborator, access, section, technicalSection: technical, hrEmployeesSection,
     listSection, slaSection, overtimesSection, settingsSection, quotationsSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canManageList: canManageSection(studio, collaborator, listSection.id, grants),

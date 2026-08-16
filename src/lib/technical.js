@@ -39,7 +39,9 @@ const num = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : 0
 export async function technicalContext(user, slug) {
   const context = await studioContext(user, slug);
   if (context.error) return context;
-  const { studio, collaborator } = context;
+  // `access` is resolved in studioContext; forwarding it is what lets every
+  // service function guard itself without resolving anything again.
+  const { studio, collaborator, access } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
@@ -62,7 +64,7 @@ export async function technicalContext(user, slug) {
   const inventoryItemsSection = byKey["inventory-items"] || byKey["inventory"] || null;
 
   return {
-    studio, collaborator, section: technical, salesSection: sales,
+    studio, collaborator, access, section: technical, salesSection: sales,
     quotationsSection, rfqSection, settingsSection, salesTicketsSection, salesClientsSection,
     inventoryItemsSection,
     canManage: canManageSection(studio, collaborator, technical.id, grants),

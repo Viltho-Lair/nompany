@@ -6,6 +6,8 @@
 // user-side effect is the derived ix:collab back-pointer, maintained by the
 // collaborators repo.
 
+import { effectivePermissions, requirePermission, scopeFor } from "@/lib/access";
+import { listRoles } from "@/lib/data/roles";
 import {
   createStudio, getStudioById, getStudioBySlug, getOwnedStudio,
   listUserCollaborations, changeStudioSlug,
@@ -112,7 +114,20 @@ export async function studioContext(user, slug) {
   if (!studio) return { error: "notfound" };
   const collaborator = await getCollaboratorByUser(studio.id, user.id);
   if (!collaborator) return { error: "forbidden" };
-  return { studio, collaborator };
+
+  // ACCESS IS RESOLVED ONCE, HERE. Every section context is built on this one,
+  // so every service function already holds the answer and none of them has to
+  // work it out again — which is exactly how the UI and the write paths came to
+  // disagree in the first place.
+  //
+  // Roles and grants are both read while the legacy bridge stands; the resolver
+  // decides which one speaks. When grants are migrated, drop the two reads.
+  const [roles, sections, grants] = await Promise.all([
+    listRoles(studio.id), listSections(studio.id), listGrants(studio.id),
+  ]);
+  const access = effectivePermissions({ studio, collaborator, roles, sections, grants });
+
+  return { studio, collaborator, access, roles, sections, grants };
 }
 
 // Owner, or a collaborator the studio marked admin.
@@ -179,6 +194,10 @@ export function manageMap(studio, collaborator, sections, grants) {
     (sections || []).map((s) => [s.key, canManageSection(studio, collaborator, s.id, grants)]),
   );
 }
+
+// Re-exported so a service module can guard a mutation without importing two
+// modules to do it — the guard belongs beside the context that carries it.
+export { requirePermission, scopeFor };
 
 // ---- joining someone else's studio by company code -------------------------
 // Typing a code only ever RAISES A REQUEST. We deliberately report whether the

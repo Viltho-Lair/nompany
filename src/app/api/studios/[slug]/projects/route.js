@@ -63,7 +63,12 @@ export async function PATCH(request, ctx) {
   if (!c.canManageSettings) return Response.json({ error: "read-only" }, { status: 403 });
 
   const result = await saveProjectsSettings(c, await body(request));
-  if (result.error) return Response.json({ error: result.error }, { status: 400 });
+  if (result.error) {
+    // A refusal is not a malformed request. 403 so a client can tell "you may
+    // not" from "you sent nonsense" — they need different handling.
+    const status = result.error === "forbidden" ? 403 : result.error === "unknown-permission" ? 500 : 400;
+    return Response.json({ error: result.error }, { status });
+  }
   return Response.json({ ok: true, settings: readProjectsSettings({ settings: result.settings }) });
 }
 
