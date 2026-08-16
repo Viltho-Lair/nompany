@@ -534,6 +534,10 @@ export async function editOrder(ctx, id, body) {
 // Receiving is the only way stock comes IN from an order. It appends one
 // movement per line received and lets the status follow the numbers.
 export async function receiveOrder(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.stock.edit");
+  if (denied) return denied;
+
   const { studio, sheetsSection } = ctx;
   const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
   const order = orders.find((o) => o.id === id);
@@ -646,6 +650,10 @@ export async function createDelivery(ctx, body) {
 // Issuing is the only way stock goes OUT to a project. Availability is checked
 // against the ledger at the moment of issue, not when the note was drafted.
 export async function issueDelivery(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.stock.edit");
+  if (denied) return denied;
+
   const { studio, stockSection, deliveriesSection } = ctx;
   const [deliveries, movements] = await Promise.all([
     readCol(studio.id, deliveriesSection.id, DELIVERIES),

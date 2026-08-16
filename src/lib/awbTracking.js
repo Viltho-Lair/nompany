@@ -13,6 +13,7 @@
 // the recorded events add up to, so it can never disagree with the timeline
 // printed under it.
 
+import { requirePermission } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow } from "@/lib/data/sections";
 import { parseAwb } from "@/lib/awb";
 import { AWB_STATUS_BY_CODE, summarizeMovements } from "@/lib/awbStatus";
@@ -31,6 +32,10 @@ export async function listAirlines({ studio, awbSection }) {
 }
 
 export async function createAirline(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.awb.create");
+  if (denied) return denied;
+
   const { studio, awbSection } = ctx;
   const prefix = str(body?.prefix, 3).replace(/\D/g, "");
   const name = str(body?.name, 160);
@@ -53,6 +58,10 @@ export async function createAirline(ctx, body) {
 }
 
 export async function editAirline(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.awb.edit");
+  if (denied) return denied;
+
   const { studio, awbSection } = ctx;
   const patch = {};
   if (body?.prefix !== undefined) {
@@ -73,6 +82,10 @@ export async function editAirline(ctx, id, body) {
 // A carrier is removable only while nothing it flew is still being tracked —
 // otherwise those shipments lose the name of whoever is carrying them.
 export async function removeAirline(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.awb.delete");
+  if (denied) return denied;
+
   const { studio, awbSection } = ctx;
   const [airlines, shipments] = await Promise.all([
     readCol(studio.id, awbSection.id, AIRLINES),
@@ -152,6 +165,10 @@ export async function trackShipment(ctx, body) {
 }
 
 export async function updateShipment(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.awb.edit");
+  if (denied) return denied;
+
   const { studio, awbSection, collaborator } = ctx;
   const rows = await readCol(studio.id, awbSection.id, SHIPMENTS);
   const current = rows.find((s) => s.id === id);
@@ -190,6 +207,10 @@ export async function updateShipment(ctx, id, body) {
 }
 
 export async function removeShipment(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.awb.delete");
+  if (denied) return denied;
+
   const removed = await deleteRow(ctx.studio.id, ctx.awbSection.id, SHIPMENTS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }

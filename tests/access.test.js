@@ -145,18 +145,26 @@ ok("owner passes every guard",
 // prints, so the gap stays visible instead of being forgotten.
 console.log("\n== enforcement coverage");
 {
-  const SERVICES = ["sales", "technical", "inventory", "finance", "operations", "projects", "hr"];
+  // EVERY source file, not a hand-kept list. The first version of this audit
+  // named seven services and therefore could not see the guards later added to
+  // tasks.js, awbTracking.js and the routes — an audit with its own blind spot
+  // reports clean and means nothing.
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = `${dir}/${e.name}`;
+    return e.isDirectory() ? walk(full) : full.endsWith(".js") ? [full] : [];
+  });
+  const SERVICES = [...walk("src/lib"), ...walk("src/app/api")];
   const enforced = new Set();
   for (const f of SERVICES) {
-    const src = fs.readFileSync(`src/lib/${f}.js`, "utf8");
-    for (const m of src.matchAll(/requirePermission\(ctx\.access, "([^"]+)"\)/g)) enforced.add(m[1]);
+    const src = fs.readFileSync(f, "utf8");
+    for (const m of src.matchAll(/requirePermission\([\w.]+, "([^"]+)"\)/g)) enforced.add(m[1]);
   }
   const undeclared = [...enforced].filter((k) => !P.isPermission(k));
   ok("every enforced key is declared", undeclared.length === 0, undeclared.join(", "));
 
   const writes = P.ALL_PERMISSIONS.filter((k) => /\.(create|edit|delete|convert|lock|approve)$/.test(k));
   const gaps = writes.filter((k) => !enforced.has(k));
-  console.log(`  ${enforced.size} keys enforced across ${SERVICES.length} services`);
+  console.log(`  ${enforced.size} keys enforced across ${SERVICES.length} files`);
   console.log(`  ${writes.length - gaps.length}/${writes.length} write permissions reach a guard`);
   if (gaps.length) console.log(`  still unguarded: ${gaps.join(", ")}`);
 }

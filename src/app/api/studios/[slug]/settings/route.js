@@ -1,3 +1,4 @@
+import { requirePermission } from "@/lib/access";
 import { requestStudioRename } from "@/lib/data/studios";
 import { isKnownCurrency, crossRate } from "@/lib/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
@@ -120,7 +121,7 @@ export async function GET(request, ctx) {
     // whole USD table because it lets you re-pick the base, and this page does
     // not. The snapshot is a shared daily read, so this costs no API call.
     fx: await favouriteRates(studio),
-    canManage: canAdminister(studio, collaborator),
+    canManage: !requirePermission(context.access, "studio.settings.edit"),
     // Asking for deletion is the OWNER's call, not an admin's: it ends the
     // studio for everybody in it.
     isOwner: collaborator.role === "owner",
@@ -137,7 +138,12 @@ export async function PUT(request, ctx) {
     return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
   }
   const { studio, collaborator } = context;
-  if (!canAdminister(studio, collaborator)) return Response.json({ error: "forbidden" }, { status: 403 });
+  // The studio's own settings are a grantable right rather than an admin-only
+  // one. Requesting DELETION stays owner-only below — that ends the studio for
+  // everybody, which is not something a permission should be able to hand out.
+  if (requirePermission(context.access, "studio.settings.edit")) {
+    return Response.json({ error: "forbidden" }, { status: 403 });
+  }
 
   let body = {};
   try { body = await request.json(); } catch { body = {}; }

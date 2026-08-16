@@ -55,7 +55,11 @@ export const AREAS = [
   { key: "inventory.stock", group: "Inventory", label: "Stock", verbs: ["view", "create", "edit", "delete"] },
   { key: "inventory.vendors", group: "Inventory", label: "Vendors", verbs: ["view", "create", "edit", "delete"] },
   { key: "inventory.items", group: "Inventory", label: "Registered items", verbs: ["view", "create", "edit", "delete"] },
-  { key: "inventory.sheets", group: "Inventory", label: "Project sheets", verbs: ["view", "create", "edit", "delete"] },
+  // VIEW ONLY. A project sheet is the SCREEN over purchase orders, and every
+  // write on it — raising, receiving, cancelling — moves stock, so those are
+  // inventory.stock rights. Declaring create/edit/delete here would be three
+  // more rights nothing can exercise.
+  { key: "inventory.sheets", group: "Inventory", label: "Project sheets", verbs: ["view"] },
   { key: "inventory.awb", group: "Inventory", label: "AWB tracking", verbs: ["view", "create", "edit", "delete"] },
 
   // The sharpest scoping case in the product: everybody needs their own record

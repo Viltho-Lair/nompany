@@ -1,3 +1,4 @@
+import { requirePermission } from "@/lib/access";
 import { currentUser } from "@/lib/identity";
 import { studioContext, canAdminister, listCollaborators, updateCollaborator } from "@/lib/studios";
 import { cascadeDeleteCollaborator } from "@/lib/data/cascade";
@@ -42,7 +43,12 @@ export async function PUT(request, ctx) {
   const { slug } = await ctx.params;
   const context = await studioContext(user, slug);
   if (context.error) return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
-  if (!canAdminister(context.studio, context.collaborator)) return Response.json({ error: "forbidden" }, { status: 403 });
+  // Editing who is in the studio, and what they may do, is itself a permission
+  // now. canAdminister stays as the owner/admin shortcut inside the resolver,
+  // so this reads the same for them and becomes grantable for everyone else.
+  if (requirePermission(context.access, "people.members.edit")) {
+    return Response.json({ error: "forbidden" }, { status: 403 });
+  }
 
   let body = {};
   try { body = await request.json(); } catch { body = {}; }
@@ -67,7 +73,9 @@ export async function DELETE(request, ctx) {
   try { body = await request.json(); } catch { body = {}; }
   const targetId = body.collaboratorId || context.collaborator.id; // no id = leave
   const isSelf = targetId === context.collaborator.id;
-  if (!isSelf && !canAdminister(context.studio, context.collaborator)) {
+  // Removing yourself is always allowed; removing anyone else is the same
+  // permission as editing them.
+  if (!isSelf && requirePermission(context.access, "people.members.edit")) {
     return Response.json({ error: "forbidden" }, { status: 403 });
   }
 

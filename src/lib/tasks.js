@@ -16,6 +16,7 @@
 // Progress comes from the checklist, never stored separately, so it cannot
 // drift from the items it counts.
 
+import { requirePermission } from "@/lib/access";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -73,6 +74,10 @@ export {
 };
 
 export async function saveTasksSettings(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "tasks.settings.edit");
+  if (denied) return denied;
+
   const { studio, settingsSection, collaborator } = ctx;
   const next = { ...(settingsSection.settings || {}) };
   if (body?.taskAssignees !== undefined) {
@@ -151,6 +156,10 @@ export async function listTasks(ctx) {
 }
 
 export async function createTask(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "tasks.board.create");
+  if (denied) return denied;
+
   const { studio, section, collaborator } = ctx;
   const title = str(body?.title, 200);
   if (!title) return { error: "title" };
@@ -194,6 +203,10 @@ export async function createTask(ctx, body) {
 // assignee may move their own task along and tick its checklist, but not
 // reassign it or rewrite what was asked of them.
 export async function updateTask(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "tasks.board.edit");
+  if (denied) return denied;
+
   const { studio, section, collaborator, canManage } = ctx;
   const rows = await readCol(studio.id, section.id, TASKS);
   const current = rows.find((t) => t.id === id);
@@ -332,6 +345,10 @@ export async function decideTask(ctx, id, body) {
 }
 
 export async function removeTask(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "tasks.board.delete");
+  if (denied) return denied;
+
   const removed = await deleteRow(ctx.studio.id, ctx.section.id, TASKS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
