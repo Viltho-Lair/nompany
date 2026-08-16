@@ -2,12 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  PLANS,
-  YEARLY_DISCOUNT,
-  fmtCurrencyAmount,
-  pick,
-} from "@/lib/pricing";
+import { fmtCurrencyAmount } from "@/lib/pricing";
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/lib/currencies";
 import Riyal from "@/components/Riyal";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
@@ -15,16 +10,23 @@ import { MagneticButton } from "../ui/MagneticButton";
 import { SectionHeading } from "../ui/SectionHeading";
 
 /* ==================================================================
-   Pricing — driven by the SAME `@/lib/pricing` module the rest of the
-   app uses, so the marketing numbers and the in-app ones can never
-   drift. Per-employee plans authored in SAR incl. 15% VAT, viewable in
-   five currencies, 15% off yearly. Small and Medium each carry two
-   headcount bands; the card shows the TOTAL monthly price for that
-   band's maximum headcount.
+   Pricing — every card comes from Packages in /super.
 
-   The surrounding landing page is English-only, so the copy below is
-   too — plan names and features still come through `pick()` so they
-   follow the locale the moment the page becomes bilingual.
+   Nothing on a card is authored here any more: the name, the tagline,
+   the users line, the bullets, the ranges and every figure are stored
+   and edited in the console, so changing a price is a save rather than
+   a deploy. There is deliberately NO FALLBACK — if the catalogue is
+   empty the page says so, because a stale hardcoded number is a wrong
+   price stated with confidence.
+
+   A package's TYPE decides the shape of its card and the words on its
+   button: Free shows no figure and says "Start Free", Premium shows
+   "invoiced monthly" and says "Contact Sales", and Compound is priced
+   by category and says "Get Started". The categories are the headcount
+   bands the switch moves between.
+
+   Both languages come down together and the card picks by locale, so
+   the Arabic site is not a second-class copy of the English one.
 ================================================================== */
 
 const COPY = {
@@ -46,9 +48,6 @@ const COPY = {
   mostPopular: "Most popular",
   featuresLabel: "Includes",
   ctaStart: "Start free",
-  ctaChoose: "Get started",
-  ctaContact: "Contact sales",
-  vatNote: "All prices include 15% VAT. Yearly billing saves 15% versus monthly.",
   bandTitle: "Ready to run your company on one platform?",
   bandText: "Create your free account — no card required.",
 };
@@ -100,10 +99,45 @@ export function PricingView({ onNavigate, locale = "en" }) {
       : CURRENCIES_FROM_EXCHANGE_API.filter((c) => ["SAR", "USD", "AED", "EUR", "GBP"].includes(c.code));
     return pool;
   }, [live]);
-  // Selected band index per banded plan (0 = lower band, the default).
-  const [bandIdx, setBandIdx] = useState(() =>
-    Object.fromEntries(PLANS.filter((p) => p.bands).map((p) => [p.key, 0]))
-  );
+  // Selected category index per compound card (0 = the first, the default).
+  const [bandIdx, setBandIdx] = useState({});
+
+  // THE CARDS ARE THE PACKAGES. Nothing is authored in this file any more: the
+  // name, the wording, the bullets, the ranges and every figure come from
+  // /super, so a price change is a save rather than a deploy.
+  //
+  // TYPE decides the card's shape and its button. Free shows no figure at all,
+  // Premium shows "invoiced monthly" instead of one, and only Compound has
+  // categories to switch between.
+  const cards = useMemo(() => {
+    const ar = locale === "ar";
+    return (live?.cards || []).map((c) => ({
+      key: c.id,
+      type: c.type,
+      free: c.type === "free",
+      invoicedMonthly: c.type === "premium",
+      popular: c.popular,
+      name: (ar && c.nameAr) || c.name,
+      tagline: (ar && c.taglineAr) || c.tagline,
+      users: (ar && c.usersLabelAr) || c.usersLabel,
+      features: ((ar && c.includesAr?.length) ? c.includesAr : c.includes) || [],
+      durationMonths: c.durationMonths,
+      maxEmployees: c.maxEmployees,
+      monthly: c.monthly,
+      yearly: c.yearly,
+      // Only a compound package switches bands; the label is what /super wrote.
+      bands: c.type === "compound" && c.categories.length
+        ? c.categories.map((cat) => ({
+            label: cat.label || `${cat.minEmployees}–${cat.maxEmployees}`,
+            upTo: cat.maxEmployees,
+            monthly: cat.monthly,
+            yearly: cat.yearly,
+          }))
+        : null,
+      // The button says what the type means it should.
+      cta: c.type === "free" ? "start" : c.type === "premium" ? "contact" : "choose",
+    }));
+  }, [live, locale]);
 
   const approx = currency !== "SAR";
   // Converted with TODAY's rate when we have one, and only then. A stale static
@@ -118,10 +152,15 @@ export function PricingView({ onNavigate, locale = "en" }) {
   // Package key carried to signup — banded plans include the chosen band.
   const packageKeyFor = (plan) =>
     plan.bands ? `${plan.key}-${(bandIdx[plan.key] ?? 0) + 1}` : plan.key;
+  // Nothing to show until /super answers. An empty grid says "loading", where
+  // stale hardcoded prices would say something false with confidence.
+  const loading = live === null;
   const signupHref = (plan) => `/${locale}/signup?package=${packageKeyFor(plan)}`;
 
+  // Fixed by the card type, not chosen per package: the words are a promise
+  // about what pressing the button does, and that follows from the shape.
   const ctaLabel = (plan) =>
-    plan.cta === "start" ? COPY.ctaStart : plan.cta === "contact" ? COPY.ctaContact : COPY.ctaChoose;
+    plan.type === "free" ? "Start Free" : plan.type === "premium" ? "Contact Sales" : "Get Started →";
 
   const Sym = ({ big = false }) =>
     currency === "SAR" ? (
@@ -200,22 +239,21 @@ export function PricingView({ onNavigate, locale = "en" }) {
         animate="show"
         className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
       >
-        {PLANS.map((plan) => {
+        {loading && (
+          <p className="col-span-full py-12 text-center text-sm text-fg-dim">Loading prices…</p>
+        )}
+        {!loading && cards.length === 0 && (
+          <p className="col-span-full py-12 text-center text-sm text-fg-dim">
+            No packages are published yet.
+          </p>
+        )}
+        {cards.map((plan) => {
           const bi = bandIdx[plan.key] ?? 0;
           const band = plan.bands ? plan.bands[bi] : null;
-          // Per-employee rate for the selected band (yearly = 15% off), then
-          // the TOTAL for that band's maximum headcount.
-          const bandMax = band ? band.upTo : 0;
-          // The PACKAGE with this band's upper bound is the price. Matched on
-          // the ceiling rather than a name, so renaming a package in /super
-          // cannot silently unprice a band. The figures authored in lib/pricing
-          // remain the fallback until the call lands.
-          const priced = live?.bands?.[bandMax];
-          const bandTotal = priced
-            ? (yearly ? priced.yearly : priced.monthly)
-            : band
-              ? (yearly ? band.rate * (1 - YEARLY_DISCOUNT) : band.rate) * bandMax
-              : 0;
+          // Every figure comes from /super. A compound package prices by its
+          // chosen category; free and premium show no number at all.
+          const bandMax = band ? band.upTo : plan.maxEmployees || 0;
+          const bandTotal = band ? (yearly ? band.yearly : band.monthly) : (yearly ? plan.yearly : plan.monthly);
 
           return (
             <motion.article
@@ -244,8 +282,8 @@ export function PricingView({ onNavigate, locale = "en" }) {
               )}
 
               <div className="relative flex flex-1 flex-col">
-                <h3 className="font-display text-lg font-600">{pick(plan.name, locale)}</h3>
-                <p className="mt-2 min-h-[2.5rem] text-sm text-fg-muted">{pick(plan.tagline, locale)}</p>
+                <h3 className="font-display text-lg font-600">{plan.name}</h3>
+                <p className="mt-2 min-h-[2.5rem] text-sm text-fg-muted">{plan.tagline}</p>
 
                 {/* Price — swaps with a vertical slide when currency, billing
                     period or band changes. The fixed heights here and on the
@@ -321,9 +359,14 @@ export function PricingView({ onNavigate, locale = "en" }) {
                   )}
                 </div>
 
-                {/* Headcount badge */}
-                <span className="mt-5 inline-flex w-fit rounded-full bg-ink/50 px-3 py-1 text-xs text-fg-muted">
-                  {pick(plan.users, locale)}
+                {/* Headcount badge, and the term beside it. */}
+                <span className="mt-5 flex w-fit flex-wrap items-center gap-2">
+                  <span className="inline-flex rounded-full bg-ink/50 px-3 py-1 text-xs text-fg-muted">{plan.users}</span>
+                  {plan.durationMonths > 0 && (
+                    <span className="inline-flex rounded-full bg-ink/50 px-3 py-1 text-xs text-fg-muted">
+                      {plan.durationMonths} {plan.durationMonths === 1 ? "month" : "months"}
+                    </span>
+                  )}
                 </span>
 
                 <div className="mt-6">
@@ -352,7 +395,7 @@ export function PricingView({ onNavigate, locale = "en" }) {
                   {COPY.featuresLabel}
                 </p>
                 <ul className="mt-3 flex-1 space-y-3">
-                  {pick(plan.features, locale).map((feature) => (
+                  {plan.features.map((feature) => (
                     <li key={feature} className="flex gap-2.5 text-sm text-fg-muted">
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mt-0.5 shrink-0" aria-hidden>
                         <circle cx="8" cy="8" r="7.2" stroke="var(--color-line)" />
@@ -374,10 +417,9 @@ export function PricingView({ onNavigate, locale = "en" }) {
         })}
       </motion.div>
 
-      <p className="mt-8 text-center text-xs leading-relaxed text-fg-dim">
-        {COPY.vatNote}
-        {approx && <> {COPY.approxNote}</>}
-      </p>
+      {approx && (
+        <p className="mt-8 text-center text-xs leading-relaxed text-fg-dim">{COPY.approxNote}</p>
+      )}
 
       {/* Assurances — all three are statements the pricing model actually backs. */}
       <motion.div

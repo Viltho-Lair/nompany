@@ -25,6 +25,36 @@ const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? 
 // ---- catalogue-wide settings -------------------------------------------------
 // Things that qualify the whole price list rather than any one package. Just
 // the yearly discount so far.
+// The three shapes a package can take. The type decides what the card shows and
+// what its button says, so it is a fixed list rather than free text.
+export const PACKAGE_TYPES = ["free", "compound", "premium"];
+export const PACKAGE_TYPE_LABELS = { free: "Free", compound: "Compound", premium: "Premium" };
+
+// A category is a headcount band inside a compound package: its own range and
+// its own per-head rate, which is what lets one card price 10-25 differently
+// from 26-49. The total follows from the rate, exactly as it does on a package.
+function cleanCategories(v) {
+  return (Array.isArray(v) ? v : []).slice(0, 12).map((c, i) => {
+    const perEmployee = num(c?.costPerEmployee);
+    const maxEmployees = num(c?.maxEmployees);
+    return {
+      id: str(c?.id, 40) || `c${i + 1}`,
+      label: str(c?.label, 40),
+      minEmployees: num(c?.minEmployees),
+      maxEmployees,
+      costPerEmployee: perEmployee,
+      cost: maxEmployees > 0 ? perEmployee * maxEmployees : perEmployee,
+    };
+  }).filter((c) => c.maxEmployees > 0 || c.costPerEmployee > 0);
+}
+
+// Bullets arrive as one block of text and are stored as lines. Blank lines are
+// dropped — an empty bullet is a dot with nothing beside it.
+function cleanLines(v) {
+  const list = Array.isArray(v) ? v : String(v ?? "").split(/\r?\n/);
+  return list.map((x) => str(x, 160)).filter(Boolean).slice(0, 20);
+}
+
 export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0 };
 
 export async function getCatalogSettings() {
@@ -57,36 +87,46 @@ export const KINDS = {
   packages: {
     key: REG.packages,
     id: ID.package,
-    clean: (b) => ({
-      name: str(b.name, 80) || "New package",
-      minEmployees: num(b.minEmployees),
-      maxEmployees: num(b.maxEmployees),
-      // THE PRICE IS PER HEAD. That is the number somebody actually decides,
-      // and it is the only one stored.
-      costPerEmployee: num(b.costPerEmployee),
-      // Total cost is DERIVED, never accepted from the request — a stored total
-      // and a stored rate can disagree, and then nobody knows which is the
-      // price. Computed here rather than at read time so every consumer sees
-      // the same figure without repeating the sum.
-      //
-      // maxEmployees 0 means "no limit", which has no total to compute; the
-      // band price falls back to the per-head rate rather than to zero.
-      cost: num(b.maxEmployees) > 0 ? num(b.costPerEmployee) * num(b.maxEmployees) : num(b.costPerEmployee),
-      // ZERO IS A VALUE, not a missing one: a package with no duration runs
-      // endlessly. `|| 1` here used to quietly turn "endless" into "one month",
-      // which meant the state could not be expressed at all.
-      durationMonths: num(b.durationMonths),
-      isPublic: Boolean(b.isPublic),
-      // How the package shows up wherever a studio's plan is displayed. Stored,
-      // not derived from the name: a package can be renamed without silently
-      // changing colour, and a new one can pick any of these.
-      // Any hex the author picked; falls back to the colour the four shipped
-      // names imply, so "Free" still arrives green without being told to.
-      color: normalizeColor(b.color) || hexForName(b.name),
-      // 0 = unlimited, the same convention duration and max employees use on
-      // this screen.
-      supportTicketsPerMonth: num(b.supportTicketsPerMonth),
-    }),
+    clean: (b) => {
+      const type = PACKAGE_TYPES.includes(b.type) ? b.type : "compound";
+      // A COMPOUND package is priced by category — each one its own headcount
+      // band with its own per-head rate. Free and Premium have a single range
+      // and no figure on the card, so categories would be furniture.
+      const categories = type === "compound" ? cleanCategories(b.categories) : [];
+      const perEmployee = num(b.costPerEmployee);
+      const maxEmployees = num(b.maxEmployees);
+      return {
+        name: str(b.name, 80) || "New package",
+        nameAr: str(b.nameAr, 80),
+        tagline: str(b.tagline, 240),
+        taglineAr: str(b.taglineAr, 240),
+        // The line under the name — "10–49 users". Written rather than derived
+        // because a compound package spans several categories and no single
+        // range describes it honestly.
+        usersLabel: str(b.usersLabel, 80),
+        usersLabelAr: str(b.usersLabelAr, 80),
+        type,
+        categories,
+        minEmployees: num(b.minEmployees),
+        maxEmployees,
+        costPerEmployee: perEmployee,
+        // Derived, never accepted: a stored total and a stored rate can
+        // disagree, and then nobody knows which is the price. For a compound
+        // package the headline total is the largest category's.
+        cost: type === "compound"
+          ? categories.reduce((top, c) => Math.max(top, c.cost), 0)
+          : maxEmployees > 0 ? perEmployee * maxEmployees : perEmployee,
+        durationMonths: num(b.durationMonths),
+        // What the card lists as bullets, one per line in, one array out.
+        includes: cleanLines(b.includes),
+        includesAr: cleanLines(b.includesAr),
+        // The badge. Stored, so it can move without a code change.
+        popular: Boolean(b.popular),
+        isPublic: Boolean(b.isPublic),
+        color: normalizeColor(b.color) || hexForName(b.name),
+        supportTicketsPerMonth: num(b.supportTicketsPerMonth),
+      };
+    },
   },
   tiers: {
     key: REG.tiers,

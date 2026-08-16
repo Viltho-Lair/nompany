@@ -21,27 +21,38 @@ export async function GET(request) {
     listCatalog("packages"), getCatalogSettings(), getExchangeSnapshot(),
   ]);
 
-  // A band is matched to a package by its UPPER BOUND. The pricing page's four
-  // bands end at 25, 49, 99 and 249, so a package whose max employees is 25 is
-  // the one that prices "10–25". Matching on the ceiling rather than on a name
-  // means renaming a package cannot silently unprice a band.
-  const bands = {};
-  for (const p of packages) {
-    if (!p.isPublic) continue;
-    const upTo = Number(p.maxEmployees) || 0;
-    if (!upTo) continue;
-    const total = Number(p.cost) || 0;
-    bands[upTo] = {
-      name: p.name,
+  // THE PACKAGES ARE THE CARDS. No band matching any more: a compound package
+  // carries its own categories, so the page renders what /super holds rather
+  // than trying to line it up against a hardcoded list of four ranges. That
+  // matching was why prices were not reaching the site — a package whose max
+  // employees did not land exactly on 25, 49, 99 or 249 priced nothing.
+  const cards = packages
+    .filter((p) => p.isPublic)
+    .map((p) => ({
+      id: p.id,
+      type: p.type || "compound",
+      name: p.name, nameAr: p.nameAr,
+      tagline: p.tagline, taglineAr: p.taglineAr,
+      usersLabel: p.usersLabel, usersLabelAr: p.usersLabelAr,
+      includes: Array.isArray(p.includes) ? p.includes : [],
+      includesAr: Array.isArray(p.includesAr) ? p.includesAr : [],
+      popular: Boolean(p.popular),
+      durationMonths: Number(p.durationMonths) || 0,
       minEmployees: Number(p.minEmployees) || 0,
-      maxEmployees: upTo,
+      maxEmployees: Number(p.maxEmployees) || 0,
+      // Monthly and yearly are both worked out HERE, with the same function
+      // /super uses, so the page never has to know how a discount is applied.
+      categories: (Array.isArray(p.categories) ? p.categories : []).map((c) => ({
+        id: c.id, label: c.label,
+        minEmployees: c.minEmployees, maxEmployees: c.maxEmployees,
+        perEmployee: c.costPerEmployee,
+        monthly: c.cost,
+        yearly: yearlyPrice(c.cost, settings.yearlyDiscountPct),
+      })),
       perEmployee: Number(p.costPerEmployee) || 0,
-      monthly: total,
-      // Worked out HERE, with the same function /super uses, so the page never
-      // has to know how a discount is applied.
-      yearly: yearlyPrice(total, settings.yearlyDiscountPct),
-    };
-  }
+      monthly: Number(p.cost) || 0,
+      yearly: yearlyPrice(Number(p.cost) || 0, settings.yearlyDiscountPct),
+    }));
 
   // Today's rate from SAR out to every currency the snapshot quotes. Sent as a
   // table so switching currency in the picker is arithmetic in the browser
@@ -56,7 +67,7 @@ export async function GET(request) {
 
   return Response.json({
     base: BASE,
-    bands,
+    cards,
     yearlyDiscountPct: settings.yearlyDiscountPct,
     rates,
     // Where this reader is, turned into a currency. A DEFAULT, not a decision:

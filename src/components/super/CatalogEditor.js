@@ -15,7 +15,10 @@ import { toneOf, normalizeColor, PRESETS, DEFAULT_HEX } from "@/lib/planColors";
 const input = "ad-input";
 const label = "ad-label";
 
-export default function CatalogEditor({ kind, title, fields, services = null, onChanged, settings = null }) {
+export default function CatalogEditor({ kind, title, fields, services = null, onChanged, settings = null, columns = null }) {
+  // The FORM shows every field; the TABLE shows the few worth scanning. A record
+  // with twenty fields makes a table that shows nothing.
+  const listFields = columns ? fields.filter((f) => columns.includes(f.key)) : fields;
   const [items, setItems] = useState(null);
   const [draft, setDraft] = useState(null);      // the row being added or edited
   const [busy, setBusy] = useState(false);
@@ -81,10 +84,10 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
           {items !== null && items.length === 0 && !draft ? (
             <p className="px-5 pb-5 text-sm text-[var(--ad-muted-foreground)]">Nothing here yet.</p>
           ) : (
-            <Table head={[...fields.map((f) => f.label), { label: "", align: "end" }]}>
+            <Table head={[...listFields.map((f) => f.label), { label: "", align: "end" }]}>
               {(items || []).map((it) => (
                 <tr key={it.id}>
-                  {fields.map((f) => <td key={f.key}>{render(f, it, services)}</td>)}
+                  {listFields.map((f) => <td key={f.key}>{render(f, it, services)}</td>)}
                   <td className="text-end whitespace-nowrap">
                     <Button variant="ghost" size="sm" onClick={() => setDraft({ ...blank, ...it })}>Edit</Button>
                     <Button variant="ghost" size="sm" onClick={() => send("DELETE", { id: it.id })} disabled={busy}>Delete</Button>
@@ -101,8 +104,8 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
           <CardHead title={draft.id ? `Edit ${draft.name || "record"}` : `New ${title.replace(/s$/, "").toLowerCase()}`} />
           <CardBody>
             <div className="grid gap-5 sm:grid-cols-2">
-              {fields.map((f) => (
-                <div key={f.key} className={f.type === "services" ? "sm:col-span-2" : ""}>
+              {fields.filter((f) => !f.showWhen || f.showWhen(draft)).map((f) => (
+                <div key={f.key} className={["services", "lines", "categories"].includes(f.type) ? "sm:col-span-2" : ""}>
                   <label className={label} htmlFor={`f-${f.key}`}>{f.label}</label>
                   {f.type === "switch" ? (
                     // A switch, not a checkbox: this is the one field that
@@ -125,6 +128,25 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
                       services={services || []}
                       picked={draft[f.key] || []}
                       onChange={(serviceIds) => setDraft((d) => ({ ...d, [f.key]: serviceIds }))}
+                    />
+                  ) : f.type === "select" ? (
+                    <select id={`f-${f.key}`} className={input}
+                      value={draft[f.key] ?? f.options[0].value}
+                      onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}>
+                      {f.options.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+                    </select>
+                  ) : f.type === "lines" ? (
+                    // One bullet per line. A textarea rather than a repeater
+                    // because writing a feature list is writing, and five
+                    // separate inputs make that harder, not easier.
+                    <textarea id={`f-${f.key}`} className={input} rows={5}
+                      value={Array.isArray(draft[f.key]) ? draft[f.key].join("\n") : (draft[f.key] ?? "")}
+                      placeholder={f.placeholder || ""}
+                      onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))} />
+                  ) : f.type === "categories" ? (
+                    <CategoryRows
+                      rows={Array.isArray(draft[f.key]) ? draft[f.key] : []}
+                      onChange={(rows) => setDraft((d) => ({ ...d, [f.key]: rows }))}
                     />
                   ) : f.type === "computed" ? (
                     // Shown, never typed. The value is worked out from other
@@ -175,6 +197,19 @@ function computeField(f, row) {
 }
 
 function render(f, it, services) {
+  if (f.type === "select") {
+    const opt = (f.options || []).find((o) => o.value === it[f.key]);
+    return <Badge tone="muted">{opt ? opt.label : (it[f.key] || "—")}</Badge>;
+  }
+  if (f.type === "lines") {
+    const n = Array.isArray(it[f.key]) ? it[f.key].length : 0;
+    return <span className="text-[var(--ad-muted-foreground)]">{n ? `${n} item${n === 1 ? "" : "s"}` : "—"}</span>;
+  }
+  if (f.type === "categories") {
+    const rows = Array.isArray(it[f.key]) ? it[f.key] : [];
+    if (!rows.length) return <span className="text-[var(--ad-muted-foreground)]">—</span>;
+    return <span className="text-[var(--ad-muted-foreground)]">{rows.map((c) => c.label || `${c.minEmployees}-${c.maxEmployees}`).join(", ")}</span>;
+  }
   // A computed column reads the stored value like any other — the sum was done
   // when the record was saved, so the list is not recalculating anything.
   if (f.type === "computed") {
@@ -345,6 +380,42 @@ function CatalogSettings({ config, onClose }) {
           <Button variant="ghost" onClick={onClose}>Close</Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// The headcount bands inside a compound package. Each is a range with its own
+// per-head rate, which is the whole point: one card can price 10-25 differently
+// from 26-49 without being two cards.
+function CategoryRows({ rows, onChange }) {
+  const set = (i, patch) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const add = () => onChange([...rows, { id: `c${Date.now().toString(36)}`, label: "", minEmployees: "", maxEmployees: "", costPerEmployee: "" }]);
+  const remove = (i) => onChange(rows.filter((_, j) => j !== i));
+
+  return (
+    <div className="space-y-2">
+      {rows.length === 0 && (
+        <p className="text-sm text-[var(--ad-muted-foreground)]">No categories yet — add one per headcount band.</p>
+      )}
+      {rows.map((r, i) => {
+        const total = (Number(r.costPerEmployee) || 0) * (Number(r.maxEmployees) || 0);
+        return (
+          <div key={r.id || i} className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[1fr,5rem,5rem,7rem,6rem,2rem]">
+            <input className={input} placeholder="10–25" value={r.label ?? ""} onChange={(e) => set(i, { label: e.target.value })} />
+            <input className={input} type="number" min="0" placeholder="Min" value={r.minEmployees ?? ""} onChange={(e) => set(i, { minEmployees: e.target.value })} />
+            <input className={input} type="number" min="0" placeholder="Max" value={r.maxEmployees ?? ""} onChange={(e) => set(i, { maxEmployees: e.target.value })} />
+            <input className={input} type="number" min="0" step="0.01" placeholder="Per employee" value={r.costPerEmployee ?? ""} onChange={(e) => set(i, { costPerEmployee: e.target.value })} />
+            {/* Shown, not typed — the same rule the package total follows. */}
+            <span className="px-1 text-sm text-[var(--ad-muted-foreground)]">{total.toLocaleString()}</span>
+            <button type="button" onClick={() => remove(i)} aria-label={`Remove category ${i + 1}`}
+              className="px-1 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-destructive)]">×</button>
+          </div>
+        );
+      })}
+      <Button variant="ghost" size="sm" onClick={add}>Add category</Button>
+      <p className="text-xs text-[var(--ad-muted-foreground)]">
+        Label is what the card&apos;s band switch shows. Total is per-employee x max, worked out for you.
+      </p>
     </div>
   );
 }
