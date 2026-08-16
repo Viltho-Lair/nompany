@@ -19,7 +19,7 @@ const accessSrc = fs.readFileSync("src/lib/access.js", "utf8")
   .replace(/export (const|function)/g, "$1");
 const A = {};
 new Function("m", "ALL_PERMISSIONS", "isPermission", "AREAS", "keysForLevel",
-  `${accessSrc}; Object.assign(m, { effectivePermissions, permissionsFromGrants, scopeFor, can, requirePermission, sectionViewable, sectionManageable, cleanAssignment, escalates });`
+  `${accessSrc}; Object.assign(m, { effectivePermissions, scopeFor, can, requirePermission, sectionViewable, sectionManageable, cleanAssignment, escalates });`
 )(A, P.ALL_PERMISSIONS, P.isPermission, P.AREAS, P.keysForLevel);
 
 let fails = 0;
@@ -85,32 +85,18 @@ ok("scoped area reads its role's scope", A.scopeFor({ collaborator: { roleIds: [
 ok("unscoped defaults to own", A.scopeFor({ collaborator: { roleIds: ["r_eng"] }, roles }, "hr.employees") === "own");
 ok("owner sees all", A.scopeFor({ collaborator: { role: "owner" }, roles }, "hr.employees") === "all");
 
-console.log("\n== legacy bridge preserves today's behaviour");
-const sections = [
-  { id: "s1", key: "sales" }, { id: "s2", key: "sales-tickets" }, { id: "s3", key: "sales-clients" },
-];
-const g = (sectionId, action, effect = "allow") =>
-  ({ subjectType: "collaborator", subjectId: "c1", sectionId, action, effect });
-const legacy = (grants) => A.effectivePermissions({ studio: {}, collaborator: { id: "c1" }, roles: [], sections, grants });
+// The legacy-bridge section was deleted with the bridge itself. It asserted
+// that section grants translated faithfully into permissions; there are no
+// grants left to translate, and a test for deleted code can only ever pass.
 
-const l1 = legacy([g("s2", "view"), g("s2", "manage")]);
-ok("manage on tickets -> edit on tickets", A.can(l1, "sales.tickets.edit"));
-ok("...and nothing on clients", !A.can(l1, "sales.clients.view"));
-
-const l2 = legacy([g("s1", "view"), g("s1", "manage")]);
-ok("manage on the PARENT grants nothing (sales is not an area)", l2.size === 0);
-
-const l3 = legacy([g("s2", "manage")]);
-ok("manage without view still grants nothing", !A.can(l3, "sales.tickets.view"));
-
-const l4 = legacy([g("s2", "view"), g("s2", "manage"), g("s2", "manage", "deny")]);
-ok("deny still wins", A.can(l4, "sales.tickets.view") && !A.can(l4, "sales.tickets.edit"));
-
-const l5 = A.effectivePermissions({
-  studio: {}, collaborator: { id: "c1", roleIds: ["r_eng"] }, roles,
-  sections, grants: [g("s3", "view"), g("s3", "manage")],
-});
-ok("once a role is assigned, grants are ignored", !A.can(l5, "sales.clients.view") && A.can(l5, "sales.tickets.edit"));
+// Default deny, now that nothing falls back to grants.
+console.log("\n== no role means nothing");
+{
+  const nobody = res({ id: "c9", roleIds: [] });
+  ok("a person with no role holds nothing", nobody.size === 0);
+  ok("...and every check refuses them",
+    A.requirePermission(nobody, "sales.tickets.view")?.error === "forbidden");
+}
 
 console.log("\n== enforcement");
 ok("requirePermission passes when held", A.requirePermission(eng, "sales.tickets.edit") === null);

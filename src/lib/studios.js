@@ -122,12 +122,12 @@ export async function studioContext(user, slug) {
   //
   // Roles and grants are both read while the legacy bridge stands; the resolver
   // decides which one speaks. When grants are migrated, drop the two reads.
-  const [roles, sections, grants] = await Promise.all([
-    listRoles(studio.id), listSections(studio.id), listGrants(studio.id),
-  ]);
-  const access = effectivePermissions({ studio, collaborator, roles, sections, grants });
+  const [roles, sections] = await Promise.all([listRoles(studio.id), listSections(studio.id)]);
+  const access = effectivePermissions({ studio, collaborator, roles });
 
-  return { studio, collaborator, access, roles, sections, grants };
+  // `grants` is still returned because callers destructure it; it is no longer
+  // consulted for access and goes when the last of them stops asking.
+  return { studio, collaborator, access, roles, sections, grants: [] };
 }
 
 // Owner, or a collaborator the studio marked admin.
@@ -146,39 +146,10 @@ function grantsFor(grants, collaborator, sectionId) {
   );
 }
 
-// EVERY SECTION ANSWERS FOR ITSELF. A grant names one section id, and these
-// functions read grants for that id and no other — a sub-section is a section,
-// so it is granted, denied and checked on its own terms. Nothing is inherited
-// in either direction: holding Sales does not carry Sales > Clients with it,
-// and holding Sales > Clients does not require Sales.
-export function canViewSection(studio, collaborator, sectionId, grants) {
-  if (canAdminister(studio, collaborator)) return true;
-  const rows = grantsFor(grants, collaborator, sectionId);
-  if (rows.some((g) => g.effect === "deny" && g.action === "view")) return false; // deny wins
-  return rows.some((g) => g.effect === "allow" && g.action === "view");
-}
-
-// MANAGE REQUIRES VIEW, on the same section. Managing something you cannot open
-// is not a state worth having, and it used to be reachable: manage implied
-// view, so a manage-only grant let somebody edit a section the nav would not
-// even show them.
-export function canManageSection(studio, collaborator, sectionId, grants) {
-  if (canAdminister(studio, collaborator)) return true;
-  if (!canViewSection(studio, collaborator, sectionId, grants)) return false;
-  const rows = grantsFor(grants, collaborator, sectionId);
-  if (rows.some((g) => g.effect === "deny" && g.action === "manage")) return false;
-  return rows.some((g) => g.effect === "allow" && g.action === "manage");
-}
-
 // The sections this person may actually open — what the studio nav renders.
-//
-// READS THE PERMISSION SET, not grants. While these two disagreed the sidebar
-// and the server were answering the same question from different sources, and
-// only the legacy bridge kept them saying the same thing.
 export function visibleSections(studio, collaborator, sections, grants, access) {
   const keys = (sections || []).map((s) => s.key);
-  return (sections || []).filter((s) => s.enabled !== false
-    && (access ? sectionViewable(access, s.key, keys) : canViewSection(studio, collaborator, s.id, grants)));
+  return (sections || []).filter((s) => s.enabled !== false && sectionViewable(access, s.key, keys));
 }
 
 // { sales: true, technical: false, … } — used by the modules to decide whether a
@@ -196,10 +167,7 @@ export function sectionNav(studio, collaborator, sections, grants, access) {
 // separate canManageX prop per sub-section was how the parent's answer ended up
 // standing in for all of them.
 export function manageMap(studio, collaborator, sections, grants, access) {
-  return Object.fromEntries((sections || []).map((s) => [
-    s.key,
-    access ? sectionManageable(access, s.key) : canManageSection(studio, collaborator, s.id, grants),
-  ]));
+  return Object.fromEntries((sections || []).map((s) => [s.key, sectionManageable(access, s.key)]));
 }
 
 // Re-exported so a service module can guard a mutation without importing two

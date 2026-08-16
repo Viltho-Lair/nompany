@@ -12,14 +12,8 @@ import { ALL_PERMISSIONS, isPermission, AREAS, keysForLevel } from "@/lib/permis
 // inheritance, no wildcards except the one Admin flag, no cascading. Anything
 // clever here becomes something nobody can reason about at 2am.
 
-// ---- legacy bridge ---------------------------------------------------------
-// Existing studios hold view/manage grants against section ids. Until the role
-// editor ships, those are TRANSLATED into permission keys, so this layer can go
-// in without changing what anybody can do today. Delete this when the editor
-// lands and grants have been migrated.
-//
-// Section key -> the area(s) that section covers. Sections with no area behind
-// them (the "main" dashboard, live views already covered) simply map to nothing.
+// Section key -> the area(s) behind it. The nav asks about SECTIONS and the
+// model holds AREAS, so this is the one place that maps between them.
 export const SECTION_AREAS = {
   "sales-tickets": ["sales.tickets"],
   "sales-clients": ["sales.clients"],
@@ -47,48 +41,15 @@ export const SECTION_AREAS = {
   tasks: ["tasks.board"],
 };
 
-// A manage grant becomes "full" and a view grant becomes "view", for the areas
-// that section covered — and for NO OTHER section, which is the behaviour the
-// section model was finally corrected to anyway.
-export function permissionsFromGrants(collaboratorId, sections, grants) {
-  const out = new Set();
-  const byId = new Map((sections || []).map((s) => [s.id, s.key]));
-  const mine = (grants || []).filter((g) => g.subjectType === "collaborator" && g.subjectId === collaboratorId);
-
-  const held = new Map(); // sectionKey -> { view, manage, denied }
-  for (const g of mine) {
-    const key = byId.get(g.sectionId);
-    if (!key) continue;
-    const row = held.get(key) || { view: false, manage: false, deny: new Set() };
-    if (g.effect === "deny") row.deny.add(g.action);
-    else if (g.action === "view") row.view = true;
-    else if (g.action === "manage") row.manage = true;
-    held.set(key, row);
-  }
-
-  for (const [key, row] of held) {
-    for (const areaKey of SECTION_AREAS[key] || []) {
-      const area = AREAS.find((a) => a.key === areaKey);
-      if (!area) continue;
-      // Manage required view even in the corrected section model, and a deny
-      // still wins — both carried across rather than quietly relaxed.
-      const canView = row.view && !row.deny.has("view");
-      const canManage = canView && row.manage && !row.deny.has("manage");
-      for (const k of keysForLevel(area, canManage ? "full" : canView ? "view" : "none")) out.add(k);
-    }
-  }
-  return out;
-}
 
 // ---- resolution ------------------------------------------------------------
 
 // Everything this person may do in this studio, as a flat Set of keys.
 //
-// `roles` and `overrides` are the new model; `sections`/`grants` are the legacy
-// bridge. A studio that has been migrated passes roles and no grants; one that
-// has not passes grants and no roles. Both work, and a studio mid-migration
-// gets the union, which errs toward keeping people working.
-export function effectivePermissions({ studio, collaborator, roles = [], sections = [], grants = [] }) {
+// Roles and personal overrides, and nothing else. There is no fallback: a
+// person with no role can do nothing, which is the default-deny the old model
+// claimed and never quite managed.
+export function effectivePermissions({ studio, collaborator, roles = [] }) {
   // The owner is not permissioned. They own the studio, and a studio that can
   // lock out its own owner is a support ticket that cannot be answered.
   if (collaborator?.role === "owner") return new Set(ALL_PERMISSIONS);
@@ -102,12 +63,6 @@ export function effectivePermissions({ studio, collaborator, roles = [], section
   if (mine.some((r) => r.wildcard)) return new Set(ALL_PERMISSIONS);
   for (const r of mine) for (const k of r.permissions || []) if (isPermission(k)) held.add(k);
 
-  // LEGACY: no roles assigned yet means this studio has not been migrated, so
-  // fall back to what its grants say. Once a role is assigned, roles are the
-  // answer — otherwise migrating somebody would only ever add access.
-  if (!assigned.length) {
-    for (const k of permissionsFromGrants(collaborator?.id, sections, grants)) held.add(k);
-  }
 
   // Personal exceptions, applied last and stored as a DIFF from the role. Deny
   // is applied after allow so an exception can genuinely take something away.
@@ -115,15 +70,13 @@ export function effectivePermissions({ studio, collaborator, roles = [], section
   for (const k of ov.allow || []) if (isPermission(k)) held.add(k);
   for (const k of ov.deny || []) held.delete(k);
 
-  // The old studio-admin flag, kept working until the Admin role replaces it.
-  if (collaborator?.isAdmin) return new Set(ALL_PERMISSIONS);
   return held;
 }
 
 // The scope for an area: the widest any assigned role gives. Absent means the
 // area is not scoped, or nothing granted one — callers treat that as "own".
 export function scopeFor({ collaborator, roles = [] }, areaKey) {
-  if (collaborator?.role === "owner" || collaborator?.isAdmin) return "all";
+  if (collaborator?.role === "owner") return "all";
   const assigned = Array.isArray(collaborator?.roleIds) ? collaborator.roleIds : [];
   const order = { own: 0, department: 1, all: 2 };
   let best = null;
@@ -155,8 +108,7 @@ export function requirePermission(access, key) {
 // ---- the read side ---------------------------------------------------------
 // The nav asks about SECTIONS; the model holds AREAS. This is the one place
 // that bridges the two, so the sidebar and the guards cannot drift apart —
-// which is exactly what they were doing while writes used permissions and reads
-// still used grants.
+// so the sidebar and the guards cannot drift apart.
 
 const anyKey = (access, sectionKey, suffixes) =>
   (SECTION_AREAS[sectionKey] || []).some((area) => suffixes.some((v) => access.has(`${area}.${v}`)));
@@ -232,12 +184,11 @@ export function escalates(actorAccess, assignment, roles = []) {
 // Cheap only because resolution is one function: this re-runs the same steps
 // and reports which one settled it, rather than reimplementing the rules and
 // risking an explanation that disagrees with the enforcement.
-export function explain({ collaborator, roles = [], sections = [], grants = [] }, key) {
+export function explain({ collaborator, roles = [] }, key) {
   const who = collaborator?.alias || "They";
   if (!isPermission(key)) return { allowed: false, reason: `${key} is not a permission this product has.` };
 
   if (collaborator?.role === "owner") return { allowed: true, reason: `${who} owns the studio, so everything is allowed.` };
-  if (collaborator?.isAdmin) return { allowed: true, reason: `${who} is a studio admin, so everything is allowed.` };
 
   const assigned = Array.isArray(collaborator?.roleIds) ? collaborator.roleIds : [];
   const mine = (roles || []).filter((r) => assigned.includes(r.id));
@@ -259,11 +210,7 @@ export function explain({ collaborator, roles = [], sections = [], grants = [] }
   if (granting) return { allowed: true, reason: `${who} holds ${granting.name}, which includes this.` };
 
   if (!assigned.length) {
-    const fromGrants = permissionsFromGrants(collaborator?.id, sections, grants);
-    if (fromGrants.has(key)) {
-      return { allowed: true, reason: `${who} has no role yet, so their old section access still applies and it allows this.` };
-    }
-    return { allowed: false, reason: `${who} has no role yet, and their old section access does not cover this.` };
+    return { allowed: false, reason: `${who} has no role yet, so they can do nothing. Give them one on the access screen.` };
   }
 
   const names = mine.map((r) => r.name).join(" and ") || "no role";
