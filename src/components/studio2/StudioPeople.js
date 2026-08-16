@@ -203,8 +203,14 @@ function MemberRow({ person, isMe, canAdminister, busy, onSave, onRemove }) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/70 px-4 py-3 dark:border-white/10">
       <div className="flex items-center gap-2.5">
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-500/10 font-display text-sm font-700 text-brand-700 dark:text-brand-300">
-          {(person.alias || "?").charAt(0).toUpperCase()}
+        {/* The face if there is one, the initial if there is not. Same circle
+            either way, so a list of people does not change shape depending on
+            who has uploaded a picture. */}
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-500/10 font-display text-sm font-700 text-brand-700 dark:text-brand-300">
+          {person.photo
+            /* eslint-disable-next-line @next/next/no-img-element */
+            ? <img src={person.photo} alt="" className="h-full w-full object-cover" />
+            : (person.alias || "?").charAt(0).toUpperCase()}
         </span>
         <div>
           <p className="font-600 text-slate-900 dark:text-white">

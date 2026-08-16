@@ -43,20 +43,18 @@ export function Hero({ dataReady }) {
           {/* The work-email + Request demo pair was removed from the hero on
               2026-08-12; it is archived verbatim in /extracode.js. */}
           <motion.div variants={fadeUp} className="space-y-4">
+            {/* SOC 2 Type II removed 2026-08-16: it names a certification that
+                has to be audited and awarded, and claiming one you do not hold
+                is the kind of line a buyer checks. */}
             <p className="text-xs text-fg-dim">
-              14-day sandbox · SOC 2 Type II · No card required
+              14-day sandbox · No card required
             </p>
           </motion.div>
 
-          {/* Trust band */}
-          <motion.div variants={fadeUp} className="flex flex-wrap items-center gap-x-7 gap-y-3 border-t border-line pt-6">
-            <span className="text-[11px] tracking-[0.16em] text-fg-dim uppercase">
-              Trusted by
-            </span>
-            {["NORTHWIND", "ACME LOGISTICS", "VERTEX MFG", "HALO GROUP"].map((name) => (<span key={name} className="text-xs font-medium tracking-wide text-fg-dim transition-colors duration-300 hover:text-fg-muted">
-                  {name}
-                </span>))}
-          </motion.div>
+          {/* The TRUST BAND was removed on 2026-08-16 — the four names on it were
+              placeholders, and a logo wall of companies that are not customers
+              says less than no logo wall. Archived verbatim in /extracode.js so
+              it can come back the day there are real names to put on it. */}
         </motion.div>
       </div>
 

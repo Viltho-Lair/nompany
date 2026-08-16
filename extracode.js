@@ -85,3 +85,24 @@ export function EmailCapture({ compact = false }) {
       </AnimatePresence>
     </div>);
 }
+
+
+/* ==================================================================
+   HERO TRUST BAND — removed from src/components/landing/hero/Hero.js
+   on 2026-08-16.
+
+   Not deleted because the markup is fine; only the CONTENT was the
+   problem. NORTHWIND, ACME LOGISTICS, VERTEX MFG and HALO GROUP are
+   invented, and a wall of companies that are not customers says less
+   than no wall at all. Drop this back in below the sandbox line and
+   swap the array for real names.
+   ================================================================== */
+          {/* Trust band */}
+          <motion.div variants={fadeUp} className="flex flex-wrap items-center gap-x-7 gap-y-3 border-t border-line pt-6">
+            <span className="text-[11px] tracking-[0.16em] text-fg-dim uppercase">
+              Trusted by
+            </span>
+            {["NORTHWIND", "ACME LOGISTICS", "VERTEX MFG", "HALO GROUP"].map((name) => (<span key={name} className="text-xs font-medium tracking-wide text-fg-dim transition-colors duration-300 hover:text-fg-muted">
+                  {name}
+                </span>))}
+          </motion.div>

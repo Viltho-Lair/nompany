@@ -1,6 +1,7 @@
 import { currentUser } from "@/lib/identity";
 import { studioContext, canAdminister, listCollaborators, updateCollaborator } from "@/lib/studios";
 import { cascadeDeleteCollaborator } from "@/lib/data/cascade";
+import { getProfile } from "@/lib/data/users";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,9 +16,20 @@ export async function GET(request, ctx) {
   if (context.error) return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
 
   const rows = await listCollaborators(context.studio.id);
+  // The PICTURE is the one thing here that is not studio-local. A collaborator
+  // row carries an alias and a role that mean nothing outside this studio, but
+  // the face belongs to the person, so it is read from their own profile and
+  // joined on. Only the photo — nothing else from the profile crosses over.
+  //
+  // Read in parallel; a profile that fails or has no photo simply yields "",
+  // which the row already knows how to render as initials.
+  const photos = await Promise.all(
+    rows.map((c) => (c.userId ? getProfile(c.userId).then((p) => p?.photo || "").catch(() => "") : "")),
+  );
   return Response.json({
-    collaborators: rows.map((c) => ({
+    collaborators: rows.map((c, i) => ({
       id: c.id, alias: c.alias, role: c.role, isAdmin: c.isAdmin,
+      photo: photos[i] || "",
       departmentId: c.departmentId, positionId: c.positionId, createdAt: c.createdAt,
     })),
   });
