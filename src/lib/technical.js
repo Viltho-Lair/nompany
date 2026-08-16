@@ -149,14 +149,20 @@ const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 // to Critical this morning was still Normal on the RFQ Technical is looking at
 // now, and no screen could tell the difference between the two.
 //
-// The stored value is only a FALLBACK — for rows written while it was
-// snapshotted, and for a ticket that has since been removed. Nothing writes it
-// any more.
+// THE TICKET IS THE ONLY SOURCE. Whatever a row was written with is ignored:
+// falling back to it would mean two answers again, and the stale one would win
+// exactly when it matters — the ticket somebody just changed. Nor is a fallback
+// protecting anything, because a sales ticket cannot be deleted: the area has no
+// delete verb at all, by design, since its RFQs, quotations and comments all
+// point back at it.
+//
+// No ticket behind the row means no urgency, which is the dash the quotations
+// list already shows for an Internal one.
 async function withTicketUrgency(rows, { studio, salesTicketsSection }) {
-  if (!salesTicketsSection) return rows;
+  if (!salesTicketsSection) return rows.map((r) => ({ ...r, urgency: "" }));
   const tickets = await readCol(studio.id, salesTicketsSection.id, TICKETS);
   const urgencyOf = new Map(tickets.map((t) => [t.id, t.urgency]));
-  return rows.map((r) => ({ ...r, urgency: urgencyOf.get(r.ticketId) || r.urgency || "" }));
+  return rows.map((r) => ({ ...r, urgency: urgencyOf.get(r.ticketId) || "" }));
 }
 
 export async function listRfqs(ctx) {
@@ -167,8 +173,8 @@ export async function listRfqs(ctx) {
   );
 }
 
-// Raised FROM a Sales ticket. Snapshots the ticket so Technical never has to
-// read Sales to display it.
+// Raised FROM a Sales ticket, and still holding a copy of most of it — see the
+// note on withTicketUrgency for why that is wrong and what replaces it.
 // RFQ-ACME-001, then RFQ-ACME-001-2 and so on. The suffix is only reached when
 // the plain form is taken, so the common case stays the readable one.
 function uniqueRfqReference(rows, base) {
