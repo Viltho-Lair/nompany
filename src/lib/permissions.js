@@ -31,7 +31,11 @@ export const SCOPES = ["own", "department", "all"];
 // `extra` are powers that do NOT nest inside the ladder and therefore have to be
 // granted deliberately — converting an RFQ is not "a bigger edit".
 export const AREAS = [
-  { key: "sales.tickets", group: "Sales", label: "Tickets", verbs: ["view", "create", "edit", "delete"] },
+  // NO DELETE. A sales ticket is closed, never erased — its quotations, RFQs
+  // and comments all point back at it. Declaring a right nothing can exercise
+  // is the same dead-capability trap as the department grants that were stored
+  // and never read.
+  { key: "sales.tickets", group: "Sales", label: "Tickets", verbs: ["view", "create", "edit"] },
   { key: "sales.clients", group: "Sales", label: "Clients", verbs: ["view", "create", "edit", "delete"] },
   { key: "sales.live", group: "Sales", label: "Live view", verbs: ["view"] },
   { key: "sales.settings", group: "Sales", label: "Settings", verbs: ["view", "edit"] },
@@ -90,12 +94,34 @@ export function cleanPermissions(list) {
   return [...new Set((Array.isArray(list) ? list : []).map(String).filter(isPermission))];
 }
 
+// THE RUNGS THIS AREA ACTUALLY HAS. An area with no delete verb — a sales
+// ticket, which is closed rather than erased — has no "full" distinct from
+// "edit", and offering both would be two buttons that do the same thing.
+// A rung only exists if it grants something the rung below it does not.
+export function levelsFor(area) {
+  const out = [];
+  let previous = "";
+  for (const level of LEVELS) {
+    const verbs = LEVEL_VERBS[level].filter((v) => area.verbs.includes(v));
+    const signature = verbs.join(",");
+    if (level !== "none" && signature === previous) continue;
+    out.push(level);
+    previous = signature;
+  }
+  return out;
+}
+
 // The ladder rung a set of held keys amounts to, for ONE area. Used only to
 // render the segmented control — resolution never consults it.
+//
+// Walks the area's OWN rungs, highest first. Walking the full four would report
+// "full" for an area that has no delete, because every verb it does have would
+// be held.
 export function levelOf(area, held) {
-  for (let i = LEVELS.length - 1; i > 0; i -= 1) {
-    const wanted = LEVEL_VERBS[LEVELS[i]].filter((v) => area.verbs.includes(v));
-    if (wanted.length && wanted.every((v) => held.has(`${area.key}.${v}`))) return LEVELS[i];
+  const rungs = levelsFor(area);
+  for (let i = rungs.length - 1; i > 0; i -= 1) {
+    const wanted = LEVEL_VERBS[rungs[i]].filter((v) => area.verbs.includes(v));
+    if (wanted.length && wanted.every((v) => held.has(`${area.key}.${v}`))) return rungs[i];
   }
   return "none";
 }

@@ -17,6 +17,7 @@
 // project (stock out). Receiving and issuing never touch quantities directly;
 // they append movements, and the balance follows.
 
+import { requirePermission } from "@/lib/access";
 import { isKnownCurrency } from "@/lib/currencies";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
@@ -142,6 +143,10 @@ export async function listVendors({ studio, vendorsSection }) {
 }
 
 export async function createVendor(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.vendors.create");
+  if (denied) return denied;
+
   const { studio, vendorsSection } = ctx;
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
@@ -162,6 +167,10 @@ export async function createVendor(ctx, body) {
 }
 
 export async function editVendor(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.vendors.edit");
+  if (denied) return denied;
+
   const { studio, vendorsSection } = ctx;
   const patch = {};
   if (body?.name !== undefined) {
@@ -184,6 +193,10 @@ export async function editVendor(ctx, id, body) {
 }
 
 export async function removeVendor(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.vendors.delete");
+  if (denied) return denied;
+
   const { studio, vendorsSection, sheetsSection, itemsSection } = ctx;
   const [items, orders] = await Promise.all([
     readCol(studio.id, itemsSection.id, ITEMS),
@@ -229,6 +242,10 @@ export async function listItems({ studio, itemsSection, vendorsSection, stockSec
 }
 
 export async function createItem(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.items.create");
+  if (denied) return denied;
+
   const { studio, vendorsSection, itemsSection } = ctx;
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
@@ -275,6 +292,10 @@ export async function createItem(ctx, body) {
 }
 
 export async function editItem(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.items.edit");
+  if (denied) return denied;
+
   const { studio, vendorsSection, itemsSection } = ctx;
   const patch = {};
   if (body?.name !== undefined) { const v = str(body.name, 160); if (!v) return { error: "name" }; patch.name = v; }
@@ -312,6 +333,10 @@ export async function editItem(ctx, id, body) {
 // An item with movement history is never deleted — that would erase the record
 // of stock that really moved. Items with a clean history can go.
 export async function removeItem(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.items.delete");
+  if (denied) return denied;
+
   const { studio, itemsSection, sheetsSection, deliveriesSection, stockSection } = ctx;
   const [movements, orders, deliveries] = await Promise.all([
     readCol(studio.id, stockSection.id, STOCK),
@@ -438,6 +463,10 @@ export function orderTotal(lines) {
 }
 
 export async function createOrder(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.stock.create");
+  if (denied) return denied;
+
   const { studio, itemsSection, sheetsSection, vendorsSection } = ctx;
   const vendorId = str(body?.vendorId, 60);
   const vendors = await readCol(studio.id, vendorsSection.id, VENDORS);
@@ -465,6 +494,10 @@ export async function createOrder(ctx, body) {
 }
 
 export async function editOrder(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.stock.edit");
+  if (denied) return denied;
+
   const { studio, itemsSection, sheetsSection } = ctx;
   const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
   const order = orders.find((o) => o.id === id);
@@ -547,6 +580,10 @@ export async function receiveOrder(ctx, id, body) {
 // An order that has received stock is never deleted — the movements it created
 // are real. Cancel it instead.
 export async function removeOrder(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.stock.delete");
+  if (denied) return denied;
+
   const { studio, sheetsSection } = ctx;
   const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
   const order = orders.find((o) => o.id === id);
@@ -581,6 +618,10 @@ export async function listDeliveries({ studio, itemsSection, deliveriesSection }
 }
 
 export async function createDelivery(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.stock.create");
+  if (denied) return denied;
+
   const { studio, itemsSection, deliveriesSection } = ctx;
   const projectId = str(body?.projectId, 60);
   if (!projectId) return { error: "project" };
@@ -640,6 +681,10 @@ export async function issueDelivery(ctx, id) {
 }
 
 export async function removeDelivery(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "inventory.stock.delete");
+  if (denied) return denied;
+
   const { studio, deliveriesSection } = ctx;
   const deliveries = await readCol(studio.id, deliveriesSection.id, DELIVERIES);
   const delivery = deliveries.find((d) => d.id === id);

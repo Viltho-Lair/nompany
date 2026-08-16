@@ -8,6 +8,7 @@
 // A project may only be opened from an APPROVED quotation — that approval is the
 // commercial gate, and it lives in Technical/Sales, not here.
 
+import { requirePermission } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -72,6 +73,10 @@ export async function projectsContext(user, slug) {
 // object, so they need no key of their own and die with the sub-section.
 // Patch semantics: only the keys present in the body are touched.
 export async function saveProjectsSettings(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "projects.settings.edit");
+  if (denied) return denied;
+
   const { studio, settingsSection } = ctx;
   const next = { ...(settingsSection.settings || {}) };
   if (body?.stages !== undefined) {
@@ -136,6 +141,10 @@ export async function approvedQuotations({ studio, listSection, quotationsSectio
 }
 
 export async function openProject(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "projects.list.create");
+  if (denied) return denied;
+
   const { studio, listSection, technicalSection, collaborator, quotationsSection } = ctx;
   if (!technicalSection) return { error: "no-technical" };
 
@@ -176,6 +185,10 @@ export async function openProject(ctx, body) {
 }
 
 export async function updateProject(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "projects.list.edit");
+  if (denied) return denied;
+
   const { studio, listSection } = ctx;
   const rows = await readCol(studio.id, listSection.id, PROJECTS);
   const current = rows.find((p) => p.id === id);
@@ -214,6 +227,10 @@ export async function updateProject(ctx, id, body) {
 }
 
 export async function removeProject(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "projects.list.delete");
+  if (denied) return denied;
+
   const removed = await deleteRow(ctx.studio.id, ctx.listSection.id, PROJECTS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
@@ -249,6 +266,10 @@ function slaFields(body) {
 }
 
 export async function createSla(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "projects.sla.create");
+  if (denied) return denied;
+
   const { studio, slaSection, collaborator } = ctx;
   const fields = slaFields(body);
   if (!fields.title) return { error: "title" };
@@ -265,6 +286,10 @@ export async function createSla(ctx, body) {
 }
 
 export async function updateSla(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "projects.sla.edit");
+  if (denied) return denied;
+
   const { studio, slaSection } = ctx;
   const rows = await readCol(studio.id, slaSection.id, SLAS);
   const current = rows.find((s) => s.id === id);
@@ -310,6 +335,10 @@ export async function updateSla(ctx, id, body) {
 }
 
 export async function removeSla(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "projects.sla.delete");
+  if (denied) return denied;
+
   const removed = await deleteRow(ctx.studio.id, ctx.slaSection.id, SLAS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
@@ -353,6 +382,10 @@ export async function overtimeDirectory({ studio, hrEmployeesSection }) {
 // action here and several rows in the collection — which is what the matrix
 // needs to attribute the hours.
 export async function createOvertime(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "projects.overtimes.create");
+  if (denied) return denied;
+
   const { studio, overtimesSection, listSection, collaborator } = ctx;
   const projectId = str(body?.projectId, 60);
   const date = str(body?.date, 10);
@@ -396,6 +429,10 @@ export async function createOvertime(ctx, body) {
 }
 
 export async function updateOvertime(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "projects.overtimes.edit");
+  if (denied) return denied;
+
   const { studio, overtimesSection, listSection } = ctx;
   const rows = await readCol(studio.id, overtimesSection.id, OVERTIMES);
   const current = rows.find((o) => o.id === id);
@@ -434,6 +471,10 @@ export async function updateOvertime(ctx, id, body) {
 }
 
 export async function removeOvertime(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "projects.overtimes.delete");
+  if (denied) return denied;
+
   const removed = await deleteRow(ctx.studio.id, ctx.overtimesSection.id, OVERTIMES, id);
   return removed ? { ok: true } : { error: "notfound" };
 }

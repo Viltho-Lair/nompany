@@ -14,6 +14,7 @@
 // Permit validity and shift hours are DERIVED from their dates, never stored,
 // so neither can quietly go stale.
 
+import { requirePermission } from "@/lib/access";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -73,6 +74,10 @@ export async function operationsContext(user, slug) {
 // `settings` object, so they need no key of their own and die with it.
 // Patch semantics: only the keys present in the body are touched.
 export async function saveOperationsSettings(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "operations.settings.edit");
+  if (denied) return denied;
+
   const { studio, settingsSection } = ctx;
   const next = { ...(settingsSection.settings || {}) };
 
@@ -196,6 +201,10 @@ export async function listLocations({ studio, section }) {
 }
 
 export async function createLocation(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "operations.tracking.create");
+  if (denied) return denied;
+
   const { studio, section } = ctx;
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
@@ -216,6 +225,10 @@ export async function createLocation(ctx, body) {
 }
 
 export async function editLocation(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "operations.tracking.edit");
+  if (denied) return denied;
+
   const { studio, section } = ctx;
   const patch = {};
   if (body?.name !== undefined) {
@@ -237,6 +250,10 @@ export async function editLocation(ctx, id, body) {
 // Refuses while permits or shifts still point at it — deleting would leave a
 // rota and a stack of paperwork referring to a place that no longer exists.
 export async function removeLocation(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "operations.tracking.delete");
+  if (denied) return denied;
+
   const { studio, section } = ctx;
   const [permits, shifts] = await Promise.all([
     readCol(studio.id, section.id, PERMITS),
@@ -286,6 +303,10 @@ export async function listPermits({ studio, section }) {
 }
 
 export async function createPermit(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "operations.tracking.create");
+  if (denied) return denied;
+
   const { studio, section, collaborator } = ctx;
   const title = str(body?.title, 200);
   if (!title) return { error: "title" };
@@ -323,6 +344,10 @@ export async function createPermit(ctx, body) {
 }
 
 export async function editPermit(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "operations.tracking.edit");
+  if (denied) return denied;
+
   const { studio, section } = ctx;
   const rows = await readCol(studio.id, section.id, PERMITS);
   const current = rows.find((p) => p.id === id);
@@ -358,6 +383,10 @@ export async function editPermit(ctx, id, body) {
 }
 
 export async function removePermit(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "operations.tracking.delete");
+  if (denied) return denied;
+
   const removed = await deleteRow(ctx.studio.id, ctx.section.id, PERMITS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
@@ -399,6 +428,10 @@ export async function listShifts({ studio, section }, { from = "", to = "" } = {
 }
 
 export async function createShift(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "operations.tracking.create");
+  if (denied) return denied;
+
   const { studio, section, collaborator } = ctx;
   const date = day(body?.date);
   if (!date) return { error: "date" };
@@ -440,6 +473,10 @@ export async function createShift(ctx, body) {
 }
 
 export async function editShift(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "operations.tracking.edit");
+  if (denied) return denied;
+
   const { studio, section } = ctx;
   const rows = await readCol(studio.id, section.id, SHIFTS);
   const current = rows.find((s) => s.id === id);
@@ -471,6 +508,10 @@ export async function editShift(ctx, id, body) {
 }
 
 export async function removeShift(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "operations.tracking.delete");
+  if (denied) return denied;
+
   const removed = await deleteRow(ctx.studio.id, ctx.section.id, SHIFTS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }

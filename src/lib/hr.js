@@ -17,6 +17,7 @@
 // viewer who can *manage* HR. Everyone else sees that a document is on file and
 // when it expires — never the number.
 
+import { requirePermission } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
@@ -89,6 +90,10 @@ export async function listDepartments({ studio, employeesSection }) {
 }
 
 export async function createDepartment(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.employees.create");
+  if (denied) return denied;
+
   const { studio, employeesSection } = ctx;
   const name = str(body?.name, 120);
   if (!name) return { error: "name" };
@@ -106,6 +111,10 @@ export async function createDepartment(ctx, body) {
 }
 
 export async function editDepartment(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.employees.edit");
+  if (denied) return denied;
+
   const { studio, employeesSection } = ctx;
   const patch = {};
   if (body?.name !== undefined) {
@@ -125,6 +134,10 @@ export async function editDepartment(ctx, id, body) {
 // Refuses while anyone is still in the department, or a position belongs to it —
 // a delete must never leave a person pointing at something that no longer exists.
 export async function removeDepartment(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.employees.delete");
+  if (denied) return denied;
+
   const { studio, employeesSection } = ctx;
   const [people, positions] = await Promise.all([
     listCollaborators(studio.id),
@@ -160,6 +173,10 @@ export async function listPositions({ studio, employeesSection }) {
 }
 
 export async function createPosition(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.employees.create");
+  if (denied) return denied;
+
   const { studio, employeesSection } = ctx;
   const title = str(body?.title, 120);
   if (!title) return { error: "title" };
@@ -186,6 +203,10 @@ export async function createPosition(ctx, body) {
 }
 
 export async function editPosition(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.employees.edit");
+  if (denied) return denied;
+
   const { studio, employeesSection } = ctx;
   const patch = {};
   if (body?.title !== undefined) { const v = str(body.title, 120); if (!v) return { error: "title" }; patch.title = v; }
@@ -205,6 +226,10 @@ export async function editPosition(ctx, id, body) {
 }
 
 export async function removePosition(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.employees.delete");
+  if (denied) return denied;
+
   const { studio, employeesSection } = ctx;
   const people = await listCollaborators(studio.id);
   const held = people.filter((c) => c.positionId === id).length;
@@ -221,6 +246,10 @@ export async function listCertifications({ studio, employeesSection }) {
 }
 
 export async function createCertification(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.employees.create");
+  if (denied) return denied;
+
   const { studio, employeesSection } = ctx;
   const name = str(body?.name, 140);
   if (!name) return { error: "name" };
@@ -239,6 +268,10 @@ export async function createCertification(ctx, body) {
 }
 
 export async function editCertification(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.employees.edit");
+  if (denied) return denied;
+
   const { studio, employeesSection } = ctx;
   const patch = {};
   if (body?.name !== undefined) {
@@ -257,6 +290,10 @@ export async function editCertification(ctx, id, body) {
 }
 
 export async function removeCertification(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.employees.delete");
+  if (denied) return denied;
+
   const { studio, employeesSection } = ctx;
   const people = await listCollaborators(studio.id);
   const held = people.filter((c) => (c.certificationIds || []).includes(id)).length;
@@ -304,6 +341,10 @@ export async function listEmployees({ studio, employeesSection }, reveal = false
 
 // Write the HR fields onto someone's studio-local row. Manage-only.
 export async function saveEmployment(ctx, collaboratorId, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.employees.edit");
+  if (denied) return denied;
+
   const { studio, employeesSection } = ctx;
   const person = await getCollaborator(studio.id, collaboratorId);
   if (!person) return { error: "notfound" };
@@ -390,6 +431,10 @@ export async function listVacations({ studio, section }, { canManage, meId }) {
 // Anyone who can open HR may request their OWN leave; only a manager may file
 // it for someone else.
 export async function requestVacation(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.vacations.create");
+  if (denied) return denied;
+
   const { studio, section, collaborator, canManage } = ctx;
   const target = str(body?.collaboratorId, 60) || collaborator.id;
   if (target !== collaborator.id && !canManage) return { error: "forbidden" };
@@ -426,6 +471,11 @@ export async function requestVacation(ctx, body) {
 }
 
 export async function decideVacation(ctx, id, decision) {
+  // Approving somebody's leave is its own power, not a bigger edit — which is
+  // why the catalogue gives it a key rather than folding it into hr.vacations.
+  const denied = requirePermission(ctx.access, "hr.vacations.approve");
+  if (denied) return denied;
+
   const { studio, section, collaborator, canManage } = ctx;
   const rows = await readCol(studio.id, section.id, VACATIONS);
   const row = rows.find((v) => v.id === id);
@@ -447,6 +497,10 @@ export async function decideVacation(ctx, id, decision) {
 }
 
 export async function removeVacation(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "hr.vacations.edit");
+  if (denied) return denied;
+
   const removed = await deleteRow(ctx.studio.id, ctx.section.id, VACATIONS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }

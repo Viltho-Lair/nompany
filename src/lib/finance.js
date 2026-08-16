@@ -15,6 +15,7 @@
 // plus expenses booked here. Nothing is copied into Finance and left to rot —
 // it is recomputed on every read.
 
+import { requirePermission } from "@/lib/access";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -87,6 +88,10 @@ export function readCashCategories(settingsSection) {
 }
 
 export async function saveFinanceSettings(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "finance.settings.edit");
+  if (denied) return denied;
+
   const { studio, settingsSection } = ctx;
   const next = { ...(settingsSection.settings || {}) };
   if (body?.cashCategories !== undefined) {
@@ -152,6 +157,10 @@ export async function listInvoices({ studio, cashSection }) {
 }
 
 export async function createInvoice(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "finance.cash.create");
+  if (denied) return denied;
+
   const { studio, cashSection, collaborator } = ctx;
   const projectId = str(body?.projectId, 60);
   let clientName = str(body?.clientName, 160);
@@ -188,6 +197,10 @@ export async function createInvoice(ctx, body) {
 }
 
 export async function editInvoice(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  if (denied) return denied;
+
   const { studio, cashSection } = ctx;
   const invoices = await readCol(studio.id, cashSection.id, INVOICES);
   const current = invoices.find((i) => i.id === id);
@@ -236,6 +249,10 @@ export async function editInvoice(ctx, id, body) {
 // Recording a payment is append-only: the history of what was received, and
 // when, is what makes the balance defensible.
 export async function recordPayment(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  if (denied) return denied;
+
   const { studio, cashSection, collaborator } = ctx;
   const invoices = await readCol(studio.id, cashSection.id, INVOICES);
   const invoice = invoices.find((i) => i.id === id);
@@ -266,6 +283,10 @@ export async function recordPayment(ctx, id, body) {
 
 // Only a draft can be deleted. Once issued it is part of the record — cancel it.
 export async function removeInvoice(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "finance.cash.delete");
+  if (denied) return denied;
+
   const { studio, cashSection } = ctx;
   const invoices = await readCol(studio.id, cashSection.id, INVOICES);
   const invoice = invoices.find((i) => i.id === id);
@@ -296,6 +317,10 @@ export async function listExpenses({ studio, cashSection }) {
 }
 
 export async function createExpense(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "finance.cash.create");
+  if (denied) return denied;
+
   const { studio, cashSection, collaborator } = ctx;
   const amount = cash(body?.amount);
   if (!amount) return { error: "amount" };
@@ -323,6 +348,10 @@ export async function createExpense(ctx, body) {
 }
 
 export async function editExpense(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  if (denied) return denied;
+
   const { studio, cashSection } = ctx;
   const patch = {};
   if (body?.amount !== undefined) { const v = cash(body.amount); if (!v) return { error: "amount" }; patch.amount = v; }
@@ -345,6 +374,10 @@ export async function editExpense(ctx, id, body) {
 }
 
 export async function removeExpense(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "finance.cash.delete");
+  if (denied) return denied;
+
   const removed = await deleteRow(ctx.studio.id, ctx.cashSection.id, EXPENSES, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
@@ -433,6 +466,10 @@ export async function billableProjects(ctx) {
 // screen never offers them. Nothing else on the project can be touched from
 // this route: a Finance grant is not a licence to rename somebody's project.
 export async function setCommercials(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "finance.cash.edit");
+  if (denied) return denied;
+
   const { studio } = ctx;
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return { error: "no-projects" };

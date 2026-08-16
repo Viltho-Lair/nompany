@@ -11,7 +11,7 @@ const load = (path, names) => {
 };
 
 const P = load("src/lib/permissions.js",
-  ["AREAS", "ALL_PERMISSIONS", "isPermission", "levelOf", "keysForLevel", "cleanPermissions", "LEVELS"]);
+  ["AREAS", "ALL_PERMISSIONS", "isPermission", "levelOf", "levelsFor", "keysForLevel", "cleanPermissions", "LEVELS"]);
 
 // access.js imports from permissions.js, so stitch them together.
 const accessSrc = fs.readFileSync("src/lib/access.js", "utf8")
@@ -39,11 +39,16 @@ ok("cleanPermissions drops junk",
     === JSON.stringify(["sales.tickets.view"]));
 
 console.log("\n== the ladder");
-const tickets = P.AREAS.find((a) => a.key === "sales.tickets");
-for (const lvl of P.LEVELS) {
-  const keys = P.keysForLevel(tickets, lvl);
-  const back = P.levelOf(tickets, new Set(keys));
-  ok(`${lvl.padEnd(5)} -> ${keys.length} keys -> reads back as ${back}`, back === lvl);
+// Tickets have no delete, so their ladder is none/view/edit — three rungs, not
+// four. Clients have all four. Both must round-trip.
+for (const areaKey of ["sales.tickets", "sales.clients"]) {
+  const area = P.AREAS.find((a) => a.key === areaKey);
+  console.log(`  ${areaKey}: ${P.levelsFor(area).join(" / ")}`);
+  for (const lvl of P.levelsFor(area)) {
+    const keys = P.keysForLevel(area, lvl);
+    const back = P.levelOf(area, new Set(keys));
+    ok(`  ${areaKey} ${lvl.padEnd(5)} -> ${keys.length} keys -> ${back}`, back === lvl);
+  }
 }
 
 console.log("\n== resolution");
@@ -60,7 +65,7 @@ ok("admin role is a wildcard", res({ roleIds: ["role_admin"] }).size === P.ALL_P
 
 const eng = res({ roleIds: ["r_eng"] });
 ok("engineer can edit tickets", A.can(eng, "sales.tickets.edit"));
-ok("engineer CANNOT delete tickets", !A.can(eng, "sales.tickets.delete"));
+ok("engineer CANNOT delete clients", !A.can(eng, "sales.clients.delete"));
 ok("engineer CANNOT touch clients", !A.can(eng, "sales.clients.view"));
 ok("no parent leak into siblings", !A.can(eng, "sales.settings.edit"));
 
@@ -72,8 +77,8 @@ const withOv = res({ roleIds: ["r_eng"], overrides: { allow: ["finance.cash.view
 ok("override adds", A.can(withOv, "finance.cash.view"));
 ok("override removes", !A.can(withOv, "sales.tickets.edit"));
 ok("deny beats allow on the same key",
-  !A.can(res({ roleIds: ["r_eng"], overrides: { allow: ["sales.tickets.delete"], deny: ["sales.tickets.delete"] } }),
-    "sales.tickets.delete"));
+  !A.can(res({ roleIds: ["r_eng"], overrides: { allow: ["sales.clients.delete"], deny: ["sales.clients.delete"] } }),
+    "sales.clients.delete"));
 
 console.log("\n== scope");
 ok("scoped area reads its role's scope", A.scopeFor({ collaborator: { roleIds: ["r_hr"] }, roles }, "hr.employees") === "department");
@@ -89,7 +94,7 @@ const g = (sectionId, action, effect = "allow") =>
 const legacy = (grants) => A.effectivePermissions({ studio: {}, collaborator: { id: "c1" }, roles: [], sections, grants });
 
 const l1 = legacy([g("s2", "view"), g("s2", "manage")]);
-ok("manage on tickets -> full on tickets", A.can(l1, "sales.tickets.delete"));
+ok("manage on tickets -> edit on tickets", A.can(l1, "sales.tickets.edit"));
 ok("...and nothing on clients", !A.can(l1, "sales.clients.view"));
 
 const l2 = legacy([g("s1", "view"), g("s1", "manage")]);
@@ -99,7 +104,7 @@ const l3 = legacy([g("s2", "manage")]);
 ok("manage without view still grants nothing", !A.can(l3, "sales.tickets.view"));
 
 const l4 = legacy([g("s2", "view"), g("s2", "manage"), g("s2", "manage", "deny")]);
-ok("deny still wins", A.can(l4, "sales.tickets.view") && !A.can(l4, "sales.tickets.delete"));
+ok("deny still wins", A.can(l4, "sales.tickets.view") && !A.can(l4, "sales.tickets.edit"));
 
 const l5 = A.effectivePermissions({
   studio: {}, collaborator: { id: "c1", roleIds: ["r_eng"] }, roles,
@@ -109,7 +114,7 @@ ok("once a role is assigned, grants are ignored", !A.can(l5, "sales.clients.view
 
 console.log("\n== enforcement");
 ok("requirePermission passes when held", A.requirePermission(eng, "sales.tickets.edit") === null);
-ok("...refuses when not", A.requirePermission(eng, "sales.tickets.delete")?.error === "forbidden");
+ok("...refuses when not", A.requirePermission(eng, "sales.clients.delete")?.error === "forbidden");
 ok("...catches a typo'd key", A.requirePermission(eng, "sales.tickets.remove")?.error === "unknown-permission");
 
 
@@ -126,8 +131,35 @@ ok("engineer may NOT touch settings", guard(viewer, "sales.settings.edit") === "
 ok("a mistyped key fails loudly, not silently",
   guard(viewer, "sales.tickets.destroy") === "refused (unknown-permission)");
 ok("owner passes every guard",
-  ["sales.tickets.delete", "hr.employees.salary", "finance.cash.delete"]
+  ["sales.clients.delete", "hr.employees.salary", "finance.cash.delete"]
     .every((k) => guard(res({ role: "owner" }), k) === "allowed"));
+
+
+// ---------------------------------------------------------------------------
+// COVERAGE AUDIT. The point of a declared catalogue is that you can check it
+// against reality: a key nobody enforces is a right nobody can exercise, and a
+// key enforced but undeclared is a typo waiting to deny someone silently.
+//
+// This is not a pass/fail gate — a few areas are genuinely still to be wired,
+// and failing the suite for known work would only teach people to skip it. It
+// prints, so the gap stays visible instead of being forgotten.
+console.log("\n== enforcement coverage");
+{
+  const SERVICES = ["sales", "technical", "inventory", "finance", "operations", "projects", "hr"];
+  const enforced = new Set();
+  for (const f of SERVICES) {
+    const src = fs.readFileSync(`src/lib/${f}.js`, "utf8");
+    for (const m of src.matchAll(/requirePermission\(ctx\.access, "([^"]+)"\)/g)) enforced.add(m[1]);
+  }
+  const undeclared = [...enforced].filter((k) => !P.isPermission(k));
+  ok("every enforced key is declared", undeclared.length === 0, undeclared.join(", "));
+
+  const writes = P.ALL_PERMISSIONS.filter((k) => /\.(create|edit|delete|convert|lock|approve)$/.test(k));
+  const gaps = writes.filter((k) => !enforced.has(k));
+  console.log(`  ${enforced.size} keys enforced across ${SERVICES.length} services`);
+  console.log(`  ${writes.length - gaps.length}/${writes.length} write permissions reach a guard`);
+  if (gaps.length) console.log(`  still unguarded: ${gaps.join(", ")}`);
+}
 
 console.log(fails ? `\n${fails} FAILURES\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

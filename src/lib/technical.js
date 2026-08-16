@@ -11,6 +11,7 @@
 //   • raising an RFQ is a SALES act on their ticket   -> needs Sales:manage
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
+import { requirePermission } from "@/lib/access";
 import { nextUniqueRef } from "@/lib/sales";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
@@ -98,6 +99,10 @@ export function readTechnicalSettings(settingsSection) {
 }
 
 export async function saveTechnicalSettings(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "technical.settings.edit");
+  if (denied) return denied;
+
   const { studio, settingsSection } = ctx;
   const next = { ...(settingsSection.settings || {}) };
   if (body?.liveColumns !== undefined) next.liveColumns = cleanQuotationLiveColumns(body.liveColumns);
@@ -148,6 +153,10 @@ function uniqueRfqReference(rows, base) {
 }
 
 export async function requestRfq(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "technical.rfq.create");
+  if (denied) return denied;
+
   const { studio, rfqSection, salesSection, salesTicketsSection, salesClientsSection, collaborator, canManageSales } = ctx;
   if (!canManageSales) return { error: "sales-required" };
   if (!salesSection) return { error: "no-sales" };
@@ -201,6 +210,10 @@ export async function requestRfq(ctx, body) {
 }
 
 export async function updateRfq(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "technical.rfq.edit");
+  if (denied) return denied;
+
   const { studio, rfqSection } = ctx;
   const patch = {};
   if (body?.status !== undefined) {
@@ -248,6 +261,10 @@ export async function listQuotations({ studio, quotationsSection }) {
 // is marked Internal — `lead` is what an RFQ conversion overwrites with the
 // source ticket.
 export async function createQuotation(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "technical.quotations.create");
+  if (denied) return denied;
+
   const { studio, quotationsSection, collaborator } = ctx;
   const number = str(body?.number, 60);
   const description = str(body?.description, 2000);
@@ -291,6 +308,10 @@ export async function createQuotation(ctx, body) {
 }
 
 export async function convertRfq(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "technical.rfq.convert");
+  if (denied) return denied;
+
   const { studio, rfqSection, quotationsSection, settingsSection, collaborator } = ctx;
   const rfqId = str(body?.rfqId, 60);
   const rfqs = await readCol(studio.id, rfqSection.id, RFQS);
@@ -353,6 +374,10 @@ export async function convertRfq(ctx, body) {
 }
 
 export async function updateQuotation(ctx, id, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "technical.quotations.edit");
+  if (denied) return denied;
+
   const { studio, quotationsSection, collaborator } = ctx;
   const rows = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
   const current = rows.find((q) => q.id === id);
@@ -361,6 +386,14 @@ export async function updateQuotation(ctx, id, body) {
   // given. Nothing about it may change again, including the lock itself, so the
   // refusal comes before any field is read.
   if (current.locked) return { error: "locked" };
+
+  // LOCKING is separately granted. It makes a quotation permanently
+  // unchangeable, which is a different act from editing one, and the catalogue
+  // declared it separately so it could be withheld from people who may edit.
+  if (body?.locked === true) {
+    const noLock = requirePermission(ctx.access, "technical.quotations.lock");
+    if (noLock) return noLock;
+  }
 
   const patch = {};
   if (body?.title !== undefined) patch.title = str(body.title, 200);
@@ -424,6 +457,10 @@ export async function updateQuotation(ctx, id, body) {
 }
 
 export async function removeQuotation(ctx, id) {
+  // Guarded before anything is read or written — see lib/access.js.
+  const denied = requirePermission(ctx.access, "technical.quotations.delete");
+  if (denied) return denied;
+
   const removed = await deleteRow(ctx.studio.id, ctx.quotationsSection.id, QUOTATIONS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
