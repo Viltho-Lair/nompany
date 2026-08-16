@@ -17,7 +17,7 @@
 // viewer who can *manage* HR. Everyone else sees that a document is on file and
 // when it expires — never the number.
 
-import { requirePermission, scopeFor } from "@/lib/access";
+import { requirePermission, scopeFor, can } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
@@ -309,16 +309,30 @@ export async function removeCertification(ctx, id) {
 // `reveal` decrypts the ID/passport numbers, and is only ever passed true for a
 // viewer who can manage HR. The shape is otherwise identical either way, so the
 // screen never has to branch on permission to render a row.
-export async function listEmployees({ studio, employeesSection }, reveal = false) {
+export async function listEmployees(ctx, meId = "") {
+  const { studio, employeesSection } = ctx;
   const [people, departments, positions] = await Promise.all([
     listCollaborators(studio.id),
     readCol(studio.id, employeesSection.id, DEPARTMENTS),
     readCol(studio.id, employeesSection.id, POSITIONS),
   ]);
+
+  // TWO SEPARATE QUESTIONS, and they used to be one boolean.
+  //
+  // WHOSE records you may read is scope. WHETHER identity numbers are legible
+  // is its own permission — someone may legitimately administer a whole
+  // department's records without being entitled to read passport numbers, and
+  // `canManage` could not express that.
+  const scope = scopeFor(ctx, "hr.employees");
+  const reveal = can(ctx.access, "hr.employees.salary");
+  const me = people.find((c) => c.id === meId);
+  const inScope = (c) => scope === "all"
+    || c.id === meId
+    || (scope === "department" && Boolean(me?.departmentId) && c.departmentId === me.departmentId);
   const depName = Object.fromEntries(departments.map((d) => [d.id, d.name]));
   const posTitle = Object.fromEntries(positions.map((p) => [p.id, p.title]));
 
-  return people.map((c) => ({
+  return people.filter(inScope).map((c) => ({
     id: c.id,
     alias: c.alias || "Unnamed",
     role: c.role,
