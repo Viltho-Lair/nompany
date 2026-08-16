@@ -174,6 +174,12 @@ export async function requestRfq(ctx, body) {
   const { studio, rfqSection, quotationsSection, salesSection, salesTicketsSection, salesClientsSection, collaborator, canManageSales } = ctx;
   if (!canManageSales) return { error: "sales-required" };
   if (!salesSection) return { error: "no-sales" };
+  // Every section this reads, checked before it reads any of them. A caller that
+  // arrives without one has a context built wrong, and saying so is worth more
+  // than a TypeError on `.id` three lines down that reaches the screen as a 500
+  // with nothing in it to read.
+  if (!salesTicketsSection || !salesClientsSection) return { error: "no-sales" };
+  if (!rfqSection || !quotationsSection) return { error: "no-technical" };
 
   const ticketId = str(body?.ticketId, 60);
   const [tickets, clients, existing, quotations] = await Promise.all([

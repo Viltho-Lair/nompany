@@ -541,14 +541,17 @@ export async function ticketQuotation({ studio, ticketsSection, quotationsSectio
 // record, so the permission checked is Sales:manage — the same call from the
 // Technical screen goes through technicalContext and lands in the same place.
 export async function requestTicketRfq(ctx, body) {
-  const { studio, collaborator, access, roles, section, ticketsSection, clientsSection, rfqSection } = ctx;
+  const { section, ticketsSection, clientsSection, rfqSection } = ctx;
   if (!rfqSection) return { error: "no-technical" };
+  // THE WHOLE CONTEXT TRAVELS. Picking fields out by hand is what broke this
+  // twice: once when the guard moved into requestRfq and `access` was not on the
+  // list, and again when requestRfq began reading quotations and
+  // `quotationsSection` was not either. Both were silent here and a refusal or a
+  // 500 over there. Spreading means anything requestRfq reaches for next is
+  // already in its hand; only the three Sales sections need naming, because
+  // Technical calls them something else.
   return requestRfq({
-    studio, collaborator, rfqSection,
-    // `access` TRAVELS. requestRfq guards itself before it writes, and a context
-    // handed over without the permission set answers "forbidden" to everybody,
-    // owners included — which is what this call used to do.
-    access, roles,
+    ...ctx,
     viaSales: true, // which door this came through: see requestRfq's guard
     salesSection: section,
     salesTicketsSection: ticketsSection,
