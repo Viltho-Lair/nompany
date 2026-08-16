@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   PLANS,
@@ -148,39 +148,12 @@ export function PricingView({ onNavigate, locale = "en" }) {
         transition={{ duration: 0.5, delay: 0.15, ease: EASE_OUT_EXPO }}
         className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
       >
-        {/* THE WHOLE PILL IS THE CONTROL. The select used to be a small inline
-            element inside the label, so only the three letters of the code
-            opened it — the word "Currency" and the chevron did nothing. It now
-            lies invisibly across the entire pill, which also keeps the NATIVE
-            dropdown, and a native one is what makes a list this long usable on
-            a phone. */}
-        <label className="relative inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-ink-soft/70 px-4 py-2 focus-within:border-fg-dim">
-          <span className="text-[0.7rem] uppercase tracking-[0.16em] text-fg-dim">{COPY.currency}</span>
-          <span className="font-display text-sm font-600 text-fg">{currency}</span>
-          <select
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            aria-label={COPY.currency}
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          >
-            {currencyOptions.map((cur) => (
-              <option key={cur.code} value={cur.code} className="bg-ink-soft text-fg">
-                {cur.code} — {cur.name}
-              </option>
-            ))}
-          </select>
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
-            <path
-              d="M4 6.5 8 10.5l4-4"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-fg-dim"
-            />
-          </svg>
-        </label>
-
+        <CurrencyPicker
+          value={currency}
+          options={currencyOptions}
+          onChange={setCurrency}
+          label={COPY.currency}
+        />
         <div className="flex items-center gap-1 rounded-full border border-line bg-ink-soft/70 p-1">
           {[
             { id: "monthly", label: COPY.monthly },
@@ -439,5 +412,121 @@ export function PricingView({ onNavigate, locale = "en" }) {
         </MagneticButton>
       </motion.div>
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------
+   Currency picker — the page's own control, not the browser's.
+
+   A native <select> was the honest first answer: it is accessible for
+   free and a phone renders it well. But it also renders as the operating
+   system's list, which on this page sat inside a dark, thin-bordered,
+   display-typeface layout and looked like something from another site.
+
+   So this is built: the same pill, a panel in the same ink and line
+   colours, and a search box — because the list is over a hundred rows
+   and scrolling to JOD is not a design. Searching matches code, name or
+   country, since somebody hunting the riyal may know any of the three.
+
+   Keyboard and screen readers are handled rather than assumed: it is a
+   combobox with a listbox, Escape closes, arrows move, Enter picks, and
+   a click anywhere outside dismisses it.
+   ------------------------------------------------------------------ */
+function CurrencyPicker({ value, options, onChange, label }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState(0);
+  const boxRef = useRef(null);
+  const searchRef = useRef(null);
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter(
+      (c) => c.code.toLowerCase().includes(q)
+        || c.name.toLowerCase().includes(q)
+        || (c.country || "").toLowerCase().includes(q),
+    );
+  }, [options, query]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    // The search takes focus on open, so typing works without aiming at it.
+    searchRef.current?.focus();
+    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  useEffect(() => { setActive(0); }, [query]);
+
+  const choose = (code) => { onChange(code); setOpen(false); setQuery(""); };
+
+  const onKeyDown = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, results.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter" && results[active]) { e.preventDefault(); choose(results[active].code); }
+  };
+
+  return (
+    <div className="relative" ref={boxRef}>
+      {/* THE WHOLE PILL IS THE CONTROL. The old select was a small inline
+          element inside its label, so only the three letters of the code
+          opened it — the word "Currency" and the chevron did nothing. */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={label}
+        className="inline-flex w-full items-center gap-2 rounded-full border border-line bg-ink-soft/70 px-4 py-2 transition-colors hover:border-fg-dim/60 sm:w-auto"
+      >
+        <span className="text-[0.7rem] uppercase tracking-[0.16em] text-fg-dim">{label}</span>
+        <span className="font-display text-sm font-600 text-fg">{value}</span>
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden
+          className={`ms-auto text-fg-dim transition-transform ${open ? "rotate-180" : ""}`}>
+          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 z-50 mt-2 w-[min(20rem,calc(100vw-3rem))] overflow-hidden rounded-2xl border border-line bg-ink-soft shadow-2xl">
+          <div className="border-b border-line p-2">
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Search code, name or country"
+              aria-label="Search currencies"
+              className="w-full rounded-xl bg-ink/60 px-3 py-2 text-sm text-fg placeholder:text-fg-dim/70 focus:outline-none focus:ring-1 focus:ring-fg-dim/40"
+            />
+          </div>
+          <ul role="listbox" aria-label={label} className="max-h-64 overflow-y-auto py-1">
+            {results.length === 0 && (
+              <li className="px-3 py-6 text-center text-sm text-fg-dim">Nothing matches that.</li>
+            )}
+            {results.map((c, i) => (
+              <li key={c.code} role="option" aria-selected={c.code === value}>
+                <button
+                  type="button"
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => choose(c.code)}
+                  className={`flex w-full items-center gap-3 px-3 py-2 text-start transition-colors ${
+                    i === active ? "bg-fg/10" : ""
+                  }`}
+                >
+                  <span className={`w-11 shrink-0 font-display text-sm font-600 ${c.code === value ? "text-fg" : "text-fg-dim"}`}>{c.code}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg-dim">{c.name}</span>
+                  {c.code === value && <span className="text-xs text-fg">Selected</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

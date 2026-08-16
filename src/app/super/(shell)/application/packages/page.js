@@ -14,14 +14,16 @@ const FIELDS = [
   // The price is decided PER HEAD; the total follows from it and the band's
   // upper bound, so the total is shown rather than asked for.
   { key: "costPerEmployee", label: "Cost per employee", type: "number", prefix: "SAR ", hint: "Per user, per month." },
+  // The formula is DECLARED, not written as a function: this page is a server
+  // component and CatalogEditor is a client one, so anything that crosses is
+  // serialised — a function cannot make the trip.
   {
     key: "cost", label: "Total cost", type: "computed", prefix: "SAR ",
+    multiply: ["costPerEmployee", "maxEmployees"],
+    // With no upper limit there is nothing to multiply by, so the per-head rate
+    // stands alone rather than the total collapsing to zero.
+    whenZero: "costPerEmployee",
     hint: "Cost per employee x max employees. With no upper limit, the per-employee rate stands alone.",
-    compute: (d) => {
-      const per = Number(d.costPerEmployee) || 0;
-      const max = Number(d.maxEmployees) || 0;
-      return `SAR ${(max > 0 ? per * max : per).toLocaleString()}`;
-    },
   },
   { key: "durationMonths", label: "Duration (months)", type: "number", suffix: " mo", zeroLabel: "Endless", hint: "0 means endless — the package never expires." },
   { key: "supportTicketsPerMonth", label: "Support tickets / month", type: "number", zeroLabel: "Unlimited", hint: "0 means unlimited." },

@@ -132,7 +132,7 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
                     // total that disagrees with the rate it comes from.
                     <p className="rounded-md border border-dashed px-3 py-2 text-sm font-medium"
                       style={{ borderColor: "var(--ad-border)", color: "var(--ad-muted-foreground)" }}>
-                      {f.compute(draft)}
+                      {f.prefix || ""}{computeField(f, draft).toLocaleString()}{f.suffix || ""}
                     </p>
                   ) : (
                     <input
@@ -157,6 +157,21 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
       )}
     </>
   );
+}
+
+// A computed field's formula travels as DATA — field names and an operation —
+// because it is declared in a server component and read in a client one, and a
+// function cannot cross that boundary.
+function computeField(f, row) {
+  const n = (k) => Number(row?.[k]) || 0;
+  if (Array.isArray(f.multiply)) {
+    const parts = f.multiply.map(n);
+    // A zero anywhere means the product is meaningless rather than zero — for
+    // "no upper limit" the named fallback field is the answer.
+    if (parts.some((v) => v === 0) && f.whenZero) return n(f.whenZero);
+    return parts.reduce((a, b) => a * b, 1);
+  }
+  return n(f.key);
 }
 
 function render(f, it, services) {
