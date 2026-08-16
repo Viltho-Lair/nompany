@@ -83,7 +83,14 @@ export async function runMigration(studioId) {
   }
   for (const row of plan) {
     if (row.action !== "assign") continue;
-    await updateCollaborator(studioId, row.id, { roleIds: [row.roleId] });
+    // Clearing isAdmin is what actually RETIRES the flag. Assigning the Admin
+    // role while leaving it set would keep the resolver's bypass alive and make
+    // the role decorative — the person would still be all-powerful for a reason
+    // no role could describe.
+    await updateCollaborator(studioId, row.id, {
+      roleIds: [row.roleId],
+      ...(row.roleId === ADMIN_ROLE_ID ? { isAdmin: false, role: "member" } : {}),
+    });
   }
 
   // The grants are LEFT IN PLACE. They stop being consulted the moment someone

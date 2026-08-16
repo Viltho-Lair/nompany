@@ -1,6 +1,6 @@
 import { readArr, editArr } from "@/lib/data/store";
 import { S, ID } from "@/lib/data/keys";
-import { cleanPermissions, keysForLevel, AREAS, SCOPES } from "@/lib/permissions";
+import { cleanPermissions, keysForLevel, AREAS, SCOPES, ADMIN_ROLE_ID } from "@/lib/permissions";
 
 // ROLES — named bundles of permissions, defined per studio.
 //
@@ -19,7 +19,11 @@ import { cleanPermissions, keysForLevel, AREAS, SCOPES } from "@/lib/permissions
 // meaning "everything" as the product grows, or admins silently stop being
 // admins each time a feature ships. Every other role is an explicit list, which
 // is why a new permission reaches nobody until somebody says so.
-export const ADMIN_ROLE_ID = "role_admin";
+//
+// Defined in lib/permissions.js and re-exported here, so server code can keep
+// importing it from the module it belongs to while the browser gets it without
+// the store.
+export { ADMIN_ROLE_ID };
 
 const str = (v, max) => String(v ?? "").trim().slice(0, max);
 

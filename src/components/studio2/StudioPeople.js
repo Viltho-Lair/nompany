@@ -199,6 +199,9 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
   // decision — and assigning access should be the quick half of this job.
   const [roleId, setRoleId] = useState((person.roleIds || [])[0] || "");
   const held = roles.find((r) => r.id === (person.roleIds || [])[0]);
+  // Either the old flag or the new role — both mean the same thing while the
+  // legacy bridge stands, and the row must not call one of them something else.
+  const isAdminNow = Boolean(person.isAdmin) || (person.roleIds || []).includes(ADMIN_ROLE_ID);
   const isOwner = person.role === "owner";
 
   if (editing) {
@@ -246,7 +249,7 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
             {person.alias || "Unnamed member"} {isMe && <span className="text-xs font-400 text-slate-400">(you)</span>}
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {isOwner ? "Owner" : person.isAdmin ? "Admin" : held ? held.name : "No role"}
+            {isOwner ? "Owner" : isAdminNow ? "Admin" : held ? held.name : "No role"}
             {person.overrideCount > 0 && (
               <span className="ms-1.5 text-amber-700 dark:text-amber-300">
                 +{person.overrideCount} exception{person.overrideCount === 1 ? "" : "s"}
@@ -262,9 +265,15 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
           <button
             className={btnGhost}
             disabled={busy}
-            onClick={() => onSave(person, { isAdmin: !person.isAdmin, role: person.isAdmin ? "member" : "admin" })}
+            /* Admin is a ROLE now, not a flag. Setting the flag made somebody
+               all-powerful in a way no role could describe or constrain; giving
+               them the Admin role says the same thing in the same language as
+               every other grant, and can be taken back the same way. */
+            onClick={() => onSave(person, isAdminNow
+              ? { isAdmin: false, role: "member", roleIds: [] }
+              : { isAdmin: false, role: "member", roleIds: [ADMIN_ROLE_ID] })}
           >
-            {person.isAdmin ? "Make member" : "Make admin"}
+            {isAdminNow ? "Make member" : "Make admin"}
           </button>
           <button className={btnDanger} disabled={busy} onClick={() => onRemove(person)}>Remove</button>
         </div>

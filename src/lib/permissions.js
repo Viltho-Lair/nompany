@@ -27,6 +27,11 @@ export const LEVEL_VERBS = {
 // Everywhere else, asking would teach people to stop reading the control.
 export const SCOPES = ["own", "department", "all"];
 
+// The one wildcard role's id. It lives HERE rather than in data/roles.js so a
+// client component can name it without dragging the Redis-backed store into the
+// browser bundle.
+export const ADMIN_ROLE_ID = "role_admin";
+
 // One row per protected area. `verbs` are the ladder rungs this area supports;
 // `extra` are powers that do NOT nest inside the ladder and therefore have to be
 // granted deliberately — converting an RFQ is not "a bigger edit".
