@@ -100,6 +100,7 @@ export default function StudioRoles({ slug }) {
       {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
 
       {canEdit && people.length > 0 && <WhyPanel slug={slug} people={people} areas={areas} />}
+      <MigratePanel slug={slug} onDone={load} />
 
       {roles.length === 0 ? (
         <Empty title="No roles yet" body="Studios start with a few; if yours has none, create one." />
@@ -389,6 +390,74 @@ function WhyPanel({ slug, people, areas }) {
           <span className="font-700">{answer.allowed ? "Allowed. " : "Denied. "}</span>
           {answer.reason}
         </p>
+      )}
+    </div>
+  );
+}
+
+// Carrying a studio off the old section grants and onto roles.
+//
+// Shown to the owner only, and only while there is anything to carry — once
+// everybody holds a role this disappears rather than sitting there inviting a
+// second run.
+function MigratePanel({ slug, onDone }) {
+  const [plan, setPlan] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState("");
+
+  useEffect(() => {
+    // A 403 here just means "not the owner", which is not an error worth
+    // showing — the panel simply does not appear.
+    fetch(`/api/studios/${slug}/migrate-access`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setPlan)
+      .catch(() => {});
+  }, [slug]);
+
+  if (!plan) return null;
+  const todo = (plan.plan || []).filter((r) => r.action === "assign" || r.action === "create");
+  if (!todo.length && !done) return null;
+
+  async function run() {
+    setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/migrate-access`, { method: "POST" });
+    setBusy(false);
+    if (!res.ok) { setDone("That didn't work."); return; }
+    const out = await res.json();
+    setDone(`Done — ${out.assigned} people given a role, ${out.created} role${out.created === 1 ? "" : "s"} created.`);
+    setPlan(null);
+    onDone?.();
+  }
+
+  return (
+    <div className="mt-5 rounded-geex border border-amber-500/30 bg-amber-500/5 p-4">
+      <p className="text-sm font-600 text-slate-800 dark:text-slate-100">Move this studio onto roles</p>
+      {done ? (
+        <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{done}</p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            {todo.length} {todo.length === 1 ? "person is" : "people are"} still on the old
+            section grants. This gives each of them a role holding exactly what they can do
+            today — nobody gains anything.
+          </p>
+          <ul className="mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
+            {todo.slice(0, 8).map((r) => (
+              <li key={r.id}>
+                <span className="font-600">{r.alias || "Unnamed"}</span>
+                {r.action === "assign" ? ` → ${r.roleName}` : ` → new role “${r.roleName}”`}
+              </li>
+            ))}
+            {todo.length > 8 && <li className="text-slate-400">and {todo.length - 8} more…</li>}
+          </ul>
+          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            The old grants are left in place. They stop being consulted the moment somebody
+            holds a role, so clearing a role puts that person back exactly as they were.
+          </p>
+          <button className={`${btn} mt-3`} disabled={busy} onClick={run}>
+            {busy ? "Moving…" : `Move ${todo.length} ${todo.length === 1 ? "person" : "people"}`}
+          </button>
+        </>
       )}
     </div>
   );
