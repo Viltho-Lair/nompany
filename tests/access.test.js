@@ -19,7 +19,7 @@ const accessSrc = fs.readFileSync("src/lib/access.js", "utf8")
   .replace(/export (const|function)/g, "$1");
 const A = {};
 new Function("m", "ALL_PERMISSIONS", "isPermission", "AREAS", "keysForLevel",
-  `${accessSrc}; Object.assign(m, { effectivePermissions, permissionsFromGrants, scopeFor, can, requirePermission, sectionViewable, sectionManageable });`
+  `${accessSrc}; Object.assign(m, { effectivePermissions, permissionsFromGrants, scopeFor, can, requirePermission, sectionViewable, sectionManageable, cleanAssignment, escalates });`
 )(A, P.ALL_PERMISSIONS, P.isPermission, P.AREAS, P.keysForLevel);
 
 let fails = 0;
@@ -154,6 +154,27 @@ console.log("\n== the nav reads the same source as the guards");
   // The whole point of the rewire: one source, so these cannot disagree.
   const canWrite = A.can(only, "sales.tickets.edit");
   ok("nav and guard agree", A.sectionManageable(only, "sales-tickets") === canWrite);
+}
+
+
+console.log("\n== assigning access cannot escalate it");
+{
+  const known = ["role_admin", "r_eng", "r_hr"];
+  const clean = A.cleanAssignment({ roleIds: ["r_eng", "made_up", "r_eng"], overrides: { allow: ["sales.clients.view", "nope"], deny: [] } }, known);
+  ok("unknown role ids dropped", JSON.stringify(clean.roleIds) === JSON.stringify(["r_eng"]));
+  ok("unknown permission keys dropped",
+    JSON.stringify(clean.overrides.allow) === JSON.stringify(["sales.clients.view"]));
+
+  // A Sales Engineer with people.members.edit tries to widen their own access.
+  const actor = res({ roleIds: ["r_eng"], overrides: { allow: ["people.members.edit"] } });
+  ok("cannot grant a permission they lack",
+    A.escalates(actor, { overrides: { allow: ["finance.cash.delete"] } }, roles)?.error === "escalation");
+  ok("cannot hand out the Admin wildcard",
+    A.escalates(actor, { roleIds: ["role_admin"] }, roles)?.error === "escalation");
+  ok("CAN grant what they do hold",
+    A.escalates(actor, { overrides: { allow: ["sales.tickets.edit"] } }, roles) === null);
+  ok("an owner may grant anything",
+    A.escalates(res({ role: "owner" }), { roleIds: ["role_admin"] }, roles) === null);
 }
 
 

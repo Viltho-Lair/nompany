@@ -1,4 +1,4 @@
-import { requirePermission } from "@/lib/access";
+import { requirePermission, cleanAssignment, escalates } from "@/lib/access";
 import { currentUser } from "@/lib/identity";
 import { studioContext, canAdminister, listCollaborators, updateCollaborator } from "@/lib/studios";
 import { cascadeDeleteCollaborator } from "@/lib/data/cascade";
@@ -53,6 +53,16 @@ export async function PUT(request, ctx) {
   let body = {};
   try { body = await request.json(); } catch { body = {}; }
   if (!body.collaboratorId) return Response.json({ error: "missing" }, { status: 400 });
+
+  // ROLE ASSIGNMENT is cleaned, then checked against what the person doing the
+  // assigning actually holds. Editing people is a permission; it is not a
+  // licence to write yourself a role you were never given.
+  const assignment = cleanAssignment(body, (context.roles || []).map((r) => r.id));
+  if (Object.keys(assignment).length) {
+    const bad = escalates(context.access, assignment, context.roles);
+    if (bad) return Response.json(bad, { status: 403 });
+    Object.assign(body, assignment);
+  }
 
   const updated = await updateCollaborator(context.studio.id, body.collaboratorId, body.patch || {});
   if (!updated) return Response.json({ error: "notfound" }, { status: 404 });

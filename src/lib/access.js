@@ -180,3 +180,45 @@ export function sectionViewable(access, sectionKey, allKeys = []) {
 export function sectionManageable(access, sectionKey) {
   return anyKey(access, sectionKey, ["create", "edit", "delete"]);
 }
+
+// ---- assigning access to somebody ------------------------------------------
+
+// What a collaborator row may carry about access, cleaned. updateCollaborator
+// spreads whatever it is handed, so without this an unknown key or a made-up
+// role id would be stored verbatim and read back as real.
+export function cleanAssignment(patch, knownRoleIds = []) {
+  const out = {};
+  if (patch?.roleIds !== undefined) {
+    const known = new Set(knownRoleIds);
+    out.roleIds = [...new Set((Array.isArray(patch.roleIds) ? patch.roleIds : []).map(String))]
+      .filter((id) => known.has(id)).slice(0, 10);
+  }
+  if (patch?.overrides !== undefined) {
+    const ov = patch.overrides || {};
+    const keys = (list) => [...new Set((Array.isArray(list) ? list : []).map(String).filter(isPermission))].slice(0, 60);
+    out.overrides = { allow: keys(ov.allow), deny: keys(ov.deny) };
+  }
+  return out;
+}
+
+// NOBODY MAY HAND OUT WHAT THEY DO NOT HOLD.
+//
+// Editing people is itself a permission, so without this rule anyone with it
+// could write themselves an override for anything in the catalogue — including
+// permissions nobody ever gave them. That is privilege escalation through the
+// front door, and it is the reason assignment needs a check of its own rather
+// than just the people.members.edit guard on the route.
+//
+// An owner or Admin holds everything, so this never obstructs them.
+export function escalates(actorAccess, assignment, roles = []) {
+  const granting = new Set(assignment?.overrides?.allow || []);
+  for (const id of assignment?.roleIds || []) {
+    const role = roles.find((r) => r.id === id);
+    if (!role) continue;
+    // Handing somebody the wildcard is handing them everything.
+    if (role.wildcard) { for (const k of ALL_PERMISSIONS) granting.add(k); continue; }
+    for (const k of role.permissions || []) granting.add(k);
+  }
+  const beyond = [...granting].filter((k) => !actorAccess?.has?.(k));
+  return beyond.length ? { error: "escalation", keys: beyond.slice(0, 5) } : null;
+}
