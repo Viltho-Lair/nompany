@@ -2,7 +2,8 @@ import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { currentUser, needsQuestionnaire } from "@/lib/identity";
-import { studioContext, canAdminister, visibleSections, canManageSection, listGrants, recordStudioVisit } from "@/lib/studios";
+import { studioContext, canAdminister, visibleSections, listGrants, recordStudioVisit } from "@/lib/studios";
+import { sectionManageable } from "@/lib/access";
 import { listSections } from "@/lib/data/sections";
 import { getProfile } from "@/lib/data/users";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
@@ -188,7 +189,7 @@ export default async function StudioPage({ params }) {
         : screenKey === "main" ? <StudioMain slug={studio.slug} />
         : active ? <SectionDashboard section={active} studio={studio}
             subsections={sections.filter((s) => s.parentId === active.id)}
-            canManage={canManageSection(studio, collaborator, active.id, grants)} />
+            canManage={sectionManageable(access, active.key)} />
         : <NothingGranted admin={admin} slug={studio.slug} />}
     </StudioFrame>
   );

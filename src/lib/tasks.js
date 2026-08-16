@@ -16,9 +16,9 @@
 // Progress comes from the checklist, never stored separately, so it cannot
 // drift from the items it counts.
 
-import { requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
+import { studioContext, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
 import {
@@ -51,7 +51,10 @@ export async function tasksContext(user, slug) {
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
   const section = byKey["tasks"];
   if (!section) return { error: "no-section" };
-  if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
+  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
+  // anybody holding a role but no legacy grant — every new hire once roles are
+  // in use — was shown the section in the nav and refused when they opened it.
+  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
 
   // The task list stays on the PARENT — in the Old System the Tasks nav item is
   // the list itself, with Settings as its only sub-item.
@@ -60,8 +63,8 @@ export async function tasksContext(user, slug) {
 
   return {
     studio, collaborator, section, settingsSection, projectsListSection,
-    canManage: canManageSection(studio, collaborator, section.id, grants),
-    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
+    canManage: sectionManageable(access, section.key),
+    canManageSettings: sectionManageable(access, settingsSection.key),
     taskAssignees: readTaskAssignees(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants, access),
   };

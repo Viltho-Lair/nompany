@@ -17,10 +17,10 @@
 // project (stock out). Receiving and issuing never touch quantities directly;
 // they append movements, and the balance follows.
 
-import { requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
 import { isKnownCurrency } from "@/lib/currencies";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
+import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
 
@@ -98,7 +98,10 @@ export async function inventoryContext(user, slug) {
   const section = byKey["inventory"];
   const projects = byKey["projects"];
   if (!section) return { error: "no-section" };
-  if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
+  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
+  // anybody holding a role but no legacy grant — every new hire once roles are
+  // in use — was shown the section in the nav and refused when they opened it.
+  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
 
   // Each collection sits under the sub-section that owns it. `deliveries` stays
   // on the parent: it is raised from several places, not from one screen.
@@ -113,12 +116,12 @@ export async function inventoryContext(user, slug) {
     studio, collaborator, access, roles, section, projectsSection: projects,
     stockSection, vendorsSection, itemsSection, sheetsSection, awbSection, projectsListSection,
     deliveriesSection: section,
-    canManage: canManageSection(studio, collaborator, section.id, grants),
-    canManageStock: canManageSection(studio, collaborator, stockSection.id, grants),
-    canManageVendors: canManageSection(studio, collaborator, vendorsSection.id, grants),
-    canManageItems: canManageSection(studio, collaborator, itemsSection.id, grants),
-    canManageSheets: canManageSection(studio, collaborator, sheetsSection.id, grants),
-    canManageAwb: canManageSection(studio, collaborator, awbSection.id, grants),
+    canManage: sectionManageable(access, section.key),
+    canManageStock: sectionManageable(access, stockSection.key),
+    canManageVendors: sectionManageable(access, vendorsSection.key),
+    canManageItems: sectionManageable(access, itemsSection.key),
+    canManageSheets: sectionManageable(access, sheetsSection.key),
+    canManageAwb: sectionManageable(access, awbSection.key),
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, grants, access),

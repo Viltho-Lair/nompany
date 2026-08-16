@@ -11,7 +11,8 @@
 // stored dashboard that could drift from what the sections actually say.
 
 import { readCol, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, sectionNav, visibleSections } from "@/lib/studios";
+import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
+import { sectionViewable } from "@/lib/access";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { enrichTask, readTaskAssignees } from "@/lib/taskRouting";
 
@@ -32,7 +33,7 @@ export async function mainContext(user, slug) {
   const seen = (key, fallbackKey) => {
     const section = byKey[key] || (fallbackKey ? byKey[fallbackKey] : null);
     if (!section) return null;
-    return canViewSection(studio, collaborator, section.id, grants) ? section : null;
+    return sectionViewable(access, section.key, sections.map((x) => x.key)) ? section : null;
   };
 
   return {

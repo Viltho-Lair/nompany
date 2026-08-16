@@ -14,9 +14,9 @@
 // Permit validity and shift hours are DERIVED from their dates, never stored,
 // so neither can quietly go stale.
 
-import { requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
+import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "@/lib/operationsCalendar";
@@ -51,7 +51,10 @@ export async function operationsContext(user, slug) {
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
   const section = byKey["operations"];
   if (!section) return { error: "no-section" };
-  if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
+  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
+  // anybody holding a role but no legacy grant — every new hire once roles are
+  // in use — was shown the section in the nav and refused when they opened it.
+  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
 
   // locations / permits / shifts stay on the PARENT: they are tabs of one
   // screen, not sub-sections. Tracking and Settings are the real sub-sections.
@@ -62,9 +65,9 @@ export async function operationsContext(user, slug) {
 
   return {
     studio, collaborator, access, roles, section, trackingSection, settingsSection, hrSection, projectsListSection,
-    canManage: canManageSection(studio, collaborator, section.id, grants),
-    canManageTracking: canManageSection(studio, collaborator, trackingSection.id, grants),
-    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
+    canManage: sectionManageable(access, section.key),
+    canManageTracking: sectionManageable(access, trackingSection.key),
+    canManageSettings: sectionManageable(access, settingsSection.key),
     settings: settingsSection.settings || {},
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.

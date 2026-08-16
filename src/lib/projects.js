@@ -8,9 +8,9 @@
 // A project may only be opened from an APPROVED quotation — that approval is the
 // commercial gate, and it lives in Technical/Sales, not here.
 
-import { requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
+import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "@/lib/projectSchedule";
 
@@ -43,7 +43,10 @@ export async function projectsContext(user, slug) {
   const section = byKey["projects"];
   const technical = byKey["technical"];
   if (!section) return { error: "no-section" };
-  if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
+  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
+  // anybody holding a role but no legacy grant — every new hire once roles are
+  // in use — was shown the section in the nav and refused when they opened it.
+  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
 
   // Sub-sections own the collections; the parent is the fallback for a studio
   // predating the model. Quotations still live under Technical.
@@ -59,11 +62,11 @@ export async function projectsContext(user, slug) {
   return {
     studio, collaborator, access, roles, section, technicalSection: technical, hrEmployeesSection,
     listSection, slaSection, overtimesSection, settingsSection, quotationsSection,
-    canManage: canManageSection(studio, collaborator, section.id, grants),
-    canManageList: canManageSection(studio, collaborator, listSection.id, grants),
-    canManageSla: canManageSection(studio, collaborator, slaSection.id, grants),
-    canManageOvertimes: canManageSection(studio, collaborator, overtimesSection.id, grants),
-    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
+    canManage: sectionManageable(access, section.key),
+    canManageList: sectionManageable(access, listSection.key),
+    canManageSla: sectionManageable(access, slaSection.key),
+    canManageOvertimes: sectionManageable(access, overtimesSection.key),
+    canManageSettings: sectionManageable(access, settingsSection.key),
     settings: settingsSection.settings || {},
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.

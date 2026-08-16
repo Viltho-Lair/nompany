@@ -1,5 +1,7 @@
 import { currentUser } from "@/lib/identity";
-import { studioContext, canAdminister, canViewSection } from "@/lib/studios";
+import { studioContext, canAdminister } from "@/lib/studios";
+import { effectivePermissions, sectionViewable } from "@/lib/access";
+import { listRoles } from "@/lib/data/roles";
 import { listSections, listGrants } from "@/lib/data/sections";
 import { readSince, latestId, isCursor, SCOPE, TYPE } from "@/lib/data/events";
 import { subscribe, CH } from "@/lib/data/bus";
@@ -56,10 +58,21 @@ export async function GET(request, ctx) {
   let keyOf = new Map();
 
   async function resolvePermissions(member) {
-    const [sections, grants] = await Promise.all([listSections(studio.id), listGrants(studio.id)]);
+    const [sections, grants, roles] = await Promise.all([
+      listSections(studio.id), listGrants(studio.id), listRoles(studio.id),
+    ]);
     admin = canAdminister(studio, member);
+    // WHICH SECTIONS THIS CONNECTION MAY HEAR ABOUT. Resolved from permissions
+    // like everything else — it read grants until now, so a member holding a
+    // role but no legacy grant received no events at all and their screens
+    // simply stopped updating, silently.
+    //
+    // Re-resolved on every call rather than captured once: the connection lives
+    // for minutes, and access can be changed underneath it.
+    const access = effectivePermissions({ studio, collaborator: member, roles, sections, grants });
+    const keys = sections.map((x) => x.key);
     viewable = new Set(
-      sections.filter((s) => canViewSection(studio, member, s.id, grants)).map((s) => s.id),
+      sections.filter((s) => sectionViewable(access, s.key, keys)).map((s) => s.id),
     );
     // SectionID → key, so the client can match an event to the board it renders
     // without having to know the studio's section ids. Re-read with the rest

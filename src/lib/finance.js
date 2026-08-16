@@ -15,9 +15,9 @@
 // plus expenses booked here. Nothing is copied into Finance and left to rot —
 // it is recomputed on every read.
 
-import { requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
+import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
 
@@ -52,7 +52,10 @@ export async function financeContext(user, slug) {
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
   const section = byKey["finance"];
   if (!section) return { error: "no-section" };
-  if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
+  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
+  // anybody holding a role but no legacy grant — every new hire once roles are
+  // in use — was shown the section in the nav and refused when they opened it.
+  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
 
   // Cash owns the money rows; Settings owns the categories they are filed under.
   const cashSection = byKey["finance-cash"] || section;
@@ -62,9 +65,9 @@ export async function financeContext(user, slug) {
 
   return {
     studio, collaborator, access, roles, section, cashSection, settingsSection, projectsListSection, sheetsSection,
-    canManage: canManageSection(studio, collaborator, section.id, grants),
-    canManageCash: canManageSection(studio, collaborator, cashSection.id, grants),
-    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
+    canManage: sectionManageable(access, section.key),
+    canManageCash: sectionManageable(access, cashSection.key),
+    canManageSettings: sectionManageable(access, settingsSection.key),
     cashCategories: readCashCategories(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.

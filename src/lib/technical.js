@@ -11,10 +11,10 @@
 //   • raising an RFQ is a SALES act on their ticket   -> needs Sales:manage
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
-import { requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
 import { nextUniqueRef } from "@/lib/sales";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
+import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { RFQ_STATUSES } from "@/lib/rfqs";
 import { DEFAULT_STATUS } from "@/lib/tickets";
@@ -52,7 +52,10 @@ export async function technicalContext(user, slug) {
   const sales = byKey["sales"];
   if (!technical) return { error: "no-section" };
 
-  if (!canViewSection(studio, collaborator, technical.id, grants)) return { error: "forbidden" };
+  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
+  // anybody holding a role but no legacy grant — every new hire once roles are
+  // in use — was shown the section in the nav and refused when they opened it.
+  if (!sectionViewable(access, technical.key, sections.map((s) => s.key))) return { error: "forbidden" };
 
   // Sub-sections own the collections; the parent is the fallback for any studio
   // predating the sub-section model. Tickets still live under Sales.
@@ -70,11 +73,11 @@ export async function technicalContext(user, slug) {
     studio, collaborator, access, roles, section: technical, salesSection: sales,
     quotationsSection, rfqSection, settingsSection, salesTicketsSection, salesClientsSection,
     inventoryItemsSection,
-    canManage: canManageSection(studio, collaborator, technical.id, grants),
-    canManageQuotations: canManageSection(studio, collaborator, quotationsSection.id, grants),
-    canManageRfq: canManageSection(studio, collaborator, rfqSection.id, grants),
-    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
-    canManageSales: Boolean(sales) && canManageSection(studio, collaborator, sales.id, grants),
+    canManage: sectionManageable(access, technical.key),
+    canManageQuotations: sectionManageable(access, quotationsSection.key),
+    canManageRfq: sectionManageable(access, rfqSection.key),
+    canManageSettings: sectionManageable(access, settingsSection.key),
+    canManageSales: Boolean(sales) && sectionManageable(access, sales.key),
     ...readTechnicalSettings(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.

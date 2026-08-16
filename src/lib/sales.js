@@ -12,9 +12,9 @@
 // refer to someone's identity *inside this studio*, so nothing leaks across
 // studios and a removed collaborator doesn't drag a user account with them.
 
-import { requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
+import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES,
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "@/lib/tickets";
@@ -113,17 +113,20 @@ export async function salesContext(user, slug) {
 
   // Seeing Sales at all is the parent grant; the per-collection grants are
   // checked against the sub-section that owns each one.
-  if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
+  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
+  // anybody holding a role but no legacy grant — every new hire once roles are
+  // in use — was shown the section in the nav and refused when they opened it.
+  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
 
   return {
     studio, collaborator, access, roles, section, ticketsSection, clientsSection, settingsSection,
     technicalSection, rfqSection, quotationsSection,
-    canManage: canManageSection(studio, collaborator, section.id, grants),
-    canViewTickets: canViewSection(studio, collaborator, ticketsSection.id, grants),
-    canManageTickets: canManageSection(studio, collaborator, ticketsSection.id, grants),
-    canViewClients: canViewSection(studio, collaborator, clientsSection.id, grants),
-    canManageClients: canManageSection(studio, collaborator, clientsSection.id, grants),
-    canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
+    canManage: sectionManageable(access, section.key),
+    canViewTickets: sectionViewable(access, ticketsSection.key, sections.map((s) => s.key)),
+    canManageTickets: sectionManageable(access, ticketsSection.key),
+    canViewClients: sectionViewable(access, clientsSection.key, sections.map((s) => s.key)),
+    canManageClients: sectionManageable(access, clientsSection.key),
+    canManageSettings: sectionManageable(access, settingsSection.key),
     ...readSalesVocab(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.

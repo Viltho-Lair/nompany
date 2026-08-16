@@ -17,9 +17,9 @@
 // viewer who can *manage* HR. Everyone else sees that a document is on file and
 // when it expires — never the number.
 
-import { requirePermission, scopeFor, can } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission, scopeFor, can } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
+import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
 import { encryptField, decryptField } from "@/lib/fieldCrypto";
 import { currentUser } from "@/lib/identity";
@@ -53,7 +53,10 @@ export async function hrContext(user, slug) {
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
   const section = byKey["hr"];
   if (!section) return { error: "no-section" };
-  if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
+  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
+  // anybody holding a role but no legacy grant — every new hire once roles are
+  // in use — was shown the section in the nav and refused when they opened it.
+  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
 
   // Employees owns the reference lists (departments/positions/certifications);
   // vacations stay on the parent as studio-wide HR settings.
@@ -61,8 +64,8 @@ export async function hrContext(user, slug) {
 
   return {
     studio, collaborator, access, roles, section, employeesSection,
-    canManage: canManageSection(studio, collaborator, section.id, grants),
-    canManageEmployees: canManageSection(studio, collaborator, employeesSection.id, grants),
+    canManage: sectionManageable(access, section.key),
+    canManageEmployees: sectionManageable(access, employeesSection.key),
     nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, grants, access),
