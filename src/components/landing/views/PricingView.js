@@ -1,15 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  CURRENCIES,
   PLANS,
   YEARLY_DISCOUNT,
-  convertFromSar,
   fmtCurrencyAmount,
   pick,
 } from "@/lib/pricing";
+import { CURRENCIES_FROM_EXCHANGE_API } from "@/lib/currencies";
 import Riyal from "@/components/Riyal";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { MagneticButton } from "../ui/MagneticButton";
@@ -72,14 +71,49 @@ const ASSURANCES = [
 export function PricingView({ onNavigate, locale = "en" }) {
   const [yearly, setYearly] = useState(false);
   const [currency, setCurrency] = useState("SAR");
+
+  // Band prices, the yearly discount and today's rates all come from /super,
+  // in one public call. Until it answers the page still renders — with the
+  // rates authored in lib/pricing — rather than showing an empty price list.
+  const [live, setLive] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/pricing", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d) return;
+        setLive(d);
+        // Opened in the reader's own money. Only as a DEFAULT, and only before
+        // they touch the picker — reaching in afterwards would fight them.
+        if (d.currency && d.rates?.[d.currency]) setCurrency(d.currency);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  // Only currencies today's snapshot actually quotes. Listing all 166 when a
+  // third of them have no rate would offer prices that cannot be worked out.
+  const currencyOptions = useMemo(() => {
+    const quoted = live?.rates ? Object.keys(live.rates) : null;
+    const pool = quoted?.length
+      ? CURRENCIES_FROM_EXCHANGE_API.filter((c) => quoted.includes(c.code))
+      : CURRENCIES_FROM_EXCHANGE_API.filter((c) => ["SAR", "USD", "AED", "EUR", "GBP"].includes(c.code));
+    return pool;
+  }, [live]);
   // Selected band index per banded plan (0 = lower band, the default).
   const [bandIdx, setBandIdx] = useState(() =>
     Object.fromEntries(PLANS.filter((p) => p.bands).map((p) => [p.key, 0]))
   );
 
   const approx = currency !== "SAR";
-  const money = (sar) =>
-    `${approx ? "≈ " : ""}${fmtCurrencyAmount(convertFromSar(sar, currency), currency)}`;
+  // Converted with TODAY's rate when we have one, and only then. A stale static
+  // table quoting a price to two decimals is more misleading than an honest
+  // fallback, so an unquoted currency simply stays in SAR.
+  const rate = live?.rates?.[currency];
+  const money = (sar) => {
+    const amount = rate != null ? sar * rate : sar;
+    return `${approx && rate != null ? "≈ " : ""}${fmtCurrencyAmount(amount, currency)}`;
+  };
 
   // Package key carried to signup — banded plans include the chosen band.
   const packageKeyFor = (plan) =>
@@ -114,17 +148,24 @@ export function PricingView({ onNavigate, locale = "en" }) {
         transition={{ duration: 0.5, delay: 0.15, ease: EASE_OUT_EXPO }}
         className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
       >
-        <label className="inline-flex items-center gap-2 rounded-full border border-line bg-ink-soft/70 px-4 py-2">
+        {/* THE WHOLE PILL IS THE CONTROL. The select used to be a small inline
+            element inside the label, so only the three letters of the code
+            opened it — the word "Currency" and the chevron did nothing. It now
+            lies invisibly across the entire pill, which also keeps the NATIVE
+            dropdown, and a native one is what makes a list this long usable on
+            a phone. */}
+        <label className="relative inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-ink-soft/70 px-4 py-2 focus-within:border-fg-dim">
           <span className="text-[0.7rem] uppercase tracking-[0.16em] text-fg-dim">{COPY.currency}</span>
+          <span className="font-display text-sm font-600 text-fg">{currency}</span>
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
             aria-label={COPY.currency}
-            className="cursor-pointer appearance-none bg-transparent pr-1 font-display text-sm font-600 text-fg focus:outline-none"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           >
-            {CURRENCIES.map((cur) => (
+            {currencyOptions.map((cur) => (
               <option key={cur.code} value={cur.code} className="bg-ink-soft text-fg">
-                {cur.code}
+                {cur.code} — {cur.name}
               </option>
             ))}
           </select>
@@ -191,9 +232,17 @@ export function PricingView({ onNavigate, locale = "en" }) {
           const band = plan.bands ? plan.bands[bi] : null;
           // Per-employee rate for the selected band (yearly = 15% off), then
           // the TOTAL for that band's maximum headcount.
-          const rate = band ? (yearly ? band.rate * (1 - YEARLY_DISCOUNT) : band.rate) : 0;
           const bandMax = band ? band.upTo : 0;
-          const bandTotal = rate * bandMax;
+          // The PACKAGE with this band's upper bound is the price. Matched on
+          // the ceiling rather than a name, so renaming a package in /super
+          // cannot silently unprice a band. The figures authored in lib/pricing
+          // remain the fallback until the call lands.
+          const priced = live?.bands?.[bandMax];
+          const bandTotal = priced
+            ? (yearly ? priced.yearly : priced.monthly)
+            : band
+              ? (yearly ? band.rate * (1 - YEARLY_DISCOUNT) : band.rate) * bandMax
+              : 0;
 
           return (
             <motion.article
