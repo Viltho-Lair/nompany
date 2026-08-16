@@ -187,9 +187,6 @@ export async function editVendor(ctx, id, body) {
   }
   for (const f of ["contactName", "phone"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 120);
   if (body?.email !== undefined) patch.email = str(body.email, 160).toLowerCase();
-  if (body?.currency !== undefined) patch.currency = cur(body.currency);
-  // "" is a real value — it is how a picture is removed.
-  if (body?.image !== undefined) patch.image = img(body.image);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.itemTypes !== undefined) patch.itemTypes = cleanItemTypes(body.itemTypes);
 
@@ -330,6 +327,9 @@ export async function editItem(ctx, id, body) {
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.reorderLevel !== undefined) patch.reorderLevel = qty(body.reorderLevel) > 0 ? qty(body.reorderLevel) : 0;
   if (body?.unitCost !== undefined) patch.unitCost = money(body.unitCost);
+  if (body?.currency !== undefined) patch.currency = cur(body.currency);
+  // "" is a real value — it is how a picture is removed.
+  if (body?.image !== undefined) patch.image = img(body.image);
 
   const item = await updateRow(studio.id, itemsSection.id, ITEMS, id, patch);
   return item ? { item } : { error: "notfound" };
