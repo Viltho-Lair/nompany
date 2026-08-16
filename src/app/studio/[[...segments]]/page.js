@@ -19,6 +19,7 @@ import StudioRoles from "@/components/studio2/StudioRoles";
 import StudioSettings from "@/components/studio2/StudioSettings";
 import StudioSales from "@/components/studio2/StudioSales";
 import StudioTicketProfile from "@/components/studio2/StudioTicketProfile";
+import SalesQuotationViewer from "@/components/studio2/SalesQuotationViewer";
 import StudioTechnical from "@/components/studio2/StudioTechnical";
 import StudioProjects from "@/components/studio2/StudioProjects";
 import StudioHr from "@/components/studio2/StudioHr";
@@ -123,6 +124,12 @@ export default async function StudioPage({ params }) {
   // sales-tickets/<id> is that ticket's own page. It still resolves through
   // the sales-tickets section, so the same grant governs it.
   const ticketId = requested === "sales-tickets" ? (segments[1] || "") : "";
+  // And a THIRD segment names one of that ticket's quotations:
+  // /<slug>/sales-tickets/<id>/quotations/<quotationId> is the Sales-side
+  // viewer — the document as Sales reads it, view only. It hangs off the ticket
+  // rather than living under Technical because that is whose record it is about,
+  // and it resolves through the same sales-tickets grant as the page above it.
+  const quotationId = ticketId && segments[2] === "quotations" ? (segments[3] || "") : "";
 
   const isPeople = requested === "people";
   const isAccess = requested === "access";
@@ -173,6 +180,7 @@ export default async function StudioPage({ params }) {
         )
         : isSettings ? <StudioSettings slug={studio.slug} />
         : deniedSection ? <NoSectionAccess />
+        : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} />
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
         : screenKey === "sales" ? <StudioSales slug={studio.slug} view={active?.key} />
         : screenKey === "technical" ? <StudioTechnical slug={studio.slug} view={active?.key} />

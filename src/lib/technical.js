@@ -16,8 +16,8 @@ import { nextUniqueRef } from "@/lib/sales";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
-import { RFQ_STATUSES } from "@/lib/rfqs";
-import { DEFAULT_STATUS } from "@/lib/tickets";
+import { RFQ_STATUSES, pendingRfq } from "@/lib/rfqs";
+import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/lib/tickets";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
@@ -171,19 +171,25 @@ export async function requestRfq(ctx, body) {
     : requirePermission(ctx.access, "technical.rfq.create");
   if (denied) return denied;
 
-  const { studio, rfqSection, salesSection, salesTicketsSection, salesClientsSection, collaborator, canManageSales } = ctx;
+  const { studio, rfqSection, quotationsSection, salesSection, salesTicketsSection, salesClientsSection, collaborator, canManageSales } = ctx;
   if (!canManageSales) return { error: "sales-required" };
   if (!salesSection) return { error: "no-sales" };
 
   const ticketId = str(body?.ticketId, 60);
-  const [tickets, clients, existing] = await Promise.all([
+  const [tickets, clients, existing, quotations] = await Promise.all([
     readCol(studio.id, salesTicketsSection.id, TICKETS),
     readCol(studio.id, salesClientsSection.id, CLIENTS),
     readCol(studio.id, rfqSection.id, RFQS),
+    readCol(studio.id, quotationsSection.id, QUOTATIONS),
   ]);
   const ticket = tickets.find((t) => t.id === ticketId);
   if (!ticket) return { error: "ticket" };
-  if (existing.some((r) => r.ticketId === ticketId && r.status !== "Rejected")) return { error: "already" };
+  // ONE OUTSTANDING RFQ AT A TIME, not one ever. A ticket whose quotation came
+  // back finished may be sent over again — that second RFQ is how Sales asks
+  // for an edit, and only the final one is what the ticket is priced from.
+  // Refusing every repeat, which is what "has any live RFQ" did, made the
+  // button dead for the rest of the ticket's life.
+  if (pendingRfq(ticketId, existing, quotations)) return { error: "already" };
 
   const client = clients.find((c) => c.id === ticket.clientId);
   const rfq = await addRow(studio.id, rfqSection.id, RFQS, {
@@ -228,7 +234,7 @@ export async function updateRfq(ctx, id, body) {
   const denied = requirePermission(ctx.access, "technical.rfq.edit");
   if (denied) return denied;
 
-  const { studio, rfqSection } = ctx;
+  const { studio, rfqSection, salesTicketsSection } = ctx;
   const patch = {};
   if (body?.status !== undefined) {
     if (!RFQ_STATUSES.includes(body.status)) return { error: "status" };
@@ -238,7 +244,26 @@ export async function updateRfq(ctx, id, body) {
   if (body?.description !== undefined) patch.description = str(body.description, 4000);
 
   const rfq = await updateRow(studio.id, rfqSection.id, RFQS, id, patch);
-  return rfq ? { rfq } : { error: "notfound" };
+  if (!rfq) return { error: "notfound" };
+
+  // TURNING AN RFQ DOWN CLOSES THE TICKET BEHIND IT. Nothing is coming back to
+  // price it with, so leaving it open would keep a dead lead in the pipeline and
+  // in the forecast. Done here, next to the write that causes it, for the same
+  // reason raising the first RFQ moves a Lead to an Opportunity here: both
+  // entry points to the queue must move the ticket identically.
+  //
+  // Best-effort and one-way: a ticket a Sales user has already closed, won or
+  // otherwise decided is left where they put it.
+  if (patch.status === "Rejected" && rfq.ticketId && salesTicketsSection) {
+    const tickets = await readCol(studio.id, salesTicketsSection.id, TICKETS);
+    const ticket = tickets.find((t) => t.id === rfq.ticketId);
+    if (ticket && (ticket.status === DEFAULT_STATUS || ticket.status === "Opportunity")) {
+      await updateRow(studio.id, salesTicketsSection.id, TICKETS, rfq.ticketId, {
+        status: RFQ_REJECTED_TICKET_STATUS, updatedAt: new Date().toISOString(),
+      });
+    }
+  }
+  return { rfq };
 }
 
 // ---- numbering ---------------------------------------------------------------
@@ -334,21 +359,33 @@ export async function convertRfq(ctx, body) {
   if (rfq.status === "Converted") return { error: "already" };
 
   const quotations = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
+
+  // A SECOND RFQ ON THE SAME TICKET IS A REVISION, not a fresh start. Sales
+  // raises one when the last quotation needs changing, so the new document
+  // keeps the number the client already holds, steps the revision, and opens
+  // on a COPY of what was quoted last time — Technical edits the previous
+  // version rather than retyping it. Only the final one is ever considered.
+  const prior = quotations
+    .filter((q) => rfq.ticketId && q.ticketId === rfq.ticketId)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null;
+
   // Same rule as everywhere else: derived from the highest already issued, not
   // from how many exist, and stepped past anything that collides. A quotation
   // number is what a client quotes back at you — it cannot be reused.
-  const number = nextQuotationNumber(quotations, settingsSection?.settings);
+  const number = prior?.number || nextQuotationNumber(quotations, settingsSection?.settings);
 
-  // NO LINES AND NO VAT HERE. Converting decides that a quotation exists, who
-  // owns it and what number it carries; what is ON it is the builder's job.
-  // Pricing an empty quotation into being was the RFQ screen doing the builder's
-  // work badly.
-  const items = [];
-  const vatRate = DEFAULT_VAT_RATE;
+  // NO LINES AND NO VAT HERE — unless there is a previous revision to carry
+  // forward. Converting decides that a quotation exists, who owns it and what
+  // number it carries; what is ON it is the builder's job. Pricing an empty
+  // quotation into being was the RFQ screen doing the builder's work badly.
+  const tables = prior ? cleanQuotationTables(prior.tables) : [];
+  const items = prior ? cleanItems(itemsFromTables(tables)) : [];
+  const vatRate = prior ? num(prior.vatRate) : DEFAULT_VAT_RATE;
   const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60);
   const quotation = await addRow(studio.id, quotationsSection.id, QUOTATIONS, {
     number,
-    revision: 1,
+    revision: prior ? (Number(prior.revision) || 1) + 1 : 1,
+    revisionOf: prior?.id || "",
     rfqId,
     ticketId: rfq.ticketId,
     title: rfq.title,
@@ -361,7 +398,7 @@ export async function convertRfq(ctx, body) {
     industry: rfq.industry || "",
     serviceIds: Array.isArray(rfq.serviceIds) ? rfq.serviceIds : [],
     status: DEFAULT_QUOTATION_STATUS,
-    tables: [],
+    tables,
     items,
     vatRate,
     ...computeTotals(items, vatRate),
@@ -479,15 +516,18 @@ export async function removeQuotation(ctx, id) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
-// Sales tickets that don't yet have a live RFQ — what "raise an RFQ" can pick.
-export async function openTickets({ studio, salesSection, salesTicketsSection, salesClientsSection, rfqSection }) {
+// Sales tickets with nothing outstanding — what "raise an RFQ" can pick. Same
+// rule the Sales button obeys, so the two doors offer exactly the same tickets.
+export async function openTickets({ studio, salesSection, salesTicketsSection, salesClientsSection, rfqSection, quotationsSection }) {
   if (!salesSection) return [];
-  const [tickets, rfqs] = await Promise.all([
+  const [tickets, rfqs, quotations] = await Promise.all([
     readCol(studio.id, salesTicketsSection.id, TICKETS),
     readCol(studio.id, rfqSection.id, RFQS),
+    readCol(studio.id, quotationsSection.id, QUOTATIONS),
   ]);
-  const taken = new Set(rfqs.filter((r) => r.status !== "Rejected").map((r) => r.ticketId));
-  return tickets.filter((t) => !taken.has(t.id)).map((t) => ({ id: t.id, ref: t.ref, title: t.title }));
+  return tickets
+    .filter((t) => !pendingRfq(t.id, rfqs, quotations))
+    .map((t) => ({ id: t.id, ref: t.ref, title: t.title }));
 }
 
 // The catalogue as the BUILDER needs it: what a line may be, and nothing more.

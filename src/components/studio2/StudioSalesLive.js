@@ -52,7 +52,7 @@ export default function StudioSalesLive({ studio }) {
     if (key === "createdAt" || key === "updatedAt") return String(t[key] || t.createdAt || "").slice(0, 10) || "—";
     if (key === "value" || key === "clientBudget") return t[key] == null || t[key] === "" ? "—" : money(t[key]);
     if (key === "probability") return `${Number(t.probability ?? 0)}%`;
-    if (key === "rfq") return rfqInfo(t).text;
+    if (key === "rfq") return rfqInfo(t, aliasOf).text;
     return t[key] === "" || t[key] == null ? "—" : String(t[key]);
   };
 

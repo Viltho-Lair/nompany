@@ -25,6 +25,13 @@ export function canRequestRfqStatus(status) {
   return TICKET_RFQ_STATUSES.includes(status);
 }
 
+// Technical turning an RFQ down CLOSES THE TICKET. There is no quotation
+// coming, so the ticket is not an opportunity any more — and leaving it in the
+// pipeline would keep it in the forecast forever. Named rather than inlined
+// because which closed status this should be is a business call, and this is
+// the one line that decides it.
+export const RFQ_REJECTED_TICKET_STATUS = "Closed Lost";
+
 // Urgency is a Sales-Leader-only field. Every ticket defaults to "Normal" on
 // creation (even for a Leader) and can only be changed afterward, and only by
 // a Leader. It's carried forward read-only onto any RFQ/Quotation it spawns.
@@ -57,7 +64,9 @@ export const TICKET_LIVE_COLUMNS = [
   { key: "urgency", label: "Urgency" },
   { key: "industry", label: "Industry" },
   { key: "deadline", label: "Deadline" },
-  { key: "value", label: "Value" },
+  // "Value Quoted", not "Value": the figure is the latest quotation's total,
+  // never something anybody typed on the ticket.
+  { key: "value", label: "Value Quoted" },
   { key: "clientBudget", label: "Client budget" },
   { key: "contactName", label: "Contact" },
   { key: "contactPhone", label: "Phone" },

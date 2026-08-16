@@ -74,26 +74,39 @@ export function atRiskTickets(tickets, days = 14) {
 }
 
 // What the RFQ column says about a ticket, derived from its LATEST RFQ and that
-// RFQ's quotation — so the tickets list and the dashboard tell the same story:
-//   • no RFQ yet           → { text: "—",     requested: false }
-//   • raised, not quoted   → { text: "Idle",  requested: true  }
-//   • quoted               → { text: "<quotation status> · <number>", requested: true }
-export function rfqInfo(ticket) {
+// RFQ's quotation — so the tickets list, the ticket's own page and the dashboard
+// all tell the same story:
+//   • no RFQ yet             → { text: "—",                       requested: false }
+//   • raised, untouched      → { text: "Requested",               requested: true  }
+//   • Technical working it   → { text: "In-review",               requested: true  }
+//   • turned down            → { text: "Rejected",                requested: true  }
+//   • converted              → { text: "Handled by <name>",       quoted: true     }
+//
+// CONVERTED SAYS WHO, not what. Once somebody in Technical has the document, the
+// name is the useful thing on a Sales screen — chasing a quotation means
+// chasing a person — and the quotation's own status rides along underneath in
+// the ticket's Quotations box, which is where it belongs.
+//
+// `aliasOf` maps CollaboratorID → name. Every caller already holds one; without
+// it the column still renders, naming the section rather than a person.
+export function rfqInfo(ticket, aliasOf = {}) {
   const rfq = ticket?.rfq;
   if (!rfq) return { text: "—", tone: "text-slate-400", status: null, requested: false, quoted: false };
   if (!rfq.quotationId) {
-    const tone = rfq.status === "Rejected" ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400";
-    return { text: rfq.status === "Rejected" ? "Rejected" : "Idle", tone, status: rfq.status, requested: true, quoted: false };
+    const rejected = rfq.status === "Rejected";
+    const tone = rejected ? "text-rose-600 dark:text-rose-400"
+      : rfq.status === "In-review" ? "text-amber-600 dark:text-amber-400"
+      : "text-slate-500 dark:text-slate-400";
+    const text = rejected ? "Rejected" : rfq.status === "In-review" ? "In-review" : "Requested";
+    return { text, tone, status: rfq.status, requested: true, quoted: false };
   }
+  const handler = aliasOf[rfq.handledByCollaboratorId] || rfq.handledByCollaboratorId || "Technical";
   const tone = ({
-    Draft: "text-amber-600 dark:text-amber-400",
-    Sent: "text-sky-600 dark:text-sky-400",
-    Approved: "text-emerald-600 dark:text-emerald-400",
     Rejected: "text-rose-600 dark:text-rose-400",
-  })[rfq.quotationStatus] || "text-slate-500 dark:text-slate-400";
-  const number = rfq.quotationNumber ? ` · ${rfq.quotationNumber}` : "";
+    Approved: "text-emerald-600 dark:text-emerald-400",
+  })[rfq.quotationStatus] || "text-slate-600 dark:text-slate-300";
   return {
-    text: `${rfq.quotationStatus || "Quoted"}${number}`,
+    text: `Handled by ${handler}`,
     tone, status: rfq.quotationStatus, requested: true, quoted: true,
   };
 }

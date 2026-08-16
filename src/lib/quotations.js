@@ -52,6 +52,14 @@ export function cleanQuotationLiveColumns(value) {
 // the list's amber stripe marks: work still owed, not work still unsent.
 export const isUnfinished = (q) => q?.status === "New" || q?.status === "Draft";
 
+// A quotation that has LEFT THE BUILDER. Sales is waiting on Technical for
+// exactly as long as this is false: until the document is submitted (or turned
+// down) there is nothing to read, nothing to price the ticket from, and no
+// second RFQ to raise. Everything past Completed still counts — a Sent or
+// Approved quotation is finished work, not work in progress.
+export const FINISHED_QUOTATION_STATUSES = ["Completed", "Sent", "Approved", "Rejected"];
+export const isFinishedQuotation = (q) => FINISHED_QUOTATION_STATUSES.includes(q?.status);
+
 const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 export const MAX_TABLES = 20;

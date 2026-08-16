@@ -17,6 +17,7 @@ import { COUNTRIES } from "@/lib/countries";
 import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
 import { salesFunnel, probabilityBuckets, atRiskTickets, rfqInfo, isUnresolved } from "@/lib/salesAnalytics";
+import { canRequestRfqStatus } from "@/lib/tickets";
 import { daysUntil } from "@/lib/sla";
 
 // Sales: clients and the tickets raised against them. Read access shows
@@ -43,7 +44,8 @@ const TICKET_COLUMNS = [
   { key: "title", label: "Title" },
   { key: "client", label: "Client" },
   { key: "owner", label: "Owner" },
-  { key: "value", label: "Value" },
+  // Not "Value": the figure is the latest quotation's total, never typed.
+  { key: "value", label: "Value Quoted" },
   { key: "deadline", label: "Deadline" },
   { key: "status", label: "Status" },
   { key: "urgency", label: "Urgency" },
@@ -112,7 +114,7 @@ export default function StudioSales({ slug, view = "sales" }) {
         : out.error === "industry" ? "Type of industry is required."
         : out.error === "services" ? "Pick at least one service. Add them in Sales → Settings."
         : out.error === "budget" ? "Client budget must be a non-negative number."
-        : out.error === "already" ? "That ticket is already with Technical."
+        : out.error === "already" ? "That ticket is already with Technical — you can send it again once the quotation comes back."
         : out.error === "no-technical" ? "This studio has no Technical section to send an RFQ to."
         : out.error === "forbidden" || out.error === "sales-required" ? "You're not allowed to raise an RFQ."
         : out.error === "ticket" ? "That ticket no longer exists - reload the page."
@@ -286,14 +288,14 @@ function SalesDashboard({ slug, tickets, clients, people, nav }) {
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-start dark:border-white/10">
-                  {["Title", "Client", "Owner", "Value", "RFQ", "Status", "Updated"].map((head) => (
+                  {["Title", "Client", "Owner", "Value Quoted", "RFQ", "Status", "Updated"].map((head) => (
                     <th key={head} className={`${th} text-start`}>{head}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {recent.map((t) => {
-                  const rfq = rfqInfo(t);
+                  const rfq = rfqInfo(t, aliasOf);
                   return (
                     <tr key={t.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
                       <td className="py-3 pe-3 font-600 text-slate-900 dark:text-white">{t.title}</td>
@@ -505,7 +507,7 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
             </div>
           </div>
           <div>
-            <label className={microLabel}>Value</label>
+            <label className={microLabel}>Value Quoted</label>
             <div className="flex items-center gap-2">
               <input type="number" min="0" placeholder="min" className={input} value={filters.valueMin} onChange={(e) => setFilter({ valueMin: e.target.value })} />
               <span className="text-slate-400">–</span>
@@ -567,7 +569,12 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
               </thead>
               <tbody>
                 {filtered.map((t) => {
-                  const rfq = rfqInfo(t);
+                  const rfq = rfqInfo(t, aliasOf);
+                  // The SAME rule the ticket's own page and the endpoint obey:
+                  // one outstanding RFQ at a time, and only while the ticket is
+                  // still pre-approval. A ticket whose quotation came back may
+                  // be sent over again from right here.
+                  const canRaise = canManage && canRequestRfqStatus(t.status) && !t.rfqPending;
                   // A ticket still waiting to be handed to Technical gets an
                   // amber stripe down its start edge, so what needs doing is
                   // visible without reading the RFQ column on every row.
@@ -614,22 +621,24 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
                       )}
                       {col("rfq") && (
                         <td className="py-3 pe-3 ps-2">
-                          {!rfq.requested
-                            ? (canManage && isUnresolved(t)
-                                // stopPropagation because the whole ROW is a link to the ticket:
-                                // without it the click reaches the row and the page navigates away
-                                // mid-request, which is what made a refusal look like nothing at all.
-                                ? <button type="button" className={btnAmber} disabled={rfqBusy === t.id}
-                                    onClick={(e) => { e.stopPropagation(); requestRfq(t); }}>
-                                    {rfqBusy === t.id ? "Sending…" : "Request RFQ"}
-                                  </button>
-                                : <span className="text-slate-400">—</span>)
-                            : (
-                              <div>
-                                <div className={`text-xs font-600 ${rfq.tone}`}>{rfq.text}</div>
-                                {t.rfqCount > 1 && <div className="text-[11px] text-slate-400">{t.rfqCount} raised</div>}
-                              </div>
-                            )}
+                          {/* WHERE THE TICKET STANDS, then what can be done
+                              about it. A ticket whose quotation came back keeps
+                              saying who handled it AND offers another RFQ —
+                              replacing the one with the other would hide the
+                              answer the moment it arrived. */}
+                          {rfq.requested && (
+                            <div className={`text-xs font-600 ${rfq.tone}`}>{rfq.text}</div>
+                          )}
+                          {t.rfqCount > 1 && <div className="text-[11px] text-slate-400">{t.rfqCount} raised</div>}
+                          {canRaise ? (
+                            // stopPropagation because the whole ROW is a link to the ticket:
+                            // without it the click reaches the row and the page navigates away
+                            // mid-request, which is what made a refusal look like nothing at all.
+                            <button type="button" className={`${btnAmber} ${rfq.requested ? "mt-1.5" : ""}`} disabled={rfqBusy === t.id}
+                              onClick={(e) => { e.stopPropagation(); requestRfq(t); }}>
+                              {rfqBusy === t.id ? "Sending…" : "Request RFQ"}
+                            </button>
+                          ) : !rfq.requested ? <span className="text-slate-400">—</span> : null}
                         </td>
                       )}
                       {col("probability") && <td className="py-3 pe-3 ps-2 font-600 tabular-nums text-slate-700 dark:text-slate-200">{Number(t.probability ?? 0)}%</td>}
@@ -912,8 +921,8 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
 
 export function TicketForm({ row, clients, vocabulary, services = [], cities = [], positions = [], studioDefaults = {}, onSave, onCancel }) {
   // Fields mirror the Old System's ticket. Mandatory: title, client, deadline,
-  // type of industry. Value is NOT here on purpose — it is filled from an
-  // approved quotation, and Client Budget is the client's own manual figure.
+  // type of industry. Value Quoted is NOT here on purpose — it is filled from
+  // the latest quotation, and Client Budget is the client's own manual figure.
   // Status and urgency appear only when EDITING: on creation status is always
   // Lead (→ Opportunity on RFQ request) and urgency always Normal.
   const existing = row ? clients.find((c) => c.id === row.clientId) : null;
@@ -1011,7 +1020,7 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
             <input className={`${input} ${studioDefaults.currency ? "ps-10" : ""}`} type="number" min="0"
               value={f.clientBudget} onChange={set("clientBudget")} placeholder="Optional reference figure" />
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">The ticket&apos;s <span className="font-600">Value</span> is set automatically from an approved quotation.</p>
+          <p className="mt-1 text-[11px] text-slate-400">The ticket&apos;s <span className="font-600">Value Quoted</span> is set automatically from its most recent quotation.</p>
         </div>
 
         {row && (

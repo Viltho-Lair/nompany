@@ -40,6 +40,10 @@ export async function GET(request, ctx) {
     // one the tickets list drops the RFQ column rather than offering a button
     // that could only ever fail.
     hasTechnical: Boolean(sales.rfqSection),
+    // Whether there is a Tasks section to send an approval to. Without one the
+    // ticket drops "Send for Approval" rather than offering a button that could
+    // only ever fail — the same rule the RFQ column follows.
+    hasTasks: Boolean(sales.tasksSection),
     clients, tickets, people, services,
     // Where the studio itself is. A new ticket starts here and the person
     // raising it can change either, which is why these are defaults rather

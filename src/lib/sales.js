@@ -20,6 +20,9 @@ import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TIC
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "@/lib/tickets";
 import { normaliseClientName, normaliseContactName, clientSlug } from "@/lib/salesClients";
 import { requestRfq } from "@/lib/technical";
+import { pendingRfq, rfqsForTicket } from "@/lib/rfqs";
+import { isFinishedQuotation } from "@/lib/quotations";
+import { readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES } from "@/lib/taskRouting";
 
 export { TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, DEFAULT_STATUS, DEFAULT_URGENCY,
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS };
@@ -31,6 +34,14 @@ const SERVICES = "salesServices";
 // can report what happened to it after Sales handed it over.
 const RFQS = "rfqs";
 const QUOTATIONS = "quotations";
+// The Tasks board's collection. Sales writes ONE row into it — the approval a
+// finished quotation is sent for — and otherwise only reads it, to say on the
+// ticket what became of that request.
+const TASKS = "tasks";
+// The task type the Tasks board already routes to Sales + Management. Sending a
+// quotation for approval raises one of these rather than a type of its own, so
+// there is one approval queue in the studio and not two.
+const APPROVAL_TYPE = "approval";
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const now = () => new Date().toISOString();
 
@@ -111,6 +122,14 @@ export async function salesContext(user, slug) {
   const rfqSection = technicalSection ? (byKey["technical-rfq"] || technicalSection) : null;
   const quotationsSection = technicalSection ? (byKey["technical-quotations"] || technicalSection) : null;
 
+  // Tasks, for the same reason and on the same terms: sending a finished
+  // quotation for approval raises a task, and whether that approval came back
+  // is part of the ticket's own story. Read WITHOUT a Tasks grant — this is the
+  // state of their own record, not a window into somebody else's board — and a
+  // studio with no Tasks section simply gets no approval button.
+  const tasksSection = byKey["tasks"] || null;
+  const tasksSettingsSection = tasksSection ? (byKey["tasks-settings"] || tasksSection) : null;
+
   // Seeing Sales at all is the parent grant; the per-collection grants are
   // checked against the sub-section that owns each one.
   // THE VIEW GUARD, asked of the permission set. It read grants until now, so
@@ -120,7 +139,11 @@ export async function salesContext(user, slug) {
 
   return {
     studio, collaborator, access, roles, section, ticketsSection, clientsSection, settingsSection,
-    technicalSection, rfqSection, quotationsSection,
+    technicalSection, rfqSection, quotationsSection, tasksSection,
+    // Who currently holds each approval authority, resolved from Task settings
+    // on every read — appointing somebody there hands them the open approvals
+    // immediately, so this is never copied onto a row.
+    taskAssignees: readTaskAssignees(tasksSettingsSection),
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canViewTickets: sectionViewable(access, ticketsSection.key, sections.map((s) => s.key)),
     canManageTickets: sectionManageable(access, ticketsSection.key, (sections || []).map((x) => x.key)),
@@ -370,67 +393,148 @@ export function nextUniqueRef(rows, field, prefix, pad = 3, startAt = 0) {
 }
 
 // ---- tickets ---------------------------------------------------------------
-// The RFQ side of a ticket, folded in from Technical. A ticket can be sent over
-// more than once (a second RFQ after the first was quoted), so the LATEST one is
-// what the ticket reports, and `rfqCount` is how many were ever raised.
+// What became of a ticket after Sales handed it over: the RFQs raised on it, the
+// quotations those became, and whether the last one was approved. All THREE live
+// in other sections, and all three are read here rather than stored on the
+// ticket, so nothing can drift out of step with the record it describes.
 //
-// VALUE IS DERIVED, never typed: the Old System sets a ticket's value from the
-// latest completed quotation, so here it is the newest APPROVED quotation behind
-// any of the ticket's RFQs. A stored value still wins when one was set, which is
+// A ticket can be sent over more than once — a second RFQ is how Sales asks for
+// an edit to the last quotation — so the LATEST is what the ticket reports and
+// `rfqCount` is how many were ever raised.
+//
+// VALUE IS DERIVED, never typed, and it is the MOST RECENT quotation's total:
+// only the final quotation is considered, so a revision immediately replaces
+// what the ticket is worth. A stored value still wins when one was set, which is
 // what keeps a manual correction from being overwritten on the next read.
-function rfqSummary(ticket, rfqs, quotations) {
-  const mine = rfqs
-    .filter((r) => r.ticketId === ticket.id)
+
+// The compact shape of a quotation as SALES reads it — enough for the ticket's
+// Quotations box and nothing more. The lines themselves are deliberately absent:
+// they are fetched one document at a time by the viewer, not carried on every
+// row of the tickets list.
+const quotationRow = (q) => ({
+  id: q.id,
+  number: q.number || "",
+  revision: Number(q.revision) || 1,
+  status: q.status || "",
+  total: Number(q.total) || 0,
+  handledBy: q.handledByCollaboratorId || q.handledBy || "",
+  createdAt: q.createdAt || "",
+  submittedAt: q.submittedAt || "",
+  completedAt: q.completedAt || "",
+});
+
+function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees) {
+  const mine = rfqsForTicket(ticket.id, rfqs);
+  // Newest first, so the ticket's Quotations box reads top-down from the one
+  // that counts — and `[0]` is always "the quotation this ticket is worth".
+  const mineQuotations = quotations
+    .filter((q) => q.ticketId === ticket.id)
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
-  if (mine.length === 0) return { rfqCount: 0, rfq: null, quotedValue: 0 };
+  const newest = mineQuotations[0] || null;
+
+  // Is Sales still waiting? Same rule the server enforces on the button, asked
+  // of the same helper, so the screen and the endpoint can never disagree.
+  const waiting = Boolean(pendingRfq(ticket.id, rfqs, quotations));
+
+  // THE APPROVAL BELONGS TO ONE QUOTATION, not to the ticket. Matching on the
+  // newest quotation's id is what makes a fresh RFQ wipe the slate: the new
+  // revision has no approval behind it, so the button offers to send it again
+  // rather than claiming an approval that was given for a superseded document.
+  const approvalTask = newest
+    ? tasks
+        .filter((k) => k.type === APPROVAL_TYPE && k.quotationId === newest.id)
+        .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null
+    : null;
+  let approval = null;
+  if (approvalTask) {
+    const { authorities } = resolveTaskAssignees(approvalTask, taskAssignees);
+    const approvals = approvalTask.approvals && typeof approvalTask.approvals === "object" ? approvalTask.approvals : {};
+    approval = {
+      taskId: approvalTask.id,
+      quotationId: newest.id,
+      // Approved only when every authority the type routes to has signed off —
+      // the same test the Tasks board applies, so one screen cannot call a
+      // decision made while the other is still waiting on somebody.
+      approved: authorities.length > 0 && authorities.every((c) => approvals[c]?.approved),
+      required: authorities.length,
+      granted: authorities.filter((c) => approvals[c]?.approved).length,
+      at: approvalTask.completedAt || "",
+    };
+  }
 
   const quoteOf = (r) => (r.quotationId ? quotations.find((q) => q.id === r.quotationId) || null : null);
-  const latest = mine[0];
-  const quote = quoteOf(latest);
-
-  const approved = mine
-    .map(quoteOf)
-    .filter((q) => q && q.status === "Approved")
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0];
+  const latest = mine[0] || null;
+  const quote = latest ? quoteOf(latest) : null;
 
   return {
     rfqCount: mine.length,
-    rfq: {
+    rfq: latest && {
       id: latest.id,
       reference: latest.reference || "",
       status: latest.status || "",
       // A quotation names its handler in `handledBy`; before one exists, the
       // RFQ's own assignee is who Sales should be chasing.
-      handledByCollaboratorId: quote?.handledBy || latest.handledByCollaboratorId || "",
+      handledByCollaboratorId: quote?.handledByCollaboratorId || quote?.handledBy || latest.handledByCollaboratorId || "",
       quotationId: quote?.id || "",
       quotationNumber: quote?.number || "",
       quotationStatus: quote?.status || "",
       quotationTotal: Number(quote?.total) || 0,
     },
-    quotedValue: Number(approved?.total) || 0,
+    quotations: mineQuotations.map(quotationRow),
+    // Waiting on Technical — what greys "Request RFQ" out into "Quotation Sent".
+    rfqPending: waiting,
+    // There is a finished document to send for approval. A quotation Technical
+    // turned down is finished too, and is not one of them.
+    hasFinishedQuotation: isFinishedQuotation(newest) && newest.status !== "Rejected",
+    approval,
+    quotedValue: Number(newest?.total) || 0,
   };
 }
 
-export async function listTickets({ studio, ticketsSection, clientsSection, rfqSection, quotationsSection }) {
-  const [tickets, clients, rfqs, quotations] = await Promise.all([
+export async function listTickets({ studio, ticketsSection, clientsSection, rfqSection, quotationsSection, tasksSection, taskAssignees }) {
+  const [tickets, clients, rfqs, quotations, tasks] = await Promise.all([
     readCol(studio.id, ticketsSection.id, TICKETS),
     readCol(studio.id, clientsSection.id, CLIENTS),
     rfqSection ? readCol(studio.id, rfqSection.id, RFQS) : [],
     quotationsSection ? readCol(studio.id, quotationsSection.id, QUOTATIONS) : [],
+    tasksSection ? readCol(studio.id, tasksSection.id, TASKS) : [],
   ]);
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
   return [...tickets]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((t) => {
-      const { rfqCount, rfq, quotedValue } = rfqSummary(t, rfqs, quotations);
+      const summary = ticketSummary(t, rfqs, quotations, tasks, taskAssignees);
+      const { quotedValue, ...rest } = summary;
       return {
         ...t,
         clientName: nameById[t.clientId] || t.clientName || "",
-        rfqCount,
-        rfq,
+        ...rest,
         value: Number(t.value) > 0 ? Number(t.value) : quotedValue,
       };
     });
+}
+
+// ONE quotation, in full, for the Sales-side viewer. Sales may read the document
+// raised against its own ticket — that is the ticket's own story, and the same
+// reason the RFQ column is not gated on a Technical grant — but it arrives as a
+// COPY to read: nothing here can be edited, submitted or exported, and the only
+// endpoints that write a quotation are Technical's.
+export async function ticketQuotation({ studio, ticketsSection, quotationsSection }, quotationId) {
+  if (!quotationsSection) return { error: "notfound" };
+  const id = str(quotationId, 60);
+  if (!id) return { error: "notfound" };
+
+  const quotations = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
+  const quotation = quotations.find((q) => q.id === id);
+  // A quotation with no ticket behind it is Technical's internal work, and no
+  // business of the Sales screens.
+  if (!quotation || !quotation.ticketId) return { error: "notfound" };
+
+  const tickets = await readCol(studio.id, ticketsSection.id, TICKETS);
+  const ticket = tickets.find((t) => t.id === quotation.ticketId);
+  if (!ticket) return { error: "notfound" };
+
+  return { quotation, ticket: { id: ticket.id, ref: ticket.ref || "", title: ticket.title || "" } };
 }
 
 // Send a ticket over to Technical. Raising an RFQ is a SALES act on a SALES
@@ -451,6 +555,89 @@ export async function requestTicketRfq(ctx, body) {
     salesClientsSection: clientsSection,
     canManageSales: true, // the route already established Sales:manage
   }, { ticketId: str(body?.ticketId, 60) });
+}
+
+// Send the ticket's finished quotation for approval.
+//
+// This is a SALES act on a SALES record — Sales decides a quotation is ready to
+// go up — so the right asked for is sales.tickets.edit, exactly as raising an
+// RFQ is. Asking for tasks.board.create here would refuse every Sales role the
+// button is shown to, which is the whole point of that button. What it WRITES is
+// an ordinary approval task, so the people appointed to Sales and Management in
+// Task settings receive it on the board they already use.
+export async function sendTicketForApproval(ctx, body) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN.
+  const denied = requirePermission(ctx.access, "sales.tickets.edit");
+  if (denied) return denied;
+
+  const { studio, ticketsSection, rfqSection, quotationsSection, tasksSection, collaborator, taskAssignees } = ctx;
+  if (!tasksSection) return { error: "no-tasks" };
+  if (!quotationsSection) return { error: "no-technical" };
+
+  const ticketId = str(body?.ticketId, 60);
+  const [tickets, rfqs, quotations, tasks] = await Promise.all([
+    readCol(studio.id, ticketsSection.id, TICKETS),
+    rfqSection ? readCol(studio.id, rfqSection.id, RFQS) : [],
+    readCol(studio.id, quotationsSection.id, QUOTATIONS),
+    readCol(studio.id, tasksSection.id, TASKS),
+  ]);
+  const ticket = tickets.find((t) => t.id === ticketId);
+  if (!ticket) return { error: "ticket" };
+
+  // The quotation being sent up is always the LATEST one — the only one that
+  // counts — and it has to be finished before anybody can approve it.
+  const quotation = quotations
+    .filter((q) => q.ticketId === ticketId)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null;
+  if (!isFinishedQuotation(quotation) || quotation.status === "Rejected") return { error: "not-quoted" };
+  // A revision is on its way, so what is on file is already out of date.
+  if (pendingRfq(ticketId, rfqs, quotations)) return { error: "rfq-pending" };
+  // Sent once per quotation. A second press must not put the same document in
+  // front of the approvers twice.
+  if (tasks.some((k) => k.type === APPROVAL_TYPE && k.quotationId === quotation.id)) return { error: "already" };
+
+  const revision = Number(quotation.revision) || 1;
+  const name = `${quotation.number || "Quotation"}${revision > 1 ? ` Rev ${revision}` : ""}`;
+  const task = await addRow(studio.id, tasksSection.id, TASKS, {
+    type: APPROVAL_TYPE,
+    title: `Approve quotation ${name} · ${ticket.clientName || ticket.ref || ""}`.trim(),
+    description: [ticket.title, ticket.ref].filter(Boolean).join(" · "),
+    // ROUTED, NOT ASSIGNED. Who decides comes from Task settings on every read,
+    // so appointing somebody there hands them this the moment they are named.
+    assigneeCollaboratorId: "",
+    approvals: {},
+    approvalWithdrawnAt: "",
+    status: "Open",
+    priority: ticket.urgency === "Critical" || ticket.urgency === "High" ? "High" : "Normal",
+    projectId: "",
+    dueDate: "",
+    checklist: [],
+    // What is being approved, and what it belongs to. `quotationId` is the tie
+    // the ticket reads back: an approval is a decision about ONE document, and a
+    // later revision must not inherit it.
+    ticketId,
+    ticketRef: ticket.ref || "",
+    quotationId: quotation.id,
+    quotationNumber: quotation.number || "",
+    quotationRevision: revision,
+    quotationTotal: Number(quotation.total) || 0,
+    clientName: ticket.clientName || "",
+    createdByCollaboratorId: collaborator.id,
+    createdAt: new Date().toISOString(),
+    completedAt: "",
+  });
+
+  const { authorities } = resolveTaskAssignees(task, taskAssignees);
+  return {
+    task,
+    // Reported rather than refused: an authority nobody has been appointed to
+    // can never sign off, and the screen should say so instead of leaving the
+    // request to sit there looking sent. Named, not coded — "Management", not
+    // "mng", because this goes straight onto the screen.
+    unrouted: authorities
+      .filter((c) => (taskAssignees?.[c] || []).length === 0)
+      .map((c) => TASK_AUTHORITIES.find((a) => a.code === c)?.label || c),
+  };
 }
 
 // Ticket creation follows the Old System's contract.
