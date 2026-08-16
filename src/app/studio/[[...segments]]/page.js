@@ -15,6 +15,7 @@ import StudioSalesLive from "@/components/studio2/StudioSalesLive";
 import StudioTechnicalLive from "@/components/studio2/StudioTechnicalLive";
 import StudioPeople from "@/components/studio2/StudioPeople";
 import StudioAccess from "@/components/studio2/StudioAccess";
+import StudioRoles from "@/components/studio2/StudioRoles";
 import StudioSettings from "@/components/studio2/StudioSettings";
 import StudioSales from "@/components/studio2/StudioSales";
 import StudioTicketProfile from "@/components/studio2/StudioTicketProfile";
@@ -163,7 +164,16 @@ export default async function StudioPage({ params }) {
   return (
     <StudioFrame {...frameProps}>
       {isPeople ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} />
-        : isAccess ? <StudioAccess slug={studio.slug} />
+        : isAccess ? (
+          <div className="space-y-6">
+            {/* The old per-person section grid stays for now: it is what the
+                legacy bridge still reads, and removing it before roles are
+                assignable would leave a studio with no way to change access at
+                all. Roles sit beneath it until the migration retires it. */}
+            <StudioAccess slug={studio.slug} />
+            <StudioRoles slug={studio.slug} />
+          </div>
+        )
         : isSettings ? <StudioSettings slug={studio.slug} />
         : deniedSection ? <NoSectionAccess />
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />

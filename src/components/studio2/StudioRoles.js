@@ -1,0 +1,328 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { panel, h2, sub, input, label, btn, btnGhost, Empty } from "@/components/studio2/ui";
+import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/lib/permissions";
+
+// THE ROLE EDITOR.
+//
+// Defining a role is rare and careful; assigning one is frequent and quick.
+// They are opposite jobs, so they are separate screens — this is the rare one.
+//
+// Never a hundred checkboxes. Areas are collapsed and summarised in words, and
+// each opens to a LADDER: none / view / edit / full, one control per row rather
+// than four boxes. Powers that do not nest inside a ladder get their own line,
+// so granting "lock a quotation" is a deliberate act instead of one tick among
+// a hundred identical ones.
+
+const LADDER_LABEL = { none: "None", view: "View", edit: "Edit", full: "Full" };
+
+export default function StudioRoles({ slug }) {
+  const [data, setData] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/roles`, { cache: "no-store" });
+    if (!res.ok) { setError("Couldn't load roles."); return; }
+    setData(await res.json());
+  }, [slug]);
+  useEffect(() => { load(); }, [load]);
+
+  async function save(role) {
+    setBusy(true); setError("");
+    const res = await fetch(`/api/studios/${slug}/roles`, {
+      method: role.id ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(role),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      const out = await res.json().catch(() => ({}));
+      // The one refusal worth explaining properly: you cannot write a role
+      // containing something you cannot do yourself.
+      setError(out.error === "escalation"
+        ? "You can only put things in a role that you can do yourself."
+        : "That didn't save.");
+      return;
+    }
+    setEditing(null);
+    await load();
+  }
+
+  async function remove(id) {
+    setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/roles`, {
+      method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
+    });
+    setBusy(false);
+    if (!res.ok) { setError("That role can't be deleted."); return; }
+    await load();
+  }
+
+  if (!data) return <p className="text-sm text-slate-500">Loading roles…</p>;
+  const { roles = [], areas = [], canEdit } = data;
+
+  if (editing) {
+    return (
+      <RoleEditor
+        role={editing} areas={areas} busy={busy} error={error}
+        onCancel={() => { setEditing(null); setError(""); }}
+        onSave={save}
+      />
+    );
+  }
+
+  return (
+    <section className={panel}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className={h2}>Roles</h2>
+          <p className={sub}>What a job is allowed to do. Assign them to people on the list above.</p>
+        </div>
+        {canEdit && (
+          <button className={btn} onClick={() => setEditing({ name: "", description: "", permissions: [], scopes: {} })}>
+            New role
+          </button>
+        )}
+      </div>
+
+      {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+
+      {roles.length === 0 ? (
+        <Empty title="No roles yet" body="Studios start with a few; if yours has none, create one." />
+      ) : (
+        <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
+          {roles.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center gap-3 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-600 text-slate-900 dark:text-white">
+                  {r.name}
+                  {r.wildcard && (
+                    <span className="ms-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-700 text-amber-700 dark:text-amber-300">
+                      Everything, including future features
+                    </span>
+                  )}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{r.description}</p>
+              </div>
+              <span className="shrink-0 text-xs text-slate-400">
+                {r.wildcard ? "—" : `${(r.permissions || []).length} permissions`}
+              </span>
+              {canEdit && (
+                <span className="flex shrink-0 gap-2">
+                  <button className={btnGhost} onClick={() => setEditing({ ...r })}>Edit</button>
+                  {!r.wildcard && (
+                    <button className={btnGhost} disabled={busy} onClick={() => remove(r.id)}>Delete</button>
+                  )}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function RoleEditor({ role, areas, busy, error, onCancel, onSave }) {
+  const [draft, setDraft] = useState(() => ({
+    ...role,
+    permissions: [...(role.permissions || [])],
+    scopes: { ...(role.scopes || {}) },
+  }));
+  const [open, setOpen] = useState("");
+
+  const held = useMemo(() => new Set(draft.permissions), [draft.permissions]);
+  const groups = useMemo(() => {
+    const out = new Map();
+    for (const a of areas) {
+      if (!out.has(a.group)) out.set(a.group, []);
+      out.get(a.group).push(a);
+    }
+    return [...out.entries()];
+  }, [areas]);
+
+  // Setting a level REWRITES that area's ladder keys and leaves its extras
+  // alone — an "also allow" is not part of the ladder, so moving the ladder
+  // must not silently revoke it.
+  const setLevel = (area, level) => setDraft((d) => {
+    const ladder = new Set(LEVEL_VERBS.full.map((v) => `${area.key}.${v}`));
+    const kept = d.permissions.filter((k) => !ladder.has(k));
+    return { ...d, permissions: [...kept, ...keysForLevel(area, level)] };
+  });
+
+  const toggleExtra = (area, x) => setDraft((d) => {
+    const key = `${area.key}.${x.key}`;
+    return {
+      ...d,
+      permissions: d.permissions.includes(key)
+        ? d.permissions.filter((k) => k !== key)
+        : [...d.permissions, key],
+    };
+  });
+
+  const setScope = (area, scope) =>
+    setDraft((d) => ({ ...d, scopes: { ...d.scopes, [area.key]: scope } }));
+
+  // The read-back. Access screens are dangerous because you cannot tell what you
+  // just did, so this says it in sentences as you tick.
+  const summary = useMemo(() => {
+    const can = [];
+    const cannot = [];
+    for (const a of areas) {
+      const lvl = levelOf(a, held);
+      const extras = (a.extra || []).filter((x) => held.has(`${a.key}.${x.key}`)).map((x) => x.label.toLowerCase());
+      if (lvl === "none" && !extras.length) { cannot.push(`${a.group} — ${a.label}`); continue; }
+      const words = lvl === "none" ? [] : [LADDER_LABEL[lvl].toLowerCase()];
+      can.push(`${a.group} — ${a.label}: ${[...words, ...extras].join(", ")}`);
+    }
+    return { can, cannot };
+  }, [areas, held]);
+
+  if (draft.wildcard) {
+    return (
+      <section className={panel}>
+        <h2 className={h2}>{draft.name}</h2>
+        <p className={sub}>
+          This role holds every permission, including ones added in future releases.
+          That is deliberate, and it is why its list cannot be edited — only its description.
+        </p>
+        <div className="mt-4">
+          <label className={label}>Description</label>
+          <input className={input} value={draft.description || ""}
+            onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} />
+        </div>
+        <div className="mt-5 flex gap-3">
+          <button className={btn} disabled={busy} onClick={() => onSave(draft)}>Save</button>
+          <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1fr,20rem]">
+      <section className={panel}>
+        <h2 className={h2}>{role.id ? `Edit ${role.name}` : "New role"}</h2>
+        <p className={sub}>Everything this job may do. Areas are collapsed — open the ones you need.</p>
+
+        {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={label}>Name</label>
+            <input className={input} value={draft.name || ""} placeholder="Sales Engineer"
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
+          </div>
+          <div>
+            <label className={label}>Description</label>
+            <input className={input} value={draft.description || ""} placeholder="Raises and works tickets."
+              onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-2">
+          {groups.map(([group, list]) => {
+            const isOpen = open === group;
+            const line = list
+              .map((a) => `${a.label}: ${LADDER_LABEL[levelOf(a, held)].toLowerCase()}`)
+              .join(" · ");
+            return (
+              <div key={group} className="rounded-geex border border-slate-200/70 dark:border-white/10">
+                <button type="button" onClick={() => setOpen(isOpen ? "" : group)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-start">
+                  <span className="font-600 text-slate-900 dark:text-white">{group}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-slate-500 dark:text-slate-400">{line}</span>
+                  <span className="text-slate-400">{isOpen ? "−" : "+"}</span>
+                </button>
+
+                {isOpen && (
+                  <div className="border-t border-slate-100 px-4 py-3 dark:border-white/5">
+                    {list.map((a) => (
+                      <div key={a.key} className="border-b border-slate-100 py-3 last:border-b-0 dark:border-white/5">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="min-w-[9rem] text-sm text-slate-700 dark:text-slate-200">{a.label}</span>
+                          {/* Only the rungs this area HAS. An area with no delete
+                              has no "full" distinct from "edit", and offering
+                              both would be two buttons doing the same thing. */}
+                          <span className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
+                            {levelsFor(a).map((lvl) => {
+                              const active = levelOf(a, held) === lvl;
+                              return (
+                                <button key={lvl} type="button" aria-pressed={active}
+                                  onClick={() => setLevel(a, lvl)}
+                                  className={`rounded-full px-3 py-1 text-xs font-600 transition-colors ${
+                                    active ? "bg-brand-700 text-white" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                                  }`}>
+                                  {LADDER_LABEL[lvl]}
+                                </button>
+                              );
+                            })}
+                          </span>
+
+                          {/* Scope only where it means something. A disabled
+                              control on every row teaches people to ignore it. */}
+                          {a.scoped && (
+                            <select className={`${input} w-auto`} value={draft.scopes[a.key] || "own"}
+                              aria-label={`${a.label} scope`}
+                              onChange={(e) => setScope(a, e.target.value)}>
+                              {SCOPES.map((s) => (
+                                <option key={s} value={s}>
+                                  {s === "own" ? "Own records" : s === "department" ? "Their department" : "Everyone"}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+
+                        {(a.extra || []).length > 0 && (
+                          <div className="mt-2 flex flex-wrap items-center gap-4 ps-1">
+                            <span className="text-xs text-slate-400">Also allow:</span>
+                            {a.extra.map((x) => (
+                              <label key={x.key} className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                <input type="checkbox" className="h-4 w-4 accent-brand-600"
+                                  checked={held.has(`${a.key}.${x.key}`)}
+                                  onChange={() => toggleExtra(a, x)} />
+                                {x.label}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 flex gap-3">
+          <button className={btn} disabled={busy || !draft.name?.trim()} onClick={() => onSave(draft)}>
+            {busy ? "Saving…" : "Save role"}
+          </button>
+          <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        </div>
+      </section>
+
+      <aside className={`${panel} h-fit lg:sticky lg:top-4`}>
+        <h3 className="font-display text-sm font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          {draft.name?.trim() || "This role"} can
+        </h3>
+        {summary.can.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-400">Nothing yet.</p>
+        ) : (
+          <ul className="mt-2 space-y-1.5 text-sm text-slate-700 dark:text-slate-200">
+            {summary.can.map((line) => <li key={line}>{line}</li>)}
+          </ul>
+        )}
+        <p className="mt-5 text-xs text-slate-400">
+          Cannot touch {summary.cannot.length} other area{summary.cannot.length === 1 ? "" : "s"}.
+        </p>
+      </aside>
+    </div>
+  );
+}
