@@ -77,6 +77,11 @@ export default function StudioInventory({ slug, view = "inventory" }) {
     canManageStock, canManageVendors, canManageItems, canManageSheets, canManageAwb,
     vendors, items, movements, orders, deliveries, projects, shipments, airlines, summary, vocabulary, nav,
   } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
+  // the map is keyed the same way, so a sub-section grant answers for its own
+  // screen and the parent's answer no longer stands in for all of them.
+  const canManage = data.manage?.[view] ?? canManageParent;
+
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
   const wrap = (children) => <div className="space-y-6">{banner}{children}</div>;
 
@@ -201,7 +206,7 @@ function InventoryDashboard({ slug, summary, vendors, items, orders, deliveries,
 }
 
 // ---- registered items (the catalogue) --------------------------------------
-function Items({ items, vendors, units, canManage, busy, send }) {
+function Items({ items, vendors, units, canManage: canManageParent, busy, send }) {
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(null);
   const closeForm = useCallback(() => setForm(null), []);

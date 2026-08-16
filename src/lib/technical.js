@@ -13,7 +13,7 @@
 
 import { nextUniqueRef } from "@/lib/sales";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
+import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { RFQ_STATUSES } from "@/lib/rfqs";
 import { DEFAULT_STATUS } from "@/lib/tickets";
@@ -72,6 +72,8 @@ export async function technicalContext(user, slug) {
     canManageSales: Boolean(sales) && canManageSection(studio, collaborator, sales.id, grants),
     ...readTechnicalSettings(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants),
+    // Manage, per section key — each screen asks about itself.
+    manage: manageMap(studio, collaborator, sections, grants),
   };
 }
 

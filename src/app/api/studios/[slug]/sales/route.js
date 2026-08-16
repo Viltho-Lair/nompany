@@ -24,9 +24,18 @@ export async function GET(request, ctx) {
     listClients(sales), listTickets(sales), assignablePeople(sales), listServices(sales),
   ]);
   return Response.json({
+    // ONE FLAG PER SUB-SECTION. Tickets, Clients and Settings are separate
+    // sections with separate grants, so the screens must be told separately —
+    // sending only the parent's answer is what made a sub-section grant look
+    // like it did nothing.
     canManage: sales.canManage,
+    canManageTickets: sales.canManageTickets,
+    canManageClients: sales.canManageClients,
     canManageSettings: sales.canManageSettings,
     nav: sales.nav,
+    // Manage per section key, so each screen can ask about itself rather
+    // than being handed the parent section's answer.
+    manage: sales.manage,
     // Whether there is a Technical section to send an RFQ to at all. Without
     // one the tickets list drops the RFQ column rather than offering a button
     // that could only ever fail.

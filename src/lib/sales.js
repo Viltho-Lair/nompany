@@ -13,7 +13,7 @@
 // studios and a removed collaborator doesn't drag a user account with them.
 
 import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
+import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES,
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "@/lib/tickets";
@@ -121,6 +121,8 @@ export async function salesContext(user, slug) {
     canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
     ...readSalesVocab(settingsSection),
     nav: sectionNav(studio, collaborator, sections, grants),
+    // Manage, per section key — each screen asks about itself.
+    manage: manageMap(studio, collaborator, sections, grants),
   };
 }
 

@@ -40,6 +40,9 @@ export async function GET(request, ctx) {
     canManageOvertimes: c.canManageOvertimes,
     canManageSettings: c.canManageSettings,
     nav: c.nav,
+    // Manage per section key, so each screen can ask about itself rather
+    // than being handed the parent section's answer.
+    manage: c.manage,
     projects,
     // Only approved, not-yet-delivering quotations can open a project.
     approvedQuotations: quotations,

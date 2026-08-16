@@ -167,6 +167,19 @@ export function sectionNav(studio, collaborator, sections, grants) {
   return Object.fromEntries((sections || []).map((s) => [s.key, visible.has(s.key)]));
 }
 
+// { "sales-tickets": true, "sales-clients": false, … } — MANAGE, per section
+// key, the same shape sectionNav gives for view.
+//
+// Every screen in the studio already dispatches on the section key it is
+// showing, so handing it this map lets each one ask about ITSELF. Threading a
+// separate canManageX prop per sub-section was how the parent's answer ended up
+// standing in for all of them.
+export function manageMap(studio, collaborator, sections, grants) {
+  return Object.fromEntries(
+    (sections || []).map((s) => [s.key, canManageSection(studio, collaborator, s.id, grants)]),
+  );
+}
+
 // ---- joining someone else's studio by company code -------------------------
 // Typing a code only ever RAISES A REQUEST. We deliberately report whether the
 // code matched a studio (the slug is a public address anyway), but never who is

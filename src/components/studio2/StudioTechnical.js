@@ -129,7 +129,12 @@ export default function StudioTechnical({ slug, view = "technical" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Technical…</p>;
 
-  const { canManage, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, nav, nextQuotationNumber } = data;
+  const { canManage: canManageParent, canManageRfq, canManageQuotations, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, nav, nextQuotationNumber } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
+  // the map is keyed the same way, so a sub-section grant answers for its own
+  // screen and the parent's answer no longer stands in for all of them.
+  const canManage = data.manage?.[view] ?? canManageParent;
+
   const aliasOf = Object.fromEntries(people.map((p) => [p.id, p.alias]));
   // Handlers are collaborator ids, but a quotation created before that — or by
   // typing a name — holds the name itself. Show whichever resolves.
@@ -169,7 +174,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
         )}
         <RfqHandler
           rfqs={rfqs}
-          canManage={canManage}
+          canManage={canManageRfq}
           canRequestRfq={canRequestRfq}
           aliasOf={aliasOf}
           people={people}
@@ -194,13 +199,13 @@ export default function StudioTechnical({ slug, view = "technical" }) {
         {editingQuote && (
           <QuotationBuilder
             quote={quotations.find((q) => q.id === editingQuote.id) || editingQuote}
-            canManage={canManage}
+            canManage={canManageQuotations}
             catalogue={data.catalogue || []}
             currency={data.currency || ""}
             onClose={closeEdit}
             onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />
         )}
-        <Quotations quotations={quotations} canManage={canManage} slug={slug} nav={nav} focus={focusQuote}
+        <Quotations quotations={quotations} canManage={canManageQuotations} slug={slug} nav={nav} focus={focusQuote}
           handlerName={handlerName} people={people}
           statuses={vocabulary.quotationStatuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setCreatingQuote(true)}

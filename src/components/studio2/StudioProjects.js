@@ -121,6 +121,11 @@ export default function StudioProjects({ slug, view = "projects" }) {
     canManageList, canManageSla, canManageOvertimes, canManageSettings,
     projects, approvedQuotations, people, slas, overtimes, directory, settings, vocabulary, nav,
   } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
+  // the map is keyed the same way, so a sub-section grant answers for its own
+  // screen and the parent's answer no longer stands in for all of them.
+  const canManage = data.manage?.[view] ?? canManageParent;
+
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 
   if (view === "projects-sla") {
@@ -332,7 +337,7 @@ const LIST_COLUMNS = [
   { key: "endDate", label: "Target end" },
 ];
 
-function ProjectList({ projects, approvedQuotations, people, stages, canManage, slug, nav, focus, onOpen, onSave, onDelete }) {
+function ProjectList({ projects, approvedQuotations, people, stages, canManage: canManageParent, slug, nav, focus, onOpen, onSave, onDelete }) {
   const [opening, setOpening] = useState(false);
   const [detail, setDetail] = useState(null);
   const [query, setQuery] = useState("");

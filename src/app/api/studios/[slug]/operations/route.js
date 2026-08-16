@@ -44,6 +44,9 @@ export async function GET(request, ctx) {
     canManageTracking: g.canManageTracking,
     canManageSettings: g.canManageSettings,
     nav: g.nav,
+    // Manage per section key, so each screen can ask about itself rather
+    // than being handed the parent section's answer.
+    manage: g.manage,
     me: { collaboratorId: g.collaborator.id },
     locations, permits, shifts, projects, people, window, positions,
     // The week comes from STUDIO SETTINGS. Operations used to keep its own

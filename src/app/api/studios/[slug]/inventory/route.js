@@ -29,6 +29,9 @@ export async function GET(request, ctx) {
     canManageSheets: g.canManageSheets,
     canManageAwb: g.canManageAwb,
     nav: g.nav,
+    // Manage per section key, so each screen can ask about itself rather
+    // than being handed the parent section's answer.
+    manage: g.manage,
     vendors, items, movements, orders, deliveries, projects, shipments, airlines,
     summary: {
       items: items.length,

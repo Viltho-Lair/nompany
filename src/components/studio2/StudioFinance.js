@@ -64,7 +64,12 @@ export default function StudioFinance({ slug, view = "finance" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Finance…</p>;
 
-  const { canManage, invoices, expenses, projects, profitability, summary, vocabulary, nav } = data;
+  const { canManage: canManageParent, invoices, expenses, projects, profitability, summary, vocabulary, nav } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
+  // the map is keyed the same way, so a sub-section grant answers for its own
+  // screen and the parent's answer no longer stands in for all of them.
+  const canManage = data.manage?.[view] ?? canManageParent;
+
 
   const tabs = [
     ["invoices", `Invoices (${invoices.length})`],

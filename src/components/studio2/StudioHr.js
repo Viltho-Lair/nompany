@@ -77,7 +77,12 @@ export default function StudioHr({ slug, view = "hr" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Human Resources…</p>;
 
-  const { canManage, departments, positions, certifications, employees, vacations, expiring, headcount, vocabulary, me, nav } = data;
+  const { canManage: canManageParent, departments, positions, certifications, employees, vacations, expiring, headcount, vocabulary, me, nav } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
+  // the map is keyed the same way, so a sub-section grant answers for its own
+  // screen and the parent's answer no longer stands in for all of them.
+  const canManage = data.manage?.[view] ?? canManageParent;
+
   const pendingLeave = vacations.filter((v) => v.status === "Pending").length;
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 

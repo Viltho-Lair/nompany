@@ -21,6 +21,9 @@ export async function GET(request, ctx) {
   return Response.json({
     canManage: g.canManage,
     nav: g.nav,
+    // Manage per section key, so each screen can ask about itself rather
+    // than being handed the parent section's answer.
+    manage: g.manage,
     invoices, expenses, projects,
     profitability: projectMargins,
     summary: summarise(invoices, expenses),

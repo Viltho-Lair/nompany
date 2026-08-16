@@ -73,9 +73,14 @@ export default function StudioOperations({ slug, view = "operations" }) {
   if (!data) return <p className="text-sm text-slate-500">Loading Operations…</p>;
 
   const {
-    canManage, canManageTracking, canManageSettings,
+    canManage: canManageParent, canManageTracking, canManageSettings,
     locations, permits, shifts, projects, people, window, positions, settings, summary, vocabulary, nav, me,
   } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
+  // the map is keyed the same way, so a sub-section grant answers for its own
+  // screen and the parent's answer no longer stands in for all of them.
+  const canManage = data.manage?.[view] ?? canManageParent;
+
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 
   if (view === "operations-tracking") {

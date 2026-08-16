@@ -18,7 +18,7 @@
 // when it expires — never the number.
 
 import { readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
+import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
 import { encryptField, decryptField } from "@/lib/fieldCrypto";
 import { currentUser } from "@/lib/identity";
@@ -59,6 +59,8 @@ export async function hrContext(user, slug) {
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canManageEmployees: canManageSection(studio, collaborator, employeesSection.id, grants),
     nav: sectionNav(studio, collaborator, sections, grants),
+    // Manage, per section key — each screen asks about itself.
+    manage: manageMap(studio, collaborator, sections, grants),
   };
 }
 

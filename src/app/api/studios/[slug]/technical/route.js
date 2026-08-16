@@ -25,13 +25,20 @@ export async function GET(request, ctx) {
     listRfqs(tech), listQuotations(tech), openTickets(tech), technicalPeople(tech), catalogueItems(tech),
   ]);
   return Response.json({
+    // One flag per sub-section: RFQ and Quotations are separately granted, so
+    // they are separately answered.
     canManage: tech.canManage,
+    canManageRfq: tech.canManageRfq,
+    canManageQuotations: tech.canManageQuotations,
     canManageSettings: tech.canManageSettings,
     liveColumns: tech.liveColumns,
     cover: { title: tech.coverTitle, intro: tech.coverIntro, terms: tech.coverTerms },
     // Raising an RFQ is a Sales action, so the button depends on a different grant.
     canRequestRfq: tech.canManageSales,
     nav: tech.nav,
+    // Manage per section key, so each screen can ask about itself rather
+    // than being handed the parent section's answer.
+    manage: tech.manage,
     rfqs, quotations, openTickets: tickets, people,
     // Registered Items, for the builder's line picker.
     catalogue,

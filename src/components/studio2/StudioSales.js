@@ -126,7 +126,12 @@ export default function StudioSales({ slug, view = "sales" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Sales...</p>;
 
-  const { canManage, canManageSettings, clients, tickets, people, vocabulary, nav, liveColumns, services, hasTechnical } = data;
+  const { canManage: canManageParent, canManageTickets, canManageClients, canManageSettings, clients, tickets, people, vocabulary, nav, liveColumns, services, hasTechnical } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
+  // the map is keyed the same way, so a sub-section grant answers for its own
+  // screen and the parent's answer no longer stands in for all of them.
+  const canManage = data.manage?.[view] ?? canManageParent;
+
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 
   if (view === "sales-settings") {
@@ -165,7 +170,7 @@ export default function StudioSales({ slug, view = "sales" }) {
               onSave={(payload) => send("clients", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
           </Dialog>
         )}
-        <Clients clients={clients} tickets={tickets} people={people} canManage={canManage} focus={focusClient}
+        <Clients clients={clients} tickets={tickets} people={people} canManage={canManageClients} focus={focusClient}
           onAdd={() => setEditing({ kind: "client", row: null })}
           onEdit={(row) => setEditing({ kind: "client", row })}
           onDelete={(row) => send("clients", "DELETE", { id: row.id })} />
@@ -193,7 +198,7 @@ export default function StudioSales({ slug, view = "sales" }) {
               onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
           </Dialog>
         )}
-        <Tickets tickets={tickets} people={people} canManage={canManage} slug={slug} nav={nav} focus={focusTicket}
+        <Tickets tickets={tickets} people={people} canManage={canManageTickets} slug={slug} nav={nav} focus={focusTicket}
           hasTechnical={hasTechnical} statuses={vocabulary.statuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setEditing({ kind: "ticket", row: null })}
           onEdit={(row) => setEditing({ kind: "ticket", row })}

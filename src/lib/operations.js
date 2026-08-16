@@ -15,7 +15,7 @@
 // so neither can quietly go stale.
 
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
+import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "@/lib/operationsCalendar";
@@ -62,6 +62,8 @@ export async function operationsContext(user, slug) {
     canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
     settings: settingsSection.settings || {},
     nav: sectionNav(studio, collaborator, sections, grants),
+    // Manage, per section key — each screen asks about itself.
+    manage: manageMap(studio, collaborator, sections, grants),
   };
 }
 

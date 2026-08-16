@@ -19,7 +19,7 @@
 
 import { isKnownCurrency } from "@/lib/currencies";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
-import { studioContext, canViewSection, canManageSection, sectionNav } from "@/lib/studios";
+import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
 
@@ -115,6 +115,8 @@ export async function inventoryContext(user, slug) {
     canManageSheets: canManageSection(studio, collaborator, sheetsSection.id, grants),
     canManageAwb: canManageSection(studio, collaborator, awbSection.id, grants),
     nav: sectionNav(studio, collaborator, sections, grants),
+    // Manage, per section key — each screen asks about itself.
+    manage: manageMap(studio, collaborator, sections, grants),
   };
 }
 
