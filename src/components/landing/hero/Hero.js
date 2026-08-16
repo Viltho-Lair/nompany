@@ -1,4 +1,5 @@
 "use client";
+import { SECTION_DEFS } from "@/lib/data/keys";
 import { AnimatePresence, motion } from "motion/react";
 import { EASE_OUT_EXPO, fadeUp, stagger } from "@/components/landing/lib/motion";
 import { AnimatedHeadline } from "../text/AnimatedHeadline";
@@ -6,13 +7,14 @@ import { Typewriter } from "../text/Typewriter";
 import { DashboardAssembly } from "./DashboardAssembly";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 /* The hero stitches together techniques 1b, 3, 4 and 5. */
-const MODULES = [
-    "Finance",
-    "Human Resources",
-    "Inventory",
-    "Procurement",
-    "Manufacturing",
-];
+// THE DEPARTMENTS THE PRODUCT ACTUALLY HAS. Read from SECTION_DEFS — the same
+// list that seeds every new studio — so the hero cannot drift from the software
+// the way a hand-written array does. It previously promised Procurement and
+// Manufacturing, which do not exist, while omitting Sales and Operations, which
+// do.
+//
+// "Main" is dropped: it is the studio's home screen, not a department.
+const MODULES = SECTION_DEFS.filter((d) => d.key !== "main").map((d) => d.name);
 export function Hero({ dataReady }) {
     return (<section className="relative mx-auto grid max-w-7xl items-center gap-14 px-6 pt-28 pb-20 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pt-36 lg:pb-28">
       {/* ---------------- Copy column ---------------- */}
@@ -47,7 +49,7 @@ export function Hero({ dataReady }) {
                 has to be audited and awarded, and claiming one you do not hold
                 is the kind of line a buyer checks. */}
             <p className="text-xs text-fg-dim">
-              14-day sandbox · No card required
+              Free sign up · No card required
             </p>
           </motion.div>
 

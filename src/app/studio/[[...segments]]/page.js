@@ -7,6 +7,7 @@ import { listSections } from "@/lib/data/sections";
 import { getProfile } from "@/lib/data/users";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
 import { chatDisplayName } from "@/lib/chatConstants";
+import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import LiveProvider from "@/components/studio2/LiveProvider";
 import StudioDocs from "@/components/studio2/StudioDocs";
@@ -71,9 +72,15 @@ export default async function StudioPage({ params }) {
   // Live chat with nompany: every package except Free. Computed here so the
   // shell knows whether to draw the button at all; /api/chat/start decides the
   // same question again for the request, which is the answer that binds.
+  // Whether the package includes chat at all, and how much of this month's
+  // allowance is left. The button is DRAWN whenever the package has chat and
+  // disabled when the allowance is spent — a button that vanishes leaves
+  // somebody wondering what they did wrong.
+  const chatUsed = hasLiveChat(plan) ? await chatsUsed(studio.id) : 0;
   const chat = {
     enabled: hasLiveChat(plan),
     userName: chatDisplayName({ alias: collaborator.alias, profile, email: user.email }),
+    ...allowanceOf(chatUsed, plan.chatPerMonth),
   };
 
   const { segments = [] } = await params;

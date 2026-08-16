@@ -55,7 +55,14 @@ const FIELDS = [
   },
 
   { key: "durationMonths", label: "Duration (months)", type: "number", suffix: " mo", zeroLabel: "Endless", hint: "0 means endless. Shown on the card." },
-  { key: "supportTicketsPerMonth", label: "Support tickets / month", type: "number", zeroLabel: "Unlimited", hint: "0 means unlimited." },
+  // Chat and its allowance sit together: the number means nothing with the box
+  // unticked, and an allowance with no chat to spend it on is a dead field.
+  { key: "chatEnabled", label: "Chat box", type: "switch", hint: "Shows the live chat button inside the studio." },
+  {
+    key: "supportTicketsPerMonth", label: "Support tickets / month", type: "number",
+    zeroLabel: "Unlimited", showWhen: { field: "chatEnabled", equals: true },
+    hint: "0 means unlimited. Each chat started spends one; the button goes flat at zero.",
+  },
 
   { key: "includes", label: "Includes", type: "lines", placeholder: "Full platform — every department\nUp to 9 employees\nEnglish & Arabic, RTL-ready" },
   { key: "includesAr", label: "Includes (Arabic)", type: "lines" },
@@ -66,7 +73,7 @@ const FIELDS = [
 
 // The list stays narrow — the full record is long, and a table that shows
 // everything shows nothing.
-const COLUMNS = ["name", "type", "usersLabel", "cost", "includes", "isPublic"];
+const COLUMNS = ["name", "type", "usersLabel", "cost", "chatEnabled", "includes", "isPublic"];
 
 export default function PackagesPage() {
   return (

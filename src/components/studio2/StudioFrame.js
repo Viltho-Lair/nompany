@@ -420,6 +420,10 @@ export default function StudioFrame({ studio, me, sections, activeKey, chat = nu
         slug={studio.slug}
         studioName={studio.name}
         userName={chat?.userName || me.alias || "You"}
+        unlimited={chat?.unlimited !== false}
+        allowed={chat?.allowed || 0}
+        remaining={chat?.remaining ?? null}
+        exhausted={Boolean(chat?.exhausted)}
       />
 
       {/* Asked once, fifteen days in, and only HERE — a studio is where somebody

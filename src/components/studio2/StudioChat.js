@@ -29,7 +29,11 @@ const inputClass =
   "focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 " +
   "dark:border-white/15 dark:bg-[#191921] dark:text-white dark:placeholder:text-slate-500";
 
-export default function StudioChat({ enabled, slug, studioName, userName }) {
+// What the disabled button says on hover. One sentence, in the words the
+// person needs: what happened, and when it stops being true.
+const EXHAUSTED_MESSAGE = "You have consumed all tickets for this month.";
+
+export default function StudioChat({ enabled, slug, studioName, userName, unlimited = true, allowed = 0, remaining = null, exhausted = false }) {
   const [open, setOpen] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [room, setRoom] = useState(null);
@@ -226,6 +230,13 @@ export default function StudioChat({ enabled, slug, studioName, userName }) {
 
   if (!enabled) return null;
 
+  // Only the START of a conversation costs a ticket, so a chat already open
+  // stays usable even once the allowance is gone.
+  const spent = exhausted && !open && !room;
+  const allowanceHint = unlimited
+    ? "Chat with nompany"
+    : `Chat with nompany · ${remaining} of ${allowed} left this month`;
+
   const status = room?.status || "";
   const done = status === ENDED || status === GONE;
   const subtitle = !room
@@ -385,14 +396,27 @@ export default function StudioChat({ enabled, slug, studioName, userName }) {
         </div>
       )}
 
+      {/* SPENT, NOT GONE. When the month's allowance runs out the button stays
+          where it is and goes flat, with the reason on hover — a button that
+          disappears leaves somebody hunting for what they did wrong. An open
+          conversation is never cut off: only STARTING one is what costs a
+          ticket, so `exhausted` cannot close a chat already in progress. */}
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { if (!spent) setOpen((o) => !o); }}
+        disabled={spent}
+        aria-disabled={spent}
         aria-label={
-          open ? "Minimise chat" : unread > 0 ? `Chat with nompany, ${unread} new message${unread === 1 ? "" : "s"}` : "Chat with nompany"
+          spent ? EXHAUSTED_MESSAGE
+            : open ? "Minimise chat"
+            : unread > 0 ? `Chat with nompany, ${unread} new message${unread === 1 ? "" : "s"}` : "Chat with nompany"
         }
-        title="Chat with nompany"
-        className="relative inline-flex h-14 w-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-geex transition-transform hover:scale-105 hover:bg-brand-950"
+        title={spent ? EXHAUSTED_MESSAGE : allowanceHint}
+        className={`relative inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-geex transition-transform ${
+          spent
+            ? "cursor-not-allowed bg-slate-400 dark:bg-slate-600"
+            : "bg-brand-700 hover:scale-105 hover:bg-brand-950"
+        }`}
       >
         <Icon name={open ? "close" : "chat"} className="h-6 w-6" />
         {!open && unread > 0 && (

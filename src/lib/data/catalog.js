@@ -125,6 +125,11 @@ export const KINDS = {
         isPublic: Boolean(b.isPublic),
         color: normalizeColor(b.color) || hexForName(b.name),
         supportTicketsPerMonth: num(b.supportTicketsPerMonth),
+        // Whether this package gets the live chat button at all. An explicit
+        // switch, because the old rule read the package NAME and asked whether
+        // it was "Free" — which quietly turned renaming a package into a
+        // billing change.
+        chatEnabled: Boolean(b.chatEnabled),
       };
     },
   },

@@ -149,6 +149,11 @@ export const RL = {
 // ---- per-studio keys (die with the studio) ---------------------------------
 export const S = {
   prefix: (studioId) => `s:${studioId}:`,
+  // How many live chats this studio has opened, by calendar month. One hash
+  // under the studio prefix, so it dies with the studio and needs no cascade,
+  // and one field per YYYY-MM, so last month's total survives as a record
+  // rather than being reset over.
+  chatUsage: (studioId) => `s:${studioId}:chatUsage`,
   collaborators: (studioId) => `s:${studioId}:collaborators`,
   sections: (studioId) => `s:${studioId}:sections`,
   grants: (studioId) => `s:${studioId}:grants`,

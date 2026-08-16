@@ -20,6 +20,10 @@ export function planOf(studio, packages, tiers) {
     packageColor: pkg?.color || "green",
     // 0 means no limit — the same convention the console prints as "No limit".
     maxMembers: Number(pkg?.maxEmployees || 0),
+    // Live chat: on or off, and how many conversations a month it allows.
+    // 0 allowed means unlimited, the same convention every other cap here uses.
+    chatEnabled: Boolean(pkg?.chatEnabled),
+    chatPerMonth: Number(pkg?.supportTicketsPerMonth || 0),
     tierId: tier?.id || "",
     tierName: tier?.name || DEFAULT_TIER,
     tierColor: tier?.color || "",
@@ -45,8 +49,11 @@ export async function loadCatalogues() {
 //
 // A studio whose package was deleted resolves to the Free NAME (see planOf), so
 // it lands on "no chat". That is the safe direction to be wrong in.
+// ASKED OF THE PACKAGE, not of its name. This used to compare the package name
+// against "Free", which meant renaming a package silently switched chat on or
+// off for every studio on it.
 export function hasLiveChat(plan) {
-  return String(plan?.packageName || DEFAULT_PACKAGE).trim().toLowerCase() !== DEFAULT_PACKAGE.toLowerCase();
+  return Boolean(plan?.chatEnabled);
 }
 
 // The same question asked from a studio row, for callers (the API) that hold a

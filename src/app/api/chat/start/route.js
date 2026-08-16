@@ -3,6 +3,8 @@ import { studioContext } from "@/lib/studios";
 import { studioHasLiveChat } from "@/lib/plans";
 import { getProfile } from "@/lib/data/users";
 import { openRoom } from "@/lib/data/chat";
+import { chatsUsed, recordChatStart, allowanceOf } from "@/lib/data/chatUsage";
+import { loadCatalogues, planOf } from "@/lib/plans";
 import { forStudio, chatDisplayName } from "@/lib/chatConstants";
 
 export const runtime = "nodejs";
@@ -37,9 +39,20 @@ export async function POST(request) {
     return Response.json({ error: "plan" }, { status: 403 });
   }
 
+  // THE ALLOWANCE IS ENFORCED HERE, not in the browser. The shell disables the
+  // button, but a disabled button is a courtesy — this is the check that binds.
+  const { packages, tiers } = await loadCatalogues();
+  const allowance = allowanceOf(await chatsUsed(studio.id), planOf(studio, packages, tiers).chatPerMonth);
+  if (allowance.exhausted) {
+    return Response.json({ error: "allowance", allowed: allowance.allowed }, { status: 403 });
+  }
+
   const profile = await getProfile(user.id);
   const userName = chatDisplayName({ alias: collaborator.alias, profile, email: user.email });
 
   const room = await openRoom({ studio, userId: user.id, userName });
+  // Counted only once the room actually exists. Counting before would charge a
+  // ticket for a chat that failed to open.
+  await recordChatStart(studio.id);
   return Response.json({ room: forStudio(room) });
 }
