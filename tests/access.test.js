@@ -19,7 +19,7 @@ const accessSrc = fs.readFileSync("src/lib/access.js", "utf8")
   .replace(/export (const|function)/g, "$1");
 const A = {};
 new Function("m", "ALL_PERMISSIONS", "isPermission", "AREAS", "keysForLevel",
-  `${accessSrc}; Object.assign(m, { effectivePermissions, permissionsFromGrants, scopeFor, can, requirePermission });`
+  `${accessSrc}; Object.assign(m, { effectivePermissions, permissionsFromGrants, scopeFor, can, requirePermission, sectionViewable, sectionManageable });`
 )(A, P.ALL_PERMISSIONS, P.isPermission, P.AREAS, P.keysForLevel);
 
 let fails = 0;
@@ -133,6 +133,28 @@ ok("a mistyped key fails loudly, not silently",
 ok("owner passes every guard",
   ["sales.clients.delete", "hr.employees.salary", "finance.cash.delete"]
     .every((k) => guard(res({ role: "owner" }), k) === "allowed"));
+
+
+console.log("\n== the nav reads the same source as the guards");
+{
+  const keys = ["main", "sales", "sales-tickets", "sales-clients", "sales-settings", "hr", "hr-employees"];
+  const view = (acc, k) => A.sectionViewable(acc, k, keys);
+
+  const only = res({ roleIds: ["r_eng"] });          // tickets view/create/edit
+  ok("the section they hold is shown", view(only, "sales-tickets"));
+  ok("a sibling they do not hold is hidden", !view(only, "sales-clients"));
+  ok("the PARENT heading shows because a child does", view(only, "sales"));
+  ok("an untouched heading is hidden", !view(only, "hr"));
+  ok("the dashboard home has nothing to protect", view(only, "main"));
+
+  ok("buttons appear where a write is held", A.sectionManageable(only, "sales-tickets"));
+  ok("...and not where only view is held",
+    !A.sectionManageable(res({ roleIds: ["r_hr"] }), "hr-employees"));
+
+  // The whole point of the rewire: one source, so these cannot disagree.
+  const canWrite = A.can(only, "sales.tickets.edit");
+  ok("nav and guard agree", A.sectionManageable(only, "sales-tickets") === canWrite);
+}
 
 
 // ---------------------------------------------------------------------------

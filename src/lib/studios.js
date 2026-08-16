@@ -6,7 +6,7 @@
 // user-side effect is the derived ix:collab back-pointer, maintained by the
 // collaborators repo.
 
-import { effectivePermissions, requirePermission, scopeFor } from "@/lib/access";
+import { effectivePermissions, requirePermission, scopeFor, sectionViewable, sectionManageable } from "@/lib/access";
 import { listRoles } from "@/lib/data/roles";
 import {
   createStudio, getStudioById, getStudioBySlug, getOwnedStudio,
@@ -171,14 +171,20 @@ export function canManageSection(studio, collaborator, sectionId, grants) {
 }
 
 // The sections this person may actually open — what the studio nav renders.
-export function visibleSections(studio, collaborator, sections, grants) {
-  return (sections || []).filter((s) => s.enabled !== false && canViewSection(studio, collaborator, s.id, grants));
+//
+// READS THE PERMISSION SET, not grants. While these two disagreed the sidebar
+// and the server were answering the same question from different sources, and
+// only the legacy bridge kept them saying the same thing.
+export function visibleSections(studio, collaborator, sections, grants, access) {
+  const keys = (sections || []).map((s) => s.key);
+  return (sections || []).filter((s) => s.enabled !== false
+    && (access ? sectionViewable(access, s.key, keys) : canViewSection(studio, collaborator, s.id, grants)));
 }
 
 // { sales: true, technical: false, … } — used by the modules to decide whether a
 // cross-record reference should be a link or plain text.
-export function sectionNav(studio, collaborator, sections, grants) {
-  const visible = new Set(visibleSections(studio, collaborator, sections, grants).map((s) => s.key));
+export function sectionNav(studio, collaborator, sections, grants, access) {
+  const visible = new Set(visibleSections(studio, collaborator, sections, grants, access).map((s) => s.key));
   return Object.fromEntries((sections || []).map((s) => [s.key, visible.has(s.key)]));
 }
 
@@ -189,10 +195,11 @@ export function sectionNav(studio, collaborator, sections, grants) {
 // showing, so handing it this map lets each one ask about ITSELF. Threading a
 // separate canManageX prop per sub-section was how the parent's answer ended up
 // standing in for all of them.
-export function manageMap(studio, collaborator, sections, grants) {
-  return Object.fromEntries(
-    (sections || []).map((s) => [s.key, canManageSection(studio, collaborator, s.id, grants)]),
-  );
+export function manageMap(studio, collaborator, sections, grants, access) {
+  return Object.fromEntries((sections || []).map((s) => [
+    s.key,
+    access ? sectionManageable(access, s.key) : canManageSection(studio, collaborator, s.id, grants),
+  ]));
 }
 
 // Re-exported so a service module can guard a mutation without importing two

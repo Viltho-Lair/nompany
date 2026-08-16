@@ -20,7 +20,7 @@ import { ALL_PERMISSIONS, isPermission, AREAS, keysForLevel } from "@/lib/permis
 //
 // Section key -> the area(s) that section covers. Sections with no area behind
 // them (the "main" dashboard, live views already covered) simply map to nothing.
-const SECTION_AREAS = {
+export const SECTION_AREAS = {
   "sales-tickets": ["sales.tickets"],
   "sales-clients": ["sales.clients"],
   "sales-live": ["sales.live"],
@@ -150,4 +150,33 @@ export function requirePermission(access, key) {
   if (!isPermission(key)) return { error: "unknown-permission", key };
   if (!can(access, key)) return { error: "forbidden", key };
   return null;
+}
+
+// ---- the read side ---------------------------------------------------------
+// The nav asks about SECTIONS; the model holds AREAS. This is the one place
+// that bridges the two, so the sidebar and the guards cannot drift apart —
+// which is exactly what they were doing while writes used permissions and reads
+// still used grants.
+
+const anyKey = (access, sectionKey, suffixes) =>
+  (SECTION_AREAS[sectionKey] || []).some((area) => suffixes.some((v) => access.has(`${area}.${v}`)));
+
+// A section is worth showing if the person may see anything in it.
+//
+// A section with no areas of its own is a HEADING — "Sales" — and is shown when
+// any of its children are, so a parent never hides a child the person may use.
+// A heading with no children either (the dashboard home) has nothing to
+// protect, so it stays.
+export function sectionViewable(access, sectionKey, allKeys = []) {
+  if (SECTION_AREAS[sectionKey]) return anyKey(access, sectionKey, ["view"]);
+  const children = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
+  if (children.length) return children.some((k) => sectionViewable(access, k, allKeys));
+  return true;
+}
+
+// A section's screens are editable if the person holds ANY write on its areas.
+// Deliberately coarse: this only decides whether buttons are offered. What each
+// button actually does is guarded by its own key at the point of doing it.
+export function sectionManageable(access, sectionKey) {
+  return anyKey(access, sectionKey, ["create", "edit", "delete"]);
 }

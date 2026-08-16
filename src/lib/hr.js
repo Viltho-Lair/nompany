@@ -61,9 +61,9 @@ export async function hrContext(user, slug) {
     studio, collaborator, access, section, employeesSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canManageEmployees: canManageSection(studio, collaborator, employeesSection.id, grants),
-    nav: sectionNav(studio, collaborator, sections, grants),
+    nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants),
+    manage: manageMap(studio, collaborator, sections, grants, access),
   };
 }
 

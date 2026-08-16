@@ -18,7 +18,9 @@ import { enrichTask, readTaskAssignees } from "@/lib/taskRouting";
 export async function mainContext(user, slug) {
   const context = await studioContext(user, slug);
   if (context.error) return context;
-  const { studio, collaborator } = context;
+  // `access` comes from studioContext; dropping it here is what silently
+  // disarms every check downstream.
+  const { studio, collaborator, access } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
@@ -33,8 +35,8 @@ export async function mainContext(user, slug) {
 
   return {
     studio, collaborator, sections, grants, byKey, seen,
-    visible: visibleSections(studio, collaborator, sections, grants),
-    nav: sectionNav(studio, collaborator, sections, grants),
+    visible: visibleSections(studio, collaborator, sections, grants, access),
+    nav: sectionNav(studio, collaborator, sections, grants, access),
   };
 }
 

@@ -117,9 +117,9 @@ export async function inventoryContext(user, slug) {
     canManageItems: canManageSection(studio, collaborator, itemsSection.id, grants),
     canManageSheets: canManageSection(studio, collaborator, sheetsSection.id, grants),
     canManageAwb: canManageSection(studio, collaborator, awbSection.id, grants),
-    nav: sectionNav(studio, collaborator, sections, grants),
+    nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants),
+    manage: manageMap(studio, collaborator, sections, grants, access),
   };
 }
 

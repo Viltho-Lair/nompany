@@ -55,7 +55,9 @@ export default async function StudioPage({ params }) {
     notFound();
   }
 
-  const { studio, collaborator } = context;
+  // `access` comes from studioContext; dropping it here is what silently
+  // disarms every check downstream.
+  const { studio, collaborator, access } = context;
 
   // Tally the visit so the account overview can rank studios by how much this
   // person actually uses them. Fire-and-forget: ranking is a convenience, and a
@@ -67,7 +69,7 @@ export default async function StudioPage({ params }) {
     listSections(studio.id), listGrants(studio.id), loadCatalogues(), getProfile(user.id),
   ]);
   const plan = planOf(studio, catalogues.packages, catalogues.tiers);
-  const sections = visibleSections(studio, collaborator, allSections, grants);
+  const sections = visibleSections(studio, collaborator, allSections, grants, access);
 
   // Live chat with nompany: every package except Free. Computed here so the
   // shell knows whether to draw the button at all; /api/chat/start decides the

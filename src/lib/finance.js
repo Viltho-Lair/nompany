@@ -64,9 +64,9 @@ export async function financeContext(user, slug) {
     canManageCash: canManageSection(studio, collaborator, cashSection.id, grants),
     canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
     cashCategories: readCashCategories(settingsSection),
-    nav: sectionNav(studio, collaborator, sections, grants),
+    nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants),
+    manage: manageMap(studio, collaborator, sections, grants, access),
   };
 }
 

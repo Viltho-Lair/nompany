@@ -74,9 +74,9 @@ export async function technicalContext(user, slug) {
     canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
     canManageSales: Boolean(sales) && canManageSection(studio, collaborator, sales.id, grants),
     ...readTechnicalSettings(settingsSection),
-    nav: sectionNav(studio, collaborator, sections, grants),
+    nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants),
+    manage: manageMap(studio, collaborator, sections, grants, access),
   };
 }
 

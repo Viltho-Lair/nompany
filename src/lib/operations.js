@@ -64,9 +64,9 @@ export async function operationsContext(user, slug) {
     canManageTracking: canManageSection(studio, collaborator, trackingSection.id, grants),
     canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
     settings: settingsSection.settings || {},
-    nav: sectionNav(studio, collaborator, sections, grants),
+    nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants),
+    manage: manageMap(studio, collaborator, sections, grants, access),
   };
 }
 

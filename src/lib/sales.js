@@ -123,9 +123,9 @@ export async function salesContext(user, slug) {
     canManageClients: canManageSection(studio, collaborator, clientsSection.id, grants),
     canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
     ...readSalesVocab(settingsSection),
-    nav: sectionNav(studio, collaborator, sections, grants),
+    nav: sectionNav(studio, collaborator, sections, grants, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants),
+    manage: manageMap(studio, collaborator, sections, grants, access),
   };
 }
 

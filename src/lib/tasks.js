@@ -41,7 +41,9 @@ const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(
 export async function tasksContext(user, slug) {
   const context = await studioContext(user, slug);
   if (context.error) return context;
-  const { studio, collaborator } = context;
+  // `access` comes from studioContext; dropping it here is what silently
+  // disarms every check downstream.
+  const { studio, collaborator, access } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
@@ -59,7 +61,7 @@ export async function tasksContext(user, slug) {
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
     taskAssignees: readTaskAssignees(settingsSection),
-    nav: sectionNav(studio, collaborator, sections, grants),
+    nav: sectionNav(studio, collaborator, sections, grants, access),
   };
 }
 
