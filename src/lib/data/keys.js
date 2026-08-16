@@ -27,6 +27,8 @@ export const ID = {
   section: () => makeId("sec"),
   subsection: () => makeId("sub"),
   grant: () => makeId("grt"),
+  // A named bundle of permissions, per studio. See lib/data/roles.js.
+  role: () => makeId("rol"),
   media: () => makeId("med"),
   questionnaire: () => makeId("qst"),
   package: () => makeId("pkg"),
@@ -156,6 +158,7 @@ export const S = {
   chatUsage: (studioId) => `s:${studioId}:chatUsage`,
   collaborators: (studioId) => `s:${studioId}:collaborators`,
   sections: (studioId) => `s:${studioId}:sections`,
+  roles: (studioId) => `s:${studioId}:roles`,
   grants: (studioId) => `s:${studioId}:grants`,
   tokens: (studioId) => `s:${studioId}:tokens`,
   settings: (studioId) => `s:${studioId}:settings`,
