@@ -42,7 +42,9 @@ export async function technicalContext(user, slug) {
   if (context.error) return context;
   // `access` is resolved in studioContext; forwarding it is what lets every
   // service function guard itself without resolving anything again.
-  const { studio, collaborator, access } = context;
+  // `roles` travels with `access`: scopeFor needs it, and a context that
+  // carries one without the other is half an answer.
+  const { studio, collaborator, access, roles } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
@@ -65,7 +67,7 @@ export async function technicalContext(user, slug) {
   const inventoryItemsSection = byKey["inventory-items"] || byKey["inventory"] || null;
 
   return {
-    studio, collaborator, access, section: technical, salesSection: sales,
+    studio, collaborator, access, roles, section: technical, salesSection: sales,
     quotationsSection, rfqSection, settingsSection, salesTicketsSection, salesClientsSection,
     inventoryItemsSection,
     canManage: canManageSection(studio, collaborator, technical.id, grants),

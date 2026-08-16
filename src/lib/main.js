@@ -20,7 +20,9 @@ export async function mainContext(user, slug) {
   if (context.error) return context;
   // `access` comes from studioContext; dropping it here is what silently
   // disarms every check downstream.
-  const { studio, collaborator, access } = context;
+  // `roles` travels with `access`: scopeFor needs it, and a context that
+  // carries one without the other is half an answer.
+  const { studio, collaborator, access, roles } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));

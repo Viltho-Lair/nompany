@@ -17,7 +17,7 @@ export async function GET(request, ctx) {
   const [departments, positions, certifications, employees, vacations] = await Promise.all([
     listDepartments(g), listPositions(g), listCertifications(g),
     listEmployees(g, g.canManage),
-    listVacations(g, { canManage: g.canManage, meId: g.collaborator.id }),
+    listVacations(g, { meId: g.collaborator.id }),
   ]);
 
   return Response.json({

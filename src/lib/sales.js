@@ -87,7 +87,9 @@ export async function salesContext(user, slug) {
   if (context.error) return context;
   // `access` is resolved in studioContext; forwarding it is what lets every
   // service function guard itself without resolving anything again.
-  const { studio, collaborator, access } = context;
+  // `roles` travels with `access`: scopeFor needs it, and a context that
+  // carries one without the other is half an answer.
+  const { studio, collaborator, access, roles } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
@@ -114,7 +116,7 @@ export async function salesContext(user, slug) {
   if (!canViewSection(studio, collaborator, section.id, grants)) return { error: "forbidden" };
 
   return {
-    studio, collaborator, access, section, ticketsSection, clientsSection, settingsSection,
+    studio, collaborator, access, roles, section, ticketsSection, clientsSection, settingsSection,
     technicalSection, rfqSection, quotationsSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canViewTickets: canViewSection(studio, collaborator, ticketsSection.id, grants),

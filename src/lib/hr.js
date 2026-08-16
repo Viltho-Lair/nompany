@@ -17,7 +17,7 @@
 // viewer who can *manage* HR. Everyone else sees that a document is on file and
 // when it expires — never the number.
 
-import { requirePermission } from "@/lib/access";
+import { requirePermission, scopeFor } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
 import { studioContext, canViewSection, canManageSection, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
@@ -45,7 +45,9 @@ export async function hrContext(user, slug) {
   if (context.error) return context;
   // `access` is resolved in studioContext; forwarding it is what lets every
   // service function guard itself without resolving anything again.
-  const { studio, collaborator, access } = context;
+  // `roles` travels with `access`: scopeFor needs it, and a context that
+  // carries one without the other is half an answer.
+  const { studio, collaborator, access, roles } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
@@ -58,7 +60,7 @@ export async function hrContext(user, slug) {
   const employeesSection = byKey["hr-employees"] || section;
 
   return {
-    studio, collaborator, access, section, employeesSection,
+    studio, collaborator, access, roles, section, employeesSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canManageEmployees: canManageSection(studio, collaborator, employeesSection.id, grants),
     nav: sectionNav(studio, collaborator, sections, grants, access),
@@ -414,16 +416,32 @@ export function expiringDocuments(employees, today = new Date()) {
 }
 
 // ---- leave -----------------------------------------------------------------
-export async function listVacations({ studio, section }, { canManage, meId }) {
+export async function listVacations(ctx, { meId }) {
+  const { studio, section } = ctx;
   const [rows, people] = await Promise.all([
     readCol(studio.id, section.id, VACATIONS),
     listCollaborators(studio.id),
   ]);
   const aliasById = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
-  // Without manage rights you see your own leave only — a viewer grant on HR
-  // is not a licence to read the whole studio's absences.
+
+  // WHOSE LEAVE, answered by the model rather than by a boolean invented here.
+  // This was `canManage || it is mine`, which could only ever express two of the
+  // three real answers — a team lead who should see their own department and no
+  // further had nowhere to sit.
+  const scope = scopeFor(ctx, "hr.vacations");
+  const me = people.find((c) => c.id === meId);
+  const mine = (v) => v.collaboratorId === meId;
+  const sameDepartment = (v) => {
+    if (!me?.departmentId) return false;
+    const owner = people.find((c) => c.id === v.collaboratorId);
+    return owner?.departmentId === me.departmentId;
+  };
+  const inScope = scope === "all" ? () => true
+    : scope === "department" ? (v) => mine(v) || sameDepartment(v)
+    : mine;
+
   return rows
-    .filter((v) => canManage || v.collaboratorId === meId)
+    .filter(inScope)
     .sort((a, b) => (b.from || "").localeCompare(a.from || ""))
     .map((v) => ({ ...v, alias: aliasById[v.collaboratorId] || "Unknown" }));
 }

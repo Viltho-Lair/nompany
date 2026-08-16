@@ -44,7 +44,9 @@ export async function financeContext(user, slug) {
   if (context.error) return context;
   // `access` is resolved in studioContext; forwarding it is what lets every
   // service function guard itself without resolving anything again.
-  const { studio, collaborator, access } = context;
+  // `roles` travels with `access`: scopeFor needs it, and a context that
+  // carries one without the other is half an answer.
+  const { studio, collaborator, access, roles } = context;
 
   const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
@@ -59,7 +61,7 @@ export async function financeContext(user, slug) {
   const sheetsSection = byKey["inventory-sheets"] || byKey["inventory"] || null;
 
   return {
-    studio, collaborator, access, section, cashSection, settingsSection, projectsListSection, sheetsSection,
+    studio, collaborator, access, roles, section, cashSection, settingsSection, projectsListSection, sheetsSection,
     canManage: canManageSection(studio, collaborator, section.id, grants),
     canManageCash: canManageSection(studio, collaborator, cashSection.id, grants),
     canManageSettings: canManageSection(studio, collaborator, settingsSection.id, grants),
