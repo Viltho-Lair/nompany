@@ -140,9 +140,31 @@ export function computeTotals(items, vatRate) {
 const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 // ---- RFQs ------------------------------------------------------------------
-export async function listRfqs({ studio, rfqSection }) {
-  const rows = await readCol(studio.id, rfqSection.id, RFQS);
-  return [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+
+// URGENCY BELONGS TO THE TICKET AND IS READ BACK FROM IT.
+//
+// An RFQ and a quotation are SIBLINGS of the ticket, not copies of it: each one
+// carries the ticketId that says which ticket it is about, so the current
+// urgency is one lookup away. Storing a copy at creation meant a ticket raised
+// to Critical this morning was still Normal on the RFQ Technical is looking at
+// now, and no screen could tell the difference between the two.
+//
+// The stored value is only a FALLBACK — for rows written while it was
+// snapshotted, and for a ticket that has since been removed. Nothing writes it
+// any more.
+async function withTicketUrgency(rows, { studio, salesTicketsSection }) {
+  if (!salesTicketsSection) return rows;
+  const tickets = await readCol(studio.id, salesTicketsSection.id, TICKETS);
+  const urgencyOf = new Map(tickets.map((t) => [t.id, t.urgency]));
+  return rows.map((r) => ({ ...r, urgency: urgencyOf.get(r.ticketId) || r.urgency || "" }));
+}
+
+export async function listRfqs(ctx) {
+  const rows = await readCol(ctx.studio.id, ctx.rfqSection.id, RFQS);
+  return withTicketUrgency(
+    [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
+    ctx,
+  );
 }
 
 // Raised FROM a Sales ticket. Snapshots the ticket so Technical never has to
@@ -209,7 +231,9 @@ export async function requestRfq(ctx, body) {
     title: ticket.title,
     clientId: ticket.clientId,
     clientName: client?.name || "",
-    urgency: ticket.urgency || "Normal",
+    // NO URGENCY HERE. It is the ticket's, and `ticketId` above is what fetches
+    // it — see withTicketUrgency. A copy taken now is wrong the moment Sales
+    // changes it.
     industry: ticket.industry || "",
     // Carried so the quotation can show what Sales asked for without Technical
     // reading the Sales section — the same reason the ref and client are here.
@@ -294,9 +318,15 @@ export function nextQuotationNumber(quotations, settings) {
 }
 
 // ---- quotations ------------------------------------------------------------
-export async function listQuotations({ studio, quotationsSection }) {
-  const rows = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
-  return [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+export async function listQuotations(ctx) {
+  const rows = await readCol(ctx.studio.id, ctx.quotationsSection.id, QUOTATIONS);
+  // Same rule as the RFQ: the ticket owns urgency and a quotation carries the
+  // ticketId. An INTERNAL quotation has no ticket behind it and so has no
+  // urgency, which is the dash the list already shows for one.
+  return withTicketUrgency(
+    [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
+    ctx,
+  );
 }
 
 // Created straight from the Quotations screen, with no RFQ behind it.
@@ -397,10 +427,10 @@ export async function convertRfq(ctx, body) {
     title: rfq.title,
     clientId: rfq.clientId,
     clientName: rfq.clientName,
-    // Read-only on this side: urgency belongs to Sales (a Leader sets it on the
-    // ticket) and industry/services are what Sales sold. Technical sees them so
-    // it can price the right thing, and cannot edit them.
-    urgency: rfq.urgency || "Normal",
+    // Read-only on this side: industry and services are what Sales sold.
+    // Technical sees them so it can price the right thing, and cannot edit them.
+    // Urgency is not copied at all — `ticketId` above fetches it from the ticket,
+    // the same as on the RFQ.
     industry: rfq.industry || "",
     serviceIds: Array.isArray(rfq.serviceIds) ? rfq.serviceIds : [],
     status: DEFAULT_QUOTATION_STATUS,
