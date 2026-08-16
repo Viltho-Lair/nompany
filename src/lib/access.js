@@ -222,3 +222,50 @@ export function escalates(actorAccess, assignment, roles = []) {
   const beyond = [...granting].filter((k) => !actorAccess?.has?.(k));
   return beyond.length ? { error: "escalation", keys: beyond.slice(0, 5) } : null;
 }
+
+// ---- explaining a decision -------------------------------------------------
+
+// "Why can't Sara lock a quotation?" is the question people actually ask about
+// permissions, and an opaque system cannot answer it — which is how support
+// requests turn into someone reading the database.
+//
+// Cheap only because resolution is one function: this re-runs the same steps
+// and reports which one settled it, rather than reimplementing the rules and
+// risking an explanation that disagrees with the enforcement.
+export function explain({ collaborator, roles = [], sections = [], grants = [] }, key) {
+  const who = collaborator?.alias || "They";
+  if (!isPermission(key)) return { allowed: false, reason: `${key} is not a permission this product has.` };
+
+  if (collaborator?.role === "owner") return { allowed: true, reason: `${who} owns the studio, so everything is allowed.` };
+  if (collaborator?.isAdmin) return { allowed: true, reason: `${who} is a studio admin, so everything is allowed.` };
+
+  const assigned = Array.isArray(collaborator?.roleIds) ? collaborator.roleIds : [];
+  const mine = (roles || []).filter((r) => assigned.includes(r.id));
+  const ov = collaborator?.overrides || {};
+
+  // Deny is applied last during resolution, so it is checked first here — the
+  // explanation has to follow the order the answer was actually decided in.
+  if ((ov.deny || []).includes(key)) {
+    return { allowed: false, reason: `${who} has a personal exception that removes this, overriding their role.` };
+  }
+  if ((ov.allow || []).includes(key)) {
+    return { allowed: true, reason: `${who} has a personal exception that adds this.` };
+  }
+
+  const wildcard = mine.find((r) => r.wildcard);
+  if (wildcard) return { allowed: true, reason: `${who} holds ${wildcard.name}, which includes everything.` };
+
+  const granting = mine.find((r) => (r.permissions || []).includes(key));
+  if (granting) return { allowed: true, reason: `${who} holds ${granting.name}, which includes this.` };
+
+  if (!assigned.length) {
+    const fromGrants = permissionsFromGrants(collaborator?.id, sections, grants);
+    if (fromGrants.has(key)) {
+      return { allowed: true, reason: `${who} has no role yet, so their old section access still applies and it allows this.` };
+    }
+    return { allowed: false, reason: `${who} has no role yet, and their old section access does not cover this.` };
+  }
+
+  const names = mine.map((r) => r.name).join(" and ") || "no role";
+  return { allowed: false, reason: `${who} holds ${names}, which does not include this. Add it to the role, or give them a personal exception.` };
+}

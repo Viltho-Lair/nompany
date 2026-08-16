@@ -19,6 +19,9 @@ const LADDER_LABEL = { none: "None", view: "View", edit: "Edit", full: "Full" };
 
 export default function StudioRoles({ slug }) {
   const [data, setData] = useState(null);
+  // Fetched here rather than passed down: this is a client component and the
+  // page that renders it is a server one, so asking is cheaper than plumbing.
+  const [people, setPeople] = useState([]);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -29,6 +32,12 @@ export default function StudioRoles({ slug }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    fetch(`/api/studios/${slug}/collaborators`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setPeople(d?.collaborators || []))
+      .catch(() => {});
+  }, [slug]);
 
   async function save(role) {
     setBusy(true); setError("");
@@ -89,6 +98,8 @@ export default function StudioRoles({ slug }) {
       </div>
 
       {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+
+      {canEdit && people.length > 0 && <WhyPanel slug={slug} people={people} areas={areas} />}
 
       {roles.length === 0 ? (
         <Empty title="No roles yet" body="Studios start with a few; if yours has none, create one." />
@@ -323,6 +334,62 @@ function RoleEditor({ role, areas, busy, error, onCancel, onSave }) {
           Cannot touch {summary.cannot.length} other area{summary.cannot.length === 1 ? "" : "s"}.
         </p>
       </aside>
+    </div>
+  );
+}
+
+// "Why can't Sara lock a quotation?" — the question people actually ask.
+//
+// It exists because the answer is otherwise unknowable without reading the
+// database, and because a permission system nobody can interrogate is one
+// people work around instead of using.
+function WhyPanel({ slug, people, areas }) {
+  const [who, setWho] = useState("");
+  const [key, setKey] = useState("");
+  const [answer, setAnswer] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  // Every action, named the way somebody would say it rather than as a key.
+  const actions = useMemo(() => areas.flatMap((a) => [
+    ...a.verbs.map((v) => ({ key: `${a.key}.${v}`, label: `${a.group} — ${a.label}: ${v}` })),
+    ...(a.extra || []).map((x) => ({ key: `${a.key}.${x.key}`, label: `${a.group} — ${a.label}: ${x.label.toLowerCase()}` })),
+  ]), [areas]);
+
+  async function ask() {
+    if (!who || !key) return;
+    setBusy(true); setAnswer(null);
+    const res = await fetch(`/api/studios/${slug}/access-check`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collaboratorId: who, permission: key }),
+    });
+    setBusy(false);
+    setAnswer(res.ok ? await res.json() : { allowed: false, reason: "Couldn't check that." });
+  }
+
+  return (
+    <div className="mt-5 rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
+      <p className="text-sm font-600 text-slate-700 dark:text-slate-200">Check what someone can do</p>
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <select className={`${input} w-auto`} value={who} aria-label="Person"
+          onChange={(e) => { setWho(e.target.value); setAnswer(null); }}>
+          <option value="">Who…</option>
+          {people.map((p) => (<option key={p.id} value={p.id}>{p.alias || "Unnamed"}</option>))}
+        </select>
+        <select className={`${input} w-auto max-w-full`} value={key} aria-label="Action"
+          onChange={(e) => { setKey(e.target.value); setAnswer(null); }}>
+          <option value="">Do what…</option>
+          {actions.map((a) => (<option key={a.key} value={a.key}>{a.label}</option>))}
+        </select>
+        <button className={btnGhost} disabled={busy || !who || !key} onClick={ask}>
+          {busy ? "Checking…" : "Check"}
+        </button>
+      </div>
+      {answer && (
+        <p className={`mt-3 text-sm ${answer.allowed ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>
+          <span className="font-700">{answer.allowed ? "Allowed. " : "Denied. "}</span>
+          {answer.reason}
+        </p>
+      )}
     </div>
   );
 }
