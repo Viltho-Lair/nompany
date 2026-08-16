@@ -104,7 +104,7 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
           <CardHead title={draft.id ? `Edit ${draft.name || "record"}` : `New ${title.replace(/s$/, "").toLowerCase()}`} />
           <CardBody>
             <div className="grid gap-5 sm:grid-cols-2">
-              {fields.filter((f) => !f.showWhen || f.showWhen(draft)).map((f) => (
+              {fields.filter((f) => visible(f, draft)).map((f) => (
                 <div key={f.key} className={["services", "lines", "categories"].includes(f.type) ? "sm:col-span-2" : ""}>
                   <label className={label} htmlFor={`f-${f.key}`}>{f.label}</label>
                   {f.type === "switch" ? (
@@ -184,6 +184,20 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
 // A computed field's formula travels as DATA — field names and an operation —
 // because it is declared in a server component and read in a client one, and a
 // function cannot cross that boundary.
+// Whether a field belongs on the form given what has been chosen so far. The
+// condition is a small object rather than a predicate — see the packages page
+// for why a function cannot cross into here.
+function visible(f, draft) {
+  const c = f.showWhen;
+  if (!c) return true;
+  // The stored value, or what a brand-new record will default to: the field has
+  // to appear before the select has ever been touched.
+  const value = draft?.[c.field] ?? c.fallback ?? "";
+  if ("equals" in c) return value === c.equals;
+  if ("notEquals" in c) return value !== c.notEquals;
+  return true;
+}
+
 function computeField(f, row) {
   const n = (k) => Number(row?.[k]) || 0;
   if (Array.isArray(f.multiply)) {

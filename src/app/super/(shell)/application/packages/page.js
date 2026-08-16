@@ -20,7 +20,11 @@ const TYPES = [
   { value: "premium", label: "Premium — invoiced monthly, button says Contact Sales" },
 ];
 
-const compound = (d) => (d.type || "compound") === "compound";
+// Conditions travel as DATA, for the same reason the total's formula does: this
+// is a server component and CatalogEditor is a client one, so the field list is
+// serialised on the way across and a function cannot make the trip.
+const ONLY_COMPOUND = { field: "type", equals: "compound", fallback: "compound" };
+const NOT_COMPOUND = { field: "type", notEquals: "compound", fallback: "compound" };
 
 const FIELDS = [
   { key: "name", label: "Name", type: "text", placeholder: "Small" },
@@ -36,17 +40,17 @@ const FIELDS = [
   // Categories replace min/max for a compound package: each one carries its own
   // range, so a single pair of numbers on the package would contradict them.
   {
-    key: "categories", label: "Categories", type: "categories", showWhen: compound,
+    key: "categories", label: "Categories", type: "categories", showWhen: ONLY_COMPOUND,
     hint: "One per headcount band. Each has its own range and per-employee rate.",
   },
-  { key: "minEmployees", label: "Min employees", type: "number", showWhen: (d) => !compound(d) },
-  { key: "maxEmployees", label: "Max employees", type: "number", showWhen: (d) => !compound(d), zeroLabel: "No limit", hint: "0 means no upper limit." },
-  { key: "costPerEmployee", label: "Cost per employee", type: "number", prefix: "SAR ", showWhen: (d) => !compound(d) },
+  { key: "minEmployees", label: "Min employees", type: "number", showWhen: NOT_COMPOUND },
+  { key: "maxEmployees", label: "Max employees", type: "number", showWhen: NOT_COMPOUND, zeroLabel: "No limit", hint: "0 means no upper limit." },
+  { key: "costPerEmployee", label: "Cost per employee", type: "number", prefix: "SAR ", showWhen: NOT_COMPOUND },
   {
     key: "cost", label: "Total cost", type: "computed", prefix: "SAR ",
     multiply: ["costPerEmployee", "maxEmployees"],
     whenZero: "costPerEmployee",
-    showWhen: (d) => !compound(d),
+    showWhen: NOT_COMPOUND,
     hint: "Cost per employee x max employees. With no upper limit, the per-employee rate stands alone.",
   },
 
