@@ -437,10 +437,15 @@ export async function listTickets({ studio, ticketsSection, clientsSection, rfqS
 // record, so the permission checked is Sales:manage — the same call from the
 // Technical screen goes through technicalContext and lands in the same place.
 export async function requestTicketRfq(ctx, body) {
-  const { studio, collaborator, section, ticketsSection, clientsSection, rfqSection } = ctx;
+  const { studio, collaborator, access, roles, section, ticketsSection, clientsSection, rfqSection } = ctx;
   if (!rfqSection) return { error: "no-technical" };
   return requestRfq({
     studio, collaborator, rfqSection,
+    // `access` TRAVELS. requestRfq guards itself before it writes, and a context
+    // handed over without the permission set answers "forbidden" to everybody,
+    // owners included — which is what this call used to do.
+    access, roles,
+    viaSales: true, // which door this came through: see requestRfq's guard
     salesSection: section,
     salesTicketsSection: ticketsSection,
     salesClientsSection: clientsSection,

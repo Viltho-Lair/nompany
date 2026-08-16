@@ -159,7 +159,16 @@ function uniqueRfqReference(rows, base) {
 
 export async function requestRfq(ctx, body) {
   // Guarded before anything is read or written — see lib/access.js.
-  const denied = requirePermission(ctx.access, "technical.rfq.create");
+  //
+  // TWO DOORS, TWO RIGHTS. Raised from TECHNICAL it is a Technical create, so
+  // technical.rfq.create is what is asked for. Raised from the SALES ticket row
+  // it is Sales handing its own ticket over — it moves that ticket Lead →
+  // Opportunity — and asking for a Technical right there refuses every Sales
+  // role the button is shown to, which is the whole point of that button.
+  // Either door, canManageSales below still has to hold.
+  const denied = ctx.viaSales
+    ? requirePermission(ctx.access, "sales.tickets.edit")
+    : requirePermission(ctx.access, "technical.rfq.create");
   if (denied) return denied;
 
   const { studio, rfqSection, salesSection, salesTicketsSection, salesClientsSection, collaborator, canManageSales } = ctx;

@@ -114,6 +114,8 @@ export default function StudioSales({ slug, view = "sales" }) {
         : out.error === "budget" ? "Client budget must be a non-negative number."
         : out.error === "already" ? "That ticket is already with Technical."
         : out.error === "no-technical" ? "This studio has no Technical section to send an RFQ to."
+        : out.error === "forbidden" || out.error === "sales-required" ? "You're not allowed to raise an RFQ."
+        : out.error === "ticket" ? "That ticket no longer exists - reload the page."
         : "That didn't save."
       );
       return false;
@@ -614,7 +616,11 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
                         <td className="py-3 pe-3 ps-2">
                           {!rfq.requested
                             ? (canManage && isUnresolved(t)
-                                ? <button type="button" className={btnAmber} disabled={rfqBusy === t.id} onClick={() => requestRfq(t)}>
+                                // stopPropagation because the whole ROW is a link to the ticket:
+                                // without it the click reaches the row and the page navigates away
+                                // mid-request, which is what made a refusal look like nothing at all.
+                                ? <button type="button" className={btnAmber} disabled={rfqBusy === t.id}
+                                    onClick={(e) => { e.stopPropagation(); requestRfq(t); }}>
                                     {rfqBusy === t.id ? "Sending…" : "Request RFQ"}
                                   </button>
                                 : <span className="text-slate-400">—</span>)

@@ -25,7 +25,7 @@ export async function POST(request, ctx) {
 
   const result = await requestRfq(c, await body(request));
   if (result.error) {
-    const status = result.error === "sales-required" ? 403
+    const status = result.error === "sales-required" || result.error === "forbidden" ? 403
       : result.error === "already" ? 409
       : result.error === "ticket" || result.error === "no-sales" ? 404 : 400;
     return Response.json({ error: result.error }, { status });

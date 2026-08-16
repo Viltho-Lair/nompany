@@ -24,6 +24,7 @@ export async function POST(request, ctx) {
   const result = await requestTicketRfq(sales, body);
   if (result.error) {
     const status = result.error === "already" ? 409
+      : result.error === "forbidden" || result.error === "sales-required" ? 403
       : result.error === "ticket" || result.error === "no-technical" ? 404 : 400;
     return Response.json({ error: result.error }, { status });
   }

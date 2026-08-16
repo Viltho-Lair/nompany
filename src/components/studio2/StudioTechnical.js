@@ -107,7 +107,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
     const out = await res.json().catch(() => ({}));
     if (!res.ok) {
       setError(
-        out.error === "sales-required" ? "Raising an RFQ needs Manage access to Sales."
+        out.error === "sales-required" || out.error === "forbidden" ? "Raising an RFQ needs Manage access to Sales."
         : out.error === "read-only" ? "You have view-only access to Technical."
         : out.error === "already" ? "That's already been done."
         : out.error === "ticket" ? "Pick a ticket."
