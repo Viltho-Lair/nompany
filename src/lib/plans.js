@@ -6,7 +6,7 @@
 
 import { listCatalog, DEFAULT_PACKAGE, DEFAULT_TIER } from "@/lib/data/catalog";
 
-export { PACKAGE_TONE, toneOf } from "@/lib/planColors";
+export { toneOf } from "@/lib/planColors";
 
 // Resolve one studio's plan against the catalogue. Falls back to the default
 // NAMES rather than to nothing, so a studio whose package was deleted still
