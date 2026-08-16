@@ -141,36 +141,77 @@ const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 // ---- RFQs ------------------------------------------------------------------
 
-// URGENCY BELONGS TO THE TICKET AND IS READ BACK FROM IT.
+// EVERYTHING A ROW GETS FROM THE TICKET, READ BACK THROUGH ITS ticketId.
 //
-// An RFQ and a quotation are SIBLINGS of the ticket, not copies of it: each one
-// carries the ticketId that says which ticket it is about, so the current
-// urgency is one lookup away. Storing a copy at creation meant a ticket raised
-// to Critical this morning was still Normal on the RFQ Technical is looking at
-// now, and no screen could tell the difference between the two.
+// CREATED HERE, STORED HERE; CAME FROM SOMEWHERE ELSE, CARRIED. That is the
+// whole rule. An RFQ and a quotation are SIBLINGS of the ticket, not copies of
+// it: the ticket owns its reference, title, client, urgency, industry, services
+// and deadline, so those are fetched every time a row is shown and stored
+// nowhere else. Rename a ticket and it is renamed everywhere it is linked, with
+// nothing to migrate and no second copy taking up room for a worse answer.
 //
-// THE TICKET IS THE ONLY SOURCE. Whatever a row was written with is ignored:
-// falling back to it would mean two answers again, and the stale one would win
-// exactly when it matters — the ticket somebody just changed. Nor is a fallback
-// protecting anything, because a sales ticket cannot be deleted: the area has no
-// delete verb at all, by design, since its RFQs, quotations and comments all
-// point back at it.
+// What a row AUTHORS is its own and is stored: the RFQ's reference, status and
+// handler; the quotation's number, revision, lines, VAT and totals.
 //
-// No ticket behind the row means no urgency, which is the dash the quotations
-// list already shows for an Internal one.
-async function withTicketUrgency(rows, { studio, salesTicketsSection }) {
-  if (!salesTicketsSection) return rows.map((r) => ({ ...r, urgency: "" }));
-  const tickets = await readCol(studio.id, salesTicketsSection.id, TICKETS);
-  const urgencyOf = new Map(tickets.map((t) => [t.id, t.urgency]));
-  return rows.map((r) => ({ ...r, urgency: urgencyOf.get(r.ticketId) || "" }));
+// Whatever a row was written with is IGNORED, with no fallback. Two answers
+// means the stale one wins exactly when it matters — the ticket somebody just
+// changed. Nor would a fallback protect anything: a sales ticket cannot be
+// deleted, the area has no delete verb at all, so "no ticket" means only an
+// INTERNAL quotation, raised with nothing behind it.
+const NO_TICKET = {
+  ticketRef: "", title: "", clientId: "", clientName: "", urgency: "",
+  industry: "", serviceIds: [], deadline: "", ticketDescription: "",
+};
+
+export async function ticketFacts({ studio, salesTicketsSection, salesClientsSection }) {
+  if (!salesTicketsSection) return () => NO_TICKET;
+  const [tickets, clients] = await Promise.all([
+    readCol(studio.id, salesTicketsSection.id, TICKETS),
+    salesClientsSection ? readCol(studio.id, salesClientsSection.id, CLIENTS) : [],
+  ]);
+  // The client's NAME is the client record's, not the ticket's — a second hop
+  // down the same kind of key, and for the same reason.
+  const nameById = new Map(clients.map((c) => [c.id, c.name]));
+  const byId = new Map(tickets.map((t) => [t.id, t]));
+  return (ticketId) => {
+    const t = ticketId ? byId.get(ticketId) : null;
+    if (!t) return NO_TICKET;
+    return {
+      ticketRef: t.ref || "",
+      title: t.title || "",
+      clientId: t.clientId || "",
+      clientName: nameById.get(t.clientId) || "",
+      urgency: t.urgency || "",
+      industry: t.industry || "",
+      serviceIds: Array.isArray(t.serviceIds) ? t.serviceIds : [],
+      deadline: t.deadline || "",
+      // For a row that did not write its own wording.
+      ticketDescription: t.description || "",
+    };
+  };
 }
 
 export async function listRfqs(ctx) {
-  const rows = await readCol(ctx.studio.id, ctx.rfqSection.id, RFQS);
-  return withTicketUrgency(
-    [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
-    ctx,
-  );
+  const [rows, factsFor] = await Promise.all([
+    readCol(ctx.studio.id, ctx.rfqSection.id, RFQS),
+    ticketFacts(ctx),
+  ]);
+  return [...rows]
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+    .map((r) => {
+      const t = factsFor(r.ticketId);
+      return {
+        ...r,
+        ticketRef: t.ticketRef, title: t.title,
+        clientId: t.clientId, clientName: t.clientName,
+        urgency: t.urgency, industry: t.industry,
+        serviceIds: t.serviceIds, deadline: t.deadline,
+        // The ONE field that is genuinely the RFQ's when somebody typed one:
+        // asking Technical for something other than what the ticket says is the
+        // point of the box. Empty means nobody did, so the ticket speaks.
+        description: r.description || t.ticketDescription,
+      };
+    });
 }
 
 // Raised FROM a Sales ticket, and still holding a copy of most of it — see the
@@ -199,20 +240,21 @@ export async function requestRfq(ctx, body) {
     : requirePermission(ctx.access, "technical.rfq.create");
   if (denied) return denied;
 
-  const { studio, rfqSection, quotationsSection, salesSection, salesTicketsSection, salesClientsSection, collaborator, canManageSales } = ctx;
+  const { studio, rfqSection, quotationsSection, salesSection, salesTicketsSection, collaborator, canManageSales } = ctx;
   if (!canManageSales) return { error: "sales-required" };
   if (!salesSection) return { error: "no-sales" };
   // Every section this reads, checked before it reads any of them. A caller that
   // arrives without one has a context built wrong, and saying so is worth more
   // than a TypeError on `.id` three lines down that reaches the screen as a 500
   // with nothing in it to read.
-  if (!salesTicketsSection || !salesClientsSection) return { error: "no-sales" };
+  if (!salesTicketsSection) return { error: "no-sales" };
   if (!rfqSection || !quotationsSection) return { error: "no-technical" };
 
+  // No CLIENTS read any more: the client was only read to copy its name onto the
+  // RFQ, and the name is now read back from the client record at display time.
   const ticketId = str(body?.ticketId, 60);
-  const [tickets, clients, existing, quotations] = await Promise.all([
+  const [tickets, existing, quotations] = await Promise.all([
     readCol(studio.id, salesTicketsSection.id, TICKETS),
-    readCol(studio.id, salesClientsSection.id, CLIENTS),
     readCol(studio.id, rfqSection.id, RFQS),
     readCol(studio.id, quotationsSection.id, QUOTATIONS),
   ]);
@@ -225,27 +267,20 @@ export async function requestRfq(ctx, body) {
   // button dead for the rest of the ticket's life.
   if (pendingRfq(ticketId, existing, quotations)) return { error: "already" };
 
-  const client = clients.find((c) => c.id === ticket.clientId);
   const rfq = await addRow(studio.id, rfqSection.id, RFQS, {
     // One ticket can be sent over more than once — a second RFQ after the first
     // was rejected — so the ticket's own ref is a STARTING POINT, not the
     // answer. Suffixed until it is nobody else's.
     reference: uniqueRfqReference(existing, `RFQ-${ticket.ref}`),
+    // THE KEY, AND THE ONLY THING TAKEN FROM THE TICKET. Its reference, title,
+    // client, urgency, industry, services and deadline are the TICKET'S and are
+    // read back through this id every time the RFQ is shown — see ticketFacts.
+    // Writing them here again would be a second answer that is wrong the moment
+    // Sales edits the ticket, and space spent to make it wrong.
     ticketId,
-    // Read-only snapshot of the Sales side.
-    ticketRef: ticket.ref,
-    title: ticket.title,
-    clientId: ticket.clientId,
-    clientName: client?.name || "",
-    // NO URGENCY HERE. It is the ticket's, and `ticketId` above is what fetches
-    // it — see withTicketUrgency. A copy taken now is wrong the moment Sales
-    // changes it.
-    industry: ticket.industry || "",
-    // Carried so the quotation can show what Sales asked for without Technical
-    // reading the Sales section — the same reason the ref and client are here.
-    serviceIds: Array.isArray(ticket.serviceIds) ? ticket.serviceIds : [],
-    deadline: ticket.deadline || "",
-    description: str(body?.description, 4000) || ticket.description || "",
+    // Stored ONLY when somebody typed one. Empty means the ticket's own wording
+    // is what this RFQ asks for, and that is read back with everything else.
+    description: str(body?.description, 4000),
     status: RFQ_STATUSES[0], // "New"
     handledByCollaboratorId: "",
     requestedByCollaboratorId: collaborator.id,
@@ -325,14 +360,27 @@ export function nextQuotationNumber(quotations, settings) {
 
 // ---- quotations ------------------------------------------------------------
 export async function listQuotations(ctx) {
-  const rows = await readCol(ctx.studio.id, ctx.quotationsSection.id, QUOTATIONS);
-  // Same rule as the RFQ: the ticket owns urgency and a quotation carries the
-  // ticketId. An INTERNAL quotation has no ticket behind it and so has no
-  // urgency, which is the dash the list already shows for one.
-  return withTicketUrgency(
-    [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
-    ctx,
-  );
+  const [rows, factsFor] = await Promise.all([
+    readCol(ctx.studio.id, ctx.quotationsSection.id, QUOTATIONS),
+    ticketFacts(ctx),
+  ]);
+  return [...rows]
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+    .map((q) => {
+      // AN INTERNAL QUOTATION HAS NO TICKET, so there is nothing to carry and
+      // what it holds IS its own — somebody typed that title into the Quotations
+      // screen. Converted ones read the ticket.
+      if (!q.ticketId) return { ...q, leadLabel: LEAD_INTERNAL };
+      const t = factsFor(q.ticketId);
+      return {
+        ...q,
+        title: t.title, clientId: t.clientId, clientName: t.clientName,
+        urgency: t.urgency, industry: t.industry, serviceIds: t.serviceIds,
+        // What the lead column reads: the ticket's reference, from the ticket.
+        leadLabel: t.ticketRef || LEAD_INTERNAL,
+        // NOT description — the wording on a quotation is the document's own.
+      };
+    });
 }
 
 // Created straight from the Quotations screen, with no RFQ behind it.
@@ -379,8 +427,9 @@ export async function createQuotation(ctx, body) {
     ...computeTotals(items, vatRate),
     comments: [],
     locked: false,
+    // No ticket behind it, so there is nothing to carry and no label to store:
+    // the list reads Internal for any quotation without a ticketId.
     lead: LEAD_INTERNAL,
-    leadLabel: LEAD_INTERNAL,
     completedAt: null,
     preparedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
@@ -424,35 +473,38 @@ export async function convertRfq(ctx, body) {
   const items = prior ? cleanItems(itemsFromTables(tables)) : [];
   const vatRate = prior ? num(prior.vatRate) : DEFAULT_VAT_RATE;
   const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60);
+  // The ticket, for the ONE thing the document authors out of it: its opening
+  // description, which Technical then edits. Everything else the ticket owns is
+  // read back through `ticketId` whenever the quotation is shown.
+  const t = (await ticketFacts(ctx))(rfq.ticketId);
   const quotation = await addRow(studio.id, quotationsSection.id, QUOTATIONS, {
     number,
     revision: prior ? (Number(prior.revision) || 1) + 1 : 1,
     revisionOf: prior?.id || "",
     rfqId,
+    // THE KEYS. Title, client, industry, services and urgency are the TICKET'S
+    // and are fetched through this id — see ticketFacts. They used to be copied
+    // off the RFQ row, which had copied them off the ticket, so a quotation
+    // showed the ticket as it was two steps ago and nothing said so.
     ticketId: rfq.ticketId,
-    title: rfq.title,
-    clientId: rfq.clientId,
-    clientName: rfq.clientName,
-    // Read-only on this side: industry and services are what Sales sold.
-    // Technical sees them so it can price the right thing, and cannot edit them.
-    // Urgency is not copied at all — `ticketId` above fetches it from the ticket,
-    // the same as on the RFQ.
-    industry: rfq.industry || "",
-    serviceIds: Array.isArray(rfq.serviceIds) ? rfq.serviceIds : [],
     status: DEFAULT_QUOTATION_STATUS,
+    // THE DOCUMENT, which is this quotation's own and stays stored: what was
+    // priced, at what rate, for what total. A quotation the client is holding
+    // must not reprice itself because a catalogue item changed afterwards.
     tables,
     items,
     vatRate,
     ...computeTotals(items, vatRate),
-    description: str(body?.description, 2000) || str(rfq.description, 2000) || str(rfq.title, 2000),
+    description: str(body?.description, 2000) || str(rfq.description, 2000)
+      || str(t.ticketDescription, 2000) || str(t.title, 2000),
     handledByCollaboratorId,
     handledBy: str(body?.handledBy, 120),
     comments: [],
     locked: false,
     // Converted from an RFQ, so the lead is the source ticket rather than
-    // Internal — this is the one field that distinguishes the two paths.
+    // Internal — this is the one field that distinguishes the two paths. Its
+    // LABEL is the ticket's reference, so that is read back, not stored.
     lead: rfq.ticketId || LEAD_INTERNAL,
-    leadLabel: rfq.ticketRef || rfq.title || LEAD_INTERNAL,
     completedAt: null,
     preparedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),

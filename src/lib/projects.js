@@ -13,6 +13,7 @@ import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listS
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "@/lib/projectSchedule";
+import { ticketFacts } from "@/lib/technical";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 export const DEFAULT_STAGE = "Received";
@@ -58,10 +59,16 @@ export async function projectsContext(user, slug) {
   // HR owns the department list. Projects only reads it, to filter the overtime
   // people picker, and copes with a studio that has no HR section at all.
   const hrEmployeesSection = byKey["hr-employees"] || byKey["hr"] || null;
+  // Sales owns the ticket a project came from. A quotation no longer holds a
+  // copy of the ticket's title and client — they are read back through the
+  // ticketId it carries — so the sections behind that read travel here too.
+  const salesTicketsSection = byKey["sales-tickets"] || byKey["sales"] || null;
+  const salesClientsSection = byKey["sales-clients"] || byKey["sales"] || null;
 
   return {
     studio, collaborator, access, roles, section, technicalSection: technical, hrEmployeesSection,
     listSection, slaSection, overtimesSection, settingsSection, quotationsSection,
+    salesTicketsSection, salesClientsSection,
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canManageList: sectionManageable(access, listSection.key, (sections || []).map((x) => x.key)),
     canManageSla: sectionManageable(access, slaSection.key, (sections || []).map((x) => x.key)),
@@ -133,16 +140,27 @@ export async function listProjects({ studio, listSection }) {
 
 // Quotations that are Approved and not already delivering — what "open a
 // project" can choose from.
-export async function approvedQuotations({ studio, listSection, quotationsSection }) {
+export async function approvedQuotations(ctx) {
+  const { studio, listSection, quotationsSection } = ctx;
   if (!quotationsSection) return [];
-  const [quotes, projects] = await Promise.all([
+  const [quotes, projects, factsFor] = await Promise.all([
     readCol(studio.id, quotationsSection.id, QUOTATIONS),
     readCol(studio.id, listSection.id, PROJECTS),
+    ticketFacts(ctx),
   ]);
   const used = new Set(projects.map((p) => p.quotationId).filter(Boolean));
   return quotes
     .filter((q) => q.status === "Approved" && !used.has(q.id))
-    .map((q) => ({ id: q.id, number: q.number, title: q.title, clientName: q.clientName, total: q.total }));
+    // Title and client are the TICKET'S, reached through the quotation's
+    // ticketId. An Internal quotation has no ticket and titles itself.
+    .map((q) => {
+      const t = factsFor(q.ticketId);
+      return {
+        id: q.id, number: q.number, total: q.total,
+        title: q.ticketId ? t.title : (q.title || ""),
+        clientName: t.clientName,
+      };
+    });
 }
 
 export async function openProject(ctx, body) {
@@ -163,14 +181,23 @@ export async function openProject(ctx, body) {
   const existing = await readCol(studio.id, listSection.id, PROJECTS);
   if (existing.some((p) => p.quotationId === quotationId)) return { error: "already" };
 
+  // The quotation no longer holds a copy of the ticket's title and client, so
+  // they are read from the ticket it points at.
+  //
+  // STILL STORED ON THE PROJECT, AND STILL WRONG. Under the rule this row should
+  // hold the ticketId and read these back like everything else. It does not yet,
+  // because the project's title and client are read straight off the raw rows by
+  // the Projects screens and by Finance's cash sheet, and those have to resolve
+  // first. Next pass — see the note on ticketFacts.
+  const t = (await ticketFacts(ctx))(quote.ticketId);
   const now = new Date().toISOString();
   const project = await addRow(studio.id, listSection.id, PROJECTS, {
     number: `PRJ-${String(existing.length + 1).padStart(4, "0")}`,
-    title: str(body?.title, 200) || quote.title,
-    // Lineage — the whole chain, snapshotted.
+    title: str(body?.title, 200) || t.title || quote.title || "",
+    // Lineage — the whole chain of keys.
     quotationId, quotationNumber: quote.number,
     rfqId: quote.rfqId || "", ticketId: quote.ticketId || "",
-    clientId: quote.clientId || "", clientName: quote.clientName || "",
+    clientId: t.clientId, clientName: t.clientName,
     value: Number(quote.total) || 0,
     stage: DEFAULT_STAGE,
     managerCollaboratorId: str(body?.managerCollaboratorId, 60),

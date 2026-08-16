@@ -112,9 +112,15 @@ export async function recent(ctx, limit = 8) {
     readIfVisible(ctx, "tasks", null, "tasks"),
   ]);
 
+  // A quotation's title is the TICKET'S and is not stored on the quotation, so
+  // it is read through the ticketId — off the tickets already loaded above. A
+  // viewer who cannot see Sales has no tickets to read, and an Internal
+  // quotation has no ticket, so both fall back to the number alone.
+  const ticketTitle = new Map((tickets || []).map((t) => [t.id, t.title]));
+
   const feed = [
     ...(tickets || []).map((t) => ({ kind: "ticket", section: "sales", id: t.id, label: t.title, meta: t.clientName || "", at: t.updatedAt || t.createdAt })),
-    ...(quotations || []).map((q) => ({ kind: "quotation", section: "technical", id: q.id, label: q.number, meta: q.title || q.clientName || "", at: q.createdAt })),
+    ...(quotations || []).map((q) => ({ kind: "quotation", section: "technical", id: q.id, label: q.number, meta: ticketTitle.get(q.ticketId) || q.title || "", at: q.createdAt })),
     ...(projects || []).map((p) => ({ kind: "project", section: "projects", id: p.id, label: p.title, meta: p.number || "", at: p.createdAt })),
     ...(tasks || []).map((t) => ({ kind: "task", section: "tasks", id: t.id, label: t.title, meta: t.type || "", at: t.createdAt })),
   ];
