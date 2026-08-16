@@ -18,6 +18,7 @@ const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display te
 export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) {
   const [requests, setRequests] = useState([]);
   const [people, setPeople] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
@@ -29,6 +30,13 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
     if (canAdminister) calls.push(fetch(`/api/studios/${slug}/requests`, { cache: "no-store" }));
     const [colRes, reqRes] = await Promise.all(calls);
     if (colRes.ok) setPeople((await colRes.json()).collaborators || []);
+    // The roles this studio has defined, so a row can name what somebody holds
+    // and the picker can offer the rest. Read-only here — they are authored on
+    // the access screen.
+    fetch(`/api/studios/${slug}/roles`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setRoles(d?.roles || []))
+      .catch(() => {});
     if (reqRes?.ok) setRequests((await reqRes.json()).requests || []);
     setLoading(false);
   }, [slug, canAdminister]);
@@ -136,6 +144,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
             <MemberRow
               key={p.id}
               person={p}
+              roles={roles}
               isMe={p.id === myCollaboratorId}
               canAdminister={canAdminister}
               busy={busyId === p.id}
@@ -182,9 +191,14 @@ function RequestRow({ request, busy, onDecide }) {
   );
 }
 
-function MemberRow({ person, isMe, canAdminister, busy, onSave, onRemove }) {
+function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRemove }) {
   const [editing, setEditing] = useState(false);
   const [alias, setAlias] = useState(person.alias || "");
+  // ONE ROLE PER PERSON in this picker. The model allows several and resolves
+  // their union, but a dropdown is five seconds and a multi-select is a
+  // decision — and assigning access should be the quick half of this job.
+  const [roleId, setRoleId] = useState((person.roleIds || [])[0] || "");
+  const held = roles.find((r) => r.id === (person.roleIds || [])[0]);
   const isOwner = person.role === "owner";
 
   if (editing) {
@@ -194,8 +208,23 @@ function MemberRow({ person, isMe, canAdminister, busy, onSave, onRemove }) {
           <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Name in this studio</label>
           <input className={input} value={alias} onChange={(e) => setAlias(e.target.value)} />
         </div>
-        <button className={btn} disabled={busy} onClick={() => { onSave(person, { alias }); setEditing(false); }}>Save</button>
-        <button className={btnGhost} onClick={() => { setAlias(person.alias || ""); setEditing(false); }}>Cancel</button>
+        {/* THE ASSIGNMENT. A dropdown, because this is the frequent half of the
+            job: naming what somebody does should take five seconds and never
+            show a permission key. What the role MEANS is edited once, on the
+            access screen. */}
+        {roles.length > 0 && !isOwner && (
+          <div className="min-w-[180px]">
+            <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Role</label>
+            <select className={input} value={roleId} onChange={(e) => setRoleId(e.target.value)}>
+              <option value="">No role — no access</option>
+              {roles.map((r) => (<option key={r.id} value={r.id}>{r.name}</option>))}
+            </select>
+          </div>
+        )}
+        <button className={btn} disabled={busy}
+          onClick={() => { onSave(person, { alias, roleIds: roleId ? [roleId] : [] }); setEditing(false); }}>Save</button>
+        <button className={btnGhost}
+          onClick={() => { setAlias(person.alias || ""); setRoleId((person.roleIds || [])[0] || ""); setEditing(false); }}>Cancel</button>
       </li>
     );
   }
@@ -217,7 +246,13 @@ function MemberRow({ person, isMe, canAdminister, busy, onSave, onRemove }) {
             {person.alias || "Unnamed member"} {isMe && <span className="text-xs font-400 text-slate-400">(you)</span>}
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {isOwner ? "Owner" : person.isAdmin ? "Admin" : "Member"} · joined {new Date(person.createdAt).toLocaleDateString("en-GB")}
+            {isOwner ? "Owner" : person.isAdmin ? "Admin" : held ? held.name : "No role"}
+            {person.overrideCount > 0 && (
+              <span className="ms-1.5 text-amber-700 dark:text-amber-300">
+                +{person.overrideCount} exception{person.overrideCount === 1 ? "" : "s"}
+              </span>
+            )}
+            {" · joined "}{new Date(person.createdAt).toLocaleDateString("en-GB")}
           </p>
         </div>
       </div>

@@ -32,6 +32,13 @@ export async function GET(request, ctx) {
       id: c.id, alias: c.alias, role: c.role, isAdmin: c.isAdmin,
       photo: photos[i] || "",
       departmentId: c.departmentId, positionId: c.positionId, createdAt: c.createdAt,
+      // WHAT THEY HOLD. Without these the People screen cannot show a role, and
+      // the picker would open blank every time — the same silent drop that has
+      // bitten every addition to a shared payload this week.
+      roleIds: Array.isArray(c.roleIds) ? c.roleIds : [],
+      // Exceptions are shown as a COUNT here and as a diff when opened; the
+      // list itself is not something to scan in a table.
+      overrideCount: ((c.overrides?.allow || []).length + (c.overrides?.deny || []).length),
     })),
   });
 }
