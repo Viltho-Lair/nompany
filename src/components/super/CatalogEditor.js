@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Card, CardHead, CardBody, Table, Button, Badge } from "@/app/super/_components/ui";
+import { Card, CardHead, CardBody, Table, Button, Badge, Icon } from "@/app/super/_components/ui";
 import { toneOf, normalizeColor, PRESETS, DEFAULT_HEX } from "@/lib/planColors";
 
 // Packages and Tiers are the same screen with different fields, so they are one
@@ -15,7 +15,7 @@ import { toneOf, normalizeColor, PRESETS, DEFAULT_HEX } from "@/lib/planColors";
 const input = "ad-input";
 const label = "ad-label";
 
-export default function CatalogEditor({ kind, title, fields, services = null, onChanged }) {
+export default function CatalogEditor({ kind, title, fields, services = null, onChanged, settings = null }) {
   const [items, setItems] = useState(null);
   const [draft, setDraft] = useState(null);      // the row being added or edited
   const [busy, setBusy] = useState(false);
@@ -27,6 +27,8 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
     setItems((await res.json()).items || []);
   }, [kind]);
   useEffect(() => { load(); }, [load]);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   async function send(method, payload) {
     setBusy(true); setError("");
@@ -52,11 +54,27 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
 
   return (
     <>
+      {settings && settingsOpen && (
+        <CatalogSettings config={settings} onClose={() => setSettingsOpen(false)} />
+      )}
+
       <Card className="mb-6">
         <CardHead
           title={title}
           sub={items === null ? "Loading…" : `${items.length} defined`}
-          action={<Button onClick={() => setDraft({ ...blank })} disabled={busy}>Add</Button>}
+          action={
+            <span className="flex items-center gap-2">
+              {/* The gear sits BESIDE Add because what it holds is not a record:
+                  it qualifies every package at once, so it does not belong in
+                  the list underneath. */}
+              {settings && (
+                <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(true)} aria-label={settings.title}>
+                  <Icon name="settings" className="h-4 w-4" />
+                </Button>
+              )}
+              <Button onClick={() => setDraft({ ...blank })} disabled={busy}>Add</Button>
+            </span>
+          }
         />
         <CardBody full>
           {error && <p className="px-5 pb-3 text-sm text-[var(--ad-destructive)]">{error}</p>}
@@ -108,6 +126,14 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
                       picked={draft[f.key] || []}
                       onChange={(serviceIds) => setDraft((d) => ({ ...d, [f.key]: serviceIds }))}
                     />
+                  ) : f.type === "computed" ? (
+                    // Shown, never typed. The value is worked out from other
+                    // fields, so an input here would invite somebody to enter a
+                    // total that disagrees with the rate it comes from.
+                    <p className="rounded-md border border-dashed px-3 py-2 text-sm font-medium"
+                      style={{ borderColor: "var(--ad-border)", color: "var(--ad-muted-foreground)" }}>
+                      {f.compute(draft)}
+                    </p>
                   ) : (
                     <input
                       id={`f-${f.key}`} className={input}
@@ -134,6 +160,12 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
 }
 
 function render(f, it, services) {
+  // A computed column reads the stored value like any other — the sum was done
+  // when the record was saved, so the list is not recalculating anything.
+  if (f.type === "computed") {
+    const v = Number(it[f.key] || 0);
+    return <span>{f.prefix || ""}{v.toLocaleString()}{f.suffix || ""}</span>;
+  }
   const v = it[f.key];
   if (f.type === "switch") {
     return <Badge tone={v ? "success" : "secondary"}>{v ? "Public" : "Hidden"}</Badge>;
@@ -238,6 +270,66 @@ function ServicePicker({ services, picked, onChange }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// The catalogue-wide settings dialog behind the gear. One small object, loaded
+// when it is opened rather than with the page — nobody pays for it until they
+// ask.
+function CatalogSettings({ config, onClose }) {
+  const [value, setValue] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    fetch("/api/super/catalog-settings", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (live) setValue(d?.settings || { yearlyDiscountPct: 0 }); })
+      .catch(() => { if (live) setValue({ yearlyDiscountPct: 0 }); });
+    return () => { live = false; };
+  }, []);
+
+  async function save() {
+    setBusy(true);
+    await fetch("/api/super/catalog-settings", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value),
+    }).catch(() => {});
+    setBusy(false); setSaved(true);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={config.title}>
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-[440px] rounded-lg p-6 shadow-xl"
+        style={{ backgroundColor: "var(--ad-card)", color: "var(--ad-card-foreground)" }}>
+        <h3 className="text-base font-semibold">{config.title}</h3>
+        <p className="mt-1 text-sm text-[var(--ad-muted-foreground)]">{config.sub}</p>
+
+        {value === null ? (
+          <p className="mt-5 text-sm text-[var(--ad-muted-foreground)]">Loading…</p>
+        ) : (
+          <div className="mt-5">
+            <label className={label} htmlFor="yearly-discount">Yearly discount</label>
+            <div className="flex items-center gap-2">
+              <input id="yearly-discount" className={input} type="number" min="0" max="100" step="0.01"
+                value={value.yearlyDiscountPct}
+                onChange={(e) => { setValue({ ...value, yearlyDiscountPct: e.target.value }); setSaved(false); }} />
+              <span className="text-sm text-[var(--ad-muted-foreground)]">%</span>
+            </div>
+            <p className="mt-1.5 text-xs text-[var(--ad-muted-foreground)]">
+              Taken off the total cost when the public pricing page is switched to yearly.
+              0 means a year costs twelve months.
+            </p>
+          </div>
+        )}
+
+        <div className="mt-6 flex gap-3">
+          <Button onClick={save} disabled={busy || value === null}>{busy ? "Saving…" : saved ? "Saved" : "Save"}</Button>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+        </div>
+      </div>
     </div>
   );
 }

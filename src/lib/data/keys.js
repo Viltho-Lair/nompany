@@ -59,6 +59,10 @@ export const REG = {
   // unique to them and re-rating replaces rather than accumulates. Platform-
   // level because the opinion is about the product, not about a studio.
   ratings: "g:ratings",
+  // Catalogue-wide settings that belong to no single package — the yearly
+  // discount the public pricing page applies. One small object, platform-level
+  // like the packages it qualifies.
+  catalogSettings: "g:catalogSettings",
   // THE PLATFORM EVENT LOG — the /super console's equivalent of a studio's
   // s:<StudioID>:events. A Redis Stream, capped and cursor-addressable, so the
   // console resumes exactly like a studio board does. It is platform data: it

@@ -6,7 +6,7 @@
 // small records always read whole, exactly like the questionnaire registry, so
 // there is no cascade to maintain — deleting one is deleting its row.
 
-import { readArr, editArr } from "@/lib/data/store";
+import { readArr, editArr, getJSON, setJSON } from "@/lib/data/store";
 import { ID, REG } from "@/lib/data/keys";
 import { normalizeColor, hexForName, DEFAULT_HEX } from "@/lib/planColors";
 
@@ -22,6 +22,37 @@ const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? 
 // Per kind: where it lives, how ids are minted, and how a submitted record is
 // cleaned. The clean function IS the write boundary — anything not named here
 // cannot be stored, whatever the request says.
+// ---- catalogue-wide settings -------------------------------------------------
+// Things that qualify the whole price list rather than any one package. Just
+// the yearly discount so far.
+export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0 };
+
+export async function getCatalogSettings() {
+  const stored = (await getJSON(REG.catalogSettings)) || {};
+  return { ...DEFAULT_CATALOG_SETTINGS, ...stored, yearlyDiscountPct: pct(stored.yearlyDiscountPct) };
+}
+
+export async function saveCatalogSettings(patch) {
+  const next = { yearlyDiscountPct: pct(patch?.yearlyDiscountPct) };
+  await setJSON(REG.catalogSettings, next);
+  return next;
+}
+
+// A percentage, clamped. Over 100 would price a year below nothing, and a
+// negative discount is a surcharge wearing the wrong label.
+const pct = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n * 100) / 100)) : 0;
+};
+
+// What a year costs once the discount is taken off. One function, so /super and
+// the public pricing page can never round it differently.
+export function yearlyPrice(total, discountPct) {
+  const t = Number(total) || 0;
+  const d = Math.min(100, Math.max(0, Number(discountPct) || 0));
+  return Math.round((t - t * (d / 100)) * 100) / 100;
+}
+
 export const KINDS = {
   packages: {
     key: REG.packages,
@@ -30,7 +61,17 @@ export const KINDS = {
       name: str(b.name, 80) || "New package",
       minEmployees: num(b.minEmployees),
       maxEmployees: num(b.maxEmployees),
-      cost: num(b.cost),
+      // THE PRICE IS PER HEAD. That is the number somebody actually decides,
+      // and it is the only one stored.
+      costPerEmployee: num(b.costPerEmployee),
+      // Total cost is DERIVED, never accepted from the request — a stored total
+      // and a stored rate can disagree, and then nobody knows which is the
+      // price. Computed here rather than at read time so every consumer sees
+      // the same figure without repeating the sum.
+      //
+      // maxEmployees 0 means "no limit", which has no total to compute; the
+      // band price falls back to the per-head rate rather than to zero.
+      cost: num(b.maxEmployees) > 0 ? num(b.costPerEmployee) * num(b.maxEmployees) : num(b.costPerEmployee),
       // ZERO IS A VALUE, not a missing one: a package with no duration runs
       // endlessly. `|| 1` here used to quietly turn "endless" into "one month",
       // which meant the state could not be expressed at all.
