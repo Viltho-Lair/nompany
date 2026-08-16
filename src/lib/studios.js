@@ -131,16 +131,25 @@ function grantsFor(grants, collaborator, sectionId) {
   );
 }
 
+// EVERY SECTION ANSWERS FOR ITSELF. A grant names one section id, and these
+// functions read grants for that id and no other — a sub-section is a section,
+// so it is granted, denied and checked on its own terms. Nothing is inherited
+// in either direction: holding Sales does not carry Sales > Clients with it,
+// and holding Sales > Clients does not require Sales.
 export function canViewSection(studio, collaborator, sectionId, grants) {
   if (canAdminister(studio, collaborator)) return true;
   const rows = grantsFor(grants, collaborator, sectionId);
   if (rows.some((g) => g.effect === "deny" && g.action === "view")) return false; // deny wins
-  return rows.some((g) => g.effect === "allow" && (g.action === "view" || g.action === "manage"));
+  return rows.some((g) => g.effect === "allow" && g.action === "view");
 }
 
-// Manage implies view; a manage grant alone is enough to see the section too.
+// MANAGE REQUIRES VIEW, on the same section. Managing something you cannot open
+// is not a state worth having, and it used to be reachable: manage implied
+// view, so a manage-only grant let somebody edit a section the nav would not
+// even show them.
 export function canManageSection(studio, collaborator, sectionId, grants) {
   if (canAdminister(studio, collaborator)) return true;
+  if (!canViewSection(studio, collaborator, sectionId, grants)) return false;
   const rows = grantsFor(grants, collaborator, sectionId);
   if (rows.some((g) => g.effect === "deny" && g.action === "manage")) return false;
   return rows.some((g) => g.effect === "allow" && g.action === "manage");

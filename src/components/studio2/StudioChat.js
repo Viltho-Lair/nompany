@@ -33,7 +33,7 @@ const inputClass =
 // person needs: what happened, and when it stops being true.
 const EXHAUSTED_MESSAGE = "You have consumed all tickets for this month.";
 
-export default function StudioChat({ enabled, slug, studioName, userName, unlimited = true, allowed = 0, remaining = null, exhausted = false }) {
+export default function StudioChat({ enabled, slug, studioName, userName, unlimited = true, allowed = 0, used = 0, remaining = null, exhausted = false }) {
   const [open, setOpen] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [room, setRoom] = useState(null);
@@ -256,6 +256,20 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
               <p className="font-display text-sm font-700">{SUPPORT_LABEL}</p>
               <p className="truncate text-[11px] text-white/70">{subtitle}</p>
             </div>
+            {/* THE COUNT, where the decision is made. Somebody about to start a
+                conversation is the person who needs to know how many are left,
+                and finding out only when the button goes flat is finding out
+                too late. Hidden on an unlimited package: "∞ left" is noise. */}
+            {!unlimited && (
+              <span
+                title={`${used} of ${allowed} used this month`}
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-700 ${
+                  remaining === 0 ? "bg-rose-500/25 text-white" : "bg-white/15 text-white/90"
+                }`}
+              >
+                {remaining} / {allowed} left
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setOpen(false)}

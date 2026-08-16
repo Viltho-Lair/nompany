@@ -422,6 +422,7 @@ export default function StudioFrame({ studio, me, sections, activeKey, chat = nu
         userName={chat?.userName || me.alias || "You"}
         unlimited={chat?.unlimited !== false}
         allowed={chat?.allowed || 0}
+        used={chat?.used || 0}
         remaining={chat?.remaining ?? null}
         exhausted={Boolean(chat?.exhausted)}
       />
