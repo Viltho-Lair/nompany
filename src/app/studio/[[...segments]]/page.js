@@ -142,11 +142,13 @@ export default async function StudioPage({ params }) {
   // quotation's rows without prices, with the columns Projects owns.
   const projectQuotation = projectId && segments[2] === "quotation";
 
-  // PROJECT SHEETS ARE INVENTORY'S, and live under Inventory's own sub-section:
-  // /<slug>/inventory-sheets/<sheetId> is the Quotation Viewer, inventory
-  // version. Same rows, same shared record, Inventory's columns — and the
-  // sheet tabs, because the sheets are theirs to work through.
-  const sheetId = requested === "inventory-sheets" ? (segments[1] || "") : "";
+  // PROJECT SHEETS ARE INVENTORY'S, and the sub-section IS the workspace:
+  // /<slug>/inventory-sheets opens it empty, and /<slug>/inventory-sheets/<id>
+  // opens it with that sheet in the work portion. Both render the same screen —
+  // the bar along the bottom never goes away, because it is how you get from
+  // one project to the next.
+  const isSheets = requested === "inventory-sheets";
+  const sheetId = isSheets ? (segments[1] || "") : "";
 
   const isPeople = requested === "people";
   const isAccess = requested === "access";
@@ -199,7 +201,7 @@ export default async function StudioPage({ params }) {
         : deniedSection ? <NoSectionAccess />
         : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} />
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
-        : sheetId ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
+        : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
         : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
         : projectId ? <StudioProjectProfile slug={studio.slug} projectId={projectId} />
         : screenKey === "sales" ? <StudioSales slug={studio.slug} view={active?.key} />

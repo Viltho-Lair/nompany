@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -126,13 +126,26 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     ? sheets.find((s) => s.id === sheetId) || null
     : sheets.find((s) => s.projectId === projectId && s.kind === "main")
       || sheets.find((s) => s.projectId === projectId) || null;
+  // THE WORK PORTION IS EMPTY UNTIL A SHEET IS CHOSEN. The bar stays, because
+  // the bar is how one is chosen — an inventory person opens this screen to get
+  // to a project, not to be shown one.
   if (!sheet) {
     return (
-      <div className="space-y-4">
-        <Link href={backHref} className={btnGhost}>{backLabel}</Link>
-        <p className={`${panel} text-sm text-slate-500`}>
-          {isInventory ? "That sheet no longer exists." : "This project has no sheet yet."}
-        </p>
+      <div className="flex min-h-[calc(100vh-11rem)] flex-col gap-4">
+        <div className="flex flex-1 items-center justify-center">
+          {isInventory ? (
+            <p className="max-w-sm text-center text-sm text-slate-500 dark:text-slate-400">
+              Pick a project from the bar below, then Main or Bulk.
+              {sheets.length === 0 && " No projects have been signed yet — a project's sheets are drawn up when it is opened from an approved quotation."}
+            </p>
+          ) : (
+            <p className={`${panel} text-sm text-slate-500`}>This project has no sheet yet.</p>
+          )}
+        </div>
+        {isInventory && (
+          <ProjectBar projects={projectTabs} activeProjectId="" activeSheetId=""
+            query={query} onQuery={setQuery} onGo={(sh) => router.push(`/${slug}/inventory-sheets/${sh.id}`)} />
+        )}
       </div>
     );
   }
@@ -145,7 +158,26 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     s.projectNumber, s.quotationNumber, s.projectTitle, s.clientName, s.poNumber,
     ...(s.serials || []),
   ].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
-  const shownTabs = sheets.filter(matches);
+
+  // ONE BUTTON PER PROJECT, not per sheet. A project signed today puts one
+  // button in the bar; Main and Bulk are what is behind it, because they are
+  // two ways of reading that project rather than two projects.
+  const projectTabs = useMemo(() => {
+    const by = new Map();
+    for (const sh of sheets.filter(matches)) {
+      if (!by.has(sh.projectId)) {
+        by.set(sh.projectId, {
+          projectId: sh.projectId,
+          label: sh.projectNumber || sh.projectTitle || "Unnumbered",
+          title: sh.projectTitle || "",
+          sheets: [],
+        });
+      }
+      by.get(sh.projectId).sheets.push(sh);
+    }
+    return [...by.values()];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheets, q]);
 
   // WHAT THIS PERSPECTIVE OFFERS TO WRITE. Assigning serials is Inventory's;
   // installation and programming are Projects'. Holding the other department's
@@ -156,7 +188,11 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     && (owner === "inventory" ? data.canWriteInventoryColumns : data.canManageList);
 
   return (
-    <div className="space-y-4">
+    // TWO PORTIONS. The work portion takes everything between the top bar and
+    // the bar; the bar is always at the bottom. min-h keeps the bar down there
+    // even on a short sheet, rather than floating it up under the last row.
+    <div className={isInventory ? "flex min-h-[calc(100vh-11rem)] flex-col" : "space-y-4"}>
+      <div className={isInventory ? "flex-1 space-y-4 overflow-x-hidden pb-4" : "space-y-4"}>
       <div className="flex flex-wrap items-center gap-3">
         <Link href={backHref} className={btnGhost}>{backLabel}</Link>
         <div className="min-w-0">
@@ -241,11 +277,13 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
         </section>
       ))}
 
-      {/* THE TABS ARE INVENTORY'S. A project manager is looking at one project;
-          a storeman is working along every sheet in the studio. */}
+      </div>
+
+      {/* THE BAR IS INVENTORY'S. A project manager is looking at one project; a
+          storeman is working along every project in the studio. */}
       {isInventory && (
-        <SheetTabs tabs={shownTabs} activeId={sheet.id} total={sheets.length}
-          query={query} onQuery={setQuery} onGo={(s) => router.push(`/${slug}/inventory-sheets/${s.id}`)} />
+        <ProjectBar projects={projectTabs} activeProjectId={sheet.projectId} activeSheetId={sheet.id}
+          query={query} onQuery={setQuery} onGo={(sh) => router.push(`/${slug}/inventory-sheets/${sh.id}`)} />
       )}
     </div>
   );
@@ -301,35 +339,81 @@ function Cell({ column, row, draft, disabled, onEdit }) {
 // are. The SEARCH IS FIXED TO ITS LEFT and outside the scrolling strip, so it
 // stays reachable no matter how many tabs there are; putting it inside the
 // strip would mean scrolling to find the thing that does the finding.
-function SheetTabs({ tabs, activeId, total, query, onQuery, onGo }) {
+// THE BAR. Always along the bottom of the working section, never over the
+// sidebar, and it does not scroll away with the rows — it is how somebody gets
+// from one project to the next, so it has to be there whatever they are looking
+// at, including at nothing.
+//
+// The search takes a FIFTH of the bar and the projects take the rest, scrolling
+// horizontally when there are more than fit. The search sits outside that strip
+// so it never scrolls out of reach — scrolling to find the thing that does the
+// finding is the fault it exists to avoid.
+//
+// ONE BUTTON PER PROJECT. Signing a project puts its number in the bar; Main
+// and Bulk are behind it in a small window, because they are two readings of
+// that project rather than two projects.
+function ProjectBar({ projects, activeProjectId, activeSheetId, query, onQuery, onGo }) {
+  const [open, setOpen] = useState("");
+  const box = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(""); };
+    const esc = (e) => { if (e.key === "Escape") setOpen(""); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+
   return (
-    // STICKY, NOT FIXED. Fixed spanned the whole viewport — under the sidebar
-    // and out to both edges of the screen — which is not where this belongs.
-    // Sticky keeps it inside the working section, so it is as wide as the
-    // content is and the sidebar keeps its own space.
-    <div className="sticky bottom-0 z-20 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
+    <div ref={box} className="sticky bottom-0 z-20 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
       <div className="flex items-center gap-3 px-3 py-2">
-        {/* A SMALL FIELD, not a full-width one. It sits beside the tabs rather
-            than above them, and its job is to narrow a long rack down. */}
-        <input type="search" className={`${input} w-44 shrink-0 py-1.5 text-xs`}
-          placeholder="Project, quotation, PO or serial…"
+        {/* A FIFTH OF THE BAR. */}
+        <input type="search" className={`${input} w-1/5 shrink-0 py-1.5 text-xs`}
+          placeholder="Project, quotation, PO, serial…"
           value={query} onChange={(e) => onQuery(e.target.value)} />
 
         <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
-          {tabs.length === 0 ? (
+          {projects.length === 0 ? (
             <span className="whitespace-nowrap py-1.5 text-xs text-slate-400">
-              Nothing matches — {total} {total === 1 ? "sheet" : "sheets"} in this studio.
+              {query ? "No project matches that." : "No projects signed yet."}
             </span>
-          ) : tabs.map((s) => (
-            <button key={s.id} type="button" onClick={() => onGo(s)}
-              title={`${s.projectTitle || "Untitled"}${s.quotationNumber ? ` · ${s.quotationNumber}` : ""}`}
-              className={`shrink-0 whitespace-nowrap rounded-t-lg border-b-2 px-3 py-1.5 text-xs font-600 transition-colors ${
-                s.id === activeId
-                  ? "border-brand-600 text-brand-700 dark:text-brand-300"
-                  : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}>
-              {s.projectNumber || s.projectTitle || "Untitled"}
-              <span className="ms-1.5 font-400 text-slate-400">{s.kind === "bulk" ? "Bulk" : "Main"}</span>
-            </button>
+          ) : projects.map((p) => (
+            <div key={p.projectId} className="relative shrink-0">
+              <button type="button" title={p.title || p.label}
+                onClick={() => setOpen((cur) => (cur === p.projectId ? "" : p.projectId))}
+                className={`whitespace-nowrap rounded-t-lg border-b-2 px-3 py-1.5 text-xs font-600 transition-colors ${
+                  p.projectId === activeProjectId
+                    ? "border-brand-600 text-brand-700 dark:text-brand-300"
+                    : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}>
+                {p.label}
+              </button>
+
+              {/* THE SMALL WINDOW. Two buttons, because a project has two
+                  sheets and neither is a default — Main is what was sold, Bulk
+                  is what has to be bought. */}
+              {open === p.projectId && (
+                <div className="absolute bottom-full end-0 mb-1 w-40 rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/15 dark:bg-[#20202c]">
+                  {["main", "bulk"].map((kind) => {
+                    const sh = p.sheets.find((x) => x.kind === kind);
+                    if (!sh) return null;
+                    return (
+                      <button key={kind} type="button"
+                        onClick={() => { setOpen(""); onGo(sh); }}
+                        className={`flex w-full flex-col rounded-lg px-3 py-2 text-start hover:bg-slate-50 dark:hover:bg-white/5 ${
+                          sh.id === activeSheetId ? "bg-brand-500/10" : ""}`}>
+                        <span className="text-sm font-600 text-slate-800 dark:text-slate-100">
+                          {kind === "main" ? "Main" : "Bulk"}
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {kind === "main" ? "As quoted" : "Summed, by vendor"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </div>
