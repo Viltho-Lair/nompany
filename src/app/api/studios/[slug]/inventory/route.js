@@ -1,6 +1,6 @@
 import {
   inventoryGuard, listVendors, listItems, listMovements, listOrders, listDeliveries,
-  openProjects, stockValue, ORDER_STATUSES, DELIVERY_STATUSES, UNITS,
+  openProjects, stockValue, listProjectSheets, ORDER_STATUSES, DELIVERY_STATUSES, UNITS,
 } from "@/lib/inventory";
 import { listShipments, listAirlines } from "@/lib/awbTracking";
 import { AWB_STATUS } from "@/lib/awbStatus";
@@ -14,9 +14,9 @@ export async function GET(request, ctx) {
   const g = await inventoryGuard(ctx.params);
   if (g.fail) return g.fail;
 
-  const [vendors, items, movements, orders, deliveries, projects, shipments, airlines] = await Promise.all([
+  const [vendors, items, movements, orders, deliveries, projects, shipments, airlines, sheets] = await Promise.all([
     listVendors(g), listItems(g), listMovements(g), listOrders(g), listDeliveries(g), openProjects(g),
-    listShipments(g), listAirlines(g),
+    listShipments(g), listAirlines(g), listProjectSheets(g),
   ]);
 
   return Response.json({
@@ -35,7 +35,7 @@ export async function GET(request, ctx) {
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.
     manage: g.manage,
-    vendors, items, movements, orders, deliveries, projects, shipments, airlines,
+    vendors, items, movements, orders, deliveries, projects, shipments, airlines, sheets,
     summary: {
       items: items.length,
       low: items.filter((i) => i.low).length,

@@ -47,14 +47,27 @@ export const ADMIN_ROLE_ID = "role_admin";
 // derived from records whose own areas already guard them — so create/edit/
 // delete here would be three more rights nothing can exercise.
 //
-// Operations is absent on purpose: its parent screen is not a summary, it is
-// the locations/permits/shifts screen, and every write on it already answers to
-// operations.tracking. Tasks is absent for the same kind of reason — its parent
-// IS the board, which is tasks.board.
+// OPERATIONS IS ON THIS LIST TOO, even though its parent is not a summary — it
+// is the locations/permits/shifts screen. Its WRITES already answer to
+// operations.tracking, but nothing decided whether the screen could be OPENED,
+// so it rode in on whatever sub-section grant got somebody into the module. A
+// parent that renders anything at all needs a right, whether what it renders is
+// a summary or a screen.
+//
+// Tasks is the one parent still absent, and for a reason that does not apply to
+// the others: its parent IS the board, which is tasks.board — it already has a
+// right of its own, and a second would be two answers to one question.
 const DASHBOARD_AREAS = [
   ["sales", "Sales"], ["technical", "Technical"], ["projects", "Projects"],
   ["inventory", "Inventory"], ["hr", "Human Resources"], ["finance", "Finance"],
-].map(([key, group]) => ({ key: `${key}.dashboard`, group, label: "Dashboard", verbs: ["view"] }));
+  ["operations", "Operations"],
+].map(([key, group]) => ({
+  key: `${key}.dashboard`, group,
+  // Operations' parent is a working screen rather than a dashboard, so it is
+  // named for what it actually is on the access grid.
+  label: key === "operations" ? "Main screen" : "Dashboard",
+  verbs: ["view"],
+}));
 
 export const AREAS = [
   ...DASHBOARD_AREAS,
@@ -70,8 +83,15 @@ export const AREAS = [
 
   { key: "technical.rfq", group: "Technical", label: "RFQ", verbs: ["view", "create", "edit"],
     extra: [{ key: "convert", label: "Convert to quotation" }] },
+  // LOCK AND UNLOCK ARE SEPARATE POWERS, and unlock is the rarer and larger of
+  // the two. Locking says "this document is finished"; unlocking reopens one
+  // somebody already declared finished — a client is holding it — so it is
+  // granted deliberately rather than folded into lock or into edit.
   { key: "technical.quotations", group: "Technical", label: "Quotations", verbs: ["view", "create", "edit", "delete"],
-    extra: [{ key: "lock", label: "Lock permanently" }] },
+    extra: [
+      { key: "lock", label: "Lock permanently" },
+      { key: "unlock", label: "Unlock a locked quotation" },
+    ] },
   { key: "technical.live", group: "Technical", label: "Live view", verbs: ["view"] },
   { key: "technical.settings", group: "Technical", label: "Settings", verbs: ["view", "edit"] },
 

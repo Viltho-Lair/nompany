@@ -14,7 +14,7 @@
 // Permit validity and shift hours are DERIVED from their dates, never stored,
 // so neither can quietly go stale.
 
-import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -70,6 +70,10 @@ export async function operationsContext(user, slug) {
     canManageTracking: sectionManageable(access, trackingSection.key, (sections || []).map((x) => x.key)),
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     settings: settingsSection.settings || {},
+    // May they open the module's OWN screen. Operations' parent is the
+    // locations/permits/shifts screen rather than a summary, but the question
+    // is the same one and it had no answer at all before.
+    canViewDashboard: dashboardViewable(access, section.key),
     nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, access),

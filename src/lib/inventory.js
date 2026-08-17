@@ -39,6 +39,11 @@ const cur = (v) => {
 const img = (v) => String(v ?? "").trim().slice(0, 500);
 const STOCK = "inventoryStock";
 const ORDERS = "materialOrders";
+// THE SHEET ITSELF. Projects writes one when a project is opened, drawn from
+// what the quotation priced; nothing read it, so it existed and was invisible.
+// Inventory is where it belongs — Project Sheets is an Inventory screen — and
+// this is the read that puts it on that screen.
+const SHEETS = "projectSheets";
 const DELIVERIES = "deliveries";
 const PROJECTS = "projects";
 
@@ -451,6 +456,32 @@ export async function adjustStock(ctx, body) {
 }
 
 // ---- purchase orders -------------------------------------------------------
+// One sheet per project, with the lines it opened with. Keys only: the project
+// number, the client and the quotation are read back through the ids each sheet
+// carries, so a renumbered project or a renamed client needs nothing migrated.
+export async function listProjectSheets({ studio, sheetsSection, projectsListSection }) {
+  if (!sheetsSection) return [];
+  const [sheets, projects] = await Promise.all([
+    readCol(studio.id, sheetsSection.id, SHEETS),
+    projectsListSection ? readCol(studio.id, projectsListSection.id, "projects") : [],
+  ]);
+  const byId = new Map(projects.map((p) => [p.id, p]));
+  return [...sheets]
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+    .map((sheet) => {
+      const project = byId.get(sheet.projectId) || null;
+      return {
+        ...sheet,
+        // Blank until Finance issues one — that is the state this is designed
+        // around, so the screen says so rather than showing an empty cell.
+        projectNumber: project?.number || "",
+        projectTitle: project?.title || "",
+        clientName: project?.clientName || "",
+        lines: Array.isArray(sheet.rows) ? sheet.rows.length : 0,
+      };
+    });
+}
+
 export async function listOrders({ studio, sheetsSection, vendorsSection, itemsSection }) {
   const [orders, vendors, items, projects] = await Promise.all([
     readCol(studio.id, sheetsSection.id, ORDERS),

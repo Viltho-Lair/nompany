@@ -111,7 +111,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
         : out.error === "read-only" ? "You have view-only access to Technical."
         : out.error === "already" ? "That's already been done."
         : out.error === "ticket" ? "Pick a ticket."
-        : out.error === "locked" ? "That quotation is locked — it can't be changed."
+        : out.error === "locked" ? "That quotation is locked — it can't be changed. Unlock it first, on its own."
         : out.error === "not-approved" ? "Only an approved quotation can be locked."
         : out.error === "duplicate" ? "A quotation with that number already exists."
         : out.error === "number" ? "Give it a number."
@@ -210,7 +210,11 @@ export default function StudioTechnical({ slug, view = "technical" }) {
           statuses={vocabulary.quotationStatuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setCreatingQuote(true)}
           onOpen={(q) => setEditingQuote(q)}
-          onLock={(q) => send("quotations", "PUT", { id: q.id, locked: true })} />
+          canUnlock={data.canUnlockQuotations}
+          onLock={(q) => send("quotations", "PUT", { id: q.id, locked: true })}
+          // ONLY the unlock, nothing beside it — the server refuses a request
+          // that unlocks and edits in the same write.
+          onUnlock={(q) => send("quotations", "PUT", { id: q.id, locked: false })} />
       </div>
     );
   }
@@ -551,7 +555,7 @@ function RfqInfo({ label: text, value, mono }) {
   );
 }
 
-function Quotations({ quotations, canManage, slug, nav, focus, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock }) {
+function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock }) {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
@@ -741,7 +745,14 @@ function Quotations({ quotations, canManage, slug, nav, focus, handlerName, peop
                       <td className="py-3 text-end">
                         <span className="inline-flex gap-2">
                           {canManage && q.status === "Approved" && !q.locked && (
-                            <button className={btnGhost} title="Lock permanently — it becomes view-only" onClick={(e) => { e.stopPropagation(); onLock(q); }}>Lock</button>
+                            <button className={btnGhost} title="Lock — it becomes view-only" onClick={(e) => { e.stopPropagation(); onLock(q); }}>Lock</button>
+                          )}
+                          {/* Offered only to somebody who holds unlock. Locking
+                              the wrong document used to have no remedy but a new
+                              quotation with a new number, which is a worse lie
+                              than the mistake. */}
+                          {canUnlock && q.locked && (
+                            <button className={btnGhost} title="Reopen this locked quotation" onClick={(e) => { e.stopPropagation(); onUnlock(q); }}>Unlock</button>
                           )}
                         </span>
                       </td>

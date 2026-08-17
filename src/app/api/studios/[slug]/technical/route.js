@@ -6,6 +6,8 @@ import {
 } from "@/lib/technical";
 import { TICKET_URGENCIES } from "@/lib/tickets";
 
+import { can } from "@/lib/access";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,9 @@ export async function GET(request, ctx) {
     canViewDashboard: tech.canViewDashboard,
     canManageRfq: tech.canManageRfq,
     canManageQuotations: tech.canManageQuotations,
+    // Reopening a locked document is its own power, so the button asks for
+    // it rather than riding in on Manage.
+    canUnlockQuotations: can(tech.access, "technical.quotations.unlock"),
     canManageSettings: tech.canManageSettings,
     liveColumns: tech.liveColumns,
     cover: { title: tech.coverTitle, intro: tech.coverIntro, terms: tech.coverTerms },

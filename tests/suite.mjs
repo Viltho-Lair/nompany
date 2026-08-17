@@ -294,6 +294,27 @@ console.log("\n== the handler is carried, never copied");
   const locked = await updateQuotation(await technicalContext(owner, slug), conv.quotation?.id, { locked: true });
   ok("an approved quotation can be locked", locked.quotation?.locked === true, JSON.stringify(locked.error));
 
+  // LOCKING USED TO BE GENUINELY ONE-WAY, which is right up until somebody locks
+  // the wrong document — and then the only remedy was a new quotation with a new
+  // number, a worse lie than the mistake. Unlock is its own permission, and a
+  // request that unlocks may do NOTHING else, or it would be a way to smuggle an
+  // edit past the lock in a single write.
+  const lockCtx = await technicalContext(owner, slug);
+  const sneak = await updateQuotation(lockCtx, conv.quotation?.id, { locked: false, title: "and a rename" });
+  ok("unlocking cannot carry an edit with it", sneak.error === "locked", JSON.stringify(sneak));
+  const stillShut = await updateQuotation(lockCtx, conv.quotation?.id, { title: "just a rename" });
+  ok("...and a locked quotation still refuses edits", stillShut.error === "locked", JSON.stringify(stillShut));
+
+  const reopened = await updateQuotation(lockCtx, conv.quotation?.id, { locked: false });
+  ok("somebody holding unlock can reopen it", reopened.quotation?.locked === false, JSON.stringify(reopened.error));
+  ok("...and it records who did", !!reopened.quotation?.unlockedByCollaboratorId, JSON.stringify(reopened.quotation?.unlockedAt));
+
+  // Held by nobody but the owner: a Member may edit quotations and must not be
+  // able to reopen one somebody declared finished.
+  await updateQuotation(lockCtx, conv.quotation?.id, { locked: true });
+  const memberTech = await technicalContext(member.user, slug);
+  ok("a Member does not hold unlock", !memberTech.access.has("technical.quotations.unlock"));
+
   const empty = await submitTicketPo(await salesContext(owner, slug), { ticketId: made.ticket?.id });
   ok("...and evidence: neither a file nor a description is refused", empty.error === "evidence", JSON.stringify(empty));
 

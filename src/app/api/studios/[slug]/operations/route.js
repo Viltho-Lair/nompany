@@ -41,6 +41,7 @@ export async function GET(request, ctx) {
 
   return Response.json({
     canManage: g.canManage,
+    canViewDashboard: g.canViewDashboard,
     canManageTracking: g.canManageTracking,
     canManageSettings: g.canManageSettings,
     nav: g.nav,

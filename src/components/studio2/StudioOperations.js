@@ -83,6 +83,25 @@ export default function StudioOperations({ slug, view = "operations" }) {
 
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 
+  // THE PARENT SCREEN — locations, permits and shifts. Not a summary, but a
+  // screen all the same, and until now nothing decided whether it could be
+  // opened: it rode in on whichever sub-section grant got somebody into the
+  // module. It answers to operations.dashboard.view now, like every other
+  // module's own screen.
+  if (view === "operations" && data.canViewDashboard === false) {
+    return (
+      <div className="space-y-6">
+        {banner}
+        <div className={`${panel} text-center`}>
+          <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">This screen isn&apos;t yours to see</h3>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            Locations, permits and shifts are kept behind a right of their own here. Tracking and Settings are unaffected.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (view === "operations-tracking") {
     return (
       <div className="space-y-6">

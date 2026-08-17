@@ -99,6 +99,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   }
   if (view === "inventory-sheets") {
     return wrap(<Sheets orders={orders} deliveries={deliveries} vendors={vendors} items={items}
+      sheets={data.sheets || []}
       projects={projects} slug={slug} nav={nav} canManage={canManageSheets} busy={busy} send={send} />);
   }
   if (view === "inventory-awb") {
@@ -811,7 +812,7 @@ function VendorForm({ row, busy, onSave, onCancel }) {
 // One sheet per project: what was ordered for it, and what has been issued to
 // it. Grouped by project rather than listed flat, because the question this
 // screen answers is always "where is this project's material?".
-function Sheets({ orders, deliveries, vendors, items, projects, slug, nav, canManage, busy, send }) {
+function Sheets({ orders, deliveries, vendors, items, sheets = [], projects, slug, nav, canManage, busy, send }) {
   const [drafting, setDrafting] = useState(null); // "order" | "delivery"
   const [receiving, setReceiving] = useState(null);
   const closeDraft = useCallback(() => setDrafting(null), []);
@@ -837,6 +838,48 @@ function Sheets({ orders, deliveries, vendors, items, projects, slug, nav, canMa
 
   return (
     <>
+      {/* THE SHEETS THEMSELVES. Opening a project draws one up from what the
+          quotation priced — and until now nothing on any screen read it, so it
+          was written and invisible. It is the starting list: what the job was
+          sold as needing. The orders and deliveries below are what has actually
+          been done about it. */}
+      {sheets.length > 0 && (
+        <section className={panel}>
+          <p className={microLabel}>Project sheets</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Drawn up when the project was opened, from the approved quotation.
+          </p>
+          <ul className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
+            {sheets.map((sh) => (
+              <li key={sh.id} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  {sh.projectNumber
+                    ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, sh.projectId))} title="Open the project">{sh.projectNumber}</RecordLink>
+                    : <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-700 text-amber-700 dark:text-amber-300">
+                        Number not issued yet
+                      </span>}
+                  <span className="font-600 text-slate-900 dark:text-white">{sh.projectTitle || "Untitled"}</span>
+                  {sh.clientName && <span className="text-xs text-slate-500 dark:text-slate-400">{sh.clientName}</span>}
+                  <span className="text-xs text-slate-400">
+                    {sh.lines} {sh.lines === 1 ? "line" : "lines"} quoted
+                  </span>
+                </div>
+                {sh.lines > 0 && (
+                  <ul className="mt-1.5 space-y-0.5">
+                    {sh.rows.slice(0, 6).map((r) => (
+                      <li key={r.id} className="text-xs text-slate-600 dark:text-slate-300">
+                        <span className="tabular-nums text-slate-400">{r.qty}{r.unit ? ` ${r.unit}` : ""}</span>{" "}{r.description}
+                      </li>
+                    ))}
+                    {sh.lines > 6 && <li className="text-xs text-slate-400">+{sh.lines - 6} more</li>}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         {canManage ? (
           <>

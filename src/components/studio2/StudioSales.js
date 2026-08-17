@@ -17,7 +17,6 @@ import { COUNTRIES } from "@/lib/countries";
 import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
 import { salesFunnel, probabilityBuckets, atRiskTickets, rfqInfo, isUnresolved } from "@/lib/salesAnalytics";
-import { canRequestRfqStatus } from "@/lib/tickets";
 import { daysUntil } from "@/lib/sla";
 
 // Sales: clients and the tickets raised against them. Read access shows
@@ -206,7 +205,7 @@ export default function StudioSales({ slug, view = "sales" }) {
           hasTechnical={hasTechnical} statuses={vocabulary.statuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setEditing({ kind: "ticket", row: null })}
           onEdit={(row) => setEditing({ kind: "ticket", row })}
-          onRequestRfq={(row) => send("tickets/rfq", "POST", { ticketId: row.id })} />
+          />
       </div>
     );
   }
@@ -395,14 +394,17 @@ function SalesAnalytics({ slug, tickets, nav }) {
 }
 
 // ---- tickets ---------------------------------------------------------------
-function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, statuses, urgencies, onAdd, onEdit, onRequestRfq }) {
+// The list REPORTS. Acting on a ticket — Request RFQ, Send for Approval,
+// Submit PO — happens on the ticket's own page, where the three sit together
+// in the order they happen, rather than one of them being smuggled into a
+// column of a table whose rows are links.
+function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, statuses, urgencies, onAdd, onEdit }) {
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
   const [columns, setColumns] = useState(DEFAULT_TICKET_COLUMNS);
   const [showColumns, setShowColumns] = useState(false);
-  const [rfqBusy, setRfqBusy] = useState("");
 
   // Read the saved preferences AFTER mount: localStorage does not exist on the
   // server, so reading it during render would make the first paint disagree
@@ -455,12 +457,6 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
       return true;
     });
   }, [tickets, query, filters]);
-
-  async function requestRfq(row) {
-    setRfqBusy(row.id);
-    await onRequestRfq(row);
-    setRfqBusy("");
-  }
 
   // No "add a client first" gate: naming an unknown client on the ticket form
   // creates it, exactly as the Old System does.
@@ -578,7 +574,6 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
                   // one outstanding RFQ at a time, and only while the ticket is
                   // still pre-approval. A ticket whose quotation came back may
                   // be sent over again from right here.
-                  const canRaise = canManage && canRequestRfqStatus(t.status) && !t.rfqPending;
                   // A ticket still waiting to be handed to Technical gets an
                   // amber stripe down its start edge, so what needs doing is
                   // visible without reading the RFQ column on every row.
@@ -625,24 +620,19 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
                       )}
                       {col("rfq") && (
                         <td className="py-3 pe-3 ps-2">
-                          {/* WHERE THE TICKET STANDS, then what can be done
-                              about it. A ticket whose quotation came back keeps
-                              saying who handled it AND offers another RFQ —
-                              replacing the one with the other would hide the
-                              answer the moment it arrived. */}
-                          {rfq.requested && (
-                            <div className={`text-xs font-600 ${rfq.tone}`}>{rfq.text}</div>
-                          )}
+                          {/* WHERE THE TICKET STANDS, and only that. Request
+                              RFQ used to sit here too, which made a COLUMN into
+                              a control: a button inside a row that is itself a
+                              link, needing stopPropagation to stop the page
+                              navigating away mid-request. The ticket's own page
+                              is where the ticket is acted on — Request RFQ,
+                              Send for Approval and Submit PO are all there,
+                              together, in the order they happen. This column
+                              reports. */}
+                          {rfq.requested
+                            ? <div className={`text-xs font-600 ${rfq.tone}`}>{rfq.text}</div>
+                            : <span className="text-slate-400">—</span>}
                           {t.rfqCount > 1 && <div className="text-[11px] text-slate-400">{t.rfqCount} raised</div>}
-                          {canRaise ? (
-                            // stopPropagation because the whole ROW is a link to the ticket:
-                            // without it the click reaches the row and the page navigates away
-                            // mid-request, which is what made a refusal look like nothing at all.
-                            <button type="button" className={`${btnAmber} ${rfq.requested ? "mt-1.5" : ""}`} disabled={rfqBusy === t.id}
-                              onClick={(e) => { e.stopPropagation(); requestRfq(t); }}>
-                              {rfqBusy === t.id ? "Sending…" : "Request RFQ"}
-                            </button>
-                          ) : !rfq.requested ? <span className="text-slate-400">—</span> : null}
                         </td>
                       )}
                       {col("probability") && <td className="py-3 pe-3 ps-2 font-600 tabular-nums text-slate-700 dark:text-slate-200">{Number(t.probability ?? 0)}%</td>}

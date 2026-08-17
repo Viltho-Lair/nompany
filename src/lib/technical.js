@@ -583,9 +583,30 @@ export async function updateQuotation(ctx, id, body) {
   const current = rows.find((q) => q.id === id);
   if (!current) return { error: "notfound" };
   // A LOCKED quotation is finished business — the priced document a client was
-  // given. Nothing about it may change again, including the lock itself, so the
-  // refusal comes before any field is read.
-  if (current.locked) return { error: "locked" };
+  // given. Nothing about it may change again, so the refusal comes before any
+  // field is read.
+  //
+  // UNLOCKING IS THE ONE EXCEPTION, and it is the only thing a locked quotation
+  // will accept. Locking used to be genuinely one-way, which is correct right up
+  // until somebody locks the wrong document — and then the only remedy was a
+  // new quotation with a new number, which is a worse lie than the mistake. It
+  // is its own permission, deliberately: reopening a document a client is
+  // holding is a larger act than finishing one, and larger than editing.
+  //
+  // A request that unlocks may do NOTHING ELSE. Bundling it with edits would
+  // make "unlock" a way to smuggle a change past the lock in one write.
+  if (current.locked) {
+    const asks = Object.keys(body || {}).filter((k) => k !== "id");
+    if (body?.locked !== false || asks.length !== 1) return { error: "locked" };
+    const noUnlock = requirePermission(ctx.access, "technical.quotations.unlock");
+    if (noUnlock) return noUnlock;
+    const reopened = await updateRow(studio.id, quotationsSection.id, QUOTATIONS, id, {
+      locked: false,
+      unlockedByCollaboratorId: collaborator.id,
+      unlockedAt: new Date().toISOString(),
+    });
+    return { quotation: reopened };
+  }
 
   // LOCKING is separately granted. It makes a quotation permanently
   // unchangeable, which is a different act from editing one, and the catalogue

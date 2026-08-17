@@ -27,6 +27,7 @@ export const SECTION_AREAS = {
   inventory: ["inventory.dashboard"],
   hr: ["hr.dashboard"],
   finance: ["finance.dashboard"],
+  operations: ["operations.dashboard"],
 
   "sales-tickets": ["sales.tickets"],
   "sales-clients": ["sales.clients"],
