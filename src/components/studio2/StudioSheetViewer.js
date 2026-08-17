@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, input, btn, btnGhost, th } from "@/components/studio2/ui";
 import { SHEET_COLUMNS, SHEET_OWNERS } from "@/lib/sheetColumns";
@@ -36,11 +35,26 @@ const td = "py-2 pe-3 align-middle";
 
 export default function StudioSheetViewer({ slug, projectId, sheetId, perspective = "inventory" }) {
   const isInventory = perspective === "inventory";
-  const router = useRouter();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [query, setQuery] = useState("");
+  // WHICH SHEET IS OPEN, held HERE rather than in the route.
+  //
+  // Picking Main or Bulk used to be router.push, and a route change remounts
+  // the screen and refetches everything — a whole reload to show data already
+  // in hand, because every sheet in the studio arrives in the same payload.
+  //
+  // So switching is a setState, and the URL is rewritten with history's own
+  // replaceState: the address stays correct and shareable, and React never
+  // learns the route moved, so nothing remounts.
+  const [chosenId, setChosenId] = useState(sheetId);
+  useEffect(() => { setChosenId(sheetId); }, [sheetId]);
+
+  const choose = useCallback((sh) => {
+    setChosenId(sh.id);
+    window.history.replaceState(null, "", `/${slug}/inventory-sheets/${sh.id}`);
+  }, [slug]);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/projects`, { cache: "no-store" });
@@ -152,7 +166,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
   // reads its Main sheet — the quotation as it was sold, which is the list a
   // project manager works to. Bulk is a procurement view and stays Inventory's.
   const sheet = useMemo(() => (isInventory
-    ? sheets.find((x) => x.id === sheetId) || null
+    ? sheets.find((x) => x.id === chosenId) || null
     : sheets.find((x) => x.projectId === projectId && x.kind === "main")
       || sheets.find((x) => x.projectId === projectId) || null), [sheets, isInventory, sheetId, projectId]);
 
@@ -183,7 +197,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
         </div>
         {isInventory && (
           <ProjectBar projects={projectTabs} activeProjectId="" activeSheetId=""
-            query={query} onQuery={setQuery} onGo={(sh) => router.push(`/${slug}/inventory-sheets/${sh.id}`)} />
+            query={query} onQuery={setQuery} onGo={choose} />
         )}
       </div>
     );
@@ -293,7 +307,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
           storeman is working along every project in the studio. */}
       {isInventory && (
         <ProjectBar projects={projectTabs} activeProjectId={sheet.projectId} activeSheetId={sheet.id}
-          query={query} onQuery={setQuery} onGo={(sh) => router.push(`/${slug}/inventory-sheets/${sh.id}`)} />
+          query={query} onQuery={setQuery} onGo={choose} />
       )}
     </div>
   );
@@ -426,10 +440,19 @@ function ProjectBar({ projects, activeProjectId, activeSheetId, query, onQuery, 
         </div>
       )}
 
-      {/* THE BAR. Fixed to the bottom of the window, starting where the content
-          does so the sidebar keeps its space. */}
-      <div className="fixed bottom-0 end-0 start-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur lg:start-72 dark:border-white/10 dark:bg-[#20202c]/95">
-        <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-5 py-2.5 sm:px-8">
+      {/* THE BAR. Fixed to the bottom of the window, and AS WIDE AS THE TABLE
+          ABOVE IT rather than as wide as the screen: the outer layer is fixed
+          and transparent, and inside it the same max-width and padding the
+          content uses, so the panel's edges land under the table's. That is
+          also what lets the top corners round — a full-bleed strip has no
+          corners to round.
+
+          pointer-events: the transparent outer layer must not swallow clicks on
+          whatever is behind it, so it passes them through and the panel takes
+          them back. */}
+      <div className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
+        <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
+        <div className="pointer-events-auto flex items-center gap-4 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 px-4 py-2.5 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
           {/* A FIFTH OF THE BAR — on a WRAPPER, because the shared input class
               carries w-full and two widths on one element are settled by
               stylesheet order rather than by which was written last. */}
@@ -467,6 +490,7 @@ function ProjectBar({ projects, activeProjectId, activeSheetId, query, onQuery, 
               );
             })}
           </div>
+        </div>
         </div>
       </div>
     </div>
