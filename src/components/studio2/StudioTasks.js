@@ -188,7 +188,8 @@ export default function StudioTasks({ slug, view = "tasks" }) {
         <section className={panel}>
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
             {shown.map((t) => (
-              <TaskRow key={t.id} task={t} canManage={canManage} canDelete={data.canDelete} meId={me.collaboratorId} busy={busy}
+              <TaskRow key={t.id} task={t} canManage={canManage} canDelete={data.canDelete} canOpenProject={data.canOpenProject}
+                people={people} slugForProject={slug} onOpened={load} meId={me.collaboratorId} busy={busy}
                 slug={slug} nav={nav} statuses={vocabulary.statuses} typeLabels={vocabulary.typeLabels || {}}
                 onEdit={() => setEditing(t)} onSend={send} />
             ))}
@@ -199,7 +200,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
   );
 }
 
-function TaskRow({ task: t, canManage, canDelete, meId, busy, slug, nav, statuses, typeLabels, onEdit, onSend }) {
+function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugForProject, onOpened, meId, busy, slug, nav, statuses, typeLabels, onEdit, onSend }) {
   const [open, setOpen] = useState(false);
   // The assignee can act even without Manage — that is the whole point.
   const canAct = canManage || t.assigneeCollaboratorId === meId;
@@ -263,6 +264,16 @@ function TaskRow({ task: t, canManage, canDelete, meId, busy, slug, nav, statuse
                 );
               })}
             </div>
+          )}
+
+          {/* THE NEXT STEP AFTER AN APPROVAL. A signed-off quotation is work
+              the studio has agreed to do, so this is where it becomes a
+              project — named to a handler, carrying the ticket, the RFQ and
+              the quotation as KEYS, with its sheet drawn up from what was
+              quoted. The project number stays blank until Finance issues it
+              against the client's PO. */}
+          {t.type === "approval" && t.approvalState?.complete && canOpenProject && t.quotationId && (
+            <OpenProject task={t} people={people} slug={slugForProject} onOpened={onOpened} />
           )}
 
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -646,6 +657,66 @@ function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, peo
           </section>
         );
       })}
+    </div>
+  );
+}
+
+// Turn an approved quotation into a project, from the task that approved it.
+//
+// The handler is asked for HERE rather than defaulted, because "who runs this
+// job" is a decision somebody makes at this moment and the only person who can
+// is whoever is looking at the approval. Everything else the project needs — the
+// ticket, the client, the value, the lineage — is already reachable through the
+// quotation, so it is never asked for and never retyped.
+function OpenProject({ task, people, slug, onOpened }) {
+  const [handler, setHandler] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(null);
+
+  if (done) {
+    return (
+      <p className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
+        Project opened{done.sheet ? " with its sheet" : ""}. Its number stays blank until Finance issues one against the PO.
+      </p>
+    );
+  }
+
+  async function open() {
+    setBusy(true); setError("");
+    const res = await fetch(`/api/studios/${slug}/projects`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quotationId: task.quotationId, managerCollaboratorId: handler }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setError(
+        out.error === "already" ? "A project has already been opened from this quotation."
+        : out.error === "not-approved" ? "That quotation is not approved."
+        : out.error === "forbidden" ? "You can't open projects."
+        : "That didn't go through.",
+      );
+      return;
+    }
+    setDone(out);
+    onOpened?.();
+  }
+
+  return (
+    <div className="mt-2 rounded-xl border border-slate-200 p-3 dark:border-white/10">
+      <p className="text-xs font-600 text-slate-700 dark:text-slate-200">Approved — open the project</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <select className={`${input} w-auto`} value={handler} aria-label="Project handler"
+          onChange={(e) => setHandler(e.target.value)}>
+          <option value="">Project handler…</option>
+          {people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
+        </select>
+        <button className={btn} disabled={busy || !handler} onClick={open}>
+          {busy ? "Opening…" : "Create project & sheet"}
+        </button>
+      </div>
+      {error && <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{error}</p>}
     </div>
   );
 }

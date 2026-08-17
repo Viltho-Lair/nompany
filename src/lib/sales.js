@@ -43,6 +43,9 @@ const TASKS = "tasks";
 // quotation for approval raises one of these rather than a type of its own, so
 // there is one approval queue in the studio and not two.
 const APPROVAL_TYPE = "approval";
+// The client's purchase order, sent to Finance. Same routing table as every
+// other typed task — see lib/taskRouting.js.
+const PO_TYPE = "po";
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const now = () => new Date().toISOString();
 
@@ -418,6 +421,29 @@ const quotationRow = (q) => ({
   completedAt: q.completedAt || "",
 });
 
+// The PO task raised against ONE quotation, resolved the same way the approval
+// is — routing read from settings on every read, never off the row.
+function poFor(quotation, tasks, taskAssignees) {
+  if (!quotation) return null;
+  const task = tasks
+    .filter((k) => k.type === PO_TYPE && k.quotationId === quotation.id)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null;
+  if (!task) return null;
+
+  const { authorities } = resolveTaskAssignees(task, taskAssignees);
+  const approvals = task.approvals && typeof task.approvals === "object" ? task.approvals : {};
+  return {
+    taskId: task.id,
+    description: task.po?.description || "",
+    attachmentUrl: task.po?.attachmentUrl || "",
+    attachmentName: task.po?.attachmentName || "",
+    submittedAt: task.po?.submittedAt || "",
+    approved: authorities.length > 0 && authorities.every((c) => approvals[c]?.approved),
+    required: authorities.length,
+    granted: authorities.filter((c) => approvals[c]?.approved).length,
+  };
+}
+
 function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees) {
   const mine = rfqsForTicket(ticket.id, rfqs);
   // Newest first, so the ticket's Quotations box reads top-down from the one
@@ -495,6 +521,11 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees) {
       submittedRevision: Number(submitted?.revision) || 1,
     },
     quotations: mineQuotations.map(quotationRow),
+    // THE PO, if one has been sent. Matched on the newest quotation's id for the
+    // same reason the approval is: a purchase order answers ONE document, and a
+    // later revision must not inherit it. `numberIssued` is what Finance's
+    // sign-off produces — the project number the work will be billed under.
+    po: poFor(newest, tasks, taskAssignees),
     // Waiting on Technical — what greys "Request RFQ" out into "Quotation Sent".
     rfqPending: waiting,
     // There is a finished document to send for approval. A quotation Technical
@@ -651,6 +682,105 @@ export async function sendTicketForApproval(ctx, body) {
     // can never sign off, and the screen should say so instead of leaving the
     // request to sit there looking sent. Named, not coded — "Management", not
     // "mng", because this goes straight onto the screen.
+    unrouted: authorities
+      .filter((c) => (taskAssignees?.[c] || []).length === 0)
+      .map((c) => TASK_AUTHORITIES.find((a) => a.code === c)?.label || c),
+  };
+}
+
+// SUBMIT THE CLIENT'S PURCHASE ORDER TO FINANCE.
+//
+// The last step Sales takes on a ticket. The quotation has been approved
+// internally and the client has answered with a PO, so the studio has to book
+// the work: Management authorises the order and Finance issues the project
+// number it will be billed under. That is the `po` task type, which already
+// routes to both — this is the door onto it.
+//
+// A SALES ACT ON A SALES RECORD, so the right is sales.tickets.edit, exactly as
+// raising an RFQ and sending for approval are. What it WRITES is an ordinary
+// task, so it lands on the board Finance already uses.
+//
+// EVIDENCE IS MANDATORY, and either kind will do. A PO is a document the client
+// sent; Finance cannot authorise one that is not there. Usually that is the
+// file, but a PO number read down the phone is a real thing too, so a
+// description alone is enough — what is refused is neither.
+//
+// KEYS, NOT COPIES. The task holds ticketId and quotationId and reads the rest
+// back through them. Its own is the PO itself: what the client sent, and when.
+export async function submitTicketPo(ctx, body) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN.
+  const denied = requirePermission(ctx.access, "sales.tickets.edit");
+  if (denied) return denied;
+
+  const { studio, ticketsSection, quotationsSection, tasksSection, collaborator, taskAssignees } = ctx;
+  if (!tasksSection) return { error: "no-tasks" };
+  if (!quotationsSection) return { error: "no-technical" };
+
+  const ticketId = str(body?.ticketId, 60);
+  const description = str(body?.description, 4000);
+  const attachment = {
+    url: str(body?.attachmentUrl, 500),
+    name: str(body?.attachmentName, 200),
+  };
+  // Checked before anything is read: a request with neither is not a PO.
+  if (!description && !attachment.url) return { error: "evidence" };
+
+  const [tickets, quotations, tasks] = await Promise.all([
+    readCol(studio.id, ticketsSection.id, TICKETS),
+    readCol(studio.id, quotationsSection.id, QUOTATIONS),
+    readCol(studio.id, tasksSection.id, TASKS),
+  ]);
+  const ticket = tickets.find((t) => t.id === ticketId);
+  if (!ticket) return { error: "ticket" };
+
+  // The document the client is answering is the LATEST one, and it has to have
+  // been approved — a PO against a quotation nobody signed off is a PO for work
+  // the studio never agreed to do.
+  const quotation = quotations
+    .filter((q) => q.ticketId === ticketId)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null;
+  if (!quotation) return { error: "not-quoted" };
+  if (quotation.status !== "Approved") return { error: "not-approved" };
+
+  // Once per quotation. A second press must not put the same order in front of
+  // Finance twice — the same rule the approval obeys.
+  if (tasks.some((k) => k.type === PO_TYPE && k.quotationId === quotation.id)) return { error: "already" };
+
+  const task = await addRow(studio.id, tasksSection.id, TASKS, {
+    type: PO_TYPE,
+    title: `Approve PO for ${quotation.number || "quotation"} · ${ticket.clientName || ticket.ref || ""}`.trim(),
+    description: [ticket.title, ticket.ref].filter(Boolean).join(" · "),
+    // ROUTED, NOT ASSIGNED — who decides comes from Task settings on every read.
+    assigneeCollaboratorId: "",
+    approvals: {},
+    approvalWithdrawnAt: "",
+    status: "Open",
+    priority: ticket.urgency === "Critical" || ticket.urgency === "High" ? "High" : "Normal",
+    projectId: "",
+    dueDate: "",
+    checklist: [],
+    // THE KEYS. Everything about the ticket and the quotation is read back
+    // through these; nothing about either is stored here.
+    ticketId,
+    quotationId: quotation.id,
+    // THE PO ITSELF, which is this task's own and therefore stored: what the
+    // client sent, which is the thing Finance is being asked to authorise.
+    po: {
+      description,
+      attachmentUrl: attachment.url,
+      attachmentName: attachment.name,
+      submittedByCollaboratorId: collaborator.id,
+      submittedAt: new Date().toISOString(),
+    },
+    createdByCollaboratorId: collaborator.id,
+    createdAt: new Date().toISOString(),
+    completedAt: "",
+  });
+
+  const { authorities } = resolveTaskAssignees(task, taskAssignees);
+  return {
+    task,
+    // Reported rather than refused, exactly as the approval does it.
     unrouted: authorities
       .filter((c) => (taskAssignees?.[c] || []).length === 0)
       .map((c) => TASK_AUTHORITIES.find((a) => a.code === c)?.label || c),

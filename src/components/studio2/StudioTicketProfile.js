@@ -51,6 +51,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  const [poOpen, setPoOpen] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/sales`, { cache: "no-store" });
@@ -107,6 +108,51 @@ export default function StudioTicketProfile({ slug, ticketId }) {
     await load();
   }
 
+  // ONE REQUEST, and the same refusal handling the other two buttons get. The
+  // file is uploaded first and only its URL travels in the body, so a PO with a
+  // failed upload is refused before a task is written rather than after.
+  async function submitPo({ description, file }) {
+    setBusy(true); setError(""); setNote("");
+    let attachmentUrl = "";
+    let attachmentName = "";
+    if (file) {
+      const form = new FormData();
+      form.append("file", file);
+      const up = await fetch("/api/media", { method: "POST", body: form });
+      if (!up.ok) {
+        setBusy(false);
+        setError(up.status === 413 ? "That file is too large — 5 MB is the limit." : "That file didn't upload.");
+        return false;
+      }
+      attachmentUrl = (await up.json()).url;
+      attachmentName = file.name;
+    }
+    const res = await fetch(`/api/studios/${slug}/sales/tickets/po`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketId, description, attachmentUrl, attachmentName }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setError(
+        out.error === "evidence" ? "Attach the PO or describe it — Finance can't authorise nothing."
+        : out.error === "already" ? "A PO has already been submitted for this quotation."
+        : out.error === "not-approved" ? "The quotation has to be approved before a PO can be booked against it."
+        : out.error === "not-quoted" ? "There is no quotation on this ticket yet."
+        : out.error === "no-tasks" ? "This studio has no Tasks section to send the PO to."
+        : out.error === "read-only" || out.error === "forbidden" ? "You have view-only access to Sales."
+        : "That didn't go through.",
+      );
+      return false;
+    }
+    if (out.unrouted?.length) {
+      setNote(`Sent — but nobody is appointed to ${out.unrouted.join(" and ")} in Task settings, so the PO cannot be approved until somebody is.`);
+    }
+    setPoOpen(false);
+    await load();
+    return true;
+  }
+
   async function addComment() {
     if (!comment.trim()) return;
     setBusy(true); setError("");
@@ -144,6 +190,11 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   const approval = ticket.approval;
   const showApproval = canAct && data.hasTasks && !ticket.rfqPending
     && (ticket.hasFinishedQuotation || approval);
+  // The PO follows the approval: it is offered once the quotation this ticket
+  // is priced from has been signed off, and it reports its own progress after
+  // that. `po` is null until one is sent.
+  const po = ticket.po;
+  const showPo = canAct && data.hasTasks && (approval?.approved || po);
 
   // The timeline is built from what the ticket already records, so it cannot
   // drift from the row: no separate event log to keep in step.
@@ -161,6 +212,14 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   return (
     <div className="space-y-4">
       <Back slug={slug} title={ticket.title} ref_={ticket.ref} clientName={ticket.clientName} />
+
+      {poOpen && (
+        <Dialog title="Submit PO to Finance"
+          description="What the client sent. Finance authorise it and issue the project number the work is billed under."
+          onClose={() => setPoOpen(false)} width="max-w-[560px]">
+          <PoForm busy={busy} onCancel={() => setPoOpen(false)} onSave={submitPo} />
+        </Dialog>
+      )}
 
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
       {note && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{note}</p>}
@@ -312,6 +371,30 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                 )
               )}
 
+              {/* SUBMIT PO — the last thing Sales does to a ticket. It appears
+                  only once the quotation is APPROVED, because a purchase order
+                  answers a document the studio has agreed to; before that there
+                  is nothing for the client to have ordered. Pressing it sends
+                  the client's order to Finance, who authorise it and issue the
+                  project number the work is billed under. */}
+              {showPo && (
+                po?.approved ? (
+                  <button type="button" className={btnApproved} disabled>
+                    <Icon name="checkDouble" className="h-4 w-4" /> PO Approved
+                  </button>
+                ) : po ? (
+                  <button type="button" className={btnActionOff} disabled
+                    title={`Waiting on ${po.required - po.granted} of ${po.required} approver${po.required === 1 ? "" : "s"}`}>
+                    PO Submitted ({po.granted}/{po.required})
+                  </button>
+                ) : (
+                  <button type="button" className={btnAction + " bg-brand-700 text-white hover:bg-brand-950"}
+                    onClick={() => setPoOpen(true)}>
+                    Submit PO
+                  </button>
+                )
+              )}
+
               {/* What the RFQ column says, spelled out beside the buttons —
                   "Quotation Sent" says a request is out, this says who has it.
                   Both halves come from rfqInfo so the reference names whatever
@@ -422,5 +505,49 @@ function Field({ label, value, mono, stacked }) {
         {value || <span className="text-slate-400">—</span>}
       </dd>
     </div>
+  );
+}
+
+// THE PO ITSELF. Either the document or a description of it will do — a PO
+// number read down the phone is a real thing — but neither is not a PO, and
+// Submit stays shut until one of them is there. The server refuses the same
+// pair, so a stale tab cannot get one past it.
+function PoForm({ busy, onCancel, onSave }) {
+  const [description, setDescription] = useState("");
+  const [file, setFile] = useState(null);
+  const ready = Boolean(description.trim() || file);
+
+  return (
+    <>
+      <div>
+        <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Attach the PO
+        </label>
+        <input type="file" className="block w-full text-sm text-slate-600 file:me-3 file:rounded-full file:border-0 file:bg-brand-500/10 file:px-4 file:py-2 file:font-display file:text-sm file:font-600 file:text-brand-700 dark:text-slate-300 dark:file:text-brand-300"
+          onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        {file && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{file.name}</p>}
+      </div>
+
+      <div className="mt-4">
+        <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Description
+        </label>
+        <textarea rows={3} className={input} value={description} placeholder="PO number, value, anything Finance needs to authorise it"
+          onChange={(e) => setDescription(e.target.value)} />
+      </div>
+
+      <p className={`mt-3 text-xs ${ready ? "text-slate-500 dark:text-slate-400" : "text-amber-700 dark:text-amber-300"}`}>
+        {ready
+          ? "Goes to whoever holds Management and Finance in Task settings. Finance issues the project number."
+          : "Attach the PO, describe it, or both — one of the two is needed."}
+      </p>
+
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave({ description: description.trim(), file })}>
+          {busy ? "Sending…" : "Submit PO to Finance"}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+      </div>
+    </>
   );
 }

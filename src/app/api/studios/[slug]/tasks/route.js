@@ -23,6 +23,10 @@ export async function GET(request, ctx) {
     // write on the board — so offering the Delete button off canManage showed
     // it to every Member and Team Lead and refused every press.
     canDelete: can(g.access, "tasks.board.delete"),
+    // Whether this viewer may turn an approved quotation into a project from
+    // here. It is a PROJECTS right, so the board asks for it rather than
+    // assuming that whoever approves also opens.
+    canOpenProject: can(g.access, "projects.list.create"),
     canManageSettings: g.canManageSettings,
     taskAssignees: g.taskAssignees,
     authorities: TASK_AUTHORITIES,

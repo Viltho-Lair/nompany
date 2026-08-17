@@ -21,6 +21,9 @@ import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, 
 import { studioContext, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
+// Issuing the project number is a CONSEQUENCE of Finance signing the PO, so it
+// is called from decideTask rather than from a screen — see the note there.
+import { issueProjectNumber } from "@/lib/projects";
 import {
   TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES, TASK_TYPES, TASK_TYPE_LABELS,
   APPROVAL_COOLDOWN_MS, isApprovalTask, readTaskAssignees, resolveTaskAssignees,
@@ -382,7 +385,27 @@ export async function decideTask(ctx, id, body) {
   };
 
   const task = await updateRow(studio.id, section.id, TASKS, id, apply);
-  return task ? { task } : { error: "notfound" };
+  if (!task) return { error: "notfound" };
+
+  // FINANCE SIGNING THE PO IS WHAT ISSUES THE PROJECT NUMBER. Done here, next
+  // to the write that causes it, for the same reason raising the first RFQ
+  // moves a Lead to an Opportunity inside requestRfq: both entry points to the
+  // decision must have the same consequence, and a screen cannot be trusted to
+  // remember it.
+  //
+  // Best-effort and reported, not enforced: the project may not exist yet — a
+  // PO can be authorised before anybody opens the project — and in that case
+  // there is simply nothing to number. Whoever opens it later gets a project
+  // with a blank number, which is the state this is designed around.
+  let numberIssued = "";
+  if (task.type === "po" && task.status === "Done" && task.quotationId) {
+    const owner = await ownerOf(studio.id, "projects-list", "projects");
+    if (owner) {
+      const out = await issueProjectNumber({ studio, listSection: owner }, task.quotationId);
+      numberIssued = out.issued || "";
+    }
+  }
+  return { task, numberIssued };
 }
 
 export async function removeTask(ctx, id) {

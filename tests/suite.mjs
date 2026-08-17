@@ -26,7 +26,9 @@ import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/
 import { TASK_TYPE_AUTHORITIES } from "@/lib/taskRouting";
 import {
   salesContext, createService, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
+  submitTicketPo,
 } from "@/lib/sales";
+import { projectsContext, openProject, listProjects } from "@/lib/projects";
 import { technicalContext, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/lib/technical";
 import { rfqInfo } from "@/lib/salesAnalytics";
 import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/lib/finance";
@@ -261,6 +263,64 @@ console.log("\n== the handler is carried, never copied");
 
   const twice = await sendTicketForApproval(await salesContext(owner, slug), { ticketId: made.ticket?.id });
   ok("...once per quotation, not once per press", twice.error === "already", JSON.stringify(twice));
+
+  // ---- the rest of the chain: PO -> project -> number ----------------------
+  // A PO cannot be booked against a quotation nobody signed off, and cannot be
+  // booked with no evidence at all.
+  const salesCtx = await salesContext(owner, slug);
+  const early = await submitTicketPo(salesCtx, { ticketId: made.ticket?.id, description: "PO-1" });
+  ok("a PO needs an approved quotation", early.error === "not-approved", JSON.stringify(early));
+
+  await updateQuotation(await technicalContext(owner, slug), conv.quotation?.id, { status: "Approved" });
+  const empty = await submitTicketPo(await salesContext(owner, slug), { ticketId: made.ticket?.id });
+  ok("...and evidence: neither a file nor a description is refused", empty.error === "evidence", JSON.stringify(empty));
+
+  const po = await submitTicketPo(await salesContext(owner, slug), {
+    ticketId: made.ticket?.id, description: "PO-99 signed by the client",
+  });
+  ok("a described PO goes to Finance", po.task?.type === "po", JSON.stringify(po.error));
+  ok("...carrying keys, not copies",
+    po.task?.ticketId === made.ticket?.id && po.task?.quotationId === conv.quotation?.id,
+    JSON.stringify({ ticketId: po.task?.ticketId, quotationId: po.task?.quotationId }));
+  const poTwice = await submitTicketPo(await salesContext(owner, slug), { ticketId: made.ticket?.id, description: "again" });
+  ok("...once per quotation", poTwice.error === "already", JSON.stringify(poTwice));
+
+  // THE PROJECT IS OPENED WITHOUT A NUMBER. It exists, it has a handler, and
+  // its sheet is drawn from the quotation — but the number is Finance's to
+  // issue, and it has not been issued yet.
+  const proj = await projectsContext(owner, slug);
+  const opened = await openProject(proj, {
+    quotationId: conv.quotation?.id, managerCollaboratorId: member.collaborator.id,
+  });
+  ok("an approved quotation opens a project", !!opened.project, JSON.stringify(opened.error));
+  ok("...with a BLANK number until Finance issues one", opened.project?.number === "",
+    JSON.stringify(opened.project?.number));
+  ok("...carrying the whole chain of keys",
+    opened.project?.ticketId === made.ticket?.id
+    && opened.project?.quotationId === conv.quotation?.id
+    && opened.project?.rfqId === asked.rfq?.id,
+    JSON.stringify({ t: opened.project?.ticketId, q: opened.project?.quotationId, r: opened.project?.rfqId }));
+  ok("...and its sheet drawn up from the quotation", Array.isArray(opened.sheet?.rows), JSON.stringify(opened.sheet));
+
+  // FINANCE SIGNING IS WHAT ISSUES THE NUMBER. Both authorities have to sign,
+  // so the first one alone leaves it blank.
+  const tctx = await tasksContext(owner, slug);
+  await decideTask(tctx, po.task?.id, { authority: "mng", approved: true });
+  const halfWay = (await listProjects(proj)).find((p) => p.id === opened.project?.id);
+  ok("one authority is not enough to issue a number", halfWay?.number === "", JSON.stringify(halfWay?.number));
+
+  const finished = await decideTask(await tasksContext(owner, slug), po.task?.id, { authority: "fin", approved: true });
+  ok("the second signature completes the PO", finished.task?.status === "Done", JSON.stringify(finished.error));
+  ok("...and issues the project number", /^PRJ-\d+$/.test(finished.numberIssued || ""), JSON.stringify(finished.numberIssued));
+  const numbered = (await listProjects(proj)).find((p) => p.id === opened.project?.id);
+  ok("...which really landed on the project", numbered?.number === finished.numberIssued, JSON.stringify(numbered?.number));
+
+  // Withdrawing and re-approving must not mint a second number: the first one
+  // is already on documents the client is holding.
+  await decideTask(await tasksContext(owner, slug), po.task?.id, { authority: "fin", approved: false });
+  const again = await decideTask(await tasksContext(owner, slug), po.task?.id, { authority: "fin", approved: true });
+  ok("re-approving does not issue a second number", again.numberIssued === numbered?.number,
+    JSON.stringify({ again: again.numberIssued, was: numbered?.number }));
 }
 
 // ============================================================================

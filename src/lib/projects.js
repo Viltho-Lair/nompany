@@ -26,6 +26,9 @@ const PROJECTS = "projects";
 const QUOTATIONS = "quotations";
 const SLAS = "slas";
 const OVERTIMES = "overtimes";
+// Project Sheets live under INVENTORY in this product, matching the Old System.
+// Projects writes one when a project is opened and never reads it again.
+const SHEETS = "projectSheets";
 // A department is a top-level SECTION, so the overtime picker's filter is
 // derived from the studio's own structure rather than read out of HR — see
 // lib/departments.js.
@@ -63,6 +66,10 @@ export async function projectsContext(user, slug) {
   // ticketId it carries — so the sections behind that read travel here too.
   const salesTicketsSection = byKey["sales-tickets"] || byKey["sales"] || null;
   const salesClientsSection = byKey["sales-clients"] || byKey["sales"] || null;
+  // Where the project sheet is written. Absent in a studio with no Inventory
+  // section, and openProject simply makes no sheet rather than refusing to
+  // make the project.
+  const sheetsSection = byKey["inventory-sheets"] || byKey["inventory"] || null;
 
   return {
     studio, collaborator, access, roles, section, technicalSection: technical,
@@ -70,7 +77,7 @@ export async function projectsContext(user, slug) {
     // filters by are derived from it — see lib/departments.js.
     sections,
     listSection, slaSection, overtimesSection, settingsSection, quotationsSection,
-    salesTicketsSection, salesClientsSection,
+    salesTicketsSection, salesClientsSection, sheetsSection,
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canManageList: sectionManageable(access, listSection.key, (sections || []).map((x) => x.key)),
     canManageSla: sectionManageable(access, slaSection.key, (sections || []).map((x) => x.key)),
@@ -173,7 +180,7 @@ export async function openProject(ctx, body) {
   const denied = requirePermission(ctx.access, "projects.list.create");
   if (denied) return denied;
 
-  const { studio, listSection, technicalSection, collaborator, quotationsSection } = ctx;
+  const { studio, listSection, technicalSection, collaborator, quotationsSection, sheetsSection } = ctx;
   if (!technicalSection) return { error: "no-technical" };
 
   const quotationId = str(body?.quotationId, 60);
@@ -197,10 +204,16 @@ export async function openProject(ctx, body) {
   const t = (await ticketFacts(ctx))(quote.ticketId);
   const now = new Date().toISOString();
   const project = await addRow(studio.id, listSection.id, PROJECTS, {
-    // The project number is quoted on invoices, purchase orders and delivery
-    // notes, so it cannot be reused after a project is removed — derived from
-    // the highest already issued. See lib/references.js.
-    number: await nextReference(studio.id, { rows: existing, field: "number", prefix: "PRJ" }),
+    // BLANK UNTIL FINANCE ISSUES IT. The project number is quoted on invoices,
+    // purchase orders and delivery notes — it is the studio's commitment to
+    // bill this work — and issuing it is Finance's act, taken when they
+    // authorise the client's PO. A project can exist before that: the work is
+    // planned, the handler is named, the sheet is drawn up. What it cannot do
+    // is carry a number nobody issued.
+    //
+    // Blank rather than provisional, deliberately. A placeholder number would
+    // be quoted on something before long, and then it would be the number.
+    number: "",
     title: str(body?.title, 200) || t.title || quote.title || "",
     // Lineage — the whole chain of keys.
     quotationId, quotationNumber: quote.number,
@@ -221,7 +234,74 @@ export async function openProject(ctx, body) {
     openedByCollaboratorId: collaborator.id,
     createdAt: now,
   });
-  return { project: { ...project, progress: 0 } };
+
+  // THE PROJECT SHEET, drawn up from what was quoted.
+  //
+  // Procurement starts from the document the client agreed to, so the sheet
+  // opens with a line per priced row rather than empty — retyping the quotation
+  // into the sheet is how the two stop matching. The lines are the SHEET'S own
+  // from here: what has to be bought is not the same list as what was sold, and
+  // it moves as the job does.
+  //
+  // Everything ABOUT the job stays keys — projectId, quotationId, ticketId,
+  // rfqId — so the sheet reads the ticket, the client and the numbers back
+  // rather than holding a second copy that ages.
+  const sheet = sheetsSection
+    ? await addRow(studio.id, sheetsSection.id, SHEETS, {
+        projectId: project.id,
+        quotationId, rfqId: quote.rfqId || "", ticketId: quote.ticketId || "",
+        rows: sheetRowsFromQuotation(quote),
+        openedByCollaboratorId: collaborator.id,
+        createdAt: now,
+      })
+    : null;
+
+  return { project: { ...project, progress: 0 }, sheet };
+}
+
+// One sheet line per priced quotation row, carrying the item it came from so
+// the catalogue entry stays reachable, and the description as it was quoted so
+// the line still reads correctly if that entry is later renamed. The PRICE is
+// deliberately absent: a sheet is what has to be bought, not what it was sold
+// for, and the two are different numbers with different owners.
+function sheetRowsFromQuotation(quote) {
+  const tables = Array.isArray(quote?.tables) ? quote.tables : [];
+  return tables.flatMap((t) => (Array.isArray(t.rows) ? t.rows : []).map((r) => ({
+    id: `sr_${Math.random().toString(36).slice(2, 10)}`,
+    itemId: str(r?.itemId, 60),
+    description: t.title ? `${t.title} — ${str(r?.description, 300)}` : str(r?.description, 300),
+    unit: str(r?.unit, 30),
+    qty: nonNeg(r?.qty, 0),
+    ordered: 0,
+  }))).filter((r) => r.description).slice(0, 400);
+}
+
+// FINANCE ISSUES THE NUMBER, and this is where it happens: when the `po` task
+// for a quotation is fully approved. Called from decideTask, next to the write
+// that causes it — the same reasoning that puts "raising the first RFQ moves a
+// Lead to an Opportunity" inside requestRfq rather than in a screen.
+//
+// NOT GUARDED HERE, and deliberately so. This is not an action somebody takes;
+// it is the CONSEQUENCE of an authority signing, and decideTask has already
+// established that the person signing holds the authority. A permission check
+// here would ask Finance for a Projects right they have no reason to hold, and
+// the number would silently never be issued.
+//
+// Idempotent: a project that already has a number keeps it. An approval
+// withdrawn and given again must not mint a second number, because the first
+// one is on documents the client is holding.
+export async function issueProjectNumber({ studio, listSection }, quotationId) {
+  if (!listSection || !quotationId) return { issued: "" };
+  const rows = await readCol(studio.id, listSection.id, PROJECTS);
+  const project = rows.find((p) => p.quotationId === quotationId);
+  if (!project) return { issued: "" };            // no project yet — nothing to number
+  if (project.number) return { issued: project.number, project };
+
+  // Derived from the highest already issued, never from how many exist, so a
+  // deleted project cannot have its number reused. See lib/references.js.
+  const number = await nextReference(studio.id, { rows, field: "number", prefix: "PRJ" });
+  const updated = await updateRow(studio.id, listSection.id, PROJECTS, project.id, { number });
+  return { issued: number, project: updated };
 }
 
 export async function updateProject(ctx, id, body) {
