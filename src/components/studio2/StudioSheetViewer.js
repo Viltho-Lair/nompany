@@ -210,6 +210,38 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     window.history.replaceState(null, "", `/${slug}/inventory-sheets/${sheet.id}`);
   }, [isInventory, sheet, slug]);
 
+  // WHAT IS ALREADY SPOKEN FOR ON THIS SHEET, RIGHT NOW — including allocations
+  // that have not been saved yet.
+  //
+  // The server excludes serials held by SAVED lines anywhere in the studio, but
+  // it computes that once per read: allocate a unit to a row in Ground floor and
+  // the dropdown on First floor still offered it, because nothing had been
+  // written yet. A reserved unit is shortlisted the moment it is chosen, not the
+  // moment it is saved, so the draft has to count.
+  //
+  // Keyed by row, so a row never excludes its own units — it would be unable to
+  // show what it holds, or to release it.
+  const takenByRow = useMemo(() => {
+    const out = new Map();
+    for (const t of sheet?.tables || []) {
+      for (const r of t.rows) {
+        const d = draft[r.rowId];
+        out.set(r.rowId, (d && "serials" in d ? d.serials : r.serials) || []);
+      }
+    }
+    return out;
+  }, [sheet, draft]);
+
+  const poolFor = useCallback((row) => {
+    const mine = new Set(takenByRow.get(row.rowId) || []);
+    const elsewhere = new Set();
+    for (const [rowId, list] of takenByRow) {
+      if (rowId === row.rowId) continue;
+      for (const sn of list) elsewhere.add(sn);
+    }
+    return (row.availableSerials || []).filter((sn) => mine.has(sn) || !elsewhere.has(sn));
+  }, [takenByRow]);
+
   const backHref = isInventory ? `/${slug}/inventory-sheets` : `/${slug}/projects-list/${projectId}`;
   const backLabel = isInventory ? "← Project sheets" : "← Project";
 
@@ -347,10 +379,12 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
                   {/* No owner tag. Every column here is Inventory's, so saying
                       so on each one is a word repeated across the whole table
                       that distinguishes nothing. */}
+                  {/* Fixed widths on the two cells whose contents change as the
+                      sheet is worked, so nothing reflows mid-edit. */}
                   {SHEET_COLUMNS.map((c) => (
-                    <th key={c.key} className={`${th} text-start`} title={c.hint}>{c.label}</th>
+                    <th key={c.key} className={`${th} text-start ${c.kind === "serials" ? "w-28" : ""}`} title={c.hint}>{c.label}</th>
                   ))}
-                  <th className={`${th} text-start`} title="Derived from what is allocated against what was sold">Status</th>
+                  <th className={`${th} w-32 text-start`} title="Derived from what is allocated against what was sold">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -362,12 +396,12 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
                     </td>
                     {SHEET_COLUMNS.map((c) => (
                       <td key={c.key} className={td}>
-                        <Cell column={c} row={row} draft={draft[row.rowId]}
+                        <Cell column={c} row={row} draft={draft[row.rowId]} pool={poolFor(row)}
                           disabled={Boolean(busy) || !canWrite(c.owner)}
                           onEdit={(v) => edit(row.rowId, c.key, v)} />
                       </td>
                     ))}
-                    <td className={td}><Status row={row} draft={draft[row.rowId]} /></td>
+                    <td className={td}><Status row={row} draft={draft[row.rowId]} pool={poolFor(row)} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -392,13 +426,16 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
 // WHERE THE ROW STANDS. Read off the DRAFT where there is one, so the status
 // answers what is on screen rather than what was last saved — allocating three
 // serials should say "Fulfilled" before Save is pressed, not after.
-function Status({ row, draft }) {
+function Status({ row, draft, pool = [] }) {
   const serials = draft && "serials" in draft ? draft.serials : (row.serials || []);
+  const held = new Set(serials);
   const { fulfilled, lines } = rowStatus({
     qty: row.qty,
     assigned: serials.length,
-    // What is left on the shelf once this row has taken its own.
-    inStock: Math.max(0, (row.inStock || 0)),
+    // WHAT THIS ROW COULD STILL TAKE, from the live pool rather than the
+    // server's count — so a unit another row has just claimed stops being
+    // offered here as stock, in the same keystroke.
+    inStock: pool.filter((sn) => !held.has(sn)).length,
   });
 
   if (fulfilled) {
@@ -424,10 +461,91 @@ function Status({ row, draft }) {
   );
 }
 
+// ALLOCATING UNITS, without the table moving. The button is a fixed width and a
+// single line whatever is held; the panel is fixed-positioned from the button's
+// own rectangle, so no ancestor can clip it and nothing below it reflows.
+function SerialCell({ row, chosen, pool, changed, onEdit }) {
+  const [at, setAt] = useState(null);
+  const box = useRef(null);
+
+  useEffect(() => {
+    if (!at) return undefined;
+    const away = (e) => { if (box.current && !box.current.contains(e.target)) setAt(null); };
+    const esc = (e) => { if (e.key === "Escape") setAt(null); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [at]);
+
+  const full = chosen.length >= row.qty && row.qty > 0;
+  const free = pool.filter((sn) => !chosen.includes(sn));
+
+  const open = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setAt({ left: Math.min(r.left, window.innerWidth - 260), top: r.bottom + 4 });
+  };
+
+  return (
+    <span ref={box}>
+      <button type="button" onClick={open} aria-haspopup="dialog" aria-expanded={Boolean(at)}
+        title={chosen.length ? chosen.join(", ") : "Nothing allocated"}
+        className={`inline-flex w-24 items-center justify-between gap-1 rounded-lg border px-2 py-1 text-xs tabular-nums transition-colors ${
+          changed ? "border-amber-400 bg-amber-50 dark:bg-amber-500/10"
+            : full ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+            : "border-slate-200 hover:border-brand-500 dark:border-white/15"}`}>
+        <span>{chosen.length}/{row.qty}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3 shrink-0 opacity-50"
+          fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {at && (
+        <div style={{ left: at.left, top: at.top }}
+          className="fixed z-40 w-60 overflow-hidden rounded-geex border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]">
+          <p className="border-b border-slate-100 px-3 py-2 text-[11px] font-700 uppercase tracking-wide text-slate-400 dark:border-white/10">
+            {chosen.length} of {row.qty} allocated
+          </p>
+          <ul className="max-h-52 overflow-auto py-1">
+            {chosen.length === 0 && free.length === 0 && (
+              <li className="px-3 py-3 text-xs text-slate-400">Nothing in stock to allocate.</li>
+            )}
+            {/* Held first — releasing is the thing you come back for. */}
+            {chosen.map((sn) => (
+              <li key={sn}>
+                <button type="button" onClick={() => onEdit(chosen.filter((x) => x !== sn))}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-start font-mono text-[11px] text-slate-700 hover:bg-rose-500/10 dark:text-slate-200">
+                  <span aria-hidden="true" className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border border-brand-600 bg-brand-600 text-[9px] font-700 text-white">✓</span>
+                  {sn}
+                </button>
+              </li>
+            ))}
+            {free.map((sn) => (
+              <li key={sn}>
+                <button type="button" disabled={full}
+                  onClick={() => onEdit([...chosen, sn])}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-start font-mono text-[11px] text-slate-600 hover:bg-slate-50 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-white/5">
+                  <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded border border-slate-300 dark:border-white/25" />
+                  {sn}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {full && (
+            <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] text-emerald-700 dark:border-white/10 dark:text-emerald-300">
+              Fully allocated.
+            </p>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
+
 // One cell. A column nobody may write renders as text rather than as a disabled
 // control — a greyed-out dropdown on every row teaches people to stop reading
 // them, and most people will hold one department's rights and not the other's.
-function Cell({ column, row, draft, disabled, onEdit }) {
+function Cell({ column, row, draft, pool = [], disabled, onEdit }) {
   // What is on screen is the DRAFT where there is one, and what the server holds
   // where there is not — so an unsaved edit survives a live update landing
   // underneath it rather than being wiped by somebody else's save.
@@ -456,12 +574,37 @@ function Cell({ column, row, draft, disabled, onEdit }) {
     );
   }
   if (column.kind === "serials") {
+    // A FIXED-SIZE CONTROL. Chips and a dropdown grew the cell as units were
+    // allocated, so every row changed height and every column shifted while
+    // somebody worked down the sheet — the table moved under the hand doing the
+    // work. This is one button of constant width that says how many of how many
+    // are held; the picking happens in a panel over the table, where it can be
+    // as tall as it likes without moving anything.
+    return <SerialCell row={row} chosen={Array.isArray(value) ? value : []} pool={pool}
+      changed={changed} onEdit={onEdit} />;
+  }
+
+  if (column.kind === "choice") {
+    return (
+      <select className={`${input} ${mark} w-auto py-1 text-xs`} value={value || ""} aria-label={column.label}
+        onChange={(e) => onEdit(e.target.value)}>
+        <option value="">—</option>
+        {column.options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+  }
+  if (column.kind === "number") {
+    return (
+      <input type="number" min="0" className={`${input} ${mark} w-20 py-1 text-xs`} value={value ?? ""}
+        aria-label={column.label} onChange={(e) => onEdit(e.target.value)} />
+    );
+  }
+  if (column.kind === "serials") {
     // ALLOCATION, not typing. The list is what is actually in stock and not
     // already spoken for, so a serial cannot be invented and cannot be put on
     // two jobs. Capped at the quantity sold: allocating four units to a line
     // that sold three is not a thing to let somebody do by accident.
     const chosen = Array.isArray(value) ? value : [];
-    const pool = row.availableSerials || [];
     const full = chosen.length >= row.qty;
     if (!pool.length && !chosen.length) {
       return <span className="text-xs text-slate-400">none in stock</span>;
