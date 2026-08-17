@@ -16,9 +16,8 @@
 // SO "PROJECT VERSION" AND "INVENTORY VERSION" ARE ONE VIEWER WITH TWO SETS OF
 // CONTROLS. Both show every column, because a project manager needs to know the
 // cameras have not arrived and a storeman needs to know the floor is not ready
-// for them. What differs is who may WRITE which — assigning serials is
-// Inventory's, installation and programming are Projects' — and that is the
-// `owner` on each column below.
+// for them. What differs is who may WRITE which — and that is the `owner` on
+// each column below.
 //
 // Prices appear in NEITHER. They belong to the quotation and to Sales, and are
 // dropped when a sheet composes its rows rather than stored-without.
@@ -28,18 +27,26 @@ export const SHEET_OWNERS = {
   projects: { label: "Projects", permission: "projects.list" },
 };
 
-// `kind` is what the cell is, which is all the viewer needs to render and
-// validate it. Anything more specific belongs to the screen, not here.
+// PROJECTS' COLUMNS ARE GONE FOR NOW — installation, programming and the line
+// note. They were my guess at what a project manager records against a line,
+// and a guess in a shared row is worse than a gap: people start filling it in
+// and then it has to be migrated when the real answer arrives.
+//
+// The MACHINERY stays, and that is the point of leaving SHEET_OWNERS whole. A
+// column declares its owner, cleanSheetLine lets a department write only its
+// own, and the route asks the matching right — so Projects' real columns are a
+// list entry each when they are known, and nothing else has to change.
 export const SHEET_COLUMNS = [
-  // ---- Inventory's -------------------------------------------------------
   {
-    key: "serials", owner: "inventory", label: "Serials", kind: "list",
-    hint: "The units actually held against this line, from Registered Items.",
+    // ALLOCATION, not typing. A serial is a unit that physically exists in
+    // stock, so it is chosen from what is actually there — and a serial already
+    // allocated to another row is not offered, because one unit cannot be on
+    // two jobs.
+    key: "serials", owner: "inventory", label: "Serials", kind: "serials",
+    hint: "Units allocated to this line from stock.",
   },
   {
     key: "stockStatus", owner: "inventory", label: "Material", kind: "choice",
-    // The states a line passes through on its way in. "Awaiting" is the one
-    // Projects most needs to see and the reason this column is shared at all.
     options: ["Not ordered", "Awaiting", "Partly received", "In stock", "Issued"],
     hint: "Where the material for this line has got to.",
   },
@@ -47,25 +54,27 @@ export const SHEET_COLUMNS = [
     key: "orderedQty", owner: "inventory", label: "Ordered", kind: "number",
     hint: "How many have been put on order, against the quantity sold.",
   },
-
-  // ---- Projects' ---------------------------------------------------------
-  {
-    key: "installation", owner: "projects", label: "Installation", kind: "choice",
-    options: ["Not started", "In progress", "Done", "Not required"],
-    hint: "Whether this line has been installed on site.",
-  },
-  {
-    key: "programming", owner: "projects", label: "Programming", kind: "choice",
-    options: ["Not started", "In progress", "Done", "Not required"],
-    hint: "Whether this line has been configured and handed over.",
-  },
-  {
-    key: "note", owner: "projects", label: "Note", kind: "text",
-    hint: "Anything about this line the next person needs.",
-  },
 ];
 
 export const columnsFor = (owner) => SHEET_COLUMNS.filter((c) => c.owner === owner);
+
+// WHERE A ROW STANDS, derived and never stored. Storing it would be a fourth
+// number that has to agree with the other three, and it would be the one that
+// went stale.
+//
+// Fully allocated reads "Fulfilled" and nothing else — the detail only matters
+// while something is still missing. Otherwise it is up to three lines, and a
+// line worth nothing is not drawn: "0 needed" is noise on a row that is done,
+// and "0 in stock" is noise on a row nobody can progress anyway.
+export function rowStatus({ qty = 0, assigned = 0, inStock = 0 }) {
+  const need = Math.max(0, qty - assigned);
+  if (qty > 0 && need === 0) return { fulfilled: true, lines: [] };
+  const lines = [];
+  if (assigned > 0) lines.push({ key: "assigned", n: assigned, text: `${assigned} assigned` });
+  if (inStock > 0) lines.push({ key: "stock", n: inStock, text: `${inStock} in stock` });
+  if (need > 0) lines.push({ key: "needed", n: need, text: `${need} needed` });
+  return { fulfilled: false, lines };
+}
 
 // Only known columns survive, cleaned to their kind. A sheet stores whatever
 // this returns and nothing else, so an unknown key cannot be written and read
@@ -81,7 +90,7 @@ export function cleanSheetLine(patch, owner) {
     const v = patch[col.key];
     if (col.kind === "number") out[col.key] = Math.max(0, Math.floor(Number(v) || 0));
     else if (col.kind === "choice") { if (col.options.includes(v)) out[col.key] = v; }
-    else if (col.kind === "list") {
+    else if (col.kind === "serials") {
       out[col.key] = [...new Set((Array.isArray(v) ? v : []).map((x) => String(x ?? "").trim()).filter(Boolean))].slice(0, 200);
     } else out[col.key] = String(v ?? "").trim().slice(0, 500);
   }

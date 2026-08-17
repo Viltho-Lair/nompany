@@ -231,11 +231,26 @@ export async function removeVendor(ctx, id) {
 }
 
 // ---- items -----------------------------------------------------------------
-export async function listItems({ studio, itemsSection, vendorsSection, stockSection }) {
-  const [items, vendors, movements] = await Promise.all([
+// Every serial spoken for by a project sheet. One read for the whole list, so
+// the item rows do not each go looking.
+async function reservedSerials({ studio, sheetsSection }) {
+  if (!sheetsSection) return new Set();
+  const sheets = await readCol(studio.id, sheetsSection.id, SHEETS);
+  const out = new Set();
+  for (const sh of sheets) {
+    const lines = sh.lines && typeof sh.lines === "object" ? sh.lines : {};
+    for (const line of Object.values(lines)) for (const sn of line?.serials || []) out.add(sn);
+  }
+  return out;
+}
+
+export async function listItems(ctx) {
+  const { studio, itemsSection, vendorsSection, stockSection } = ctx;
+  const [items, vendors, movements, reserved] = await Promise.all([
     readCol(studio.id, itemsSection.id, ITEMS),
     readCol(studio.id, vendorsSection.id, VENDORS),
     readCol(studio.id, stockSection.id, STOCK),
+    reservedSerials(ctx),
   ]);
   const vendorName = Object.fromEntries(vendors.map((v) => [v.id, v.name]));
   const onHand = balances(movements);
@@ -248,6 +263,11 @@ export async function listItems({ studio, itemsSection, vendorsSection, stockSec
       return {
         ...i,
         serials,
+        // RESERVED: allocated to a project sheet, so still physically on the
+        // shelf but no longer available to anybody else. It is not a state
+        // stored on the item — it is derived from what the sheets have taken,
+        // so releasing a line frees the unit with nothing to remember to undo.
+        reservedSerials: serials.filter((sn) => reserved.has(sn)),
         vendorName: vendorName[i.vendorId] || "",
         onHand: held,
         // "Below reorder level" is derived, so it can never be a stale flag.
@@ -482,21 +502,32 @@ export async function adjustStock(ctx, body) {
 // each item summed across the whole project, then split by the vendor it is
 // bought from. Both are readings; neither can disagree with the quotation,
 // because neither holds a line.
-function composeSheet(sheet, quote, vendorOf) {
+function composeSheet(sheet, quote, vendorOf, stockFor) {
   const tables = Array.isArray(quote?.tables) ? quote.tables : [];
   const own = sheet.lines && typeof sheet.lines === "object" ? sheet.lines : {};
   // Carried, then added to. `qty` is what was SOLD and belongs to the
   // quotation; everything the sheet knows rides beside it under its own names.
-  const carry = (t, r) => ({
-    rowId: r.id,
-    tableId: t.id,
-    tableTitle: t.title || "",
-    itemId: r.itemId || "",
-    description: r.description || "",
-    unit: r.unit || "",
-    qty: Number(r.qty) || 0,
-    ...(own[r.id] || {}),
-  });
+  const carry = (t, r) => {
+    const line = {
+      rowId: r.id,
+      tableId: t.id,
+      tableTitle: t.title || "",
+      itemId: r.itemId || "",
+      description: r.description || "",
+      unit: r.unit || "",
+      qty: Number(r.qty) || 0,
+      ...(own[r.id] || {}),
+    };
+    // WHAT CAN STILL BE ALLOCATED TO THIS LINE. Read off Registered Items and
+    // reduced by every serial already spoken for elsewhere — one unit cannot be
+    // on two jobs, so a serial allocated to another row is not offered here.
+    // This line's own allocation stays in the list, or unticking would be
+    // impossible.
+    const { pool, onHand } = stockFor(line.itemId, line.serials || []);
+    line.availableSerials = pool;
+    line.inStock = onHand;
+    return line;
+  };
 
   if (sheet.kind !== "bulk") {
     return tables.map((t) => ({
@@ -652,6 +683,24 @@ export async function listProjectSheets(ctx) {
   const itemById = new Map(items.map((i) => [i.id, i]));
   const vendorById = new Map(vendors.map((v) => [v.id, v]));
   const vendorOf = (itemId) => vendorById.get(itemById.get(itemId)?.vendorId) || null;
+
+  // Every serial already allocated anywhere in the studio, so the same unit is
+  // never offered to two rows. Built once for all sheets rather than per row.
+  const spoken = new Set();
+  for (const sh of sheets) {
+    const lines = sh.lines && typeof sh.lines === "object" ? sh.lines : {};
+    for (const line of Object.values(lines)) {
+      for (const sn of line?.serials || []) spoken.add(sn);
+    }
+  }
+  const stockFor = (itemId, mine) => {
+    const all = itemById.get(itemId)?.serials || [];
+    const own = new Set(mine);
+    // Free, plus this row's own — otherwise its own allocation would vanish
+    // from the list it was chosen from and could never be undone.
+    const pool = all.filter((sn) => own.has(sn) || !spoken.has(sn));
+    return { pool, onHand: pool.filter((sn) => !own.has(sn)).length };
+  };
   const poFor = (quotationId) => tasks.find((t) => t.type === "po" && t.quotationId === quotationId) || null;
 
   return [...sheets]
@@ -659,7 +708,7 @@ export async function listProjectSheets(ctx) {
     .map((sheet) => {
       const project = projectById.get(sheet.projectId) || null;
       const quote = quoteById.get(sheet.quotationId) || null;
-      const tables = composeSheet(sheet, quote, vendorOf);
+      const tables = composeSheet(sheet, quote, vendorOf, stockFor);
       return {
         id: sheet.id,
         kind: sheet.kind === "bulk" ? "bulk" : "main",

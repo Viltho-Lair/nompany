@@ -389,13 +389,22 @@ console.log("\n== the handler is carried, never copied");
   });
   ok("...and cannot write another department's", crossed.error === "nothing", JSON.stringify(crossed));
 
+  // PROJECTS HAS NO COLUMNS YET — its three were a guess and were removed, and a
+  // guess in a shared row is worse than a gap. The MACHINERY is what is under
+  // test: a write claiming to be Projects finds nothing of Projects' to write,
+  // rather than falling through and writing Inventory's.
   const asProjects = await saveSheetLine(inv, {
-    sheetId: anySheet?.id, rowId: "r1", owner: "projects", values: { installation: "Done" },
+    sheetId: anySheet?.id, rowId: "r1", owner: "projects", values: { stockStatus: "In stock" },
   });
-  ok("Projects writes its own, on the SAME row", asProjects.ok === true, JSON.stringify(asProjects));
-  ok("...and both departments' columns are on one record",
-    asProjects.line?.stockStatus === "Awaiting" && asProjects.line?.installation === "Done",
-    JSON.stringify(asProjects.line));
+  ok("a Projects write cannot reach Inventory's columns", asProjects.error === "nothing", JSON.stringify(asProjects));
+  // Read back through a write of Inventory's own, because the fixture quotation
+  // has no priced rows — so the composed sheet has no row to read, while the
+  // stored record for it does exist. What is under test is the record.
+  const untouched = await saveSheetLine(inv, {
+    sheetId: anySheet?.id, rowId: "r1", owner: "inventory", values: { orderedQty: 4 },
+  });
+  ok("...and Inventory's own is untouched by it", untouched.line?.stockStatus === "Awaiting",
+    JSON.stringify(untouched.line));
 
   // Somebody who may OPEN Inventory but holds no sheet right writes nothing.
   // Viewer is exactly that case, and it is the one worth testing: refusing

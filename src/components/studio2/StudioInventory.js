@@ -603,6 +603,10 @@ function AdjustForm({ item, busy, onSave, onCancel }) {
 }
 
 function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
+  // RESERVED is derived on the server from what the project sheets hold —
+  // never a flag on the item, so releasing a sheet line frees the unit with
+  // nothing here to remember to undo.
+  const reserved = item.reservedSerials || [];
   const [serials, setSerials] = useState(item.serials || []);
   const [draft, setDraft] = useState("");
   useEffect(() => { setSerials(item.serials || []); }, [item.serials]);
@@ -618,7 +622,8 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
   return (
     <>
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        {serials.length} recorded against <span className="font-600">{num(item.onHand)} {item.unit}</span> on hand.
+        {serials.length} recorded against <span className="font-600">{num(item.onHand)} {item.unit}</span> on hand
+        {reserved.length > 0 && <>, <span className="font-600">{reserved.length} reserved</span> to project sheets</>}.
         {item.serialMismatch && <span className="text-amber-600 dark:text-amber-400"> They disagree — stock has moved without its serial being noted.</span>}
       </p>
 
@@ -633,15 +638,29 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
 
       {serials.length > 0 && (
         <div className="mt-3 flex max-h-52 flex-wrap gap-1.5 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/15 dark:bg-[#191921]">
-          {serials.map((sn) => (
-            <span key={sn} className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 font-mono text-[11px] text-slate-700 dark:bg-white/10 dark:text-slate-200">
-              {sn}
-              {canManage && (
-                <button type="button" aria-label={`Remove ${sn}`} className="text-slate-400 hover:text-rose-600"
-                  onClick={() => setSerials((cur) => cur.filter((x) => x !== sn))}>×</button>
-              )}
-            </span>
-          ))}
+          {/* RESERVED UNITS ARE STRUCK THROUGH. A serial allocated to a project
+              sheet is still physically on the shelf, so it is still listed —
+              but it is spoken for, and nobody should be shortlisting it for
+              another quotation. The state is DERIVED from what the sheets have
+              taken, so releasing a line frees the unit with nothing to undo
+              here, and removing one by hand is refused while it is held. */}
+          {serials.map((sn) => {
+            const held = reserved.includes(sn);
+            return (
+              <span key={sn}
+                title={held ? "Reserved — allocated to a project sheet" : undefined}
+                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 font-mono text-[11px] ${
+                  held
+                    ? "bg-slate-100 text-slate-400 line-through dark:bg-white/5 dark:text-slate-500"
+                    : "bg-white text-slate-700 dark:bg-white/10 dark:text-slate-200"}`}>
+                {sn}
+                {canManage && !held && (
+                  <button type="button" aria-label={`Remove ${sn}`} className="text-slate-400 hover:text-rose-600"
+                    onClick={() => setSerials((cur) => cur.filter((x) => x !== sn))}>×</button>
+                )}
+              </span>
+            );
+          })}
         </div>
       )}
 

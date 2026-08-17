@@ -6,7 +6,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, input, btn, btnGhost, th } from "@/components/studio2/ui";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import { SHEET_COLUMNS, SHEET_OWNERS } from "@/lib/sheetColumns";
+import { SHEET_COLUMNS, SHEET_OWNERS, rowStatus } from "@/lib/sheetColumns";
 
 // THE QUOTATION VIEWER, WITHOUT PRICES — in two perspectives.
 //
@@ -344,12 +344,13 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
                   <th className={`${th} text-start`}>Qty</th>
                   {/* EVERY column, whoever owns it — seeing the other
                       department's answer is the reason the row is shared. */}
+                  {/* No owner tag. Every column here is Inventory's, so saying
+                      so on each one is a word repeated across the whole table
+                      that distinguishes nothing. */}
                   {SHEET_COLUMNS.map((c) => (
-                    <th key={c.key} className={`${th} text-start`} title={c.hint}>
-                      {c.label}
-                      <span className="ms-1 font-400 normal-case text-slate-400">{SHEET_OWNERS[c.owner].label}</span>
-                    </th>
+                    <th key={c.key} className={`${th} text-start`} title={c.hint}>{c.label}</th>
                   ))}
+                  <th className={`${th} text-start`} title="Derived from what is allocated against what was sold">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -366,6 +367,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
                           onEdit={(v) => edit(row.rowId, c.key, v)} />
                       </td>
                     ))}
+                    <td className={td}><Status row={row} draft={draft[row.rowId]} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -384,6 +386,41 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
           onUnhide={(id) => setHiddenSaved(hidden.filter((x) => x !== id))} />
       )}
     </div>
+  );
+}
+
+// WHERE THE ROW STANDS. Read off the DRAFT where there is one, so the status
+// answers what is on screen rather than what was last saved — allocating three
+// serials should say "Fulfilled" before Save is pressed, not after.
+function Status({ row, draft }) {
+  const serials = draft && "serials" in draft ? draft.serials : (row.serials || []);
+  const { fulfilled, lines } = rowStatus({
+    qty: row.qty,
+    assigned: serials.length,
+    // What is left on the shelf once this row has taken its own.
+    inStock: Math.max(0, (row.inStock || 0)),
+  });
+
+  if (fulfilled) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-700 text-emerald-700 dark:text-emerald-300">
+        Fulfilled
+      </span>
+    );
+  }
+  if (!lines.length) return <span className="text-xs text-slate-400">—</span>;
+  // A LINE EACH, stacked. One sentence would run "1 assigned, 2 in stock, 2
+  // needed" and read as arithmetic that does not add up; separate lines are
+  // three separate facts, which is what they are.
+  return (
+    <span className="flex flex-col gap-0.5">
+      {lines.map((l) => (
+        <span key={l.key} className={`text-[11px] ${
+          l.key === "needed" ? "font-600 text-amber-700 dark:text-amber-300" : "text-slate-600 dark:text-slate-300"}`}>
+          {l.text}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -418,12 +455,40 @@ function Cell({ column, row, draft, disabled, onEdit }) {
         aria-label={column.label} onChange={(e) => onEdit(e.target.value)} />
     );
   }
-  if (column.kind === "list") {
+  if (column.kind === "serials") {
+    // ALLOCATION, not typing. The list is what is actually in stock and not
+    // already spoken for, so a serial cannot be invented and cannot be put on
+    // two jobs. Capped at the quantity sold: allocating four units to a line
+    // that sold three is not a thing to let somebody do by accident.
+    const chosen = Array.isArray(value) ? value : [];
+    const pool = row.availableSerials || [];
+    const full = chosen.length >= row.qty;
+    if (!pool.length && !chosen.length) {
+      return <span className="text-xs text-slate-400">none in stock</span>;
+    }
     return (
-      <input className={`${input} ${mark} w-40 py-1 text-xs`}
-        value={Array.isArray(value) ? value.join(", ") : (value || "")}
-        aria-label={column.label} placeholder="one per comma"
-        onChange={(e) => onEdit(e.target.value.split(",").map((x) => x.trim()).filter(Boolean))} />
+      <span className={`flex flex-col gap-1 ${mark ? "rounded p-0.5 ring-1 ring-amber-400/70" : ""}`}>
+        {chosen.length > 0 && (
+          <span className="flex flex-wrap gap-1">
+            {chosen.map((sn) => (
+              <button key={sn} type="button" title="Release this unit"
+                onClick={() => onEdit(chosen.filter((x) => x !== sn))}
+                className="inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 font-mono text-[10px] font-600 text-brand-700 hover:bg-rose-500/15 hover:text-rose-700 dark:text-brand-300 dark:hover:text-rose-300">
+                {sn} ×
+              </button>
+            ))}
+          </span>
+        )}
+        {!full && (
+          <select className={`${input} w-36 py-1 text-xs`} value="" aria-label={`Allocate a unit to ${row.description}`}
+            onChange={(e) => { if (e.target.value) onEdit([...chosen, e.target.value]); }}>
+            <option value="">Allocate…</option>
+            {pool.filter((sn) => !chosen.includes(sn)).map((sn) => (
+              <option key={sn} value={sn}>{sn}</option>
+            ))}
+          </select>
+        )}
+      </span>
     );
   }
   return (
@@ -508,7 +573,9 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
               aria-label="Projects"
               textColor="inherit"
               sx={{
-                flex: 1, minWidth: 0, minHeight: 0,
+                // Shrink to fit but never grow past what is there, so the rack
+                // does not push the square off the end of the bar.
+                flexShrink: 1, minWidth: 0, maxWidth: "100%", minHeight: 0,
                 // Rounded and hoverable: these are buttons that happen to be a
                 // tab strip, and a bare label gives nothing back when the
                 // pointer is over it.
@@ -532,11 +599,16 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
             </Tabs>
           )}
 
-          {/* THE SQUARE, at the right end. Its windows sit ABOVE it — the bar is
-              at the bottom of the screen, so there is nowhere below to open
-              into. Both are children of the bar rather than of the scrolling
-              rack, which is what kept the earlier one from ever being drawn. */}
-          <div className="relative shrink-0">
+          {/* THE SQUARE, PINNED TO THE FAR RIGHT — `ms-auto` rather than simply
+              last in the row, so it sits at the end of the BAR whether there
+              are two projects or thirty. Following the tabs would have it drift
+              left on an empty rack and vanish off the end on a full one.
+
+              Its windows sit ABOVE it: the bar is at the bottom of the screen,
+              so there is nowhere below to open into. Both are children of the
+              bar rather than of the scrolling rack, which is what kept the
+              earlier one from ever being drawn. */}
+          <div className="relative ms-auto shrink-0">
             <button type="button" aria-label="Sheet settings" aria-haspopup="menu"
               aria-expanded={Boolean(menu)}
               onClick={() => setMenu((m) => (m ? "" : "menu"))}
