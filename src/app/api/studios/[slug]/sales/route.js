@@ -29,6 +29,9 @@ export async function GET(request, ctx) {
     // sending only the parent's answer is what made a sub-section grant look
     // like it did nothing.
     canManage: sales.canManage,
+    // Whether the module's OWN screen may be opened. The dashboard summarises
+    // everything underneath it, so it is withheld on a right of its own.
+    canViewDashboard: sales.canViewDashboard,
     canManageTickets: sales.canManageTickets,
     canManageClients: sales.canManageClients,
     canManageSettings: sales.canManageSettings,

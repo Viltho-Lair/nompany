@@ -27,7 +27,7 @@
 // viewer who can *manage* HR. Everyone else sees that a document is on file and
 // when it expires — never the number.
 
-import { sectionViewable, sectionManageable, requirePermission, scopeFor, can, escalates, cleanAssignment } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission, scopeFor, can, escalates, cleanAssignment, dashboardViewable } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
@@ -83,6 +83,9 @@ export async function hrContext(user, slug) {
     // Handing somebody a role is an ACCESS act, not an HR one, so it is gated
     // on the access permission wherever it is done from — including here.
     canAssignRoles: !requirePermission(access, "people.members.edit"),
+    // May they open the module's OWN screen — the dashboard is a summary of
+    // everything underneath it, and is withheld on a right of its own.
+    canViewDashboard: dashboardViewable(access, section.key),
     nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, access),

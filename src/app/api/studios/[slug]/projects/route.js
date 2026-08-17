@@ -35,6 +35,9 @@ export async function GET(request, ctx) {
   ]);
   return Response.json({
     canManage: c.canManage,
+    // Whether the module's OWN screen may be opened. The dashboard summarises
+    // everything underneath it, so it is withheld on a right of its own.
+    canViewDashboard: c.canViewDashboard,
     canManageList: c.canManageList,
     canManageSla: c.canManageSla,
     canManageOvertimes: c.canManageOvertimes,

@@ -12,7 +12,7 @@
 // refer to someone's identity *inside this studio*, so nothing leaks across
 // studios and a removed collaborator doesn't drag a user account with them.
 
-import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -152,6 +152,9 @@ export async function salesContext(user, slug) {
     canManageClients: sectionManageable(access, clientsSection.key, (sections || []).map((x) => x.key)),
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     ...readSalesVocab(settingsSection),
+    // May they open the module's OWN screen — the dashboard is a summary of
+    // everything underneath it, and is withheld on a right of its own.
+    canViewDashboard: dashboardViewable(access, section.key),
     nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, access),

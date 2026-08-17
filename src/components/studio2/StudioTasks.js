@@ -76,6 +76,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
         : out.error === "not-yours" ? "That decision belongs to whoever holds that authority."
         : out.error === "authority" ? "That authority isn't part of this task."
         : out.error === "not-approval" ? "That task isn't an approval."
+        : out.error === "typed-immutable" ? "That task is a decision the system raised — it can't be edited or deleted. Withdraw the approval instead."
         : out.error === "cooldown" ? `An approval was just withdrawn — try again in ${Math.ceil((out.waitMs || 0) / 60000)} min.`
         : "That didn't save."
       );
@@ -187,7 +188,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
         <section className={panel}>
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
             {shown.map((t) => (
-              <TaskRow key={t.id} task={t} canManage={canManage} meId={me.collaboratorId} busy={busy}
+              <TaskRow key={t.id} task={t} canManage={canManage} canDelete={data.canDelete} meId={me.collaboratorId} busy={busy}
                 slug={slug} nav={nav} statuses={vocabulary.statuses} typeLabels={vocabulary.typeLabels || {}}
                 onEdit={() => setEditing(t)} onSend={send} />
             ))}
@@ -198,7 +199,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
   );
 }
 
-function TaskRow({ task: t, canManage, meId, busy, slug, nav, statuses, typeLabels, onEdit, onSend }) {
+function TaskRow({ task: t, canManage, canDelete, meId, busy, slug, nav, statuses, typeLabels, onEdit, onSend }) {
   const [open, setOpen] = useState(false);
   // The assignee can act even without Manage — that is the whole point.
   const canAct = canManage || t.assigneeCollaboratorId === meId;
@@ -314,11 +315,18 @@ function TaskRow({ task: t, canManage, meId, busy, slug, nav, statuses, typeLabe
               {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
-          {canManage && (
-            <>
-              <button className={btnGhost} onClick={onEdit}>Edit</button>
-              <button className={btnDanger} disabled={busy} onClick={() => onSend("DELETE", { id: t.id })}>Delete</button>
-            </>
+          {/* NEITHER BUTTON IS OFFERED ON A TYPED TASK. It is a decision the
+              product raised, not a to-do somebody wrote: editing it would
+              change what the approvers are agreeing to, and deleting it would
+              destroy the record of who signed while the quotation stays
+              approved. Withdrawing an approval is the way back.
+
+              Delete asks about DELETE rather than about `canManage`, which is
+              true for anybody holding any write — so a Member or Team Lead used
+              to be shown a button that always came back "That didn't save." */}
+          {!typed && canManage && <button className={btnGhost} onClick={onEdit}>Edit</button>}
+          {!typed && canDelete && (
+            <button className={btnDanger} disabled={busy} onClick={() => onSend("DELETE", { id: t.id })}>Delete</button>
           )}
         </div>
       </div>

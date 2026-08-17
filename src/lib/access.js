@@ -15,6 +15,19 @@ import { ALL_PERMISSIONS, isPermission, AREAS, keysForLevel } from "@/lib/permis
 // Section key -> the area(s) behind it. The nav asks about SECTIONS and the
 // model holds AREAS, so this is the one place that maps between them.
 export const SECTION_AREAS = {
+  // THE PARENTS THAT ARE NOT ONLY HEADINGS. Each of these renders a dashboard of
+  // its own, so each has a right of its own — see DASHBOARD_AREAS in
+  // lib/permissions.js. They still have children, and both answers matter:
+  // sectionViewable below asks the parent's own area FIRST and falls through to
+  // the children, so withholding the dashboard hides the summary without making
+  // the ticket screen underneath it unreachable.
+  sales: ["sales.dashboard"],
+  technical: ["technical.dashboard"],
+  projects: ["projects.dashboard"],
+  inventory: ["inventory.dashboard"],
+  hr: ["hr.dashboard"],
+  finance: ["finance.dashboard"],
+
   "sales-tickets": ["sales.tickets"],
   "sales-clients": ["sales.clients"],
   "sales-live": ["sales.live"],
@@ -119,23 +132,52 @@ const anyKey = (access, sectionKey, suffixes) =>
 // any of its children are, so a parent never hides a child the person may use.
 // A heading with no children either (the dashboard home) has nothing to
 // protect, so it stays.
+// A section with areas of its own is worth showing if those areas are held. A
+// section with CHILDREN is worth showing if any child is — otherwise the parent
+// hides screens the person may use.
+//
+// A section can now be BOTH, which is what a module dashboard is: its own right
+// AND a nav parent. So the two tests are asked in turn rather than the first
+// short-circuiting the second. Asking only the parent's own area would bury
+// every ticket screen behind the dashboard right; asking only the children would
+// make the dashboard right unwithholdable, since anybody who may see a child
+// would see the summary of all of them.
 export function sectionViewable(access, sectionKey, allKeys = []) {
-  if (SECTION_AREAS[sectionKey]) return anyKey(access, sectionKey, ["view"]);
+  const own = SECTION_AREAS[sectionKey];
+  if (own && anyKey(access, sectionKey, ["view"])) return true;
   const children = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
   if (children.length) return children.some((k) => sectionViewable(access, k, allKeys));
-  return true;
+  // A leaf with areas answered "no" above. A heading with neither areas nor
+  // children — the studio home — has nothing to protect, so it stays.
+  return !own;
 }
 
 // A section's screens are editable if the person holds ANY write on its areas.
 // Deliberately coarse: this only decides whether buttons are offered. What each
 // button actually does is guarded by its own key at the point of doing it.
 export function sectionManageable(access, sectionKey, allKeys = []) {
-  if (SECTION_AREAS[sectionKey]) return anyKey(access, sectionKey, ["create", "edit", "delete"]);
-  // A HEADING has no areas of its own — "sales" is a nav parent, not a right.
-  // Without this it answered false for everybody, owners included, and asking
-  // "may they manage Sales?" is exactly what raising an RFQ does.
+  const own = SECTION_AREAS[sectionKey];
+  if (own && anyKey(access, sectionKey, ["create", "edit", "delete"])) return true;
+  // A HEADING has no writes of its own — "sales" is a nav parent, not a right.
+  // Without falling through to the children it answered false for everybody,
+  // owners included, and asking "may they manage Sales?" is exactly what raising
+  // an RFQ does.
+  //
+  // The dashboard areas do not change that. They are view-only, so a parent that
+  // now HAS an area still has nothing manageable of its own and still has to ask
+  // its children — which is why this falls through rather than short-circuiting
+  // on `own` the way it used to.
   const children = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
   return children.some((k) => sectionManageable(access, k, allKeys));
+}
+
+// MAY THEY OPEN THE MODULE'S OWN SCREEN — the dashboard, as opposed to anything
+// underneath it. Asked by each module's context so every screen answers the
+// question the same way, and answers `true` for a section that has no dashboard
+// right declared, so nothing that never had one starts refusing.
+export function dashboardViewable(access, sectionKey) {
+  const key = `${sectionKey}.dashboard`;
+  return isPermission(`${key}.view`) ? can(access, `${key}.view`) : true;
 }
 
 // ---- assigning access to somebody ------------------------------------------

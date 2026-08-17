@@ -20,6 +20,9 @@ export async function GET(request, ctx) {
 
   return Response.json({
     canManage: g.canManage,
+    // Whether the module's OWN screen may be opened. The dashboard summarises
+    // everything underneath it, so it is withheld on a right of its own.
+    canViewDashboard: g.canViewDashboard,
     nav: g.nav,
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.

@@ -15,7 +15,7 @@
 // plus expenses booked here. Nothing is copied into Finance and left to rot —
 // it is recomputed on every read.
 
-import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -70,6 +70,9 @@ export async function financeContext(user, slug) {
     canManageCash: sectionManageable(access, cashSection.key, (sections || []).map((x) => x.key)),
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     cashCategories: readCashCategories(settingsSection),
+    // May they open the module's OWN screen — the dashboard is a summary of
+    // everything underneath it, and is withheld on a right of its own.
+    canViewDashboard: dashboardViewable(access, section.key),
     nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, access),

@@ -107,7 +107,9 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   }
 
   // The parent section is a place of its own: its own dashboard rather than a
-  // redirect into whichever sub-section came first.
+  // redirect into whichever sub-section came first — and, being a place of its
+  // own, a right of its own.
+  if (data.canViewDashboard === false) return wrap(<Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />);
   return wrap(<InventoryDashboard slug={slug} summary={summary} vendors={vendors} items={items}
     orders={orders} deliveries={deliveries} shipments={shipments} nav={nav} />);
 }

@@ -35,7 +35,30 @@ export const ADMIN_ROLE_ID = "role_admin";
 // One row per protected area. `verbs` are the ladder rungs this area supports;
 // `extra` are powers that do NOT nest inside the ladder and therefore have to be
 // granted deliberately — converting an RFQ is not "a bigger edit".
+// A PARENT SECTION IS NOT ALWAYS JUST A HEADING. Six of them render a screen of
+// their own — the module dashboard — and until now that screen had no right
+// behind it: "Sales" was treated as a pure nav parent, so anybody who could open
+// any one ticket screen could also read the whole department's funnel, pipeline
+// value and win rate. A dashboard is a summary of everything underneath it,
+// which is frequently the most sensitive view in the module and exactly the one
+// a studio wants to withhold from the people doing the work.
+//
+// VIEW ONLY, deliberately. A dashboard writes nothing — everything on it is
+// derived from records whose own areas already guard them — so create/edit/
+// delete here would be three more rights nothing can exercise.
+//
+// Operations is absent on purpose: its parent screen is not a summary, it is
+// the locations/permits/shifts screen, and every write on it already answers to
+// operations.tracking. Tasks is absent for the same kind of reason — its parent
+// IS the board, which is tasks.board.
+const DASHBOARD_AREAS = [
+  ["sales", "Sales"], ["technical", "Technical"], ["projects", "Projects"],
+  ["inventory", "Inventory"], ["hr", "Human Resources"], ["finance", "Finance"],
+].map(([key, group]) => ({ key: `${key}.dashboard`, group, label: "Dashboard", verbs: ["view"] }));
+
 export const AREAS = [
+  ...DASHBOARD_AREAS,
+
   // NO DELETE. A sales ticket is closed, never erased — its quotations, RFQs
   // and comments all point back at it. Declaring a right nothing can exercise
   // is the same dead-capability trap as the department grants that were stored

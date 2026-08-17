@@ -211,11 +211,15 @@ export default function StudioSales({ slug, view = "sales" }) {
     );
   }
 
-  // Parent section: the Sales dashboard.
+  // Parent section: the Sales dashboard. It summarises every ticket in the
+  // department, so it answers to sales.dashboard.view rather than riding in on
+  // whatever sub-section grant got somebody this far.
   return (
     <div className="space-y-6">
       {banner}
-      <SalesDashboard slug={slug} tickets={tickets} clients={clients} people={people} nav={nav} />
+      {data.canViewDashboard === false
+        ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
+        : <SalesDashboard slug={slug} tickets={tickets} clients={clients} people={people} nav={nav} />}
     </div>
   );
 }

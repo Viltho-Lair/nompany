@@ -220,6 +220,19 @@ export async function updateTask(ctx, id, body) {
   const current = rows.find((t) => t.id === id);
   if (!current) return { error: "notfound" };
 
+  // A TYPED TASK IS NOT A TO-DO SOMEBODY WROTE, it is a decision the product
+  // raised: "approve quotation Q-0042" exists because Sales pressed a button,
+  // it names the document it is about, and whoever signs it is answering that
+  // question. Retitling it, rewriting its description or pointing it at another
+  // project would change what the approvers think they are agreeing to, after
+  // some of them may already have agreed.
+  //
+  // So its only legal changes are decisions, and those come through decideTask.
+  // Status is refused with the rest: a typed task's status FOLLOWS its
+  // approvals, and setting it by hand would let somebody call it Done while an
+  // authority has not signed.
+  if (isApprovalTask(current)) return { error: "typed-immutable" };
+
   // WHO MAY CHANGE WHAT, and the two halves are different rights.
   //
   // A task is created and ASSIGNED by somebody authorised, and COMPLETED by the
@@ -376,6 +389,17 @@ export async function removeTask(ctx, id) {
   // Guarded before anything is read or written — see lib/access.js.
   const denied = requirePermission(ctx.access, "tasks.board.delete");
   if (denied) return denied;
+
+  // AND A TYPED TASK CANNOT BE DELETED EITHER, for the same reason it cannot be
+  // edited — plus one more: it is the RECORD of a decision. A quotation
+  // approval carries who signed for Sales and who signed for Management and
+  // when; deleting it does not undo the approval, it destroys the evidence of
+  // one while the quotation goes on being approved. Whoever wants it gone wants
+  // the approval withdrawn, and that is what withdrawing is for.
+  const rows = await readCol(ctx.studio.id, ctx.section.id, TASKS);
+  const current = rows.find((t) => t.id === id);
+  if (!current) return { error: "notfound" };
+  if (isApprovalTask(current)) return { error: "typed-immutable" };
 
   const removed = await deleteRow(ctx.studio.id, ctx.section.id, TASKS, id);
   return removed ? { ok: true } : { error: "notfound" };

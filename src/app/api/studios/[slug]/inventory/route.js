@@ -21,6 +21,9 @@ export async function GET(request, ctx) {
 
   return Response.json({
     canManage: g.canManage,
+    // Whether the module's OWN screen may be opened. The dashboard summarises
+    // everything underneath it, so it is withheld on a right of its own.
+    canViewDashboard: g.canViewDashboard,
     // Each sub-section carries its own Manage grant, so a person can be trusted
     // with the catalogue without also being trusted with the stock ledger.
     canManageStock: g.canManageStock,

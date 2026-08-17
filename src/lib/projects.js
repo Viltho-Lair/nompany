@@ -8,7 +8,7 @@
 // A project may only be opened from an APPROVED quotation — that approval is the
 // commercial gate, and it lives in Technical/Sales, not here.
 
-import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -77,6 +77,9 @@ export async function projectsContext(user, slug) {
     canManageOvertimes: sectionManageable(access, overtimesSection.key, (sections || []).map((x) => x.key)),
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     settings: settingsSection.settings || {},
+    // May they open the module's OWN screen — the dashboard is a summary of
+    // everything underneath it, and is withheld on a right of its own.
+    canViewDashboard: dashboardViewable(access, section.key),
     nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, access),

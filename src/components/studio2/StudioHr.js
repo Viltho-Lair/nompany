@@ -100,9 +100,13 @@ export default function StudioHr({ slug, view = "hr" }) {
     return (
       <div className="space-y-6">
         {banner}
-        <HrDashboard slug={slug} nav={nav} employees={employees} departments={departments} roles={roles}
-          certifications={certifications} headcount={headcount} expiring={expiring} pendingLeave={pendingLeave}
-          windowDays={vocabulary.expiryWindowDays} />
+        {/* The HR dashboard counts everybody and every expiring document, so it
+            answers to hr.dashboard.view rather than to the Employees grant. */}
+        {data.canViewDashboard === false
+          ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
+          : <HrDashboard slug={slug} nav={nav} employees={employees} departments={departments} roles={roles}
+              certifications={certifications} headcount={headcount} expiring={expiring} pendingLeave={pendingLeave}
+              windowDays={vocabulary.expiryWindowDays} />}
       </div>
     );
   }

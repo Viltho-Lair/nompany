@@ -81,9 +81,15 @@ export default function StudioFinance({ slug, view = "finance" }) {
     return (
       <div className="space-y-6">
         {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
-        <Summary summary={summary} />
-        <FinanceProjects rows={profitability} slug={slug} nav={nav} canManage={canManage} busy={busy}
-          onSave={(payload) => send("projects", "PUT", payload)} />
+        {/* The money summary across every project — the sharpest case for a
+            dashboard right of its own. */}
+        {data.canViewDashboard === false ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." /> : (
+          <>
+            <Summary summary={summary} />
+            <FinanceProjects rows={profitability} slug={slug} nav={nav} canManage={canManage} busy={busy}
+              onSave={(payload) => send("projects", "PUT", payload)} />
+          </>
+        )}
       </div>
     );
   }

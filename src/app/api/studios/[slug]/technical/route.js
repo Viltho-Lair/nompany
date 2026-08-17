@@ -28,6 +28,9 @@ export async function GET(request, ctx) {
     // One flag per sub-section: RFQ and Quotations are separately granted, so
     // they are separately answered.
     canManage: tech.canManage,
+    // Whether the module's OWN screen may be opened. The dashboard summarises
+    // everything underneath it, so it is withheld on a right of its own.
+    canViewDashboard: tech.canViewDashboard,
     canManageRfq: tech.canManageRfq,
     canManageQuotations: tech.canManageQuotations,
     canManageSettings: tech.canManageSettings,

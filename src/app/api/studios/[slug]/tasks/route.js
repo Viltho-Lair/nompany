@@ -4,6 +4,7 @@ import {
   TASK_STATUSES, TASK_PRIORITIES,
   TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES, TASK_TYPE_LABELS,
 } from "@/lib/tasks";
+import { can } from "@/lib/access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,10 @@ export async function GET(request, ctx) {
   const [tasks, people, projects] = await Promise.all([listTasks(g), assignablePeople(g), taskProjects(g)]);
   return Response.json({
     canManage: g.canManage,
+    // DELETE IS ITS OWN RIGHT, and `canManage` is true for anybody holding any
+    // write on the board — so offering the Delete button off canManage showed
+    // it to every Member and Team Lead and refused every press.
+    canDelete: can(g.access, "tasks.board.delete"),
     canManageSettings: g.canManageSettings,
     taskAssignees: g.taskAssignees,
     authorities: TASK_AUTHORITIES,
@@ -67,7 +72,10 @@ export async function PUT(request, ctx) {
 
   const result = await updateTask(g, b.id, b);
   if (result.error) {
+    // A typed task is a decision, not a to-do: refusing to edit one is a rule
+    // about the record, not about the caller, so it is a 409 rather than a 403.
     const status = result.error === "notfound" ? 404
+      : result.error === "typed-immutable" ? 409
       : result.error === "forbidden" || result.error === "forbidden-field" ? 403 : 400;
     return Response.json({ error: result.error, fields: result.fields }, { status });
   }
@@ -80,6 +88,9 @@ export async function DELETE(request, ctx) {
   const b = await body(request);
   if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
   const result = await removeTask(g, b.id);
-  if (result.error) return Response.json({ error: result.error }, { status: 404 });
+  if (result.error) {
+    return Response.json({ error: result.error },
+      { status: result.error === "typed-immutable" ? 409 : result.error === "forbidden" ? 403 : 404 });
+  }
   return Response.json({ ok: true });
 }

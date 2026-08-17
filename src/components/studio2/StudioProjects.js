@@ -174,11 +174,14 @@ export default function StudioProjects({ slug, view = "projects" }) {
     );
   }
 
-  // Parent section: the Projects dashboard.
+  // Parent section: the Projects dashboard — every project's value and stage
+  // at once, so it answers to projects.dashboard.view of its own.
   return (
     <div className="space-y-6">
       {banner}
-      <ProjectsDashboard slug={slug} projects={projects} slas={slas} overtimes={overtimes} nav={nav} />
+      {data.canViewDashboard === false
+        ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
+        : <ProjectsDashboard slug={slug} projects={projects} slas={slas} overtimes={overtimes} nav={nav} />}
     </div>
   );
 }

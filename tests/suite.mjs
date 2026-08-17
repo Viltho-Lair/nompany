@@ -22,7 +22,7 @@ import { ADMIN_ROLE_ID } from "@/lib/permissions";
 import { SESSION_COOKIE } from "@/lib/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { explain } from "@/lib/access";
-import { tasksContext, createTask, updateTask, removeTask } from "@/lib/tasks";
+import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/lib/tasks";
 import { TASK_TYPE_AUTHORITIES } from "@/lib/taskRouting";
 import {
   salesContext, createService, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
@@ -42,6 +42,7 @@ import { __signIn, __signOut } from "./nextHeaders.mjs";
 import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/lib/superAuth";
 
 const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/route.js")).PUT;
+const TASKS_ROUTE = await import("@/app/api/studios/[slug]/tasks/route.js");
 const EXPORT_CSV = (await import("@/app/api/super/site-analytics/export/route.js")).GET;
 const YEAR_ROLLOVER = (await import("@/app/api/cron/year-rollover/route.js")).GET;
 
@@ -125,6 +126,60 @@ console.log("== tasks: the board writes at all");
 
   const shut = await tasksContext(nobody.user, slug);
   ok("somebody with no role cannot open Tasks", shut.error === "forbidden", shut.error);
+}
+
+// ============================================================================
+console.log("\n== tasks: the board's own buttons, end to end");
+// The service functions were already covered above and passed, which is exactly
+// why "I cannot edit or delete a task" needed testing ONE LAYER OUT: through the
+// route handlers the screen actually calls, with a real session, the real body
+// shape the form sends, and the real method on each button.
+{
+  await signInAs(owner.id);
+  const req = (method, body) => new Request("http://localhost/test", {
+    method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+
+  const made = await TASKS_ROUTE.POST(req("POST", { title: "Wire check" }), { params: params(slug) });
+  ok("the New task button creates one", made.status === 201, `got ${made.status}`);
+  const id = (await made.json()).task?.id;
+
+  // THE FORM'S WHOLE PAYLOAD, not a minimal one — it sends every field it holds,
+  // including `type` on a task that already has one, and the route has to cope
+  // with all of them rather than with the tidy subset a unit test would send.
+  const edited = await TASKS_ROUTE.PUT(req("PUT", {
+    id, title: "Wire check, renamed", type: "", description: "why",
+    assigneeCollaboratorId: "", projectId: "", priority: "High", dueDate: "", checklist: [],
+  }), { params: params(slug) });
+  const editedBody = await edited.json();
+  ok("the Edit button saves", edited.status === 200, `got ${edited.status} ${JSON.stringify(editedBody)}`);
+  ok("...and the change really landed", editedBody.task?.title === "Wire check, renamed",
+    JSON.stringify(editedBody.task?.title));
+
+  const gone = await TASKS_ROUTE.DELETE(req("DELETE", { id }), { params: params(slug) });
+  ok("the Delete button deletes", gone.status === 200, `got ${gone.status} ${JSON.stringify(await gone.json())}`);
+
+  // A TYPED TASK IS A DECISION, NOT A TO-DO. Editing one would change what the
+  // approvers think they are agreeing to — possibly after some have agreed —
+  // and deleting one destroys the record of who signed while the quotation goes
+  // on being approved. Both are refused at the service, not merely hidden.
+  const decision = await createTask(await tasksContext(owner, slug), { title: "Approve something", type: "approval" });
+  ok("a typed task can still be raised", decision.task?.type === "approval", JSON.stringify(decision.error));
+  const reword = await TASKS_ROUTE.PUT(req("PUT", { id: decision.task?.id, title: "Approve something else" }), { params: params(slug) });
+  ok("...but cannot be edited", reword.status === 409, `got ${reword.status}`);
+  const erase = await TASKS_ROUTE.DELETE(req("DELETE", { id: decision.task?.id }), { params: params(slug) });
+  ok("...nor deleted", erase.status === 409, `got ${erase.status}`);
+  // Its own verb still works: a decision is made by deciding it.
+  const signed = await decideTask(await tasksContext(owner, slug), decision.task?.id, { authority: "sales", approved: true });
+  ok("...while deciding it still works", signed.task?.approvals?.sales?.approved === true, JSON.stringify(signed.error));
+
+  // The Delete BUTTON asks about delete, not about "holds any write" — a Member
+  // holds tasks.board.edit and not delete, and used to be shown a button that
+  // always came back "That didn't save."
+  const board = await tasksContext(member.user, slug);
+  ok("a Member may run the board", board.canManage === true);
+  ok("...but does not hold delete", !board.access.has("tasks.board.delete"));
+  __signOut();
 }
 
 // ============================================================================

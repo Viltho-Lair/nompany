@@ -215,11 +215,14 @@ export default function StudioTechnical({ slug, view = "technical" }) {
     );
   }
 
-  // Parent section: the Technical dashboard.
+  // Parent section: the Technical dashboard — a summary of every RFQ and
+  // quotation, so it answers to technical.dashboard.view of its own.
   return (
     <div className="space-y-6">
       {banner}
-      <TechnicalDashboard slug={slug} rfqs={rfqs} quotations={quotations} nav={nav} handlerName={handlerName} />
+      {data.canViewDashboard === false
+        ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
+        : <TechnicalDashboard slug={slug} rfqs={rfqs} quotations={quotations} nav={nav} handlerName={handlerName} />}
     </div>
   );
 }

@@ -11,7 +11,7 @@
 //   • raising an RFQ is a SALES act on their ticket   -> needs Sales:manage
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
-import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
 import { nextUniqueRef } from "@/lib/references";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
@@ -79,6 +79,9 @@ export async function technicalContext(user, slug) {
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     canManageSales: Boolean(sales) && sectionManageable(access, sales.key, sections.map((x) => x.key)),
     ...readTechnicalSettings(settingsSection),
+    // May they open the module's OWN screen — the dashboard is a summary of
+    // everything underneath it, and is withheld on a right of its own.
+    canViewDashboard: dashboardViewable(access, technical.key),
     nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, access),

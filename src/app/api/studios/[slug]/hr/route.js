@@ -25,6 +25,9 @@ export async function GET(request, ctx) {
 
   return Response.json({
     canManage: g.canManage,
+    // Whether the module's OWN screen may be opened. The dashboard summarises
+    // everything underneath it, so it is withheld on a right of its own.
+    canViewDashboard: g.canViewDashboard,
     // Whether this viewer may put somebody IN a role, which is an access right
     // and not an HR one — the screen hides the control rather than offering it
     // and being refused.

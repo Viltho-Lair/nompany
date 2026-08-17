@@ -17,7 +17,7 @@
 // project (stock out). Receiving and issuing never touch quantities directly;
 // they append movements, and the balance follows.
 
-import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
 import { isKnownCurrency } from "@/lib/currencies";
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
@@ -123,6 +123,9 @@ export async function inventoryContext(user, slug) {
     canManageItems: sectionManageable(access, itemsSection.key, (sections || []).map((x) => x.key)),
     canManageSheets: sectionManageable(access, sheetsSection.key, (sections || []).map((x) => x.key)),
     canManageAwb: sectionManageable(access, awbSection.key, (sections || []).map((x) => x.key)),
+    // May they open the module's OWN screen — the dashboard is a summary of
+    // everything underneath it, and is withheld on a right of its own.
+    canViewDashboard: dashboardViewable(access, section.key),
     nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, access),
