@@ -421,7 +421,11 @@ export async function profitability(ctx, { invoices, expenses }) {
       // own and are entered here — see setCommercials.
       quotationNumber: p.quotationNumber || "",
       poNumber: p.poNumber || "",
-      projectNumber: p.projectNumber || "",
+      // THE PROJECT'S NUMBER IS `number`. This used to read a SECOND field of
+      // its own, `projectNumber`, which is what setCommercials was writing —
+      // so Finance issued a number into a field nothing else read, and Projects
+      // and the sheets went on showing none. Same field for everybody now.
+      projectNumber: p.number || "",
       managerAlias: alias[p.managerCollaboratorId] || "",
       location: p.location || "",
       endDate: p.endDate || "",
@@ -471,12 +475,22 @@ export async function billableProjects(ctx) {
   return rows.map((p) => ({ id: p.id, number: p.number, title: p.title || "", clientName: p.clientName || "" }));
 }
 
-// The PO number and the project number are FINANCE'S OWN FIELDS, even though
-// they are stored on the project — in the Old System, Management issues the PO
-// number and Finance enters the project number, and neither is Delivery's to
-// set. So they are written here, behind Finance's Manage grant, and the Projects
-// screen never offers them. Nothing else on the project can be touched from
-// this route: a Finance grant is not a licence to rename somebody's project.
+// ISSUING THE PROJECT NUMBER IS FINANCE'S, and the PO number with it — in the
+// Old System, Management issues the PO number and Finance enters the project
+// number, and neither is Delivery's to set. So both are written here, behind
+// Finance's Manage grant, and the Projects screen never offers them. Nothing
+// else on the project can be touched from this route: a Finance grant is not a
+// licence to rename somebody's project.
+//
+// IT WRITES `number`, WHICH IS THE PROJECT'S NUMBER. It used to write a field
+// called `projectNumber` — a second name for the same thing, on the same row,
+// that only Finance ever read. So a number entered here was invisible in
+// Projects and on every sheet, which is exactly what it looked like: assigned,
+// and nowhere. One field, one writer's two doors: this one, and Finance signing
+// the PO task, which issues the next number automatically.
+//
+// UNIQUE, because a project number is quoted on invoices and delivery notes and
+// two projects sharing one is not a cosmetic problem.
 export async function setCommercials(ctx, id, body) {
   // Guarded before anything is read or written — see lib/access.js.
   const denied = requirePermission(ctx.access, "finance.cash.edit");
@@ -491,7 +505,13 @@ export async function setCommercials(ctx, id, body) {
 
   const patch = {};
   if (body?.poNumber !== undefined) patch.poNumber = str(body.poNumber, 60);
-  if (body?.projectNumber !== undefined) patch.projectNumber = str(body.projectNumber, 60);
+  if (body?.projectNumber !== undefined) {
+    const number = str(body.projectNumber, 60);
+    if (number && rows.some((p) => p.id !== id && String(p.number || "").toLowerCase() === number.toLowerCase())) {
+      return { error: "duplicate" };
+    }
+    patch.number = number;
+  }
   if (Object.keys(patch).length === 0) return { error: "nothing" };
 
   const project = await updateRow(studio.id, owner.id, PROJECTS, id, patch);

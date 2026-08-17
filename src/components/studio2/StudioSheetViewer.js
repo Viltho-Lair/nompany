@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, input, btn, btnGhost, th } from "@/components/studio2/ui";
@@ -55,6 +55,24 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
   // the work portion. The sheet is what those two resolve to.
   const [chosenProjectId, setChosenProjectId] = useState("");
   const [kind, setKind] = useState("main");
+
+  // HIDDEN PROJECTS. A studio accumulates finished work and the rack fills with
+  // jobs nobody is touching, so a project can be taken out of the bar without
+  // being deleted or closed — this says nothing about the project, only about
+  // whether this person wants it underfoot.
+  //
+  // So it is a PREFERENCE, kept per studio on this machine, exactly as the
+  // column pickers are. Storing it on the project would make one person's tidy
+  // rack everybody's missing project.
+  const hiddenKey = `nompany:${slug}:sheets:hidden`;
+  const [hidden, setHidden] = useState([]);
+  useEffect(() => {
+    try { setHidden(JSON.parse(window.localStorage.getItem(hiddenKey) || "[]")); } catch { setHidden([]); }
+  }, [hiddenKey]);
+  const setHiddenSaved = useCallback((next) => {
+    setHidden(next);
+    try { window.localStorage.setItem(hiddenKey, JSON.stringify(next)); } catch { /* private mode */ }
+  }, [hiddenKey]);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/projects`, { cache: "no-store" });
@@ -162,6 +180,9 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     return [...by.values()];
   }, [sheets, q]);
 
+  const shownTabs = useMemo(() => projectTabs.filter((p) => !hidden.includes(p.projectId)), [projectTabs, hidden]);
+  const hiddenTabs = useMemo(() => projectTabs.filter((p) => hidden.includes(p.projectId)), [projectTabs, hidden]);
+
   // Inventory arrives at ONE sheet by id. Projects arrives at a PROJECT and
   // reads its Main sheet — the quotation as it was sold, which is the list a
   // project manager works to. Bulk is a procurement view and stays Inventory's.
@@ -215,8 +236,9 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
           )}
         </div>
         {isInventory && (
-          <ProjectBar projects={projectTabs} activeProjectId=""
-            query={query} onQuery={setQuery} onGo={setChosenProjectId} />
+          <ProjectBar projects={shownTabs} hiddenProjects={hiddenTabs} activeProjectId=""
+            query={query} onQuery={setQuery} onGo={setChosenProjectId}
+            onUnhide={(id) => setHiddenSaved(hidden.filter((x) => x !== id))} />
         )}
       </div>
     );
@@ -237,7 +259,10 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     <div className={isInventory ? "pb-16" : ""}>
       <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href={backHref} className={btnGhost}>{backLabel}</Link>
+        {/* No way back on the inventory side: the bar IS how you move between
+            sheets, and a button leaving the workspace has nowhere better to go.
+            The project's own page still needs one. */}
+        {!isInventory && <Link href={backHref} className={btnGhost}>{backLabel}</Link>}
         <div className="min-w-0">
           <p className="truncate font-display text-lg font-800 text-slate-900 dark:text-white">
             {sheet.projectTitle || "Untitled"}
@@ -265,6 +290,20 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
             onClick={() => saveAll(sheet.id, perspective)}>
             {busy ? "Saving…" : "Save"}
           </button>
+          {/* HIDE takes this project out of the bar. A checkbox rather than a
+              button because it is a state the project is in, not an action with
+              a result — and it stays ticked while you are looking at a hidden
+              project, so it can be unticked from here as well as from Unhide. */}
+          {isInventory && (
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-600 text-slate-600 dark:text-slate-300">
+              <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-white/20 dark:bg-[#191921]"
+                checked={hidden.includes(sheet.projectId)}
+                onChange={(e) => setHiddenSaved(e.target.checked
+                  ? [...hidden, sheet.projectId]
+                  : hidden.filter((id) => id !== sheet.projectId))} />
+              Hide
+            </label>
+          )}
           {dirtyRows > 0 && !busy && (
             <button type="button" className={btnGhost} onClick={() => setDraft({})}>Discard</button>
           )}
@@ -340,8 +379,9 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
       {/* THE BAR IS INVENTORY'S. A project manager is looking at one project; a
           storeman is working along every project in the studio. */}
       {isInventory && (
-        <ProjectBar projects={projectTabs} activeProjectId={sheet.projectId}
-          query={query} onQuery={setQuery} onGo={setChosenProjectId} />
+        <ProjectBar projects={shownTabs} hiddenProjects={hiddenTabs} activeProjectId={sheet.projectId}
+          query={query} onQuery={setQuery} onGo={setChosenProjectId}
+          onUnhide={(id) => setHiddenSaved(hidden.filter((x) => x !== id))} />
       )}
     </div>
   );
@@ -410,7 +450,25 @@ function Cell({ column, row, draft, disabled, onEdit }) {
 // ONE BUTTON PER PROJECT. Signing a project puts its number in the bar; Main
 // and Bulk are behind it in a small window, because they are two readings of
 // that project rather than two projects.
-function ProjectBar({ projects, activeProjectId, query, onQuery, onGo }) {
+function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQuery, onGo, onUnhide }) {
+  // The three-dot menu, and the Unhide window it opens. Two levels, because
+  // "settings" will grow and unhiding is only the first of them.
+  const [menu, setMenu] = useState("");        // "" | "menu" | "unhide"
+  const [find, setFind] = useState("");
+  const box = useRef(null);
+
+  useEffect(() => {
+    if (!menu) return undefined;
+    const away = (e) => { if (box.current && !box.current.contains(e.target)) setMenu(""); };
+    const esc = (e) => { if (e.key === "Escape") setMenu(""); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [menu]);
+
+  const f = find.trim().toLowerCase();
+  const findable = hiddenProjects.filter((p) => !f || `${p.label} ${p.title}`.toLowerCase().includes(f));
+
   // FORCED SCROLL BUTTONS. A studio accumulates projects, and a rack that only
   // scrolls by drag or wheel hides everything past the edge with nothing to say
   // so. `scrollButtons` forces the arrows to be drawn even when they are not
@@ -421,7 +479,7 @@ function ProjectBar({ projects, activeProjectId, query, onQuery, onGo }) {
   // MUI supplies the BEHAVIOUR — the scrolling, the arrows, the keyboard — and
   // the studio's own tokens supply the look, the same division Combo makes.
   return (
-    <div className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
+    <div ref={box} className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
       <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
         <div className="pointer-events-auto flex items-center gap-4 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 px-4 py-2 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
           {/* A FIFTH OF THE BAR — on a WRAPPER, because the shared input class
@@ -451,11 +509,19 @@ function ProjectBar({ projects, activeProjectId, query, onQuery, onGo }) {
               textColor="inherit"
               sx={{
                 flex: 1, minWidth: 0, minHeight: 0,
+                // Rounded and hoverable: these are buttons that happen to be a
+                // tab strip, and a bare label gives nothing back when the
+                // pointer is over it.
                 "& .MuiTab-root": {
-                  minHeight: 0, py: 1, px: 2, textTransform: "none",
-                  fontSize: 12, fontWeight: 600, letterSpacing: 0,
+                  minHeight: 0, py: 0.75, px: 2, mx: 0.25, borderRadius: 9999,
+                  textTransform: "none", fontSize: 12, fontWeight: 600, letterSpacing: 0,
+                  transition: "background-color 120ms, color 120ms",
+                  "&:hover": { backgroundColor: "rgba(100,116,139,0.14)" },
+                  "&.Mui-selected": { backgroundColor: "rgba(100,116,139,0.18)" },
                 },
-                "& .MuiTabs-indicator": { height: 2, borderRadius: 2 },
+                // The indicator would sit under a pill and read as a stray
+                // underline, so the selected state IS the fill.
+                "& .MuiTabs-indicator": { display: "none" },
                 // The arrows stay visible but recede — they are an affordance,
                 // not something to look at.
                 "& .MuiTabs-scrollButtons.Mui-disabled": { opacity: 0.25 },
@@ -465,6 +531,64 @@ function ProjectBar({ projects, activeProjectId, query, onQuery, onGo }) {
               ))}
             </Tabs>
           )}
+
+          {/* THE SQUARE, at the right end. Its windows sit ABOVE it — the bar is
+              at the bottom of the screen, so there is nowhere below to open
+              into. Both are children of the bar rather than of the scrolling
+              rack, which is what kept the earlier one from ever being drawn. */}
+          <div className="relative shrink-0">
+            <button type="button" aria-label="Sheet settings" aria-haspopup="menu"
+              aria-expanded={Boolean(menu)}
+              onClick={() => setMenu((m) => (m ? "" : "menu"))}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                menu
+                  ? "bg-slate-200 text-slate-800 dark:bg-white/15 dark:text-white"
+                  : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/10"}`}>
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="currentColor">
+                <circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" />
+              </svg>
+            </button>
+
+            {menu === "menu" && (
+              <div role="menu" className="absolute bottom-full end-0 mb-2 w-44 overflow-hidden rounded-geex border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]">
+                <button type="button" role="menuitem" onClick={() => { setFind(""); setMenu("unhide"); }}
+                  className="flex w-full items-center justify-between px-3 py-2.5 text-start text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
+                  Unhide
+                  <span className="text-xs text-slate-400">{hiddenProjects.length}</span>
+                </button>
+              </div>
+            )}
+
+            {menu === "unhide" && (
+              <div className="absolute bottom-full end-0 mb-2 w-64 overflow-hidden rounded-geex border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]">
+                <p className="border-b border-slate-100 px-3 py-2 text-[11px] font-700 uppercase tracking-wide text-slate-400 dark:border-white/10">
+                  Hidden projects
+                </p>
+                <ul className="max-h-56 overflow-auto">
+                  {findable.length === 0 ? (
+                    <li className="px-3 py-3 text-xs text-slate-400">
+                      {hiddenProjects.length === 0 ? "Nothing is hidden." : "No hidden project matches that."}
+                    </li>
+                  ) : findable.map((p) => (
+                    <li key={p.projectId}>
+                      <button type="button" onClick={() => onUnhide?.(p.projectId)}
+                        className="flex w-full flex-col rounded-none px-3 py-2 text-start hover:bg-slate-50 dark:hover:bg-white/5">
+                        <span className="text-sm font-600 text-slate-800 dark:text-slate-100">{p.label}</span>
+                        {p.title && <span className="truncate text-[11px] text-slate-500 dark:text-slate-400">{p.title}</span>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {/* The search is at the BOTTOM of this window, nearest the bar
+                    it opened from — the hand is already down here. */}
+                <div className="border-t border-slate-100 p-2 dark:border-white/10">
+                  <input type="search" autoFocus value={find} onChange={(e) => setFind(e.target.value)}
+                    placeholder="Find a hidden project…"
+                    className="w-full rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none dark:border-white/15 dark:bg-[#191921] dark:text-white" />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
