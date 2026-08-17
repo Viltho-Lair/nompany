@@ -16,6 +16,23 @@
 //  • Studio-scoped data lives ONLY under s:<StudioID>:* — never on a user.
 //  • Deletion happens ONLY through src/lib/data/cascade.js.
 
+// ---- key namespace ---------------------------------------------------------
+// EVERY key this module builds starts with P, which is empty in normal use.
+//
+// It exists so the integration suite can run against the real Redis — the same
+// client, the same repositories, the same code paths — inside a namespace of
+// its own, and then delete that namespace wholesale. Isolation is PHYSICAL:
+// with a prefix set there is no key a test can name that a real studio also
+// uses, so a bug in a test cannot reach live data even in principle.
+//
+// Two locks, because the failure mode here is catastrophic and silent — a
+// production runtime picking this up would appear to lose every studio at once:
+//   • it must be asked for explicitly (the variable is unset by default), and
+//   • it is ignored outright when NODE_ENV is "production".
+export const KEY_PREFIX =
+  process.env.NODE_ENV === "production" ? "" : (process.env.NOMPANY_KEY_PREFIX || "");
+const P = KEY_PREFIX;
+
 // ---- identifiers -----------------------------------------------------------
 export function makeId(prefix) {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -26,7 +43,6 @@ export const ID = {
   collaborator: () => makeId("col"),
   section: () => makeId("sec"),
   subsection: () => makeId("sub"),
-  grant: () => makeId("grt"),
   // A named bundle of permissions, per studio. See lib/data/roles.js.
   role: () => makeId("rol"),
   media: () => makeId("med"),
@@ -42,55 +58,55 @@ export const ID = {
 
 // ---- global registries -----------------------------------------------------
 export const REG = {
-  users: "g:users",
-  studios: "g:studios",
-  superAdmins: "g:superAdmins",
-  joinRequests: "g:joinRequests",
+  users: `${P}g:users`,
+  studios: `${P}g:studios`,
+  superAdmins: `${P}g:superAdmins`,
+  joinRequests: `${P}g:joinRequests`,
   // Questionnaire DEFINITIONS authored in /super — the forms themselves, not
   // anyone's answers. Platform-level like the studio registry, because a
   // questionnaire belongs to a route rather than to a studio or a user.
-  questionnaires: "g:questionnaires",
+  questionnaires: `${P}g:questionnaires`,
   // What a studio can BUY. Platform-level, like the studio registry: a package
   // or tier is offered by nompany, not owned by any one studio.
-  packages: "g:packages",
-  tiers: "g:tiers",
+  packages: `${P}g:packages`,
+  tiers: `${P}g:tiers`,
   // The ERP services a tier is made of — a shared catalogue so two tiers can
   // name the same service and mean it.
-  erpServices: "g:erpServices",
+  erpServices: `${P}g:erpServices`,
   // What people think of nompany. One field per user, so a rating is inherently
   // unique to them and re-rating replaces rather than accumulates. Platform-
   // level because the opinion is about the product, not about a studio.
-  ratings: "g:ratings",
+  ratings: `${P}g:ratings`,
   // Catalogue-wide settings that belong to no single package — the yearly
   // discount the public pricing page applies. One small object, platform-level
   // like the packages it qualifies.
-  catalogSettings: "g:catalogSettings",
+  catalogSettings: `${P}g:catalogSettings`,
   // THE PLATFORM EVENT LOG — the /super console's equivalent of a studio's
   // s:<StudioID>:events. A Redis Stream, capped and cursor-addressable, so the
   // console resumes exactly like a studio board does. It is platform data: it
   // outlives every studio and every user, and no cascade touches it (a studio
   // being deleted is itself one of the things it records).
-  events: "g:events",
+  events: `${P}g:events`,
   // Notifications addressed to nompany's OWNERS. The studio-side equivalent is
   // s:<StudioID>:notifications, which cascades with its studio; this one does
   // not, for the same reason g:events does not.
-  superNotifications: "g:superNotifications",
+  superNotifications: `${P}g:superNotifications`,
 };
 
 // ---- per-user keys (1:1 / 1:N satellites; die with the user) ---------------
 export const U = {
-  prefix: (userId) => `u:${userId}:`,
-  profile: (userId) => `u:${userId}:profile`,
-  verification: (userId) => `u:${userId}:verification`,
-  questionnaire: (userId) => `u:${userId}:questionnaire`,
-  sessions: (userId) => `u:${userId}:sessions`,
+  prefix: (userId) => `${P}u:${userId}:`,
+  profile: (userId) => `${P}u:${userId}:profile`,
+  verification: (userId) => `${P}u:${userId}:verification`,
+  questionnaire: (userId) => `${P}u:${userId}:questionnaire`,
+  sessions: (userId) => `${P}u:${userId}:sessions`,
   // Trusted devices are USER data (this person's remembered browsers), so they
   // live under the user prefix and die with the user automatically.
-  devices: (userId) => `u:${userId}:devices`,
+  devices: (userId) => `${P}u:${userId}:devices`,
   // How often THIS person has opened each studio: a hash of StudioID -> count.
   // It is a property of the person, not of any studio, so it belongs under the
   // user prefix and is reaped by the user cascade like everything else here.
-  studioVisits: (userId) => `u:${userId}:studioVisits`,
+  studioVisits: (userId) => `${P}u:${userId}:studioVisits`,
 };
 
 // ---- OTP challenges (NOT user-scoped, deliberately) ------------------------
@@ -98,7 +114,7 @@ export const U = {
 // live under u:<UserID>:*. It is ephemeral auth state, not user data, and Redis
 // EX expires it for free (nothing to clean up, nothing to cascade).
 export const OTP = {
-  challenge: (challengeId) => `otp:${challengeId}`,
+  challenge: (challengeId) => `${P}otp:${challengeId}`,
 };
 
 // ---- live chat rooms (ephemeral, like OTP: owned by nobody) ----------------
@@ -112,9 +128,9 @@ export const OTP = {
 //   chat:room:<RoomID>:held   the NX claim that makes "accept" first-wins
 //   chat:live                 the set of room ids currently in play
 export const CHAT = {
-  room: (roomId) => `chat:room:${roomId}`,
-  held: (roomId) => `chat:room:${roomId}:held`,
-  live: "chat:live",
+  room: (roomId) => `${P}chat:room:${roomId}`,
+  held: (roomId) => `${P}chat:room:${roomId}:held`,
+  live: `${P}chat:live`,
 };
 
 // ---- foreign-exchange rates (a shared daily snapshot, owned by nobody) -----
@@ -128,8 +144,8 @@ export const CHAT = {
 //   fx:lock   the NX claim that makes "refetch" first-wins, so a burst of page
 //             loads at midnight UTC still spends exactly one API call
 export const FX = {
-  snapshot: "fx:usd",
-  lock: "fx:lock",
+  snapshot: `${P}fx:usd`,
+  lock: `${P}fx:lock`,
 };
 
 // ---- rate limiting (ephemeral counters, owned by nobody) -------------------
@@ -137,56 +153,63 @@ export const FX = {
 // fine here because it is only dereferenced when the builder is CALLED, by
 // which time the module is fully evaluated.
 export const RL = {
-  otpEmail: (email) => `rl:otp:e:${normEmail(email)}`,
-  otpIp: (ip) => `rl:otp:i:${String(ip || "unknown")}`,
+  otpEmail: (email) => `${P}rl:otp:e:${normEmail(email)}`,
+  otpIp: (ip) => `${P}rl:otp:i:${String(ip || "unknown")}`,
   // Public contact form, per IP — the one place an unauthenticated caller can
   // write anything.
-  contactIp: (ip) => `rl:contact:i:${String(ip || "unknown")}`,
+  contactIp: (ip) => `${P}rl:contact:i:${String(ip || "unknown")}`,
   // /super sign-in, per IP. The console has exactly one door and a handful of
   // legitimate attempts a day, so the window can be far tighter than the
   // subscriber-facing limits.
-  superLoginIp: (ip) => `rl:super:i:${String(ip || "unknown")}`,
+  superLoginIp: (ip) => `${P}rl:super:i:${String(ip || "unknown")}`,
 };
 
 // ---- per-studio keys (die with the studio) ---------------------------------
 export const S = {
-  prefix: (studioId) => `s:${studioId}:`,
+  prefix: (studioId) => `${P}s:${studioId}:`,
   // How many live chats this studio has opened, by calendar month. One hash
   // under the studio prefix, so it dies with the studio and needs no cascade,
   // and one field per YYYY-MM, so last month's total survives as a record
   // rather than being reset over.
-  chatUsage: (studioId) => `s:${studioId}:chatUsage`,
-  collaborators: (studioId) => `s:${studioId}:collaborators`,
-  sections: (studioId) => `s:${studioId}:sections`,
-  roles: (studioId) => `s:${studioId}:roles`,
-  grants: (studioId) => `s:${studioId}:grants`,
-  tokens: (studioId) => `s:${studioId}:tokens`,
-  settings: (studioId) => `s:${studioId}:settings`,
-  notifications: (studioId) => `s:${studioId}:notifications`,
-  activityLog: (studioId) => `s:${studioId}:activityLog`,
+  chatUsage: (studioId) => `${P}s:${studioId}:chatUsage`,
+  collaborators: (studioId) => `${P}s:${studioId}:collaborators`,
+  sections: (studioId) => `${P}s:${studioId}:sections`,
+  roles: (studioId) => `${P}s:${studioId}:roles`,
+  tokens: (studioId) => `${P}s:${studioId}:tokens`,
+  settings: (studioId) => `${P}s:${studioId}:settings`,
+  notifications: (studioId) => `${P}s:${studioId}:notifications`,
+  activityLog: (studioId) => `${P}s:${studioId}:activityLog`,
+  // HOW MANY REFERENCES OF EACH KIND HAVE EVER BEEN ISSUED — a hash, one field
+  // per prefix ("INV", "PO", "ACME"). It exists because "the next number" is
+  // the one thing in this product that CANNOT be derived from the records:
+  // deleting the newest invoice makes the highest surviving reference go
+  // backwards, and the next create would then reissue a number a client is
+  // already holding. A tally only ever moves forward, so it cannot.
+  // Under the studio prefix, so it dies with the studio like everything else.
+  counters: (studioId) => `${P}s:${studioId}:counters`,
   // The studio's EVENT LOG (a Redis Stream, not a JSON array). Ordered, capped,
   // and addressable by cursor — it is what "what changed since I last looked?"
   // reads. Under the studio prefix, so it cascades with the studio for free.
-  events: (studioId) => `s:${studioId}:events`,
-  media: (studioId, mediaId) => `s:${studioId}:media:${mediaId}`,
-  mediaPrefix: (studioId) => `s:${studioId}:media:`,
+  events: (studioId) => `${P}s:${studioId}:events`,
+  media: (studioId, mediaId) => `${P}s:${studioId}:media:${mediaId}`,
+  mediaPrefix: (studioId) => `${P}s:${studioId}:media:`,
 };
 
 // ---- per-section keys (die with the section) -------------------------------
 export const SEC = {
-  prefix: (studioId, sectionId) => `s:${studioId}:sec:${sectionId}:`,
-  col: (studioId, sectionId, name) => `s:${studioId}:sec:${sectionId}:c:${name}`,
+  prefix: (studioId, sectionId) => `${P}s:${studioId}:sec:${sectionId}:`,
+  col: (studioId, sectionId, name) => `${P}s:${studioId}:sec:${sectionId}:c:${name}`,
 };
 
 // ---- indexes (uniqueness claims + O(1) lookups) ----------------------------
 const normEmail = (e) => String(e || "").trim().toLowerCase();
 export const IX = {
-  email: (email) => `ix:email:${normEmail(email)}`,     // → UserID (uniqueness of login email)
-  slug: (slug) => `ix:slug:${String(slug || "").toLowerCase()}`, // → StudioID
-  owner: (userId) => `ix:owner:${userId}`,              // → StudioID (0..1 owned studio)
-  session: (token) => `ix:session:${token}`,            // → UserID (EX = real expiry)
-  stoken: (token) => `ix:stoken:${token}`,              // → StudioID (EX = time-limited access token)
-  collab: (userId) => `ix:collab:${userId}`,            // SET of StudioIDs the user collaborates in
+  email: (email) => `${P}ix:email:${normEmail(email)}`,     // → UserID (uniqueness of login email)
+  slug: (slug) => `${P}ix:slug:${String(slug || "").toLowerCase()}`, // → StudioID
+  owner: (userId) => `${P}ix:owner:${userId}`,              // → StudioID (0..1 owned studio)
+  session: (token) => `${P}ix:session:${token}`,            // → UserID (EX = real expiry)
+  stoken: (token) => `${P}ix:stoken:${token}`,              // → StudioID (EX = time-limited access token)
+  collab: (userId) => `${P}ix:collab:${userId}`,            // SET of StudioIDs the user collaborates in
 };
 export { normEmail };
 

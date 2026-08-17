@@ -16,8 +16,8 @@
 //            grants, tokens, notifications, media, settings, activity) →
 //            members' ix:collab back-pointers → slug/owner/token indexes →
 //            join-requests → registry row.
-//  SECTION → its s:<sid>:sec:<id>:* collections → grants targeting it → row.
-//  COLLABORATOR → row → their grants → their notifications → ix back-pointer.
+//  SECTION → its s:<sid>:sec:<id>:* collections → row.
+//  COLLABORATOR → row → their notifications → ix back-pointer.
 
 import { REG, U, S, SEC, IX } from "@/lib/data/keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "@/lib/data/store";
@@ -29,12 +29,12 @@ export async function cascadeDeleteCollaborator(studioId, collaboratorId) {
   const row = rows.find((c) => c.id === collaboratorId);
   if (!row) return false; // already gone — idempotent
 
-  // children first: grants + notifications addressed to this collaborator.
-  // Each removal is atomic, so a grant written for SOMEONE ELSE while this
-  // cascade runs is not swept away with the departing person's.
-  await editArr(S.grants(studioId), (grants) => ({
-    next: grants.filter((g) => !(g.subjectType === "collaborator" && g.subjectId === collaboratorId)),
-  }));
+  // children first: the notifications addressed to this collaborator. The
+  // removal is atomic, so one written for SOMEONE ELSE while this cascade runs
+  // is not swept away with the departing person's.
+  //
+  // Their grants used to be reaped here too. Grants are gone — access is roles
+  // plus the `roleIds` on this very row, so it leaves with the row.
   await editArr(S.notifications(studioId), (notifs) => ({
     next: notifs.filter((n) => n.recipientId !== collaboratorId),
   }));
@@ -56,9 +56,9 @@ export async function cascadeDeleteSection(studioId, sectionId) {
   const children = rows.filter((s) => s.parentId === sectionId);
   const doomed = [...children.map((c) => c.id), sectionId];
 
-  // children first: every operational collection under each doomed id
+  // children first: every operational collection under each doomed id. Nothing
+  // else points at a section — grants did, and grants are gone.
   for (const id of doomed) await delPrefix(SEC.prefix(studioId, id));
-  await editArr(S.grants(studioId), (grants) => ({ next: grants.filter((g) => !doomed.includes(g.sectionId)) }));
 
   if (row) {
     await editArr(S.sections(studioId), (all) => ({ next: all.filter((s) => !doomed.includes(s.id)) }));

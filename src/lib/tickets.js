@@ -1,10 +1,6 @@
 // Sales ticket shared constants + auth. Kept out of lib/auth.js so client
 // components can import without pulling Node-only code.
 
-import { ADMIN_TAG, SALES_TAG, canSeeAllIn } from "@/lib/authConstants";
-import { clientSlug } from "@/lib/salesClients";
-
-export { SALES_TAG };
 // Ticket status is AUTOMATED up to approval: "Lead" on creation, "Opportunity"
 // once an RFQ is requested. Only after the quotation approval is complete does
 // a Sales user get to pick a final status from POST_APPROVAL_STATUSES.
@@ -86,41 +82,15 @@ export function cleanLiveColumns(value) {
   return picked.length ? [...new Set(picked)] : [...DEFAULT_LIVE_COLUMNS];
 }
 
-// Same gate as "sees every ticket in Sales" — admin, or Sales+Leader.
-export function canSetUrgency(user) {
-  return canSeeAllIn(user, SALES_TAG);
-}
-
-export function canEditTicket(user, ticket) {
-  if (!user) return false;
-  const tags = Array.isArray(user.tags) ? user.tags : [];
-  if (tags.includes(ADMIN_TAG)) return true;
-  if (tags.includes(SALES_TAG)) return true;
-  if (ticket?.createdBy && ticket.createdBy === user.id) return true;
-  return false;
-}
-
-// Visibility mirrors the Quotations model: creator or assignee always sees;
-// Sales+Leader (or admin) sees everything in Sales.
-export function canSeeTicket(user, ticket) {
-  if (!user) return false;
-  if (canSeeAllIn(user, SALES_TAG)) return true;
-  return ticket?.createdBy === user.id || ticket?.assignedTo === user.id;
-}
-
-// Ticket reference: <ClientSlug>-<YYYY>-<NN>, where NN is a two-digit
-// per-(client, year) sequence. Uniqueness is enforced against the existing
-// salesTickets collection; caller passes in the already-fetched rows.
-export function nextTicketRef(existingTickets, clientName) {
-  const slug = clientSlug(clientName);
-  const year = new Date().getFullYear();
-  const prefix = `${slug}-${year}-`;
-  const nums = existingTickets
-    .map((t) => (t.ticketRef || "").startsWith(prefix) ? parseInt((t.ticketRef || "").slice(prefix.length), 10) : NaN)
-    .filter((n) => Number.isFinite(n));
-  const next = (nums.length ? Math.max(...nums) : 0) + 1;
-  return `${prefix}${String(next).padStart(2, "0")}`;
-}
+// GONE WITH THE TAG MODEL: canSetUrgency, canEditTicket, canSeeTicket. All
+// three read `user.tags`, which no longer exists, so all three answered false
+// for everybody — while reading, to anyone skimming, as though urgency were
+// still Leader-gated. Every one of those questions is a sales.tickets.* key
+// now, checked in lib/sales.js.
+//
+// nextTicketRef went too. It numbered <Client>-<Year>-<NN> off a `ticketRef`
+// field nothing writes, and it counted rather than derived. References come
+// from lib/references.js.
 
 // Coerce a value to a clamped integer in [0, 100]; returns fallback when
 // input is invalid.

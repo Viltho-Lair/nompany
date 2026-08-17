@@ -7,12 +7,13 @@
 // { studioId, sectionId }, and deleting a section deletes its records
 // (cascade.js → cascadeDeleteSection).
 //
-// Access grants (view/manage per collaborator or department) target SectionIDs
-// and live in s:<StudioID>:grants.
+// Sections do NOT carry access of their own. Who may open one is answered from
+// the permission catalogue in lib/access.js, via the roles on somebody's
+// collaborator row — see the note where the grant helpers used to be.
 
 import { S, SEC, ID, SECTION_COLLECTIONS } from "@/lib/data/keys";
 import { readArr, editArr } from "@/lib/data/store";
-import { emit, SCOPE, TYPE } from "@/lib/data/events";
+import { emit, TYPE } from "@/lib/data/events";
 
 // ---- section rows ----------------------------------------------------------
 export async function listSections(studioId) {
@@ -121,25 +122,11 @@ export async function deleteRow(studioId, sectionId, name, rowId) {
   return removed;
 }
 
-// ---- access grants (subject = collaborator or department; target = section) -
-export async function listGrants(studioId) {
-  return readArr(S.grants(studioId));
-}
-// Atomic because this is the permission table: two admins granting two
-// different people access at the same moment must both take effect. A lost
-// write here is a silent access-control error, not a cosmetic one.
-export async function setGrant(studioId, { subjectType, subjectId, sectionId, action, effect }) {
-  if (!["collaborator", "department"].includes(subjectType)) return { error: "subject" };
-  if (!subjectId || !sectionId || !action) return { error: "missing" };
-  const outcome = await editArr(S.grants(studioId), (rows) => {
-    const without = rows.filter((g) => !(g.subjectType === subjectType && g.subjectId === subjectId && g.sectionId === sectionId && g.action === action));
-    const grant = { id: ID.grant(), studioId, subjectType, subjectId, sectionId, action, effect: effect === "deny" ? "deny" : "allow" };
-    return { next: [...without, grant], result: { grant } };
-  });
-  await emit(studioId, { type: TYPE.grantsChanged, scope: SCOPE.PEOPLE, sectionId });
-  return outcome;
-}
-export async function removeGrant(studioId, grantId) {
-  await editArr(S.grants(studioId), (rows) => ({ next: rows.filter((g) => g.id !== grantId) }));
-  await emit(studioId, { type: TYPE.grantsChanged, scope: SCOPE.PEOPLE });
-}
+// ---- access grants (removed) -----------------------------------------------
+// listGrants/setGrant/removeGrant and the s:<StudioID>:grants key went with the
+// grants model. Nothing read a grant after roles landed, so setGrant was a write
+// that changed no decision and listGrants was a Redis round-trip on every ERP
+// page load whose result was threaded through three functions and dropped.
+//
+// What replaced them: lib/data/roles.js for the definitions, `roleIds` on the
+// collaborator row for the assignment, and lib/access.js for the answer.

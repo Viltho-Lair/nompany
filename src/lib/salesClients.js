@@ -2,13 +2,8 @@
 // from the marketing "clients" collection — Sales clients are companies that
 // have raised a Sales ticket).
 
-import { ADMIN_TAG, SALES_TAG } from "@/lib/authConstants";
-
-export function canManageSalesClients(user) {
-  if (!user) return false;
-  const tags = Array.isArray(user.tags) ? user.tags : [];
-  return tags.includes(ADMIN_TAG) || tags.includes(SALES_TAG);
-}
+// canManageSalesClients went with the tag model — it is sales.clients.* now,
+// asked of the permission set inside createClient/editClient/removeClient.
 
 // Normalise a client name for case-insensitive dedup checks.
 export function normaliseClientName(name) {

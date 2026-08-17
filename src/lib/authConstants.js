@@ -1,47 +1,18 @@
-// Client-safe auth constants. Kept in their own module so client bundles can
-// import them without pulling in lib/auth.js (which touches DB + Node built-ins).
+// Client-safe auth constants. Kept in their own module so the edge proxy can
+// name the console's cookie without importing lib/superAuth.js (bcrypt + Redis).
+//
+// WHAT USED TO BE HERE: a whole parallel authorisation model built on
+// `user.tags` — ADMIN_TAG, LEADER_TAG, TECHNICAL_TAG, SALES_TAG, PRESALES_TAG,
+// FINANCE_TAG, MANAGEMENT_TAG, HR_TAG, plus isHR() and canSeeAllIn(). It went
+// with the move to roles, and the User row has carried no `tags` field for some
+// time, so every one of those helpers answered false for everybody. Dead code
+// that LOOKS like a security check is worse than none: it reads as though
+// urgency is Leader-gated or the employee directory is HR-gated, and neither
+// was true any more. Access is answered in lib/access.js, in one place.
 
-export const SESSION_COOKIE = "mt_admin";
 // The platform owner's session for /super. A SEPARATE identity from the studio
 // session above — an owner is not a subscriber — so it gets its own cookie and
 // never grants (or is granted by) anything in the studio world. It lives here
 // rather than in lib/superAuth.js because the edge proxy needs the name to gate
 // /super/* and cannot import that module (bcrypt + Redis).
 export const SUPER_COOKIE = "nc_super";
-// Non-secret companion to the studio session: the tenant's address slug, so the
-// edge proxy can map /<slug>/… ⇄ /studio/… without a DB lookup. Set whenever a
-// studio session is minted, cleared on logout. See [[nompany-multitenancy]].
-export const STUDIO_SLUG_COOKIE = "studio_slug";
-export const ADMIN_TAG = "admin";
-// `Leader` is a cross-module modifier: paired with `Technical` it means "see
-// all Quotations / RFQs across the team", paired with `Sales` it means "see
-// all Sales tickets". Admin always sees everything regardless.
-export const LEADER_TAG = "Leader";
-export const TECHNICAL_TAG = "Technical";
-export const SALES_TAG = "Sales";
-// Pre-sales engineers: allowed to build/edit quotations alongside Technical.
-export const PRESALES_TAG = "Presales";
-// Departments used by the Tasks / approval workflow (paired with LEADER_TAG).
-export const FINANCE_TAG = "Finance";
-export const MANAGEMENT_TAG = "Management";
-// HR: manages the Employees directory (departments, positions, certifications,
-// and every employee field). Admin always counts as HR.
-export const HR_TAG = "HR";
-
-// True when the user may manage the full Employees directory (all fields).
-export function isHR(user) {
-  if (!user) return false;
-  const tags = Array.isArray(user.tags) ? user.tags : [];
-  return tags.includes(ADMIN_TAG) || tags.includes(HR_TAG);
-}
-
-// True when the user should see records owned by anyone else in the module.
-// `scopeTag` is the module gate (e.g. TECHNICAL_TAG or SALES_TAG). Admin always
-// passes; otherwise the user needs both the module tag AND the Leader tag.
-export function canSeeAllIn(user, scopeTag) {
-  if (!user) return false;
-  const tags = Array.isArray(user.tags) ? user.tags : [];
-  if (tags.includes(ADMIN_TAG)) return true;
-  return tags.includes(scopeTag) && tags.includes(LEADER_TAG);
-}
-
