@@ -23,7 +23,7 @@ import { nextUniqueRef } from "@/lib/references";
 import { requestRfq } from "@/lib/technical";
 import { pendingRfq, rfqsForTicket } from "@/lib/rfqs";
 import { isFinishedQuotation } from "@/lib/quotations";
-import { readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES } from "@/lib/taskRouting";
+import { readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES, quotationApproved } from "@/lib/taskRouting";
 
 export { TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, DEFAULT_STATUS, DEFAULT_URGENCY,
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS };
@@ -657,9 +657,13 @@ export async function sendTicketForApproval(ctx, body) {
     approvalWithdrawnAt: "",
     status: "Open",
     priority: ticket.urgency === "Critical" || ticket.urgency === "High" ? "High" : "Normal",
-    projectId: "",
-    dueDate: "",
-    checklist: [],
+    // NO projectId, dueDate OR checklist. They are the ordinary task's fields —
+    // what somebody was asked to do, and by when — and a typed task has none of
+    // those: it is a decision, it cannot be edited, and it finishes when the
+    // authorities sign rather than when a list is ticked. Writing them blank
+    // put three fields on every approval that nothing could ever fill. Every
+    // reader copes with their absence: progressOf answers null, `overdue` is
+    // false without a due date, and the project chip needs a projectId to draw.
     // What is being approved, and what it belongs to. `quotationId` is the tie
     // the ticket reads back: an approval is a decision about ONE document, and a
     // later revision must not inherit it.
@@ -740,7 +744,11 @@ export async function submitTicketPo(ctx, body) {
     .filter((q) => q.ticketId === ticketId)
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null;
   if (!quotation) return { error: "not-quoted" };
-  if (quotation.status !== "Approved") return { error: "not-approved" };
+  // ASKED OF THE APPROVAL, not of the quotation's stored status. The decision is
+  // made on the board and nothing writes it back onto the document, so reading
+  // `status` here refused a PO against a quotation the studio had just approved
+  // — the same fault that stopped the project being opened.
+  if (!quotationApproved(quotation, tasks)) return { error: "not-approved" };
 
   // Once per quotation. A second press must not put the same order in front of
   // Finance twice — the same rule the approval obeys.
@@ -756,9 +764,13 @@ export async function submitTicketPo(ctx, body) {
     approvalWithdrawnAt: "",
     status: "Open",
     priority: ticket.urgency === "Critical" || ticket.urgency === "High" ? "High" : "Normal",
-    projectId: "",
-    dueDate: "",
-    checklist: [],
+    // NO projectId, dueDate OR checklist. They are the ordinary task's fields —
+    // what somebody was asked to do, and by when — and a typed task has none of
+    // those: it is a decision, it cannot be edited, and it finishes when the
+    // authorities sign rather than when a list is ticked. Writing them blank
+    // put three fields on every approval that nothing could ever fill. Every
+    // reader copes with their absence: progressOf answers null, `overdue` is
+    // false without a due date, and the project chip needs a projectId to draw.
     // THE KEYS. Everything about the ticket and the quotation is read back
     // through these; nothing about either is stored here.
     ticketId,

@@ -101,6 +101,28 @@ export const APPROVAL_COOLDOWN_MS = 5 * 60 * 1000;
 // Is this task waiting on a decision, rather than on somebody doing the work?
 export const isApprovalTask = (task) => Boolean(task?.type) && TASK_TYPES.includes(task.type);
 
+// IS THIS QUOTATION APPROVED — asked of the APPROVAL, not of a copy.
+//
+// A quotation carries a hand-set `status`, and "Approved" is one of its values.
+// But the studio's actual decision lives on the approval task: Sales signs,
+// Management signs, and the task turns Done. Nothing wrote that back to the
+// quotation, so a quotation everybody had approved still read "Completed" — and
+// openProject, which asks "is this approved?", refused to open the project with
+// "That quotation is not approved", from the very screen that had just approved
+// it.
+//
+// Writing the status across would have been a copy, and a copy of a decision is
+// the worst kind: withdraw an approval and the quotation would go on claiming
+// it. So the question is asked of the task every time. The stored status still
+// counts — a studio may mark a quotation Approved by hand, and quotations
+// approved before this existed keep working — but it is no longer the only
+// answer, and it is not the one that matters when a real approval exists.
+export function quotationApproved(quotation, tasks) {
+  if (!quotation) return false;
+  if (quotation.status === "Approved") return true;
+  return (tasks || []).some((t) => t.type === "approval" && t.quotationId === quotation.id && t.status === "Done");
+}
+
 // { authorityCode: [CollaboratorID] } — CollaboratorIDs, never UserIDs. Unknown
 // codes are dropped, so a typo cannot create a silent bucket routing to nobody.
 export function readTaskAssignees(settingsSection) {

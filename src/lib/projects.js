@@ -16,6 +16,9 @@ import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "@/lib/p
 import { nextReference } from "@/lib/references";
 import { ticketFacts } from "@/lib/technical";
 import { departmentsFromSections } from "@/lib/departments";
+// Whether a quotation is approved is answered by its APPROVAL, not by a copy of
+// one — see the note on quotationApproved.
+import { quotationApproved } from "@/lib/taskRouting";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 export const DEFAULT_STAGE = "Received";
@@ -29,6 +32,7 @@ const OVERTIMES = "overtimes";
 // Project Sheets live under INVENTORY in this product, matching the Old System.
 // Projects writes one when a project is opened and never reads it again.
 const SHEETS = "projectSheets";
+const TASKS = "tasks";
 // A department is a top-level SECTION, so the overtime picker's filter is
 // derived from the studio's own structure rather than read out of HR — see
 // lib/departments.js.
@@ -70,6 +74,9 @@ export async function projectsContext(user, slug) {
   // section, and openProject simply makes no sheet rather than refusing to
   // make the project.
   const sheetsSection = byKey["inventory-sheets"] || byKey["inventory"] || null;
+  // The board the approval lives on. Projects READS it to ask whether a
+  // quotation was signed off, and never writes it.
+  const tasksSection = byKey["tasks"] || null;
 
   return {
     studio, collaborator, access, roles, section, technicalSection: technical,
@@ -77,7 +84,7 @@ export async function projectsContext(user, slug) {
     // filters by are derived from it — see lib/departments.js.
     sections,
     listSection, slaSection, overtimesSection, settingsSection, quotationsSection,
-    salesTicketsSection, salesClientsSection, sheetsSection,
+    salesTicketsSection, salesClientsSection, sheetsSection, tasksSection,
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canManageList: sectionManageable(access, listSection.key, (sections || []).map((x) => x.key)),
     canManageSla: sectionManageable(access, slaSection.key, (sections || []).map((x) => x.key)),
@@ -153,16 +160,19 @@ export async function listProjects({ studio, listSection }) {
 // Quotations that are Approved and not already delivering — what "open a
 // project" can choose from.
 export async function approvedQuotations(ctx) {
-  const { studio, listSection, quotationsSection } = ctx;
+  const { studio, listSection, quotationsSection, tasksSection } = ctx;
   if (!quotationsSection) return [];
-  const [quotes, projects, factsFor] = await Promise.all([
+  const [quotes, projects, tasks, factsFor] = await Promise.all([
     readCol(studio.id, quotationsSection.id, QUOTATIONS),
     readCol(studio.id, listSection.id, PROJECTS),
+    tasksSection ? readCol(studio.id, tasksSection.id, TASKS) : [],
     ticketFacts(ctx),
   ]);
   const used = new Set(projects.map((p) => p.quotationId).filter(Boolean));
   return quotes
-    .filter((q) => q.status === "Approved" && !used.has(q.id))
+    // Approved BY THE TASK or by hand — the picker offers what may actually be
+    // opened, which is the same question openProject asks below.
+    .filter((q) => quotationApproved(q, tasks) && !used.has(q.id))
     // Title and client are the TICKET'S, reached through the quotation's
     // ticketId. An Internal quotation has no ticket and titles itself.
     .map((q) => {
@@ -180,15 +190,20 @@ export async function openProject(ctx, body) {
   const denied = requirePermission(ctx.access, "projects.list.create");
   if (denied) return denied;
 
-  const { studio, listSection, technicalSection, collaborator, quotationsSection, sheetsSection } = ctx;
+  const { studio, listSection, technicalSection, collaborator, quotationsSection, sheetsSection, tasksSection } = ctx;
   if (!technicalSection) return { error: "no-technical" };
 
   const quotationId = str(body?.quotationId, 60);
   const quotes = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
   const quote = quotes.find((q) => q.id === quotationId);
   if (!quote) return { error: "quotation" };
-  // The commercial gate: only approved work becomes a project.
-  if (quote.status !== "Approved") return { error: "not-approved" };
+  // THE COMMERCIAL GATE: only approved work becomes a project. Asked of the
+  // approval task rather than of the quotation's own status — the decision is
+  // made on the board, and nothing writes it back onto the document. This is
+  // exactly what refused every project opened from a quotation the studio had
+  // just approved.
+  const tasks = tasksSection ? await readCol(studio.id, tasksSection.id, TASKS) : [];
+  if (!quotationApproved(quote, tasks)) return { error: "not-approved" };
 
   const existing = await readCol(studio.id, listSection.id, PROJECTS);
   if (existing.some((p) => p.quotationId === quotationId)) return { error: "already" };

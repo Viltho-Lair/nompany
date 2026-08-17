@@ -18,6 +18,7 @@ import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { RFQ_STATUSES, pendingRfq } from "@/lib/rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/lib/tickets";
+import { quotationApproved } from "@/lib/taskRouting";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
@@ -32,6 +33,7 @@ const QUOTATIONS = "quotations";
 const INVENTORY_ITEMS = "inventoryItems";
 const TICKETS = "salesTickets";
 const CLIENTS = "salesClients";
+const TASKS = "tasks";
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const num = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : 0);
 
@@ -68,11 +70,14 @@ export async function technicalContext(user, slug) {
   // builder's item picker and never writes it — a studio without the section
   // simply gets an empty list rather than a broken screen.
   const inventoryItemsSection = byKey["inventory-items"] || byKey["inventory"] || null;
+  // The board the approval lives on. Technical READS it so a quotation can
+  // report that it was signed off, and never writes it.
+  const tasksSection = byKey["tasks"] || null;
 
   return {
     studio, collaborator, access, roles, section: technical, salesSection: sales,
     quotationsSection, rfqSection, settingsSection, salesTicketsSection, salesClientsSection,
-    inventoryItemsSection,
+    inventoryItemsSection, tasksSection,
     canManage: sectionManageable(access, technical.key, (sections || []).map((x) => x.key)),
     canManageQuotations: sectionManageable(access, quotationsSection.key, (sections || []).map((x) => x.key)),
     canManageRfq: sectionManageable(access, rfqSection.key, (sections || []).map((x) => x.key)),
@@ -379,9 +384,10 @@ const quotationHandler = (q, rfq) =>
   rfq?.handledByCollaboratorId || q?.handledByCollaboratorId || q?.handledBy || "";
 
 export async function listQuotations(ctx) {
-  const [rows, rfqRows, factsFor] = await Promise.all([
+  const [rows, rfqRows, tasks, factsFor] = await Promise.all([
     readCol(ctx.studio.id, ctx.quotationsSection.id, QUOTATIONS),
     ctx.rfqSection ? readCol(ctx.studio.id, ctx.rfqSection.id, RFQS) : [],
+    ctx.tasksSection ? readCol(ctx.studio.id, ctx.tasksSection.id, TASKS) : [],
     ticketFacts(ctx),
   ]);
   const rfqById = new Map(rfqRows.map((r) => [r.id, r]));
@@ -389,10 +395,18 @@ export async function listQuotations(ctx) {
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((q) => {
       const handledBy = quotationHandler(q, rfqById.get(q.rfqId));
+      // APPROVED IS CARRIED FROM THE APPROVAL, never copied onto the document.
+      // The list showed whatever `status` said, so a quotation Sales and
+      // Management had both signed still read "Completed" — the decision was on
+      // the board and nothing brought it back. `status` is what the row now
+      // READS AS; `storedStatus` is what is on file, for anything that still
+      // needs to know the difference.
+      const approved = quotationApproved(q, tasks);
+      const shown = approved ? "Approved" : q.status;
       // AN INTERNAL QUOTATION HAS NO TICKET, so there is nothing to carry and
       // what it holds IS its own — somebody typed that title into the Quotations
       // screen. Converted ones read the ticket.
-      if (!q.ticketId) return { ...q, handledBy, handledByCollaboratorId: handledBy, leadLabel: LEAD_INTERNAL };
+      if (!q.ticketId) return { ...q, handledBy, handledByCollaboratorId: handledBy, approved, storedStatus: q.status, status: shown, leadLabel: LEAD_INTERNAL };
       const t = factsFor(q.ticketId);
       return {
         ...q,
@@ -402,6 +416,7 @@ export async function listQuotations(ctx) {
         // one and the RFQ screen the other, and a row where they disagree is a
         // row that shows two handlers for one document.
         handledBy, handledByCollaboratorId: handledBy,
+        approved, storedStatus: q.status, status: shown,
         // What the lead column reads: the ticket's reference, from the ticket.
         leadLabel: t.ticketRef || LEAD_INTERNAL,
         // NOT description — the wording on a quotation is the document's own.

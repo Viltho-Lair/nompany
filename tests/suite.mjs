@@ -271,7 +271,19 @@ console.log("\n== the handler is carried, never copied");
   const early = await submitTicketPo(salesCtx, { ticketId: made.ticket?.id, description: "PO-1" });
   ok("a PO needs an approved quotation", early.error === "not-approved", JSON.stringify(early));
 
-  await updateQuotation(await technicalContext(owner, slug), conv.quotation?.id, { status: "Approved" });
+  // APPROVED IS CARRIED FROM THE APPROVAL TASK, not written onto the quotation.
+  // Nothing wrote it back, so a quotation Sales and Management had both signed
+  // still read "Completed" — and openProject, asked from the very screen that
+  // had just approved it, answered "That quotation is not approved".
+  const approvalTask = sent.task;
+  await decideTask(await tasksContext(owner, slug), approvalTask?.id, { authority: "sales", approved: true });
+  await decideTask(await tasksContext(owner, slug), approvalTask?.id, { authority: "mng", approved: true });
+
+  const listed = (await listQuotations(await technicalContext(owner, slug)))
+    .find((q) => q.id === conv.quotation?.id);
+  ok("the quotations list reads Approved once both have signed", listed?.status === "Approved", listed?.status);
+  ok("...while what is on file is untouched", listed?.storedStatus === "Completed", listed?.storedStatus);
+
   const empty = await submitTicketPo(await salesContext(owner, slug), { ticketId: made.ticket?.id });
   ok("...and evidence: neither a file nor a description is refused", empty.error === "evidence", JSON.stringify(empty));
 

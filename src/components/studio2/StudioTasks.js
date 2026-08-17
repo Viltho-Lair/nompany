@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RecordLink from "@/components/studio2/RecordLink";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { linkToProject, linkIf } from "@/lib/studioLinks";
+import { linkToProject, linkToQuotation, linkIf } from "@/lib/studioLinks";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -222,6 +222,15 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
             {t.priority !== "Normal" && <span className={`text-xs font-700 ${PRIORITY_TONE[t.priority] || "text-slate-400"}`}>{t.priority}</span>}
             {t.projectNumber && (
               <RecordLink href={linkIf(nav?.projects, linkToProject(slug, t.projectId))} title="Open the project">{t.projectNumber}</RecordLink>
+            )}
+            {/* WHAT IS BEING DECIDED. An approval names a quotation in its
+                title and had no way to reach it — so answering "should I
+                approve this?" meant finding the document by hand in another
+                module. The number is READ BACK through quotationId, never
+                stored here, so a renumbered document still links correctly. */}
+            {t.quotationNumber && (
+              <RecordLink href={linkIf(nav?.technical, linkToQuotation(slug, t.quotationId))}
+                title="Open the quotation being decided">{t.quotationNumber}</RecordLink>
             )}
             {t.overdue && <span className="text-xs font-700 text-rose-600 dark:text-rose-400">Overdue</span>}
           </div>
