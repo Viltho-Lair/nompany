@@ -502,7 +502,7 @@ export async function adjustStock(ctx, body) {
 // each item summed across the whole project, then split by the vendor it is
 // bought from. Both are readings; neither can disagree with the quotation,
 // because neither holds a line.
-function composeSheet(sheet, quote, vendorOf, stockFor) {
+function composeSheet(sheet, quote, vendorOf, stockFor, modelOf) {
   const tables = Array.isArray(quote?.tables) ? quote.tables : [];
   const own = sheet.lines && typeof sheet.lines === "object" ? sheet.lines : {};
   // Carried, then added to. `qty` is what was SOLD and belongs to the
@@ -514,6 +514,10 @@ function composeSheet(sheet, quote, vendorOf, stockFor) {
       tableTitle: t.title || "",
       itemId: r.itemId || "",
       description: r.description || "",
+      // THE MODEL NUMBER IS THE REGISTERED ITEM'S, read back through itemId on
+      // every read. Storing it on the sheet would be a copy that stops matching
+      // the catalogue the first time somebody corrects a model.
+      modelNumber: modelOf(r.itemId),
       unit: r.unit || "",
       qty: Number(r.qty) || 0,
       ...(own[r.id] || {}),
@@ -693,6 +697,7 @@ export async function listProjectSheets(ctx) {
       for (const sn of line?.serials || []) spoken.add(sn);
     }
   }
+  const modelOf = (itemId) => itemById.get(itemId)?.modelNumber || "";
   const stockFor = (itemId, mine) => {
     const all = itemById.get(itemId)?.serials || [];
     const own = new Set(mine);
@@ -708,7 +713,7 @@ export async function listProjectSheets(ctx) {
     .map((sheet) => {
       const project = projectById.get(sheet.projectId) || null;
       const quote = quoteById.get(sheet.quotationId) || null;
-      const tables = composeSheet(sheet, quote, vendorOf, stockFor);
+      const tables = composeSheet(sheet, quote, vendorOf, stockFor, modelOf);
       return {
         id: sheet.id,
         kind: sheet.kind === "bulk" ? "bulk" : "main",

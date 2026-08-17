@@ -373,6 +373,9 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10">
                   <th className={`${th} ps-2 text-start`}>Item</th>
+                  {/* The registered item's own, read back through itemId — a
+                      line quoted as free text has no model to show. */}
+                  <th className={`${th} text-start`}>Model</th>
                   <th className={`${th} text-start`}>Qty</th>
                   {/* EVERY column, whoever owns it — seeing the other
                       department's answer is the reason the row is shared. */}
@@ -391,6 +394,9 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
                 {table.rows.map((row) => (
                   <tr key={row.rowId} className="border-b border-slate-100 last:border-0 dark:border-white/5">
                     <td className={`${td} ps-2 text-slate-800 dark:text-slate-100`}>{row.description}</td>
+                    <td className={`${td} font-mono text-xs text-slate-500 dark:text-slate-400`}>
+                      {row.modelNumber || "—"}
+                    </td>
                     <td className={`${td} tabular-nums text-slate-600 dark:text-slate-300`}>
                       {row.qty}{row.unit ? ` ${row.unit}` : ""}
                     </td>
@@ -554,8 +560,26 @@ function Cell({ column, row, draft, pool = [], disabled, onEdit }) {
   const mark = changed ? "ring-1 ring-amber-400/70" : "";
 
   if (disabled) {
-    const shown = column.kind === "list" ? (value || []).join(", ") : value;
-    return <span className="text-xs text-slate-500 dark:text-slate-400">{shown || "—"}</span>;
+    // A DEPARTMENT THAT MAY NOT WRITE STILL HAS TO READ IT PROPERLY. Serials
+    // ran together on one line as a comma list, which for a project manager is
+    // the least readable form of the one thing they are checking — which units
+    // are on this line. One RESERVED TAG PER LINE instead: each is a unit, and
+    // a unit is a thing, not an item in a sentence.
+    if (column.kind === "serials") {
+      const held = Array.isArray(value) ? value : [];
+      if (!held.length) return <span className="text-xs text-slate-400">—</span>;
+      return (
+        <span className="flex flex-col items-start gap-1">
+          {held.map((sn) => (
+            <span key={sn} title="Reserved to this line"
+              className="inline-flex items-center gap-1 rounded-md bg-brand-500/10 px-1.5 py-0.5 font-mono text-[10px] font-600 text-brand-700 dark:text-brand-300">
+              {sn}
+            </span>
+          ))}
+        </span>
+      );
+    }
+    return <span className="text-xs text-slate-500 dark:text-slate-400">{value || "—"}</span>;
   }
 
   if (column.kind === "choice") {

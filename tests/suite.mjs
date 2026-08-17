@@ -372,12 +372,14 @@ console.log("\n== the handler is carried, never copied");
   // material is on order is the same record Projects reads, and vice versa.
   const inv = await inventoryContext(owner, slug);
   const anySheet = composed.find((s) => s.projectId === opened.project?.id);
+  // Material and Ordered are gone — both asked somebody to say in a dropdown
+  // what the allocation already says. Serials are what Inventory owns.
   const written = await saveSheetLine(inv, {
     sheetId: anySheet?.id, rowId: "r1", owner: "inventory",
-    values: { stockStatus: "Awaiting", orderedQty: 4, serials: ["SN-1", "SN-1", "SN-2"] },
+    values: { serials: ["SN-1", "SN-1", "SN-2"] },
   });
-  ok("Inventory can write its own columns", written.ok === true, JSON.stringify(written));
-  ok("...cleaned to their kind", written.line?.orderedQty === 4 && written.line?.serials.length === 2,
+  ok("Inventory can write its own column", written.ok === true, JSON.stringify(written));
+  ok("...cleaned to its kind, duplicates collapsed", written.line?.serials?.length === 2,
     JSON.stringify(written.line));
 
   // A department may write only ITS OWN columns, decided by cleanSheetLine
@@ -394,16 +396,16 @@ console.log("\n== the handler is carried, never copied");
   // test: a write claiming to be Projects finds nothing of Projects' to write,
   // rather than falling through and writing Inventory's.
   const asProjects = await saveSheetLine(inv, {
-    sheetId: anySheet?.id, rowId: "r1", owner: "projects", values: { stockStatus: "In stock" },
+    sheetId: anySheet?.id, rowId: "r1", owner: "projects", values: { serials: ["SN-9"] },
   });
   ok("a Projects write cannot reach Inventory's columns", asProjects.error === "nothing", JSON.stringify(asProjects));
   // Read back through a write of Inventory's own, because the fixture quotation
   // has no priced rows — so the composed sheet has no row to read, while the
   // stored record for it does exist. What is under test is the record.
   const untouched = await saveSheetLine(inv, {
-    sheetId: anySheet?.id, rowId: "r1", owner: "inventory", values: { orderedQty: 4 },
+    sheetId: anySheet?.id, rowId: "r1", owner: "inventory", values: { serials: ["SN-1", "SN-2"] },
   });
-  ok("...and Inventory's own is untouched by it", untouched.line?.stockStatus === "Awaiting",
+  ok("...and Inventory's own allocation stands", untouched.line?.serials?.length === 2,
     JSON.stringify(untouched.line));
 
   // Somebody who may OPEN Inventory but holds no sheet right writes nothing.
@@ -413,7 +415,7 @@ console.log("\n== the handler is carried, never copied");
   const viewerInv = await inventoryContext(viewer.user, slug);
   ok("a Viewer can open Inventory", !viewerInv.error, viewerInv.error);
   const outsider = await saveSheetLine(viewerInv, {
-    sheetId: anySheet?.id, rowId: "r1", owner: "inventory", values: { stockStatus: "In stock" },
+    sheetId: anySheet?.id, rowId: "r1", owner: "inventory", values: { serials: ["SN-3"] },
   });
   ok("...but cannot write a sheet column", outsider.error === "forbidden", JSON.stringify(outsider));
 

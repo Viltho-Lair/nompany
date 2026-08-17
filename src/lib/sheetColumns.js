@@ -42,17 +42,13 @@ export const SHEET_COLUMNS = [
     // stock, so it is chosen from what is actually there — and a serial already
     // allocated to another row is not offered, because one unit cannot be on
     // two jobs.
+    //
+    // MATERIAL and ORDERED are gone. Both asked somebody to say in a dropdown
+    // what the allocation already says: a row with every unit allocated IS in
+    // stock, and a row short of units IS what has to be ordered. Two hand-kept
+    // fields that could disagree with the serials beside them, and would.
     key: "serials", owner: "inventory", label: "Serials", kind: "serials",
     hint: "Units allocated to this line from stock.",
-  },
-  {
-    key: "stockStatus", owner: "inventory", label: "Material", kind: "choice",
-    options: ["Not ordered", "Awaiting", "Partly received", "In stock", "Issued"],
-    hint: "Where the material for this line has got to.",
-  },
-  {
-    key: "orderedQty", owner: "inventory", label: "Ordered", kind: "number",
-    hint: "How many have been put on order, against the quantity sold.",
   },
 ];
 
