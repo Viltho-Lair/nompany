@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AreaChart, ChartFrame } from "../../../_components/charts";
+import Icon from "../../../_components/Icon";
 
 // The Real-time Analytics card, on the website's actual counters.
 //
@@ -17,6 +18,13 @@ const RANGES = [
 ];
 
 const fmt = (n) => Number(n || 0).toLocaleString("en-US");
+
+// The same range the chart is showing, in the terms the export route takes:
+// a day count for the two rolling windows, a calendar year for "1 year".
+function exportHref(range) {
+  if (range === "1y") return `/api/super/site-analytics/export?year=${new Date().getUTCFullYear()}`;
+  return `/api/super/site-analytics/export?days=${range === "7d" ? 7 : 30}`;
+}
 
 export default function RealtimeAnalytics() {
   const [range, setRange] = useState("30d");
@@ -57,7 +65,7 @@ export default function RealtimeAnalytics() {
       <div className="mb-5 flex items-center gap-10">
         <MiniStat label="Sessions" value={loading ? "—" : fmt(data?.sessions)} />
         <MiniStat label="Page Views" value={loading ? "—" : fmt(data?.pageViews)} />
-        <div className="ms-auto">
+        <div className="ms-auto flex items-center gap-2">
           <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--ad-border)" }}>
             {RANGES.map((r) => (
               <button
@@ -74,6 +82,20 @@ export default function RealtimeAnalytics() {
               </button>
             ))}
           </div>
+
+          {/* DOWNLOADS WHAT IS ON SCREEN. An export beside a range picker that
+              ignored the range would be a different answer to the question the
+              reader just asked, so it carries the same range through — and it
+              is an ordinary link, because the endpoint already answers with a
+              filename and the browser has done downloads for thirty years. */}
+          <a
+            href={exportHref(range)}
+            download
+            className="ad-btn ad-btn-outline ad-btn-sm"
+            title={`Download the ${RANGES.find((r) => r.key === range)?.label} figures as CSV`}
+          >
+            <Icon name="download" className="h-3.5 w-3.5" /> Export
+          </a>
         </div>
       </div>
 

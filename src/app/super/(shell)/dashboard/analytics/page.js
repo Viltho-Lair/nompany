@@ -277,15 +277,16 @@ export default async function AnalyticsPage() {
           <Card>
             <CardHead
               title="Recent Transactions"
+              // NO Export button here. It had no onClick and no href, and it sat
+              // over TRANSACTIONS — a hardcoded array, not anything this studio
+              // has. A download control over demo data is worse than none: it
+              // promises a file that does not exist, of numbers that are not
+              // real. The working one is on Real-time Analytics, beside the
+              // range picker, over the counters /api/track actually writes.
               action={
-                <>
-                  <button type="button" className="ad-btn ad-btn-outline ad-btn-sm">
-                    <Icon name="download" className="h-3.5 w-3.5" /> Export
-                  </button>
-                  <button type="button" className="ad-btn ad-btn-primary ad-btn-sm">
-                    <Icon name="plus" className="h-3.5 w-3.5" /> Add New
-                  </button>
-                </>
+                <button type="button" className="ad-btn ad-btn-primary ad-btn-sm">
+                  <Icon name="plus" className="h-3.5 w-3.5" /> Add New
+                </button>
               }
             />
             <div className="pb-2">
