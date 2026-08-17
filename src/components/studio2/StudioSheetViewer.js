@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, input, btn, btnGhost, th } from "@/components/studio2/ui";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 import { SHEET_COLUMNS, SHEET_OWNERS } from "@/lib/sheetColumns";
 
 // THE QUOTATION VIEWER, WITHOUT PRICES — in two perspectives.
@@ -48,13 +50,11 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
   // So switching is a setState, and the URL is rewritten with history's own
   // replaceState: the address stays correct and shareable, and React never
   // learns the route moved, so nothing remounts.
-  const [chosenId, setChosenId] = useState(sheetId);
-  useEffect(() => { setChosenId(sheetId); }, [sheetId]);
-
-  const choose = useCallback((sh) => {
-    setChosenId(sh.id);
-    window.history.replaceState(null, "", `/${slug}/inventory-sheets/${sh.id}`);
-  }, [slug]);
+  // A PROJECT and a KIND, not a sheet id — because that is how it is chosen
+  // now: a project from the bar, then Main or Bulk from the tabs at the top of
+  // the work portion. The sheet is what those two resolve to.
+  const [chosenProjectId, setChosenProjectId] = useState("");
+  const [kind, setKind] = useState("main");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/projects`, { cache: "no-store" });
@@ -188,7 +188,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
         <div className="flex flex-1 items-center justify-center">
           {isInventory ? (
             <p className="max-w-sm text-center text-sm text-slate-500 dark:text-slate-400">
-              Pick a project from the bar below, then Main or Bulk.
+              Pick a project from the bar below. Main and Bulk appear as tabs at the top.
               {sheets.length === 0 && " No projects have been signed yet — a project's sheets are drawn up when it is opened from an approved quotation."}
             </p>
           ) : (
@@ -196,8 +196,8 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
           )}
         </div>
         {isInventory && (
-          <ProjectBar projects={projectTabs} activeProjectId="" activeSheetId=""
-            query={query} onQuery={setQuery} onGo={choose} />
+          <ProjectBar projects={projectTabs} activeProjectId=""
+            query={query} onQuery={setQuery} onGo={setChosenProjectId} />
         )}
       </div>
     );
@@ -254,6 +254,21 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
 
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
+      {/* MAIN AND BULK LIVE HERE, at the top of the work portion, rather than in
+          a window over the bar. They are two readings of the project already
+          chosen, so they belong with what they are reading — and a tab strip
+          says "these are the views of this thing" in a way a popup never did. */}
+      {isInventory && (
+        <Tabs value={kind} onChange={(_, v) => setKind(v)} aria-label="Sheet"
+          textColor="inherit"
+          sx={{ minHeight: 0, borderBottom: 1, borderColor: "divider",
+            "& .MuiTab-root": { minHeight: 0, py: 1.25, textTransform: "none", fontSize: 13, fontWeight: 600 },
+            "& .MuiTabs-indicator": { height: 2 } }}>
+          <Tab value="main" label="Main" />
+          <Tab value="bulk" label="Bulk" />
+        </Tabs>
+      )}
+
       {sheet.tables.length === 0 ? (
         <p className={`${panel} text-sm text-slate-500`}>
           The quotation behind this sheet has no priced lines yet. Add them in the builder and they appear here.
@@ -306,8 +321,8 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
       {/* THE BAR IS INVENTORY'S. A project manager is looking at one project; a
           storeman is working along every project in the studio. */}
       {isInventory && (
-        <ProjectBar projects={projectTabs} activeProjectId={sheet.projectId} activeSheetId={sheet.id}
-          query={query} onQuery={setQuery} onGo={choose} />
+        <ProjectBar projects={projectTabs} activeProjectId={sheet.projectId}
+          query={query} onQuery={setQuery} onGo={setChosenProjectId} />
       )}
     </div>
   );
@@ -376,83 +391,20 @@ function Cell({ column, row, draft, disabled, onEdit }) {
 // ONE BUTTON PER PROJECT. Signing a project puts its number in the bar; Main
 // and Bulk are behind it in a small window, because they are two readings of
 // that project rather than two projects.
-function ProjectBar({ projects, activeProjectId, activeSheetId, query, onQuery, onGo }) {
-  // WHICH project's window is open, and WHERE to put it.
+function ProjectBar({ projects, activeProjectId, query, onQuery, onGo }) {
+  // FORCED SCROLL BUTTONS. A studio accumulates projects, and a rack that only
+  // scrolls by drag or wheel hides everything past the edge with nothing to say
+  // so. `scrollButtons` forces the arrows to be drawn even when they are not
+  // needed yet, so the control looks the same at three projects as at thirty —
+  // and allowScrollButtonsMobile keeps them on small screens, where a drag is
+  // the least discoverable gesture of all.
   //
-  // The window used to be an absolutely-positioned child of each button, inside
-  // the strip that scrolls the projects — and `overflow-x: auto` clips on BOTH
-  // axes, so a window opening upward out of that strip was cut off and never
-  // appeared. It is a FIXED element positioned from the button's own rectangle
-  // now, which no ancestor can clip.
-  const [open, setOpen] = useState(null);   // { projectId, left, bottom }
-  const box = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const away = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(null); };
-    const esc = (e) => { if (e.key === "Escape") setOpen(null); };
-    const move = () => setOpen(null);       // scrolling the rack moves the anchor
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
-    window.addEventListener("resize", move);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", esc);
-      window.removeEventListener("resize", move);
-    };
-  }, [open]);
-
-  const toggle = (e, projectId) => {
-    if (open?.projectId === projectId) { setOpen(null); return; }
-    const r = e.currentTarget.getBoundingClientRect();
-    setOpen({ projectId, left: r.left, bottom: window.innerHeight - r.top + 8 });
-  };
-
-  const chosen = projects.find((p) => p.projectId === open?.projectId);
-
+  // MUI supplies the BEHAVIOUR — the scrolling, the arrows, the keyboard — and
+  // the studio's own tokens supply the look, the same division Combo makes.
   return (
-    <div ref={box}>
-      {/* THE WINDOW. Fixed, so the scrolling rack it was opened from cannot clip
-          it, and closed by scrolling that rack because the anchor moves. */}
-      {open && chosen && (
-        <div style={{ left: open.left, bottom: open.bottom }}
-          className="fixed z-40 w-52 overflow-hidden rounded-geex border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]">
-          <p className="border-b border-slate-100 px-3 py-2 text-[11px] font-700 uppercase tracking-wide text-slate-400 dark:border-white/10">
-            {chosen.label}
-          </p>
-          {["main", "bulk"].map((kind) => {
-            const sh = chosen.sheets.find((x) => x.kind === kind);
-            if (!sh) return null;
-            const on = sh.id === activeSheetId;
-            return (
-              <button key={kind} type="button" onClick={() => { setOpen(null); onGo(sh); }}
-                className={`flex w-full items-baseline gap-2 px-3 py-2.5 text-start transition-colors hover:bg-slate-50 dark:hover:bg-white/5 ${
-                  on ? "bg-brand-500/10" : ""}`}>
-                <span className="font-display text-sm font-700 text-slate-900 dark:text-white">
-                  {kind === "main" ? "Main" : "Bulk"}
-                </span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {kind === "main" ? "as quoted" : "summed, by vendor"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* THE BAR. Fixed to the bottom of the window, and AS WIDE AS THE TABLE
-          ABOVE IT rather than as wide as the screen: the outer layer is fixed
-          and transparent, and inside it the same max-width and padding the
-          content uses, so the panel's edges land under the table's. That is
-          also what lets the top corners round — a full-bleed strip has no
-          corners to round.
-
-          pointer-events: the transparent outer layer must not swallow clicks on
-          whatever is behind it, so it passes them through and the panel takes
-          them back. */}
-      <div className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
-        <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
-        <div className="pointer-events-auto flex items-center gap-4 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 px-4 py-2.5 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
+    <div className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
+      <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
+        <div className="pointer-events-auto flex items-center gap-4 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 px-4 py-2 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
           {/* A FIFTH OF THE BAR — on a WRAPPER, because the shared input class
               carries w-full and two widths on one element are settled by
               stylesheet order rather than by which was written last. */}
@@ -463,34 +415,37 @@ function ProjectBar({ projects, activeProjectId, activeSheetId, query, onQuery, 
               value={query} onChange={(e) => onQuery(e.target.value)} />
           </div>
 
-          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-0.5">
-            {projects.length === 0 ? (
-              <span className="whitespace-nowrap text-xs text-slate-400">
-                {query ? "No project matches that." : "No projects signed yet."}
-              </span>
-            ) : projects.map((p) => {
-              const active = p.projectId === activeProjectId;
-              const isOpen = open?.projectId === p.projectId;
-              return (
-                <button key={p.projectId} type="button" title={p.title || p.label}
-                  aria-expanded={isOpen} aria-haspopup="menu"
-                  onClick={(e) => toggle(e, p.projectId)}
-                  className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 font-display text-xs font-600 transition-colors ${
-                    active
-                      ? "bg-brand-700 text-white shadow-sm"
-                      : isOpen
-                        ? "bg-brand-500/15 text-brand-700 dark:text-brand-300"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"}`}>
-                  {p.label}
-                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3 opacity-60"
-                    fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m6 15 6-6 6 6" />
-                  </svg>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+          {projects.length === 0 ? (
+            <span className="whitespace-nowrap text-xs text-slate-400">
+              {query ? "No project matches that." : "No projects signed yet."}
+            </span>
+          ) : (
+            <Tabs
+              // `false` rather than "" when nothing is chosen: MUI warns about a
+              // value matching no tab, and none is a real state here.
+              value={projects.some((p) => p.projectId === activeProjectId) ? activeProjectId : false}
+              onChange={(_, v) => onGo(v)}
+              variant="scrollable"
+              scrollButtons
+              allowScrollButtonsMobile
+              aria-label="Projects"
+              textColor="inherit"
+              sx={{
+                flex: 1, minWidth: 0, minHeight: 0,
+                "& .MuiTab-root": {
+                  minHeight: 0, py: 1, px: 2, textTransform: "none",
+                  fontSize: 12, fontWeight: 600, letterSpacing: 0,
+                },
+                "& .MuiTabs-indicator": { height: 2, borderRadius: 2 },
+                // The arrows stay visible but recede — they are an affordance,
+                // not something to look at.
+                "& .MuiTabs-scrollButtons.Mui-disabled": { opacity: 0.25 },
+              }}>
+              {projects.map((p) => (
+                <Tab key={p.projectId} value={p.projectId} label={p.label} title={p.title || p.label} />
+              ))}
+            </Tabs>
+          )}
         </div>
       </div>
     </div>
