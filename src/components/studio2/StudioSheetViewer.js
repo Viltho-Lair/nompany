@@ -363,81 +363,110 @@ function Cell({ column, row, draft, disabled, onEdit }) {
 // and Bulk are behind it in a small window, because they are two readings of
 // that project rather than two projects.
 function ProjectBar({ projects, activeProjectId, activeSheetId, query, onQuery, onGo }) {
-  const [open, setOpen] = useState("");
+  // WHICH project's window is open, and WHERE to put it.
+  //
+  // The window used to be an absolutely-positioned child of each button, inside
+  // the strip that scrolls the projects — and `overflow-x: auto` clips on BOTH
+  // axes, so a window opening upward out of that strip was cut off and never
+  // appeared. It is a FIXED element positioned from the button's own rectangle
+  // now, which no ancestor can clip.
+  const [open, setOpen] = useState(null);   // { projectId, left, bottom }
   const box = useRef(null);
 
   useEffect(() => {
     if (!open) return undefined;
-    const away = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(""); };
-    const esc = (e) => { if (e.key === "Escape") setOpen(""); };
+    const away = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(null); };
+    const esc = (e) => { if (e.key === "Escape") setOpen(null); };
+    const move = () => setOpen(null);       // scrolling the rack moves the anchor
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+    window.addEventListener("resize", move);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+      window.removeEventListener("resize", move);
+    };
   }, [open]);
 
+  const toggle = (e, projectId) => {
+    if (open?.projectId === projectId) { setOpen(null); return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    setOpen({ projectId, left: r.left, bottom: window.innerHeight - r.top + 8 });
+  };
+
+  const chosen = projects.find((p) => p.projectId === open?.projectId);
+
   return (
-    // FIXED POSITIONING — pinned to the viewport, so it stays where it is
-    // however far the work portion scrolls. Sticky was the wrong tool: it only
-    // pins within its own container, so it drifted with the page.
-    //
-    // Offset past the sidebar rather than spanning the window: the sidebar is
-    // w-64 at start-4 and the content sits at lg:ps-72, so the bar starts there
-    // too and the sidebar keeps its own space.
-    <div ref={box}
-      className="fixed bottom-0 end-0 start-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur lg:start-72 dark:border-white/10 dark:bg-[#20202c]/95">
-      <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-5 py-2 sm:px-8">
-        {/* A FIFTH OF THE BAR, and it has to be a WRAPPER: the shared `input`
-            class carries w-full, and two width utilities on one element are
-            settled by stylesheet order rather than by which was written last —
-            so w-1/5 on the input itself lost. */}
-        <div className="w-1/5 shrink-0">
-          <input type="search" className={`${input} py-1.5 text-xs`}
-            placeholder="Project, quotation, PO, serial…"
-            value={query} onChange={(e) => onQuery(e.target.value)} />
-        </div>
-
-        <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
-          {projects.length === 0 ? (
-            <span className="whitespace-nowrap py-1.5 text-xs text-slate-400">
-              {query ? "No project matches that." : "No projects signed yet."}
-            </span>
-          ) : projects.map((p) => (
-            <div key={p.projectId} className="relative shrink-0">
-              <button type="button" title={p.title || p.label}
-                onClick={() => setOpen((cur) => (cur === p.projectId ? "" : p.projectId))}
-                className={`whitespace-nowrap rounded-t-lg border-b-2 px-3 py-1.5 text-xs font-600 transition-colors ${
-                  p.projectId === activeProjectId
-                    ? "border-brand-600 text-brand-700 dark:text-brand-300"
-                    : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}>
-                {p.label}
+    <div ref={box}>
+      {/* THE WINDOW. Fixed, so the scrolling rack it was opened from cannot clip
+          it, and closed by scrolling that rack because the anchor moves. */}
+      {open && chosen && (
+        <div style={{ left: open.left, bottom: open.bottom }}
+          className="fixed z-40 w-52 overflow-hidden rounded-geex border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]">
+          <p className="border-b border-slate-100 px-3 py-2 text-[11px] font-700 uppercase tracking-wide text-slate-400 dark:border-white/10">
+            {chosen.label}
+          </p>
+          {["main", "bulk"].map((kind) => {
+            const sh = chosen.sheets.find((x) => x.kind === kind);
+            if (!sh) return null;
+            const on = sh.id === activeSheetId;
+            return (
+              <button key={kind} type="button" onClick={() => { setOpen(null); onGo(sh); }}
+                className={`flex w-full items-baseline gap-2 px-3 py-2.5 text-start transition-colors hover:bg-slate-50 dark:hover:bg-white/5 ${
+                  on ? "bg-brand-500/10" : ""}`}>
+                <span className="font-display text-sm font-700 text-slate-900 dark:text-white">
+                  {kind === "main" ? "Main" : "Bulk"}
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {kind === "main" ? "as quoted" : "summed, by vendor"}
+                </span>
               </button>
+            );
+          })}
+        </div>
+      )}
 
-              {/* THE SMALL WINDOW. Two buttons, because a project has two
-                  sheets and neither is a default — Main is what was sold, Bulk
-                  is what has to be bought. */}
-              {open === p.projectId && (
-                <div className="absolute bottom-full end-0 mb-1 w-40 rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/15 dark:bg-[#20202c]">
-                  {["main", "bulk"].map((kind) => {
-                    const sh = p.sheets.find((x) => x.kind === kind);
-                    if (!sh) return null;
-                    return (
-                      <button key={kind} type="button"
-                        onClick={() => { setOpen(""); onGo(sh); }}
-                        className={`flex w-full flex-col rounded-lg px-3 py-2 text-start hover:bg-slate-50 dark:hover:bg-white/5 ${
-                          sh.id === activeSheetId ? "bg-brand-500/10" : ""}`}>
-                        <span className="text-sm font-600 text-slate-800 dark:text-slate-100">
-                          {kind === "main" ? "Main" : "Bulk"}
-                        </span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {kind === "main" ? "As quoted" : "Summed, by vendor"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
+      {/* THE BAR. Fixed to the bottom of the window, starting where the content
+          does so the sidebar keeps its space. */}
+      <div className="fixed bottom-0 end-0 start-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur lg:start-72 dark:border-white/10 dark:bg-[#20202c]/95">
+        <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-5 py-2.5 sm:px-8">
+          {/* A FIFTH OF THE BAR — on a WRAPPER, because the shared input class
+              carries w-full and two widths on one element are settled by
+              stylesheet order rather than by which was written last. */}
+          <div className="w-1/5 shrink-0">
+            <input type="search"
+              className="w-full rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+              placeholder="Project, quotation, PO, serial…"
+              value={query} onChange={(e) => onQuery(e.target.value)} />
+          </div>
+
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-0.5">
+            {projects.length === 0 ? (
+              <span className="whitespace-nowrap text-xs text-slate-400">
+                {query ? "No project matches that." : "No projects signed yet."}
+              </span>
+            ) : projects.map((p) => {
+              const active = p.projectId === activeProjectId;
+              const isOpen = open?.projectId === p.projectId;
+              return (
+                <button key={p.projectId} type="button" title={p.title || p.label}
+                  aria-expanded={isOpen} aria-haspopup="menu"
+                  onClick={(e) => toggle(e, p.projectId)}
+                  className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 font-display text-xs font-600 transition-colors ${
+                    active
+                      ? "bg-brand-700 text-white shadow-sm"
+                      : isOpen
+                        ? "bg-brand-500/15 text-brand-700 dark:text-brand-300"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"}`}>
+                  {p.label}
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3 opacity-60"
+                    fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m6 15 6-6 6 6" />
+                  </svg>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

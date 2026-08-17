@@ -547,6 +547,26 @@ async function ensureSheetsExist({ studio, sheetsSection, projectsListSection })
     readCol(studio.id, sheetsSection.id, SHEETS),
     readCol(studio.id, projectsListSection.id, "projects"),
   ]);
+  // THE SHEET THAT ALREADY EXISTED IS NOT LOST. The first version of this wrote
+  // ONE row per project with no `kind` and a `rows` array copied off the
+  // quotation. That row is still here and has been read as the Main sheet all
+  // along — everything treats a missing kind as main — so only its Bulk was
+  // ever missing.
+  //
+  // It is labelled properly now rather than inferred, and its copied `rows` are
+  // dropped: rows come from the quotation on every read, so the copy is a
+  // second answer that can only go stale. Nothing typed by anybody is in it —
+  // there was never a screen that wrote those rows — and it is reconstructible
+  // from the quotation regardless.
+  for (const old of sheets) {
+    if (old.kind && old.rows === undefined) continue;
+    await updateRow(studio.id, sheetsSection.id, SHEETS, old.id, {
+      kind: old.kind || "main",
+      rows: undefined,
+      lines: old.lines && typeof old.lines === "object" ? old.lines : {},
+    });
+  }
+
   const have = new Set(sheets.map((s) => `${s.projectId}:${s.kind || "main"}`));
   for (const p of projects) {
     if (!p.quotationId) continue;             // nothing to read rows back from
