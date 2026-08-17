@@ -1,6 +1,6 @@
 import { requirePermission, cleanAssignment, escalates } from "@/lib/access";
 import { currentUser } from "@/lib/identity";
-import { studioContext, canAdminister, listCollaborators, updateCollaborator } from "@/lib/studios";
+import { studioContext, listCollaborators, updateCollaborator } from "@/lib/studios";
 import { cascadeDeleteCollaborator } from "@/lib/data/cascade";
 import { getProfile } from "@/lib/data/users";
 
@@ -29,7 +29,11 @@ export async function GET(request, ctx) {
   );
   return Response.json({
     collaborators: rows.map((c, i) => ({
-      id: c.id, alias: c.alias, role: c.role, isAdmin: c.isAdmin,
+      // NO isAdmin. It was a second answer to a question roleIds already
+      // answers, and the two could disagree — which is the copying this model
+      // exists to stop. Admin is the wildcard ROLE; the row reads it from
+      // roleIds like every other grant.
+      id: c.id, alias: c.alias, role: c.role,
       photo: photos[i] || "",
       departmentId: c.departmentId, positionId: c.positionId, createdAt: c.createdAt,
       // WHAT THEY HOLD. Without these the People screen cannot show a role, and
@@ -61,19 +65,44 @@ export async function PUT(request, ctx) {
   try { body = await request.json(); } catch { body = {}; }
   if (!body.collaboratorId) return Response.json({ error: "missing" }, { status: 400 });
 
+  // THE CHANGE BEING ASKED FOR LIVES IN `patch`, and this is the only place
+  // that reads it. It used to be read from the top level of the body while the
+  // screen sent it nested, so cleanAssignment saw nothing, the escalation check
+  // never ran, and `patch` went to the store verbatim — which meant anyone who
+  // could edit people could write themselves the Admin role, or `role: "owner"`,
+  // and hold every permission in the studio.
+  const incoming = body.patch && typeof body.patch === "object" ? body.patch : {};
+
   // ROLE ASSIGNMENT is cleaned, then checked against what the person doing the
   // assigning actually holds. Editing people is a permission; it is not a
   // licence to write yourself a role you were never given.
-  const assignment = cleanAssignment(body, (context.roles || []).map((r) => r.id));
+  const assignment = cleanAssignment(incoming, (context.roles || []).map((r) => r.id));
   if (Object.keys(assignment).length) {
     const bad = escalates(context.access, assignment, context.roles);
     if (bad) return Response.json(bad, { status: 403 });
-    Object.assign(body, assignment);
   }
 
-  const updated = await updateCollaborator(context.studio.id, body.collaboratorId, body.patch || {});
+  // AN ALLOWLIST, NOT A PASSTHROUGH. updateCollaborator spreads whatever it is
+  // handed, so this is the boundary that decides what a request may write.
+  // Deliberately absent:
+  //   • `role`   — "owner" is ownership, not a setting, and effectivePermissions
+  //                short-circuits on it. Nothing outside creation may set it.
+  //   • `isAdmin`— gone entirely; Admin is a role id, carried in roleIds.
+  //   • HR fields— they belong to HR's own route, behind hr.employees.edit,
+  //                which encrypts the identity numbers on the way in.
+  const patch = { ...assignment };
+  if (incoming.alias !== undefined) patch.alias = String(incoming.alias ?? "").trim().slice(0, 120);
+  if (Object.keys(patch).length === 0) return Response.json({ error: "nothing" }, { status: 400 });
+
+  const updated = await updateCollaborator(context.studio.id, body.collaboratorId, patch);
   if (!updated) return Response.json({ error: "notfound" }, { status: 404 });
-  return Response.json({ ok: true, collaborator: { id: updated.id, alias: updated.alias, role: updated.role, isAdmin: updated.isAdmin } });
+  return Response.json({
+    ok: true,
+    collaborator: {
+      id: updated.id, alias: updated.alias, role: updated.role,
+      roleIds: Array.isArray(updated.roleIds) ? updated.roleIds : [],
+    },
+  });
 }
 
 // Remove someone from this studio. Cascades their grants + notifications here

@@ -2,7 +2,7 @@ import { currentUser } from "@/lib/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { effectivePermissions, sectionViewable } from "@/lib/access";
 import { listRoles } from "@/lib/data/roles";
-import { listSections, listGrants } from "@/lib/data/sections";
+import { listSections } from "@/lib/data/sections";
 import { readSince, latestId, isCursor, SCOPE, TYPE } from "@/lib/data/events";
 import { subscribe, CH } from "@/lib/data/bus";
 import { sseResponse, resumeCursor } from "@/lib/sse";
@@ -58,10 +58,9 @@ export async function GET(request, ctx) {
   let keyOf = new Map();
 
   async function resolvePermissions(member) {
-    const [sections, grants, roles] = await Promise.all([
-      listSections(studio.id), listGrants(studio.id), listRoles(studio.id),
+    const [sections, roles] = await Promise.all([
+      listSections(studio.id), listRoles(studio.id),
     ]);
-    admin = canAdminister(studio, member);
     // WHICH SECTIONS THIS CONNECTION MAY HEAR ABOUT. Resolved from permissions
     // like everything else — it read grants until now, so a member holding a
     // role but no legacy grant received no events at all and their screens
@@ -69,7 +68,11 @@ export async function GET(request, ctx) {
     //
     // Re-resolved on every call rather than captured once: the connection lives
     // for minutes, and access can be changed underneath it.
-    const access = effectivePermissions({ studio, collaborator: member, roles, sections, grants });
+    const access = effectivePermissions({ studio, collaborator: member, roles });
+    // Whether PEOPLE-scoped events reach this connection. Asked of the same
+    // resolved set as everything else, so losing the Admin role mid-connection
+    // silences them on the next re-resolve rather than leaving a stale flag on.
+    admin = canAdminister(access);
     const keys = sections.map((x) => x.key);
     viewable = new Set(
       sections.filter((s) => sectionViewable(access, s.key, keys)).map((s) => s.id),

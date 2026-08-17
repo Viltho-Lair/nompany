@@ -15,6 +15,8 @@ import { REG, ID } from "@/lib/data/keys";
 import { readArr, editArr } from "@/lib/data/store";
 import { emit, emitPlatform, SCOPE, TYPE, PLATFORM } from "@/lib/data/events";
 import { listCollaborators } from "@/lib/data/collaborators";
+import { listRoles } from "@/lib/data/roles";
+import { effectivePermissions, can } from "@/lib/access";
 import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
 
 export const PENDING = "pending";
@@ -48,7 +50,13 @@ export async function createJoinRequest({ studioId, userId }) {
     // And, unlike a row change, this one is worth INTERRUPTING somebody over:
     // it sits there until a human decides it. The event above refreshes a board
     // that happens to be open; this reaches an admin who is somewhere else.
-    const admins = (await listCollaborators(studioId)).filter((c) => c.isAdmin || c.role === "owner");
+    // WHO CAN ACTUALLY ACT ON THIS is who gets told. That is the same question
+    // the People screen answers, so it is asked of the same resolver rather
+    // than of a flag on the row — a request announced to somebody who cannot
+    // approve it is a notification that wastes the only person who saw it.
+    const [people, roles] = await Promise.all([listCollaborators(studioId), listRoles(studioId)]);
+    const admins = people.filter((c) =>
+      can(effectivePermissions({ collaborator: c, roles }), "people.members.edit"));
     const userIdOf = new Map(admins.map((c) => [c.id, c.userId]));
     await notifyCollaborators(
       studioId,

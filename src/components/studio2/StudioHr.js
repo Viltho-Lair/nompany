@@ -351,7 +351,9 @@ function People({ employees, departments, positions, certifications, canManage, 
                     <div className="flex flex-wrap items-baseline gap-2">
                       <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{e.alias}</h3>
                       {e.role === "owner" && <span className="rounded-full bg-brand-700 px-2 py-0.5 text-[11px] font-600 text-white">owner</span>}
-                      {e.isAdmin && <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">admin</span>}
+                      {/* No "admin" badge here any more. It read a flag that
+                          duplicated what somebody's roles say, and HR is not
+                          where access is described anyway — People is. */}
                     </div>
                     <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
                       {[e.employeeCode, e.positionTitle, e.departmentName].filter(Boolean).join("  ·  ") || <span className="text-amber-700 dark:text-amber-300">Not placed yet</span>}

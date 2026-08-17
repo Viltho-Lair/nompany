@@ -200,9 +200,10 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
   // decision — and assigning access should be the quick half of this job.
   const [roleId, setRoleId] = useState((person.roleIds || [])[0] || "");
   const held = roles.find((r) => r.id === (person.roleIds || [])[0]);
-  // Either the old flag or the new role — both mean the same thing while the
-  // legacy bridge stands, and the row must not call one of them something else.
-  const isAdminNow = Boolean(person.isAdmin) || (person.roleIds || []).includes(ADMIN_ROLE_ID);
+  // ADMIN IS A ROLE, and holding it is the only way to be one. There was an
+  // `isAdmin` flag beside this saying the same thing separately; it is gone,
+  // so there is now one answer to read instead of two that could disagree.
+  const isAdminNow = (person.roleIds || []).includes(ADMIN_ROLE_ID);
   const isOwner = person.role === "owner";
 
   if (editing) {
@@ -269,13 +270,13 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
           <button
             className={btnGhost}
             disabled={busy}
-            /* Admin is a ROLE now, not a flag. Setting the flag made somebody
+            /* Admin is a ROLE, not a flag. Setting a flag made somebody
                all-powerful in a way no role could describe or constrain; giving
                them the Admin role says the same thing in the same language as
-               every other grant, and can be taken back the same way. */
-            onClick={() => onSave(person, isAdminNow
-              ? { isAdmin: false, role: "member", roleIds: [] }
-              : { isAdmin: false, role: "member", roleIds: [ADMIN_ROLE_ID] })}
+               every other grant, and can be taken back the same way.
+               roleIds is the WHOLE change — `role` is ownership and the server
+               refuses to write it, so sending it would only have been noise. */
+            onClick={() => onSave(person, { roleIds: isAdminNow ? [] : [ADMIN_ROLE_ID] })}
           >
             {isAdminNow ? "Make member" : "Make admin"}
           </button>

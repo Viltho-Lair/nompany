@@ -15,7 +15,7 @@ export async function GET(request, ctx) {
   if (context.error) {
     return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
   }
-  const { studio, collaborator } = context;
+  const { studio, collaborator, access } = context;
   const sections = await listSections(studio.id);
   return Response.json({
     studio: { id: studio.id, name: studio.name, slug: studio.slug },
@@ -24,8 +24,7 @@ export async function GET(request, ctx) {
       collaboratorId: collaborator.id,
       alias: collaborator.alias,
       role: collaborator.role,
-      isAdmin: collaborator.isAdmin,
-      canAdminister: canAdminister(studio, collaborator),
+      canAdminister: canAdminister(access),
     },
     sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled })),
   });

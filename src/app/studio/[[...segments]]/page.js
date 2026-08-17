@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { currentUser, needsQuestionnaire } from "@/lib/identity";
-import { studioContext, canAdminister, visibleSections, listGrants, recordStudioVisit } from "@/lib/studios";
+import { studioContext, canAdminister, visibleSections, recordStudioVisit } from "@/lib/studios";
 import { sectionManageable } from "@/lib/access";
 import { listSections } from "@/lib/data/sections";
 import { getProfile } from "@/lib/data/users";
@@ -66,12 +66,12 @@ export default async function StudioPage({ params }) {
   // failed tally must never cost the page a render or a millisecond of latency.
   recordStudioVisit(user.id, studio.id).catch(() => {});
 
-  const admin = canAdminister(studio, collaborator);
-  const [allSections, grants, catalogues, profile] = await Promise.all([
-    listSections(studio.id), listGrants(studio.id), loadCatalogues(), getProfile(user.id),
+  const admin = canAdminister(access);
+  const [allSections, catalogues, profile] = await Promise.all([
+    listSections(studio.id), loadCatalogues(), getProfile(user.id),
   ]);
   const plan = planOf(studio, catalogues.packages, catalogues.tiers);
-  const sections = visibleSections(studio, collaborator, allSections, grants, access);
+  const sections = visibleSections(studio, collaborator, allSections, access);
 
   // Live chat with nompany: every package except Free. Computed here so the
   // shell knows whether to draw the button at all; /api/chat/start decides the

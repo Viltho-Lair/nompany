@@ -6,7 +6,7 @@
 // user-side effect is the derived ix:collab back-pointer, maintained by the
 // collaborators repo.
 
-import { effectivePermissions, requirePermission, scopeFor, sectionViewable, sectionManageable } from "@/lib/access";
+import { effectivePermissions, requirePermission, scopeFor, sectionViewable, sectionManageable, escalates } from "@/lib/access";
 import { listRoles } from "@/lib/data/roles";
 import {
   createStudio, getStudioById, getStudioBySlug, getOwnedStudio,
@@ -16,12 +16,13 @@ import {
 import {
   addCollaborator, listCollaborators, getCollaboratorByUser, updateCollaborator,
 } from "@/lib/data/collaborators";
-import { listSections, listGrants } from "@/lib/data/sections";
+import { listSections } from "@/lib/data/sections";
 import {
   createJoinRequest, listPendingForStudio, getJoinRequest, decideJoinRequest,
   APPROVED, DECLINED,
 } from "@/lib/data/joinRequests";
 import { getIndex } from "@/lib/data/store";
+import { ADMIN_ROLE_ID } from "@/lib/permissions";
 import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/lib/data/keys";
 import { getVerification, getProfile } from "@/lib/data/users";
 import { memberLimitOf } from "@/lib/plans";
@@ -73,13 +74,10 @@ export async function studiosForUser(userId) {
     listUserCollaborations(userId),
     studioVisitCounts(userId),
   ]);
-  // A queued rename travels with the studio, so My Studios can say what is
-  // already scheduled instead of showing the current name as if nothing were
-  // pending. Owned studios are the only ones renameable, but the shape is
-  // shared and the extra three fields are empty for the rest.
+  // A rename takes effect the moment it is saved, so there is nothing queued to
+  // report and no pending shape to carry — what the row says IS the studio.
   const shape = (s) => ({
     id: s.id, name: s.name, slug: s.slug, logo: s.logo || "", visits: visits[s.id] || 0,
-    pendingName: s.pendingName || "", pendingSlug: s.pendingSlug || "", renameAt: s.renameAt || null,
   });
   const byVisits = (a, b) => b.visits - a.visits || String(a.name).localeCompare(String(b.name));
 
@@ -130,32 +128,40 @@ export async function studioContext(user, slug) {
   return { studio, collaborator, access, roles, sections, grants: [] };
 }
 
-// Owner, or a collaborator the studio marked admin.
-export function canAdminister(studio, collaborator) {
-  return Boolean(collaborator && (collaborator.role === "owner" || collaborator.isAdmin));
+// MAY THIS PERSON RUN THE STUDIO'S PEOPLE? Asked of the permission set, not of
+// a flag on their row.
+//
+// It read `collaborator.isAdmin`, which was a COPY of what their roles already
+// said — two answers to one question, free to disagree the moment either moved.
+// The flag is gone; Admin is the wildcard ROLE, and holding it resolves to
+// every permission including this one. An owner short-circuits to the same
+// place inside effectivePermissions, so they can never be locked out.
+//
+// people.members.edit is the right the screens behind this actually need:
+// approving a join request, editing somebody's access, opening Access.
+export function canAdminister(access) {
+  return !requirePermission(access, "people.members.edit");
 }
 
 // ---- section permissions ---------------------------------------------------
-// DEFAULT DENY: a newly approved collaborator sees nothing until a section is
-// granted to them. Granting everything on approval would recreate the very
-// problem this exists to solve. Owners and studio admins always see everything —
-// they cannot lock themselves out.
-function grantsFor(grants, collaborator, sectionId) {
-  return (grants || []).filter(
-    (g) => g.subjectType === "collaborator" && g.subjectId === collaborator?.id && g.sectionId === sectionId
-  );
-}
+// DEFAULT DENY: somebody with no role sees nothing. What they may open is
+// resolved from their permissions and nothing else.
+//
+// These three took a `grants` argument until now, and none of them read it: the
+// grants model was replaced by roles and the parameter survived the replacement.
+// Every caller was therefore paying a Redis read per page load to fetch a list
+// that was passed down three levels and dropped. It is gone from all three.
 
 // The sections this person may actually open — what the studio nav renders.
-export function visibleSections(studio, collaborator, sections, grants, access) {
+export function visibleSections(studio, collaborator, sections, access) {
   const keys = (sections || []).map((s) => s.key);
   return (sections || []).filter((s) => s.enabled !== false && sectionViewable(access, s.key, keys));
 }
 
 // { sales: true, technical: false, … } — used by the modules to decide whether a
 // cross-record reference should be a link or plain text.
-export function sectionNav(studio, collaborator, sections, grants, access) {
-  const visible = new Set(visibleSections(studio, collaborator, sections, grants, access).map((s) => s.key));
+export function sectionNav(studio, collaborator, sections, access) {
+  const visible = new Set(visibleSections(studio, collaborator, sections, access).map((s) => s.key));
   return Object.fromEntries((sections || []).map((s) => [s.key, visible.has(s.key)]));
 }
 
@@ -166,7 +172,7 @@ export function sectionNav(studio, collaborator, sections, grants, access) {
 // showing, so handing it this map lets each one ask about ITSELF. Threading a
 // separate canManageX prop per sub-section was how the parent's answer ended up
 // standing in for all of them.
-export function manageMap(studio, collaborator, sections, grants, access) {
+export function manageMap(studio, collaborator, sections, access) {
   return Object.fromEntries((sections || []).map((s) => [s.key, sectionManageable(access, s.key, (sections || []).map((x) => x.key))]));
 }
 
@@ -197,9 +203,21 @@ export async function listJoinRequests(studioId) {
 
 // Approving is what actually creates the Collaborator row — the person's
 // identity INSIDE this studio, with its own CollaboratorID.
-export async function approveJoinRequest({ studio, actingCollaborator, requestId, alias, role }) {
+export async function approveJoinRequest({ studio, actingCollaborator, actorAccess, requestId, alias, role }) {
   const request = await getJoinRequest(requestId);
   if (!request || request.studioId !== studio.id) return { error: "notfound" };
+
+  // NOBODY MAY LET SOMEBODY IN WITH MORE THAN THEY HOLD THEMSELVES.
+  //
+  // The People screen already refuses to assign a role beyond the assigner's
+  // own reach. Approving a join request assigns one too, and it was the SECOND
+  // DOOR into the same escalation: approving as "admin" handed out the wildcard
+  // without anyone checking whether the approver held it. Same rule, same
+  // helper, so the two doors cannot drift apart.
+  if (role === "admin") {
+    const bad = escalates(actorAccess, { roleIds: [ADMIN_ROLE_ID] }, await listRoles(studio.id));
+    if (bad) return bad;
+  }
 
   // THE PACKAGE'S CEILING, checked before the request is marked approved —
   // approving and then failing to add would leave the person told yes and still
@@ -213,11 +231,16 @@ export async function approveJoinRequest({ studio, actingCollaborator, requestId
   const decided = await decideJoinRequest(requestId, { status: APPROVED, decidedByCollaboratorId: actingCollaborator.id });
   if (decided.error) return decided;
 
+  // APPROVING AS "ADMIN" ASSIGNS THE ADMIN ROLE — it does not stamp a flag and
+  // it does not invent a third value for `role`. `role` means ownership and
+  // nothing else now: "owner" or "member". What somebody may DO is carried in
+  // roleIds, so approving as an admin and being made one later on the People
+  // screen leave the row in exactly the same state.
   const added = await addCollaborator(studio.id, {
     userId: request.userId,
     alias: String(alias || "").slice(0, 120),
-    role: role === "admin" ? "admin" : "member",
-    isAdmin: role === "admin",
+    role: "member",
+    roleIds: role === "admin" ? [ADMIN_ROLE_ID] : [],
   });
   if (added.error === "already") return { collaborator: await getCollaboratorByUser(studio.id, request.userId), request: decided.request };
   if (added.error) return { error: added.error };
@@ -232,7 +255,7 @@ export async function declineJoinRequest({ studio, actingCollaborator, requestId
 
 
 export {
-  listCollaborators, updateCollaborator, listSections, listGrants,
+  listCollaborators, updateCollaborator, listSections,
   getStudioById, getStudioBySlug, changeStudioSlug,
 };
 

@@ -22,7 +22,9 @@ export async function POST(request, ctx) {
 
   const result = await trackShipment(g, await body(request));
   if (result.error) {
-    const status = result.error === "duplicate" ? 409 : 400;
+    const status = result.error === "forbidden" ? 403
+      : result.error === "unknown-permission" ? 500
+      : result.error === "duplicate" ? 409 : 400;
     return Response.json({ error: result.error, reason: result.reason }, { status });
   }
   return Response.json({ ok: true, shipment: result.shipment }, { status: 201 });

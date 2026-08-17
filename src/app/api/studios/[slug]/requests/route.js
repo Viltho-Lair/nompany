@@ -16,7 +16,7 @@ async function guard(slugPromise) {
   if (context.error) {
     return { fail: Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 }) };
   }
-  if (!canAdminister(context.studio, context.collaborator)) {
+  if (!canAdminister(context.access)) {
     return { fail: Response.json({ error: "forbidden" }, { status: 403 }) };
   }
   return context;
@@ -45,7 +45,12 @@ export async function POST(request, ctx) {
   try { body = await request.json(); } catch { body = {}; }
   if (!body.requestId) return Response.json({ error: "missing" }, { status: 400 });
 
-  const common = { studio: g.studio, actingCollaborator: g.collaborator, requestId: body.requestId };
+  // `actorAccess` travels so approval can refuse to hand out more than the
+  // approver holds — the same escalation check the People screen applies.
+  const common = {
+    studio: g.studio, actingCollaborator: g.collaborator,
+    actorAccess: g.access, requestId: body.requestId,
+  };
   const result = body.action === "decline"
     ? await declineJoinRequest(common)
     : await approveJoinRequest({ ...common, alias: body.alias, role: body.role });
@@ -55,7 +60,7 @@ export async function POST(request, ctx) {
     // instead of leaving the studio to guess.
     return Response.json(
       { error: result.error, ...(result.limit !== undefined ? { limit: result.limit } : {}) },
-      { status: result.error === "notfound" ? 404 : 400 },
+      { status: result.error === "notfound" ? 404 : result.error === "escalation" ? 403 : 400 },
     );
   }
   return Response.json({

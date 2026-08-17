@@ -18,8 +18,12 @@ export async function POST(request, ctx) {
 
   const result = await adjustStock(g, b);
   if (result.error) {
-    return Response.json({ error: result.error, have: result.have, needed: result.needed },
-      { status: result.error === "insufficient" ? 409 : 400 });
+    // A refusal is not a malformed request. 403 so a client can tell "you may
+    // not" from "you sent nonsense" — they need different handling.
+    const status = result.error === "forbidden" ? 403
+      : result.error === "unknown-permission" ? 500
+      : result.error === "insufficient" ? 409 : 400;
+    return Response.json({ error: result.error, have: result.have, needed: result.needed }, { status });
   }
   return Response.json({ ok: true, movement: result.movement }, { status: 201 });
 }

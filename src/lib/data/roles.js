@@ -1,6 +1,17 @@
 import { readArr, editArr } from "@/lib/data/store";
 import { S, ID } from "@/lib/data/keys";
+import { emit, SCOPE, TYPE } from "@/lib/data/events";
 import { cleanPermissions, keysForLevel, AREAS, SCOPES, ADMIN_ROLE_ID } from "@/lib/permissions";
+
+// CHANGING A ROLE CHANGES WHAT EVERYONE HOLDING IT MAY DO, so it is announced.
+//
+// The live stream re-resolves a connection's permissions when it hears this and
+// closes the connection if the caller has lost the right to be there at all.
+// That machinery was built for the grants model and, when grants gave way to
+// roles, nothing was left emitting the event — so the most consequential access
+// change in the product reached nobody until they happened to reconnect, and an
+// open screen kept offering buttons its owner no longer had.
+const announce = (studioId) => emit(studioId, { type: TYPE.grantsChanged, scope: SCOPE.PEOPLE });
 
 // ROLES — named bundles of permissions, defined per studio.
 //
@@ -121,23 +132,27 @@ export async function listRoles(studioId) {
 export async function createRole(studioId, body) {
   const row = { id: ID.role(), studioId, ...cleanRole(body), createdAt: new Date().toISOString() };
   await editArr(S.roles(studioId), (rows) => ({ next: [...rows, row] }));
+  await announce(studioId);
   return row;
 }
 
 export async function updateRole(studioId, id, body) {
   // The wildcard's permission list is meaningless and its name is load-bearing,
   // so Admin takes a description and nothing else.
-  return editArr(S.roles(studioId), (rows) => ({
+  const out = await editArr(S.roles(studioId), (rows) => ({
     next: rows.map((r) => {
       if (r.id !== id) return r;
       if (r.wildcard) return { ...r, description: str(body?.description, 200) || r.description };
       return { ...r, ...cleanRole({ ...r, ...body }) };
     }),
   }));
+  await announce(studioId);
+  return out;
 }
 
 export async function deleteRole(studioId, id) {
   if (id === ADMIN_ROLE_ID) return { error: "protected" };
   await editArr(S.roles(studioId), (rows) => ({ next: rows.filter((r) => r.id !== id) }));
+  await announce(studioId);
   return { ok: true };
 }

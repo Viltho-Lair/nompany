@@ -16,8 +16,8 @@
 // Progress comes from the checklist, never stored separately, so it cannot
 // drift from the items it counts.
 
-import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
+import { sectionViewable, sectionManageable, requirePermission, can } from "@/lib/access";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { currentUser } from "@/lib/identity";
@@ -47,7 +47,7 @@ export async function tasksContext(user, slug) {
   // carries one without the other is half an answer.
   const { studio, collaborator, access, roles } = context;
 
-  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const sections = await listSections(studio.id);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
   const section = byKey["tasks"];
   if (!section) return { error: "no-section" };
@@ -62,11 +62,16 @@ export async function tasksContext(user, slug) {
   const projectsListSection = byKey["projects-list"] || byKey["projects"] || null;
 
   return {
-    studio, collaborator, section, settingsSection, projectsListSection,
+    // `access` and `roles` TRAVEL WITH THE CONTEXT, like every other module's.
+    // They were resolved above and then dropped from this object, so every
+    // guard below read `undefined` and refused everybody — the owner included.
+    // A board nobody can write to looks like a permission problem and is not
+    // one, which is why this is the first thing the context hands over.
+    studio, collaborator, access, roles, section, settingsSection, projectsListSection,
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     taskAssignees: readTaskAssignees(settingsSection),
-    nav: sectionNav(studio, collaborator, sections, grants, access),
+    nav: sectionNav(studio, collaborator, sections, access),
   };
 }
 
@@ -210,17 +215,32 @@ export async function createTask(ctx, body) {
 // assignee may move their own task along and tick its checklist, but not
 // reassign it or rewrite what was asked of them.
 export async function updateTask(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
-  const denied = requirePermission(ctx.access, "tasks.board.edit");
-  if (denied) return denied;
-
-  const { studio, section, collaborator, canManage } = ctx;
+  const { studio, section, collaborator } = ctx;
   const rows = await readCol(studio.id, section.id, TASKS);
   const current = rows.find((t) => t.id === id);
   if (!current) return { error: "notfound" };
 
+  // WHO MAY CHANGE WHAT, and the two halves are different rights.
+  //
+  // A task is created and ASSIGNED by somebody authorised, and COMPLETED by the
+  // person it was assigned to. So finishing your own work is not a board right:
+  // moving your task along and ticking its checklist is the job, and requiring
+  // tasks.board.edit for it would mean only the people who hand work out can
+  // ever say it is done.
+  //
+  // Everything else — retitling, reassigning, replacing the checklist — is
+  // running the board, and that is tasks.board.edit. Asked of the permission
+  // set rather than of the section, so the declared right is what decides.
+  const boardEdit = can(ctx.access, "tasks.board.edit");
   const isAssignee = current.assigneeCollaboratorId === collaborator.id;
-  if (!canManage && !isAssignee) return { error: "forbidden" };
+  const asked = Object.keys(body || {}).filter((k) => k !== "id");
+  const ownWorkOnly = asked.length > 0 && asked.every((k) => k === "status" || k === "toggle");
+
+  if (!(isAssignee && ownWorkOnly)) {
+    const denied = requirePermission(ctx.access, "tasks.board.edit");
+    if (denied) return denied;
+  }
+  if (!boardEdit && !isAssignee) return { error: "forbidden" };
 
   const patch = {};
 
@@ -241,15 +261,16 @@ export async function updateTask(ctx, id, body) {
     const list = Array.isArray(current.checklist) ? current.checklist : [];
     if (!list.some((c) => c.id === toggleId)) return { error: "item" };
   } else if (body?.checklist !== undefined) {
-    // Replacing the whole list is an edit of the task itself.
-    if (!canManage) return { error: "forbidden-field", fields: ["checklist"] };
+    // Replacing the whole list is an edit of the task itself — what was ASKED
+    // of somebody, not whether they have done it.
+    if (!boardEdit) return { error: "forbidden-field", fields: ["checklist"] };
     patch.checklist = cleanChecklist(body.checklist);
   }
 
-  // Manager-only fields.
-  if (!canManage) {
-    const asked = Object.keys(body || {}).filter((k) => k !== "status" && k !== "toggle" && k !== "id");
-    if (asked.length) return { error: "forbidden-field", fields: asked };
+  // Everything past "I have done my bit" belongs to whoever runs the board.
+  if (!boardEdit) {
+    const beyondOwnWork = asked.filter((k) => k !== "status" && k !== "toggle");
+    if (beyondOwnWork.length) return { error: "forbidden-field", fields: beyondOwnWork };
   } else {
     if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
     if (body?.description !== undefined) patch.description = str(body.description, 4000);
@@ -360,12 +381,22 @@ export async function removeTask(ctx, id) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
+// AN ID PER ITEM THAT NOTHING ELSE HOLDS.
+//
+// Ticking a box says WHICH box, and the server flips every item matching that
+// id — so two items sharing one id means one click ticks both. The client used
+// to mint `ck${list.length + 1}`, which repeats as soon as anything is removed:
+// drop the second of three items, add another, and the new one is `ck3` again.
+// Duplicates arriving from an older client are renamed here rather than trusted,
+// because this is the last place before they are stored.
 function cleanChecklist(list) {
-  return (Array.isArray(list) ? list : []).slice(0, 50).map((c, i) => ({
-    id: str(c?.id, 20) || `ck${i + 1}`,
-    text: str(c?.text, 200),
-    done: Boolean(c?.done),
-  })).filter((c) => c.text);
+  const seen = new Set();
+  return (Array.isArray(list) ? list : []).slice(0, 50).map((c, i) => {
+    let id = str(c?.id, 20);
+    if (!id || seen.has(id)) id = `ck${i + 1}_${Math.random().toString(36).slice(2, 8)}`;
+    seen.add(id);
+    return { id, text: str(c?.text, 200), done: Boolean(c?.done) };
+  }).filter((c) => c.text);
 }
 
 // Projects live in another section — read directly, because naming the project

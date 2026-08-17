@@ -27,7 +27,7 @@ const HR_DEFAULTS = {
 
 // UNIQUE(StudioID, UserID) is enforced INSIDE the atomic write, so two approvals
 // racing on the same person cannot both pass the check and both insert a row.
-export async function addCollaborator(studioId, { userId, alias = "", role = "member", isAdmin = false, ...hr }) {
+export async function addCollaborator(studioId, { userId, alias = "", role = "member", roleIds = [], ...hr }) {
   if (!studioId || !userId) return { error: "missing" };
   const outcome = await editArr(S.collaborators(studioId), (rows) => {
     if (rows.some((c) => c.userId === userId)) return { result: { error: "already" } };
@@ -36,8 +36,13 @@ export async function addCollaborator(studioId, { userId, alias = "", role = "me
       studioId,
       userId,
       alias,
-      role,                    // "owner" | "member" | studio-defined
-      isAdmin: !!isAdmin,      // studio-scoped admin flag (never global)
+      // "owner" or "member". OWNERSHIP ONLY — it is not where access lives.
+      // There was an `isAdmin` flag beside it saying the same thing a second
+      // way; both are gone in favour of the roles below, which are the one
+      // place that answers what somebody may do.
+      role,
+      roleIds: Array.isArray(roleIds) ? roleIds : [],
+      overrides: { allow: [], deny: [] },
       settings: {},            // internal display settings, this studio only
       ...HR_DEFAULTS,
       ...hr,

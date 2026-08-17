@@ -18,7 +18,7 @@
 // when it expires — never the number.
 
 import { sectionViewable, sectionManageable, requirePermission, scopeFor, can } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
 import { encryptField, decryptField } from "@/lib/fieldCrypto";
@@ -49,7 +49,7 @@ export async function hrContext(user, slug) {
   // carries one without the other is half an answer.
   const { studio, collaborator, access, roles } = context;
 
-  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const sections = await listSections(studio.id);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
   const section = byKey["hr"];
   if (!section) return { error: "no-section" };
@@ -66,9 +66,9 @@ export async function hrContext(user, slug) {
     studio, collaborator, access, roles, section, employeesSection,
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canManageEmployees: sectionManageable(access, employeesSection.key, (sections || []).map((x) => x.key)),
-    nav: sectionNav(studio, collaborator, sections, grants, access),
+    nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants, access),
+    manage: manageMap(studio, collaborator, sections, access),
   };
 }
 
@@ -339,7 +339,6 @@ export async function listEmployees(ctx, meId = "") {
     id: c.id,
     alias: c.alias || "Unnamed",
     role: c.role,
-    isAdmin: !!c.isAdmin,
     departmentId: c.departmentId || "",
     departmentName: depName[c.departmentId] || "",
     positionId: c.positionId || "",
@@ -506,20 +505,26 @@ export async function requestVacation(ctx, body) {
 }
 
 export async function decideVacation(ctx, id, decision) {
-  // Approving somebody's leave is its own power, not a bigger edit — which is
-  // why the catalogue gives it a key rather than folding it into hr.vacations.
-  const denied = requirePermission(ctx.access, "hr.vacations.approve");
-  if (denied) return denied;
-
   const { studio, section, collaborator, canManage } = ctx;
   const rows = await readCol(studio.id, section.id, VACATIONS);
   const row = rows.find((v) => v.id === id);
   if (!row) return { error: "notfound" };
 
-  // Cancelling your own pending request needs no manage right; deciding
-  // someone's leave does.
+  // TAKING BACK YOUR OWN REQUEST IS NOT A DECISION ABOUT SOMEBODY'S LEAVE.
+  //
+  // The approve guard used to sit above this line, which made the branch it
+  // exists for unreachable: withdrawing your own pending request needed the
+  // right to approve other people's, so anybody without it was stuck with a
+  // request they could not take back.
   const isSelfCancel = decision === "Cancelled" && row.collaboratorId === collaborator.id;
-  if (!isSelfCancel && !canManage) return { error: "forbidden" };
+
+  if (!isSelfCancel) {
+    // Approving somebody's leave is its own power, not a bigger edit — which is
+    // why the catalogue gives it a key rather than folding it into hr.vacations.
+    const denied = requirePermission(ctx.access, "hr.vacations.approve");
+    if (denied) return denied;
+    if (!canManage) return { error: "forbidden" };
+  }
   if (!LEAVE_STATUSES.includes(decision)) return { error: "status" };
   if (row.status !== "Pending") return { error: "already-decided", status: row.status };
 
