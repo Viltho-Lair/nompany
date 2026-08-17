@@ -18,9 +18,20 @@ import { readArr, editArr, sAdd } from "@/lib/data/store";
 import { emit, SCOPE, TYPE } from "@/lib/data/events";
 
 // HR fields carried on the merged row (studio-scoped, admin/HR-editable).
+//
+// THREE FIELDS ARE GONE, all three because they were copies:
+//
+//   photo      — the face belongs to the ACCOUNT, not to one studio's record of
+//                it. Stored here it froze on the day somebody joined, so
+//                changing your picture changed it everywhere but HR. Read off
+//                the profile now, on every read, the way People always did it.
+//   positionId — a job title beside the roleIds that say what the job may do.
+//                One list now: roleIds is what somebody is.
+//   departmentId is still here and still studio-local, but it holds a SECTION
+//                KEY rather than a row id — see lib/departments.js.
 const HR_DEFAULTS = {
-  departmentId: "", positionId: "", employeeCode: "", dateOfJoin: "",
-  mobile: "", photo: "", certificationIds: [],
+  departmentId: "", employeeCode: "", dateOfJoin: "",
+  mobile: "", certificationIds: [],
   idNumber: "", passportNumber: "", idExpiry: "", passportExpiry: "",
   idImage: "", passportImage: "",
 };

@@ -35,7 +35,9 @@ export async function GET(request, ctx) {
       // roleIds like every other grant.
       id: c.id, alias: c.alias, role: c.role,
       photo: photos[i] || "",
-      departmentId: c.departmentId, positionId: c.positionId, createdAt: c.createdAt,
+      // `departmentId` is a SECTION KEY now, and there is no positionId: what
+      // somebody is and what they may do are one answer, carried in roleIds.
+      departmentId: c.departmentId, createdAt: c.createdAt,
       // WHAT THEY HOLD. Without these the People screen cannot show a role, and
       // the picker would open blank every time — the same silent drop that has
       // bitten every addition to a shared payload this week.

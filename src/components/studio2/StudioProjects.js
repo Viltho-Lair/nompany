@@ -1253,7 +1253,7 @@ function ProjectsSettings({ settings, departments, stages, canManage, onSave }) 
         <div className="mt-4 max-w-xs">
           <label className={label}>Default department</label>
           {departments.length === 0 ? (
-            <p className="text-xs text-slate-400">No departments yet — they are managed in HR.</p>
+            <p className="text-xs text-slate-400">No departments — a department is a section, and this studio has none switched on.</p>
           ) : (
             <select className={input} value={otDept} disabled={!canManage} onChange={(e) => { setSaved(false); setOtDept(e.target.value); }}>
               <option value="">— none —</option>

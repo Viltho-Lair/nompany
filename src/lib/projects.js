@@ -15,6 +15,7 @@ import { listCollaborators } from "@/lib/data/collaborators";
 import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "@/lib/projectSchedule";
 import { nextReference } from "@/lib/references";
 import { ticketFacts } from "@/lib/technical";
+import { departmentsFromSections } from "@/lib/departments";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 export const DEFAULT_STAGE = "Received";
@@ -25,9 +26,9 @@ const PROJECTS = "projects";
 const QUOTATIONS = "quotations";
 const SLAS = "slas";
 const OVERTIMES = "overtimes";
-// Departments live under HR; Projects reads them so the overtime picker can
-// filter by one, and works without them when a studio has no HR section.
-const DEPARTMENTS = "departments";
+// A department is a top-level SECTION, so the overtime picker's filter is
+// derived from the studio's own structure rather than read out of HR — see
+// lib/departments.js.
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const nonNeg = (v, fallback = 0) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : fallback; };
 
@@ -57,9 +58,6 @@ export async function projectsContext(user, slug) {
   const overtimesSection = byKey["projects-overtimes"] || section;
   const settingsSection = byKey["projects-settings"] || section;
   const quotationsSection = byKey["technical-quotations"] || technical;
-  // HR owns the department list. Projects only reads it, to filter the overtime
-  // people picker, and copes with a studio that has no HR section at all.
-  const hrEmployeesSection = byKey["hr-employees"] || byKey["hr"] || null;
   // Sales owns the ticket a project came from. A quotation no longer holds a
   // copy of the ticket's title and client — they are read back through the
   // ticketId it carries — so the sections behind that read travel here too.
@@ -67,7 +65,10 @@ export async function projectsContext(user, slug) {
   const salesClientsSection = byKey["sales-clients"] || byKey["sales"] || null;
 
   return {
-    studio, collaborator, access, roles, section, technicalSection: technical, hrEmployeesSection,
+    studio, collaborator, access, roles, section, technicalSection: technical,
+    // The SECTION LIST travels, because the departments the overtime picker
+    // filters by are derived from it — see lib/departments.js.
+    sections,
     listSection, slaSection, overtimesSection, settingsSection, quotationsSection,
     salesTicketsSection, salesClientsSection,
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
@@ -393,12 +394,13 @@ export async function listOvertimes({ studio, overtimesSection }) {
 // Who overtime can be logged against, and the departments the picker filters by.
 // People are COLLABORATORS — the studio-local identity every other module
 // assigns work to — carrying whatever department HR has put them in.
-export async function overtimeDirectory({ studio, hrEmployeesSection }) {
-  const [people, departments] = await Promise.all([
-    listCollaborators(studio.id),
-    hrEmployeesSection ? readCol(studio.id, hrEmployeesSection.id, DEPARTMENTS) : [],
-  ]);
-  const depName = Object.fromEntries(departments.map((d) => [d.id, d.name || ""]));
+export async function overtimeDirectory({ studio, sections }) {
+  const people = await listCollaborators(studio.id);
+  // NOT HR'S COLLECTION ANY MORE. A department is a top-level section, so the
+  // filter is derived from the studio's own structure — which also means
+  // Projects no longer needs the HR section to exist before it can name one.
+  const departments = departmentsFromSections(sections);
+  const depName = Object.fromEntries(departments.map((d) => [d.id, d.name]));
   return {
     people: people
       .map((c) => ({
@@ -408,9 +410,7 @@ export async function overtimeDirectory({ studio, hrEmployeesSection }) {
         departmentName: depName[c.departmentId] || "",
       }))
       .sort((a, b) => a.alias.localeCompare(b.alias)),
-    departments: departments
-      .map((d) => ({ id: d.id, name: d.name || "" }))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+    departments,
   };
 }
 

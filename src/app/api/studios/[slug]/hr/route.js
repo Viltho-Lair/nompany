@@ -1,5 +1,5 @@
 import {
-  hrGuard, listDepartments, listPositions, listCertifications, listEmployees,
+  hrGuard, listDepartments, listHrRoles, listCertifications, listEmployees,
   listVacations, expiringDocuments, headcount,
   LEAVE_TYPES, LEAVE_STATUSES, EXPIRY_WINDOW_DAYS,
 } from "@/lib/hr";
@@ -14,20 +14,27 @@ export async function GET(request, ctx) {
   const g = await hrGuard(ctx.params);
   if (g.fail) return g.fail;
 
-  const [departments, positions, certifications, employees, vacations] = await Promise.all([
-    listDepartments(g), listPositions(g), listCertifications(g),
+  // Departments are DERIVED from the section list the context already carries,
+  // so there is nothing to await for them.
+  const departments = listDepartments(g);
+  const [roles, certifications, employees, vacations] = await Promise.all([
+    listHrRoles(g), listCertifications(g),
     listEmployees(g, g.collaborator.id),
     listVacations(g, { meId: g.collaborator.id }),
   ]);
 
   return Response.json({
     canManage: g.canManage,
+    // Whether this viewer may put somebody IN a role, which is an access right
+    // and not an HR one — the screen hides the control rather than offering it
+    // and being refused.
+    canAssignRoles: g.canAssignRoles,
     nav: g.nav,
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.
     manage: g.manage,
     me: { collaboratorId: g.collaborator.id },
-    departments, positions, certifications, employees, vacations,
+    departments, roles, certifications, employees, vacations,
     expiring: expiringDocuments(employees),
     headcount: headcount(employees, departments),
     vocabulary: { leaveTypes: LEAVE_TYPES, leaveStatuses: LEAVE_STATUSES, expiryWindowDays: EXPIRY_WINDOW_DAYS },

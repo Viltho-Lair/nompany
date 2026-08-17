@@ -306,10 +306,16 @@ export const SECTION_COLLECTIONS = {
   // AWB tracking owns the shipments it follows and the airline registry that
   // resolves a waybill's 3-digit prefix to a carrier.
   "inventory-awb": ["awbShipments", "awbAirlines"],
-  // hr — the reference lists belong to the Employees screen; vacations are
+  // hr — the reference list belongs to the Employees screen; vacations are
   // studio-wide HR settings.
+  //
+  // `departments` and `positions` are deliberately gone. A department is a
+  // top-level SECTION (see lib/departments.js) and a position was a second name
+  // for a role, which lives in s:<StudioID>:roles — neither is a collection any
+  // more, and leaving the names here would keep minting empty keys for lists
+  // nothing writes.
   hr: ["vacations"],
-  "hr-employees": ["departments", "positions", "certifications"],
+  "hr-employees": ["certifications"],
   // finance
   "finance-cash": ["invoices", "expenses"],
   // operations — Permits/Locations are tabs of the main screen, not sub-sections.

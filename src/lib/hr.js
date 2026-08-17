@@ -1,31 +1,42 @@
 // HUMAN RESOURCES — the fourth ERP module rebuilt on the restructured model.
 //
 // Rows live under the studio's *hr section*:
-//   s:<StudioID>:sec:<SectionID>:c:departments
-//   s:<StudioID>:sec:<SectionID>:c:positions
 //   s:<StudioID>:sec:<SectionID>:c:certifications
 //   s:<StudioID>:sec:<SectionID>:c:vacations
+//
+// TWO LISTS HR USED TO OWN ARE GONE, and both for the same reason: they were a
+// second copy of something the studio already said.
+//
+//   departments — the studio's top-level SECTIONS are its departments. See
+//                 lib/departments.js. Nothing to create, nothing to delete,
+//                 and no way for the org chart to disagree with the nav.
+//   positions   — a position was a job title with a description, sitting
+//                 beside the ROLES that decide what a job may actually do.
+//                 Two lists naming the same thing, one of which was load-
+//                 bearing. They are one list now: HR names the role, Access
+//                 says what it may do, and both read s:<StudioID>:roles.
 //
 // THE EMPLOYEE RECORD IS THE COLLABORATOR ROW. Per the approved plan,
 // Collaborator and Employee are ONE entity, so HR does not invent a parallel
 // people table — it fills in the HR fields that already sit on
-// s:<StudioID>:collaborators (departmentId, positionId, employeeCode, …).
-// That is why someone's department exists only inside this studio: the field
-// lives on their studio-local row, not on their user account.
+// s:<StudioID>:collaborators (departmentId, employeeCode, …). That is why
+// someone's department exists only inside this studio: the field lives on their
+// studio-local row, not on their user account.
 //
 // ID and passport NUMBERS are encrypted at rest and only ever decrypted for a
 // viewer who can *manage* HR. Everyone else sees that a document is on file and
 // when it expires — never the number.
 
-import { sectionViewable, sectionManageable, requirePermission, scopeFor, can } from "@/lib/access";
+import { sectionViewable, sectionManageable, requirePermission, scopeFor, can, escalates, cleanAssignment } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
+import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/lib/data/roles";
+import { departmentsFromSections } from "@/lib/departments";
+import { getProfile } from "@/lib/data/users";
 import { encryptField, decryptField } from "@/lib/fieldCrypto";
 import { currentUser } from "@/lib/identity";
 
-const DEPARTMENTS = "departments";
-const POSITIONS = "positions";
 const CERTIFICATIONS = "certifications";
 const VACATIONS = "vacations";
 
@@ -64,8 +75,14 @@ export async function hrContext(user, slug) {
 
   return {
     studio, collaborator, access, roles, section, employeesSection,
+    // THE SECTION LIST TRAVELS, because the departments are in it. HR reads it
+    // rather than a collection of its own — see lib/departments.js.
+    sections,
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canManageEmployees: sectionManageable(access, employeesSection.key, (sections || []).map((x) => x.key)),
+    // Handing somebody a role is an ACCESS act, not an HR one, so it is gated
+    // on the access permission wherever it is done from — including here.
+    canAssignRoles: !requirePermission(access, "people.members.edit"),
     nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
     manage: manageMap(studio, collaborator, sections, access),
@@ -89,159 +106,118 @@ export async function hrGuard(paramsPromise, { write } = {}) {
 }
 
 // ---- departments -----------------------------------------------------------
-export async function listDepartments({ studio, employeesSection }) {
-  const rows = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
-  return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+// DERIVED, NOT STORED. There is no departments collection any more and no CRUD
+// to reach it — the studio's top-level sections are its departments, so this is
+// a projection of the section list the context already carries. See
+// lib/departments.js for why.
+export function listDepartments({ sections }) {
+  return departmentsFromSections(sections);
 }
 
-export async function createDepartment(ctx, body) {
+// ---- roles -------------------------------------------------------------------
+// WHAT HR CALLS A ROLE AND WHAT ACCESS CALLS A ROLE ARE THE SAME ROW.
+//
+// HR used to keep `positions`: a title, a department and a description. Access
+// keeps `roles`: a name, a description and the permissions that name implies.
+// Two lists for one idea, and only one of them meant anything — somebody's
+// position said what they were called, their role said what they could do, and
+// nothing tied the two together.
+//
+// So the split is by QUESTION, not by list:
+//
+//   HR names the job          -> name + description, here, on hr.employees.*
+//   Access says what it may do -> permissions + scopes, there, on
+//                                 people.members.edit
+//
+// NAMING A JOB CANNOT ESCALATE ANYTHING, which is what makes that split safe:
+// a role created here carries no permissions at all, so the worst somebody with
+// HR rights and nothing else can do is invent a job title that grants nothing.
+// Deciding what it may do stays where it was.
+//
+// Admin is excluded from every write below. It is the studio's built-in
+// wildcard rather than a role anybody created, and it is not HR's to rename.
+export async function listHrRoles(ctx) {
+  const [roles, people] = await Promise.all([
+    listRoles(ctx.studio.id),
+    listCollaborators(ctx.studio.id),
+  ]);
+  const held = (id) => people.filter((c) => (c.roleIds || []).includes(id)).length;
+  return [...roles]
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+    .map((r) => ({
+      id: r.id,
+      name: r.name || "",
+      description: r.description || "",
+      // BUILT-IN, not created — the badge the screen shows and the reason the
+      // edit and delete buttons are withheld.
+      wildcard: Boolean(r.wildcard),
+      // What Access has said about it, carried so HR can show whether the job
+      // has been given any access yet without a second call.
+      permissionCount: r.wildcard ? null : (r.permissions || []).length,
+      held: held(r.id),
+    }));
+}
+
+export async function createHrRole(ctx, body) {
   // Guarded before anything is read or written — see lib/access.js.
   const denied = requirePermission(ctx.access, "hr.employees.create");
   if (denied) return denied;
 
-  const { studio, employeesSection } = ctx;
-  const name = str(body?.name, 120);
+  const name = str(body?.name, 60);
   if (!name) return { error: "name" };
 
-  const rows = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
-  if (rows.some((d) => d.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
+  const roles = await listRoles(ctx.studio.id);
+  if (roles.some((r) => (r.name || "").toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
 
-  const department = await addRow(studio.id, employeesSection.id, DEPARTMENTS, {
-    name,
-    code: str(body?.code, 12).toUpperCase() || autoCode(name, rows),
-    description: str(body?.description, 1000),
-    createdAt: new Date().toISOString(),
+  // NO PERMISSIONS AND NO SCOPES, whatever the payload says. cleanRole would
+  // keep them, and this route is not the one that may hand access out.
+  const role = await createRole(ctx.studio.id, {
+    name, description: str(body?.description, 200), permissions: [], scopes: {},
   });
-  return { department };
+  return { role };
 }
 
-export async function editDepartment(ctx, id, body) {
+export async function editHrRole(ctx, id, body) {
   // Guarded before anything is read or written — see lib/access.js.
   const denied = requirePermission(ctx.access, "hr.employees.edit");
   if (denied) return denied;
 
-  const { studio, employeesSection } = ctx;
+  if (id === ADMIN_ROLE_ID) return { error: "protected" };
+  const roles = await listRoles(ctx.studio.id);
+  const current = roles.find((r) => r.id === id);
+  if (!current) return { error: "notfound" };
+  if (current.wildcard) return { error: "protected" };
+
   const patch = {};
   if (body?.name !== undefined) {
-    const name = str(body.name, 120);
+    const name = str(body.name, 60);
     if (!name) return { error: "name" };
-    const rows = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
-    if (rows.some((d) => d.id !== id && d.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
+    if (roles.some((r) => r.id !== id && (r.name || "").toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
-  if (body?.code !== undefined) patch.code = str(body.code, 12).toUpperCase();
-  if (body?.description !== undefined) patch.description = str(body.description, 1000);
+  if (body?.description !== undefined) patch.description = str(body.description, 200);
 
-  const department = await updateRow(studio.id, employeesSection.id, DEPARTMENTS, id, patch);
-  return department ? { department } : { error: "notfound" };
+  // SPREAD OVER THE CURRENT ROW, so renaming a job cannot quietly wipe the
+  // permissions Access put on it — updateRole cleans whatever it is handed,
+  // and a patch without `permissions` would clean to an empty list.
+  await updateRole(ctx.studio.id, id, { ...current, ...patch });
+  return { ok: true };
 }
 
-// Refuses while anyone is still in the department, or a position belongs to it —
-// a delete must never leave a person pointing at something that no longer exists.
-export async function removeDepartment(ctx, id) {
+// Refuses while anybody still holds it — a delete must never leave a person
+// pointing at a role that no longer exists, which is silently no access at all.
+export async function removeHrRole(ctx, id) {
   // Guarded before anything is read or written — see lib/access.js.
   const denied = requirePermission(ctx.access, "hr.employees.delete");
   if (denied) return denied;
 
-  const { studio, employeesSection } = ctx;
-  const [people, positions] = await Promise.all([
-    listCollaborators(studio.id),
-    readCol(studio.id, employeesSection.id, POSITIONS),
-  ]);
-  const staff = people.filter((c) => c.departmentId === id).length;
-  const roles = positions.filter((p) => p.departmentId === id).length;
-  if (staff || roles) return { error: "in-use", people: staff, positions: roles };
-
-  const removed = await deleteRow(studio.id, employeesSection.id, DEPARTMENTS, id);
-  return removed ? { ok: true } : { error: "notfound" };
-}
-
-function autoCode(name, rows) {
-  const base = name.replace(/[^A-Za-z0-9]+/g, " ").trim().split(" ")
-    .map((w) => w[0]).join("").toUpperCase().slice(0, 4) || "DEP";
-  const taken = new Set(rows.map((d) => d.code));
-  if (!taken.has(base)) return base;
-  for (let i = 2; i < 100; i++) if (!taken.has(base + i)) return base + i;
-  return base;
-}
-
-// ---- positions -------------------------------------------------------------
-export async function listPositions({ studio, employeesSection }) {
-  const [rows, departments] = await Promise.all([
-    readCol(studio.id, employeesSection.id, POSITIONS),
-    readCol(studio.id, employeesSection.id, DEPARTMENTS),
-  ]);
-  const nameById = Object.fromEntries(departments.map((d) => [d.id, d.name]));
-  return [...rows]
-    .sort((a, b) => (a.title || "").localeCompare(b.title || ""))
-    .map((p) => ({ ...p, departmentName: nameById[p.departmentId] || "" }));
-}
-
-export async function createPosition(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
-  const denied = requirePermission(ctx.access, "hr.employees.create");
-  if (denied) return denied;
-
-  const { studio, employeesSection } = ctx;
-  const title = str(body?.title, 120);
-  if (!title) return { error: "title" };
-
-  const departmentId = str(body?.departmentId, 60);
-  if (departmentId) {
-    const departments = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
-    if (!departments.some((d) => d.id === departmentId)) return { error: "department" };
-  }
-
-  const rows = await readCol(studio.id, employeesSection.id, POSITIONS);
-  if (rows.some((p) => p.title.toLowerCase() === title.toLowerCase() && p.departmentId === departmentId)) {
-    return { error: "duplicate" };
-  }
-
-  const position = await addRow(studio.id, employeesSection.id, POSITIONS, {
-    title,
-    departmentId,
-    description: str(body?.description, 1000),
-    headcountTarget: Number(body?.headcountTarget) > 0 ? Math.floor(Number(body.headcountTarget)) : 0,
-    createdAt: new Date().toISOString(),
-  });
-  return { position };
-}
-
-export async function editPosition(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
-  const denied = requirePermission(ctx.access, "hr.employees.edit");
-  if (denied) return denied;
-
-  const { studio, employeesSection } = ctx;
-  const patch = {};
-  if (body?.title !== undefined) { const v = str(body.title, 120); if (!v) return { error: "title" }; patch.title = v; }
-  if (body?.departmentId !== undefined) {
-    const departmentId = str(body.departmentId, 60);
-    if (departmentId) {
-      const departments = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
-      if (!departments.some((d) => d.id === departmentId)) return { error: "department" };
-    }
-    patch.departmentId = departmentId;
-  }
-  if (body?.description !== undefined) patch.description = str(body.description, 1000);
-  if (body?.headcountTarget !== undefined) patch.headcountTarget = Number(body.headcountTarget) > 0 ? Math.floor(Number(body.headcountTarget)) : 0;
-
-  const position = await updateRow(studio.id, employeesSection.id, POSITIONS, id, patch);
-  return position ? { position } : { error: "notfound" };
-}
-
-export async function removePosition(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
-  const denied = requirePermission(ctx.access, "hr.employees.delete");
-  if (denied) return denied;
-
-  const { studio, employeesSection } = ctx;
-  const people = await listCollaborators(studio.id);
-  const held = people.filter((c) => c.positionId === id).length;
+  if (id === ADMIN_ROLE_ID) return { error: "protected" };
+  const people = await listCollaborators(ctx.studio.id);
+  const held = people.filter((c) => (c.roleIds || []).includes(id)).length;
   if (held) return { error: "in-use", people: held };
 
-  const removed = await deleteRow(studio.id, employeesSection.id, POSITIONS, id);
-  return removed ? { ok: true } : { error: "notfound" };
+  const out = await deleteRole(ctx.studio.id, id);
+  return out.error ? out : { ok: true };
 }
 
 // ---- certifications --------------------------------------------------------
@@ -313,12 +289,12 @@ export async function removeCertification(ctx, id) {
 // viewer who can manage HR. The shape is otherwise identical either way, so the
 // screen never has to branch on permission to render a row.
 export async function listEmployees(ctx, meId = "") {
-  const { studio, employeesSection } = ctx;
-  const [people, departments, positions] = await Promise.all([
+  const { studio } = ctx;
+  const [people, roles] = await Promise.all([
     listCollaborators(studio.id),
-    readCol(studio.id, employeesSection.id, DEPARTMENTS),
-    readCol(studio.id, employeesSection.id, POSITIONS),
+    listRoles(studio.id),
   ]);
+  const departments = listDepartments(ctx);
 
   // TWO SEPARATE QUESTIONS, and they used to be one boolean.
   //
@@ -333,16 +309,35 @@ export async function listEmployees(ctx, meId = "") {
     || c.id === meId
     || (scope === "department" && Boolean(me?.departmentId) && c.departmentId === me.departmentId);
   const depName = Object.fromEntries(departments.map((d) => [d.id, d.name]));
-  const posTitle = Object.fromEntries(positions.map((p) => [p.id, p.title]));
+  const roleName = Object.fromEntries(roles.map((r) => [r.id, r.name || ""]));
 
-  return people.filter(inScope).map((c) => ({
+  // THE FACE IS THE PERSON'S, NOT THE STUDIO'S. It used to be a `photo` field on
+  // the collaborator row: a copy, in a studio-local record, of something that
+  // belongs to the account behind it — so somebody who changed their picture
+  // changed it everywhere except here, and HR went on showing whatever was
+  // copied in on the day they joined. It is read off the profile now, on every
+  // read, exactly as People has always done it.
+  //
+  // In parallel, and forgiving: a profile that fails or has no picture yields
+  // "", which the screen already knows how to draw as initials. Nothing else
+  // crosses over from the account — the alias, the role and every HR field
+  // below are studio-local and stay that way.
+  const visible = people.filter(inScope);
+  const photos = await Promise.all(
+    visible.map((c) => (c.userId ? getProfile(c.userId).then((p) => p?.photo || "").catch(() => "") : "")),
+  );
+
+  return visible.map((c, i) => ({
     id: c.id,
     alias: c.alias || "Unnamed",
     role: c.role,
+    photo: photos[i] || "",
     departmentId: c.departmentId || "",
     departmentName: depName[c.departmentId] || "",
-    positionId: c.positionId || "",
-    positionTitle: posTitle[c.positionId] || "",
+    // WHAT THEY ARE, which is now the same answer as what they may do. Carried
+    // off the roles they hold rather than a position id of their own.
+    roleIds: Array.isArray(c.roleIds) ? c.roleIds : [],
+    roleNames: (Array.isArray(c.roleIds) ? c.roleIds : []).map((id) => roleName[id]).filter(Boolean),
     employeeCode: c.employeeCode || "",
     dateOfJoin: c.dateOfJoin || "",
     mobile: c.mobile || "",
@@ -369,25 +364,31 @@ export async function saveEmployment(ctx, collaboratorId, body) {
 
   const patch = {};
 
+  // A DEPARTMENT IS A SECTION KEY now, so what it is checked against is the
+  // studio's own section list rather than a collection of HR's.
   if (body?.departmentId !== undefined) {
     const departmentId = str(body.departmentId, 60);
-    if (departmentId) {
-      const departments = await readCol(studio.id, employeesSection.id, DEPARTMENTS);
-      if (!departments.some((d) => d.id === departmentId)) return { error: "department" };
-    }
+    if (departmentId && !listDepartments(ctx).some((d) => d.id === departmentId)) return { error: "department" };
     patch.departmentId = departmentId;
   }
-  if (body?.positionId !== undefined) {
-    const positionId = str(body.positionId, 60);
-    if (positionId) {
-      const positions = await readCol(studio.id, employeesSection.id, POSITIONS);
-      const position = positions.find((p) => p.id === positionId);
-      if (!position) return { error: "position" };
-      // A position belonging to a department implies that department, so the two
-      // fields can never disagree.
-      if (position.departmentId) patch.departmentId = position.departmentId;
-    }
-    patch.positionId = positionId;
+
+  // PUTTING SOMEBODY IN A ROLE IS HANDING THEM ACCESS, and it is the same write
+  // the People screen makes — so it answers to the same two rules here as it
+  // does there, rather than slipping in through an HR grant:
+  //
+  //   people.members.edit  — assigning access is its own permission
+  //   escalates()          — and nobody may hand out what they do not hold
+  //
+  // Without both, hr.employees.edit would be a second door onto the studio's
+  // entire permission model: give somebody HR and they could give themselves
+  // Admin. The role field is simply not offered to anyone who lacks the right.
+  if (body?.roleIds !== undefined) {
+    if (!ctx.canAssignRoles) return { error: "role-forbidden" };
+    const roles = await listRoles(studio.id);
+    const assignment = cleanAssignment({ roleIds: body.roleIds }, roles.map((r) => r.id));
+    const bad = escalates(ctx.access, assignment, roles);
+    if (bad) return bad;
+    patch.roleIds = assignment.roleIds;
   }
   if (body?.employeeCode !== undefined) patch.employeeCode = str(body.employeeCode, 40);
   if (body?.mobile !== undefined) patch.mobile = str(body.mobile, 40);

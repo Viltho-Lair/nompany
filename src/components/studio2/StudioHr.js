@@ -33,8 +33,14 @@ const fmt = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-G
 //
 // `view` is the ACTIVE SUB-SECTION key. HR has exactly one sub-section —
 // Employees — so the parent renders the dashboard and hr-employees renders the
-// tabbed screen (People / Departments / Positions / Certifications / Leave),
-// which are tabs of one screen rather than sub-sections of their own.
+// tabbed screen (People / Roles / Certifications / Leave), which are tabs of one
+// screen rather than sub-sections of their own.
+//
+// THERE IS NO DEPARTMENTS TAB. A department is a top-level section, so there is
+// nothing to create and nothing to delete — the list is derived from the studio
+// the moment it loads. And Positions became Roles: a job title and the access
+// that job implies were two lists for one idea, and only one of them decided
+// anything.
 export default function StudioHr({ slug, view = "hr" }) {
   const [data, setData] = useState(null);
   const [tab, setTab] = useState("people");
@@ -62,6 +68,10 @@ export default function StudioHr({ slug, view = "hr" }) {
         out.error === "read-only" ? "You have view-only access to Human Resources."
         : out.error === "duplicate" ? "That name is already in use."
         : out.error === "in-use" ? inUseMessage(out)
+        : out.error === "protected" ? "Admin comes with the studio — it can't be renamed or deleted."
+        : out.error === "role-forbidden" ? "Putting somebody in a role is an access change, and that's set on the access screen."
+        : out.error === "escalation" ? "You can only give somebody a role whose permissions you hold yourself."
+        : out.error === "department" ? "That section isn't part of this studio any more."
         : out.error === "overlap" ? `That overlaps leave already booked ${fmt(out.from)} – ${fmt(out.to)}.`
         : out.error === "already-decided" ? `That request was already ${String(out.status || "").toLowerCase()}.`
         : out.error === "range" ? "The end date can't be before the start date."
@@ -77,7 +87,7 @@ export default function StudioHr({ slug, view = "hr" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Human Resources…</p>;
 
-  const { canManage: canManageParent, departments, positions, certifications, employees, vacations, expiring, headcount, vocabulary, me, nav } = data;
+  const { canManage: canManageParent, departments, roles, certifications, employees, vacations, expiring, headcount, vocabulary, me, nav } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
   // the map is keyed the same way, so a sub-section grant answers for its own
   // screen and the parent's answer no longer stands in for all of them.
@@ -90,7 +100,7 @@ export default function StudioHr({ slug, view = "hr" }) {
     return (
       <div className="space-y-6">
         {banner}
-        <HrDashboard slug={slug} nav={nav} employees={employees} departments={departments} positions={positions}
+        <HrDashboard slug={slug} nav={nav} employees={employees} departments={departments} roles={roles}
           certifications={certifications} headcount={headcount} expiring={expiring} pendingLeave={pendingLeave}
           windowDays={vocabulary.expiryWindowDays} />
       </div>
@@ -99,8 +109,7 @@ export default function StudioHr({ slug, view = "hr" }) {
 
   const tabs = [
     ["people", `People (${employees.length})`],
-    ["departments", `Departments (${departments.length})`],
-    ["positions", `Positions (${positions.length})`],
+    ["roles", `Roles (${roles.length})`],
     ["certifications", `Certifications (${certifications.length})`],
     ["leave", `Leave${pendingLeave ? ` (${pendingLeave})` : ""}`],
   ];
@@ -124,15 +133,13 @@ export default function StudioHr({ slug, view = "hr" }) {
       </div>
 
       {tab === "people" && (
-        <People employees={employees} departments={departments} positions={positions}
-          certifications={certifications} canManage={canManage} busy={busy}
+        <People employees={employees} departments={departments} roles={roles}
+          certifications={certifications} canManage={canManage} canAssignRoles={data.canAssignRoles}
+          slug={slug} nav={nav} busy={busy}
           onSave={(collaboratorId, patch) => send("employees", "PUT", { collaboratorId, patch })} />
       )}
-      {tab === "departments" && (
-        <Departments rows={departments} employees={employees} canManage={canManage} busy={busy} send={send} />
-      )}
-      {tab === "positions" && (
-        <Positions rows={positions} departments={departments} employees={employees} canManage={canManage} busy={busy} send={send} />
+      {tab === "roles" && (
+        <Roles rows={roles} slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
       )}
       {tab === "certifications" && (
         <Certifications rows={certifications} employees={employees} canManage={canManage} busy={busy} send={send} />
@@ -146,14 +153,12 @@ export default function StudioHr({ slug, view = "hr" }) {
 }
 
 function inUseMessage(out) {
-  const bits = [];
-  if (out.people) bits.push(`${out.people} ${out.people === 1 ? "person" : "people"}`);
-  if (out.positions) bits.push(`${out.positions} ${out.positions === 1 ? "position" : "positions"}`);
-  return `Still in use by ${bits.join(" and ")} — reassign them first.`;
+  const n = out.people || 0;
+  return `Still held by ${n} ${n === 1 ? "person" : "people"} — reassign them first.`;
 }
 
 // ---- dashboard -------------------------------------------------------------
-function HrDashboard({ slug, nav, employees, departments, positions, certifications, headcount, expiring, pendingLeave, windowDays }) {
+function HrDashboard({ slug, nav, employees, departments, roles, certifications, headcount, expiring, pendingLeave, windowDays }) {
   const to = nav?.["hr-employees"] ? `/${slug}/hr-employees` : "";
   // Whose documents have already lapsed, rather than merely approaching — that
   // is the difference between a reminder and a problem.
@@ -167,7 +172,7 @@ function HrDashboard({ slug, nav, employees, departments, positions, certificati
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <StatTile label="People" value={headcount.total} href={to} />
           <StatTile label="Departments" value={departments.length} href={to} />
-          <StatTile label="Positions" value={positions.length} href={to} />
+          <StatTile label="Roles" value={roles.length} href={to} />
           <StatTile label="Certifications" value={certifications.length} href={to} />
           <StatTile label="Unassigned" value={headcount.unassigned}
             tone={headcount.unassigned > 0 ? "text-amber-700 dark:text-amber-300" : ""} href={to} />
@@ -180,7 +185,7 @@ function HrDashboard({ slug, nav, employees, departments, positions, certificati
         <section className={panel}>
           <p className={microLabel}>People by department</p>
           {departments.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">No departments yet.</p>
+            <p className="mt-2 text-sm text-slate-400">This studio has no sections switched on, so there is nowhere to place anyone.</p>
           ) : (
             <ul className="mt-2 space-y-2">
               {departments.map((d) => {
@@ -290,7 +295,7 @@ function Overview({ headcount, departments, expiring, windowDays }) {
 }
 
 // ---- people ----------------------------------------------------------------
-function People({ employees, departments, positions, certifications, canManage, busy, onSave }) {
+function People({ employees, departments, roles, certifications, canManage, canAssignRoles, slug, nav, busy, onSave }) {
   const [editing, setEditing] = useState(null);
   const [query, setQuery] = useState("");
   const closeEditing = useCallback(() => setEditing(null), []);
@@ -305,13 +310,13 @@ function People({ employees, departments, positions, certifications, canManage, 
     const q = query.trim().toLowerCase();
     if (!q) return employees;
     return employees.filter((e) =>
-      `${e.alias} ${e.employeeCode || ""} ${e.departmentName || ""} ${e.positionTitle || ""} ${e.mobile || ""}`.toLowerCase().includes(q));
+      `${e.alias} ${e.employeeCode || ""} ${e.departmentName || ""} ${(e.roleNames || []).join(" ")} ${e.mobile || ""}`.toLowerCase().includes(q));
   }, [employees, query]);
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search name, code, department or position…"
+        <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search name, code, department or role…"
           value={query} onChange={(e) => setQuery(e.target.value)} />
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {filtered.length} of {employees.length}. Identity numbers are encrypted at rest.
@@ -320,8 +325,9 @@ function People({ employees, departments, positions, certifications, canManage, 
 
       {editing && (
         <Dialog title={editing.alias} description="Employment details apply inside this studio only." onClose={closeEditing} width="max-w-[820px]">
-          <EmployeeEditor person={editing} departments={departments} positions={positions}
-            certifications={certifications} busy={busy} onCancel={closeEditing}
+          <EmployeeEditor person={editing} departments={departments} roles={roles}
+            certifications={certifications} canAssignRoles={canAssignRoles} slug={slug} nav={nav}
+            busy={busy} onCancel={closeEditing}
             onSave={async (patch) => { if (await onSave(editing.id, patch)) setEditing(null); }} />
         </Dialog>
       )}
@@ -343,8 +349,16 @@ function People({ employees, departments, positions, certifications, canManage, 
               // than by intent.
               <section key={e.id} className={`${panel} border-s-4 ${unassigned ? "border-s-amber-400 dark:border-s-amber-500/70" : "border-s-transparent"}`}>
                 <div className="flex items-start gap-4">
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-500/10 font-display text-lg font-800 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
-                    {initialsOf(e.alias)}
+                  {/* THE FACE COMES OFF THE ACCOUNT, carried on every read
+                      rather than copied onto the studio's row — so somebody
+                      who changes their picture has changed it here too.
+                      Initials remain the answer for anyone who has not set
+                      one, which is most people on the day they arrive. */}
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-500/10 font-display text-lg font-800 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
+                    {e.photo
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      ? <img src={e.photo} alt="" className="h-full w-full object-cover" />
+                      : initialsOf(e.alias)}
                   </span>
 
                   <div className="min-w-0 flex-1">
@@ -356,7 +370,8 @@ function People({ employees, departments, positions, certifications, canManage, 
                           where access is described anyway — People is. */}
                     </div>
                     <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
-                      {[e.employeeCode, e.positionTitle, e.departmentName].filter(Boolean).join("  ·  ") || <span className="text-amber-700 dark:text-amber-300">Not placed yet</span>}
+                      {[e.employeeCode, (e.roleNames || []).join(", "), e.departmentName].filter(Boolean).join("  ·  ")
+                        || <span className="text-amber-700 dark:text-amber-300">Not placed yet</span>}
                     </p>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                       Mobile: {e.mobile || "—"} · Joined: {fmt(e.dateOfJoin)}
@@ -406,10 +421,10 @@ function Documents({ person, canManage }) {
   );
 }
 
-function EmployeeEditor({ person, departments, positions, certifications, busy, onCancel, onSave }) {
+function EmployeeEditor({ person, departments, roles, certifications, canAssignRoles, slug, nav, busy, onCancel, onSave }) {
   const [form, setForm] = useState({
     departmentId: person.departmentId || "",
-    positionId: person.positionId || "",
+    roleIds: person.roleIds || [],
     employeeCode: person.employeeCode || "",
     dateOfJoin: person.dateOfJoin || "",
     mobile: person.mobile || "",
@@ -424,29 +439,26 @@ function EmployeeEditor({ person, departments, positions, certifications, busy, 
   const [editId, setEditId] = useState(false);
   const [editPassport, setEditPassport] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-
-  // Choosing a position implies its department, so the two can never disagree.
-  const forDepartment = form.departmentId
-    ? positions.filter((p) => !p.departmentId || p.departmentId === form.departmentId)
-    : positions;
+  // Somebody may hold more than one, and any one of them is enough to act — so
+  // this is a list, exactly as it is on the access screen.
+  const toggleRole = (id) => setForm((f) => ({
+    ...f,
+    roleIds: f.roleIds.includes(id) ? f.roleIds.filter((x) => x !== id) : [...f.roleIds, id],
+  }));
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div>
+          {/* THE STUDIO'S SECTIONS ARE ITS DEPARTMENTS. Nothing to maintain,
+              and no way for this list to disagree with the nav. */}
           <label className={label}>Department</label>
           <select className={input} value={form.departmentId}
-            onChange={(e) => setForm((f) => ({ ...f, departmentId: e.target.value, positionId: "" }))}>
+            onChange={(e) => setForm((f) => ({ ...f, departmentId: e.target.value }))}>
             <option value="">Unassigned</option>
             {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
-        </div>
-        <div>
-          <label className={label}>Position</label>
-          <select className={input} value={form.positionId} onChange={set("positionId")}>
-            <option value="">—</option>
-            {forDepartment.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-          </select>
+          <p className="mt-1 text-[11px] text-slate-400">The studio&apos;s sections, so this is where they work.</p>
         </div>
         <div>
           <label className={label}>Employee code</label>
@@ -460,6 +472,46 @@ function EmployeeEditor({ person, departments, positions, certifications, busy, 
           <label className={label}>Mobile</label>
           <input className={input} value={form.mobile} onChange={set("mobile")} />
         </div>
+      </div>
+
+      {/* ROLE, which is what "position" used to be — except this one decides
+          what they may actually do, because it is the same role Access grants
+          against. Putting somebody in one is therefore an ACCESS act: it is
+          offered only to somebody who may hand access out, and the server
+          refuses it either way rather than trusting the screen. */}
+      <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="font-display text-sm font-700 text-slate-900 dark:text-white">Role</p>
+          {nav?.people && (
+            <a href={`/${slug}/people`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">
+              What each role may do →
+            </a>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          {canAssignRoles
+            ? "What this person is, and what that lets them do — the same role Access grants against. Somebody can hold more than one."
+            : "Roles are shown here but assigned on the access screen: handing somebody a role hands them permissions, which is a right of its own."}
+        </p>
+        {roles.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-400">No roles defined yet.</p>
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {roles.map((r) => {
+              const on = form.roleIds.includes(r.id);
+              return (
+                <button key={r.id} type="button" disabled={!canAssignRoles}
+                  title={r.description || r.name}
+                  onClick={() => toggleRole(r.id)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-600 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${on
+                    ? "bg-brand-600 text-white"
+                    : "border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"}`}>
+                  {r.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
@@ -520,122 +572,96 @@ function EmployeeEditor({ person, departments, positions, certifications, busy, 
       )}
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <button className={btn} disabled={busy} onClick={() => onSave(form)}>{busy ? "Saving…" : "Save"}</button>
+        {/* roleIds is left OUT of the payload entirely for somebody who may not
+            assign them. Sending it unchanged would be refused rather than
+            ignored, which would make saving a phone number fail for anybody
+            holding HR and nothing else. */}
+        <button className={btn} disabled={busy}
+          onClick={() => { const { roleIds, ...rest } = form; onSave(canAssignRoles ? form : rest); }}>
+          {busy ? "Saving…" : "Save"}
+        </button>
         <button className={btnGhost} onClick={onCancel}>Cancel</button>
       </div>
     </>
   );
 }
 
-// ---- departments -----------------------------------------------------------
-function Departments({ rows, employees, canManage, busy, send }) {
+// ---- roles ------------------------------------------------------------------
+// WHAT REPLACED POSITIONS, and it is the same row Access grants against.
+//
+// A position was a job title with a description; a role is a job title with a
+// description AND the permissions that title implies. Keeping both meant every
+// studio wrote its jobs down twice and only one copy decided anything — so
+// somebody could be a "Sales Engineer" by position and hold no access at all,
+// with nothing on either screen to say the two were unrelated.
+//
+// The split is by QUESTION rather than by list. HR names the job, because that
+// is an HR fact. Access says what the job may do, because handing out
+// permissions is its own right and must not be reachable through an HR grant.
+// Each row here says which half has been done.
+function Roles({ rows, slug, nav, canManage, busy, send }) {
   const [form, setForm] = useState(null);
   const closeForm = useCallback(() => setForm(null), []);
-  const count = (id) => employees.filter((e) => e.departmentId === id).length;
 
   return (
     <>
-      <Toolbar canManage={canManage} label="Add department" onAdd={() => setForm({ row: null })} />
+      <Toolbar canManage={canManage} label="Add role" onAdd={() => setForm({ row: null })} />
 
       {form && (
-        <Dialog title={form.row ? `Edit ${form.row.name}` : "New department"} onClose={closeForm} width="max-w-[560px]">
+        <Dialog title={form.row ? `Rename ${form.row.name}` : "New role"}
+          description="Naming the job is HR's. What it may do is set on the access screen."
+          onClose={closeForm} width="max-w-[560px]">
           <SimpleForm busy={busy} onCancel={closeForm}
             fields={[
-              { key: "name", label: "Name", required: true, value: form.row?.name || "" },
-              { key: "code", label: "Code", value: form.row?.code || "", placeholder: "auto" },
+              { key: "name", label: "Name", required: true, value: form.row?.name || "", placeholder: "Sales Engineer" },
               { key: "description", label: "Description", area: true, value: form.row?.description || "" },
             ]}
             onSave={async (values) => {
-              if (await send("departments", form.row ? "PUT" : "POST", form.row ? { ...values, id: form.row.id } : values)) setForm(null);
+              if (await send("roles", form.row ? "PUT" : "POST", form.row ? { ...values, id: form.row.id } : values)) setForm(null);
             }} />
         </Dialog>
       )}
 
-      {rows.length === 0 ? <Empty title="No departments yet" body="Departments group your people and give positions somewhere to belong." /> : (
-        <section className={panel}>
-          <ul className="divide-y divide-slate-100 dark:divide-white/5">
-            {rows.map((d) => (
-              <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-600 text-slate-900 dark:text-white">{d.name}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-500 dark:bg-white/5 dark:text-slate-400">{d.code}</span>
-                    <span className="text-xs text-slate-400">{count(d.id)} {count(d.id) === 1 ? "person" : "people"}</span>
-                  </div>
-                  {d.description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{d.description}</p>}
-                </div>
-                {canManage && (
-                  <div className="flex gap-2">
-                    <button className={btnGhost} onClick={() => setForm({ row: d })}>Edit</button>
-                    <button className={btnDanger} disabled={busy} onClick={() => send("departments", "DELETE", { id: d.id })}>Delete</button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </>
-  );
-}
-
-// ---- positions -------------------------------------------------------------
-function Positions({ rows, departments, employees, canManage, busy, send }) {
-  const [form, setForm] = useState(null);
-  const closeForm = useCallback(() => setForm(null), []);
-  const count = (id) => employees.filter((e) => e.positionId === id).length;
-
-  return (
-    <>
-      <Toolbar canManage={canManage} label="Add position" onAdd={() => setForm({ row: null })} />
-
-      {form && (
-        <Dialog title={form.row ? `Edit ${form.row.title}` : "New position"} onClose={closeForm} width="max-w-[560px]">
-          <SimpleForm busy={busy} onCancel={closeForm}
-            fields={[
-              { key: "title", label: "Title", required: true, value: form.row?.title || "" },
-              { key: "departmentId", label: "Department", value: form.row?.departmentId || "",
-                options: [{ value: "", text: "—" }, ...departments.map((d) => ({ value: d.id, text: d.name }))] },
-              { key: "headcountTarget", label: "Target headcount", type: "number", value: form.row?.headcountTarget || "" },
-              { key: "description", label: "Description", area: true, value: form.row?.description || "" },
-            ]}
-            onSave={async (values) => {
-              if (await send("positions", form.row ? "PUT" : "POST", form.row ? { ...values, id: form.row.id } : values)) setForm(null);
-            }} />
-        </Dialog>
-      )}
-
-      {rows.length === 0 ? <Empty title="No positions yet" body="Positions are the roles people hold — they can belong to a department." /> : (
-        <section className={panel}>
-          <ul className="divide-y divide-slate-100 dark:divide-white/5">
-            {rows.map((p) => {
-              const held = count(p.id);
-              // A role with a target it has not reached is a vacancy.
-              const short = p.headcountTarget > 0 && held < p.headcountTarget;
-              return (
-                <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-600 text-slate-900 dark:text-white">{p.title}</span>
-                      {p.departmentName && <span className="text-xs text-slate-500 dark:text-slate-400">{p.departmentName}</span>}
-                      <span className={`text-xs ${short ? "font-600 text-amber-700 dark:text-amber-300" : "text-slate-400"}`}>
-                        {held} held{p.headcountTarget ? ` of ${p.headcountTarget}` : ""}
-                      </span>
-                    </div>
-                    {p.description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{p.description}</p>}
-                  </div>
-                  {canManage && (
-                    <div className="flex gap-2">
-                      <button className={btnGhost} onClick={() => setForm({ row: p })}>Edit</button>
-                      <button className={btnDanger} disabled={busy} onClick={() => send("positions", "DELETE", { id: p.id })}>Delete</button>
-                    </div>
+      <section className={panel}>
+        <ul className="divide-y divide-slate-100 dark:divide-white/5">
+          {rows.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-600 text-slate-900 dark:text-white">{r.name}</span>
+                  {/* Admin is the studio's own, not something anybody created —
+                      which is why it cannot be renamed or deleted here. */}
+                  {r.wildcard && (
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-700 text-amber-700 dark:text-amber-300">
+                      Built in — everything, including future features
+                    </span>
                   )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+                  <span className="text-xs text-slate-400">
+                    {r.held} held
+                  </span>
+                  {/* The half HR does not do. A job nobody has given any access
+                      to is not broken, but it is unfinished, and saying so here
+                      is the only place anybody would notice. */}
+                  {!r.wildcard && r.permissionCount === 0 && (
+                    <span className="text-xs font-600 text-amber-700 dark:text-amber-300">No access granted yet</span>
+                  )}
+                </div>
+                {r.description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{r.description}</p>}
+              </div>
+              {canManage && !r.wildcard && (
+                <div className="flex gap-2">
+                  <button className={btnGhost} onClick={() => setForm({ row: r })}>Rename</button>
+                  <button className={btnDanger} disabled={busy} onClick={() => send("roles", "DELETE", { id: r.id })}>Delete</button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
+          What each role is allowed to do is set on the access screen
+          {nav?.people ? <> — <a href={`/${slug}/people`} className="font-600 underline">open it</a></> : ", which an admin can open"}.
+        </p>
+      </section>
     </>
   );
 }

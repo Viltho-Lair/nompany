@@ -1,13 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { panel, h2, sub, input, label, btn, btnGhost, Empty } from "@/components/studio2/ui";
 import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/lib/permissions";
 
-// THE ROLE EDITOR.
+// THE ACCESS EDITOR.
 //
-// Defining a role is rare and careful; assigning one is frequent and quick.
-// They are opposite jobs, so they are separate screens — this is the rare one.
+// Defining what a job may do is rare and careful; assigning it is frequent and
+// quick. They are opposite jobs, so they are separate screens — this is the
+// rare one.
+//
+// IT NO LONGER NAMES THE ROLE. A role is a job title, and job titles are HR's:
+// they are the list that used to be called Positions. What happens here is
+// giving one of those jobs its ACCESS — so the button says "Create access", and
+// where there was a free-text Name there is now a dropdown of the roles that
+// exist. Typing a name here was how the two lists drifted apart in the first
+// place: whoever wrote "Sales Engineer" on this screen and whoever wrote it on
+// the HR one produced two rows that never met.
 //
 // Never a hundred checkboxes. Areas are collapsed and summarised in words, and
 // each opens to a LADDER: none / view / edit / full, one control per row rather
@@ -60,15 +69,10 @@ export default function StudioRoles({ slug }) {
     await load();
   }
 
-  async function remove(id) {
-    setBusy(true);
-    const res = await fetch(`/api/studios/${slug}/roles`, {
-      method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
-    });
-    setBusy(false);
-    if (!res.ok) { setError("That role can't be deleted."); return; }
-    await load();
-  }
+  // No remove() here. Deleting a role is deleting a job title, which is HR's —
+  // and HR's is the one that refuses while somebody still holds it. The DELETE
+  // endpoint on /roles is still there and still guarded; this screen simply
+  // stopped being a second door onto it.
 
   if (!data) return <p className="text-sm text-slate-500">Loading roles…</p>;
   const { roles = [], areas = [], canEdit } = data;
@@ -76,23 +80,35 @@ export default function StudioRoles({ slug }) {
   if (editing) {
     return (
       <RoleEditor
-        role={editing} areas={areas} busy={busy} error={error}
+        role={editing} roles={roles} areas={areas} busy={busy} error={error}
         onCancel={() => { setEditing(null); setError(""); }}
         onSave={save}
       />
     );
   }
 
+  // Every role that could still be given access, which is all of them bar the
+  // wildcard — Admin already holds everything by definition.
+  const grantable = roles.filter((r) => !r.wildcard);
+
   return (
     <section className={panel}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className={h2}>Roles</h2>
-          <p className={sub}>What a job is allowed to do. Assign them to people on the list above.</p>
+          <h2 className={h2}>Access</h2>
+          <p className={sub}>
+            What each role is allowed to do. The roles themselves are the studio&apos;s job titles, named in
+            Human Resources; this is where one is given its access. Assign them to people on the list above.
+          </p>
         </div>
         {canEdit && (
-          <button className={btn} onClick={() => setEditing({ name: "", description: "", permissions: [], scopes: {} })}>
-            New role
+          // Deliberately NOT "new role". Nothing is created here — a role that
+          // exists is picked and given its access, which is why the editor
+          // opens on a dropdown rather than an empty name field.
+          <button className={btn} disabled={grantable.length === 0}
+            title={grantable.length === 0 ? "Every role already has its access set. New roles are named in Human Resources." : ""}
+            onClick={() => setEditing({ ...(grantable[0] || {}), permissions: [...(grantable[0]?.permissions || [])], scopes: { ...(grantable[0]?.scopes || {}) } })}>
+            Create access
           </button>
         )}
       </div>
@@ -102,7 +118,7 @@ export default function StudioRoles({ slug }) {
       {canEdit && people.length > 0 && <WhyPanel slug={slug} people={people} areas={areas} />}
 
       {roles.length === 0 ? (
-        <Empty title="No roles yet" body="Studios start with a few; if yours has none, create one." />
+        <Empty title="No roles yet" body="Studios start with Admin, Manager, Team Lead, Member and Viewer. If yours has none, name one in Human Resources → Roles." />
       ) : (
         <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
           {roles.map((r) => (
@@ -119,14 +135,19 @@ export default function StudioRoles({ slug }) {
                 <p className="text-sm text-slate-500 dark:text-slate-400">{r.description}</p>
               </div>
               <span className="shrink-0 text-xs text-slate-400">
-                {r.wildcard ? "—" : `${(r.permissions || []).length} permissions`}
+                {r.wildcard ? "—"
+                  : (r.permissions || []).length === 0
+                    ? <span className="font-600 text-amber-700 dark:text-amber-300">No access yet</span>
+                    : `${r.permissions.length} permissions`}
               </span>
               {canEdit && (
                 <span className="flex shrink-0 gap-2">
-                  <button className={btnGhost} onClick={() => setEditing({ ...r })}>Edit</button>
-                  {!r.wildcard && (
-                    <button className={btnGhost} disabled={busy} onClick={() => remove(r.id)}>Delete</button>
-                  )}
+                  {/* NO DELETE HERE ANY MORE. A role is a job title, and
+                      deleting one is HR's — where the check that nobody still
+                      holds it lives. Two delete paths with two different guards
+                      is how somebody ends up pointing at a role that is gone,
+                      which reads as no access at all and looks like a bug. */}
+                  <button className={btnGhost} onClick={() => setEditing({ ...r })}>Edit access</button>
                 </span>
               )}
             </li>
@@ -137,13 +158,24 @@ export default function StudioRoles({ slug }) {
   );
 }
 
-function RoleEditor({ role, areas, busy, error, onCancel, onSave }) {
+function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) {
   const [draft, setDraft] = useState(() => ({
     ...role,
     permissions: [...(role.permissions || [])],
     scopes: { ...(role.scopes || {}) },
   }));
   const [open, setOpen] = useState("");
+
+  // SWITCHING ROLE SWITCHES EVERYTHING. The permissions and scopes on screen
+  // belong to the role named above them, so picking a different one loads that
+  // role's own — carrying the ticks across would be this screen quietly
+  // proposing to give one job another job's access.
+  const pickRole = (id) => {
+    const next = roles.find((r) => r.id === id);
+    if (!next) return;
+    setDraft({ ...next, permissions: [...(next.permissions || [])], scopes: { ...(next.scopes || {}) } });
+    setOpen("");
+  };
 
   const held = useMemo(() => new Set(draft.permissions), [draft.permissions]);
   const groups = useMemo(() => {
@@ -216,16 +248,21 @@ function RoleEditor({ role, areas, busy, error, onCancel, onSave }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr,20rem]">
       <section className={panel}>
-        <h2 className={h2}>{role.id ? `Edit ${role.name}` : "New role"}</h2>
+        <h2 className={h2}>Access for {draft.name || "a role"}</h2>
         <p className={sub}>Everything this job may do. Areas are collapsed — open the ones you need.</p>
 
         {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={label}>Name</label>
-            <input className={input} value={draft.name || ""} placeholder="Sales Engineer"
-              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
+            {/* NOT A NAME FIELD. Roles are named in Human Resources; this picks
+                which of them is being granted access, so the two screens can
+                never end up describing two different "Sales Engineer"s. */}
+            <label className={label}>Role</label>
+            <RolePicker roles={roles.filter((r) => !r.wildcard)} value={draft.id} onPick={pickRole} />
+            <p className="mt-1 text-[11px] text-slate-400">
+              Named in Human Resources → Roles. Add one there and it appears here.
+            </p>
           </div>
           <div>
             <label className={label}>Description</label>
@@ -312,8 +349,8 @@ function RoleEditor({ role, areas, busy, error, onCancel, onSave }) {
         </div>
 
         <div className="mt-6 flex gap-3">
-          <button className={btn} disabled={busy || !draft.name?.trim()} onClick={() => onSave(draft)}>
-            {busy ? "Saving…" : "Save role"}
+          <button className={btn} disabled={busy || !draft.id} onClick={() => onSave(draft)}>
+            {busy ? "Saving…" : "Save access"}
           </button>
           <button className={btnGhost} onClick={onCancel}>Cancel</button>
         </div>
@@ -334,6 +371,79 @@ function RoleEditor({ role, areas, busy, error, onCancel, onSave }) {
           Cannot touch {summary.cannot.length} other area{summary.cannot.length === 1 ? "" : "s"}.
         </p>
       </aside>
+    </div>
+  );
+}
+
+// A SEARCH-AND-SELECT over the studio's roles, in place of the name field that
+// used to be here.
+//
+// Searchable rather than a plain <select> because the list grows with the
+// studio: a company with thirty job titles cannot find one in a native dropdown
+// without scrolling past twenty-nine, and this is the control that decides
+// WHICH job is about to have its permissions rewritten — picking the wrong one
+// by a slip of the scroll wheel is the expensive mistake on this screen.
+//
+// A role that has no access yet is marked, because those are the ones somebody
+// arriving here is usually looking for.
+function RolePicker({ roles, value, onPick }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const box = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+
+  const chosen = roles.find((r) => r.id === value);
+  const q = query.trim().toLowerCase();
+  const shown = q ? roles.filter((r) => `${r.name} ${r.description || ""}`.toLowerCase().includes(q)) : roles;
+
+  return (
+    <div ref={box} className="relative">
+      <button type="button" aria-haspopup="listbox" aria-expanded={open}
+        onClick={() => { setOpen((v) => !v); setQuery(""); }}
+        className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-start text-sm text-slate-900 transition-colors hover:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white">
+        <span className="truncate">{chosen?.name || "Pick a role…"}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/15 dark:bg-[#20202c]">
+          <input autoFocus className={`${input} mb-1`} placeholder="Search roles…"
+            value={query} onChange={(e) => setQuery(e.target.value)} />
+          <ul role="listbox" className="max-h-60 overflow-auto">
+            {shown.length === 0 && (
+              <li className="px-3 py-2 text-sm text-slate-400">Nothing matches. Roles are named in Human Resources.</li>
+            )}
+            {shown.map((r) => (
+              <li key={r.id}>
+                <button type="button" role="option" aria-selected={r.id === value}
+                  onClick={() => onPick(r.id)}
+                  className={`flex w-full flex-col gap-0.5 rounded-lg px-3 py-2 text-start hover:bg-slate-50 dark:hover:bg-white/5 ${
+                    r.id === value ? "bg-brand-500/10" : ""}`}>
+                  <span className="flex items-center gap-2 text-sm font-600 text-slate-800 dark:text-slate-100">
+                    {r.name}
+                    {(r.permissions || []).length === 0 && (
+                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">
+                        no access yet
+                      </span>
+                    )}
+                  </span>
+                  {r.description && <span className="truncate text-xs text-slate-500 dark:text-slate-400">{r.description}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

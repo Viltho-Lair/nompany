@@ -15,6 +15,14 @@ export async function PUT(request, ctx) {
   if (!b.collaboratorId) return Response.json({ error: "missing" }, { status: 400 });
 
   const result = await saveEmployment(g, b.collaboratorId, b.patch || {});
-  if (result.error) return Response.json({ error: result.error }, { status: result.error === "notfound" ? 404 : 400 });
+  if (result.error) {
+    // A REFUSAL IS NOT A MALFORMED REQUEST. Assigning a role is an access act,
+    // and both ways it can be turned down — not holding the right, or handing
+    // out more than you hold yourself — are 403s a client should tell apart
+    // from "you sent nonsense".
+    const status = result.error === "notfound" ? 404
+      : result.error === "role-forbidden" || result.error === "escalation" || result.error === "forbidden" ? 403 : 400;
+    return Response.json({ error: result.error, keys: result.keys }, { status });
+  }
   return Response.json({ ok: true });
 }

@@ -30,7 +30,12 @@ import { technicalContext, convertRfq, updateRfq, updateQuotation, listQuotation
 import { rfqInfo } from "@/lib/salesAnalytics";
 import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/lib/finance";
 import { inventoryContext, createItem, adjustStock } from "@/lib/inventory";
-import { hrContext, requestVacation, decideVacation } from "@/lib/hr";
+import {
+  hrContext, requestVacation, decideVacation,
+  listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
+  listEmployees, saveEmployment,
+} from "@/lib/hr";
+import { updateProfile } from "@/lib/data/users";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 
 import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/lib/superAuth";
@@ -321,6 +326,106 @@ console.log("\n== leave: taking back your own request");
   const withdrawn = await decideVacation(hr, asked.vacation?.id, "Cancelled");
   ok("...and can cancel it without the approve right", withdrawn.vacation?.status === "Cancelled",
     JSON.stringify(withdrawn));
+}
+
+// ============================================================================
+console.log("\n== HR: departments are sections, positions are roles");
+// Three lists became one apiece, and each collapse is a place a copy used to
+// live:
+//   • departments  — an HR collection somebody typed, beside the sections the
+//                    studio was already divided into. Derived now.
+//   • positions    — a job title beside the ROLE that decided what the job may
+//                    do. One list now, and it is the roles list.
+//   • photo        — a copy on the studio-local row of a picture that belongs
+//                    to the account, frozen on the day somebody joined.
+//
+// And the rule that makes merging positions into roles safe at all: HR may NAME
+// a job, but putting somebody in one is handing out permissions, so it answers
+// to the access permission and the escalation check — not to an HR grant.
+{
+  const hr = await hrContext(owner, slug);
+  ok("owner can open HR", !hr.error, hr.error);
+
+  const departments = listDepartments(hr);
+  ok("departments come from the section list", departments.length > 0, JSON.stringify(departments));
+  ok("...identified by section key, not a row id", departments.every((d) => /^[a-z-]+$/.test(d.id)),
+    departments.map((d) => d.id).join(", "));
+  ok("...and Main is not one of them", !departments.some((d) => d.id === "main"));
+  ok("...Sales is", departments.some((d) => d.id === "sales"), departments.map((d) => d.id).join(", "));
+
+  // The starter roles the studio ships with. Admin is the built-in wildcard —
+  // not something anybody created, and not HR's to rename or delete.
+  const hrRoles = await listHrRoles(hr);
+  const named = hrRoles.map((r) => r.name);
+  for (const want of ["Admin", "Manager", "Team Lead", "Member", "Viewer"]) {
+    ok(`the studio ships with ${want}`, named.includes(want), named.join(", "));
+  }
+  ok("Admin is the wildcard", hrRoles.find((r) => r.name === "Admin")?.wildcard === true);
+
+  const made = await createHrRole(hr, { name: `Sales Engineer ${rand()}`, description: "Raises and works tickets." });
+  ok("HR can name a new job", !!made.role, JSON.stringify(made.error));
+  // The whole reason naming is allowed on an HR grant: it hands out nothing.
+  ok("...and it starts with no access at all", (made.role?.permissions || []).length === 0,
+    JSON.stringify(made.role?.permissions));
+
+  const renamed = await editHrRole(hr, ADMIN_ROLE_ID, { name: "Not Admin" });
+  ok("Admin cannot be renamed from HR", renamed.error === "protected", JSON.stringify(renamed));
+  const undeletable = await removeHrRole(hr, ADMIN_ROLE_ID);
+  ok("...nor deleted", undeletable.error === "protected", JSON.stringify(undeletable));
+
+  // A department is checked against the SECTIONS now, so a made-up one is
+  // refused where an HR row id used to be looked up.
+  const placed = await saveEmployment(hr, member.collaborator.id, { departmentId: "sales" });
+  ok("somebody can be placed in a section", placed.ok === true, JSON.stringify(placed));
+  const nonsense = await saveEmployment(hr, member.collaborator.id, { departmentId: "not-a-section" });
+  ok("...but not in one that does not exist", nonsense.error === "department", JSON.stringify(nonsense));
+
+  // THE GUARD THAT MATTERS. Somebody holding HR and nothing else must not be
+  // able to hand out access through the employee editor — that would make
+  // hr.employees.edit a second door onto the whole permission model.
+  await updateCollaborator(studio.id, nobody.collaborator.id, {
+    overrides: { allow: ["hr.employees.view", "hr.employees.edit"], deny: [] },
+  });
+  const hrOnly = await hrContext(nobody.user, slug);
+  ok("an HR-only user can open HR", !hrOnly.error, hrOnly.error);
+  ok("...and is not offered role assignment", hrOnly.canAssignRoles === false);
+  const grab = await saveEmployment(hrOnly, member.collaborator.id, { roleIds: [ADMIN_ROLE_ID] });
+  ok("...and cannot put anybody in a role", grab.error === "role-forbidden", JSON.stringify(grab));
+  const stillPlain = await getCollaboratorByUser(studio.id, member.user.id);
+  ok("...so nothing was written", !(stillPlain.roleIds || []).includes(ADMIN_ROLE_ID),
+    JSON.stringify(stillPlain.roleIds));
+  ok("...while the ordinary HR fields still save",
+    (await saveEmployment(hrOnly, member.collaborator.id, { mobile: "0500000000" })).ok === true);
+
+  // The owner may, because the owner holds everything.
+  const given = await saveEmployment(hr, member.collaborator.id, { roleIds: [ADMIN_ROLE_ID] });
+  ok("an owner can put somebody in a role from HR", given.ok === true, JSON.stringify(given));
+
+  // A role somebody holds cannot be deleted out from under them — that would
+  // leave a row pointing at nothing, which reads as no access and looks like a
+  // bug rather than a deletion.
+  await saveEmployment(hr, member.collaborator.id, { roleIds: [roleId("Member")] });
+  const inUse = await removeHrRole(hr, roleId("Member"));
+  ok("a role somebody holds cannot be deleted", inUse.error === "in-use", JSON.stringify(inUse));
+  const freeToGo = await removeHrRole(hr, made.role?.id);
+  ok("...one nobody holds can be", freeToGo.ok === true, JSON.stringify(freeToGo));
+
+  // THE FACE IS CARRIED. Set it on the ACCOUNT and HR shows it, without HR ever
+  // having written a photo field of its own.
+  await updateProfile(member.user.id, { photo: "https://example.invalid/face.png" });
+  const staff = await listEmployees(hr, owner.id);
+  const row = staff.find((e) => e.id === member.collaborator.id);
+  ok("the employee photo is read off the account", row?.photo === "https://example.invalid/face.png",
+    JSON.stringify(row?.photo));
+  ok("...and the row carries no photo of its own",
+    (await getCollaboratorByUser(studio.id, member.user.id)).photo === undefined,
+    JSON.stringify((await getCollaboratorByUser(studio.id, member.user.id)).photo));
+  ok("...and names roles rather than a position", Array.isArray(row?.roleNames) && row.positionTitle === undefined,
+    JSON.stringify({ roleNames: row?.roleNames, positionTitle: row?.positionTitle }));
+
+  // Put Member back the way the later blocks expect to find them.
+  await updateCollaborator(studio.id, member.collaborator.id, { roleIds: [roleId("Member")] });
+  await updateCollaborator(studio.id, nobody.collaborator.id, { overrides: { allow: [], deny: [] } });
 }
 
 // ============================================================================
