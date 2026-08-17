@@ -66,7 +66,11 @@ export default function StudioProjectProfile({ slug, projectId }) {
 
   const currency = data.studioDefaults?.currency || "";
   const nav = data.nav || {};
-  const sheets = (data.sheets || []).filter((s) => s.projectId === projectId);
+  // The project's Main sheet is what this side reads — the quotation as it was
+  // sold. Bulk is a procurement view and belongs to Inventory.
+  const mine = (data.sheets || []).filter((s) => s.projectId === projectId);
+  const hasSheet = mine.length > 0;
+  const lineCount = (mine.find((s) => s.kind === "main") || mine[0])?.lineCount || 0;
   const done = (project.milestones || []).filter((m) => m.done).length;
 
   return (
@@ -98,36 +102,27 @@ export default function StudioProjectProfile({ slug, projectId }) {
             )}
           </section>
 
-          {/* THE SHEETS. Two per project — Main keeps the quotation's own
-              divisions, Bulk sums each item and splits by vendor — and neither
-              holds a line of its own: they read the quotation's rows back every
-              time. Opening one is the Quotation Viewer without prices. */}
+          {/* THE PROJECT'S OWN QUOTATION VIEWER. What was sold, line by line,
+              without prices — and beside each line what Projects has recorded
+              against it and what Inventory has. The SHEETS themselves belong to
+              Inventory and are worked there; this is the same rows read from
+              this side. */}
           <section className={card}>
-            <h2 className={h2}>Sheets</h2>
-            {sheets.length === 0 ? (
+            <h2 className={h2}>What was sold</h2>
+            {!hasSheet ? (
               <p className={sub}>
-                No sheets — they are drawn up when a project is opened from an approved quotation.
+                Nothing to show yet — the quotation&apos;s lines appear here once a project is opened from an
+                approved quotation.
               </p>
             ) : (
-              <ul className="mt-3 space-y-2">
-                {sheets.map((sh) => (
-                  <li key={sh.id}>
-                    <Link href={`/${slug}/projects-list/${projectId}/sheets/${sh.id}`}
-                      className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 text-sm transition-colors hover:border-brand-500 hover:bg-slate-50 dark:border-white/10 dark:hover:border-brand-500/40 dark:hover:bg-white/5">
-                      <span className="rounded-full bg-brand-500/10 px-2.5 py-0.5 text-[11px] font-700 text-brand-700 dark:text-brand-300">
-                        {sh.kind === "bulk" ? "Bulk" : "Main"}
-                      </span>
-                      <span className="font-600 text-slate-900 dark:text-white">
-                        {sh.kind === "bulk" ? "Summed by vendor" : "As quoted"}
-                      </span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {sh.lineCount} {sh.lineCount === 1 ? "line" : "lines"}
-                      </span>
-                      <Icon name="chevronRight" className="ms-auto h-4 w-4 shrink-0 text-slate-300 rtl:-scale-x-100" />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <Link href={`/${slug}/projects-list/${projectId}/quotation`}
+                className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 text-sm transition-colors hover:border-brand-500 hover:bg-slate-50 dark:border-white/10 dark:hover:border-brand-500/40 dark:hover:bg-white/5">
+                <span className="font-600 text-slate-900 dark:text-white">Open the quotation viewer</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  {lineCount} {lineCount === 1 ? "line" : "lines"} · installation and programming are yours to mark
+                </span>
+                <Icon name="chevronRight" className="ms-auto h-4 w-4 shrink-0 text-slate-300 rtl:-scale-x-100" />
+              </Link>
             )}
           </section>
 

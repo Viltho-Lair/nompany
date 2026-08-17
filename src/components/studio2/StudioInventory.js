@@ -852,7 +852,10 @@ function Sheets({ orders, deliveries, vendors, items, sheets = [], projects, slu
           <ul className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
             {sheets.map((sh) => (
               <li key={sh.id} className="py-3 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-baseline gap-2">
+                {/* THE SHEET OPENS ITS VIEWER — this is Inventory's screen and
+                    Inventory's version of it. */}
+                <a href={`/${slug}/inventory-sheets/${sh.id}`}
+                  className="flex flex-wrap items-baseline gap-2 hover:underline">
                   {sh.projectNumber
                     ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, sh.projectId))} title="Open the project">{sh.projectNumber}</RecordLink>
                     : <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-700 text-amber-700 dark:text-amber-300">
@@ -867,7 +870,7 @@ function Sheets({ orders, deliveries, vendors, items, sheets = [], projects, slu
                   <span className="text-xs text-slate-400">
                     {sh.lineCount} {sh.lineCount === 1 ? "line" : "lines"}
                   </span>
-                </div>
+                </a>
                 {/* The rows are the QUOTATION'S, read back every time — so an
                     edited quotation shows through here without the sheet
                     knowing anything changed. No prices: what a department may

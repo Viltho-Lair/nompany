@@ -137,10 +137,16 @@ export default async function StudioPage({ params }) {
   // page, resolving through the projects-list section so the same grant governs
   // it — a project is one row of a list, exactly as a ticket is.
   const projectId = requested === "projects-list" ? (segments[1] || "") : "";
-  // And a THIRD segment names one of that project's sheets:
-  // /<slug>/projects-list/<id>/sheets/<sheetId> is the Quotation Viewer without
-  // prices — the quotation's own rows, with the columns each department adds.
-  const sheetId = projectId && segments[2] === "sheets" ? (segments[3] || "") : "";
+  // And a THIRD segment opens that project's own QUOTATION VIEWER:
+  // /<slug>/projects-list/<id>/quotation is the Projects version — the
+  // quotation's rows without prices, with the columns Projects owns.
+  const projectQuotation = projectId && segments[2] === "quotation";
+
+  // PROJECT SHEETS ARE INVENTORY'S, and live under Inventory's own sub-section:
+  // /<slug>/inventory-sheets/<sheetId> is the Quotation Viewer, inventory
+  // version. Same rows, same shared record, Inventory's columns — and the
+  // sheet tabs, because the sheets are theirs to work through.
+  const sheetId = requested === "inventory-sheets" ? (segments[1] || "") : "";
 
   const isPeople = requested === "people";
   const isAccess = requested === "access";
@@ -193,7 +199,8 @@ export default async function StudioPage({ params }) {
         : deniedSection ? <NoSectionAccess />
         : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} />
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
-        : sheetId ? <StudioSheetViewer slug={studio.slug} projectId={projectId} sheetId={sheetId} />
+        : sheetId ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
+        : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
         : projectId ? <StudioProjectProfile slug={studio.slug} projectId={projectId} />
         : screenKey === "sales" ? <StudioSales slug={studio.slug} view={active?.key} />
         : screenKey === "technical" ? <StudioTechnical slug={studio.slug} view={active?.key} />
