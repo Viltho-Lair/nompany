@@ -538,6 +538,31 @@ function composeSheet(sheet, quote, vendorOf) {
   });
 }
 
+// Every project with a quotation behind it has a Main and a Bulk. Created on
+// first read rather than migrated, and idempotent — two readers racing cannot
+// make four sheets, because the write checks again inside the lock.
+async function ensureSheetsExist({ studio, sheetsSection, projectsListSection }) {
+  if (!sheetsSection || !projectsListSection) return;
+  const [sheets, projects] = await Promise.all([
+    readCol(studio.id, sheetsSection.id, SHEETS),
+    readCol(studio.id, projectsListSection.id, "projects"),
+  ]);
+  const have = new Set(sheets.map((s) => `${s.projectId}:${s.kind || "main"}`));
+  for (const p of projects) {
+    if (!p.quotationId) continue;             // nothing to read rows back from
+    for (const kind of ["main", "bulk"]) {
+      if (have.has(`${p.id}:${kind}`)) continue;
+      await addRow(studio.id, sheetsSection.id, SHEETS, {
+        projectId: p.id,
+        quotationId: p.quotationId, rfqId: p.rfqId || "", ticketId: p.ticketId || "",
+        kind,
+        lines: {},
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+}
+
 // WRITE ONE DEPARTMENT'S COLUMNS ON ONE ROW.
 //
 // The row belongs to the quotation and is never touched. What is written is the
@@ -584,6 +609,13 @@ export async function saveSheetLine(ctx, body) {
 export async function listProjectSheets(ctx) {
   const { studio, sheetsSection, projectsListSection, quotationsSection, itemsSection, vendorsSection } = ctx;
   if (!sheetsSection) return [];
+  // SEEDED LAZILY, the same way the starter roles are. Sheets were written at
+  // openProject, so every project opened BEFORE they existed had none — and the
+  // bar that lists projects was empty for exactly the studios that already had
+  // work in them. A sheet holds no lines of its own, so there is nothing to
+  // migrate and nothing to guess: the pair is created the first time anybody
+  // looks, and a project that already has them is left alone.
+  await ensureSheetsExist(ctx);
   const [sheets, projects, quotes, items, vendors, tasks] = await Promise.all([
     readCol(studio.id, sheetsSection.id, SHEETS),
     projectsListSection ? readCol(studio.id, projectsListSection.id, "projects") : [],

@@ -168,7 +168,9 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
   // to a project, not to be shown one.
   if (!sheet) {
     return (
-      <div className="flex min-h-[calc(100vh-11rem)] flex-col gap-4">
+      // pb clears the fixed bar, which is out of flow and would otherwise
+      // sit over the last of the content.
+      <div className="flex min-h-[60vh] flex-col gap-4 pb-16">
         <div className="flex flex-1 items-center justify-center">
           {isInventory ? (
             <p className="max-w-sm text-center text-sm text-slate-500 dark:text-slate-400">
@@ -199,8 +201,8 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     // TWO PORTIONS. The work portion takes everything between the top bar and
     // the bar; the bar is always at the bottom. min-h keeps the bar down there
     // even on a short sheet, rather than floating it up under the last row.
-    <div className={isInventory ? "flex min-h-[calc(100vh-11rem)] flex-col" : "space-y-4"}>
-      <div className={isInventory ? "flex-1 space-y-4 overflow-x-hidden pb-4" : "space-y-4"}>
+    <div className={isInventory ? "pb-16" : ""}>
+      <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <Link href={backHref} className={btnGhost}>{backLabel}</Link>
         <div className="min-w-0">
@@ -374,12 +376,25 @@ function ProjectBar({ projects, activeProjectId, activeSheetId, query, onQuery, 
   }, [open]);
 
   return (
-    <div ref={box} className="sticky bottom-0 z-20 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
-      <div className="flex items-center gap-3 px-3 py-2">
-        {/* A FIFTH OF THE BAR. */}
-        <input type="search" className={`${input} w-1/5 shrink-0 py-1.5 text-xs`}
-          placeholder="Project, quotation, PO, serial…"
-          value={query} onChange={(e) => onQuery(e.target.value)} />
+    // FIXED POSITIONING — pinned to the viewport, so it stays where it is
+    // however far the work portion scrolls. Sticky was the wrong tool: it only
+    // pins within its own container, so it drifted with the page.
+    //
+    // Offset past the sidebar rather than spanning the window: the sidebar is
+    // w-64 at start-4 and the content sits at lg:ps-72, so the bar starts there
+    // too and the sidebar keeps its own space.
+    <div ref={box}
+      className="fixed bottom-0 end-0 start-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur lg:start-72 dark:border-white/10 dark:bg-[#20202c]/95">
+      <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-5 py-2 sm:px-8">
+        {/* A FIFTH OF THE BAR, and it has to be a WRAPPER: the shared `input`
+            class carries w-full, and two width utilities on one element are
+            settled by stylesheet order rather than by which was written last —
+            so w-1/5 on the input itself lost. */}
+        <div className="w-1/5 shrink-0">
+          <input type="search" className={`${input} py-1.5 text-xs`}
+            placeholder="Project, quotation, PO, serial…"
+            value={query} onChange={(e) => onQuery(e.target.value)} />
+        </div>
 
         <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
           {projects.length === 0 ? (
