@@ -1,9 +1,9 @@
 import { requirePermission } from "@/lib/access";
-import { requestStudioRename } from "@/lib/data/studios";
+import { renameStudio } from "@/lib/data/studios";
 import { isKnownCurrency, crossRate } from "@/lib/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { currentUser } from "@/lib/identity";
-import { studioContext, canAdminister } from "@/lib/studios";
+import { studioContext } from "@/lib/studios";
 import { updateStudio } from "@/lib/data/studios";
 
 export const runtime = "nodejs";
@@ -84,10 +84,6 @@ const clean = (studio) => ({
   workingHours: studio.workingHours || null,
   legalInfo: Array.isArray(studio.legalInfo) ? studio.legalInfo : [],
   favoriteCurrencies: Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : [],
-  // A rename that has been asked for but has not happened yet.
-  pendingName: studio.pendingName || "",
-  pendingSlug: studio.pendingSlug || "",
-  renameAt: studio.renameAt || null,
 });
 
 // Rates from the studio's own currency out to each favourite. Anything the
@@ -162,13 +158,19 @@ export async function PUT(request, ctx) {
       : Response.json({ error: "notfound" }, { status: 404 });
   }
 
-  // RENAMING is the owner's call and does not take effect now. It is stored as
-  // a request and applied at midnight — see requestStudioRename for why.
-  if (body?.requestRename) {
+  // RENAMING is the owner's call and takes effect immediately — the address
+  // included, so the studio answers to its new one from the next request and
+  // stops answering to the old one. See renameStudio.
+  if (body?.rename) {
     if (collaborator.role !== "owner") return Response.json({ error: "owner-only" }, { status: 403 });
-    const out = await requestStudioRename(studio.id, body.requestRename);
-    if (out.error) return Response.json(out, { status: out.error === "notfound" ? 404 : 400 });
-    return Response.json({ scheduled: out.scheduled, at: out.at || null });
+    const out = await renameStudio(studio.id, body.rename);
+    if (out.error) {
+      const status = out.error === "notfound" ? 404 : out.error === "slug-taken" ? 409 : 400;
+      return Response.json({ error: out.error }, { status });
+    }
+    // The new address goes back with it: the screen that asked for the rename is
+    // sitting on the old URL and has to move itself.
+    return Response.json({ ok: true, changed: out.changed, studio: clean(out.studio) });
   }
 
   const patch = {};

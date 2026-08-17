@@ -181,9 +181,8 @@ export function byMonth(rows, year) {
 
 // Delete a whole year's counters. Used by the new-year rollover once the year
 // has been mailed out — never on a read path.
-export async function clearDays(days) {
-  if (!days.length) return 0;
-  const client = await getRedisClient();
-  const removed = await Promise.all(days.map((day) => client.del(key(day)).catch(() => 0)));
-  return removed.reduce((sum, r) => sum + n(r), 0);
-}
+// clearDays is gone with the job that called it. Nothing deletes traffic days
+// any more: /api/track no longer expires them and the new-year job reports the
+// closed year rather than clearing it. A helper whose only purpose is to
+// destroy the history is not one to leave lying around for someone to reach
+// for later.

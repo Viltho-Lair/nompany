@@ -66,7 +66,10 @@ export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" })
     await setJSON(S.settings(id), {});
 
     // The owner is a Collaborator like everyone else (uniform people table).
-    const seeded = await addCollaborator(id, { userId: ownerUserId, alias: ownerAlias, role: "owner", isAdmin: true });
+    // No role is assigned and none is needed: `role: "owner"` is what
+    // effectivePermissions short-circuits on, so ownership carries every
+    // permission without anything being written down twice.
+    const seeded = await addCollaborator(id, { userId: ownerUserId, alias: ownerAlias, role: "owner" });
     if (seeded.error) throw new Error(`owner collaborator: ${seeded.error}`);
 
     // Atomic — a lost registry row here would strand the slug and owner claims
@@ -163,85 +166,45 @@ export async function changeStudioSlug(studioId, newSlug) {
   return { studio: { ...studio, slug: clean } };
 }
 
-// ---- deferred renames --------------------------------------------------------
-// A studio's name and its slug do not change the moment somebody presses Save.
-// They are REQUESTED, and applied at midnight.
+// ---- renaming a studio -------------------------------------------------------
+// IT HAPPENS WHEN THEY PRESS SAVE.
 //
-// The slug is the reason. It is the tenant handle and the public address, so
-// changing it mid-afternoon breaks every open tab, every bookmark and every
-// link anyone has shared, with no warning to the people it happens to. Doing it
-// at midnight does not make the old address work, but it makes the moment
-// predictable and puts it when the fewest people are mid-task.
+// This used to be a REQUEST applied at midnight by a cron, on the reasoning that
+// changing the public address mid-afternoon breaks every open tab, bookmark and
+// shared link. That reasoning was half right and its own comment said so:
+// midnight does not make the old address work either. It moved the breakage
+// rather than removing it, and charged a cron job, three fields on the studio
+// row, a scheduled state in two screens and a failure path for the privilege.
 //
-// The name rides along with it so the two stay in step: a studio should not
-// spend twelve hours calling itself one thing at an address named for another.
-
-// The next 00:00 UTC. UTC because every other scheduled thing here runs on it —
-// a rename that fires on the server's local midnight would drift with the
-// deployment region.
-export function nextMidnight(from = new Date()) {
-  const d = new Date(from);
-  d.setUTCHours(24, 0, 0, 0);
-  return d.toISOString();
-}
-
-// Requesting is NOT claiming. The new slug is checked for shape and for being
-// free, so the person is told now rather than at midnight, but it is not
-// reserved — holding an address for hours on the strength of an unconfirmed
-// intention would let anyone park every good name they could think of.
-export async function requestStudioRename(studioId, { name, slug }) {
+// So it is immediate, and the old address stops resolving at once. Renaming is
+// rare, it is the owner's deliberate act, and the people affected are the
+// handful of colleagues who will be told. What is gone with the deferral: the
+// cron, `pendingName`, `pendingSlug`, `renameAt`, and everything that read them.
+export async function renameStudio(studioId, { name, slug }) {
   const studio = await getStudioById(studioId);
   if (!studio) return { error: "notfound" };
 
-  const patch = { renameAt: null, pendingName: "", pendingSlug: "" };
   const cleanName = String(name ?? "").trim().slice(0, 120);
   const cleanSlug = String(slug ?? "").trim().toLowerCase();
 
-  if (cleanName && cleanName !== studio.name) patch.pendingName = cleanName;
-  if (cleanSlug && cleanSlug !== studio.slug) {
+  const wantsName = Boolean(cleanName) && cleanName !== studio.name;
+  const wantsSlug = Boolean(cleanSlug) && cleanSlug !== studio.slug;
+  if (!wantsName && !wantsSlug) return { changed: false, studio };
+
+  // THE ADDRESS FIRST, because it is the half that can fail. changeStudioSlug
+  // claims the new slug before releasing the old one, so a name is never
+  // applied to a studio whose address change was refused — which is the state
+  // the old two-step could leave behind.
+  let current = studio;
+  if (wantsSlug) {
     if (!isValidSlug(cleanSlug)) return { error: "slug-invalid" };
-    const holder = await getIndex(IX.slug(cleanSlug));
-    if (holder && holder !== studioId) return { error: "slug-taken" };
-    patch.pendingSlug = cleanSlug;
+    const out = await changeStudioSlug(studioId, cleanSlug);
+    if (out.error) return { error: out.error === "slug-taken" ? "slug-taken" : out.error };
+    current = out.studio;
   }
+  if (wantsName) current = (await updateStudio(studioId, { name: cleanName })) || current;
 
-  // Nothing different: clear any earlier request rather than schedule a no-op.
-  if (!patch.pendingName && !patch.pendingSlug) {
-    await updateStudio(studioId, patch);
-    return { scheduled: false, studio: { ...studio, ...patch } };
-  }
-
-  patch.renameAt = nextMidnight();
-  const updated = await updateStudio(studioId, patch);
-  return { scheduled: true, at: patch.renameAt, studio: updated };
-}
-
-// Applied by the midnight cron. Each studio is handled on its own so one bad
-// slug cannot stop the rest, and the request is CLEARED whatever happens —
-// a rename that cannot be applied must not be retried silently for ever.
-export async function applyDueRenames(now = new Date()) {
-  const studios = await listStudios();
-  const due = studios.filter((s) => s.renameAt && Date.parse(s.renameAt) <= now.getTime());
-  const results = [];
-
-  for (const studio of due) {
-    let error = "";
-    if (studio.pendingSlug) {
-      // Re-checked here, not trusted from request time: hours have passed and
-      // somebody else may have taken the address in between.
-      const out = await changeStudioSlug(studio.id, studio.pendingSlug);
-      if (out.error) error = out.error;
-    }
-    if (!error && studio.pendingName) await updateStudio(studio.id, { name: studio.pendingName });
-    await updateStudio(studio.id, { renameAt: null, pendingName: "", pendingSlug: "" });
-    results.push({
-      id: studio.id,
-      name: error ? undefined : (studio.pendingName || studio.name),
-      slug: error ? studio.slug : (studio.pendingSlug || studio.slug),
-      error: error || undefined,
-    });
-  }
-  return results;
+  return { changed: true, studio: current };
 }
 
 // NB: studio ACCESS TOKENS were removed by design (2026-08-11). Joining a studio

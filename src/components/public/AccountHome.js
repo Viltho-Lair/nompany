@@ -308,18 +308,15 @@ function StudioRow({ studio, onSaved }) {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
-  const pending = studio.renameAt
-    ? [studio.pendingName && `name to “${studio.pendingName}”`,
-       studio.pendingSlug && `address to nompany.com/${studio.pendingSlug}`].filter(Boolean).join(" and ")
-    : "";
   const dirty = name.trim() !== studio.name || slug.trim().toLowerCase() !== studio.slug;
+  const addressChanging = slug.trim().toLowerCase() !== studio.slug;
 
   async function save() {
     setBusy(true); setErr(""); setMsg("");
     try {
       const res = await fetch(`/api/studios/${studio.slug}/settings`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestRename: { name: name.trim(), slug: slug.trim().toLowerCase() } }),
+        body: JSON.stringify({ rename: { name: name.trim(), slug: slug.trim().toLowerCase() } }),
       });
       const out = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -329,11 +326,12 @@ function StudioRow({ studio, onSaved }) {
           : "That didn't save.");
         return;
       }
-      // The ALERT the save exists to raise. It is not a confirmation that
-      // anything changed — nothing has yet — so it says when it will.
-      setMsg(out.scheduled
-        ? "Saved. Studio names and addresses change at 12:00 am — the studio keeps its current name and link until then."
-        : "Nothing to change.");
+      // It has already happened, so this says so rather than promising it. The
+      // address warning is worth keeping: the old link stops working now, and
+      // whoever has it bookmarked needs telling.
+      setMsg(!out.changed ? "Nothing to change."
+        : addressChanging ? "Renamed. The old link no longer works — share the new one."
+        : "Renamed.");
       onSaved?.();
     } catch {
       setErr("That didn't save.");
@@ -372,9 +370,12 @@ function StudioRow({ studio, onSaved }) {
 
         {msg && <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{msg}</p>}
         {err && <p className="mt-2 text-sm text-rose-600 dark:text-rose-300">{err}</p>}
-        {!msg && pending && (
+        {/* Renaming is immediate, so there is no "scheduled" state to report.
+            The warning goes BEFORE the act instead of after it: the address is
+            about to change, and the old link will stop working. */}
+        {!msg && !err && addressChanging && (
           <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
-            Scheduled: {pending}, at 12:00 am.
+            Saving changes the address to nompany.com/{slug.trim().toLowerCase()} straight away. The old link will stop working.
           </p>
         )}
       </div>

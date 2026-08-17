@@ -1,20 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/cron/purge-applications",
-      "schedule": "0 3 * * *"
-    },
-    {
       "path": "/api/cron/sweep-orphans",
       "schedule": "0 4 * * 1"
     },
     {
       "path": "/api/cron/year-rollover",
       "schedule": "5 0 * * *"
-    },
-    {
-      "path": "/api/cron/apply-renames",
-      "schedule": "0 0 * * *"
     }
   ]
 }

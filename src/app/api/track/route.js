@@ -7,14 +7,16 @@ export const dynamic = "force-dynamic";
 
 // Public website traffic ingest. Fire-and-forget: never errors the visitor.
 // Stores atomic per-day counters in a Redis hash `stat:day:<YYYY-MM-DD>` plus a
-// per-day visitor set `stat:vis:<YYYY-MM-DD>`. Both keys carry a ~8-month TTL,
-// so old data auto-expires (retention) without a cron.
-// LONGER THAN A CALENDAR YEAR, deliberately. Retention is now the new-year
-// rollover's job (/api/cron/year-rollover mails the closed year to the super
-// admin, then clears it); this TTL is only a backstop so nothing lingers for
-// ever if that job is removed. At 8 months it was expiring January before
-// December could report it.
-const RETENTION_SEC = 400 * 24 * 60 * 60;
+// per-day visitor set `stat:vis:<YYYY-MM-DD>`.
+//
+// NOTHING HERE EXPIRES. Both keys used to carry a 400-day TTL, and the new-year
+// job deleted the closed year on top of that — so the record of how the website
+// performed was designed to disappear about thirteen months after it was made,
+// whether or not anybody had looked at it. Traffic history is the one thing that
+// only gets more useful with age: this year is only interesting next to last
+// year. A day is one small hash and there are 365 of them a year, so keeping
+// every one of them costs almost nothing and answers "how are we doing compared
+// to last spring" for as long as the product exists.
 
 const slug = (s, max = 40) => String(s || "").toLowerCase().replace(/[^a-z0-9\-_/]/g, "").slice(0, max);
 const today = () => new Date().toISOString().slice(0, 10);
@@ -44,11 +46,7 @@ export async function POST(request) {
       // is not, and is all the dashboard asks for.
       const device = deviceOf(request.headers.get("user-agent"));
       await inc(`dev:${DEVICE_KEYS[device] || "desktop"}`);
-      if (vid) {
-        const vkey = `stat:vis:${day}`;
-        await client.sAdd(vkey, vid);
-        await client.expire(vkey, RETENTION_SEC);
-      }
+      if (vid) await client.sAdd(`stat:vis:${day}`, vid);
     } else if (type === "section_open") {
       const sec = slug(body.section);
       if (!sec) return Response.json({ ok: false }, { status: 200 });
@@ -62,7 +60,6 @@ export async function POST(request) {
     } else {
       return Response.json({ ok: false }, { status: 200 });
     }
-    await client.expire(hkey, RETENTION_SEC);
     return Response.json({ ok: true });
   } catch {
     // Telemetry must never surface an error to a website visitor.
