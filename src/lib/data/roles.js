@@ -1,6 +1,7 @@
 import { readArr, editArr } from "@/lib/data/store";
 import { S, ID } from "@/lib/data/keys";
 import { emit, SCOPE, TYPE } from "@/lib/data/events";
+import { cascadeDeleteRole } from "@/lib/data/cascade";
 import { cleanPermissions, keysForLevel, AREAS, SCOPES, ADMIN_ROLE_ID } from "@/lib/permissions";
 
 // CHANGING A ROLE CHANGES WHAT EVERYONE HOLDING IT MAY DO, so it is announced.
@@ -150,9 +151,22 @@ export async function updateRole(studioId, id, body) {
   return out;
 }
 
+// DELETING A ROLE DELETES ITS ACCESS, because they are the same row — and it
+// takes the reference off everybody holding it, so nobody is left pointing at a
+// job that no longer exists. That reaping is cascade.js's, like every other
+// deletion in this product; this function is the door onto it.
+//
+// It never REFUSES on account of holders. A held role is exactly the one
+// somebody means to delete, and the studio saying "this job is gone" is a
+// decision, not an accident — the screens confirm how many people lose access
+// before asking for it. Admin is the one exception, and not because it is held:
+// a studio with no wildcard role is one where a new capability reaches nobody,
+// including whoever is meant to fix that.
 export async function deleteRole(studioId, id) {
   if (id === ADMIN_ROLE_ID) return { error: "protected" };
-  await editArr(S.roles(studioId), (rows) => ({ next: rows.filter((r) => r.id !== id) }));
+  const out = await cascadeDeleteRole(studioId, id);
   await announce(studioId);
-  return { ok: true };
+  // How many people just lost it. The caller says so out loud rather than
+  // letting a handful of quiet permission changes go unremarked.
+  return { ok: true, stripped: out.stripped };
 }

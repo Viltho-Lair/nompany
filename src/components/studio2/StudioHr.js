@@ -69,7 +69,7 @@ export default function StudioHr({ slug, view = "hr" }) {
         : out.error === "duplicate" ? "That name is already in use."
         : out.error === "in-use" ? inUseMessage(out)
         : out.error === "protected" ? "Admin comes with the studio — it can't be renamed or deleted."
-        : out.error === "role-forbidden" ? "Putting somebody in a role is an access change, and that's set on the access screen."
+        : out.error === "role-forbidden" ? roleForbiddenMessage(out)
         : out.error === "escalation" ? "You can only give somebody a role whose permissions you hold yourself."
         : out.error === "department" ? "That section isn't part of this studio any more."
         : out.error === "overlap" ? `That overlaps leave already booked ${fmt(out.from)} – ${fmt(out.to)}.`
@@ -155,6 +155,15 @@ export default function StudioHr({ slug, view = "hr" }) {
 function inUseMessage(out) {
   const n = out.people || 0;
   return `Still held by ${n} ${n === 1 ? "person" : "people"} — reassign them first.`;
+}
+
+// The two ways an access change is refused here, and they are different
+// problems: one is about handing access out, the other about taking it away.
+function roleForbiddenMessage(out) {
+  const n = out.people || 0;
+  return n > 0
+    ? `${n} ${n === 1 ? "person holds" : "people hold"} that role, so deleting it would take their access away — that's set on the access screen.`
+    : "Putting somebody in a role is an access change, and that's set on the access screen.";
 }
 
 // ---- dashboard -------------------------------------------------------------
@@ -601,6 +610,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
 // Each row here says which half has been done.
 function Roles({ rows, slug, nav, canManage, busy, send }) {
   const [form, setForm] = useState(null);
+  const [confirming, setConfirming] = useState("");
   const closeForm = useCallback(() => setForm(null), []);
 
   return (
@@ -651,7 +661,23 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
               {canManage && !r.wildcard && (
                 <div className="flex gap-2">
                   <button className={btnGhost} onClick={() => setForm({ row: r })}>Rename</button>
-                  <button className={btnDanger} disabled={busy} onClick={() => send("roles", "DELETE", { id: r.id })}>Delete</button>
+                  {/* DELETING A HELD ROLE TAKES ACCESS OFF PEOPLE, so the count
+                      is on the button before it is pressed rather than in a
+                      message afterwards. A role nobody holds costs nothing and
+                      deletes on one press. */}
+                  {confirming === r.id ? (
+                    <>
+                      <button className={btnDanger} disabled={busy}
+                        onClick={async () => { await send("roles", "DELETE", { id: r.id }); setConfirming(""); }}>
+                        {r.held > 0
+                          ? `Delete — ${r.held} ${r.held === 1 ? "person loses" : "people lose"} this access`
+                          : "Delete for good"}
+                      </button>
+                      <button className={btnGhost} onClick={() => setConfirming("")}>Keep</button>
+                    </>
+                  ) : (
+                    <button className={btnDanger} disabled={busy} onClick={() => setConfirming(r.id)}>Delete</button>
+                  )}
                 </div>
               )}
             </li>

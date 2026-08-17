@@ -18,6 +18,8 @@
 //            join-requests → registry row.
 //  SECTION → its s:<sid>:sec:<id>:* collections → row.
 //  COLLABORATOR → row → their notifications → ix back-pointer.
+//  ROLE    → the `roleIds` reference on every holder → row. The permissions
+//            themselves live ON the row, so they need no reaping.
 
 import { REG, U, S, SEC, IX } from "@/lib/data/keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "@/lib/data/store";
@@ -43,6 +45,49 @@ export async function cascadeDeleteCollaborator(studioId, collaboratorId) {
   await sRem(IX.collab(row.userId), studioId);
   await editArr(S.collaborators(studioId), (all) => ({ next: all.filter((c) => c.id !== collaboratorId) }));
   return true;
+}
+
+// ---- role ------------------------------------------------------------------
+// A ROLE *IS* ITS ACCESS. The permissions and scopes live on the row, so
+// deleting the row deletes them — there is no separate access record to strand.
+// What does not live on the row is the REFERENCE every holder carries in
+// `roleIds`, and that is the only thing here worth reaping.
+//
+// Refusing to delete a role while somebody held it was the wrong answer, and it
+// was the answer this module already knew better than: it made a job title
+// undeletable until every holder had been hand-edited, to guard against a stale
+// pointer the delete should simply remove. Deleting a role means the job no
+// longer exists — the people who held it stop holding it, which is the intent
+// and not a side effect.
+//
+// Leaving the pointer was worse than either: resolution filters roles by id, so
+// a dangling one grants nothing silently, and `explain` — the one screen built
+// to say WHY somebody cannot do something — reads a non-empty roleIds, skips
+// its "no role yet" branch and answers "holds no role", which is both wrong and
+// unhelpful at the moment somebody is trying to work out what happened.
+//
+// Children first, row last, so a re-run after a crash finds the row still there
+// and finishes the job.
+export async function cascadeDeleteRole(studioId, roleId) {
+  const rows = await readArr(S.roles(studioId));
+  const row = rows.find((r) => r.id === roleId);
+
+  // Counted INSIDE the atomic write and returned as its result, not tallied by
+  // a closure — editArr may re-run its callback under contention, and a counter
+  // incremented from out here would double.
+  const stripped = await editArr(S.collaborators(studioId), (all) => {
+    const holders = all.filter((c) => (c.roleIds || []).includes(roleId));
+    if (!holders.length) return { result: 0 };
+    return {
+      next: all.map((c) => ((c.roleIds || []).includes(roleId)
+        ? { ...c, roleIds: c.roleIds.filter((id) => id !== roleId) }
+        : c)),
+      result: holders.length,
+    };
+  });
+
+  if (row) await editArr(S.roles(studioId), (all) => ({ next: all.filter((r) => r.id !== roleId) }));
+  return { removed: Boolean(row), stripped: stripped || 0 };
 }
 
 // ---- section ---------------------------------------------------------------

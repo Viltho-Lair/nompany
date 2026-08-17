@@ -204,8 +204,17 @@ export async function editHrRole(ctx, id, body) {
   return { ok: true };
 }
 
-// Refuses while anybody still holds it — a delete must never leave a person
-// pointing at a role that no longer exists, which is silently no access at all.
+// DELETING A ROLE TAKES ITS ACCESS WITH IT, for everybody holding it — that is
+// what deleting a job means, and cascadeDeleteRole reaps the reference so nobody
+// is left pointing at one that is gone.
+//
+// Which is precisely why a HELD role is not HR's alone to delete. Naming a job
+// grants nothing, so HR may do that on its own; deleting one that people hold
+// CHANGES WHAT THOSE PEOPLE MAY DO, and that answers to the access permission —
+// the same rule that governs putting somebody in a role in the first place.
+// Without it, an HR grant would be a way to strip every manager in the studio.
+//
+// An unheld role changes nobody's access, so it stays HR's.
 export async function removeHrRole(ctx, id) {
   // Guarded before anything is read or written — see lib/access.js.
   const denied = requirePermission(ctx.access, "hr.employees.delete");
@@ -214,10 +223,10 @@ export async function removeHrRole(ctx, id) {
   if (id === ADMIN_ROLE_ID) return { error: "protected" };
   const people = await listCollaborators(ctx.studio.id);
   const held = people.filter((c) => (c.roleIds || []).includes(id)).length;
-  if (held) return { error: "in-use", people: held };
+  if (held > 0 && !ctx.canAssignRoles) return { error: "role-forbidden", people: held };
 
   const out = await deleteRole(ctx.studio.id, id);
-  return out.error ? out : { ok: true };
+  return out.error ? out : { ok: true, stripped: out.stripped };
 }
 
 // ---- certifications --------------------------------------------------------

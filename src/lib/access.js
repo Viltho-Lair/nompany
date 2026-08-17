@@ -214,7 +214,14 @@ export function explain({ collaborator, roles = [] }, key) {
   const granting = mine.find((r) => (r.permissions || []).includes(key));
   if (granting) return { allowed: true, reason: `${who} holds ${granting.name}, which includes this.` };
 
-  if (!assigned.length) {
+  // ASKED OF THE ROLES THAT RESOLVED, not of the ids on the row. A row can
+  // carry an id for a role that no longer exists — cascadeDeleteRole reaps
+  // those now, but rows written before it did still hold them — and resolution
+  // ignores such an id entirely. Reading `assigned` here meant this branch was
+  // skipped and the next one answered "holds no role, which does not include
+  // this", which is a sentence that explains nothing at the exact moment
+  // somebody is trying to find out why their access vanished.
+  if (!mine.length) {
     return { allowed: false, reason: `${who} has no role yet, so they can do nothing. Give them one on the access screen.` };
   }
 

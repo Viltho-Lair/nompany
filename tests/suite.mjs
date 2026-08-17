@@ -21,6 +21,7 @@ import { listRoles } from "@/lib/data/roles";
 import { ADMIN_ROLE_ID } from "@/lib/permissions";
 import { SESSION_COOKIE } from "@/lib/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
+import { explain } from "@/lib/access";
 import { tasksContext, createTask, updateTask, removeTask } from "@/lib/tasks";
 import { TASK_TYPE_AUTHORITIES } from "@/lib/taskRouting";
 import {
@@ -384,7 +385,7 @@ console.log("\n== HR: departments are sections, positions are roles");
   // able to hand out access through the employee editor — that would make
   // hr.employees.edit a second door onto the whole permission model.
   await updateCollaborator(studio.id, nobody.collaborator.id, {
-    overrides: { allow: ["hr.employees.view", "hr.employees.edit"], deny: [] },
+    overrides: { allow: ["hr.employees.view", "hr.employees.edit", "hr.employees.create", "hr.employees.delete"], deny: [] },
   });
   const hrOnly = await hrContext(nobody.user, slug);
   ok("an HR-only user can open HR", !hrOnly.error, hrOnly.error);
@@ -401,14 +402,41 @@ console.log("\n== HR: departments are sections, positions are roles");
   const given = await saveEmployment(hr, member.collaborator.id, { roleIds: [ADMIN_ROLE_ID] });
   ok("an owner can put somebody in a role from HR", given.ok === true, JSON.stringify(given));
 
-  // A role somebody holds cannot be deleted out from under them — that would
-  // leave a row pointing at nothing, which reads as no access and looks like a
-  // bug rather than a deletion.
-  await saveEmployment(hr, member.collaborator.id, { roleIds: [roleId("Member")] });
-  const inUse = await removeHrRole(hr, roleId("Member"));
-  ok("a role somebody holds cannot be deleted", inUse.error === "in-use", JSON.stringify(inUse));
+  // DELETING A ROLE DELETES ITS ACCESS, and takes the reference off everybody
+  // holding it. It used to refuse instead, which made a job title undeletable
+  // until every holder had been hand-edited — guarding against a stale pointer
+  // that the delete should simply remove.
+  const doomed = await createHrRole(hr, { name: `Doomed ${rand()}` });
+  await saveEmployment(hr, viewer.collaborator.id, { roleIds: [doomed.role?.id] });
+  const goodbye = await removeHrRole(hr, doomed.role?.id);
+  ok("a held role can be deleted", goodbye.ok === true, JSON.stringify(goodbye));
+  ok("...and says how many people lost it", goodbye.stripped === 1, JSON.stringify(goodbye.stripped));
+  const orphaned = await getCollaboratorByUser(studio.id, viewer.user.id);
+  ok("...leaving nobody pointing at it", !(orphaned.roleIds || []).includes(doomed.role?.id),
+    JSON.stringify(orphaned.roleIds));
+  ok("...and gone from the list", !(await listHrRoles(hr)).some((r) => r.id === doomed.role?.id));
+
+  // Taking access AWAY is an access act too, so a held role is not HR's alone
+  // to delete — without this, an HR grant would strip every manager in the
+  // studio. A role nobody holds changes nobody's access and stays HR's.
+  const hrOnlyAgain = await hrContext(nobody.user, slug);
+  const spare = await createHrRole(hr, { name: `Spare ${rand()}` });
+  await saveEmployment(hr, viewer.collaborator.id, { roleIds: [spare.role?.id] });
+  const blocked = await removeHrRole(hrOnlyAgain, spare.role?.id);
+  ok("HR alone cannot delete a role people hold", blocked.error === "role-forbidden", JSON.stringify(blocked));
+  await saveEmployment(hr, viewer.collaborator.id, { roleIds: [] });
+  const allowed = await removeHrRole(hrOnlyAgain, spare.role?.id);
+  ok("...but can delete one nobody holds", allowed.ok === true, JSON.stringify(allowed));
+
+  // The explainer follows the roles that RESOLVED, so a row still carrying a
+  // dead id from before the cascade existed reads as "no role yet" rather than
+  // the meaningless "holds no role, which does not include this".
+  const ghost = { collaborator: { alias: "Ghost", roleIds: ["role_gone_for_good"] }, roles: await listRoles(studio.id) };
+  const said = explain(ghost, "sales.tickets.view");
+  ok("a dead role id explains as having no role", said.allowed === false && said.reason.includes("no role yet"), said.reason);
+
   const freeToGo = await removeHrRole(hr, made.role?.id);
-  ok("...one nobody holds can be", freeToGo.ok === true, JSON.stringify(freeToGo));
+  ok("a role nobody ever held deletes cleanly", freeToGo.ok === true, JSON.stringify(freeToGo));
 
   // THE FACE IS CARRIED. Set it on the ACCOUNT and HR shows it, without HR ever
   // having written a photo field of its own.
