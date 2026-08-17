@@ -403,10 +403,18 @@ export async function listQuotations(ctx) {
       // needs to know the difference.
       const approved = quotationApproved(q, tasks);
       const shown = approved ? "Approved" : q.status;
+      // WHEN it was approved, carried the same way. `completedAt` is stamped
+      // only when somebody hand-sets the status, so a quotation approved on the
+      // board had no date at all — and that date is what the dashboard measures
+      // turnaround from and what the viewer prints as "Approved". The task that
+      // made the decision knows when it was made.
+      const decidedAt = q.completedAt
+        || tasks.find((t) => t.type === "approval" && t.quotationId === q.id && t.status === "Done")?.completedAt
+        || "";
       // AN INTERNAL QUOTATION HAS NO TICKET, so there is nothing to carry and
       // what it holds IS its own — somebody typed that title into the Quotations
       // screen. Converted ones read the ticket.
-      if (!q.ticketId) return { ...q, handledBy, handledByCollaboratorId: handledBy, approved, storedStatus: q.status, status: shown, leadLabel: LEAD_INTERNAL };
+      if (!q.ticketId) return { ...q, handledBy, handledByCollaboratorId: handledBy, approved, storedStatus: q.status, status: shown, completedAt: decidedAt, leadLabel: LEAD_INTERNAL };
       const t = factsFor(q.ticketId);
       return {
         ...q,
@@ -416,7 +424,7 @@ export async function listQuotations(ctx) {
         // one and the RFQ screen the other, and a row where they disagree is a
         // row that shows two handlers for one document.
         handledBy, handledByCollaboratorId: handledBy,
-        approved, storedStatus: q.status, status: shown,
+        approved, storedStatus: q.status, status: shown, completedAt: decidedAt,
         // What the lead column reads: the ticket's reference, from the ticket.
         leadLabel: t.ticketRef || LEAD_INTERNAL,
         // NOT description — the wording on a quotation is the document's own.
@@ -647,8 +655,17 @@ export async function updateQuotation(ctx, id, body) {
   }
   // Locking is ONE-WAY and only from Approved — there is no unlock, which is
   // the point of it.
+  //
+  // ASKED OF THE APPROVAL, like every other "is this approved?" in the product.
+  // This was the last place still reading the document's own status, so a
+  // quotation both authorities had signed — showing Approved in the list, and
+  // Quotation Approved on its ticket — refused to lock with "Only an approved
+  // quotation can be locked". The Lock button was even offered, because the
+  // list it is drawn from already carried the right answer.
   if (body?.locked === true) {
-    if ((patch.status || current.status) !== "Approved") return { error: "not-approved" };
+    const approvedNow = patch.status === "Approved"
+      || quotationApproved(current, ctx.tasksSection ? await readCol(studio.id, ctx.tasksSection.id, TASKS) : []);
+    if (!approvedNow) return { error: "not-approved" };
     patch.locked = true;
   }
 

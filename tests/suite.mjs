@@ -283,6 +283,16 @@ console.log("\n== the handler is carried, never copied");
     .find((q) => q.id === conv.quotation?.id);
   ok("the quotations list reads Approved once both have signed", listed?.status === "Approved", listed?.status);
   ok("...while what is on file is untouched", listed?.storedStatus === "Completed", listed?.storedStatus);
+  // The DATE of the decision comes from the task that made it. Stamped only on
+  // a hand-set status, it was blank on every board-approved quotation — and it
+  // is what the dashboard measures turnaround from.
+  ok("...and carries when it was approved", !!listed?.completedAt, JSON.stringify(listed?.completedAt));
+
+  // THE LAST READER OF THE STORED STATUS. The list said Approved, the ticket
+  // said Quotation Approved, and locking answered "Only an approved quotation
+  // can be locked" — because this one guard still asked the document.
+  const locked = await updateQuotation(await technicalContext(owner, slug), conv.quotation?.id, { locked: true });
+  ok("an approved quotation can be locked", locked.quotation?.locked === true, JSON.stringify(locked.error));
 
   const empty = await submitTicketPo(await salesContext(owner, slug), { ticketId: made.ticket?.id });
   ok("...and evidence: neither a file nor a description is refused", empty.error === "evidence", JSON.stringify(empty));
