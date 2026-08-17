@@ -165,10 +165,29 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
   // Inventory arrives at ONE sheet by id. Projects arrives at a PROJECT and
   // reads its Main sheet — the quotation as it was sold, which is the list a
   // project manager works to. Bulk is a procurement view and stays Inventory's.
-  const sheet = useMemo(() => (isInventory
-    ? sheets.find((x) => x.id === chosenId) || null
-    : sheets.find((x) => x.projectId === projectId && x.kind === "main")
-      || sheets.find((x) => x.projectId === projectId) || null), [sheets, isInventory, sheetId, projectId]);
+  const sheet = useMemo(() => {
+    if (!isInventory) {
+      return sheets.find((x) => x.projectId === projectId && x.kind === "main")
+        || sheets.find((x) => x.projectId === projectId) || null;
+    }
+    if (!chosenProjectId) return null;
+    return sheets.find((x) => x.projectId === chosenProjectId && x.kind === kind)
+      || sheets.find((x) => x.projectId === chosenProjectId) || null;
+  }, [sheets, isInventory, chosenProjectId, kind, projectId]);
+
+  // Opened at a sheet's own address — pick that project and kind up once, so a
+  // shared link lands where it says it does.
+  useEffect(() => {
+    if (!isInventory || !sheetId) return;
+    const at = sheets.find((x) => x.id === sheetId);
+    if (at) { setChosenProjectId(at.projectId); setKind(at.kind); }
+  }, [isInventory, sheetId, sheets]);
+
+  // The address follows the selection WITHOUT navigating.
+  useEffect(() => {
+    if (!isInventory || !sheet) return;
+    window.history.replaceState(null, "", `/${slug}/inventory-sheets/${sheet.id}`);
+  }, [isInventory, sheet, slug]);
 
   const backHref = isInventory ? `/${slug}/inventory-sheets` : `/${slug}/projects-list/${projectId}`;
   const backLabel = isInventory ? "← Project sheets" : "← Project";
