@@ -74,6 +74,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   if (!data) return <p className="text-sm text-slate-500">Loading Inventory…</p>;
 
   const {
+    canManage: canManageParent,
     canManageStock, canManageVendors, canManageItems, canManageSheets, canManageAwb,
     vendors, items, movements, orders, deliveries, projects, shipments, airlines, summary, vocabulary, nav,
   } = data;

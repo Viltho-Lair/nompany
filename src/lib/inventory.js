@@ -19,9 +19,10 @@
 
 import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
 import { isKnownCurrency } from "@/lib/currencies";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listGrants, listSections } from "@/lib/data/sections";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
+import { nextReference } from "@/lib/references";
 import { currentUser } from "@/lib/identity";
 
 const VENDORS = "inventoryVendors";
@@ -93,7 +94,7 @@ export async function inventoryContext(user, slug) {
   // carries one without the other is half an answer.
   const { studio, collaborator, access, roles } = context;
 
-  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const sections = await listSections(studio.id);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
   const section = byKey["inventory"];
   const projects = byKey["projects"];
@@ -122,9 +123,9 @@ export async function inventoryContext(user, slug) {
     canManageItems: sectionManageable(access, itemsSection.key, (sections || []).map((x) => x.key)),
     canManageSheets: sectionManageable(access, sheetsSection.key, (sections || []).map((x) => x.key)),
     canManageAwb: sectionManageable(access, awbSection.key, (sections || []).map((x) => x.key)),
-    nav: sectionNav(studio, collaborator, sections, grants, access),
+    nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants, access),
+    manage: manageMap(studio, collaborator, sections, access),
   };
 }
 
@@ -412,6 +413,16 @@ async function record(ctx, { itemId, kind, quantity, reason, sourceType = "", so
 
 // A manual correction — stock-take differences, damage, opening balances.
 export async function adjustStock(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js.
+  //
+  // This was the ONE write in the file with no guard of its own, and the route
+  // above it only asks the coarse section question ("may you write anything in
+  // Inventory?"), which is true for somebody granted nothing but vendors. That
+  // is enough to move the ledger every other number in the section is derived
+  // from, so the declared right is asked for here like everywhere else.
+  const denied = requirePermission(ctx.access, "inventory.stock.create");
+  if (denied) return denied;
+
   const { studio, stockSection, itemsSection } = ctx;
   const itemId = str(body?.itemId, 60);
   const items = await readCol(studio.id, itemsSection.id, ITEMS);
@@ -486,7 +497,9 @@ export async function createOrder(ctx, body) {
 
   const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
   const order = await addRow(studio.id, sheetsSection.id, ORDERS, {
-    reference: `PO-${String(orders.length + 1).padStart(4, "0")}`,
+    // A purchase order number goes to a vendor, so it cannot be reused after a
+    // draft is deleted — derived, not counted. See lib/references.js.
+    reference: await nextReference(studio.id, { rows: orders, field: "reference", prefix: "PO" }),
     vendorId, projectId,
     lines,
     status: "Draft",
@@ -642,7 +655,7 @@ export async function createDelivery(ctx, body) {
 
   const deliveries = await readCol(studio.id, deliveriesSection.id, DELIVERIES);
   const delivery = await addRow(studio.id, deliveriesSection.id, DELIVERIES, {
-    reference: `DN-${String(deliveries.length + 1).padStart(4, "0")}`,
+    reference: await nextReference(studio.id, { rows: deliveries, field: "reference", prefix: "DN" }),
     projectId, lines,
     status: "Draft",
     notes: str(body?.notes, 2000),

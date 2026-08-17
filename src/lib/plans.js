@@ -6,7 +6,11 @@
 
 import { listCatalog, DEFAULT_PACKAGE, DEFAULT_TIER } from "@/lib/data/catalog";
 
-export { PACKAGE_TONE, toneOf } from "@/lib/planColors";
+// PACKAGE_TONE went with the named-colour model — packages carry a hex now and
+// toneOf derives the rest. Re-exporting a name planColors no longer has was a
+// hard error under plain ESM and invisible under the bundler, which tree-shakes
+// an unused re-export away rather than complaining.
+export { toneOf } from "@/lib/planColors";
 
 // Resolve one studio's plan against the catalogue. Falls back to the default
 // NAMES rather than to nothing, so a studio whose package was deleted still

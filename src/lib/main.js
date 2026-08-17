@@ -10,11 +10,15 @@
 // Everything is derived on read, like every other module: nothing here is a
 // stored dashboard that could drift from what the sections actually say.
 
-import { readCol, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
 import { sectionViewable } from "@/lib/access";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { enrichTask, readTaskAssignees } from "@/lib/taskRouting";
+// The sections' OWN definitions of "below reorder level" and "expiring", so the
+// front door cannot quietly disagree with the screen it is summarising.
+import { balances } from "@/lib/inventory";
+import { permitState } from "@/lib/operations";
 
 export async function mainContext(user, slug) {
   const context = await studioContext(user, slug);
@@ -25,7 +29,7 @@ export async function mainContext(user, slug) {
   // carries one without the other is half an answer.
   const { studio, collaborator, access, roles } = context;
 
-  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const sections = await listSections(studio.id);
   const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
 
   // One helper, used everywhere below: the section that owns a collection, but
@@ -37,9 +41,9 @@ export async function mainContext(user, slug) {
   };
 
   return {
-    studio, collaborator, sections, grants, byKey, seen,
-    visible: visibleSections(studio, collaborator, sections, grants, access),
-    nav: sectionNav(studio, collaborator, sections, grants, access),
+    studio, collaborator, sections, byKey, seen,
+    visible: visibleSections(studio, collaborator, sections, access),
+    nav: sectionNav(studio, collaborator, sections, access),
   };
 }
 
@@ -58,17 +62,25 @@ export async function headlines(ctx) {
   const meId = ctx.collaborator.id;
   const today = new Date().toISOString().slice(0, 10);
 
-  const [tickets, quotations, rfqs, projects, items, tasks, invoices, permits, people] = await Promise.all([
+  const [tickets, quotations, rfqs, projects, items, movements, tasks, invoices, permits, people] = await Promise.all([
     readIfVisible(ctx, "sales-tickets", "sales", "salesTickets"),
     readIfVisible(ctx, "technical-quotations", "technical", "quotations"),
     readIfVisible(ctx, "technical-rfq", "technical", "rfqs"),
     readIfVisible(ctx, "projects-list", "projects", "projects"),
     readIfVisible(ctx, "inventory-items", "inventory", "inventoryItems"),
+    // ON-HAND LIVES IN THE LEDGER, not on the item. "Below reorder level" is a
+    // comparison between the two, so both are read — and the ledger is its own
+    // sub-section, so somebody who may see the catalogue but not the stock
+    // movements gets no answer rather than a wrong one.
+    readIfVisible(ctx, "inventory-stock", "inventory", "inventoryStock"),
     readIfVisible(ctx, "tasks", null, "tasks"),
     readIfVisible(ctx, "finance-cash", "finance", "invoices"),
     readIfVisible(ctx, "operations", null, "permits"),
     ctx.seen("hr-employees", "hr") ? listCollaborators(ctx.studio.id) : null,
   ]);
+
+  // Derived exactly as the Inventory screen derives it, from the same helper.
+  const onHand = movements ? balances(movements) : null;
 
   // Tasks waiting on THIS person, resolved through the same routing the board
   // uses — so the number on the home page and the number on the board agree.
@@ -88,7 +100,12 @@ export async function headlines(ctx) {
     openRfqs: rfqs ? rfqs.filter((r) => r.status !== "Converted" && r.status !== "Rejected").length : null,
     liveQuotations: quotations ? quotations.filter((q) => q.status === "Draft" || q.status === "Sent").length : null,
     liveProjects: projects ? projects.filter((p) => p.stage && p.stage !== "Completed").length : null,
-    lowStock: items ? items.filter((i) => Number(i.reorderLevel) > 0).length : null,
+    // BELOW REORDER LEVEL, which is a comparison — it counted items that merely
+    // HAD a reorder level set, so a studio that had configured its catalogue
+    // properly was told everything it owned was running out.
+    lowStock: items && onHand
+      ? items.filter((i) => Number(i.reorderLevel) > 0 && (onHand[i.id] || 0) <= Number(i.reorderLevel)).length
+      : null,
     awaitingMe,
     // Money owed to the studio: everything invoiced and not yet cancelled or
     // paid. Totals are recomputed rather than trusted from a stored field.
@@ -97,7 +114,11 @@ export async function headlines(ctx) {
         .filter((i) => i.status === "Sent")
         .reduce((sum, i) => sum + Math.max(0, (Number(i.total) || 0) - (Number(i.paid) || 0)), 0) * 100) / 100
       : null,
-    permitsExpiring: permits ? permits.filter((p) => p.validTo && p.validTo >= today).length : null,
+    // FALLING DUE, not "still valid". This counted every permit that had not
+    // yet expired — the healthy ones — and put the total under a heading that
+    // means the opposite. permitState is the same rule the Operations screen
+    // paints the row with, so the two now agree by construction.
+    permitsExpiring: permits ? permits.filter((p) => permitState(p, today) === "Expiring").length : null,
     headcount: people ? people.length : null,
   };
 }

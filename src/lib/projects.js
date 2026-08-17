@@ -9,10 +9,11 @@
 // commercial gate, and it lives in Technical/Sales, not here.
 
 import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "@/lib/projectSchedule";
+import { nextReference } from "@/lib/references";
 import { ticketFacts } from "@/lib/technical";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
@@ -39,7 +40,7 @@ export async function projectsContext(user, slug) {
   // carries one without the other is half an answer.
   const { studio, collaborator, access, roles } = context;
 
-  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const sections = await listSections(studio.id);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
   const section = byKey["projects"];
   const technical = byKey["technical"];
@@ -75,9 +76,9 @@ export async function projectsContext(user, slug) {
     canManageOvertimes: sectionManageable(access, overtimesSection.key, (sections || []).map((x) => x.key)),
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     settings: settingsSection.settings || {},
-    nav: sectionNav(studio, collaborator, sections, grants, access),
+    nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants, access),
+    manage: manageMap(studio, collaborator, sections, access),
   };
 }
 
@@ -192,7 +193,10 @@ export async function openProject(ctx, body) {
   const t = (await ticketFacts(ctx))(quote.ticketId);
   const now = new Date().toISOString();
   const project = await addRow(studio.id, listSection.id, PROJECTS, {
-    number: `PRJ-${String(existing.length + 1).padStart(4, "0")}`,
+    // The project number is quoted on invoices, purchase orders and delivery
+    // notes, so it cannot be reused after a project is removed — derived from
+    // the highest already issued. See lib/references.js.
+    number: await nextReference(studio.id, { rows: existing, field: "number", prefix: "PRJ" }),
     title: str(body?.title, 200) || t.title || quote.title || "",
     // Lineage — the whole chain of keys.
     quotationId, quotationNumber: quote.number,

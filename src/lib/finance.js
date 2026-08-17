@@ -16,9 +16,10 @@
 // it is recomputed on every read.
 
 import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
+import { nextReference } from "@/lib/references";
 import { currentUser } from "@/lib/identity";
 
 const INVOICES = "invoices";
@@ -48,7 +49,7 @@ export async function financeContext(user, slug) {
   // carries one without the other is half an answer.
   const { studio, collaborator, access, roles } = context;
 
-  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const sections = await listSections(studio.id);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
   const section = byKey["finance"];
   if (!section) return { error: "no-section" };
@@ -69,9 +70,9 @@ export async function financeContext(user, slug) {
     canManageCash: sectionManageable(access, cashSection.key, (sections || []).map((x) => x.key)),
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     cashCategories: readCashCategories(settingsSection),
-    nav: sectionNav(studio, collaborator, sections, grants, access),
+    nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants, access),
+    manage: manageMap(studio, collaborator, sections, access),
   };
 }
 
@@ -186,7 +187,10 @@ export async function createInvoice(ctx, body) {
   const invoices = await readCol(studio.id, cashSection.id, INVOICES);
   const today = new Date().toISOString().slice(0, 10);
   const invoice = await addRow(studio.id, cashSection.id, INVOICES, {
-    reference: `INV-${String(invoices.length + 1).padStart(4, "0")}`,
+    // Derived from the highest INV already issued, never from how many exist:
+    // deleting a draft must not hand its number to the next invoice, and two
+    // raised at once must not both be INV-0004. See lib/references.js.
+    reference: await nextReference(studio.id, { rows: invoices, field: "reference", prefix: "INV" }),
     projectId, clientName,
     lines,
     vatRate: body?.vatRate === undefined ? DEFAULT_VAT_RATE : Math.max(0, Math.min(100, Number(body.vatRate) || 0)),
@@ -338,7 +342,7 @@ export async function createExpense(ctx, body) {
 
   const expenses = await readCol(studio.id, cashSection.id, EXPENSES);
   const expense = await addRow(studio.id, cashSection.id, EXPENSES, {
-    reference: `EXP-${String(expenses.length + 1).padStart(4, "0")}`,
+    reference: await nextReference(studio.id, { rows: expenses, field: "reference", prefix: "EXP" }),
     description: str(body?.description, 300),
     category: EXPENSE_CATEGORIES.includes(body?.category) ? body.category : "Other",
     amount,

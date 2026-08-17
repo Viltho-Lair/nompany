@@ -221,6 +221,39 @@ export async function sMembers(key) {
 export async function hIncrBy(key, field, by = 1) {
   return (await r()).hIncrBy(key, String(field), by);
 }
+// THE NEXT NUMBER IN A SEQUENCE THAT NEVER GOES BACKWARDS.
+//
+// HINCRBY alone would do it, except for the studios that already hold records:
+// their tally starts at zero and would hand out INV-0001 to a studio whose last
+// invoice was INV-0042. So the caller passes a FLOOR — the highest reference it
+// can see on the rows it already has in hand — and the counter is lifted to it
+// before being stepped. That makes the first call self-seeding and every call
+// after it a plain increment, with no migration to run.
+//
+// Read, compare and write happen inside one Lua call, so two people creating an
+// invoice in the same moment get two different numbers rather than both reading
+// the same tally. Redis is single-threaded; the script is the lock.
+const BUMP_LUA = `
+local cur = tonumber(redis.call('HGET', KEYS[1], ARGV[1]) or '0')
+local floor = tonumber(ARGV[2])
+if floor > cur then cur = floor end
+cur = cur + 1
+redis.call('HSET', KEYS[1], ARGV[1], cur)
+return cur
+`;
+const BUMP_SHA = createHash("sha1").update(BUMP_LUA).digest("hex");
+
+export async function bumpCounter(key, field, floor = 0) {
+  const client = await r();
+  const args = ["1", key, String(field), String(Math.max(0, Math.floor(Number(floor) || 0)))];
+  try {
+    return Number(await client.sendCommand(["EVALSHA", BUMP_SHA, ...args]));
+  } catch (e) {
+    if (!/NOSCRIPT/i.test(e?.message || "")) throw e;
+    return Number(await client.sendCommand(["EVAL", BUMP_LUA, ...args]));
+  }
+}
+
 export async function hGetAll(key) {
   return (await r()).hGetAll(key);
 }

@@ -338,6 +338,10 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
   const [checklist, setChecklist] = useState(task?.checklist || []);
   const [item, setItem] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  // NOT `ck${length + 1}`. Removing an item shortens the list, so the next one
+  // added reuses an id that is still in use — and ticking one of the pair ticks
+  // both, because the server flips by id.
+  const newItem = (text) => ({ id: `ck_${Math.random().toString(36).slice(2, 10)}`, text, done: false });
 
   return (
     <section className={`${panel} border-brand-500/40`}>
@@ -421,12 +425,12 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
             onKeyDown={(e) => {
               if (e.key === "Enter" && item.trim()) {
                 e.preventDefault();
-                setChecklist((l) => [...l, { id: `ck${l.length + 1}`, text: item.trim(), done: false }]);
+                setChecklist((l) => [...l, newItem(item.trim())]);
                 setItem("");
               }
             }} />
           <button className={btnGhost} disabled={!item.trim()}
-            onClick={() => { setChecklist((l) => [...l, { id: `ck${l.length + 1}`, text: item.trim(), done: false }]); setItem(""); }}>
+            onClick={() => { setChecklist((l) => [...l, newItem(item.trim())]); setItem(""); }}>
             Add
           </button>
         </div>

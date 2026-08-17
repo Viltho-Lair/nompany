@@ -12,8 +12,8 @@
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
 import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
-import { nextUniqueRef } from "@/lib/sales";
-import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
+import { nextUniqueRef } from "@/lib/references";
+import { readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { RFQ_STATUSES, pendingRfq } from "@/lib/rfqs";
@@ -46,7 +46,7 @@ export async function technicalContext(user, slug) {
   // carries one without the other is half an answer.
   const { studio, collaborator, access, roles } = context;
 
-  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const sections = await listSections(studio.id);
   const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
   const technical = byKey["technical"];
   const sales = byKey["sales"];
@@ -79,9 +79,9 @@ export async function technicalContext(user, slug) {
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     canManageSales: Boolean(sales) && sectionManageable(access, sales.key, sections.map((x) => x.key)),
     ...readTechnicalSettings(settingsSection),
-    nav: sectionNav(studio, collaborator, sections, grants, access),
+    nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants, access),
+    manage: manageMap(studio, collaborator, sections, access),
   };
 }
 

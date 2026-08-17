@@ -15,9 +15,10 @@
 // so neither can quietly go stale.
 
 import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
+import { nextReference } from "@/lib/references";
 import { currentUser } from "@/lib/identity";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "@/lib/operationsCalendar";
 
@@ -47,7 +48,7 @@ export async function operationsContext(user, slug) {
   // carries one without the other is half an answer.
   const { studio, collaborator, access, roles } = context;
 
-  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const sections = await listSections(studio.id);
   const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
   const section = byKey["operations"];
   if (!section) return { error: "no-section" };
@@ -69,9 +70,9 @@ export async function operationsContext(user, slug) {
     canManageTracking: sectionManageable(access, trackingSection.key, (sections || []).map((x) => x.key)),
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     settings: settingsSection.settings || {},
-    nav: sectionNav(studio, collaborator, sections, grants, access),
+    nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants, access),
+    manage: manageMap(studio, collaborator, sections, access),
   };
 }
 
@@ -333,7 +334,9 @@ export async function createPermit(ctx, body) {
 
   const permits = await readCol(studio.id, section.id, PERMITS);
   const permit = await addRow(studio.id, section.id, PERMITS, {
-    reference: `PMT-${String(permits.length + 1).padStart(4, "0")}`,
+    // Derived from the highest already issued, so removing a permit cannot hand
+    // its reference to the next one. See lib/references.js.
+    reference: await nextReference(studio.id, { rows: permits, field: "reference", prefix: "PMT" }),
     title,
     type: PERMIT_TYPES.includes(body?.type) ? body.type : PERMIT_TYPES[0],
     number: str(body?.number, 80),

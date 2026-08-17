@@ -13,12 +13,13 @@
 // studios and a removed collaborator doesn't drag a user account with them.
 
 import { sectionViewable, sectionManageable, requirePermission } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow, updateSection, listGrants, listSections } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES,
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "@/lib/tickets";
 import { normaliseClientName, normaliseContactName, clientSlug } from "@/lib/salesClients";
+import { nextUniqueRef } from "@/lib/references";
 import { requestRfq } from "@/lib/technical";
 import { pendingRfq, rfqsForTicket } from "@/lib/rfqs";
 import { isFinishedQuotation } from "@/lib/quotations";
@@ -102,7 +103,7 @@ export async function salesContext(user, slug) {
   // carries one without the other is half an answer.
   const { studio, collaborator, access, roles } = context;
 
-  const [grants, sections] = await Promise.all([listGrants(studio.id), listSections(studio.id)]);
+  const sections = await listSections(studio.id);
   const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
   const section = byKey["sales"];
   if (!section) return { error: "no-section" };
@@ -151,9 +152,9 @@ export async function salesContext(user, slug) {
     canManageClients: sectionManageable(access, clientsSection.key, (sections || []).map((x) => x.key)),
     canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     ...readSalesVocab(settingsSection),
-    nav: sectionNav(studio, collaborator, sections, grants, access),
+    nav: sectionNav(studio, collaborator, sections, access),
     // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, grants, access),
+    manage: manageMap(studio, collaborator, sections, access),
   };
 }
 
@@ -190,6 +191,13 @@ export function readSalesVocab(settingsSection) {
 
 // Patch semantics: only the keys present in the body are touched.
 export async function saveSalesSettings(ctx, body) {
+  // Guarded before anything is read or written — see lib/access.js. Every other
+  // module's settings saver asked for its right and this one did not, leaving
+  // the route's check as the only thing in front of it. Found by the wiring
+  // audit in tests/access.test.js, which is the whole point of having one.
+  const denied = requirePermission(ctx.access, "sales.settings.edit");
+  if (denied) return denied;
+
   const { studio, settingsSection } = ctx;
   const current = settingsSection.settings || {};
   const next = { ...current };
@@ -368,29 +376,10 @@ function cleanLocations(list) {
   })).filter((l) => l.name || l.city);
 }
 
-// A reference nobody else holds.
-//
-// Numbers are derived from the HIGHEST one already issued under the same prefix
-// rather than from how many rows exist, so a gap can never hand out a reference
-// twice. The final loop is belt and braces: it steps past anything that somehow
-// still matches, including a reference typed in by hand.
-export function nextUniqueRef(rows, field, prefix, pad = 3, startAt = 0) {
-  const taken = new Set((rows || []).map((r) => String(r?.[field] || "").toUpperCase()));
-  const head = `${prefix}-`.toUpperCase();
-  let highest = startAt - 1;
-  for (const value of taken) {
-    if (!value.startsWith(head)) continue;
-    const n = Number.parseInt(value.slice(head.length), 10);
-    if (Number.isFinite(n) && n > highest) highest = n;
-  }
-  let n = Math.max(highest + 1, startAt, 1);
-  let candidate = `${prefix}-${String(n).padStart(pad, "0")}`;
-  while (taken.has(candidate.toUpperCase())) {
-    n += 1;
-    candidate = `${prefix}-${String(n).padStart(pad, "0")}`;
-  }
-  return candidate;
-}
+// nextUniqueRef has moved to lib/references.js — Technical was importing its
+// quotation numbering from Sales, and reference generation belongs to neither.
+// Re-exported here so nothing that already asked Sales for it has to change.
+export { nextUniqueRef };
 
 // ---- tickets ---------------------------------------------------------------
 // What became of a ticket after Sales handed it over: the RFQs raised on it, the
@@ -866,7 +855,12 @@ export async function editTicket(ctx, id, body) {
   // upsertLocation merges by name and returns the SAME array when nothing
   // changed, so this writes only when there is something new to record.
   if (patch.location && patch.location.name && clientsSection) {
-    const clientId = ticket.clientId || existing.clientId;
+    // The updated ticket is the only thing in scope here, and the only thing
+    // that needs to be: updateRow returns the row as it now stands, clientId
+    // included. It used to fall back to `existing`, which is declared inside
+    // the addComment branch above and does not exist on this path — a
+    // ReferenceError waiting for the first ticket without a client on it.
+    const clientId = ticket.clientId;
     if (clientId) {
       const clients = await readCol(studio.id, clientsSection.id, CLIENTS);
       const client = clients.find((c) => c.id === clientId);

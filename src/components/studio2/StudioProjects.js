@@ -118,6 +118,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
   if (!data) return <p className="text-sm text-slate-500">Loading Projects…</p>;
 
   const {
+    canManage: canManageParent,
     canManageList, canManageSla, canManageOvertimes, canManageSettings,
     projects, approvedQuotations, people, slas, overtimes, directory, settings, vocabulary, nav,
   } = data;
