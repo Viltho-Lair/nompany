@@ -1,0 +1,46 @@
+// INTEGRATION SUITE — bootstrap.
+//
+// Runs the REAL modules against the REAL Redis, inside a key namespace of its
+// own. Everything this suite writes lives under NOMPANY_KEY_PREFIX and is
+// deleted wholesale at the end, so it cannot see or touch a live studio: with a
+// prefix set there is no key it can name that a real studio also uses.
+//
+// This file only sets the stage. The tests are in ./suite.mjs, imported
+// dynamically so the loader and the environment are in place before any
+// project module is evaluated — keys.js reads the prefix at import time, so
+// setting it afterwards would be setting it too late.
+
+import { register } from "node:module";
+import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+
+// A prefix nothing in production uses, and never the empty string: an empty
+// prefix would point the whole suite at live data.
+process.env.NOMPANY_KEY_PREFIX = process.env.NOMPANY_KEY_PREFIX || "test_";
+if (process.env.NODE_ENV === "production") {
+  console.error("Refusing to run the integration suite with NODE_ENV=production.");
+  process.exit(1);
+}
+if (!process.env.NOMPANY_KEY_PREFIX.trim()) {
+  console.error("NOMPANY_KEY_PREFIX must not be empty — that would run against live keys.");
+  process.exit(1);
+}
+
+// REDIS_URL lives in .env.local, which Next loads and plain Node does not.
+// Read just enough of it to connect; no dependency for six lines of parsing.
+try {
+  for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+} catch { /* CI may supply the environment directly */ }
+
+if (!process.env.REDIS_URL) {
+  console.error("REDIS_URL is not set — the integration suite needs a Redis to talk to.");
+  process.exit(1);
+}
+
+const root = pathToFileURL(`${process.cwd()}/`).href;
+register(new URL("./loader.mjs", import.meta.url), { data: { root } });
+
+await import("./suite.mjs");

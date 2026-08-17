@@ -205,5 +205,75 @@ console.log("\n== enforcement coverage");
   if (gaps.length) console.log(`  still unguarded: ${gaps.join(", ")}`);
 }
 
+// ---------------------------------------------------------------------------
+// WIRING. The audit above proves a permission key is enforced SOMEWHERE. It
+// cannot prove the guard was handed anything to check, and that is exactly how
+// the Tasks board came to refuse every write including the owner's: the context
+// resolved `access`, forgot to return it, and `requirePermission(undefined, …)`
+// answered "forbidden" for everybody. The string was present, so the audit read
+// clean while the module was entirely dead.
+//
+// These two checks are structural on purpose. They need no Redis and no server,
+// they run in milliseconds, and they fail the moment somebody adds a module and
+// forgets the one line that arms it.
+console.log("\n== wiring");
+{
+  // 1. EVERY CONTEXT CARRIES `access`.
+  // A service module resolves it once, in its *Context builder, and every guard
+  // downstream reads it off that object. A builder that resolves it and does
+  // not return it disarms the whole module silently.
+  const builders = fs.readdirSync("src/lib")
+    .filter((f) => f.endsWith(".js"))
+    .flatMap((f) => {
+      const src = fs.readFileSync(`src/lib/${f}`, "utf8");
+      return [...src.matchAll(/export async function (\w*[Cc]ontext)\s*\([^)]*\)\s*\{([\s\S]*?)\n\}/g)]
+        .map((m) => ({ file: f, name: m[1], body: m[2] }));
+    })
+    // mainContext is the one that legitimately does not: it hands out a `seen`
+    // predicate with access captured inside it, and holds no guarded writes.
+    .filter((b) => b.name !== "mainContext");
+
+  console.log(`  ${builders.length} context builders`);
+  for (const b of builders) {
+    // It has to appear in the RETURNED object, not merely be destructured.
+    const returned = /return\s*\{[\s\S]*?\baccess\b[\s\S]*?\}/.test(b.body);
+    ok(`  ${b.file} ${b.name} returns access`, returned);
+  }
+
+  // 2. EVERY WRITE ASKS FOR ITS RIGHT.
+  // Anything that creates, changes or removes a record names the permission it
+  // needs, in the function that does the work — routes get added and forgotten,
+  // the service function cannot be reached around.
+  //
+  // The exceptions are listed with their reason rather than silently skipped;
+  // an unexplained entry here is the next hole.
+  const EXEMPT = {
+    decideTask: "gated on holding the authority the task routes to, from Task settings",
+    decideVacation: "cancelling your OWN pending request needs no approve right",
+    requestTicketRfq: "delegates to requestRfq, which guards both doors itself",
+    reportPosition: "you may always report your own position; the id is the session's",
+    clearPosition: "your own always; somebody else's checks canManageTracking",
+    requestJoinByCode: "raising a request is what a non-member does; approval is the gate",
+    openProjects: "a READ — which projects an order or delivery may be pointed at",
+  };
+  const WRITES = /^export async function ((?:create|edit|update|remove|delete|save|adjust|track|issue|receive|open|convert|request|send|decide)\w*)\s*\(\s*ctx\b/;
+
+  let checked = 0;
+  for (const f of fs.readdirSync("src/lib").filter((x) => x.endsWith(".js"))) {
+    const src = fs.readFileSync(`src/lib/${f}`, "utf8");
+    // Split on top-level exports so each function's body is its own slice.
+    const parts = src.split(/\n(?=export )/);
+    for (const part of parts) {
+      const m = part.match(WRITES);
+      if (!m) continue;
+      const name = m[1];
+      if (EXEMPT[name]) continue;
+      checked += 1;
+      ok(`  ${f} ${name} guards itself`, /requirePermission\(/.test(part));
+    }
+  }
+  console.log(`  ${checked} guarded writes checked, ${Object.keys(EXEMPT).length} documented exceptions`);
+}
+
 console.log(fails ? `\n${fails} FAILURES\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);
