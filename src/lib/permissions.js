@@ -103,11 +103,17 @@ export const AREAS = [
   { key: "inventory.stock", group: "Inventory", label: "Stock", verbs: ["view", "create", "edit", "delete"] },
   { key: "inventory.vendors", group: "Inventory", label: "Vendors", verbs: ["view", "create", "edit", "delete"] },
   { key: "inventory.items", group: "Inventory", label: "Registered items", verbs: ["view", "create", "edit", "delete"] },
-  // VIEW ONLY. A project sheet is the SCREEN over purchase orders, and every
-  // write on it — raising, receiving, cancelling — moves stock, so those are
-  // inventory.stock rights. Declaring create/edit/delete here would be three
-  // more rights nothing can exercise.
-  { key: "inventory.sheets", group: "Inventory", label: "Project sheets", verbs: ["view"] },
+  // NO LONGER VIEW ONLY. It was, while a sheet was just the screen over purchase
+  // orders — every write on it moved stock, so those were inventory.stock
+  // rights and declaring more here would have been rights nothing could
+  // exercise.
+  //
+  // A sheet now carries INVENTORY'S OWN COLUMNS against each quotation row —
+  // serials, material status, quantity ordered — which are written on the sheet
+  // and move no stock. That is a real write with no existing right behind it,
+  // so it gets one. See lib/sheetColumns.js for which columns this covers;
+  // Projects' columns on the same row answer to projects.list.edit.
+  { key: "inventory.sheets", group: "Inventory", label: "Project sheets", verbs: ["view", "edit"] },
   { key: "inventory.awb", group: "Inventory", label: "AWB tracking", verbs: ["view", "create", "edit", "delete"] },
 
   // The sharpest scoping case in the product: everybody needs their own record

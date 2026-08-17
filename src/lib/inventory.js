@@ -24,6 +24,8 @@ import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { nextReference } from "@/lib/references";
 import { currentUser } from "@/lib/identity";
+// What each department adds to a quotation row, and who owns which column.
+import { SHEET_OWNERS, cleanSheetLine } from "@/lib/sheetColumns";
 
 const VENDORS = "inventoryVendors";
 const ITEMS = "inventoryItems";
@@ -531,6 +533,46 @@ function composeSheet(sheet, quote, vendorOf) {
     if (b.id === "unassigned") return -1;
     return a.title.localeCompare(b.title);
   });
+}
+
+// WRITE ONE DEPARTMENT'S COLUMNS ON ONE ROW.
+//
+// The row belongs to the quotation and is never touched. What is written is the
+// sheet's own record for that row — and only the columns this department owns,
+// decided by cleanSheetLine rather than by the caller, so a payload naming
+// somebody else's column cannot smuggle it through.
+//
+// Which department is asking is decided by WHICH RIGHT THEY HOLD, not by what
+// they claim to be. Somebody holding both writes both, which is correct: a small
+// studio where one person runs stores and site should not have to pretend to be
+// two people.
+export async function saveSheetLine(ctx, body) {
+  const { studio, sheetsSection } = ctx;
+  if (!sheetsSection) return { error: "no-section" };
+
+  const sheetId = String(body?.sheetId ?? "").slice(0, 60);
+  const rowId = String(body?.rowId ?? "").slice(0, 60);
+  if (!sheetId || !rowId) return { error: "missing" };
+
+  const owner = body?.owner === "projects" ? "projects" : "inventory";
+  const denied = requirePermission(ctx.access, `${SHEET_OWNERS[owner].permission}.edit`);
+  if (denied) return denied;
+
+  const sheets = await readCol(studio.id, sheetsSection.id, SHEETS);
+  const sheet = sheets.find((x) => x.id === sheetId);
+  if (!sheet) return { error: "notfound" };
+
+  const patch = cleanSheetLine(body?.values, owner);
+  if (!Object.keys(patch).length) return { error: "nothing" };
+
+  // Applied to the live row inside the write lock: Inventory setting a serial
+  // and Projects marking installation done at the same moment must not
+  // overwrite each other, and they write different keys of the same record.
+  const updated = await updateRow(studio.id, sheetsSection.id, SHEETS, sheetId, (row) => {
+    const lines = row.lines && typeof row.lines === "object" ? row.lines : {};
+    return { lines: { ...lines, [rowId]: { ...(lines[rowId] || {}), ...patch } } };
+  });
+  return updated ? { ok: true, line: updated.lines?.[rowId] || {} } : { error: "notfound" };
 }
 
 // Every sheet in the studio, composed. Keys only on the row itself: the project

@@ -32,7 +32,7 @@ import { projectsContext, openProject, listProjects } from "@/lib/projects";
 import { technicalContext, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/lib/technical";
 import { rfqInfo } from "@/lib/salesAnalytics";
 import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/lib/finance";
-import { inventoryContext, createItem, adjustStock, listProjectSheets } from "@/lib/inventory";
+import { inventoryContext, createItem, adjustStock, listProjectSheets, saveSheetLine } from "@/lib/inventory";
 import {
   hrContext, requestVacation, decideVacation,
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
@@ -365,6 +365,48 @@ console.log("\n== the handler is carried, never copied");
   ok("...with no price on any of them",
     (mainSheet?.tables || []).flatMap((t) => t.rows).every((r) => r.unitPrice === undefined),
     JSON.stringify((mainSheet?.tables || []).flatMap((t) => t.rows)[0]));
+
+  // ONE ROW, COLUMNS OWNED BY DIFFERENT DEPARTMENTS, EVERYBODY READING ALL OF
+  // IT. Two records per row would make this a copy again, with the same drift
+  // and the same arguments about which is right — so Inventory writing that the
+  // material is on order is the same record Projects reads, and vice versa.
+  const inv = await inventoryContext(owner, slug);
+  const anySheet = composed.find((s) => s.projectId === opened.project?.id);
+  const written = await saveSheetLine(inv, {
+    sheetId: anySheet?.id, rowId: "r1", owner: "inventory",
+    values: { stockStatus: "Awaiting", orderedQty: 4, serials: ["SN-1", "SN-1", "SN-2"] },
+  });
+  ok("Inventory can write its own columns", written.ok === true, JSON.stringify(written));
+  ok("...cleaned to their kind", written.line?.orderedQty === 4 && written.line?.serials.length === 2,
+    JSON.stringify(written.line));
+
+  // A department may write only ITS OWN columns, decided by cleanSheetLine
+  // rather than by the caller — so a payload naming somebody else's column
+  // cannot smuggle it through even with the right that covers its own.
+  const crossed = await saveSheetLine(inv, {
+    sheetId: anySheet?.id, rowId: "r1", owner: "inventory",
+    values: { installation: "Done" },
+  });
+  ok("...and cannot write another department's", crossed.error === "nothing", JSON.stringify(crossed));
+
+  const asProjects = await saveSheetLine(inv, {
+    sheetId: anySheet?.id, rowId: "r1", owner: "projects", values: { installation: "Done" },
+  });
+  ok("Projects writes its own, on the SAME row", asProjects.ok === true, JSON.stringify(asProjects));
+  ok("...and both departments' columns are on one record",
+    asProjects.line?.stockStatus === "Awaiting" && asProjects.line?.installation === "Done",
+    JSON.stringify(asProjects.line));
+
+  // Somebody who may OPEN Inventory but holds no sheet right writes nothing.
+  // Viewer is exactly that case, and it is the one worth testing: refusing
+  // somebody who cannot reach the module at all proves nothing about this
+  // guard, because they never get as far as it.
+  const viewerInv = await inventoryContext(viewer.user, slug);
+  ok("a Viewer can open Inventory", !viewerInv.error, viewerInv.error);
+  const outsider = await saveSheetLine(viewerInv, {
+    sheetId: anySheet?.id, rowId: "r1", owner: "inventory", values: { stockStatus: "In stock" },
+  });
+  ok("...but cannot write a sheet column", outsider.error === "forbidden", JSON.stringify(outsider));
 
   // FINANCE SIGNING IS WHAT ISSUES THE NUMBER. Both authorities have to sign,
   // so the first one alone leaves it blank.
