@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
@@ -343,6 +344,7 @@ const LIST_COLUMNS = [
 ];
 
 function ProjectList({ projects, approvedQuotations, people, stages, canManage, slug, nav, focus, onOpen, onSave, onDelete }) {
+  const router = useRouter();
   const [opening, setOpening] = useState(false);
   const [detail, setDetail] = useState(null);
   const [query, setQuery] = useState("");
@@ -439,9 +441,17 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
                             unstarted ? stripeOn : stripeOff
                           } ${focus.focusProps(p.id).className || ""}`}
                           role="button" tabIndex={0}
-                          onClick={() => setDetail(p)}
-                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(p); } }}>
-                          <td className="py-3 pe-3 ps-2 font-mono text-xs text-slate-500 dark:text-slate-400">{p.number}</td>
+                          /* THE ROW OPENS THE PROJECT'S OWN PAGE, the way a
+                             ticket row does. It used to open a dialog, which is
+                             the wrong shape for a record that has a lineage, a
+                             quotation, sheets and a team hanging off it — none
+                             of that fits in a panel over the list. */
+                          onClick={() => router.push(`/${slug}/projects-list/${p.id}`)}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/${slug}/projects-list/${p.id}`); } }}>
+                          <td className="py-3 pe-3 ps-2 font-mono text-xs text-slate-500 dark:text-slate-400">
+                            {/* Blank until Finance issues one against the PO. */}
+                            {p.number || <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">no number yet</span>}
+                          </td>
                           <td className="py-3 pe-3 ps-2 font-600 text-slate-900 dark:text-white">{p.title}</td>
                           <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{p.clientName || "—"}</td>
                           <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{p.location || "—"}</td>

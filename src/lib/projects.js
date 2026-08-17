@@ -77,6 +77,10 @@ export async function projectsContext(user, slug) {
   // section, and openProject simply makes no sheet rather than refusing to
   // make the project.
   const sheetsSection = byKey["inventory-sheets"] || byKey["inventory"] || null;
+  // Inventory's catalogue and vendors, for composing a sheet's Bulk view — the
+  // vendor each item is bought from lives on the item. Read only.
+  const itemsSection = byKey["inventory-items"] || byKey["inventory"] || null;
+  const vendorsSection = byKey["inventory-vendors"] || byKey["inventory"] || null;
   // The board the approval lives on. Projects READS it to ask whether a
   // quotation was signed off, and never writes it.
   const tasksSection = byKey["tasks"] || null;
@@ -88,6 +92,7 @@ export async function projectsContext(user, slug) {
     sections,
     listSection, slaSection, overtimesSection, settingsSection, quotationsSection,
     salesTicketsSection, salesClientsSection, sheetsSection, tasksSection,
+    itemsSection, vendorsSection, projectsListSection: byKey["projects-list"] || section,
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canManageList: sectionManageable(access, listSection.key, (sections || []).map((x) => x.key)),
     canManageSla: sectionManageable(access, slaSection.key, (sections || []).map((x) => x.key)),
@@ -153,11 +158,21 @@ export function progressOf(milestones) {
   return Math.round((list.filter((m) => m.done).length / list.length) * 100);
 }
 
-export async function listProjects({ studio, listSection }) {
-  const rows = await readCol(studio.id, listSection.id, PROJECTS);
+export async function listProjects(ctx) {
+  const { studio, listSection } = ctx;
+  const [rows, factsFor] = await Promise.all([
+    readCol(studio.id, listSection.id, PROJECTS),
+    ticketFacts(ctx),
+  ]);
   return [...rows]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-    .map((p) => ({ ...p, progress: progressOf(p.milestones) }));
+    .map((p) => {
+      // THE TICKET'S REFERENCE, read back through the ticketId the project
+      // carries — so the profile can name where the work came from without the
+      // project holding a second copy of it.
+      const t = factsFor(p.ticketId);
+      return { ...p, ticketRef: t.ticketRef, progress: progressOf(p.milestones) };
+    });
 }
 
 // Quotations that are Approved and not already delivering — what "open a

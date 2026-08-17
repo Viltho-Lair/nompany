@@ -122,11 +122,14 @@ export async function inventoryContext(user, slug) {
   // The quotation OWNS the sheet's rows. Inventory reads it and never
   // writes it — see composeSheet.
   const quotationsSection = byKey["technical-quotations"] || byKey["technical"] || null;
+  // The board the client's PO lives on, read so a sheet can report its PO
+  // number. Never written from here.
+  const tasksSection = byKey["tasks"] || null;
 
   return {
     studio, collaborator, access, roles, section, projectsSection: projects,
     stockSection, vendorsSection, itemsSection, sheetsSection, awbSection, projectsListSection,
-    quotationsSection,
+    quotationsSection, tasksSection,
     deliveriesSection: section,
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canManageStock: sectionManageable(access, stockSection.key, (sections || []).map((x) => x.key)),
@@ -581,18 +584,23 @@ export async function saveSheetLine(ctx, body) {
 export async function listProjectSheets(ctx) {
   const { studio, sheetsSection, projectsListSection, quotationsSection, itemsSection, vendorsSection } = ctx;
   if (!sheetsSection) return [];
-  const [sheets, projects, quotes, items, vendors] = await Promise.all([
+  const [sheets, projects, quotes, items, vendors, tasks] = await Promise.all([
     readCol(studio.id, sheetsSection.id, SHEETS),
     projectsListSection ? readCol(studio.id, projectsListSection.id, "projects") : [],
     quotationsSection ? readCol(studio.id, quotationsSection.id, "quotations") : [],
     itemsSection ? readCol(studio.id, itemsSection.id, ITEMS) : [],
     vendorsSection ? readCol(studio.id, vendorsSection.id, VENDORS) : [],
+    // The PO the client sent lives on the `po` TASK raised against this
+    // sheet's quotation. Read back through quotationId like everything else,
+    // so searching a PO number finds the sheet it belongs to.
+    ctx.tasksSection ? readCol(studio.id, ctx.tasksSection.id, "tasks") : [],
   ]);
   const projectById = new Map(projects.map((p) => [p.id, p]));
   const quoteById = new Map(quotes.map((q) => [q.id, q]));
   const itemById = new Map(items.map((i) => [i.id, i]));
   const vendorById = new Map(vendors.map((v) => [v.id, v]));
   const vendorOf = (itemId) => vendorById.get(itemById.get(itemId)?.vendorId) || null;
+  const poFor = (quotationId) => tasks.find((t) => t.type === "po" && t.quotationId === quotationId) || null;
 
   return [...sheets]
     .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""))
@@ -612,6 +620,9 @@ export async function listProjectSheets(ctx) {
         projectTitle: project?.title || "",
         clientName: project?.clientName || "",
         quotationNumber: quote?.number || "",
+        // What the client's own order says — the PO's description is where a PO
+        // number is written, since a PO is a document rather than a field.
+        poNumber: poFor(sheet.quotationId)?.po?.description || "",
         tables,
         lineCount: tables.reduce((n, t) => n + t.rows.length, 0),
         // The serials held for the items on this sheet, so a search for one

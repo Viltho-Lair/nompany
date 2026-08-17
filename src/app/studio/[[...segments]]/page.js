@@ -19,6 +19,8 @@ import StudioRoles from "@/components/studio2/StudioRoles";
 import StudioSettings from "@/components/studio2/StudioSettings";
 import StudioSales from "@/components/studio2/StudioSales";
 import StudioTicketProfile from "@/components/studio2/StudioTicketProfile";
+import StudioProjectProfile from "@/components/studio2/StudioProjectProfile";
+import StudioSheetViewer from "@/components/studio2/StudioSheetViewer";
 import SalesQuotationViewer from "@/components/studio2/SalesQuotationViewer";
 import StudioTechnical from "@/components/studio2/StudioTechnical";
 import StudioProjects from "@/components/studio2/StudioProjects";
@@ -131,6 +133,15 @@ export default async function StudioPage({ params }) {
   // and it resolves through the same sales-tickets grant as the page above it.
   const quotationId = ticketId && segments[2] === "quotations" ? (segments[3] || "") : "";
 
+  // THE SAME SHAPE FOR PROJECTS. /<slug>/projects-list/<id> is one project's own
+  // page, resolving through the projects-list section so the same grant governs
+  // it — a project is one row of a list, exactly as a ticket is.
+  const projectId = requested === "projects-list" ? (segments[1] || "") : "";
+  // And a THIRD segment names one of that project's sheets:
+  // /<slug>/projects-list/<id>/sheets/<sheetId> is the Quotation Viewer without
+  // prices — the quotation's own rows, with the columns each department adds.
+  const sheetId = projectId && segments[2] === "sheets" ? (segments[3] || "") : "";
+
   const isPeople = requested === "people";
   const isAccess = requested === "access";
   // Keyed "studio-settings", not "settings": section keys are tenant data, and a
@@ -182,6 +193,8 @@ export default async function StudioPage({ params }) {
         : deniedSection ? <NoSectionAccess />
         : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} />
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
+        : sheetId ? <StudioSheetViewer slug={studio.slug} projectId={projectId} sheetId={sheetId} />
+        : projectId ? <StudioProjectProfile slug={studio.slug} projectId={projectId} />
         : screenKey === "sales" ? <StudioSales slug={studio.slug} view={active?.key} />
         : screenKey === "technical" ? <StudioTechnical slug={studio.slug} view={active?.key} />
         : screenKey === "projects" ? <StudioProjects slug={studio.slug} view={active?.key} />

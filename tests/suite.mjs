@@ -408,6 +408,7 @@ console.log("\n== the handler is carried, never copied");
   });
   ok("...but cannot write a sheet column", outsider.error === "forbidden", JSON.stringify(outsider));
 
+
   // FINANCE SIGNING IS WHAT ISSUES THE NUMBER. Both authorities have to sign,
   // so the first one alone leaves it blank.
   const tctx = await tasksContext(owner, slug);
@@ -427,6 +428,19 @@ console.log("\n== the handler is carried, never copied");
   const again = await decideTask(await tasksContext(owner, slug), po.task?.id, { authority: "fin", approved: true });
   ok("re-approving does not issue a second number", again.numberIssued === numbered?.number,
     JSON.stringify({ again: again.numberIssued, was: numbered?.number }));
+  // EVERYTHING THE TAB SEARCH LOOKS THROUGH is carried, not stored on the
+  // sheet: the project number comes from the project, the quotation number from
+  // the quotation, the PO number from the `po` task raised against it, and the
+  // serials off Registered Items. A sheet holding copies of those four would be
+  // four things to keep in step.
+  const forSearch = (await listProjectSheets(await inventoryContext(owner, slug)))
+    .find((s) => s.projectId === opened.project?.id);
+  ok("a sheet carries the project number for search", forSearch?.projectNumber === numbered?.number,
+    JSON.stringify(forSearch?.projectNumber));
+  ok("...the quotation number", forSearch?.quotationNumber === conv.quotation?.number,
+    JSON.stringify(forSearch?.quotationNumber));
+  ok("...the PO", (forSearch?.poNumber || "").includes("PO-99"), JSON.stringify(forSearch?.poNumber));
+  ok("...and the serials of the items on it", Array.isArray(forSearch?.serials), JSON.stringify(forSearch?.serials));
 }
 
 // ============================================================================

@@ -5,6 +5,8 @@ import {
   openProject, updateProject, removeProject, PROJECT_STAGES,
 } from "@/lib/projects";
 import { REQUIREMENT_WEIGHTS } from "@/lib/projectSchedule";
+import { listProjectSheets } from "@/lib/inventory";
+import { can } from "@/lib/access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,9 +31,14 @@ export async function GET(request, ctx) {
   const c = await context(ctx.params);
   if (c.fail) return c.fail;
 
-  const [projects, quotations, people, slas, overtimes, directory] = await Promise.all([
+  const [projects, quotations, people, slas, overtimes, directory, sheets] = await Promise.all([
     listProjects(c), approvedQuotations(c), projectPeople(c),
     listSlas(c), listOvertimes(c), overtimeDirectory(c),
+    // THE SHEETS, composed by the module that owns them. Projects reads them —
+    // a project's sheets are part of its own story — and never writes them from
+    // here; the per-row columns Projects owns are written on Inventory's route,
+    // which is where the shared record lives.
+    listProjectSheets(c),
   ]);
   return Response.json({
     canManage: c.canManage,
@@ -39,6 +46,11 @@ export async function GET(request, ctx) {
     // everything underneath it, so it is withheld on a right of its own.
     canViewDashboard: c.canViewDashboard,
     canManageList: c.canManageList,
+    // Whether this viewer may write INVENTORY'S columns on a shared sheet row.
+    // Asked here because the sheet viewer opens from Projects but writes to
+    // Inventory's route, and a control nobody may use should render as text
+    // rather than as a disabled dropdown on every line.
+    canWriteInventoryColumns: can(c.access, "inventory.sheets.edit"),
     canManageSla: c.canManageSla,
     canManageOvertimes: c.canManageOvertimes,
     canManageSettings: c.canManageSettings,
@@ -47,6 +59,7 @@ export async function GET(request, ctx) {
     // than being handed the parent section's answer.
     manage: c.manage,
     projects,
+    sheets,
     // Only approved, not-yet-delivering quotations can open a project.
     approvedQuotations: quotations,
     people,
