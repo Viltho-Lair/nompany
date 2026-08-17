@@ -117,10 +117,14 @@ export async function inventoryContext(user, slug) {
   const sheetsSection = byKey["inventory-sheets"] || section;
   const awbSection = byKey["inventory-awb"] || section;
   const projectsListSection = byKey["projects-list"] || projects;
+  // The quotation OWNS the sheet's rows. Inventory reads it and never
+  // writes it — see composeSheet.
+  const quotationsSection = byKey["technical-quotations"] || byKey["technical"] || null;
 
   return {
     studio, collaborator, access, roles, section, projectsSection: projects,
     stockSection, vendorsSection, itemsSection, sheetsSection, awbSection, projectsListSection,
+    quotationsSection,
     deliveriesSection: section,
     canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
     canManageStock: sectionManageable(access, stockSection.key, (sections || []).map((x) => x.key)),
@@ -456,28 +460,123 @@ export async function adjustStock(ctx, body) {
 }
 
 // ---- purchase orders -------------------------------------------------------
-// One sheet per project, with the lines it opened with. Keys only: the project
-// number, the client and the quotation are read back through the ids each sheet
-// carries, so a renumbered project or a renamed client needs nothing migrated.
-export async function listProjectSheets({ studio, sheetsSection, projectsListSection }) {
+// WHERE THE QUOTATION'S ROWS AND THE SHEET'S OWN DATA ARE PUT TOGETHER.
+//
+// A sheet stores no lines. The quotation owns the tables and the rows; a sheet
+// stores only what THIS department added to them, keyed by the quotation row it
+// belongs to. So every read composes the two, and a quotation that is edited or
+// revised shows through immediately rather than leaving the sheet stale.
+//
+// PRICES ARE DROPPED HERE, not stored-without. The rows are the same rows Sales
+// reads with prices on; what a department may see of them is decided at the
+// point of reading, so there is one list and three views of it rather than
+// three lists.
+//
+// MAIN keeps the quotation's own divisions — its tables, in its order, because
+// those divisions are what was sold. BULK asks the same rows a different way:
+// each item summed across the whole project, then split by the vendor it is
+// bought from. Both are readings; neither can disagree with the quotation,
+// because neither holds a line.
+function composeSheet(sheet, quote, vendorOf) {
+  const tables = Array.isArray(quote?.tables) ? quote.tables : [];
+  const own = sheet.lines && typeof sheet.lines === "object" ? sheet.lines : {};
+  // Carried, then added to. `qty` is what was SOLD and belongs to the
+  // quotation; everything the sheet knows rides beside it under its own names.
+  const carry = (t, r) => ({
+    rowId: r.id,
+    tableId: t.id,
+    tableTitle: t.title || "",
+    itemId: r.itemId || "",
+    description: r.description || "",
+    unit: r.unit || "",
+    qty: Number(r.qty) || 0,
+    ...(own[r.id] || {}),
+  });
+
+  if (sheet.kind !== "bulk") {
+    return tables.map((t) => ({
+      id: t.id,
+      title: t.title || "",
+      rows: (Array.isArray(t.rows) ? t.rows : []).map((r) => carry(t, r)),
+    })).filter((t) => t.rows.length);
+  }
+
+  // BULK: sum each item across every table first — the same camera under three
+  // floors is one order — then group those totals under the vendor each is
+  // bought from. A line with no registered item cannot be summed against
+  // anything, so it stands on its own.
+  const summed = new Map();
+  for (const t of tables) {
+    for (const r of Array.isArray(t.rows) ? t.rows : []) {
+      const line = carry(t, r);
+      const key = line.itemId || `free:${line.rowId}`;
+      const at = summed.get(key);
+      if (at) { at.qty += line.qty; at.fromRows.push(line.rowId); continue; }
+      summed.set(key, { ...line, tableTitle: "", fromRows: [line.rowId] });
+    }
+  }
+
+  const byVendor = new Map();
+  for (const line of summed.values()) {
+    const vendor = vendorOf(line.itemId);
+    const key = vendor?.id || "";
+    if (!byVendor.has(key)) {
+      byVendor.set(key, { id: key || "unassigned", title: vendor?.name || "No vendor yet", rows: [] });
+    }
+    byVendor.get(key).rows.push(line);
+  }
+  // Unassigned last: it is the pile still to be placed, not a vendor.
+  return [...byVendor.values()].sort((a, b) => {
+    if (a.id === "unassigned") return 1;
+    if (b.id === "unassigned") return -1;
+    return a.title.localeCompare(b.title);
+  });
+}
+
+// Every sheet in the studio, composed. Keys only on the row itself: the project
+// number, the client and the quotation number are read back through the ids the
+// sheet carries, so a renumbered project or a renamed client needs no migration.
+export async function listProjectSheets(ctx) {
+  const { studio, sheetsSection, projectsListSection, quotationsSection, itemsSection, vendorsSection } = ctx;
   if (!sheetsSection) return [];
-  const [sheets, projects] = await Promise.all([
+  const [sheets, projects, quotes, items, vendors] = await Promise.all([
     readCol(studio.id, sheetsSection.id, SHEETS),
     projectsListSection ? readCol(studio.id, projectsListSection.id, "projects") : [],
+    quotationsSection ? readCol(studio.id, quotationsSection.id, "quotations") : [],
+    itemsSection ? readCol(studio.id, itemsSection.id, ITEMS) : [],
+    vendorsSection ? readCol(studio.id, vendorsSection.id, VENDORS) : [],
   ]);
-  const byId = new Map(projects.map((p) => [p.id, p]));
+  const projectById = new Map(projects.map((p) => [p.id, p]));
+  const quoteById = new Map(quotes.map((q) => [q.id, q]));
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  const vendorById = new Map(vendors.map((v) => [v.id, v]));
+  const vendorOf = (itemId) => vendorById.get(itemById.get(itemId)?.vendorId) || null;
+
   return [...sheets]
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+    .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""))
     .map((sheet) => {
-      const project = byId.get(sheet.projectId) || null;
+      const project = projectById.get(sheet.projectId) || null;
+      const quote = quoteById.get(sheet.quotationId) || null;
+      const tables = composeSheet(sheet, quote, vendorOf);
       return {
-        ...sheet,
-        // Blank until Finance issues one — that is the state this is designed
-        // around, so the screen says so rather than showing an empty cell.
+        id: sheet.id,
+        kind: sheet.kind === "bulk" ? "bulk" : "main",
+        // THE WHOLE CHAIN, as keys. Every label beside them is read back.
+        projectId: sheet.projectId, quotationId: sheet.quotationId,
+        rfqId: sheet.rfqId || "", ticketId: sheet.ticketId || "",
+        // Blank until Finance issues one — the state this is designed around,
+        // so the screen can say so rather than showing an empty cell.
         projectNumber: project?.number || "",
         projectTitle: project?.title || "",
         clientName: project?.clientName || "",
-        lines: Array.isArray(sheet.rows) ? sheet.rows.length : 0,
+        quotationNumber: quote?.number || "",
+        tables,
+        lineCount: tables.reduce((n, t) => n + t.rows.length, 0),
+        // The serials held for the items on this sheet, so a search for one
+        // finds the sheet it belongs to. Read off Registered Items, never
+        // stored here.
+        serials: [...new Set(tables.flatMap((t) => t.rows)
+          .flatMap((r) => (itemById.get(r.itemId)?.serials || [])))].slice(0, 200),
       };
     });
 }

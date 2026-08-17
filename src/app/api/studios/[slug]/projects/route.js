@@ -86,9 +86,9 @@ export async function POST(request, ctx) {
       : result.error === "not-approved" ? 422 : 400;
     return Response.json({ error: result.error }, { status });
   }
-  // The sheet travels back so the caller can say it was drawn up. It is null
-  // in a studio with no Inventory section, which is not an error.
-  return Response.json({ ok: true, project: result.project, sheet: result.sheet }, { status: 201 });
+  // The sheets travel back so the caller can say they were drawn up. Empty in
+  // a studio with no Inventory section, which is not an error.
+  return Response.json({ ok: true, project: result.project, sheets: result.sheets }, { status: 201 });
 }
 
 export async function PUT(request, ctx) {

@@ -686,7 +686,7 @@ function OpenProject({ task, people, slug, onOpened }) {
   if (done) {
     return (
       <p className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
-        Project opened{done.sheet ? " with its sheet" : ""}. Its number stays blank until Finance issues one against the PO.
+        Project opened{done.sheets?.length ? ` with its ${done.sheets.length} sheets` : ""}. Its number stays blank until Finance issues one against the PO.
       </p>
     );
   }

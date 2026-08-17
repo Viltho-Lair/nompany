@@ -860,20 +860,31 @@ function Sheets({ orders, deliveries, vendors, items, sheets = [], projects, slu
                       </span>}
                   <span className="font-600 text-slate-900 dark:text-white">{sh.projectTitle || "Untitled"}</span>
                   {sh.clientName && <span className="text-xs text-slate-500 dark:text-slate-400">{sh.clientName}</span>}
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-600 text-slate-600 dark:bg-white/5 dark:text-slate-300">
+                    {sh.kind === "bulk" ? "Bulk" : "Main"}
+                  </span>
+                  {sh.quotationNumber && <span className="font-mono text-xs text-slate-500">{sh.quotationNumber}</span>}
                   <span className="text-xs text-slate-400">
-                    {sh.lines} {sh.lines === 1 ? "line" : "lines"} quoted
+                    {sh.lineCount} {sh.lineCount === 1 ? "line" : "lines"}
                   </span>
                 </div>
-                {sh.lines > 0 && (
-                  <ul className="mt-1.5 space-y-0.5">
-                    {sh.rows.slice(0, 6).map((r) => (
-                      <li key={r.id} className="text-xs text-slate-600 dark:text-slate-300">
-                        <span className="tabular-nums text-slate-400">{r.qty}{r.unit ? ` ${r.unit}` : ""}</span>{" "}{r.description}
-                      </li>
-                    ))}
-                    {sh.lines > 6 && <li className="text-xs text-slate-400">+{sh.lines - 6} more</li>}
-                  </ul>
-                )}
+                {/* The rows are the QUOTATION'S, read back every time — so an
+                    edited quotation shows through here without the sheet
+                    knowing anything changed. No prices: what a department may
+                    see of a row is decided when it is read. */}
+                {sh.tables.map((t) => (
+                  <div key={t.id} className="mt-1.5">
+                    {t.title && <p className="text-[11px] font-600 uppercase tracking-wide text-slate-400">{t.title}</p>}
+                    <ul className="space-y-0.5">
+                      {t.rows.slice(0, 6).map((r) => (
+                        <li key={r.rowId} className="text-xs text-slate-600 dark:text-slate-300">
+                          <span className="tabular-nums text-slate-400">{r.qty}{r.unit ? ` ${r.unit}` : ""}</span>{" "}{r.description}
+                        </li>
+                      ))}
+                      {t.rows.length > 6 && <li className="text-xs text-slate-400">+{t.rows.length - 6} more</li>}
+                    </ul>
+                  </div>
+                ))}
               </li>
             ))}
           </ul>

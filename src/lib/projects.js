@@ -32,6 +32,9 @@ const OVERTIMES = "overtimes";
 // Project Sheets live under INVENTORY in this product, matching the Old System.
 // Projects writes one when a project is opened and never reads it again.
 const SHEETS = "projectSheets";
+// Two sheets per project, and they are two READINGS of the quotation's rows
+// rather than two copies of them — see openProject.
+export const SHEET_KINDS = ["main", "bulk"];
 const TASKS = "tasks";
 // A department is a top-level SECTION, so the overtime picker's filter is
 // derived from the studio's own structure rather than read out of HR — see
@@ -250,45 +253,44 @@ export async function openProject(ctx, body) {
     createdAt: now,
   });
 
-  // THE PROJECT SHEET, drawn up from what was quoted.
+  // THE PROJECT SHEETS. Two per project, and NEITHER HOLDS A LINE OF ITS OWN.
   //
-  // Procurement starts from the document the client agreed to, so the sheet
-  // opens with a line per priced row rather than empty — retyping the quotation
-  // into the sheet is how the two stop matching. The lines are the SHEET'S own
-  // from here: what has to be bought is not the same list as what was sold, and
-  // it moves as the job does.
+  // I built these as a copy first — a line per priced quotation row, written
+  // into the sheet — and that was the same mistake this product keeps removing
+  // everywhere else. A quotation is edited, revised, renumbered; a sheet that
+  // copied it is wrong from the first change and nothing says so.
   //
-  // Everything ABOUT the job stays keys — projectId, quotationId, ticketId,
-  // rfqId — so the sheet reads the ticket, the client and the numbers back
-  // rather than holding a second copy that ages.
-  const sheet = sheetsSection
-    ? await addRow(studio.id, sheetsSection.id, SHEETS, {
+  // So the quotation OWNS the tables and the rows, and every department BUILDS
+  // ON them: Sales reads them with prices, Projects and Inventory read the same
+  // rows without prices and add columns of their own. What a sheet stores is
+  // only that addition — its own data, keyed by the quotation row it belongs to
+  // — and the rows themselves are read back through quotationId every time. See
+  // sheetLines in lib/inventory.js, which is where the two are put together.
+  //
+  // MAIN and BULK are the same rows asked two ways: Main keeps the quotation's
+  // own divisions, Bulk sums each item across the whole project and splits the
+  // totals by the vendor each is bought from. Neither is a second copy — they
+  // are two readings of one list, which is why both can exist without either
+  // being able to disagree with the quotation.
+  const sheets = [];
+  if (sheetsSection) {
+    for (const kind of SHEET_KINDS) {
+      sheets.push(await addRow(studio.id, sheetsSection.id, SHEETS, {
+        // THE KEYS, and nothing else about the job. The project number, the
+        // client, the quotation's lines and its numbers are all read back.
         projectId: project.id,
         quotationId, rfqId: quote.rfqId || "", ticketId: quote.ticketId || "",
-        rows: sheetRowsFromQuotation(quote),
+        kind,
+        // The sheet's OWN data, per quotation row: { [rowId]: { … } }. Empty
+        // until somebody works the sheet, which is the honest starting state.
+        lines: {},
         openedByCollaboratorId: collaborator.id,
         createdAt: now,
-      })
-    : null;
+      }));
+    }
+  }
 
-  return { project: { ...project, progress: 0 }, sheet };
-}
-
-// One sheet line per priced quotation row, carrying the item it came from so
-// the catalogue entry stays reachable, and the description as it was quoted so
-// the line still reads correctly if that entry is later renamed. The PRICE is
-// deliberately absent: a sheet is what has to be bought, not what it was sold
-// for, and the two are different numbers with different owners.
-function sheetRowsFromQuotation(quote) {
-  const tables = Array.isArray(quote?.tables) ? quote.tables : [];
-  return tables.flatMap((t) => (Array.isArray(t.rows) ? t.rows : []).map((r) => ({
-    id: `sr_${Math.random().toString(36).slice(2, 10)}`,
-    itemId: str(r?.itemId, 60),
-    description: t.title ? `${t.title} — ${str(r?.description, 300)}` : str(r?.description, 300),
-    unit: str(r?.unit, 30),
-    qty: nonNeg(r?.qty, 0),
-    ordered: 0,
-  }))).filter((r) => r.description).slice(0, 400);
+  return { project: { ...project, progress: 0 }, sheets };
 }
 
 // FINANCE ISSUES THE NUMBER, and this is where it happens: when the `po` task

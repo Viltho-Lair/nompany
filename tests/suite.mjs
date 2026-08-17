@@ -32,7 +32,7 @@ import { projectsContext, openProject, listProjects } from "@/lib/projects";
 import { technicalContext, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/lib/technical";
 import { rfqInfo } from "@/lib/salesAnalytics";
 import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/lib/finance";
-import { inventoryContext, createItem, adjustStock } from "@/lib/inventory";
+import { inventoryContext, createItem, adjustStock, listProjectSheets } from "@/lib/inventory";
 import {
   hrContext, requestVacation, decideVacation,
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
@@ -343,7 +343,28 @@ console.log("\n== the handler is carried, never copied");
     && opened.project?.quotationId === conv.quotation?.id
     && opened.project?.rfqId === asked.rfq?.id,
     JSON.stringify({ t: opened.project?.ticketId, q: opened.project?.quotationId, r: opened.project?.rfqId }));
-  ok("...and its sheet drawn up from the quotation", Array.isArray(opened.sheet?.rows), JSON.stringify(opened.sheet));
+  // TWO SHEETS, AND NEITHER HOLDS A LINE. The quotation owns the rows; a sheet
+  // stores only what its department adds to them, keyed by the row it belongs
+  // to. I built these as a copy first, which is the mistake this product keeps
+  // removing everywhere else — a copied sheet is wrong from the quotation's
+  // first edit and nothing says so.
+  ok("opening a project draws up both sheets", (opened.sheets || []).length === 2, JSON.stringify(opened.sheets?.length));
+  ok("...Main and Bulk", (opened.sheets || []).map((s) => s.kind).join(",") === "main,bulk",
+    (opened.sheets || []).map((s) => s.kind).join(","));
+  ok("...neither holding a copied line", (opened.sheets || []).every((s) => s.rows === undefined),
+    JSON.stringify((opened.sheets || []).map((s) => s.rows)));
+  ok("...each carrying the whole chain as keys",
+    (opened.sheets || []).every((s) => s.quotationId === conv.quotation?.id && s.ticketId === made.ticket?.id
+      && s.rfqId === asked.rfq?.id && s.projectId === opened.project?.id),
+    JSON.stringify(opened.sheets?.[0]));
+
+  // And the rows come back from the QUOTATION on every read, without prices.
+  const composed = await listProjectSheets(await inventoryContext(owner, slug));
+  const mainSheet = composed.find((s) => s.projectId === opened.project?.id && s.kind === "main");
+  ok("a sheet reads its rows back from the quotation", Array.isArray(mainSheet?.tables), JSON.stringify(mainSheet?.tables));
+  ok("...with no price on any of them",
+    (mainSheet?.tables || []).flatMap((t) => t.rows).every((r) => r.unitPrice === undefined),
+    JSON.stringify((mainSheet?.tables || []).flatMap((t) => t.rows)[0]));
 
   // FINANCE SIGNING IS WHAT ISSUES THE NUMBER. Both authorities have to sign,
   // so the first one alone leaves it blank.
