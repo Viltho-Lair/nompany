@@ -313,10 +313,13 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               )}
 
               {/* What the RFQ column says, spelled out beside the buttons —
-                  "Quotation Sent" says a request is out, this says who has it. */}
+                  "Quotation Sent" says a request is out, this says who has it.
+                  Both halves come from rfqInfo so the reference names whatever
+                  the person named beside it is responsible for: the finished
+                  quotation once there is one, the RFQ while there is not. */}
               {canRequestRfq && rfq.requested && (
                 <p className={`text-center text-xs font-600 ${rfq.tone}`}>
-                  {ticket.rfq?.reference ? `${ticket.rfq.reference} · ` : ""}{rfq.text}
+                  {rfq.ref ? `${rfq.ref} · ` : ""}{rfq.text}
                 </p>
               )}
             </div>

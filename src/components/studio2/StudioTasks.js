@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RecordLink from "@/components/studio2/RecordLink";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { linkToProject, linkIf } from "@/lib/studioLinks";
@@ -118,6 +118,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
         <TaskSettings
           authorities={data.authorities || []}
           typeAuthorities={data.typeAuthorities || {}}
+          typeLabels={vocabulary.typeLabels || {}}
           assignees={data.taskAssignees || {}}
           people={people}
           canManage={data.canManageSettings}
@@ -456,10 +457,90 @@ function Empty({ title, body }) {
 }
 
 
-// Task settings: who holds each authority. A task TYPE routes to one or more
-// authorities, and two-party types need both to complete — so this screen shows
-// which types each authority is on rather than leaving that implicit.
-function TaskSettings({ authorities, typeAuthorities, assignees, people, canManage, onSave }) {
+// A DROPDOWN, not a row of tags. Appointing to an authority is picking people
+// out of a list that is as long as the studio is, and a wall of pills for every
+// authority on every task made the screen unreadable at twenty collaborators
+// and unusable at fifty.
+//
+// Multi-select, because an authority can be held by more than one person — any
+// one of them can then sign for it. The button says who currently holds it, so
+// the answer is legible with the list shut, which is how it is nearly always
+// read.
+function AssigneePicker({ people, selected, disabled, onToggle }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef(null);
+
+  // Shut on a click anywhere else and on Escape — a panel that can only be
+  // closed by pressing the button that opened it is a trap on a screen with
+  // several of them side by side.
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+
+  const names = people.filter((p) => selected.includes(p.id)).map((p) => p.alias || "Member");
+  const summary = names.length === 0 ? "Nobody appointed"
+    : names.length <= 2 ? names.join(", ")
+    : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+
+  return (
+    <div ref={box} className="relative">
+      <button type="button" disabled={disabled || people.length === 0}
+        aria-expanded={open} aria-haspopup="listbox"
+        onClick={() => setOpen((v) => !v)}
+        className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-2 text-start text-sm transition-colors disabled:opacity-60 ${names.length === 0
+          ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+          : "border-slate-200 bg-white text-slate-900 hover:border-brand-500 dark:border-white/15 dark:bg-[#20202c] dark:text-white"}`}>
+        <span className="truncate">{people.length === 0 ? "Nobody in this studio yet" : summary}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div role="listbox" className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/15 dark:bg-[#20202c]">
+          {people.map((p) => {
+            const on = selected.includes(p.id);
+            return (
+              <button key={p.id} type="button" role="option" aria-selected={on}
+                onClick={() => onToggle(p.id)}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-start text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
+                <span aria-hidden="true" className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-700 ${on
+                  ? "border-brand-600 bg-brand-600 text-white"
+                  : "border-slate-300 dark:border-white/25"}`}>
+                  {on ? "✓" : ""}
+                </span>
+                <span className="truncate">{p.alias || "Member"}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// TASK SETTINGS — ONE BOX PER TASK, not one per authority.
+//
+// It used to list the six authorities and, under each, every collaborator as a
+// tag to switch on. That is the storage shape, not the question anybody comes
+// here with: somebody opening this screen is looking at a KIND OF TASK — a
+// quotation approval, a material PO — and asking who should be deciding it.
+// Answering that meant knowing which authorities the type routes to before
+// looking anything up, which is exactly what the screen should have been saying.
+//
+// So each box is a task: what it is, where it comes from, who handles it, and a
+// dropdown for each authority it actually requires.
+//
+// WHAT IS STORED IS STILL PER AUTHORITY. Management decides quotation approvals
+// AND POs, so appointing them under one shows up under the other — that is one
+// appointment, not two, and the box says so rather than letting it look like a
+// bug the first time it happens.
+function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, people, canManage, onSave }) {
   const [map, setMap] = useState(assignees);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -470,54 +551,93 @@ function TaskSettings({ authorities, typeAuthorities, assignees, people, canMana
       return { ...m, [code]: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] };
     });
   };
-  const typesFor = (code) => Object.entries(typeAuthorities).filter(([, cs]) => cs.includes(code)).map(([t]) => t);
+  const labelOf = (code) => authorities.find((a) => a.code === code)?.label || code;
+  // The OTHER tasks one appointment reaches, so a shared authority reads as
+  // shared at the moment somebody appoints to it.
+  const alsoDecides = (code, type) => Object.entries(typeAuthorities)
+    .filter(([t, cs]) => t !== type && cs.includes(code))
+    .map(([t]) => typeLabels[t]?.label || t);
+
+  const types = Object.keys(typeAuthorities);
 
   return (
-    <section className={panel}>
-      <h2 className={h2}>Task settings</h2>
-      <p className={sub}>
-        Who holds each authority. Appointing someone routes the matching tasks to them straight away,
-        existing ones included — assignment is read from here, not copied onto the task.
-      </p>
-      <div className="mt-4 space-y-3">
-        {authorities.map((a) => {
-          const types = typesFor(a.code);
-          return (
-            <div key={a.code} className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
-              <div className="flex flex-wrap items-baseline gap-2">
-                <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{a.label}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {types.length ? types.join(", ") : "no task types"}
-                </p>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {people.length === 0 && <span className="text-xs text-slate-400">Nobody in this studio yet.</span>}
-                {people.map((p) => {
-                  const on = (map[a.code] || []).includes(p.id);
-                  return (
-                    <button key={p.id} type="button" disabled={!canManage} onClick={() => toggle(a.code, p.id)}
-                      className={`rounded-full px-3 py-1.5 text-xs font-600 transition-colors ${on
-                        ? "bg-brand-500/15 text-brand-700 dark:text-brand-300"
-                        : "bg-slate-200/60 text-slate-500 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-400"}`}>
-                      {p.alias || "Member"}
-                    </button>
-                  );
-                })}
-              </div>
+    <div className="space-y-4">
+      <section className={panel}>
+        <h2 className={h2}>Task settings</h2>
+        <p className={sub}>
+          Every kind of task the studio raises, and who decides it. Appointing someone routes the matching
+          tasks to them straight away, existing ones included — assignment is read from here on every load,
+          never copied onto the task, so it can never keep pointing at whoever used to hold the job.
+        </p>
+        {canManage && (
+          <div className="mt-5 flex items-center gap-3">
+            <button className={btn} disabled={busy} onClick={async () => { setBusy(true); const ok = await onSave(map); setBusy(false); setSaved(!!ok); }}>
+              {busy ? "Saving..." : "Save task settings"}
+            </button>
+            {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+          </div>
+        )}
+        {!canManage && (
+          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">You have view-only access to Task settings.</p>
+        )}
+      </section>
+
+      {types.map((type) => {
+        const meta = typeLabels[type] || {};
+        const codes = typeAuthorities[type] || [];
+        const unheld = codes.filter((c) => (map[c] || []).length === 0);
+        return (
+          <section key={type} className={panel}>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="font-display text-base font-800 text-slate-900 dark:text-white">{meta.label || type}</h3>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                {codes.length === 1 ? "One authority signs" : `${codes.length} authorities must sign`}
+              </span>
             </div>
-          );
-        })}
-      </div>
-      {canManage ? (
-        <div className="mt-5 flex items-center gap-3">
-          <button className={btn} disabled={busy} onClick={async () => { setBusy(true); const ok = await onSave(map); setBusy(false); setSaved(!!ok); }}>
-            {busy ? "Saving..." : "Save task settings"}
-          </button>
-          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
-        </div>
-      ) : (
-        <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">You have view-only access to Task settings.</p>
-      )}
-    </section>
+            {meta.hint && <p className={sub}>{meta.hint}</p>}
+
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <dt className={label}>Where it comes from</dt>
+                <dd className="text-sm text-slate-600 dark:text-slate-300">{meta.from || "Raised on the Tasks board."}</dd>
+              </div>
+              <div>
+                <dt className={label}>Who handles it</dt>
+                <dd className="text-sm text-slate-600 dark:text-slate-300">{meta.handling || codes.map(labelOf).join(" and ")}</dd>
+              </div>
+            </dl>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {codes.map((code) => {
+                const shared = alsoDecides(code, type);
+                return (
+                  <div key={code}>
+                    <label className={label}>{labelOf(code)}</label>
+                    <AssigneePicker
+                      people={people}
+                      selected={map[code] || []}
+                      disabled={!canManage}
+                      onToggle={(id) => toggle(code, id)}
+                    />
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      {shared.length > 0
+                        ? <>Also decides {shared.join(", ")} — one appointment covers all of them.</>
+                        : <>Only this task routes to {labelOf(code)}.</>}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {unheld.length > 0 && (
+              <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                Nobody holds {unheld.map(labelOf).join(" or ")}, so a {(meta.label || type).toLowerCase()} raised
+                today can never be approved. Appoint someone above.
+              </p>
+            )}
+          </section>
+        );
+      })}
+    </div>
   );
 }

@@ -407,6 +407,9 @@ const quotationRow = (q) => ({
   status: q.status || "",
   total: Number(q.total) || 0,
   handledBy: q.handledByCollaboratorId || q.handledBy || "",
+  // Who put their name to the finished document, which is not always who it was
+  // handed to — see the note on `submittedByCollaboratorId` in lib/technical.js.
+  submittedBy: q.submittedByCollaboratorId || "",
   createdAt: q.createdAt || "",
   submittedAt: q.submittedAt || "",
   completedAt: q.completedAt || "",
@@ -455,19 +458,38 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees) {
   const latest = mine[0] || null;
   const quote = latest ? quoteOf(latest) : null;
 
+  // THE LATEST QUOTATION, ONCE IT HAS LEFT THE BUILDER — the document this
+  // ticket is priced from and the one that goes up for approval. Deliberately
+  // NOT "the most recent one ever submitted": while a revision is being written
+  // the previous document is superseded, and naming the person who finished
+  // THAT one would put a stale name under a button offering to send this one.
+  const submitted = isFinishedQuotation(newest) ? newest : null;
+
   return {
     rfqCount: mine.length,
     rfq: latest && {
       id: latest.id,
       reference: latest.reference || "",
       status: latest.status || "",
-      // A quotation names its handler in `handledBy`; before one exists, the
-      // RFQ's own assignee is who Sales should be chasing.
-      handledByCollaboratorId: quote?.handledByCollaboratorId || quote?.handledBy || latest.handledByCollaboratorId || "",
+      // WHO SALES IS CHASING, CARRIED — never a copy taken when the ticket was
+      // handed over. Once a quotation has been SUBMITTED the answer is whoever
+      // submitted it: the document is finished and that is who finished it. Only
+      // while nothing is submitted does the appointment stand in — the RFQ's
+      // handler, read live off the RFQ, so reassigning it moves this name too.
+      handledByCollaboratorId: latest.handledByCollaboratorId || quote?.handledByCollaboratorId || "",
+      // Empty until something is submitted, which is exactly what the RFQ
+      // column reads to decide between "Handled by" and "Completed by".
+      completedByCollaboratorId: submitted?.submittedByCollaboratorId || "",
+      quotationSubmitted: Boolean(submitted),
       quotationId: quote?.id || "",
       quotationNumber: quote?.number || "",
+      quotationRevision: Number(quote?.revision) || 1,
       quotationStatus: quote?.status || "",
       quotationTotal: Number(quote?.total) || 0,
+      // What the SUBMITTED one is called, which is what the ticket page names
+      // beside the person — a revision still in the builder is not on file yet.
+      submittedNumber: submitted?.number || "",
+      submittedRevision: Number(submitted?.revision) || 1,
     },
     quotations: mineQuotations.map(quotationRow),
     // Waiting on Technical — what greys "Request RFQ" out into "Quotation Sent".

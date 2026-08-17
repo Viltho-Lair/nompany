@@ -22,6 +22,12 @@ import { ADMIN_ROLE_ID } from "@/lib/permissions";
 import { SESSION_COOKIE } from "@/lib/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { tasksContext, createTask, updateTask, removeTask } from "@/lib/tasks";
+import { TASK_TYPE_AUTHORITIES } from "@/lib/taskRouting";
+import {
+  salesContext, createService, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
+} from "@/lib/sales";
+import { technicalContext, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/lib/technical";
+import { rfqInfo } from "@/lib/salesAnalytics";
 import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/lib/finance";
 import { inventoryContext, createItem, adjustStock } from "@/lib/inventory";
 import { hrContext, requestVacation, decideVacation } from "@/lib/hr";
@@ -113,6 +119,87 @@ console.log("== tasks: the board writes at all");
 
   const shut = await tasksContext(nobody.user, slug);
   ok("somebody with no role cannot open Tasks", shut.error === "forbidden", shut.error);
+}
+
+// ============================================================================
+console.log("\n== the handler is carried, never copied");
+// REGRESSION, two of them, both invisible to a unit test because each half was
+// correct on its own:
+//
+//   1. Converting an RFQ wrote the handler to the RFQ under
+//      `handledByCollaboratorId` and to the quotation under `handledBy` — a
+//      field the convert form never sends. So /technical-quotations read an
+//      empty column on every converted row, and the handler leaderboard filed
+//      them all under "Unassigned".
+//   2. The name under the ticket's Send-for-Approval button was a COPY taken at
+//      conversion. Reassign the RFQ and it still named whoever used to have it;
+//      submit the quotation and it still named the appointment rather than the
+//      person who actually finished the document.
+{
+  const sales = await salesContext(owner, slug);
+  ok("owner can open Sales", !sales.error, sales.error);
+
+  const service = await createService(sales, { name: "Integration" });
+  const made = await createTicket(sales, {
+    title: "Carry the handler", clientName: "Acme", deadline: "2026-12-01",
+    industry: "Technology", serviceIds: [service.service?.id],
+  });
+  ok("a ticket can be raised", !!made.ticket, JSON.stringify(made.error));
+
+  const asked = await requestTicketRfq(sales, { ticketId: made.ticket?.id });
+  ok("...and handed to Technical", !!asked.rfq, JSON.stringify(asked.error));
+
+  // Converted to MEMBER, then reassigned to VIEWER. The second half is the one
+  // that catches a copy: a copy keeps naming Member forever.
+  const tech = await technicalContext(owner, slug);
+  const conv = await convertRfq(tech, { rfqId: asked.rfq?.id, handledByCollaboratorId: member.collaborator.id });
+  ok("an RFQ converts to a quotation", !!conv.quotation, JSON.stringify(conv.error));
+
+  const afterConvert = await listQuotations(tech);
+  const row = afterConvert.find((q) => q.id === conv.quotation?.id);
+  ok("the quotations list names its handler", row?.handledBy === member.collaborator.id,
+    `handledBy is ${JSON.stringify(row?.handledBy)}`);
+
+  await updateRfq(tech, asked.rfq?.id, { handledByCollaboratorId: viewer.collaborator.id });
+  const reassigned = (await listQuotations(tech)).find((q) => q.id === conv.quotation?.id);
+  ok("...and follows the RFQ when it is reassigned", reassigned?.handledBy === viewer.collaborator.id,
+    `handledBy is ${JSON.stringify(reassigned?.handledBy)}`);
+
+  // Before submission the ticket names the APPOINTMENT — and the live one.
+  const beforeSubmit = (await listTickets(sales)).find((t) => t.id === made.ticket?.id);
+  ok("the ticket names whoever the RFQ is assigned to",
+    beforeSubmit?.rfq?.handledByCollaboratorId === viewer.collaborator.id,
+    JSON.stringify(beforeSubmit?.rfq));
+  ok("...and says so", rfqInfo(beforeSubmit, { [viewer.collaborator.id]: "Viewer" }).text === "Handled by Viewer",
+    rfqInfo(beforeSubmit, { [viewer.collaborator.id]: "Viewer" }).text);
+
+  // Submitted by the OWNER, who is neither the appointment nor the original
+  // handler — which is the whole point: work gets picked up and covered for.
+  const done = await updateQuotation(tech, conv.quotation?.id, { status: "Completed" });
+  ok("submitting stamps who finished it", done.quotation?.submittedByCollaboratorId === tech.collaborator.id,
+    JSON.stringify(done.quotation?.submittedByCollaboratorId));
+
+  const afterSubmit = (await listTickets(sales)).find((t) => t.id === made.ticket?.id);
+  ok("the ticket carries the submitter once there is one",
+    afterSubmit?.rfq?.completedByCollaboratorId === tech.collaborator.id,
+    JSON.stringify(afterSubmit?.rfq));
+  const line = rfqInfo(afterSubmit, { [tech.collaborator.id]: "Owner" });
+  ok("...and reads as completed, not handled", line.text === "Completed by Owner", line.text);
+  ok("...beside the quotation, not the RFQ", line.ref === conv.quotation?.number,
+    `${line.ref} vs ${conv.quotation?.number}`);
+
+  // And the whole point of the button: ONE task, needing BOTH authorities.
+  const sent = await sendTicketForApproval(await salesContext(owner, slug), { ticketId: made.ticket?.id });
+  ok("sending for approval raises an approval task", sent.task?.type === "approval", JSON.stringify(sent.error));
+  ok("...routed to Sales and Management",
+    JSON.stringify(TASK_TYPE_AUTHORITIES.approval) === JSON.stringify(["sales", "mng"]),
+    JSON.stringify(TASK_TYPE_AUTHORITIES.approval));
+  ok("...and says so when nobody is appointed to either",
+    JSON.stringify(sent.unrouted) === JSON.stringify(["Sales", "Management"]),
+    JSON.stringify(sent.unrouted));
+
+  const twice = await sendTicketForApproval(await salesContext(owner, slug), { ticketId: made.ticket?.id });
+  ok("...once per quotation, not once per press", twice.error === "already", JSON.stringify(twice));
 }
 
 // ============================================================================

@@ -359,23 +359,46 @@ export function nextQuotationNumber(quotations, settings) {
 }
 
 // ---- quotations ------------------------------------------------------------
+
+// WHO IS HANDLING A QUOTATION, in one place because three screens ask it: the
+// Quotations table, its Handled-by filter and the Live view.
+//
+// A CONVERTED QUOTATION DOES NOT OWN ITS HANDLER — the RFQ does. Converting
+// copied the name onto both rows, so reassigning the RFQ afterwards left the
+// quotation still naming whoever used to have it, and the column read the
+// quotation's own `handledBy` — a field the convert form never sends — so it
+// was simply blank on every converted row. Carried from the RFQ, it is right
+// the moment the RFQ is reassigned and there is nothing to migrate.
+//
+// The quotation's own fields are the fallback, for the INTERNAL ones raised
+// straight from the Quotations screen with no RFQ behind them.
+const quotationHandler = (q, rfq) =>
+  rfq?.handledByCollaboratorId || q?.handledByCollaboratorId || q?.handledBy || "";
+
 export async function listQuotations(ctx) {
-  const [rows, factsFor] = await Promise.all([
+  const [rows, rfqRows, factsFor] = await Promise.all([
     readCol(ctx.studio.id, ctx.quotationsSection.id, QUOTATIONS),
+    ctx.rfqSection ? readCol(ctx.studio.id, ctx.rfqSection.id, RFQS) : [],
     ticketFacts(ctx),
   ]);
+  const rfqById = new Map(rfqRows.map((r) => [r.id, r]));
   return [...rows]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((q) => {
+      const handledBy = quotationHandler(q, rfqById.get(q.rfqId));
       // AN INTERNAL QUOTATION HAS NO TICKET, so there is nothing to carry and
       // what it holds IS its own — somebody typed that title into the Quotations
       // screen. Converted ones read the ticket.
-      if (!q.ticketId) return { ...q, leadLabel: LEAD_INTERNAL };
+      if (!q.ticketId) return { ...q, handledBy, handledByCollaboratorId: handledBy, leadLabel: LEAD_INTERNAL };
       const t = factsFor(q.ticketId);
       return {
         ...q,
         title: t.title, clientId: t.clientId, clientName: t.clientName,
         urgency: t.urgency, industry: t.industry, serviceIds: t.serviceIds,
+        // Both names answer the same question, so both carry — the table reads
+        // one and the RFQ screen the other, and a row where they disagree is a
+        // row that shows two handlers for one document.
+        handledBy, handledByCollaboratorId: handledBy,
         // What the lead column reads: the ticket's reference, from the ticket.
         leadLabel: t.ticketRef || LEAD_INTERNAL,
         // NOT description — the wording on a quotation is the document's own.
@@ -413,12 +436,18 @@ export async function createQuotation(ctx, body) {
   // work badly.
   const items = [];
   const vatRate = DEFAULT_VAT_RATE;
-  const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60);
+  // The screen's "Handled by" is a PERSON PICKER, so what arrives in `handledBy`
+  // is already a CollaboratorID. It was stored only under that name while every
+  // reader looked for `handledByCollaboratorId`, and the value was computed here
+  // and then left out of the row entirely. Stored under both names, so an
+  // internal quotation names its handler wherever a converted one does.
+  const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60) || handledBy;
   const quotation = await addRow(studio.id, quotationsSection.id, QUOTATIONS, {
     number,
     revision: 1,
     description,
     handledBy,
+    handledByCollaboratorId,
     title: str(body?.title, 200) || description.slice(0, 200),
     status: DEFAULT_QUOTATION_STATUS,
     tables: [],
@@ -550,7 +579,15 @@ export async function updateQuotation(ctx, id, body) {
     if (body.status === "Approved" && !current.completedAt) patch.completedAt = new Date().toISOString();
     // Submitting is a moment worth keeping: it is when the studio said the
     // document was finished, which is not when a client later approved it.
+    //
+    // AND WHO. Sales chases a quotation by chasing a person, and the person who
+    // FINISHED it is not always the one the RFQ was handed to — work gets picked
+    // up, handed on and covered for. Only the first submission is stamped: a
+    // later edit does not rewrite who put their name to the document.
     if (body.status === "Completed" && !current.submittedAt) patch.submittedAt = new Date().toISOString();
+    if (body.status === "Completed" && !current.submittedByCollaboratorId) {
+      patch.submittedByCollaboratorId = collaborator.id;
+    }
   }
   // The NUMBER is deliberately absent: it is locked to the quotation once
   // assigned, because it is the reference a client already holds.

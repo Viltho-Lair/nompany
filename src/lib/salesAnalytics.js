@@ -80,34 +80,56 @@ export function atRiskTickets(tickets, days = 14) {
 //   • raised, untouched      → { text: "Requested",               requested: true  }
 //   • Technical working it   → { text: "In-review",               requested: true  }
 //   • turned down            → { text: "Rejected",                requested: true  }
-//   • converted              → { text: "Handled by <name>",       quoted: true     }
+//   • converted, in build    → { text: "Handled by <name>",       quoted: true     }
+//   • submitted              → { text: "Completed by <name>",     quoted: true     }
 //
 // CONVERTED SAYS WHO, not what. Once somebody in Technical has the document, the
 // name is the useful thing on a Sales screen — chasing a quotation means
 // chasing a person — and the quotation's own status rides along underneath in
 // the ticket's Quotations box, which is where it belongs.
 //
+// WHICH person changes the moment the document is finished, and so does the
+// verb. Until then it is an APPOINTMENT — whoever the RFQ is assigned to, read
+// live off the RFQ so reassigning it moves the name here too. Once submitted it
+// is a FACT: this is who put their name to what Sales is now holding, carried
+// off that quotation. It used to be neither — a copy of the handler taken when
+// the RFQ was converted, which stayed put while the work moved on.
+//
+// `ref` is what the name belongs to: the finished quotation's number once there
+// is one, the RFQ's reference while there is not.
+//
 // `aliasOf` maps CollaboratorID → name. Every caller already holds one; without
 // it the column still renders, naming the section rather than a person.
 export function rfqInfo(ticket, aliasOf = {}) {
   const rfq = ticket?.rfq;
-  if (!rfq) return { text: "—", tone: "text-slate-400", status: null, requested: false, quoted: false };
+  if (!rfq) return { text: "—", tone: "text-slate-400", status: null, ref: "", requested: false, quoted: false };
   if (!rfq.quotationId) {
     const rejected = rfq.status === "Rejected";
     const tone = rejected ? "text-rose-600 dark:text-rose-400"
       : rfq.status === "In-review" ? "text-amber-600 dark:text-amber-400"
       : "text-slate-500 dark:text-slate-400";
     const text = rejected ? "Rejected" : rfq.status === "In-review" ? "In-review" : "Requested";
-    return { text, tone, status: rfq.status, requested: true, quoted: false };
+    return { text, tone, status: rfq.status, ref: rfq.reference || "", requested: true, quoted: false };
   }
-  const handler = aliasOf[rfq.handledByCollaboratorId] || rfq.handledByCollaboratorId || "Technical";
+  const done = Boolean(rfq.quotationSubmitted);
+  const who = done
+    ? rfq.completedByCollaboratorId || rfq.handledByCollaboratorId
+    : rfq.handledByCollaboratorId;
+  const person = aliasOf[who] || who || "Technical";
   const tone = ({
     Rejected: "text-rose-600 dark:text-rose-400",
     Approved: "text-emerald-600 dark:text-emerald-400",
   })[rfq.quotationStatus] || "text-slate-600 dark:text-slate-300";
+  const rev = Number(rfq.submittedRevision) || 1;
   return {
-    text: `Handled by ${handler}`,
-    tone, status: rfq.quotationStatus, requested: true, quoted: true,
+    text: `${done ? "Completed" : "Handled"} by ${person}`,
+    tone,
+    status: rfq.quotationStatus,
+    ref: done
+      ? `${rfq.submittedNumber || rfq.quotationNumber || ""}${rev > 1 ? ` Rev ${rev}` : ""}`.trim()
+      : rfq.reference || "",
+    requested: true,
+    quoted: true,
   };
 }
 

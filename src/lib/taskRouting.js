@@ -32,18 +32,66 @@ export const TASK_TYPE_AUTHORITIES = {
 };
 export const TASK_TYPES = Object.keys(TASK_TYPE_AUTHORITIES);
 
-// What each type is called on screen, and what it is for. A task with NO type is
-// an ordinary one somebody wrote by hand: it belongs to its assignee and needs
-// nobody's approval. A TYPED task is a decision waiting on whoever holds the
-// authority, which is a different thing and reads differently on the board.
+// WHAT EACH TYPE IS, IN FULL. A task with NO type is an ordinary one somebody
+// wrote by hand: it belongs to its assignee and needs nobody's approval. A TYPED
+// task is a decision waiting on whoever holds the authority, which is a
+// different thing and reads differently on the board.
+//
+// Four things are said about each, because Task settings has to show all four
+// before anybody can sensibly appoint to it:
+//
+//   label   what it is called wherever it appears
+//   hint    what the type IS, in one line — used on the board and in the picker
+//   from    WHERE IT COMES FROM. Only `approval` is raised by the system, off
+//           the Sales ticket's own button; the rest are raised by hand until
+//           the module that owns them can raise its own. Saying so is worth
+//           more than implying an automation that does not exist yet.
+//   handling  WHO HANDLES IT and what each authority is actually deciding —
+//           the sentence that makes an appointment a decision rather than a
+//           guess at what "Finance" means on this particular row.
 export const TASK_TYPE_LABELS = {
-  approval: { label: "Quotation approval", hint: "Both Sales and Management must approve before it moves on." },
-  po: { label: "PO approval", hint: "Management approves the PO; Finance issues the project number." },
-  "material-po": { label: "Material PO", hint: "Finance and Management both authorise the order to the vendor." },
-  delivery: { label: "Delivery request", hint: "Logistics arranges the delivery." },
-  "delivery-return": { label: "Delivery return", hint: "Logistics arranges the collection." },
-  "id-update": { label: "ID update", hint: "HR updates the identity documents on file." },
-  "permit-request": { label: "Permit request", hint: "The permit team issues the permit." },
+  approval: {
+    label: "Quotation approval",
+    hint: "Both Sales and Management must approve before it moves on.",
+    from: "Raised automatically when Sales presses Send for Approval on a ticket whose latest quotation is finished. One task per quotation — a revision raises its own.",
+    handling: "Sales confirms the commercial terms are what was agreed; Management authorises the studio to stand behind the price. It is approved only once both have signed.",
+  },
+  po: {
+    label: "PO approval",
+    hint: "Management approves the PO; Finance issues the project number.",
+    from: "Raised by hand on the Tasks board when a client's purchase order arrives against an approved quotation.",
+    handling: "Management approves the order itself; Finance issues the project number it will be billed under. Both are needed before work is booked against it.",
+  },
+  "material-po": {
+    label: "Material PO",
+    hint: "Finance and Management both authorise the order to the vendor.",
+    from: "Raised by hand on the Tasks board when materials have to be ordered from a vendor.",
+    handling: "Finance commits the spend; Management authorises the order going out. Both are needed before anything is sent to the vendor.",
+  },
+  delivery: {
+    label: "Delivery request",
+    hint: "Logistics arranges the delivery.",
+    from: "Raised by hand on the Tasks board when goods have to reach a site.",
+    handling: "Logistics arranges the delivery and closes the task once it has gone out. One authority, so one sign-off finishes it.",
+  },
+  "delivery-return": {
+    label: "Delivery return",
+    hint: "Logistics arranges the collection.",
+    from: "Raised by hand on the Tasks board when goods have to come back from a site.",
+    handling: "Logistics arranges the collection and closes the task once it is back. One authority, so one sign-off finishes it.",
+  },
+  "id-update": {
+    label: "ID update",
+    hint: "HR updates the identity documents on file.",
+    from: "Raised by hand on the Tasks board when somebody's identity documents expire or change.",
+    handling: "HR updates the documents held against that person and closes the task. One authority, so one sign-off finishes it.",
+  },
+  "permit-request": {
+    label: "Permit request",
+    hint: "The permit team issues the permit.",
+    from: "Raised by hand on the Tasks board when work at a site needs a permit before it can start.",
+    handling: "The permit team obtains the permit and closes the task with it on file. One authority, so one sign-off finishes it.",
+  },
 };
 
 // How long "approve" stays shut after an approval is WITHDRAWN, so a decision
