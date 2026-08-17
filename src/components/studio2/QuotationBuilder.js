@@ -51,6 +51,10 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
 
   const setTable = (i, patch) =>
     setTables((ts) => ts.map((t, j) => (j === i ? { ...t, ...patch } : t)));
+  // Which table just refused a repeat, and of what — so the message sits on
+  // that table rather than floating at the top of a long document.
+  const [duplicate, setDuplicate] = useState(null);
+
   const setRow = (i, k, patch) =>
     setTables((ts) => ts.map((t, j) => (j === i
       ? { ...t, rows: t.rows.map((r, m) => (m === k ? { ...r, ...patch } : r)) }
@@ -67,8 +71,33 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
   // asked for. Both are COPIED onto the line rather than looked up later: a
   // quotation is a document somebody was given, and re-pricing it from today's
   // catalogue would rewrite what was quoted last month.
+  //
+  // ONE ROW PER REGISTERED ITEM, PER TABLE. The same catalogue entry twice in
+  // one table is two lines quoting the same thing, and it is nearly always a
+  // mistake rather than an intention: the quantity column is how you ask for
+  // more of something. Left alone it also breaks the sheet that is drawn from
+  // the quotation later, where two lines for one item mean two competing
+  // answers to "how many were sold".
+  //
+  // PER TABLE, not per document, because tables are the divisions of the
+  // quotation — the same item may legitimately appear under "Ground floor" and
+  // again under "First floor", and those are different lines about different
+  // work.
+  //
+  // An UNLISTED line is not restricted: it has no itemId, it is quoted on this
+  // document and nowhere else, and two of them are two descriptions somebody
+  // deliberately typed.
   const pickItem = (i, k, name) => {
     const found = itemByName[String(name).trim().toLowerCase()];
+    if (found && tables[i]?.rows.some((r, m) => m !== k && r.itemId === found.id)) {
+      setDuplicate({ table: i, name });
+      // The text is still written, so the field shows what was typed rather
+      // than silently snapping back — but the item is NOT attached, so the row
+      // stays an unlisted line until it is changed to something else.
+      setRow(i, k, { description: name, itemId: "", unit: "", unitPrice: 0, image: "" });
+      return;
+    }
+    setDuplicate(null);
     setRow(i, k, found
       ? { description: name, itemId: found.id, unit: found.unit || "", unitPrice: found.unitPrice || 0, image: found.image || "" }
       : { description: name, itemId: "", unit: "", unitPrice: 0, image: "" });
@@ -151,6 +180,15 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
             const sum = table.rows.reduce((s, r) => s + num(r.qty) * netUnitPrice(r), 0);
             return (
               <section key={table.id} className="rounded-geex border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+                {/* Said on the table it happened to, naming the item, because a
+                    long document has several tables and "already added" at the
+                    top of the page answers nothing. */}
+                {duplicate?.table === i && (
+                  <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                    <span className="font-700">{duplicate.name}</span> is already a line in this table — change its quantity
+                    instead of adding it twice. Add it under another table if it is genuinely separate work.
+                  </p>
+                )}
                 <div className="flex items-center gap-3">
                   <input
                     className={`${input} font-600`}

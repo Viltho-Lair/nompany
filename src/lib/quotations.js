@@ -72,11 +72,37 @@ export const MAX_TABLE_ROWS = 200;
 //
 // A row with no description is dropped — a priced line nobody named cannot be
 // read on the finished document.
+// ONE ROW PER REGISTERED ITEM, PER TABLE — enforced here as well as on the
+// screen, because this is the last place before the document is stored.
+//
+// The same catalogue entry twice in one table is two lines quoting the same
+// thing, and the quantity column is how you ask for more of something. It also
+// breaks what is drawn from the quotation afterwards: the project sheet takes a
+// line per row, so two rows for one item become two competing answers to "how
+// many were sold".
+//
+// The REPEAT keeps its text and loses its item, rather than being dropped: what
+// somebody typed is still a line they meant to quote, it is simply not the
+// registered item any more. Dropping the row would silently delete work.
+//
+// Per TABLE, not per document — the same item under "Ground floor" and again
+// under "First floor" is two pieces of work, which is what tables are for. And
+// an unlisted line has no itemId, so any number of them pass through untouched.
+function oneRowPerItem(rows) {
+  const seen = new Set();
+  return rows.map((r) => {
+    if (!r.itemId) return r;
+    if (seen.has(r.itemId)) return { ...r, itemId: "" };
+    seen.add(r.itemId);
+    return r;
+  });
+}
+
 export function cleanQuotationTables(value) {
   return (Array.isArray(value) ? value : []).slice(0, MAX_TABLES).map((t, i) => ({
     id: String(t?.id || `t${i + 1}`).slice(0, 40),
     title: String(t?.title ?? "").trim().slice(0, 120),
-    rows: (Array.isArray(t?.rows) ? t.rows : []).slice(0, MAX_TABLE_ROWS).map((r, j) => ({
+    rows: oneRowPerItem((Array.isArray(t?.rows) ? t.rows : []).slice(0, MAX_TABLE_ROWS).map((r, j) => ({
       id: String(r?.id || `r${j + 1}`).slice(0, 40),
       // WHICH registered item this line came from, kept beside the text rather
       // than instead of it. The text is what the client was quoted and must
@@ -98,7 +124,7 @@ export function cleanQuotationTables(value) {
       // Taken off each unit before the line is multiplied out, so a discount
       // scales with quantity the way whoever typed it expects.
       discount: n(r?.discount),
-    })).filter((r) => r.description),
+    })).filter((r) => r.description)),
   }));
 }
 
