@@ -111,21 +111,58 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
     await load();
   }, [slug, draft, load]);
 
-  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading sheet…</p>;
+  // EVERY HOOK RUNS BEFORE ANY RETURN, and every value is derived before the
+  // return that uses it. Both rules were broken here: useMemo sat below three
+  // early returns, so the hook order changed between "loading" and "loaded" and
+  // React tore the screen down; and the empty-state return read projectTabs
+  // twenty lines above its own declaration. Neither is a build error — both are
+  // a blank page with "This page couldn't load".
+  const sheets = useMemo(() => data?.sheets || [], [data]);
 
-  const sheets = data.sheets || [];
-  // Declared before the not-found return below, which uses them.
-  const backHref = isInventory ? `/${slug}/inventory-sheets` : `/${slug}/projects-list/${projectId}`;
-  const backLabel = isInventory ? "← Project sheets" : "← Project";
+  // WHAT THE SEARCH LOOKS THROUGH, and it is not the rows — it is the SHEETS.
+  // Somebody typing a serial, a project number or a quotation number is asking
+  // "which project is that on", and the answer is a button to press.
+  const q = query.trim().toLowerCase();
+
+  // ONE BUTTON PER PROJECT, not per sheet. A project signed today puts one
+  // button in the bar; Main and Bulk are what is behind it, because they are
+  // two ways of reading that project rather than two projects.
+  const projectTabs = useMemo(() => {
+    const matches = (sh) => !q || [
+      sh.projectNumber, sh.quotationNumber, sh.projectTitle, sh.clientName, sh.poNumber,
+      ...(sh.serials || []),
+    ].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+
+    const by = new Map();
+    for (const sh of sheets.filter(matches)) {
+      if (!by.has(sh.projectId)) {
+        by.set(sh.projectId, {
+          projectId: sh.projectId,
+          label: sh.projectNumber || sh.projectTitle || "Unnumbered",
+          title: sh.projectTitle || "",
+          sheets: [],
+        });
+      }
+      by.get(sh.projectId).sheets.push(sh);
+    }
+    return [...by.values()];
+  }, [sheets, q]);
 
   // Inventory arrives at ONE sheet by id. Projects arrives at a PROJECT and
   // reads its Main sheet — the quotation as it was sold, which is the list a
   // project manager works to. Bulk is a procurement view and stays Inventory's.
-  const sheet = isInventory
-    ? sheets.find((s) => s.id === sheetId) || null
-    : sheets.find((s) => s.projectId === projectId && s.kind === "main")
-      || sheets.find((s) => s.projectId === projectId) || null;
+  const sheet = useMemo(() => (isInventory
+    ? sheets.find((x) => x.id === sheetId) || null
+    : sheets.find((x) => x.projectId === projectId && x.kind === "main")
+      || sheets.find((x) => x.projectId === projectId) || null), [sheets, isInventory, sheetId, projectId]);
+
+  const backHref = isInventory ? `/${slug}/inventory-sheets` : `/${slug}/projects-list/${projectId}`;
+  const backLabel = isInventory ? "← Project sheets" : "← Project";
+
+  // ---- returns, all of them below every hook -------------------------------
+  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
+  if (!data) return <p className="text-sm text-slate-500">Loading sheet…</p>;
+
   // THE WORK PORTION IS EMPTY UNTIL A SHEET IS CHOSEN. The bar stays, because
   // the bar is how one is chosen — an inventory person opens this screen to get
   // to a project, not to be shown one.
@@ -149,35 +186,6 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
       </div>
     );
   }
-
-  // WHAT THE SEARCH LOOKS THROUGH, and it is not the rows — it is the SHEETS.
-  // Somebody typing a serial, a project number or a quotation number is asking
-  // "which sheet is that on", and the answer is a tab to jump to.
-  const q = query.trim().toLowerCase();
-  const matches = (s) => !q || [
-    s.projectNumber, s.quotationNumber, s.projectTitle, s.clientName, s.poNumber,
-    ...(s.serials || []),
-  ].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
-
-  // ONE BUTTON PER PROJECT, not per sheet. A project signed today puts one
-  // button in the bar; Main and Bulk are what is behind it, because they are
-  // two ways of reading that project rather than two projects.
-  const projectTabs = useMemo(() => {
-    const by = new Map();
-    for (const sh of sheets.filter(matches)) {
-      if (!by.has(sh.projectId)) {
-        by.set(sh.projectId, {
-          projectId: sh.projectId,
-          label: sh.projectNumber || sh.projectTitle || "Unnumbered",
-          title: sh.projectTitle || "",
-          sheets: [],
-        });
-      }
-      by.get(sh.projectId).sheets.push(sh);
-    }
-    return [...by.values()];
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheets, q]);
 
   // WHAT THIS PERSPECTIVE OFFERS TO WRITE. Assigning serials is Inventory's;
   // installation and programming are Projects'. Holding the other department's
