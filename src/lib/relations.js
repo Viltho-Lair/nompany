@@ -73,6 +73,17 @@ export const EDGES = [
   edge("rfq", "salesTicket", "forward", "ticketId", ONE),
   edge("quotation", "salesTicket", "forward", "ticketId", ONE),
   edge("quotation", "rfq", "forward", "rfqId", ONE),
+  // RECIPROCAL, and both halves are genuinely stored: a quotation is created
+  // carrying its rfqId, and converting the RFQ writes the quotation's id back
+  // onto it (technical.js:571). This is the one place in the chain where the
+  // link is held from both ends, so it is the one place a back-pointer is a
+  // fact rather than a copy.
+  //
+  // It makes rfq -> project reachable two ways: through the ticket, or through
+  // the quotation. Both land on the same record, because a ticket has one
+  // project — see the test that pins it, so a change to the edge order cannot
+  // silently pick the other route.
+  edge("rfq", "quotation", "forward", "quotationId", ONE),
   edge("project", "quotation", "forward", "quotationId", ONE),
   edge("project", "salesTicket", "forward", "ticketId", ONE),
   edge("project", "client", "forward", "clientId", ONE),

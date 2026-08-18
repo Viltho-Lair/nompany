@@ -1793,6 +1793,34 @@ console.log("\n== the departments are joined in one place, and it is checkable")
   ok("...with cancelled ones excluded, as Finance always did",
     !billed.records.some((r) => r.status === "Cancelled"));
 
+  // ---- the one reciprocal link ----
+  //
+  // Everywhere else the child holds the key and the parent scans. RFQ and
+  // quotation hold each other: a quotation is created with its rfqId, and
+  // converting the RFQ writes the quotation's id back. Both halves are real, so
+  // both are declared.
+  // Both halves of the link present, as they are in a real converted RFQ: the
+  // quotation carries rfqId, the RFQ carries quotationId.
+  const withRfq = {
+    ...rows,
+    quotation: rows.quotation.map((q) => (q.id === "q2" ? { ...q, rfqId: "r1" } : q)),
+    rfq: [{ id: "r1", ticketId: "t1", quotationId: "q2", createdAt: "2026-02-01" }],
+  };
+  const readRfq = async (node) => withRfq[node] || [];
+  const fromRfq = await traverse("rfq", withRfq.rfq[0], "quotation", { read: readRfq });
+  ok("an RFQ follows its stored key to its quotation", fromRfq.record?.number === "Q-2", fromRfq.record?.number);
+  const backToRfq = await traverse("quotation", withRfq.quotation[1], "rfq", { read: readRfq });
+  ok("...and the quotation follows its own back", backToRfq.record?.id === "r1", JSON.stringify(backToRfq.record));
+
+  // That reciprocity makes rfq -> project reachable two ways: through the ticket
+  // or through the quotation. Both land on the same record, because a ticket has
+  // one project — pinned here so a change to the edge order cannot quietly pick
+  // the other route and mean something subtly different.
+  const viaEither = await traverse("rfq", withRfq.rfq[0], "project", { read: readRfq });
+  ok("an RFQ reaches the project in two hops, whichever way round",
+    viaEither.record?.id === "p1" && viaEither.path.length === 2,
+    JSON.stringify(viaEither.path?.map((e) => `${e.from}->${e.to}`)));
+
   // ---- the gate ----
   const denied = await traverse("salesTicket", rows.salesTicket[0], "invoice", {
     read, holds: (perm) => perm !== "finance.cash.view",
