@@ -35,9 +35,10 @@ import {
   qualityContext, installStarterTypes, createType, updateType, removeType,
   createDocument, updateDocument, removeDocument, listTypes,
   saveDepartmentCodes, departmentCodes,
-  openDraft, saveDraft, acquireLock, releaseLock, lockState,
+  openDraft, saveDraft, acquireLock, releaseLock, lockState, watermarkFor,
 } from "@/lib/quality";
 import { sanitizeDoc, cleanSections, textOf } from "@/lib/qualityContent";
+import { renderSections, slotValue, DEFAULT_TEMPLATE } from "@/lib/qualityRender";
 import { listSections, updateRow } from "@/lib/data/sections";
 import { readArr, writeArr } from "@/lib/data/store";
 import { S } from "@/lib/data/keys";
@@ -1064,6 +1065,77 @@ console.log("\n== two people, one draft");
   }
 
   __signOut();
+}
+
+// ============================================================================
+console.log("\n== one renderer draws the screen and the page");
+// The preview and the PDF are not two implementations kept in step — they are
+// this function, called twice. Everything below is therefore true of both.
+{
+  const p = (text) => ({ type: "paragraph", content: [{ type: "text", text }] });
+  const doc = (content) => ({ type: "doc", content });
+  const render = (sections, values) => renderSections(sections, { values });
+
+  // ESCAPING. Content arrives as JSON, so a person can type a tag as text and
+  // it must come out as text — this is the only place markup is ever produced.
+  const nasty = render([{ id: "a", title: "<script>x</script>", body: doc([p('a & b < c > d "quoted"')]) }]);
+  ok("text with tags in it is escaped, not emitted",
+    !nasty.includes("<script>") && nasty.includes("&lt;script&gt;"), nasty.slice(0, 90));
+  ok("...ampersands and angle brackets too", nasty.includes("a &amp; b &lt; c &gt; d"), nasty.slice(-120));
+
+  // MERGE FIELDS resolve to the studio's values, and say which field is empty
+  // rather than leaving a hole in a printed procedure.
+  const withField = doc([{ type: "paragraph", content: [{ type: "mergeField", attrs: { field: "company.name" } }] }]);
+  ok("a merge field prints its value",
+    render([{ id: "a", title: "", body: withField }], { "company.name": "Acme" }).includes("Acme"));
+  ok("...and names itself when nothing is set",
+    render([{ id: "a", title: "", body: withField }], {}).includes("[company.name]"));
+
+  // Every block takes its OWN direction. Without this an Arabic sentence inside
+  // an English document has its full stop moved to the front by the bidi
+  // algorithm — which is correct behaviour producing an incorrect document.
+  ok("blocks carry dir=auto so each finds its own direction",
+    render([{ id: "a", title: "T", body: doc([p("x")]) }]).includes('<p dir="auto">'));
+
+  // An outbound link in a document that may be shared outside the studio.
+  const linked = render([{ id: "a", title: "", body: doc([{
+    type: "paragraph",
+    content: [{ type: "text", text: "docs", marks: [{ type: "link", attrs: { href: "https://example.com" } }] }],
+  }]) }]);
+  ok("links are given rel=noopener", linked.includes('rel="noopener noreferrer nofollow"'), linked);
+
+  // A node type the renderer does not know draws NOTHING — never a guess, and
+  // never an unhandled tag. The allowlist on the way in and the table on the way
+  // out are meant to name the same set.
+  const unknown = render([{ id: "a", title: "", body: doc([{ type: "iframe", attrs: { src: "https://evil" } }]) }]);
+  ok("an unknown node renders nothing at all", !unknown.includes("iframe") && !unknown.includes("evil"), unknown);
+
+  // Sections are numbered from their order, because a controlled document is
+  // cited by section number.
+  const numbered = render([
+    { id: "a", title: "Purpose", body: doc([p("x")]) },
+    { id: "b", title: "Scope", body: doc([p("y")]) },
+  ]);
+  ok("sections are numbered as they are ordered",
+    numbered.indexOf("1.") < numbered.indexOf("Purpose") && numbered.includes("2."), "");
+
+  // The letterhead's page tokens become the spans Puppeteer fills in; anything
+  // else resolves against the merge values.
+  ok("page tokens become the printer's own spans",
+    slotValue("page.of", {}).includes('class="pageNumber"') && slotValue("page.of", {}).includes('class="totalPages"'));
+  ok("...and a field token resolves like any other",
+    slotValue("company.name", { values: { "company.name": "Acme" } }) === "Acme");
+  ok("the default letterhead prints the code and the revision",
+    DEFAULT_TEMPLATE.header.right === "document.code" && DEFAULT_TEMPLATE.footer.left === "document.revision");
+
+  // THE STAMP. A draft must never be mistaken on paper for the issued document,
+  // and a withdrawn one must never be mistaken for current — those two
+  // confusions are what document control exists to prevent, and they happen
+  // away from the screen that knew the difference.
+  ok("a draft is stamped DRAFT", watermarkFor({ status: "draft" }) === "DRAFT");
+  ok("a document in review is still a draft", watermarkFor({ status: "in-review" }) === "DRAFT");
+  ok("an issued document carries no stamp", watermarkFor({ status: "effective" }) === "");
+  ok("a withdrawn one is stamped OBSOLETE", watermarkFor({ status: "obsolete" }) === "OBSOLETE");
 }
 
 // ============================================================================

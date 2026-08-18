@@ -15,6 +15,7 @@ import StudioDocs from "@/components/studio2/StudioDocs";
 import StudioQualityDocuments from "@/components/studio2/StudioQualityDocuments";
 import StudioQualitySetup from "@/components/studio2/StudioQualitySetup";
 import StudioQualityBuilder from "@/components/studio2/StudioQualityBuilder";
+import StudioQualityReader from "@/components/studio2/StudioQualityReader";
 import StudioSalesLive from "@/components/studio2/StudioSalesLive";
 import StudioTechnicalLive from "@/components/studio2/StudioTechnicalLive";
 import StudioPeople from "@/components/studio2/StudioPeople";
@@ -145,6 +146,12 @@ export default async function StudioPage({ params }) {
     // Same shape as /<slug>/inventory-sheets/<id> and /<slug>/projects-list/<id>:
     // the record's own screen, resolving through the section's grant.
     if (segments[1]) {
+      // A THIRD segment opens the reader — the document as it prints, and where
+      // it is exported from. It is a read, so it needs no more than the grant
+      // that got them this far.
+      if (segments[2] === "preview") {
+        return <StudioQualityReader studio={{ ...shell, logo: studio.logo || "" }} documentId={segments[1]} />;
+      }
       return (
         <LiveProvider slug={studio.slug}>
           <StudioQualityBuilder studio={shell} documentId={segments[1]} />

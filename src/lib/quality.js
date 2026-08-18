@@ -518,3 +518,45 @@ export async function saveDraft(ctx, documentId, body) {
 
   return { revision: updated, sections };
 }
+
+// ---- rendering a document ---------------------------------------------------
+
+// WHAT THE MERGE FIELDS SAY, resolved from the studio at the moment of
+// rendering. Shared by the builder, the reader and the PDF route so all three
+// resolve the same field to the same value — a document whose preview and
+// print disagree about the company's name is worse than one with neither.
+export async function mergeValuesFor(ctx, document, { types = null, rev = null } = {}) {
+  const [list, people] = await Promise.all([
+    types ? Promise.resolve(types) : listTypes(ctx),
+    listCollaborators(ctx.studio.id),
+  ]);
+  const type = list.find((t) => t.id === document.typeId);
+  const department = ctx.departments.find((d) => d.id === document.departmentId);
+  const owner = people.find((c) => c.id === document.ownerCollaboratorId);
+
+  return {
+    "company.name": ctx.studio.name || "",
+    "company.address": ctx.studio.location || "",
+    "company.country": ctx.studio.country || "",
+    "company.city": ctx.studio.city || "",
+    "document.code": document.code || "",
+    "document.title": document.title || "",
+    "document.revision": `Rev ${rev ?? document.revision ?? 0}`,
+    "document.type": type?.name || "",
+    "document.department": department?.name || "",
+    "document.owner": owner?.alias || "",
+    "document.effectiveDate": document.effectiveDate || "",
+    "document.nextReviewDate": document.nextReviewDate || "",
+  };
+}
+
+// THE STAMP ACROSS THE PAGE, and the reason a printed copy cannot lie about
+// what it is. A document that has not been issued must never be mistaken for
+// one that has, and a withdrawn one must never be mistaken for current — those
+// two confusions are precisely what document control exists to prevent, and
+// they happen on paper, away from the screen that knew the difference.
+export function watermarkFor(document) {
+  if (document?.status === "obsolete") return "OBSOLETE";
+  if (document?.status === "effective") return "";
+  return "DRAFT";
+}

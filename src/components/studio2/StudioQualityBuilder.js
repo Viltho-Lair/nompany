@@ -10,6 +10,7 @@ import { Icon } from "@/components/studio2/icons";
 import { MergeField } from "@/components/studio2/qualityMergeField";
 import { btn, btnGhost, input, microLabel } from "@/components/studio2/ui";
 import { blankSection, MAX_SECTIONS, emptyDoc } from "@/lib/qualityContent";
+import { SCREEN_CSS } from "@/lib/qualityCss";
 
 // THE BUILDER — Quality → Documents → one document, full screen.
 //
@@ -241,6 +242,11 @@ export default function StudioQualityBuilder({ studio, documentId }) {
 
   return (
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
+      {/* The document's appearance, from the same string that paints the PDF.
+          It lives in a module rather than the global stylesheet precisely so
+          there is only ever one of it — see lib/qualityCss.js. */}
+      <style>{SCREEN_CSS}</style>
+
       <header className="sticky top-0 z-20 border-b border-[var(--geex-border)] bg-[var(--geex-page)]">
         <div className="flex flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
           <Link
@@ -262,6 +268,9 @@ export default function StudioQualityBuilder({ studio, documentId }) {
             <span className={`text-xs font-600 ${saveState === "error" ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500"}`}>
               {editable ? saveLabel : ""}
             </span>
+            <Link href={`/${studio.slug}/quality-documents/${documentId}/preview`} className={btnGhost}>
+              Preview &amp; export
+            </Link>
           </div>
         </div>
 
