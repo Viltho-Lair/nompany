@@ -25,6 +25,7 @@ import { bumpCounter, claim, getIndex, release, touchTTL, setJSONEx } from "@/li
 import { SEC, IX } from "@/lib/data/keys";
 import { randomUUID } from "node:crypto";
 import { currentUser } from "@/lib/identity";
+import { moveSignable, availableMoves } from "@/lib/signables";
 import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
 import {
   DOC_STATUSES, DEFAULT_STATUS, STATUS_LABELS, isControlled,
@@ -47,6 +48,7 @@ const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(
 
 // Re-exported so a server-side caller keeps one import, the way lib/tasks.js
 // re-exports lib/taskRouting.js.
+export { availableMoves };
 export {
   DOC_STATUSES, DEFAULT_STATUS, STATUS_LABELS, DOC_LANGUAGES,
   directionOf, isControlled, ISO_STARTER_TYPES,
@@ -858,18 +860,14 @@ const waitingOn = (document, state) =>
       : "";
 
 /**
- * Move a revision along the ladder. ONE function for every transition, driven
- * by the table in lib/qualityDocuments.js, so the rules exist once — a screen
- * asking what is possible and a service deciding what is allowed read the same
- * declaration, and cannot come to different answers.
+ * Move a revision along the ladder.
+ *
+ * The MACHINE lives in lib/signables.js now, because a generated document goes
+ * through the same review and approval and lives in another module entirely.
+ * What stays here is the part that is about a controlled document specifically:
+ * finding the revision in play, and what publishing and withdrawing MEAN.
  */
 export async function moveRevision(ctx, documentId, action, body = {}) {
-  const move = TRANSITIONS[action];
-  if (!move) return { error: "unknown-action" };
-
-  const denied = requirePermission(ctx.access, move.permission);
-  if (denied) return denied;
-
   const [documents, revisions] = await Promise.all([
     readCol(ctx.studio.id, ctx.section.id, DOCUMENTS),
     readCol(ctx.studio.id, ctx.section.id, REVISIONS),
@@ -878,100 +876,75 @@ export async function moveRevision(ctx, documentId, action, body = {}) {
   if (!document) return { error: "notfound" };
 
   const mine = revisions.filter((r) => r.documentId === documentId);
+  // Withdrawing acts on the ISSUED revision; everything else acts on the one
+  // still open. They are never the same row.
   const current = action === "withdraw"
     ? mine.find((r) => r.state === "effective")
     : mine.find((r) => isOpen(r.state));
-  if (!current) return { error: "no-revision" };
-  if (!move.from.includes(current.state)) return { error: "wrong-state", state: current.state };
 
-  const now = new Date().toISOString();
-  const patch = { state: move.to, updatedAt: now };
+  const result = await moveSignable({
+    access: ctx.access,
+    actor: { id: ctx.collaborator.id, alias: ctx.collaborator.alias || "" },
+    transitions: TRANSITIONS,
+    row: current,
+    auditPrefix: "revision",
 
-  // NOBODY SIGNS BOTH HALVES. Review and approval are two rights precisely so
-  // they can be two people, and a revision carrying one person's name in both
-  // slots has been reviewed by nobody. The check belongs here rather than in the
-  // permission model, because holding both rights is legitimate and using both
-  // on one revision is not.
-  if (action === "approve" && current.review?.byCollaboratorId === ctx.collaborator.id) {
-    return { error: "same-signer" };
-  }
+    apply: (patch) => updateRow(ctx.studio.id, ctx.section.id, REVISIONS, current.id, patch),
 
-  if (action === "review" || action === "approve") {
-    const slot = action === "review" ? "review" : "approval";
-    patch[slot] = {
-      byCollaboratorId: ctx.collaborator.id,
-      byAlias: ctx.collaborator.alias || "",
-      role: SIGNATURE_ROLES[slot],
-      at: now,
-      note: str(body?.note, 400),
-      // Optional, and optional on purpose: a signature is a name, a role and a
-      // moment. The graphic is decoration on top of that record, so a signature
-      // without one is not a lesser signature.
-      signatureUrl: /^\/api\/media\/[a-f0-9]{32}$/i.test(String(body?.signatureUrl || "")) ? body.signatureUrl : "",
-    };
-  }
+    // WHAT THE MOVE MEANS — the half that is not generic.
+    after: async (moved, patch, now) => {
+      if (moved === "publish") {
+        const effectiveDate = day(body?.effectiveDate) || now.slice(0, 10);
+        // The revision this one replaces is SUPERSEDED, not deleted. Retaining
+        // withdrawn versions is the requirement, and it is also the only way to
+        // answer "what did the procedure say in March".
+        for (const r of mine) {
+          if (r.state === "effective" && r.id !== current.id) {
+            await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, r.id, { state: "superseded", supersededAt: now });
+          }
+        }
+        await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
+          revision: current.rev,
+          effectiveRevisionId: current.id,
+          effectiveDate,
+          draftRevisionId: "",
+          nextReviewDate: day(body?.nextReviewDate) || document.nextReviewDate || "",
+          updatedAt: now,
+        });
+        await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, current.id, { effectiveDate });
 
-  if (action === "reject") {
-    patch.rejection = {
-      byCollaboratorId: ctx.collaborator.id, byAlias: ctx.collaborator.alias || "",
-      at: now, note: str(body?.note, 400),
-    };
-  }
-
-  const updated = await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, current.id, patch);
-  if (!updated) return { error: "notfound" };
-
-  // ---- what publishing does to everything else ----
-  if (action === "publish") {
-    const effectiveDate = day(body?.effectiveDate) || now.slice(0, 10);
-    // The revision this one replaces is SUPERSEDED, not deleted. Retaining
-    // withdrawn versions is the requirement, and it is also the only way to
-    // answer "what did the procedure say in March".
-    for (const r of mine) {
-      if (r.state === "effective" && r.id !== current.id) {
-        await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, r.id, { state: "superseded", supersededAt: now });
+        // AND THIS IS WHERE IT REACHES PEOPLE. Publishing without telling the
+        // people who have to work to it is the commonest way a quality system
+        // ends up with a current revision nobody has read.
+        await distribute(ctx, document, { ...current, ...patch, effectiveDate });
       }
-    }
-    await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
-      revision: current.rev,
-      effectiveRevisionId: current.id,
-      effectiveDate,
-      draftRevisionId: "",
-      nextReviewDate: day(body?.nextReviewDate) || document.nextReviewDate || "",
-      updatedAt: now,
-    });
-    await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, current.id, { effectiveDate });
 
-    // AND THIS IS WHERE IT REACHES PEOPLE. Publishing without telling the people
-    // who have to work to it is the commonest way a quality system ends up with
-    // a current revision nobody has read.
-    await distribute(ctx, document, { ...current, ...patch, effectiveDate });
-  }
+      if (moved === "withdraw") {
+        await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
+          obsoletedAt: now, obsoletedByCollaboratorId: ctx.collaborator.id, updatedAt: now,
+        });
+      }
+    },
 
-  if (action === "withdraw") {
-    await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
-      obsoletedAt: now, obsoletedByCollaboratorId: ctx.collaborator.id, updatedAt: now,
-    });
-  }
+    audit: (entry) => audit(ctx, {
+      documentId, revisionId: current.id, action: entry.action,
+      detail: `Rev ${current.rev}${entry.note ? ` - ${entry.note}` : ""}`,
+    }),
 
-  await audit(ctx, {
-    documentId, revisionId: current.id, action: `revision.${action}`,
-    detail: `Rev ${current.rev}${body?.note ? ` - ${str(body.note, 200)}` : ""}`,
-  });
+    notify: async (state) => {
+      const next = waitingOn(document, state);
+      if (!next || next === ctx.collaborator.id) return;
+      await notifyCollaborators(ctx.studio.id, [next], {
+        type: NOTIFY.system,
+        title: `${document.code} needs you`,
+        body: `${REV_LABELS[state]} - ${document.title}`,
+        href: `/${ctx.studio.slug}/quality-documents/${documentId}`,
+      }).catch(() => {});
+    },
+  }, action, body);
 
-  // Tell whoever it now sits with. A workflow that waits silently is a workflow
-  // that waits forever.
-  const next = waitingOn(document, move.to);
-  if (next && next !== ctx.collaborator.id) {
-    await notifyCollaborators(ctx.studio.id, [next], {
-      type: NOTIFY.system,
-      title: `${document.code} needs you`,
-      body: `${REV_LABELS[move.to]} - ${document.title}`,
-      href: `/${ctx.studio.slug}/quality-documents/${documentId}`,
-    }).catch(() => {});
-  }
-
-  return { revision: { ...current, ...patch } };
+  if (result.error) return result;
+  return { revision: result.row };
 }
 
 // ---- naming the two signers -------------------------------------------------
