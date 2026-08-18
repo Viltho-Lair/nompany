@@ -1370,6 +1370,54 @@ console.log("\n== a document nobody has read is not a controlled document");
 }
 
 // ============================================================================
+console.log("\n== the author decides some breaks, and table widths survive");
+{
+  const p = (t) => ({ type: "paragraph", content: [{ type: "text", text: t }] });
+  const doc = (content) => ({ type: "doc", content });
+  const render = (content) => renderSections([{ id: "a", title: "", body: doc(content) }], {});
+
+  // The page break existed as a CSS rule with no node able to match it, so an
+  // author could not insert one and the rule was unreachable.
+  const broken = sanitizeDoc(doc([p("before"), { type: "pageBreak" }, p("after")]));
+  ok("a page break survives the allowlist",
+    JSON.stringify(broken).includes("pageBreak"), JSON.stringify(broken));
+  ok("...and renders the class the print sheet matches",
+    render([p("before"), { type: "pageBreak" }, p("after")]).includes('class="quality-page-break"'));
+
+  // Widths were stored, allowlisted, then silently dropped on the way out —
+  // `table-layout: fixed` with no colgroup prints every column equal.
+  const cell = (w) => ({ type: "tableCell", attrs: { colwidth: w ? [w] : null }, content: [p("x")] });
+  const table = (cells) => ({ type: "table", content: [{ type: "tableRow", content: cells }] });
+
+  const sized = render([table([cell(300), cell(100)])]);
+  ok("a resized table emits a colgroup", sized.includes("<colgroup>"), sized.slice(0, 120));
+  // 300:100 is 75%/25% — the RATIO, not the pixels, because the editor canvas is
+  // not the width of the paper.
+  ok("...as proportions rather than the editor's pixels",
+    sized.includes('width:75.00%') && sized.includes('width:25.00%'), sized.slice(0, 200));
+  ok("...and never as raw px", !sized.includes("px"), sized.slice(0, 200));
+
+  // A table nobody touched should stay equal-width rather than gain a colgroup
+  // asserting something the author never said.
+  ok("an untouched table emits no colgroup", !render([table([cell(0), cell(0)])]).includes("<colgroup>"));
+
+  // A partly-resized table still has to add up to 100%.
+  const partial = render([table([cell(200), cell(0), cell(200)])]);
+  const pcts = [...partial.matchAll(/width:([\d.]+)%/g)].map((m) => Number(m[1]));
+  ok("a partly-resized table still adds up",
+    pcts.length === 3 && Math.abs(pcts.reduce((a, b) => a + b, 0) - 100) < 0.05, JSON.stringify(pcts));
+
+  // colspan means one cell covers several columns, so the colgroup needs an
+  // entry each or every column after it is shifted one to the left.
+  const spanned = render([{ type: "table", content: [{ type: "tableRow", content: [
+    { type: "tableCell", attrs: { colspan: 2, colwidth: [120, 80] }, content: [p("wide")] },
+    cell(200),
+  ] }] }]);
+  ok("a colspan still yields one <col> per column",
+    (spanned.match(/<col /g) || []).length === 3, spanned.slice(0, 220));
+}
+
+// ============================================================================
 // Everything this suite wrote lives under the namespace, so cleanup is one
 // prefix deletion. Runs whatever happened above — a failed assertion must not
 // leave keys behind.

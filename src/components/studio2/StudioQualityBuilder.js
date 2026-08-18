@@ -8,6 +8,7 @@ import Image from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
 import { Icon } from "@/components/studio2/icons";
 import { MergeField } from "@/components/studio2/qualityMergeField";
+import { PageBreak } from "@/components/studio2/qualityPageBreak";
 import { btn, btnGhost, input, microLabel } from "@/components/studio2/ui";
 import { blankSection, MAX_SECTIONS, emptyDoc } from "@/lib/qualityContent";
 import { SCREEN_CSS } from "@/lib/qualityCss";
@@ -67,6 +68,7 @@ function Toolbar({ editor, onInsertField, disabled }) {
       <span className="mx-1 h-5 w-px bg-slate-200 dark:bg-white/10" />
       {item("Table", false, () => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), "Insert a table")}
       {item("—", false, () => chain().setHorizontalRule().run(), "Horizontal rule")}
+      {item("Page break", false, () => chain().setPageBreak().run(), "Start a new page here (Ctrl+Enter)")}
       <button
         type="button"
         disabled={disabled}
@@ -75,6 +77,22 @@ function Toolbar({ editor, onInsertField, disabled }) {
       >
         Insert field
       </button>
+
+      {/* THE TABLE CONTROLS, only where they apply. Drawn always, they would be
+          nine buttons that do nothing unless the caret happens to be in a table
+          — which is how a toolbar teaches people to stop reading it. */}
+      {editor.isActive("table") && (
+        <span className="ms-2 flex flex-wrap items-center gap-0.5 rounded-lg bg-brand-500/10 px-1.5 py-0.5">
+          <span className="pe-1 text-[10px] font-700 uppercase tracking-wide text-brand-700 dark:text-brand-300">Table</span>
+          {item("+Row", false, () => chain().addRowAfter().run(), "Add a row below")}
+          {item("−Row", false, () => chain().deleteRow().run(), "Delete this row")}
+          {item("+Col", false, () => chain().addColumnAfter().run(), "Add a column after")}
+          {item("−Col", false, () => chain().deleteColumn().run(), "Delete this column")}
+          {item("Header", editor.isActive("tableHeader"), () => chain().toggleHeaderRow().run(), "Toggle the header row")}
+          {item("Merge", false, () => chain().mergeOrSplit().run(), "Merge the selected cells, or split a merged one")}
+          {item("Remove", false, () => chain().deleteTable().run(), "Delete the whole table")}
+        </span>
+      )}
     </div>
   );
 }
@@ -92,6 +110,7 @@ function SectionEditor({ section, values, labels, editable, onChange, onFocus })
       Image.configure({ allowBase64: false }),
       TableKit.configure({ table: { resizable: true } }),
       MergeField.configure({ values, labels }),
+      PageBreak,
     ],
     content: section.body || emptyDoc(),
     editorProps: {

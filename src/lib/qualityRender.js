@@ -83,13 +83,17 @@ function renderNode(node, ctx) {
     case "blockquote": return `<blockquote dir="auto">${kids()}</blockquote>`;
     case "codeBlock": return `<pre><code>${esc(textIn(node))}</code></pre>`;
     case "horizontalRule": return "<hr>";
+    // No appearance of its own in print — only an effect. PRINT_CSS turns
+    // this class into break-before: page; EDITOR_CSS draws it as a visible
+    // marker on screen so the author can see the decision they made.
+    case "pageBreak": return '<div class="quality-page-break"></div>';
     case "hardBreak": return "<br>";
     case "image":
       // The src was pinned to our own media store on the way in. Resolved to an
       // absolute URL or a data: URI by the caller when the renderer runs
       // somewhere with no origin of its own — see resolveImages.
       return `<img${attrs({ src: ctx.image?.(node.attrs?.src) ?? node.attrs?.src, alt: node.attrs?.alt, title: node.attrs?.title })}>`;
-    case "table": return `<table>${kids()}</table>`;
+    case "table": return `<table>${colGroupFor(node)}${kids()}</table>`;
     case "tableRow": return `<tr>${kids()}</tr>`;
     case "tableCell":
     case "tableHeader": {
@@ -114,6 +118,43 @@ function renderNode(node, ctx) {
     }
     default: return "";
   }
+}
+
+// COLUMN WIDTHS, CONVERTED RATHER THAN COPIED.
+//
+// The editor stores widths in PIXELS, measured against a canvas that is not the
+// width of the paper. Carried across literally they would overflow an A4 page or
+// leave it short. What the author actually expressed is a RATIO — this column is
+// twice that one — so that is what gets written out, as percentages, and it
+// holds at any page size.
+//
+// Without this the widths were stored, allowlisted, and then silently dropped
+// here: `table-layout: fixed` with no colgroup gives every column an equal share,
+// so a carefully sized table printed as if it had never been touched.
+function colGroupFor(table) {
+  const firstRow = (table.content || []).find((r) => r.type === "tableRow");
+  if (!firstRow) return "";
+
+  const widths = [];
+  for (const cell of firstRow.content || []) {
+    const span = Math.max(1, Math.trunc(Number(cell.attrs?.colspan) || 1));
+    const w = Array.isArray(cell.attrs?.colwidth) ? cell.attrs.colwidth : [];
+    for (let i = 0; i < span; i += 1) widths.push(Number(w[i]) > 0 ? Number(w[i]) : null);
+  }
+  // Nothing was ever resized, so equal columns are what was meant.
+  if (!widths.some(Boolean)) return "";
+
+  // A column nobody dragged takes the average of the ones somebody did — a
+  // partly-resized table then still adds up, instead of collapsing every
+  // untouched column to nothing.
+  const known = widths.filter(Boolean);
+  const fallback = known.reduce((a, b) => a + b, 0) / known.length;
+  const resolved = widths.map((w) => w || fallback);
+  const total = resolved.reduce((a, b) => a + b, 0) || 1;
+
+  return `<colgroup>${resolved
+    .map((w) => `<col style="width:${((w / total) * 100).toFixed(2)}%">`)
+    .join("")}</colgroup>`;
 }
 
 const textIn = (node) => (node.content || []).map((c) => (c.type === "text" ? c.text || "" : textIn(c))).join("");

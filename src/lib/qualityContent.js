@@ -42,6 +42,8 @@ const NODES = {
   codeBlock: ["language"],
   horizontalRule: [],
   hardBreak: [],
+  // An author's explicit break. Carries nothing — where it is IS the decision.
+  pageBreak: [],
   image: ["src", "alt", "title"],
   table: [],
   tableRow: [],

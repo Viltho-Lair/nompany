@@ -77,6 +77,25 @@ export const EDITOR_CSS = `
   position: absolute; right: -2px; top: 0; bottom: 0; width: 4px;
   background: #2563eb; pointer-events: none;
 }
+/* THE BREAK, MADE VISIBLE — on screen only. In the PDF this element has no
+   appearance at all, just an effect, so drawing it here would be drawing a rule
+   across a page that has no rule on it. */
+.quality-page-break {
+  position: relative; height: 0; margin: 1.6em 0;
+  border-top: 2px dashed #cbd5e1;
+}
+.quality-page-break::after {
+  content: "Page break";
+  position: absolute; top: -0.75em; left: 50%; transform: translateX(-50%);
+  background: #fff; padding: 0 0.6em;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #94a3b8;
+}
+/* Cells need a containing block or the resize handle and the selected-cell tint
+   — both absolutely positioned — anchor to whatever happens to be positioned
+   further up the tree. Which is why neither of them has ever appeared. */
+.quality-prose th, .quality-prose td { position: relative; }
+
 .quality-prose p.is-editor-empty:first-child::before {
   content: attr(data-placeholder); color: #cbd5e1;
   float: inline-start; height: 0; pointer-events: none;
