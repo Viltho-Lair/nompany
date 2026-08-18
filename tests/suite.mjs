@@ -37,7 +37,10 @@ import {
   saveDepartmentCodes, departmentCodes,
   openDraft, saveDraft, acquireLock, releaseLock, lockState, watermarkFor,
   moveRevision, startRevision, setSigners, listRevisions, listAudit,
+  setDistribution, distributionOf, acknowledge, markRead,
+  createShareLink, revokeShareLink, listShareLinks,
 } from "@/lib/quality";
+import { getJSON } from "@/lib/data/store";
 import { documentState, pendingRevision } from "@/lib/qualityDocuments";
 import { sanitizeDoc, cleanSections, textOf } from "@/lib/qualityContent";
 import { renderSections, slotValue, DEFAULT_TEMPLATE } from "@/lib/qualityRender";
@@ -1274,6 +1277,96 @@ console.log("\n== nothing is issued until two people have signed it");
     (await setSigners(q, id, { reviewerCollaboratorId: member.collaborator.id, approverCollaboratorId: member.collaborator.id })).error === "same-signer");
 
   __signOut();
+}
+
+// ============================================================================
+console.log("\n== a document nobody has read is not a controlled document");
+// The half of document control a register cannot satisfy on its own: proving
+// the people who have to work to a procedure have seen the CURRENT revision.
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  const m = await qualityContext(member.user, slug);
+  const types = await listTypes(q);
+
+  const made = await createDocument(q, { title: "Distributed procedure", typeId: types[0].id, departmentId: "sales" });
+  const id = made.document.id;
+  await openDraft(q, id);
+
+  // Nothing leaves the studio before it has been issued: a draft shared
+  // outside is an uncontrolled document by definition, and whoever receives it
+  // cannot tell that from the paper.
+  ok("an unissued document cannot be shared", (await createShareLink(q, id, {})).error === "not-issued");
+
+  await setDistribution(q, id, { collaboratorIds: [member.collaborator.id] });
+  ok("nothing is distributed before a revision is issued",
+    (await distributionOf(q, id)).recipients.length === 0);
+
+  await moveRevision(q, id, "submit");
+  await moveRevision(m, id, "review");
+  await moveRevision(q, id, "approve");
+  await moveRevision(q, id, "publish", { effectiveDate: "2026-09-01" });
+
+  const first = await distributionOf(q, id);
+  ok("issuing puts it in somebody's hands", first.recipients.length === 1, JSON.stringify(first));
+  ok("...against the revision that was issued", first.rev === 1, String(first.rev));
+  ok("...and starts unread", first.recipients[0].readAt === "" && first.recipients[0].acknowledgedAt === "");
+  ok("...and counts as outstanding", first.outstanding === 1);
+
+  // Opening is not accepting. Two facts, recorded separately, because an audit
+  // asks for the second one.
+  await markRead(m, id);
+  const opened = await distributionOf(q, id);
+  ok("opening it is recorded", opened.recipients[0].readAt !== "" && opened.recipients[0].acknowledgedAt === "");
+  ok("...but it is still outstanding", opened.outstanding === 1);
+
+  ok("the recipient acknowledges", !(await acknowledge(m, id)).error);
+  const done = await distributionOf(q, id);
+  ok("...and nothing is outstanding", done.outstanding === 0 && done.recipients[0].acknowledgedAt !== "");
+  ok("...and acknowledging twice changes nothing",
+    (await acknowledge(m, id)).error === "nothing-to-acknowledge");
+
+  // THE ASSERTION THIS WHOLE BLOCK EXISTS FOR. Having read rev 1 says nothing
+  // about rev 2, and a list that showed them as done would be telling the studio
+  // precisely the thing document control exists to prevent.
+  await startRevision(q, id);
+  await moveRevision(q, id, "submit");
+  await moveRevision(m, id, "review");
+  await moveRevision(q, id, "approve");
+  await moveRevision(q, id, "publish", { effectiveDate: "2026-10-01" });
+
+  const afterRev2 = await distributionOf(q, id);
+  ok("a new revision re-opens the question", afterRev2.rev === 2 && afterRev2.outstanding === 1, JSON.stringify(afterRev2));
+  ok("...and the earlier acknowledgement does not carry over",
+    afterRev2.recipients[0].acknowledgedAt === "", afterRev2.recipients[0].acknowledgedAt);
+
+  // ---- share links ----
+  const link = await createShareLink(q, id, { days: 7 });
+  ok("an issued document can be shared", !link.error, link.error || "");
+  ok("...with an expiry it cannot be created without", Boolean(link.link?.expiresAt));
+  ok("...bound to one revision, not to the document", link.link.rev === 2, String(link.link.rev));
+
+  // The token IS the address, and it resolves without a session or a studio.
+  const resolved = await getJSON(IX.qshare(link.link.token));
+  ok("the token resolves to the document on its own",
+    resolved?.documentId === id && resolved?.revisionId === link.link.revisionId, JSON.stringify(resolved));
+
+  ok("revoking kills the token", !(await revokeShareLink(q, link.link.id)).error);
+  ok("...so it no longer resolves", (await getJSON(IX.qshare(link.link.token))) === null);
+  const kept = await listShareLinks(q, id);
+  ok("...while the row is kept as evidence it was once shared",
+    kept.length === 1 && Boolean(kept[0].revokedAt), JSON.stringify(kept.map((l) => l.revokedAt)));
+
+  // Sharing is its own right, separate from reading. The member holds the
+  // document rights and has not been given this one.
+  ok("sharing needs its own permission", (await createShareLink(m, id, {})).error === "forbidden");
+
+  // ---- the trail ----
+  const trail = await listAudit(q, id);
+  const actions = trail.map((t) => t.action);
+  for (const a of ["distribution.set", "distribution.issued", "distribution.acknowledged", "share.created", "share.revoked"]) {
+    ok(`the trail records ${a}`, actions.includes(a), actions.join(","));
+  }
 }
 
 // ============================================================================

@@ -21,8 +21,9 @@ import { listSections, readCol, addRow, updateRow, deleteRow, updateSection } fr
 import { studioContext, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { departmentsFromSections } from "@/lib/departments";
-import { bumpCounter, claim, getIndex, release, touchTTL } from "@/lib/data/store";
-import { SEC } from "@/lib/data/keys";
+import { bumpCounter, claim, getIndex, release, touchTTL, setJSONEx } from "@/lib/data/store";
+import { SEC, IX } from "@/lib/data/keys";
+import { randomUUID } from "node:crypto";
 import { currentUser } from "@/lib/identity";
 import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
 import {
@@ -773,6 +774,11 @@ export async function moveRevision(ctx, documentId, action, body = {}) {
       updatedAt: now,
     });
     await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, current.id, { effectiveDate });
+
+    // AND THIS IS WHERE IT REACHES PEOPLE. Publishing without telling the people
+    // who have to work to it is the commonest way a quality system ends up with
+    // a current revision nobody has read.
+    await distribute(ctx, document, { ...current, ...patch, effectiveDate });
   }
 
   if (action === "withdraw") {
@@ -824,4 +830,202 @@ export async function setSigners(ctx, documentId, body) {
   if (!updated) return { error: "notfound" };
   await audit(ctx, { documentId, action: "signers.set", detail: "Reviewer and approver named" });
   return { document: updated };
+}
+
+// ---- distribution -----------------------------------------------------------
+//
+// "Ensure documented information is available where and when it is needed" is
+// the half of document control that a register cannot satisfy on its own. A
+// procedure nobody was told about is a procedure nobody follows, and the
+// evidence an auditor asks for is not that it was published — it is that the
+// people who have to work to it have SEEN THE CURRENT REVISION.
+//
+// So distribution is a list of named people on the document, and an
+// acknowledgement row per person PER REVISION. Reading Rev 2 is not evidence of
+// having read Rev 3, which is why publishing re-opens the question rather than
+// carrying the old answers forward.
+
+const ACKS = "qualityAcknowledgements";
+const SHARES = "qualityShareLinks";
+
+// Who the document is distributed to. A standing list on the document, because
+// the audience of a purchasing procedure changes when the team does, not when
+// the revision does.
+export async function setDistribution(ctx, documentId, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  if (denied) return denied;
+
+  const people = await listCollaborators(ctx.studio.id);
+  const known = new Set(people.map((c) => c.id));
+  const ids = [...new Set((Array.isArray(body?.collaboratorIds) ? body.collaboratorIds : []).map(String))]
+    .filter((id) => known.has(id)).slice(0, 200);
+
+  const updated = await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
+    distributionCollaboratorIds: ids, updatedAt: new Date().toISOString(),
+  });
+  if (!updated) return { error: "notfound" };
+  await audit(ctx, { documentId, action: "distribution.set", detail: `${ids.length} recipient(s)` });
+  return { document: updated };
+}
+
+// Called when a revision goes effective. Mints one row per recipient AGAINST
+// THAT REVISION and tells them it is waiting.
+async function distribute(ctx, document, revision) {
+  const ids = Array.isArray(document.distributionCollaboratorIds) ? document.distributionCollaboratorIds : [];
+  if (!ids.length) return;
+
+  const now = new Date().toISOString();
+  for (const collaboratorId of ids) {
+    await addRow(ctx.studio.id, ctx.section.id, ACKS, {
+      documentId: document.id, revisionId: revision.id, rev: revision.rev,
+      collaboratorId, assignedAt: now, assignedByCollaboratorId: ctx.collaborator.id,
+      readAt: "", acknowledgedAt: "",
+    });
+  }
+
+  await notifyCollaborators(ctx.studio.id, ids, {
+    type: NOTIFY.system,
+    title: `${document.code} rev ${revision.rev} is now in force`,
+    body: `${document.title} — please read and acknowledge`,
+    href: `/${ctx.studio.slug}/quality-documents/${document.id}/preview`,
+  }).catch(() => {});
+
+  await audit(ctx, {
+    documentId: document.id, revisionId: revision.id,
+    action: "distribution.issued", detail: `Sent to ${ids.length} person(s)`,
+  });
+}
+
+// Opening it is not the same as accepting it, so the two are recorded
+// separately: `readAt` happens by looking, `acknowledgedAt` only when somebody
+// says so. An audit asks for the second.
+export async function markRead(ctx, documentId) {
+  const rows = await readCol(ctx.studio.id, ctx.section.id, ACKS);
+  const mine = rows.find((r) => r.documentId === documentId
+    && r.collaboratorId === ctx.collaborator.id && !r.readAt);
+  if (!mine) return { ok: true };
+  await updateRow(ctx.studio.id, ctx.section.id, ACKS, mine.id, { readAt: new Date().toISOString() });
+  return { ok: true };
+}
+
+export async function acknowledge(ctx, documentId) {
+  const rows = await readCol(ctx.studio.id, ctx.section.id, ACKS);
+  // Only ever your OWN. Acknowledging on somebody else's behalf is the one
+  // thing that would make the whole record worthless.
+  const mine = rows.find((r) => r.documentId === documentId
+    && r.collaboratorId === ctx.collaborator.id && !r.acknowledgedAt);
+  if (!mine) return { error: "nothing-to-acknowledge" };
+
+  const now = new Date().toISOString();
+  await updateRow(ctx.studio.id, ctx.section.id, ACKS, mine.id, {
+    acknowledgedAt: now, readAt: mine.readAt || now,
+  });
+  await audit(ctx, {
+    documentId, revisionId: mine.revisionId,
+    action: "distribution.acknowledged", detail: `Rev ${mine.rev}`,
+  });
+  return { ok: true };
+}
+
+// The chase list: who has it, who has opened it, who has not.
+export async function distributionOf(ctx, documentId) {
+  const [rows, people, revisions] = await Promise.all([
+    readCol(ctx.studio.id, ctx.section.id, ACKS),
+    listCollaborators(ctx.studio.id),
+    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+  ]);
+  const effective = revisions.find((r) => r.documentId === documentId && r.state === "effective");
+  const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
+
+  // ONLY THE CURRENT REVISION COUNTS. Somebody who acknowledged rev 1 has not
+  // seen rev 2, and a list that showed them as done would be telling the studio
+  // exactly the thing document control exists to prevent.
+  const current = rows.filter((r) => r.documentId === documentId && (!effective || r.revisionId === effective.id));
+  return {
+    rev: effective?.rev ?? null,
+    recipients: current.map((r) => ({
+      id: r.id, collaboratorId: r.collaboratorId, alias: alias[r.collaboratorId] || "Unnamed",
+      assignedAt: r.assignedAt, readAt: r.readAt || "", acknowledgedAt: r.acknowledgedAt || "",
+    })).sort((a, b) => a.alias.localeCompare(b.alias)),
+    outstanding: current.filter((r) => !r.acknowledgedAt).length,
+  };
+}
+
+// ---- share links ------------------------------------------------------------
+//
+// The one door out of the studio. Four things hold it shut: its own permission,
+// an expiry that cannot be omitted, a watermark on whatever comes through it,
+// and a line in the audit trail for every open.
+//
+// A LINK IS BOUND TO ONE REVISION, not to the document. Publishing rev 3 must
+// not silently change what an auditor was sent in March — a link that follows
+// the document is a link whose contents you cannot testify to.
+
+export const SHARE_MAX_DAYS = 365;
+export const SHARE_DEFAULT_DAYS = 30;
+
+export async function createShareLink(ctx, documentId, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.share");
+  if (denied) return denied;
+
+  const [documents, revisions] = await Promise.all([
+    readCol(ctx.studio.id, ctx.section.id, DOCUMENTS),
+    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+  ]);
+  const document = documents.find((d) => d.id === documentId);
+  if (!document) return { error: "notfound" };
+
+  // Only an ISSUED revision may leave the building. A draft shared outside the
+  // studio is an uncontrolled document by definition — nobody has signed it, and
+  // whoever receives it cannot tell that from the paper.
+  const revision = revisions.find((r) => r.documentId === documentId && r.state === "effective");
+  if (!revision) return { error: "not-issued" };
+
+  const days = Math.min(Math.max(Math.trunc(Number(body?.days) || SHARE_DEFAULT_DAYS), 1), SHARE_MAX_DAYS);
+  const token = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "").slice(0, 8);
+  const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+
+  // THE INDEX IS THE ENFORCEMENT. Redis expires the key on the day the link
+  // dies, so an expired link stops resolving without anything having to run —
+  // no sweep to forget, no window where a stale link still works.
+  await setJSONEx(IX.qshare(token), {
+    studioId: ctx.studio.id, sectionId: ctx.section.id,
+    documentId, revisionId: revision.id, expiresAt,
+  }, days * 86400);
+
+  const link = await addRow(ctx.studio.id, ctx.section.id, SHARES, {
+    documentId, revisionId: revision.id, rev: revision.rev, token,
+    createdByCollaboratorId: ctx.collaborator.id, createdAt: new Date().toISOString(),
+    expiresAt, revokedAt: "", accessCount: 0, lastAccessAt: "",
+  });
+  await audit(ctx, {
+    documentId, revisionId: revision.id, action: "share.created",
+    detail: `Rev ${revision.rev}, expires ${expiresAt.slice(0, 10)}`,
+  });
+  return { link };
+}
+
+export async function revokeShareLink(ctx, linkId) {
+  const denied = requirePermission(ctx.access, "quality.documents.share");
+  if (denied) return denied;
+
+  const rows = await readCol(ctx.studio.id, ctx.section.id, SHARES);
+  const link = rows.find((r) => r.id === linkId);
+  if (!link) return { error: "notfound" };
+
+  // The row is KEPT and marked revoked. Deleting it would erase the fact that
+  // the document once left the building, which is exactly what the trail is for.
+  await release(IX.qshare(link.token));
+  await updateRow(ctx.studio.id, ctx.section.id, SHARES, linkId, { revokedAt: new Date().toISOString() });
+  await audit(ctx, { documentId: link.documentId, action: "share.revoked", detail: `Rev ${link.rev}` });
+  return { ok: true };
+}
+
+export async function listShareLinks(ctx, documentId) {
+  const rows = await readCol(ctx.studio.id, ctx.section.id, SHARES);
+  const now = new Date().toISOString();
+  return rows
+    .filter((r) => r.documentId === documentId)
+    .map((r) => ({ ...r, expired: !r.revokedAt && r.expiresAt < now }))
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }

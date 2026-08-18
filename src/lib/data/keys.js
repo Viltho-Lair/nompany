@@ -210,6 +210,14 @@ export const IX = {
   session: (token) => `${P}ix:session:${token}`,            // → UserID (EX = real expiry)
   stoken: (token) => `${P}ix:stoken:${token}`,              // → StudioID (EX = time-limited access token)
   collab: (userId) => `${P}ix:collab:${userId}`,            // SET of StudioIDs the user collaborates in
+  // A share link's token -> the document it opens. Studio-agnostic ON PURPOSE:
+  // /q/<token> is reached by somebody with no session and no idea which studio
+  // they are looking at, so the token has to be the whole address.
+  //
+  // EXPIRY IS THE TTL. Redis stops resolving the key on the day the link was
+  // set to die, so nothing has to run to enforce it and there is no window in
+  // which a forgotten sweep leaves a live link behind.
+  qshare: (token) => `${P}ix:qshare:${String(token || "")}`,
 };
 export { normEmail };
 
@@ -335,7 +343,8 @@ export const SECTION_COLLECTIONS = {
   // taxonomy. Revisions, templates and the distribution log join them as the
   // screens that write them land; a name here before then is a key nothing
   // fills.
-  "quality-documents": ["qualityDocuments", "qualityTypes", "qualityRevisions", "qualityAudit"],
+  "quality-documents": ["qualityDocuments", "qualityTypes", "qualityRevisions", "qualityAudit",
+    "qualityAcknowledgements", "qualityShareLinks"],
 };
 
 // ---- studio slug rules -----------------------------------------------------
@@ -344,7 +353,7 @@ export const RESERVED_SLUGS = new Set([
   "www", "api", "studio", "super", "account", "login", "signup", "admin", "join",
   "app", "mail", "onboarding", "subscribe", "pricing", "contact", "about", "team",
   "careers", "terms", "features", "verify", "reset", "forgot", "en", "ar",
-  "robots", "sitemap", "manifest", "icon", "favicon", "brand", "_next", "c",
+  "robots", "sitemap", "manifest", "icon", "favicon", "brand", "_next", "c", "q",
 ]);
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,63}$/;
 export function isValidSlug(slug) {

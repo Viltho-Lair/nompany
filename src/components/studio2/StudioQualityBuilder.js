@@ -12,6 +12,7 @@ import { btn, btnGhost, input, microLabel } from "@/components/studio2/ui";
 import { blankSection, MAX_SECTIONS, emptyDoc } from "@/lib/qualityContent";
 import { SCREEN_CSS } from "@/lib/qualityCss";
 import QualityWorkflow from "@/components/studio2/QualityWorkflow";
+import QualityDistribution from "@/components/studio2/QualityDistribution";
 
 // THE BUILDER — Quality → Documents → one document, full screen.
 //
@@ -31,9 +32,9 @@ const HEARTBEAT_MS = 60000;
 // The toolbar acts on whichever section has the caret, so the buttons are drawn
 // once at the top rather than repeated above every section.
 function Toolbar({ editor, onInsertField, disabled }) {
-  if (!editor) {
-    return <div className="h-[46px] border-b border-slate-200/70 dark:border-white/10" />;
-  }
+  // A placeholder of the same height while the first editor mounts, so the page
+  // does not jump under the cursor a beat after it is drawn.
+  if (!editor) return <div className="h-[45px] border-t border-[var(--geex-border)]" />;
   const item = (labelText, isActive, run, title) => (
     <button
       key={labelText}
@@ -51,7 +52,7 @@ function Toolbar({ editor, onInsertField, disabled }) {
   const chain = () => editor.chain().focus();
 
   return (
-    <div className="sticky top-[73px] z-10 flex flex-wrap items-center gap-0.5 border-b border-slate-200/70 bg-[var(--geex-page)] px-2 py-2 dark:border-white/10">
+    <div className="flex flex-wrap items-center gap-0.5 border-t border-[var(--geex-border)] px-5 py-2 sm:px-8">
       {item("B", editor.isActive("bold"), () => chain().toggleBold().run(), "Bold")}
       {item("I", editor.isActive("italic"), () => chain().toggleItalic().run(), "Italic")}
       {item("U", editor.isActive("underline"), () => chain().toggleUnderline().run(), "Underline")}
@@ -304,6 +305,39 @@ export default function StudioQualityBuilder({ studio, documentId }) {
             You can read this document but not change it.
           </div>
         )}
+        {/* The toolbar and the field menu, as part of the studio's chrome rather
+            than of the document. They theme with the studio; the sheet below
+            stays white in both themes because it is a physical artefact. */}
+        {data && !error && editable && (
+          <>
+            <Toolbar editor={activeEditor} onInsertField={() => setFieldMenu((v) => !v)} disabled={!editable} />
+            {fieldMenu && (
+              <div className="border-t border-[var(--geex-border)] bg-[var(--geex-surface-2)] px-5 py-4 sm:px-8">
+                <p className="mb-2 text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Insert a field</p>
+                <div className="flex flex-wrap gap-4">
+                  {grouped.map(([group, fields]) => (
+                    <div key={group}>
+                      <p className="mb-1 text-[11px] font-700 text-slate-400 dark:text-slate-500">{group}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {fields.map((f) => (
+                          <button key={f.key} type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              activeEditor?.chain().focus().insertMergeField(f.key).run();
+                              setFieldMenu(false);
+                            }}
+                            className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-600 text-slate-600 transition-colors hover:border-brand-500 hover:text-brand-700 dark:border-white/15 dark:bg-white/5 dark:text-slate-300">
+                            {f.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </header>
 
       {error && (
@@ -352,35 +386,12 @@ export default function StudioQualityBuilder({ studio, documentId }) {
               document is a physical artefact, and a dark-mode letterhead would
               be a lie about what prints. */}
           <main className="min-w-0 flex-1">
+            {/* THE CARD HOLDS THE PAPER AND NOTHING ELSE. The toolbar used to
+                live in here, stickied inside a card that was itself inside a
+                sticky header — so it detached as the page scrolled, left a white
+                band where it had been, and printed itself over the first
+                section. It is chrome, so it belongs in the chrome. */}
             <div className="overflow-hidden rounded-geex border border-slate-200/70 bg-white shadow-geex-sm dark:border-white/10">
-              {editable && <Toolbar editor={activeEditor} onInsertField={() => setFieldMenu((v) => !v)} disabled={!editable} />}
-
-              {fieldMenu && editable && (
-                <div className="border-b border-slate-200/70 bg-slate-50 p-4">
-                  <p className="mb-2 text-xs font-600 uppercase tracking-wide text-slate-500">Insert a field</p>
-                  <div className="flex flex-wrap gap-4">
-                    {grouped.map(([group, fields]) => (
-                      <div key={group}>
-                        <p className="mb-1 text-[11px] font-700 text-slate-400">{group}</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {fields.map((f) => (
-                            <button key={f.key} type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                activeEditor?.chain().focus().insertMergeField(f.key).run();
-                                setFieldMenu(false);
-                              }}
-                              className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-600 text-slate-600 hover:border-brand-500 hover:text-brand-700">
-                              {f.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="quality-page mx-auto bg-white px-[18mm] py-[16mm] text-slate-900">
                 {sections.map((s, i) => (
                   <section key={s.id} id={`section-${s.id}`} className="mb-8 last:mb-0"
@@ -438,6 +449,7 @@ export default function StudioQualityBuilder({ studio, documentId }) {
             </p>
 
             <QualityWorkflow slug={studio.slug} documentId={documentId} document={doc} onChanged={load} />
+            <QualityDistribution slug={studio.slug} documentId={documentId} document={doc} />
           </aside>
         </div>
       )}

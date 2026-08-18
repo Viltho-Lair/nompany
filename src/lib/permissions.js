@@ -160,6 +160,10 @@ export const AREAS = [
       { key: "approve", label: "Sign as approver" },
       { key: "publish", label: "Issue a revision" },
       { key: "obsolete", label: "Withdraw a document" },
+      // THE MODULE'S ONLY PUBLIC SURFACE. Reading a controlled document and
+      // publishing one to somebody outside the studio are not the same power,
+      // and only one of them can be undone by revoking a link.
+      { key: "share", label: "Create an external share link" },
     ] },
 
   { key: "tasks.board", group: "Tasks", label: "Task board", verbs: ["view", "create", "edit", "delete"] },
