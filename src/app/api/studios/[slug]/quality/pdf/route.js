@@ -44,6 +44,16 @@ export async function GET(request, ctx) {
 
   const images = await inlineImages(opened.sections, getMedia);
 
+  // Signature graphics come through the same door as document images: read from
+  // our own media store and inlined, because the render has no network and a
+  // signature that fails to load is a blank where the evidence should be.
+  for (const sig of [opened.draft?.review, opened.draft?.approval]) {
+    const sigId = String(sig?.signatureUrl || "").split("/").pop();
+    if (!/^[a-f0-9]{32}$/i.test(sigId)) continue;
+    const media = await getMedia(sigId).catch(() => null);
+    if (media?.buffer) images[sig.signatureUrl] = `data:${media.contentType};base64,${media.buffer.toString("base64")}`;
+  }
+
   const result = await renderPdf({
     sections: opened.sections,
     values,
@@ -53,6 +63,7 @@ export async function GET(request, ctx) {
     dir: directionOf(opened.document.language),
     images,
     logoDataUri,
+    revision: opened.draft,
   });
 
   if (result.error === "no-chromium") {

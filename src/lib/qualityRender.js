@@ -187,13 +187,46 @@ export const headerTemplate = (template, ctx, logo) =>
 export const footerTemplate = (template, ctx) =>
   bar(template?.footer || DEFAULT_TEMPLATE.footer, { rule: template?.footer?.rule, ctx, position: "footer" });
 
+// ---- the signature block ----------------------------------------------------
+//
+// THE EVIDENCE, printed. A controlled document that leaves the system carries no
+// database with it, so a printout with nothing on it saying who reviewed and
+// approved this revision is a piece of paper making a claim it cannot support.
+//
+// The typed line is the record: a name, the role they signed in, and the moment.
+// The graphic, where somebody attached one, sits above it — pleasant, and worth
+// rather less than the line underneath, which is why a signature without an
+// image is not drawn as an absence.
+export function renderSignatures(revision, { image } = {}) {
+  const slots = [
+    ["Reviewed by", revision?.review],
+    ["Approved by", revision?.approval],
+  ].filter(([, sig]) => sig?.byAlias);
+  if (!slots.length) return "";
+
+  const cells = slots.map(([role, sig]) => {
+    const graphic = sig.signatureUrl && image?.(sig.signatureUrl)
+      ? `<img class="quality-sign-img" src="${escAttr(image(sig.signatureUrl))}" alt="">`
+      : `<span class="quality-sign-rule"></span>`;
+    return `<td>`
+      + `<div class="quality-sign-role">${esc(role)}</div>`
+      + graphic
+      + `<div class="quality-sign-name">${esc(sig.byAlias)}</div>`
+      + `<div class="quality-sign-at">${esc(String(sig.at || "").slice(0, 10))}</div>`
+      + (sig.note ? `<div class="quality-sign-note">${esc(sig.note)}</div>` : "")
+      + `</td>`;
+  }).join("");
+
+  return `<div class="quality-signatures"><table class="quality-sign-table"><tr>${cells}</tr></table></div>`;
+}
+
 // ---- the whole page --------------------------------------------------------
 
 // A standalone HTML document: every style inline, every font embedded, no
 // reference to anything outside itself. That is what lets the exporter run
 // Chromium with the network switched off, which is the difference between
 // rendering a document and offering a stranger a browser inside our network.
-export function documentHtml({ sections, values, css, fonts = "", watermark = "", title = "", dir = "ltr", image }) {
+export function documentHtml({ sections, values, css, fonts = "", watermark = "", title = "", dir = "ltr", image, revision = null }) {
   const stamp = watermark
     ? `<div class="quality-watermark"><span>${esc(watermark)}</span></div>`
     : "";
@@ -207,7 +240,7 @@ body { font-family: 'Doc Sans', 'Doc Arabic', sans-serif; }
 .quality-field.is-empty { color: #94a3b8; }
 ${css}</style>
 </head>
-<body>${stamp}<div class="quality-page">${renderSections(sections, { values, image })}</div></body>
+<body>${stamp}<div class="quality-page">${renderSections(sections, { values, image })}${renderSignatures(revision, { image })}</div></body>
 </html>`;
 }
 

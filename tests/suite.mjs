@@ -33,10 +33,12 @@ import { technicalContext, convertRfq, updateRfq, updateQuotation, listQuotation
 import { rfqInfo } from "@/lib/salesAnalytics";
 import {
   qualityContext, installStarterTypes, createType, updateType, removeType,
-  createDocument, updateDocument, removeDocument, listTypes,
+  createDocument, updateDocument, removeDocument, listTypes, listDocuments,
   saveDepartmentCodes, departmentCodes,
   openDraft, saveDraft, acquireLock, releaseLock, lockState, watermarkFor,
+  moveRevision, startRevision, setSigners, listRevisions, listAudit,
 } from "@/lib/quality";
+import { documentState, pendingRevision } from "@/lib/qualityDocuments";
 import { sanitizeDoc, cleanSections, textOf } from "@/lib/qualityContent";
 import { renderSections, slotValue, DEFAULT_TEMPLATE } from "@/lib/qualityRender";
 import { listSections, updateRow } from "@/lib/data/sections";
@@ -865,7 +867,7 @@ console.log("\n== controlled documents are numbered once, and for good");
   ok("a document is created", !first.error, first.error || "");
   ok("...numbered TYPE-DEPT-NNN", /^QP-[A-Z0-9]{1,4}-001$/.test(String(first.document?.code)), String(first.document?.code));
   ok("...and starts unissued at revision 0",
-    first.document.status === "draft" && first.document.revision === 0);
+    first.document.revision === 0 && !first.document.effectiveRevisionId);
 
   const second = await createDocument(q, {
     title: "Second procedure", typeId: procedure.id, departmentId: "sales",
@@ -886,11 +888,10 @@ console.log("\n== controlled documents are numbered once, and for good");
   ok("...while the change itself lands",
     refiled.document.departmentId === "technical" && refiled.document.title === "Renamed");
 
-  // An issued document is retained rather than erased — that is what makes it
-  // controlled. Nothing reaches `effective` through the service yet, so the rule
-  // is exercised against the row as it will be once the workflow lands.
-  await updateRow(studio.id, q.section.id, "qualityDocuments", first.document.id, { status: "effective" });
-  ok("an issued document refuses deletion", (await removeDocument(q, first.document.id)).error === "controlled");
+  // Retention — "an issued document is kept, not deleted" — is exercised where
+  // a document can actually BE issued: see the workflow block below. It used to
+  // be faked here by writing a status onto the row, which stopped being possible
+  // the moment that state became derived from the revisions rather than stored.
 
   // A type documents were filed under cannot be deleted or re-prefixed, or
   // their codes stop meaning anything.
@@ -1132,10 +1133,147 @@ console.log("\n== one renderer draws the screen and the page");
   // and a withdrawn one must never be mistaken for current — those two
   // confusions are what document control exists to prevent, and they happen
   // away from the screen that knew the difference.
-  ok("a draft is stamped DRAFT", watermarkFor({ status: "draft" }) === "DRAFT");
-  ok("a document in review is still a draft", watermarkFor({ status: "in-review" }) === "DRAFT");
-  ok("an issued document carries no stamp", watermarkFor({ status: "effective" }) === "");
-  ok("a withdrawn one is stamped OBSOLETE", watermarkFor({ status: "obsolete" }) === "OBSOLETE");
+  ok("a draft is stamped DRAFT", watermarkFor({ state: "draft" }) === "DRAFT");
+  ok("a document in review is still a draft", watermarkFor({ state: "in-review" }) === "DRAFT");
+  ok("an issued document carries no stamp", watermarkFor({ state: "effective" }) === "");
+  ok("a withdrawn one is stamped OBSOLETE", watermarkFor({ state: "obsolete" }) === "OBSOLETE");
+  // And with no state resolved at all it still errs towards DRAFT, because a
+  // page wrongly stamped is recoverable and a draft mistaken for the issued
+  // document is not.
+  ok("...and an unknown state errs towards DRAFT", watermarkFor({}) === "DRAFT");
+}
+
+// ============================================================================
+console.log("\n== nothing is issued until two people have signed it");
+// The substance of "review and approve before issue". A single Approve button
+// records that somebody clicked; two named signatures record that two people
+// read it, and the second cannot be the first.
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  const types = await listTypes(q);
+
+  // The owner holds everything, so a second person is needed for the second
+  // signature. The member was granted the document rights earlier; the review
+  // and approve rights are separate and have to be given separately — which is
+  // the point of them being separate.
+  await updateCollaborator(studio.id, member.collaborator.id, {
+    overrides: {
+      allow: [
+        "quality.documents.view", "quality.documents.create", "quality.documents.edit",
+        "quality.documents.review", "quality.documents.approve",
+      ],
+      deny: [],
+    },
+  });
+  const m = await qualityContext(member.user, slug);
+
+  const made = await createDocument(q, { title: "Issuing procedure", typeId: types[0].id, departmentId: "sales" });
+  const id = made.document.id;
+  await openDraft(q, id);
+  await saveDraft(q, id, { sections: [{ id: "s1", title: "Purpose", body: { type: "doc", content: [] } }] });
+
+  ok("a fresh document reads as a draft", documentState(made.document, await listRevisions(q, id)) === "draft");
+
+  // The ladder, in order, refusing every step out of turn.
+  ok("it cannot be published straight from draft", (await moveRevision(q, id, "publish")).error === "wrong-state");
+  ok("it cannot be approved before it is reviewed", (await moveRevision(q, id, "approve")).error === "wrong-state");
+
+  ok("the author sends it for review", !(await moveRevision(q, id, "submit")).error);
+  ok("...and the text is frozen the moment they do",
+    (await saveDraft(q, id, { sections: [] })).error === "not-editable");
+
+  const reviewed = await moveRevision(m, id, "review", { note: "Reads correctly." });
+  ok("the reviewer signs", !reviewed.error, reviewed.error || "");
+
+  // THE CHECK THIS WHOLE STAGE EXISTS FOR. Holding both rights is legitimate;
+  // using both on one revision means it was reviewed by nobody.
+  ok("the reviewer may not also approve", (await moveRevision(m, id, "approve")).error === "same-signer");
+  ok("...but somebody else may", !(await moveRevision(q, id, "approve", { note: "Approved." })).error);
+
+  const before = (await listRevisions(q, id))[0];
+  ok("both signatures are recorded with a name and a moment",
+    Boolean(before.review?.byAlias && before.review?.at && before.approval?.byAlias && before.approval?.at),
+    JSON.stringify({ r: before.review?.byAlias, a: before.approval?.byAlias }));
+  ok("...by two different people",
+    before.review.byCollaboratorId !== before.approval.byCollaboratorId);
+  ok("...each naming the role they signed in",
+    before.review.role === "Reviewed by" && before.approval.role === "Approved by");
+
+  const published = await moveRevision(q, id, "publish", { effectiveDate: "2026-09-01", nextReviewDate: "2027-09-01" });
+  ok("it is issued", !published.error, published.error || "");
+
+  const after = await listRevisions(q, id);
+  ok("...as revision 1, effective", after[0].state === "effective" && after[0].rev === 1);
+
+  const docs = await listDocuments(q);
+  const row = docs.find((d) => d.id === id);
+  ok("the register now shows it as effective", row.state === "effective", row.state);
+  ok("...carrying the effective date it was given", row.effectiveDate === "2026-09-01", row.effectiveDate);
+  ok("...and the revision number", row.revision === 1, String(row.revision));
+
+  // An issued document is retained, not deleted — the rule Phase 1 declared,
+  // now that something can actually reach the state.
+  ok("an issued document refuses deletion", (await removeDocument(q, id)).error === "controlled");
+
+  // ---- the next revision ----
+  //
+  // Editing an issued document must never change it. It opens rev 2, and rev 1
+  // stays exactly as it is until rev 2 is published over the top.
+  const started = await startRevision(q, id);
+  ok("the next revision starts at 2", started.revision?.rev === 2, String(started.revision?.rev));
+  ok("...and starts from what the document currently says", Array.isArray(started.revision.sections));
+  ok("...while rev 1 is still the effective one",
+    (await listRevisions(q, id)).find((r) => r.rev === 1)?.state === "effective");
+  ok("only one revision may be open at a time", (await startRevision(q, id)).error === "already-open");
+
+  const withPending = (await listDocuments(q)).find((d) => d.id === id);
+  ok("the register says effective AND names what is in flight",
+    withPending.state === "effective" && withPending.pending?.rev === 2,
+    JSON.stringify(withPending.pending));
+
+  await moveRevision(q, id, "submit");
+  const sentBack = await moveRevision(m, id, "reject", { note: "Section 3 is wrong." });
+  ok("a reviewer can send it back", !sentBack.error, sentBack.error || "");
+  ok("...which makes it writable again", !(await saveDraft(q, id, { sections: [] })).error);
+
+  await moveRevision(q, id, "submit");
+  await moveRevision(m, id, "review");
+  await moveRevision(q, id, "approve");
+  await moveRevision(q, id, "publish", { effectiveDate: "2026-10-01" });
+
+  const both = await listRevisions(q, id);
+  ok("publishing rev 2 supersedes rev 1 rather than deleting it",
+    both.find((r) => r.rev === 1)?.state === "superseded" && both.find((r) => r.rev === 2)?.state === "effective");
+  ok("...so what the procedure used to say is still readable",
+    Array.isArray(both.find((r) => r.rev === 1)?.sections));
+
+  // ---- withdrawal ----
+  ok("a withdrawn document says so", !(await moveRevision(q, id, "withdraw")).error);
+  const dead = (await listDocuments(q)).find((d) => d.id === id);
+  ok("...and reads as obsolete", dead.state === "obsolete", dead.state);
+  ok("...and refuses a new revision", (await startRevision(q, id)).error === "obsolete");
+  ok("...and is stamped OBSOLETE on paper", watermarkFor(dead) === "OBSOLETE");
+  // The bug this stands guard over: the PDF route stamps from the document it
+  // was handed, and openDraft returns the raw row. Without the state resolved
+  // onto it, every issued document printed DRAFT across every page.
+  const forPrint = (await openDraft(q, id)).document;
+  ok("...and the document the exporter is handed knows it too",
+    watermarkFor(forPrint) === "OBSOLETE", String(forPrint.state));
+
+  // ---- the trail ----
+  const trail = await listAudit(q, id);
+  const actions = trail.map((t) => t.action);
+  for (const a of ["revision.submit", "revision.review", "revision.approve", "revision.publish", "revision.withdraw", "revision.started"]) {
+    ok(`the trail records ${a.replace("revision.", "")}`, actions.includes(a), actions.join(","));
+  }
+  ok("every entry names who did it", trail.every((t) => t.byCollaboratorId && t.at));
+
+  // Naming the signers, and the same rule as signing.
+  ok("one person cannot be both signers",
+    (await setSigners(q, id, { reviewerCollaboratorId: member.collaborator.id, approverCollaboratorId: member.collaborator.id })).error === "same-signer");
+
+  __signOut();
 }
 
 // ============================================================================

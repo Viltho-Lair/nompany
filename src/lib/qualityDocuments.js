@@ -121,3 +121,78 @@ export const MAX_TITLE = 200;
 export function prefixTaken(types, prefix, exceptId = "") {
   return (types || []).some((t) => t.id !== exceptId && t.prefix === prefix);
 }
+
+// ---- the revision lifecycle -------------------------------------------------
+//
+// AUTHOR → REVIEWER → APPROVER, and only then issued. Two named people sign a
+// revision before anybody may work from it, which is the substance of "review
+// and approve before issue" — a single button marked Approve records that
+// somebody clicked, not that anybody read it.
+//
+// The states are on the REVISION, never on the document. A document that is
+// already effective can have its next revision half-written and in review at
+// the same time, and a single status field cannot say both without lying about
+// one of them.
+export const REV_STATES = ["draft", "review", "approval", "approved", "effective", "superseded", "rejected"];
+export const REV_LABELS = {
+  draft: "Draft",
+  review: "Waiting for review",
+  approval: "Waiting for approval",
+  approved: "Approved, not yet issued",
+  effective: "Effective",
+  superseded: "Superseded",
+  rejected: "Sent back",
+};
+
+// A revision somebody is still working on, as opposed to one that has been
+// issued or retired. Exactly one of these may be open per document: two people
+// drafting two different next revisions is two documents wearing one code.
+export const OPEN_STATES = new Set(["draft", "review", "approval", "approved", "rejected"]);
+export const isOpen = (state) => OPEN_STATES.has(state);
+
+// Every legal move, with the right it needs and where it lands. Declared as a
+// table rather than as a chain of ifs so the whole machine can be read at once —
+// and so the screen can ask what is possible instead of reimplementing the rules
+// to decide which buttons to draw.
+export const TRANSITIONS = {
+  submit:   { from: ["draft", "rejected"], to: "review",    permission: "quality.documents.edit",     label: "Send for review" },
+  review:   { from: ["review"],            to: "approval",  permission: "quality.documents.review",   label: "Sign as reviewer" },
+  approve:  { from: ["approval"],          to: "approved",  permission: "quality.documents.approve",  label: "Sign as approver" },
+  publish:  { from: ["approved"],          to: "effective", permission: "quality.documents.publish",  label: "Issue this revision" },
+  reject:   { from: ["review", "approval"], to: "rejected", permission: "quality.documents.review",   label: "Send back" },
+  withdraw: { from: ["effective"],         to: "superseded", permission: "quality.documents.obsolete", label: "Withdraw the document" },
+};
+
+export const canMove = (action, state) => Boolean(TRANSITIONS[action]?.from.includes(state));
+
+// THE DOCUMENT'S OWN STATE, derived from its revisions rather than stored.
+//
+// A stored copy is a second answer to a question that already has one, and the
+// two agree only until a transition writes one and not the other. This reads
+// the facts that cannot be wrong: whether it has been withdrawn, whether any
+// revision was ever issued, and what the open revision is doing.
+export function documentState(document, revisions = []) {
+  if (document?.obsoletedAt) return "obsolete";
+  const mine = revisions.filter((r) => r.documentId === document?.id);
+  const open = mine.find((r) => isOpen(r.state));
+  if (mine.some((r) => r.state === "effective")) return "effective";
+  if (!open) return "draft";
+  return { draft: "draft", rejected: "draft", review: "in-review", approval: "in-review", approved: "approved" }[open.state];
+}
+
+// Whether a NEW revision is in flight over an already-issued document. The
+// register shows this beside the status, because "effective, and rev 3 is with
+// the approver" is two facts and a person needs both.
+export function pendingRevision(document, revisions = []) {
+  const open = revisions.find((r) => r.documentId === document?.id && isOpen(r.state));
+  return open ? { rev: open.rev, state: open.state, label: REV_LABELS[open.state] } : null;
+}
+
+// ---- signatures -------------------------------------------------------------
+//
+// A signature is a NAME, A ROLE AND A MOMENT. The image, where somebody has
+// one, is decoration on top of that — pleasant, and legally worth rather less
+// than the record underneath it. So the block prints the typed line always and
+// the graphic only when it exists, and a signature with no image is not a
+// lesser signature.
+export const SIGNATURE_ROLES = { review: "Reviewed by", approval: "Approved by" };

@@ -96,7 +96,7 @@ export async function inlineImages(sections, getMedia) {
  * merge fields say, which template applies and whether the page carries a
  * watermark. This function's only job is to be a browser, safely.
  */
-export async function renderPdf({ sections, values, template = DEFAULT_TEMPLATE, watermark = "", title = "", dir = "ltr", images = {}, logoDataUri = "" }) {
+export async function renderPdf({ sections, values, template = DEFAULT_TEMPLATE, watermark = "", title = "", dir = "ltr", images = {}, logoDataUri = "", revision = null }) {
   const browser = await launch();
   if (browser?.error) return browser;
 
@@ -122,7 +122,7 @@ export async function renderPdf({ sections, values, template = DEFAULT_TEMPLATE,
     await page.setJavaScriptEnabled(false);
 
     const html = documentHtml({
-      sections, values, title, dir,
+      sections, values, title, dir, revision,
       css: DOCUMENT_CSS + pageCss(template),
       fonts: fontFaceCss(),
       watermark,

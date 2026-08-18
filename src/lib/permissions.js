@@ -146,8 +146,21 @@ export const AREAS = [
   // Review, approve, publish, withdraw and share are deliberately ABSENT until
   // the transitions that exercise them exist. A right nothing can act on is the
   // dead capability this catalogue is built to avoid.
+  // REVIEW AND APPROVE ARE TWO RIGHTS, not one, because they are two people.
+  // Folding them together would let the same person sign both halves, and a
+  // revision signed twice by one hand has been reviewed by nobody.
+  //
+  // PUBLISH is separate again: signing off on the text and deciding the day a
+  // company starts working to it are different acts, and the second one is
+  // usually somebody else's to time.
   { key: "quality.documents", group: "Quality", label: "Documents", verbs: ["view", "create", "edit", "delete"],
-    extra: [{ key: "setup", label: "Manage document types and codes" }] },
+    extra: [
+      { key: "setup", label: "Manage document types and codes" },
+      { key: "review", label: "Sign as reviewer" },
+      { key: "approve", label: "Sign as approver" },
+      { key: "publish", label: "Issue a revision" },
+      { key: "obsolete", label: "Withdraw a document" },
+    ] },
 
   { key: "tasks.board", group: "Tasks", label: "Task board", verbs: ["view", "create", "edit", "delete"] },
   { key: "tasks.settings", group: "Tasks", label: "Settings", verbs: ["view", "edit"] },

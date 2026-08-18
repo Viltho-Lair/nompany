@@ -11,6 +11,7 @@ import { MergeField } from "@/components/studio2/qualityMergeField";
 import { btn, btnGhost, input, microLabel } from "@/components/studio2/ui";
 import { blankSection, MAX_SECTIONS, emptyDoc } from "@/lib/qualityContent";
 import { SCREEN_CSS } from "@/lib/qualityCss";
+import QualityWorkflow from "@/components/studio2/QualityWorkflow";
 
 // THE BUILDER — Quality → Documents → one document, full screen.
 //
@@ -166,7 +167,14 @@ export default function StudioQualityBuilder({ studio, documentId }) {
   }, [data?.canEdit, post, studio.slug, documentId]);
 
   const mine = Boolean(lock?.mine);
-  const editable = Boolean(data?.canEdit && mine);
+  // A REVISION THAT HAS BEEN SENT FOR REVIEW IS FROZEN. The whole value of a
+  // signature is that it was given against particular words, so the text stops
+  // moving the moment it is somebody else's turn to read it — the server refuses
+  // the write anyway, and an editor that still accepts keystrokes it is about to
+  // lose is a worse way to find that out.
+  const revState = data?.revision?.state || "draft";
+  const writable = ["draft", "rejected"].includes(revState);
+  const editable = Boolean(data?.canEdit && mine && writable);
 
   const save = useCallback(async () => {
     setSaveState("saving");
@@ -285,6 +293,12 @@ export default function StudioQualityBuilder({ studio, documentId }) {
             </button>
           </div>
         )}
+        {data && data.canEdit && mine && !writable && (
+          <div className="border-t border-brand-200 bg-brand-500/10 px-5 py-2.5 text-sm text-brand-800 dark:border-brand-500/20 dark:text-brand-300 sm:px-8">
+            This revision has been sent on and is now read-only. Signatures are given against particular words, so the
+            text stops moving once somebody is reading it.
+          </div>
+        )}
         {data && !data.canEdit && (
           <div className="border-t border-slate-200 bg-slate-50 px-5 py-2.5 text-sm text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400 sm:px-8">
             You can read this document but not change it.
@@ -399,9 +413,9 @@ export default function StudioQualityBuilder({ studio, documentId }) {
             </div>
           </main>
 
-          {/* Right — what the register knows about this document. Read-only
-              here: it is edited on the register, which is where it is read. */}
-          <aside className="hidden w-64 shrink-0 xl:block">
+          {/* Right — the document's own facts, and the control panel that moves
+              it along. */}
+          <aside className="hidden w-80 shrink-0 space-y-4 xl:block">
             <p className={microLabel}>This document</p>
             <dl className="mt-2 space-y-2.5 rounded-geex border border-slate-200/70 bg-white p-4 text-sm dark:border-white/10 dark:bg-[#20202c]">
               {[
@@ -422,6 +436,8 @@ export default function StudioQualityBuilder({ studio, documentId }) {
               Page breaks are decided when the document is rendered, so what you write here flows into pages at export
               rather than being fitted to them as you type.
             </p>
+
+            <QualityWorkflow slug={studio.slug} documentId={documentId} document={doc} onChanged={load} />
           </aside>
         </div>
       )}

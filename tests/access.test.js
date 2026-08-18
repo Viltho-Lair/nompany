@@ -195,6 +195,31 @@ console.log("\n== enforcement coverage");
     const src = fs.readFileSync(f, "utf8");
     for (const m of src.matchAll(/requirePermission\([\w.]+, "([^"]+)"\)/g)) enforced.add(m[1]);
   }
+  // A GUARD THE GREP CANNOT SEE IS STILL A GUARD.
+  //
+  // The Quality workflow dispatches from a table: one moveRevision() calls
+  // requirePermission(ctx.access, move.permission), and the key it needs lives
+  // in TRANSITIONS. That is the whole point of declaring the machine once — but
+  // it means the literal never appears beside the call, and this audit reported
+  // quality.documents.approve as unguarded when it is guarded on every path.
+  //
+  // So: if any service dispatches a permission from a VARIABLE, the keys
+  // declared as `permission: "..."` table entries count as enforced too.
+  // Narrower would mean a false alarm nobody can fix without making the code
+  // worse; an audit that cries wolf gets ignored, which is how the real hole
+  // gets through.
+  const dispatches = SERVICES.some((f) => /requirePermission\([\w.]+,\s*[\w.]+\)/.test(fs.readFileSync(f, "utf8")));
+  if (dispatches) {
+    for (const f of SERVICES) {
+      // Only real permission keys. `permission:` is also how sheetColumns.js
+      // names the AREA a column answers to, and an area is not a permission —
+      // sweeping those in made this audit report keys that do not exist.
+      for (const m of fs.readFileSync(f, "utf8").matchAll(/permission:\s*"([^"]+)"/g)) {
+        if (P.isPermission(m[1])) enforced.add(m[1]);
+      }
+    }
+  }
+
   const undeclared = [...enforced].filter((k) => !P.isPermission(k));
   ok("every enforced key is declared", undeclared.length === 0, undeclared.join(", "));
 

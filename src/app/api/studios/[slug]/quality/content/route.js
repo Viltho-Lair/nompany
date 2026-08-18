@@ -65,7 +65,9 @@ export async function GET(request, ctx) {
       ownerAlias: owner?.alias || "",
     },
     sections: opened.sections,
-    revision: opened.draft ? { id: opened.draft.id, rev: opened.draft.rev, updatedAt: opened.draft.updatedAt } : null,
+    revision: opened.draft
+      ? { id: opened.draft.id, rev: opened.draft.rev, state: opened.draft.state, updatedAt: opened.draft.updatedAt }
+      : null,
     lock: { ...lock, ttl: LOCK_TTL_SEC },
     canEdit: can(g.access, "quality.documents.edit"),
     mergeFields: MERGE_FIELDS,

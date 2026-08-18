@@ -24,11 +24,13 @@ import { departmentsFromSections } from "@/lib/departments";
 import { bumpCounter, claim, getIndex, release, touchTTL } from "@/lib/data/store";
 import { SEC } from "@/lib/data/keys";
 import { currentUser } from "@/lib/identity";
+import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
 import {
   DOC_STATUSES, DEFAULT_STATUS, STATUS_LABELS, isControlled,
   DOC_LANGUAGES, directionOf,
   formatCode, cleanCodePart, defaultDeptCode, highestSeq,
   ISO_STARTER_TYPES, MAX_TYPES, MAX_TITLE, prefixTaken,
+  TRANSITIONS, REV_LABELS, isOpen, documentState, pendingRevision, SIGNATURE_ROLES,
 } from "@/lib/qualityDocuments";
 import { cleanSections, startingSections, wordCount } from "@/lib/qualityContent";
 
@@ -43,6 +45,7 @@ const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(
 export {
   DOC_STATUSES, DEFAULT_STATUS, STATUS_LABELS, DOC_LANGUAGES,
   directionOf, isControlled, ISO_STARTER_TYPES,
+  TRANSITIONS, REV_LABELS, documentState, pendingRevision,
 };
 
 // ---- context ---------------------------------------------------------------
@@ -226,10 +229,11 @@ export async function removeType(ctx, id) {
 // ---- documents -------------------------------------------------------------
 
 export async function listDocuments(ctx) {
-  const [documents, types, people] = await Promise.all([
+  const [documents, types, people, revisions] = await Promise.all([
     readCol(ctx.studio.id, ctx.section.id, DOCUMENTS),
     listTypes(ctx),
     listCollaborators(ctx.studio.id),
+    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
   ]);
   const typeName = Object.fromEntries(types.map((t) => [t.id, t.name]));
   const deptName = Object.fromEntries(ctx.departments.map((d) => [d.id, d.name]));
@@ -244,9 +248,15 @@ export async function listDocuments(ctx) {
       departmentName: deptName[d.departmentId] || "",
       ownerAlias: alias[d.ownerCollaboratorId] || "",
       direction: directionOf(d.language),
-      // Both derived, so neither can go stale in storage.
-      reviewOverdue: !!d.nextReviewDate && d.nextReviewDate < today && d.status !== "obsolete",
-      controlled: isControlled(d.status),
+      // STATE IS DERIVED, never stored. A stored copy is a second answer to a
+      // question that already has one, and the two agree only until a transition
+      // writes one and forgets the other.
+      state: documentState(d, revisions),
+      // "Effective, and rev 3 is with the approver" is two facts, and somebody
+      // reading the register needs both.
+      pending: pendingRevision(d, revisions),
+      reviewOverdue: !!d.nextReviewDate && d.nextReviewDate < today && !d.obsoletedAt,
+      controlled: isControlled(documentState(d, revisions)),
     }));
 }
 
@@ -296,7 +306,10 @@ export async function createDocument(ctx, body) {
     // Every document starts unissued. Revision 0 is deliberate: the first
     // revision anybody can hold in their hand is Rev 1, and it exists only once
     // the document has been through review and been published.
-    status: DEFAULT_STATUS,
+    //
+    // No `status` field: the document's state is derived from its revisions —
+    // see documentState — because a document can be effective and have its next
+    // revision in review at the same time, and one field cannot say both.
     revision: 0,
     effectiveDate: "",
     nextReviewDate: day(body?.nextReviewDate),
@@ -370,7 +383,12 @@ export async function removeDocument(ctx, id) {
   // that HAS been issued is retained even after it is withdrawn — obsolete
   // versions are kept on purpose, because proving what the instruction used to
   // say is the whole point of controlling it.
-  if (isControlled(document.status)) return { error: "controlled" };
+  //
+  // Asked of the REVISIONS, not of a status field. Whether a document was ever
+  // issued is a fact about what exists, and a fact cannot drift the way a
+  // duplicated field can.
+  const revisions = await readCol(ctx.studio.id, ctx.section.id, REVISIONS);
+  if (isControlled(documentState(document, revisions))) return { error: "controlled" };
 
   const removed = await deleteRow(ctx.studio.id, ctx.section.id, DOCUMENTS, id);
   return removed ? { ok: true } : { error: "notfound" };
@@ -454,7 +472,18 @@ export async function openDraft(ctx, documentId) {
   if (!document) return { error: "notfound" };
 
   const revisions = await readCol(ctx.studio.id, ctx.section.id, REVISIONS);
-  let draft = revisions.find((r) => r.documentId === documentId && r.state === "draft");
+  const mine = revisions.filter((r) => r.documentId === documentId);
+
+  // WHICHEVER REVISION THIS DOCUMENT IS CURRENTLY ABOUT: the one still open if
+  // there is one, otherwise the issued one. Only a document that has never been
+  // written at all gets a revision minted for it here.
+  //
+  // It used to mint one whenever no DRAFT existed, which was harmless while
+  // nothing could be issued and quietly wrong the moment something could —
+  // opening an effective document to read it would have started rev 2 with
+  // nobody asking for it. Starting the next revision is a deliberate act now:
+  // see startRevision.
+  let draft = mine.find((r) => isOpen(r.state)) || mine.find((r) => r.state === "effective") || null;
 
   if (!draft) {
     // Nothing to write into yet, so this branch CREATES a record and asks for
@@ -464,7 +493,10 @@ export async function openDraft(ctx, documentId) {
     // document would silently author its first revision, and the register would
     // show authorship that never happened.
     const denied = requirePermission(ctx.access, "quality.documents.edit");
-    if (denied) return { document, draft: null, sections: startingSections(), readOnly: true };
+    if (denied) return {
+      document: { ...document, state: documentState(document, revisions) },
+      draft: null, sections: startingSections(), readOnly: true,
+    };
     draft = await addRow(ctx.studio.id, ctx.section.id, REVISIONS, {
       documentId, rev: (Number(document.revision) || 0) + 1, state: "draft",
       sections: startingSections(),
@@ -474,7 +506,16 @@ export async function openDraft(ctx, documentId) {
     await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, { draftRevisionId: draft.id });
   }
 
-  return { document, draft, sections: cleanSections(draft.sections) };
+  // The state travels WITH the document, resolved here where the revisions are
+  // already in hand. Every caller downstream — the builder, the reader, the PDF
+  // route deciding whether to stamp DRAFT across the page — was otherwise
+  // reading a row that no longer carries one, and would have stamped every
+  // issued document as a draft.
+  return {
+    document: { ...document, state: documentState(document, revisions) },
+    draft,
+    sections: cleanSections(draft.sections),
+  };
 }
 
 export async function saveDraft(ctx, documentId, body) {
@@ -484,6 +525,12 @@ export async function saveDraft(ctx, documentId, body) {
   const opened = await openDraft(ctx, documentId);
   if (opened.error) return opened;
   if (!opened.draft) return { error: "no-draft" };
+
+  // AN APPROVED REVISION IS IMMUTABLE, and so is one somebody is part-way
+  // through reviewing. The whole value of a signature is that it was given
+  // against particular words; text that can still move afterwards makes the
+  // signature evidence of nothing.
+  if (!["draft", "rejected"].includes(opened.draft.state)) return { error: "not-editable", state: opened.draft.state };
 
   // THE LOCK IS CHECKED AT THE WRITE, not only when the screen was opened. A
   // tab that has been sitting open since before somebody else took the document
@@ -556,7 +603,225 @@ export async function mergeValuesFor(ctx, document, { types = null, rev = null }
 // two confusions are precisely what document control exists to prevent, and
 // they happen on paper, away from the screen that knew the difference.
 export function watermarkFor(document) {
-  if (document?.status === "obsolete") return "OBSOLETE";
-  if (document?.status === "effective") return "";
+  const state = document?.state || (document?.obsoletedAt ? "obsolete" : "draft");
+  if (state === "obsolete") return "OBSOLETE";
+  if (state === "effective") return "";
   return "DRAFT";
+}
+
+// ---- the audit trail --------------------------------------------------------
+//
+// APPEND-ONLY, and the reason the rest of this module can be trusted. A control
+// system that cannot say who did what and when is a filing cabinet with a nicer
+// font: the question an auditor actually asks is not "is this approved" but
+// "show me that it was, and by whom, and when". Every transition below writes
+// one row, and nothing in the product deletes one.
+
+const AUDIT = "qualityAudit";
+
+async function audit(ctx, { documentId, revisionId = "", action, detail = "" }) {
+  return addRow(ctx.studio.id, ctx.section.id, AUDIT, {
+    documentId, revisionId, action, detail,
+    byCollaboratorId: ctx.collaborator.id,
+    byAlias: ctx.collaborator.alias || "",
+    at: new Date().toISOString(),
+  });
+}
+
+export async function listAudit(ctx, documentId) {
+  const rows = await readCol(ctx.studio.id, ctx.section.id, AUDIT);
+  return rows
+    .filter((r) => !documentId || r.documentId === documentId)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
+
+export async function listRevisions(ctx, documentId) {
+  const rows = await readCol(ctx.studio.id, ctx.section.id, REVISIONS);
+  return rows
+    .filter((r) => !documentId || r.documentId === documentId)
+    .sort((a, b) => (b.rev ?? 0) - (a.rev ?? 0));
+}
+
+// ---- starting the next revision ---------------------------------------------
+//
+// EDITING AN ISSUED DOCUMENT NEVER CHANGES IT. It opens the next revision, and
+// the issued one stays exactly as it is — readable, exportable, and still the
+// document anybody working from it is working from — until the new one is
+// published over the top. That is the difference between a version history and
+// document control.
+export async function startRevision(ctx, documentId) {
+  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  if (denied) return denied;
+
+  const [documents, revisions] = await Promise.all([
+    readCol(ctx.studio.id, ctx.section.id, DOCUMENTS),
+    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+  ]);
+  const document = documents.find((d) => d.id === documentId);
+  if (!document) return { error: "notfound" };
+  if (document.obsoletedAt) return { error: "obsolete" };
+
+  const mine = revisions.filter((r) => r.documentId === documentId);
+  // One open revision at a time. Two people drafting two different "next"
+  // revisions is two documents wearing one code.
+  if (mine.some((r) => isOpen(r.state))) return { error: "already-open" };
+
+  const effective = mine.find((r) => r.state === "effective");
+  const draft = await addRow(ctx.studio.id, ctx.section.id, REVISIONS, {
+    documentId, rev: (Number(effective?.rev) || 0) + 1, state: "draft",
+    // The new revision STARTS FROM WHAT THE DOCUMENT CURRENTLY SAYS. Beginning
+    // from a blank page would mean retyping a procedure to change a sentence.
+    sections: cleanSections(effective?.sections),
+    authorCollaboratorId: ctx.collaborator.id,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  });
+  await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, { draftRevisionId: draft.id });
+  await audit(ctx, { documentId, revisionId: draft.id, action: "revision.started", detail: `Rev ${draft.rev}` });
+  return { revision: draft };
+}
+
+// ---- the transitions --------------------------------------------------------
+
+// Who a revision is waiting on, so the screen can say "with Sara" rather than
+// "in review" — the second tells nobody what to do next.
+const waitingOn = (document, state) =>
+  state === "review" ? document.reviewerCollaboratorId
+    : state === "approval" ? document.approverCollaboratorId
+      : "";
+
+/**
+ * Move a revision along the ladder. ONE function for every transition, driven
+ * by the table in lib/qualityDocuments.js, so the rules exist once — a screen
+ * asking what is possible and a service deciding what is allowed read the same
+ * declaration, and cannot come to different answers.
+ */
+export async function moveRevision(ctx, documentId, action, body = {}) {
+  const move = TRANSITIONS[action];
+  if (!move) return { error: "unknown-action" };
+
+  const denied = requirePermission(ctx.access, move.permission);
+  if (denied) return denied;
+
+  const [documents, revisions] = await Promise.all([
+    readCol(ctx.studio.id, ctx.section.id, DOCUMENTS),
+    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+  ]);
+  const document = documents.find((d) => d.id === documentId);
+  if (!document) return { error: "notfound" };
+
+  const mine = revisions.filter((r) => r.documentId === documentId);
+  const current = action === "withdraw"
+    ? mine.find((r) => r.state === "effective")
+    : mine.find((r) => isOpen(r.state));
+  if (!current) return { error: "no-revision" };
+  if (!move.from.includes(current.state)) return { error: "wrong-state", state: current.state };
+
+  const now = new Date().toISOString();
+  const patch = { state: move.to, updatedAt: now };
+
+  // NOBODY SIGNS BOTH HALVES. Review and approval are two rights precisely so
+  // they can be two people, and a revision carrying one person's name in both
+  // slots has been reviewed by nobody. The check belongs here rather than in the
+  // permission model, because holding both rights is legitimate and using both
+  // on one revision is not.
+  if (action === "approve" && current.review?.byCollaboratorId === ctx.collaborator.id) {
+    return { error: "same-signer" };
+  }
+
+  if (action === "review" || action === "approve") {
+    const slot = action === "review" ? "review" : "approval";
+    patch[slot] = {
+      byCollaboratorId: ctx.collaborator.id,
+      byAlias: ctx.collaborator.alias || "",
+      role: SIGNATURE_ROLES[slot],
+      at: now,
+      note: str(body?.note, 400),
+      // Optional, and optional on purpose: a signature is a name, a role and a
+      // moment. The graphic is decoration on top of that record, so a signature
+      // without one is not a lesser signature.
+      signatureUrl: /^\/api\/media\/[a-f0-9]{32}$/i.test(String(body?.signatureUrl || "")) ? body.signatureUrl : "",
+    };
+  }
+
+  if (action === "reject") {
+    patch.rejection = {
+      byCollaboratorId: ctx.collaborator.id, byAlias: ctx.collaborator.alias || "",
+      at: now, note: str(body?.note, 400),
+    };
+  }
+
+  const updated = await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, current.id, patch);
+  if (!updated) return { error: "notfound" };
+
+  // ---- what publishing does to everything else ----
+  if (action === "publish") {
+    const effectiveDate = day(body?.effectiveDate) || now.slice(0, 10);
+    // The revision this one replaces is SUPERSEDED, not deleted. Retaining
+    // withdrawn versions is the requirement, and it is also the only way to
+    // answer "what did the procedure say in March".
+    for (const r of mine) {
+      if (r.state === "effective" && r.id !== current.id) {
+        await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, r.id, { state: "superseded", supersededAt: now });
+      }
+    }
+    await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
+      revision: current.rev,
+      effectiveRevisionId: current.id,
+      effectiveDate,
+      draftRevisionId: "",
+      nextReviewDate: day(body?.nextReviewDate) || document.nextReviewDate || "",
+      updatedAt: now,
+    });
+    await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, current.id, { effectiveDate });
+  }
+
+  if (action === "withdraw") {
+    await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
+      obsoletedAt: now, obsoletedByCollaboratorId: ctx.collaborator.id, updatedAt: now,
+    });
+  }
+
+  await audit(ctx, {
+    documentId, revisionId: current.id, action: `revision.${action}`,
+    detail: `Rev ${current.rev}${body?.note ? ` - ${str(body.note, 200)}` : ""}`,
+  });
+
+  // Tell whoever it now sits with. A workflow that waits silently is a workflow
+  // that waits forever.
+  const next = waitingOn(document, move.to);
+  if (next && next !== ctx.collaborator.id) {
+    await notifyCollaborators(ctx.studio.id, [next], {
+      type: NOTIFY.system,
+      title: `${document.code} needs you`,
+      body: `${REV_LABELS[move.to]} - ${document.title}`,
+      href: `/${ctx.studio.slug}/quality-documents/${documentId}`,
+    }).catch(() => {});
+  }
+
+  return { revision: { ...current, ...patch } };
+}
+
+// ---- naming the two signers -------------------------------------------------
+//
+// Per document, not per role. "Whoever holds the approve right" is not an answer
+// an auditor accepts, and it is not an answer that tells anybody whose desk a
+// document is sitting on.
+export async function setSigners(ctx, documentId, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  if (denied) return denied;
+
+  const people = await listCollaborators(ctx.studio.id);
+  const known = (id) => !id || people.some((c) => c.id === id);
+  const reviewer = str(body?.reviewerCollaboratorId, 60);
+  const approver = str(body?.approverCollaboratorId, 60);
+  if (!known(reviewer) || !known(approver)) return { error: "signer" };
+  // The same person cannot be both, for the same reason nobody may sign twice.
+  if (reviewer && approver && reviewer === approver) return { error: "same-signer" };
+
+  const updated = await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
+    reviewerCollaboratorId: reviewer, approverCollaboratorId: approver, updatedAt: new Date().toISOString(),
+  });
+  if (!updated) return { error: "notfound" };
+  await audit(ctx, { documentId, action: "signers.set", detail: "Reviewer and approver named" });
+  return { document: updated };
 }

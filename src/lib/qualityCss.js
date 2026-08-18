@@ -41,6 +41,22 @@ export const DOCUMENT_CSS = `
   margin-bottom: 0.5em; display: flex; gap: 0.5em; align-items: baseline;
 }
 .quality-section-number { font-variant-numeric: tabular-nums; color: #94a3b8; }
+
+/* The signature block. break-inside: avoid because a signature split across two
+   sheets is a signature on neither. */
+.quality-signatures { margin-top: 2.5em; break-inside: avoid; }
+.quality-sign-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+/* TOP, not bottom. Bottom-aligning made the two cells line up by their last
+   line, so a signature carrying a note sat a line higher than one without
+   and the two rules never met. A signature block reads as one thing only
+   when the rules and the names are level; a note simply hangs below. */
+.quality-sign-table td { width: 50%; padding: 0 1.5em 0 0; vertical-align: top; border: 0; }
+.quality-sign-role { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 0.4em; }
+.quality-sign-img { display: block; height: 40px; width: auto; object-fit: contain; margin-bottom: 2px; }
+.quality-sign-rule { display: block; height: 40px; border-bottom: 1px solid #94a3b8; }
+.quality-sign-name { font-weight: 700; color: #0f172a; padding-top: 0.35em; border-top: 1px solid #cbd5e1; }
+.quality-sign-at { font-size: 9pt; color: #64748b; }
+.quality-sign-note { font-size: 9pt; color: #64748b; font-style: italic; margin-top: 0.2em; }
 `;
 
 // ---- only on screen, only while editing ------------------------------------

@@ -335,7 +335,7 @@ export const SECTION_COLLECTIONS = {
   // taxonomy. Revisions, templates and the distribution log join them as the
   // screens that write them land; a name here before then is a key nothing
   // fills.
-  "quality-documents": ["qualityDocuments", "qualityTypes", "qualityRevisions"],
+  "quality-documents": ["qualityDocuments", "qualityTypes", "qualityRevisions", "qualityAudit"],
 };
 
 // ---- studio slug rules -----------------------------------------------------
