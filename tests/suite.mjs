@@ -41,6 +41,9 @@ import {
   createShareLink, revokeShareLink, listShareLinks,
 } from "@/lib/quality";
 import { getJSON } from "@/lib/data/store";
+import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/lib/relations";
+import { ALL_PERMISSIONS } from "@/lib/permissions";
+import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/lib/data/keys";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey } from "@/lib/qualityFields";
 import { resolveBlocks, blocksFor, generateDocument, listGenerated, getGenerated,
@@ -1704,6 +1707,102 @@ console.log("\n== a template is a blank, and what comes off it is evidence");
     }
   }
   __signOut();
+}
+
+// ============================================================================
+console.log("\n== the departments are joined in one place, and it is checkable");
+{
+  // THE AUDIT THAT MAKES A REGISTRY WORTH HAVING. Seven filters scattered across
+  // three modules could not be checked against anything; a declaration can. A
+  // renamed section, a moved collection or a permission that no longer exists
+  // fails here instead of resolving to an empty list at render time.
+  const perms = new Set(ALL_PERMISSIONS);
+  const wrong = Object.entries(NODES).filter(([, n]) =>
+    !perms.has(n.permission)
+    || !ALL_SECTION_KEYS.includes(n.sectionKey)
+    || !(SECTION_COLLECTIONS[n.sectionKey] || []).includes(n.collection));
+  ok("every joined record names a real section, collection and permission",
+    wrong.length === 0, wrong.map(([id]) => id).join(","));
+
+  const nodes = new Set(Object.keys(NODES));
+  ok("every edge joins two declared records",
+    EDGES.every((e) => nodes.has(e.from) && nodes.has(e.to)),
+    EDGES.filter((e) => !nodes.has(e.from) || !nodes.has(e.to)).map((e) => `${e.from}->${e.to}`).join(","));
+
+  // ---- the edge that did not exist ----
+  //
+  // A ticket carries no projectId and never has. The question "can a sales
+  // ticket see its project" was answerable from the data all along and no code
+  // anywhere asked it.
+  const toProject = pathBetween("salesTicket", "project");
+  ok("a sales ticket can reach its project", toProject?.length === 1, JSON.stringify(toProject));
+  ok("...and it is one project, not a list",
+    toProject[0].cardinality === "one" && toProject[0].direction === "reverse");
+
+  // ---- composition instead of copying ----
+  //
+  // An invoice has no ticketId and a ticket has no invoiceId. Rather than
+  // writing the ticket's id into six more collections, the answer is a path.
+  const toInvoice = pathBetween("salesTicket", "invoice");
+  ok("a ticket reaches its invoices through its project",
+    toInvoice?.length === 2 && toInvoice[1].to === "invoice", JSON.stringify(toInvoice?.map((e) => e.to)));
+
+  // The hop the Print button needs: held at a quotation, printing the client.
+  const toClient = pathBetween("quotation", "client");
+  ok("a quotation reaches the client through its ticket",
+    toClient?.map((e) => e.to).join(">") === "salesTicket>client", JSON.stringify(toClient?.map((e) => e.to)));
+
+  ok("everything downstream of a quotation is within two hops",
+    reachableFrom("quotation").every((r) => r.hops <= 2), JSON.stringify(reachableFrom("quotation").map((r) => `${r.to}:${r.hops}`)));
+  ok("an unjoinable pair says so rather than guessing", pathBetween("invoice", "nonsense") === null);
+
+  // ---- walking one, against plain rows ----
+  const rows = {
+    salesTicket: [{ id: "t1", clientId: "c1" }],
+    quotation: [
+      { id: "q1", ticketId: "t1", createdAt: "2026-01-01", number: "Q-1" },
+      { id: "q2", ticketId: "t1", createdAt: "2026-03-01", number: "Q-2" },
+      { id: "qx", ticketId: "other", createdAt: "2026-04-01", number: "Q-X" },
+    ],
+    project: [{ id: "p1", ticketId: "t1", stage: "In Progress" }],
+    client: [{ id: "c1", name: "Acme Industrial" }],
+    invoice: [
+      { id: "i1", projectId: "p1", status: "Issued" },
+      { id: "i2", projectId: "p1", status: "Cancelled" },
+    ],
+  };
+  const read = async (node) => rows[node] || [];
+
+  const stage = await traverse("salesTicket", rows.salesTicket[0], "project", { read });
+  ok("a ticket resolves its project's stage", stage.record?.stage === "In Progress", JSON.stringify(stage.record));
+
+  // A SEQUENCE, not a set of alternatives. Earlier quotations exist because the
+  // reference for what was previously sent has to survive; the last one counts.
+  const quotes = await traverse("salesTicket", rows.salesTicket[0], "quotation", { read });
+  ok("a ticket's quotations come back newest first", quotes.record?.number === "Q-2", quotes.record?.number);
+  ok("...all of them, so the earlier one is still there", quotes.records.length === 2);
+  ok("...and another ticket's quotation is not among them",
+    !quotes.records.some((r) => r.number === "Q-X"));
+
+  const client = await traverse("quotation", rows.quotation[1], "client", { read });
+  ok("a quotation reaches the client two hops up", client.record?.name === "Acme Industrial", JSON.stringify(client.record));
+
+  // The rule that lived inside finance.js is a property of the edge now.
+  const billed = await traverse("salesTicket", rows.salesTicket[0], "invoice", { read });
+  ok("a ticket reaches its invoices", billed.records.length === 1, JSON.stringify(billed.records.map((r) => r.id)));
+  ok("...with cancelled ones excluded, as Finance always did",
+    !billed.records.some((r) => r.status === "Cancelled"));
+
+  // ---- the gate ----
+  const denied = await traverse("salesTicket", rows.salesTicket[0], "invoice", {
+    read, holds: (perm) => perm !== "finance.cash.view",
+  });
+  ok("a hop the reader may not make is refused", denied.error === "forbidden" && denied.at === "invoice", JSON.stringify(denied));
+  const allowed = await traverse("salesTicket", rows.salesTicket[0], "invoice", { read, holds: () => true });
+  ok("...and permitted when they may", allowed.records.length === 1);
+  // Passing no gate means "already established" — which is what keeps the
+  // retrofit from quietly taking information away from people who have it today.
+  ok("no gate means the caller has already decided", (await traverse("salesTicket", rows.salesTicket[0], "invoice", { read })).records.length === 1);
 }
 
 // ============================================================================
