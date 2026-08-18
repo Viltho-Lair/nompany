@@ -3,6 +3,7 @@
 // Rows live under the studio's *quality-documents* sub-section:
 //   s:<StudioID>:sec:<SectionID>:c:qualityDocuments
 //   s:<StudioID>:sec:<SectionID>:c:qualityTypes
+//   s:<StudioID>:sec:<SectionID>:c:qualityRevisions
 //
 // WHAT MAKES A DOCUMENT "CONTROLLED" rather than merely stored is that three
 // things about it are true from the moment it exists and stay true afterwards:
@@ -20,7 +21,7 @@ import { listSections, readCol, addRow, updateRow, deleteRow, updateSection } fr
 import { studioContext, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { departmentsFromSections } from "@/lib/departments";
-import { bumpCounter } from "@/lib/data/store";
+import { bumpCounter, claim, getIndex, release, touchTTL } from "@/lib/data/store";
 import { SEC } from "@/lib/data/keys";
 import { currentUser } from "@/lib/identity";
 import {
@@ -29,6 +30,7 @@ import {
   formatCode, cleanCodePart, defaultDeptCode, highestSeq,
   ISO_STARTER_TYPES, MAX_TYPES, MAX_TITLE, prefixTaken,
 } from "@/lib/qualityDocuments";
+import { cleanSections, startingSections, wordCount } from "@/lib/qualityContent";
 
 const DOCUMENTS = "qualityDocuments";
 const TYPES = "qualityTypes";
@@ -372,4 +374,147 @@ export async function removeDocument(ctx, id) {
 
   const removed = await deleteRow(ctx.studio.id, ctx.section.id, DOCUMENTS, id);
   return removed ? { ok: true } : { error: "notfound" };
+}
+
+// ---- the working draft ------------------------------------------------------
+//
+// CONTENT LIVES ON A REVISION, never on the document row. A document is the
+// controlled thing — its code, who owns it, when it is next due for review —
+// and a revision is what it actually said on a given day. Keeping the two apart
+// from the start is what lets an issued revision stay readable, byte for byte,
+// while the next one is being written over the top of it.
+//
+// Today there is only ever one revision per document and it is always a draft;
+// review, approval and superseding arrive with the workflow. The shape is
+// already right for them, so none of this has to move when they land.
+
+const REVISIONS = "qualityRevisions";
+
+// How long a lock survives without a heartbeat. Long enough that a slow save or
+// a tab switch does not drop it, short enough that a closed laptop frees the
+// document while somebody is still standing at the desk wondering.
+export const LOCK_TTL_SEC = 120;
+const lockKey = (ctx, documentId) => `${SEC.prefix(ctx.studio.id, ctx.section.id)}lock:${documentId}`;
+
+// WHO HOLDS THE DOCUMENT, and whether that is us.
+//
+// The lock is a Redis key with a TTL rather than a field on the revision, and
+// that is the whole reason it works: a browser that goes away without releasing
+// it cannot strand the document, because the key expires on its own. A field
+// would need somebody to come along and decide it had gone stale.
+export async function lockState(ctx, documentId) {
+  const holder = await getIndex(lockKey(ctx, documentId));
+  if (!holder) return { holder: "", holderAlias: "", mine: false };
+  if (holder === ctx.collaborator.id) return { holder, holderAlias: "", mine: true };
+  const people = await listCollaborators(ctx.studio.id);
+  return { holder, holderAlias: people.find((c) => c.id === holder)?.alias || "Someone", mine: false };
+}
+
+// Take the document, or report who already has it. `force` is the take-over:
+// deliberate, announced on screen, and written down — not something that
+// happens because somebody clicked into a field.
+export async function acquireLock(ctx, documentId, { force = false } = {}) {
+  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  if (denied) return denied;
+
+  const key = lockKey(ctx, documentId);
+  if (await claim(key, ctx.collaborator.id, LOCK_TTL_SEC)) return { lock: { holder: ctx.collaborator.id, mine: true } };
+
+  const current = await lockState(ctx, documentId);
+  if (current.mine) {
+    // Already ours — this is the heartbeat, and re-arming the TTL is the point.
+    await touchTTL(key, LOCK_TTL_SEC);
+    return { lock: { ...current, mine: true } };
+  }
+  if (!force) return { error: "locked", lock: current };
+
+  // Release-then-claim rather than an overwrite. Two people forcing at the same
+  // instant is a race whose worst outcome is that the second one wins, which is
+  // exactly what would happen if they had clicked a second apart.
+  await release(key);
+  await claim(key, ctx.collaborator.id, LOCK_TTL_SEC);
+  return { lock: { holder: ctx.collaborator.id, mine: true }, tookOverFrom: current.holderAlias };
+}
+
+export async function releaseLock(ctx, documentId) {
+  const current = await lockState(ctx, documentId);
+  // Only the holder may let go. Otherwise closing a read-only tab would hand
+  // somebody else's document away from underneath them.
+  if (current.mine) await release(lockKey(ctx, documentId));
+  return { ok: true };
+}
+
+// The draft revision for a document, created on first open. Creating it is not
+// an edit — opening a document that has never been written is how it gets
+// written — so it needs only the view right, and every write below is guarded
+// on its own.
+export async function openDraft(ctx, documentId) {
+  const documents = await readCol(ctx.studio.id, ctx.section.id, DOCUMENTS);
+  const document = documents.find((d) => d.id === documentId);
+  if (!document) return { error: "notfound" };
+
+  const revisions = await readCol(ctx.studio.id, ctx.section.id, REVISIONS);
+  let draft = revisions.find((r) => r.documentId === documentId && r.state === "draft");
+
+  if (!draft) {
+    // Nothing to write into yet, so this branch CREATES a record and asks for
+    // the right to do it like every other write in the studio. A refusal here
+    // is not an error, though: it means "you may read this, you just don't get
+    // to be the person who started writing it" — otherwise a viewer opening a
+    // document would silently author its first revision, and the register would
+    // show authorship that never happened.
+    const denied = requirePermission(ctx.access, "quality.documents.edit");
+    if (denied) return { document, draft: null, sections: startingSections(), readOnly: true };
+    draft = await addRow(ctx.studio.id, ctx.section.id, REVISIONS, {
+      documentId, rev: (Number(document.revision) || 0) + 1, state: "draft",
+      sections: startingSections(),
+      authorCollaboratorId: ctx.collaborator.id,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    });
+    await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, { draftRevisionId: draft.id });
+  }
+
+  return { document, draft, sections: cleanSections(draft.sections) };
+}
+
+export async function saveDraft(ctx, documentId, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  if (denied) return denied;
+
+  const opened = await openDraft(ctx, documentId);
+  if (opened.error) return opened;
+  if (!opened.draft) return { error: "no-draft" };
+
+  // THE LOCK IS CHECKED AT THE WRITE, not only when the screen was opened. A
+  // tab that has been sitting open since before somebody else took the document
+  // still believes it holds it, and believing is not holding.
+  const lock = await lockState(ctx, documentId);
+  if (lock.holder && !lock.mine) return { error: "locked", lock };
+
+  // Everything the client sent goes through the allowlist before it is stored.
+  // This is the boundary the whole content model rests on — see
+  // lib/qualityContent.js.
+  const sections = cleanSections(body?.sections);
+
+  const updated = await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, opened.draft.id, {
+    sections,
+    updatedAt: new Date().toISOString(),
+    lastEditedByCollaboratorId: ctx.collaborator.id,
+  });
+  if (!updated) return { error: "notfound" };
+
+  // The document row carries the summary the register reads, so a list of three
+  // hundred documents never has to load three hundred revisions to say how long
+  // each one is.
+  await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
+    updatedAt: updated.updatedAt,
+    words: wordCount(sections),
+  });
+
+  // Keep the lock alive on the way through: somebody who is typing is plainly
+  // still here, and making them heartbeat separately is a second timer to get
+  // wrong.
+  await touchTTL(lockKey(ctx, documentId), LOCK_TTL_SEC);
+
+  return { revision: updated, sections };
 }

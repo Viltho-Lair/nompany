@@ -14,6 +14,7 @@ import LiveProvider from "@/components/studio2/LiveProvider";
 import StudioDocs from "@/components/studio2/StudioDocs";
 import StudioQualityDocuments from "@/components/studio2/StudioQualityDocuments";
 import StudioQualitySetup from "@/components/studio2/StudioQualitySetup";
+import StudioQualityBuilder from "@/components/studio2/StudioQualityBuilder";
 import StudioSalesLive from "@/components/studio2/StudioSalesLive";
 import StudioTechnicalLive from "@/components/studio2/StudioTechnicalLive";
 import StudioPeople from "@/components/studio2/StudioPeople";
@@ -140,6 +141,16 @@ export default async function StudioPage({ params }) {
     // register rather than in a settings section of their own. Its own right is
     // re-checked server-side by every route it calls.
     if (segments[1] === "settings") return <StudioQualitySetup studio={shell} />;
+    // Any other second segment names ONE document, and opens the builder on it.
+    // Same shape as /<slug>/inventory-sheets/<id> and /<slug>/projects-list/<id>:
+    // the record's own screen, resolving through the section's grant.
+    if (segments[1]) {
+      return (
+        <LiveProvider slug={studio.slug}>
+          <StudioQualityBuilder studio={shell} documentId={segments[1]} />
+        </LiveProvider>
+      );
+    }
     // The register carries its OWN LiveProvider, like the live views: it renders
     // outside StudioFrame, which is what normally supplies one, and without it
     // this would be the only board in the studio that never hears about a

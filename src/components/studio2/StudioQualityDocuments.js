@@ -234,8 +234,12 @@ export default function StudioQualityDocuments({ studio }) {
                       <tr key={d.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
                         <td className="whitespace-nowrap ps-4 py-3 font-mono text-xs font-700 text-slate-900 dark:text-white">{d.code}</td>
                         <td className="py-3 pe-3">
-                          <span className={`text-slate-900 dark:text-white ${d.status === "obsolete" ? "line-through opacity-70" : ""}`}
-                            dir={d.direction}>{d.title}</span>
+                          {/* The title is the way in. A register row's job is to
+                              lead to the document, so the whole row would be a
+                              link if the Actions column did not also live on it. */}
+                          <Link href={`/${studio.slug}/quality-documents/${d.id}`}
+                            className={`text-slate-900 hover:text-brand-700 dark:text-white dark:hover:text-brand-300 ${d.status === "obsolete" ? "line-through opacity-70" : ""}`}
+                            dir={d.direction}>{d.title}</Link>
                         </td>
                         <td className="whitespace-nowrap py-3 pe-3 text-slate-600 dark:text-slate-300">{d.typeName || "—"}</td>
                         <td className="whitespace-nowrap py-3 pe-3 text-slate-600 dark:text-slate-300">{d.departmentName || "—"}</td>
@@ -258,10 +262,17 @@ export default function StudioQualityDocuments({ studio }) {
                           </span>
                         </td>
                         <td className="whitespace-nowrap pe-4 py-3 text-end">
+                          <Link href={`/${studio.slug}/quality-documents/${d.id}`}
+                            className="text-xs font-600 text-brand-700 hover:text-brand-950 dark:text-brand-300">
+                            Open
+                          </Link>
+                          {/* Details edits the REGISTER ENTRY — title, owner,
+                              review date. The text of the document itself is
+                              written in the builder, behind Open. */}
                           {data.canEdit && (
                             <button type="button" onClick={() => setDraft({ ...d })}
-                              className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">
-                              Edit
+                              className="ms-3 text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">
+                              Details
                             </button>
                           )}
                           {/* Only offered where it can succeed. An issued

@@ -35,7 +35,9 @@ import {
   qualityContext, installStarterTypes, createType, updateType, removeType,
   createDocument, updateDocument, removeDocument, listTypes,
   saveDepartmentCodes, departmentCodes,
+  openDraft, saveDraft, acquireLock, releaseLock, lockState,
 } from "@/lib/quality";
+import { sanitizeDoc, cleanSections, textOf } from "@/lib/qualityContent";
 import { listSections, updateRow } from "@/lib/data/sections";
 import { readArr, writeArr } from "@/lib/data/store";
 import { S } from "@/lib/data/keys";
@@ -928,6 +930,140 @@ console.log("\n== the register is default-deny like everything else");
     ok("a read-only viewer cannot create", attempt.error === "forbidden", attempt.error || "created");
     ok("...and cannot change the taxonomy", (await createType(v, { name: "X", prefix: "ZZ" })).error === "forbidden");
   }
+}
+
+// ============================================================================
+console.log("\n== a document stores JSON, and only what the allowlist names");
+// The supplied guide sent the editor's HTML to the server and handed it to a
+// headless browser. These are the payloads that would have been rendered by a
+// Chromium running on our own infrastructure, on behalf of whoever typed them.
+{
+  const doc = (content) => ({ type: "doc", content });
+  const flat = (json) => JSON.stringify(json);
+
+  // A script node is not in the table, so there is nothing to strip — it is
+  // simply not a thing the schema can express.
+  const scripted = sanitizeDoc(doc([{ type: "script", content: [{ type: "text", text: "alert(1)" }] }]));
+  ok("an unknown node type does not survive", !flat(scripted).includes("script"), flat(scripted));
+
+  // The local-file read. An <img> pointed at the server's disk is the classic
+  // PDF-generator file disclosure.
+  const localFile = sanitizeDoc(doc([{ type: "image", attrs: { src: "file:///etc/passwd" } }]));
+  ok("an image off the local filesystem is dropped", !flat(localFile).includes("etc/passwd"), flat(localFile));
+
+  // The SSRF. Any src we did not mint is a request made from inside our network.
+  const metadata = sanitizeDoc(doc([{ type: "image", attrs: { src: "http://169.254.169.254/latest/meta-data/" } }]));
+  ok("an image at the metadata endpoint is dropped", !flat(metadata).includes("169.254"), flat(metadata));
+
+  // ...while our own media store is allowed through untouched.
+  const ours = "/api/media/" + "a".repeat(32);
+  const mine = sanitizeDoc(doc([{ type: "image", attrs: { src: ours } }]));
+  ok("an image from our own media store survives", flat(mine).includes(ours), flat(mine));
+
+  // javascript: in a link is a script wearing a mark.
+  const jsLink = sanitizeDoc(doc([{
+    type: "paragraph",
+    content: [{ type: "text", text: "click", marks: [{ type: "link", attrs: { href: "javascript:alert(1)" } }] }],
+  }]));
+  ok("a javascript: link loses its mark but keeps the words",
+    !flat(jsLink).includes("javascript:") && flat(jsLink).includes("click"), flat(jsLink));
+  const httpLink = sanitizeDoc(doc([{
+    type: "paragraph",
+    content: [{ type: "text", text: "docs", marks: [{ type: "link", attrs: { href: "https://example.com" } }] }],
+  }]));
+  ok("...while an ordinary link survives", flat(httpLink).includes("https://example.com"));
+
+  // A merge field may only name a field that exists, or it resolves to nothing
+  // at render time and prints a gap nobody can explain.
+  const badField = sanitizeDoc(doc([{ type: "paragraph", content: [{ type: "mergeField", attrs: { field: "company.secrets" } }] }]));
+  ok("an invented merge field is dropped", !flat(badField).includes("secrets"), flat(badField));
+  const goodField = sanitizeDoc(doc([{ type: "paragraph", content: [{ type: "mergeField", attrs: { field: "company.name" } }] }]));
+  ok("...and a real one survives", flat(goodField).includes("company.name"));
+
+  // Attribute values are clamped, not merely allowed: a heading level of 99 is
+  // not a heading, and a nesting bomb is not a document.
+  const deepHeading = sanitizeDoc(doc([{ type: "heading", attrs: { level: 99 }, content: [{ type: "text", text: "x" }] }]));
+  ok("an out-of-range heading level is clamped", flat(deepHeading).includes('"level":2'), flat(deepHeading));
+
+  let bomb = { type: "paragraph", content: [{ type: "text", text: "deep" }] };
+  for (let i = 0; i < 400; i += 1) bomb = { type: "blockquote", content: [bomb] };
+  const flattened = sanitizeDoc(doc([bomb]));
+  ok("a deeply nested payload is cut off rather than stored", flat(flattened).length < 5000, String(flat(flattened).length));
+
+  // Sections always come back valid, so the editor always has something to
+  // mount — an empty document is an empty paragraph, never null.
+  const sections = cleanSections([{ id: "a", title: "Purpose", body: doc([{ type: "paragraph" }]) }, { id: "a", title: "Scope" }]);
+  ok("a repeated section id is re-minted rather than dropped", sections.length === 2 && sections[0].id !== sections[1].id);
+  ok("every section has a usable body", sections.every((x) => x.body?.type === "doc" && x.body.content?.length));
+  ok("text is readable back out for search", textOf(sections).includes("Purpose"));
+}
+
+// ============================================================================
+console.log("\n== two people, one draft");
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  const types = await listTypes(q);
+  const made = await createDocument(q, {
+    title: "Locking procedure", typeId: types[0].id, departmentId: "sales",
+  });
+  const docId = made.document.id;
+
+  const opened = await openDraft(q, docId);
+  ok("opening a document mints its first draft", opened.draft?.state === "draft" && opened.draft.rev === 1);
+  ok("...starting from the usual headings", opened.sections.some((x) => x.title === "Purpose"));
+
+  ok("the opener takes the lock", (await acquireLock(q, docId)).lock?.mine === true);
+  ok("...and asking again is the heartbeat, not a refusal", (await acquireLock(q, docId)).lock?.mine === true);
+
+  const saved = await saveDraft(q, docId, {
+    sections: [{ id: "s1", title: "Purpose", body: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "To control documents." }] }] } }],
+  });
+  ok("the holder can save", !saved.error, saved.error || "");
+  ok("...and what comes back is what was stored", textOf(saved.sections).includes("To control documents"));
+
+  // Somebody else now arrives. The starter roles predate Quality and therefore
+  // hold none of its rights — which is the default-deny working, not a gap — so
+  // this person is granted them explicitly, exactly as a studio would have to.
+  await updateCollaborator(studio.id, member.collaborator.id, {
+    overrides: { allow: ["quality.documents.view", "quality.documents.create", "quality.documents.edit"], deny: [] },
+  });
+  const m = await qualityContext(member.user, slug);
+  if (!m.error) {
+    const state = await lockState(m, docId);
+    ok("the second person is told who holds it", state.mine === false && state.holderAlias === "Owner", JSON.stringify(state));
+    const blocked = await acquireLock(m, docId);
+    ok("...and cannot simply take it", blocked.error === "locked", blocked.error || "took it");
+
+    // THE CHECK THAT MATTERS: a tab open since before the lock changed hands
+    // still believes it holds the document. Believing is not holding, so the
+    // refusal has to happen at the WRITE and not only when the screen opened.
+    const sneaky = await saveDraft(m, docId, { sections: [{ id: "s1", title: "Mine now", body: { type: "doc", content: [] } } ] });
+    ok("a non-holder is refused at the write", sneaky.error === "locked", sneaky.error || "saved");
+
+    const forced = await acquireLock(m, docId, { force: true });
+    ok("a deliberate take-over succeeds", forced.lock?.mine === true, forced.error || "");
+    ok("...and says who it was taken from", forced.tookOverFrom === "Owner", String(forced.tookOverFrom));
+
+    // And now the roles are reversed: the original holder is the one refused.
+    const nowBlocked = await saveDraft(q, docId, { sections: [] });
+    ok("the previous holder is now the one refused", nowBlocked.error === "locked", nowBlocked.error || "saved");
+
+    await releaseLock(m, docId);
+    ok("releasing frees it for the next person", (await acquireLock(q, docId)).lock?.mine === true);
+  } else {
+    ok("the second person could reach the module", false, m.error);
+  }
+
+  // A viewer opening a document must not silently author its first revision.
+  const v = await qualityContext(viewer.user, slug);
+  if (!v.error) {
+    const fresh = await createDocument(q, { title: "Untouched", typeId: types[0].id, departmentId: "sales" });
+    const readOnly = await openDraft(v, fresh.document.id);
+    ok("a viewer opening an unwritten document creates nothing", readOnly.draft === null && readOnly.readOnly === true);
+  }
+
+  __signOut();
 }
 
 // ============================================================================
