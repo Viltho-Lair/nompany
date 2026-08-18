@@ -35,6 +35,7 @@ export const NODES = {
   quotation: { label: "Quotation", sectionKey: "technical-quotations", collection: "quotations", permission: "technical.quotations.view" },
   project: { label: "Project", sectionKey: "projects-list", collection: "projects", permission: "projects.list.view" },
   projectSheet: { label: "Project sheet", sectionKey: "inventory-sheets", collection: "projectSheets", permission: "inventory.sheets.view" },
+  materialOrder: { label: "Material order", sectionKey: "inventory-sheets", collection: "materialOrders", permission: "inventory.sheets.view" },
   invoice: { label: "Invoice", sectionKey: "finance-cash", collection: "invoices", permission: "finance.cash.view" },
   expense: { label: "Expense", sectionKey: "finance-cash", collection: "expenses", permission: "finance.cash.view" },
   delivery: { label: "Delivery", sectionKey: "inventory", collection: "deliveries", permission: "inventory.stock.view" },
@@ -95,6 +96,7 @@ export const EDGES = [
   edge("overtime", "project", "forward", "projectId", ONE),
   edge("awbShipment", "project", "forward", "projectId", ONE),
   edge("task", "project", "forward", "projectId", ONE),
+  edge("materialOrder", "project", "forward", "projectId", ONE),
 
   // ---- downstream: scan the children ----
   //
@@ -113,6 +115,10 @@ export const EDGES = [
   // living inside finance.js; it is a property of the EDGE, so it belongs here.
   edge("project", "invoice", "reverse", "projectId", MANY, { exclude: { status: "Cancelled" } }),
   edge("project", "expense", "reverse", "projectId", MANY),
+  // A project's material cost comes from these. Cancelled orders are excluded
+  // for the same reason cancelled invoices are: an order nobody is going to
+  // fulfil is not money anybody is going to spend.
+  edge("project", "materialOrder", "reverse", "projectId", MANY, { exclude: { status: "Cancelled" } }),
   edge("project", "delivery", "reverse", "projectId", MANY),
   edge("project", "overtime", "reverse", "projectId", MANY),
   edge("project", "awbShipment", "reverse", "projectId", MANY),

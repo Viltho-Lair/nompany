@@ -19,6 +19,7 @@ import { sectionViewable, sectionManageable, requirePermission, dashboardViewabl
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
+import { traverseIn } from "@/lib/relations";
 import { nextReference } from "@/lib/references";
 import { currentUser } from "@/lib/identity";
 
@@ -403,14 +404,20 @@ export async function profitability(ctx, { invoices, expenses }) {
   const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
 
   return projects.map((p) => {
-    const mine = invoices.filter((i) => i.projectId === p.id && i.status !== "Cancelled");
+    // Each of these is an edge, and the RULE each carries — that cancelled
+    // invoices and cancelled orders do not count — is declared on the edge in
+    // lib/relations.js rather than repeated here. Expenses have no such rule,
+    // which is now visible in the declaration instead of being an absence
+    // somebody has to notice in a filter.
+    const of = (node, rows) => traverseIn("project", p, node, { rows: { [node]: rows } }).records;
+
+    const mine = of("invoice", invoices);
     const invoiced = round(mine.reduce((s, i) => s + i.total, 0));
     const collected = round(mine.reduce((s, i) => s + i.paid, 0));
 
-    const materials = round(orders
-      .filter((o) => o.projectId === p.id && o.status !== "Cancelled")
+    const materials = round(of("materialOrder", orders)
       .reduce((s, o) => s + (o.lines || []).reduce((n, l) => n + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0), 0));
-    const booked = round(expenses.filter((e) => e.projectId === p.id).reduce((s, e) => s + e.amount, 0));
+    const booked = round(of("expense", expenses).reduce((s, e) => s + e.amount, 0));
     const cost = round(materials + booked);
     const value = round(p.value);
 

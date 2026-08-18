@@ -1793,6 +1793,20 @@ console.log("\n== the departments are joined in one place, and it is checkable")
   ok("...with cancelled ones excluded, as Finance always did",
     !billed.records.some((r) => r.status === "Cancelled"));
 
+  // Material orders cost a project the same way invoices bill it, and carry the
+  // same rule: a cancelled order is not money anybody is going to spend. It
+  // lived inside finance.js beside the invoice one; both are on their edges now.
+  const costed = {
+    ...rows,
+    materialOrder: [
+      { id: "o1", projectId: "p1", status: "Ordered" },
+      { id: "o2", projectId: "p1", status: "Cancelled" },
+    ],
+  };
+  const orders = await traverse("salesTicket", rows.salesTicket[0], "materialOrder", { read: async (n) => costed[n] || [] });
+  ok("a ticket reaches its material orders through the project", orders.records.length === 1, JSON.stringify(orders.records.map((r) => r.id)));
+  ok("...with cancelled ones excluded, as Finance always did", !orders.records.some((r) => r.status === "Cancelled"));
+
   // ---- the one reciprocal link ----
   //
   // Everywhere else the child holds the key and the parent scans. RFQ and
