@@ -136,12 +136,18 @@ export const AREAS = [
   { key: "operations.tracking", group: "Operations", label: "Tracking", verbs: ["view", "create", "edit", "delete"] },
   { key: "operations.settings", group: "Operations", label: "Settings", verbs: ["view", "edit"] },
 
-  // VIEW ONLY, for now and on purpose. The Documents screen is empty — there is
-  // nothing to create, edit or delete on it yet — and declaring those three
-  // rungs would be three rights nothing can exercise, which is the dead
-  // capability this catalogue exists to avoid. The verbs go in beside the
-  // writes that need them.
-  { key: "quality.documents", group: "Quality", label: "Documents", verbs: ["view"] },
+  // The controlled-document register. `setup` is an EXTRA rather than a rung
+  // because managing the studio's document taxonomy — the types, their prefixes
+  // and the department codes every document number is built from — is not "a
+  // bigger edit" of a document. It decides what every future document will be
+  // called, which is a different power from writing one, exactly as converting
+  // an RFQ is a different power from editing it.
+  //
+  // Review, approve, publish, withdraw and share are deliberately ABSENT until
+  // the transitions that exercise them exist. A right nothing can act on is the
+  // dead capability this catalogue is built to avoid.
+  { key: "quality.documents", group: "Quality", label: "Documents", verbs: ["view", "create", "edit", "delete"],
+    extra: [{ key: "setup", label: "Manage document types and codes" }] },
 
   { key: "tasks.board", group: "Tasks", label: "Task board", verbs: ["view", "create", "edit", "delete"] },
   { key: "tasks.settings", group: "Tasks", label: "Settings", verbs: ["view", "edit"] },

@@ -13,6 +13,7 @@ import StudioFrame from "@/components/studio2/StudioFrame";
 import LiveProvider from "@/components/studio2/LiveProvider";
 import StudioDocs from "@/components/studio2/StudioDocs";
 import StudioQualityDocuments from "@/components/studio2/StudioQualityDocuments";
+import StudioQualitySetup from "@/components/studio2/StudioQualitySetup";
 import StudioSalesLive from "@/components/studio2/StudioSalesLive";
 import StudioTechnicalLive from "@/components/studio2/StudioTechnicalLive";
 import StudioPeople from "@/components/studio2/StudioPeople";
@@ -133,7 +134,21 @@ export default async function StudioPage({ params }) {
   // granted" for every other section, and a second refusal screen of its own
   // would be the same sentence in a different voice.
   if (requested === "quality-documents" && sections.some((s) => s.key === "quality-documents")) {
-    return <StudioQualityDocuments studio={{ name: studio.name, slug: studio.slug }} />;
+    const shell = { name: studio.name, slug: studio.slug };
+    // A SECOND SEGMENT NAMES THE SETUP SCREEN, not a document: types, prefixes
+    // and department codes are the studio's numbering, so they live beside the
+    // register rather than in a settings section of their own. Its own right is
+    // re-checked server-side by every route it calls.
+    if (segments[1] === "settings") return <StudioQualitySetup studio={shell} />;
+    // The register carries its OWN LiveProvider, like the live views: it renders
+    // outside StudioFrame, which is what normally supplies one, and without it
+    // this would be the only board in the studio that never hears about a
+    // document somebody else just created.
+    return (
+      <LiveProvider slug={studio.slug}>
+        <StudioQualityDocuments studio={shell} />
+      </LiveProvider>
+    );
   }
 
   // A second segment on a sales-tickets URL names ONE ticket: /<slug>/

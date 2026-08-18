@@ -1,0 +1,375 @@
+// QUALITY — the controlled-document register.
+//
+// Rows live under the studio's *quality-documents* sub-section:
+//   s:<StudioID>:sec:<SectionID>:c:qualityDocuments
+//   s:<StudioID>:sec:<SectionID>:c:qualityTypes
+//
+// WHAT MAKES A DOCUMENT "CONTROLLED" rather than merely stored is that three
+// things about it are true from the moment it exists and stay true afterwards:
+// it has a code nobody else has, that code never changes, and a document that
+// has been issued can be withdrawn but not erased. Those three are enforced
+// here rather than asked of whoever is using the screen.
+//
+// DEPARTMENTS ARE SECTIONS (lib/departments.js), so a document is filed against
+// a top-level section key. Their short codes live in THIS section's own
+// settings, not on the sections they name — Quality owning its numbering
+// vocabulary is what stops a Quality setup screen from writing to Sales' row.
+
+import { sectionViewable, sectionManageable, requirePermission, can } from "@/lib/access";
+import { listSections, readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { studioContext, sectionNav } from "@/lib/studios";
+import { listCollaborators } from "@/lib/data/collaborators";
+import { departmentsFromSections } from "@/lib/departments";
+import { bumpCounter } from "@/lib/data/store";
+import { SEC } from "@/lib/data/keys";
+import { currentUser } from "@/lib/identity";
+import {
+  DOC_STATUSES, DEFAULT_STATUS, STATUS_LABELS, isControlled,
+  DOC_LANGUAGES, directionOf,
+  formatCode, cleanCodePart, defaultDeptCode, highestSeq,
+  ISO_STARTER_TYPES, MAX_TYPES, MAX_TITLE, prefixTaken,
+} from "@/lib/qualityDocuments";
+
+const DOCUMENTS = "qualityDocuments";
+const TYPES = "qualityTypes";
+
+const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+
+// Re-exported so a server-side caller keeps one import, the way lib/tasks.js
+// re-exports lib/taskRouting.js.
+export {
+  DOC_STATUSES, DEFAULT_STATUS, STATUS_LABELS, DOC_LANGUAGES,
+  directionOf, isControlled, ISO_STARTER_TYPES,
+};
+
+// ---- context ---------------------------------------------------------------
+
+export async function qualityContext(user, slug) {
+  const context = await studioContext(user, slug);
+  if (context.error) return context;
+  // `access` and `roles` travel with the context; dropping either is what
+  // silently disarms every guard downstream.
+  const { studio, collaborator, access, roles } = context;
+
+  const sections = await listSections(studio.id);
+  const keys = sections.map((s) => s.key);
+  const section = sections.find((s) => s.key === "quality-documents");
+  if (!section) return { error: "no-section" };
+  if (!sectionViewable(access, section.key, keys)) return { error: "forbidden" };
+
+  return {
+    studio, collaborator, access, roles, section, sections,
+    canManage: sectionManageable(access, section.key, keys),
+    canSetup: can(access, "quality.documents.setup"),
+    // Departments are the studio's own top-level sections, so this list is
+    // whatever the studio is actually divided into today.
+    departments: departmentsFromSections(sections),
+    nav: sectionNav(studio, collaborator, sections, access),
+  };
+}
+
+export async function qualityGuard(paramsPromise, { write, setup } = {}) {
+  const user = await currentUser();
+  if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
+  const { slug } = await paramsPromise;
+  const q = await qualityContext(user, slug);
+  if (q.error) {
+    const status = q.error === "notfound" || q.error === "no-section" ? 404 : 403;
+    return { fail: Response.json({ error: q.error }, { status }) };
+  }
+  if (write && !q.canManage) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
+  if (setup && !q.canSetup) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
+  return q;
+}
+
+// ---- department codes ------------------------------------------------------
+//
+// Held in the quality-documents section's own `settings`, as
+// { <sectionKey>: "SAL" }. A department with no code yet answers with its
+// default, so numbering works on a studio that has never opened setup.
+
+export function departmentCodes(ctx) {
+  const stored = ctx.section?.settings?.departmentCodes || {};
+  const out = {};
+  for (const d of ctx.departments) {
+    out[d.id] = cleanCodePart(stored[d.id]) || defaultDeptCode(d.id);
+  }
+  return out;
+}
+
+export async function saveDepartmentCodes(ctx, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.setup");
+  if (denied) return denied;
+
+  const incoming = body?.departmentCodes && typeof body.departmentCodes === "object" ? body.departmentCodes : {};
+  const known = new Set(ctx.departments.map((d) => d.id));
+  const next = { ...(ctx.section.settings?.departmentCodes || {}) };
+  for (const [key, value] of Object.entries(incoming)) {
+    if (!known.has(key)) continue;
+    const code = cleanCodePart(value);
+    if (!code) return { error: "code", department: key };
+    next[key] = code;
+  }
+  // TWO DEPARTMENTS MAY NOT SHARE A CODE. They would mint the same document
+  // number from two different places, and a code that is not unique is not a
+  // code — it is a label that looks like one.
+  const seen = new Map();
+  for (const d of ctx.departments) {
+    const code = next[d.id] || defaultDeptCode(d.id);
+    if (seen.has(code)) return { error: "duplicate-code", code, departments: [seen.get(code), d.id] };
+    seen.set(code, d.id);
+  }
+
+  const settings = { ...(ctx.section.settings || {}), departmentCodes: next };
+  const updated = await updateSection(ctx.studio.id, ctx.section.id, { settings });
+  return updated ? { departmentCodes: next } : { error: "notfound" };
+}
+
+// ---- document types --------------------------------------------------------
+
+export async function listTypes(ctx) {
+  const rows = await readCol(ctx.studio.id, ctx.section.id, TYPES);
+  return [...rows].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || String(a.name).localeCompare(String(b.name)));
+}
+
+// The ISO starter pack, planted on request. Refuses once the studio has any
+// type of its own: this is a way to start, not a way to reset, and a second
+// press must never duplicate what the first one made.
+export async function installStarterTypes(ctx) {
+  const denied = requirePermission(ctx.access, "quality.documents.setup");
+  if (denied) return denied;
+
+  const existing = await listTypes(ctx);
+  if (existing.length) return { error: "not-empty" };
+
+  const created = [];
+  for (const [i, t] of ISO_STARTER_TYPES.entries()) {
+    created.push(await addRow(ctx.studio.id, ctx.section.id, TYPES, {
+      name: t.name, prefix: t.prefix, description: t.description, sortOrder: i,
+      createdAt: new Date().toISOString(),
+    }));
+  }
+  return { types: created };
+}
+
+export async function createType(ctx, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.setup");
+  if (denied) return denied;
+
+  const name = str(body?.name, 60);
+  const prefix = cleanCodePart(body?.prefix);
+  if (!name) return { error: "name" };
+  if (!prefix) return { error: "prefix" };
+
+  const existing = await listTypes(ctx);
+  if (existing.length >= MAX_TYPES) return { error: "too-many" };
+  if (prefixTaken(existing, prefix)) return { error: "prefix-taken" };
+
+  const type = await addRow(ctx.studio.id, ctx.section.id, TYPES, {
+    name, prefix, description: str(body?.description, 400),
+    sortOrder: existing.length, createdAt: new Date().toISOString(),
+  });
+  return { type };
+}
+
+export async function updateType(ctx, id, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.setup");
+  if (denied) return denied;
+
+  const existing = await listTypes(ctx);
+  const type = existing.find((t) => t.id === id);
+  if (!type) return { error: "notfound" };
+
+  const patch = {};
+  if (body?.name !== undefined) {
+    const name = str(body.name, 60);
+    if (!name) return { error: "name" };
+    patch.name = name;
+  }
+  if (body?.description !== undefined) patch.description = str(body.description, 400);
+
+  // THE PREFIX IS FROZEN once documents have been issued under it. Changing it
+  // would leave every existing code claiming a type that no longer says that,
+  // and renumbering them is exactly what a permanent code forbids.
+  if (body?.prefix !== undefined) {
+    const prefix = cleanCodePart(body.prefix);
+    if (!prefix) return { error: "prefix" };
+    if (prefix !== type.prefix) {
+      const documents = await readCol(ctx.studio.id, ctx.section.id, DOCUMENTS);
+      if (documents.some((d) => d.typeId === id)) return { error: "prefix-in-use" };
+      if (prefixTaken(existing, prefix, id)) return { error: "prefix-taken" };
+      patch.prefix = prefix;
+    }
+  }
+
+  const updated = await updateRow(ctx.studio.id, ctx.section.id, TYPES, id, patch);
+  return updated ? { type: updated } : { error: "notfound" };
+}
+
+export async function removeType(ctx, id) {
+  const denied = requirePermission(ctx.access, "quality.documents.setup");
+  if (denied) return denied;
+
+  const documents = await readCol(ctx.studio.id, ctx.section.id, DOCUMENTS);
+  // A type that documents were filed under cannot be deleted: the documents
+  // would be left naming a type that no longer exists, and their codes would
+  // stop meaning anything.
+  if (documents.some((d) => d.typeId === id)) return { error: "in-use" };
+
+  const removed = await deleteRow(ctx.studio.id, ctx.section.id, TYPES, id);
+  return removed ? { ok: true } : { error: "notfound" };
+}
+
+// ---- documents -------------------------------------------------------------
+
+export async function listDocuments(ctx) {
+  const [documents, types, people] = await Promise.all([
+    readCol(ctx.studio.id, ctx.section.id, DOCUMENTS),
+    listTypes(ctx),
+    listCollaborators(ctx.studio.id),
+  ]);
+  const typeName = Object.fromEntries(types.map((t) => [t.id, t.name]));
+  const deptName = Object.fromEntries(ctx.departments.map((d) => [d.id, d.name]));
+  const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
+  const today = new Date().toISOString().slice(0, 10);
+
+  return [...documents]
+    .sort((a, b) => String(a.code || "").localeCompare(String(b.code || "")))
+    .map((d) => ({
+      ...d,
+      typeName: typeName[d.typeId] || "",
+      departmentName: deptName[d.departmentId] || "",
+      ownerAlias: alias[d.ownerCollaboratorId] || "",
+      direction: directionOf(d.language),
+      // Both derived, so neither can go stale in storage.
+      reviewOverdue: !!d.nextReviewDate && d.nextReviewDate < today && d.status !== "obsolete",
+      controlled: isControlled(d.status),
+    }));
+}
+
+// THE NUMBER, minted atomically.
+//
+// bumpCounter runs its read-compare-write inside one Lua call, so two people
+// creating a document in the same second get two different numbers rather than
+// both reading the same tally. It also never goes backwards, which is what
+// makes a deleted draft's number stay spent instead of being handed out again —
+// a reused document code is indistinguishable from a forged one.
+//
+// The floor is read off the codes that already exist, so a studio holding
+// documents from before this counter existed is picked up rather than restarted.
+async function mintCode(ctx, { prefix, dept, documents }) {
+  const key = `${SEC.prefix(ctx.studio.id, ctx.section.id)}seq`;
+  const seq = await bumpCounter(key, `${prefix}-${dept}`, highestSeq(documents, prefix, dept));
+  return formatCode(prefix, dept, seq);
+}
+
+export async function createDocument(ctx, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.create");
+  if (denied) return denied;
+
+  const title = str(body?.title, MAX_TITLE);
+  if (!title) return { error: "title" };
+
+  const [types, documents] = await Promise.all([
+    listTypes(ctx),
+    readCol(ctx.studio.id, ctx.section.id, DOCUMENTS),
+  ]);
+  const type = types.find((t) => t.id === str(body?.typeId, 60));
+  if (!type) return { error: "type" };
+
+  const departmentId = str(body?.departmentId, 60);
+  if (!ctx.departments.some((d) => d.id === departmentId)) return { error: "department" };
+
+  const language = DOC_LANGUAGES.some((l) => l.id === body?.language) ? body.language : "en";
+
+  const ownerCollaboratorId = str(body?.ownerCollaboratorId, 60) || ctx.collaborator.id;
+  const people = await listCollaborators(ctx.studio.id);
+  if (!people.some((c) => c.id === ownerCollaboratorId)) return { error: "owner" };
+
+  const code = await mintCode(ctx, { prefix: type.prefix, dept: departmentCodes(ctx)[departmentId], documents });
+
+  const document = await addRow(ctx.studio.id, ctx.section.id, DOCUMENTS, {
+    code, title, typeId: type.id, departmentId, ownerCollaboratorId, language,
+    // Every document starts unissued. Revision 0 is deliberate: the first
+    // revision anybody can hold in their hand is Rev 1, and it exists only once
+    // the document has been through review and been published.
+    status: DEFAULT_STATUS,
+    revision: 0,
+    effectiveDate: "",
+    nextReviewDate: day(body?.nextReviewDate),
+    relatedDocumentIds: [],
+    createdAt: new Date().toISOString(),
+    createdByCollaboratorId: ctx.collaborator.id,
+    updatedAt: new Date().toISOString(),
+  });
+  return { document };
+}
+
+export async function updateDocument(ctx, id, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  if (denied) return denied;
+
+  const documents = await readCol(ctx.studio.id, ctx.section.id, DOCUMENTS);
+  const document = documents.find((d) => d.id === id);
+  if (!document) return { error: "notfound" };
+
+  const patch = {};
+  if (body?.title !== undefined) {
+    const title = str(body.title, MAX_TITLE);
+    if (!title) return { error: "title" };
+    patch.title = title;
+  }
+  if (body?.nextReviewDate !== undefined) patch.nextReviewDate = day(body.nextReviewDate);
+  if (body?.language !== undefined && DOC_LANGUAGES.some((l) => l.id === body.language)) {
+    patch.language = body.language;
+  }
+  if (body?.ownerCollaboratorId !== undefined) {
+    const owner = str(body.ownerCollaboratorId, 60);
+    const people = await listCollaborators(ctx.studio.id);
+    if (!people.some((c) => c.id === owner)) return { error: "owner" };
+    patch.ownerCollaboratorId = owner;
+  }
+  // Re-filing a document changes where it is found, NOT what it is called.
+  // The code was minted from the type and department it had on the day it was
+  // created, and it stays that code — it is already printed on paper, quoted in
+  // other documents and recorded in whatever referenced it.
+  if (body?.typeId !== undefined) {
+    const types = await listTypes(ctx);
+    if (!types.some((t) => t.id === body.typeId)) return { error: "type" };
+    patch.typeId = str(body.typeId, 60);
+  }
+  if (body?.departmentId !== undefined) {
+    if (!ctx.departments.some((d) => d.id === body.departmentId)) return { error: "department" };
+    patch.departmentId = str(body.departmentId, 60);
+  }
+  if (body?.relatedDocumentIds !== undefined) {
+    const known = new Set(documents.map((d) => d.id));
+    patch.relatedDocumentIds = [...new Set((Array.isArray(body.relatedDocumentIds) ? body.relatedDocumentIds : [])
+      .map(String).filter((x) => known.has(x) && x !== id))].slice(0, 10);
+  }
+
+  if (!Object.keys(patch).length) return { document };
+  patch.updatedAt = new Date().toISOString();
+  const updated = await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, id, patch);
+  return updated ? { document: updated } : { error: "notfound" };
+}
+
+export async function removeDocument(ctx, id) {
+  const denied = requirePermission(ctx.access, "quality.documents.delete");
+  if (denied) return denied;
+
+  const documents = await readCol(ctx.studio.id, ctx.section.id, DOCUMENTS);
+  const document = documents.find((d) => d.id === id);
+  if (!document) return { error: "notfound" };
+
+  // THE LINE BETWEEN A DRAFT AND A CONTROLLED DOCUMENT. Something that was
+  // never issued is somebody's abandoned work and may be thrown away. Something
+  // that HAS been issued is retained even after it is withdrawn — obsolete
+  // versions are kept on purpose, because proving what the instruction used to
+  // say is the whole point of controlling it.
+  if (isControlled(document.status)) return { error: "controlled" };
+
+  const removed = await deleteRow(ctx.studio.id, ctx.section.id, DOCUMENTS, id);
+  return removed ? { ok: true } : { error: "notfound" };
+}

@@ -31,6 +31,14 @@ import {
 import { projectsContext, openProject, listProjects } from "@/lib/projects";
 import { technicalContext, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/lib/technical";
 import { rfqInfo } from "@/lib/salesAnalytics";
+import {
+  qualityContext, installStarterTypes, createType, updateType, removeType,
+  createDocument, updateDocument, removeDocument, listTypes,
+  saveDepartmentCodes, departmentCodes,
+} from "@/lib/quality";
+import { listSections, updateRow } from "@/lib/data/sections";
+import { readArr, writeArr } from "@/lib/data/store";
+import { S } from "@/lib/data/keys";
 import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/lib/finance";
 import { inventoryContext, createItem, adjustStock, listProjectSheets, saveSheetLine } from "@/lib/inventory";
 import {
@@ -797,6 +805,129 @@ console.log("\n== cron jobs check who is calling");
   ok("...and counts the active users", typeof ran.active === "number", JSON.stringify(ran.active));
 
   if (before === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = before;
+}
+
+// ============================================================================
+console.log("\n== a studio that predates a section still gets it");
+// Sections are seeded at studio creation and nothing appends one afterwards, so
+// every section added to SECTION_DEFS after a studio existed reached new
+// studios only. Quality was the first to land that way, and listSections
+// planting what is missing is the only reason the module is reachable at all in
+// a studio created before it.
+{
+  const key = S.sections(studio.id);
+  const before = await readArr(key);
+  // Make this studio look like one created before Quality existed.
+  await writeArr(key, before.filter((x) => !String(x.key).startsWith("quality")));
+  ok("the section is genuinely gone first",
+    !(await readArr(key)).some((x) => x.key === "quality"));
+
+  const healed = await listSections(studio.id);
+  ok("reading the sections plants the parent", healed.some((x) => x.key === "quality"));
+  ok("...and its sub-section", healed.some((x) => x.key === "quality-documents"));
+  const parent = healed.find((x) => x.key === "quality");
+  const child = healed.find((x) => x.key === "quality-documents");
+  ok("...pointing at the parent it belongs to", child?.parentId === parent?.id);
+  ok("...and placed in the nav where it belongs, not at the end",
+    healed.findIndex((x) => x.key === "quality") < healed.findIndex((x) => x.key === "tasks"));
+
+  // Planting must be idempotent, or every page load mints a new SectionID and
+  // the section's own data is orphaned behind it.
+  const again = await listSections(studio.id);
+  ok("reading again plants nothing new", again.length === healed.length);
+  ok("...and keeps the same SectionID", again.find((x) => x.key === "quality").id === parent.id);
+}
+
+// ============================================================================
+console.log("\n== controlled documents are numbered once, and for good");
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  ok("the owner reaches the register", !q.error, q.error || "");
+
+  const starter = await installStarterTypes(q);
+  ok("the ISO starter set installs", !starter.error && starter.types?.length === 5, starter.error || "");
+  // A second press must not duplicate the taxonomy the first one made.
+  ok("...and refuses to install twice", (await installStarterTypes(q)).error === "not-empty");
+
+  const types = await listTypes(q);
+  const procedure = types.find((t) => t.prefix === "QP");
+  ok("Procedure came with the prefix QP", Boolean(procedure));
+  ok("departments are the studio's own sections",
+    q.departments.some((d) => d.id === "sales"), JSON.stringify(q.departments.map((d) => d.id)));
+
+  const first = await createDocument(q, {
+    title: "Purchasing procedure", typeId: procedure.id, departmentId: "sales",
+  });
+  ok("a document is created", !first.error, first.error || "");
+  ok("...numbered TYPE-DEPT-NNN", /^QP-[A-Z0-9]{1,4}-001$/.test(String(first.document?.code)), String(first.document?.code));
+  ok("...and starts unissued at revision 0",
+    first.document.status === "draft" && first.document.revision === 0);
+
+  const second = await createDocument(q, {
+    title: "Second procedure", typeId: procedure.id, departmentId: "sales",
+  });
+  ok("the next one takes the next number", second.document.code.endsWith("-002"), second.document.code);
+
+  // THE POINT OF THE COUNTER. Deleting a draft must not free its number: a code
+  // handed out twice is indistinguishable from a forged one.
+  ok("an unissued document can be deleted", (await removeDocument(q, second.document.id)).ok === true);
+  const third = await createDocument(q, {
+    title: "Third procedure", typeId: procedure.id, departmentId: "sales",
+  });
+  ok("...and its number stays spent", third.document.code.endsWith("-003"), third.document.code);
+
+  // Re-filing changes where a document is found, never what it is called.
+  const refiled = await updateDocument(q, third.document.id, { departmentId: "technical", title: "Renamed" });
+  ok("re-filing keeps the code it was issued with", refiled.document.code === third.document.code, refiled.document.code);
+  ok("...while the change itself lands",
+    refiled.document.departmentId === "technical" && refiled.document.title === "Renamed");
+
+  // An issued document is retained rather than erased — that is what makes it
+  // controlled. Nothing reaches `effective` through the service yet, so the rule
+  // is exercised against the row as it will be once the workflow lands.
+  await updateRow(studio.id, q.section.id, "qualityDocuments", first.document.id, { status: "effective" });
+  ok("an issued document refuses deletion", (await removeDocument(q, first.document.id)).error === "controlled");
+
+  // A type documents were filed under cannot be deleted or re-prefixed, or
+  // their codes stop meaning anything.
+  ok("a type in use cannot be deleted", (await removeType(q, procedure.id)).error === "in-use");
+  ok("...nor can its prefix change", (await updateType(q, procedure.id, { prefix: "XX" })).error === "prefix-in-use");
+
+  const spare = await createType(q, { name: "Spare", prefix: "SPR" });
+  ok("an unused type may be re-prefixed", (await updateType(q, spare.type.id, { prefix: "SPX" })).type?.prefix === "SPX");
+  ok("...and deleted", (await removeType(q, spare.type.id)).ok === true);
+  ok("two types cannot share a prefix", (await createType(q, { name: "Clash", prefix: "QP" })).error === "prefix-taken");
+
+  // Two departments sharing a code would mint the same document number from two
+  // places, which is the one thing a code may never do.
+  const codes = JSON.stringify(departmentCodes(q));
+  const clash = await saveDepartmentCodes(q, { departmentCodes: { sales: "DUP", technical: "DUP" } });
+  ok("two departments cannot share a code", clash.error === "duplicate-code", JSON.stringify(clash));
+  ok("...and the codes are left as they were", JSON.stringify(departmentCodes(q)) === codes);
+
+  __signOut();
+}
+
+// ============================================================================
+console.log("\n== the register is default-deny like everything else");
+{
+  // Nobody holds no role, so they hold nothing: the section must refuse rather
+  // than open empty. This is the assertion that catches an area-less section
+  // key being read as "nothing to protect".
+  const denied = await qualityContext(nobody.user, slug);
+  ok("somebody with no role is refused", denied.error === "forbidden", denied.error || "opened");
+
+  // A viewer who may read must still not be able to write.
+  const v = await qualityContext(viewer.user, slug);
+  if (v.error) {
+    ok("a viewer without the grant is refused", v.error === "forbidden", v.error);
+  } else {
+    const types = await listTypes(v);
+    const attempt = await createDocument(v, { title: "Sneaky", typeId: types[0]?.id, departmentId: "sales" });
+    ok("a read-only viewer cannot create", attempt.error === "forbidden", attempt.error || "created");
+    ok("...and cannot change the taxonomy", (await createType(v, { name: "X", prefix: "ZZ" })).error === "forbidden");
+  }
 }
 
 // ============================================================================

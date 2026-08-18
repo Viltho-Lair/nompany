@@ -11,14 +11,81 @@
 // the permission catalogue in lib/access.js, via the roles on somebody's
 // collaborator row — see the note where the grant helpers used to be.
 
-import { S, SEC, ID, SECTION_COLLECTIONS } from "@/lib/data/keys";
+import { S, SEC, ID, SECTION_COLLECTIONS, SECTION_DEFS, ALL_SECTION_KEYS } from "@/lib/data/keys";
 import { readArr, editArr } from "@/lib/data/store";
 import { emit, TYPE } from "@/lib/data/events";
 
 // ---- section rows ----------------------------------------------------------
 export async function listSections(studioId) {
   const rows = await readArr(S.sections(studioId));
-  return [...rows].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  // A studio only holds the sections that existed on the day it was created.
+  // Reconciling here — at the ONE funnel every reader passes through — is what
+  // stops a section added to SECTION_DEFS from reaching new studios only.
+  const planted = await plantMissingSections(studioId, rows);
+  return [...planted].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+}
+
+// SEEDED SECTIONS A STUDIO DOES NOT HAVE YET.
+//
+// The seeded list is the whole truth about which sections a studio has: nothing
+// appends one (appendSection has no caller) and nothing deletes one (no route
+// reaches cascadeDeleteSection). So a seeded key missing from a studio can only
+// mean the studio was created before that key existed — never that somebody
+// removed it — and planting it is restoring the studio to the list it is
+// supposed to have.
+//
+// IF SECTION DELETION EVER SHIPS, that inference stops holding and this needs a
+// record of which keys have ever been planted, or it will resurrect the section
+// somebody just deleted. It is the only thing this function assumes.
+//
+// The comparison is in memory and costs nothing; the write happens once, ever,
+// and inside editArr so two requests arriving together cannot plant twice.
+async function plantMissingSections(studioId, rows) {
+  const have = new Set(rows.map((s) => s.key));
+  if (ALL_SECTION_KEYS.every((k) => have.has(k))) return rows;
+
+  return editArr(S.sections(studioId), (current) => {
+    const held = new Set(current.map((s) => s.key));
+    const missing = SECTION_DEFS.filter(
+      (d) => !held.has(d.key) || (d.children || []).some((c) => !held.has(c.key)),
+    );
+    if (!missing.length) return { result: current };
+
+    const now = new Date().toISOString();
+    const next = [...current];
+    for (const def of missing) {
+      let parent = next.find((s) => s.key === def.key);
+      if (!parent) {
+        parent = {
+          id: ID.section(), studioId, key: def.key, name: def.name, parentId: null,
+          enabled: true, sortOrder: next.length, settings: {}, createdAt: now,
+        };
+        next.push(parent);
+      }
+      for (const child of def.children || []) {
+        if (next.some((s) => s.key === child.key)) continue;
+        next.push({
+          id: ID.subsection(), studioId, key: child.key, name: child.name, parentId: parent.id,
+          enabled: true, sortOrder: next.length, settings: {}, createdAt: now,
+        });
+      }
+    }
+
+    // Re-derive the running order from SECTION_DEFS so a section planted late
+    // sits where it belongs in the nav rather than after everything else. Rows
+    // the defs do not name keep their order, at the end.
+    const rank = new Map();
+    ALL_SECTION_KEYS.forEach((k, i) => rank.set(k, i));
+    const ordered = [...next].sort((a, b) => {
+      const ra = rank.has(a.key) ? rank.get(a.key) : ALL_SECTION_KEYS.length + (a.sortOrder ?? 0);
+      const rb = rank.has(b.key) ? rank.get(b.key) : ALL_SECTION_KEYS.length + (b.sortOrder ?? 0);
+      return ra - rb;
+    });
+    const renumbered = ordered.map((s, i) => ({ ...s, sortOrder: i }));
+    // Handed back as the result too, so the caller reads what was just written
+    // rather than spending a second round-trip asking for it.
+    return { next: renumbered, result: renumbered };
+  });
 }
 export async function getSection(studioId, sectionId) {
   const rows = await readArr(S.sections(studioId));

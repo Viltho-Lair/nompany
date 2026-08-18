@@ -331,9 +331,11 @@ export const SECTION_COLLECTIONS = {
   "operations-tracking": ["trackingPositions"],
   // tasks
   tasks: ["tasks"],
-  // quality — no collections yet. Documents is an empty screen, and naming a
-  // collection here would mint a key nothing ever writes; the entry goes in
-  // when the documents themselves do.
+  // quality — the controlled-document register and the studio's own document
+  // taxonomy. Revisions, templates and the distribution log join them as the
+  // screens that write them land; a name here before then is a key nothing
+  // fills.
+  "quality-documents": ["qualityDocuments", "qualityTypes"],
 };
 
 // ---- studio slug rules -----------------------------------------------------
