@@ -57,10 +57,17 @@ export const ADMIN_ROLE_ID = "role_admin";
 // Tasks is the one parent still absent, and for a reason that does not apply to
 // the others: its parent IS the board, which is tasks.board — it already has a
 // right of its own, and a second would be two answers to one question.
+//
+// QUALITY is on this list for the same reason, arriving from the other end: it
+// has no module of its own, so its parent renders the generic section dashboard
+// — which is still a screen, and a parent that renders anything at all needs a
+// right. Without one it would be a heading with areas nowhere, and
+// sectionViewable treats a section with no areas and no viewable children as
+// having nothing to protect: Quality would have shown for everybody.
 const DASHBOARD_AREAS = [
   ["sales", "Sales"], ["technical", "Technical"], ["projects", "Projects"],
   ["inventory", "Inventory"], ["hr", "Human Resources"], ["finance", "Finance"],
-  ["operations", "Operations"],
+  ["operations", "Operations"], ["quality", "Quality"],
 ].map(([key, group]) => ({
   key: `${key}.dashboard`, group,
   // Operations' parent is a working screen rather than a dashboard, so it is
@@ -128,6 +135,13 @@ export const AREAS = [
 
   { key: "operations.tracking", group: "Operations", label: "Tracking", verbs: ["view", "create", "edit", "delete"] },
   { key: "operations.settings", group: "Operations", label: "Settings", verbs: ["view", "edit"] },
+
+  // VIEW ONLY, for now and on purpose. The Documents screen is empty — there is
+  // nothing to create, edit or delete on it yet — and declaring those three
+  // rungs would be three rights nothing can exercise, which is the dead
+  // capability this catalogue exists to avoid. The verbs go in beside the
+  // writes that need them.
+  { key: "quality.documents", group: "Quality", label: "Documents", verbs: ["view"] },
 
   { key: "tasks.board", group: "Tasks", label: "Task board", verbs: ["view", "create", "edit", "delete"] },
   { key: "tasks.settings", group: "Tasks", label: "Settings", verbs: ["view", "edit"] },

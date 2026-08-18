@@ -12,6 +12,7 @@ import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import LiveProvider from "@/components/studio2/LiveProvider";
 import StudioDocs from "@/components/studio2/StudioDocs";
+import StudioQualityDocuments from "@/components/studio2/StudioQualityDocuments";
 import StudioSalesLive from "@/components/studio2/StudioSalesLive";
 import StudioTechnicalLive from "@/components/studio2/StudioTechnicalLive";
 import StudioPeople from "@/components/studio2/StudioPeople";
@@ -120,6 +121,19 @@ export default async function StudioPage({ params }) {
         <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />
       </LiveProvider>
     );
+  }
+
+  // Quality -> Documents is full-screen as well, and unlike the manual it is a
+  // SECTION, so the grant decides. `sections` is already filtered to what this
+  // person may see, so asking it answers both questions at once — the grant and
+  // whether the section is enabled at all.
+  //
+  // A refusal deliberately falls THROUGH rather than returning something here:
+  // the shell below already answers "you asked for a section you weren't
+  // granted" for every other section, and a second refusal screen of its own
+  // would be the same sentence in a different voice.
+  if (requested === "quality-documents" && sections.some((s) => s.key === "quality-documents")) {
+    return <StudioQualityDocuments studio={{ name: studio.name, slug: studio.slug }} />;
   }
 
   // A second segment on a sales-tickets URL names ONE ticket: /<slug>/

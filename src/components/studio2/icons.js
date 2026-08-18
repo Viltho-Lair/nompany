@@ -191,6 +191,10 @@ const PATHS = {
   chevronUp: <path d="M6 15l6-6 6 6" />,
   chevronDown: <path d="M6 9l6 6 6-6" />,
   chevronRight: <path d="M9 6l6 6-6 6" />,
+  // The way back off a full-screen page. Every such page already asked for it
+  // by name; nothing ever drew it, so the four back buttons in the studio were
+  // rendering the unrecognised-name dot.
+  arrowLeft: <path d="M19 12H5M12 19l-7-7 7-7" />,
   check: <path d="M4 12l5 5L20 6" />,
   plus: <path d="M12 5v14M5 12h14" />,
   shield: (

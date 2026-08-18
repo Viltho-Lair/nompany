@@ -28,6 +28,7 @@ export const SECTION_AREAS = {
   hr: ["hr.dashboard"],
   finance: ["finance.dashboard"],
   operations: ["operations.dashboard"],
+  quality: ["quality.dashboard"],
 
   "sales-tickets": ["sales.tickets"],
   "sales-clients": ["sales.clients"],
@@ -51,6 +52,7 @@ export const SECTION_AREAS = {
   "finance-settings": ["finance.settings"],
   "operations-tracking": ["operations.tracking"],
   "operations-settings": ["operations.settings"],
+  "quality-documents": ["quality.documents"],
   "tasks-settings": ["tasks.settings"],
   tasks: ["tasks.board"],
 };

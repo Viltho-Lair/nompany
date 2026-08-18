@@ -264,6 +264,13 @@ export const SECTION_DEFS = [
     { key: "operations-tracking", name: "Tracking" },
     { key: "operations-settings", name: "Settings" },
   ] },
+  // Quality owns the studio's controlled documents. Documents is a sub-section
+  // like any other — grantable, with its own SectionID — but it OPENS FULL
+  // SCREEN (see the studio router), the way the manual and the live views do,
+  // because a document is read rather than navigated away from.
+  { key: "quality", name: "Quality", children: [
+    { key: "quality-documents", name: "Documents" },
+  ] },
   { key: "tasks", name: "Tasks", children: [
     { key: "tasks-settings", name: "Task settings" },
   ] },
@@ -324,6 +331,9 @@ export const SECTION_COLLECTIONS = {
   "operations-tracking": ["trackingPositions"],
   // tasks
   tasks: ["tasks"],
+  // quality — no collections yet. Documents is an empty screen, and naming a
+  // collection here would mint a key nothing ever writes; the entry goes in
+  // when the documents themselves do.
 };
 
 // ---- studio slug rules -----------------------------------------------------
