@@ -43,7 +43,8 @@ import {
 import { getJSON } from "@/lib/data/store";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey } from "@/lib/qualityFields";
-import { resolveBlocks, blocksFor } from "@/lib/quality";
+import { resolveBlocks, blocksFor, generateDocument, listGenerated, getGenerated,
+  moveGenerated, regenerate } from "@/lib/quality";
 import { documentState, pendingRevision } from "@/lib/qualityDocuments";
 import { sanitizeDoc, cleanSections, textOf } from "@/lib/qualityContent";
 import { renderSections, slotValue, DEFAULT_TEMPLATE } from "@/lib/qualityRender";
@@ -1591,6 +1592,117 @@ console.log("\n== blocks answer to the same rights the records do");
       blocksFor(outsider, { ...made.document, subjectType: "quotation" }).length === 0);
   }
 
+  __signOut();
+}
+
+// ============================================================================
+console.log("\n== a template is a blank, and what comes off it is evidence");
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  const types = await listTypes(q);
+
+  const tpl = await createDocument(q, { title: "Quotation cover", typeId: types[0].id, departmentId: "technical" });
+  const templateId = tpl.document.id;
+
+  // A blank nobody has approved is not a blank anybody may issue from — which is
+  // the whole reason a template is a controlled document rather than a setting.
+  ok("a document that is not a template refuses to generate",
+    (await generateDocument(q, { templateId })).error === "not-a-template");
+
+  await updateDocument(q, templateId, { isTemplate: true });
+  await bindSubject(q, templateId, { subjectType: "quotation", subjectId: "" });
+  ok("an unapproved template refuses to generate",
+    (await generateDocument(q, { templateId })).error === "not-issued");
+
+  // Approve the blank, the long way round, because that is the only way there is.
+  await openDraft(q, templateId);
+  await saveDraft(q, templateId, { sections: [{ id: "s1", title: "Terms", body: { type: "doc", content: [
+    { type: "paragraph", content: [{ type: "text", text: "Priced as follows:" }] },
+    { type: "recordBlock", attrs: { source: "quotation.lines" } },
+    { type: "paragraph", content: [
+      { type: "text", text: "Accepted by " },
+      { type: "inputField", attrs: { name: "accepted-by", label: "Accepted by", inputType: "text" } },
+    ] },
+  ] } }] });
+  await moveRevision(q, templateId, "submit");
+  await moveRevision(await qualityContext(member.user, slug), templateId, "review");
+  await moveRevision(q, templateId, "approve");
+  await moveRevision(q, templateId, "publish", { effectiveDate: "2026-09-01" });
+
+  // A quotation to generate against.
+  const tech = await technicalContext(owner, slug);
+  const quotes = await listQuotations(tech);
+  const quote = (quotes.quotations || quotes || [])[0];
+  if (!quote) {
+    ok("fixture: a quotation to generate against", false, "none found");
+  } else {
+    const made = await generateDocument(q, {
+      templateId, subjectId: quote.id,
+      inputs: { "accepted-by": "Ali Moosa", "not-asked-for": "smuggled" },
+      reviewerCollaboratorId: member.collaborator.id,
+      approverCollaboratorId: owner.id,
+    });
+    ok("an approved template generates", !made.error, made.error || "");
+    const inst = made.instance;
+
+    // The template's own code, then a sequence of its own: FRM-SAL-001/0001.
+    // Asserted by shape rather than by prefix, because which type the fixture
+    // happened to pick is not what this is testing.
+    ok("...numbered from the template's code plus its own sequence",
+      inst.code === `${tpl.document.code}/0001`, inst.code);
+    ok("...carrying the source record's own number", inst.sourceNumber === String(quote.number), inst.sourceNumber);
+    ok("...and which template revision it came from", inst.templateRev === 1 && Boolean(inst.templateRevisionId));
+
+    // FROZEN. Everything the template pointed at is resolved once and stored.
+    ok("the values are frozen into it", Boolean(inst.values?.["company.name"]), JSON.stringify(inst.values || {}).slice(0, 80));
+    ok("...and so are the block's rows", inst.blocks && "quotation.lines" in inst.blocks, JSON.stringify(Object.keys(inst.blocks || {})));
+    ok("the answer is kept", inst.inputs["accepted-by"] === "Ali Moosa");
+    // An input the template never asks for is not an answer, it is somebody
+    // posting extra data into a record.
+    ok("...and an answer nobody asked for is dropped", inst.inputs["not-asked-for"] === undefined);
+
+    // It starts as a draft and goes through the SAME ladder.
+    ok("it starts as a draft", inst.state === "draft");
+    ok("it cannot be published unreviewed", (await moveGenerated(q, inst.id, "publish")).error === "wrong-state");
+    ok("the author sends it for review", !(await moveGenerated(q, inst.id, "submit")).error);
+    const m = await qualityContext(member.user, slug);
+    ok("a reviewer signs", !(await moveGenerated(m, inst.id, "review")).error);
+    ok("...and may not also approve", (await moveGenerated(m, inst.id, "approve")).error === "same-signer");
+    ok("somebody else approves", !(await moveGenerated(q, inst.id, "approve")).error);
+    ok("and it is issued", !(await moveGenerated(q, inst.id, "publish", { effectiveDate: "2026-09-05" })).error);
+
+    const issued = (await getGenerated(q, inst.id)).instance;
+    ok("...dated", issued.effectiveDate === "2026-09-05", issued.effectiveDate);
+    ok("...and both signatures are on it",
+      Boolean(issued.review?.byAlias && issued.approval?.byAlias));
+
+    // Rejection regenerates rather than edits, and the signatures go with the
+    // words they were given against.
+    const second = await generateDocument(q, { templateId, subjectId: quote.id, inputs: {} });
+    ok("a second instance takes the next number", second.instance.code.includes("/0002"), second.instance.code);
+    await moveGenerated(q, second.instance.id, "submit");
+    await moveGenerated(m, second.instance.id, "reject", { note: "Wrong contact." });
+    const redone = await regenerate(q, second.instance.id, { inputs: { "accepted-by": "Odai" } });
+    ok("a rejected instance regenerates", !redone.error, redone.error || "");
+    ok("...back to draft", redone.instance.state === "draft");
+    ok("...with the new answer", redone.instance.inputs["accepted-by"] === "Odai");
+    ok("...and no signature carried over onto fresh words",
+      !redone.instance.review && !redone.instance.approval);
+
+    // It lives with its record, not in the Quality register.
+    const register = await listDocuments(q);
+    ok("an instance is not in the controlled register", !register.some((d) => d.id === inst.id));
+    const listed = await listGenerated(q, { subjectType: "quotation", subjectId: quote.id });
+    ok("...it is listed against its record", listed.some((r) => r.id === inst.id), String(listed.length));
+
+    // Reading the frozen snapshot still answers to the record's right.
+    const outsider = await qualityContext(nobody.user, slug);
+    if (!outsider.error) {
+      ok("somebody without the department's right cannot read it",
+        (await getGenerated(outsider, inst.id)).error === "forbidden");
+    }
+  }
   __signOut();
 }
 

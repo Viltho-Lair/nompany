@@ -1169,3 +1169,261 @@ export async function listShareLinks(ctx, documentId) {
     .map((r) => ({ ...r, expired: !r.revokedAt && r.expiresAt < now }))
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }
+
+// ---- generated documents ----------------------------------------------------
+//
+// A TEMPLATE IS A BLANK; AN INSTANCE IS THE FILLED-IN ONE. The starter pack has
+// named that pair since the first day of this module — Form, "controlled because
+// the blank is", and Record, "evidence that something happened".
+//
+// The instance lives in the SOURCE MODULE, beside the record it is about, not in
+// the Quality register. Quality owns the blank. Putting ten thousand delivery
+// notes in the register would bury the thing an auditor actually needs.
+//
+// And it FREEZES. Everything the template pointed at is resolved once, at
+// generation, and stored: the values, the block rows, the answers, and which
+// template revision it came from. A quotation sent in March prints March's terms
+// and March's prices forever, because evidence that changes after the fact is
+// not evidence.
+
+const GENERATED = "generatedDocuments";
+
+// Where an instance for this subject lives — the section that owns the record.
+function hostSection(ctx, subject) {
+  return ctx.sections.find((x) => x.key === subject.sectionKey) || null;
+}
+
+/**
+ * Produce a document from a template, bound to one record.
+ *
+ * Everything is resolved HERE and stored. Nothing about the instance is a
+ * reference afterwards, which is exactly the difference between the template
+ * (carried) and the instance (evidence).
+ */
+export async function generateDocument(ctx, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.create");
+  if (denied) return denied;
+
+  const [documents, revisions] = await Promise.all([
+    readCol(ctx.studio.id, ctx.section.id, DOCUMENTS),
+    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+  ]);
+  const template = documents.find((d) => d.id === str(body?.templateId, 60));
+  if (!template) return { error: "notfound" };
+  if (!template.isTemplate) return { error: "not-a-template" };
+
+  // A BLANK NOBODY HAS APPROVED IS NOT A BLANK ANYBODY MAY ISSUE FROM. This is
+  // the whole reason a template is a controlled document in the first place.
+  const source = revisions.find((r) => r.documentId === template.id && r.state === "effective");
+  if (!source) return { error: "not-issued" };
+
+  const subject = subjectById(template.subjectType);
+  if (!subject) return { error: "no-subject" };
+  if (!can(ctx.access, subject.permission)) return { error: "forbidden" };
+
+  const host = hostSection(ctx, subject);
+  if (!host) return { error: "no-section" };
+
+  const subjectId = str(body?.subjectId, 60);
+  const records = await readCol(ctx.studio.id, host.id, subject.collection);
+  const record = records.find((r) => r.id === subjectId);
+  if (!record) return { error: "no-record" };
+
+  const snapshot = await snapshotFor(ctx, template, source, subject, record, body?.inputs);
+  const seq = await bumpCounter(
+    `${SEC.prefix(ctx.studio.id, ctx.section.id)}gen`,
+    template.code,
+    highestGenerated(await readCol(ctx.studio.id, host.id, GENERATED), template.id),
+  );
+
+  const instance = await addRow(ctx.studio.id, host.id, GENERATED, {
+    templateId: template.id,
+    templateRevisionId: source.id,
+    templateCode: template.code,
+    templateRev: source.rev,
+    subjectType: subject.id,
+    subjectId,
+    // BOTH NUMBERS. The record's own leads, because that is what people already
+    // call this; the sequence is what makes the instance independently citable
+    // in an audit trail.
+    sourceNumber: String(record[subject.naming.primary] || ""),
+    seq,
+    code: `${template.code}/${String(seq).padStart(4, "0")}`,
+    title: template.title,
+    language: template.language || "en",
+    ...snapshot,
+    state: "draft",
+    // Chosen per instance, every time.
+    reviewerCollaboratorId: str(body?.reviewerCollaboratorId, 60),
+    approverCollaboratorId: str(body?.approverCollaboratorId, 60),
+    generatedAt: new Date().toISOString(),
+    generatedByCollaboratorId: ctx.collaborator.id,
+  });
+
+  await audit(ctx, {
+    documentId: template.id, revisionId: source.id, action: "generated",
+    detail: `${instance.code} from rev ${source.rev}`,
+  });
+  return { instance, sectionId: host.id };
+}
+
+// The frozen content: the template's sections, plus everything they pointed at,
+// resolved against THIS record.
+async function snapshotFor(ctx, template, source, subject, record, rawInputs) {
+  // mergeValuesFor and resolveBlocks both read the document's own binding, so
+  // the template is handed a copy pointing at the record being generated FOR.
+  const bound = { ...template, subjectType: subject.id, subjectId: record.id };
+  const [values, blocks] = await Promise.all([
+    mergeValuesFor(ctx, bound, { rev: source.rev }),
+    resolveBlocks(ctx, bound),
+  ]);
+
+  // Only answers the template actually asks for. An input the template does not
+  // contain is not an answer, it is somebody posting extra data into a record.
+  const asked = new Set();
+  const walk = (node) => {
+    if (!node || typeof node !== "object") return;
+    if (node.type === "inputField" && node.attrs?.name) asked.add(String(node.attrs.name));
+    (node.content || []).forEach(walk);
+  };
+  for (const s of source.sections || []) walk(s.body);
+
+  const inputs = {};
+  for (const [k, v] of Object.entries(rawInputs && typeof rawInputs === "object" ? rawInputs : {})) {
+    if (asked.has(String(k))) inputs[String(k)] = str(v, 2000);
+  }
+
+  return { sections: cleanSections(source.sections), values, blocks, inputs };
+}
+
+const highestGenerated = (rows, templateId) =>
+  (rows || []).reduce((top, r) => (r.templateId === templateId ? Math.max(top, Number(r.seq) || 0) : top), 0);
+
+// ---- reading them back ------------------------------------------------------
+
+export async function listGenerated(ctx, { subjectType = "", subjectId = "" } = {}) {
+  const out = [];
+  for (const subject of SUBJECTS) {
+    if (subjectType && subject.id !== subjectType) continue;
+    if (!can(ctx.access, subject.permission)) continue;
+    const host = hostSection(ctx, subject);
+    if (!host) continue;
+    const rows = await readCol(ctx.studio.id, host.id, GENERATED);
+    for (const r of rows) {
+      if (subjectId && r.subjectId !== subjectId) continue;
+      out.push({ ...r, sectionId: host.id });
+    }
+  }
+  return out.sort((a, b) => String(b.generatedAt).localeCompare(String(a.generatedAt)));
+}
+
+async function findInstance(ctx, instanceId) {
+  for (const subject of SUBJECTS) {
+    const host = hostSection(ctx, subject);
+    if (!host) continue;
+    const rows = await readCol(ctx.studio.id, host.id, GENERATED);
+    const hit = rows.find((r) => r.id === instanceId);
+    if (hit) return { instance: hit, host, subject };
+  }
+  return { instance: null, host: null, subject: null };
+}
+
+export async function getGenerated(ctx, instanceId) {
+  const { instance, subject } = await findInstance(ctx, instanceId);
+  if (!instance) return { error: "notfound" };
+  // The snapshot is frozen data, but it was resolved from a record — so reading
+  // it still answers to that record's right. Freezing changes when the check
+  // happens, not whether there is one.
+  if (subject && !can(ctx.access, subject.permission)) return { error: "forbidden" };
+  return { instance };
+}
+
+// ---- the same ladder, on a different record ---------------------------------
+
+export async function moveGenerated(ctx, instanceId, action, body = {}) {
+  const { instance, host } = await findInstance(ctx, instanceId);
+  if (!instance) return { error: "notfound" };
+
+  const result = await moveSignable({
+    access: ctx.access,
+    actor: { id: ctx.collaborator.id, alias: ctx.collaborator.alias || "" },
+    transitions: TRANSITIONS,
+    row: instance,
+    auditPrefix: "generated",
+    apply: (patch) => updateRow(ctx.studio.id, host.id, GENERATED, instance.id, patch),
+    after: async (moved, patch, now) => {
+      // An instance has no predecessor to supersede and nobody to distribute to
+      // — it is one document about one record. Publishing simply dates it.
+      if (moved === "publish") {
+        await updateRow(ctx.studio.id, host.id, GENERATED, instance.id, {
+          effectiveDate: day(body?.effectiveDate) || now.slice(0, 10),
+        });
+      }
+    },
+    audit: (entry) => audit(ctx, {
+      documentId: instance.templateId, action: entry.action,
+      detail: `${instance.code}${entry.note ? ` - ${entry.note}` : ""}`,
+    }),
+    notify: async (state) => {
+      const next = state === "review" ? instance.reviewerCollaboratorId
+        : state === "approval" ? instance.approverCollaboratorId : "";
+      if (!next || next === ctx.collaborator.id) return;
+      await notifyCollaborators(ctx.studio.id, [next], {
+        type: NOTIFY.system,
+        title: `${instance.code} needs you`,
+        body: `${REV_LABELS[state]} - ${instance.title}`,
+        href: `/${ctx.studio.slug}/quality-documents/generated/${instance.id}`,
+      }).catch(() => {});
+    },
+  }, action, body);
+
+  if (result.error) return result;
+  return { instance: result.row };
+}
+
+// REJECTION MEANS REGENERATE, not hand-edit. The document is bound to a record;
+// re-pulling is what keeps that true, and it is also why an instance needs no
+// editor at all — its content only ever comes from here.
+export async function regenerate(ctx, instanceId, body = {}) {
+  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  if (denied) return denied;
+
+  const { instance, host, subject } = await findInstance(ctx, instanceId);
+  if (!instance) return { error: "notfound" };
+  if (!["draft", "rejected"].includes(instance.state)) return { error: "wrong-state", state: instance.state };
+  if (!subject || !can(ctx.access, subject.permission)) return { error: "forbidden" };
+
+  const [documents, revisions] = await Promise.all([
+    readCol(ctx.studio.id, ctx.section.id, DOCUMENTS),
+    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+  ]);
+  const template = documents.find((d) => d.id === instance.templateId);
+  // Deliberately the CURRENT effective revision, not the one it was made from:
+  // regenerating is asking for the document as it would be issued today.
+  const source = revisions.find((r) => r.documentId === instance.templateId && r.state === "effective");
+  if (!template || !source) return { error: "not-issued" };
+
+  const records = await readCol(ctx.studio.id, host.id, subject.collection);
+  const record = records.find((r) => r.id === instance.subjectId);
+  if (!record) return { error: "no-record" };
+
+  const snapshot = await snapshotFor(ctx, template, source, subject, record,
+    body?.inputs !== undefined ? body.inputs : instance.inputs);
+
+  const updated = await updateRow(ctx.studio.id, host.id, GENERATED, instance.id, {
+    ...snapshot,
+    templateRevisionId: source.id,
+    templateRev: source.rev,
+    state: "draft",
+    // The signatures go with the words they were given against. Keeping them
+    // over a fresh snapshot would be a signature on a document nobody signed.
+    review: null, approval: null, rejection: null,
+    generatedAt: new Date().toISOString(),
+    generatedByCollaboratorId: ctx.collaborator.id,
+  });
+  await audit(ctx, {
+    documentId: instance.templateId, action: "generated.regenerated",
+    detail: `${instance.code} from rev ${source.rev}`,
+  });
+  return { instance: updated };
+}

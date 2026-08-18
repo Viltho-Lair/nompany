@@ -297,7 +297,7 @@ export const ALL_SECTION_KEYS = SECTION_DEFS.flatMap((d) => [d.key, ...(d.childr
 // screen rather than separate sub-sections.
 export const SECTION_COLLECTIONS = {
   // sales
-  "sales-tickets": ["salesTickets"],
+  "sales-tickets": ["salesTickets", "generatedDocuments"],
   "sales-clients": ["salesClients"],
   // The service catalogue a ticket picks from. It needs real ids, so it is a
   // collection rather than a vocabulary list on the settings row. In the Old
@@ -305,7 +305,12 @@ export const SECTION_COLLECTIONS = {
   // site; that site is gone, so Sales Settings owns it outright.
   "sales-settings": ["salesServices"],
   // technical
-  "technical-quotations": ["quotations"],
+  // A quotation's generated documents — the cover letter, the terms, whatever
+  // template was run against it. They live HERE rather than in Quality because
+  // the filled-in thing belongs to the record it is about; Quality owns the
+  // blank. Otherwise the controlled register, which exists to answer "what
+  // governs this company", fills with transactional paperwork.
+  "technical-quotations": ["quotations", "generatedDocuments"],
   "technical-rfq": ["rfqs"],
   // projects
   "projects-list": ["projects"],
