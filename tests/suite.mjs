@@ -15,7 +15,7 @@ import { KEY_PREFIX, IX } from "@/lib/data/keys";
 import { delPrefix, getIndex } from "@/lib/data/store";
 import { getRedisClient } from "@/lib/data/redis";
 import { createUser, mintSession } from "@/lib/data/users";
-import { createStudio, renameStudio, getStudioBySlug } from "@/lib/data/studios";
+import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/lib/data/studios";
 import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/lib/data/collaborators";
 import { listRoles } from "@/lib/data/roles";
 import { ADMIN_ROLE_ID } from "@/lib/permissions";
@@ -41,6 +41,8 @@ import {
   createShareLink, revokeShareLink, listShareLinks,
 } from "@/lib/quality";
 import { getJSON } from "@/lib/data/store";
+import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
+import { isFieldKey, legalKeyFor, availableFields } from "@/lib/qualityFields";
 import { documentState, pendingRevision } from "@/lib/qualityDocuments";
 import { sanitizeDoc, cleanSections, textOf } from "@/lib/qualityContent";
 import { renderSections, slotValue, DEFAULT_TEMPLATE } from "@/lib/qualityRender";
@@ -1415,6 +1417,105 @@ console.log("\n== the author decides some breaks, and table widths survive");
   ] }] }]);
   ok("a colspan still yields one <col> per column",
     (spanned.match(/<col /g) || []).length === 3, spanned.slice(0, 220));
+}
+
+// ============================================================================
+console.log("\n== fields are carried, not copied, and only where they are allowed");
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  const types = await listTypes(q);
+  const made = await createDocument(q, { title: "Field test", typeId: types[0].id, departmentId: "sales" });
+  const id = made.document.id;
+
+  // Unbound: Company and Document resolve, a department's do not — there is no
+  // record to resolve them from, so offering them would be offering a blank.
+  const plain = fieldsFor(q, made.document);
+  ok("company and document fields are always offered",
+    plain.fields.some((f) => f.key === "company.name") && plain.fields.some((f) => f.key === "document.code"));
+  ok("...and a department's are not, with nothing to resolve them from",
+    !plain.fields.some((f) => f.key === "sales.ticket.client"),
+    plain.fields.map((f) => f.key).join(","));
+
+  // The studio's own legal rows become fields. They were deferred when merge
+  // fields first landed because the studio names the keys, so no fixed list
+  // could enumerate them — they are validated by shape instead.
+  await updateStudio(studio.id, { legalInfo: [{ key: "VAT Number", value: "3001234567" }] });
+  const withLegal = await qualityContext(owner, slug);
+  const legal = fieldsFor(withLegal, made.document);
+  ok("the studio's legal rows become fields",
+    legal.fields.some((f) => f.key === "legal.vat-number"), legal.fields.map((f) => f.key).join(","));
+  ok("...keyed by a slug, so renaming the label does not orphan the documents",
+    legalKeyFor("VAT Number") === legalKeyFor("vat  number"));
+  ok("...and a legal key passes the content allowlist", isFieldKey("legal.vat-number"));
+  ok("...while an invented key does not", !isFieldKey("legal.Not A Key") && !isFieldKey("sales.ticket.salary"));
+
+  const values = await mergeValuesFor(withLegal, made.document);
+  ok("a legal field resolves to what the studio typed", values["legal.vat-number"] === "3001234567", values["legal.vat-number"]);
+
+  // ---- binding ----
+  // A ticket needs a service from the studio's own catalogue, so the fixture
+  // builds one the way Sales does rather than posting an empty list.
+  const salesCtx = await salesContext(owner, slug);
+  const svc = await createService(salesCtx, { name: "Control systems" });
+  const ticket = await createTicket(salesCtx, {
+    title: "New control room", clientName: "Acme Industrial", deadline: "2026-12-01",
+    industry: "Oil & Gas", serviceIds: [svc.service?.id || svc.id], contactName: "Sara Idris",
+  });
+  if (ticket.error) {
+    ok("fixture: a ticket to bind to", false, ticket.error);
+  } else {
+    const opts = await subjectOptions(withLegal, "salesTicket");
+    ok("the bindable records are listed", (opts.options || []).some((o) => o.id === ticket.ticket.id));
+
+    const bound = await bindSubject(withLegal, id, { subjectType: "salesTicket", subjectId: ticket.ticket.id });
+    ok("a document can be bound to a record", !bound.error, bound.error || "");
+
+    const ctx2 = await qualityContext(owner, slug);
+    const after = fieldsFor(ctx2, bound.document);
+    ok("...which makes that department's fields appear",
+      after.fields.some((f) => f.key === "sales.ticket.client"));
+    ok("...grouped under the department, not lumped in with Company",
+      after.groups.some(([g]) => g === "Sales"), after.groups.map(([g]) => g).join(","));
+
+    const v2 = await mergeValuesFor(ctx2, bound.document);
+    ok("a bound field resolves off the record", v2["sales.ticket.client"] === "Acme Industrial", v2["sales.ticket.client"]);
+    ok("...including a nested one", v2["sales.ticket.ref"] === ticket.ticket.ref, v2["sales.ticket.ref"]);
+    ok("...and a CollaboratorID becomes a name, not an id",
+      v2["sales.ticket.owner"] === "Owner", v2["sales.ticket.owner"]);
+
+    // THE CHECK THIS BLOCK EXISTS FOR. A document that prints a client's details
+    // to somebody who may not open Sales is a way of reading Sales without the
+    // right to, and the document is the leak.
+    // Somebody who may read Quality and holds NOTHING in Sales. Built from the
+    // roleless person rather than the Viewer starter role, so the absence of the
+    // Sales right is a fact about this fixture and not an assumption about what
+    // a starter role happens to contain.
+    await updateCollaborator(studio.id, nobody.collaborator.id, {
+      overrides: { allow: ["quality.documents.view"], deny: [] },
+    });
+    const viewerCtx = await qualityContext(nobody.user, slug);
+    ok("fixture: a reader with Quality but not Sales", !viewerCtx.error, viewerCtx.error || "");
+    if (!viewerCtx.error) {
+      const vFields = fieldsFor(viewerCtx, bound.document);
+      ok("somebody without the department's right is not offered its fields",
+        !vFields.fields.some((f) => f.key === "sales.ticket.client"));
+      const vValues = await mergeValuesFor(viewerCtx, bound.document);
+      ok("...and cannot resolve them either", vValues["sales.ticket.client"] === undefined,
+        String(vValues["sales.ticket.client"]));
+      ok("...while company fields still resolve for them", vValues["company.name"] === studio.name);
+    }
+
+    // Nor may they bind one, for the same reason.
+    const sneaky = await bindSubject(viewerCtx, id, { subjectType: "salesTicket", subjectId: ticket.ticket.id });
+    ok("nobody may bind a document to a record they cannot see",
+      sneaky.error === "forbidden" || sneaky.error === "unknown-permission", sneaky.error || "bound");
+
+    ok("a made-up record id is refused",
+      (await bindSubject(ctx2, id, { subjectType: "salesTicket", subjectId: "nope" })).error === "no-record");
+  }
+
+  __signOut();
 }
 
 // ============================================================================

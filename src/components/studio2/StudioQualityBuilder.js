@@ -129,6 +129,81 @@ function SectionEditor({ section, values, labels, editable, onChange, onFocus })
   return <EditorContent editor={editor} />;
 }
 
+// WHAT THIS DOCUMENT IS ABOUT.
+//
+// Optional, and most documents are about nothing in particular — a purchasing
+// procedure is not about one ticket. Binding is what makes a DEPARTMENT'S fields
+// reachable: with no subject the Insert field menu offers Company, Document and
+// the studio's legal information; bind a sales ticket and Sales appears with its
+// client, contact and site.
+//
+// The picker's contents are fetched only when it is opened, because a list of
+// every sales ticket is Sales data and should not ride along on every document.
+function SubjectBinding({ slug, documentId, data, editable, onChanged }) {
+  const [options, setOptions] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const type = data?.subject?.type || "";
+
+  useEffect(() => {
+    if (!type) { setOptions(null); return; }
+    let alive = true;
+    fetch(`/api/studios/${slug}/quality/subjects?subject=${encodeURIComponent(type)}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { options: [] }))
+      .then((p) => { if (alive) setOptions(p.options || []); })
+      .catch(() => { if (alive) setOptions([]); });
+    return () => { alive = false; };
+  }, [slug, type]);
+
+  const bind = async (patch) => {
+    setBusy(true);
+    try {
+      await fetch(`/api/studios/${slug}/quality/content`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: documentId, subjectType: "", subjectId: "", ...patch }),
+      });
+      onChanged?.();
+    } finally { setBusy(false); }
+  };
+
+  const chosen = (options || []).find((o) => o.id === data?.subject?.id);
+
+  return (
+    <div>
+      <p className={microLabel}>About</p>
+      <div className="mt-2 space-y-2 rounded-geex border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#20202c]">
+        <select
+          className={input}
+          value={type}
+          disabled={!editable || busy}
+          onChange={(e) => bind({ subjectType: e.target.value, subjectId: "" })}
+        >
+          <option value="">Nothing in particular</option>
+          {(data?.subjects || []).map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+        </select>
+
+        {type && (
+          <select
+            className={input}
+            value={data?.subject?.id || ""}
+            disabled={!editable || busy || options === null}
+            onChange={(e) => bind({ subjectType: type, subjectId: e.target.value })}
+          >
+            <option value="">{options === null ? "Loading…" : "Choose one…"}</option>
+            {(options || []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
+        )}
+
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          {type && chosen
+            ? "That department's fields are now available under Insert field."
+            : "Bind a record to reach its department's fields. Company and Document fields work either way."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function StudioQualityBuilder({ studio, documentId }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -256,14 +331,10 @@ export default function StudioQualityBuilder({ studio, documentId }) {
     () => Object.fromEntries((data?.mergeFields || []).map((f) => [f.key, f.label])),
     [data?.mergeFields],
   );
-  const grouped = useMemo(() => {
-    const out = new Map();
-    for (const f of data?.mergeFields || []) {
-      if (!out.has(f.group)) out.set(f.group, []);
-      out.get(f.group).push(f);
-    }
-    return [...out.entries()];
-  }, [data?.mergeFields]);
+  // GROUPED BY THE SERVER, which is the only side that knows what this author
+  // holds and what the document is bound to. Regrouping here would be a second
+  // copy of a rule that has a permission check inside it.
+  const grouped = data?.mergeGroups || [];
 
   const doc = data?.document;
   const saveLabel = { saved: savedAt ? "All changes saved" : "Nothing written yet", saving: "Saving…", dirty: "Unsaved changes", error: "Couldn't save" }[saveState];
@@ -466,6 +537,8 @@ export default function StudioQualityBuilder({ studio, documentId }) {
               Page breaks are decided when the document is rendered, so what you write here flows into pages at export
               rather than being fitted to them as you type.
             </p>
+
+            <SubjectBinding slug={studio.slug} documentId={documentId} data={data} editable={Boolean(data.canEdit)} onChanged={load} />
 
             <QualityWorkflow slug={studio.slug} documentId={documentId} document={doc} onChanged={load} />
             <QualityDistribution slug={studio.slug} documentId={documentId} document={doc} />

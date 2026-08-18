@@ -34,6 +34,10 @@ import {
   TRANSITIONS, REV_LABELS, isOpen, documentState, pendingRevision, SIGNATURE_ROLES,
 } from "@/lib/qualityDocuments";
 import { cleanSections, startingSections, wordCount } from "@/lib/qualityContent";
+import {
+  SUBJECTS, subjectById, STATIC_FIELDS, availableFields, groupFields,
+  legalFieldsFrom, legalKeyFor,
+} from "@/lib/qualityFields";
 
 const DOCUMENTS = "qualityDocuments";
 const TYPES = "qualityTypes";
@@ -569,10 +573,36 @@ export async function saveDraft(ctx, documentId, body) {
 
 // ---- rendering a document ---------------------------------------------------
 
-// WHAT THE MERGE FIELDS SAY, resolved from the studio at the moment of
-// rendering. Shared by the builder, the reader and the PDF route so all three
-// resolve the same field to the same value — a document whose preview and
-// print disagree about the company's name is worse than one with neither.
+// Dotted into a record: "location.city" off a sales ticket.
+const dotted = (obj, path) =>
+  String(path || "").split(".").reduce((o, k) => (o == null ? o : o[k]), obj);
+
+// THE RECORD A DOCUMENT IS ABOUT, if it is about one.
+//
+// Permission-checked against whoever is asking, not against whoever bound it. A
+// document that prints a client's contact details to somebody who may not open
+// Sales would be a way of reading Sales without the right to — the document is
+// the leak, and the check has to be here where the value is fetched.
+async function subjectRecord(ctx, document) {
+  const subject = subjectById(document?.subjectType);
+  if (!subject || !document?.subjectId) return { subject: null, record: null, allowed: false };
+  if (!can(ctx.access, subject.permission)) return { subject, record: null, allowed: false };
+
+  const section = ctx.sections.find((x) => x.key === subject.sectionKey);
+  if (!section) return { subject, record: null, allowed: true };
+  const rows = await readCol(ctx.studio.id, section.id, subject.collection);
+  return { subject, record: rows.find((r) => r.id === document.subjectId) || null, allowed: true };
+}
+
+// WHAT THE FIELDS SAY, resolved at the moment of rendering.
+//
+// Shared by the builder, the reader and the PDF route so all three resolve the
+// same key to the same value — a document whose preview and print disagree about
+// the client's name is worse than one with neither.
+//
+// A field that cannot be resolved is left OUT of the map rather than set to "".
+// The renderer then prints its name in the gap, so an empty spot on a page says
+// which field is empty instead of looking like a mistake in the text.
 export async function mergeValuesFor(ctx, document, { types = null, rev = null } = {}) {
   const [list, people] = await Promise.all([
     types ? Promise.resolve(types) : listTypes(ctx),
@@ -580,9 +610,9 @@ export async function mergeValuesFor(ctx, document, { types = null, rev = null }
   ]);
   const type = list.find((t) => t.id === document.typeId);
   const department = ctx.departments.find((d) => d.id === document.departmentId);
-  const owner = people.find((c) => c.id === document.ownerCollaboratorId);
+  const alias = (id) => people.find((c) => c.id === id)?.alias || "";
 
-  return {
+  const values = {
     "company.name": ctx.studio.name || "",
     "company.address": ctx.studio.location || "",
     "company.country": ctx.studio.country || "",
@@ -592,11 +622,98 @@ export async function mergeValuesFor(ctx, document, { types = null, rev = null }
     "document.revision": `Rev ${rev ?? document.revision ?? 0}`,
     "document.type": type?.name || "",
     "document.department": department?.name || "",
-    "document.owner": owner?.alias || "",
+    "document.owner": alias(document.ownerCollaboratorId),
     "document.effectiveDate": document.effectiveDate || "",
     "document.nextReviewDate": document.nextReviewDate || "",
   };
+
+  // The studio's own legal rows — VAT number, CR number, whatever it puts on its
+  // paperwork. Keyed by a slug of the label so renaming "VAT No." to "VAT
+  // Number" does not orphan every document that pointed at it.
+  for (const row of Array.isArray(ctx.studio.legalInfo) ? ctx.studio.legalInfo : []) {
+    if (row?.key) values[legalKeyFor(row.key)] = String(row.value ?? "");
+  }
+
+  // And the department's own fields, if this document is about one of its
+  // records and the person asking may see it.
+  const { subject, record } = await subjectRecord(ctx, document);
+  if (subject && record) {
+    for (const f of STATIC_FIELDS) {
+      if (f.subject !== subject.id) continue;
+      const raw = dotted(record, f.path);
+      values[f.key] = f.via === "collaborator" ? alias(raw) : String(raw ?? "");
+    }
+  }
+
+  return values;
 }
+
+// What the Insert field menu should offer, grouped by department. Filtered by
+// what the document is bound to AND by what this author holds — see the note in
+// lib/qualityFields.js about why both filters are needed.
+export function fieldsFor(ctx, document) {
+  const fields = availableFields({
+    subjectType: document?.subjectType || null,
+    legalInfo: ctx.studio.legalInfo,
+    holds: (permission) => can(ctx.access, permission),
+  });
+  return { fields, groups: groupFields(fields) };
+}
+
+// The records a document may be bound to, for the picker. Permission-checked:
+// a list of every sales ticket is itself Sales data.
+export async function subjectOptions(ctx, subjectType) {
+  const subject = subjectById(subjectType);
+  if (!subject) return { error: "unknown-subject" };
+  if (!can(ctx.access, subject.permission)) return { error: "forbidden" };
+
+  const section = ctx.sections.find((x) => x.key === subject.sectionKey);
+  if (!section) return { options: [] };
+  const rows = await readCol(ctx.studio.id, section.id, subject.collection);
+  return {
+    options: rows.slice(0, 500).map((r) => ({
+      id: r.id,
+      label: [r[subject.naming.primary], r[subject.naming.secondary]].filter(Boolean).join(" — "),
+    })).sort((a, b) => a.label.localeCompare(b.label)),
+  };
+}
+
+// BINDING IS OPTIONAL. A procedure is about nothing in particular and resolves
+// its Company and Document fields perfectly well; binding is what makes a
+// DEPARTMENT'S fields reachable, and it is the mechanism templates are built on.
+export async function bindSubject(ctx, documentId, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  if (denied) return denied;
+
+  const subjectType = str(body?.subjectType, 40);
+  const subjectId = str(body?.subjectId, 60);
+
+  if (subjectType) {
+    const subject = subjectById(subjectType);
+    if (!subject) return { error: "unknown-subject" };
+    // Nobody may bind a document to a record they cannot see. Otherwise the
+    // document becomes a way to read one.
+    if (!can(ctx.access, subject.permission)) return { error: "forbidden" };
+    if (subjectId) {
+      const section = ctx.sections.find((x) => x.key === subject.sectionKey);
+      const rows = section ? await readCol(ctx.studio.id, section.id, subject.collection) : [];
+      if (!rows.some((r) => r.id === subjectId)) return { error: "no-record" };
+    }
+  }
+
+  const updated = await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
+    subjectType: subjectType || "", subjectId: subjectType ? subjectId : "",
+    updatedAt: new Date().toISOString(),
+  });
+  if (!updated) return { error: "notfound" };
+  await audit(ctx, {
+    documentId, action: "subject.bound",
+    detail: subjectType ? `${subjectById(subjectType).label}` : "Unbound",
+  });
+  return { document: updated };
+}
+
+export { SUBJECTS };
 
 // THE STAMP ACROSS THE PAGE, and the reason a printed copy cannot lie about
 // what it is. A document that has not been issued must never be mistaken for

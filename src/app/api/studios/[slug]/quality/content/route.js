@@ -1,9 +1,9 @@
 import {
   qualityGuard, openDraft, saveDraft, acquireLock, releaseLock, lockState,
   listTypes, departmentCodes, LOCK_TTL_SEC,
+  mergeValuesFor, fieldsFor, bindSubject, SUBJECTS,
 } from "@/lib/quality";
 import { can } from "@/lib/access";
-import { MERGE_FIELDS } from "@/lib/qualityContent";
 import { listCollaborators } from "@/lib/data/collaborators";
 
 export const runtime = "nodejs";
@@ -40,22 +40,11 @@ export async function GET(request, ctx) {
   const department = g.departments.find((d) => d.id === opened.document.departmentId);
   const owner = people.find((c) => c.id === opened.document.ownerCollaboratorId);
 
-  // Merge fields are RESOLVED HERE, not stored, so what the editor previews is
-  // read from the studio on every open — the same values the renderer will use.
-  const values = {
-    "company.name": g.studio.name || "",
-    "company.address": g.studio.location || "",
-    "company.country": g.studio.country || "",
-    "company.city": g.studio.city || "",
-    "document.code": opened.document.code || "",
-    "document.title": opened.document.title || "",
-    "document.revision": String(opened.draft?.rev ?? opened.document.revision ?? ""),
-    "document.type": type?.name || "",
-    "document.department": department?.name || "",
-    "document.owner": owner?.alias || "",
-    "document.effectiveDate": opened.document.effectiveDate || "",
-    "document.nextReviewDate": opened.document.nextReviewDate || "",
-  };
+  // RESOLVED BY THE SERVICE, not assembled here. The builder, the reader and the
+  // PDF route all call the same function, so a field cannot mean one thing on
+  // screen and another on paper.
+  const values = await mergeValuesFor(g, opened.document, { types, rev: opened.draft?.rev });
+  const { fields, groups } = fieldsFor(g, opened.document);
 
   return Response.json({
     document: {
@@ -70,8 +59,12 @@ export async function GET(request, ctx) {
       : null,
     lock: { ...lock, ttl: LOCK_TTL_SEC },
     canEdit: can(g.access, "quality.documents.edit"),
-    mergeFields: MERGE_FIELDS,
+    mergeFields: fields,
+    mergeGroups: groups,
     mergeValues: values,
+    // What this document is about, and what it COULD be about.
+    subject: { type: opened.document.subjectType || "", id: opened.document.subjectId || "" },
+    subjects: SUBJECTS.map((x) => ({ id: x.id, label: x.label, department: x.department })),
     codeParts: { department: departmentCodes(g)[opened.document.departmentId] || "", prefix: type?.prefix || "" },
     me: { collaboratorId: g.collaborator.id },
     studio: { name: g.studio.name, slug: g.studio.slug },
@@ -85,6 +78,16 @@ export async function PUT(request, ctx) {
   if (g.fail) return g.fail;
   const b = await body(request);
   if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+
+  // Binding what the document is about is not a content edit, so it travels on
+  // the same route but does not go through the draft's lock or its frozen state.
+  if (b.subjectType !== undefined) {
+    const bound = await bindSubject(g, b.id, b);
+    if (bound.error) {
+      return Response.json({ error: bound.error }, { status: bound.error === "forbidden" ? 403 : 400 });
+    }
+    return Response.json({ ok: true, subject: { type: bound.document.subjectType, id: bound.document.subjectId } });
+  }
 
   const result = await saveDraft(g, b.id, b);
   if (result.error) {

@@ -67,33 +67,16 @@ export const ALLOWED_MARKS = Object.keys(MARKS);
 
 // ---- merge fields ----------------------------------------------------------
 //
-// Resolved when the document is rendered, never copied into the content. That
-// is the whole point: a company's VAT number typed into forty procedures is
-// forty places to update and thirty-nine that will be missed, whereas a field
-// that reads the studio each time cannot be out of date.
+// The catalogue moved to lib/qualityFields.js when it grew past a fixed list:
+// department-scoped entries, subject-bound ones that only resolve when the
+// document is about a record, and the studio's own legal-information keys, which
+// no static list can enumerate because the studio names them.
 //
-// The catalogue is STATIC and holds only what a studio actually stores today.
-// `legalInfo` — the studio's own key/value rows, which exist precisely to be
-// shown on documents — is the obvious source for a VAT or CR number, but those
-// keys are the studio's to name, so they cannot be validated from a fixed list
-// on the client. They become fields of their own once the renderer can be
-// handed the studio's list.
-export const MERGE_FIELDS = [
-  { key: "company.name", label: "Company name", group: "Company" },
-  { key: "company.address", label: "Address", group: "Company" },
-  { key: "company.country", label: "Country", group: "Company" },
-  { key: "company.city", label: "City", group: "Company" },
-  { key: "document.code", label: "Document code", group: "Document" },
-  { key: "document.title", label: "Title", group: "Document" },
-  { key: "document.revision", label: "Revision", group: "Document" },
-  { key: "document.type", label: "Type", group: "Document" },
-  { key: "document.department", label: "Department", group: "Document" },
-  { key: "document.owner", label: "Owner", group: "Document" },
-  { key: "document.effectiveDate", label: "Effective date", group: "Document" },
-  { key: "document.nextReviewDate", label: "Next review", group: "Document" },
-];
-const MERGE_KEYS = new Set(MERGE_FIELDS.map((f) => f.key));
-export const isMergeField = (key) => MERGE_KEYS.has(String(key || ""));
+// Re-exported from here so the allowlist and the renderer keep one import, and
+// so `mergeField` validation still asks exactly one question.
+export { STATIC_FIELDS as MERGE_FIELDS, isFieldKey as isMergeField } from "@/lib/qualityFields";
+import { isFieldKey } from "@/lib/qualityFields";
+const isMergeFieldKey = isFieldKey;
 
 // ---- link and image safety -------------------------------------------------
 
@@ -138,7 +121,7 @@ function cleanAttrs(type, attrs) {
       if (!isSafeImageSrc(value)) return null; // drops the whole image node
       out.src = String(value);
     } else if (key === "field") {
-      if (!isMergeField(value)) return null;   // drops the whole merge field
+      if (!isMergeFieldKey(value)) return null; // drops the whole merge field
       out.field = String(value);
     } else {
       out[key] = String(value).slice(0, 500);
