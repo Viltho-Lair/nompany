@@ -1,7 +1,7 @@
 import {
   qualityGuard, openDraft, saveDraft, acquireLock, releaseLock, lockState,
   listTypes, departmentCodes, LOCK_TTL_SEC,
-  mergeValuesFor, fieldsFor, bindSubject, SUBJECTS,
+  mergeValuesFor, fieldsFor, bindSubject, SUBJECTS, resolveBlocks, blocksFor,
 } from "@/lib/quality";
 import { can } from "@/lib/access";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -45,6 +45,7 @@ export async function GET(request, ctx) {
   // screen and another on paper.
   const values = await mergeValuesFor(g, opened.document, { types, rev: opened.draft?.rev });
   const { fields, groups } = fieldsFor(g, opened.document);
+  const blocks = await resolveBlocks(g, opened.document);
 
   return Response.json({
     document: {
@@ -62,6 +63,10 @@ export async function GET(request, ctx) {
     mergeFields: fields,
     mergeGroups: groups,
     mergeValues: values,
+    // Resolved rows for the preview, and the sources this author may place.
+    blocks,
+    blockSources: blocksFor(g, opened.document),
+    isTemplate: Boolean(opened.document.isTemplate),
     // What this document is about, and what it COULD be about.
     subject: { type: opened.document.subjectType || "", id: opened.document.subjectId || "" },
     subjects: SUBJECTS.map((x) => ({ id: x.id, label: x.label, department: x.department })),

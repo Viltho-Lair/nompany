@@ -16,6 +16,7 @@
 // world along.
 
 import { isMergeField } from "@/lib/qualityContent";
+import { blockByKey } from "@/lib/qualityFields";
 
 // ---- escaping --------------------------------------------------------------
 // Text and attribute values take different routes because the contexts differ:
@@ -116,6 +117,43 @@ function renderNode(node, ctx) {
       // says which field is empty instead of leaving a hole.
       return ctx.showEmptyFields === false ? "" : `<span class="quality-field is-empty">[${esc(key)}]</span>`;
     }
+    // A FIELD THAT RETURNS ROWS. The document says where the quotation's lines
+    // go; what they say is read from the quotation when the page is drawn.
+    // Nothing is copied in, so a line edited on the quotation is a line changed
+    // on every document that points at it — until an instance freezes it.
+    case "recordBlock": {
+      const source = blockByKey(node.attrs?.source);
+      if (!source) return "";
+      const data = ctx.blocks?.[source.key];
+      const cls = `quality-block${node.attrs?.startOnNewPage ? " quality-page-break" : ""}`;
+      // Nothing to show is said out loud rather than left as a hole somebody
+      // has to guess the meaning of.
+      if (!data) return `<div class="${cls}"><p class="quality-block-empty">[${esc(source.label)} — nothing bound]</p></div>`;
+      if (!data.rows?.length) return `<div class="${cls}"><p class="quality-block-empty">[${esc(source.label)} — no rows]</p></div>`;
+
+      const head = source.columns.map((c) => `<th${c.align === "end" ? ' style="text-align:end"' : ""}>${esc(c.label)}</th>`).join("");
+      const body = data.rows.map((row) => `<tr>${source.columns
+        .map((c) => `<td${c.align === "end" ? ' style="text-align:end"' : ""} dir="auto">${esc(row[c.key] ?? "")}</td>`)
+        .join("")}</tr>`).join("");
+      return `<div class="${cls}"><table class="quality-block-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    }
+
+    // Somebody has to answer this. Until they do it prints as a labelled rule —
+    // which is not a placeholder for a form, it IS a form: a training record
+    // with blanks to complete by hand is a working document.
+    case "inputField": {
+      const name = String(node.attrs?.name || "");
+      const label = String(node.attrs?.label || name || "Answer");
+      const answer = ctx.inputs?.[name];
+      const long = node.attrs?.inputType === "long";
+      if (answer) {
+        return `<span class="quality-input is-answered"><span class="quality-input-label">${esc(label)}</span>`
+          + `<span class="quality-input-value" dir="auto">${esc(answer)}</span></span>`;
+      }
+      return `<span class="quality-input${long ? " is-long" : ""}"><span class="quality-input-label">${esc(label)}</span>`
+        + `<span class="quality-input-rule"></span></span>`;
+    }
+
     default: return "";
   }
 }
@@ -267,7 +305,7 @@ export function renderSignatures(revision, { image } = {}) {
 // reference to anything outside itself. That is what lets the exporter run
 // Chromium with the network switched off, which is the difference between
 // rendering a document and offering a stranger a browser inside our network.
-export function documentHtml({ sections, values, css, fonts = "", watermark = "", title = "", dir = "ltr", image, revision = null }) {
+export function documentHtml({ sections, values, css, fonts = "", watermark = "", title = "", dir = "ltr", image, revision = null, blocks = {}, inputs = {} }) {
   const stamp = watermark
     ? `<div class="quality-watermark"><span>${esc(watermark)}</span></div>`
     : "";
@@ -281,7 +319,7 @@ body { font-family: 'Doc Sans', 'Doc Arabic', sans-serif; }
 .quality-field.is-empty { color: #94a3b8; }
 ${css}</style>
 </head>
-<body>${stamp}<div class="quality-page">${renderSections(sections, { values, image })}${renderSignatures(revision, { image })}</div></body>
+<body>${stamp}<div class="quality-page">${renderSections(sections, { values, image, blocks, inputs })}${renderSignatures(revision, { image })}</div></body>
 </html>`;
 }
 

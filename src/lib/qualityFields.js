@@ -84,7 +84,8 @@ const ALWAYS = [
 ];
 
 export const STATIC_FIELDS = [...ALWAYS, ...SALES_TICKET];
-const STATIC_KEYS = new Set(STATIC_FIELDS.map((f) => f.key));
+// Mutable, because the sources below append to STATIC_FIELDS after this point.
+const STATIC_KEY_SET = new Set(STATIC_FIELDS.map((f) => f.key));
 
 // ---- legal information ------------------------------------------------------
 //
@@ -116,7 +117,7 @@ export const legalFieldsFrom = (legalInfo) =>
 // dropped rather than stored and rendered as a gap later.
 export function isFieldKey(key) {
   const k = String(key || "");
-  return STATIC_KEYS.has(k) || LEGAL_KEY.test(k);
+  return STATIC_KEY_SET.has(k) || LEGAL_KEY.test(k);
 }
 
 export const fieldByKey = (key) => STATIC_FIELDS.find((f) => f.key === key) || null;
@@ -152,3 +153,81 @@ export function groupFields(fields) {
   }
   return [...out.entries()];
 }
+
+// ---- subjects that carry tables ---------------------------------------------
+SUBJECTS.push({
+  id: "quotation",
+  label: "Quotation",
+  department: "technical",
+  sectionKey: "technical-quotations",
+  collection: "quotations",
+  permission: "technical.quotations.view",
+  naming: { primary: "number", secondary: "title" },
+});
+
+STATIC_FIELDS.push(
+  ...[
+    ["quotation.number", "Quotation number", "number"],
+    ["quotation.revision", "Quotation revision", "revision"],
+    ["quotation.title", "Quotation title", "title"],
+    ["quotation.description", "Description", "description"],
+    ["quotation.status", "Status", "status"],
+  ].map(([key, label, path]) => ({
+    key, label, path, kind: "scalar",
+    group: "Technical", department: "technical", subject: "quotation",
+  })),
+);
+for (const f of STATIC_FIELDS) STATIC_KEY_SET.add(f.key);
+
+// ---- record blocks ----------------------------------------------------------
+//
+// A BLOCK IS A FIELD THAT RETURNS ROWS. Everything the scalar fields are — a
+// reference resolved at render, never a copy — held to across a table: the
+// document says "the quotation's lines go here", and what those lines say is
+// read from the quotation when the page is drawn.
+//
+// Columns are fixed per source rather than chosen freely. A document that could
+// print any column of any record is a document that can be pointed at data
+// nobody meant to publish, and the per-source permission below only guards the
+// record, not the shape.
+export const BLOCK_SOURCES = [
+  {
+    key: "quotation.lines",
+    label: "Quotation lines",
+    group: "Technical",
+    department: "technical",
+    subject: "quotation",
+    permission: "technical.quotations.view",
+    columns: [
+      { key: "description", label: "Description" },
+      { key: "unit", label: "Unit" },
+      { key: "qty", label: "Qty", align: "end" },
+      { key: "unitPrice", label: "Unit price", align: "end" },
+      { key: "discount", label: "Discount", align: "end" },
+    ],
+  },
+];
+
+const BLOCK_KEYS = new Set(BLOCK_SOURCES.map((b) => b.key));
+export const isBlockSource = (key) => BLOCK_KEYS.has(String(key || ""));
+export const blockByKey = (key) => BLOCK_SOURCES.find((b) => b.key === key) || null;
+
+export function availableBlocks({ subjectType = null, holds = () => true }) {
+  return BLOCK_SOURCES.filter((b) => b.subject === subjectType && holds(b.permission));
+}
+
+// ---- inputs -----------------------------------------------------------------
+//
+// A slot nobody can resolve, because the answer is not in the system yet —
+// somebody has to supply it. Which is also why an input slot is worth something
+// on its own before anything can fill it digitally: rendered as a labelled rule,
+// it is exactly what a paper form is, and a training form printed with blanks to
+// complete by hand is a working document rather than a placeholder.
+export const INPUT_TYPES = [
+  { id: "text", label: "Short text" },
+  { id: "long", label: "Long text" },
+  { id: "date", label: "Date" },
+  { id: "number", label: "Number" },
+];
+const INPUT_TYPE_IDS = new Set(INPUT_TYPES.map((t) => t.id));
+export const isInputType = (t) => INPUT_TYPE_IDS.has(String(t || ""));

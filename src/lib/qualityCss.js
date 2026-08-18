@@ -42,6 +42,28 @@ export const DOCUMENT_CSS = `
 }
 .quality-section-number { font-variant-numeric: tabular-nums; color: #94a3b8; }
 
+/* A record block: rows read from a record at render time. Its own table style,
+   because it is generated rather than drawn by an author, and it should not
+   inherit whatever the author last did to a table they typed. */
+.quality-block { margin: 1.2em 0; }
+.quality-block-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+.quality-block-table th, .quality-block-table td {
+  border: 1px solid #cbd5e1; padding: 0.4em 0.55em; vertical-align: top; text-align: start;
+}
+.quality-block-table th { background: #f8fafc; font-weight: 700; }
+.quality-block-table tr { break-inside: avoid; }
+.quality-block-table thead { display: table-header-group; }
+.quality-block-empty { color: #94a3b8; font-style: italic; }
+
+/* An unanswered input is a labelled rule — a blank to complete by hand, which
+   is what a paper form is. An answered one prints the answer over the same
+   label, so the two versions of the document read the same way. */
+.quality-input { display: inline-flex; align-items: baseline; gap: 0.4em; min-width: 12em; }
+.quality-input.is-long { display: flex; margin: 0.4em 0; }
+.quality-input-label { font-size: 9pt; color: #64748b; white-space: nowrap; }
+.quality-input-rule { flex: 1; min-width: 8em; border-bottom: 1px solid #94a3b8; height: 1em; }
+.quality-input-value { font-weight: 600; color: #0f172a; border-bottom: 1px solid #cbd5e1; flex: 1; }
+
 /* The signature block. break-inside: avoid because a signature split across two
    sheets is a signature on neither. */
 .quality-signatures { margin-top: 2.5em; break-inside: avoid; }
@@ -95,6 +117,19 @@ export const EDITOR_CSS = `
    — both absolutely positioned — anchor to whatever happens to be positioned
    further up the tree. Which is why neither of them has ever appeared. */
 .quality-prose th, .quality-prose td { position: relative; }
+
+/* A SLOT, IN THE EDITOR. It shows what it points at rather than what that
+   currently says, because what it says belongs to a record and is decided when
+   the page is drawn. Tinted so an author can see at a glance which parts of the
+   document they are not writing. */
+.quality-slot {
+  display: inline-block; border-radius: 6px; padding: 0.15em 0.5em;
+  font-size: 0.9em; font-weight: 600; white-space: nowrap;
+  background: rgb(16 185 129 / 0.12); color: #047857; cursor: default;
+}
+.quality-slot-block { display: block; white-space: normal; padding: 0.6em 0.8em; margin: 0.8em 0; }
+.quality-slot-block.starts-page { border-top: 2px dashed #6ee7b7; }
+.quality-slot-input { background: rgb(245 158 11 / 0.14); color: #b45309; }
 
 .quality-prose p.is-editor-empty:first-child::before {
   content: attr(data-placeholder); color: #cbd5e1;

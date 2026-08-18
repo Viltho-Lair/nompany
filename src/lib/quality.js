@@ -36,7 +36,7 @@ import {
 import { cleanSections, startingSections, wordCount } from "@/lib/qualityContent";
 import {
   SUBJECTS, subjectById, STATIC_FIELDS, availableFields, groupFields,
-  legalFieldsFrom, legalKeyFor,
+  legalFieldsFrom, legalKeyFor, availableBlocks, BLOCK_SOURCES, blockByKey,
 } from "@/lib/qualityFields";
 
 const DOCUMENTS = "qualityDocuments";
@@ -341,6 +341,11 @@ export async function updateDocument(ctx, id, body) {
     patch.title = title;
   }
   if (body?.nextReviewDate !== undefined) patch.nextReviewDate = day(body.nextReviewDate);
+  // A TEMPLATE IS STILL A CONTROLLED DOCUMENT — it gets a code, revisions and
+  // two signatures like any other. The flag only says that this one is a blank
+  // to be filled rather than a procedure to be followed, which is the
+  // distinction the starter pack's Form and Record types already name.
+  if (body?.isTemplate !== undefined) patch.isTemplate = Boolean(body.isTemplate);
   if (body?.language !== undefined && DOC_LANGUAGES.some((l) => l.id === body.language)) {
     patch.language = body.language;
   }
@@ -646,6 +651,51 @@ export async function mergeValuesFor(ctx, document, { types = null, rev = null }
   }
 
   return values;
+}
+
+// THE ROWS A BLOCK RETURNS, resolved at render like everything else.
+//
+// Same two gates as a scalar field: the subject decides whether there is a
+// record to read at all, and the permission decides whether THIS person may.
+// A block they may not see resolves to nothing, and the renderer says which
+// block is missing rather than leaving an unexplained hole in the page.
+export async function resolveBlocks(ctx, document) {
+  const { subject, record } = await subjectRecord(ctx, document);
+  if (!subject || !record) return {};
+
+  const out = {};
+  for (const source of BLOCK_SOURCES) {
+    if (source.subject !== subject.id) continue;
+    if (!can(ctx.access, source.permission)) continue;
+
+    if (source.key === "quotation.lines") {
+      // A quotation is divided into TABLES, each with rows; the document wants
+      // the lines. The table's title is carried onto its first row so a reader
+      // can still see the grouping the quotation was built with.
+      const rows = [];
+      for (const table of Array.isArray(record.tables) ? record.tables : []) {
+        for (const [i, r] of (table.rows || []).entries()) {
+          rows.push({
+            description: i === 0 && table.title ? `${table.title} — ${r.description || ""}` : (r.description || ""),
+            unit: r.unit || "",
+            qty: String(r.qty ?? ""),
+            unitPrice: String(r.unitPrice ?? ""),
+            discount: r.discount ? String(r.discount) : "",
+          });
+        }
+      }
+      out[source.key] = { columns: source.columns, rows };
+    }
+  }
+  return out;
+}
+
+// What the Insert block menu should offer.
+export function blocksFor(ctx, document) {
+  return availableBlocks({
+    subjectType: document?.subjectType || null,
+    holds: (permission) => can(ctx.access, permission),
+  });
 }
 
 // What the Insert field menu should offer, grouped by department. Filtered by

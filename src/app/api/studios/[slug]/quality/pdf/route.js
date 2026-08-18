@@ -1,4 +1,4 @@
-import { qualityGuard, openDraft, listTypes, mergeValuesFor, watermarkFor } from "@/lib/quality";
+import { qualityGuard, openDraft, listTypes, mergeValuesFor, watermarkFor, resolveBlocks } from "@/lib/quality";
 import { renderPdf, inlineImages } from "@/lib/qualityPdf";
 import { DEFAULT_TEMPLATE } from "@/lib/qualityRender";
 import { directionOf } from "@/lib/qualityDocuments";
@@ -30,6 +30,9 @@ export async function GET(request, ctx) {
 
   const types = await listTypes(g);
   const values = await mergeValuesFor(g, opened.document, { types, rev: opened.draft?.rev });
+  // Blocks resolve here too, through the same permission gate — the exporter
+  // must not become a way to print rows the requester may not read.
+  const blocks = await resolveBlocks(g, opened.document);
 
   // The studio's mark, read out of the media store and inlined. Puppeteer's
   // header template renders in a document of its own with no network and no
@@ -64,6 +67,8 @@ export async function GET(request, ctx) {
     images,
     logoDataUri,
     revision: opened.draft,
+    blocks,
+    inputs: opened.draft?.inputs || {},
   });
 
   if (result.error === "no-chromium") {

@@ -51,6 +51,12 @@ const NODES = {
   tableHeader: ["colspan", "rowspan", "colwidth"],
   // Ours, not TipTap's: an inline atom that resolves at render time.
   mergeField: ["field"],
+  // A field that returns ROWS — the quotation's lines, dropped into a spot
+  // between two sentences.
+  recordBlock: ["source", "startOnNewPage"],
+  // A slot nobody can resolve, because somebody has to answer it. Prints as a
+  // labelled rule until it is filled.
+  inputField: ["name", "label", "inputType"],
 };
 
 const MARKS = {
@@ -75,7 +81,7 @@ export const ALLOWED_MARKS = Object.keys(MARKS);
 // Re-exported from here so the allowlist and the renderer keep one import, and
 // so `mergeField` validation still asks exactly one question.
 export { STATIC_FIELDS as MERGE_FIELDS, isFieldKey as isMergeField } from "@/lib/qualityFields";
-import { isFieldKey } from "@/lib/qualityFields";
+import { isFieldKey, isBlockSource, isInputType } from "@/lib/qualityFields";
 const isMergeFieldKey = isFieldKey;
 
 // ---- link and image safety -------------------------------------------------
@@ -123,6 +129,13 @@ function cleanAttrs(type, attrs) {
     } else if (key === "field") {
       if (!isMergeFieldKey(value)) return null; // drops the whole merge field
       out.field = String(value);
+    } else if (key === "source") {
+      if (!isBlockSource(value)) return null;   // drops the whole block
+      out.source = String(value);
+    } else if (key === "inputType") {
+      out.inputType = isInputType(value) ? String(value) : "text";
+    } else if (key === "startOnNewPage") {
+      if (value === true || value === "true") out.startOnNewPage = true;
     } else {
       out[key] = String(value).slice(0, 500);
     }

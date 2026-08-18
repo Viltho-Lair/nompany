@@ -42,7 +42,8 @@ import {
 } from "@/lib/quality";
 import { getJSON } from "@/lib/data/store";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
-import { isFieldKey, legalKeyFor, availableFields } from "@/lib/qualityFields";
+import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey } from "@/lib/qualityFields";
+import { resolveBlocks, blocksFor } from "@/lib/quality";
 import { documentState, pendingRevision } from "@/lib/qualityDocuments";
 import { sanitizeDoc, cleanSections, textOf } from "@/lib/qualityContent";
 import { renderSections, slotValue, DEFAULT_TEMPLATE } from "@/lib/qualityRender";
@@ -1513,6 +1514,81 @@ console.log("\n== fields are carried, not copied, and only where they are allowe
 
     ok("a made-up record id is refused",
       (await bindSubject(ctx2, id, { subjectType: "salesTicket", subjectId: "nope" })).error === "no-record");
+  }
+
+  __signOut();
+}
+
+// ============================================================================
+console.log("\n== a slot points at rows, and an unanswered one is still a form");
+{
+  const p = (t) => ({ type: "paragraph", content: [{ type: "text", text: t }] });
+  const doc = (content) => ({ type: "doc", content });
+
+  // A block names a source, never the rows. An invented source is dropped on the
+  // way in rather than stored and rendered as a hole later.
+  const good = sanitizeDoc(doc([{ type: "recordBlock", attrs: { source: "quotation.lines" } }]));
+  ok("a declared block source survives", JSON.stringify(good).includes("quotation.lines"), JSON.stringify(good));
+  const bad = sanitizeDoc(doc([{ type: "recordBlock", attrs: { source: "finance.everything" } }]));
+  ok("an invented one does not", !JSON.stringify(bad).includes("finance"), JSON.stringify(bad));
+  ok("the source registry agrees", isBlockSource("quotation.lines") && !isBlockSource("finance.everything"));
+
+  // Rendering a block with nothing bound says so, rather than leaving a gap
+  // somebody has to guess the meaning of.
+  const unbound = renderSections([{ id: "a", title: "", body: doc([{ type: "recordBlock", attrs: { source: "quotation.lines" } }]) }], {});
+  ok("a block with nothing bound says so", unbound.includes("nothing bound"), unbound.slice(0, 160));
+
+  // And with rows it renders the source's declared columns, in order.
+  const rows = [{ description: "Cable tray", unit: "m", qty: "40", unitPrice: "12.50", discount: "" }];
+  const filled = renderSections(
+    [{ id: "a", title: "", body: doc([p("Priced as follows:"), { type: "recordBlock", attrs: { source: "quotation.lines" } }, p("Terms overleaf.")]) }],
+    { blocks: { "quotation.lines": { rows } } },
+  );
+  ok("a bound block renders its rows", filled.includes("Cable tray") && filled.includes("12.50"), filled.slice(-260));
+  ok("...with the source's own columns, in order",
+    filled.indexOf("Description") < filled.indexOf("Unit") && filled.indexOf("Unit") < filled.indexOf("Qty"));
+  ok("...dropped between the sentences either side of it",
+    filled.indexOf("Priced as follows") < filled.indexOf("Cable tray")
+    && filled.indexOf("Cable tray") < filled.indexOf("Terms overleaf"));
+
+  // AN UNANSWERED INPUT IS STILL A DOCUMENT. A labelled rule is what a paper
+  // form is, so a training record prints as something somebody can complete by
+  // hand long before anything can fill it digitally.
+  const form = doc([{ type: "inputField", attrs: { name: "trainee", label: "Trainee name", inputType: "text" } }]);
+  const blankForm = renderSections([{ id: "a", title: "", body: form }], {});
+  ok("an unanswered input prints a labelled rule",
+    blankForm.includes("Trainee name") && blankForm.includes("quality-input-rule"), blankForm.slice(0, 200));
+  const answered = renderSections([{ id: "a", title: "", body: form }], { inputs: { trainee: "Ali Moosa" } });
+  ok("...and an answered one prints the answer", answered.includes("Ali Moosa") && !answered.includes("quality-input-rule"));
+
+  // An input type nobody declared falls back rather than being stored.
+  const odd = sanitizeDoc(doc([{ type: "inputField", attrs: { name: "x", label: "X", inputType: "signature" } }]));
+  ok("an undeclared input type falls back to text", JSON.stringify(odd).includes('"inputType":"text"'), JSON.stringify(odd));
+}
+
+// ============================================================================
+console.log("\n== blocks answer to the same rights the records do");
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  const types = await listTypes(q);
+  const made = await createDocument(q, { title: "Quotation cover", typeId: types[0].id, departmentId: "technical" });
+
+  ok("no blocks are offered with nothing bound", blocksFor(q, made.document).length === 0);
+  ok("...and none resolve", Object.keys(await resolveBlocks(q, made.document)).length === 0);
+
+  // The template flag is just a fact about the document; it stays a controlled
+  // document with a code, revisions and two signatures.
+  const flagged = await updateDocument(q, made.document.id, { isTemplate: true });
+  ok("a document can declare itself a template", flagged.document?.isTemplate === true);
+  ok("...and keeps the code it was issued with", flagged.document.code === made.document.code);
+
+  // Somebody with Quality but nothing in Technical is offered no Technical
+  // block, for the same reason they are offered no Technical field.
+  const outsider = await qualityContext(nobody.user, slug);
+  if (!outsider.error) {
+    ok("a block is not offered to somebody without the department's right",
+      blocksFor(outsider, { ...made.document, subjectType: "quotation" }).length === 0);
   }
 
   __signOut();

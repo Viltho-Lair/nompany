@@ -79,7 +79,11 @@ export default function StudioQualityReader({ studio, documentId }) {
   // looking at a draft must never take it for the issued document, and the
   // moment that only happens on the printout is the moment somebody works from
   // the wrong instructions.
-  const watermark = doc?.status === "obsolete" ? "OBSOLETE" : doc?.status === "effective" ? "" : "DRAFT";
+  // Reads `state`, which is DERIVED from the revisions. It read `status` until
+  // now — a field the workflow stopped writing when state became derived — so
+  // every document, issued or not, was stamped DRAFT on screen while the PDF
+  // beside it was stamped correctly.
+  const watermark = doc?.state === "obsolete" ? "OBSOLETE" : doc?.state === "effective" ? "" : "DRAFT";
 
   return (
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
@@ -104,8 +108,8 @@ export default function StudioQualityReader({ studio, documentId }) {
           </div>
           <div className="ms-auto flex items-center gap-2">
             {doc && (
-              <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STATUS_BADGE[doc.status] || STATUS_BADGE.draft}`}>
-                {STATUS_LABELS[doc.status] || doc.status}
+              <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STATUS_BADGE[doc.state] || STATUS_BADGE.draft}`}>
+                {STATUS_LABELS[doc.state] || doc.state}
               </span>
             )}
             <button type="button" className={btnGhost} onClick={() => window.print()}>Print</button>
@@ -153,7 +157,7 @@ export default function StudioQualityReader({ studio, documentId }) {
               // validated JSON through the one function the PDF also uses, and
               // every scrap of text was escaped on the way out.
               dangerouslySetInnerHTML={{
-                __html: renderSections(data.sections, { values: data.mergeValues }),
+                __html: renderSections(data.sections, { values: data.mergeValues, blocks: data.blocks }),
               }}
             />
 

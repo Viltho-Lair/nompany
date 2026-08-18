@@ -9,6 +9,7 @@ import { TableKit } from "@tiptap/extension-table";
 import { Icon } from "@/components/studio2/icons";
 import { MergeField } from "@/components/studio2/qualityMergeField";
 import { PageBreak } from "@/components/studio2/qualityPageBreak";
+import { RecordBlock, InputField } from "@/components/studio2/qualitySlots";
 import { btn, btnGhost, input, microLabel } from "@/components/studio2/ui";
 import { blankSection, MAX_SECTIONS, emptyDoc } from "@/lib/qualityContent";
 import { SCREEN_CSS } from "@/lib/qualityCss";
@@ -32,7 +33,7 @@ const HEARTBEAT_MS = 60000;
 
 // The toolbar acts on whichever section has the caret, so the buttons are drawn
 // once at the top rather than repeated above every section.
-function Toolbar({ editor, onInsertField, disabled }) {
+function Toolbar({ editor, onInsertField, onInsertBlock, onInsertInput, disabled, hasBlocks }) {
   // A placeholder of the same height while the first editor mounts, so the page
   // does not jump under the cursor a beat after it is drawn.
   if (!editor) return <div className="h-[45px] border-t border-[var(--geex-border)]" />;
@@ -77,6 +78,21 @@ function Toolbar({ editor, onInsertField, disabled }) {
       >
         Insert field
       </button>
+      {/* Offered only where a block could resolve — with no record bound there
+          is nothing for one to read, and a button that inserts a permanent
+          "nothing bound" marker is a button that makes documents worse. */}
+      {hasBlocks && (
+        <button type="button" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); onInsertBlock(); }}
+          className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-700 text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-40 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10">
+          Insert block
+        </button>
+      )}
+      <button type="button" disabled={disabled}
+        onMouseDown={(e) => { e.preventDefault(); onInsertInput(); }}
+        className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-700 text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-40 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10">
+        Insert answer
+      </button>
 
       {/* THE TABLE CONTROLS, only where they apply. Drawn always, they would be
           nine buttons that do nothing unless the caret happens to be in a table
@@ -100,7 +116,7 @@ function Toolbar({ editor, onInsertField, disabled }) {
 // One section's body. Each owns its own editor instance, which is what keeps a
 // caret, an undo history and a selection belonging to the section they were
 // made in rather than leaking across a document.
-function SectionEditor({ section, values, labels, editable, onChange, onFocus }) {
+function SectionEditor({ section, values, labels, sources, editable, onChange, onFocus }) {
   const editor = useEditor({
     // Next renders this on the server first; TipTap must not try to.
     immediatelyRender: false,
@@ -111,6 +127,8 @@ function SectionEditor({ section, values, labels, editable, onChange, onFocus })
       TableKit.configure({ table: { resizable: true } }),
       MergeField.configure({ values, labels }),
       PageBreak,
+      RecordBlock.configure({ sources }),
+      InputField,
     ],
     content: section.body || emptyDoc(),
     editorProps: {
@@ -400,7 +418,22 @@ export default function StudioQualityBuilder({ studio, documentId }) {
             stays white in both themes because it is a physical artefact. */}
         {data && !error && editable && (
           <>
-            <Toolbar editor={activeEditor} onInsertField={() => setFieldMenu((v) => !v)} disabled={!editable} />
+            <Toolbar
+              editor={activeEditor}
+              disabled={!editable}
+              hasBlocks={(data.blockSources || []).length > 0}
+              onInsertField={() => setFieldMenu((v) => !v)}
+              onInsertBlock={() => {
+                const source = (data.blockSources || [])[0];
+                if (source) activeEditor?.chain().focus().insertRecordBlock(source.key).run();
+              }}
+              onInsertInput={() => {
+                const label = window.prompt("What should this answer be labelled?", "Trainee name");
+                if (!label) return;
+                const name = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+                activeEditor?.chain().focus().insertInputField({ name, label, inputType: "text" }).run();
+              }}
+            />
             {fieldMenu && (
               <div className="border-t border-[var(--geex-border)] bg-[var(--geex-surface-2)] px-5 py-4 sm:px-8">
                 <p className="mb-2 text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Insert a field</p>
@@ -503,6 +536,7 @@ export default function StudioQualityBuilder({ studio, documentId }) {
                     <SectionEditor
                       section={s}
                       values={data.mergeValues}
+                      sources={data.blockSources || []}
                       labels={labels}
                       editable={editable}
                       onChange={(body) => setBody(s.id, body)}
