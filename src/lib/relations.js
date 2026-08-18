@@ -167,29 +167,18 @@ const pick = (rows, e) => {
   return [...kept].sort((a, b) => String(b[e.order] || "").localeCompare(String(a[e.order] || "")));
 };
 
-/**
- * Follow a path from one record to whatever it reaches.
- *
- * `read(node)` returns that record type's rows. Injected rather than imported so
- * this module needs no store — it can be tested against plain arrays, and a
- * client component can import the declarations above without pulling Redis in.
- *
- * `holds(permission)` gates each hop. Optional, and that is deliberate: a
- * summary a module builds of its OWN records answers to the right that got the
- * reader onto the screen, whereas a document reaching across departments must
- * ask. Passing nothing means "already established" — see the note in the plan
- * about not silently taking information away from people who have it today.
- */
-export async function traverse(from, record, to, { read, holds } = {}) {
-  const path = pathBetween(from, to);
-  if (!path) return { error: "no-path", records: [] };
-
+// The walk itself, over rows already in hand. Sync, because the callers that
+// matter most already hold their collections — sales.js is HANDED rfqs,
+// quotations and tasks because the screen above it had loaded them anyway, and
+// making a summary async to re-read what it was given would be a step
+// backwards dressed as a refactor.
+function walk(path, record, rowsFor, holds) {
   let current = [record].filter(Boolean);
   for (const e of path) {
     if (holds && !holds(NODES[e.to].permission)) return { error: "forbidden", at: e.to, records: [] };
     if (!current.length) return { records: [], record: null, path };
 
-    const rows = (await read(e.to)) || [];
+    const rows = rowsFor(e.to) || [];
     const found = [];
     for (const row of current) {
       if (e.direction === "forward") {
@@ -203,7 +192,6 @@ export async function traverse(from, record, to, { read, holds } = {}) {
     }
     current = found;
   }
-
   return {
     records: current,
     // The one that counts: the only one for a `one` edge, the newest for a
@@ -211,4 +199,44 @@ export async function traverse(from, record, to, { read, holds } = {}) {
     record: current[0] || null,
     path,
   };
+}
+
+/**
+ * Follow a path using rows the caller already has.
+ *
+ * `rows` is a map of record type to its collection. Anything on the path that
+ * is missing from it resolves empty rather than throwing, so a caller can hand
+ * over only the hops it cares about.
+ */
+export function traverseIn(from, record, to, { rows = {}, holds } = {}) {
+  const path = pathBetween(from, to);
+  if (!path) return { error: "no-path", records: [] };
+  return walk(path, record, (node) => rows[node], holds);
+}
+
+/**
+ * Follow a path, fetching each hop.
+ *
+ * `read(node)` returns that record type's rows. Injected rather than imported so
+ * this module needs no store — it can be tested against plain arrays, and a
+ * client component can import the declarations above without pulling Redis in.
+ *
+ * `holds(permission)` gates each hop. Optional, and that is deliberate: a
+ * summary a module builds of its OWN records answers to the right that got the
+ * reader onto the screen, whereas a document reaching across departments must
+ * ask. Passing nothing means "already established" — which is what keeps a
+ * retrofit from silently taking information away from people who have it today.
+ */
+export async function traverse(from, record, to, { read, holds } = {}) {
+  const path = pathBetween(from, to);
+  if (!path) return { error: "no-path", records: [] };
+
+  // Every hop is known before the walk starts, so each collection is read once
+  // rather than once per record found at the hop before it.
+  const rows = {};
+  for (const e of path) {
+    if (holds && !holds(NODES[e.to].permission)) return { error: "forbidden", at: e.to, records: [] };
+    if (!(e.to in rows)) rows[e.to] = (await read(e.to)) || [];
+  }
+  return walk(path, record, (node) => rows[node], holds);
 }

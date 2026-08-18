@@ -20,6 +20,7 @@ import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TIC
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "@/lib/tickets";
 import { normaliseClientName, normaliseContactName, clientSlug } from "@/lib/salesClients";
 import { nextUniqueRef } from "@/lib/references";
+import { traverseIn } from "@/lib/relations";
 import { requestRfq } from "@/lib/technical";
 import { pendingRfq, rfqsForTicket } from "@/lib/rfqs";
 import { isFinishedQuotation } from "@/lib/quotations";
@@ -444,13 +445,28 @@ function poFor(quotation, tasks, taskAssignees) {
   };
 }
 
+// A TICKET'S QUOTATIONS, newest first, so `[0]` is always "the quotation this
+// ticket is worth".
+//
+// The rule now lives on the edge in lib/relations.js rather than three times in
+// this file. Same order, same answer — but the Print button on the Quotation
+// Viewer resolves through the same declaration, so the button and the ticket's
+// own Quotations box cannot come to different conclusions about which quotation
+// counts.
+//
+// NO PERMISSION GATE, deliberately. A quotation is Technical's record, and this
+// summary has always shown its state to anybody who may open the ticket: a
+// ticket reporting what became of it is Sales' business. Passing a gate here
+// would take that away from people who have it today, which is a regression
+// wearing the costume of a refactor.
+export function quotationsForTicket(ticketId, quotations) {
+  return traverseIn("salesTicket", { id: ticketId }, "quotation", { rows: { quotation: quotations } }).records;
+}
+export const latestQuotationFor = (ticketId, quotations) => quotationsForTicket(ticketId, quotations)[0] || null;
+
 function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees) {
   const mine = rfqsForTicket(ticket.id, rfqs);
-  // Newest first, so the ticket's Quotations box reads top-down from the one
-  // that counts — and `[0]` is always "the quotation this ticket is worth".
-  const mineQuotations = quotations
-    .filter((q) => q.ticketId === ticket.id)
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  const mineQuotations = quotationsForTicket(ticket.id, quotations);
   const newest = mineQuotations[0] || null;
 
   // Is Sales still waiting? Same rule the server enforces on the button, asked
@@ -634,9 +650,7 @@ export async function sendTicketForApproval(ctx, body) {
 
   // The quotation being sent up is always the LATEST one — the only one that
   // counts — and it has to be finished before anybody can approve it.
-  const quotation = quotations
-    .filter((q) => q.ticketId === ticketId)
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null;
+  const quotation = latestQuotationFor(ticketId, quotations);
   if (!isFinishedQuotation(quotation) || quotation.status === "Rejected") return { error: "not-quoted" };
   // A revision is on its way, so what is on file is already out of date.
   if (pendingRfq(ticketId, rfqs, quotations)) return { error: "rfq-pending" };
@@ -740,9 +754,7 @@ export async function submitTicketPo(ctx, body) {
   // The document the client is answering is the LATEST one, and it has to have
   // been approved — a PO against a quotation nobody signed off is a PO for work
   // the studio never agreed to do.
-  const quotation = quotations
-    .filter((q) => q.ticketId === ticketId)
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null;
+  const quotation = latestQuotationFor(ticketId, quotations);
   if (!quotation) return { error: "not-quoted" };
   // ASKED OF THE APPROVAL, not of the quotation's stored status. The decision is
   // made on the board and nothing writes it back onto the document, so reading
