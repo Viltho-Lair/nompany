@@ -632,7 +632,20 @@ export async function ticketQuotation({ studio, ticketsSection, quotationsSectio
   const ticket = tickets.find((t) => t.id === quotation.ticketId);
   if (!ticket) return { error: "notfound" };
 
-  return { quotation, ticket: { id: ticket.id, ref: ticket.ref || "", title: ticket.title || "" } };
+  // IS THIS THE ONE THAT COUNTS. Only the latest quotation carries a Print
+  // button: earlier revisions exist so the reference for what was previously
+  // sent survives, and printing one of those would be issuing a document about
+  // a superseded offer.
+  //
+  // Asked of the same helper the ticket's own Quotations box uses, so the two
+  // cannot disagree about which quotation a ticket is worth.
+  const latest = latestQuotationFor(ticket.id, quotations);
+
+  return {
+    quotation,
+    ticket: { id: ticket.id, ref: ticket.ref || "", title: ticket.title || "" },
+    isLatest: latest?.id === quotation.id,
+  };
 }
 
 // Send a ticket over to Technical. Raising an RFQ is a SALES act on a SALES

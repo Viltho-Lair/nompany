@@ -46,7 +46,8 @@ import { ALL_PERMISSIONS } from "@/lib/permissions";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/lib/data/keys";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/lib/qualityFields";
-import { setCallPoint, listTemplates, templateForCallPoint } from "@/lib/quality";
+import { setCallPoint, listTemplates, templateForCallPoint, callPointReady } from "@/lib/quality";
+import { ticketQuotation } from "@/lib/sales";
 import { CALL_POINTS, callPointById, callPointOptions } from "@/lib/qualityCallPoints";
 import { resolveBlocks, blocksFor, generateDocument, listGenerated, getGenerated,
   moveGenerated, regenerate } from "@/lib/quality";
@@ -1994,6 +1995,88 @@ console.log("\n== a button runs one template, and the button decides the subject
 
   ok("unbinding is allowed", !(await setCallPoint(q, a.document.id, { callPointId: "" })).error);
   ok("...and frees the button", (await templateForCallPoint(q, "quotation.print")) === null);
+
+  __signOut();
+}
+
+// ============================================================================
+console.log("\n== Sales presses Print and the ticket fills the document in");
+// THE THING ALL OF THIS WAS FOR. A button in the Quotation Viewer, a template
+// Quality approved, and fields that arrive from the sales ticket without Sales
+// or Quality knowing anything about each other.
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  const types = await listTypes(q);
+
+  // A template that names things from THREE records: the quotation it is held
+  // at, the ticket one hop up, and the client two.
+  const tpl = await createDocument(q, { title: "Quotation cover", typeId: types[0].id, departmentId: "technical" });
+  await updateDocument(q, tpl.document.id, { isTemplate: true });
+  await setCallPoint(q, tpl.document.id, { callPointId: "quotation.print" });
+
+  const bound = (await listDocuments(q)).find((d) => d.id === tpl.document.id);
+  ok("the button settles what the template is about", bound.subjectType === "quotation", bound.subjectType);
+
+  // Not approved yet, so the button must not appear.
+  const early = await callPointReady(q, "quotation.print");
+  ok("an unapproved template leaves the button off", !early.ready && early.reason === "not-issued", JSON.stringify(early));
+
+  await openDraft(q, tpl.document.id);
+  await saveDraft(q, tpl.document.id, { sections: [{ id: "s1", title: "Offer", body: { type: "doc", content: [
+    { type: "paragraph", content: [
+      { type: "text", text: "For the attention of " },
+      { type: "mergeField", attrs: { field: "sales.ticket.contactName" } },
+      { type: "text", text: " at " },
+      { type: "mergeField", attrs: { field: "sales.ticket.client" } },
+      { type: "text", text: ", against " },
+      { type: "mergeField", attrs: { field: "quotation.number" } },
+      { type: "text", text: "." },
+    ] },
+    { type: "recordBlock", attrs: { source: "quotation.lines" } },
+  ] } }] });
+  await moveRevision(q, tpl.document.id, "submit");
+  await moveRevision(await qualityContext(member.user, slug), tpl.document.id, "review");
+  await moveRevision(q, tpl.document.id, "approve");
+  await moveRevision(q, tpl.document.id, "publish", { effectiveDate: "2026-09-01" });
+
+  const ready = await callPointReady(q, "quotation.print");
+  ok("an approved template turns the button on", ready.ready === true, JSON.stringify(ready));
+
+  // The viewer's own answer: only the latest quotation carries the button.
+  const sales = await salesContext(owner, slug);
+  const tickets = await listTickets(sales);
+  const withQuote = tickets.find((t) => t.quotations?.length);
+  const quotationId = withQuote?.quotations[0]?.id;
+  ok("fixture: a quotation to print from", Boolean(quotationId), JSON.stringify(withQuote?.quotations?.length));
+
+  if (quotationId) {
+    const viewed = await ticketQuotation(sales, quotationId);
+    ok("the viewer knows whether it is the latest", viewed.isLatest === true, String(viewed.isLatest));
+
+    // PRESS IT.
+    const made = await generateDocument(q, { templateId: tpl.document.id, subjectId: quotationId });
+    ok("pressing Print produces a document", !made.error, made.error || "");
+
+    // AND HERE IS THE ANSWER TO THE WHOLE QUESTION. The template was held at a
+    // quotation; the contact and the client live on the sales ticket, one hop
+    // up. Nobody wrote that join for this feature — the registry declared it.
+    const v = made.instance.values;
+    ok("...with the client fetched from the sales ticket",
+      v["sales.ticket.client"] === "Acme", v["sales.ticket.client"]);
+    ok("...and the contact, from the same hop", typeof v["sales.ticket.contactName"] === "string");
+    ok("...alongside the quotation's own number",
+      v["quotation.number"] === made.instance.values["quotation.number"] && Boolean(v["quotation.number"]),
+      v["quotation.number"]);
+    ok("...and the quotation's lines, frozen in",
+      made.instance.blocks && "quotation.lines" in made.instance.blocks,
+      JSON.stringify(Object.keys(made.instance.blocks || {})));
+
+    ok("the document waits for review before it can be issued", made.instance.state === "draft");
+    ok("...carrying the record's number and one of its own",
+      Boolean(made.instance.sourceNumber) && made.instance.code.includes("/"),
+      `${made.instance.sourceNumber} / ${made.instance.code}`);
+  }
 
   __signOut();
 }

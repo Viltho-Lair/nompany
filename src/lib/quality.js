@@ -1266,6 +1266,26 @@ export async function setCallPoint(ctx, documentId, body) {
   return { document: updated };
 }
 
+// WHETHER A BUTTON CAN ACTUALLY PRODUCE ANYTHING, and why not when it cannot.
+//
+// Asked before the button is drawn, so a press always succeeds. Every reason is
+// named rather than collapsed into a boolean, because "nothing happened" is the
+// worst thing a button can do — a studio that has not bound a template and a
+// studio whose template is still awaiting approval need different things done
+// about it.
+export async function callPointReady(ctx, callPointId) {
+  const template = await templateForCallPoint(ctx, callPointId);
+  if (!template) return { ready: false, reason: "no-template" };
+
+  const revisions = await readCol(ctx.studio.id, ctx.section.id, REVISIONS);
+  const issued = revisions.some((r) => r.documentId === template.id && r.state === "effective");
+  // A blank nobody has approved is not a blank anybody may issue from.
+  if (!issued) return { ready: false, reason: "not-issued", code: template.code };
+  if (!can(ctx.access, "quality.documents.create")) return { ready: false, reason: "forbidden" };
+
+  return { ready: true, templateId: template.id, code: template.code, title: template.title };
+}
+
 // The template a given button should run, if a studio has bound one.
 export async function templateForCallPoint(ctx, callPointId) {
   const documents = await readCol(ctx.studio.id, ctx.section.id, DOCUMENTS);
