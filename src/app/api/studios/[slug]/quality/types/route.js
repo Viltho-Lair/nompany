@@ -1,6 +1,6 @@
 import {
   qualityGuard, createType, updateType, removeType,
-  installStarterTypes, saveDepartmentCodes,
+  installStarterTypes, saveDepartmentCodes, saveLetterhead,
 } from "@/lib/quality";
 
 export const runtime = "nodejs";
@@ -48,6 +48,14 @@ export async function PUT(request, ctx) {
   // The department short codes are part of the same setup screen: they are the
   // middle third of every document number, so they are edited where the types
   // are rather than somewhere else the numbering is decided from.
+  // The header and footer every page carries. Setup's business, like the codes
+  // below it — both decide what appears on paper rather than what it says.
+  if (b.letterhead !== undefined) {
+    const result = await saveLetterhead(g, b.letterhead);
+    if (result.error) return Response.json({ error: result.error }, { status: status(result.error) });
+    return Response.json({ ok: true, letterhead: result.letterhead });
+  }
+
   if (b.departmentCodes !== undefined) {
     const result = await saveDepartmentCodes(g, b);
     if (result.error) {

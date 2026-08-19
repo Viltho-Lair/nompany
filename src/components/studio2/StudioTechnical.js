@@ -110,6 +110,10 @@ export default function StudioTechnical({ slug, view = "technical" }) {
         out.error === "sales-required" || out.error === "forbidden" ? "Raising an RFQ needs Manage access to Sales."
         : out.error === "read-only" ? "You have view-only access to Technical."
         : out.error === "already" ? "That's already been done."
+        // Refused at this door for the same reason the Sales button is not drawn:
+        // an approval belongs to one quotation, and a revision would take it down
+        // with the document it supersedes.
+        : out.error === "approved" ? "That ticket's quotation has been approved — there is nothing left to revise."
         : out.error === "ticket" ? "Pick a ticket."
         : out.error === "locked" ? "That quotation is locked — it can't be changed. Unlock it first, on its own."
         : out.error === "not-approved" ? "Only an approved quotation can be locked."

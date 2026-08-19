@@ -16,13 +16,13 @@ import { nextUniqueRef } from "@/lib/references";
 import { readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
-import { RFQ_STATUSES, pendingRfq } from "@/lib/rfqs";
+import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "@/lib/rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/lib/tickets";
 import { quotationApproved } from "@/lib/taskRouting";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
-  cleanQuotationTables, itemsFromTables,
+  cleanQuotationTables, itemsFromTables, isFinishedQuotation,
 } from "@/lib/quotations";
 
 export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
@@ -261,10 +261,14 @@ export async function requestRfq(ctx, body) {
   // No CLIENTS read any more: the client was only read to copy its name onto the
   // RFQ, and the name is now read back from the client record at display time.
   const ticketId = str(body?.ticketId, 60);
-  const [tickets, existing, quotations] = await Promise.all([
+  const [tickets, existing, quotations, tasks] = await Promise.all([
     readCol(studio.id, salesTicketsSection.id, TICKETS),
     readCol(studio.id, rfqSection.id, RFQS),
     readCol(studio.id, quotationsSection.id, QUOTATIONS),
+    // Only to ask whether the current quotation is approved, and only through
+    // the helper below. A studio with no Tasks section has no approvals to read,
+    // so nothing here refuses on their absence.
+    ctx.tasksSection ? readCol(studio.id, ctx.tasksSection.id, TASKS) : [],
   ]);
   const ticket = tickets.find((t) => t.id === ticketId);
   if (!ticket) return { error: "ticket" };
@@ -274,6 +278,10 @@ export async function requestRfq(ctx, body) {
   // Refusing every repeat, which is what "has any live RFQ" did, made the
   // button dead for the rest of the ticket's life.
   if (pendingRfq(ticketId, existing, quotations)) return { error: "already" };
+  // AND NOT ONCE IT IS APPROVED. Both doors, so the Technical screen's "Raise
+  // RFQ" cannot do what the Sales button has stopped offering — see
+  // approvedQuotationFor for why an approved quotation ends the asking.
+  if (approvedQuotationFor(ticketId, quotations, tasks)) return { error: "approved" };
 
   const rfq = await addRow(studio.id, rfqSection.id, RFQS, {
     // One ticket can be sent over more than once — a second RFQ after the first
@@ -294,6 +302,34 @@ export async function requestRfq(ctx, body) {
     requestedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
+
+  // RAISING A REVISION CLOSES THE ONE BEING REVISED.
+  //
+  // The moment this RFQ exists, the quotation behind it is the PREVIOUS one: the
+  // document the client already holds, and the record of what was offered before
+  // the revision. It must not change again — an edit to it after this point
+  // rewrites history to disagree with a document somebody was sent, and
+  // convertRfq opens the new revision on a COPY of these very tables, so an edit
+  // landing in between would show up in neither version cleanly.
+  //
+  // WRITTEN DIRECTLY RATHER THAN THROUGH updateQuotation, deliberately. That
+  // path refuses to lock anything not approved, which is the right rule for the
+  // Lock BUTTON — a person deciding a document is final — and the wrong one
+  // here: superseding is not approving, and a superseded quotation is finished
+  // whether the client signed it or turned it down. Unlock still reopens it, so
+  // this is not a one-way door.
+  //
+  // Only a FINISHED quotation is closed this way. An unfinished one was never
+  // issued to anybody, so there is nothing to preserve and freezing it would
+  // strand work Technical still has open.
+  const superseded = latestTicketQuotation(ticketId, quotations);
+  if (superseded && isFinishedQuotation(superseded) && !superseded.locked) {
+    await updateRow(studio.id, quotationsSection.id, QUOTATIONS, superseded.id, {
+      locked: true,
+      supersededByRfqId: rfq.id,
+      lockedAt: new Date().toISOString(),
+    });
+  }
 
   // Ticket status is AUTOMATED up to approval: raising the first RFQ is what
   // turns a Lead into an Opportunity. Done here rather than on the Sales side so
@@ -705,15 +741,20 @@ export async function removeQuotation(ctx, id) {
 
 // Sales tickets with nothing outstanding — what "raise an RFQ" can pick. Same
 // rule the Sales button obeys, so the two doors offer exactly the same tickets.
-export async function openTickets({ studio, salesSection, salesTicketsSection, salesClientsSection, rfqSection, quotationsSection }) {
+export async function openTickets({ studio, salesSection, salesTicketsSection, salesClientsSection, rfqSection, quotationsSection, tasksSection }) {
   if (!salesSection) return [];
-  const [tickets, rfqs, quotations] = await Promise.all([
+  const [tickets, rfqs, quotations, tasks] = await Promise.all([
     readCol(studio.id, salesTicketsSection.id, TICKETS),
     readCol(studio.id, rfqSection.id, RFQS),
     readCol(studio.id, quotationsSection.id, QUOTATIONS),
+    tasksSection ? readCol(studio.id, tasksSection.id, TASKS) : [],
   ]);
   return tickets
-    .filter((t) => !pendingRfq(t.id, rfqs, quotations))
+    // BOTH RULES requestRfq refuses on, not just the first. A ticket whose
+    // quotation is approved would otherwise still be offered in the picker and
+    // then be turned down on save — which is the failure the Sales button was
+    // just fixed for, arriving through the other door.
+    .filter((t) => !pendingRfq(t.id, rfqs, quotations) && !approvedQuotationFor(t.id, quotations, tasks))
     .map((t) => ({ id: t.id, ref: t.ref, title: t.title }));
 }
 

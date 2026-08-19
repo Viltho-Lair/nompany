@@ -187,5 +187,24 @@ export function pageCss(template) {
     .replace("%MARGIN_LEFT%", `${Number(m.left) || 18}mm`);
 }
 
+// THE PRINT SHEET, for a screen somebody may print from.
+//
+// The same rules the PDF gets, wrapped in @media print so they do nothing until
+// a page is actually being printed — plus the one thing the PDF never needs:
+// hiding the editor's page-break MARKER and the slot tints, which would
+// otherwise put a dashed rule and a label onto the paper.
+//
+// Without this the preview's Print button produced a document with no page
+// breaks, no repeating table headers and no margins, while faithfully printing
+// the marker that says where a break was supposed to be. Exactly inverted.
+export function printMediaCss(template) {
+  return "@media print {\n"
+    + pageCss(template)
+    + "\n.quality-page-break { border: 0 !important; height: 0 !important; margin: 0 !important; }"
+    + "\n.quality-page-break::after { content: none !important; }"
+    + "\n.quality-slot { background: none !important; color: inherit !important; }"
+    + "\n}";
+}
+
 // What the builder and the reader both put on screen.
 export const SCREEN_CSS = DOCUMENT_CSS + EDITOR_CSS;

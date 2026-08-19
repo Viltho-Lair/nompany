@@ -32,6 +32,12 @@ const card = `${panel} min-h-0`;
 //     because a second RFQ is how Sales asks for an edit to the last one. Only
 //     the final quotation is ever considered.
 //
+//     ONCE THE QUOTATION IS APPROVED IT IS GONE, not greyed. Greying says "not
+//     yet" and would be a lie: nothing is coming that brings it back. There is
+//     nothing left to revise once the client's answer is in, and raising a
+//     revision then would supersede the approved document and take its approval
+//     with it. What follows an approval is the PO, which is the button below.
+//
 //   Send for Approval ⇄ Quotation Approved
 //     Appears only once there is a finished quotation to send, and vanishes the
 //     moment a new RFQ is raised — what is on file is out of date, so there is
@@ -89,6 +95,9 @@ export default function StudioTicketProfile({ slug, ticketId }) {
       setError(
         out.error === "already" && kind === "rfq" ? "That ticket is already with Technical — you can send it again once the quotation comes back."
         : out.error === "already" ? "This quotation has already been sent for approval."
+        // A stale tab still showing the button, pressed after somebody else's
+        // approval landed. Say what happened rather than "that didn't go through".
+        : out.error === "approved" ? "This ticket's quotation has been approved — there is nothing left to revise. A change after approval is a new ticket."
         : out.error === "rfq-pending" ? "A new RFQ is outstanding — wait for the revised quotation before sending it up."
         : out.error === "not-quoted" ? "There is no finished quotation on this ticket to approve yet."
         : out.error === "no-tasks" ? "This studio has no Tasks section to send the approval to."
@@ -186,7 +195,10 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   // again on the way in, so a stale tab can offer something and still be
   // refused rather than getting away with it.
   const canAct = data.canManage && data.hasTechnical;
-  const canRequestRfq = canAct && canRequestRfqStatus(ticket.status);
+  // `quotationApproved` is the server's answer, read off the approval rather
+  // than off the document — the same question requestRfq refuses on, so this
+  // button is never drawn where pressing it would be turned down.
+  const canRequestRfq = canAct && canRequestRfqStatus(ticket.status) && !ticket.quotationApproved;
   const approval = ticket.approval;
   const showApproval = canAct && data.hasTasks && !ticket.rfqPending
     && (ticket.hasFinishedQuotation || approval);

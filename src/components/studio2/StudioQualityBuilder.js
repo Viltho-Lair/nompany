@@ -490,7 +490,17 @@ export default function StudioQualityBuilder({ studio, documentId }) {
             />
             {fieldMenu && (
               <div className="border-t border-[var(--geex-border)] bg-[var(--geex-surface-2)] px-5 py-4 sm:px-8">
-                <p className="mb-2 text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Insert a field</p>
+                {/* IT STAYS OPEN. Placing one field is almost never the whole
+                    job — a letterhead line or an address block is four or five
+                    in a row — and closing after each one made the author reopen
+                    the menu every time. It shuts when they say so. */}
+                <div className="mb-2 flex items-center gap-2">
+                  <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Insert a field</p>
+                  <button type="button" onClick={() => setFieldMenu(false)} aria-label="Close"
+                    className="ms-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white">
+                    <Icon name="close" className="h-4 w-4" />
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-4">
                   {grouped.map(([group, fields]) => (
                     <div key={group}>
@@ -501,7 +511,6 @@ export default function StudioQualityBuilder({ studio, documentId }) {
                             onMouseDown={(e) => {
                               e.preventDefault();
                               activeEditor?.chain().focus().insertMergeField(f.key).run();
-                              setFieldMenu(false);
                             }}
                             className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-600 text-slate-600 transition-colors hover:border-brand-500 hover:text-brand-700 dark:border-white/15 dark:bg-white/5 dark:text-slate-300">
                             {f.label}

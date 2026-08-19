@@ -267,19 +267,13 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
               and a button that names half of what it opens sends people looking
               for the other half somewhere else. */}
           <button className={btnGhost} disabled={busy} onClick={() => setEditing(true)}>Edit</button>
-          <button
-            className={btnGhost}
-            disabled={busy}
-            /* Admin is a ROLE, not a flag. Setting a flag made somebody
-               all-powerful in a way no role could describe or constrain; giving
-               them the Admin role says the same thing in the same language as
-               every other grant, and can be taken back the same way.
-               roleIds is the WHOLE change — `role` is ownership and the server
-               refuses to write it, so sending it would only have been noise. */
-            onClick={() => onSave(person, { roleIds: isAdminNow ? [] : [ADMIN_ROLE_ID] })}
-          >
-            {isAdminNow ? "Make member" : "Make admin"}
-          </button>
+          {/* NO "Make admin" HERE. Admin is a ROLE — role_admin, the wildcard the
+              studio ships with — so it is assigned where every other role is:
+              the dropdown behind Edit. A button beside it was a second way to
+              set the same field, one that skipped the picker and made the most
+              powerful grant in the studio the easiest click on the row. Nothing
+              is lost by its absence: Admin still appears in that dropdown, and
+              taking it back is choosing something else there. */}
           <button className={btnDanger} disabled={busy} onClick={() => onRemove(person)}>Remove</button>
         </div>
       )}

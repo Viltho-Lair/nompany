@@ -1,8 +1,10 @@
 import {
   qualityGuard, listDocuments, listTypes, departmentCodes,
   DOC_STATUSES, STATUS_LABELS, DOC_LANGUAGES, listTemplates, callPointOptions,
+  letterheadFor, fieldsFor,
 } from "@/lib/quality";
 import { can } from "@/lib/access";
+import { PAGE_TOKENS } from "@/lib/qualityRender";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +28,12 @@ export async function GET(request, ctx) {
     // The setup screen's routing table: which template each button runs.
     templates,
     callPoints: callPointOptions(templates),
+    // The letterhead, and everything a slot in it may be set to: any field
+    // this studio can resolve without a bound record, plus the tokens the
+    // print engine fills in as it lays the pages out.
+    letterhead: letterheadFor(g),
+    slotFields: fieldsFor(g, null).fields.map((f) => ({ key: f.key, label: f.label, group: f.group })),
+    pageTokens: PAGE_TOKENS,
     departments: g.departments,
     departmentCodes: departmentCodes(g),
     nav: g.nav,

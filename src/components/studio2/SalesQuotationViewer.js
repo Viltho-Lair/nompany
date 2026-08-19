@@ -23,8 +23,16 @@ import { netUnitPrice } from "@/lib/quotations";
 //     and two versions of a priced document is exactly the failure worth
 //     preventing.
 //
-// Figures are shown EXACTLY as they were stored: a quotation is a document
-// somebody was given, so nothing here is recomputed from today's prices.
+// FIGURES are shown exactly as they were stored: a quotation is a document
+// somebody was given, so no line here is repriced from today's catalogue.
+//
+// EVERYTHING THE DOCUMENT NEVER OWNED IS CARRIED — the client's name, whether it
+// was approved and when. Those were read straight off the stored row until they
+// were all three wrong at once: `clientName` is never written to a quotation, so
+// Client sat permanently blank; the approval lives on the task, so a quotation
+// signed on the board showed no date and read "Completed" here while Technical
+// called it Approved. Carrying is done in ticketQuotation, beside the read, so
+// the two sides cannot drift again.
 
 const cellHead = "px-3 py-2 text-start text-[11px] font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 

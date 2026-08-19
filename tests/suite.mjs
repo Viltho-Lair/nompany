@@ -29,7 +29,7 @@ import {
   submitTicketPo,
 } from "@/lib/sales";
 import { projectsContext, openProject, listProjects } from "@/lib/projects";
-import { technicalContext, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/lib/technical";
+import { technicalContext, requestRfq, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/lib/technical";
 import { rfqInfo } from "@/lib/salesAnalytics";
 import {
   qualityContext, installStarterTypes, createType, updateType, removeType,
@@ -46,7 +46,9 @@ import { ALL_PERMISSIONS } from "@/lib/permissions";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/lib/data/keys";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/lib/qualityFields";
-import { setCallPoint, listTemplates, templateForCallPoint, callPointReady } from "@/lib/quality";
+import { setCallPoint, listTemplates, templateForCallPoint, callPointReady,
+  letterheadFor, saveLetterhead } from "@/lib/quality";
+import { barSlots, PAGE_TOKENS } from "@/lib/qualityRender";
 import { ticketQuotation } from "@/lib/sales";
 import { CALL_POINTS, callPointById, callPointOptions } from "@/lib/qualityCallPoints";
 import { resolveBlocks, blocksFor, generateDocument, listGenerated, getGenerated,
@@ -314,6 +316,22 @@ console.log("\n== the handler is carried, never copied");
   // is what the dashboard measures turnaround from.
   ok("...and carries when it was approved", !!listed?.completedAt, JSON.stringify(listed?.completedAt));
 
+  // AN APPROVAL ENDS THE ASKING. A repeat RFQ is how Sales asks for a revision,
+  // and there is nothing left to revise once the client has signed — raising one
+  // would supersede the approved document with an empty revision and take the
+  // approval down with it, because an approval belongs to ONE quotation.
+  const afterApproval = await requestTicketRfq(await salesContext(owner, slug), { ticketId: made.ticket?.id });
+  ok("an approved quotation ends the asking", afterApproval.error === "approved", JSON.stringify(afterApproval));
+  // Refused at BOTH doors, or Technical's "Raise RFQ" would quietly do what the
+  // Sales button has stopped offering.
+  const otherDoor = await requestRfq(await technicalContext(owner, slug), { ticketId: made.ticket?.id });
+  ok("...at the Technical door too", otherDoor.error === "approved", JSON.stringify(otherDoor));
+  // And the ticket SAYS so, off the approval rather than off the document, so
+  // the button is never drawn where the endpoint would refuse it.
+  const hidden = (await listTickets(await salesContext(owner, slug))).find((t) => t.id === made.ticket?.id);
+  ok("...and the ticket says so, so the button is not drawn", hidden?.quotationApproved === true,
+    JSON.stringify({ approved: hidden?.quotationApproved, status: hidden?.quotations?.[0]?.status }));
+
   // THE LAST READER OF THE STORED STATUS. The list said Approved, the ticket
   // said Quotation Approved, and locking answered "Only an approved quotation
   // can be locked" — because this one guard still asked the document.
@@ -478,6 +496,63 @@ console.log("\n== the handler is carried, never copied");
     JSON.stringify(forSearch?.quotationNumber));
   ok("...the PO", (forSearch?.poNumber || "").includes("PO-99"), JSON.stringify(forSearch?.poNumber));
   ok("...and the serials of the items on it", Array.isArray(forSearch?.serials), JSON.stringify(forSearch?.serials));
+}
+
+// ============================================================================
+console.log("\n== raising a revision closes the quotation it revises");
+// A second RFQ is Sales asking for the last quotation to be REVISED. From that
+// moment the previous document is the record of what was offered before — the
+// one the client is holding — and it must not change again. convertRfq opens the
+// new revision on a COPY of its tables, so an edit landing in between would show
+// up cleanly in neither version.
+//
+// Note what is NOT required here: approval. The Lock BUTTON refuses anything
+// unapproved, which is right for a person declaring a document final and wrong
+// for this — superseding is not approving.
+{
+  const sales = await salesContext(owner, slug);
+  const service = await createService(sales, { name: "Revisions" });
+  const made = await createTicket(sales, {
+    title: "Revise the quotation", clientName: "Beta Works", deadline: "2026-12-01",
+    industry: "Technology", serviceIds: [service.service?.id],
+  });
+
+  const first = await requestTicketRfq(sales, { ticketId: made.ticket?.id });
+  const tech = await technicalContext(owner, slug);
+  const q1 = await convertRfq(tech, { rfqId: first.rfq?.id, handledByCollaboratorId: member.collaborator.id });
+  ok("fixture: a first quotation", !!q1.quotation, JSON.stringify(q1.error));
+  await updateQuotation(await technicalContext(owner, slug), q1.quotation?.id, { status: "Completed" });
+
+  // Unfinished work is left alone, so nothing was frozen before this point.
+  const beforeSecond = (await listQuotations(await technicalContext(owner, slug)))
+    .find((x) => x.id === q1.quotation?.id);
+  ok("a submitted quotation is open until it is superseded", beforeSecond?.locked !== true,
+    JSON.stringify(beforeSecond?.locked));
+
+  const second = await requestTicketRfq(await salesContext(owner, slug), { ticketId: made.ticket?.id });
+  ok("a finished quotation may be sent back for revision", !!second.rfq, JSON.stringify(second.error));
+
+  const afterSecond = (await listQuotations(await technicalContext(owner, slug)))
+    .find((x) => x.id === q1.quotation?.id);
+  ok("...which closes the one being revised", afterSecond?.locked === true, JSON.stringify(afterSecond?.locked));
+  ok("...naming what superseded it", afterSecond?.supersededByRfqId === second.rfq?.id,
+    JSON.stringify(afterSecond?.supersededByRfqId));
+  const shut = await updateQuotation(await technicalContext(owner, slug), q1.quotation?.id, { title: "a late edit" });
+  ok("...and it refuses edits from then on", shut.error === "locked", JSON.stringify(shut));
+
+  // The REVISION is a new row and is not locked — the whole point is that it can
+  // be worked on. It keeps the number the client already holds and steps the
+  // revision, opening on a copy of what was quoted last time.
+  const q2 = await convertRfq(await technicalContext(owner, slug), { rfqId: second.rfq?.id });
+  ok("the revision opens unlocked", q2.quotation?.locked === false, JSON.stringify(q2.quotation?.locked));
+  ok("...keeping the number and stepping the revision",
+    q2.quotation?.number === q1.quotation?.number && Number(q2.quotation?.revision) === 2,
+    `${q2.quotation?.number} rev ${q2.quotation?.revision}`);
+
+  // Somebody holding unlock can still reopen a superseded document — this is a
+  // closed door, not a one-way one.
+  const reopened = await updateQuotation(await technicalContext(owner, slug), q1.quotation?.id, { locked: false });
+  ok("...and unlock still reopens it", reopened.quotation?.locked === false, JSON.stringify(reopened.error));
 }
 
 // ============================================================================
@@ -2046,13 +2121,34 @@ console.log("\n== Sales presses Print and the ticket fills the document in");
   // The viewer's own answer: only the latest quotation carries the button.
   const sales = await salesContext(owner, slug);
   const tickets = await listTickets(sales);
-  const withQuote = tickets.find((t) => t.quotations?.length);
+  // NAMED, not "the first ticket with a quotation". More than one ticket is
+  // quoted by the time this runs, and the assertions below are about THIS one —
+  // the approved Acme quotation the whole chain above built.
+  const withQuote = tickets.find((t) => t.clientName === "Acme" && t.quotations?.length);
   const quotationId = withQuote?.quotations[0]?.id;
   ok("fixture: a quotation to print from", Boolean(quotationId), JSON.stringify(withQuote?.quotations?.length));
 
   if (quotationId) {
     const viewed = await ticketQuotation(sales, quotationId);
     ok("the viewer knows whether it is the latest", viewed.isLatest === true, String(viewed.isLatest));
+
+    // WHAT THE DOCUMENT NEVER OWNED IS CARRIED. All three of these were read
+    // straight off the stored row and all three were wrong: `clientName` is
+    // never written to a quotation, so Client sat blank; the approval lives on
+    // the task, so a quotation signed on the board showed no date and read
+    // Completed to Sales while Technical called it Approved.
+    ok("the viewer carries the client off the client record",
+      viewed.quotation?.clientName === "Acme", JSON.stringify(viewed.quotation?.clientName));
+    ok("...and reads Approved off the approval", viewed.quotation?.status === "Approved",
+      JSON.stringify(viewed.quotation?.status));
+    ok("...while what is on file is untouched", viewed.quotation?.storedStatus === "Completed",
+      JSON.stringify(viewed.quotation?.storedStatus));
+    ok("...with the date the decision was made", !!viewed.quotation?.completedAt,
+      JSON.stringify(viewed.quotation?.completedAt));
+    // The document itself is still shown exactly as stored — the lines and the
+    // totals are the quotation's own and are never recomputed here.
+    ok("...and the priced lines untouched", Array.isArray(viewed.quotation?.tables),
+      JSON.stringify(typeof viewed.quotation?.tables));
 
     // PRESS IT.
     const made = await generateDocument(q, { templateId: tpl.document.id, subjectId: quotationId });
@@ -2077,6 +2173,72 @@ console.log("\n== Sales presses Print and the ticket fills the document in");
       Boolean(made.instance.sourceNumber) && made.instance.code.includes("/"),
       `${made.instance.sourceNumber} / ${made.instance.code}`);
   }
+
+  __signOut();
+}
+
+// ============================================================================
+console.log("\n== the header and footer are the studio's, and say so once");
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+
+  const shipped = letterheadFor(q);
+  ok("a studio that has never edited it still gets a letterhead",
+    Boolean(shipped.header?.left && shipped.footer?.center), JSON.stringify(shipped.header));
+
+  const saved = await saveLetterhead(q, {
+    pageSize: "A4",
+    margins: { top: 30, right: 20, bottom: 24, left: 20 },
+    header: { left: { type: "field", value: "company.name" }, center: { type: "text", value: "Confidential" },
+      right: { type: "field", value: "document.code" }, showLogo: true, rule: true },
+    footer: { left: { type: "field", value: "document.revision" }, center: { type: "field", value: "page.of" },
+      right: { type: "text", value: "" }, rule: true },
+  });
+  ok("it can be edited", !saved.error, saved.error || "");
+
+  const back = letterheadFor(await qualityContext(owner, slug));
+  ok("...words somebody typed are kept as words",
+    back.header.center?.type === "text" && back.header.center.value === "Confidential", JSON.stringify(back.header.center));
+  ok("...a field is kept as a reference, not its value",
+    back.header.left?.type === "field" && back.header.left.value === "company.name", JSON.stringify(back.header.left));
+  ok("...and the margins with it", back.margins.top === 30 && back.margins.left === 20, JSON.stringify(back.margins));
+
+  // A FRESH CONTEXT PER WRITE, because that is what a request is. The saved
+  // settings are read off the context, so reusing one across two writes would
+  // fall back to the state before the first — a shape the product never has and
+  // a test should not invent.
+  const fresh = () => qualityContext(owner, slug);
+
+  // A field nobody declared would print as a permanent blank, so it is refused
+  // when it is saved rather than discovered on paper.
+  await saveLetterhead(await fresh(), { ...back, header: { ...back.header, right: { type: "field", value: "company.invented" } } });
+  const guarded = letterheadFor(await fresh());
+  ok("an undeclared field is refused and the old slot kept",
+    guarded.header.right?.value !== "company.invented", JSON.stringify(guarded.header.right));
+
+  // A margin too small to print loses text off the edge of the sheet, so it is
+  // clamped rather than trusted.
+  await saveLetterhead(await fresh(), { ...guarded, margins: { ...guarded.margins, top: 1 } });
+  ok("an unprintable margin is clamped", letterheadFor(await fresh()).margins.top === 30,
+    String(letterheadFor(await fresh()).margins.top));
+
+  // ---- the page tokens ----
+  //
+  // These are the print engine's to fill in as it lays out the pages, which is
+  // why they can only ever be right on paper. The preview said "Page 1 of 1"
+  // over a document of any length because that was a hardcoded caption; on
+  // screen the token now resolves to nothing instead of to a wrong number.
+  const ctx = { values: { "company.name": "Acme", "document.code": "QP-001" } };
+  const printed = barSlots(back.footer, ctx, { forPrint: true });
+  ok("a page token becomes the printer's own spans on paper",
+    printed.center.includes("pageNumber") && printed.center.includes("totalPages"), printed.center);
+  const onScreen = barSlots(back.footer, ctx, { forPrint: false });
+  ok("...and nothing at all on screen", onScreen.center === "", JSON.stringify(onScreen.center));
+
+  const head = barSlots(back.header, ctx, { forPrint: false });
+  ok("a field resolves the same either way", head.left === "Acme", head.left);
+  ok("...and typed words come through escaped", head.center === "Confidential", head.center);
 
   __signOut();
 }

@@ -220,13 +220,49 @@ export function renderSections(sections, ctx = {}) {
 // document content already has, and a letterhead is not worth a second one.
 export const HEADER_SLOTS = ["left", "center", "right"];
 
-// Slots resolve against the merge values, plus two the renderer supplies.
-export function slotValue(token, ctx) {
-  if (!token) return "";
-  if (token === "page.number") return '<span class="pageNumber"></span>';
-  if (token === "page.count") return '<span class="totalPages"></span>';
-  if (token === "page.of") return 'Page <span class="pageNumber"></span> of <span class="totalPages"></span>';
-  return esc(ctx.values?.[token] || "");
+// The tokens the PRINT ENGINE fills in rather than the renderer. Puppeteer
+// replaces these spans as it lays the pages out, which is why a page number can
+// only ever be right in the PDF: on screen there are no pages to count.
+export const PAGE_TOKENS = [
+  { key: "page.number", label: "Page number" },
+  { key: "page.count", label: "Total pages" },
+  { key: "page.of", label: "Page N of M" },
+];
+const isPageToken = (key) => PAGE_TOKENS.some((t) => t.key === key);
+
+// A slot is either a FIELD, resolved from the studio and the document, or
+// TEXT somebody typed. Both are stored; neither is a copy of the other's job —
+// "Confidential" is not a field, and the company's name should never be typed.
+//
+// A bare string is read as a field key, so every letterhead written before this
+// took objects keeps working.
+export function slotValue(slot, ctx, { forPrint = true } = {}) {
+  if (!slot) return "";
+  const spec = typeof slot === "string" ? { type: "field", value: slot } : slot;
+  if (spec.type === "text") return esc(spec.value || "");
+
+  const key = spec.value || "";
+  if (!key) return "";
+  if (isPageToken(key)) {
+    // On screen these resolve to nothing rather than to a wrong number. A
+    // preview that says "Page 1 of 1" over a forty-page letter is worse than a
+    // preview that says nothing.
+    if (!forPrint) return "";
+    if (key === "page.number") return '<span class="pageNumber"></span>';
+    if (key === "page.count") return '<span class="totalPages"></span>';
+    return 'Page <span class="pageNumber"></span> of <span class="totalPages"></span>';
+  }
+  return esc(ctx.values?.[key] || "");
+}
+
+// The three slots of one bar, resolved. Shared by the print templates below and
+// by the on-screen letterhead, so the preview shows what the paper will.
+export function barSlots(bar, ctx, opts) {
+  return {
+    left: slotValue(bar?.left, ctx, opts),
+    center: slotValue(bar?.center, ctx, opts),
+    right: slotValue(bar?.right, ctx, opts),
+  };
 }
 
 export const DEFAULT_TEMPLATE = {

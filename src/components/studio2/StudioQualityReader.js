@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import { btn, btnGhost } from "@/components/studio2/ui";
-import { renderSections } from "@/lib/qualityRender";
-import { SCREEN_CSS } from "@/lib/qualityCss";
+import { renderSections, barSlots } from "@/lib/qualityRender";
+import { SCREEN_CSS, printMediaCss } from "@/lib/qualityCss";
 import { STATUS_LABELS } from "@/lib/qualityDocuments";
 
 // THE READER — the document as it will print, and the way to take it away.
@@ -85,9 +85,21 @@ export default function StudioQualityReader({ studio, documentId }) {
   // beside it was stamped correctly.
   const watermark = doc?.state === "obsolete" ? "OBSOLETE" : doc?.state === "effective" ? "" : "DRAFT";
 
+  // Resolved for the SCREEN: page tokens come back empty, because a preview
+  // cannot know how many pages the print engine will make.
+  const letterhead = data?.letterhead || { header: {}, footer: {} };
+  const barCtx = { values: data?.mergeValues || {}, template: letterhead };
+  const head = barSlots(letterhead.header, barCtx, { forPrint: false });
+  const foot = barSlots(letterhead.footer, barCtx, { forPrint: false });
+
   return (
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
+      {/* AND THE PRINT SHEET. Without it, pressing Print here produced a
+          document with no page breaks, no repeating table headers and no
+          margins, while printing the editor's break MARKER onto the paper
+          because that styling was the only thing that did apply. */}
       <style>{SCREEN_CSS}</style>
+      <style>{printMediaCss(data?.letterhead)}</style>
 
       <header className="sticky top-0 z-20 border-b border-[var(--geex-border)] bg-[var(--geex-page)] print:hidden">
         <div className="mx-auto flex max-w-[1000px] flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
@@ -142,13 +154,17 @@ export default function StudioQualityReader({ studio, documentId }) {
               </div>
             )}
 
-            {/* The letterhead, drawn on screen where the PDF gets it from the
-                print engine's header template. Same fields, same order. */}
+            {/* THE STUDIO'S OWN LETTERHEAD, from the same declaration the print
+                engine reads. It used to be four hand-written spans here, which
+                meant editing the header in setup changed the PDF and left the
+                preview showing something else entirely. */}
             <div className="flex items-center gap-3 border-b border-slate-200 px-[18mm] pb-3 pt-[14mm] text-[9pt] text-slate-500">
-              {studio.logo && <img src={studio.logo} alt="" className="h-7 w-auto object-contain" />}
-              <span className="flex-1 truncate">{data.mergeValues?.["company.name"]}</span>
-              <span className="flex-1 truncate text-center">{doc?.title}</span>
-              <span className="flex-1 truncate text-end font-mono">{doc?.code}</span>
+              {letterhead.header?.showLogo && studio.logo && (
+                <img src={studio.logo} alt="" className="h-7 w-auto object-contain" />
+              )}
+              <span className="flex-1 truncate" dangerouslySetInnerHTML={{ __html: head.left }} />
+              <span className="flex-1 truncate text-center" dangerouslySetInnerHTML={{ __html: head.center }} />
+              <span className="flex-1 truncate text-end" dangerouslySetInnerHTML={{ __html: head.right }} />
             </div>
 
             <div className="quality-page mx-auto bg-white px-[18mm] py-[12mm] text-slate-900"
@@ -161,10 +177,15 @@ export default function StudioQualityReader({ studio, documentId }) {
               }}
             />
 
+            {/* NO PAGE COUNT ON SCREEN. This said Page 1 of 1 over a document of
+                any length, because it was a hardcoded caption rather than a
+                count of anything. There are no pages here to count — the print
+                engine makes them — so a page token resolves to nothing and the
+                number appears only where it can be true. */}
             <div className="flex items-center gap-3 border-t border-slate-200 px-[18mm] pb-[14mm] pt-3 text-[9pt] text-slate-500">
-              <span className="flex-1">Rev {data.revision?.rev ?? 0}</span>
-              <span className="flex-1 text-center">Page 1 of 1 — pagination is applied when exported</span>
-              <span className="flex-1 text-end">{doc?.effectiveDate || "Not yet effective"}</span>
+              <span className="flex-1" dangerouslySetInnerHTML={{ __html: foot.left }} />
+              <span className="flex-1 text-center" dangerouslySetInnerHTML={{ __html: foot.center }} />
+              <span className="flex-1 text-end" dangerouslySetInnerHTML={{ __html: foot.right }} />
             </div>
           </div>
         </main>

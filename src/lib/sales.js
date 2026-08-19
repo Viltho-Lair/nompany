@@ -578,6 +578,15 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees, projects)
     po: poFor(newest, tasks, taskAssignees),
     // Waiting on Technical — what greys "Request RFQ" out into "Quotation Sent".
     rfqPending: waiting,
+    // AND WHAT REMOVES THAT BUTTON ALTOGETHER. Greying it out says "not yet";
+    // an approved quotation says "not any more", and those are different
+    // answers, so this is a separate field rather than folded into the one
+    // above. Asked of the same helper the server refuses on, so the button
+    // cannot offer what the endpoint has stopped accepting.
+    //
+    // NOT `approval.approved`: that is null whenever no approval TASK exists,
+    // which is exactly the case of a quotation a studio marked Approved by hand.
+    quotationApproved: quotationApproved(newest, tasks),
     // There is a finished document to send for approval. A quotation Technical
     // turned down is finished too, and is not one of them.
     hasFinishedQuotation: isFinishedQuotation(newest) && newest.status !== "Rejected",
@@ -614,10 +623,13 @@ export async function listTickets({ studio, ticketsSection, clientsSection, rfqS
 
 // ONE quotation, in full, for the Sales-side viewer. Sales may read the document
 // raised against its own ticket — that is the ticket's own story, and the same
-// reason the RFQ column is not gated on a Technical grant — but it arrives as a
-// COPY to read: nothing here can be edited, submitted or exported, and the only
+// reason the RFQ column is not gated on a Technical grant — but it arrives
+// READ-ONLY: nothing here can be edited, submitted or exported, and the only
 // endpoints that write a quotation are Technical's.
-export async function ticketQuotation({ studio, ticketsSection, quotationsSection }, quotationId) {
+//
+// "Read-only", not "a copy". Nothing is copied out to Sales — the document is
+// read where it lives, and what the document does not own is carried below.
+export async function ticketQuotation({ studio, ticketsSection, clientsSection, quotationsSection, tasksSection }, quotationId) {
   if (!quotationsSection) return { error: "notfound" };
   const id = str(quotationId, 60);
   if (!id) return { error: "notfound" };
@@ -632,6 +644,24 @@ export async function ticketQuotation({ studio, ticketsSection, quotationsSectio
   const ticket = tickets.find((t) => t.id === quotation.ticketId);
   if (!ticket) return { error: "notfound" };
 
+  // THE SAME CARRYING listQuotations DOES, because a quotation read from Sales
+  // and the same quotation read from Technical must not disagree about who it is
+  // for or whether it was approved.
+  //
+  // Reading the stored row alone was not "showing it exactly as stored" — it was
+  // showing three fields WRONG. `clientName` is never written to a quotation
+  // row at all, so the viewer's Client was permanently blank; `completedAt` is
+  // stamped only when somebody hand-sets the status, so a quotation approved on
+  // the board showed no approval date; and `status` read Completed on the very
+  // document Technical was already calling Approved.
+  //
+  // The lines, the prices and the totals stay exactly as stored — those ARE the
+  // document. What is carried is what the document never owned.
+  const [clients, tasks] = await Promise.all([
+    clientsSection ? readCol(studio.id, clientsSection.id, CLIENTS) : [],
+    tasksSection ? readCol(studio.id, tasksSection.id, TASKS) : [],
+  ]);
+
   // IS THIS THE ONE THAT COUNTS. Only the latest quotation carries a Print
   // button: earlier revisions exist so the reference for what was previously
   // sent survives, and printing one of those would be issuing a document about
@@ -641,8 +671,31 @@ export async function ticketQuotation({ studio, ticketsSection, quotationsSectio
   // cannot disagree about which quotation a ticket is worth.
   const latest = latestQuotationFor(ticket.id, quotations);
 
+  // Asked of the approval, never of a copy on the document — the same helper
+  // Technical's list and openProject ask, so withdrawing an approval takes this
+  // back with it.
+  const approved = quotationApproved(quotation, tasks);
+  // WHEN it was decided. The hand-set stamp first, because a studio that marks a
+  // quotation Approved by hand means that date; the task that carried the
+  // decision otherwise.
+  const decidedAt = quotation.completedAt
+    || tasks.find((t) => t.type === APPROVAL_TYPE && t.quotationId === quotation.id && t.status === "Done")?.completedAt
+    || "";
+
   return {
-    quotation,
+    quotation: {
+      ...quotation,
+      // The client is the CLIENT RECORD'S, reached through the ticket — two hops
+      // down the same kind of key, exactly as ticketFacts does it in
+      // lib/technical.js. Rename a client and this renames with it.
+      clientName: clients.find((c) => c.id === ticket.clientId)?.name || "",
+      // What the document READS AS; `storedStatus` is what is on file, for
+      // anything that still needs to tell the two apart.
+      storedStatus: quotation.status,
+      status: approved ? "Approved" : quotation.status,
+      approved,
+      completedAt: decidedAt,
+    },
     ticket: { id: ticket.id, ref: ticket.ref || "", title: ticket.title || "" },
     isLatest: latest?.id === quotation.id,
   };

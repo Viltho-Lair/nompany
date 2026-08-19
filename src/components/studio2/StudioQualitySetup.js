@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import { Dialog, btn, btnGhost, input, label, panel, h2, sub } from "@/components/studio2/ui";
@@ -45,6 +45,8 @@ export default function StudioQualitySetup({ studio }) {
   const [confirming, setConfirming] = useState(null);
   const [codes, setCodes] = useState({});
   const [codesDirty, setCodesDirty] = useState(false);
+  const [head, setHead] = useState(null);
+  const [headDirty, setHeadDirty] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${studio.slug}/quality`, { cache: "no-store" });
@@ -57,6 +59,9 @@ export default function StudioQualitySetup({ studio }) {
     // Only seeded from the server while there is nothing half-typed on screen,
     // so a live update from somebody else cannot overwrite what is being edited.
     setCodes((current) => (Object.keys(current).length ? current : payload.departmentCodes || {}));
+    // Seeded once, and never over the top of something half-edited — a live
+    // update from somebody else must not overwrite what is being typed.
+    setHead((current) => current || payload.letterhead || null);
     setError("");
   }, [studio.slug]);
 
@@ -188,6 +193,129 @@ export default function StudioQualitySetup({ studio }) {
                     </li>
                   ))}
                 </ul>
+              )}
+            </div>
+
+            {/* THE LETTERHEAD. What sits at the top and bottom of every page, and
+                the one place it is decided: the preview and the PDF both read
+                this, so they cannot show different things. */}
+            <div className={panel}>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="min-w-0">
+                  <h2 className={h2}>Header and footer</h2>
+                  <p className={sub}>
+                    Three slots along the top and three along the bottom. Each is either a field that fills itself in, or
+                    words you type.
+                  </p>
+                </div>
+                {!readOnly && headDirty && (
+                  <button type="button" className={`${btn} ms-auto`} disabled={busy}
+                    onClick={async () => {
+                      const r = await send("PUT", { letterhead: head });
+                      if (r) { setHeadDirty(false); setNotice("Header and footer saved."); }
+                    }}>
+                    {busy ? "Saving…" : "Save header and footer"}
+                  </button>
+                )}
+              </div>
+
+              {head && (
+                <div className="mt-5 space-y-5">
+                  {["header", "footer"].map((bar) => (
+                    <div key={bar}>
+                      <div className="mb-2 flex flex-wrap items-center gap-4">
+                        <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{bar}</p>
+                        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                          <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600"
+                            checked={head[bar]?.rule !== false} disabled={readOnly}
+                            onChange={(e) => { setHead((h) => ({ ...h, [bar]: { ...h[bar], rule: e.target.checked } })); setHeadDirty(true); }} />
+                          Rule
+                        </label>
+                        {bar === "header" && (
+                          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                            <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600"
+                              checked={Boolean(head.header?.showLogo)} disabled={readOnly}
+                              onChange={(e) => { setHead((h) => ({ ...h, header: { ...h.header, showLogo: e.target.checked } })); setHeadDirty(true); }} />
+                            Logo
+                          </label>
+                        )}
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {["left", "center", "right"].map((slot) => {
+                          const cur = head[bar]?.[slot] || null;
+                          const isText = cur?.type === "text";
+                          return (
+                            <div key={slot} className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-[#191921]">
+                              <label className={label} htmlFor={`${bar}-${slot}`}>{slot}</label>
+                              <select
+                                id={`${bar}-${slot}`}
+                                className={input}
+                                disabled={readOnly}
+                                value={isText ? "__text" : (cur?.value || "")}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  const next = v === "__text" ? { type: "text", value: "" }
+                                    : v ? { type: "field", value: v } : null;
+                                  setHead((h) => ({ ...h, [bar]: { ...h[bar], [slot]: next } }));
+                                  setHeadDirty(true);
+                                }}
+                              >
+                                <option value="">Nothing</option>
+                                <option value="__text">Words I type…</option>
+                                {/* The print engine fills these in as it lays out
+                                    the pages, which is why they can only ever be
+                                    right on paper. */}
+                                <optgroup label="Page">
+                                  {(data.pageTokens || []).map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                                </optgroup>
+                                {[...new Set((data.slotFields || []).map((f) => f.group))].map((g) => (
+                                  <optgroup key={g} label={g}>
+                                    {(data.slotFields || []).filter((f) => f.group === g)
+                                      .map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                                  </optgroup>
+                                ))}
+                              </select>
+                              {isText && (
+                                <input
+                                  className={`${input} mt-2`}
+                                  value={cur.value || ""}
+                                  disabled={readOnly}
+                                  placeholder="e.g. Confidential"
+                                  onChange={(e) => {
+                                    setHead((h) => ({ ...h, [bar]: { ...h[bar], [slot]: { type: "text", value: e.target.value } } }));
+                                    setHeadDirty(true);
+                                  }}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div>
+                    <p className="mb-2 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">Margins (mm)</p>
+                    <div className="grid gap-3 sm:grid-cols-4">
+                      {["top", "right", "bottom", "left"].map((side) => (
+                        <div key={side}>
+                          <label className={label} htmlFor={`m-${side}`}>{side}</label>
+                          <input id={`m-${side}`} type="number" min="5" max="60" className={input}
+                            value={head.margins?.[side] ?? ""} disabled={readOnly}
+                            onChange={(e) => {
+                              setHead((h) => ({ ...h, margins: { ...h.margins, [side]: Number(e.target.value) } }));
+                              setHeadDirty(true);
+                            }} />
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+                      The top and bottom margins have to leave room for the bars above — content set too close is
+                      overprinted by them.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 

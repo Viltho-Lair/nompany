@@ -1,6 +1,5 @@
-import { qualityGuard, openDraft, listTypes, mergeValuesFor, watermarkFor, resolveBlocks } from "@/lib/quality";
+import { qualityGuard, openDraft, listTypes, mergeValuesFor, watermarkFor, resolveBlocks, letterheadFor } from "@/lib/quality";
 import { renderPdf, inlineImages } from "@/lib/qualityPdf";
-import { DEFAULT_TEMPLATE } from "@/lib/qualityRender";
 import { directionOf } from "@/lib/qualityDocuments";
 import { getMedia } from "@/lib/media";
 
@@ -60,7 +59,7 @@ export async function GET(request, ctx) {
   const result = await renderPdf({
     sections: opened.sections,
     values,
-    template: DEFAULT_TEMPLATE,
+    template: letterheadFor(g),
     watermark: watermarkFor(opened.document),
     title: `${opened.document.code} ${opened.document.title}`,
     dir: directionOf(opened.document.language),

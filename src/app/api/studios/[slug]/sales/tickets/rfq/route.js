@@ -23,7 +23,9 @@ export async function POST(request, ctx) {
   const body = await request.json().catch(() => ({}));
   const result = await requestTicketRfq(sales, body);
   if (result.error) {
-    const status = result.error === "already" ? 409
+    // "approved" is a conflict for the same reason "already" is: the ticket is
+    // in a state where a second RFQ is not a thing that can happen.
+    const status = result.error === "already" || result.error === "approved" ? 409
       : result.error === "forbidden" || result.error === "sales-required" ? 403
       : result.error === "ticket" || result.error === "no-technical" ? 404 : 400;
     return Response.json({ error: result.error }, { status });

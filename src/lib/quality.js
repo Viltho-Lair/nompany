@@ -37,10 +37,11 @@ import {
 import { cleanSections, startingSections, wordCount } from "@/lib/qualityContent";
 import {
   SUBJECTS, subjectById, STATIC_FIELDS, availableFields, groupFields,
-  legalFieldsFrom, legalKeyFor, availableBlocks, BLOCK_SOURCES, blockByKey, reachOf,
+  legalFieldsFrom, legalKeyFor, availableBlocks, BLOCK_SOURCES, blockByKey, reachOf, isFieldKey,
 } from "@/lib/qualityFields";
 import { NODES, traverse } from "@/lib/relations";
 import { CALL_POINTS, callPointById, callPointTaken, callPointOptions } from "@/lib/qualityCallPoints";
+import { DEFAULT_TEMPLATE, PAGE_TOKENS } from "@/lib/qualityRender";
 
 const DOCUMENTS = "qualityDocuments";
 const TYPES = "qualityTypes";
@@ -1205,6 +1206,76 @@ export async function listShareLinks(ctx, documentId) {
     .map((r) => ({ ...r, expired: !r.revokedAt && r.expiresAt < now }))
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }
+
+// ---- the letterhead ---------------------------------------------------------
+//
+// What sits at the top and bottom of every page. Held in this section's own
+// settings beside the department codes, because it is the studio's decision
+// about its own paper — and merged over the shipped default so a studio that
+// has never opened the editor still gets a sensible letterhead rather than a
+// blank strip.
+
+const BAR_SLOTS = ["left", "center", "right"];
+
+const cleanSlot = (raw) => {
+  if (!raw) return null;
+  const spec = typeof raw === "string" ? { type: "field", value: raw } : raw;
+  if (spec.type === "text") return { type: "text", value: str(spec.value, 120) };
+  const value = str(spec.value, 60);
+  // A field nobody declared would render as a permanent blank, so it is refused
+  // at the point of saving rather than left to be discovered on paper.
+  if (!value || !(isFieldKey(value) || PAGE_TOKENS.some((t) => t.key === value))) return null;
+  return { type: "field", value };
+};
+
+const cleanBar = (raw, fallback) => {
+  const out = { showLogo: Boolean(raw?.showLogo), rule: raw?.rule !== false };
+  for (const slot of BAR_SLOTS) out[slot] = cleanSlot(raw?.[slot]) ?? cleanSlot(fallback?.[slot]);
+  return out;
+};
+
+export function letterheadFor(ctx) {
+  const stored = ctx.section?.settings?.letterhead || null;
+  const margins = { ...DEFAULT_TEMPLATE.margins, ...(stored?.margins || {}) };
+  return {
+    name: DEFAULT_TEMPLATE.name,
+    pageSize: stored?.pageSize === "Letter" ? "Letter" : "A4",
+    margins,
+    header: cleanBar(stored?.header, DEFAULT_TEMPLATE.header),
+    footer: cleanBar(stored?.footer, DEFAULT_TEMPLATE.footer),
+  };
+}
+
+export async function saveLetterhead(ctx, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.setup");
+  if (denied) return denied;
+
+  const current = letterheadFor(ctx);
+  const next = {
+    pageSize: body?.pageSize === "Letter" ? "Letter" : "A4",
+    margins: {
+      top: clampMm(body?.margins?.top, current.margins.top),
+      right: clampMm(body?.margins?.right, current.margins.right),
+      bottom: clampMm(body?.margins?.bottom, current.margins.bottom),
+      left: clampMm(body?.margins?.left, current.margins.left),
+    },
+    header: cleanBar(body?.header, current.header),
+    footer: cleanBar(body?.footer, current.footer),
+  };
+
+  const settings = { ...(ctx.section.settings || {}), letterhead: next };
+  const updated = await updateSection(ctx.studio.id, ctx.section.id, { settings });
+  if (!updated) return { error: "notfound" };
+  await audit(ctx, { documentId: "", action: "letterhead.saved", detail: "Header and footer updated" });
+  return { letterhead: next };
+}
+
+// A margin small enough to be unprintable is a margin that loses text to the
+// edge of the sheet, so the range is clamped rather than trusted.
+const clampMm = (v, fallback) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 5 && n <= 60 ? Math.round(n) : fallback;
+};
 
 // ---- where a template is asked for ------------------------------------------
 

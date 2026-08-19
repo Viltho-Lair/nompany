@@ -1,7 +1,7 @@
 import {
   qualityGuard, openDraft, saveDraft, acquireLock, releaseLock, lockState,
   listTypes, departmentCodes, LOCK_TTL_SEC,
-  mergeValuesFor, fieldsFor, bindSubject, SUBJECTS, resolveBlocks, blocksFor, callPointOptions,
+  mergeValuesFor, fieldsFor, bindSubject, SUBJECTS, resolveBlocks, blocksFor, callPointOptions, letterheadFor,
 } from "@/lib/quality";
 import { can } from "@/lib/access";
 import { callPointById } from "@/lib/qualityCallPoints";
@@ -71,6 +71,9 @@ export async function GET(request, ctx) {
     // Where this template is asked for. Set in setup, shown here so an
     // author knows what their fields will resolve against.
     callPoint: callPointById(opened.document.callPointId),
+    // The studio's own header and footer, so the preview shows what the
+    // paper will rather than a hand-written approximation of it.
+    letterhead: letterheadFor(g),
     // What this document is about, and what it COULD be about.
     subject: { type: opened.document.subjectType || "", id: opened.document.subjectId || "" },
     subjects: SUBJECTS.map((x) => ({ id: x.id, label: x.label, department: x.department })),
