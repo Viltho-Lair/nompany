@@ -1486,16 +1486,46 @@ export async function generateDocument(ctx, body) {
   const record = records.find((r) => r.id === subjectId);
   if (!record) return { error: "no-record" };
 
-  // ONE DOCUMENT PER TEMPLATE AND RECORD. Pressing Print is a request to SEE the
-  // document, not to mint another one — a second press produced /0002 and a
-  // third /0003, three numbered records of the same thing, each needing its own
-  // review. The button opens what is already there.
+  // ONE DOCUMENT PER TEMPLATE AND RECORD, AND IT IS BROUGHT UP TO DATE.
   //
-  // Regenerating is the deliberate act that refreshes it, and it keeps the
-  // number: see regenerate.
+  // A second press must not mint /0002 — that was three numbered records of one
+  // thing, each needing its own review. But returning the first one untouched
+  // was the opposite mistake: the document froze on the day it was first asked
+  // for, so editing the template changed nothing anybody could see. Print is a
+  // request to see the document AS IT STANDS.
+  //
+  // So the draft is re-made from the template's current issued revision and the
+  // record's current data, keeping its number and its place in the trail.
+  //
+  // AN ISSUED ONE IS LEFT ALONE. Once it has been signed and dated it is
+  // evidence, and evidence that quietly rewrites itself when somebody edits a
+  // template is not evidence. That is the whole reason a snapshot exists — it
+  // just should not begin at the first press.
   const existing = (await readCol(ctx.studio.id, host.id, GENERATED))
     .find((r) => r.templateId === template.id && r.subjectId === subjectId);
-  if (existing) return { instance: existing, sectionId: host.id, reused: true };
+
+  if (existing) {
+    if (!["draft", "rejected"].includes(existing.state)) {
+      return { instance: existing, sectionId: host.id, reused: true, frozen: true };
+    }
+    const fresh = await snapshotFor(ctx, template, source, subject, record, body?.inputs ?? existing.inputs);
+    const updated = await updateRow(ctx.studio.id, host.id, GENERATED, existing.id, {
+      ...fresh,
+      templateRevisionId: source.id,
+      templateRev: source.rev,
+      state: "draft",
+      // A signature belongs to the words it was given against, so a refreshed
+      // draft carries none.
+      review: null, approval: null, rejection: null,
+      generatedAt: new Date().toISOString(),
+      generatedByCollaboratorId: ctx.collaborator.id,
+    });
+    await audit(ctx, {
+      documentId: template.id, revisionId: source.id, action: "generated.refreshed",
+      detail: `${existing.code} from rev ${source.rev}`,
+    });
+    return { instance: updated, sectionId: host.id, reused: true, refreshed: true };
+  }
 
   const snapshot = await snapshotFor(ctx, template, source, subject, record, body?.inputs);
   const seq = await bumpCounter(

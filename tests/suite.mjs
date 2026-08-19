@@ -1857,10 +1857,10 @@ console.log("\n== a template is a blank, and what comes off it is evidence");
     ok("...and both signatures are on it",
       Boolean(issued.review?.byAlias && issued.approval?.byAlias));
 
-    // PRESSING PRINT AGAIN OPENS THE SAME DOCUMENT. It used to mint another —
-    // /0002 on the second press, /0003 on the third — three numbered records of
-    // one thing, each needing its own review. Print is a request to SEE the
-    // document, and regenerating is the deliberate act that refreshes it.
+    // PRESSING PRINT AGAIN OPENS THE SAME DOCUMENT, BROUGHT UP TO DATE. It once
+    // minted /0002 and /0003; then it returned the first one untouched, which
+    // froze the document on the day it was first asked for so that editing the
+    // template changed nothing anybody could see.
     const again = await generateDocument(q, { templateId, subjectId: quote.id, inputs: {} });
     ok("pressing Print again opens the same document",
       again.instance.id === inst.id && again.reused === true, `${again.instance.code} reused=${again.reused}`);
@@ -1872,10 +1872,13 @@ console.log("\n== a template is a blank, and what comes off it is evidence");
     // Rejection regenerates rather than edits, and the signatures go with the
     // words they were given against. Exercised on the one document there is.
     const second = { instance: inst };
-    // It was issued above, so a fresh one is needed to exercise the sent-back
-    // path — the same document cannot be both effective and back in draft.
+    // AN ISSUED DOCUMENT IS LEFT ALONE. Once signed and dated it is evidence,
+    // and evidence that rewrites itself when somebody edits a template is not
+    // evidence — the snapshot just should not begin at the first press.
     const third = await generateDocument(q, { templateId, subjectId: quote.id, inputs: {} });
-    ok("...even after it has been issued", third.instance.id === inst.id && third.reused === true);
+    ok("...and an issued one is opened untouched",
+      third.instance.id === inst.id && third.frozen === true && !third.refreshed,
+      JSON.stringify({ frozen: third.frozen, refreshed: third.refreshed }));
 
     const redone = await regenerate(q, second.instance.id, { inputs: { "accepted-by": "Odai" } });
     // Regenerating an ISSUED document is refused: it is evidence, and evidence
@@ -2356,6 +2359,76 @@ console.log("\n== the header and footer are the studio's, and say so once");
   const head = barSlots(back.header, ctx, { forPrint: false });
   ok("a field resolves the same either way", head.left === "Acme", head.left);
   ok("...and typed words come through escaped", head.center === "Confidential", head.center);
+
+  __signOut();
+}
+
+// ============================================================================
+console.log("\n== a draft document follows the template it came from");
+// THE FAULT THIS STANDS OVER. Print returned the first document it had ever
+// made, untouched — so a template could be edited, re-reviewed and re-issued,
+// and the button went on showing what it said the first time anybody asked.
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  const m = await qualityContext(member.user, slug);
+  const types = await listTypes(q);
+
+  const tpl = await createDocument(q, { title: "Adapting cover", typeId: types[0].id, departmentId: "technical" });
+  const templateId = tpl.document.id;
+  await updateDocument(q, templateId, { isTemplate: true });
+  await bindSubject(q, templateId, { subjectType: "quotation", subjectId: "" });
+
+  // The long way round every time, because an unapproved blank may not issue.
+  const issue = async (text) => {
+    await openDraft(q, templateId);
+    await saveDraft(q, templateId, { sections: [{ id: "s1", title: "Offer", body: { type: "doc", content: [
+      { type: "paragraph", content: [{ type: "text", text }] },
+    ] } }] });
+    await moveRevision(q, templateId, "submit");
+    await moveRevision(m, templateId, "review");
+    await moveRevision(q, templateId, "approve");
+    await moveRevision(q, templateId, "publish", {});
+  };
+
+  await issue("First wording.");
+
+  // listQuotations returns the rows themselves, not a wrapper round them.
+  const quote2 = (await listQuotations(await technicalContext(owner, slug)))[0];
+  if (!quote2) {
+    ok("fixture: a quotation to print from", false, "none found");
+  } else {
+    const first = await generateDocument(q, { templateId, subjectId: quote2.id });
+    ok("the document carries the template's wording",
+      textOf(first.instance.sections).includes("First wording"), textOf(first.instance.sections));
+    ok("...from revision 1", first.instance.templateRev === 1, String(first.instance.templateRev));
+
+    // The template is revised and issued again.
+    await startRevision(q, templateId);
+    await issue("Second wording, after the template was edited.");
+
+    const after = await generateDocument(q, { templateId, subjectId: quote2.id });
+    ok("pressing Print again picks up the edited template",
+      textOf(after.instance.sections).includes("Second wording"), textOf(after.instance.sections));
+    ok("...naming the revision it now came from", after.instance.templateRev === 2, String(after.instance.templateRev));
+    ok("...while keeping its own number", after.instance.code === first.instance.code, after.instance.code);
+    ok("...and reporting a refresh rather than a new document",
+      after.refreshed === true && after.reused === true,
+      JSON.stringify({ refreshed: after.refreshed, reused: after.reused }));
+
+    // AN UNPUBLISHED TEMPLATE EDIT CHANGES NOTHING, and that is the controlled
+    // -document rule rather than a fault: a blank nobody has approved may not
+    // issue anything, so Print keeps showing the last revision that was.
+    await startRevision(q, templateId);
+    await saveDraft(q, templateId, { sections: [{ id: "s1", title: "Offer", body: { type: "doc", content: [
+      { type: "paragraph", content: [{ type: "text", text: "Third wording, not yet approved." }] },
+    ] } }] });
+    const unpublished = await generateDocument(q, { templateId, subjectId: quote2.id });
+    ok("an unapproved template edit does not reach the document",
+      !textOf(unpublished.instance.sections).includes("Third wording"),
+      textOf(unpublished.instance.sections));
+    ok("...it still shows the last revision that was issued", unpublished.instance.templateRev === 2);
+  }
 
   __signOut();
 }
