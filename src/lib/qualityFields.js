@@ -93,6 +93,13 @@ const ALWAYS = [
   { key: "document.owner", label: "Owner", group: "Document", subject: null, kind: "scalar" },
   { key: "document.effectiveDate", label: "Effective date", group: "Document", subject: null, kind: "scalar" },
   { key: "document.nextReviewDate", label: "Next review", group: "Document", subject: null, kind: "scalar" },
+
+  // ---- miscellaneous ----
+  // Things that belong to no record and no department — they are true of the
+  // moment the document is rendered rather than of anything it is about. Which
+  // is also why TODAY is a field and not typed: a date typed into a template is
+  // the day the template was written, on every document it ever produces.
+  { key: "misc.today", label: "Today's date", group: "Miscellaneous", subject: null, kind: "scalar" },
 ];
 
 export const STATIC_FIELDS = [...ALWAYS, ...SALES_TICKET];
@@ -198,6 +205,9 @@ STATIC_FIELDS.push(
     ["quotation.title", "Quotation title", "title"],
     ["quotation.description", "Description", "description"],
     ["quotation.status", "Status", "status"],
+    // Stamped when Technical submits it — empty until then, which prints as the
+    // field's own name rather than as a date nobody set.
+    ["quotation.completedAt", "Date completed", "completedAt"],
   ].map(([key, label, path]) => ({
     key, label, path, kind: "scalar",
     group: "Technical", department: "technical", subject: "quotation",

@@ -676,6 +676,8 @@ export async function mergeValuesFor(ctx, document, { types = null, rev = null }
     "document.owner": alias(document.ownerCollaboratorId),
     "document.effectiveDate": document.effectiveDate || "",
     "document.nextReviewDate": document.nextReviewDate || "",
+    // The day this is being rendered, not the day the template was written.
+    "misc.today": new Date().toISOString().slice(0, 10),
   };
 
   // The studio's own legal rows — VAT number, CR number, whatever it puts on its

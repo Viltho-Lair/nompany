@@ -10,7 +10,7 @@ import { Icon } from "@/components/studio2/icons";
 import { MergeField } from "@/components/studio2/qualityMergeField";
 import { PageBreak } from "@/components/studio2/qualityPageBreak";
 import { RecordBlock, InputField } from "@/components/studio2/qualitySlots";
-import { btn, btnGhost, input, microLabel, prefKey, loadPref, savePref } from "@/components/studio2/ui";
+import { btn, btnGhost, input, microLabel } from "@/components/studio2/ui";
 import { blankSection, MAX_SECTIONS, emptyDoc } from "@/lib/qualityContent";
 import { SCREEN_CSS } from "@/lib/qualityCss";
 import QualityWorkflow from "@/components/studio2/QualityWorkflow";
@@ -148,19 +148,8 @@ function SectionEditor({ section, values, labels, sources, editable, onChange, o
 // The picker's contents are fetched only when it is opened, because a list of
 // every sales ticket is Sales data and should not ride along on every document.
 function SubjectBinding({ slug, documentId, data, editable, onChanged }) {
-  const [options, setOptions] = useState(null);
   const [busy, setBusy] = useState(false);
   const type = data?.subject?.type || "";
-
-  useEffect(() => {
-    if (!type) { setOptions(null); return; }
-    let alive = true;
-    fetch(`/api/studios/${slug}/quality/subjects?subject=${encodeURIComponent(type)}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { options: [] }))
-      .then((p) => { if (alive) setOptions(p.options || []); })
-      .catch(() => { if (alive) setOptions([]); });
-    return () => { alive = false; };
-  }, [slug, type]);
 
   // The TYPE is the document's, so it is saved. The RECORD is this browser's,
   // so it is kept where the column choices are — a preview is a way of looking,
@@ -177,12 +166,6 @@ function SubjectBinding({ slug, documentId, data, editable, onChanged }) {
     } finally { setBusy(false); }
   };
 
-  const preview = (recordId) => {
-    savePref(prefKey("quality", slug, `preview:${documentId}`), recordId);
-    onChanged?.();
-  };
-
-  const chosen = (options || []).find((o) => o.id === data?.subject?.id);
   const isTemplate = Boolean(data?.isTemplate);
 
   const setTemplate = async (on) => {
@@ -250,24 +233,12 @@ function SubjectBinding({ slug, documentId, data, editable, onChanged }) {
           </select>
         )}
 
-        {type && (
-          <select
-            className={input}
-            value={data?.subject?.id || ""}
-            disabled={!editable || busy || options === null}
-            onChange={(e) => preview(e.target.value)}
-          >
-            <option value="">{options === null ? "Loading…" : "Preview with…"}</option>
-            {(options || []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-          </select>
-        )}
-
         <p className="text-xs text-slate-400 dark:text-slate-500">
           {isTemplate
-            ? "Pick a record above to preview this template filled in. The real one arrives when somebody presses the button."
-            : type && chosen
-              ? "That department's fields are now available under Insert field."
-              : "Bind a record to reach its department's fields. Company and Document fields work either way."}
+            ? "Fields show their own names here. The record arrives when somebody presses the button, and the document fills in then."
+            : type
+              ? "That department's fields are now available under Insert."
+              : "Choose what this document is about to reach a department's fields. Company, Document and Miscellaneous work either way."}
         </p>
       </div>
     </div>
@@ -289,13 +260,7 @@ export default function StudioQualityBuilder({ studio, documentId }) {
   latest.current = sections;
 
   const load = useCallback(async () => {
-    // Remembered in this browser, never on the document.
-    const seen = loadPref(prefKey("quality", studio.slug, `preview:${documentId}`), "");
-    const res = await fetch(
-      `/api/studios/${studio.slug}/quality/content?id=${encodeURIComponent(documentId)}`
-      + (seen ? `&preview=${encodeURIComponent(seen)}` : ""),
-      { cache: "no-store" },
-    );
+    const res = await fetch(`/api/studios/${studio.slug}/quality/content?id=${encodeURIComponent(documentId)}`, { cache: "no-store" });
     if (!res.ok) {
       setError(res.status === 404 ? "That document doesn't exist." : "You don't have access to this document.");
       return;

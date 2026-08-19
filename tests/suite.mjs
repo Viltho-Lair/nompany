@@ -2095,8 +2095,14 @@ console.log("\n== a document reaches as far as the graph goes, and no further");
     fromQuote.includes("sales.ticket.client"), fromQuote.filter((k) => k.startsWith("sales.")).join(","));
   ok("...and the project's stage", fromQuote.includes("project.stage"));
   ok("...alongside its own", fromQuote.includes("quotation.number"));
+  // Company, Document and Miscellaneous need no record: they describe the
+  // studio, the document, and the moment it is rendered. Everything else is a
+  // department's and needs something to resolve from.
   ok("an unbound document is offered no department fields",
-    offered(null, all).every((k) => k.startsWith("company.") || k.startsWith("document.")));
+    offered(null, all).every((k) => /^(company|document|misc)\./.test(k)),
+    offered(null, all).filter((k) => !/^(company|document|misc)\./.test(k)).join(","));
+  ok("...but does get today's date, which belongs to no record",
+    offered(null, all).includes("misc.today"));
 
   // EVERY HOP IS GATED, and this gate is not optional the way a module's own
   // summary is. A document leaves the building; a field nobody may read must

@@ -34,11 +34,6 @@ export async function GET(request, ctx) {
   const opened = await openDraft(g, id);
   if (opened.error) return Response.json({ error: opened.error }, { status: status(opened.error) });
 
-  // THE PREVIEW RECORD, per request and stored nowhere. It only decides what
-  // this screen shows; the document is unchanged by looking at it.
-  const preview = new URL(request.url).searchParams.get("preview") || "";
-  const viewed = preview ? { ...opened.document, subjectId: preview } : opened.document;
-
   const [types, people, lock] = await Promise.all([
     listTypes(g), listCollaborators(g.studio.id), lockState(g, id),
   ]);
@@ -49,9 +44,9 @@ export async function GET(request, ctx) {
   // RESOLVED BY THE SERVICE, not assembled here. The builder, the reader and the
   // PDF route all call the same function, so a field cannot mean one thing on
   // screen and another on paper.
-  const values = await mergeValuesFor(g, viewed, { types, rev: opened.draft?.rev });
+  const values = await mergeValuesFor(g, opened.document, { types, rev: opened.draft?.rev });
   const { fields, groups } = fieldsFor(g, opened.document);
-  const blocks = await resolveBlocks(g, viewed);
+  const blocks = await resolveBlocks(g, opened.document);
 
   return Response.json({
     document: {
@@ -80,7 +75,7 @@ export async function GET(request, ctx) {
     // paper will rather than a hand-written approximation of it.
     letterhead: letterheadFor(g),
     // What this document is about, and what it COULD be about.
-    subject: { type: opened.document.subjectType || "", id: preview },
+    subject: { type: opened.document.subjectType || "" },
     subjects: SUBJECTS.map((x) => ({ id: x.id, label: x.label, department: x.department })),
     codeParts: { department: departmentCodes(g)[opened.document.departmentId] || "", prefix: type?.prefix || "" },
     me: { collaboratorId: g.collaborator.id },
