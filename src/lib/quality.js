@@ -37,8 +37,9 @@ import {
 import { cleanSections, startingSections, wordCount } from "@/lib/qualityContent";
 import {
   SUBJECTS, subjectById, STATIC_FIELDS, availableFields, groupFields,
-  legalFieldsFrom, legalKeyFor, availableBlocks, BLOCK_SOURCES, blockByKey,
+  legalFieldsFrom, legalKeyFor, availableBlocks, BLOCK_SOURCES, blockByKey, reachOf,
 } from "@/lib/qualityFields";
+import { NODES, traverse } from "@/lib/relations";
 
 const DOCUMENTS = "qualityDocuments";
 const TYPES = "qualityTypes";
@@ -584,6 +585,37 @@ export async function saveDraft(ctx, documentId, body) {
 const dotted = (obj, path) =>
   String(path || "").split(".").reduce((o, k) => (o == null ? o : o[k]), obj);
 
+// Reads any joined collection, resolving its section from the registry.
+const readerFor = (ctx) => async (node) => {
+  const n = NODES[node];
+  const section = ctx.sections.find((x) => x.key === n.sectionKey);
+  return section ? readCol(ctx.studio.id, section.id, n.collection) : [];
+};
+
+// EVERY RECORD THIS DOCUMENT CAN REACH, resolved once each.
+//
+// Grouped by record type rather than walked per field: a quotation cover letter
+// naming six things about its ticket should traverse to that ticket once, not
+// six times. Each hop is permission-checked against whoever is asking, so a
+// record they may not read resolves to nothing and its fields print as gaps
+// naming themselves.
+async function reachedRecords(ctx, document, wanted) {
+  const { subject, record } = await subjectRecord(ctx, document);
+  const out = {};
+  if (!subject || !record) return out;
+  out[subject.id] = record;
+
+  const read = readerFor(ctx);
+  const holds = (permission) => can(ctx.access, permission);
+  for (const target of wanted) {
+    if (target === subject.id || out[target]) continue;
+    if (!reachOf(subject.id, target, holds)) continue;
+    const hop = await traverse(subject.id, record, target, { read, holds });
+    if (hop.record) out[target] = hop.record;
+  }
+  return out;
+}
+
 // THE RECORD A DOCUMENT IS ABOUT, if it is about one.
 //
 // Permission-checked against whoever is asking, not against whoever bound it. A
@@ -641,15 +673,18 @@ export async function mergeValuesFor(ctx, document, { types = null, rev = null }
     if (row?.key) values[legalKeyFor(row.key)] = String(row.value ?? "");
   }
 
-  // And the department's own fields, if this document is about one of its
-  // records and the person asking may see it.
-  const { subject, record } = await subjectRecord(ctx, document);
-  if (subject && record) {
-    for (const f of STATIC_FIELDS) {
-      if (f.subject !== subject.id) continue;
-      const raw = dotted(record, f.path);
-      values[f.key] = f.via === "collaborator" ? alias(raw) : String(raw ?? "");
-    }
+  // And every department field this document can REACH — its own record's, and
+  // anything a declared path leads to. A cover letter held at a quotation
+  // resolves the client's name by going up to the ticket, which is a hop the
+  // registry knows about and this module no longer has to.
+  const wanted = [...new Set(STATIC_FIELDS.filter((f) => f.subject).map((f) => f.subject))];
+  const reached = await reachedRecords(ctx, document, wanted);
+  for (const f of STATIC_FIELDS) {
+    if (!f.subject) continue;
+    const record = reached[f.subject];
+    if (!record) continue;
+    const raw = dotted(record, f.path);
+    values[f.key] = f.via === "collaborator" ? alias(raw) : String(raw ?? "");
   }
 
   return values;
@@ -662,12 +697,12 @@ export async function mergeValuesFor(ctx, document, { types = null, rev = null }
 // A block they may not see resolves to nothing, and the renderer says which
 // block is missing rather than leaving an unexplained hole in the page.
 export async function resolveBlocks(ctx, document) {
-  const { subject, record } = await subjectRecord(ctx, document);
-  if (!subject || !record) return {};
+  const reached = await reachedRecords(ctx, document, [...new Set(BLOCK_SOURCES.map((b) => b.subject))]);
 
   const out = {};
   for (const source of BLOCK_SOURCES) {
-    if (source.subject !== subject.id) continue;
+    const record = reached[source.subject];
+    if (!record) continue;
     if (!can(ctx.access, source.permission)) continue;
 
     if (source.key === "quotation.lines") {

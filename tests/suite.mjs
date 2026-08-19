@@ -45,7 +45,7 @@ import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/lib/relati
 import { ALL_PERMISSIONS } from "@/lib/permissions";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/lib/data/keys";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
-import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey } from "@/lib/qualityFields";
+import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/lib/qualityFields";
 import { resolveBlocks, blocksFor, generateDocument, listGenerated, getGenerated,
   moveGenerated, regenerate } from "@/lib/quality";
 import { documentState, pendingRevision } from "@/lib/qualityDocuments";
@@ -1883,6 +1883,50 @@ console.log("\n== a sales ticket can finally say what became of it");
   ok("a ticket with no project says so plainly", bare?.project === null, JSON.stringify(bare?.project));
 
   __signOut();
+}
+
+// ============================================================================
+console.log("\n== a document reaches as far as the graph goes, and no further");
+{
+  const all = () => true;
+
+  // THE POINT OF STEP 6. A document held at a quotation could only ever print
+  // the quotation's own fields, because reach was tested by equality. The
+  // client's name lives on the ticket, one declared hop up.
+  ok("a quotation reaches its own fields with no journey", reachOf("quotation", "quotation", all)?.hops === 0);
+  ok("...its ticket, one hop up", reachOf("quotation", "salesTicket", all)?.hops === 1);
+  ok("...the client, two", reachOf("quotation", "client", all)?.hops === 2);
+  ok("...and the project it opened", reachOf("quotation", "project", all)?.hops === 1);
+  ok("a record outside the graph is unreachable", reachOf("quotation", "nonsense", all) === null);
+
+  const offered = (subjectType, holds) => availableFields({ subjectType, holds }).map((f) => f.key);
+
+  const fromQuote = offered("quotation", all);
+  ok("a quotation-bound document is offered the client's name",
+    fromQuote.includes("sales.ticket.client"), fromQuote.filter((k) => k.startsWith("sales.")).join(","));
+  ok("...and the project's stage", fromQuote.includes("project.stage"));
+  ok("...alongside its own", fromQuote.includes("quotation.number"));
+  ok("an unbound document is offered no department fields",
+    offered(null, all).every((k) => k.startsWith("company.") || k.startsWith("document.")));
+
+  // EVERY HOP IS GATED, and this gate is not optional the way a module's own
+  // summary is. A document leaves the building; a field nobody may read must
+  // not be printable into one.
+  const noProjects = (p) => p !== "projects.list.view";
+  ok("a hop the reader may not make removes what is past it",
+    !offered("quotation", noProjects).includes("project.stage"),
+    offered("quotation", noProjects).filter((k) => k.startsWith("project.")).join(","));
+  ok("...while what is nearer still resolves", offered("quotation", noProjects).includes("sales.ticket.client"));
+
+  // THE BUG STEP 6 INTRODUCED, kept closed. Reach with no journey to walk was
+  // read as nothing to check, so a document bound to a sales ticket offered
+  // Sales' own fields to somebody holding nothing in Sales.
+  const noSales = (p) => p !== "sales.tickets.view";
+  ok("a zero-hop reach is still permission-checked",
+    reachOf("salesTicket", "salesTicket", noSales) === null);
+  ok("...so its own fields are withheld too",
+    !offered("salesTicket", noSales).includes("sales.ticket.client"),
+    offered("salesTicket", noSales).filter((k) => k.startsWith("sales.")).join(","));
 }
 
 // ============================================================================

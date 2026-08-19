@@ -16,23 +16,35 @@
 // Client-safe. The picker and the validator need the same declarations the
 // resolver works from, or the editor offers something the server then drops.
 
+import { NODES, pathBetween } from "@/lib/relations";
+
 // ---- subjects ---------------------------------------------------------------
 //
 // What a document can be ABOUT. Binding one is optional — a procedure is about
 // nothing in particular — but it is what makes a department's fields resolvable,
 // and it is the mechanism templates will be built on.
-export const SUBJECTS = [
-  {
-    id: "salesTicket",
-    label: "Sales ticket",
-    department: "sales",
-    sectionKey: "sales-tickets",
-    collection: "salesTickets",
-    permission: "sales.tickets.view",
-    // How one is named in a picker: "ACME-001 — New control room".
-    naming: { primary: "ref", secondary: "title" },
-  },
-];
+// WHICH RECORDS A DOCUMENT CAN BE ABOUT.
+//
+// Derived from lib/relations.js rather than re-declared: that module already
+// says where each record lives and which right guards it, and two lists of the
+// same fact agree only until one is edited. What stays here is the choice of
+// which are worth binding a document to, and how one is NAMED in a picker.
+const NAMING = {
+  salesTicket: { primary: "ref", secondary: "title" },
+  quotation: { primary: "number", secondary: "title" },
+  project: { primary: "number", secondary: "title" },
+};
+export const BINDABLE = Object.keys(NAMING);
+
+export const SUBJECTS = BINDABLE.map((id) => ({
+  id,
+  label: NODES[id].label,
+  department: NODES[id].sectionKey.split("-")[0],
+  sectionKey: NODES[id].sectionKey,
+  collection: NODES[id].collection,
+  permission: NODES[id].permission,
+  naming: NAMING[id],
+}));
 
 export const subjectById = (id) => SUBJECTS.find((s) => s.id === id) || null;
 
@@ -134,13 +146,37 @@ export const fieldByKey = (key) => STATIC_FIELDS.find((f) => f.key === key) || n
 // details — the check at render time would stop the value appearing, but by then
 // the template is written and the author is wondering why their document is
 // full of holes. Better to never offer it.
+// CAN THIS DOCUMENT REACH THAT RECORD, and may this person make the journey.
+//
+// Reachability, not equality. A document held at a quotation could only ever
+// print the quotation's own fields, because the check was `f.subject ===
+// subjectType`. But quotation -> salesTicket -> client is a declared path, so
+// the client's name IS reachable — which is exactly what a quotation cover
+// letter needs and could not have.
+//
+// Every hop is permission-checked, and here that gate is not optional. A
+// summary a module builds of its own records answers to the right that got the
+// reader onto the screen; a DOCUMENT is a thing that leaves the building, and a
+// field nobody may read must not be printable into one.
+export function reachOf(subjectType, target, holds) {
+  if (!subjectType || !target || !NODES[target]) return null;
+  // THE DESTINATION ITSELF IS A HOP, even when there is no journey. Checking
+  // only the path let a zero-hop reach through ungated: a document bound to a
+  // sales ticket offered Sales' own fields to somebody holding nothing in
+  // Sales, because "no path to walk" was read as "nothing to check".
+  if (holds && !holds(NODES[target].permission)) return null;
+  if (subjectType === target) return { hops: 0, path: [] };
+  const path = pathBetween(subjectType, target);
+  if (!path) return null;
+  if (holds && !path.every((e) => holds(NODES[e.to].permission))) return null;
+  return { hops: path.length, path };
+}
+
 export function availableFields({ subjectType = null, legalInfo = [], holds = () => true }) {
-  const subject = subjectById(subjectType);
   return [...STATIC_FIELDS, ...legalFieldsFrom(legalInfo)].filter((f) => {
-    if (f.subject && f.subject !== subjectType) return false;
-    if (f.subject && !subject) return false;
-    if (f.subject && subject.permission && !holds(subject.permission)) return false;
-    return true;
+    if (!f.subject) return true;
+    if (!subjectType) return false;
+    return Boolean(reachOf(subjectType, f.subject, holds));
   });
 }
 
@@ -154,17 +190,7 @@ export function groupFields(fields) {
   return [...out.entries()];
 }
 
-// ---- subjects that carry tables ---------------------------------------------
-SUBJECTS.push({
-  id: "quotation",
-  label: "Quotation",
-  department: "technical",
-  sectionKey: "technical-quotations",
-  collection: "quotations",
-  permission: "technical.quotations.view",
-  naming: { primary: "number", secondary: "title" },
-});
-
+// ---- more department fields -------------------------------------------------
 STATIC_FIELDS.push(
   ...[
     ["quotation.number", "Quotation number", "number"],
@@ -177,6 +203,26 @@ STATIC_FIELDS.push(
     group: "Technical", department: "technical", subject: "quotation",
   })),
 );
+STATIC_FIELDS.push(
+  ...[
+    ["project.number", "Project number", "number"],
+    ["project.title", "Project title", "title"],
+    ["project.stage", "Project stage", "stage"],
+    ["project.client", "Client", "clientName"],
+    ["project.location", "Location", "location"],
+    ["project.startDate", "Start date", "startDate"],
+    ["project.receivedDate", "Received", "receivedDate"],
+  ].map(([key, label, path]) => ({
+    key, label, path, kind: "scalar",
+    group: "Projects", department: "projects", subject: "project",
+  })),
+);
+STATIC_FIELDS.push({
+  key: "project.manager", label: "Project manager", path: "managerCollaboratorId",
+  via: "collaborator", kind: "scalar",
+  group: "Projects", department: "projects", subject: "project",
+});
+
 for (const f of STATIC_FIELDS) STATIC_KEY_SET.add(f.key);
 
 // ---- record blocks ----------------------------------------------------------
@@ -213,7 +259,7 @@ export const isBlockSource = (key) => BLOCK_KEYS.has(String(key || ""));
 export const blockByKey = (key) => BLOCK_SOURCES.find((b) => b.key === key) || null;
 
 export function availableBlocks({ subjectType = null, holds = () => true }) {
-  return BLOCK_SOURCES.filter((b) => b.subject === subjectType && holds(b.permission));
+  return BLOCK_SOURCES.filter((b) => Boolean(reachOf(subjectType, b.subject, holds)) && holds(b.permission));
 }
 
 // ---- inputs -----------------------------------------------------------------
