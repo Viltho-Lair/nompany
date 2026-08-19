@@ -239,17 +239,41 @@ for (const f of STATIC_FIELDS) STATIC_KEY_SET.add(f.key);
 export const BLOCK_SOURCES = [
   {
     key: "quotation.lines",
-    label: "Quotation lines",
+    label: "Quotation tables",
     group: "Technical",
     department: "technical",
     subject: "quotation",
     permission: "technical.quotations.view",
+    // A QUOTATION IS DIVIDED INTO NAMED TABLES, each holding the items priced
+    // under it — "under First floor is two pieces of work, which is what tables
+    // are for", as quotations.js puts it. So this returns GROUPS, and the
+    // renderer draws one table per group under its own heading.
+    grouped: true,
     columns: [
       { key: "description", label: "Description" },
       { key: "unit", label: "Unit" },
       { key: "qty", label: "Qty", align: "end" },
       { key: "unitPrice", label: "Unit price", align: "end" },
       { key: "discount", label: "Discount", align: "end" },
+      // What the line actually comes to, which is the column a client reads
+      // first and the one that was missing.
+      { key: "amount", label: "Amount", align: "end" },
+    ],
+  },
+  {
+    key: "quotation.totals",
+    label: "Quotation totals",
+    group: "Technical",
+    department: "technical",
+    subject: "quotation",
+    permission: "technical.quotations.view",
+    // Read off the quotation rather than recomputed. It stores subtotal, vat and
+    // total already, and a second arithmetic here would be a second answer to a
+    // question the document must not get two answers to.
+    totals: true,
+    columns: [
+      { key: "label", label: "" },
+      { key: "value", label: "", align: "end" },
     ],
   },
 ];

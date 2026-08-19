@@ -54,6 +54,16 @@ export const DOCUMENT_CSS = `
 .quality-block-table tr { break-inside: avoid; }
 .quality-block-table thead { display: table-header-group; }
 .quality-block-empty { color: #94a3b8; font-style: italic; }
+/* The name of a group of priced items. Kept with the table it heads, so a
+   heading never sits alone at the foot of a page. */
+.quality-block-title { font-weight: 700; color: #0f172a; margin: 1em 0 0.35em; break-after: avoid-page; }
+.quality-block-table + .quality-block-title { margin-top: 1.4em; }
+.quality-block-table tr.is-subtotal td { font-weight: 700; background: #f8fafc; }
+.quality-block-table tr.is-total td { font-weight: 800; border-top: 2px solid #94a3b8; }
+/* SCOPED. The .quality-prose table rule above is a class AND an element, so it
+   outranks a lone class — both block-table rules had been losing to it all
+   along, unnoticed because they agreed on 100%. */
+.quality-prose .quality-block-totals { width: 52%; margin-inline-start: auto; }
 
 /* An unanswered input is a labelled rule — a blank to complete by hand, which
    is what a paper form is. An answered one prints the answer over the same

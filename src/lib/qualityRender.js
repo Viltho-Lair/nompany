@@ -129,13 +129,37 @@ function renderNode(node, ctx) {
       // Nothing to show is said out loud rather than left as a hole somebody
       // has to guess the meaning of.
       if (!data) return `<div class="${cls}"><p class="quality-block-empty">[${esc(source.label)} — nothing bound]</p></div>`;
-      if (!data.rows?.length) return `<div class="${cls}"><p class="quality-block-empty">[${esc(source.label)} — no rows]</p></div>`;
+      const cols = data.columns || source.columns;
+      const align = (c) => (c.align === "end" ? ' style="text-align:end"' : "");
+      const head = cols.some((c) => c.label)
+        ? `<thead><tr>${cols.map((c) => `<th${align(c)}>${esc(c.label)}</th>`).join("")}</tr></thead>`
+        : "";
+      const line = (row) => `<tr${row.strong ? ' class="is-total"' : ""}>${cols
+        .map((c) => `<td${align(c)} dir="auto">${esc(row[c.key] ?? "")}</td>`)
+        .join("")}</tr>`;
 
-      const head = source.columns.map((c) => `<th${c.align === "end" ? ' style="text-align:end"' : ""}>${esc(c.label)}</th>`).join("");
-      const body = data.rows.map((row) => `<tr>${source.columns
-        .map((c) => `<td${c.align === "end" ? ' style="text-align:end"' : ""} dir="auto">${esc(row[c.key] ?? "")}</td>`)
-        .join("")}</tr>`).join("");
-      return `<div class="${cls}"><table class="quality-block-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+      // GROUPED: one table per named group, under its own heading, with the
+      // group's own subtotal as its last row. A subtotal in a <tfoot> would
+      // repeat on every page the table runs onto, which is right for column
+      // headings and wrong for a sum.
+      if (Array.isArray(data.groups)) {
+        if (!data.groups.length) return `<div class="${cls}"><p class="quality-block-empty">[${esc(source.label)} — no rows]</p></div>`;
+        const tables = data.groups.map((g) => {
+          const total = g.subtotal
+            ? `<tr class="is-subtotal"><td colspan="${cols.length - 1}">Subtotal</td><td style="text-align:end">${esc(g.subtotal)}</td></tr>`
+            : "";
+          return (g.title ? `<p class="quality-block-title" dir="auto">${esc(g.title)}</p>` : "")
+            + `<table class="quality-block-table">${head}<tbody>${g.rows.map(line).join("")}${total}</tbody></table>`;
+        }).join("");
+        return `<div class="${cls}">${tables}</div>`;
+      }
+
+      if (!data.rows?.length) return `<div class="${cls}"><p class="quality-block-empty">[${esc(source.label)} — no rows]</p></div>`;
+      // A totals block sits narrow against the end of the line, the way a
+      // quotation reads. Full width leaves a hand-span of nothing between
+      // the word Total and the figure it belongs to.
+      const narrow = source.totals ? " quality-block-totals" : "";
+      return `<div class="${cls}"><table class="quality-block-table${narrow}">${head}<tbody>${data.rows.map(line).join("")}</tbody></table></div>`;
     }
 
     // Somebody has to answer this. Until they do it prints as a labelled rule —

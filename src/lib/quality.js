@@ -41,7 +41,14 @@ import {
 } from "@/lib/qualityFields";
 import { NODES, traverse } from "@/lib/relations";
 import { CALL_POINTS, callPointById, callPointTaken, callPointOptions } from "@/lib/qualityCallPoints";
+import { netUnitPrice, discountPct } from "@/lib/quotations";
 import { DEFAULT_TEMPLATE, PAGE_TOKENS } from "@/lib/qualityRender";
+
+// Money as a document shows it. Two decimals and grouped thousands, without
+// a currency symbol — the quotation names its own currency, and repeating it
+// on every line is noise.
+const money = (v) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  .format(Number(v) || 0);
 
 const DOCUMENTS = "qualityDocuments";
 const TYPES = "qualityTypes";
@@ -708,22 +715,52 @@ export async function resolveBlocks(ctx, document) {
     if (!can(ctx.access, source.permission)) continue;
 
     if (source.key === "quotation.lines") {
-      // A quotation is divided into TABLES, each with rows; the document wants
-      // the lines. The table's title is carried onto its first row so a reader
-      // can still see the grouping the quotation was built with.
-      const rows = [];
+      // ONE TABLE PER NAMED GROUP. Flattening them into a single list and
+      // pushing the group's name into the first row's description was not a
+      // quotation — it was a quotation with its structure smeared into a text
+      // column, and unreadable the moment there were three of them.
+      //
+      // itemsFromTables in quotations.js flattens for the TOTALS, where the
+      // grouping genuinely does not matter. Copying that shape here copied the
+      // mechanism without its reason.
+      const groups = [];
       for (const table of Array.isArray(record.tables) ? record.tables : []) {
-        for (const [i, r] of (table.rows || []).entries()) {
+        const rows = [];
+        let subtotal = 0;
+        for (const r of table.rows || []) {
+          const qty = Number(r.qty) || 0;
+          const net = netUnitPrice(r);
+          subtotal += qty * net;
           rows.push({
-            description: i === 0 && table.title ? `${table.title} — ${r.description || ""}` : (r.description || ""),
+            description: r.description || "",
             unit: r.unit || "",
             qty: String(r.qty ?? ""),
-            unitPrice: String(r.unitPrice ?? ""),
-            discount: r.discount ? String(r.discount) : "",
+            unitPrice: money(r.unitPrice),
+            // WITH ITS SIGN ON IT. A discount is a percentage off the unit
+            // price, and a bare "10" in a money column reads as ten of them.
+            discount: Number(r.discount) ? `${discountPct(r.discount)}%` : "",
+            amount: money(qty * net),
           });
         }
+        if (rows.length) groups.push({ title: table.title || "", rows, subtotal: money(subtotal) });
       }
-      out[source.key] = { columns: source.columns, rows };
+      out[source.key] = { columns: source.columns, groups };
+    }
+
+    if (source.key === "quotation.totals") {
+      // READ OFF THE QUOTATION, not recomputed. computeTotals wrote these when
+      // the document was priced; doing the arithmetic again here would be a
+      // second answer, and the two would part company the first time either
+      // rounding rule changed.
+      const rate = Number(record.vatRate) || 0;
+      out[source.key] = {
+        columns: source.columns,
+        rows: [
+          { label: "Subtotal", value: money(record.subtotal) },
+          { label: rate ? `VAT (${rate}%)` : "VAT", value: money(record.vat) },
+          { label: "Total", value: money(record.total), strong: true },
+        ],
+      };
     }
   }
   return out;
