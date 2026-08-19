@@ -46,6 +46,8 @@ import { ALL_PERMISSIONS } from "@/lib/permissions";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/lib/data/keys";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/lib/qualityFields";
+import { setCallPoint, listTemplates, templateForCallPoint } from "@/lib/quality";
+import { CALL_POINTS, callPointById, callPointOptions } from "@/lib/qualityCallPoints";
 import { resolveBlocks, blocksFor, generateDocument, listGenerated, getGenerated,
   moveGenerated, regenerate } from "@/lib/quality";
 import { documentState, pendingRevision } from "@/lib/qualityDocuments";
@@ -1927,6 +1929,73 @@ console.log("\n== a document reaches as far as the graph goes, and no further");
   ok("...so its own fields are withheld too",
     !offered("salesTicket", noSales).includes("sales.ticket.client"),
     offered("salesTicket", noSales).filter((k) => k.startsWith("sales.")).join(","));
+}
+
+// ============================================================================
+console.log("\n== a button runs one template, and the button decides the subject");
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  const types = await listTypes(q);
+
+  // Declared in code, never typed. A call point is a contract with a button
+  // that exists in the source; a studio inventing one would bind a template to
+  // a button nobody built.
+  ok("every call point names a record the graph knows",
+    CALL_POINTS.every((c) => NODES[c.subject]), CALL_POINTS.map((c) => c.subject).join(","));
+  ok("...and a permission that exists",
+    CALL_POINTS.every((c) => ALL_PERMISSIONS.includes(c.permission)), CALL_POINTS.map((c) => c.permission).join(","));
+
+  const a = await createDocument(q, { title: "Cover letter", typeId: types[0].id, departmentId: "technical" });
+  const b = await createDocument(q, { title: "Rival letter", typeId: types[0].id, departmentId: "technical" });
+
+  ok("a document that is not a template cannot be routed",
+    (await setCallPoint(q, a.document.id, { callPointId: "quotation.print" })).error === "not-a-template");
+
+  await updateDocument(q, a.document.id, { isTemplate: true });
+  await updateDocument(q, b.document.id, { isTemplate: true });
+
+  const bound = await setCallPoint(q, a.document.id, { callPointId: "quotation.print" });
+  ok("a template can be bound to a button", !bound.error, bound.error || "");
+  // BINDING SETTLES WHAT IT IS ABOUT. A button in the quotation viewer hands
+  // over a quotation; a template that believed otherwise would print gaps.
+  ok("...which also settles what it is about", bound.document.subjectType === "quotation", bound.document.subjectType);
+
+  // One call point, one template.
+  ok("a second template cannot take the same button",
+    (await setCallPoint(q, b.document.id, { callPointId: "quotation.print" })).error === "call-point-taken");
+  ok("an invented button is refused",
+    (await setCallPoint(q, b.document.id, { callPointId: "nowhere.print" })).error === "unknown-call-point");
+
+  const templates = await listTemplates(q);
+  ok("setup lists the templates and what runs where",
+    templates.find((t) => t.id === a.document.id)?.callPointId === "quotation.print",
+    JSON.stringify(templates.map((t) => [t.code, t.callPointId])));
+  // An unapproved blank cannot issue anything, so setup says so rather than
+  // letting somebody press a button that refuses.
+  // Asserted of the two just made, not of every template in the studio — an
+  // earlier block leaves an approved one behind, and a test that reads the
+  // fixture instead of the feature passes for the wrong reason.
+  ok("...and whether each is approved yet",
+    templates.filter((t) => [a.document.id, b.document.id].includes(t.id)).every((t) => t.issued === false)
+    && templates.some((t) => t.issued === true),
+    JSON.stringify(templates.map((t) => [t.code, t.issued])));
+
+  const opts = callPointOptions(templates, b.document.id);
+  ok("the picker marks a button somebody else already runs from",
+    opts.find((o) => o.id === "quotation.print")?.taken === true);
+  ok("...and does not mark it for the template that holds it",
+    callPointOptions(templates, a.document.id).find((o) => o.id === "quotation.print")?.taken === false);
+
+  // The lookup the button itself will make.
+  const found = await templateForCallPoint(q, "quotation.print");
+  ok("a button can find the template it runs", found?.id === a.document.id, found?.code);
+  ok("...and finds nothing where nothing is bound", (await templateForCallPoint(q, "nowhere.print")) === null);
+
+  ok("unbinding is allowed", !(await setCallPoint(q, a.document.id, { callPointId: "" })).error);
+  ok("...and frees the button", (await templateForCallPoint(q, "quotation.print")) === null);
+
+  __signOut();
 }
 
 // ============================================================================

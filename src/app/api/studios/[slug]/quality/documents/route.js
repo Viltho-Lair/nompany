@@ -1,4 +1,4 @@
-import { qualityGuard, createDocument, updateDocument, removeDocument } from "@/lib/quality";
+import { qualityGuard, createDocument, updateDocument, removeDocument, setCallPoint } from "@/lib/quality";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +14,9 @@ const status = (error) => {
   // The document is issued, so it is retained rather than deleted. That is a
   // rule about the RECORD, not about the caller — a 409, not a 403.
   if (error === "controlled") return 409;
+  // Somebody else already runs from that button, or the document is not a
+  // template. The data saying no, not a malformed request.
+  if (error === "call-point-taken" || error === "not-a-template") return 409;
   return 400;
 };
 
@@ -30,6 +33,14 @@ export async function PUT(request, ctx) {
   if (g.fail) return g.fail;
   const b = await body(request);
   if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+  // Where a template is requested from is ROUTING, not content, and it answers
+  // to the setup right rather than to edit.
+  if (b.callPointId !== undefined) {
+    const bound = await setCallPoint(g, b.id, b);
+    if (bound.error) return Response.json({ error: bound.error }, { status: status(bound.error) });
+    return Response.json({ ok: true, document: bound.document });
+  }
+
   const result = await updateDocument(g, b.id, b);
   if (result.error) return Response.json({ error: result.error }, { status: status(result.error) });
   return Response.json({ ok: true, document: result.document });

@@ -185,20 +185,72 @@ function SubjectBinding({ slug, documentId, data, editable, onChanged }) {
   };
 
   const chosen = (options || []).find((o) => o.id === data?.subject?.id);
+  const isTemplate = Boolean(data?.isTemplate);
+
+  const setTemplate = async (on) => {
+    setBusy(true);
+    try {
+      await fetch(`/api/studios/${slug}/quality/documents`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: documentId, isTemplate: on }),
+      });
+      onChanged?.();
+    } finally { setBusy(false); }
+  };
 
   return (
     <div>
-      <p className={microLabel}>About</p>
+      <p className={microLabel}>{isTemplate ? "Requested from" : "About"}</p>
       <div className="mt-2 space-y-2 rounded-geex border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#20202c]">
-        <select
-          className={input}
-          value={type}
-          disabled={!editable || busy}
-          onChange={(e) => bind({ subjectType: e.target.value, subjectId: "" })}
-        >
-          <option value="">Nothing in particular</option>
-          {(data?.subjects || []).map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
-        </select>
+        {/* A TEMPLATE IS STILL A CONTROLLED DOCUMENT. The flag says only that
+            this one is a blank to be filled rather than a procedure to be
+            followed — the distinction the starter pack's Form and Record types
+            have named since the module's first day. */}
+        <label className="flex cursor-pointer items-start gap-2.5 text-sm text-slate-600 dark:text-slate-300">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={isTemplate}
+            disabled={!editable || busy} onChange={(e) => setTemplate(e.target.checked)} />
+          <span>
+            This is a template
+            <span className="block text-xs text-slate-400 dark:text-slate-500">
+              A blank other departments fill in, rather than a procedure people follow.
+            </span>
+          </span>
+        </label>
+
+        {isTemplate ? (
+          <>
+            {/* WHERE IT IS ASKED FOR IS ROUTING, NOT CONTENT, so it is set in
+                setup and only shown here. Binding it there also settles what
+                the template is about: a button in the quotation viewer hands
+                over a quotation. */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm dark:border-white/10 dark:bg-[#191921]">
+              {data?.callPoint ? (
+                <>
+                  <p className="font-600 text-slate-800 dark:text-slate-200">{data.callPoint.label}</p>
+                  <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{data.callPoint.where}</p>
+                </>
+              ) : (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Not requested from anywhere yet. Choose a button in Setup → Requested from.
+                </p>
+              )}
+            </div>
+            <Link href={`/${slug}/quality-documents/settings`} className="block text-xs font-600 text-brand-700 hover:text-brand-950 dark:text-brand-300">
+              Change in setup
+            </Link>
+          </>
+        ) : (
+          <select
+            className={input}
+            value={type}
+            disabled={!editable || busy}
+            onChange={(e) => bind({ subjectType: e.target.value, subjectId: "" })}
+          >
+            <option value="">Nothing in particular</option>
+            {(data?.subjects || []).map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+          </select>
+        )}
 
         {type && (
           <select
@@ -213,9 +265,11 @@ function SubjectBinding({ slug, documentId, data, editable, onChanged }) {
         )}
 
         <p className="text-xs text-slate-400 dark:text-slate-500">
-          {type && chosen
-            ? "That department's fields are now available under Insert field."
-            : "Bind a record to reach its department's fields. Company and Document fields work either way."}
+          {isTemplate
+            ? "Pick a record above to preview this template filled in. The real one arrives when somebody presses the button."
+            : type && chosen
+              ? "That department's fields are now available under Insert field."
+              : "Bind a record to reach its department's fields. Company and Document fields work either way."}
         </p>
       </div>
     </div>

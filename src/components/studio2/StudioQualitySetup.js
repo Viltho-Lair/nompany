@@ -27,6 +27,8 @@ const MESSAGES = {
   "too-many": "That's as many types as one studio can hold.",
   code: "A department code is 1–4 letters or digits.",
   "duplicate-code": "Two departments can't share a code — they would mint the same document number.",
+  "call-point-taken": "Another template already runs from that button. A button that sometimes produces one document and sometimes another is a button nobody can predict.",
+  "not-a-template": "That document isn't marked as a template.",
   forbidden: "You don't have permission to do that.",
   "read-only": "You don't have permission to do that.",
 };
@@ -183,6 +185,60 @@ export default function StudioQualitySetup({ studio }) {
                             className="text-xs font-600 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400">Delete</button>
                         </div>
                       )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* THE ROUTING TABLE. Which button in the product runs which
+                template — the one place that answers "what fires where".
+                Binding a template here also settles what it is ABOUT, because a
+                button in the quotation viewer hands over a quotation and a
+                template that believed otherwise would print a page of gaps. */}
+            <div className={panel}>
+              <div className="min-w-0">
+                <h2 className={h2}>Requested from</h2>
+                <p className={sub}>
+                  Where in the product each template is asked for. One button runs one template, so a second document
+                  in the same place needs a second button.
+                </p>
+              </div>
+
+              {(data.templates || []).length === 0 ? (
+                <p className="mt-5 rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
+                  No templates yet. Mark a document as a template on its own page and it will appear here.
+                </p>
+              ) : (
+                <ul className="mt-5 space-y-2">
+                  {data.templates.map((t) => (
+                    <li key={t.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-[#191921]">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display text-sm font-700 text-slate-900 dark:text-white">
+                          <span className="font-mono text-brand-700 dark:text-brand-300">{t.code}</span> · {t.title}
+                        </p>
+                        {/* An unapproved blank cannot issue anything, so it says
+                            so here rather than letting somebody press a button
+                            that refuses. */}
+                        <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                          {t.issued
+                            ? "Approved and ready to issue from"
+                            : "Not yet approved — the button will refuse until a revision is issued"}
+                        </p>
+                      </div>
+                      <select
+                        className={`${input} max-w-[280px]`}
+                        value={t.callPointId}
+                        disabled={readOnly || busy}
+                        onChange={(e) => send("PUT", { id: t.id, callPointId: e.target.value }, "documents")}
+                      >
+                        <option value="">Not requested from anywhere</option>
+                        {(data.callPoints || []).map((c) => (
+                          <option key={c.id} value={c.id} disabled={c.taken && c.id !== t.callPointId}>
+                            {c.label}{c.taken && c.id !== t.callPointId ? " — already taken" : ""}
+                          </option>
+                        ))}
+                      </select>
                     </li>
                   ))}
                 </ul>

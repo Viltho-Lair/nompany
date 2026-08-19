@@ -1,9 +1,10 @@
 import {
   qualityGuard, openDraft, saveDraft, acquireLock, releaseLock, lockState,
   listTypes, departmentCodes, LOCK_TTL_SEC,
-  mergeValuesFor, fieldsFor, bindSubject, SUBJECTS, resolveBlocks, blocksFor,
+  mergeValuesFor, fieldsFor, bindSubject, SUBJECTS, resolveBlocks, blocksFor, callPointOptions,
 } from "@/lib/quality";
 import { can } from "@/lib/access";
+import { callPointById } from "@/lib/qualityCallPoints";
 import { listCollaborators } from "@/lib/data/collaborators";
 
 export const runtime = "nodejs";
@@ -67,6 +68,9 @@ export async function GET(request, ctx) {
     blocks,
     blockSources: blocksFor(g, opened.document),
     isTemplate: Boolean(opened.document.isTemplate),
+    // Where this template is asked for. Set in setup, shown here so an
+    // author knows what their fields will resolve against.
+    callPoint: callPointById(opened.document.callPointId),
     // What this document is about, and what it COULD be about.
     subject: { type: opened.document.subjectType || "", id: opened.document.subjectId || "" },
     subjects: SUBJECTS.map((x) => ({ id: x.id, label: x.label, department: x.department })),

@@ -1,6 +1,6 @@
 import {
   qualityGuard, listDocuments, listTypes, departmentCodes,
-  DOC_STATUSES, STATUS_LABELS, DOC_LANGUAGES,
+  DOC_STATUSES, STATUS_LABELS, DOC_LANGUAGES, listTemplates, callPointOptions,
 } from "@/lib/quality";
 import { can } from "@/lib/access";
 
@@ -12,7 +12,7 @@ export async function GET(request, ctx) {
   const g = await qualityGuard(ctx.params);
   if (g.fail) return g.fail;
 
-  const [documents, types] = await Promise.all([listDocuments(g), listTypes(g)]);
+  const [documents, types, templates] = await Promise.all([listDocuments(g), listTypes(g), listTemplates(g)]);
   return Response.json({
     canManage: g.canManage,
     // Each button asks for the right it actually needs. Offering New off
@@ -23,6 +23,9 @@ export async function GET(request, ctx) {
     canDelete: can(g.access, "quality.documents.delete"),
     canSetup: g.canSetup,
     documents, types,
+    // The setup screen's routing table: which template each button runs.
+    templates,
+    callPoints: callPointOptions(templates),
     departments: g.departments,
     departmentCodes: departmentCodes(g),
     nav: g.nav,

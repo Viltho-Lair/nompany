@@ -40,6 +40,7 @@ import {
   legalFieldsFrom, legalKeyFor, availableBlocks, BLOCK_SOURCES, blockByKey, reachOf,
 } from "@/lib/qualityFields";
 import { NODES, traverse } from "@/lib/relations";
+import { CALL_POINTS, callPointById, callPointTaken, callPointOptions } from "@/lib/qualityCallPoints";
 
 const DOCUMENTS = "qualityDocuments";
 const TYPES = "qualityTypes";
@@ -1204,6 +1205,74 @@ export async function listShareLinks(ctx, documentId) {
     .map((r) => ({ ...r, expired: !r.revokedAt && r.expiresAt < now }))
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }
+
+// ---- where a template is asked for ------------------------------------------
+
+export async function listTemplates(ctx) {
+  const documents = await readCol(ctx.studio.id, ctx.section.id, DOCUMENTS);
+  const revisions = await readCol(ctx.studio.id, ctx.section.id, REVISIONS);
+  return documents
+    .filter((d) => d.isTemplate)
+    .map((d) => ({
+      id: d.id, code: d.code, title: d.title,
+      callPointId: d.callPointId || "",
+      callPoint: callPointById(d.callPointId)?.label || "",
+      subjectType: d.subjectType || "",
+      // A BLANK NOBODY HAS APPROVED CANNOT ISSUE ANYTHING, so setup says whether
+      // this template is actually usable rather than leaving somebody to press a
+      // button that refuses.
+      issued: revisions.some((r) => r.documentId === d.id && r.state === "effective"),
+      state: documentState(d, revisions),
+    }))
+    .sort((a, b) => String(a.code).localeCompare(String(b.code)));
+}
+
+// BINDING A TEMPLATE TO A CALL POINT SETS ITS SUBJECT, rather than asking for it
+// separately. A button in the quotation viewer hands over a quotation; a
+// template bound there that believed it was about something else would resolve
+// nothing and print a page of gaps.
+export async function setCallPoint(ctx, documentId, body) {
+  const denied = requirePermission(ctx.access, "quality.documents.setup");
+  if (denied) return denied;
+
+  const documents = await readCol(ctx.studio.id, ctx.section.id, DOCUMENTS);
+  const document = documents.find((d) => d.id === documentId);
+  if (!document) return { error: "notfound" };
+  if (!document.isTemplate) return { error: "not-a-template" };
+
+  const id = str(body?.callPointId, 60);
+  if (!id) {
+    const cleared = await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
+      callPointId: "", updatedAt: new Date().toISOString(),
+    });
+    await audit(ctx, { documentId, action: "callpoint.cleared", detail: "No longer requested from anywhere" });
+    return { document: cleared };
+  }
+
+  const point = callPointById(id);
+  if (!point) return { error: "unknown-call-point" };
+  // One call point, one template.
+  if (callPointTaken(documents.filter((d) => d.isTemplate), id, documentId)) return { error: "call-point-taken" };
+
+  const updated = await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
+    callPointId: id,
+    subjectType: point.subject,
+    // The preview binding belonged to the old subject, so it is dropped rather
+    // than left pointing at a record of the wrong kind.
+    subjectId: document.subjectType === point.subject ? (document.subjectId || "") : "",
+    updatedAt: new Date().toISOString(),
+  });
+  await audit(ctx, { documentId, action: "callpoint.set", detail: point.label });
+  return { document: updated };
+}
+
+// The template a given button should run, if a studio has bound one.
+export async function templateForCallPoint(ctx, callPointId) {
+  const documents = await readCol(ctx.studio.id, ctx.section.id, DOCUMENTS);
+  return documents.find((d) => d.isTemplate && d.callPointId === callPointId) || null;
+}
+
+export { CALL_POINTS, callPointOptions };
 
 // ---- generated documents ----------------------------------------------------
 //
