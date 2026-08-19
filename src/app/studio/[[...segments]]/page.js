@@ -145,6 +145,11 @@ export default async function StudioPage({ params }) {
     // Any other second segment names ONE document, and opens the builder on it.
     // Same shape as /<slug>/inventory-sheets/<id> and /<slug>/projects-list/<id>:
     // the record's own screen, resolving through the section's grant.
+    // A GENERATED DOCUMENT — produced from a template rather than written.
+    // Same viewer as a controlled one, because on paper they are the same thing.
+    if (segments[1] === "generated" && segments[2]) {
+      return <StudioQualityReader studio={{ ...shell, logo: studio.logo || "" }} documentId={segments[2]} source="generated" />;
+    }
     if (segments[1]) {
       // A THIRD segment opens the reader — the document as it prints, and where
       // it is exported from. It is a read, so it needs no more than the grant

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
@@ -39,6 +40,7 @@ const cellHead = "px-3 py-2 text-start text-[11px] font-700 uppercase tracking-w
 export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const router = useRouter();
   const [printing, setPrinting] = useState(false);
   const [printed, setPrinted] = useState("");
 
@@ -83,7 +85,10 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
           : "That didn't work, and nothing was created.");
         return;
       }
-      setPrinted(`${payload.instance.code} created. It needs review before it can be issued.`);
+      // STRAIGHT TO THE DOCUMENT. Pressing Print is a request to see it; being
+      // told a code and left to go and find it is not an answer. A second press
+      // opens the same document rather than making another.
+      router.push(`/${slug}/quality-documents/generated/${payload.instance.id}`);
     } finally {
       setPrinting(false);
     }
@@ -140,7 +145,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
       </div>
 
       {printed && (
-        <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
           {printed}
         </p>
       )}

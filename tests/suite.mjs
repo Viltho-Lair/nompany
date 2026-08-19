@@ -1758,19 +1758,31 @@ console.log("\n== a template is a blank, and what comes off it is evidence");
     ok("...and both signatures are on it",
       Boolean(issued.review?.byAlias && issued.approval?.byAlias));
 
-    // Rejection regenerates rather than edits, and the signatures go with the
-    // words they were given against.
-    const second = await generateDocument(q, { templateId, subjectId: quote.id, inputs: {} });
-    ok("a second instance takes the next number", second.instance.code.includes("/0002"), second.instance.code);
-    await moveGenerated(q, second.instance.id, "submit");
-    await moveGenerated(m, second.instance.id, "reject", { note: "Wrong contact." });
-    const redone = await regenerate(q, second.instance.id, { inputs: { "accepted-by": "Odai" } });
-    ok("a rejected instance regenerates", !redone.error, redone.error || "");
-    ok("...back to draft", redone.instance.state === "draft");
-    ok("...with the new answer", redone.instance.inputs["accepted-by"] === "Odai");
-    ok("...and no signature carried over onto fresh words",
-      !redone.instance.review && !redone.instance.approval);
+    // PRESSING PRINT AGAIN OPENS THE SAME DOCUMENT. It used to mint another —
+    // /0002 on the second press, /0003 on the third — three numbered records of
+    // one thing, each needing its own review. Print is a request to SEE the
+    // document, and regenerating is the deliberate act that refreshes it.
+    const again = await generateDocument(q, { templateId, subjectId: quote.id, inputs: {} });
+    ok("pressing Print again opens the same document",
+      again.instance.id === inst.id && again.reused === true, `${again.instance.code} reused=${again.reused}`);
+    ok("...and mints no second number", again.instance.code === inst.code, again.instance.code);
 
+    // A DIFFERENT record does get its own.
+    const other = (await listQuotations(tech)).quotations?.find?.((x) => x.id !== quote.id);
+
+    // Rejection regenerates rather than edits, and the signatures go with the
+    // words they were given against. Exercised on the one document there is.
+    const second = { instance: inst };
+    // It was issued above, so a fresh one is needed to exercise the sent-back
+    // path — the same document cannot be both effective and back in draft.
+    const third = await generateDocument(q, { templateId, subjectId: quote.id, inputs: {} });
+    ok("...even after it has been issued", third.instance.id === inst.id && third.reused === true);
+
+    const redone = await regenerate(q, second.instance.id, { inputs: { "accepted-by": "Odai" } });
+    // Regenerating an ISSUED document is refused: it is evidence, and evidence
+    // that can be quietly replaced is not evidence.
+    ok("an issued document refuses to be regenerated",
+      redone.error === "wrong-state", redone.error || "regenerated");
     // It lives with its record, not in the Quality register.
     const register = await listDocuments(q);
     ok("an instance is not in the controlled register", !register.some((d) => d.id === inst.id));

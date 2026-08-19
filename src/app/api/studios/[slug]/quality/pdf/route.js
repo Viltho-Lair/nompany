@@ -1,4 +1,4 @@
-import { qualityGuard, openDraft, listTypes, mergeValuesFor, watermarkFor, resolveBlocks, letterheadFor } from "@/lib/quality";
+import { qualityGuard, openDraft, listTypes, mergeValuesFor, watermarkFor, resolveBlocks, letterheadFor, getGenerated } from "@/lib/quality";
 import { renderPdf, inlineImages } from "@/lib/qualityPdf";
 import { directionOf } from "@/lib/qualityDocuments";
 import { getMedia } from "@/lib/media";
@@ -20,6 +20,44 @@ export async function GET(request, ctx) {
 
   const url = new URL(request.url);
   const id = url.searchParams.get("id") || "";
+  const generatedId = url.searchParams.get("generated") || "";
+
+  // A GENERATED DOCUMENT IS ALREADY RESOLVED. Everything it says was frozen when
+  // it was made, so there is nothing to look up — the exporter just draws it.
+  // That is the whole point of freezing: the PDF downloaded in March and the one
+  // downloaded in December are the same document.
+  if (generatedId) {
+    const found = await getGenerated(g, generatedId);
+    if (found.error) {
+      return Response.json({ error: found.error }, { status: found.error === "forbidden" ? 403 : 404 });
+    }
+    const i = found.instance;
+    const out = await renderPdf({
+      sections: i.sections,
+      values: i.values,
+      blocks: i.blocks,
+      inputs: i.inputs,
+      template: letterheadFor(g),
+      watermark: i.state === "effective" ? "" : "DRAFT",
+      title: `${i.code} ${i.title}`,
+      dir: directionOf(i.language),
+      revision: i,
+    });
+    if (out.error === "no-chromium") {
+      return Response.json({ error: "no-chromium", detail: "Set CHROMIUM_PACK_URL, or install Chrome locally." }, { status: 503 });
+    }
+    if (out.error) return Response.json({ error: out.error, detail: out.detail }, { status: 500 });
+    return new Response(out.pdf, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `${url.searchParams.get("download") ? "attachment" : "inline"}; filename="${i.code.replace(/[^\w.-]/g, "-")}.pdf"`,
+        "Cache-Control": "no-store, must-revalidate",
+        "X-Quality-Fonts": out.fontsComplete ? "embedded" : "substituted",
+      },
+    });
+  }
+
   if (!id) return Response.json({ error: "missing" }, { status: 400 });
 
   const opened = await openDraft(g, id);

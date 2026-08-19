@@ -31,22 +31,54 @@ const STATUS_BADGE = {
   obsolete: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
 };
 
-export default function StudioQualityReader({ studio, documentId }) {
+// TWO SOURCES, ONE SCREEN.
+//
+// A controlled document and a generated one are different records in different
+// collections behind different endpoints — but on paper they are the same
+// thing, drawn by the same renderer against the same stylesheet under the same
+// letterhead. Building a second viewer beside this one would have been the
+// duplication that the single renderer exists to prevent, one level up.
+//
+// So the fetch differs and everything after it does not.
+export default function StudioQualityReader({ studio, documentId, source = "document" }) {
+  const generated = source === "generated";
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState("");
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/studios/${studio.slug}/quality/content?id=${encodeURIComponent(documentId)}`, { cache: "no-store" });
+    const path = generated ? "generated" : "content";
+    const res = await fetch(`/api/studios/${studio.slug}/quality/${path}?id=${encodeURIComponent(documentId)}`, { cache: "no-store" });
     if (!res.ok) {
       setError(res.status === 404 ? "That document doesn't exist." : "You don't have access to this document.");
       return;
     }
-    setData(await res.json());
-  }, [studio.slug, documentId]);
+    const payload = await res.json();
+    if (!generated) { setData(payload); return; }
+
+    // A generated document arrives already resolved — its values, rows and
+    // answers were frozen when it was made. Mapped into the shape this screen
+    // already draws, rather than teaching the screen a second shape.
+    const i = payload.instance;
+    setData({
+      document: {
+        code: i.code, title: i.title, state: i.state, language: i.language,
+        typeName: i.templateCode, departmentName: i.sourceNumber, effectiveDate: i.effectiveDate || "",
+      },
+      sections: i.sections,
+      mergeValues: i.values,
+      blocks: i.blocks,
+      inputs: i.inputs,
+      revision: { rev: i.templateRev },
+      letterhead: payload.letterhead,
+      instance: i,
+    });
+  }, [studio.slug, documentId, generated]);
   useEffect(() => { load(); }, [load]);
 
-  const pdfUrl = `/api/studios/${studio.slug}/quality/pdf?id=${encodeURIComponent(documentId)}`;
+  const pdfUrl = generated
+    ? `/api/studios/${studio.slug}/quality/pdf?generated=${encodeURIComponent(documentId)}`
+    : `/api/studios/${studio.slug}/quality/pdf?id=${encodeURIComponent(documentId)}`;
 
   // The PDF is fetched rather than linked so a refusal can be READ. A plain
   // <a> to a route that answers 503 navigates the person to a page of JSON.
@@ -104,8 +136,8 @@ export default function StudioQualityReader({ studio, documentId }) {
       <header className="sticky top-0 z-20 border-b border-[var(--geex-border)] bg-[var(--geex-page)] print:hidden">
         <div className="mx-auto flex max-w-[1000px] flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
           <Link
-            href={`/${studio.slug}/quality-documents/${documentId}`}
-            title="Back to the builder"
+            href={generated ? `/${studio.slug}/quality-documents` : `/${studio.slug}/quality-documents/${documentId}`}
+            title={generated ? "Back to the register" : "Back to the builder"}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >
             <Icon name="arrowLeft" className="h-[18px] w-[18px] rtl:-scale-x-100" />
@@ -115,7 +147,9 @@ export default function StudioQualityReader({ studio, documentId }) {
               {doc ? <><span className="font-mono text-brand-700 dark:text-brand-300">{doc.code}</span> · {doc.title}</> : "Loading…"}
             </h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
-              {doc && `${doc.typeName} · ${doc.departmentName} · Rev ${data.revision?.rev ?? 0}`}
+              {doc && (generated
+                ? `From ${doc.typeName} rev ${data.revision?.rev ?? 0} · ${doc.departmentName}`
+                : `${doc.typeName} · ${doc.departmentName} · Rev ${data.revision?.rev ?? 0}`)}
             </p>
           </div>
           <div className="ms-auto flex items-center gap-2">
@@ -173,7 +207,7 @@ export default function StudioQualityReader({ studio, documentId }) {
               // validated JSON through the one function the PDF also uses, and
               // every scrap of text was escaped on the way out.
               dangerouslySetInnerHTML={{
-                __html: renderSections(data.sections, { values: data.mergeValues, blocks: data.blocks }),
+                __html: renderSections(data.sections, { values: data.mergeValues, blocks: data.blocks, inputs: data.inputs }),
               }}
             />
 

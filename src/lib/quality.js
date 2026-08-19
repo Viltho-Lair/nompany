@@ -1424,6 +1424,17 @@ export async function generateDocument(ctx, body) {
   const record = records.find((r) => r.id === subjectId);
   if (!record) return { error: "no-record" };
 
+  // ONE DOCUMENT PER TEMPLATE AND RECORD. Pressing Print is a request to SEE the
+  // document, not to mint another one — a second press produced /0002 and a
+  // third /0003, three numbered records of the same thing, each needing its own
+  // review. The button opens what is already there.
+  //
+  // Regenerating is the deliberate act that refreshes it, and it keeps the
+  // number: see regenerate.
+  const existing = (await readCol(ctx.studio.id, host.id, GENERATED))
+    .find((r) => r.templateId === template.id && r.subjectId === subjectId);
+  if (existing) return { instance: existing, sectionId: host.id, reused: true };
+
   const snapshot = await snapshotFor(ctx, template, source, subject, record, body?.inputs);
   const seq = await bumpCounter(
     `${SEC.prefix(ctx.studio.id, ctx.section.id)}gen`,
