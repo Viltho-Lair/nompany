@@ -252,3 +252,60 @@ export function searchCurrencies(query, codes) {
       (c.country || "").toLowerCase().includes(q),
   );
 }
+
+// ---- landed cost -------------------------------------------------------------
+// WHAT A REGISTERED ITEM COSTS THE STUDIO, IN THE STUDIO'S OWN MONEY.
+//
+// Registered Items holds an item's cost in whatever money it is BOUGHT in, and —
+// for anything bought abroad — the shipping and customs it takes to get it here,
+// in that same money. None of those three numbers is what a quotation is written
+// in, so quoting the bare unit cost quoted a foreign price as though it were a
+// local one: an item costing 100 USD was put on a SAR document as 100.
+//
+//     landed = (cost + shipping + customs) × rate(item currency → studio currency)
+//
+// The charges are AMOUNTS, added before the conversion, because that is what
+// Registered Items asks for — the field is labelled with the item's own currency
+// and takes 0.01 steps. Converting after adding is the same arithmetic as
+// converting each part separately, and one multiplication is easier to check.
+//
+// NO RATE MEANS NO PRICE. When the pair is unquoted — or the day's snapshot never
+// arrived — this answers `priced: false` and leaves the number at zero rather
+// than falling back to the foreign figure. A quotation is a document a client is
+// given; a number that is silently in the wrong currency is worse on it than a
+// blank somebody has to go and fill in.
+//
+// Pure arithmetic over a rate table, like everything else in this section, so the
+// screen that explains a converted price can use the same function that made it.
+export function landedUnitCost(item, studioCurrency, rates) {
+  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const round = (v) => Math.round((v + Number.EPSILON) * 100) / 100;
+
+  const from = String(item?.currency || "").trim().toUpperCase();
+  const to = String(studioCurrency || "").trim().toUpperCase();
+  const cost = n(item?.unitCost);
+  // Held blank rather than zero on a domestic item — see lib/inventory.js — and
+  // blank adds nothing either way.
+  const shipping = n(item?.shippingCharges);
+  const customs = n(item?.customsCharges);
+
+  // Bought in the studio's own money, or in nothing named: there is no
+  // conversion to do, and no shipping or customs stored to add.
+  if (!from || from === to) {
+    return { priced: true, converted: false, unitPrice: round(cost), base: round(cost), shipping: 0, customs: 0, rate: null };
+  }
+
+  const base = cost + shipping + customs;
+  // WHY it could not be priced, not just that it could not. A studio that never
+  // named its own currency has nothing to convert INTO, which is fixed in
+  // Settings; a pair today's snapshot does not quote is not, and the two send
+  // whoever hits them to different places.
+  if (!to) {
+    return { priced: false, reason: "no-studio-currency", converted: true, unitPrice: 0, base: round(base), shipping, customs, rate: null };
+  }
+  const rate = crossRate(rates, from, to);
+  if (rate == null) {
+    return { priced: false, reason: "unquoted", converted: true, unitPrice: 0, base: round(base), shipping, customs, rate: null };
+  }
+  return { priced: true, converted: true, unitPrice: round(base * rate), base: round(base), shipping, customs, rate };
+}

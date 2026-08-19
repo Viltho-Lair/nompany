@@ -31,6 +31,7 @@ import {
 import { projectsContext, openProject, listProjects } from "@/lib/projects";
 import { technicalContext, requestRfq, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/lib/technical";
 import { rfqInfo } from "@/lib/salesAnalytics";
+import { landedUnitCost, crossRate } from "@/lib/currencies";
 import {
   qualityContext, installStarterTypes, createType, updateType, removeType,
   createDocument, updateDocument, removeDocument, listTypes, listDocuments,
@@ -553,6 +554,95 @@ console.log("\n== raising a revision closes the quotation it revises");
   // closed door, not a one-way one.
   const reopened = await updateQuotation(await technicalContext(owner, slug), q1.quotation?.id, { locked: false });
   ok("...and unlock still reopens it", reopened.quotation?.locked === false, JSON.stringify(reopened.error));
+
+  // ---- what a discount is -------------------------------------------------
+  // A PERCENTAGE OFF THE UNIT PRICE, not an amount of money. It was subtracted
+  // as currency, which reads plausibly and is wrong in every studio that typed
+  // what it meant: 10 off a 12.50 item is a rounding error, 10% off it is the
+  // offer. Priced through the real write, so the totals asserted here are the
+  // ones the server computes and stores.
+  const priced = await updateQuotation(await technicalContext(owner, slug), q2.quotation?.id, {
+    vatRate: 15,
+    tables: [{ id: "t1", title: "Ground floor", rows: [
+      { id: "r1", description: "Cable tray", unit: "m", qty: 2, unitPrice: 100, discount: 10 },
+      { id: "r2", description: "Full price", unit: "m", qty: 1, unitPrice: 50, discount: 0 },
+    ] }],
+  });
+  ok("10% off 100 prices the line at 90, not 90 off",
+    priced.quotation?.subtotal === 230, JSON.stringify(priced.quotation?.subtotal));
+  ok("...and VAT is taken on what is left", priced.quotation?.vat === 34.5,
+    JSON.stringify(priced.quotation?.vat));
+  ok("...totalling the two together", priced.quotation?.total === 264.5,
+    JSON.stringify(priced.quotation?.total));
+  ok("...with the gross price and the percentage both still on the row",
+    priced.quotation?.tables?.[0]?.rows?.[0]?.unitPrice === 100
+    && priced.quotation?.tables?.[0]?.rows?.[0]?.discount === 10,
+    JSON.stringify(priced.quotation?.tables?.[0]?.rows?.[0]));
+  ok("...and the derived list carrying the NET one",
+    priced.quotation?.items?.[0]?.unitPrice === 90, JSON.stringify(priced.quotation?.items?.[0]));
+
+  // Neither end is a discount: below zero is a surcharge, above 100 a refund.
+  const clamped = await updateQuotation(await technicalContext(owner, slug), q2.quotation?.id, {
+    vatRate: 0,
+    tables: [{ id: "t1", title: "", rows: [
+      { id: "r1", description: "Given away", qty: 1, unitPrice: 80, discount: 250 },
+      { id: "r2", description: "Not a surcharge", qty: 1, unitPrice: 80, discount: -5 },
+    ] }],
+  });
+  ok("a discount over 100% is stored as 100", clamped.quotation?.tables?.[0]?.rows?.[0]?.discount === 100,
+    JSON.stringify(clamped.quotation?.tables?.[0]?.rows?.[0]?.discount));
+  ok("...pricing that line at nothing rather than below it",
+    clamped.quotation?.items?.[0]?.unitPrice === 0, JSON.stringify(clamped.quotation?.items?.[0]));
+  ok("...and a negative one is stored as none", clamped.quotation?.tables?.[0]?.rows?.[1]?.discount === 0,
+    JSON.stringify(clamped.quotation?.tables?.[0]?.rows?.[1]?.discount));
+  ok("...leaving that line at its full price", clamped.quotation?.subtotal === 80,
+    JSON.stringify(clamped.quotation?.subtotal));
+}
+
+// ============================================================================
+console.log("\n== a foreign item is landed into the studio's money before it is quoted");
+// Registered Items holds an item's cost in whatever money it is BOUGHT in, plus
+// the shipping and customs it takes to get it here. A quotation is written in
+// the studio's money, so quoting the bare unit cost put a foreign price on a
+// local document — 100 USD read as 100 SAR, and nothing on the screen said so.
+//
+// Pure arithmetic over a rate table, so it is asserted directly rather than
+// through a studio: the table below is the shape lib/data/exchangeRates.js
+// caches, quoting everything against one common base.
+{
+  const rates = { USD: 1, SAR: 3.75, EUR: 0.9 };
+
+  const home = landedUnitCost({ unitCost: 100, currency: "" }, "SAR", rates);
+  ok("an item in the studio's own money is not converted",
+    home.converted === false && home.unitPrice === 100, JSON.stringify(home));
+  const same = landedUnitCost({ unitCost: 100, currency: "SAR" }, "SAR", rates);
+  ok("...nor is one that names the same currency",
+    same.converted === false && same.unitPrice === 100, JSON.stringify(same));
+
+  // 100 + 20 + 5 = 125 USD landed, at 3.75 SAR to the dollar.
+  const abroad = landedUnitCost(
+    { unitCost: 100, currency: "USD", shippingCharges: 20, customsCharges: 5 }, "SAR", rates);
+  ok("shipping and customs land with the cost", abroad.base === 125, JSON.stringify(abroad.base));
+  ok("...and the whole of it converts", abroad.unitPrice === 468.75, JSON.stringify(abroad.unitPrice));
+  ok("...at the pair derived from the one table",
+    abroad.rate === crossRate(rates, "USD", "SAR"), JSON.stringify(abroad.rate));
+
+  // NO RATE MEANS NO PRICE. Falling back to the foreign figure would put a
+  // number on a client's document that is silently in the wrong currency.
+  const unquoted = landedUnitCost({ unitCost: 100, currency: "JPY" }, "SAR", rates);
+  ok("a pair today's snapshot does not quote is not priced",
+    unquoted.priced === false && unquoted.unitPrice === 0, JSON.stringify(unquoted));
+  ok("...and says which kind of missing it is", unquoted.reason === "unquoted", unquoted.reason);
+
+  const noStudio = landedUnitCost({ unitCost: 100, currency: "USD" }, "", rates);
+  ok("a studio that never named its currency has nothing to convert into",
+    noStudio.priced === false && noStudio.reason === "no-studio-currency", JSON.stringify(noStudio));
+
+  // A day with no snapshot at all behaves like an unquoted pair, rather than
+  // throwing on the way to a screen that only wanted a price list.
+  const noRates = landedUnitCost({ unitCost: 100, currency: "USD" }, "SAR", null);
+  ok("...as does a day whose rates never arrived",
+    noRates.priced === false && noRates.unitPrice === 0, JSON.stringify(noRates));
 }
 
 // ============================================================================

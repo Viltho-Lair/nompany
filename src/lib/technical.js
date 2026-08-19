@@ -19,6 +19,8 @@ import { listCollaborators } from "@/lib/data/collaborators";
 import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "@/lib/rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/lib/tickets";
 import { quotationApproved } from "@/lib/taskRouting";
+import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
+import { landedUnitCost } from "@/lib/currencies";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
@@ -763,16 +765,52 @@ export async function openTickets({ studio, salesSection, salesTicketsSection, s
 export async function catalogueItems({ studio, inventoryItemsSection }) {
   if (!inventoryItemsSection) return [];
   const rows = await readCol(studio.id, inventoryItemsSection.id, INVENTORY_ITEMS);
+
+  // TODAY'S RATES, ONCE FOR THE WHOLE CATALOGUE. An item bought abroad is priced
+  // in somebody else's money, and a quotation is written in the studio's — so
+  // the price the builder copies onto a line has to be converted before it gets
+  // there. See landedUnitCost for the arithmetic and for what happens when the
+  // pair is not quoted.
+  //
+  // Almost always one Redis read: the snapshot is fetched once a day for the
+  // whole platform, and this call site cannot add to that — the first load after
+  // the API republishes refetches under a lock, everything else is served from
+  // the cache, and a failed fetch serves yesterday's table rather than nothing.
+  // See lib/data/exchangeRates.js.
+  //
+  // Asked for unconditionally rather than only when the catalogue turns out to
+  // hold something foreign: finding that out means reading the rows first, and
+  // the read this saves is the cheap one.
+  const snapshot = await getExchangeSnapshot();
+
   return rows
     .filter((r) => r?.name)
     // Unit and price come off the registered item, so the builder does not ask
     // for either. unitCost is the only price Registered Items holds — if the
     // studio needs to quote above cost, that margin belongs on the item.
-    .map((r) => ({
-      id: r.id, name: String(r.name), sku: String(r.sku || ""),
-      unit: String(r.unit || ""), unitPrice: Number(r.unitCost) || 0,
-      currency: String(r.currency || ""), image: String(r.image || ""),
-    }))
+    .map((r) => {
+      const landed = landedUnitCost(r, studio.currency, snapshot.rates);
+      return {
+        id: r.id, name: String(r.name), sku: String(r.sku || ""),
+        unit: String(r.unit || ""), image: String(r.image || ""),
+        // ALWAYS IN THE STUDIO'S MONEY — this is what a quotation line is priced
+        // at, and every total downstream adds it up without asking where it came
+        // from. Zero when it could not be converted, which `priced` explains.
+        unitPrice: landed.unitPrice,
+        // WHAT IT IS IN and what it was BEFORE, so the builder can show its
+        // working rather than a number that silently differs from Registered
+        // Items. Nothing here is priced from these — they are the explanation.
+        currency: String(r.currency || ""),
+        cost: Number(r.unitCost) || 0,
+        shippingCharges: landed.shipping,
+        customsCharges: landed.customs,
+        landedCost: landed.base,
+        rate: landed.rate,
+        converted: landed.converted,
+        priced: landed.priced,
+        reason: landed.reason || "",
+      };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

@@ -189,8 +189,18 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
                     <th className={cellHead}>Item</th>
                     <th className={`${cellHead} w-20`}>Unit</th>
                     <th className={`${cellHead} w-20`}>Qty</th>
+                    {/* NO DISCOUNT COLUMN. What Sales reads off this screen is
+                        what the client is being asked to pay, and the concession
+                        behind that number is Technical's working — a figure that
+                        invites a conversation about whether it should have been
+                        larger, in the one place where nothing can be changed.
+
+                        Which is why Unit price here is the NET one. Dropping the
+                        column while still showing the gross price would leave a
+                        table whose own arithmetic does not add up: qty × unit
+                        price would not be the line total, and a reader with no
+                        way to see why would be right to distrust the document. */}
                     <th className={`${cellHead} w-28 text-end`}>Unit price</th>
-                    <th className={`${cellHead} w-24 text-end`}>Discount</th>
                     <th className={`${cellHead} w-32 text-end`}>Line total</th>
                   </tr>
                 </thead>
@@ -208,10 +218,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
                       <td className="px-3 py-2 font-600 text-slate-900 dark:text-white">{r.description}</td>
                       <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.unit || "—"}</td>
                       <td className="px-3 py-2 tabular-nums text-slate-600 dark:text-slate-300">{num(r.qty)}</td>
-                      <td className="px-3 py-2 text-end font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">{money(r.unitPrice)}</td>
-                      <td className="px-3 py-2 text-end font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
-                        {num(r.discount) ? money(r.discount) : "—"}
-                      </td>
+                      <td className="px-3 py-2 text-end font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">{money(netUnitPrice(r))}</td>
                       <td className="px-3 py-2 text-end font-mono text-xs font-600 tabular-nums text-slate-800 dark:text-slate-100">
                         {money(num(r.qty) * netUnitPrice(r))}
                       </td>

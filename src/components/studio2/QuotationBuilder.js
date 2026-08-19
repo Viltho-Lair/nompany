@@ -5,6 +5,7 @@ import { btn, btnGhost, input, label, money } from "@/components/studio2/ui";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
 import { MAX_TABLES, MAX_TABLE_ROWS, netUnitPrice } from "@/lib/quotations";
+import { fmtRate } from "@/lib/currencies";
 
 // The Quotation Builder: the full screen where a quotation is actually built.
 //
@@ -66,6 +67,17 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
   const itemNames = useMemo(() => catalogue.map((i) => i.name), [catalogue]);
   const itemByName = useMemo(
     () => Object.fromEntries(catalogue.map((i) => [i.name.toLowerCase(), i])), [catalogue]);
+  // WHERE A ROW'S PRICE CAME FROM, looked up by the id the row already stores.
+  // The provenance is NOT copied onto the row: a quotation line holds what was
+  // quoted, and the rate that produced it is the catalogue's business, shown
+  // here so somebody can check the figure rather than stored here so somebody
+  // has to keep it in step.
+  const itemById = useMemo(
+    () => Object.fromEntries(catalogue.map((i) => [i.id, i])), [catalogue]);
+  // Lines priced at nothing because a rate was missing, not because they are
+  // free. Said once at the top, because a long document hides a small note.
+  const unpriced = tables.flatMap((t) => t.rows)
+    .filter((r) => r.itemId && itemById[r.itemId] && !itemById[r.itemId].priced);
 
   // Picking a registered item brings its UNIT and PRICE across, so neither is
   // asked for. Both are COPIED onto the line rather than looked up later: a
@@ -173,6 +185,25 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
         </p>
       )}
 
+      {/* PRICED AT NOTHING BECAUSE NOBODY COULD CONVERT IT, which on a client
+          document looks exactly like priced at nothing because it is free. Said
+          at the top and not only on the row: a quotation runs to several tables
+          and a small grey note inside one of them is a note nobody reads.
+
+          Not a block on Submit. The remedy is in another module (Settings, or
+          waiting for tomorrow's rates), and holding a whole quotation hostage to
+          one line would strand the rest of the work — so this says exactly what
+          is wrong and leaves the call to whoever is building the document. */}
+      {!locked && unpriced.length > 0 && (
+        <p className="border-b border-rose-500/20 bg-rose-500/10 px-5 py-2 text-xs text-rose-700 dark:text-rose-300">
+          {unpriced.length} line{unpriced.length === 1 ? " is" : "s are"} priced at zero: {
+            unpriced.some((r) => itemById[r.itemId]?.reason === "no-studio-currency")
+              ? "this studio has not set the currency it counts in, so there is nothing to convert a foreign price into. Set it in Settings."
+              : "today's rates do not quote that currency against the studio's, so nothing here can convert the cost."
+          }
+        </p>
+      )}
+
       {/* ----------------------------------------------------------- tables */}
       <div className="flex-1 overflow-y-auto px-5 py-6">
         <div className="mx-auto max-w-5xl space-y-6">
@@ -214,7 +245,11 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                         <th className="w-20 py-2 pe-3 text-start font-600">Unit</th>
                         <th className="w-24 py-2 pe-3 text-start font-600">Qty</th>
                         <th className="w-28 py-2 pe-3 text-end font-600">Unit price</th>
-                        <th className="w-28 py-2 pe-3 text-start font-600">Discount</th>
+                        {/* PER CENT, said in the heading. Labelled just
+                            "Discount" beside a column of money, it read as an
+                            amount off — which is what it used to be, and what a
+                            studio typing 10 into it meant either way. */}
+                        <th className="w-28 py-2 pe-3 text-start font-600">Disc %</th>
                         <th className="w-8" />
                       </tr>
                     </thead>
@@ -250,15 +285,42 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                               aria-label={`Table ${i + 1} row ${k + 1} quantity`}
                               onChange={(e) => setRow(i, k, { qty: e.target.value })} />
                           </td>
+                          {/* THE PRICE THIS DOCUMENT IS WRITTEN IN, always —
+                              a registered item bought abroad is converted before
+                              it ever reaches a line, so nothing below this cell
+                              has to know a second currency exists.
+
+                              With the working underneath when there was any: what
+                              it cost where it was bought, and the rate that
+                              brought it here. A converted figure nobody can check
+                              is a figure nobody can defend in front of a client,
+                              and Registered Items will show a different number
+                              from this screen for the rest of the item's life. */}
                           <td className="py-1.5 pe-3 text-end font-mono text-xs text-slate-600 dark:text-slate-300">
                             {row.itemId || num(row.unitPrice)
                               ? <>{money(num(row.unitPrice))} <span className="text-slate-400">{currency}</span></>
                               : <span className="font-sans text-slate-400">—</span>}
+                            <Conversion src={itemById[row.itemId]} />
                           </td>
+                          {/* The % sits beside the field rather than inside the
+                              value, so what is typed stays a plain number and
+                              what it means is still on the screen. Beneath it,
+                              what the line is actually priced at once the
+                              discount is off — the figure the client sees, which
+                              is otherwise arithmetic somebody has to do in their
+                              head to check a document before it goes out. */}
                           <td className="py-1.5 pe-3">
-                            <input className={cell} value={row.discount ?? 0} disabled={locked} inputMode="decimal"
-                              aria-label={`Table ${i + 1} row ${k + 1} discount per unit`}
-                              onChange={(e) => setRow(i, k, { discount: e.target.value })} />
+                            <div className="flex items-center gap-1.5">
+                              <input className={`${cell} w-16`} value={row.discount ?? 0} disabled={locked} inputMode="decimal"
+                                aria-label={`Table ${i + 1} row ${k + 1} discount percent`}
+                                onChange={(e) => setRow(i, k, { discount: e.target.value })} />
+                              <span className="text-xs text-slate-400">%</span>
+                            </div>
+                            {num(row.discount) > 0 && num(row.unitPrice) > 0 && (
+                              <p className="mt-1 font-mono text-[11px] text-slate-400">
+                                net {money(netUnitPrice(row))}
+                              </p>
+                            )}
                           </td>
                           <td className="py-1.5 text-end">
                             {!locked && table.rows.length > 1 && (
@@ -330,5 +392,37 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
         </div>
       </footer>
     </div>
+  );
+}
+
+// THE WORKING BEHIND A CONVERTED PRICE, in one line under the figure it made.
+//
+// Shown only where there was a conversion: an item bought in the studio's own
+// money has nothing to explain, and a note under every row would be noise around
+// the few that need it.
+//
+// The full sum is on the hover title rather than in the row, because the cell is
+// a narrow column in a wide table — the line says WHAT was converted and at what
+// rate, and the title says how that figure was reached.
+function Conversion({ src }) {
+  if (!src?.converted) return null;
+
+  if (!src.priced) {
+    return (
+      <p className="mt-0.5 font-sans text-[11px] font-600 text-rose-600 dark:text-rose-400">
+        no {src.currency} rate
+      </p>
+    );
+  }
+
+  const parts = [`${money(src.cost)} cost`];
+  if (src.shipping) parts.push(`${money(src.shipping)} shipping`);
+  if (src.customs) parts.push(`${money(src.customs)} customs`);
+
+  return (
+    <p className="mt-0.5 font-sans text-[11px] text-slate-400"
+      title={`${parts.join(" + ")} = ${money(src.landedCost)} ${src.currency}, converted at ${fmtRate(src.rate)} per ${src.currency}`}>
+      {money(src.landedCost)} {src.currency} × {fmtRate(src.rate)}
+    </p>
   );
 }

@@ -121,9 +121,10 @@ export function cleanQuotationTables(value) {
       // given: re-pricing it from today's catalogue would rewrite what was
       // quoted last month.
       unitPrice: n(r?.unitPrice),
-      // Taken off each unit before the line is multiplied out, so a discount
-      // scales with quantity the way whoever typed it expects.
-      discount: n(r?.discount),
+      // A PERCENTAGE OFF THE UNIT PRICE — see netUnitPrice. Clamped to 0–100 on
+      // the way in, so no stored line can carry a discount that would have to be
+      // defended against every time it is read.
+      discount: discountPct(r?.discount),
     })).filter((r) => r.description)),
   }));
 }
@@ -137,13 +138,27 @@ export function itemsFromTables(tables) {
     (t.rows || []).map((r) => ({
       description: t.title ? `${t.title} — ${r.description}` : r.description,
       qty: r.qty,
-      // The NET price per unit. The gross price and the discount both stay on
-      // the table row, which is what the document shows; `items` is the priced
-      // list the totals run over, and it should already have the discount taken
-      // off so nothing downstream has to know discounts exist.
+      // The NET price per unit. The gross price and the discount percentage both
+      // stay on the table row, which is what the document shows; `items` is the
+      // priced list the totals run over, and it should already have the discount
+      // taken off so nothing downstream has to know discounts exist.
       unitPrice: netUnitPrice(r),
     })));
 }
 
-// Never below zero: a discount bigger than the price is a typo, not a refund.
-export const netUnitPrice = (r) => Math.max(0, n(r?.unitPrice) - n(r?.discount));
+// A DISCOUNT IS A PERCENTAGE OFF THE UNIT PRICE, never an amount of money.
+//
+// It was subtracted as currency, which read plausibly on a screen labelled
+// "Discount" and was wrong in every studio that typed what it meant: 10 off a
+// 12.50 item is a rounding error, 10% off it is the offer. It also could not
+// survive a currency: the same number meant a different concession depending on
+// what the quotation was written in, while a percentage means the same thing
+// everywhere.
+//
+// Clamped to 0–100 rather than defended against: below zero is a surcharge
+// wearing the wrong label, above 100 is a refund, and neither is a discount. The
+// clamp is applied here AND in cleanQuotationTables, so a stored line and a line
+// still being typed answer identically.
+export const MAX_DISCOUNT_PCT = 100;
+export const discountPct = (v) => Math.min(MAX_DISCOUNT_PCT, Math.max(0, n(v)));
+export const netUnitPrice = (r) => n(r?.unitPrice) * (1 - discountPct(r?.discount) / 100);
