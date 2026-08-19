@@ -218,7 +218,7 @@ export function sanitizeDoc(json) {
 // time rather than simulated live in the editor.
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-export const blankSection = (title = "") => ({ id: uid(), title, body: emptyDoc() });
+export const blankSection = (title = "") => ({ id: uid(), title, numbered: true, body: emptyDoc() });
 
 // The skeleton a new document starts from: the headings almost every controlled
 // procedure carries, so the first screen is a document to fill in rather than a
@@ -240,6 +240,10 @@ export function cleanSections(sections) {
     out.push({
       id,
       title: String(s?.title ?? "").trim().slice(0, MAX_SECTION_TITLE),
+      // NOT EVERY SECTION IS A CLAUSE. A covering paragraph, a signature block
+      // or a note at the foot of a quotation is part of the document without
+      // being something anybody cites by number.
+      numbered: s?.numbered !== false,
       body: sanitizeDoc(s?.body),
     });
   }

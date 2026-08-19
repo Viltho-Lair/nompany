@@ -1290,10 +1290,38 @@ const cleanSlot = (raw) => {
   return { type: "field", value };
 };
 
-const cleanBar = (raw, fallback) => {
-  const out = { showLogo: Boolean(raw?.showLogo), rule: raw?.rule !== false };
+// A BAR IS ROWS, not one line. A letterhead is routinely three: the company on
+// top, the address under it, the document's code and date under that. One row
+// forced everything anybody wanted to say into three slots.
+//
+// A bar stored before rows existed is read as a single row, so no studio's
+// letterhead is lost to the change.
+const MAX_BAR_ROWS = 4;
+
+const cleanRow = (raw, fallback) => {
+  const out = {};
   for (const slot of BAR_SLOTS) out[slot] = cleanSlot(raw?.[slot]) ?? cleanSlot(fallback?.[slot]);
   return out;
+};
+
+const rowsOf = (raw) => {
+  if (Array.isArray(raw?.rows)) return raw.rows;
+  // The old shape: slots sitting directly on the bar.
+  if (raw && (raw.left || raw.center || raw.right)) return [raw];
+  return [];
+};
+
+const cleanBar = (raw, fallback) => {
+  const incoming = rowsOf(raw);
+  const fell = rowsOf(fallback);
+  const rows = (incoming.length ? incoming : fell)
+    .slice(0, MAX_BAR_ROWS)
+    .map((r, i) => cleanRow(r, fell[i]));
+  return {
+    showLogo: Boolean(raw?.showLogo),
+    rule: raw?.rule !== false,
+    rows: rows.length ? rows : [cleanRow(null, fell[0])],
+  };
 };
 
 export function letterheadFor(ctx) {

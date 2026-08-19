@@ -554,7 +554,12 @@ export default function StudioQualityBuilder({ studio, documentId }) {
                   <section key={s.id} id={`section-${s.id}`} className="mb-8 last:mb-0"
                     dir={doc?.language === "ar" ? "rtl" : "ltr"}>
                     <div className="mb-2 flex items-baseline gap-2">
-                      <span className="font-mono text-sm font-700 text-slate-400">{i + 1}.</span>
+                      {/* Counted, not indexed — an unnumbered section must not
+                          consume a number, or every clause after it is cited
+                          one along from where it is. */}
+                      <span className="font-mono text-sm font-700 text-slate-400">
+                        {s.numbered === false ? "—" : `${sections.slice(0, i + 1).filter((x) => x.numbered !== false).length}.`}
+                      </span>
                       <input
                         value={s.title}
                         readOnly={!editable}
@@ -562,6 +567,18 @@ export default function StudioQualityBuilder({ studio, documentId }) {
                         onChange={(e) => setTitle(s.id, e.target.value)}
                         className="w-full border-0 bg-transparent p-0 font-display text-lg font-800 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-0"
                       />
+                      {editable && (
+                        <label className="shrink-0 flex cursor-pointer items-center gap-1 text-[11px] font-600 text-slate-400"
+                          title="A covering paragraph or a signature block is part of the document without being a clause anybody cites">
+                          <input type="checkbox" className="h-3 w-3 accent-brand-600"
+                            checked={s.numbered !== false}
+                            onChange={(e) => {
+                              setSections((list) => list.map((x) => (x.id === s.id ? { ...x, numbered: e.target.checked } : x)));
+                              touch();
+                            }} />
+                          Numbered
+                        </label>
+                      )}
                       {editable && sections.length > 1 && (
                         <button type="button" onClick={() => removeSection(s.id)} title="Remove this section"
                           className="shrink-0 text-xs font-600 text-slate-300 hover:text-rose-600">✕</button>

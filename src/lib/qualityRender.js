@@ -227,10 +227,17 @@ const textIn = (node) => (node.content || []).map((c) => (c.type === "text" ? c.
 // controlled document is cited by section number and those numbers have to come
 // from the document rather than from whoever is counting.
 export function renderSections(sections, ctx = {}) {
-  return (sections || []).map((s, i) => {
+  // COUNTED, not indexed. An unnumbered section must not consume a number, or
+  // every clause after it is cited one along from where it actually is.
+  let n = 0;
+  return (sections || []).map((s) => {
     const title = String(s.title || "").trim();
+    const numbered = s.numbered !== false;
+    if (numbered) n += 1;
     const heading = title
-      ? `<div class="quality-section-title" dir="auto"><span class="quality-section-number">${i + 1}.</span><span>${esc(title)}</span></div>`
+      ? `<div class="quality-section-title" dir="auto">`
+        + (numbered ? `<span class="quality-section-number">${n}.</span>` : "")
+        + `<span>${esc(title)}</span></div>`
       : "";
     return `<section class="quality-section">${heading}<div class="quality-prose">${renderNode(s.body, ctx)}</div></section>`;
   }).join("");
@@ -281,20 +288,23 @@ export function slotValue(slot, ctx, { forPrint = true } = {}) {
 
 // The three slots of one bar, resolved. Shared by the print templates below and
 // by the on-screen letterhead, so the preview shows what the paper will.
+// Every row of a bar, resolved. Returns an ARRAY now, because a letterhead is
+// routinely more than one line.
 export function barSlots(bar, ctx, opts) {
-  return {
-    left: slotValue(bar?.left, ctx, opts),
-    center: slotValue(bar?.center, ctx, opts),
-    right: slotValue(bar?.right, ctx, opts),
-  };
+  const rows = Array.isArray(bar?.rows) && bar.rows.length ? bar.rows : [bar || {}];
+  return rows.map((row) => ({
+    left: slotValue(row.left, ctx, opts),
+    center: slotValue(row.center, ctx, opts),
+    right: slotValue(row.right, ctx, opts),
+  }));
 }
 
 export const DEFAULT_TEMPLATE = {
   name: "Standard letterhead",
   pageSize: "A4",
   margins: { top: 28, right: 18, bottom: 22, left: 18 },
-  header: { left: "company.name", center: "document.title", right: "document.code", showLogo: true, rule: true },
-  footer: { left: "document.revision", center: "page.of", right: "document.effectiveDate", rule: true },
+  header: { showLogo: true, rule: true, rows: [{ left: "company.name", center: "document.title", right: "document.code" }] },
+  footer: { rule: true, rows: [{ left: "document.revision", center: "page.of", right: "document.effectiveDate" }] },
 };
 
 // Puppeteer renders header and footer templates in a DOCUMENT OF THEIR OWN,
@@ -314,10 +324,20 @@ function bar(slots, { rule, logo, ctx, position }) {
   const mark = logo && slots.showLogo
     ? `<img src="${escAttr(logo)}" style="height:26px;width:auto;margin-inline-end:8px;object-fit:contain">`
     : "";
+
+  const rows = Array.isArray(slots?.rows) && slots.rows.length ? slots.rows : [slots || {}];
+  // The logo sits beside the whole stack rather than inside the first row, so a
+  // three-line letterhead does not shunt it up against the top line.
+  const lines = rows
+    .map((row) => `<div style="display:flex;align-items:center;gap:6px;width:100%">`
+      + cell(row.left, "start") + cell(row.center, "center") + cell(row.right, "end")
+      + `</div>`)
+    .join("");
+
   return `<div style="width:100%;font-family:'Doc Sans',sans-serif;font-size:8pt;color:#64748b;`
     + `padding:0 ${Number(ctx.template?.margins?.left) || 18}mm;box-sizing:border-box;">`
     + `<div style="display:flex;align-items:center;gap:6px;${border}">`
-    + mark + cell(slots.left, "start") + cell(slots.center, "center") + cell(slots.right, "end")
+    + mark + `<div style="flex:1">${lines}</div>`
     + `</div></div>`;
 }
 

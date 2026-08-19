@@ -36,6 +36,16 @@ const say = (error) => MESSAGES[error] || "That didn't work. Try again.";
 
 const blankType = () => ({ name: "", prefix: "", description: "" });
 
+// One slot, in one row, of one bar. Written out longhand because every level of
+// it has to be copied rather than mutated for React to see the change.
+const setSlot = (head, bar, rowIndex, slot, value) => ({
+  ...head,
+  [bar]: {
+    ...head[bar],
+    rows: (head[bar].rows || []).map((r, i) => (i === rowIndex ? { ...r, [slot]: value } : r)),
+  },
+});
+
 export default function StudioQualitySetup({ studio }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -241,9 +251,10 @@ export default function StudioQualitySetup({ studio }) {
                         )}
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-3">
+                      {(head[bar]?.rows || []).map((barRow, rowIndex) => (
+                      <div key={rowIndex} className="mb-3 grid gap-3 sm:grid-cols-3">
                         {["left", "center", "right"].map((slot) => {
-                          const cur = head[bar]?.[slot] || null;
+                          const cur = barRow?.[slot] || null;
                           const isText = cur?.type === "text";
                           return (
                             <div key={slot} className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-[#191921]">
@@ -257,7 +268,7 @@ export default function StudioQualitySetup({ studio }) {
                                   const v = e.target.value;
                                   const next = v === "__text" ? { type: "text", value: "" }
                                     : v ? { type: "field", value: v } : null;
-                                  setHead((h) => ({ ...h, [bar]: { ...h[bar], [slot]: next } }));
+                                  setHead((h) => setSlot(h, bar, rowIndex, slot, next));
                                   setHeadDirty(true);
                                 }}
                               >
@@ -283,7 +294,7 @@ export default function StudioQualitySetup({ studio }) {
                                   disabled={readOnly}
                                   placeholder="e.g. Confidential"
                                   onChange={(e) => {
-                                    setHead((h) => ({ ...h, [bar]: { ...h[bar], [slot]: { type: "text", value: e.target.value } } }));
+                                    setHead((h) => setSlot(h, bar, rowIndex, slot, { type: "text", value: e.target.value }));
                                     setHeadDirty(true);
                                   }}
                                 />
@@ -292,6 +303,30 @@ export default function StudioQualitySetup({ studio }) {
                           );
                         })}
                       </div>
+                      ))}
+
+                      {!readOnly && (
+                        <div className="flex gap-2">
+                          <button type="button"
+                            className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400"
+                            onClick={() => {
+                              setHead((h) => ({ ...h, [bar]: { ...h[bar], rows: [...(h[bar].rows || []), {}] } }));
+                              setHeadDirty(true);
+                            }}>
+                            + Add a line
+                          </button>
+                          {(head[bar]?.rows || []).length > 1 && (
+                            <button type="button"
+                              className="text-xs font-600 text-slate-500 hover:text-rose-600 dark:text-slate-400"
+                              onClick={() => {
+                                setHead((h) => ({ ...h, [bar]: { ...h[bar], rows: h[bar].rows.slice(0, -1) } }));
+                                setHeadDirty(true);
+                              }}>
+                              Remove the last line
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
 

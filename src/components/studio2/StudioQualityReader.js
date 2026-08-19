@@ -45,6 +45,14 @@ export default function StudioQualityReader({ studio, documentId, source = "docu
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState("");
+  // PAGED BY DEFAULT, because a document is pages. The continuous view is one
+  // long column with no page boundaries and therefore no page numbers — which
+  // is why the footer had nothing to put in them and why a page break drew a
+  // marker and did nothing. Both are correct in the PDF; the preview simply
+  // could not show it.
+  const [paged, setPaged] = useState(true);
+  const [pageSrc, setPageSrc] = useState("");
+  const [pagedFailed, setPagedFailed] = useState("");
 
   const load = useCallback(async () => {
     const path = generated ? "generated" : "content";
@@ -80,6 +88,33 @@ export default function StudioQualityReader({ studio, documentId, source = "docu
   const pdfUrl = generated
     ? `/api/studios/${studio.slug}/quality/pdf?generated=${encodeURIComponent(documentId)}`
     : `/api/studios/${studio.slug}/quality/pdf?id=${encodeURIComponent(documentId)}`;
+
+  // ONE RENDER, TWO USES. The pages on screen and the pages that download are
+  // the same bytes: Chromium runs once, the result is held as a blob, and the
+  // <object> reads that rather than firing a second render of its own. It also
+  // means a deployment with no renderer degrades to the continuous view with a
+  // reason attached, instead of an empty grey rectangle.
+  useEffect(() => {
+    if (!paged || pageSrc || pagedFailed) return;
+    let url = "";
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(pdfUrl, { cache: "no-store" });
+        if (!res.ok) throw new Error(res.status === 503 ? "no-renderer" : "failed");
+        const blob = await res.blob();
+        url = URL.createObjectURL(blob);
+        if (alive) setPageSrc(url); else URL.revokeObjectURL(url);
+      } catch (e) {
+        if (!alive) return;
+        setPagedFailed(e.message === "no-renderer"
+          ? "The PDF renderer isn't configured on this deployment, so the paged view is unavailable."
+          : "The paged view couldn't be produced.");
+        setPaged(false);
+      }
+    })();
+    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+  }, [paged, pageSrc, pagedFailed, pdfUrl]);
 
   // The PDF is fetched rather than linked so a refusal can be READ. A plain
   // <a> to a route that answers 503 navigates the person to a page of JSON.
@@ -159,6 +194,10 @@ export default function StudioQualityReader({ studio, documentId, source = "docu
                 {STATUS_LABELS[doc.state] || doc.state}
               </span>
             )}
+            <button type="button" className={btnGhost} title={pagedFailed || "Switch between the real pages and one continuous column"}
+              onClick={() => { setPagedFailed(""); setPaged((v) => !v); }}>
+              {paged ? "Continuous" : "Paged"}
+            </button>
             <button type="button" className={btnGhost} onClick={() => window.print()}>Print</button>
             <button type="button" className={btn} onClick={download} disabled={exporting === "working"}>
               {exporting === "working" ? "Rendering…" : "Download PDF"}
@@ -179,7 +218,30 @@ export default function StudioQualityReader({ studio, documentId, source = "docu
       )}
 
       {data && !error && (
-        <main className="quality-print-sheet mx-auto max-w-[1000px] px-5 py-8 sm:px-8">
+        <>
+        {/* THE REAL PAGES. The same bytes the Download button hands over, shown
+            in the browser's own PDF view — so page breaks fall where they will
+            fall, the footer's numbering is the actual count, and what is on
+            screen IS the document rather than an approximation of it with a
+            caption apologising for itself. */}
+        {paged && (
+          <main className="mx-auto max-w-[1000px] px-5 py-8 sm:px-8 print:hidden">
+            {pageSrc ? (
+              <object data={`${pageSrc}#toolbar=1&navpanes=0`} type="application/pdf"
+                className="h-[80vh] w-full rounded-geex border border-slate-200/70 bg-white shadow-geex dark:border-white/10">
+                <p className="p-8 text-center text-sm text-slate-500">
+                  Your browser will not show a PDF here. Switch to Continuous, or download it.
+                </p>
+              </object>
+            ) : (
+              <div className="flex h-[80vh] w-full items-center justify-center rounded-geex border border-slate-200/70 bg-white text-sm text-slate-400 shadow-geex dark:border-white/10 dark:bg-white/5">
+                Laying the document out in pages…
+              </div>
+            )}
+          </main>
+        )}
+
+        <main className={`quality-print-sheet mx-auto max-w-[1000px] px-5 py-8 sm:px-8${paged ? " hidden print:block" : ""}`}>
           <div className="quality-print-card relative mx-auto overflow-hidden rounded-geex bg-white shadow-geex">
             {watermark && (
               <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
@@ -197,9 +259,15 @@ export default function StudioQualityReader({ studio, documentId, source = "docu
               {letterhead.header?.showLogo && studio.logo && (
                 <img src={studio.logo} alt="" className="h-7 w-auto object-contain" />
               )}
-              <span className="flex-1 truncate" dangerouslySetInnerHTML={{ __html: head.left }} />
-              <span className="flex-1 truncate text-center" dangerouslySetInnerHTML={{ __html: head.center }} />
-              <span className="flex-1 truncate text-end" dangerouslySetInnerHTML={{ __html: head.right }} />
+              <span className="flex-1 space-y-0.5">
+                {head.map((row, i) => (
+                  <span key={i} className="flex gap-3">
+                    <span className="flex-1 truncate" dangerouslySetInnerHTML={{ __html: row.left }} />
+                    <span className="flex-1 truncate text-center" dangerouslySetInnerHTML={{ __html: row.center }} />
+                    <span className="flex-1 truncate text-end" dangerouslySetInnerHTML={{ __html: row.right }} />
+                  </span>
+                ))}
+              </span>
             </div>
 
             <div className="quality-page quality-print-body mx-auto bg-white px-[18mm] py-[12mm] text-slate-900"
@@ -218,12 +286,19 @@ export default function StudioQualityReader({ studio, documentId, source = "docu
                 engine makes them — so a page token resolves to nothing and the
                 number appears only where it can be true. */}
             <div className="quality-print-bar flex items-center gap-3 border-t border-slate-200 px-[18mm] pb-[14mm] pt-3 text-[9pt] text-slate-500">
-              <span className="flex-1" dangerouslySetInnerHTML={{ __html: foot.left }} />
-              <span className="flex-1 text-center" dangerouslySetInnerHTML={{ __html: foot.center }} />
-              <span className="flex-1 text-end" dangerouslySetInnerHTML={{ __html: foot.right }} />
+              <span className="flex-1 space-y-0.5">
+                {foot.map((row, i) => (
+                  <span key={i} className="flex gap-3">
+                    <span className="flex-1 truncate" dangerouslySetInnerHTML={{ __html: row.left }} />
+                    <span className="flex-1 truncate text-center" dangerouslySetInnerHTML={{ __html: row.center }} />
+                    <span className="flex-1 truncate text-end" dangerouslySetInnerHTML={{ __html: row.right }} />
+                  </span>
+                ))}
+              </span>
             </div>
           </div>
         </main>
+        </>
       )}
     </div>
   );

@@ -56,7 +56,7 @@ import { resolveBlocks, blocksFor, generateDocument, listGenerated, getGenerated
   moveGenerated, regenerate } from "@/lib/quality";
 import { documentState, pendingRevision } from "@/lib/qualityDocuments";
 import { sanitizeDoc, cleanSections, textOf } from "@/lib/qualityContent";
-import { renderSections, slotValue, DEFAULT_TEMPLATE } from "@/lib/qualityRender";
+import { renderSections, slotValue, DEFAULT_TEMPLATE, headerTemplate } from "@/lib/qualityRender";
 import { listSections, updateRow } from "@/lib/data/sections";
 import { readArr, writeArr } from "@/lib/data/store";
 import { S } from "@/lib/data/keys";
@@ -1305,7 +1305,45 @@ console.log("\n== one renderer draws the screen and the page");
   ok("...and a field token resolves like any other",
     slotValue("company.name", { values: { "company.name": "Acme" } }) === "Acme");
   ok("the default letterhead prints the code and the revision",
-    DEFAULT_TEMPLATE.header.right === "document.code" && DEFAULT_TEMPLATE.footer.left === "document.revision");
+    DEFAULT_TEMPLATE.header.rows[0].right === "document.code"
+    && DEFAULT_TEMPLATE.footer.rows[0].left === "document.revision");
+
+  // THE BAR AS IT IS ACTUALLY DRAWN. The shape being right is not the same as
+  // three lines appearing on the page, and only one of those is what prints.
+  const threeLine = {
+    margins: { top: 30, right: 20, bottom: 24, left: 20 },
+    header: { showLogo: false, rule: true, rows: [
+      { left: { type: "text", value: "Acme Arabia" }, right: { type: "text", value: "QP-001" } },
+      { left: { type: "text", value: "Riyadh, Saudi Arabia" } },
+      { left: { type: "text", value: "+966 11 000 0000" }, right: { type: "text", value: "acme.sa" } },
+    ] },
+    footer: { rule: true, rows: [{ center: { type: "field", value: "page.of" } }] },
+  };
+  const bar = headerTemplate(threeLine, { values: {}, template: threeLine });
+  ok("a three-line header draws three lines",
+    (bar.match(/align-items:center;gap:6px;width:100%/g) || []).length === 3, bar);
+  ok("...and every line's words are on the page",
+    ["Acme Arabia", "Riyadh", "+966 11 000 0000", "acme.sa", "QP-001"].every((t) => bar.includes(t)), bar);
+
+  // A SECTION NOBODY CITES. A covering paragraph or a signature block belongs
+  // in the document without being clause 3 — and, crucially, without pushing
+  // the clause after it to 4.
+  const mixed = render([
+    { id: "a", title: "Purpose", body: doc([p("x")]) },
+    { id: "b", title: "Covering note", numbered: false, body: doc([p("y")]) },
+    { id: "c", title: "Scope", body: doc([p("z")]) },
+  ]);
+  // Read off the heading the title sits in, rather than off the whole document
+  // — "2." appears either way, and the question is which title it belongs to.
+  const headingOf = (title) => {
+    const at = mixed.indexOf(title);
+    return mixed.slice(mixed.lastIndexOf("<div class=\"quality-section-title\"", at), at);
+  };
+  ok("an unnumbered section carries no number",
+    !headingOf("Covering note").includes("quality-section-number"), headingOf("Covering note"));
+  ok("...and does not consume the next one",
+    headingOf("Scope").includes(">2.<"), headingOf("Scope"));
+  ok("...while the one before it keeps its own", headingOf("Purpose").includes(">1.<"), headingOf("Purpose"));
 
   // THE STAMP. A draft must never be mistaken on paper for the issued document,
   // and a withdrawn one must never be mistaken for current — those two
@@ -2305,23 +2343,32 @@ console.log("\n== the header and footer are the studio's, and say so once");
 
   const shipped = letterheadFor(q);
   ok("a studio that has never edited it still gets a letterhead",
-    Boolean(shipped.header?.left && shipped.footer?.center), JSON.stringify(shipped.header));
+    Boolean(shipped.header?.rows?.[0]?.left && shipped.footer?.rows?.[0]?.center), JSON.stringify(shipped.header));
 
   const saved = await saveLetterhead(q, {
     pageSize: "A4",
     margins: { top: 30, right: 20, bottom: 24, left: 20 },
-    header: { left: { type: "field", value: "company.name" }, center: { type: "text", value: "Confidential" },
-      right: { type: "field", value: "document.code" }, showLogo: true, rule: true },
-    footer: { left: { type: "field", value: "document.revision" }, center: { type: "field", value: "page.of" },
-      right: { type: "text", value: "" }, rule: true },
+    header: { showLogo: true, rule: true, rows: [
+      { left: { type: "field", value: "company.name" }, center: { type: "text", value: "Confidential" },
+        right: { type: "field", value: "document.code" } },
+      // A SECOND LINE. The thing this whole shape exists for: an address under
+      // the company, which one row of three slots had nowhere to put.
+      { left: { type: "text", value: "Riyadh, Saudi Arabia" }, center: null, right: null },
+    ] },
+    footer: { rule: true, rows: [{ left: { type: "field", value: "document.revision" },
+      center: { type: "field", value: "page.of" }, right: { type: "text", value: "" } }] },
   });
   ok("it can be edited", !saved.error, saved.error || "");
 
   const back = letterheadFor(await qualityContext(owner, slug));
   ok("...words somebody typed are kept as words",
-    back.header.center?.type === "text" && back.header.center.value === "Confidential", JSON.stringify(back.header.center));
+    back.header.rows[0].center?.type === "text" && back.header.rows[0].center.value === "Confidential",
+    JSON.stringify(back.header.rows[0].center));
   ok("...a field is kept as a reference, not its value",
-    back.header.left?.type === "field" && back.header.left.value === "company.name", JSON.stringify(back.header.left));
+    back.header.rows[0].left?.type === "field" && back.header.rows[0].left.value === "company.name",
+    JSON.stringify(back.header.rows[0].left));
+  ok("...a second line survives the trip", back.header.rows.length === 2
+    && back.header.rows[1].left?.value === "Riyadh, Saudi Arabia", JSON.stringify(back.header.rows));
   ok("...and the margins with it", back.margins.top === 30 && back.margins.left === 20, JSON.stringify(back.margins));
 
   // A FRESH CONTEXT PER WRITE, because that is what a request is. The saved
@@ -2332,10 +2379,18 @@ console.log("\n== the header and footer are the studio's, and say so once");
 
   // A field nobody declared would print as a permanent blank, so it is refused
   // when it is saved rather than discovered on paper.
-  await saveLetterhead(await fresh(), { ...back, header: { ...back.header, right: { type: "field", value: "company.invented" } } });
+  await saveLetterhead(await fresh(), { ...back, header: { ...back.header,
+    rows: [{ ...back.header.rows[0], right: { type: "field", value: "company.invented" } }, back.header.rows[1]] } });
   const guarded = letterheadFor(await fresh());
   ok("an undeclared field is refused and the old slot kept",
-    guarded.header.right?.value !== "company.invented", JSON.stringify(guarded.header.right));
+    guarded.header.rows[0].right?.value !== "company.invented", JSON.stringify(guarded.header.rows[0].right));
+
+  // MORE LINES THAN A PAGE CAN CARRY. A header of forty rows is a header that
+  // pushes the body off the sheet, so the count is capped where it is saved.
+  await saveLetterhead(await fresh(), { ...guarded, header: { ...guarded.header,
+    rows: Array.from({ length: 12 }, () => ({ left: { type: "text", value: "x" } })) } });
+  ok("a bar cannot grow without limit", letterheadFor(await fresh()).header.rows.length === 4,
+    String(letterheadFor(await fresh()).header.rows.length));
 
   // A margin too small to print loses text off the edge of the sheet, so it is
   // clamped rather than trusted.
@@ -2350,15 +2405,18 @@ console.log("\n== the header and footer are the studio's, and say so once");
   // over a document of any length because that was a hardcoded caption; on
   // screen the token now resolves to nothing instead of to a wrong number.
   const ctx = { values: { "company.name": "Acme", "document.code": "QP-001" } };
+  // A BAR RESOLVES TO ROWS, one entry per line, in the order they are drawn.
   const printed = barSlots(back.footer, ctx, { forPrint: true });
   ok("a page token becomes the printer's own spans on paper",
-    printed.center.includes("pageNumber") && printed.center.includes("totalPages"), printed.center);
+    printed[0].center.includes("pageNumber") && printed[0].center.includes("totalPages"), printed[0].center);
   const onScreen = barSlots(back.footer, ctx, { forPrint: false });
-  ok("...and nothing at all on screen", onScreen.center === "", JSON.stringify(onScreen.center));
+  ok("...and nothing at all on screen", onScreen[0].center === "", JSON.stringify(onScreen[0].center));
 
   const head = barSlots(back.header, ctx, { forPrint: false });
-  ok("a field resolves the same either way", head.left === "Acme", head.left);
-  ok("...and typed words come through escaped", head.center === "Confidential", head.center);
+  ok("every line of the bar resolves", head.length === 2, String(head.length));
+  ok("a field resolves the same either way", head[0].left === "Acme", head[0].left);
+  ok("...and typed words come through escaped", head[0].center === "Confidential", head[0].center);
+  ok("...and the second line is the second line", head[1].left === "Riyadh, Saudi Arabia", head[1].left);
 
   __signOut();
 }
