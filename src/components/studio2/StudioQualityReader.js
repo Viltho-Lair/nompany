@@ -93,7 +93,7 @@ export default function StudioQualityReader({ studio, documentId }) {
   const foot = barSlots(letterhead.footer, barCtx, { forPrint: false });
 
   return (
-    <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
+    <div className="quality-print-root min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
       {/* AND THE PRINT SHEET. Without it, pressing Print here produced a
           document with no page breaks, no repeating table headers and no
           margins, while printing the editor's break MARKER onto the paper
@@ -144,8 +144,8 @@ export default function StudioQualityReader({ studio, documentId }) {
       )}
 
       {data && !error && (
-        <main className="mx-auto max-w-[1000px] px-5 py-8 sm:px-8">
-          <div className="relative mx-auto overflow-hidden rounded-geex bg-white shadow-geex print:rounded-none print:shadow-none">
+        <main className="quality-print-sheet mx-auto max-w-[1000px] px-5 py-8 sm:px-8">
+          <div className="quality-print-card relative mx-auto overflow-hidden rounded-geex bg-white shadow-geex">
             {watermark && (
               <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
                 <span className="-rotate-[32deg] whitespace-nowrap font-display text-[64px] font-800 tracking-widest text-rose-600/10">
@@ -158,7 +158,7 @@ export default function StudioQualityReader({ studio, documentId }) {
                 engine reads. It used to be four hand-written spans here, which
                 meant editing the header in setup changed the PDF and left the
                 preview showing something else entirely. */}
-            <div className="flex items-center gap-3 border-b border-slate-200 px-[18mm] pb-3 pt-[14mm] text-[9pt] text-slate-500">
+            <div className="quality-print-bar flex items-center gap-3 border-b border-slate-200 px-[18mm] pb-3 pt-[14mm] text-[9pt] text-slate-500">
               {letterhead.header?.showLogo && studio.logo && (
                 <img src={studio.logo} alt="" className="h-7 w-auto object-contain" />
               )}
@@ -167,7 +167,7 @@ export default function StudioQualityReader({ studio, documentId }) {
               <span className="flex-1 truncate text-end" dangerouslySetInnerHTML={{ __html: head.right }} />
             </div>
 
-            <div className="quality-page mx-auto bg-white px-[18mm] py-[12mm] text-slate-900"
+            <div className="quality-page quality-print-body mx-auto bg-white px-[18mm] py-[12mm] text-slate-900"
               dir={doc?.language === "ar" ? "rtl" : "ltr"}
               // The renderer's output, not markup composed here. It comes from
               // validated JSON through the one function the PDF also uses, and
@@ -182,7 +182,7 @@ export default function StudioQualityReader({ studio, documentId }) {
                 count of anything. There are no pages here to count — the print
                 engine makes them — so a page token resolves to nothing and the
                 number appears only where it can be true. */}
-            <div className="flex items-center gap-3 border-t border-slate-200 px-[18mm] pb-[14mm] pt-3 text-[9pt] text-slate-500">
+            <div className="quality-print-bar flex items-center gap-3 border-t border-slate-200 px-[18mm] pb-[14mm] pt-3 text-[9pt] text-slate-500">
               <span className="flex-1" dangerouslySetInnerHTML={{ __html: foot.left }} />
               <span className="flex-1 text-center" dangerouslySetInnerHTML={{ __html: foot.center }} />
               <span className="flex-1 text-end" dangerouslySetInnerHTML={{ __html: foot.right }} />

@@ -189,17 +189,34 @@ export function pageCss(template) {
 
 // THE PRINT SHEET, for a screen somebody may print from.
 //
-// The same rules the PDF gets, wrapped in @media print so they do nothing until
-// a page is actually being printed — plus the one thing the PDF never needs:
-// hiding the editor's page-break MARKER and the slot tints, which would
-// otherwise put a dashed rule and a label onto the paper.
+// NOT the same job as the PDF's. The PDF renders a bare document into an empty
+// page, so @page margins are the only inset there is. A screen is an app: it
+// already has a max-width, a padded main, a rounded card with a shadow, and a
+// grey background behind all of it. Handing that page the PDF's margins insets
+// the content TWICE and prints the furniture around it — which is exactly what
+// it did, and what this now undoes.
 //
-// Without this the preview's Print button produced a document with no page
-// breaks, no repeating table headers and no margins, while faithfully printing
-// the marker that says where a break was supposed to be. Exactly inverted.
+// So the rules come in two halves: the paged-media rules the PDF also uses, and
+// a reset that strips the chrome so the sheet is the page rather than a picture
+// of one sitting on a desk.
 export function printMediaCss(template) {
   return "@media print {\n"
     + pageCss(template)
+    // The app's furniture, removed. The page's own margin comes from @page
+    // above; anything else here would add to it rather than replace it.
+    + "\nhtml, body { background: #fff !important; }"
+    + "\n.quality-print-root { min-height: 0 !important; background: #fff !important; }"
+    + "\n.quality-print-sheet { max-width: none !important; width: auto !important;"
+    + " margin: 0 !important; padding: 0 !important; }"
+    + "\n.quality-print-card { border-radius: 0 !important; box-shadow: none !important;"
+    + " overflow: visible !important; margin: 0 !important; }"
+    // The document's own side padding is the @page margin's job on paper, and
+    // keeping both is the double inset that made everything small.
+    + "\n.quality-print-body, .quality-print-bar { padding-left: 0 !important; padding-right: 0 !important;"
+    + " max-width: none !important; margin: 0 !important; }"
+    + "\n.quality-print-body { padding-top: 0 !important; padding-bottom: 0 !important; }"
+    + "\n.quality-print-bar { padding-top: 0 !important; }"
+    // Editor affordances are not part of the document.
     + "\n.quality-page-break { border: 0 !important; height: 0 !important; margin: 0 !important; }"
     + "\n.quality-page-break::after { content: none !important; }"
     + "\n.quality-slot { background: none !important; color: inherit !important; }"
