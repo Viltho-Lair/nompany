@@ -10,7 +10,7 @@ import { Icon } from "@/components/studio2/icons";
 import { MergeField } from "@/components/studio2/qualityMergeField";
 import { PageBreak } from "@/components/studio2/qualityPageBreak";
 import { RecordBlock, InputField } from "@/components/studio2/qualitySlots";
-import { btn, btnGhost, input, microLabel } from "@/components/studio2/ui";
+import { btn, btnGhost, input, microLabel, prefKey, loadPref, savePref } from "@/components/studio2/ui";
 import { blankSection, MAX_SECTIONS, emptyDoc } from "@/lib/qualityContent";
 import { SCREEN_CSS } from "@/lib/qualityCss";
 import QualityWorkflow from "@/components/studio2/QualityWorkflow";
@@ -33,7 +33,7 @@ const HEARTBEAT_MS = 60000;
 
 // The toolbar acts on whichever section has the caret, so the buttons are drawn
 // once at the top rather than repeated above every section.
-function Toolbar({ editor, onInsertField, onInsertBlock, onInsertInput, disabled, hasBlocks }) {
+function Toolbar({ editor, onInsertField, onInsertInput, disabled }) {
   // A placeholder of the same height while the first editor mounts, so the page
   // does not jump under the cursor a beat after it is drawn.
   if (!editor) return <div className="h-[45px] border-t border-[var(--geex-border)]" />;
@@ -76,18 +76,8 @@ function Toolbar({ editor, onInsertField, onInsertBlock, onInsertInput, disabled
         onMouseDown={(e) => { e.preventDefault(); onInsertField(); }}
         className="ms-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-700 text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-40 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
       >
-        Insert field
+        Insert
       </button>
-      {/* Offered only where a block could resolve — with no record bound there
-          is nothing for one to read, and a button that inserts a permanent
-          "nothing bound" marker is a button that makes documents worse. */}
-      {hasBlocks && (
-        <button type="button" disabled={disabled}
-          onMouseDown={(e) => { e.preventDefault(); onInsertBlock(); }}
-          className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-700 text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-40 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10">
-          Insert block
-        </button>
-      )}
       <button type="button" disabled={disabled}
         onMouseDown={(e) => { e.preventDefault(); onInsertInput(); }}
         className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-700 text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-40 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10">
@@ -172,16 +162,24 @@ function SubjectBinding({ slug, documentId, data, editable, onChanged }) {
     return () => { alive = false; };
   }, [slug, type]);
 
+  // The TYPE is the document's, so it is saved. The RECORD is this browser's,
+  // so it is kept where the column choices are — a preview is a way of looking,
+  // not a thing the document knows about itself.
   const bind = async (patch) => {
     setBusy(true);
     try {
       await fetch(`/api/studios/${slug}/quality/content`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: documentId, subjectType: "", subjectId: "", ...patch }),
+        body: JSON.stringify({ id: documentId, subjectType: "", ...patch }),
       });
       onChanged?.();
     } finally { setBusy(false); }
+  };
+
+  const preview = (recordId) => {
+    savePref(prefKey("quality", slug, `preview:${documentId}`), recordId);
+    onChanged?.();
   };
 
   const chosen = (options || []).find((o) => o.id === data?.subject?.id);
@@ -257,9 +255,9 @@ function SubjectBinding({ slug, documentId, data, editable, onChanged }) {
             className={input}
             value={data?.subject?.id || ""}
             disabled={!editable || busy || options === null}
-            onChange={(e) => bind({ subjectType: type, subjectId: e.target.value })}
+            onChange={(e) => preview(e.target.value)}
           >
-            <option value="">{options === null ? "Loading…" : "Choose one…"}</option>
+            <option value="">{options === null ? "Loading…" : "Preview with…"}</option>
             {(options || []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
         )}
@@ -291,7 +289,13 @@ export default function StudioQualityBuilder({ studio, documentId }) {
   latest.current = sections;
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/studios/${studio.slug}/quality/content?id=${encodeURIComponent(documentId)}`, { cache: "no-store" });
+    // Remembered in this browser, never on the document.
+    const seen = loadPref(prefKey("quality", studio.slug, `preview:${documentId}`), "");
+    const res = await fetch(
+      `/api/studios/${studio.slug}/quality/content?id=${encodeURIComponent(documentId)}`
+      + (seen ? `&preview=${encodeURIComponent(seen)}` : ""),
+      { cache: "no-store" },
+    );
     if (!res.ok) {
       setError(res.status === 404 ? "That document doesn't exist." : "You don't have access to this document.");
       return;
@@ -475,12 +479,7 @@ export default function StudioQualityBuilder({ studio, documentId }) {
             <Toolbar
               editor={activeEditor}
               disabled={!editable}
-              hasBlocks={(data.blockSources || []).length > 0}
               onInsertField={() => setFieldMenu((v) => !v)}
-              onInsertBlock={() => {
-                const source = (data.blockSources || [])[0];
-                if (source) activeEditor?.chain().focus().insertRecordBlock(source.key).run();
-              }}
               onInsertInput={() => {
                 const label = window.prompt("What should this answer be labelled?", "Trainee name");
                 if (!label) return;
@@ -495,7 +494,7 @@ export default function StudioQualityBuilder({ studio, documentId }) {
                     in a row — and closing after each one made the author reopen
                     the menu every time. It shuts when they say so. */}
                 <div className="mb-2 flex items-center gap-2">
-                  <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Insert a field</p>
+                  <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Insert</p>
                   <button type="button" onClick={() => setFieldMenu(false)} aria-label="Close"
                     className="ms-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white">
                     <Icon name="close" className="h-4 w-4" />
@@ -510,10 +509,17 @@ export default function StudioQualityBuilder({ studio, documentId }) {
                           <button key={f.key} type="button"
                             onMouseDown={(e) => {
                               e.preventDefault();
-                              activeEditor?.chain().focus().insertMergeField(f.key).run();
+                              const chain = activeEditor?.chain().focus();
+                              // A block returns rows and a field returns a word.
+                              // Which one this is was settled where the source
+                              // was declared, not here.
+                              if (f.kind === "block") chain?.insertRecordBlock(f.key).run();
+                              else chain?.insertMergeField(f.key).run();
                             }}
-                            className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-600 text-slate-600 transition-colors hover:border-brand-500 hover:text-brand-700 dark:border-white/15 dark:bg-white/5 dark:text-slate-300">
-                            {f.label}
+                            className={`rounded-full border px-2.5 py-1 text-xs font-600 transition-colors ${f.kind === "block"
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:border-emerald-500 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-brand-500 hover:text-brand-700 dark:border-white/15 dark:bg-white/5 dark:text-slate-300"}`}>
+                            {f.kind === "block" ? `▤ ${f.label}` : f.label}
                           </button>
                         ))}
                       </div>

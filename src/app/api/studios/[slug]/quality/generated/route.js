@@ -1,6 +1,6 @@
 import {
   qualityGuard, generateDocument, listGenerated, getGenerated,
-  moveGenerated, regenerate, availableMoves, TRANSITIONS, letterheadFor,
+  moveGenerated, regenerate, availableMoves, TRANSITIONS, letterheadFor, homeOf,
 } from "@/lib/quality";
 import { can } from "@/lib/access";
 
@@ -34,6 +34,8 @@ export async function GET(request, ctx) {
       // The studio's own header and footer, so a generated document is
       // framed exactly like a controlled one.
       letterhead: letterheadFor(g),
+      // Where Back goes: the screen the button that made this sits on.
+      home: await homeOf(g, found.instance),
       // Computed from the same table the service enforces, so a button is only
       // ever drawn where pressing it would succeed.
       available: availableMoves(TRANSITIONS, found.instance.state, (p) => can(g.access, p)),

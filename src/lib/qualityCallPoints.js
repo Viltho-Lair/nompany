@@ -59,3 +59,27 @@ export function callPointOptions(templates, forId = "") {
     taken: callPointTaken(templates, c.id, forId),
   }));
 }
+
+// ---- the way back -----------------------------------------------------------
+//
+// A document generated from a button belongs to the screen that button is on,
+// so Back should return there. It went to the Quality register instead — a
+// constant I typed, which dropped somebody into a section they may not even
+// have been working in.
+//
+// The route is BUILT from the record's own graph rather than stored: a URL
+// written down at generation is a URL that rots the first time the routing
+// changes, and this way it cannot disagree with where the button actually is.
+export const HOMES = {
+  // A quotation is read through the ticket that raised it, which is why the
+  // viewer's own address carries both.
+  quotation: {
+    needs: "salesTicket",
+    href: (slug, record, ticket) =>
+      ticket ? `/${slug}/sales-tickets/${ticket.id}/quotations/${record.id}` : `/${slug}/quality-documents`,
+  },
+  salesTicket: { needs: null, href: (slug, record) => `/${slug}/sales-tickets/${record.id}` },
+  project: { needs: null, href: (slug, record) => `/${slug}/projects-list/${record.id}` },
+};
+
+export const homeFor = (subjectType) => HOMES[String(subjectType || "")] || null;

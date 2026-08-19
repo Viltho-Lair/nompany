@@ -1642,7 +1642,13 @@ console.log("\n== fields are carried, not copied, and only where they are allowe
     ok("the bindable records are listed", (opts.options || []).some((o) => o.id === ticket.ticket.id));
 
     const bound = await bindSubject(withLegal, id, { subjectType: "salesTicket", subjectId: ticket.ticket.id });
-    ok("a document can be bound to a record", !bound.error, bound.error || "");
+    ok("a document can be bound to a subject", !bound.error, bound.error || "");
+    // ONLY THE TYPE IS KEPT. Which record somebody previewed against is a way of
+    // looking, not something the document knows about itself — storing it put a
+    // throwaway choice onto a record that goes through review and approval.
+    ok("...and only the TYPE is written down",
+      bound.document.subjectType === "salesTicket" && !bound.document.subjectId,
+      JSON.stringify({ t: bound.document.subjectType, i: bound.document.subjectId }));
 
     const ctx2 = await qualityContext(owner, slug);
     const after = fieldsFor(ctx2, bound.document);
@@ -1651,7 +1657,10 @@ console.log("\n== fields are carried, not copied, and only where they are allowe
     ok("...grouped under the department, not lumped in with Company",
       after.groups.some(([g]) => g === "Sales"), after.groups.map(([g]) => g).join(","));
 
-    const v2 = await mergeValuesFor(ctx2, bound.document);
+    // The record travels WITH the request, the way the content route passes the
+    // preview id and the way generation points a template at its real record.
+    const viewing = { ...bound.document, subjectId: ticket.ticket.id };
+    const v2 = await mergeValuesFor(ctx2, viewing);
     ok("a bound field resolves off the record", v2["sales.ticket.client"] === "Acme Industrial", v2["sales.ticket.client"]);
     ok("...including a nested one", v2["sales.ticket.ref"] === ticket.ticket.ref, v2["sales.ticket.ref"]);
     ok("...and a CollaboratorID becomes a name, not an id",
@@ -1673,7 +1682,7 @@ console.log("\n== fields are carried, not copied, and only where they are allowe
       const vFields = fieldsFor(viewerCtx, bound.document);
       ok("somebody without the department's right is not offered its fields",
         !vFields.fields.some((f) => f.key === "sales.ticket.client"));
-      const vValues = await mergeValuesFor(viewerCtx, bound.document);
+      const vValues = await mergeValuesFor(viewerCtx, { ...bound.document, subjectId: ticket.ticket.id });
       ok("...and cannot resolve them either", vValues["sales.ticket.client"] === undefined,
         String(vValues["sales.ticket.client"]));
       ok("...while company fields still resolve for them", vValues["company.name"] === studio.name);

@@ -40,7 +40,7 @@ import {
   legalFieldsFrom, legalKeyFor, availableBlocks, BLOCK_SOURCES, blockByKey, reachOf, isFieldKey,
 } from "@/lib/qualityFields";
 import { NODES, traverse } from "@/lib/relations";
-import { CALL_POINTS, callPointById, callPointTaken, callPointOptions } from "@/lib/qualityCallPoints";
+import { CALL_POINTS, callPointById, callPointTaken, callPointOptions, homeFor } from "@/lib/qualityCallPoints";
 import { netUnitPrice, discountPct } from "@/lib/quotations";
 import { DEFAULT_TEMPLATE, PAGE_TOKENS } from "@/lib/qualityRender";
 
@@ -633,6 +633,9 @@ async function reachedRecords(ctx, document, wanted) {
 // the leak, and the check has to be here where the value is fetched.
 async function subjectRecord(ctx, document) {
   const subject = subjectById(document?.subjectType);
+  // `subjectId` is set by GENERATION, which points the template at the record it
+  // is producing for; on a document being authored it is empty and the caller
+  // supplies a preview id instead. Either way it is never persisted.
   if (!subject || !document?.subjectId) return { subject: null, record: null, allowed: false };
   if (!can(ctx.access, subject.permission)) return { subject, record: null, allowed: false };
 
@@ -778,12 +781,23 @@ export function blocksFor(ctx, document) {
 // what the document is bound to AND by what this author holds — see the note in
 // lib/qualityFields.js about why both filters are needed.
 export function fieldsFor(ctx, document) {
+  const holds = (permission) => can(ctx.access, permission);
   const fields = availableFields({
     subjectType: document?.subjectType || null,
     legalInfo: ctx.studio.legalInfo,
-    holds: (permission) => can(ctx.access, permission),
-  });
-  return { fields, groups: groupFields(fields) };
+    holds,
+  }).map((f) => ({ ...f, kind: "field" }));
+
+  // BLOCKS BELONG IN THE SAME MENU. A quotation's tables and its totals are
+  // content of the quotation exactly as its number is — the only difference is
+  // that one resolves to a word and the others to rows. A separate button asked
+  // the author to know which kind of thing they were reaching for before they
+  // could go looking for it.
+  const blocks = availableBlocks({ subjectType: document?.subjectType || null, holds })
+    .map((b) => ({ key: b.key, label: b.label, group: b.group, kind: "block" }));
+
+  const all = [...fields, ...blocks];
+  return { fields: all, groups: groupFields(all) };
 }
 
 // The records a document may be bound to, for the picker. Permission-checked:
@@ -827,8 +841,17 @@ export async function bindSubject(ctx, documentId, body) {
     }
   }
 
+  // ONLY THE TYPE IS WRITTEN DOWN. What a document is ABOUT is a property of the
+  // document: it decides which fields can resolve at all. Which particular
+  // record somebody happened to preview against is not — it is a rehearsal, and
+  // storing it put a throwaway choice onto a controlled record that goes
+  // through review and approval, where a reviewer would be signing off a field
+  // that says who the author was looking at on Tuesday.
+  //
+  // The preview record now travels with the request instead. See `preview` in
+  // mergeValuesFor and the content route.
   const updated = await updateRow(ctx.studio.id, ctx.section.id, DOCUMENTS, documentId, {
-    subjectType: subjectType || "", subjectId: subjectType ? subjectId : "",
+    subjectType: subjectType || "", subjectId: "",
     updatedAt: new Date().toISOString(),
   });
   if (!updated) return { error: "notfound" };
@@ -1569,6 +1592,29 @@ async function findInstance(ctx, instanceId) {
     if (hit) return { instance: hit, host, subject };
   }
   return { instance: null, host: null, subject: null };
+}
+
+// THE SCREEN THIS DOCUMENT CAME FROM. Walked through the registry rather than
+// stored, so it stays true when the routing moves — and it degrades to the
+// register rather than to a broken link when a hop cannot be made.
+export async function homeOf(ctx, instance) {
+  const home = homeFor(instance?.subjectType);
+  if (!home) return `/${ctx.studio.slug}/quality-documents`;
+
+  const subject = subjectById(instance.subjectType);
+  const host = subject ? hostSection(ctx, subject) : null;
+  if (!host) return `/${ctx.studio.slug}/quality-documents`;
+
+  const record = (await readCol(ctx.studio.id, host.id, subject.collection))
+    .find((r) => r.id === instance.subjectId);
+  if (!record) return `/${ctx.studio.slug}/quality-documents`;
+
+  if (!home.needs) return home.href(ctx.studio.slug, record);
+  const hop = await traverse(instance.subjectType, record, home.needs, {
+    read: readerFor(ctx),
+    holds: (permission) => can(ctx.access, permission),
+  });
+  return home.href(ctx.studio.slug, record, hop.record);
 }
 
 export async function getGenerated(ctx, instanceId) {

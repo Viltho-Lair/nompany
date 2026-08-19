@@ -71,6 +71,7 @@ export default function StudioQualityReader({ studio, documentId, source = "docu
       inputs: i.inputs,
       revision: { rev: i.templateRev },
       letterhead: payload.letterhead,
+      home: payload.home,
       instance: i,
     });
   }, [studio.slug, documentId, generated]);
@@ -136,8 +137,8 @@ export default function StudioQualityReader({ studio, documentId, source = "docu
       <header className="sticky top-0 z-20 border-b border-[var(--geex-border)] bg-[var(--geex-page)] print:hidden">
         <div className="mx-auto flex max-w-[1000px] flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
           <Link
-            href={generated ? `/${studio.slug}/quality-documents` : `/${studio.slug}/quality-documents/${documentId}`}
-            title={generated ? "Back to the register" : "Back to the builder"}
+            href={generated ? (data?.home || `/${studio.slug}/quality-documents`) : `/${studio.slug}/quality-documents/${documentId}`}
+            title={generated ? "Back to where this was asked for" : "Back to the builder"}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >
             <Icon name="arrowLeft" className="h-[18px] w-[18px] rtl:-scale-x-100" />
