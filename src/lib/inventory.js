@@ -36,6 +36,19 @@ const cur = (v) => {
   const c = String(v ?? "").trim().toUpperCase();
   return isKnownCurrency(c) ? c : "";
 };
+// FOREIGN means "not what the studio counts in". A blank item currency is the
+// studio's own money, so it is never foreign; a blank studio currency makes any
+// named currency foreign, because nothing here says otherwise.
+const foreignTo = (itemCurrency, studioCurrency) =>
+  !!itemCurrency && itemCurrency !== cur(studioCurrency);
+// A charge that was TYPED, kept apart from one that was left blank: 0 is a real
+// answer ("nothing was paid to ship it") and "" is no answer at all, which is
+// what makes the two landed-cost fields mandatory rather than defaulted.
+const charge = (v) => {
+  if (v === "" || v == null) return "";
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : "";
+};
 // A picture of the thing, held as the URL /api/media hands back — the same way
 // the studio and client logos are held. The bytes never touch the item row.
 const img = (v) => String(v ?? "").trim().slice(0, 500);
@@ -296,6 +309,12 @@ export async function createItem(ctx, body) {
     if (!vendors.some((v) => v.id === vendorId)) return { error: "vendor" };
   }
 
+  const currency = cur(body?.currency);
+  const foreign = foreignTo(currency, studio.currency);
+  const shippingCharges = charge(body?.shippingCharges);
+  const customsCharges = charge(body?.customsCharges);
+  if (foreign && (shippingCharges === "" || customsCharges === "")) return { error: "charges" };
+
   const rows = await readCol(studio.id, itemsSection.id, ITEMS);
   const sku = str(body?.sku, 40).toUpperCase() || nextSku(rows);
   if (rows.some((i) => i.sku.toUpperCase() === sku)) return { error: "duplicate-sku" };
@@ -306,7 +325,6 @@ export async function createItem(ctx, body) {
     // what somebody searches for when the name is ambiguous.
     modelNumber: str(body?.modelNumber, 80),
     unit: UNITS.includes(body?.unit) ? body.unit : UNITS[0],
-    category: str(body?.category, 80),
     vendorId,
     // Picked from the vendor's own list of what it supplies; the estimate comes
     // with it rather than being typed again per item.
@@ -323,7 +341,13 @@ export async function createItem(ctx, body) {
     unitCost: money(body?.unitCost),
     // What that cost is IN. Blank means the studio's own currency, so an item
     // priced in the studio's money needs nothing said about it.
-    currency: cur(body?.currency),
+    currency,
+    // WHAT IT COSTS TO GET IT HERE. Only an item bought in somebody else's
+    // money is shipped in and cleared through customs, so the two charges are
+    // asked for exactly then — and held blank the rest of the time rather than
+    // stored as a zero that would read as "we checked, it was free".
+    shippingCharges: foreign ? shippingCharges : "",
+    customsCharges: foreign ? customsCharges : "",
     image: img(body?.image),
     notes: str(body?.notes, 1000),
     createdAt: new Date().toISOString(),
@@ -355,7 +379,6 @@ export async function editItem(ctx, id, body) {
     patch.vendorId = vendorId;
   }
   if (body?.unit !== undefined && UNITS.includes(body.unit)) patch.unit = body.unit;
-  if (body?.category !== undefined) patch.category = str(body.category, 80);
   if (body?.modelNumber !== undefined) patch.modelNumber = str(body.modelNumber, 80);
   if (body?.itemType !== undefined) patch.itemType = str(body.itemType, 80);
   if (body?.deliveryWeeks !== undefined) patch.deliveryWeeks = weeks(body.deliveryWeeks);
@@ -365,7 +388,27 @@ export async function editItem(ctx, id, body) {
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.reorderLevel !== undefined) patch.reorderLevel = qty(body.reorderLevel) > 0 ? qty(body.reorderLevel) : 0;
   if (body?.unitCost !== undefined) patch.unitCost = money(body.unitCost);
-  if (body?.currency !== undefined) patch.currency = cur(body.currency);
+  // The currency and its two charges are decided together: what the charges
+  // must be follows the currency the item ENDS UP with, not the one this
+  // request happened to mention. An edit that touches none of the three — a
+  // serial list, a picture — costs nothing extra.
+  if (body?.currency !== undefined || body?.shippingCharges !== undefined || body?.customsCharges !== undefined) {
+    const rows = await readCol(studio.id, itemsSection.id, ITEMS);
+    const current = rows.find((r) => r.id === id);
+    if (!current) return { error: "notfound" };
+    const currency = body?.currency !== undefined ? cur(body.currency) : cur(current.currency);
+    patch.currency = currency;
+    if (!foreignTo(currency, studio.currency)) {
+      patch.shippingCharges = "";
+      patch.customsCharges = "";
+    } else {
+      const shippingCharges = body?.shippingCharges !== undefined ? charge(body.shippingCharges) : charge(current.shippingCharges);
+      const customsCharges = body?.customsCharges !== undefined ? charge(body.customsCharges) : charge(current.customsCharges);
+      if (shippingCharges === "" || customsCharges === "") return { error: "charges" };
+      patch.shippingCharges = shippingCharges;
+      patch.customsCharges = customsCharges;
+    }
+  }
   // "" is a real value — it is how a picture is removed.
   if (body?.image !== undefined) patch.image = img(body.image);
 

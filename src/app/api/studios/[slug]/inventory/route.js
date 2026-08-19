@@ -32,6 +32,10 @@ export async function GET(request, ctx) {
     canManageSheets: g.canManageSheets,
     canManageAwb: g.canManageAwb,
     nav: g.nav,
+    // The money the studio counts in. Registered Items needs it to know when a
+    // price is quoted in somebody else's currency — which is what brings the
+    // shipping and customs charges out.
+    currency: g.studio.currency || "",
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.
     manage: g.manage,

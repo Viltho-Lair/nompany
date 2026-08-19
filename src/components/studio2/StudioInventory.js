@@ -77,6 +77,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
     canManage: canManageParent,
     canManageStock, canManageVendors, canManageItems, canManageSheets, canManageAwb,
     vendors, items, movements, orders, deliveries, projects, shipments, airlines, summary, vocabulary, nav,
+    currency: studioCurrency = "",
   } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN — here by the canManageX flag
   // handed to each screen below, one per sub-section, each resolved from that
@@ -88,7 +89,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   const wrap = (children) => <div className="space-y-6">{banner}{children}</div>;
 
   if (view === "inventory-items") {
-    return wrap(<Items items={items} vendors={vendors} units={vocabulary.units}
+    return wrap(<Items items={items} vendors={vendors} units={vocabulary.units} studioCurrency={studioCurrency}
       canManage={canManageItems} busy={busy} send={send} />);
   }
   if (view === "inventory-stock") {
@@ -144,6 +145,7 @@ function message(out) {
   if (out.error === "not-ordered") return "Mark the order as Ordered before receiving against it.";
   if (out.error === "lines") return "Add at least one line with a quantity.";
   if (out.error === "vendor") return "Pick a vendor.";
+  if (out.error === "charges") return "An item priced in another currency needs its shipping and customs charges.";
   if (out.error === "project") return "Pick a project.";
   if (out.error === "nothing") return "Enter what actually arrived.";
   return "That didn't save.";
@@ -211,7 +213,7 @@ function InventoryDashboard({ slug, summary, vendors, items, orders, deliveries,
 }
 
 // ---- registered items (the catalogue) --------------------------------------
-function Items({ items, vendors, units, canManage, busy, send }) {
+function Items({ items, vendors, units, studioCurrency, canManage, busy, send }) {
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(null);
   const closeForm = useCallback(() => setForm(null), []);
@@ -219,7 +221,7 @@ function Items({ items, vendors, units, canManage, busy, send }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
-    return items.filter((i) => `${i.name} ${i.sku} ${i.modelNumber || ""} ${i.vendorName || ""} ${i.category || ""}`.toLowerCase().includes(q));
+    return items.filter((i) => `${i.name} ${i.sku} ${i.modelNumber || ""} ${i.vendorName || ""}`.toLowerCase().includes(q));
   }, [items, query]);
 
   return (
@@ -235,7 +237,7 @@ function Items({ items, vendors, units, canManage, busy, send }) {
         <Dialog title={form.row ? `Edit ${form.row.name}` : "Add item"}
           description="The catalogue entry — what this thing is and who supplies it. Quantities live in Stock Management."
           onClose={closeForm}>
-          <ItemForm row={form.row} vendors={vendors} units={units} busy={busy} onCancel={closeForm}
+          <ItemForm row={form.row} vendors={vendors} units={units} studioCurrency={studioCurrency} busy={busy} onCancel={closeForm}
             onSave={async (v) => { if (await send("items", form.row ? "PUT" : "POST", form.row ? { ...v, id: form.row.id } : v)) setForm(null); }} />
         </Dialog>
       )}
@@ -355,18 +357,25 @@ function ItemImage({ value, onChange }) {
   );
 }
 
-function ItemForm({ row, vendors, units, busy, onSave, onCancel }) {
+function ItemForm({ row, vendors, units, studioCurrency = "", busy, onSave, onCancel }) {
   const [f, setF] = useState({
     name: row?.name || "", sku: row?.sku || "", modelNumber: row?.modelNumber || "",
-    unit: row?.unit || units[0], category: row?.category || "", vendorId: row?.vendorId || "",
+    unit: row?.unit || units[0], vendorId: row?.vendorId || "",
     itemType: row?.itemType || "", deliveryWeeks: row?.deliveryWeeks ?? "",
     needsInstallation: !!row?.needsInstallation, needsProgramming: !!row?.needsProgramming,
     reorderLevel: row?.reorderLevel || "", unitCost: row?.unitCost || "", notes: row?.notes || "",
     currency: row?.currency || "", image: row?.image || "",
+    shippingCharges: row?.shippingCharges ?? "", customsCharges: row?.customsCharges ?? "",
   });
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const vendor = vendors.find((v) => v.id === f.vendorId);
   const types = Array.isArray(vendor?.itemTypes) ? vendor.itemTypes : [];
+
+  // BOUGHT IN SOMEBODY ELSE'S MONEY: it has to be shipped in and cleared, and
+  // neither of those is free. Blank means the studio's own currency, so it is
+  // never foreign; the same is true of picking the studio's own code by hand.
+  const foreign = !!f.currency && f.currency !== studioCurrency;
+  const missingCharges = foreign && (String(f.shippingCharges).trim() === "" || String(f.customsCharges).trim() === "");
 
   // Picking a type takes the vendor's own delivery estimate with it — that is
   // the point of keeping the estimate on the vendor rather than on each item.
@@ -415,7 +424,6 @@ function ItemForm({ row, vendors, units, busy, onSave, onCancel }) {
             </select>
           )}
         </div>
-        <div><label className={label}>Category</label><input className={input} value={f.category} onChange={set("category")} /></div>
         <div className="grid grid-cols-[1fr,7.5rem] gap-3">
           <div><label className={label}>Unit cost</label><input type="number" min="0" step="0.01" className={input} value={f.unitCost} onChange={set("unitCost")} /></div>
           {/* What that cost is IN. Blank means the studio's own currency, so an
@@ -429,6 +437,21 @@ function ItemForm({ row, vendors, units, busy, onSave, onCancel }) {
           </div>
         </div>
         <div><label className={label}>Reorder level</label><input type="number" min="0" className={input} value={f.reorderLevel} onChange={set("reorderLevel")} /></div>
+        {/* Only for an item priced in somebody else's money — and then both are
+            asked for, because "we didn't say" and "it was nothing" are
+            different answers and only one of them is worth storing. */}
+        {foreign && (
+          <>
+            <div>
+              <label className={label}>Shipping charges * <span className="font-400 normal-case text-slate-400">({f.currency})</span></label>
+              <input type="number" min="0" step="0.01" className={input} value={f.shippingCharges} onChange={set("shippingCharges")} />
+            </div>
+            <div>
+              <label className={label}>Customs charges * <span className="font-400 normal-case text-slate-400">({f.currency})</span></label>
+              <input type="number" min="0" step="0.01" className={input} value={f.customsCharges} onChange={set("customsCharges")} />
+            </div>
+          </>
+        )}
         <ItemImage value={f.image} onChange={(v) => setF((st) => ({ ...st, image: v }))} />
       </div>
 
@@ -447,7 +470,7 @@ function ItemForm({ row, vendors, units, busy, onSave, onCancel }) {
       <div className="mt-4"><label className={label}>Notes</label><textarea rows={2} className={input} value={f.notes} onChange={set("notes")} /></div>
 
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !f.name.trim()} onClick={() => onSave(f)}>{busy ? "Saving…" : "Save item"}</button>
+        <button className={btn} disabled={busy || !f.name.trim() || missingCharges} onClick={() => onSave(f)}>{busy ? "Saving…" : "Save item"}</button>
         <button className={btnGhost} onClick={onCancel}>Cancel</button>
       </div>
     </>
