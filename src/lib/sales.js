@@ -40,6 +40,7 @@ const QUOTATIONS = "quotations";
 // finished quotation is sent for — and otherwise only reads it, to say on the
 // ticket what became of that request.
 const TASKS = "tasks";
+const PROJECTS = "projects";
 // The task type the Tasks board already routes to Sales + Management. Sending a
 // quotation for approval raises one of these rather than a type of its own, so
 // there is one approval queue in the studio and not two.
@@ -135,6 +136,14 @@ export async function salesContext(user, slug) {
   const tasksSection = byKey["tasks"] || null;
   const tasksSettingsSection = tasksSection ? (byKey["tasks-settings"] || tasksSection) : null;
 
+  // PROJECTS, on exactly the terms Tasks is read on: what became of the ticket
+  // is part of the ticket's own story. A ticket carries no projectId and never
+  // has — the project holds the ticket's — so this is the reverse edge the
+  // registry declares, and until it was declared nothing anywhere asked the
+  // question. A parent that cannot say how its child is doing is a parent
+  // nobody can plan from.
+  const projectsSection = byKey["projects-list"] || byKey["projects"] || null;
+
   // Seeing Sales at all is the parent grant; the per-collection grants are
   // checked against the sub-section that owns each one.
   // THE VIEW GUARD, asked of the permission set. It read grants until now, so
@@ -144,7 +153,7 @@ export async function salesContext(user, slug) {
 
   return {
     studio, collaborator, access, roles, section, ticketsSection, clientsSection, settingsSection,
-    technicalSection, rfqSection, quotationsSection, tasksSection,
+    technicalSection, rfqSection, quotationsSection, tasksSection, projectsSection,
     // Who currently holds each approval authority, resolved from Task settings
     // on every read — appointing somebody there hands them the open approvals
     // immediately, so this is never copied onto a row.
@@ -464,7 +473,23 @@ export function quotationsForTicket(ticketId, quotations) {
 }
 export const latestQuotationFor = (ticketId, quotations) => quotationsForTicket(ticketId, quotations)[0] || null;
 
-function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees) {
+// The project a ticket produced, or null. Reverse edge: the project holds the
+// ticket's id, so this is a scan — and `one`, declared, because the business
+// says one ticket yields one project.
+function projectFor(ticket, projects) {
+  const found = traverseIn("salesTicket", ticket, "project", { rows: { project: projects || [] } }).record;
+  if (!found) return null;
+  return {
+    id: found.id,
+    // Blank until Finance issues it, which is a real state and not a gap: the
+    // work can be planned before anybody has committed to bill it.
+    number: found.number || "",
+    title: found.title || "",
+    stage: found.stage || "",
+  };
+}
+
+function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees, projects) {
   const mine = rfqsForTicket(ticket.id, rfqs);
   const mineQuotations = quotationsForTicket(ticket.id, quotations);
   const newest = mineQuotations[0] || null;
@@ -537,6 +562,15 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees) {
       submittedRevision: Number(submitted?.revision) || 1,
     },
     quotations: mineQuotations.map(quotationRow),
+    // WHAT BECAME OF IT. One project or none — a second project means a second
+    // ticket, because a client asking for more work starts the process again —
+    // so this is a record, not a list.
+    //
+    // The DATA is given here on the same terms as the quotation state beside
+    // it; whether the number is a LINK is decided by the screen from `nav`,
+    // which is the distinction finance.js already draws: naming and costing a
+    // record is not the same as being allowed to open its screen.
+    project: projectFor(ticket, projects),
     // THE PO, if one has been sent. Matched on the newest quotation's id for the
     // same reason the approval is: a purchase order answers ONE document, and a
     // later revision must not inherit it. `numberIssued` is what Finance's
@@ -552,19 +586,22 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees) {
   };
 }
 
-export async function listTickets({ studio, ticketsSection, clientsSection, rfqSection, quotationsSection, tasksSection, taskAssignees }) {
-  const [tickets, clients, rfqs, quotations, tasks] = await Promise.all([
+export async function listTickets({ studio, ticketsSection, clientsSection, rfqSection, quotationsSection, tasksSection, projectsSection, taskAssignees }) {
+  const [tickets, clients, rfqs, quotations, tasks, projects] = await Promise.all([
     readCol(studio.id, ticketsSection.id, TICKETS),
     readCol(studio.id, clientsSection.id, CLIENTS),
     rfqSection ? readCol(studio.id, rfqSection.id, RFQS) : [],
     quotationsSection ? readCol(studio.id, quotationsSection.id, QUOTATIONS) : [],
     tasksSection ? readCol(studio.id, tasksSection.id, TASKS) : [],
+    // A studio without a Projects section simply gets no project on its
+    // tickets, the same way one without Tasks gets no approval button.
+    projectsSection ? readCol(studio.id, projectsSection.id, PROJECTS) : [],
   ]);
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
   return [...tickets]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((t) => {
-      const summary = ticketSummary(t, rfqs, quotations, tasks, taskAssignees);
+      const summary = ticketSummary(t, rfqs, quotations, tasks, taskAssignees, projects);
       const { quotedValue, ...rest } = summary;
       return {
         ...t,

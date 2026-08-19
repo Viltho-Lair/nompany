@@ -1848,6 +1848,44 @@ console.log("\n== the departments are joined in one place, and it is checkable")
 }
 
 // ============================================================================
+console.log("\n== a sales ticket can finally say what became of it");
+// THE QUESTION THAT STARTED THIS. A ticket carries no projectId and never has;
+// the project holds the ticket's. The data supported the answer all along and
+// no code anywhere asked, because the edge was written down nowhere.
+{
+  await signInAs(owner.id);
+  const sales = await salesContext(owner, slug);
+  const tickets = await listTickets(sales);
+  ok("tickets carry a project field now", tickets.every((t) => "project" in t), String(tickets.length));
+
+  // The fixture's first ticket went the whole way: RFQ, quotation, approval, PO,
+  // project. So the one at the end of that chain reports it.
+  const withProject = tickets.filter((t) => t.project);
+  ok("a ticket that produced a project names it", withProject.length >= 1, `${withProject.length} of ${tickets.length}`);
+
+  if (withProject.length) {
+    const p = withProject[0].project;
+    ok("...and reports its stage", Boolean(p.stage), JSON.stringify(p));
+    ok("...as a record, not a list", !Array.isArray(p) && typeof p.id === "string");
+    // Blank until Finance issues it — a real state, not a gap. The work can be
+    // planned before anybody has committed to bill it.
+    ok("...with a number that may legitimately be blank", typeof p.number === "string", JSON.stringify(p.number));
+  }
+
+  // A ticket that never got that far says null rather than inventing something.
+  const svc = await createService(sales, { name: "Standalone" });
+  const fresh = await createTicket(sales, {
+    title: "Nothing downstream yet", clientName: "Acme", deadline: "2027-01-01",
+    industry: "Technology", serviceIds: [svc.service?.id],
+  });
+  const again = await listTickets(sales);
+  const bare = again.find((t) => t.id === fresh.ticket.id);
+  ok("a ticket with no project says so plainly", bare?.project === null, JSON.stringify(bare?.project));
+
+  __signOut();
+}
+
+// ============================================================================
 // Everything this suite wrote lives under the namespace, so cleanup is one
 // prefix deletion. Runs whatever happened above — a failed assertion must not
 // leave keys behind.
