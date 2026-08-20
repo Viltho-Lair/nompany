@@ -476,6 +476,140 @@ console.log("== sales: the module's whole surface, with data in it");
 }
 
 // ============================================================================
+console.log("== technical: converting, locking, and the rights that are not bigger edits");
+// The other half of the order-to-cash spine. Three rules here are the sharpest
+// in the product, and all three are the kind that a refactor "simplifies" away
+// because each looks like a special case of something else:
+//
+//   CONVERT is not a bigger EDIT. technical.rfq.convert is an `extra`, granted
+//   deliberately, because turning a request into a priced document is a
+//   different act from correcting one.
+//
+//   LOCK and UNLOCK are two rights, and unlock is the larger. Locking says "this
+//   is finished"; unlocking reopens a document a client is already holding.
+//
+//   A LOCKED QUOTATION ACCEPTS EXACTLY ONE REQUEST — the unlock, alone.
+//   Bundling an unlock with an edit would be a way to smuggle a change past the
+//   lock in a single write.
+{
+  const RFQS = await import("@/app/api/studios/[slug]/technical/rfqs/route.js");
+  const QUOTES = await import("@/app/api/studios/[slug]/technical/quotations/route.js");
+  const TECH = await import("@/app/api/studios/[slug]/technical/route.js");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const personWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  await signIn(owner.id);
+
+  // The Technical board, as Technical sees it — the RFQ Sales raised is here.
+  const board = await shot("technical.list", await capture(TECH.GET, req(`/api/studios/${slug}/technical`), P));
+  const rfqId = board.body?.rfqs?.find((r) => r.status === "New")?.id;
+  ok("Sales' RFQ arrived on the Technical board", Boolean(rfqId), `${board.body?.rfqs?.length ?? 0} rfqs`);
+
+  // ---- convert is its own right ------------------------------------------
+  // Somebody who may EDIT an RFQ but was not given `convert`. They get past the
+  // coarse gate — they hold a write in this module — and the service refuses.
+  const editor = await personWith(["technical.rfq.view", "technical.rfq.create", "technical.rfq.edit"], "techeditor");
+  await signIn(editor.id);
+  await shot("technical.refused.convert", await capture(
+    QUOTES.POST, req(`/api/studios/${slug}/technical/quotations`, { method: "POST", body: { rfqId } }), P));
+
+  await signIn(owner.id);
+  const converted = await shot("technical.quotation.converted", await capture(
+    QUOTES.POST, req(`/api/studios/${slug}/technical/quotations`, { method: "POST", body: { rfqId } }), P));
+  const quotationId = converted.body?.quotation?.id;
+  ok("the RFQ converted to a quotation", Boolean(quotationId), JSON.stringify(converted.body).slice(0, 120));
+
+  // THE ONE RECIPROCAL EDGE IN THE WHOLE GRAPH. Every other link is held by the
+  // child alone; converting writes the quotation's id back onto the RFQ, so
+  // this is the single place a back-pointer is a fact rather than a copy.
+  const after = await capture(TECH.GET, req(`/api/studios/${slug}/technical`), P);
+  const sourceRfq = after.body?.rfqs?.find((r) => r.id === rfqId);
+  ok("the RFQ now points at the quotation it became", sourceRfq?.quotationId === quotationId, sourceRfq?.quotationId);
+  ok("...and is marked Converted", sourceRfq?.status === "Converted", sourceRfq?.status);
+
+  // Converting the same RFQ twice is a conflict, not a second quotation.
+  await shot("technical.refused.convert.twice", await capture(
+    QUOTES.POST, req(`/api/studios/${slug}/technical/quotations`, { method: "POST", body: { rfqId } }), P));
+
+  // ---- lock is its own right too -----------------------------------------
+  const pricer = await personWith(
+    ["technical.quotations.view", "technical.quotations.create", "technical.quotations.edit"], "techpricer");
+  await signIn(pricer.id);
+  await shot("technical.quotation.edited.bypricer", await capture(
+    QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, title: "Boardroom refit — priced" } }), P));
+  // The RIGHT is checked before the STATE, so somebody without technical
+  // .quotations.lock is told they may not lock rather than that the document is
+  // not ready — which is the more useful answer, and the one that does not leak
+  // where the document has got to.
+  const noLock = await shot("technical.refused.lock", await capture(
+    QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, locked: true } }), P));
+  ok("a missing lock right is reported as the right, not the state",
+    noLock.body?.error === "forbidden", noLock.body?.error);
+
+  // LOCKING IS NOT AVAILABLE UNTIL THE DOCUMENT IS APPROVED, and this refusal
+  // is worth pinning on its own: it is asked of the APPROVAL rather than of the
+  // document's own status, which was once a real bug — a quotation both
+  // authorities had signed showed Approved in the list and still refused to
+  // lock. The Lock button was even offered, because the list it was drawn from
+  // already carried the right answer.
+  await signIn(owner.id);
+  await shot("technical.refused.lock.notapproved", await capture(
+    QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, locked: true } }), P));
+
+  await shot("technical.quotation.approved", await capture(
+    QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, status: "Approved" } }), P));
+
+  const locked = await shot("technical.quotation.locked", await capture(
+    QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, locked: true } }), P));
+  ok("an approved quotation locks", locked.body?.quotation?.locked === true, JSON.stringify(locked.body).slice(0, 140));
+
+  // ---- what a locked quotation will and will not accept -------------------
+  const lockedEdit = await shot("technical.refused.edit.locked", await capture(
+    QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, title: "Sneaking a change in" } }), P));
+  ok("a locked quotation refuses an edit", lockedEdit.status === 409, `${lockedEdit.status} ${JSON.stringify(lockedEdit.body)}`);
+
+  // AN UNLOCK BUNDLED WITH AN EDIT is refused as a locked write, not honoured
+  // as an unlock — otherwise unlock becomes a way to smuggle a change past the
+  // lock in one round trip.
+  const bundled = await shot("technical.refused.unlock.bundled", await capture(
+    QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, locked: false, title: "And this too" } }), P));
+  ok("an unlock bundled with an edit is refused, not honoured", bundled.status === 409,
+    `${bundled.status} ${JSON.stringify(bundled.body)}`);
+
+  // Unlock is a rarer right than lock: an editor who may lock still may not
+  // reopen.
+  const locker = await personWith(
+    ["technical.quotations.view", "technical.quotations.edit", "technical.quotations.lock"], "techlocker");
+  await signIn(locker.id);
+  const noUnlock = await shot("technical.refused.unlock", await capture(
+    QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, locked: false } }), P));
+  ok("holding lock does not imply holding unlock", noUnlock.body?.error === "forbidden",
+    `${noUnlock.status} ${JSON.stringify(noUnlock.body)}`);
+
+  await signIn(owner.id);
+  const reopened = await shot("technical.quotation.unlocked", await capture(
+    QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, locked: false } }), P));
+  ok("the owner can reopen it", reopened.body?.quotation?.locked === false, JSON.stringify(reopened.body).slice(0, 120));
+
+  // ---- and the walls, as everywhere else ---------------------------------
+  await signIn(outsider.id);
+  await shot("technical.outsider", await capture(TECH.GET, req(`/api/studios/${slug}/technical`), P));
+  __signOut();
+  await shot("technical.unauth", await capture(TECH.GET, req(`/api/studios/${slug}/technical`), P));
+}
+
+// ============================================================================
 console.log("== hop counts: how many round trips a screen costs");
 // The audit's largest finding, expressed as a number a build can fail on.
 // `commands` is every command sent; `waves` is how many times the code WAITED,

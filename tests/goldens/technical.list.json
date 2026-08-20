@@ -1,0 +1,218 @@
+{
+  "status": 200,
+  "body": {
+    "canManage": true,
+    "canViewDashboard": true,
+    "canManageRfq": true,
+    "canManageQuotations": true,
+    "canUnlockQuotations": true,
+    "canManageSettings": true,
+    "liveColumns": [
+      "number",
+      "title",
+      "clientName",
+      "status",
+      "total"
+    ],
+    "cover": {
+      "title": "",
+      "intro": "",
+      "terms": ""
+    },
+    "canRequestRfq": true,
+    "nav": {
+      "main": true,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": true,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": true,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "manage": {
+      "main": false,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": false,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": false,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "rfqs": [
+      {
+        "id": "<rfq_ID>",
+        "reference": "RFQ-ACME-HOLDINGS-001",
+        "ticketId": "<sal_ID>",
+        "description": "",
+        "status": "New",
+        "handledByCollaboratorId": "",
+        "requestedByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "ticketRef": "ACME-HOLDINGS-001",
+        "title": "Boardroom refit, phase 1",
+        "clientId": "<sal_ID>",
+        "clientName": "Acme Holdings",
+        "urgency": "Normal",
+        "industry": "Commercial",
+        "serviceIds": [
+          "<sal_ID>"
+        ],
+        "deadline": "2026-12-01"
+      }
+    ],
+    "quotations": [],
+    "openTickets": [
+      {
+        "id": "<sal_ID>",
+        "ref": "ACME-HOLDINGS-002",
+        "title": "Cannot start won"
+      }
+    ],
+    "people": [
+      {
+        "id": "<col_ID>",
+        "alias": "salesclerk"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "salesviewer"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "Member"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "Owner"
+      }
+    ],
+    "catalogue": [],
+    "currency": "",
+    "nextQuotationNumber": "Q-0001",
+    "vocabulary": {
+      "rfqStatuses": [
+        "New",
+        "In-review",
+        "Converted",
+        "Rejected"
+      ],
+      "quotationStatuses": [
+        "New",
+        "Draft",
+        "Completed",
+        "Sent",
+        "Approved",
+        "Rejected"
+      ],
+      "defaultVatRate": 15,
+      "urgencies": [
+        "Low",
+        "Normal",
+        "High",
+        "Critical"
+      ],
+      "liveColumnOptions": [
+        {
+          "key": "number",
+          "label": "Number"
+        },
+        {
+          "key": "revision",
+          "label": "Rev"
+        },
+        {
+          "key": "title",
+          "label": "Title"
+        },
+        {
+          "key": "clientName",
+          "label": "Client"
+        },
+        {
+          "key": "status",
+          "label": "Status"
+        },
+        {
+          "key": "urgency",
+          "label": "Urgency"
+        },
+        {
+          "key": "handledBy",
+          "label": "Handled by"
+        },
+        {
+          "key": "leadLabel",
+          "label": "Lead"
+        },
+        {
+          "key": "total",
+          "label": "Total"
+        },
+        {
+          "key": "createdAt",
+          "label": "Created"
+        },
+        {
+          "key": "completedAt",
+          "label": "Approved"
+        }
+      ]
+    }
+  }
+}

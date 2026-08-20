@@ -31,7 +31,7 @@ Branch `wave-0-security-hardening`. Suite green, `tsc --noEmit` clean, productio
 | Piece | State |
 |---|---|
 | Golden-response harness + normaliser | **done**, negative-tested by renaming a field |
-| Golden coverage | **35 goldens; Sales complete.** Remaining modules: Technical, Projects, Inventory, HR, Finance, Operations, Tasks, Quality, /super |
+| Golden coverage | **50 goldens; Sales and Technical complete.** Remaining: Projects, Inventory, HR, Finance, Operations, Tasks, Quality, /super |
 | Permission matrix (103 keys) | **done** — resolution proven exhaustive |
 | Hop counting | **done** — independently reproduces the audit's 8-wave figure |
 | Architectural assertions | **done** — 6 checks, found 3 dead builders on first run |

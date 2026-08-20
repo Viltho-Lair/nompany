@@ -1,0 +1,35 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "quotation": {
+      "id": "<quo_ID>",
+      "number": "Q-0001",
+      "revision": 1,
+      "revisionOf": "",
+      "rfqId": "<rfq_ID>",
+      "ticketId": "<sal_ID>",
+      "status": "Approved",
+      "tables": [],
+      "items": [],
+      "vatRate": 15,
+      "subtotal": 0,
+      "vat": 0,
+      "total": 0,
+      "description": "Boardroom refit, phase 1",
+      "handledByCollaboratorId": "",
+      "handledBy": "",
+      "comments": [],
+      "locked": false,
+      "lead": "<sal_ID>",
+      "completedAt": "<timestamp>",
+      "preparedByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "title": "Boardroom refit — priced",
+      "unlockedByCollaboratorId": "<col_ID>",
+      "unlockedAt": "<timestamp>"
+    }
+  }
+}
