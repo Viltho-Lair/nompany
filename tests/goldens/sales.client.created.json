@@ -1,0 +1,21 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "client": {
+      "id": "<sal_ID>",
+      "name": "Acme Holdings",
+      "code": "Acme-Holdings",
+      "industry": "",
+      "website": "",
+      "logo": "",
+      "notes": "",
+      "contacts": [],
+      "locations": [],
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

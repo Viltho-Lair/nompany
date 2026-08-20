@@ -1,0 +1,18 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "rfq": {
+      "id": "<rfq_ID>",
+      "reference": "RFQ-ACME-HOLDINGS-001",
+      "ticketId": "<sal_ID>",
+      "description": "",
+      "status": "New",
+      "handledByCollaboratorId": "",
+      "requestedByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

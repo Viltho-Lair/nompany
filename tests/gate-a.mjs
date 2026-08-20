@@ -346,6 +346,136 @@ console.log("== golden responses: the shape of every answer, pinned");
 }
 
 // ============================================================================
+console.log("== sales: the module's whole surface, with data in it");
+// The empty-state goldens above are worth having and are not enough: a response
+// shape only shows itself once there is a row in it. Every case here seeds
+// THROUGH THE REAL ROUTES rather than through the repositories, so the write
+// paths are pinned alongside the reads and the seeding is itself under test.
+//
+// It also pins the thing the audit called M-8. Sales routes gate writes on a
+// COARSE flag first — canManage, meaning "any write on any area of this module"
+// — and the fine-grained requirePermission lives inside the service. That is
+// defence in depth working, and it means two different callers get two
+// different refusals for what looks like the same act: somebody with no write
+// anywhere is told "read-only" by the gate, and somebody with a write in a
+// SIBLING area gets past the gate and is told "forbidden" by the service.
+//
+// Both are correct. Neither was written down. Both are goldens now.
+{
+  const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.js");
+  const SERVICES = await import("@/app/api/studios/[slug]/sales/services/route.js");
+  const TICKETS = await import("@/app/api/studios/[slug]/sales/tickets/route.js");
+  const RFQ = await import("@/app/api/studios/[slug]/sales/tickets/rfq/route.js");
+  const QUOTATIONS = await import("@/app/api/studios/[slug]/sales/quotations/route.js");
+  const SALES = await import("@/app/api/studios/[slug]/sales/route.js");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+
+  // ---- somebody who may do exactly one thing -----------------------------
+  // Built per case so a test never depends on a role another test edited.
+  const personWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  await signIn(owner.id);
+
+  // ---- seed, and pin what each create answers ----------------------------
+  const service = await shot("sales.service.created", await capture(
+    SERVICES.POST, req(`/api/studios/${slug}/sales/services`, { method: "POST", body: { name: "Audio Visual Solutions" } }), P));
+  const serviceId = service.body?.service?.id;
+  ok("the service was created", Boolean(serviceId), JSON.stringify(service.body).slice(0, 120));
+
+  const client = await shot("sales.client.created", await capture(
+    CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, { method: "POST", body: { name: "Acme Holdings", country: "Saudi Arabia", city: "Riyadh" } }), P));
+  const clientId = client.body?.client?.id;
+  ok("the client was created", Boolean(clientId), JSON.stringify(client.body).slice(0, 120));
+
+  const ticket = await shot("sales.ticket.created", await capture(
+    TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: {
+      title: "Boardroom refit", clientId, industry: "Commercial", deadline: "2026-12-01",
+      serviceIds: [serviceId],
+    } }), P));
+  const ticketId = ticket.body?.ticket?.id;
+  ok("the ticket was created", Boolean(ticketId), JSON.stringify(ticket.body).slice(0, 120));
+
+  // STATUS IS AUTOMATED UP TO APPROVAL. A new ticket is a Lead, whatever the
+  // request asked for — pinned because it is a rule a screen could quietly
+  // start overriding.
+  ok("a new ticket is a Lead", ticket.body?.ticket?.status === "Lead", ticket.body?.ticket?.status);
+  ok("...and Normal urgency, even for the owner", ticket.body?.ticket?.urgency === "Normal", ticket.body?.ticket?.urgency);
+
+  const forced = await capture(TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: {
+    title: "Cannot start won", clientId, industry: "Commercial", deadline: "2026-12-02",
+    serviceIds: [serviceId], status: "Closed Won", urgency: "Critical",
+  } }), P);
+  ok("a ticket cannot be born already won", forced.body?.ticket?.status === "Lead", forced.body?.ticket?.status);
+
+  await shot("sales.ticket.edited", await capture(
+    TICKETS.PUT, req(`/api/studios/${slug}/sales/tickets`, { method: "PUT", body: { id: ticketId, title: "Boardroom refit, phase 1" } }), P));
+
+  // ---- the RFQ hop: Sales asks, and the ticket moves ---------------------
+  await shot("sales.rfq.requested", await capture(
+    RFQ.POST, req(`/api/studios/${slug}/sales/tickets/rfq`, { method: "POST", body: { ticketId, note: "Two rooms, ceiling mics" } }), P));
+
+  // ---- the populated read, which is the shape the screen actually gets ----
+  const populated = await capture(SALES.GET, req(`/api/studios/${slug}/sales`), P);
+  await shot("sales.list.populated", populated);
+  // Found BY ID, not by position. listTickets sorts newest-first, so `[0]` is
+  // whichever ticket was created last — an assertion that passes or fails on
+  // the order other cases happen to run in is worse than no assertion.
+  const raised = populated.body?.tickets?.find((t) => t.id === ticketId);
+  ok("the ticket comes back in the list", Boolean(raised), `${populated.body?.tickets?.length ?? 0} tickets`);
+  ok("...carrying its client's name, resolved not stored", raised?.clientName === "Acme Holdings", raised?.clientName);
+  ok("...and the RFQ moved it to Opportunity", raised?.status === "Opportunity", raised?.status);
+
+  // The OTHER ticket had no RFQ raised against it, so it is still a Lead. The
+  // pair is the assertion: the move is caused by the RFQ, not by time passing.
+  const untouched = populated.body?.tickets?.find((t) => t.title === "Cannot start won");
+  ok("a ticket with no RFQ stays a Lead", untouched?.status === "Lead", untouched?.status);
+
+  // ---- a quotation that does not exist is a 404, not a leak --------------
+  await shot("sales.quotation.missing", await capture(
+    QUOTATIONS.GET, req(`/api/studios/${slug}/sales/quotations?id=quo_doesnotexist0000`), P));
+
+  // ---- refusals: the two shapes, and why they differ ---------------------
+  const viewer = await personWith(["sales.tickets.view"], "salesviewer");
+  await signIn(viewer.id);
+  await shot("sales.refused.readonly.ticket", await capture(
+    TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: { title: "Nope", clientId, industry: "Commercial", deadline: "2026-12-03", serviceIds: [serviceId] } }), P));
+  await shot("sales.refused.readonly.client", await capture(
+    CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, { method: "POST", body: { name: "Nope Ltd" } }), P));
+
+  // A SIBLING WRITE gets past the coarse gate and is refused by the service.
+  const clerk = await personWith(["sales.clients.view", "sales.clients.create"], "salesclerk");
+  await signIn(clerk.id);
+  await shot("sales.refused.forbidden.ticket", await capture(
+    TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: { title: "Not mine to raise", clientId, industry: "Commercial", deadline: "2026-12-03", serviceIds: [serviceId] } }), P));
+  await shot("sales.allowed.client", await capture(
+    CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, { method: "POST", body: { name: "Second Client" } }), P));
+
+  // Settings answer to their own right, not to "can write in Sales".
+  await shot("sales.refused.settings", await capture(
+    SERVICES.POST, req(`/api/studios/${slug}/sales/services`, { method: "POST", body: { name: "Sneaky Service" } }), P));
+
+  // ---- and a member of NO studio sees the same wall ----------------------
+  await signIn(outsider.id);
+  await shot("sales.outsider.ticket", await capture(
+    TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: { title: "Not even a member", clientId, industry: "Commercial", deadline: "2026-12-03", serviceIds: [serviceId] } }), P));
+
+  __signOut();
+  await shot("sales.unauth.ticket", await capture(
+    TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: { title: "Not even signed in" } }), P));
+}
+
+// ============================================================================
 console.log("== hop counts: how many round trips a screen costs");
 // The audit's largest finding, expressed as a number a build can fail on.
 // `commands` is every command sent; `waves` is how many times the code WAITED,

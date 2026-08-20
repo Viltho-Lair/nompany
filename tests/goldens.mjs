@@ -35,12 +35,18 @@ const DIR = join(HERE, "goldens");
 export const RECORDING = process.env.NOMPANY_RECORD_GOLDENS === "1";
 
 // ---- normalisation ---------------------------------------------------------
-// Every id this product mints is `<prefix>_<base36 time><base36 random>`
-// (see keys.js makeId), so one pattern covers all of them and a NEW prefix is
-// covered the day it is added.
-const ID_PREFIXES = "usr|std|col|sec|sub|rol|med|qst|pkg|tir|svc|qpg|qsn|cht|ntf|sup|tkt|rfq|quo|pro|inv|exp|tas|sla|ove|del|awb|she|mat|cer|vac|loc|per|shi|tra|doc|typ|rev|aud|ack|lnk|cli|ite|ven|sto|ord";
+// Every id this product mints is `<prefix>_<base36 time><base36 random>` (see
+// keys.js makeId), which is ~14 characters after the underscore. Row ids take
+// their prefix from the COLLECTION NAME's first three letters — so `salesTickets`
+// mints `sal_…` and `generatedDocuments` mints `gen_…`, and a hand-maintained
+// list of prefixes would go stale the first time somebody adds a collection.
+//
+// So the pattern is structural rather than enumerated: three or four lowercase
+// letters, an underscore, and a long base36 tail. The prefix is captured, so a
+// golden still shows WHICH kind of id it was — `<std_ID>` reads better than
+// `<id>` and catches a field that starts returning the wrong sort of thing.
 const RE = [
-  [new RegExp(`\\b(${ID_PREFIXES})_[a-z0-9]{6,}\\b`, "g"), "<$1_ID>"],
+  [/\b([a-z]{3,4})_[a-z0-9]{10,}\b/g, "<$1_ID>"],
   [/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z\b/g, "<timestamp>"],
   [/\b\d{13}-\d+\b/g, "<streamId>"],            // Redis stream entry ids
   [/\b[a-f0-9]{32}\b/g, "<hex32>"],             // media ids

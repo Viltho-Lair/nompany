@@ -1,0 +1,46 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "ticket": {
+      "id": "<sal_ID>",
+      "ref": "ACME-HOLDINGS-001",
+      "title": "Boardroom refit",
+      "clientId": "<sal_ID>",
+      "clientName": "Acme Holdings",
+      "contactName": "",
+      "contactEmail": "",
+      "contactPhone": "",
+      "contactPosition": "",
+      "location": {
+        "name": "",
+        "country": "",
+        "city": "",
+        "url": ""
+      },
+      "description": "",
+      "status": "Lead",
+      "urgency": "Normal",
+      "industry": "Commercial",
+      "deadline": "2026-12-01",
+      "serviceIds": [
+        "<sal_ID>"
+      ],
+      "serviceRequirements": {
+        "<sal_ID>": {
+          "withoutInstallation": false,
+          "withoutProgramming": false
+        }
+      },
+      "clientBudget": null,
+      "probability": 0,
+      "value": 0,
+      "assignedToCollaboratorId": "<col_ID>",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}
