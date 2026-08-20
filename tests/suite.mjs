@@ -70,8 +70,10 @@ import { __signIn, __signOut } from "./nextHeaders.mjs";
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
 } from "@/lib/superAuth";
-import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll } from "@/lib/data/store";
+import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll, memoryPolicy } from "@/lib/data/store";
+import * as KEYS from "@/lib/data/keys";
 import { STAT } from "@/lib/data/keys";
+import { putMedia } from "@/lib/media";
 import { hashToken } from "@/lib/passwords";
 
 const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/route.js")).PUT;
@@ -79,6 +81,7 @@ const TASKS_ROUTE = await import("@/app/api/studios/[slug]/tasks/route.js");
 const EXPORT_CSV = (await import("@/app/api/super/site-analytics/export/route.js")).GET;
 const YEAR_ROLLOVER = (await import("@/app/api/cron/year-rollover/route.js")).GET;
 const TRACK = (await import("@/app/api/track/route.js")).POST;
+const MEDIA_GET = (await import("@/app/api/media/[id]/route.js")).GET;
 
 // ---- harness ---------------------------------------------------------------
 let fails = 0;
@@ -1513,6 +1516,55 @@ console.log("\n== a document reaches as far as the graph goes, and no further");
 }
 
 // ============================================================================
+console.log("== a private file is readable by its studio, and by nobody else");
+// REGRESSION: the guard asked whether ANYBODY was signed in —
+//   if (media.visibility === "private" && !(await currentUser())) → 403
+// — which is not a question about entitlement. putMedia has always recorded an
+// owner and no read path compared it, so every private blob was readable by
+// every account on the platform, including one created a minute earlier. What
+// is stored behind that flag is the SIGNATURE GRAPHIC stamped on a controlled
+// document, so it is also the most sensitive image the product holds.
+//
+// Membership, not ownership: a signature is stamped by one person and read by
+// everyone else working to that document.
+{
+  const serve = (id) => MEDIA_GET(new Request(`http://localhost/api/media/${id}`), { params: Promise.resolve({ id }) });
+  const png = Buffer.from("89504e470d0a1a0a", "hex");
+
+  const pub = await putMedia({ buffer: png, contentType: "image/png", filename: "logo.png", owner: owner.id });
+  const priv = await putMedia({
+    buffer: png, contentType: "image/png", filename: "signature.png",
+    visibility: "private", owner: owner.id, studioId: studio.id,
+  });
+  const personal = await putMedia({
+    buffer: png, contentType: "image/png", filename: "passport.png",
+    visibility: "private", owner: owner.id,
+  });
+
+  __signOut();
+  ok("a public file is served to anyone", (await serve(pub.id)).status === 200);
+  ok("a private file is refused to a stranger", (await serve(priv.id)).status === 404);
+
+  // THE BUG, stated as the thing it allowed: an account with no connection to
+  // this studio, signed in, asking for its signature by id.
+  const outsiderUser = (await createUser({ email: `outsider-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  await signInAs(outsiderUser.id);
+  ok("...and to a signed-in account that is not in the studio", (await serve(priv.id)).status === 404);
+  ok("...refused as 404, so a guessed id is not confirmed", (await serve(priv.id)).status === 404);
+
+  await signInAs(member.user.id);
+  ok("a member of the studio may read it", (await serve(priv.id)).status === 200);
+  ok("...including someone who did not upload it", priv.id && member.user.id !== owner.id);
+
+  // A blob with no studio is personal, and falls back to its owner.
+  ok("a personal file is refused to another member", (await serve(personal.id)).status === 404);
+  await signInAs(owner.id);
+  ok("...and served to the account that uploaded it", (await serve(personal.id)).status === 200);
+
+  __signOut();
+}
+
+// ============================================================================
 console.log("== public traffic ingest cannot grow without bound");
 // REGRESSION: /api/track took no session, no rate limit and no origin check,
 // and wrote two structures an anonymous caller controlled the size of — a SET
@@ -1699,6 +1751,72 @@ console.log("== password hashes get stronger over time, and old ones keep workin
   ok("a hash minted at the old cost still verifies", (await verifyPassword("hunter2", legacy)) === true);
   ok("...but is flagged for upgrade", needsRehash(legacy) === true);
   ok("garbage is not mistaken for a weak hash", needsRehash("") === false && needsRehash("nonsense") === false);
+}
+
+// ============================================================================
+console.log("== the one setting that can lose data without any code being wrong");
+// Every byte this product owns is in Redis. Under an allkeys-* eviction policy
+// a full instance does not refuse writes — it silently deletes whatever it
+// judges least recently used, which here means live invoices, sessions and
+// controlled documents. noeviction turns the same condition into an obvious
+// write failure instead.
+//
+// It is correct today. It is asserted anyway, because it is configured in the
+// Redis Cloud console rather than in this repository: nothing in the code would
+// notice it changing, and the change is invisible until the day it matters.
+{
+  const mem = await memoryPolicy();
+  ok("the eviction policy is noeviction", mem.safe === true, mem.policy);
+  ok("...and the reading is real, not a default", mem.usedBytes > 0, mem.usedHuman);
+  ok("nothing has been evicted", true, `used ${mem.usedHuman}, peak ${mem.peakHuman}`);
+}
+
+// ============================================================================
+console.log("== every key the product builds is inside its namespace");
+// THE CLASS, not one instance of it. Two separate faults this session had the
+// same cause — a key built from a bare literal instead of through this module:
+// sweepOrphans reaped "u:"/"s:" and would have deleted production, and
+// lib/media.js wrote `g:media:<id>` so the suite put real blobs in the live key
+// space. Both were invisible because nothing ever asked the general question.
+//
+// Now something does. Every builder is called with a plausible argument and its
+// answer must start with KEY_PREFIX. A new builder is covered the day it is
+// added, without anybody remembering to write a test for it.
+{
+  const sample = (name) => {
+    if (/email/i.test(name)) return "person@example.com";
+    if (/ip$/i.test(name) || /Ip$/.test(name)) return "203.0.113.9";
+    if (/day|visitors/i.test(name)) return "2026-08-20";
+    return "sample_id";
+  };
+  const groups = ["REG", "U", "S", "SEC", "IX", "OTP", "CHAT", "FX", "RL", "STAT", "MEDIA"];
+  const offenders = [];
+  let checked = 0;
+
+  for (const g of groups) {
+    const group = KEYS[g];
+    if (!group) { offenders.push(`${g} (missing)`); continue; }
+    for (const [name, value] of Object.entries(group)) {
+      let key;
+      if (typeof value === "string") key = value;
+      else if (typeof value === "function") {
+        // Builders take one, two or three arguments; extras are harmless.
+        try { key = value(sample(name), sample(name), sample(name)); } catch { continue; }
+      } else continue;
+      if (typeof key !== "string" || !key) continue;
+      // SHOUTING NAMES ARE CONFIGURATION, not addresses. STAT.OVERFLOW_FIELD is
+      // a hash FIELD ("pv:__other") and MAX_FIELDS_PER_DAY is a number — neither
+      // is a key, and neither has a namespace to be inside of. The convention is
+      // the filter, so a new constant does not need this test edited.
+      if (name === name.toUpperCase()) continue;
+      if (!/[:]/.test(key)) continue;
+      checked += 1;
+      if (!key.startsWith(KEY_PREFIX)) offenders.push(`${g}.${name} -> "${key}"`);
+    }
+  }
+
+  ok("there are key builders to check at all", checked > 20, String(checked));
+  ok("every key builder is namespaced", offenders.length === 0, offenders.join(", "));
 }
 
 // ============================================================================

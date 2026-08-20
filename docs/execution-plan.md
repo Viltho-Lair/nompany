@@ -8,7 +8,7 @@ This is the working document. `recommendations.md` says what is wrong; this says
 
 ## Progress
 
-Branch `wave-0-security-hardening`. Suite green, `tsc --noEmit` clean, production build succeeds after every item. **6 of 8 Wave 0 items done**, plus all the housekeeping.
+Branch `wave-0-security-hardening`. Suite green, `tsc --noEmit` clean, production build succeeds after every item. **Wave 0 complete** — all 8 items, plus the housekeeping and two faults found while working.
 
 | Item | Finding | State |
 |---|---|---|
@@ -20,8 +20,10 @@ Branch `wave-0-security-hardening`. Suite green, `tsc --noEmit` clean, productio
 | 0.3 Console session expiry | C-5 | **done** — `ix:supersession:<sha256>` with real `EX`; digests in the row, never tokens; legacy raw tokens dead |
 | 0.4 `/api/track` hardening | C-3 | **done** — per-IP window, cross-site Origin refused, HyperLogLog visitors, field-capped day hash |
 | 0.5 Security headers | H-10 | **done** — HSTS, nosniff, DENY, Referrer/Permissions-Policy, CSP Report-Only; verified on a running server |
-| 0.6 Media ownership check | C-2 | next |
-| 0.8 Redis eviction policy | M-14 | next |
+| 0.6 Media ownership check | C-2 | **done** — private blobs record their studio; membership is the test, not "is anyone signed in" |
+| 0.8 Redis eviction policy | M-14 | **done** — verified `noeviction` (already correct); asserted in the suite and reported weekly by the sweep |
+| Media keys namespaced | *found while working* | **done** — `lib/media.js` built `g:media:<id>` from a bare literal, so the suite wrote real blobs; now via `MEDIA.blob` |
+| Namespace test over every key builder | *found while working* | **done** — 61 builders checked; closes the class that produced C-1 and the media leak |
 
 **Opened while working, not yet decided:** `login()` checks `status === "suspended"` *before* verifying the password, so a suspended account is distinguishable from a non-existent one with no password at all — an enumeration oracle. Moving the check below `verifyPassword` closes it and costs one line, but it changes what a suspended person sees when they mistype their password. Decide before Wave 1 records golden responses.
 

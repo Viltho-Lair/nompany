@@ -148,6 +148,20 @@ export const FX = {
   lock: `${P}fx:lock`,
 };
 
+// ---- uploaded files --------------------------------------------------------
+// Platform-scoped, and NAMESPACED like everything else. It was built from a
+// bare literal in lib/media.js, which meant the integration suite wrote real
+// blobs into the live key space — the same fault as the orphan sweep's, with a
+// smaller blast radius and the same cause: a key built outside this module.
+//
+// NB these do not cascade. A studio deleted today strands its files, which is
+// tracked as its own finding; the fix is to move studio-owned blobs under
+// S.media (declared below, still unused) and out of Redis entirely.
+export const MEDIA = {
+  blob: (id) => `${P}g:media:${id}`,
+  prefix: `${P}g:media:`,
+};
+
 // ---- public website traffic (owned by nobody; deliberately never expires) --
 // One hash per day plus one HyperLogLog per day. Traffic history is the one
 // thing that only gets more useful with age — this spring is only interesting

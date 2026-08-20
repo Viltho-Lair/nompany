@@ -1,5 +1,6 @@
 import { cronDenied } from "@/lib/cronAuth";
 import { sweepOrphans } from "@/lib/data/cascade";
+import { memoryPolicy } from "@/lib/data/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,10 +11,31 @@ export const dynamic = "force-dynamic";
 // CRON_SECRET gates it, and a missing one refuses rather than opens the door —
 // this job DELETES keys, so it is the last place to be permissive about who is
 // calling. See lib/cronAuth.js.
+//
+// It also reports the two INFRASTRUCTURE facts nothing else in the product
+// would notice going wrong: the eviction policy, and how much headroom is left.
+// Both live in the Redis Cloud console rather than in this repository, so the
+// only way they get looked at is if something looks at them on a schedule —
+// and this job already runs on one. Reported, never enforced: the app cannot
+// change either, and failing the sweep over a warning would help nobody.
 export async function GET(request) {
   const denied = cronDenied(request);
   if (denied) return denied;
 
-  const result = await sweepOrphans();
-  return Response.json({ ok: true, ...result });
+  const [result, memory] = await Promise.all([sweepOrphans(), memoryPolicy().catch(() => null)]);
+
+  if (memory && !memory.safe) {
+    // An allkeys-* policy does not refuse writes when the instance fills — it
+    // deletes whatever it judges least recently used, which here is live
+    // business records. This is the loudest thing this job can say.
+    console.error(
+      `[sweep] UNSAFE EVICTION POLICY: maxmemory-policy is "${memory.policy}", expected "noeviction". `
+      + "A full instance will silently delete live records instead of refusing writes.",
+    );
+  }
+  if (memory?.maxBytes && memory.usedBytes / memory.maxBytes > 0.8) {
+    console.warn(`[sweep] memory at ${Math.round((memory.usedBytes / memory.maxBytes) * 100)}% (${memory.usedHuman})`);
+  }
+
+  return Response.json({ ok: true, ...result, memory });
 }

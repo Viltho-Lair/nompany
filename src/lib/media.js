@@ -8,13 +8,16 @@
 
 import { randomUUID } from "node:crypto";
 import { getRedisClient } from "@/lib/data/redis";
+import { MEDIA } from "@/lib/data/keys";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB per file
-const key = (id) => `g:media:${id}`;
+// Built through the shared key module so the namespace applies. A literal
+// here is how the integration suite came to write live blobs.
+const key = (id) => MEDIA.blob(id);
 
 // Store a file. `visibility: "public"` may be served to anyone with the link;
 // "private" requires a signed-in requester (enforced by the serve route).
-export async function putMedia({ buffer, contentType, filename, visibility = "public", owner = "" }) {
+export async function putMedia({ buffer, contentType, filename, visibility = "public", owner = "", studioId = "" }) {
   if (!buffer?.length) return { error: "empty" };
   if (buffer.length > MAX_BYTES) return { error: "too-large" };
 
@@ -25,6 +28,10 @@ export async function putMedia({ buffer, contentType, filename, visibility = "pu
     filename: String(filename || "file").slice(0, 200),
     visibility: visibility === "private" ? "private" : "public",
     owner: String(owner || ""),
+    // WHOSE STUDIO THIS BELONGS TO, when it belongs to one. It is what the read
+    // path checks membership against — see the note there. Absent means the
+    // file is personal to `owner` (an account photo), not that it is public.
+    studioId: String(studioId || ""),
     size: buffer.length,
     data: buffer.toString("base64"),
     createdAt: new Date().toISOString(),

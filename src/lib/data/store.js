@@ -364,6 +364,36 @@ export async function xLastId(key) {
   return reply?.[0]?.[0] || "0-0";
 }
 
+// ---- infrastructure invariants ---------------------------------------------
+// THE ONE SETTING THAT CAN LOSE DATA WITHOUT ANY CODE BEING WRONG.
+//
+// Every byte this product owns is in Redis. Under an `allkeys-*` eviction
+// policy a full instance does not refuse writes — it silently deletes whatever
+// it judges least recently used, which here means live invoices, sessions and
+// controlled documents. `noeviction` turns that same condition into a loud,
+// obvious write failure instead, which is the outcome we want.
+//
+// It is correct today. It is checked anyway, because it lives in the Redis
+// Cloud console rather than in this repository: nothing here would notice it
+// being changed, and the change is invisible until the day it matters. CONFIG
+// GET is restricted on this plan, so the reading is taken from INFO.
+//
+// Reported rather than enforced — the app cannot set it, and refusing to serve
+// over it would turn a warning into an outage.
+export async function memoryPolicy() {
+  const raw = await (await r()).info("memory");
+  const field = (k) => (raw.split(/\r?\n/).find((l) => l.startsWith(`${k}:`)) || "").split(":")[1]?.trim() || "";
+  const policy = field("maxmemory_policy");
+  return {
+    policy,
+    safe: policy === "noeviction",
+    usedBytes: Number(field("used_memory")) || 0,
+    usedHuman: field("used_memory_human"),
+    peakHuman: field("used_memory_peak_human"),
+    maxBytes: Number(field("maxmemory")) || 0,
+  };
+}
+
 // ---- prefix scan / delete (THE cascade primitive) --------------------------
 export async function scanPrefix(prefix) {
   const client = await r();

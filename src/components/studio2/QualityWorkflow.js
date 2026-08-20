@@ -96,6 +96,11 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
     try {
       const form = new FormData();
       form.append("file", file);
+      // The studio travels with the upload: a private blob is readable by that
+      // studio's members and nobody else, so the store has to be told which
+      // studio that is. The server verifies membership rather than taking our
+      // word for it.
+      form.append("slug", slug);
       const res = await fetch("/api/media?kind=private", { method: "POST", body: form });
       const out = await res.json().catch(() => ({}));
       if (res.ok && out.url) setSignature(out.url);
