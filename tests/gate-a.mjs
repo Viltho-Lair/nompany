@@ -610,6 +610,52 @@ console.log("== technical: converting, locking, and the rights that are not bigg
 }
 
 // ============================================================================
+console.log("== status codes: what each refusal claims to be");
+// EVERY ROUTE MAPS ITS OWN ERRORS, and they do not agree. `notfound` is 404 in
+// most places, `forbidden` is 403 in most places, and the quotations route
+// sends everything except notfound and locked as 400 — so a permission refusal
+// arrives claiming the caller sent nonsense.
+//
+// That is a real inconsistency and it is NOT fixed here: changing a status
+// mid-Gate-A would move the goldens that exist to record today's behaviour.
+// Wave 2's shared route wrapper (refactoring-strategy.md 2.1) replaces all 97
+// hand-written mappings with one table, and this is its checklist.
+//
+// So the count is pinned rather than the absence. Today's known mismatches pass;
+// a NEW one fails, and the list prints itself as more goldens land — nobody has
+// to remember to re-derive it.
+{
+  const EXPECTED = {
+    unauthorized: 401,
+    notfound: 404, "no-section": 404,
+    forbidden: 403, "read-only": 403, escalation: 403, "role-forbidden": 403,
+    already: 409, duplicate: 409, locked: 409, "in-use": 409,
+    "unknown-permission": 500,
+  };
+
+  const dir = new URL("./goldens/", import.meta.url);
+  const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+  const mismatches = [];
+  for (const file of files) {
+    let doc;
+    try { doc = JSON.parse(readFileSync(new URL(file, dir), "utf8")); } catch { continue; }
+    const error = doc?.body && typeof doc.body === "object" ? doc.body.error : null;
+    const want = error ? EXPECTED[error] : null;
+    if (want && want !== doc.status) mismatches.push(`${file.replace(/\.json$/, "")}: ${error} is ${doc.status}, should be ${want}`);
+  }
+
+  ok("the golden set is big enough to be worth scanning", files.length >= 50, String(files.length));
+  for (const m of mismatches) console.log(`       for wave 2: ${m}`);
+
+  // KNOWN, AND ONLY THESE. Lower this number as the route wrapper lands; raising
+  // it means a route just started disagreeing with the rest of the product about
+  // what a refusal is called, and that should cost somebody a build.
+  const KNOWN = 3;
+  ok(`only the ${KNOWN} known status mismatches remain`, mismatches.length <= KNOWN,
+    mismatches.length > KNOWN ? mismatches.slice(KNOWN).join(" | ") : "");
+}
+
+// ============================================================================
 console.log("== hop counts: how many round trips a screen costs");
 // The audit's largest finding, expressed as a number a build can fail on.
 // `commands` is every command sent; `waves` is how many times the code WAITED,

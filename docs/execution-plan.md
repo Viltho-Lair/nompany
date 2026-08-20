@@ -199,6 +199,15 @@ Detail in `refactoring-strategy.md` and `performance-audit.md`. Order matters: e
 | Sprint | Work | Findings closed |
 |---|---|---|
 | **W5-6** | **Seam A — the route wrapper.** One auth spec per route, one error table, `ConflictError` → 409, request id on every response, idempotency keys, `Origin` check. Convert in order: identity → studios → one department at a time. | H-7, H-10 (CSRF), gap #1 |
+
+> **The route wrapper's checklist writes itself.** Gate A scans every recorded
+> golden for a refusal whose HTTP status disagrees with what the error name
+> means, prints each one as `for wave 2: …`, and fails the build if a *new* one
+> appears. Today that is 3, all in `technical/quotations` — which maps
+> everything except `notfound` and `locked` to 400, so a permission refusal
+> arrives as `400 forbidden` where `403` would be honest. The known count is a
+> constant in `tests/gate-a.mjs`; **lower it as the wrapper lands**, and expect
+> the list to grow on its own as the remaining modules get goldens.
 | **W7** | **Speed refactors R1, R2, R6, R9.** Pass `sections` down (kills hop 7 everywhere); move `plantMissingSections` off the read path; move `lastSeenAt`/`lastLoginAt` off `g:users`; batch the `getProfile` N+1. | H-5, H-8, H-2 (partly) |
 | **W8** | **Request-scoped cache + batched prefetch.** `AsyncLocalStorage` map keyed by Redis key; two `MGET` waves; widen `ix:slug` to carry the studio document. **Target: 8 hops → 2.** | H-4, H-2 |
 | **W9** | **Targeted live updates.** The event already carries `{collection, rowId}` and no consumer reads it. Add a per-row endpoint; patch the client array in place. | H-6 |
