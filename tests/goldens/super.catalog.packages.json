@@ -1,0 +1,32 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "id": "<pkg_ID>",
+        "name": "Free",
+        "nameAr": "",
+        "tagline": "",
+        "taglineAr": "",
+        "usersLabel": "",
+        "usersLabelAr": "",
+        "type": "compound",
+        "categories": [],
+        "minEmployees": 0,
+        "maxEmployees": 0,
+        "costPerEmployee": 0,
+        "cost": 0,
+        "durationMonths": 0,
+        "includes": [],
+        "includesAr": [],
+        "popular": false,
+        "isPublic": true,
+        "color": "#10b981",
+        "supportTicketsPerMonth": 0,
+        "chatEnabled": false,
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>"
+      }
+    ]
+  }
+}

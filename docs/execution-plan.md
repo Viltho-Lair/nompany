@@ -31,13 +31,13 @@ Branch `wave-0-security-hardening`. Suite green, `tsc --noEmit` clean, productio
 | Piece | State |
 |---|---|
 | Golden-response harness + normaliser | **done**, negative-tested by renaming a field |
-| Golden coverage | **125 goldens; all nine studio departments complete.** Remaining: `/super` console routes |
+| Golden coverage | **139 goldens; every surface covered** — nine studio departments, identity, and the `/super` console, including the wall between the two identities in both directions |
 | Permission matrix (103 keys) | **done** — resolution proven exhaustive |
 | Hop counting | **done** — independently reproduces the audit's 8-wave figure |
 | Architectural assertions | **done** — 6 checks, found 3 dead builders on first run |
 | CI (typecheck, 3 suites, build, budget, ephemeral redis:8) | **done** |
 | Bundle budget | **done** — 1091 KB gz against a 1200 KB ceiling |
-| Per-route permission enforcement | **started** — Sales pins all three refusal shapes (coarse gate, service guard, sub-route guard) |
+| Per-route permission enforcement | **done for every module** — each pins its own refusal shapes, and M-15 records where a granted right cannot be exercised at all |
 | ESLint config | not yet — no `eslint` in devDependencies |
 | Observability (request ids, structured logs) | not yet |
 

@@ -23,6 +23,7 @@ import { ALL_PERMISSIONS, AREAS, ADMIN_ROLE_ID } from "@/lib/permissions";
 import { effectivePermissions } from "@/lib/access";
 import { studioContext } from "@/lib/studios";
 import { SESSION_COOKIE } from "@/lib/identity";
+import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/lib/superAuth";
 import { withCommandCount } from "@/lib/data/commandCount";
 import { readArr } from "@/lib/data/store";
 import { S } from "@/lib/data/keys";
@@ -1418,6 +1419,126 @@ console.log("== quality: four signatures, four rights, and nobody signs twice");
   __signOut();
   await shot("quality.unauth", await capture(
     DOCS.GET, req(`/api/studios/${slug}/quality/docs`), P));
+}
+
+// ============================================================================
+console.log("== /super: a second identity, and the wall between them");
+// The console runs on a SuperAdmin identity that is not a User at all — separate
+// registry, separate cookie, separate lifetime, outside every cascade.
+//
+// WHY THAT MATTERS MORE THAN IT LOOKS. A nompany owner holds BOTH cookies in the
+// same browser at the same time: they are a subscriber somewhere and an operator
+// here. If either identity leaked into the other's routes, the failure would be
+// silent and it would be worst exactly where it matters — their studio-side chat
+// replies posted as nompany, or a subscriber session reaching the console.
+//
+// So the wall is asserted in BOTH directions, which is the only way to test a
+// wall. Testing one side proves the door is locked; testing both proves it is a
+// wall.
+{
+  const SUPER_USERS = await import("@/app/api/super/users/[userId]/route.js");
+  const SUPER_STUDIOS = await import("@/app/api/super/studios/[id]/route.js");
+  const SUPER_CATALOG = await import("@/app/api/super/catalog/[kind]/route.js");
+  const SUPER_NOTIF = await import("@/app/api/super/notifications/route.js");
+  const STUDIO = await import("@/app/api/studios/[slug]/route.js");
+  const SALES = await import("@/app/api/studios/[slug]/sales/route.js");
+
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+
+  // ---- nobody, and then a subscriber ---------------------------------------
+  __signOut();
+  await shot("super.unauth.notifications", await capture(
+    SUPER_NOTIF.GET, req("/api/super/notifications"), ctx()));
+  await shot("super.unauth.users", await capture(
+    SUPER_USERS.PATCH, req(`/api/super/users/${owner.id}`, { method: "PATCH", body: { platformRole: "support" } }),
+    ctx({ userId: owner.id })));
+
+  // THE FIRST DIRECTION. A signed-in SUBSCRIBER — the owner of a studio, who
+  // holds a perfectly good nc_sid — reaching the console. Their cookie is real,
+  // their account is real, and it buys them nothing here.
+  await signIn(owner.id);
+  const subscriberAtTheDoor = await shot("super.refused.subscriber", await capture(
+    SUPER_NOTIF.GET, req("/api/super/notifications"), ctx()));
+  ok("a studio owner's session does not open the console",
+    subscriberAtTheDoor.status === 401, `${subscriberAtTheDoor.status} ${JSON.stringify(subscriberAtTheDoor.body)}`);
+
+  await shot("super.refused.subscriber.studios", await capture(
+    SUPER_STUDIOS.PUT, req(`/api/super/studios/${studio.id}`, { method: "PUT", body: { packageKey: "free" } }),
+    ctx({ id: studio.id })));
+
+  // ---- the operator --------------------------------------------------------
+  const email = `g-console-${rand()}@test.invalid`;
+  const seeded = await seedSuperAdmin({ email, password: "console-password-here" });
+  ok("a console identity can be seeded", Boolean(seeded?.admin?.id), JSON.stringify(seeded?.error));
+  const session = await loginSuper(email, "console-password-here");
+  ok("...and can sign in", Boolean(session?.token));
+
+  // Signed in as BOTH at once, which is the real situation for a nompany owner.
+  __signIn(SUPER_COOKIE, session.token);
+  const asOperator = await shot("super.notifications", await capture(
+    SUPER_NOTIF.GET, req("/api/super/notifications"), ctx()));
+  ok("the console identity opens the console", asOperator.status === 200,
+    `${asOperator.status} ${JSON.stringify(asOperator.body).slice(0, 100)}`);
+
+  await shot("super.catalog.packages", await capture(
+    SUPER_CATALOG.GET, req("/api/super/catalog/packages"), ctx({ kind: "packages" })));
+  await shot("super.catalog.unknownkind", await capture(
+    SUPER_CATALOG.GET, req("/api/super/catalog/nonsense"), ctx({ kind: "nonsense" })));
+
+  // ---- THE SECOND DIRECTION, and the one that is easy to forget ------------
+  // The console cookie is now in the jar. On its own — with no subscriber
+  // session — it must buy nothing inside a studio. A tenant's data is a
+  // tenant's data, and being nompany is not membership.
+  __signOut();
+  __signIn(SUPER_COOKIE, session.token);
+  const operatorInAStudio = await shot("super.refused.operator.instudio", await capture(
+    STUDIO.GET, req(`/api/studios/${slug}`), ctx({ slug })));
+  ok("a console session does not open a studio", operatorInAStudio.status === 401,
+    `${operatorInAStudio.status} ${JSON.stringify(operatorInAStudio.body)}`);
+
+  const operatorInSales = await shot("super.refused.operator.insales", await capture(
+    SALES.GET, req(`/api/studios/${slug}/sales`), ctx({ slug })));
+  ok("...nor a studio's Sales board", operatorInSales.status === 401,
+    `${operatorInSales.status} ${JSON.stringify(operatorInSales.body)}`);
+
+  // ---- what the console may legitimately do -------------------------------
+  __signIn(SUPER_COOKIE, session.token);
+  await shot("super.studio.repackaged", await capture(
+    SUPER_STUDIOS.PUT, req(`/api/super/studios/${studio.id}`, { method: "PUT", body: { packageKey: "free" } }),
+    ctx({ id: studio.id })));
+  await shot("super.studio.unknownpackage", await capture(
+    SUPER_STUDIOS.PUT, req(`/api/super/studios/${studio.id}`, { method: "PUT", body: { packageKey: "not-a-package" } }),
+    ctx({ id: studio.id })));
+  await shot("super.studio.nothingtochange", await capture(
+    SUPER_STUDIOS.PUT, req(`/api/super/studios/${studio.id}`, { method: "PUT", body: {} }),
+    ctx({ id: studio.id })));
+
+  await shot("super.user.roled", await capture(
+    SUPER_USERS.PATCH, req(`/api/super/users/${memberUser.id}`, { method: "PATCH", body: { platformRole: "support" } }),
+    ctx({ userId: memberUser.id })));
+  await shot("super.user.unknownrole", await capture(
+    SUPER_USERS.PATCH, req(`/api/super/users/${memberUser.id}`, { method: "PATCH", body: { platformRole: "emperor" } }),
+    ctx({ userId: memberUser.id })));
+  await shot("super.user.notfound", await capture(
+    SUPER_USERS.PATCH, req("/api/super/users/usr_nobodyhere0000", { method: "PATCH", body: { platformRole: "support" } }),
+    ctx({ userId: "usr_nobodyhere0000" })));
+
+  // AN OPERATOR IS NOT A SUBSCRIBER EITHER. The console refuses to demote the
+  // User record behind a super-admin address, because the two are separate
+  // identities and editing one to reach the other is the confusion this whole
+  // split exists to prevent.
+  const asUser = (await createUser({ email, passwordHash: "x" })).user;
+  if (asUser) {
+    await shot("super.user.refused.superadmin", await capture(
+      SUPER_USERS.PATCH, req(`/api/super/users/${asUser.id}`, { method: "PATCH", body: { status: "suspended" } }),
+      ctx({ userId: asUser.id })));
+  }
+
+  __signOut();
 }
 
 // ============================================================================
