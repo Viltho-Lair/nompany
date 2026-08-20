@@ -54,8 +54,14 @@ export default async function StudioPage({ params }) {
   if (await needsQuestionnaire(user.id)) redirect(`/en/questionnaire`);
 
   const context = await studioContext(user, slug);
-  // "No such studio" and "not a member" both render 404 on purpose — membership
-  // is not discoverable from the outside.
+  // THESE TWO ARE NOT THE SAME SCREEN, and the comment that used to sit here
+  // claimed they were. A missing slug 404s; a real studio you are not in gets
+  // NotAMember, which names the slug and tells you to ask an admin.
+  //
+  // That is deliberate, not a leak. A slug is a public address — requestJoinByCode
+  // exists so somebody can type one they were told — so existence was never the
+  // secret. The contents are: no row, no name, no count, no section reaches
+  // anyone who is not a collaborator.
   if (context.error) {
     if (context.error === "forbidden") return <NotAMember slug={slug} />;
     notFound();

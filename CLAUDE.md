@@ -22,8 +22,13 @@ when the code looks cleaner afterwards.
    `lib/media.js` wrote its blob key from a literal so the test suite put real
    blobs in the live key space. The suite asserts every builder is namespaced — a
    new builder is covered automatically, a new literal is the third incident.
-2. **Membership authorises; the URL never does.** A slug names a tenant. A non-member
-   learns nothing — "not found" and "not a member" render identically, on purpose.
+2. **Membership authorises; the URL never does.** A slug names a tenant, and a slug
+   is a **public address** — `requestJoinByCode` exists precisely so somebody can
+   type one they were told, so existence is discoverable by design and 403-vs-404
+   is not a leak. What a non-member learns is **nothing about the contents**: not a
+   row, not a name, not a count, not a section. Never widen that from "contents" to
+   "existence" — this text used to claim both rendered identically, three places in
+   the code disagreed with it, and the code was right.
 3. **Access is resolved once**, in `effectivePermissions` (`src/lib/access.js`), and
    every module context is built on `studioContext`. No route re-derives it.
 4. **Default deny.** No role means nothing. There is no fallback path.

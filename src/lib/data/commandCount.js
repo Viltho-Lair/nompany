@@ -36,9 +36,41 @@ const NOT_A_COMMAND = new Set([
 /**
  * Run `fn` with a command counter attached.
  *
+ * RE-ENTRANT ON PURPOSE. A nested call JOINS the counter already running rather
+ * than starting a fresh one, and the reason is a bug this actually had:
+ *
+ * withRequest() opens a counting scope so every route can report its hops in the
+ * completion line without opting in. Gate A's hop test ALSO opens one, around
+ * the route it is measuring. The moment routes started going through the wrapper
+ * those two nested — and because a fresh store shadowed the outer one, every
+ * command was counted into the inner scope and the test's counter read zero.
+ *
+ * What makes that worse than a wrong number is the assertion beside it:
+ * `waves <= 12` is satisfied by zero. The ceiling check went on passing, for a
+ * route that was no longer being measured at all, and only "the studio route is
+ * measured at all" — a guard whose entire job is to disbelieve a suspiciously
+ * clean result — noticed. Hence joining: nesting now aggregates, so the inner
+ * log line and the outer test see the same true number.
+ *
  * @returns {Promise<{result: any, commands: number, waves: number, names: string[]}>}
  */
 export async function withCommandCount(fn) {
+  const existing = storage.getStore();
+  if (existing) {
+    const before = existing.commands;
+    const beforeWaves = existing.waves;
+    const beforeNames = existing.names.length;
+    const result = await fn();
+    return {
+      result,
+      // What THIS scope contributed, so a nested reader still describes itself
+      // rather than everything that happened to be in flight around it.
+      commands: existing.commands - before,
+      waves: existing.waves - beforeWaves,
+      names: existing.names.slice(beforeNames),
+    };
+  }
+
   const store = { commands: 0, waves: 0, inFlight: 0, names: [] };
   const result = await storage.run(store, fn);
   return { result, commands: store.commands, waves: store.waves, names: store.names };

@@ -1785,7 +1785,11 @@ console.log("== hop counts: how many round trips a screen costs");
   const studioCall = await withCommandCount(() => capture(STUDIO.GET, req(`/api/studios/${slug}`), ctx({ slug })));
   console.log(`       GET /api/studios/<slug>        ${studioCall.commands} commands, ${studioCall.waves} waves`);
   ok("the studio route is measured at all", studioCall.commands > 0);
-  ok("the studio route stays under its ceiling", studioCall.waves <= 12, `${studioCall.waves} waves: ${studioCall.names.join(",")}`);
+  // LOWERED FROM 12 TO 7 when the route stopped re-reading sections that
+  // studioContext had already fetched and handed to it. The ceiling only ever
+  // ratchets down: it sits one wave above the measurement so an accidental
+  // extra round trip fails, and the next wave lowers it again. W8's target is 2.
+  ok("the studio route stays under its ceiling", studioCall.waves <= 7, `${studioCall.waves} waves: ${studioCall.names.join(",")}`);
 
   const salesCall = await withCommandCount(() => capture(SALES.GET, req(`/api/studios/${slug}/sales`), ctx({ slug })));
   console.log(`       GET /api/studios/<slug>/sales  ${salesCall.commands} commands, ${salesCall.waves} waves`);
