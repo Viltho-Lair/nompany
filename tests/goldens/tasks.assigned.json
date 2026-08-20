@@ -1,0 +1,26 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "task": {
+      "id": "<tas_ID>",
+      "title": "Commission the boardroom",
+      "type": "",
+      "approvals": {},
+      "approvalWithdrawnAt": "",
+      "description": "",
+      "status": "Open",
+      "priority": "Normal",
+      "assigneeCollaboratorId": "<col_ID>",
+      "projectId": "",
+      "dueDate": "",
+      "checklist": [],
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "completedAt": "",
+      "studioId": "<std_ID>",
+      "sectionId": "<sec_ID>",
+      "progress": null
+    }
+  }
+}

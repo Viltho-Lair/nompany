@@ -983,10 +983,28 @@ console.log("== hr: whose records, which numbers, and what is on disk");
   const vacationId = asked.body?.vacation?.id;
   ok("somebody can ask for their own leave", Boolean(vacationId), JSON.stringify(asked.body).slice(0, 120));
 
-  await shot("hr.vacation.refused.forothers", await capture(
+  // BOOKING LEAVE FOR SOMEBODY ELSE, which this caller may do — and the golden
+  // is named for what happens rather than for what I assumed would.
+  //
+  // requestVacation guards it with `if (target !== me && !canManage) forbidden`,
+  // and that branch CANNOT FIRE. canManage is sectionManageable over HR's areas,
+  // and SECTION_AREAS maps hr-employees to both hr.employees AND hr.vacations —
+  // so holding hr.vacations.create, which the line above already required, makes
+  // canManage true by construction. Anyone who reaches the check has passed it.
+  //
+  // Not a hole: the permission does the work the branch was meant to do. But it
+  // is a guard nobody can exercise, which is the same dead-capability shape the
+  // permission catalogue forbids, and it is recorded here rather than left to be
+  // rediscovered. It also AUTO-APPROVES, because a manager booking leave has
+  // already made the decision.
+  const forOthers = await shot("hr.vacation.forothers.bymanager", await capture(
     VACATIONS.POST, req(`/api/studios/${slug}/hr/vacations`, { method: "POST", body: {
       collaboratorId: member.id, from: "2026-10-01", to: "2026-10-02",
     } }), P));
+  ok("somebody who may create leave may book it for another (the !canManage branch is unreachable)",
+    forOthers.status === 201, `${forOthers.status} ${JSON.stringify(forOthers.body).slice(0, 80)}`);
+  ok("...and a manager booking it has already decided",
+    forOthers.body?.vacation?.status === "Approved", forOthers.body?.vacation?.status);
 
   await shot("hr.vacation.refused.approve", await capture(
     VACATIONS.PUT, req(`/api/studios/${slug}/hr/vacations`, { method: "PUT", body: {
@@ -1107,6 +1125,120 @@ console.log("== finance: a number that only goes forward, and money that is deri
   await shot("finance.outsider", await capture(FINANCE.GET, req(`/api/studios/${slug}/finance`), P));
   __signOut();
   await shot("finance.unauth", await capture(FINANCE.GET, req(`/api/studios/${slug}/finance`), P));
+}
+
+// ============================================================================
+console.log("== operations & tasks: a shift knows about leave, and finishing is not editing");
+// TWO CROSS-DEPARTMENT RULES, and they are the interesting ones because neither
+// module owns both halves.
+//
+//   A SHIFT CANNOT BE GIVEN TO SOMEBODY HR HAS ALREADY APPROVED LEAVE FOR.
+//   Operations does not own vacations and HR does not own the rota, so this is
+//   Operations asking HR a question at the moment of writing — caught here
+//   rather than discovered on the day.
+//
+//   FINISHING YOUR OWN WORK IS NOT EDITING IT. A task is assigned by somebody
+//   authorised and COMPLETED by the person it was given to, so the assignee may
+//   move it to Done without holding a board right — and may not rewrite what
+//   was asked of them.
+{
+  const OPS = await import("@/app/api/studios/[slug]/operations/route.js");
+  const SHIFTS = await import("@/app/api/studios/[slug]/operations/shifts/route.js");
+  const LOCATIONS = await import("@/app/api/studios/[slug]/operations/locations/route.js");
+  const TASKS = await import("@/app/api/studios/[slug]/tasks/route.js");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const personWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return { user: u, collaborator: await getCollaboratorByUser(studio.id, u.id) };
+  };
+
+  await signIn(owner.id);
+
+  // ---- operations ---------------------------------------------------------
+  const location = await shot("operations.location.created", await capture(
+    LOCATIONS.POST, req(`/api/studios/${slug}/operations/locations`, { method: "POST", body: {
+      name: "Riyadh HQ", city: "Riyadh", country: "Saudi Arabia",
+    } }), P));
+  const locationId = location.body?.location?.id;
+  ok("the location was created", Boolean(locationId), JSON.stringify(location.body).slice(0, 120));
+
+  // Whoever asked for leave in the HR block. Found by their approved vacation
+  // rather than by name, so this stays true if the fixture is reshuffled.
+  const hr = await import("@/app/api/studios/[slug]/hr/route.js");
+  const hrBoard = await capture(hr.GET, req(`/api/studios/${slug}/hr`), P);
+  const leave = hrBoard.body?.vacations?.find((v) => v.status === "Approved");
+  ok("HR has an approved absence to schedule around", Boolean(leave),
+    `${hrBoard.body?.vacations?.length ?? 0} vacations`);
+
+  const onLeaveDay = leave?.from;
+  const clash = await shot("operations.shift.refused.onleave", await capture(
+    SHIFTS.POST, req(`/api/studios/${slug}/operations/shifts`, { method: "POST", body: {
+      date: onLeaveDay, collaboratorId: leave?.collaboratorId, locationId,
+      startTime: "08:00", endTime: "16:00",
+    } }), P));
+  ok("a shift cannot be given to somebody on approved leave",
+    clash.body?.error === "on-leave", `${clash.status} ${JSON.stringify(clash.body)}`);
+  ok("...and the refusal says which absence it clashes with",
+    Boolean(clash.body?.from && clash.body?.to), JSON.stringify(clash.body));
+
+  // The same person, a day they are not on leave: the rule is about the
+  // absence, not about the person.
+  const fine = await shot("operations.shift.created", await capture(
+    SHIFTS.POST, req(`/api/studios/${slug}/operations/shifts`, { method: "POST", body: {
+      date: "2026-11-03", collaboratorId: leave?.collaboratorId, locationId,
+      startTime: "08:00", endTime: "16:00",
+    } }), P));
+  ok("...but the same person can be scheduled outside it", fine.status === 201,
+    `${fine.status} ${JSON.stringify(fine.body).slice(0, 100)}`);
+
+  await shot("operations.board", await capture(OPS.GET, req(`/api/studios/${slug}/operations`), P));
+
+  // ---- tasks --------------------------------------------------------------
+  // The assignee needs tasks.board.VIEW, or tasksContext refuses them at the door
+  // and the test proves they cannot open Tasks rather than proving they may
+  // finish their own work. Same shape as the Inventory sheet-owner case: a
+  // refusal has to be for the reason under test.
+  const doer = await personWith(["tasks.board.view"], "taskdoer");
+  const assigned = await shot("tasks.assigned", await capture(
+    TASKS.POST, req(`/api/studios/${slug}/tasks`, { method: "POST", body: {
+      title: "Commission the boardroom", assigneeCollaboratorId: doer.collaborator.id,
+    } }), P));
+  const taskId = assigned.body?.task?.id;
+  ok("a task can be assigned", Boolean(taskId), JSON.stringify(assigned.body).slice(0, 120));
+
+  // THE ASSIGNEE HOLDS NO BOARD RIGHT AT ALL and may still finish their own
+  // work. Finishing is not editing.
+  await signIn(doer.user.id);
+  const finished = await shot("tasks.finished.byassignee", await capture(
+    TASKS.PUT, req(`/api/studios/${slug}/tasks`, { method: "PUT", body: { id: taskId, status: "Done" } }), P));
+  ok("the assignee can finish their own task without a board right",
+    finished.body?.task?.status === "Done", JSON.stringify(finished.body).slice(0, 120));
+
+  const overreach = await shot("tasks.refused.rename.byassignee", await capture(
+    TASKS.PUT, req(`/api/studios/${slug}/tasks`, { method: "PUT", body: { id: taskId, title: "Not mine to rename" } }), P));
+  ok("...but cannot rewrite what was asked of them",
+    overreach.body?.error === "forbidden", `${overreach.status} ${JSON.stringify(overreach.body)}`);
+
+  // DELETE IS ITS OWN RIGHT. canManage is true for anybody holding any write on
+  // the board, so a Delete button drawn off canManage would be offered to
+  // people the service then refuses.
+  const editor = await personWith(["tasks.board.view", "tasks.board.create", "tasks.board.edit"], "taskeditor");
+  await signIn(editor.user.id);
+  await shot("tasks.refused.delete", await capture(
+    TASKS.DELETE, req(`/api/studios/${slug}/tasks`, { method: "DELETE", body: { id: taskId } }), P));
+
+  await signIn(outsider.id);
+  await shot("tasks.outsider", await capture(TASKS.GET, req(`/api/studios/${slug}/tasks`), P));
+  __signOut();
+  await shot("operations.unauth", await capture(OPS.GET, req(`/api/studios/${slug}/operations`), P));
 }
 
 // ============================================================================

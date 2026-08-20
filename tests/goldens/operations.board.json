@@ -1,0 +1,275 @@
+{
+  "status": 200,
+  "body": {
+    "canManage": true,
+    "canViewDashboard": true,
+    "canManageTracking": true,
+    "canManageSettings": true,
+    "nav": {
+      "main": true,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": true,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": true,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "manage": {
+      "main": false,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": false,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": false,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "me": {
+      "collaboratorId": "<col_ID>"
+    },
+    "locations": [
+      {
+        "id": "<loc_ID>",
+        "name": "Riyadh HQ",
+        "kind": "Site",
+        "address": "",
+        "city": "Riyadh",
+        "mapUrl": "",
+        "notes": "",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sec_ID>"
+      }
+    ],
+    "permits": [],
+    "shifts": [
+      {
+        "id": "<shi_ID>",
+        "date": "2026-11-03",
+        "collaboratorId": "<col_ID>",
+        "locationId": "<loc_ID>",
+        "startTime": "08:00",
+        "endTime": "16:00",
+        "role": "",
+        "notes": "",
+        "createdByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sec_ID>",
+        "locationName": "Riyadh HQ",
+        "alias": "Member",
+        "hours": 8
+      }
+    ],
+    "projects": [
+      {
+        "id": "<pro_ID>",
+        "number": ""
+      }
+    ],
+    "people": [
+      {
+        "id": "<col_ID>",
+        "alias": "financeviewer"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "hrasker"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "hrown"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "hradmin"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "projectmanager"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "storeman"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "projlister"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "techlocker"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "techpricer"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "techeditor"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "salesclerk"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "salesviewer"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "Member"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "Owner"
+      }
+    ],
+    "window": {
+      "from": "2026-08-20",
+      "to": "2026-08-26"
+    },
+    "positions": [],
+    "settings": {
+      "workSchedule": {
+        "Sunday": {
+          "on": true,
+          "from": "09:00",
+          "to": "17:00"
+        },
+        "Monday": {
+          "on": true,
+          "from": "09:00",
+          "to": "17:00"
+        },
+        "Tuesday": {
+          "on": true,
+          "from": "09:00",
+          "to": "17:00"
+        },
+        "Wednesday": {
+          "on": true,
+          "from": "09:00",
+          "to": "17:00"
+        },
+        "Thursday": {
+          "on": true,
+          "from": "09:00",
+          "to": "17:00"
+        },
+        "Friday": {
+          "on": true,
+          "from": "09:00",
+          "to": "17:00"
+        },
+        "Saturday": {
+          "on": true,
+          "from": "09:00",
+          "to": "17:00"
+        }
+      },
+      "legend": [
+        {
+          "id": "project",
+          "label": "Project Related",
+          "color": "#bfdbfe"
+        },
+        {
+          "id": "installation",
+          "label": "Installation",
+          "color": "#fef08a"
+        },
+        {
+          "id": "sla",
+          "label": "SLA",
+          "color": "#bbf7d0"
+        },
+        {
+          "id": "ot",
+          "label": "Overtime",
+          "color": "#c4b5fd"
+        }
+      ],
+      "showWorkingHoursOnly": false,
+      "rosterPrefix": ""
+    },
+    "summary": {
+      "locations": 1,
+      "permitsExpiring": 0,
+      "permitsExpired": 0,
+      "shiftsThisWeek": 0,
+      "hoursThisWeek": 0
+    },
+    "vocabulary": {
+      "locationKinds": [
+        "Site",
+        "Office",
+        "Warehouse",
+        "Client premises"
+      ],
+      "permitTypes": [
+        "Work permit",
+        "Hot work",
+        "Height work",
+        "Confined space",
+        "Electrical",
+        "Vehicle access",
+        "Other"
+      ],
+      "expiryWindowDays": 30
+    }
+  }
+}

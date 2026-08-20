@@ -1,0 +1,18 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "location": {
+      "id": "<loc_ID>",
+      "name": "Riyadh HQ",
+      "kind": "Site",
+      "address": "",
+      "city": "Riyadh",
+      "mapUrl": "",
+      "notes": "",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sec_ID>"
+    }
+  }
+}

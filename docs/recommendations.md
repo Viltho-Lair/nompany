@@ -21,7 +21,7 @@ And one finding is a live hazard rather than a design flaw:
 
 > **`sweepOrphans()` is key-prefix-unaware and deletes by prefix.** Run once with `NOMPANY_KEY_PREFIX` set — which the project's own integration bootstrap sets to `test_` — it would classify every real user and studio subtree as orphaned and delete the entire production dataset. See **C-1**.
 
-**Counts:** 6 critical, 11 high, 14 medium, 9 low. Full table in §6.
+**Counts:** 6 critical, 11 high, 14 medium, 10 low. Full table in §6.
 
 ---
 
@@ -264,6 +264,7 @@ The whole product depends on Redis never evicting. Nothing in the repo asserts `
 - **L-7** `CH.user(userId)` publishes notification bodies over Redis pub/sub; anyone with `SUBSCRIBE` on the shared instance reads them. Publish only `{ kind, id }` and let the client fetch.
 - **L-8** `RESERVED_SLUGS` does not include `q`'s siblings for future platform routes (`assets`, `cdn`, `status`, `health`, `webhooks`) — a studio can claim them today.
 - **L-9** Error responses leak internal vocabulary (`no-section`, `same-signer`, `escalation`) to unauthenticated-adjacent callers. Fine for debugging, worth mapping to stable public codes.
+- **L-10** **An unreachable guard in `requestVacation`.** `src/lib/hr.js:487` refuses booking leave for somebody else with `if (target !== me && !canManage)`. That branch cannot fire: `canManage` is `sectionManageable` over HR's areas, and `SECTION_AREAS` maps `hr-employees` to **both** `hr.employees` and `hr.vacations` — so holding `hr.vacations.create`, which the line above already required, makes `canManage` true by construction. Anyone who reaches the check has already passed it. Not a hole (the permission does the work the branch was meant to do) but a guard nobody can exercise, which is the same dead-capability shape the permission catalogue forbids. Found by writing a test that asserted a refusal and got a 201. Pinned by `hr.vacation.forothers.bymanager`.
 
 ---
 
@@ -328,7 +329,7 @@ These are structural necessities absent from the product, ordered by how much la
 | M-12 | Medium | No CI, no lint config, no test runner | repo root |
 | M-13 | Medium | Duplicate `jsconfig.json` | repo root |
 | M-14 | Medium | Redis eviction policy unverified | infrastructure |
-| L-1 – L-9 | Low | See §4 | — |
+| L-1 – L-10 | Low | See §4 | — |
 
 ---
 
