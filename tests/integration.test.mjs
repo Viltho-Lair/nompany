@@ -16,7 +16,23 @@ import { pathToFileURL } from "node:url";
 
 // A prefix nothing in production uses, and never the empty string: an empty
 // prefix would point the whole suite at live data.
-process.env.NOMPANY_KEY_PREFIX = process.env.NOMPANY_KEY_PREFIX || "test_";
+// KEY NAMESPACE — two collisions, one mechanism.
+//
+// This suite and Gate A both used "test_", and both END by deleting their whole
+// namespace. Running them together therefore had one sweep delete the other's
+// fixtures mid-flight; that happened twice in one session before it was
+// understood. They now take separate namespaces, so the two files can run
+// concurrently and neither can reap the other.
+//
+// NOMPANY_TEST_SESSION is the second half: two DEVELOPERS (or two agent
+// sessions) sharing one Redis need a discriminator of their own, because the
+// file-level split does nothing for two copies of the same file. Set it to
+// anything short and distinct and the namespaces stop overlapping entirely.
+//
+// Both still begin with "test_", so every existing safety assumption about that
+// prefix continues to hold.
+const SESSION = process.env.NOMPANY_TEST_SESSION ? `${process.env.NOMPANY_TEST_SESSION}_` : "";
+process.env.NOMPANY_KEY_PREFIX = process.env.NOMPANY_KEY_PREFIX || `test_${SESSION}suite_`;
 if (process.env.NODE_ENV === "production") {
   console.error("Refusing to run the integration suite with NODE_ENV=production.");
   process.exit(1);
