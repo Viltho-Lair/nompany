@@ -27,7 +27,7 @@ import { withCommandCount } from "@/lib/data/commandCount";
 import { readArr } from "@/lib/data/store";
 import { S } from "@/lib/data/keys";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
-import { golden, req, ctx, capture, RECORDING } from "./goldens.mjs";
+import { golden, req, ctx, capture, RECORDING, touched } from "./goldens.mjs";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -1418,6 +1418,26 @@ console.log("== quality: four signatures, four rights, and nobody signs twice");
   __signOut();
   await shot("quality.unauth", await capture(
     DOCS.GET, req(`/api/studios/${slug}/quality/docs`), P));
+}
+
+// ============================================================================
+console.log("== no golden is left behind");
+// A golden file that no case produces is debris. It is almost always the old
+// name of a case that was renamed, and it is worse than an empty file: it sits
+// in the directory looking like coverage of something that is no longer tested,
+// and it is committed, so it looks deliberate.
+//
+// Two appeared within an hour of the Quality block being written, from exactly
+// that — quality.refused.start.twice and quality.revision.started, both renamed
+// once the rule they described turned out to be something else.
+{
+  const dir = new URL("./goldens/", import.meta.url);
+  const onDisk = readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, ""));
+  const orphans = onDisk.filter((name) => !touched.has(name));
+  ok("every golden on disk was produced by a case in this run",
+    orphans.length === 0, orphans.join(", "));
+  ok("...and every case produced one", touched.size === onDisk.length - orphans.length,
+    `${touched.size} cases, ${onDisk.length} files`);
 }
 
 // ============================================================================

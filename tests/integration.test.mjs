@@ -59,4 +59,19 @@ if (!process.env.REDIS_URL) {
 const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
+// SWEEP BEFORE, NOT ONLY AFTER.
+//
+// The run cleans up when it finishes, which is no help when it does NOT finish:
+// a killed run, a timeout, or a crash leaves its fixtures behind, and the next
+// run then builds on top of them. That produced 187 golden failures in one
+// go — every list response carrying rows from a previous life — and looked
+// exactly like a mass regression, which is the most expensive kind of false
+// alarm.
+//
+// So the namespace is emptied on the way IN as well. It is the same one-prefix
+// delete, it costs nothing on a clean run, and it makes every run independent of
+// how the last one ended.
+const { delPrefix: sweepBefore } = await import("@/lib/data/store");
+await sweepBefore(process.env.NOMPANY_KEY_PREFIX);
+
 await import("./suite.mjs");

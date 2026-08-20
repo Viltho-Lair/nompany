@@ -77,10 +77,17 @@ export function normalise(value, extra = {}) {
 // ---- compare ---------------------------------------------------------------
 const pathFor = (name) => join(DIR, `${name}.json`);
 
+// EVERY NAME THIS RUN ASKED FOR. A golden file nobody produces is debris — it
+// is usually the old name of a case that got renamed, and it sits there looking
+// like coverage of something that is no longer tested. Two of them appeared
+// within an hour of the Quality block being written, from exactly that.
+export const touched = new Set();
+
 /**
  * @returns {{ok: boolean, recorded?: boolean, detail?: string}}
  */
 export function golden(name, payload, extra = {}) {
+  touched.add(name);
   const actual = normalise(payload, extra);
   const file = pathFor(name);
 
