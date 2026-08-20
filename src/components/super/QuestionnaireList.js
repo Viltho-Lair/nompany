@@ -11,9 +11,9 @@ import Link from "next/link";
 // Invite, no workspace tree or Private group, no response-limit meter and no
 // assistant box. What is left is the thing itself: create, find, open.
 
-const RAIL = "flex w-[220px] shrink-0 flex-col gap-4 border-e border-slate-200 bg-white p-4";
-const BTN = "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-600 text-white transition-colors hover:bg-slate-700 disabled:opacity-60";
-const GHOST = "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100";
+const RAIL = "flex w-[220px] shrink-0 flex-col gap-4 border-e border-[var(--ad-border)] bg-[var(--ad-card)] p-4";
+const BTN = "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--ad-foreground)] px-4 py-2.5 text-sm font-600 text-white transition-colors hover:bg-[rgb(var(--ad-foreground-rgb)/0.75)] disabled:opacity-60";
+const GHOST = "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-[var(--ad-foreground)] transition-colors hover:bg-[var(--ad-muted)]";
 
 const fmt = (iso) => {
   if (!iso) return "—";
@@ -21,6 +21,62 @@ const fmt = (iso) => {
     return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   } catch { return "—"; }
 };
+
+// Shaped like the two views it stands in for, not like a sentence.
+//
+// "Loading…" was one line of text where either a seven-column table or a grid of
+// cards was about to appear — so the page had one height while it waited and a
+// completely different one a moment later. These reserve the real boxes: the
+// same 8×8 monogram, the same row height, the same card.
+function ListSkeleton({ view, rows = 6 }) {
+  const label = "Loading questionnaires";
+  if (view === "list") {
+    return (
+      <div
+        className="mt-6 overflow-hidden rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)]"
+        role="status"
+        aria-busy="true"
+        aria-label={label}
+      >
+        <span className="sr-only">{label}…</span>
+        {Array.from({ length: rows }, (_, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 border-b border-[var(--ad-border)] px-5 py-3 last:border-0"
+          >
+            <span className="ad-skel block h-8 w-8 shrink-0 rounded-lg" />
+            <span className="min-w-0 flex-1">
+              <span className="ad-skel ad-skel-text block h-3 w-48 max-w-full" />
+              <span className="ad-skel ad-skel-text mt-1.5 block h-2 w-28 opacity-70" />
+            </span>
+            <span className="ad-skel ad-skel-text hidden h-2.5 w-24 sm:block" />
+            <span className="ad-skel ad-skel-text hidden h-2.5 w-10 sm:block" />
+            <span className="ad-skel ad-skel-text hidden h-2.5 w-10 sm:block" />
+            <span className="ad-skel ad-skel-text hidden h-2.5 w-20 sm:block" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div
+      className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      role="status"
+      aria-busy="true"
+      aria-label={label}
+    >
+      <span className="sr-only">{label}…</span>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)] p-4">
+          <span className="ad-skel block h-10 w-10 rounded-lg" />
+          <span className="ad-skel ad-skel-text mt-3 block h-3 w-32 max-w-full" />
+          <span className="ad-skel ad-skel-text mt-2 block h-2 w-24 opacity-70" />
+          <span className="ad-skel ad-skel-text mt-3 block h-2 w-40 max-w-full opacity-70" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function QuestionnaireList() {
   const [rows, setRows] = useState(null);
@@ -69,50 +125,50 @@ export default function QuestionnaireList() {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-slate-50 text-slate-900">
+    <div className="flex min-h-screen w-full bg-[var(--ad-muted)] text-[var(--ad-foreground)]">
       <aside className={RAIL}>
-        <Link href="/super/dashboard/analytics" className="flex items-center gap-2 text-sm font-600 text-slate-500 hover:text-slate-900">
+        <Link href="/super/dashboard/analytics" className="flex items-center gap-2 text-sm font-600 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)]">
           <Chevron className="h-4 w-4 rotate-180" /> Console
         </Link>
         <button type="button" className={BTN} onClick={create} disabled={busy}>
           <span className="text-base leading-none">+</span> Create questionnaire
         </button>
-        <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
-          <Search className="h-4 w-4 shrink-0 text-slate-400" />
+        <label className="flex items-center gap-2 rounded-lg border border-[var(--ad-border)] px-3 py-2">
+          <Search className="h-4 w-4 shrink-0 text-[var(--ad-muted-foreground)]" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search"
-            className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400" />
+            className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--ad-muted-foreground)]" />
         </label>
       </aside>
 
       <main className="min-w-0 flex-1 p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="font-display text-2xl font-700">Questionnaires</h1>
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+          <div className="inline-flex rounded-lg border border-[var(--ad-border)] bg-[var(--ad-card)] p-0.5">
             {["list", "grid"].map((v) => (
               <button key={v} type="button" onClick={() => setView(v)}
                 className={`rounded-md px-3 py-1.5 text-sm font-600 capitalize transition-colors ${
-                  view === v ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:text-slate-900"}`}>
+                  view === v ? "bg-[var(--ad-muted)] text-[var(--ad-foreground)]" : "text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)]"}`}>
                 {v}
               </button>
             ))}
           </div>
         </div>
 
-        {error && <p className="mt-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-600">{error}</p>}
+        {error && <p className="mt-4 rounded-lg bg-[rgb(var(--ad-destructive-rgb)/0.1)] px-4 py-3 text-sm text-[var(--ad-destructive)]">{error}</p>}
 
         {rows === null ? (
-          <p className="mt-8 text-sm text-slate-500">Loading…</p>
+          <ListSkeleton view={view} />
         ) : shown.length === 0 ? (
-          <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center">
-            <p className="text-sm text-slate-500">
+          <div className="mt-8 rounded-xl border border-dashed border-[var(--ad-border)] bg-[var(--ad-card)] p-12 text-center">
+            <p className="text-sm text-[var(--ad-muted-foreground)]">
               {query ? `Nothing matches “${query}”.` : "No questionnaires yet. Create one to get started."}
             </p>
           </div>
         ) : view === "list" ? (
-          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="mt-6 overflow-hidden rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)]">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-xs font-600 uppercase tracking-wide text-slate-400">
+                <tr className="border-b border-[var(--ad-border)] text-xs font-600 uppercase tracking-wide text-[var(--ad-muted-foreground)]">
                   <th className="px-5 py-3 text-start font-600">Name</th>
                   <th className="px-3 py-3 text-start font-600">Route</th>
                   <th className="px-3 py-3 text-end font-600">Questions</th>
@@ -124,23 +180,23 @@ export default function QuestionnaireList() {
               </thead>
               <tbody>
                 {shown.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
+                  <tr key={r.id} className="border-b border-[var(--ad-border)] last:border-0 hover:bg-[rgb(var(--ad-muted-rgb)/0.6)]">
                     <td className="px-5 py-3">
-                      <Link href={`/super/questionnaires/${r.id}`} className="flex items-center gap-3 font-600 text-slate-900 hover:underline">
-                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900/90 text-xs font-700 text-white">
+                      <Link href={`/super/questionnaires/${r.id}`} className="flex items-center gap-3 font-600 text-[var(--ad-foreground)] hover:underline">
+                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--ad-foreground-rgb)/0.9)] text-xs font-700 text-white">
                           {r.name.slice(0, 1).toUpperCase()}
                         </span>
                         {r.name}
                       </Link>
                       {/* The id is the thing other code will reference, so it is
                           on screen rather than hidden in a menu. */}
-                      <span className="ms-11 block font-mono text-[11px] text-slate-400">{r.id}</span>
+                      <span className="ms-11 block font-mono text-[11px] text-[var(--ad-muted-foreground)]">{r.id}</span>
                     </td>
-                    <td className="px-3 py-3 font-mono text-xs text-slate-500">{r.route || <span className="text-slate-300">unattached</span>}</td>
-                    <td className="px-3 py-3 text-end text-slate-600">{r.questions}</td>
-                    <td className="px-3 py-3 text-end text-slate-600">{r.responses || "-"}</td>
-                    <td className="px-3 py-3 text-end text-slate-600">{r.completed || "-"}</td>
-                    <td className="px-3 py-3 text-end text-slate-500">{fmt(r.updatedAt)}</td>
+                    <td className="px-3 py-3 font-mono text-xs text-[var(--ad-muted-foreground)]">{r.route || <span className="text-[var(--ad-muted-foreground)]">unattached</span>}</td>
+                    <td className="px-3 py-3 text-end text-[var(--ad-foreground)]">{r.questions}</td>
+                    <td className="px-3 py-3 text-end text-[var(--ad-foreground)]">{r.responses || "-"}</td>
+                    <td className="px-3 py-3 text-end text-[var(--ad-foreground)]">{r.completed || "-"}</td>
+                    <td className="px-3 py-3 text-end text-[var(--ad-muted-foreground)]">{fmt(r.updatedAt)}</td>
                     <td className="px-3 py-3 text-end" onClick={(e) => e.stopPropagation()}>
                       <RowMenu
                         open={menuFor === r.id}
@@ -159,13 +215,13 @@ export default function QuestionnaireList() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {shown.map((r) => (
               <Link key={r.id} href={`/super/questionnaires/${r.id}`}
-                className="rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-400">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900/90 text-sm font-700 text-white">
+                className="rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)] p-4 transition-colors hover:border-[var(--ad-muted-foreground)]">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgb(var(--ad-foreground-rgb)/0.9)] text-sm font-700 text-white">
                   {r.name.slice(0, 1).toUpperCase()}
                 </span>
                 <p className="mt-3 truncate font-600">{r.name}</p>
-                <p className="truncate font-mono text-[11px] text-slate-400">{r.id}</p>
-                <p className="mt-2 text-xs text-slate-500">{r.questions} question{r.questions === 1 ? "" : "s"} · {fmt(r.updatedAt)}</p>
+                <p className="truncate font-mono text-[11px] text-[var(--ad-muted-foreground)]">{r.id}</p>
+                <p className="mt-2 text-xs text-[var(--ad-muted-foreground)]">{r.questions} question{r.questions === 1 ? "" : "s"} · {fmt(r.updatedAt)}</p>
               </Link>
             ))}
           </div>
@@ -210,12 +266,12 @@ function RowMenu({ open, onToggle, href, onDuplicate, onDelete }) {
         className={GHOST} onClick={onToggle}>···</button>
       {open && at && typeof document !== "undefined" && createPortal(
         <div role="menu" style={{ position: "fixed", top: at.top, left: at.left, width: at.width }}
-          className="z-[100] overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-start shadow-xl"
+          className="z-[100] overflow-hidden rounded-lg border border-[var(--ad-border)] bg-[var(--ad-card)] py-1 text-start shadow-xl"
           onClick={(e) => e.stopPropagation()}>
-          <Link href={href} role="menuitem" className="block px-3 py-2 text-sm hover:bg-slate-50">Open</Link>
-          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm hover:bg-slate-50"
+          <Link href={href} role="menuitem" className="block px-3 py-2 text-sm hover:bg-[var(--ad-muted)]">Open</Link>
+          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm hover:bg-[var(--ad-muted)]"
             onClick={onDuplicate}>Duplicate</button>
-          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm text-rose-600 hover:bg-rose-50"
+          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm text-[var(--ad-destructive)] hover:bg-[rgb(var(--ad-destructive-rgb)/0.1)]"
             onClick={onDelete}>Delete</button>
         </div>,
         document.body)}

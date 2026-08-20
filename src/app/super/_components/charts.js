@@ -189,6 +189,62 @@ export function ChartFrame({ children, labels = [], yLabels = [], legend = [], h
 }
 
 /* -------------------------------------------------------------------------- */
+/* Skeleton                                                                    */
+/* -------------------------------------------------------------------------- */
+
+// A chart-shaped placeholder, for the cards that fetch their series after
+// hydration.
+//
+// It reserves the SAME BOX the chart will occupy — the y-axis gutter, the plot
+// height, the x-axis label strip — so the series lands in place instead of
+// shoving the card open. Before this, the analytics cards rendered a real
+// AreaChart over an empty array while the fetch was in flight: a chart frame
+// with nothing drawn in it, which reads as "no traffic" rather than "not yet".
+//
+// The bar heights come from a fixed sequence, not Math.random(): a random
+// skeleton renders differently on the server and on the client and React calls
+// that a hydration mismatch.
+const SKELETON_HEIGHTS = [42, 58, 35, 71, 49, 84, 62, 38, 76, 55, 67, 44];
+
+export function ChartSkeleton({ height = 280, bars = 12, yLabels = 6, labels = 0, className = "" }) {
+  return (
+    <div className={className} aria-hidden="true">
+      <div className="flex gap-3">
+        {yLabels ? (
+          <div className="flex shrink-0 flex-col justify-between py-1" style={{ height }}>
+            {Array.from({ length: yLabels }, (_, i) => (
+              <span key={i} className="ad-skel ad-skel-text block h-2 w-6" />
+            ))}
+          </div>
+        ) : null}
+        <div
+          className="grid min-w-0 flex-1 items-end gap-[3%]"
+          style={{ height, gridTemplateColumns: `repeat(${bars}, minmax(0,1fr))` }}
+        >
+          {Array.from({ length: bars }, (_, i) => (
+            <span
+              key={i}
+              className="ad-skel block w-full rounded-t-md"
+              style={{ height: `${SKELETON_HEIGHTS[i % SKELETON_HEIGHTS.length]}%` }}
+            />
+          ))}
+        </div>
+      </div>
+      {labels ? (
+        <div
+          className="mt-2 grid gap-2"
+          style={{ gridTemplateColumns: `repeat(${labels}, minmax(0,1fr))` }}
+        >
+          {Array.from({ length: labels }, (_, i) => (
+            <span key={i} className="ad-skel ad-skel-text mx-auto block h-2 w-6" />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Bars                                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -245,7 +301,7 @@ export function BarList({ items = [], showValue = true, className = "" }) {
                 {it.icon ? <span className="text-[var(--ad-muted-foreground)]">{it.icon}</span> : null}
                 <span>{it.label}</span>
               </span>
-              {showValue ? <span className="font-medium">{it.display ?? `${it.value}%`}</span> : null}
+              {showValue ? <span className="ad-num font-500">{it.display ?? `${it.value}%`}</span> : null}
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--ad-muted)]">
               <div
@@ -318,7 +374,7 @@ export function Radial({ value = 0, size = 130, thickness = 10, color, label, su
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-semibold">{label ?? `${value}%`}</span>
+        <span className="ad-num text-xl font-700">{label ?? `${value}%`}</span>
         {sub ? <span className="mt-0.5 text-[11px] text-[var(--ad-muted-foreground)]">{sub}</span> : null}
       </div>
     </div>

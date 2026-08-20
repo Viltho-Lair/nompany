@@ -87,7 +87,7 @@ export default function HrDashboard() {
                 data={DEPARTMENTS}
                 center={
                   <>
-                    <span className="text-xl font-semibold">486</span>
+                    <span className="text-xl font-600">486</span>
                     <span className="text-[11px] text-[var(--ad-muted-foreground)]">people</span>
                   </>
                 }
@@ -99,7 +99,7 @@ export default function HrDashboard() {
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: `var(--ad-chart-${(i % 5) + 1})` }} />
                       {d.label}
                     </span>
-                    <span className="font-medium">{d.value}%</span>
+                    <span className="font-500">{d.value}%</span>
                   </li>
                 ))}
               </ul>
@@ -119,13 +119,13 @@ export default function HrDashboard() {
                     <span className="inline-flex items-center gap-3">
                       <Avatar name={h.name} size={34} />
                       <span className="min-w-0">
-                        <span className="block truncate font-medium">{h.name}</span>
+                        <span className="block truncate font-500">{h.name}</span>
                         <span className="block truncate text-xs text-[var(--ad-muted-foreground)]">{h.role}</span>
                       </span>
                     </span>
                   </td>
                   <td className="whitespace-nowrap text-[var(--ad-muted-foreground)]">{h.dept}</td>
-                  <td className="whitespace-nowrap">{h.start}</td>
+                  <td className="ad-num whitespace-nowrap">{h.start}</td>
                   <td className="text-end"><Badge tone={h.tone}>{h.status}</Badge></td>
                 </tr>
               ))}
@@ -141,7 +141,7 @@ export default function HrDashboard() {
                   <li key={l.name} className="flex items-center gap-3">
                     <Avatar name={l.name} size={36} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{l.name}</p>
+                      <p className="truncate text-sm font-500">{l.name}</p>
                       <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{l.range}</p>
                     </div>
                     <div className="shrink-0 text-end">
@@ -181,7 +181,7 @@ export default function HrDashboard() {
                   <div key={s.label}>
                     <div className="mb-1.5 flex items-center justify-between text-sm">
                       <span className="text-[var(--ad-muted-foreground)]">{s.label}</span>
-                      <span className="font-medium">{s.value}%</span>
+                      <span className="font-500">{s.value}%</span>
                     </div>
                     <Progress value={s.value} tone={s.tone} />
                   </div>

@@ -1,4 +1,4 @@
-import { PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Icon } from "../../../_components/ui";
+import { PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Icon, toneBg, toneFg, toneInk } from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
 
 export const metadata = { title: "Calendar" };
@@ -34,14 +34,13 @@ const UPCOMING = [
   { title: "Invoice run", when: "Wed 15 Apr · 08:00", tone: "primary", icon: "invoice" },
 ];
 
-const TONE_FG = {
-  primary: "var(--ad-primary)", success: "var(--ad-success)", warning: "var(--ad-warning)",
-  info: "var(--ad-info)", danger: "var(--ad-destructive)",
-};
-const TONE_BG = {
-  primary: "rgba(70,128,255,.14)", success: "rgba(44,168,127,.16)", warning: "rgba(229,138,0,.16)",
-  info: "rgba(4,169,245,.16)", danger: "rgba(220,38,38,.14)",
-};
+// The tone table, built from the console's ONE tone helper rather than being a
+// ninth copy of the same hand-mixed rgba() values. See toneBg/toneFg in
+// _components/ui: the tint composes from the semantic token, so it follows the
+// design system and the theme instead of freezing the template's palette.
+const TONE_NAMES = ["primary", "success", "warning", "info", "danger"];
+const TONE_FG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneInk(t)]));
+const TONE_BG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneBg(t)]));
 
 function Cell({ day, muted, today, events = [] }) {
   return (
@@ -50,7 +49,7 @@ function Cell({ day, muted, today, events = [] }) {
       style={{ borderColor: "var(--ad-border)", opacity: muted ? 0.4 : 1 }}
     >
       <span
-        className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${today ? "font-bold text-white" : "font-medium"}`}
+        className={`ad-num inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${today ? "font-700 text-white" : "font-500"}`}
         style={today ? { backgroundColor: "var(--ad-primary)" } : undefined}
       >
         {day}
@@ -59,7 +58,7 @@ function Cell({ day, muted, today, events = [] }) {
         {events.map((e) => (
           <p
             key={e.title}
-            className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium"
+            className="truncate rounded px-1.5 py-0.5 text-[11px] font-500"
             style={{ backgroundColor: TONE_BG[e.tone], color: TONE_FG[e.tone] }}
             title={e.title}
           >
@@ -92,8 +91,8 @@ export default function CalendarPage() {
                       <button
                         key={v}
                         type="button"
-                        className="rounded px-2.5 py-1 text-xs font-medium"
-                        style={i === 0 ? { backgroundColor: "var(--ad-primary)", color: "#fff" } : { color: "var(--ad-muted-foreground)" }}
+                        className="rounded px-2.5 py-1 text-xs font-500"
+                        style={i === 0 ? { backgroundColor: "var(--ad-primary)", color: "var(--ad-primary-foreground)" } : { color: "var(--ad-muted-foreground)" }}
                       >
                         {v}
                       </button>
@@ -110,7 +109,7 @@ export default function CalendarPage() {
                   {DOW.map((d) => (
                     <div
                       key={d}
-                      className="border-b border-e px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider text-[var(--ad-muted-foreground)]"
+                      className="border-b border-e px-2 py-2.5 text-center text-[11px] font-600 uppercase tracking-wider text-[var(--ad-muted-foreground)]"
                       style={{ borderColor: "var(--ad-border)" }}
                     >
                       {d}
@@ -144,7 +143,7 @@ export default function CalendarPage() {
                         <Icon name={e.icon} className="h-4 w-4" />
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{e.title}</p>
+                        <p className="truncate text-sm font-500">{e.title}</p>
                         <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{e.when}</p>
                       </div>
                     </li>

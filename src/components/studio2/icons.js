@@ -44,7 +44,11 @@ const IMAGES = {
   teamwork: "teamwork.png",
 };
 
-export function Icon({ name, className = "h-5 w-5" }) {
+// `strokeWidth` is an override, not a prop most callers touch: the set has one
+// weight on purpose. The two places that pass it are a check inside a 10px dot,
+// which needs a heavier stroke to read at that size, and a 28px feature glyph,
+// which needs a lighter one.
+export function Icon({ name, className = "h-5 w-5", strokeWidth }) {
   const file = IMAGES[name];
   if (file) {
     const url = `url(/icons/${file})`;
@@ -64,13 +68,110 @@ export function Icon({ name, className = "h-5 w-5" }) {
   }
   const paths = PATHS[name] || PATHS.dot;
   return (
-    <svg {...base} className={className} aria-hidden="true">
+    <svg {...base} strokeWidth={strokeWidth ?? base.strokeWidth} className={className} aria-hidden="true">
       {paths}
     </svg>
   );
 }
 
+// ---- console marks ---------------------------------------------------------
+//
+// The /super console used to ship its OWN inline icon set — a second file, the
+// same 24-grid, the same stroke weight, ninety marks that only differed from
+// these by being somewhere else. Two hand-rolled sets is one set plus a slow
+// divergence: a `search` glyph gets nudged in one file and the two consoles
+// stop matching, and nobody notices because nothing imports both.
+//
+// They are one set now. These are the marks the console needed that the Studio
+// had no use for — chart furniture, list controls, theme and status glyphs.
+// They are declared as `d` strings rather than JSX because that is the shape
+// they arrived in and every one of them is a single path; the map below turns
+// them into the same <path> element the entries after it are written as.
+//
+// Spread FIRST inside PATHS, so an entry the Studio already draws its own way
+// (chat, bell, shield, chevrons…) keeps the Studio's drawing.
+const CONSOLE_MARKS = {
+  activity: "M22 12h-4l-3 9L9 3l-3 9H2",
+  alert: "M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z",
+  arrowDown: "M12 5v14M19 12l-7 7-7-7",
+  arrowRight: "M5 12h14M12 5l7 7-7 7",
+  arrowUp: "M12 19V5M5 12l7-7 7 7",
+  award: "M12 15a7 7 0 100-14 7 7 0 000 14zM8.2 13.9L7 23l5-3 5 3-1.2-9.1",
+  bitcoin: "M9 4v16M14 4v16M6 8h8a3 3 0 010 6H6h9a3 3 0 010 6H6",
+  box: "M21 16V8l-9-5-9 5v8l9 5 9-5zM3.3 7.3L12 12l8.7-4.7M12 22V12",
+  briefcase: "M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2",
+  calendar: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z",
+  cart: "M2 3h2.5l2.2 11.2a2 2 0 002 1.6h8.6a2 2 0 002-1.6L21 7H6M9 21a1 1 0 100-2 1 1 0 000 2zM19 21a1 1 0 100-2 1 1 0 000 2z",
+  chart: "M3 3v18h18M8 17V9m5 8V5m5 12v-6",
+  chevronLeft: "M15 18l-6-6 6-6",
+  clock: "M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2",
+  cloud: "M18 17a4 4 0 00-1.3-7.8A6 6 0 105 15.5M18 17H7",
+  code: "M16 18l6-6-6-6M8 6l-6 6 6 6",
+  copy: "M9 9h10a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V11a2 2 0 012-2zM5 15H4a2 2 0 01-2-2V3a2 2 0 012-2h10a2 2 0 012 2v1",
+  database: "M12 8c5 0 9-1.3 9-3s-4-3-9-3-9 1.3-9 3 4 3 9 3zM3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12c0 1.7 4 3 9 3s9-1.3 9-3",
+  edit: "M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4z",
+  eye: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7zM12 15a3 3 0 100-6 3 3 0 000 6z",
+  eyeOff: "M17.9 17.9A10.1 10.1 0 0112 20C6 20 2 13 2 13a18.4 18.4 0 015.1-5.9M9.9 4.2A9.1 9.1 0 0112 4c6 0 10 7 10 7a18.5 18.5 0 01-2.2 3.2M1 1l22 22M9.9 9.9a3 3 0 004.2 4.2",
+  file: "M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9zM13 2v7h7",
+  filter: "M22 3H2l8 9.5V19l4 2v-8.5z",
+  flag: "M4 21V4M4 4h13l-2.5 4L17 12H4",
+  folder: "M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z",
+  form: "M4 3h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1zM7 8h10M7 12h10M7 16h6",
+  globe: "M12 22a10 10 0 100-20 10 10 0 000 20zM2 12h20M12 2a15 15 0 010 20 15 15 0 010-20z",
+  grid: "M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z",
+  heart: "M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8l1.1 1L12 21.2l7.7-7.7 1.1-1a5.5 5.5 0 000-7.8z",
+  helpCircle: "M12 22a10 10 0 100-20 10 10 0 000 20zM9.1 9a3 3 0 015.8 1c0 2-3 3-3 3M12 17h.01",
+  image: "M3 3h18v18H3zM8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM21 15l-5-5L5 21",
+  info: "M12 22a10 10 0 100-20 10 10 0 000 20zM12 16v-4M12 8h.01",
+  invoice: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M9 13h6M9 17h4",
+  kanban: "M5 3h4v12H5zM10.5 3h4v8h-4zM16 3h4v16h-4z",
+  key: "M21 2l-2 2m-7.6 7.6a5.5 5.5 0 11-7.8 7.8 5.5 5.5 0 017.8-7.8zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3",
+  layers: "M12 2L2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+  link: "M10 13a5 5 0 007.5.5l3-3a5 5 0 00-7-7l-1.7 1.7M14 11a5 5 0 00-7.5-.5l-3 3a5 5 0 007 7l1.7-1.7",
+  list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
+  logout: "M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9",
+  mail: "M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zM22 6l-10 7L2 6",
+  mapPin: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 13a3 3 0 100-6 3 3 0 000 6z",
+  megaphone: "M3 11v2a1 1 0 001 1h2l4 4V6L6 10H4a1 1 0 00-1 1zM15 8.5a4 4 0 010 7M18.5 6a7.5 7.5 0 010 12",
+  minus: "M5 12h14",
+  monitor: "M4 4h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1zM8 21h8M12 17v4",
+  moon: "M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z",
+  more: "M12 13a1 1 0 100-2 1 1 0 000 2zM19 13a1 1 0 100-2 1 1 0 000 2zM5 13a1 1 0 100-2 1 1 0 000 2z",
+  package: "M16.5 9.4L7.5 4.2M21 16V8a2 2 0 00-1-1.7l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.7l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.3 7L12 12l8.7-5M12 22V12",
+  palette: "M12 22a10 10 0 010-20c5.5 0 10 3.6 10 8 0 2.8-2.2 5-5 5h-2a2 2 0 00-1.4 3.4A2 2 0 0112 22zM7.5 11a1 1 0 100-2 1 1 0 000 2zM12 8a1 1 0 100-2 1 1 0 000 2zM16.5 11a1 1 0 100-2 1 1 0 000 2z",
+  phone: "M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6A19.8 19.8 0 012 4.2 2 2 0 014 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.3-1.1a2 2 0 012.1-.5c.9.3 1.8.6 2.8.7a2 2 0 011.7 2z",
+  pie: "M21.2 15.9A10 10 0 118.1 2.8M22 12A10 10 0 0012 2v10z",
+  play: "M5 3l14 9-14 9z",
+  refresh: "M23 4v6h-6M1 20v-6h6M3.5 9a9 9 0 0114.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0020.5 15",
+  rocket: "M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2 2 0 00-2.9-.1zM12 15l-3-3a22 22 0 012-3.9A12.9 12.9 0 0122 2c0 2.7-.8 7.5-6 11a22 22 0 01-4 2z",
+  search: "M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3",
+  server: "M4 2h16a1 1 0 011 1v5a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1zM4 14h16a1 1 0 011 1v5a1 1 0 01-1 1H4a1 1 0 01-1-1v-5a1 1 0 011-1zM7 6h.01M7 18h.01",
+  settings: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.6 1.6 0 008 19.4a1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H2a2 2 0 110-4h.1A1.6 1.6 0 004.6 8a1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H9a1.6 1.6 0 001-1.5V2a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V9a1.6 1.6 0 001.5 1H22a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z",
+  smile: "M12 22a10 10 0 100-20 10 10 0 000 20zM8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01",
+  sun: "M12 16a4 4 0 100-8 4 4 0 000 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4",
+  table: "M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18",
+  tag: "M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0l-8-8V4a1 1 0 011-1h8.6l8.4 8.4a2 2 0 010 2zM7.5 8a.5.5 0 100-1 .5.5 0 000 1z",
+  target: "M12 22a10 10 0 100-20 10 10 0 000 20zM12 18a6 6 0 100-12 6 6 0 000 12zM12 14a2 2 0 100-4 2 2 0 000 4z",
+  tool: "M14.7 6.3a4 4 0 105.4 5.4L21 11l-8 8-1 4-4-4 8-8z",
+  trash: "M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6",
+  trendDown: "M23 18l-9.5-9.5-5 5L1 6M17 18h6v-6",
+  trendUp: "M23 6l-9.5 9.5-5-5L1 18M17 6h6v6",
+  type: "M4 7V4h16v3M9 20h6M12 4v16",
+  upload: "M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12",
+  users: "M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9.5 7a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0zM22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75",
+  wallet: "M20 12V8H6a2 2 0 010-4h12v4M4 6v12a2 2 0 002 2h14v-4M18 12a2 2 0 000 4h4v-4h-4z",
+  wifiOff: "M1 1l22 22M16.7 11.7A9 9 0 0119 13M5 13a9 9 0 015.3-2.6M2 8.8a16 16 0 014.4-2.7M21.9 8.8a16 16 0 00-6.6-3.3M8.5 16.4a5 5 0 017 0M12 20h.01",
+  wizard: "M3 12h4l3-8 4 16 3-8h4",
+  x: "M18 6L6 18M6 6l12 12",
+  zap: "M13 2L3 14h9l-1 8 10-12h-9z",
+};
+
+const consoleMarks = Object.fromEntries(
+  Object.entries(CONSOLE_MARKS).map(([name, d]) => [name, <path d={d} />]),
+);
+
 const PATHS = {
+  ...consoleMarks,
   dashboard: (
     <>
       <rect x="3" y="3" width="7" height="9" rx="1.5" />
@@ -331,3 +432,9 @@ const PATHS = {
     </>
   ),
 };
+
+// Every name the set answers to, drawn or masked. Exported so a caller can
+// assert against it instead of discovering a typo as a stray dot on the page.
+export const iconNames = Object.freeze(
+  [...new Set([...Object.keys(PATHS), ...Object.keys(IMAGES)])].sort(),
+);

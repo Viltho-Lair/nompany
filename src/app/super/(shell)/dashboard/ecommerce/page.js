@@ -53,10 +53,10 @@ export default function EcommerceDashboard() {
       />
 
       <Row className="mb-6">
-        <Col span={3}><KpiTile label="Gross Sales" value="$1,284,900" delta={16.2} deltaLabel="from last month" icon="wallet" color="var(--ad-primary)" /></Col>
-        <Col span={3}><KpiTile label="Orders" value="14,738" delta={9.4} deltaLabel="from last month" icon="cart" color="#2ca87f" /></Col>
-        <Col span={3}><KpiTile label="Avg. Order Value" value="$87.18" delta={-1.3} deltaLabel="from last month" icon="tag" color="#e58a00" /></Col>
-        <Col span={3}><KpiTile label="Refund Rate" value="2.4%" delta={-0.6} deltaLabel="from last month" icon="refresh" color="#04a9f5" /></Col>
+        <Col span={3}><KpiTile label="Gross Sales" value="$1,284,900" delta={16.2} deltaLabel="from last month" icon="wallet" tone="primary" /></Col>
+        <Col span={3}><KpiTile label="Orders" value="14,738" delta={9.4} deltaLabel="from last month" icon="cart" tone="success" /></Col>
+        <Col span={3}><KpiTile label="Avg. Order Value" value="$87.18" delta={-1.3} deltaLabel="from last month" icon="tag" tone="warning" /></Col>
+        <Col span={3}><KpiTile label="Refund Rate" value="2.4%" delta={-0.6} deltaLabel="from last month" icon="refresh" tone="info" /></Col>
       </Row>
 
       <Row className="mb-6">
@@ -97,7 +97,7 @@ export default function EcommerceDashboard() {
                 data={CATEGORIES}
                 center={
                   <>
-                    <span className="text-xl font-semibold">$1.28M</span>
+                    <span className="text-xl font-600">$1.28M</span>
                     <span className="text-[11px] text-[var(--ad-muted-foreground)]">total</span>
                   </>
                 }
@@ -109,7 +109,7 @@ export default function EcommerceDashboard() {
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: `var(--ad-chart-${i + 1})` }} />
                       {c.label}
                     </span>
-                    <span className="font-medium">{c.value}%</span>
+                    <span className="font-500">{c.value}%</span>
                   </li>
                 ))}
               </ul>
@@ -127,12 +127,12 @@ export default function EcommerceDashboard() {
                 <tr key={p.sku}>
                   <td>
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{p.name}</p>
+                      <p className="truncate font-500">{p.name}</p>
                       <p className="text-xs text-[var(--ad-muted-foreground)]">{p.sku}</p>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap">{p.sold.toLocaleString()}</td>
-                  <td className="whitespace-nowrap font-medium">{p.revenue}</td>
+                  <td className="ad-num whitespace-nowrap">{p.sold.toLocaleString()}</td>
+                  <td className="ad-num whitespace-nowrap font-500">{p.revenue}</td>
                   <td>
                     {p.stock === 0 ? (
                       <Badge tone="danger">Out of stock</Badge>
@@ -144,7 +144,7 @@ export default function EcommerceDashboard() {
                   </td>
                   <td className="text-end">
                     <span
-                      className="inline-flex items-center gap-1 text-xs font-medium"
+                      className="inline-flex items-center gap-1 text-xs font-500"
                       style={{ color: p.trend >= 0 ? "var(--ad-success)" : "var(--ad-destructive)" }}
                     >
                       <Icon name={p.trend >= 0 ? "trendUp" : "trendDown"} className="h-3.5 w-3.5" />
@@ -164,7 +164,7 @@ export default function EcommerceDashboard() {
               <div className="mt-6 rounded-lg p-4" style={{ backgroundColor: "var(--ad-muted)" }}>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-[var(--ad-muted-foreground)]">Overall conversion</span>
-                  <span className="text-lg font-semibold text-[var(--ad-success)]">8.0%</span>
+                  <span className="text-lg font-600 text-[var(--ad-success)]">8.0%</span>
                 </div>
               </div>
             </CardBody>
@@ -182,17 +182,17 @@ export default function EcommerceDashboard() {
             <Table head={["Order", "Customer", "Items", "Total", "Status", { label: "Date", align: "end" }]}>
               {ORDERS.map((o) => (
                 <tr key={o.id}>
-                  <td className="whitespace-nowrap font-medium text-[var(--ad-primary)]">{o.id}</td>
+                  <td className="ad-num whitespace-nowrap font-500 text-[var(--ad-primary)]">{o.id}</td>
                   <td>
                     <span className="inline-flex items-center gap-2.5 whitespace-nowrap">
                       <Avatar name={o.customer} size={30} />
                       {o.customer}
                     </span>
                   </td>
-                  <td>{o.items}</td>
-                  <td className="whitespace-nowrap font-medium">{o.total}</td>
+                  <td className="ad-num">{o.items}</td>
+                  <td className="ad-num whitespace-nowrap font-500">{o.total}</td>
                   <td><Badge tone={o.tone}>{o.status}</Badge></td>
-                  <td className="whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{o.date}</td>
+                  <td className="ad-num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{o.date}</td>
                 </tr>
               ))}
             </Table>
@@ -226,7 +226,7 @@ export default function EcommerceDashboard() {
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
                       {c.label}
                     </span>
-                    <span className="font-medium">{c.value}%</span>
+                    <span className="font-500">{c.value}%</span>
                   </div>
                 ))}
               </div>

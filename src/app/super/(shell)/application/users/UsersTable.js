@@ -1,16 +1,28 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Card, CardHead, CardBody, Badge, Avatar, Table, Icon } from "../../../_components/ui";
+import { Card, CardHead, CardBody, Badge, Avatar, Icon } from "../../../_components/ui";
+import SuperDataGrid from "@/components/super/SuperDataGrid";
+import { USERS_COLUMNS, USERS_PAGE_SIZE } from "./columns";
 import { ASSIGNABLE_ROLES, ROLE_OPTIONS, MEMBER_ROLE, SUPER_ROLE, STATUS } from "@/lib/platformRoles";
 
 // The interactive half of the Users console. Rows arrive already ordered and
 // already labelled by the server; this decides only what is shown — the search
-// term, the role filter and which page you are on — plus role assignment.
-
-const PAGE_SIZE = 10;
+// term and the role filter — plus role assignment.
+//
+// PAGING AND SORTING ARE THE GRID'S NOW. This file used to carry a hand-written
+// pager: a seven-button window, an off-by-one clamp for when filtering strands
+// you past the last page, and a "Showing 11–20 of 214" line that had to be kept
+// in step with all of it. None of that was users-specific, and every list screen
+// in the console had its own copy with its own bugs. The Data Grid owns it, and
+// this file is ~90 lines shorter for it.
+//
+// Search and the role filter stay HERE rather than becoming the grid's quick
+// filter, for one reason: the filter has to reach the underlying record, not the
+// rendered cell. The `user` cell renders a name and an email stacked, and the
+// grid's quick filter would match on whatever that cell stringifies to.
 
 const STATUS_TONE = {
   [STATUS.active]: "success",
@@ -21,19 +33,27 @@ const STATUS_TONE = {
 
 const roleTone = (role) => (role === SUPER_ROLE ? "danger" : role === MEMBER_ROLE ? "muted" : "info");
 
-// At most seven numbered buttons, centred on where you are — a platform with
-// thousands of users must not render a thousand-button pager.
-const PAGER_WIDTH = 7;
-function pageWindow(current, pages) {
-  const first = Math.max(1, Math.min(current - Math.floor(PAGER_WIDTH / 2), pages - PAGER_WIDTH + 1));
-  const width = Math.min(PAGER_WIDTH, pages);
-  return Array.from({ length: width }, (_, i) => first + i);
-}
-
 /* ---- the row menu -------------------------------------------------------- */
 
-function RoleMenu({ row, onPick, busy }) {
+// `busy` is the menu's OWN state, not the table's.
+//
+// It used to live in UsersTable as `pendingId`, which meant every column
+// definition was rebuilt — and the grid re-measured every column — the moment
+// anyone clicked a role. Only one row is ever in flight, and it is this one, so
+// it belongs here.
+function RoleMenu({ row, onPick }) {
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const pick = async (role) => {
+    setOpen(false);
+    setBusy(true);
+    try {
+      await onPick(role);
+    } finally {
+      setBusy(false);
+    }
+  };
   const ref = useRef(null);
   const menuRef = useRef(null);
 
@@ -55,9 +75,9 @@ function RoleMenu({ row, onPick, busy }) {
 
   const item = "flex w-full items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-[var(--ad-accent)] text-start";
 
-  // PORTALLED to <body>. The table scrolls sideways inside an overflow-x-auto
-  // wrapper, and that wrapper clips anything positioned outside the cell — so an
-  // absolutely-placed menu was being cut off by the row it belongs to. Fixed
+  // PORTALLED to <body>. The grid's virtual scroller clips anything positioned
+  // outside a cell — the same reason the old overflow-x wrapper did — so an
+  // absolutely-placed menu was cut off by the row it belongs to. Fixed
   // coordinates put it over the row and over the list instead of inside them.
   const [at, setAt] = useState(null);
   useEffect(() => {
@@ -67,8 +87,8 @@ function RoleMenu({ row, onPick, busy }) {
       if (!r) return;
       const W = 208, H = 200;
       setAt({
-        // Flip above when the row is near the bottom, so the last user's menu
-        // is not half off the window.
+        // Flip above when the row is near the bottom, so the last user's menu is
+        // not half off the window.
         top: r.bottom + H > window.innerHeight ? Math.max(8, r.top - H) : r.bottom + 6,
         left: Math.min(Math.max(8, r.right - W), window.innerWidth - W - 8),
         width: W,
@@ -103,7 +123,7 @@ function RoleMenu({ row, onPick, busy }) {
             borderColor: "var(--ad-border)",
             color: "var(--ad-popover-foreground)",
           }}
-          className="z-[100] overflow-hidden rounded-lg border shadow-xl"
+          className="z-[100] overflow-hidden rounded-xl border shadow-[var(--ad-shadow-lg)]"
         >
           {row.roleLocked ? (
             // The owner's own row. Their role comes from the super-admin record,
@@ -113,7 +133,7 @@ function RoleMenu({ row, onPick, busy }) {
             </p>
           ) : (
             <>
-              <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--ad-muted-foreground)]">
+              <div className="px-4 pb-1 pt-3 text-[11px] font-600 uppercase tracking-wider text-[var(--ad-muted-foreground)]">
                 Assign role
               </div>
               {ASSIGNABLE_ROLES.map((r) => (
@@ -122,7 +142,7 @@ function RoleMenu({ row, onPick, busy }) {
                   type="button"
                   role="menuitem"
                   className={item}
-                  onClick={() => { setOpen(false); onPick(r); }}
+                  onClick={() => pick(r)}
                 >
                   <span className="flex-1">{r}</span>
                   {row.role === r ? <Icon name="check" className="h-4 w-4 text-[var(--ad-primary)]" /> : null}
@@ -135,7 +155,7 @@ function RoleMenu({ row, onPick, busy }) {
                   type="button"
                   role="menuitem"
                   className={item}
-                  onClick={() => { setOpen(false); onPick(""); }}
+                  onClick={() => pick("")}
                 >
                   <span className="flex-1">Remove role (Member)</span>
                   {row.role === MEMBER_ROLE ? <Icon name="check" className="h-4 w-4 text-[var(--ad-primary)]" /> : null}
@@ -150,14 +170,15 @@ function RoleMenu({ row, onPick, busy }) {
   );
 }
 
-/* ---- the table ----------------------------------------------------------- */
+/* ---- the grid ------------------------------------------------------------ */
+
+const studiosLabel = (studios) =>
+  studios.length === 0 ? "—" : studios.length === 1 ? studios[0] : `${studios[0]} +${studios.length - 1}`;
 
 export default function UsersTable({ rows }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("");
-  const [page, setPage] = useState(1);
-  const [pendingId, setPendingId] = useState("");
   const [error, setError] = useState("");
 
   const filtered = useMemo(() => {
@@ -169,15 +190,7 @@ export default function UsersTable({ rows }) {
     });
   }, [rows, query, role]);
 
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  // Narrowing the list can strand you past the last page, so clamp on render
-  // rather than resetting in an effect (which would flash the wrong page first).
-  const current = Math.min(page, pages);
-  const start = (current - 1) * PAGE_SIZE;
-  const visible = filtered.slice(start, start + PAGE_SIZE);
-
-  async function assignRole(userId, platformRole) {
-    setPendingId(userId);
+  const assignRole = useCallback(async (userId, platformRole) => {
     setError("");
     try {
       const res = await fetch(`/api/super/users/${userId}`, {
@@ -195,33 +208,75 @@ export default function UsersTable({ rows }) {
       router.refresh();
     } catch {
       setError("Couldn't reach the server.");
-    } finally {
-      setPendingId("");
     }
-  }
+  }, [router]);
+
+  // The layout comes from columns.js — shared with the skeleton — and only the
+  // rendering is added here. `valueGetter` is set on every column so sorting and
+  // the accessible cell text follow the underlying value rather than the JSX.
+  const columns = useMemo(() => {
+    const render = {
+      user: {
+        valueGetter: (_v, row) => row.name,
+        renderCell: ({ row }) => (
+          <span className="flex min-w-0 items-center gap-3">
+            <Avatar name={row.name} size={32} />
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate font-500">{row.name}</span>
+              <span className="block truncate text-xs text-[var(--ad-muted-foreground)]">{row.email}</span>
+            </span>
+          </span>
+        ),
+      },
+      role: { renderCell: ({ row }) => <Badge tone={roleTone(row.role)}>{row.role}</Badge> },
+      studios: {
+        valueGetter: (_v, row) => studiosLabel(row.studios),
+        renderCell: ({ value }) => <span className="truncate text-[var(--ad-muted-foreground)]">{value}</span>,
+      },
+      status: { renderCell: ({ row }) => <Badge tone={STATUS_TONE[row.status]}>{row.status}</Badge> },
+      lastActive: {
+        renderCell: ({ row }) => (
+          <span className="truncate text-[var(--ad-muted-foreground)]">{row.lastActive}</span>
+        ),
+      },
+      actions: {
+        sortable: false,
+        align: "right",
+        renderCell: ({ row }) => <RoleMenu row={row} onPick={(r) => assignRole(row.id, r)} />,
+      },
+    };
+    // `skeleton` is stripped: it is metadata for the placeholder, and MUI warns
+    // about props it does not recognise on a column definition.
+    return USERS_COLUMNS.map(({ skeleton, ...col }) => ({ ...col, ...(render[col.field] || {}) }));
+  }, [assignRole]);
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHead
         title="All Users"
         sub="Every identity that can sign in to nompany"
         action={
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Icon name="search" className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ad-muted-foreground)] ltr:left-3 rtl:right-3" />
+              {/* `start-3` — one utility, mirrored by the browser. It used to be
+                  an `ltr:left-3 rtl:right-3` pair. */}
+              <Icon
+                name="search"
+                className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ad-muted-foreground)]"
+              />
               <input
                 className="ad-input w-56 ps-9"
                 placeholder="Search users…"
                 aria-label="Search users"
                 value={query}
-                onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+                onChange={(e) => setQuery(e.target.value)}
               />
             </div>
             <select
               className="ad-select w-40"
               aria-label="Filter by role"
               value={role}
-              onChange={(e) => { setRole(e.target.value); setPage(1); }}
+              onChange={(e) => setRole(e.target.value)}
             >
               <option value="">All roles</option>
               {ROLE_OPTIONS.map((r) => (
@@ -238,78 +293,14 @@ export default function UsersTable({ rows }) {
         </CardBody>
       ) : null}
 
-      <Table head={["User", "Role", "Studio", "Status", "Last active", { label: "", align: "end" }]}>
-        {visible.length === 0 ? (
-          <tr>
-            <td colSpan={6} className="py-10 text-center text-sm text-[var(--ad-muted-foreground)]">
-              No users match that search.
-            </td>
-          </tr>
-        ) : (
-          visible.map((u) => (
-            <tr key={u.id}>
-              <td>
-                <span className="inline-flex items-center gap-3">
-                  <Avatar name={u.name} size={36} />
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{u.name}</span>
-                    <span className="block truncate text-xs text-[var(--ad-muted-foreground)]">{u.email}</span>
-                  </span>
-                </span>
-              </td>
-              <td><Badge tone={roleTone(u.role)}>{u.role}</Badge></td>
-              <td className="whitespace-nowrap text-[var(--ad-muted-foreground)]">
-                {u.studios.length === 0 ? "—" : u.studios.length === 1 ? u.studios[0] : `${u.studios[0]} +${u.studios.length - 1}`}
-              </td>
-              <td><Badge tone={STATUS_TONE[u.status]}>{u.status}</Badge></td>
-              <td className="whitespace-nowrap text-[var(--ad-muted-foreground)]">{u.lastActive}</td>
-              <td className="text-end">
-                <RoleMenu row={u} busy={pendingId === u.id} onPick={(r) => assignRole(u.id, r)} />
-              </td>
-            </tr>
-          ))
-        )}
-      </Table>
-
-      <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-4">
-        <p className="text-xs text-[var(--ad-muted-foreground)]">
-          {filtered.length === 0
-            ? "No users to show"
-            : `Showing ${start + 1}–${start + visible.length} of ${filtered.length} user${filtered.length === 1 ? "" : "s"}`}
-          {filtered.length !== rows.length ? ` (filtered from ${rows.length})` : ""}
-        </p>
-        {pages > 1 ? (
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className="ad-btn ad-btn-outline ad-btn-sm"
-              disabled={current === 1}
-              onClick={() => setPage(current - 1)}
-            >
-              Previous
-            </button>
-            {pageWindow(current, pages).map((p) => (
-              <button
-                key={p}
-                type="button"
-                aria-current={p === current ? "page" : undefined}
-                className={`ad-btn ad-btn-sm ${p === current ? "ad-btn-primary" : "ad-btn-outline"}`}
-                onClick={() => setPage(p)}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="ad-btn ad-btn-outline ad-btn-sm"
-              disabled={current === pages}
-              onClick={() => setPage(current + 1)}
-            >
-              Next
-            </button>
-          </div>
-        ) : null}
-      </CardBody>
+      <SuperDataGrid
+        rows={filtered}
+        columns={columns}
+        pageSize={USERS_PAGE_SIZE}
+        ariaLabel="Users"
+        emptyIcon="users"
+        emptyLabel={query || role ? "No users match that search." : "No users yet."}
+      />
     </Card>
   );
 }

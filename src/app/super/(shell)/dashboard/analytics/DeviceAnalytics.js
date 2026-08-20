@@ -31,7 +31,7 @@ export default function DeviceAnalytics() {
       <div className="mt-7 grid grid-cols-3 gap-3 border-t pt-5 text-center" style={{ borderColor: "var(--ad-border)" }}>
         {rows.map((d) => (
           <div key={d.label}>
-            <p className="text-base font-semibold" style={{ color: d.color }}>{d.value}%</p>
+            <p className="text-base font-600" style={{ color: d.color }}>{d.value}%</p>
             <p className="mt-0.5 text-[11px] text-[var(--ad-muted-foreground)]">{d.label}</p>
           </div>
         ))}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Icon } from "../../_components/ui";
+import { PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Icon, toneBg, toneFg, toneInk } from "../../_components/ui";
 import { BASE } from "../../_components/nav";
 
 export const metadata = { title: "Documentation" };
@@ -51,14 +51,13 @@ const SHORTCUTS = [
   { keys: ["?"], label: "Show this list" },
 ];
 
-const TONE_FG = {
-  primary: "var(--ad-primary)", success: "var(--ad-success)", warning: "var(--ad-warning)",
-  info: "var(--ad-info)", danger: "var(--ad-destructive)",
-};
-const TONE_BG = {
-  primary: "rgba(70,128,255,.12)", success: "rgba(44,168,127,.14)", warning: "rgba(229,138,0,.14)",
-  info: "rgba(4,169,245,.14)", danger: "rgba(220,38,38,.12)",
-};
+// The tone table, built from the console's ONE tone helper rather than being a
+// ninth copy of the same hand-mixed rgba() values. See toneBg/toneFg in
+// _components/ui: the tint composes from the semantic token, so it follows the
+// design system and the theme instead of freezing the template's palette.
+const TONE_NAMES = ["primary", "success", "warning", "info", "danger"];
+const TONE_FG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneInk(t)]));
+const TONE_BG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneBg(t)]));
 
 export default function DocsPage() {
   return (
@@ -71,12 +70,12 @@ export default function DocsPage() {
 
       <Card className="mb-6">
         <CardBody full className="py-10 text-center">
-          <h2 className="text-2xl font-semibold">How can we help?</h2>
+          <h2 className="text-2xl font-600">How can we help?</h2>
           <p className="mx-auto mt-2 max-w-lg text-sm text-[var(--ad-muted-foreground)]">
             Everything about running the platform — the console itself, studios, billing and security.
           </p>
           <div className="relative mx-auto mt-6 max-w-md">
-            <Icon name="search" className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ad-muted-foreground)] ltr:left-4 rtl:right-4" />
+            <Icon name="search" className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ad-muted-foreground)] start-4" />
             <input className="ad-input py-3 ps-11" placeholder="Search the documentation…" aria-label="Search documentation" />
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-[var(--ad-muted-foreground)]">
@@ -101,7 +100,7 @@ export default function DocsPage() {
                 >
                   <Icon name={s.icon} className="h-5 w-5" />
                 </span>
-                <h6 className="mt-3.5 text-base font-semibold">{s.title}</h6>
+                <h6 className="mt-3.5 text-base font-600">{s.title}</h6>
                 <ul className="mt-3 space-y-2">
                   {s.links.map((l) => (
                     <li key={l}>
@@ -131,7 +130,7 @@ export default function DocsPage() {
                       {s.keys.map((k) => (
                         <kbd
                           key={k}
-                          className="rounded border px-1.5 py-0.5 text-[11px] font-medium"
+                          className="rounded border px-1.5 py-0.5 text-[11px] font-500"
                           style={{ borderColor: "var(--ad-border)", backgroundColor: "var(--ad-muted)" }}
                         >
                           {k}

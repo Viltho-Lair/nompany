@@ -1,6 +1,6 @@
 import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, Progress, StatCard, Table, Icon,
-} from "../../../_components/ui";
+  toneBg, toneFg, toneInk,} from "../../../_components/ui";
 import { AreaChart, ChartFrame, BarList, Radial } from "../../../_components/charts";
 import { BASE } from "../../../_components/nav";
 
@@ -31,14 +31,13 @@ const WORKLOAD = [
   { label: "Maya Tarek", value: 31, display: "6 tasks" },
 ];
 
-const TONE_FG = {
-  primary: "var(--ad-primary)", success: "var(--ad-success)", warning: "var(--ad-warning)",
-  info: "var(--ad-info)", danger: "var(--ad-destructive)",
-};
-const TONE_BG = {
-  primary: "rgba(70,128,255,.14)", success: "rgba(44,168,127,.16)", warning: "rgba(229,138,0,.16)",
-  info: "rgba(4,169,245,.16)", danger: "rgba(220,38,38,.14)",
-};
+// The tone table, built from the console's ONE tone helper rather than being a
+// ninth copy of the same hand-mixed rgba() values. See toneBg/toneFg in
+// _components/ui: the tint composes from the semantic token, so it follows the
+// design system and the theme instead of freezing the template's palette.
+const TONE_NAMES = ["primary", "success", "warning", "info", "danger"];
+const TONE_FG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneInk(t)]));
+const TONE_BG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneBg(t)]));
 
 export default function ProjectDashboard() {
   return (
@@ -102,9 +101,9 @@ export default function ProjectDashboard() {
                         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                         style={{ backgroundColor: TONE_BG[m.tone], color: TONE_FG[m.tone] }}
                       >
-                        <Icon name={m.icon === "flag" ? "target" : m.icon} className="h-4 w-4" />
+                        <Icon name={m.icon} className="h-4 w-4" />
                       </span>
-                      <span className="flex-1 text-sm font-medium">{m.title}</span>
+                      <span className="flex-1 text-sm font-500">{m.title}</span>
                       <span className="text-xs text-[var(--ad-muted-foreground)]">{m.date}</span>
                     </li>
                   ))}
@@ -124,12 +123,16 @@ export default function ProjectDashboard() {
                 <tr key={p.name}>
                   <td>
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{p.name}</p>
+                      <p className="truncate font-500">{p.name}</p>
                       <p className="text-xs text-[var(--ad-muted-foreground)]">Lead · {p.lead}</p>
                     </div>
                   </td>
                   <td>
-                    <span className="flex -space-x-2">
+                    {/* An overlapping avatar stack. `space-x-*` is physical —
+                        in Arabic the pile would still lean left while the row
+                        reads right-to-left — so the overlap is a negative
+                        LOGICAL margin on every avatar after the first. */}
+                    <span className="flex [&>*+*]:-ms-2">
                       {p.team.map((t) => (
                         <Avatar key={t} name={t} size={28} className="ring-2 ring-[var(--ad-card)]" />
                       ))}
@@ -138,11 +141,11 @@ export default function ProjectDashboard() {
                   <td>
                     <div className="flex min-w-[130px] items-center gap-2">
                       <Progress value={p.progress} tone={p.tone} height={5} />
-                      <span className="w-9 shrink-0 text-xs text-[var(--ad-muted-foreground)]">{p.progress}%</span>
+                      <span className="ad-num w-9 shrink-0 text-xs text-[var(--ad-muted-foreground)]">{p.progress}%</span>
                     </div>
                   </td>
                   <td><Badge tone={p.tone}>{p.status}</Badge></td>
-                  <td className="whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{p.due}</td>
+                  <td className="ad-num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{p.due}</td>
                 </tr>
               ))}
             </Table>

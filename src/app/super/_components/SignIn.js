@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AuthShell, Field, PasswordInput } from "./auth";
 import { BASE } from "./nav";
 import Icon from "./Icon";
+import { toneBg, toneInk } from "./ui";
 
 // The real /super sign-in — the only page of the console that is reachable
 // signed out.
@@ -68,7 +69,7 @@ export default function SignIn() {
             <div
               role="alert"
               className="flex items-start gap-2 rounded-md px-3 py-2.5 text-sm"
-              style={{ backgroundColor: "rgba(220,38,38,.12)", color: "var(--ad-destructive)" }}
+              style={{ backgroundColor: toneBg("danger", 0.12), color: toneInk("danger") }}
             >
               <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>

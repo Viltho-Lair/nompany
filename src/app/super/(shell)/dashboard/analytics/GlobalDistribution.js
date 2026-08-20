@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AreaChart, ChartFrame } from "../../../_components/charts";
+import { AreaChart, ChartFrame, ChartSkeleton } from "../../../_components/charts";
+import { Skeleton } from "../../../_components/ui";
 
 // Global User Distribution, on the real geography of the traffic.
 //
@@ -66,9 +67,13 @@ export default function GlobalDistribution() {
       <div className="grid gap-6 sm:grid-cols-4">
         {columns.map((c) => (
           <div key={c.name}>
-            <p className="text-xl font-semibold" style={{ color: c.color }}>
-              {loading ? "—" : fmt(c.visits)}
-            </p>
+            {loading ? (
+              <Skeleton className="h-6 w-20 rounded-md" />
+            ) : (
+              <p className="ad-num text-xl font-700" style={{ color: c.color }}>
+                {fmt(c.visits)}
+              </p>
+            )}
             <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{c.name}</p>
             <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--ad-muted)]">
               <div className="h-full rounded-full" style={{ width: `${c.pct}%`, backgroundColor: c.color }} />
@@ -81,15 +86,19 @@ export default function GlobalDistribution() {
         <p className="mb-1 text-xs text-[var(--ad-muted-foreground)]">
           Page views by month{year?.year ? ` · ${year.year}` : ""}
         </p>
-        <ChartFrame height={180} labels={MONTHS}>
-          <AreaChart
-            height={180}
-            showY={false}
-            yTicks={3}
-            labels={MONTHS}
-            series={[{ name: "Page views", data: scaled, color: "var(--ad-chart-1)" }]}
-          />
-        </ChartFrame>
+        {loading ? (
+          <ChartSkeleton height={180} bars={12} yLabels={0} labels={12} />
+        ) : (
+          <ChartFrame height={180} labels={MONTHS}>
+            <AreaChart
+              height={180}
+              showY={false}
+              yTicks={3}
+              labels={MONTHS}
+              series={[{ name: "Page views", data: scaled, color: "var(--ad-chart-1)" }]}
+            />
+          </ChartFrame>
+        )}
       </div>
 
       {!loading && !data?.pageViews && (

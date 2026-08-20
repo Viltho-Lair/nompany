@@ -77,12 +77,19 @@ module.exports = {
           900: "#0f172a", // app background (dark) / deep sections
         },
         // Semantic status colors (ERP statuses) — used by status pills across
-        // the studio + /super console. In dark mode, use these at ~15% opacity
-        // for backgrounds and full strength for text/icons.
-        success: "#059669", // Emerald — Approved
-        warning: "#d97706", // Amber — Pending
-        danger: "#e11d48",  // Rose — Failed
-        info: "#0284c7",    // Sky — In Progress
+        // the studio + /super console.
+        //
+        // These were four frozen hexes, which meant a "Pending" pill painted the
+        // same amber on a white card and on a near-black one: legible in light,
+        // muddy in dark, and no opacity modifier could rescue it because a hex
+        // has no channels to modify. They now read the same `--doc-*` channel
+        // triples every other semantic colour here reads, so `bg-warning/15`
+        // compiles AND the value follows the theme. The light values are
+        // unchanged from the palette spec; dark lifts one step for contrast.
+        success: "rgb(var(--doc-success) / <alpha-value>)", // Emerald — Approved
+        warning: "rgb(var(--doc-warning) / <alpha-value>)", // Amber — Pending
+        danger: "rgb(var(--doc-destructive) / <alpha-value>)", // Rose — Failed
+        info: "rgb(var(--doc-info) / <alpha-value>)",       // Sky — In Progress
         // Geex "Control Panel" secondary accent (purple) — used as a highlight
         // alongside the MegaTech blue primary. Plus the design's light page/
         // surface tones so the Studio matches the Figma system.

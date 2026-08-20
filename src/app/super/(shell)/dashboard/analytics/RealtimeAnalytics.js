@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AreaChart, ChartFrame } from "../../../_components/charts";
+import { AreaChart, ChartFrame, ChartSkeleton } from "../../../_components/charts";
+import { Skeleton } from "../../../_components/ui";
 import Icon from "../../../_components/Icon";
 
 // The Real-time Analytics card, on the website's actual counters.
@@ -63,8 +64,13 @@ export default function RealtimeAnalytics() {
   return (
     <>
       <div className="mb-5 flex items-center gap-10">
-        <MiniStat label="Sessions" value={loading ? "—" : fmt(data?.sessions)} />
-        <MiniStat label="Page Views" value={loading ? "—" : fmt(data?.pageViews)} />
+        {/* An em dash where a number goes is the wrong placeholder twice over:
+            it is narrower than the figure that replaces it, so the row reflows
+            when the fetch lands, and it is ALSO what this card shows for "no
+            traffic recorded" — so the reader cannot tell waiting from zero. A
+            bar the size of the number says only the first thing. */}
+        <MiniStat label="Sessions" value={loading ? <Skeleton className="h-5 w-20 rounded-md" /> : fmt(data?.sessions)} />
+        <MiniStat label="Page Views" value={loading ? <Skeleton className="h-5 w-20 rounded-md" /> : fmt(data?.pageViews)} />
         <div className="ms-auto flex items-center gap-2">
           <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--ad-border)" }}>
             {RANGES.map((r) => (
@@ -73,7 +79,7 @@ export default function RealtimeAnalytics() {
                 type="button"
                 onClick={() => setRange(r.key)}
                 aria-pressed={range === r.key}
-                className="rounded px-2.5 py-1 text-xs font-medium transition-colors"
+                className="rounded px-2.5 py-1 text-xs font-500 transition-colors"
                 style={range === r.key
                   ? { backgroundColor: "var(--ad-primary)", color: "var(--ad-primary-foreground)" }
                   : { color: "var(--ad-muted-foreground)" }}
@@ -99,6 +105,16 @@ export default function RealtimeAnalytics() {
         </div>
       </div>
 
+      {/* Rendering the real AreaChart over an empty array drew an axis frame
+          with no series in it, which is exactly what this card looks like when
+          there genuinely is no traffic. The skeleton reserves the same 280px
+          and says "not yet" instead of "none". */}
+      {loading ? (
+        <div role="status" aria-busy="true" aria-label="Loading traffic">
+          <span className="sr-only">Loading traffic…</span>
+          <ChartSkeleton height={280} bars={12} yLabels={6} labels={12} />
+        </div>
+      ) : (
       <ChartFrame
         height={280}
         labels={labels}
@@ -118,6 +134,7 @@ export default function RealtimeAnalytics() {
           ]}
         />
       </ChartFrame>
+      )}
 
       {!loading && !data?.pageViews && (
         <p className="mt-3 text-xs text-[var(--ad-muted-foreground)]">
@@ -139,7 +156,7 @@ function MiniStat({ label, value }) {
   return (
     <div>
       <p className="text-xs text-[var(--ad-muted-foreground)]">{label}</p>
-      <p className="mt-0.5 text-lg font-semibold">{value}</p>
+      <p className="mt-0.5 text-lg font-600">{value}</p>
     </div>
   );
 }

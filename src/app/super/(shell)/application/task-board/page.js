@@ -66,8 +66,8 @@ export default function TaskBoardPage() {
             <section key={col.name} className="flex flex-col">
               <div className="mb-4 flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TONE_FG[col.tone] }} />
-                <h6 className="text-sm font-semibold">{col.name}</h6>
-                <span className="text-xs text-[var(--ad-muted-foreground)]">{col.tasks.length}</span>
+                <h6 className="text-sm font-600">{col.name}</h6>
+                <span className="ad-num text-xs text-[var(--ad-muted-foreground)]">{col.tasks.length}</span>
                 <button type="button" className="ad-icon-btn ms-auto h-7 w-7" aria-label={`Add to ${col.name}`}>
                   <Icon name="plus" className="h-3.5 w-3.5" />
                 </button>
@@ -83,7 +83,7 @@ export default function TaskBoardPage() {
                           <Icon name="more" className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                      <p className="mt-2.5 text-sm font-medium leading-snug">{t.title}</p>
+                      <p className="mt-2.5 text-sm font-500 leading-snug">{t.title}</p>
                       <div className="mt-4 flex items-center justify-between gap-2">
                         <Avatar name={t.assignee} size={26} />
                         <div className="flex items-center gap-3 text-[11px] text-[var(--ad-muted-foreground)]">

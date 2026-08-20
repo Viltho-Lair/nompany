@@ -1,133 +1,156 @@
 /* ---------------------------------------------------------------------------
-   /super — "Admindek" design system, scoped.
+   /super — the platform owner's console, wearing the ERP's design system.
    ---------------------------------------------------------------------------
-   Every token, reset and component class here is scoped to `.admindek`, the
-   wrapper rendered by src/app/super/layout.js. Nothing leaks into the public
-   site or the Studio, and nothing outside this folder had to change.
+   This file used to be a scoped copy of a downloaded admin template: seventy-odd
+   literal hexes, a 4px radius, a navy rail and Inter, none of which the product
+   uses anywhere else. The console looked like a different application than the
+   thing it administers, because it was one.
 
-   Colour values are lifted verbatim from the reference build
-   (admindek-next.dashboardpack.com), which ships Tailwind v4 `@theme` tokens.
-   This project is on Tailwind v3, so they live as plain custom properties and
-   are consumed either through the `.ad-*` component classes below or through
-   arbitrary values (`bg-[var(--ad-card)]`).
+   It is now an ALIAS LAYER, not a palette. Every `--ad-*` below resolves to a
+   `--doc-*` channel triple from globals.css — the app's one semantic layer, the
+   same tokens the Studio and the document editor read. Nothing here invents a
+   colour. Two consequences worth stating:
 
-   DARK MODE is inherited from the main website: the root layout toggles
-   `html.dark` from the `theme` cookie (light | dark | system) before paint, so
-   `.dark .admindek` is all that is needed here — no second theme store, no
-   flash, and the header's theme control writes that same cookie.
+     1. There is no `.dark .admindek` block any more. `--doc-*` already switch
+        under `.dark`, so aliasing them means the console follows the theme from
+        ONE definition rather than two that drift apart.
+     2. Every token exists twice: `--ad-x-rgb` (the raw triple) and `--ad-x`
+        (the same wrapped in rgb()). Call sites that need a flat colour read the
+        second; anything that needs a tint reads the first as
+        `rgb(var(--ad-primary-rgb) / .12)`. A hex cannot do the second, which is
+        exactly why every tint in this console used to be a hardcoded rgba().
+
+   The `--ad-*` NAMES survive on purpose. ~30 page files reference them through
+   `bg-[var(--ad-card)]`; re-pointing the values changes the whole console's
+   appearance without touching one of those call sites, and no class changes
+   meaning on the way. Retiring the names is a later, mechanical pass.
+
+   SHAPE comes from the Studio (src/components/studio2/StudioFrame.js + ui.js):
+   a floating geex-radius rail, geex-radius cards on a tinted page, pill
+   buttons, uppercase micro-labels, Cabin. Not Material, not the template.
+
+   RTL: this file contains no physical box properties. Padding, margins, insets
+   and borders are all logical, so `dir="rtl"` on the shell mirrors the console
+   without a single paired override.
 
    CASCADE LAYERS matter (see globals.css): component classes go in
    `tw-components` so Tailwind utilities in `tw-utilities` always win, and the
    element resets go in `tw-base` at a specificity that clears globals' own
-   `h1..h4` / `.dark h1..h4` base rules.
+   `h1..h4` / `.dark h1..h4` base rules. Do not reorder them.
 --------------------------------------------------------------------------- */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+/* No @import here. The console used to pull Inter from Google Fonts on its own,
+   which was a second render-blocking request for a face the product does not
+   use anywhere else. Cabin is already in globals.css's one font import — the
+   Studio's face, and now the console's. */
 
-/* ---- tokens -------------------------------------------------------------- */
+/* ---- tokens: aliases onto the app's semantic layer ----------------------- */
 
 .admindek {
-  --ad-background: #f4f7fa;
-  --ad-foreground: #262626;
-  --ad-card: #ffffff;
-  --ad-card-foreground: #262626;
-  --ad-popover: #ffffff;
-  --ad-popover-foreground: #262626;
-  --ad-primary: #4680ff;
-  --ad-primary-foreground: #ffffff;
-  --ad-secondary: #f3f5f7;
-  --ad-secondary-foreground: #262626;
-  --ad-muted: #f3f5f7;
-  --ad-muted-foreground: #888888;
-  --ad-accent: #f3f5f7;
-  --ad-accent-foreground: #262626;
-  --ad-destructive: #dc2626;
-  --ad-destructive-foreground: #ffffff;
-  --ad-success: #2ca87f;
-  --ad-success-foreground: #ffffff;
-  --ad-warning: #e58a00;
-  --ad-warning-foreground: #262626;
-  --ad-info: #04a9f5;
-  --ad-info-foreground: #ffffff;
-  --ad-border: #dbe0e5;
-  --ad-input: #dbe0e5;
-  --ad-ring: #4680ff;
+  --ad-background-rgb: var(--doc-background);
+  --ad-foreground-rgb: var(--doc-foreground);
+  --ad-card-rgb: var(--doc-card);
+  --ad-card-foreground-rgb: var(--doc-card-foreground);
+  --ad-popover-rgb: var(--doc-popover);
+  --ad-popover-foreground-rgb: var(--doc-popover-foreground);
+  --ad-primary-rgb: var(--doc-primary);
+  --ad-primary-foreground-rgb: var(--doc-primary-foreground);
+  --ad-secondary-rgb: var(--doc-secondary);
+  --ad-secondary-foreground-rgb: var(--doc-secondary-foreground);
+  --ad-muted-rgb: var(--doc-muted);
+  --ad-muted-foreground-rgb: var(--doc-muted-foreground);
+  --ad-accent-rgb: var(--doc-secondary);
+  --ad-accent-foreground-rgb: var(--doc-secondary-foreground);
+  --ad-destructive-rgb: var(--doc-destructive);
+  --ad-destructive-foreground-rgb: var(--doc-destructive-foreground);
+  --ad-success-rgb: var(--doc-success);
+  --ad-success-foreground-rgb: var(--doc-success-foreground);
+  --ad-warning-rgb: var(--doc-warning);
+  --ad-warning-foreground-rgb: var(--doc-warning-foreground);
+  --ad-info-rgb: var(--doc-info);
+  --ad-info-foreground-rgb: var(--doc-info-foreground);
+  --ad-border-rgb: var(--doc-border);
+  --ad-input-rgb: var(--doc-input);
+  --ad-ring-rgb: var(--doc-ring);
 
-  --ad-chart-1: #4680ff;
-  --ad-chart-2: #1abc9c;
-  --ad-chart-3: #e58a00;
-  --ad-chart-4: #7c4dff;
-  --ad-chart-5: #3ebfea;
+  /* The five-series chart ramp. Brand first, then the semantic states, then a
+     neutral — so a chart legend and a status pill for the same thing are the
+     same colour, which is most of what a semantic layer is for. */
+  --ad-chart-1-rgb: var(--doc-primary);
+  --ad-chart-2-rgb: var(--doc-success);
+  --ad-chart-3-rgb: var(--doc-warning);
+  --ad-chart-4-rgb: var(--doc-info);
+  --ad-chart-5-rgb: var(--doc-muted-foreground);
 
-  --ad-sidebar: #263544;
-  --ad-sidebar-foreground: #a9b7d0;
-  --ad-sidebar-caption: #e8edf7;
-  --ad-sidebar-primary: #4680ff;
-  --ad-sidebar-primary-foreground: #ffffff;
-  --ad-sidebar-accent: rgba(0, 0, 0, 0.1);
-  --ad-sidebar-accent-foreground: #ffffff;
-  --ad-sidebar-border: rgba(255, 255, 255, 0.08);
-  --ad-sidebar-shadow: 1px 0 20px 0 rgba(38, 53, 68, 1);
+  /* The rail is a SURFACE, not a slab of navy. The Studio's sidebar is a card
+     floating on the page, so the console's is too, and it needs no tokens of
+     its own beyond the ones the card already uses. */
+  --ad-sidebar-rgb: var(--doc-card);
+  --ad-sidebar-foreground-rgb: var(--doc-muted-foreground);
+  --ad-sidebar-caption-rgb: var(--doc-muted-foreground);
+  --ad-sidebar-primary-rgb: var(--doc-primary);
+  --ad-sidebar-accent-foreground-rgb: var(--doc-foreground);
+  --ad-sidebar-border-rgb: var(--doc-border);
 
-  --ad-radius: 0.25rem;
-  --ad-header-height: 74px;
-  --ad-sidebar-width: 264px;
-  --ad-sidebar-collapsed-width: 80px;
+  --ad-background: rgb(var(--ad-background-rgb));
+  --ad-foreground: rgb(var(--ad-foreground-rgb));
+  --ad-card: rgb(var(--ad-card-rgb));
+  --ad-card-foreground: rgb(var(--ad-card-foreground-rgb));
+  --ad-popover: rgb(var(--ad-popover-rgb));
+  --ad-popover-foreground: rgb(var(--ad-popover-foreground-rgb));
+  --ad-primary: rgb(var(--ad-primary-rgb));
+  --ad-primary-foreground: rgb(var(--ad-primary-foreground-rgb));
+  --ad-secondary: rgb(var(--ad-secondary-rgb));
+  --ad-secondary-foreground: rgb(var(--ad-secondary-foreground-rgb));
+  --ad-muted: rgb(var(--ad-muted-rgb));
+  --ad-muted-foreground: rgb(var(--ad-muted-foreground-rgb));
+  --ad-accent: rgb(var(--ad-accent-rgb));
+  --ad-accent-foreground: rgb(var(--ad-accent-foreground-rgb));
+  --ad-destructive: rgb(var(--ad-destructive-rgb));
+  --ad-destructive-foreground: rgb(var(--ad-destructive-foreground-rgb));
+  --ad-success: rgb(var(--ad-success-rgb));
+  --ad-success-foreground: rgb(var(--ad-success-foreground-rgb));
+  --ad-warning: rgb(var(--ad-warning-rgb));
+  --ad-warning-foreground: rgb(var(--ad-warning-foreground-rgb));
+  --ad-info: rgb(var(--ad-info-rgb));
+  --ad-info-foreground: rgb(var(--ad-info-foreground-rgb));
+  --ad-border: rgb(var(--ad-border-rgb));
+  --ad-input: rgb(var(--ad-input-rgb));
+  --ad-ring: rgb(var(--ad-ring-rgb));
 
-  --ad-shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --ad-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-}
+  --ad-chart-1: rgb(var(--ad-chart-1-rgb));
+  --ad-chart-2: rgb(var(--ad-chart-2-rgb));
+  --ad-chart-3: rgb(var(--ad-chart-3-rgb));
+  --ad-chart-4: rgb(var(--ad-chart-4-rgb));
+  --ad-chart-5: rgb(var(--ad-chart-5-rgb));
 
-.dark .admindek {
-  --ad-background: #212224;
-  --ad-foreground: #d3d5d9;
-  --ad-card: #2a2b2e;
-  --ad-card-foreground: #d3d5d9;
-  --ad-popover: #2a2b2e;
-  --ad-popover-foreground: #d3d5d9;
-  --ad-primary: #5a8eff;
-  --ad-primary-foreground: #ffffff;
-  --ad-secondary: #2f3033;
-  --ad-secondary-foreground: #d3d5d9;
-  --ad-muted: #2f3033;
-  --ad-muted-foreground: #8996a4;
-  --ad-accent: #333538;
-  --ad-accent-foreground: #d3d5d9;
-  --ad-destructive: #dc2626;
-  --ad-destructive-foreground: #d3d5d9;
-  --ad-success: #2ca87f;
-  --ad-success-foreground: #212224;
-  --ad-warning: #e58a00;
-  --ad-warning-foreground: #212224;
-  --ad-info: #04a9f5;
-  --ad-info-foreground: #212224;
-  --ad-border: #3e4249;
-  --ad-input: #3e4249;
-  --ad-ring: #5a8eff;
+  --ad-sidebar: rgb(var(--ad-sidebar-rgb));
+  --ad-sidebar-foreground: rgb(var(--ad-sidebar-foreground-rgb));
+  --ad-sidebar-caption: rgb(var(--ad-sidebar-caption-rgb));
+  --ad-sidebar-primary: rgb(var(--ad-sidebar-primary-rgb));
+  --ad-sidebar-accent: rgb(var(--ad-sidebar-primary-rgb) / 0.1);
+  --ad-sidebar-accent-foreground: rgb(var(--ad-sidebar-accent-foreground-rgb));
+  --ad-sidebar-border: rgb(var(--ad-sidebar-border-rgb));
 
-  --ad-chart-1: #5a8eff;
-  --ad-chart-4: #9775ff;
+  /* ---- geometry ---------------------------------------------------------
+     The Studio's rail is `w-64` inset by `1rem`, and its content starts at
+     `lg:ps-72` — 18rem. Both numbers live here once, and the content offset is
+     computed from them, so the rail and the margin beside it cannot disagree. */
+  --ad-radius: 0.75rem;        /* fields, chips, small tiles — rounded-xl */
+  --ad-radius-card: 20px;      /* rounded-geex, the Studio's panel radius */
+  --ad-header-height: 4.5rem;
+  --ad-rail-inset: 1rem;
+  --ad-sidebar-width: 16rem;
+  --ad-sidebar-collapsed-width: 5rem;
+  --ad-content-offset: calc(var(--ad-sidebar-width) + var(--ad-rail-inset) * 2);
+  --ad-content-offset-collapsed: calc(var(--ad-sidebar-collapsed-width) + var(--ad-rail-inset) * 2);
 
-  --ad-sidebar: #1a1b1d;
-  --ad-sidebar-primary: #5a8eff;
-  --ad-sidebar-accent: rgba(255, 255, 255, 0.06);
-  --ad-sidebar-border: rgba(255, 255, 255, 0.06);
-  --ad-sidebar-shadow: 1px 0 20px 0 rgba(0, 0, 0, 0.6);
-
-  --ad-shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-  --ad-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
-}
-
-/* Sidebar can be forced light/dark independently of the page (the reference
-   calls this "sidebar theme"); the customizer sets these classes on the shell. */
-.admindek.ad-sidebar-light {
-  --ad-sidebar: #ffffff;
-  --ad-sidebar-foreground: #5b6b79;
-  --ad-sidebar-caption: #8a95a1;
-  --ad-sidebar-accent: rgba(70, 128, 255, 0.08);
-  --ad-sidebar-accent-foreground: #262626;
-  --ad-sidebar-border: rgba(0, 0, 0, 0.08);
-  --ad-sidebar-shadow: 1px 0 20px 0 rgba(38, 53, 68, 0.12);
+  /* Shadows derive from the page ink rather than a fixed black, so the dark
+     theme deepens without a second declaration. The values are the `geex`
+     shadows from tailwind.config.js. */
+  --ad-shadow-card: 0 8px 22px -14px rgb(var(--ad-foreground-rgb) / 0.16);
+  --ad-shadow-lg: 0 14px 40px -18px rgb(var(--ad-foreground-rgb) / 0.22);
+  --ad-sidebar-shadow: var(--ad-shadow-lg);
 }
 
 /* ---- resets -------------------------------------------------------------- */
@@ -144,6 +167,7 @@
   }
   .admindek.ad-scope :where(a):focus-visible,
   .admindek.ad-scope :where(button):focus-visible,
+  .admindek.ad-scope :where([role="menuitem"]):focus-visible,
   .admindek.ad-scope :where(input, select, textarea):focus-visible {
     outline: 2px solid var(--ad-ring);
     outline-offset: 2px;
@@ -151,50 +175,83 @@
 }
 
 .admindek {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Cabin, the Studio's face — and `--font-display` is re-pointed at it too, so
+     a `font-display` utility inside the console resolves to Cabin rather than
+     escaping to the public site's Saira. */
+  --font-display: "Cabin", system-ui, sans-serif;
+  font-family: "Cabin", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 0.875rem;
   line-height: 1.5;
   background-color: var(--ad-background);
   color: var(--ad-foreground);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
-  scrollbar-color: var(--ad-border) transparent;
+  scrollbar-color: rgb(var(--ad-primary-rgb) / 0.5) transparent;
   scrollbar-width: thin;
 }
 
+/* THE STUDIO'S TYPE SCALE, ENFORCED. DESIGN.md allows exactly three sizes —
+   title 1.75rem, heading 1rem, normal 0.875rem — and globals.css enforces them
+   studio-wide under `html.studio-chrome`. The console is not a studio address,
+   so it never inherited them, and the template's nine-step ramp is most of why
+   the two surfaces read as different products.
+
+   Same mechanism, same three buckets, scoped to `.admindek`. Substring matching
+   also catches responsive variants (sm:text-2xl); arbitrary sizes (text-[11px])
+   are deliberately left alone so badge and caption sizes still work. */
+.admindek [class*="text-4xl"],
+.admindek [class*="text-3xl"],
+.admindek [class*="text-2xl"],
+.admindek [class*="text-xl"] {
+  font-size: 1.75rem !important;
+  line-height: 1.25 !important;
+}
+.admindek [class*="text-lg"],
+.admindek [class*="text-base"] {
+  font-size: 1rem !important;
+  line-height: 1.4 !important;
+}
+.admindek [class*="text-sm"],
+.admindek [class*="text-xs"] {
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+}
+
 .admindek ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 .admindek ::-webkit-scrollbar-track {
   background: transparent;
 }
 .admindek ::-webkit-scrollbar-thumb {
-  background-color: var(--ad-border);
+  background-color: rgb(var(--ad-primary-rgb) / 0.5);
   border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 .admindek ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--ad-muted-foreground);
+  background-color: rgb(var(--ad-primary-rgb) / 0.75);
 }
 
 /* ---- components ---------------------------------------------------------- */
 
 @layer tw-components {
-  /* Card ------------------------------------------------------------------ */
+  /* Card ------------------------------------------------------------------
+     The Studio's `panel`: geex radius, hairline border, soft shadow. The
+     template's hover shadow is gone — a card that lifts under the pointer
+     implies it is clickable, and most of these are not. */
   .ad-card {
-    border-radius: 0.75rem;
+    border-radius: var(--ad-radius-card);
     border: 1px solid var(--ad-border);
     background-color: var(--ad-card);
     color: var(--ad-card-foreground);
     box-shadow: var(--ad-shadow-card);
-    transition: box-shadow 0.2s;
-  }
-  .ad-card:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
   }
   .ad-card-head {
     display: flex;
-    padding: 1.5rem;
+    padding-block: 1.5rem 1rem;
+    padding-inline: 1.5rem;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
@@ -202,33 +259,40 @@
   }
   .ad-card-title {
     font-size: 1rem;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1.4;
+    letter-spacing: -0.01em;
   }
   .ad-card-sub {
-    margin-top: 0.125rem;
+    margin-top: 0.25rem;
     font-size: 0.75rem;
     color: var(--ad-muted-foreground);
   }
   .ad-card-body {
-    padding: 0 1.5rem 1.5rem;
+    padding-block: 0 1.5rem;
+    padding-inline: 1.5rem;
   }
   .ad-card-body-full {
     padding: 1.5rem;
   }
 
-  /* Buttons --------------------------------------------------------------- */
+  /* Buttons ---------------------------------------------------------------
+     Pills, as everywhere else in the product. The primary hover DARKENS the
+     fill rather than fading it to 90% opacity: opacity let the surface behind
+     show through, so the same button read differently on a card than on the
+     page. */
   .ad-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     white-space: nowrap;
-    border-radius: var(--ad-radius);
-    padding: 0.5rem 1.25rem;
+    border-radius: 9999px;
+    padding-block: 0.5rem;
+    padding-inline: 1.125rem;
     font-size: 0.875rem;
-    font-weight: 500;
-    transition: all 0.15s;
+    font-weight: 600;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
     border: 1px solid transparent;
   }
   .ad-btn:disabled {
@@ -240,7 +304,7 @@
     color: var(--ad-primary-foreground);
   }
   .ad-btn-primary:hover {
-    opacity: 0.9;
+    background-color: rgb(var(--ad-primary-rgb) / 0.85);
   }
   .ad-btn-outline {
     border-color: var(--ad-border);
@@ -260,37 +324,43 @@
   }
   .ad-btn-destructive {
     background-color: var(--ad-destructive);
-    color: #fff;
+    color: var(--ad-destructive-foreground);
   }
   .ad-btn-destructive:hover {
-    opacity: 0.9;
+    background-color: rgb(var(--ad-destructive-rgb) / 0.85);
   }
   .ad-btn-sm {
-    padding: 0.3125rem 0.75rem;
+    padding-block: 0.3125rem;
+    padding-inline: 0.875rem;
     font-size: 0.75rem;
   }
   .ad-icon-btn {
     display: inline-flex;
-    height: 2.75rem;
-    width: 2.75rem;
+    height: 2.5rem;
+    width: 2.5rem;
     align-items: center;
     justify-content: center;
     border-radius: 9999px;
     color: var(--ad-muted-foreground);
-    transition: colors 0.15s;
+    transition: background-color 0.15s, color 0.15s;
   }
   .ad-icon-btn:hover {
     background-color: var(--ad-accent);
     color: var(--ad-foreground);
   }
 
-  /* Form controls --------------------------------------------------------- */
+  /* Form controls ---------------------------------------------------------
+     The Studio's `input`: a filled field that turns to the card surface on
+     focus, not an outlined one. Focus is a 2px ring at 20% rather than a 1px
+     hard shadow, so the field grows a halo instead of a second border. */
   .ad-label {
     display: block;
     margin-bottom: 0.375rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--ad-foreground);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ad-muted-foreground);
   }
   .ad-input,
   .ad-select,
@@ -298,11 +368,12 @@
     width: 100%;
     border-radius: var(--ad-radius);
     border: 1px solid var(--ad-border);
-    background-color: var(--ad-background);
-    padding: 0.5rem 0.75rem;
+    background-color: rgb(var(--ad-muted-rgb) / 0.6);
+    padding-block: 0.625rem;
+    padding-inline: 0.875rem;
     font-size: 0.875rem;
     color: var(--ad-foreground);
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
   }
   .ad-input::placeholder,
   .ad-textarea::placeholder {
@@ -313,7 +384,8 @@
   .ad-textarea:focus {
     outline: none;
     border-color: var(--ad-primary);
-    box-shadow: 0 0 0 1px var(--ad-primary);
+    background-color: var(--ad-card);
+    box-shadow: 0 0 0 2px rgb(var(--ad-ring-rgb) / 0.2);
   }
   .ad-input:disabled,
   .ad-select:disabled,
@@ -335,10 +407,23 @@
     align-items: center;
     gap: 0.25rem;
     border-radius: 9999px;
-    padding: 0.125rem 0.625rem;
+    padding-block: 0.125rem;
+    padding-inline: 0.625rem;
     font-size: 0.6875rem;
     font-weight: 600;
     line-height: 1.5;
+  }
+
+  /* Numbers ---------------------------------------------------------------
+     EVERY reference, quantity, currency, ID and date in this product renders
+     through here. Tabular figures are not decoration: a column of `1,284` over
+     `9,911` only reads as a column when the digits share an advance, and
+     `INV-0042` beside `INV-0421` only compares at a glance in a fixed one. */
+  .ad-num {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.01em;
   }
 
   /* Table ----------------------------------------------------------------- */
@@ -348,10 +433,11 @@
     font-size: 0.875rem;
   }
   .ad-table thead th {
-    padding: 0.75rem 1.5rem;
+    padding-block: 0.75rem;
+    padding-inline: 1.5rem;
     text-align: start;
     font-size: 0.6875rem;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--ad-muted-foreground);
@@ -359,7 +445,8 @@
     white-space: nowrap;
   }
   .ad-table tbody td {
-    padding: 0.875rem 1.5rem;
+    padding-block: 0.875rem;
+    padding-inline: 1.5rem;
     border-bottom: 1px solid var(--ad-border);
     vertical-align: middle;
   }
@@ -370,59 +457,62 @@
     transition: background-color 0.15s;
   }
   .ad-table tbody tr:hover {
-    background-color: var(--ad-accent);
+    background-color: rgb(var(--ad-muted-rgb) / 0.6);
   }
 
-  /* Sidebar link ---------------------------------------------------------- */
+  /* Sidebar link ----------------------------------------------------------
+     The Studio's nav row: a rounded pill that fills with a 10% brand tint when
+     it is the current page. The template's 3px inline-start rail is gone — it
+     was the one piece of chrome that needed mirroring by hand in RTL, and a
+     filled row says "you are here" without needing an edge to say it on. */
   .ad-nav-link {
     position: relative;
     display: flex;
     width: 100%;
     align-items: center;
+    gap: 0.75rem;
+    border-radius: 0.5rem;
     font-size: 0.875rem;
-    padding: 0.625rem 1.25rem;
+    font-weight: 500;
+    padding-block: 0.625rem;
+    padding-inline: 0.75rem;
     color: var(--ad-sidebar-foreground);
-    border-inline-start: 3px solid transparent;
-    /* Only the paint properties animate — putting `all` here would transition
-       padding and border-width too, which makes the rail jitter on hover. */
-    transition: color 0.08s cubic-bezier(0.37, 0.24, 0.53, 0.99),
-      background-color 0.08s cubic-bezier(0.37, 0.24, 0.53, 0.99),
-      border-color 0.08s cubic-bezier(0.37, 0.24, 0.53, 0.99);
+    transition: color 0.12s ease, background-color 0.12s ease;
   }
   .ad-nav-link:hover {
     color: var(--ad-sidebar-accent-foreground);
-    background-color: var(--ad-sidebar-accent);
-    border-inline-start-color: var(--ad-sidebar-primary);
+    background-color: rgb(var(--ad-muted-rgb) / 0.7);
   }
   .ad-nav-link[data-active="true"] {
-    color: var(--ad-sidebar-accent-foreground);
+    color: var(--ad-sidebar-primary);
     background-color: var(--ad-sidebar-accent);
-    border-inline-start-color: var(--ad-sidebar-primary);
+    font-weight: 600;
   }
   .ad-nav-sublink {
     position: relative;
     display: flex;
     align-items: center;
+    border-radius: 0.5rem;
     font-size: 0.875rem;
-    /* Logical padding mirrors under dir="rtl" on its own — no override rule,
-       and nothing for the transition to catch mid-flight. */
     padding-block: 0.4375rem;
-    padding-inline-start: 3.75rem;
-    padding-inline-end: 1.875rem;
+    padding-inline-start: 2.75rem;
+    padding-inline-end: 0.75rem;
     color: var(--ad-sidebar-foreground);
-    transition: color 0.08s cubic-bezier(0.37, 0.24, 0.53, 0.99);
+    transition: color 0.12s ease, background-color 0.12s ease;
   }
   .ad-nav-sublink:hover {
     color: var(--ad-sidebar-accent-foreground);
+    background-color: rgb(var(--ad-muted-rgb) / 0.7);
   }
   .ad-nav-sublink[data-active="true"] {
     color: var(--ad-sidebar-primary);
-    font-weight: 500;
+    font-weight: 600;
   }
   .ad-nav-caption {
-    padding: 0.625rem 1.4375rem 0.5rem;
+    padding-block: 1.25rem 0.375rem;
+    padding-inline: 0.75rem;
     font-size: 0.6875rem;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ad-sidebar-caption);
@@ -437,24 +527,113 @@
     overflow-y: auto;
     overflow-x: hidden;
   }
+
+  /* Skeletons -------------------------------------------------------------
+     A skeleton exists to RESERVE THE BOX, so the thing that arrives lands where
+     the placeholder stood. The sweep is a pseudo-element translating across the
+     block rather than an animated background-position, because a transform is
+     composited and background-position is not — twenty rows of the second
+     choice repaint the whole table every frame. */
+  .ad-skel {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.375rem;
+    background-color: rgb(var(--ad-muted-foreground-rgb) / 0.16);
+  }
+  .ad-skel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translate3d(-100%, 0, 0);
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--ad-card-rgb) / 0.55),
+      transparent
+    );
+    animation: ad-skel-sweep 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+  .ad-skel-text {
+    height: 0.75rem;
+    border-radius: 9999px;
+  }
+  .ad-skel-circle {
+    border-radius: 9999px;
+  }
+
+  /* Direction-aware slide ------------------------------------------------
+     Tailwind has no logical translate — there is no `translate-s-full` — so
+     every drawer in this console used to carry an `ltr:translate-x-full
+     rtl:-translate-x-full` pair, which is the physical-property habit the
+     bilingual layout exists to be rid of. One sign variable replaces the pair:
+     `--ad-flip` is +1 reading left-to-right and -1 reading right-to-left, so
+     "parked off-screen past the inline end" is a single declaration that
+     mirrors itself. Transform, not inset, so the slide stays on the
+     compositor. */
+  .ad-slide-out-end {
+    transform: translateX(calc(100% * var(--ad-flip)));
+  }
+  .ad-slide-out-start {
+    transform: translateX(calc(-100% * var(--ad-flip)));
+  }
+  .ad-slide-in {
+    transform: translateX(0);
+  }
 }
 
-/* Sidebar collapse (icon-rail) — driven by `.ad-collapsed` on the shell. */
+/* The sign the slide utilities above read. Set on the shell, and again for the
+   case where an Arabic page wraps the console rather than the console setting
+   its own direction. */
+.admindek {
+  --ad-flip: 1;
+}
+.admindek[dir="rtl"],
+[dir="rtl"] .admindek {
+  --ad-flip: -1;
+}
+
+@keyframes ad-skel-sweep {
+  to {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+/* THE RAIL'S WIDTH, AND THE MARGIN BESIDE IT — driven by `.ad-collapsed` on the
+   shell, and owned here rather than by React.
+ 
+   Two things this section has been wrong about before, both now fixed in place:
+ 
+   WIDTH AND OFFSET WERE ALSO INLINE STYLES, written from component state. An
+   inline style beats every stylesheet, so these rules were dead — and the mobile
+   `margin-inline-start: 0` below only worked because of its `!important`. One
+   owner now, which is this file.
+ 
+   THE HIDING RULES ARE SCOPED INSIDE `.ad-sidebar-el`, a class only the desktop
+   rail carries. Scoped to the shell instead, collapsing the rail also stripped
+   the labels out of the mobile drawer — a full-width drawer showing a column of
+   unlabelled icons, because a preference that only means anything at `lg:` was
+   being applied at every width. */
+.admindek .ad-sidebar-el {
+  width: var(--ad-sidebar-width);
+}
 .admindek.ad-collapsed .ad-sidebar-el {
   width: var(--ad-sidebar-collapsed-width);
 }
-.admindek.ad-collapsed .ad-nav-caption,
-.admindek.ad-collapsed .ad-nav-label,
-.admindek.ad-collapsed .ad-nav-chevron,
-.admindek.ad-collapsed .ad-nav-sub {
+.admindek .ad-content {
+  margin-inline-start: var(--ad-content-offset);
+}
+.admindek.ad-collapsed .ad-sidebar-el .ad-nav-caption,
+.admindek.ad-collapsed .ad-sidebar-el .ad-nav-label,
+.admindek.ad-collapsed .ad-sidebar-el .ad-nav-chevron,
+.admindek.ad-collapsed .ad-sidebar-el .ad-nav-sub {
   display: none;
 }
-.admindek.ad-collapsed .ad-nav-link {
+.admindek.ad-collapsed .ad-sidebar-el .ad-nav-link {
   justify-content: center;
   padding-inline: 0;
 }
 .admindek.ad-collapsed .ad-content {
-  margin-inline-start: var(--ad-sidebar-collapsed-width);
+  margin-inline-start: var(--ad-content-offset-collapsed);
 }
 
 @media (max-width: 1023px) {
@@ -463,7 +642,9 @@
   }
 }
 
-/* Reduced motion */
+/* Reduced motion. The skeleton keeps its box and its tone and simply stops
+   sweeping — a still placeholder is the point; the shimmer was only ever a hint
+   that the wait is still going. */
 @media (prefers-reduced-motion: reduce) {
   .admindek *,
   .admindek *::before,
@@ -471,5 +652,8 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .admindek .ad-skel::after {
+    display: none;
   }
 }

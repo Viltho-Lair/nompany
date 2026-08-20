@@ -12,7 +12,7 @@ export default function Page() {
       primaryAction={null}
       extra={
         <p className="text-sm text-[var(--ad-muted-foreground)]">
-          Estimated completion: <span className="font-medium text-[var(--ad-foreground)]">01:30 UTC</span>
+          Estimated completion: <span className="font-500 text-[var(--ad-foreground)]">01:30 UTC</span>
         </p>
       }
     />

@@ -1,4 +1,4 @@
-import { PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, Table, Icon } from "../../../_components/ui";
+import { PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, Table, Icon, Num, toneBg, toneInk } from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
 import { CURRENT_USER, SUPER_ADMINS } from "../../../_components/session";
 
@@ -30,14 +30,14 @@ export default function ProfileSettingsPage() {
       <Card className="mb-6">
         <CardBody full className="flex flex-wrap items-center gap-5">
           <span
-            className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white"
-            style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, #fff), var(--ad-primary))" }}
+            className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-xl font-700 text-white"
+            style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, var(--ad-primary-foreground)), var(--ad-primary))" }}
           >
             {CURRENT_USER.initials}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="text-xl font-semibold">{CURRENT_USER.name}</h2>
+              <h2 className="text-xl font-600">{CURRENT_USER.name}</h2>
               <Badge tone="danger">{CURRENT_USER.role}</Badge>
             </div>
             <p className="mt-1 text-sm text-[var(--ad-muted-foreground)]">{CURRENT_USER.email}</p>
@@ -55,10 +55,10 @@ export default function ProfileSettingsPage() {
             <button
               key={t}
               type="button"
-              className="rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+              className="rounded-md px-3 py-1.5 text-xs font-500 transition-colors"
               style={
                 i === 0
-                  ? { backgroundColor: "rgba(70,128,255,.12)", color: "var(--ad-primary)" }
+                  ? { backgroundColor: toneBg("primary", 0.12), color: toneInk("primary") }
                   : { color: "var(--ad-muted-foreground)" }
               }
             >
@@ -140,7 +140,7 @@ export default function ProfileSettingsPage() {
                     <li key={email} className="flex items-center gap-3">
                       <Avatar name={CURRENT_USER.name} size={34} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{CURRENT_USER.name}</span>
+                        <span className="block truncate text-sm font-500">{CURRENT_USER.name}</span>
                         <span className="block truncate text-xs text-[var(--ad-muted-foreground)]">{email}</span>
                       </span>
                       <Badge tone="danger">Owner</Badge>
@@ -163,7 +163,7 @@ export default function ProfileSettingsPage() {
                 ].map((s) => (
                   <div key={s.label} className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{s.label}</p>
+                      <p className="truncate text-sm font-500">{s.label}</p>
                       <p className="text-xs text-[var(--ad-muted-foreground)]">{s.state}</p>
                     </div>
                     <Badge tone={s.tone}>Manage</Badge>
@@ -185,13 +185,13 @@ export default function ProfileSettingsPage() {
                   <td>
                     <span className="inline-flex items-center gap-2.5">
                       <Icon name="monitor" className="h-4 w-4 text-[var(--ad-muted-foreground)]" />
-                      <span className="font-medium">{s.device}</span>
+                      <span className="font-500">{s.device}</span>
                       {s.current ? <Badge tone="success">This device</Badge> : null}
                     </span>
                   </td>
                   <td className="whitespace-nowrap text-[var(--ad-muted-foreground)]">{s.where}</td>
-                  <td className="whitespace-nowrap font-mono text-xs text-[var(--ad-muted-foreground)]">{s.ip}</td>
-                  <td className="whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{s.last}</td>
+                  <td className="ad-num whitespace-nowrap text-xs text-[var(--ad-muted-foreground)]">{s.ip}</td>
+                  <td className="ad-num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{s.last}</td>
                 </tr>
               ))}
             </Table>
@@ -212,8 +212,8 @@ export default function ProfileSettingsPage() {
                       <Icon name="key" className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{k.label}</p>
-                      <p className="truncate font-mono text-xs text-[var(--ad-muted-foreground)]">{k.prefix}</p>
+                      <p className="truncate text-sm font-500">{k.label}</p>
+                      <Num as="p" className="truncate text-xs text-[var(--ad-muted-foreground)]">{k.prefix}</Num>
                       <p className="text-[11px] text-[var(--ad-muted-foreground)]">Created {k.created} · used {k.last}</p>
                     </div>
                     <button type="button" className="ad-icon-btn h-8 w-8 shrink-0" aria-label={`Revoke ${k.label}`}>
@@ -242,7 +242,7 @@ export default function ProfileSettingsPage() {
                 style={{ borderColor: "var(--ad-border)" }}
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">{d.title}</p>
+                  <p className="text-sm font-500">{d.title}</p>
                   <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{d.body}</p>
                 </div>
                 <button type="button" className="ad-btn ad-btn-destructive ad-btn-sm shrink-0">{d.cta}</button>

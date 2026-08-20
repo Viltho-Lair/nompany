@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./Icon";
 import { FLAT, BASE } from "./nav";
 import { CURRENT_USER, ROLE } from "./session";
+import { toneBg, toneFg, toneInk } from "./ui";
 import { initialsOf } from "@/lib/initials";
 import useSuperNotifications from "@/components/super/useSuperNotifications";
 import { ago } from "@/lib/format";
@@ -100,7 +101,7 @@ function Menu({ trigger, children, align = "end", width = 288, label }) {
         <div
           role="menu"
           className={`absolute top-[calc(100%+8px)] z-50 overflow-hidden rounded-lg border shadow-lg ${
-            align === "end" ? "ltr:right-0 rtl:left-0" : "ltr:left-0 rtl:right-0"
+            align === "end" ? "end-0" : "start-0"
           }`}
           style={{
             width,
@@ -210,18 +211,13 @@ function CommandPalette({ open, onClose }) {
 // g:superNotifications over the console's live connection; see
 // useSuperNotifications.
 
-const TONE_BG = {
-  primary: "rgba(70,128,255,.14)",
-  success: "rgba(44,168,127,.16)",
-  warning: "rgba(229,138,0,.16)",
-  info: "rgba(4,169,245,.16)",
-};
-const TONE_FG = {
-  primary: "var(--ad-primary)",
-  success: "var(--ad-success)",
-  warning: "var(--ad-warning)",
-  info: "var(--ad-info)",
-};
+// The tone table, built from the console's ONE tone helper rather than being a
+// ninth copy of the same hand-mixed rgba() values. See toneBg/toneFg in
+// _components/ui: the tint composes from the semantic token, so it follows the
+// design system and the theme instead of freezing the template's palette.
+const TONE_NAMES = ["primary", "success", "warning", "info", "danger"];
+const TONE_FG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneInk(t)]));
+const TONE_BG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneBg(t)]));
 
 /* ---- header -------------------------------------------------------------- */
 
@@ -294,7 +290,7 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
           >
             <Icon name="search" className="h-[18px] w-[18px]" />
             <kbd
-              className="hidden rounded border px-1.5 py-0.5 text-[10px] font-medium md:inline"
+              className="hidden rounded border px-1.5 py-0.5 text-[10px] font-500 md:inline"
               style={{ borderColor: "var(--ad-border)", backgroundColor: "var(--ad-background)" }}
             >
               ⌘K
@@ -313,7 +309,7 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
               </span>
             }
           >
-            <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--ad-muted-foreground)]">
+            <div className="px-4 pb-1 pt-3 text-[11px] font-600 uppercase tracking-wider text-[var(--ad-muted-foreground)]">
               Theme
             </div>
             {MODES.map((m) => (
@@ -342,7 +338,7 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
                 <Icon name="bell" className="h-[18px] w-[18px]" />
                 {unread ? (
                   <span
-                    className="absolute -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold ltr:-right-0.5 rtl:-left-0.5"
+                    className="absolute -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-700 -end-0.5"
                     style={{ backgroundColor: "var(--ad-success)", color: "var(--ad-success-foreground)" }}
                   >
                     {unread > 99 ? "99+" : unread}
@@ -353,7 +349,7 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
                     letting the page look merely quiet. */}
                 {status === "offline" ? (
                   <span
-                    className="absolute bottom-0 h-2.5 w-2.5 rounded-full ltr:right-0 rtl:left-0"
+                    className="absolute bottom-0 h-2.5 w-2.5 rounded-full end-0"
                     style={{ backgroundColor: "var(--ad-warning)" }}
                     title="Not receiving live updates — reconnecting"
                   />
@@ -365,7 +361,7 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
               className="flex items-center justify-between border-b px-4 py-3"
               style={{ borderColor: "var(--ad-border)" }}
             >
-              <span className="text-sm font-semibold">Notifications</span>
+              <span className="text-sm font-600">Notifications</span>
               {unread ? (
                 <button
                   type="button"
@@ -406,7 +402,7 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
                         <Icon name="bell" className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium">{n.title}</span>
+                        <span className="block text-sm font-500">{n.title}</span>
                         {n.body ? (
                           <span className="mt-0.5 block text-xs text-[var(--ad-muted-foreground)]">{n.body}</span>
                         ) : null}
@@ -422,7 +418,7 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
             </ul>
             <Link
               href={`${BASE}/application/notifications`}
-              className="block border-t px-4 py-3 text-center text-sm font-medium text-[var(--ad-primary)]"
+              className="block border-t px-4 py-3 text-center text-sm font-500 text-[var(--ad-primary)]"
               style={{ borderColor: "var(--ad-border)" }}
             >
               View all notifications
@@ -435,8 +431,8 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
             width={272}
             trigger={
               <span
-                className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold text-white transition-shadow"
-                style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, #fff), var(--ad-primary))" }}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-700 text-white transition-shadow"
+                style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, var(--ad-primary-foreground)), var(--ad-primary))" }}
               >
                 {user.initials}
               </span>
@@ -445,19 +441,19 @@ export default function Header({ admin, collapsed, onToggleCollapse, onOpenMobil
             <div className="border-b px-4 py-4" style={{ borderColor: "var(--ad-border)" }}>
               <div className="flex items-center gap-3">
                 <span
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold text-white"
-                  style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, #fff), var(--ad-primary))" }}
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-xs font-700 text-white"
+                  style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, var(--ad-primary-foreground)), var(--ad-primary))" }}
                 >
                   {user.initials}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{user.name}</p>
+                  <p className="truncate text-sm font-600">{user.name}</p>
                   <p className="truncate text-xs text-[var(--ad-muted-foreground)]">{user.email}</p>
                 </div>
               </div>
               <span
                 className="ad-badge mt-3"
-                style={{ backgroundColor: "rgba(70,128,255,.12)", color: "var(--ad-primary)" }}
+                style={{ backgroundColor: toneBg("primary", 0.12), color: toneInk("primary") }}
               >
                 {user.role}
               </span>

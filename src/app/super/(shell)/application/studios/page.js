@@ -92,9 +92,9 @@ export default async function StudiosPage() {
                 <tr><td colSpan={3} className="text-[var(--ad-muted-foreground)]">No studios yet.</td></tr>
               ) : byPackage.map((r) => (
                 <tr key={r.label}>
-                  <td className="font-medium">{r.label}</td>
+                  <td className="font-500">{r.label}</td>
                   <td className="text-[var(--ad-muted-foreground)]">{r.studios.toLocaleString()}</td>
-                  <td className="text-end font-medium">{r.members.toLocaleString()}</td>
+                  <td className="text-end font-500">{r.members.toLocaleString()}</td>
                 </tr>
               ))}
             </Table>
@@ -112,17 +112,17 @@ export default async function StudiosPage() {
                 <tbody>
                   {byStatus.map((r) => (
                     <tr key={r.label}>
-                      <td className="font-medium capitalize">{r.label}</td>
+                      <td className="font-500 capitalize">{r.label}</td>
                       <td className="text-[var(--ad-muted-foreground)]">{r.studios.toLocaleString()}</td>
-                      <td className="text-end font-medium">{r.members.toLocaleString()}</td>
+                      <td className="text-end font-500">{r.members.toLocaleString()}</td>
                     </tr>
                   ))}
                   {/* The totals are summed from the same rows above them, so the
                       footer can never disagree with the body. */}
                   <tr style={{ backgroundColor: "var(--ad-muted)" }}>
-                    <td className="font-semibold">Total</td>
-                    <td className="font-semibold">{rows.length.toLocaleString()}</td>
-                    <td className="text-end font-semibold">{totalMembers.toLocaleString()}</td>
+                    <td className="font-600">Total</td>
+                    <td className="font-600">{rows.length.toLocaleString()}</td>
+                    <td className="text-end font-600">{totalMembers.toLocaleString()}</td>
                   </tr>
                 </tbody>
               </table>

@@ -87,7 +87,7 @@ function CurrencyPicker({ value, codes, exclude = [], onPick, compact = false, t
       >
         <span className="min-w-0">
           <span
-            className={`block font-semibold ${compact ? "text-sm" : "text-base"}`}
+            className={`block font-600 ${compact ? "text-sm" : "text-base"}`}
             style={tint ? { color: tint } : undefined}
           >
             {meta.code}
@@ -136,7 +136,7 @@ function CurrencyPicker({ value, codes, exclude = [], onPick, compact = false, t
                     onClick={() => choose(c.code)}
                     className="flex w-full items-center gap-3 px-3 py-2 text-start text-sm transition-colors hover:bg-[var(--ad-accent)]"
                   >
-                    <span className="w-10 shrink-0 font-semibold">{c.code}</span>
+                    <span className="w-10 shrink-0 font-600">{c.code}</span>
                     <span className="min-w-0 flex-1 truncate text-[var(--ad-muted-foreground)]">{c.name}</span>
                     {c.code === value ? (
                       <Icon name="check" className="h-3.5 w-3.5 shrink-0 text-[var(--ad-primary)]" />
@@ -163,9 +163,9 @@ function RateTile({ base, code, rate, codes, exclude, color, onPick }) {
     >
       <CurrencyPicker value={code} codes={codes} exclude={exclude} onPick={onPick} compact tint={color} />
 
-      <p className="mt-3 flex items-baseline gap-1.5 text-2xl font-semibold leading-tight">
+      <p className="mt-3 flex items-baseline gap-1.5 text-2xl font-600 leading-tight">
         <span>{fmtRate(rate)}</span>
-        <span className="text-sm font-medium text-[var(--ad-muted-foreground)]">
+        <span className="text-sm font-500 text-[var(--ad-muted-foreground)]">
           <CurrencySymbol code={code} />
         </span>
       </p>
@@ -291,7 +291,7 @@ export default function CurrencyRates() {
             </label>
             <CurrencyPicker value={base} codes={codes} exclude={targets} onPick={pickBase} />
             <p className="mt-3 text-xs text-[var(--ad-muted-foreground)]">
-              Showing what <span className="font-medium text-[var(--ad-foreground)]">1 {baseMeta.code}</span> buys
+              Showing what <span className="font-500 text-[var(--ad-foreground)]">1 {baseMeta.code}</span> buys
               {baseMeta.country ? ` — ${baseMeta.country}` : ""}.
             </p>
           </div>

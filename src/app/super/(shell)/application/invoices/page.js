@@ -55,10 +55,10 @@ export default function InvoicesPage() {
             <Table head={["Invoice", "Client", "Due", "Amount", { label: "Status", align: "end" }]}>
               {INVOICES.map((v) => (
                 <tr key={v.id}>
-                  <td className="whitespace-nowrap font-medium text-[var(--ad-primary)]">{v.id}</td>
+                  <td className="whitespace-nowrap font-500 text-[var(--ad-primary)]">{v.id}</td>
                   <td className="whitespace-nowrap">{v.client}</td>
                   <td className="whitespace-nowrap text-[var(--ad-muted-foreground)]">{v.due}</td>
-                  <td className="whitespace-nowrap font-medium">{v.amount}</td>
+                  <td className="whitespace-nowrap font-500">{v.amount}</td>
                   <td className="text-end"><Badge tone={v.tone}>{v.status}</Badge></td>
                 </tr>
               ))}
@@ -82,14 +82,14 @@ export default function InvoicesPage() {
               <div className="mb-6 grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-xs uppercase tracking-wider text-[var(--ad-muted-foreground)]">Billed to</p>
-                  <p className="mt-1.5 font-medium">Falcon Contracting Co.</p>
+                  <p className="mt-1.5 font-500">Falcon Contracting Co.</p>
                   <p className="text-[var(--ad-muted-foreground)]">King Fahd Rd, Riyadh 12271</p>
                   <p className="text-[var(--ad-muted-foreground)]">VAT 3102847719300003</p>
                 </div>
                 <div className="text-end">
                   <p className="text-xs uppercase tracking-wider text-[var(--ad-muted-foreground)]">Details</p>
-                  <p className="mt-1.5">Issued <span className="font-medium">Mar 05, 2026</span></p>
-                  <p>Due <span className="font-medium">Apr 04, 2026</span></p>
+                  <p className="mt-1.5">Issued <span className="font-500">Mar 05, 2026</span></p>
+                  <p>Due <span className="font-500">Apr 04, 2026</span></p>
                   <div className="mt-2 flex justify-end"><Badge tone="success">Paid</Badge></div>
                 </div>
               </div>
@@ -107,11 +107,11 @@ export default function InvoicesPage() {
                     {LINES.map((l) => (
                       <tr key={l.desc}>
                         <td>
-                          <p className="font-medium">{l.desc}</p>
+                          <p className="font-500">{l.desc}</p>
                           <p className="text-xs text-[var(--ad-muted-foreground)]">{l.rate} each</p>
                         </td>
                         <td>{l.qty}</td>
-                        <td className="whitespace-nowrap text-end font-medium">{l.total}</td>
+                        <td className="whitespace-nowrap text-end font-500">{l.total}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -127,7 +127,7 @@ export default function InvoicesPage() {
                   <dt className="text-[var(--ad-muted-foreground)]">VAT (15%)</dt>
                   <dd>$6,360.00</dd>
                 </div>
-                <div className="flex justify-between border-t pt-2.5 text-base font-semibold" style={{ borderColor: "var(--ad-border)" }}>
+                <div className="flex justify-between border-t pt-2.5 text-base font-600" style={{ borderColor: "var(--ad-border)" }}>
                   <dt>Total</dt>
                   <dd>$48,760.00</dd>
                 </div>

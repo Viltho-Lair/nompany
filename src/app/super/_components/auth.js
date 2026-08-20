@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import Icon from "./Icon";
+import { toneBg, toneInk } from "./ui";
 import { BASE } from "./nav";
 
 // The two authentication layouts from the reference console.
@@ -20,12 +21,12 @@ export function Logo({ invert = false }) {
   return (
     <span className="inline-flex items-center gap-2.5">
       <span
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-bold text-white"
-        style={{ backgroundColor: invert ? "rgba(255,255,255,.18)" : "var(--ad-primary)" }}
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-700 text-white"
+        style={{ backgroundColor: invert ? "rgb(var(--ad-primary-foreground-rgb) / 0.18)" : "var(--ad-primary)" }}
       >
         n
       </span>
-      <span className="text-lg font-semibold" style={invert ? { color: "#fff" } : undefined}>
+      <span className="text-lg font-600" style={invert ? { color: "var(--ad-primary-foreground)" } : undefined}>
         nompany
       </span>
     </span>
@@ -53,10 +54,10 @@ const FEATURES = [
 function Blobs() {
   return (
     <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-      <span className="absolute left-[10%] top-[15%] h-[300px] w-[300px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05]" />
-      <span className="absolute right-[15%] top-[30%] h-[150px] w-[150px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.1] [animation-delay:1s]" />
-      <span className="absolute bottom-[20%] left-[20%] h-[200px] w-[200px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.08] [animation-delay:2s]" />
-      <span className="absolute bottom-[10%] right-[10%] h-[250px] w-[250px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05] [animation-delay:0.5s]" />
+      <span className="absolute start-[10%] top-[15%] h-[300px] w-[300px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05]" />
+      <span className="absolute end-[15%] top-[30%] h-[150px] w-[150px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.1] [animation-delay:1s]" />
+      <span className="absolute bottom-[20%] start-[20%] h-[200px] w-[200px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.08] [animation-delay:2s]" />
+      <span className="absolute bottom-[10%] end-[10%] h-[250px] w-[250px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05] [animation-delay:0.5s]" />
     </div>
   );
 }
@@ -73,7 +74,7 @@ export function AuthShell({ variant = "v1", title, sub, children, footer, width 
             <Logo />
           </div>
         ) : null}
-        <h4 className="mb-1 text-center text-xl font-medium">{title}</h4>
+        <h4 className="mb-1 text-center text-xl font-500">{title}</h4>
         {sub ? <p className="mb-6 text-center text-sm text-[var(--ad-muted-foreground)]">{sub}</p> : null}
         {children}
       </div>
@@ -88,18 +89,18 @@ export function AuthShell({ variant = "v1", title, sub, children, footer, width 
           className="relative flex h-[60px] w-full shrink-0 items-center justify-center overflow-hidden lg:h-auto lg:w-[40%] lg:items-start lg:justify-start lg:px-12 lg:py-16"
           style={{
             backgroundImage:
-              "linear-gradient(135deg, var(--ad-primary), color-mix(in srgb, var(--ad-primary) 85%, #000) 55%, color-mix(in srgb, var(--ad-primary) 65%, #000))",
+              "linear-gradient(135deg, var(--ad-primary), color-mix(in srgb, var(--ad-primary) 85%, var(--ad-foreground)) 55%, color-mix(in srgb, var(--ad-primary) 65%, var(--ad-foreground)))",
           }}
         >
           <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            <span className="absolute left-[-10%] top-[-10%] h-[300px] w-[300px] rounded-full bg-white/5" />
-            <span className="absolute bottom-[-5%] right-[-5%] h-[250px] w-[250px] rounded-full bg-white/5" />
+            <span className="absolute start-[-10%] top-[-10%] h-[300px] w-[300px] rounded-full bg-white/5" />
+            <span className="absolute bottom-[-5%] end-[-5%] h-[250px] w-[250px] rounded-full bg-white/5" />
           </div>
           <div className="relative z-10 flex lg:block">
             <Logo invert />
           </div>
           <div className="relative z-10 mt-12 hidden lg:block">
-            <h2 className="text-3xl font-bold text-white">Your all-in-one platform console</h2>
+            <h2 className="text-3xl font-700 text-white">Your all-in-one platform console</h2>
             <p className="mt-3 text-base text-white/70">
               Manage every studio, subscription and setting with clarity, speed and confidence.
             </p>
@@ -110,7 +111,7 @@ export function AuthShell({ variant = "v1", title, sub, children, footer, width 
                     <Icon name={f.icon} className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="font-semibold text-white">{f.title}</p>
+                    <p className="font-600 text-white">{f.title}</p>
                     <p className="mt-0.5 text-sm text-white/70">{f.body}</p>
                   </div>
                 </li>
@@ -120,8 +121,8 @@ export function AuthShell({ variant = "v1", title, sub, children, footer, width 
         </div>
         <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 lg:px-12">
           <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            <span className="absolute right-[10%] top-[10%] h-[200px] w-[200px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05]" />
-            <span className="absolute bottom-[15%] left-[5%] h-[150px] w-[150px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05] [animation-delay:1s]" />
+            <span className="absolute end-[10%] top-[10%] h-[200px] w-[200px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05]" />
+            <span className="absolute bottom-[15%] start-[5%] h-[150px] w-[150px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05] [animation-delay:1s]" />
           </div>
           {card}
         </div>
@@ -172,7 +173,7 @@ export function PasswordInput({ defaultValue = "", placeholder = "••••�
         type="button"
         onClick={() => setShow((s) => !s)}
         aria-label={show ? "Hide password" : "Show password"}
-        className="absolute top-1/2 -translate-y-1/2 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)] ltr:right-3 rtl:left-3"
+        className="absolute top-1/2 -translate-y-1/2 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)] end-3"
       >
         <Icon name={show ? "eyeOff" : "eye"} className="h-4 w-4" />
       </button>
@@ -209,8 +210,8 @@ export function SocialRow() {
 export function AuthFooterLinks({ prompt, linkLabel, href }) {
   return (
     <div className="mt-6 flex items-center justify-between">
-      <p className="text-sm font-medium">{prompt}</p>
-      <Link href={href} className="text-sm font-medium text-[var(--ad-primary)] hover:underline">
+      <p className="text-sm font-500">{prompt}</p>
+      <Link href={href} className="text-sm font-500 text-[var(--ad-primary)] hover:underline">
         {linkLabel}
       </Link>
     </div>
@@ -230,7 +231,7 @@ export function LoginScreen({ variant = "v1", email = "" }) {
           <Field
             label="Password"
             action={
-              <Link href={`${BASE}/${variant}/forgot-password`} className="text-sm font-medium text-[var(--ad-primary)] hover:underline">
+              <Link href={`${BASE}/${variant}/forgot-password`} className="text-sm font-500 text-[var(--ad-primary)] hover:underline">
                 Forgot Password?
               </Link>
             }
@@ -353,7 +354,7 @@ export function OtpScreen({ variant = "v1", title, sub, cta, length = 6 }) {
                 inputMode="numeric"
                 maxLength={1}
                 aria-label={`Digit ${i + 1}`}
-                className="ad-input h-12 w-11 text-center text-lg font-semibold"
+                className="ad-input h-12 w-11 text-center text-lg font-600"
               />
             ))}
           </div>
@@ -361,7 +362,7 @@ export function OtpScreen({ variant = "v1", title, sub, cta, length = 6 }) {
             {cta}
           </button>
           <p className="text-center text-sm text-[var(--ad-muted-foreground)]">
-            Didn't receive a code? <span className="font-medium text-[var(--ad-primary)]">Resend</span>
+            Didn't receive a code? <span className="font-500 text-[var(--ad-primary)]">Resend</span>
           </p>
         </div>
       </form>
@@ -374,12 +375,12 @@ export function LockScreen({ variant = "v1", user }) {
     <AuthShell variant={variant} title="Screen Locked" sub="Enter your password to continue.">
       <div className="mb-6 flex flex-col items-center">
         <span
-          className="flex h-16 w-16 items-center justify-center rounded-full text-lg font-bold text-white"
-          style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, #fff), var(--ad-primary))" }}
+          className="flex h-16 w-16 items-center justify-center rounded-full text-lg font-700 text-white"
+          style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--ad-primary) 80%, var(--ad-primary-foreground)), var(--ad-primary))" }}
         >
           {user.initials}
         </span>
-        <p className="mt-3 text-sm font-semibold">{user.name}</p>
+        <p className="mt-3 text-sm font-600">{user.name}</p>
         <p className="text-xs text-[var(--ad-muted-foreground)]">{user.email}</p>
       </div>
       <form onSubmit={(e) => e.preventDefault()}>
@@ -399,10 +400,10 @@ export function LockScreen({ variant = "v1", user }) {
 
 export function NoticeScreen({ variant = "v1", icon, tone = "primary", title, sub, cta, ctaHref, secondary }) {
   const tones = {
-    primary: { bg: "rgba(70,128,255,.12)", fg: "var(--ad-primary)" },
-    success: { bg: "rgba(44,168,127,.14)", fg: "var(--ad-success)" },
-    warning: { bg: "rgba(229,138,0,.14)", fg: "var(--ad-warning)" },
-    danger: { bg: "rgba(220,38,38,.14)", fg: "var(--ad-destructive)" },
+    primary: { bg: toneBg("primary", 0.12), fg: toneInk("primary") },
+    success: { bg: toneBg("success"), fg: toneInk("success") },
+    warning: { bg: toneBg("warning"), fg: toneInk("warning") },
+    danger: { bg: toneBg("danger"), fg: toneInk("danger") },
   };
   const t = tones[tone];
   return (

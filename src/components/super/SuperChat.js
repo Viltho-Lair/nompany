@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Card, Avatar, Badge, Icon } from "@/app/super/_components/ui";
+import { Card, Avatar, Badge, Icon, Num, toneBg } from "@/app/super/_components/ui";
 import { downloadTranscript } from "@/lib/chatTranscript";
 import {
   ROOM_POLL_MS, QUEUE_POLL_MS, NOMPANY, SUPPORT_LABEL, ENDED, GONE, fmtTime,
@@ -31,6 +31,11 @@ const EMPTY = { waiting: [], mine: [], taken: [] };
 
 export default function SuperChat() {
   const [lists, setLists] = useState(EMPTY);
+  // EMPTY and "not asked yet" are not the same answer, and this component was
+  // giving the first when it meant the second: on mount the queue rendered
+  // "No one is waiting." before the first fetch had returned, which is the one
+  // sentence an admin most needs to be able to trust.
+  const [loaded, setLoaded] = useState(false);
   const [activeId, setActiveId] = useState("");
   const [room, setRoom] = useState(null);
   const [draft, setDraft] = useState("");
@@ -43,6 +48,7 @@ export default function SuperChat() {
       const res = await fetch("/api/super/chat/rooms", { cache: "no-store" });
       if (res.ok) setLists(await res.json());
     } catch { /* a queue poll that missed is not worth a message */ }
+    finally { setLoaded(true); }
   }, []);
 
   const loadRoom = useCallback(async (id) => {
@@ -172,6 +178,7 @@ export default function SuperChat() {
         {/* the queue */}
         <div className="hidden w-[320px] shrink-0 flex-col border-e md:flex" style={{ borderColor: "var(--ad-border)" }}>
           <div className="ad-scrollarea flex-1">
+            {!loaded ? <QueueSkeleton /> : <>
             <Section
               label="Waiting"
               count={lists.waiting.length}
@@ -196,6 +203,7 @@ export default function SuperChat() {
                 ))}
               </Section>
             )}
+            </>}
           </div>
         </div>
 
@@ -206,7 +214,7 @@ export default function SuperChat() {
               <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--ad-muted)] text-[var(--ad-muted-foreground)]">
                 <Icon name="chat" className="h-6 w-6" />
               </span>
-              <h6 className="text-base font-semibold">
+              <h6 className="text-base font-600">
                 {lists.waiting.length > 0 ? "Someone is waiting" : "No chat open"}
               </h6>
               <p className="mt-1 max-w-sm text-sm text-[var(--ad-muted-foreground)]">
@@ -223,13 +231,13 @@ export default function SuperChat() {
               <div className="flex items-center gap-3 border-b px-5 py-4" style={{ borderColor: "var(--ad-border)" }}>
                 <Avatar name={room.studioName || "Studio"} size={40} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">
+                  <p className="truncate text-sm font-600">
                     {room.studioName}
-                    <span className="ms-2 font-normal text-[var(--ad-muted-foreground)]">{room.userName}</span>
+                    <span className="ms-2 font-400 text-[var(--ad-muted-foreground)]">{room.userName}</span>
                   </p>
                   <p className="truncate text-xs text-[var(--ad-muted-foreground)]">
                     {room.studioSlug ? `nompany.com/${room.studioSlug} · ` : ""}
-                    <span className="font-mono">{room.id}</span>
+                    <Num>{room.id}</Num>
                   </p>
                 </div>
                 <button
@@ -330,11 +338,41 @@ export default function SuperChat() {
 
 /* ---- queue pieces --------------------------------------------------------- */
 
+// The queue, before the first fetch answers. Two section headers and four rows
+// at the same 40px-avatar, three-line height as WaitingRow and OpenRow, so the
+// real queue lands in the same places these bars occupy.
+function QueueSkeleton({ rows = 4 }) {
+  return (
+    <div role="status" aria-busy="true" aria-label="Loading the chat queue">
+      <span className="sr-only">Loading the chat queue…</span>
+      {[0, 1].map((section) => (
+        <div key={section} className="border-b" style={{ borderColor: "var(--ad-border)" }}>
+          <div className="flex items-center gap-2 px-4 py-2.5">
+            <span className="ad-skel ad-skel-text block h-2 w-20" />
+          </div>
+          <ul>
+            {Array.from({ length: rows / 2 }, (_, i) => (
+              <li key={i} className="flex items-start gap-3 px-4 py-3.5">
+                <span className="ad-skel ad-skel-circle block h-10 w-10 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="ad-skel ad-skel-text block h-3 w-32" />
+                  <span className="ad-skel ad-skel-text mt-1.5 block h-2.5 w-24 opacity-70" />
+                  <span className="ad-skel ad-skel-text mt-1.5 block h-2 w-28 opacity-70" />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Section({ label, count = 0, tone = "muted", empty, children }) {
   return (
     <div className="border-b" style={{ borderColor: "var(--ad-border)" }}>
       <div className="flex items-center gap-2 px-4 py-2.5">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ad-muted-foreground)]">{label}</span>
+        <span className="text-xs font-600 uppercase tracking-wider text-[var(--ad-muted-foreground)]">{label}</span>
         {count > 0 ? <Badge tone={tone} solid={tone !== "muted"}>{count}</Badge> : null}
       </div>
       {count === 0 && empty ? (
@@ -351,14 +389,14 @@ function Section({ label, count = 0, tone = "muted", empty, children }) {
 function WaitingRow({ row, onAccept }) {
   return (
     <li
-      className="flex items-start gap-3 px-4 py-3.5 ltr:border-l-2 rtl:border-r-2"
-      style={{ backgroundColor: "rgba(70,128,255,.07)", borderColor: "var(--ad-primary)" }}
+      className="flex items-start gap-3 px-4 py-3.5 border-s-2"
+      style={{ backgroundColor: toneBg("primary", 0.07), borderColor: "var(--ad-primary)" }}
     >
       <Avatar name={row.studioName || "Studio"} size={40} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">{row.studioName}</p>
+        <p className="truncate text-sm font-600">{row.studioName}</p>
         <p className="truncate text-xs text-[var(--ad-muted-foreground)]">{row.userName}</p>
-        <p className="mt-0.5 truncate font-mono text-[10px] text-[var(--ad-muted-foreground)]">{row.id}</p>
+        <Num as="p" className="mt-0.5 truncate text-[10px] text-[var(--ad-muted-foreground)]">{row.id}</Num>
         <button type="button" onClick={onAccept} className="ad-btn ad-btn-primary ad-btn-sm mt-2">
           <Icon name="check" className="h-3.5 w-3.5" />
           Accept
@@ -380,7 +418,7 @@ function OpenRow({ row, active, onOpen }) {
         <Avatar name={row.studioName || "Studio"} size={40} />
         <span className="min-w-0 flex-1">
           <span className="flex items-center justify-between gap-2">
-            <span className="truncate text-sm font-medium">{row.studioName}</span>
+            <span className="truncate text-sm font-500">{row.studioName}</span>
             <span className="shrink-0 text-[11px] text-[var(--ad-muted-foreground)]">{fmtTime(row.lastAt)}</span>
           </span>
           <span className="mt-0.5 block truncate text-xs text-[var(--ad-muted-foreground)]">
@@ -397,7 +435,7 @@ function TakenRow({ row }) {
     <li className="flex items-center gap-3 px-4 py-3 opacity-60">
       <Avatar name={row.studioName || "Studio"} size={32} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{row.studioName}</span>
+        <span className="block truncate text-sm font-500">{row.studioName}</span>
         <span className="block truncate text-xs text-[var(--ad-muted-foreground)]">
           with {row.adminLabel || "another admin"}
         </span>

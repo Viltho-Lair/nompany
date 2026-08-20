@@ -13,7 +13,7 @@ export default function Page() {
       sub="This account has been suspended. Contact platform support to restore access."
       cta="Contact Support"
       ctaHref={`${BASE}/docs`}
-      secondary={<>Reference ID: <span className="font-medium">ACC-4471-QX</span></>}
+      secondary={<>Reference ID: <span className="font-500">ACC-4471-QX</span></>}
     />
   );
 }

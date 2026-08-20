@@ -152,7 +152,7 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
                     // Shown, never typed. The value is worked out from other
                     // fields, so an input here would invite somebody to enter a
                     // total that disagrees with the rate it comes from.
-                    <p className="rounded-md border border-dashed px-3 py-2 text-sm font-medium"
+                    <p className="rounded-md border border-dashed px-3 py-2 text-sm font-500"
                       style={{ borderColor: "var(--ad-border)", color: "var(--ad-muted-foreground)" }}>
                       {f.prefix || ""}{computeField(f, draft).toLocaleString()}{f.suffix || ""}
                     </p>
@@ -259,10 +259,10 @@ function render(f, it, services) {
   if (f.type === "number") {
     // Some zeros are a quantity and some are a meaning — "0 mo" reads as a
     // mistake where "Endless" reads as a decision.
-    if (f.zeroLabel && Number(v || 0) === 0) return <span className="font-medium">{f.zeroLabel}</span>;
+    if (f.zeroLabel && Number(v || 0) === 0) return <span className="font-500">{f.zeroLabel}</span>;
     return <span>{f.prefix || ""}{Number(v || 0).toLocaleString()}{f.suffix || ""}</span>;
   }
-  return <span className="font-medium">{v || "—"}</span>;
+  return <span className="font-500">{v || "—"}</span>;
 }
 
 // A colour, chosen three ways: the system picker for anything, a hex box for
@@ -368,7 +368,7 @@ function CatalogSettings({ config, onClose }) {
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-[440px] rounded-lg p-6 shadow-xl"
         style={{ backgroundColor: "var(--ad-card)", color: "var(--ad-card-foreground)" }}>
-        <h3 className="text-base font-semibold">{config.title}</h3>
+        <h3 className="text-base font-600">{config.title}</h3>
         <p className="mt-1 text-sm text-[var(--ad-muted-foreground)]">{config.sub}</p>
 
         {value === null ? (

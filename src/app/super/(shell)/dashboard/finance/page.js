@@ -66,18 +66,18 @@ export default function FinanceDashboard() {
               <CardBody full>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{a.name}</p>
+                    <p className="truncate text-sm font-500">{a.name}</p>
                     <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{a.bank}</p>
                   </div>
                   <span
-                    className="inline-flex shrink-0 items-center gap-1 text-xs font-medium"
+                    className="inline-flex shrink-0 items-center gap-1 text-xs font-500"
                     style={{ color: a.delta >= 0 ? "var(--ad-success)" : "var(--ad-destructive)" }}
                   >
                     <Icon name={a.delta >= 0 ? "trendUp" : "trendDown"} className="h-3.5 w-3.5" />
                     {a.delta > 0 ? "+" : ""}{a.delta}%
                   </span>
                 </div>
-                <p className="mt-4 text-2xl font-semibold">{a.balance}</p>
+                <p className="mt-4 text-2xl font-600">{a.balance}</p>
                 <div className="mt-3">
                   <Sparkline data={a.spark} height={44} color={`var(--ad-chart-${i + 1})`} />
                 </div>
@@ -121,7 +121,7 @@ export default function FinanceDashboard() {
                 data={EXPENSES}
                 center={
                   <>
-                    <span className="text-lg font-semibold">$1.28M</span>
+                    <span className="text-lg font-600">$1.28M</span>
                     <span className="text-[11px] text-[var(--ad-muted-foreground)]">spent</span>
                   </>
                 }
@@ -133,7 +133,7 @@ export default function FinanceDashboard() {
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: `var(--ad-chart-${(i % 5) + 1})` }} />
                       <span className="truncate">{e.label}</span>
                     </span>
-                    <span className="shrink-0 font-medium">{e.amount}</span>
+                    <span className="shrink-0 font-500">{e.amount}</span>
                   </li>
                 ))}
               </ul>
@@ -149,10 +149,10 @@ export default function FinanceDashboard() {
             <Table head={["Invoice", "Client", "Amount", "Due", { label: "Status", align: "end" }]}>
               {INVOICES.map((v) => (
                 <tr key={v.id}>
-                  <td className="whitespace-nowrap font-medium text-[var(--ad-primary)]">{v.id}</td>
+                  <td className="ad-num whitespace-nowrap font-500 text-[var(--ad-primary)]">{v.id}</td>
                   <td className="whitespace-nowrap">{v.client}</td>
-                  <td className="whitespace-nowrap font-medium">{v.amount}</td>
-                  <td className="whitespace-nowrap text-[var(--ad-muted-foreground)]">{v.due}</td>
+                  <td className="ad-num whitespace-nowrap font-500">{v.amount}</td>
+                  <td className="ad-num whitespace-nowrap text-[var(--ad-muted-foreground)]">{v.due}</td>
                   <td className="text-end"><Badge tone={v.tone}>{v.status}</Badge></td>
                 </tr>
               ))}
@@ -167,11 +167,11 @@ export default function FinanceDashboard() {
                 {LEDGER.map((l) => (
                   <li key={l.desc} className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{l.desc}</p>
+                      <p className="truncate text-sm font-500">{l.desc}</p>
                       <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{l.cat} · {l.date}</p>
                     </div>
                     <span
-                      className="shrink-0 text-sm font-semibold"
+                      className="shrink-0 text-sm font-600"
                       style={{ color: l.tone === "success" ? "var(--ad-success)" : "var(--ad-destructive)" }}
                     >
                       {l.amount}
@@ -221,7 +221,7 @@ export default function FinanceDashboard() {
                   <div key={b.label}>
                     <div className="mb-1.5 flex items-center justify-between text-sm">
                       <span className="text-[var(--ad-muted-foreground)]">{b.label}</span>
-                      <span className="font-medium">{b.amount}</span>
+                      <span className="font-500">{b.amount}</span>
                     </div>
                     <Progress value={b.value} tone={b.tone} />
                   </div>

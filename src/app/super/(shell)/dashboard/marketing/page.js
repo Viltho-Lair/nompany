@@ -90,7 +90,7 @@ export default function MarketingDashboard() {
                 data={CHANNELS}
                 center={
                   <>
-                    <span className="text-lg font-semibold">548K</span>
+                    <span className="text-lg font-600">548K</span>
                     <span className="text-[11px] text-[var(--ad-muted-foreground)]">sessions</span>
                   </>
                 }
@@ -102,7 +102,7 @@ export default function MarketingDashboard() {
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: `var(--ad-chart-${(i % 5) + 1})` }} />
                       {c.label}
                     </span>
-                    <span className="font-medium">{c.value}%</span>
+                    <span className="font-500">{c.value}%</span>
                   </li>
                 ))}
               </ul>
@@ -118,12 +118,12 @@ export default function MarketingDashboard() {
             <Table head={["Campaign", "Channel", "Spend", "Leads", "CPL", "ROAS", { label: "Status", align: "end" }]}>
               {CAMPAIGNS.map((c) => (
                 <tr key={c.name}>
-                  <td className="whitespace-nowrap font-medium">{c.name}</td>
+                  <td className="whitespace-nowrap font-500">{c.name}</td>
                   <td className="whitespace-nowrap text-[var(--ad-muted-foreground)]">{c.channel}</td>
-                  <td className="whitespace-nowrap">{c.spend}</td>
-                  <td>{c.leads.toLocaleString()}</td>
-                  <td className="whitespace-nowrap">{c.cpl}</td>
-                  <td className="whitespace-nowrap font-medium text-[var(--ad-success)]">{c.roas}</td>
+                  <td className="ad-num whitespace-nowrap">{c.spend}</td>
+                  <td className="ad-num">{c.leads.toLocaleString()}</td>
+                  <td className="ad-num whitespace-nowrap">{c.cpl}</td>
+                  <td className="ad-num whitespace-nowrap font-500 text-[var(--ad-success)]">{c.roas}</td>
                   <td className="text-end"><Badge tone={c.tone}>{c.status}</Badge></td>
                 </tr>
               ))}
@@ -169,7 +169,7 @@ export default function MarketingDashboard() {
                   <div key={m.label}>
                     <div className="mb-1.5 flex items-center justify-between text-sm">
                       <span className="text-[var(--ad-muted-foreground)]">{m.label}</span>
-                      <span className="font-medium">{m.value}%</span>
+                      <span className="font-500">{m.value}%</span>
                     </div>
                     <Progress value={m.value} tone={m.tone} />
                   </div>

@@ -103,10 +103,10 @@ export default function SaasDashboard() {
             <Table head={["Studio", "Plan", "Seats", "MRR", "Renews", { label: "Status", align: "end" }]}>
               {SUBSCRIPTIONS.map((s) => (
                 <tr key={s.studio}>
-                  <td className="whitespace-nowrap font-medium">{s.studio}</td>
+                  <td className="whitespace-nowrap font-500">{s.studio}</td>
                   <td><Badge tone="primary">{s.plan}</Badge></td>
                   <td>{s.seats}</td>
-                  <td className="whitespace-nowrap font-medium">{s.mrr}</td>
+                  <td className="whitespace-nowrap font-500">{s.mrr}</td>
                   <td className="whitespace-nowrap text-[var(--ad-muted-foreground)]">{s.renews}</td>
                   <td className="text-end"><Badge tone={s.tone}>{s.status}</Badge></td>
                 </tr>
@@ -123,7 +123,7 @@ export default function SaasDashboard() {
                   <div key={f.label}>
                     <div className="mb-1.5 flex items-center justify-between text-sm">
                       <span>{f.label}</span>
-                      <span className="font-medium">{f.value}%</span>
+                      <span className="font-500">{f.value}%</span>
                     </div>
                     <Progress value={f.value} tone={f.value >= 70 ? "success" : f.value >= 40 ? "primary" : "warning"} />
                   </div>

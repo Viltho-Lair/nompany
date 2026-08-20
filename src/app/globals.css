@@ -667,6 +667,21 @@ html.studio-chrome ::-webkit-scrollbar-corner {
   --doc-border: 226 232 240;          /* steel-200 */
   --doc-input: 226 232 240;
   --doc-ring: 59 130 246;             /* brand-500 */
+
+  /* STATE COLOUR IS NOT BRAND ACCENT. A "Pending" pill is --doc-warning even
+     when warning and the accent happen to share a hue: the pill says the record
+     is waiting, and re-skinning the accent must never quietly restate it.
+
+     These three complete the semantic set -- destructive was already here --
+     and the values are the SAME ones tailwind.config.js has carried as literals
+     since the palette spec. Written as channel triples so `bg-warning/15` and
+     `rgb(var(--doc-warning) / .16)` both compile, which a hex cannot do. */
+  --doc-success: 5 150 105;           /* emerald-600 - Approved */
+  --doc-success-foreground: 255 255 255;
+  --doc-warning: 217 119 6;           /* amber-600  - Pending */
+  --doc-warning-foreground: 255 255 255;
+  --doc-info: 2 132 199;              /* sky-600    - In Progress */
+  --doc-info-foreground: 255 255 255;
 }
 
 .dark {
@@ -687,6 +702,15 @@ html.studio-chrome ::-webkit-scrollbar-corner {
   --doc-border: 51 65 85;
   --doc-input: 51 65 85;
   --doc-ring: 96 165 250;
+
+  /* Lifted one step on dark so 4.5:1 text contrast survives the darker surface;
+     the foregrounds invert to the page ink for solid fills. */
+  --doc-success: 16 185 129;          /* emerald-500 */
+  --doc-success-foreground: 15 23 42;
+  --doc-warning: 245 158 11;          /* amber-500 */
+  --doc-warning-foreground: 15 23 42;
+  --doc-info: 14 165 233;             /* sky-500 */
+  --doc-info-foreground: 15 23 42;
 }
 
 /* ============================================================================

@@ -12,7 +12,7 @@ import {
   KpiTile,
   Table,
   Icon,
-} from "../../../_components/ui";
+  toneBg, toneFg, toneInk,} from "../../../_components/ui";
 import { AreaChart, ChartFrame, BarList, Radial } from "../../../_components/charts";
 import { BASE } from "../../../_components/nav";
 import CurrencyRates from "./CurrencyRates";
@@ -88,20 +88,13 @@ const ACTIVITY = [
   { tone: "danger", icon: "wallet", title: "Payment failed", body: "Subscription renewal failed for user #8842", time: "5 hours ago" },
 ];
 
-const TONE_BG = {
-  primary: "rgba(70,128,255,.14)",
-  success: "rgba(44,168,127,.16)",
-  warning: "rgba(229,138,0,.16)",
-  info: "rgba(4,169,245,.16)",
-  danger: "rgba(220,38,38,.14)",
-};
-const TONE_FG = {
-  primary: "var(--ad-primary)",
-  success: "var(--ad-success)",
-  warning: "var(--ad-warning)",
-  info: "var(--ad-info)",
-  danger: "var(--ad-destructive)",
-};
+// The tone table, built from the console's ONE tone helper rather than being a
+// ninth copy of the same hand-mixed rgba() values. See toneBg/toneFg in
+// _components/ui: the tint composes from the semantic token, so it follows the
+// design system and the theme instead of freezing the template's palette.
+const TONE_NAMES = ["primary", "success", "warning", "info", "danger"];
+const TONE_FG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneInk(t)]));
+const TONE_BG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneBg(t)]));
 
 const TOP_REGIONS = [
   { name: "North America", amount: "$247,890", delta: 24.5 },
@@ -121,10 +114,10 @@ function CenterStat({ value, label, sub, tone = "primary" }) {
   return (
     <Card className="text-center">
       <CardBody full>
-        <p className="text-2xl font-semibold" style={{ color: TONE_FG[tone] }}>
+        <p className="text-2xl font-600" style={{ color: TONE_FG[tone] }}>
           {value}
         </p>
-        <p className="mt-1 text-sm font-medium">{label}</p>
+        <p className="mt-1 text-sm font-500">{label}</p>
         <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{sub}</p>
       </CardBody>
     </Card>
@@ -148,16 +141,16 @@ export default async function AnalyticsPage() {
       {/* ---- KPI tiles ---------------------------------------------------- */}
       <Row className="mb-6">
         <Col span={3}>
-          <KpiTile label="Total Revenue" value="$2,965,515" delta={12.5} deltaLabel="from last month" icon="wallet" color="var(--ad-primary)" />
+          <KpiTile label="Total Revenue" value="$2,965,515" delta={12.5} deltaLabel="from last month" icon="wallet" tone="primary" />
         </Col>
         <Col span={3}>
-          <KpiTile label="Active Users" value={active.current.toLocaleString()} delta={active.delta} deltaLabel={active.delta == null ? "· no reading from last week yet" : "from last week"} icon="users" color="#2ca87f" />
+          <KpiTile label="Active Users" value={active.current.toLocaleString()} delta={active.delta} deltaLabel={active.delta == null ? "· no reading from last week yet" : "from last week"} icon="users" tone="success" />
         </Col>
         <Col span={3}>
-          <KpiTile label="Orders" value="6,465" delta={-2.1} deltaLabel="from yesterday" icon="cart" color="#e58a00" />
+          <KpiTile label="Orders" value="6,465" delta={-2.1} deltaLabel="from yesterday" icon="cart" tone="warning" />
         </Col>
         <Col span={3}>
-          <KpiTile label="Conversion Rate" value="12.15%" delta={0.3} deltaLabel="from last month" icon="target" color="#04a9f5" />
+          <KpiTile label="Conversion Rate" value="12.15%" delta={0.3} deltaLabel="from last month" icon="target" tone="info" />
         </Col>
       </Row>
 
@@ -228,13 +221,13 @@ export default async function AnalyticsPage() {
                     </div>
                     <div className="mt-4 flex items-start justify-between">
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ad-destructive)]">3 and below</p>
-                        <p className="mt-0.5 text-lg font-semibold">{sat.negativePct}%</p>
+                        <p className="text-[11px] font-600 uppercase tracking-wider text-[var(--ad-destructive)]">3 and below</p>
+                        <p className="mt-0.5 text-lg font-600">{sat.negativePct}%</p>
                         <p className="text-xs text-[var(--ad-muted-foreground)]">{sat.negative} rating{sat.negative === 1 ? "" : "s"}</p>
                       </div>
                       <div className="text-end">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ad-success)]">4 and above</p>
-                        <p className="mt-0.5 text-lg font-semibold">{sat.positivePct}%</p>
+                        <p className="text-[11px] font-600 uppercase tracking-wider text-[var(--ad-success)]">4 and above</p>
+                        <p className="mt-0.5 text-lg font-600">{sat.positivePct}%</p>
                         <p className="text-xs text-[var(--ad-muted-foreground)]">{sat.positive} rating{sat.positive === 1 ? "" : "s"}</p>
                       </div>
                     </div>
@@ -253,14 +246,14 @@ export default async function AnalyticsPage() {
                   <div>
                     <div className="mb-1.5 flex items-center justify-between text-sm">
                       <span>CPU Usage</span>
-                      <span className="font-medium">67%</span>
+                      <span className="font-500">67%</span>
                     </div>
                     <Progress value={67} tone="primary" />
                   </div>
                   <div>
                     <div className="mb-1.5 flex items-center justify-between text-sm">
                       <span>Memory</span>
-                      <span className="font-medium">82%</span>
+                      <span className="font-500">82%</span>
                     </div>
                     <Progress value={82} tone="warning" />
                   </div>
@@ -297,17 +290,17 @@ export default async function AnalyticsPage() {
                       <div className="flex items-center gap-3">
                         <Avatar name={t.name} size={36} />
                         <div className="min-w-0">
-                          <p className="truncate font-medium">{t.name}</p>
+                          <p className="truncate font-500">{t.name}</p>
                           <p className="truncate text-xs text-[var(--ad-muted-foreground)]">{t.email}</p>
                         </div>
                       </div>
                     </td>
                     <td className="whitespace-nowrap">{t.product}</td>
-                    <td className="whitespace-nowrap font-medium">{t.amount}</td>
+                    <td className="ad-num whitespace-nowrap font-500">{t.amount}</td>
                     <td>
                       <Badge tone={STATUS_TONE[t.status]}>{t.status}</Badge>
                     </td>
-                    <td className="whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{t.date}</td>
+                    <td className="ad-num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{t.date}</td>
                   </tr>
                 ))}
               </Table>
@@ -320,7 +313,7 @@ export default async function AnalyticsPage() {
             <CardHead
               title="Live Activity Feed"
               action={
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--ad-success)]">
+                <span className="inline-flex items-center gap-1.5 text-xs font-500 text-[var(--ad-success)]">
                   <span className="relative flex h-2 w-2">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--ad-success)] opacity-75" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--ad-success)]" />
@@ -340,7 +333,7 @@ export default async function AnalyticsPage() {
                       <Icon name={a.icon} className="h-4 w-4" />
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium">{a.title}</p>
+                      <p className="text-sm font-500">{a.title}</p>
                       <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{a.body}</p>
                       <p className="mt-1 text-[11px] text-[var(--ad-muted-foreground)]">{a.time}</p>
                     </div>
@@ -349,7 +342,7 @@ export default async function AnalyticsPage() {
               </ul>
               <Link
                 href={`${BASE}/application/notifications`}
-                className="mt-6 flex items-center justify-center gap-1.5 text-sm font-medium text-[var(--ad-primary)] hover:underline"
+                className="mt-6 flex items-center justify-center gap-1.5 text-sm font-500 text-[var(--ad-primary)] hover:underline"
               >
                 View All Activities <Icon name="chevronRight" className="h-3.5 w-3.5" />
               </Link>
@@ -364,7 +357,7 @@ export default async function AnalyticsPage() {
           <Card className="text-center">
             <CardBody full>
               <Radial value={78} size={120} color="var(--ad-chart-1)" />
-              <p className="mt-3 text-sm font-medium">Sales Performance</p>
+              <p className="mt-3 text-sm font-500">Sales Performance</p>
               <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">78% of target</p>
             </CardBody>
           </Card>
@@ -373,7 +366,7 @@ export default async function AnalyticsPage() {
           <Card className="text-center">
             <CardBody full>
               <Radial value={96} size={120} color="var(--ad-chart-2)" label="4.8/5" />
-              <p className="mt-3 text-sm font-medium">Customer Satisfaction</p>
+              <p className="mt-3 text-sm font-500">Customer Satisfaction</p>
               <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">4.8 out of 5</p>
             </CardBody>
           </Card>
@@ -382,7 +375,7 @@ export default async function AnalyticsPage() {
           <Card className="text-center">
             <CardBody full>
               <Radial value={99.9} size={120} color="var(--ad-chart-3)" label="99.9%" />
-              <p className="mt-3 text-sm font-medium">System Uptime</p>
+              <p className="mt-3 text-sm font-500">System Uptime</p>
               <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">99.9% — Last 30 days</p>
             </CardBody>
           </Card>
@@ -391,7 +384,7 @@ export default async function AnalyticsPage() {
           <Card className="text-center">
             <CardBody full>
               <Radial value={62} size={120} color="var(--ad-chart-5)" label="124ms" />
-              <p className="mt-3 text-sm font-medium">API Response Time</p>
+              <p className="mt-3 text-sm font-500">API Response Time</p>
               <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">~124ms average</p>
             </CardBody>
           </Card>
@@ -439,11 +432,11 @@ export default async function AnalyticsPage() {
                   {TOP_REGIONS.map((r) => (
                     <li key={r.name} className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{r.name}</p>
-                        <p className="text-xs text-[var(--ad-muted-foreground)]">{r.amount}</p>
+                        <p className="truncate text-sm font-500">{r.name}</p>
+                        <p className="ad-num text-xs text-[var(--ad-muted-foreground)]">{r.amount}</p>
                       </div>
                       <span
-                        className="inline-flex shrink-0 items-center gap-1 text-xs font-medium"
+                        className="inline-flex shrink-0 items-center gap-1 text-xs font-500"
                         style={{ color: r.delta >= 0 ? "var(--ad-success)" : "var(--ad-destructive)" }}
                       >
                         <Icon name={r.delta >= 0 ? "trendUp" : "trendDown"} className="h-3.5 w-3.5" />

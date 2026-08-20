@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Icon from "../../_components/Icon";
+import { toneBg, toneFg, toneInk } from "../../_components/ui";
 import { BASE } from "../../_components/nav";
 
 export const metadata = { title: "Landing Page" };
@@ -45,12 +46,12 @@ export default function LandingPage() {
         <div className="mx-auto flex h-[74px] max-w-6xl items-center gap-8 px-5">
           <Link href={BASE} className="inline-flex items-center gap-2.5">
             <span
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-bold text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-700 text-white"
               style={{ backgroundColor: "var(--ad-primary)" }}
             >
               n
             </span>
-            <span className="text-lg font-semibold">nompany</span>
+            <span className="text-lg font-600">nompany</span>
           </Link>
           <nav className="hidden flex-1 items-center gap-7 md:flex">
             {NAV.map((n) => (
@@ -69,16 +70,16 @@ export default function LandingPage() {
       {/* hero */}
       <section className="relative overflow-hidden px-5 py-20 sm:py-28">
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-          <span className="absolute left-[8%] top-[12%] h-[320px] w-[320px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.06]" />
-          <span className="absolute right-[10%] top-[30%] h-[220px] w-[220px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.08] [animation-delay:1s]" />
-          <span className="absolute bottom-[8%] left-[30%] h-[260px] w-[260px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05] [animation-delay:2s]" />
+          <span className="absolute start-[8%] top-[12%] h-[320px] w-[320px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.06]" />
+          <span className="absolute end-[10%] top-[30%] h-[220px] w-[220px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.08] [animation-delay:1s]" />
+          <span className="absolute bottom-[8%] start-[30%] h-[260px] w-[260px] animate-pulse rounded-full bg-[var(--ad-primary)] opacity-[0.05] [animation-delay:2s]" />
         </div>
 
         <div className="relative mx-auto max-w-3xl text-center">
-          <span className="ad-badge" style={{ backgroundColor: "rgba(70,128,255,.12)", color: "var(--ad-primary)" }}>
+          <span className="ad-badge" style={{ backgroundColor: toneBg("primary", 0.12), color: toneInk("primary") }}>
             <Icon name="rocket" className="h-3 w-3" /> Release 4.2 is live
           </span>
-          <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight sm:text-6xl">
+          <h1 className="mt-6 text-4xl font-700 leading-tight tracking-tight sm:text-6xl">
             Run the whole company from one platform
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-base text-[var(--ad-muted-foreground)] sm:text-lg">
@@ -97,8 +98,8 @@ export default function LandingPage() {
         <div className="relative mx-auto mt-16 max-w-5xl">
           <div className="ad-card overflow-hidden p-2">
             <div className="flex h-8 items-center gap-1.5 px-2">
-              {["#ff5f57", "#febc2e", "#28c840"].map((c) => (
-                <span key={c} className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c }} />
+              {["danger", "warning", "success"].map((c) => (
+                <span key={c} className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: toneFg(c) }} />
               ))}
             </div>
             <div className="flex overflow-hidden rounded-lg" style={{ backgroundColor: "var(--ad-background)" }}>
@@ -109,7 +110,7 @@ export default function LandingPage() {
                     className="mb-1.5 rounded px-2.5 py-2 text-xs"
                     style={
                       i === 0
-                        ? { backgroundColor: "var(--ad-sidebar-accent)", color: "#fff" }
+                        ? { backgroundColor: "var(--ad-sidebar-accent)", color: "var(--ad-sidebar-primary)" }
                         : { color: "var(--ad-sidebar-foreground)" }
                     }
                   >
@@ -119,10 +120,10 @@ export default function LandingPage() {
               </div>
               <div className="min-w-0 flex-1 p-5">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {["#4680ff", "#2ca87f", "#e58a00", "#04a9f5"].map((c, i) => (
+                  {["var(--ad-chart-1)", "var(--ad-chart-2)", "var(--ad-chart-3)", "var(--ad-chart-4)"].map((c, i) => (
                     <div key={c} className="rounded-lg p-3.5 text-white" style={{ backgroundColor: c }}>
                       <p className="text-[10px] opacity-80">{["Revenue", "Users", "Orders", "Rate"][i]}</p>
-                      <p className="mt-0.5 text-base font-semibold">{["$2.9M", "86.4K", "6,465", "12.1%"][i]}</p>
+                      <p className="mt-0.5 text-base font-600">{["$2.9M", "86.4K", "6,465", "12.1%"][i]}</p>
                     </div>
                   ))}
                 </div>
@@ -144,7 +145,7 @@ export default function LandingPage() {
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
             {LOGOS.map((l) => (
-              <span key={l} className="text-sm font-semibold text-[var(--ad-muted-foreground)] opacity-70">
+              <span key={l} className="text-sm font-600 text-[var(--ad-muted-foreground)] opacity-70">
                 {l}
               </span>
             ))}
@@ -156,7 +157,7 @@ export default function LandingPage() {
       <section className="px-5 py-20">
         <div className="mx-auto max-w-5xl">
           <div className="text-center">
-            <h2 className="text-3xl font-bold">Built for how companies actually work</h2>
+            <h2 className="text-3xl font-700">Built for how companies actually work</h2>
             <p className="mx-auto mt-3 max-w-xl text-sm text-[var(--ad-muted-foreground)]">
               Not a suite of separate products bolted together — one system where every department sees the same data.
             </p>
@@ -166,11 +167,11 @@ export default function LandingPage() {
               <div key={f.title} className="ad-card p-6">
                 <span
                   className="flex h-11 w-11 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: "rgba(70,128,255,.12)", color: "var(--ad-primary)" }}
+                  style={{ backgroundColor: toneBg("primary", 0.12), color: toneInk("primary") }}
                 >
                   <Icon name={f.icon} className="h-5 w-5" />
                 </span>
-                <h3 className="mt-4 text-base font-semibold">{f.title}</h3>
+                <h3 className="mt-4 text-base font-600">{f.title}</h3>
                 <p className="mt-1.5 text-sm text-[var(--ad-muted-foreground)]">{f.body}</p>
               </div>
             ))}
@@ -181,12 +182,12 @@ export default function LandingPage() {
       {/* stats */}
       <section
         className="px-5 py-16"
-        style={{ backgroundImage: "linear-gradient(135deg, var(--ad-primary), color-mix(in srgb, var(--ad-primary) 65%, #000))" }}
+        style={{ backgroundImage: "linear-gradient(135deg, var(--ad-primary), color-mix(in srgb, var(--ad-primary) 65%, var(--ad-foreground)))" }}
       >
         <div className="mx-auto grid max-w-5xl gap-8 text-center sm:grid-cols-4">
           {STATS.map((s) => (
             <div key={s.label}>
-              <p className="text-3xl font-bold text-white sm:text-4xl">{s.value}</p>
+              <p className="text-3xl font-700 text-white sm:text-4xl">{s.value}</p>
               <p className="mt-1.5 text-sm text-white/70">{s.label}</p>
             </div>
           ))}
@@ -196,7 +197,7 @@ export default function LandingPage() {
       {/* testimonials */}
       <section className="px-5 py-20">
         <div className="mx-auto max-w-5xl">
-          <h2 className="text-center text-3xl font-bold">What operators say</h2>
+          <h2 className="text-center text-3xl font-700">What operators say</h2>
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {QUOTES.map((q) => (
               <figure key={q.name} className="ad-card flex flex-col p-6">
@@ -207,7 +208,7 @@ export default function LandingPage() {
                 </div>
                 <blockquote className="mt-4 flex-1 text-sm leading-relaxed">“{q.quote}”</blockquote>
                 <figcaption className="mt-5 border-t pt-4" style={{ borderColor: "var(--ad-border)" }}>
-                  <p className="text-sm font-semibold">{q.name}</p>
+                  <p className="text-sm font-600">{q.name}</p>
                   <p className="text-xs text-[var(--ad-muted-foreground)]">{q.role}</p>
                 </figcaption>
               </figure>
@@ -219,7 +220,7 @@ export default function LandingPage() {
       {/* cta */}
       <section className="px-5 pb-24">
         <div className="ad-card mx-auto max-w-4xl p-12 text-center">
-          <h2 className="text-3xl font-bold">Ready to see it on your own data?</h2>
+          <h2 className="text-3xl font-700">Ready to see it on your own data?</h2>
           <p className="mx-auto mt-3 max-w-lg text-sm text-[var(--ad-muted-foreground)]">
             Set up a studio in an afternoon. Import what you have, switch on the modules you need, invite the team.
           </p>
@@ -239,12 +240,12 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <span
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-700 text-white"
               style={{ backgroundColor: "var(--ad-primary)" }}
             >
               n
             </span>
-            <span className="text-sm font-semibold">nompany</span>
+            <span className="text-sm font-600">nompany</span>
           </div>
           <nav className="flex flex-wrap gap-6 text-xs text-[var(--ad-muted-foreground)]">
             {["Privacy", "Terms", "Security", "Status", "Contact"].map((l) => (

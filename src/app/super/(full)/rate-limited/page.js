@@ -11,7 +11,7 @@ export default function Page() {
       body="You've hit the request limit for this window. Give it a minute before trying again."
       extra={
         <p className="text-sm text-[var(--ad-muted-foreground)]">
-          Retry after <span className="font-medium text-[var(--ad-foreground)]">60 seconds</span>
+          Retry after <span className="font-500 text-[var(--ad-foreground)]">60 seconds</span>
         </p>
       }
     />

@@ -1,6 +1,6 @@
 import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, Progress, StatCard, Table, Icon,
-} from "../../../_components/ui";
+  toneBg, toneFg, toneInk,} from "../../../_components/ui";
 import { AreaChart, ChartFrame, BarChart, Donut } from "../../../_components/charts";
 import { BASE } from "../../../_components/nav";
 
@@ -45,14 +45,13 @@ const TASKS = [
   { title: "Renewal check-in — Dar Almanar", due: "Next Monday", tone: "info", icon: "refresh" },
 ];
 
-const TONE_FG = {
-  primary: "var(--ad-primary)", success: "var(--ad-success)", warning: "var(--ad-warning)",
-  info: "var(--ad-info)", danger: "var(--ad-destructive)",
-};
-const TONE_BG = {
-  primary: "rgba(70,128,255,.14)", success: "rgba(44,168,127,.16)", warning: "rgba(229,138,0,.16)",
-  info: "rgba(4,169,245,.16)", danger: "rgba(220,38,38,.14)",
-};
+// The tone table, built from the console's ONE tone helper rather than being a
+// ninth copy of the same hand-mixed rgba() values. See toneBg/toneFg in
+// _components/ui: the tint composes from the semantic token, so it follows the
+// design system and the theme instead of freezing the template's palette.
+const TONE_NAMES = ["primary", "success", "warning", "info", "danger"];
+const TONE_FG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneInk(t)]));
+const TONE_BG = Object.fromEntries(TONE_NAMES.map((t) => [t, toneBg(t)]));
 
 export default function CrmPage() {
   return (
@@ -116,7 +115,7 @@ export default function CrmPage() {
                         {p.stage}
                       </span>
                       <span className="text-[var(--ad-muted-foreground)]">
-                        {p.count} · <span className="font-medium text-[var(--ad-foreground)]">{p.value}</span>
+                        {p.count} · <span className="font-500 text-[var(--ad-foreground)]">{p.value}</span>
                       </span>
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--ad-muted)]">
@@ -137,22 +136,22 @@ export default function CrmPage() {
             <Table head={["Company", "Owner", "Value", "Stage", "Probability", { label: "Close", align: "end" }]}>
               {DEALS.map((d) => (
                 <tr key={d.company}>
-                  <td className="whitespace-nowrap font-medium">{d.company}</td>
+                  <td className="whitespace-nowrap font-500">{d.company}</td>
                   <td>
                     <span className="inline-flex items-center gap-2 whitespace-nowrap">
                       <Avatar name={d.owner} size={28} />
                       <span className="text-[var(--ad-muted-foreground)]">{d.owner}</span>
                     </span>
                   </td>
-                  <td className="whitespace-nowrap font-medium">{d.value}</td>
+                  <td className="ad-num whitespace-nowrap font-500">{d.value}</td>
                   <td><Badge tone={d.tone}>{d.stage}</Badge></td>
                   <td>
                     <div className="flex min-w-[120px] items-center gap-2">
                       <Progress value={d.prob} tone={d.tone} height={5} />
-                      <span className="w-9 shrink-0 text-xs text-[var(--ad-muted-foreground)]">{d.prob}%</span>
+                      <span className="ad-num w-9 shrink-0 text-xs text-[var(--ad-muted-foreground)]">{d.prob}%</span>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{d.close}</td>
+                  <td className="ad-num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{d.close}</td>
                 </tr>
               ))}
             </Table>
@@ -169,7 +168,7 @@ export default function CrmPage() {
                   data={SOURCES}
                   center={
                     <>
-                      <span className="text-lg font-semibold">1,284</span>
+                      <span className="text-lg font-600">1,284</span>
                       <span className="text-[11px] text-[var(--ad-muted-foreground)]">leads</span>
                     </>
                   }
@@ -181,7 +180,7 @@ export default function CrmPage() {
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: `var(--ad-chart-${i + 1})` }} />
                         {s.label}
                       </span>
-                      <span className="font-medium">{s.value}%</span>
+                      <span className="font-500">{s.value}%</span>
                     </li>
                   ))}
                 </ul>
@@ -200,7 +199,7 @@ export default function CrmPage() {
                         <Icon name={t.icon} className="h-4 w-4" />
                       </span>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">{t.title}</p>
+                        <p className="text-sm font-500">{t.title}</p>
                         <p className="mt-0.5 text-xs text-[var(--ad-muted-foreground)]">{t.due}</p>
                       </div>
                     </li>
@@ -223,10 +222,10 @@ export default function CrmPage() {
                     <div className="mb-2 flex items-center gap-3">
                       <Avatar name={r.name} size={34} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{r.name}</p>
+                        <p className="truncate text-sm font-500">{r.name}</p>
                         <p className="text-xs text-[var(--ad-muted-foreground)]">{r.deals} deals · {r.revenue}</p>
                       </div>
-                      <span className="text-sm font-semibold">{r.quota}%</span>
+                      <span className="text-sm font-600">{r.quota}%</span>
                     </div>
                     <Progress value={r.quota} tone={r.quota >= 80 ? "success" : r.quota >= 60 ? "primary" : "warning"} />
                   </li>
