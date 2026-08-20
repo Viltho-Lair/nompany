@@ -88,7 +88,6 @@ const ALWAYS = [
   { key: "document.code", label: "Document code", group: "Document", subject: null, kind: "scalar" },
   { key: "document.title", label: "Title", group: "Document", subject: null, kind: "scalar" },
   { key: "document.revision", label: "Revision", group: "Document", subject: null, kind: "scalar" },
-  { key: "document.type", label: "Type", group: "Document", subject: null, kind: "scalar" },
   { key: "document.department", label: "Department", group: "Document", subject: null, kind: "scalar" },
   { key: "document.owner", label: "Owner", group: "Document", subject: null, kind: "scalar" },
   { key: "document.effectiveDate", label: "Effective date", group: "Document", subject: null, kind: "scalar" },

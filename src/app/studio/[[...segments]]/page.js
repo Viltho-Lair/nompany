@@ -12,7 +12,6 @@ import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import LiveProvider from "@/components/studio2/LiveProvider";
 import StudioDocs from "@/components/studio2/StudioDocs";
-import StudioQualitySetup from "@/components/studio2/StudioQualitySetup";
 import { DocumentList } from "@/components/quality/documents/document-list";
 import { DocumentView } from "@/components/quality/documents/document-view";
 import StudioSalesLive from "@/components/studio2/StudioSalesLive";
@@ -136,12 +135,13 @@ export default async function StudioPage({ params }) {
   // would be the same sentence in a different voice.
   if (requested === "quality-documents" && sections.some((s) => s.key === "quality-documents")) {
     const shell = { name: studio.name, slug: studio.slug };
-    // A SECOND SEGMENT NAMES THE SETUP SCREEN, not a document: types, prefixes
-    // and department codes are the studio's numbering, so they live beside the
-    // register rather than in a settings section of their own. Its own right is
-    // re-checked server-side by every route it calls.
-    if (segments[1] === "settings") return <StudioQualitySetup studio={shell} />;
-
+    // NO SETUP SCREEN. Document types, prefixes, department codes and the
+    // studio letterhead were all settings the old builder needed: it could not
+    // number a document without a type, and it drew one letterhead for every
+    // document because a document had no page of its own. The editor that
+    // replaced it gives every document its own paper, margins, bands and
+    // fonts, so there is nothing left for a studio-wide setting to decide.
+    //
     // ONE EDITOR, NO SEPARATE READER. The builder and the viewer used to be two
     // screens because the canvas could not show what the paper would do; the
     // editor that replaced them lays the document out on real sheets and prints

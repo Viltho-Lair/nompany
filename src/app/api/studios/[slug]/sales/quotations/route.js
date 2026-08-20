@@ -1,6 +1,5 @@
 import { currentUser } from "@/lib/identity";
 import { salesContext, ticketQuotation } from "@/lib/sales";
-import { qualityContext, callPointReady } from "@/lib/quality";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,25 +30,10 @@ export async function GET(request, ctx) {
   const result = await ticketQuotation(sales, id);
   if (result.error) return Response.json({ error: result.error }, { status: 404 });
 
-  // WHETHER THE PRINT BUTTON CAN DO ANYTHING. Resolved here so the button is
-  // only drawn where pressing it would succeed — and read through Quality's own
-  // context, so somebody with no Quality rights simply never sees it rather
-  // than seeing it refuse.
-  let print = { ready: false, reason: "unavailable" };
-  if (result.isLatest) {
-    const quality = await qualityContext(user, slug);
-    if (!quality.error) print = await callPointReady(quality, "quotation.print");
-    // Only the latest quotation carries one; an earlier revision is the record
-    // of what was previously sent, not something to issue a document about.
-  } else {
-    print = { ready: false, reason: "superseded" };
-  }
-
   return Response.json({
     quotation: result.quotation,
     ticket: result.ticket,
     isLatest: result.isLatest,
-    print,
     // The money the document is written in, so the viewer shows every figure
     // beside what it is in rather than leaving it to be guessed.
     currency: sales.studio.currency || "",
