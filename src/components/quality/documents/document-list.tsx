@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { FilePlus2, FileText, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, FilePlus2, FileText, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { StoredDocument } from "@/components/quality/documents/document-view";
@@ -90,23 +90,40 @@ export function DocumentList({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1000px] px-5 py-8 sm:px-8">
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <div className="min-w-0">
-          <h1 className="font-display text-xl font-800 text-slate-900 dark:text-white">Documents</h1>
-          <p className="text-xs text-muted-foreground">
-            Every controlled document in {studio.name || "this studio"}.
-          </p>
+    <div className="min-h-screen bg-background">
+      {/* THE WAY BACK. This screen renders OUTSIDE StudioFrame — full-screen,
+          no sidebar, no panel header — so without this there is nothing on the
+          page that returns to the studio at all, and the browser's own back
+          button is the only exit. Same shape as every other full-screen
+          section: a round button, the title, the studio under it. */}
+      <header className="sticky top-0 z-20 border-b border-[var(--geex-border)] bg-[var(--geex-page)]">
+        <div className="mx-auto flex max-w-[1000px] flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
+          <Link
+            href={`/${studio.slug}`}
+            title="Back to the studio"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
+          >
+            <ArrowLeft className="h-[18px] w-[18px] rtl:-scale-x-100" />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">
+              Documents
+            </h1>
+            <p className="truncate text-xs text-slate-400 dark:text-slate-500">
+              {studio.name || "this studio"}
+            </p>
+          </div>
+          {canCreate && (
+            <Button className="ms-auto" onClick={create} disabled={busy}>
+              {busy ? <Loader2 className="animate-spin" /> : <FilePlus2 />}
+              New document
+            </Button>
+          )}
         </div>
-        {canCreate && (
-          <Button className="ms-auto" onClick={create} disabled={busy}>
-            {busy ? <Loader2 className="animate-spin" /> : <FilePlus2 />}
-            New document
-          </Button>
-        )}
-      </div>
+      </header>
 
-      {error && (
+      <main className="mx-auto w-full max-w-[1000px] px-5 py-8 sm:px-8">
+        {error && (
         <p className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
           {error}
         </p>
@@ -172,6 +189,7 @@ export function DocumentList({
           ))}
         </ul>
       )}
+      </main>
     </div>
   );
 }
