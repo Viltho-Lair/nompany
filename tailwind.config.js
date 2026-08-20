@@ -2,15 +2,48 @@
 module.exports = {
   darkMode: "class",
   content: [
-    "./src/app/**/*.{js,jsx}",
-    "./src/components/**/*.{js,jsx}",
+    // ts/tsx as well as js/jsx: the document application is TypeScript, and a
+    // class Tailwind never sees is a class that does not exist.
+    "./src/app/**/*.{js,jsx,ts,tsx}",
+    "./src/components/**/*.{js,jsx,ts,tsx}",
     // lib holds Tailwind class strings too (e.g. dashboard widget grid spans),
     // so it must be scanned or those classes get purged.
-    "./src/lib/**/*.{js,jsx}",
+    "./src/lib/**/*.{js,jsx,ts,tsx}",
   ],
   theme: {
     extend: {
       colors: {
+        // ---- the document application's semantic tokens ------------------
+        //
+        // The document editor was built against shadcn's vocabulary — bg-card,
+        // text-muted-foreground, border-border. Rather than rewrite every one
+        // of those classNames, the vocabulary is registered here and pointed at
+        // the studio's own palette in globals.css. The components keep their
+        // shape and adopt the studio's colour, which is the whole of what
+        // "adapt the studio design" means.
+        //
+        // Every one of these is new: nothing in the studio used these names, so
+        // no existing class changes meaning. `accent` is deliberately absent —
+        // the studio already owns that name for its purple scale — and the few
+        // places the port reached for it now ask for `muted` instead.
+        background: "rgb(var(--doc-background) / <alpha-value>)",
+        foreground: "rgb(var(--doc-foreground) / <alpha-value>)",
+        card: "rgb(var(--doc-card) / <alpha-value>)",
+        "card-foreground": "rgb(var(--doc-card-foreground) / <alpha-value>)",
+        popover: "rgb(var(--doc-popover) / <alpha-value>)",
+        "popover-foreground": "rgb(var(--doc-popover-foreground) / <alpha-value>)",
+        primary: "rgb(var(--doc-primary) / <alpha-value>)",
+        "primary-foreground": "rgb(var(--doc-primary-foreground) / <alpha-value>)",
+        secondary: "rgb(var(--doc-secondary) / <alpha-value>)",
+        "secondary-foreground": "rgb(var(--doc-secondary-foreground) / <alpha-value>)",
+        muted: "rgb(var(--doc-muted) / <alpha-value>)",
+        "muted-foreground": "rgb(var(--doc-muted-foreground) / <alpha-value>)",
+        destructive: "rgb(var(--doc-destructive) / <alpha-value>)",
+        "destructive-foreground": "rgb(var(--doc-destructive-foreground) / <alpha-value>)",
+        border: "rgb(var(--doc-border) / <alpha-value>)",
+        input: "rgb(var(--doc-input) / <alpha-value>)",
+        ring: "rgb(var(--doc-ring) / <alpha-value>)",
+
         // nompany brand — royal blue (from the ERP Color Palette spec).
         // Primary #2563EB (blue-600); dark-mode primary #3B82F6 (blue-500).
         // Mapped onto the Tailwind blue scale so every existing `brand-*` class
@@ -175,5 +208,8 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  // The ported dialogs, dropdowns and popovers animate through data-state
+  // attributes; without this their transition classes compile to nothing and
+  // every overlay snaps.
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 };

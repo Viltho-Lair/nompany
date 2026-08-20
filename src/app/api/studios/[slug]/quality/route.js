@@ -4,7 +4,6 @@ import {
   letterheadFor, fieldsFor,
 } from "@/lib/quality";
 import { can } from "@/lib/access";
-import { PAGE_TOKENS } from "@/lib/qualityRender";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +32,6 @@ export async function GET(request, ctx) {
     // print engine fills in as it lays the pages out.
     letterhead: letterheadFor(g),
     slotFields: fieldsFor(g, null).fields.map((f) => ({ key: f.key, label: f.label, group: f.group })),
-    pageTokens: PAGE_TOKENS,
     departments: g.departments,
     departmentCodes: departmentCodes(g),
     nav: g.nav,

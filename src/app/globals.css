@@ -481,3 +481,346 @@ html.studio-chrome ::-webkit-scrollbar-corner {
    string paints the canvas on screen and the page inside the exported PDF —
    a stylesheet here would be a second one, and two stylesheets have never yet
    agreed about a document. The builder and the reader inject it themselves. */
+
+/* ============================================================================
+   A CONTROLLED DOCUMENT, ON SCREEN AND ON PAPER
+
+   This used to be a JS string in qualityCss.js, handed whole to a headless
+   Chromium that had no build step. That Chromium is gone, and with it the
+   reason the document's appearance lived outside the app's own stylesheet --
+   which is why the printed page never quite looked like the thing on screen.
+   It is one sheet now, in the app's cascade, with the app's tokens.
+
+   THE PAGE IS THE BROWSER'S TO LAY OUT. Page size and margins come from the
+   studio's letterhead as a per-document @page rule (see printCss); everything
+   that does not depend on the studio is here.
+   ========================================================================= */
+@layer components {
+
+  /* The backdrop, and the sheet on it. On paper neither exists: the paper IS
+     the sheet, and @page owns the margins. */
+  .doc-shell { @apply bg-slate-100/70 py-8 dark:bg-slate-950; }
+  .doc-sheet {
+    @apply relative mx-auto bg-white text-slate-900 shadow-geex;
+    width: var(--doc-width, 210mm);
+    max-width: 100%;
+    padding: var(--doc-top, 28mm) var(--doc-right, 18mm) var(--doc-bottom, 22mm) var(--doc-left, 18mm);
+    font-family: "IBM Plex Sans", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  /* THE RUNNING BANDS. A table header group and footer group are the only
+     things a browser repeats on every printed page -- Chrome has no CSS margin
+     box, which is also why neither band can carry "page 2 of 7". They carry the
+     studio's own text instead: the code, the revision, the date it took effect. */
+  .doc-frame { @apply w-full border-collapse; }
+  .doc-frame > thead { display: table-header-group; }
+  .doc-frame > tfoot { display: table-footer-group; }
+  .doc-frame td { @apply border-0 p-0 align-top; }
+
+  .doc-band { @apply flex items-center gap-2 text-[8pt] text-slate-500; }
+  .doc-band-row { @apply flex w-full items-center gap-2; }
+  .doc-band-cell { @apply flex-1 overflow-hidden text-ellipsis whitespace-nowrap; }
+  .doc-band-head { @apply border-b border-slate-300 pb-1; margin-bottom: 8mm; }
+  .doc-band-foot { @apply border-t border-slate-300 pt-1; margin-top: 8mm; }
+  .doc-band-logo { @apply me-2 h-[26px] w-auto object-contain; }
+
+  /* The stamp. print-color-adjust because a browser drops backgrounds and faint
+     colour when it prints, and a DRAFT nobody can see on paper is the exact
+     failure document control exists to prevent. */
+  .doc-stamp {
+    @apply pointer-events-none absolute inset-0 z-10 flex items-center justify-center;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .doc-stamp span {
+    @apply whitespace-nowrap text-[52px] font-800 tracking-widest;
+    color: rgb(220 38 38 / 0.10); transform: rotate(-32deg);
+  }
+
+  /* ---- the body the author wrote ---------------------------------------- */
+  .quality-prose { @apply text-[11pt] leading-relaxed text-slate-800; }
+  .quality-prose > * + * { margin-top: 0.75em; }
+  .quality-prose h1 { @apply text-[1.6em] font-800 leading-tight text-slate-900; }
+  .quality-prose h2 { @apply text-[1.3em] font-700 leading-snug text-slate-900; }
+  .quality-prose h3 { @apply text-[1.1em] font-700 text-slate-900; }
+  .quality-prose h4 { @apply text-[1em] font-700 text-slate-900; }
+  .quality-prose ul, .quality-prose ol { padding-inline-start: 1.5em; }
+  .quality-prose ul { @apply list-disc; }
+  .quality-prose ol { @apply list-decimal; }
+  .quality-prose li > p { @apply m-0; }
+  .quality-prose li + li { margin-top: 0.25em; }
+  .quality-prose blockquote { @apply text-slate-600; border-inline-start: 3px solid theme(colors.slate.300); padding-inline-start: 1em; }
+  .quality-prose hr { @apply my-6 border-0 border-t border-slate-300; }
+  .quality-prose a { @apply text-blue-700 underline; }
+  .quality-prose code { @apply rounded bg-slate-100 px-1 py-0.5 text-[0.9em]; }
+  .quality-prose img { @apply h-auto max-w-full; }
+
+  .quality-prose table { @apply my-4 w-full border-collapse; table-layout: fixed; }
+  .quality-prose th, .quality-prose td { @apply border border-slate-300 align-top; padding: 0.45em 0.6em; text-align: start; }
+  .quality-prose th { @apply bg-slate-50 font-700; }
+
+  .quality-section { margin-bottom: 1.6em; }
+  .quality-section:last-child { @apply mb-0; }
+  .quality-section-title { @apply mb-2 flex items-baseline gap-2 text-[1.25em] font-800 text-slate-900; }
+  .quality-section-number { @apply text-slate-400; font-variant-numeric: tabular-nums; }
+
+  /* A record block: rows read from a record at render time, with a table style
+     of its own because it is generated rather than drawn -- it should not
+     inherit whatever the author last did to a table they typed. */
+  .quality-block { @apply my-5; }
+  .quality-block-table { @apply w-full border-collapse text-[10pt]; }
+  .quality-block-table th, .quality-block-table td { @apply border border-slate-300 align-top; padding: 0.4em 0.55em; text-align: start; }
+  .quality-block-table th { @apply bg-slate-50 font-700; }
+  .quality-block-table tr { break-inside: avoid; }
+  .quality-block-table thead { display: table-header-group; }
+  .quality-block-empty { @apply italic text-slate-400; }
+  /* Kept with the table it heads, so a group name never sits alone at the foot
+     of a page. */
+  .quality-block-title { @apply mb-1.5 mt-4 font-700 text-slate-900; break-after: avoid-page; }
+  .quality-block-table + .quality-block-title { margin-top: 1.4em; }
+  .quality-block-table tr.is-subtotal td { @apply bg-slate-50 font-700; }
+  .quality-block-table tr.is-total td { @apply font-800; border-top: 2px solid theme(colors.slate.400); }
+  /* SCOPED. `.quality-prose table` is a class AND an element, so it outranks a
+     lone class -- this rule had been losing to it, unnoticed because the two
+     agreed on 100%. */
+  .quality-prose .quality-block-totals { width: 52%; margin-inline-start: auto; }
+
+  /* An unanswered input is a labelled rule -- a blank to complete by hand,
+     which is what a paper form is. An answered one prints the answer over the
+     same label, so both versions read the same way. */
+  .quality-input { @apply inline-flex items-baseline gap-1.5; min-width: 12em; }
+  .quality-input.is-long { @apply my-1.5 flex; }
+  .quality-input-label { @apply whitespace-nowrap text-[9pt] text-slate-500; }
+  .quality-input-rule { @apply h-4 flex-1 border-b border-slate-400; min-width: 8em; }
+  .quality-input-value { @apply flex-1 border-b border-slate-300 font-600 text-slate-900; }
+
+  /* break-inside: avoid, because a signature split across two sheets is a
+     signature on neither. */
+  .quality-signatures { @apply mt-10; break-inside: avoid; }
+  .quality-sign-table { @apply w-full border-collapse; table-layout: fixed; }
+  /* TOP, not bottom: bottom-aligning lined the cells up by their last line, so
+     a signature carrying a note sat a line higher than one without and the two
+     rules never met. */
+  .quality-sign-table td { @apply w-1/2 border-0 pe-6 align-top; padding-block: 0; }
+  .quality-sign-role { @apply mb-1.5 text-[8pt] uppercase tracking-wider text-slate-400; }
+  .quality-sign-img { @apply mb-0.5 block h-10 w-auto object-contain; }
+  .quality-sign-rule { @apply block h-10 border-b border-slate-400; }
+  .quality-sign-name { @apply border-t border-slate-300 pt-1.5 font-700 text-slate-900; }
+  .quality-sign-at { @apply text-[9pt] text-slate-500; }
+  .quality-sign-note { @apply mt-0.5 text-[9pt] italic text-slate-500; }
+
+  /* ---- only while editing ------------------------------------------------ */
+  /* A merge field is tinted so an author can see which words are read from the
+     studio rather than typed. Never on paper: a printed document should not
+     advertise how it was assembled. */
+  .quality-merge-field { @apply rounded bg-blue-600/10 px-1 py-0.5 text-[0.95em] font-600 text-blue-700; }
+  .quality-merge-field.is-unresolved { @apply bg-rose-500/10 text-rose-600; }
+}
+
+/* A page break is a decision, so the author can see it on screen; on paper it
+   is only an effect. */
+.quality-page-break {
+  display: flex; align-items: center; gap: 8px;
+  margin: 1.5em 0; color: theme(colors.slate.400);
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.quality-page-break::before { content: ""; flex: 1; border-top: 1px dashed theme(colors.slate.300); }
+.quality-page-break::after { content: "page break"; }
+
+@media print {
+  /* THE PAPER IS THE SHEET. Everything the screen wrapped it in -- the
+     backdrop, the shadow, the fixed width -- was scaffolding for looking at a
+     page on a display, and printing that produced a page inside a page. */
+  .doc-shell { background: none !important; padding: 0 !important; }
+  .doc-sheet { width: auto !important; padding: 0 !important; box-shadow: none !important; }
+  .doc-no-print { display: none !important; }
+  .quality-page-break { break-before: page; display: block; margin: 0; height: 0; }
+  .quality-page-break::before, .quality-page-break::after { content: none; }
+  .quality-section-title { break-after: avoid-page; }
+}
+
+/* ============================================================================
+   THE DOCUMENT APPLICATION'S PALETTE
+
+   The editor at /quality-documents was built against shadcn's semantic names.
+   They are registered as Tailwind colours in tailwind.config.js and given their
+   values here, from the studio's own palette — so the ported components render
+   in nompany's colours without a single className being rewritten.
+
+   Channel triples rather than hex, so `bg-card/60` and `ring-ring/50` still
+   compile. Light first, dark below.
+   ========================================================================= */
+:root {
+  --doc-background: 244 245 250;      /* geex page  #f4f5fa */
+  --doc-foreground: 43 43 64;         /* geex ink   #2b2b40 */
+  --doc-card: 255 255 255;
+  --doc-card-foreground: 43 43 64;
+  --doc-popover: 255 255 255;
+  --doc-popover-foreground: 43 43 64;
+  --doc-primary: 37 99 235;           /* brand-600 */
+  --doc-primary-foreground: 255 255 255;
+  --doc-secondary: 241 245 249;       /* steel-100 */
+  --doc-secondary-foreground: 51 65 85;
+  --doc-muted: 241 245 249;
+  --doc-muted-foreground: 100 116 139; /* steel-500 */
+  --doc-destructive: 225 29 72;       /* danger */
+  --doc-destructive-foreground: 255 255 255;
+  --doc-border: 226 232 240;          /* steel-200 */
+  --doc-input: 226 232 240;
+  --doc-ring: 59 130 246;             /* brand-500 */
+}
+
+.dark {
+  --doc-background: 15 23 42;         /* steel-900 */
+  --doc-foreground: 241 245 249;
+  --doc-card: 30 41 59;               /* steel-800 */
+  --doc-card-foreground: 241 245 249;
+  --doc-popover: 30 41 59;
+  --doc-popover-foreground: 241 245 249;
+  --doc-primary: 59 130 246;          /* brand-500, the dark-mode primary */
+  --doc-primary-foreground: 15 23 42;
+  --doc-secondary: 51 65 85;
+  --doc-secondary-foreground: 241 245 249;
+  --doc-muted: 51 65 85;              /* steel-700 */
+  --doc-muted-foreground: 148 163 184; /* steel-400 */
+  --doc-destructive: 244 63 94;
+  --doc-destructive-foreground: 15 23 42;
+  --doc-border: 51 65 85;
+  --doc-input: 51 65 85;
+  --doc-ring: 96 165 250;
+}
+
+/* ============================================================================
+   THE DOCUMENT EDITOR
+
+   Sheets, running bands, and the spacers the pagination plugin inserts. Ported
+   from the document application; the only change is that the colours come from
+   the studio's tokens rather than shadcn's, and channel triples have to be
+   wrapped in rgb() to be used as colours here.
+
+   HOW PAGINATION WORKS, because none of this reads as obvious: the document is
+   ONE ProseMirror instance. Sheets are drawn behind it as a separate layer, and
+   the plugin measures block positions and inserts a spacer before any block
+   that would straddle a boundary, tall enough to push it onto the next sheet.
+   Nothing here breaks the document into pages — the pages are drawn under a
+   document that has been made to fall in the right places.
+   ========================================================================= */
+
+/* THE DOCUMENT'S OWN SIZE WINS. The body carries `prose`, and the typography
+   plugin's base sets font-size: 1rem on it — which quietly overrode the point
+   size chosen in page setup, so picking 14pt changed nothing on the page. The
+   headings are sized in em, so inheriting is exactly right for them too. */
+.page-stack .ProseMirror { font-size: inherit; }
+
+/* An empty paragraph still needs a line to click on. */
+.ProseMirror p { min-height: 1lh; }
+.ProseMirror:focus { outline: none; }
+
+/* The gap drawn between sheets, collapsed for print so the paginated content
+   lines up with the printer's own page boxes. */
+.page-stack { --page-gap: 8mm; }
+@media print { .page-stack { --page-gap: 0mm; } }
+
+/* Spacers inserted by the pagination plugin. */
+.ProseMirror [data-page-break] { display: block; }
+
+/* ---- tables --------------------------------------------------------------- */
+.ProseMirror table {
+  border-collapse: collapse;
+  /* Fixed layout is what makes the stored column widths authoritative. */
+  table-layout: fixed;
+  width: 100%;
+  margin: 0.75em 0;
+  overflow: hidden;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  border: 1px solid rgb(var(--doc-border));
+  padding: 6px 8px;
+  vertical-align: top;
+  position: relative;
+  box-sizing: border-box;
+  min-width: 2em;
+}
+
+.ProseMirror th {
+  background-color: rgb(var(--doc-muted) / 0.7);
+  font-weight: 600;
+  text-align: start;
+}
+
+.ProseMirror th > *,
+.ProseMirror td > * { margin: 0; }
+
+/* Cells picked out by a cell selection. */
+.ProseMirror .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--doc-primary) / 0.18);
+  pointer-events: none;
+}
+
+/* Drag handle for resizing a column. */
+.ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px; top: 0; bottom: -2px;
+  width: 4px;
+  background-color: rgb(var(--doc-primary));
+  pointer-events: none;
+  z-index: 20;
+}
+
+.ProseMirror.resize-cursor { cursor: col-resize; }
+
+@media print {
+  .ProseMirror .column-resize-handle,
+  .ProseMirror .selectedCell::after { display: none; }
+}
+
+/* ---- a manual page break -------------------------------------------------- */
+/* A hairline in the editor, nothing at all on paper. */
+.ProseMirror .page-break-marker {
+  height: 0;
+  border-top: 1px dashed rgb(var(--doc-primary) / 0.55);
+  margin: 0;
+  position: relative;
+  user-select: none;
+}
+@media print { .ProseMirror .page-break-marker { border-top: none; } }
+
+/* ---- header and footer bands ---------------------------------------------- */
+/* The same editor as the body, boxed into the height reserved inside the page
+   margin. A band never scrolls: content past its reserved height is cut off, so
+   the sheet geometry stays exactly what the page setup describes. */
+.band-surface .ProseMirror {
+  min-height: 100%;
+  overflow: clip;
+}
+
+.band-surface .ProseMirror > * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.band-surface .ProseMirror p.is-editor-empty:first-child::before,
+.band-surface .ProseMirror > p:only-child:empty::before {
+  content: attr(data-placeholder);
+  color: rgb(var(--doc-muted-foreground) / 0.6);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+@media print {
+  .band-surface .ProseMirror > p:only-child:empty::before { content: ""; }
+}
+
+/* ---- printing ------------------------------------------------------------- */
+/* The sheets ARE the pages: @page carries no margin (the editor emits the
+   stock size itself), and the sheet's own margins are already inside it. So
+   printing is a matter of getting the app's chrome out of the way. */
+@media print {
+  .doc-chrome { display: none !important; }
+  body { background: #fff; }
+}

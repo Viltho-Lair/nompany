@@ -5,7 +5,6 @@ import { readCol, addRow } from "@/lib/data/sections";
 import { getStudioById } from "@/lib/data/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { renderSections } from "@/lib/qualityRender";
-import { DOCUMENT_CSS } from "@/lib/qualityCss";
 import { directionOf } from "@/lib/qualityDocuments";
 
 export const runtime = "nodejs";
@@ -102,7 +101,7 @@ export default async function SharedDocument({ params }) {
 
   return (
     <main style={{ background: "#f4f5fa", minHeight: "100vh", padding: "24px 16px" }}>
-      <style>{`${DOCUMENT_CSS}
+      <style>{`
 .share-sheet { position: relative; max-width: 900px; margin: 0 auto; background: #fff; border-radius: 20px;
   box-shadow: 0 14px 40px -18px rgba(20,30,72,.16); overflow: hidden; }
 .share-bar { display: flex; gap: 12px; align-items: center; padding: 14px 18mm; font-size: 9pt; color: #64748b; }
@@ -125,7 +124,7 @@ export default async function SharedDocument({ params }) {
           <span style={{ flex: 1, textAlign: "end", fontFamily: "monospace" }}>{document.code}</span>
         </div>
 
-        <div className="quality-page" dir={dir} style={{ padding: "12mm 18mm", margin: "0 auto" }}
+        <div dir={dir} style={{ padding: "12mm 18mm", margin: "0 auto" }}
           dangerouslySetInnerHTML={{ __html: renderSections(revision.sections, { values }) }} />
 
         <div className="share-bar" style={{ borderTop: "1px solid #e2e8f0" }}>

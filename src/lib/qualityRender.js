@@ -251,15 +251,16 @@ export function renderSections(sections, ctx = {}) {
 // document content already has, and a letterhead is not worth a second one.
 export const HEADER_SLOTS = ["left", "center", "right"];
 
-// The tokens the PRINT ENGINE fills in rather than the renderer. Puppeteer
-// replaces these spans as it lays the pages out, which is why a page number can
-// only ever be right in the PDF: on screen there are no pages to count.
-export const PAGE_TOKENS = [
-  { key: "page.number", label: "Page number" },
-  { key: "page.count", label: "Total pages" },
-  { key: "page.of", label: "Page N of M" },
-];
-const isPageToken = (key) => PAGE_TOKENS.some((t) => t.key === key);
+// RETIRED. These were filled in by Puppeteer as it laid the pages out, and
+// there is no Puppeteer any more: a browser printing HTML has no CSS margin box
+// and no way to count its own pages, so "Page 2 of 7" cannot be made true here.
+// Rather than print a token that resolves to nothing, a letterhead still
+// carrying one is cleaned of it on save and blanked on read.
+//
+// Chrome's own print dialog still offers a real page number at the edge of the
+// paper. That one is the browser's to draw and is correct.
+export const RETIRED_TOKENS = ["page.number", "page.count", "page.of"];
+export const isRetiredToken = (key) => RETIRED_TOKENS.includes(key);
 
 // A slot is either a FIELD, resolved from the studio and the document, or
 // TEXT somebody typed. Both are stored; neither is a copy of the other's job —
@@ -267,35 +268,24 @@ const isPageToken = (key) => PAGE_TOKENS.some((t) => t.key === key);
 //
 // A bare string is read as a field key, so every letterhead written before this
 // took objects keeps working.
-export function slotValue(slot, ctx, { forPrint = true } = {}) {
+export function slotValue(slot, ctx) {
   if (!slot) return "";
   const spec = typeof slot === "string" ? { type: "field", value: slot } : slot;
   if (spec.type === "text") return esc(spec.value || "");
 
   const key = spec.value || "";
-  if (!key) return "";
-  if (isPageToken(key)) {
-    // On screen these resolve to nothing rather than to a wrong number. A
-    // preview that says "Page 1 of 1" over a forty-page letter is worse than a
-    // preview that says nothing.
-    if (!forPrint) return "";
-    if (key === "page.number") return '<span class="pageNumber"></span>';
-    if (key === "page.count") return '<span class="totalPages"></span>';
-    return 'Page <span class="pageNumber"></span> of <span class="totalPages"></span>';
-  }
+  if (!key || isRetiredToken(key)) return "";
   return esc(ctx.values?.[key] || "");
 }
 
-// The three slots of one bar, resolved. Shared by the print templates below and
-// by the on-screen letterhead, so the preview shows what the paper will.
-// Every row of a bar, resolved. Returns an ARRAY now, because a letterhead is
-// routinely more than one line.
-export function barSlots(bar, ctx, opts) {
+// Every row of a bar, resolved. An ARRAY, because a letterhead is routinely
+// more than one line, and one entry per line in the order they are drawn.
+export function barSlots(bar, ctx) {
   const rows = Array.isArray(bar?.rows) && bar.rows.length ? bar.rows : [bar || {}];
   return rows.map((row) => ({
-    left: slotValue(row.left, ctx, opts),
-    center: slotValue(row.center, ctx, opts),
-    right: slotValue(row.right, ctx, opts),
+    left: slotValue(row.left, ctx),
+    center: slotValue(row.center, ctx),
+    right: slotValue(row.right, ctx),
   }));
 }
 
@@ -304,47 +294,8 @@ export const DEFAULT_TEMPLATE = {
   pageSize: "A4",
   margins: { top: 28, right: 18, bottom: 22, left: 18 },
   header: { showLogo: true, rule: true, rows: [{ left: "company.name", center: "document.title", right: "document.code" }] },
-  footer: { rule: true, rows: [{ left: "document.revision", center: "page.of", right: "document.effectiveDate" }] },
+  footer: { rule: true, rows: [{ left: "document.revision", center: null, right: "document.effectiveDate" }] },
 };
-
-// Puppeteer renders header and footer templates in a DOCUMENT OF THEIR OWN,
-// with no access to the page's stylesheet and a default font-size of zero. Both
-// are the reason every rule here is inline and the size is stated explicitly —
-// a header styled by a class silently renders as nothing at all.
-//
-// It is also why the logo has to arrive as a data: URI: an external image in
-// these templates does not load, whatever the src says.
-function bar(slots, { rule, logo, ctx, position }) {
-  const cell = (token, align) =>
-    `<div style="flex:1;text-align:${align};overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${slotValue(token, ctx)}</div>`;
-  const border = rule
-    ? position === "header" ? "border-bottom:0.5pt solid #cbd5e1;padding-bottom:4px;"
-      : "border-top:0.5pt solid #cbd5e1;padding-top:4px;"
-    : "";
-  const mark = logo && slots.showLogo
-    ? `<img src="${escAttr(logo)}" style="height:26px;width:auto;margin-inline-end:8px;object-fit:contain">`
-    : "";
-
-  const rows = Array.isArray(slots?.rows) && slots.rows.length ? slots.rows : [slots || {}];
-  // The logo sits beside the whole stack rather than inside the first row, so a
-  // three-line letterhead does not shunt it up against the top line.
-  const lines = rows
-    .map((row) => `<div style="display:flex;align-items:center;gap:6px;width:100%">`
-      + cell(row.left, "start") + cell(row.center, "center") + cell(row.right, "end")
-      + `</div>`)
-    .join("");
-
-  return `<div style="width:100%;font-family:'Doc Sans',sans-serif;font-size:8pt;color:#64748b;`
-    + `padding:0 ${Number(ctx.template?.margins?.left) || 18}mm;box-sizing:border-box;">`
-    + `<div style="display:flex;align-items:center;gap:6px;${border}">`
-    + mark + `<div style="flex:1">${lines}</div>`
-    + `</div></div>`;
-}
-
-export const headerTemplate = (template, ctx, logo) =>
-  bar(template?.header || DEFAULT_TEMPLATE.header, { rule: template?.header?.rule, logo, ctx, position: "header" });
-export const footerTemplate = (template, ctx) =>
-  bar(template?.footer || DEFAULT_TEMPLATE.footer, { rule: template?.footer?.rule, ctx, position: "footer" });
 
 // ---- the signature block ----------------------------------------------------
 //
@@ -377,30 +328,6 @@ export function renderSignatures(revision, { image } = {}) {
   }).join("");
 
   return `<div class="quality-signatures"><table class="quality-sign-table"><tr>${cells}</tr></table></div>`;
-}
-
-// ---- the whole page --------------------------------------------------------
-
-// A standalone HTML document: every style inline, every font embedded, no
-// reference to anything outside itself. That is what lets the exporter run
-// Chromium with the network switched off, which is the difference between
-// rendering a document and offering a stranger a browser inside our network.
-export function documentHtml({ sections, values, css, fonts = "", watermark = "", title = "", dir = "ltr", image, revision = null, blocks = {}, inputs = {} }) {
-  const stamp = watermark
-    ? `<div class="quality-watermark"><span>${esc(watermark)}</span></div>`
-    : "";
-  return `<!doctype html>
-<html lang="${escAttr(dir === "rtl" ? "ar" : "en")}" dir="${escAttr(dir)}">
-<head>
-<meta charset="utf-8">
-<title>${esc(title)}</title>
-<style>${fonts}
-body { font-family: 'Doc Sans', 'Doc Arabic', sans-serif; }
-.quality-field.is-empty { color: #94a3b8; }
-${css}</style>
-</head>
-<body>${stamp}<div class="quality-page">${renderSections(sections, { values, image, blocks, inputs })}${renderSignatures(revision, { image })}</div></body>
-</html>`;
 }
 
 export { renderNode, esc as escapeHtml };

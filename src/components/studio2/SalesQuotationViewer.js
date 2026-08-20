@@ -69,9 +69,17 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
   // Nothing about WHAT to fetch is decided here. The template said that when it
   // was written, and the server resolves it. This screen only says which
   // quotation is in hand.
-  const print = async () => {
+  //
+  // `straightToPrint` is the same request with a different landing: the document
+  // opens in its own tab with the print dialog already up, which is what a
+  // person pressing Print on a quotation actually meant. Reading it first is the
+  // other button.
+  const print = async (straightToPrint = false) => {
     setPrinting(true);
     setPrinted("");
+    // OPENED BEFORE THE AWAIT, because a window.open that happens after one is a
+    // window the browser blocks: it is no longer attributable to the click.
+    const tab = straightToPrint ? window.open("", "_blank") : null;
     try {
       const res = await fetch(`/api/studios/${slug}/quality/generated`, {
         method: "POST",
@@ -80,6 +88,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
+        tab?.close();
         setPrinted(payload.error === "not-issued"
           ? "The template behind this button hasn't been approved yet."
           : "That didn't work, and nothing was created.");
@@ -88,7 +97,9 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
       // STRAIGHT TO THE DOCUMENT. Pressing Print is a request to see it; being
       // told a code and left to go and find it is not an answer. A second press
       // opens the same document rather than making another.
-      router.push(`/${slug}/quality-documents/generated/${payload.instance.id}`);
+      const href = `/${slug}/quality-documents/generated/${payload.instance.id}`;
+      if (tab) tab.location = `${href}?print=1`;
+      else router.push(href);
     } finally {
       setPrinting(false);
     }
@@ -138,9 +149,16 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
             Drawn only where the server has already said a press would succeed,
             so it never appears and then refuses. */}
         {data.print?.ready && (
-          <button type="button" className={btn} disabled={printing} onClick={print}>
-            {printing ? "Preparing…" : "Print"}
-          </button>
+          <>
+            <button type="button" className={btnGhost} disabled={printing} onClick={() => print(false)}
+              title="Open the document and read it before it goes anywhere">
+              {printing ? "Preparing…" : "Open document"}
+            </button>
+            <button type="button" className={btn} disabled={printing} onClick={() => print(true)}
+              title="Open the document in a new tab with the print dialog already up">
+              Print
+            </button>
+          </>
         )}
       </div>
 

@@ -49,14 +49,14 @@ import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/qu
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/lib/qualityFields";
 import { setCallPoint, listTemplates, templateForCallPoint, callPointReady,
   letterheadFor, saveLetterhead } from "@/lib/quality";
-import { barSlots, PAGE_TOKENS } from "@/lib/qualityRender";
+import { barSlots, isRetiredToken } from "@/lib/qualityRender";
 import { ticketQuotation } from "@/lib/sales";
 import { CALL_POINTS, callPointById, callPointOptions } from "@/lib/qualityCallPoints";
 import { resolveBlocks, blocksFor, generateDocument, listGenerated, getGenerated,
   moveGenerated, regenerate } from "@/lib/quality";
 import { documentState, pendingRevision } from "@/lib/qualityDocuments";
 import { sanitizeDoc, cleanSections, textOf } from "@/lib/qualityContent";
-import { renderSections, slotValue, DEFAULT_TEMPLATE, headerTemplate } from "@/lib/qualityRender";
+import { renderSections, slotValue, DEFAULT_TEMPLATE } from "@/lib/qualityRender";
 import { listSections, updateRow } from "@/lib/data/sections";
 import { readArr, writeArr } from "@/lib/data/store";
 import { S } from "@/lib/data/keys";
@@ -1298,32 +1298,38 @@ console.log("\n== one renderer draws the screen and the page");
   ok("sections are numbered as they are ordered",
     numbered.indexOf("1.") < numbered.indexOf("Purpose") && numbered.includes("2."), "");
 
-  // The letterhead's page tokens become the spans Puppeteer fills in; anything
-  // else resolves against the merge values.
-  ok("page tokens become the printer's own spans",
-    slotValue("page.of", {}).includes('class="pageNumber"') && slotValue("page.of", {}).includes('class="totalPages"'));
+  // A PAGE TOKEN IS RETIRED, not silently broken. It was filled in by the
+  // headless browser that laid the pages out; a browser printing HTML has no
+  // CSS margin box and cannot count its own pages, so the honest answer is
+  // nothing rather than a number that would be wrong.
+  ok("a retired page token resolves to nothing", slotValue("page.of", {}) === "",
+    JSON.stringify(slotValue("page.of", {})));
+  ok("...and is recognised as retired wherever one is stored",
+    isRetiredToken("page.of") && isRetiredToken("page.number") && !isRetiredToken("company.name"));
   ok("...and a field token resolves like any other",
     slotValue("company.name", { values: { "company.name": "Acme" } }) === "Acme");
   ok("the default letterhead prints the code and the revision",
     DEFAULT_TEMPLATE.header.rows[0].right === "document.code"
     && DEFAULT_TEMPLATE.footer.rows[0].left === "document.revision");
+  ok("...and points at no token nothing can fill",
+    Object.values(DEFAULT_TEMPLATE.header.rows[0]).concat(Object.values(DEFAULT_TEMPLATE.footer.rows[0]))
+      .every((v) => !isRetiredToken(v)));
 
-  // THE BAR AS IT IS ACTUALLY DRAWN. The shape being right is not the same as
-  // three lines appearing on the page, and only one of those is what prints.
-  const threeLine = {
-    margins: { top: 30, right: 20, bottom: 24, left: 20 },
-    header: { showLogo: false, rule: true, rows: [
-      { left: { type: "text", value: "Acme Arabia" }, right: { type: "text", value: "QP-001" } },
-      { left: { type: "text", value: "Riyadh, Saudi Arabia" } },
-      { left: { type: "text", value: "+966 11 000 0000" }, right: { type: "text", value: "acme.sa" } },
-    ] },
-    footer: { rule: true, rows: [{ center: { type: "field", value: "page.of" } }] },
-  };
-  const bar = headerTemplate(threeLine, { values: {}, template: threeLine });
-  ok("a three-line header draws three lines",
-    (bar.match(/align-items:center;gap:6px;width:100%/g) || []).length === 3, bar);
-  ok("...and every line's words are on the page",
-    ["Acme Arabia", "Riyadh", "+966 11 000 0000", "acme.sa", "QP-001"].every((t) => bar.includes(t)), bar);
+  // EVERY LINE OF THE BAR, RESOLVED. The sheet draws these as rows of a table
+  // header group; what this module owes it is one entry per line, in order,
+  // with the words already escaped.
+  const threeLine = { showLogo: false, rule: true, rows: [
+    { left: { type: "text", value: "Acme Arabia" }, right: { type: "text", value: "QP-001" } },
+    { left: { type: "text", value: "Riyadh, Saudi Arabia" } },
+    { left: { type: "text", value: "+966 11 000 0000" }, right: { type: "text", value: "acme.sa" } },
+  ] };
+  const bar = barSlots(threeLine, { values: {} });
+  ok("a three-line header resolves to three lines", bar.length === 3, JSON.stringify(bar));
+  ok("...in the order they are drawn",
+    bar[0].left === "Acme Arabia" && bar[1].left === "Riyadh, Saudi Arabia" && bar[2].right === "acme.sa",
+    JSON.stringify(bar));
+  ok("...and a slot nobody filled is empty rather than absent",
+    bar[1].center === "" && bar[1].right === "", JSON.stringify(bar[1]));
 
   // A SECTION NOBODY CITES. A covering paragraph or a signature block belongs
   // in the document without being clause 3 — and, crucially, without pushing
@@ -2343,7 +2349,13 @@ console.log("\n== the header and footer are the studio's, and say so once");
 
   const shipped = letterheadFor(q);
   ok("a studio that has never edited it still gets a letterhead",
-    Boolean(shipped.header?.rows?.[0]?.left && shipped.footer?.rows?.[0]?.center), JSON.stringify(shipped.header));
+    Boolean(shipped.header?.rows?.[0]?.left && shipped.footer?.rows?.[0]?.left), JSON.stringify(shipped.header));
+  // ...INCLUDING THE PART OF IT THAT IS NOT A SLOT. showLogo was read off the
+  // incoming bar only, so a studio that had never opened the letterhead editor
+  // got false — while the default it was supposedly being given said true, and
+  // the mark simply never printed.
+  ok("...with the logo the default says to show", shipped.header.showLogo === true,
+    JSON.stringify(shipped.header.showLogo));
 
   const saved = await saveLetterhead(q, {
     pageSize: "A4",
@@ -2356,6 +2368,8 @@ console.log("\n== the header and footer are the studio's, and say so once");
       { left: { type: "text", value: "Riyadh, Saudi Arabia" }, center: null, right: null },
     ] },
     footer: { rule: true, rows: [{ left: { type: "field", value: "document.revision" },
+      // A retired token, saved deliberately: it has to be cleaned away here
+      // rather than printed as a gap where a studio expected a number.
       center: { type: "field", value: "page.of" }, right: { type: "text", value: "" } }] },
   });
   ok("it can be edited", !saved.error, saved.error || "");
@@ -2406,13 +2420,13 @@ console.log("\n== the header and footer are the studio's, and say so once");
   // screen the token now resolves to nothing instead of to a wrong number.
   const ctx = { values: { "company.name": "Acme", "document.code": "QP-001" } };
   // A BAR RESOLVES TO ROWS, one entry per line, in the order they are drawn.
-  const printed = barSlots(back.footer, ctx, { forPrint: true });
-  ok("a page token becomes the printer's own spans on paper",
-    printed[0].center.includes("pageNumber") && printed[0].center.includes("totalPages"), printed[0].center);
-  const onScreen = barSlots(back.footer, ctx, { forPrint: false });
-  ok("...and nothing at all on screen", onScreen[0].center === "", JSON.stringify(onScreen[0].center));
+  ok("a retired page token does not survive being saved",
+    back.footer.rows[0].center === null, JSON.stringify(back.footer.rows[0]));
+  const onScreen = barSlots(back.footer, ctx);
+  ok("...and draws as nothing rather than as a gap where a number should be",
+    onScreen[0].center === "", JSON.stringify(onScreen[0].center));
 
-  const head = barSlots(back.header, ctx, { forPrint: false });
+  const head = barSlots(back.header, ctx);
   ok("every line of the bar resolves", head.length === 2, String(head.length));
   ok("a field resolves the same either way", head[0].left === "Acme", head[0].left);
   ok("...and typed words come through escaped", head[0].center === "Confidential", head[0].center);

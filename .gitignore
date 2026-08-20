@@ -10,3 +10,6 @@ data/db.json
 .vercel
 .env*
 MegaTech-Arabia-Website-Quotation.docx
+
+# TypeScript incremental build cache.
+tsconfig.tsbuildinfo

@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { currentUser, needsQuestionnaire } from "@/lib/identity";
 import { studioContext, canAdminister, visibleSections, recordStudioVisit } from "@/lib/studios";
-import { sectionManageable } from "@/lib/access";
+import { sectionManageable, can } from "@/lib/access";
 import { listSections } from "@/lib/data/sections";
 import { getProfile } from "@/lib/data/users";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
@@ -12,10 +12,9 @@ import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import LiveProvider from "@/components/studio2/LiveProvider";
 import StudioDocs from "@/components/studio2/StudioDocs";
-import StudioQualityDocuments from "@/components/studio2/StudioQualityDocuments";
 import StudioQualitySetup from "@/components/studio2/StudioQualitySetup";
-import StudioQualityBuilder from "@/components/studio2/StudioQualityBuilder";
-import StudioQualityReader from "@/components/studio2/StudioQualityReader";
+import { DocumentList } from "@/components/quality/documents/document-list";
+import { DocumentView } from "@/components/quality/documents/document-view";
 import StudioSalesLive from "@/components/studio2/StudioSalesLive";
 import StudioTechnicalLive from "@/components/studio2/StudioTechnicalLive";
 import StudioPeople from "@/components/studio2/StudioPeople";
@@ -142,35 +141,22 @@ export default async function StudioPage({ params }) {
     // register rather than in a settings section of their own. Its own right is
     // re-checked server-side by every route it calls.
     if (segments[1] === "settings") return <StudioQualitySetup studio={shell} />;
-    // Any other second segment names ONE document, and opens the builder on it.
-    // Same shape as /<slug>/inventory-sheets/<id> and /<slug>/projects-list/<id>:
-    // the record's own screen, resolving through the section's grant.
-    // A GENERATED DOCUMENT — produced from a template rather than written.
-    // Same viewer as a controlled one, because on paper they are the same thing.
-    if (segments[1] === "generated" && segments[2]) {
-      return <StudioQualityReader studio={{ ...shell, logo: studio.logo || "" }} documentId={segments[2]} source="generated" />;
-    }
+
+    // ONE EDITOR, NO SEPARATE READER. The builder and the viewer used to be two
+    // screens because the canvas could not show what the paper would do; the
+    // editor that replaced them lays the document out on real sheets and prints
+    // exactly what it draws, so there is nothing left for a second screen to
+    // show. /<id>/preview is gone with it.
     if (segments[1]) {
-      // A THIRD segment opens the reader — the document as it prints, and where
-      // it is exported from. It is a read, so it needs no more than the grant
-      // that got them this far.
-      if (segments[2] === "preview") {
-        return <StudioQualityReader studio={{ ...shell, logo: studio.logo || "" }} documentId={segments[1]} />;
-      }
-      return (
-        <LiveProvider slug={studio.slug}>
-          <StudioQualityBuilder studio={shell} documentId={segments[1]} />
-        </LiveProvider>
-      );
+      return <DocumentView studio={shell} documentId={segments[1]} />;
     }
-    // The register carries its OWN LiveProvider, like the live views: it renders
-    // outside StudioFrame, which is what normally supplies one, and without it
-    // this would be the only board in the studio that never hears about a
-    // document somebody else just created.
+
     return (
-      <LiveProvider slug={studio.slug}>
-        <StudioQualityDocuments studio={shell} />
-      </LiveProvider>
+      <DocumentList
+        studio={shell}
+        canCreate={can(access, "quality.documents.create")}
+        canDelete={can(access, "quality.documents.delete")}
+      />
     );
   }
 

@@ -278,7 +278,6 @@ export default function StudioQualitySetup({ studio }) {
                                     the pages, which is why they can only ever be
                                     right on paper. */}
                                 <optgroup label="Page">
-                                  {(data.pageTokens || []).map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
                                 </optgroup>
                                 {[...new Set((data.slotFields || []).map((f) => f.group))].map((g) => (
                                   <optgroup key={g} label={g}>

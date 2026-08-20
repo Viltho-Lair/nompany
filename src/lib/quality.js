@@ -42,7 +42,7 @@ import {
 import { NODES, traverse } from "@/lib/relations";
 import { CALL_POINTS, callPointById, callPointTaken, callPointOptions, homeFor } from "@/lib/qualityCallPoints";
 import { netUnitPrice, discountPct } from "@/lib/quotations";
-import { DEFAULT_TEMPLATE, PAGE_TOKENS } from "@/lib/qualityRender";
+import { DEFAULT_TEMPLATE, isRetiredToken } from "@/lib/qualityRender";
 
 // Money as a document shows it. Two decimals and grouped thousands, without
 // a currency symbol — the quotation names its own currency, and repeating it
@@ -1285,8 +1285,11 @@ const cleanSlot = (raw) => {
   if (spec.type === "text") return { type: "text", value: str(spec.value, 120) };
   const value = str(spec.value, 60);
   // A field nobody declared would render as a permanent blank, so it is refused
-  // at the point of saving rather than left to be discovered on paper.
-  if (!value || !(isFieldKey(value) || PAGE_TOKENS.some((t) => t.key === value))) return null;
+  // at the point of saving rather than left to be discovered on paper. A page
+  // token is refused for the same reason now: nothing fills it in any more, so
+  // a letterhead still carrying one is cleaned of it here rather than printing
+  // a gap where a studio expected a number.
+  if (!value || isRetiredToken(value) || !isFieldKey(value)) return null;
   return { type: "field", value };
 };
 
@@ -1318,7 +1321,12 @@ const cleanBar = (raw, fallback) => {
     .slice(0, MAX_BAR_ROWS)
     .map((r, i) => cleanRow(r, fell[i]));
   return {
-    showLogo: Boolean(raw?.showLogo),
+    // FALLING BACK, not defaulting to false. A studio that has never opened the
+    // letterhead editor has no incoming bar at all, and reading showLogo off it
+    // gave false against a shipped default of true — so the mark never printed
+    // for anyone who had not gone in and turned it on by hand. Unchecking it is
+    // still respected: that arrives as a bar with showLogo false, not as no bar.
+    showLogo: raw ? Boolean(raw.showLogo) : Boolean(fallback?.showLogo),
     rule: raw?.rule !== false,
     rows: rows.length ? rows : [cleanRow(null, fell[0])],
   };
