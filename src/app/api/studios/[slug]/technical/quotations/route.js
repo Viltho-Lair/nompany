@@ -1,63 +1,58 @@
-import { currentUser } from "@/lib/identity";
+import { route } from "@/lib/route";
 import { technicalContext, convertRfq, createQuotation, updateQuotation, removeQuotation } from "@/lib/technical";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Every quotation write is a Technical action and needs Technical:manage.
-async function guard(paramsPromise) {
-  const user = await currentUser();
-  if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
-  const { slug } = await paramsPromise;
-  const tech = await technicalContext(user, slug);
-  if (tech.error) {
-    const status = tech.error === "notfound" || tech.error === "no-section" ? 404 : 403;
-    return { fail: Response.json({ error: tech.error }, { status }) };
-  }
-  if (!tech.canManage) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
-  return tech;
-}
-const body = async (r) => { try { return await r.json(); } catch { return {}; } };
+//
+// THIS ROUTE IS WHY THE STATUS TABLE EXISTS. Before the wrapper it wrote three
+// separate error ladders and none of them agreed with the rest of the product:
+// POST sent everything except `already`, `duplicate` and `notfound` as 400, so a
+// permission refusal arrived telling the caller they had sent nonsense; PUT did
+// the same; and DELETE mapped EVERY error to 404, so being refused for lack of
+// permission was indistinguishable from the quotation not existing — the one
+// answer that tells a client to stop asking rather than to ask someone for
+// access.
+//
+// All three now map through src/lib/httpStatus.js, so `forbidden` is 403,
+// `locked` is 409 and `notfound` is 404 here exactly as everywhere else.
+const spec = { auth: "studio", context: technicalContext, body: true, name: "technical/quotations" };
+
+// The one check the services cannot make for themselves: they guard the WRITE,
+// this guards the door. Kept as it was rather than folded into the wrapper —
+// permission lives next to the thing it protects.
+const manageable = (tech) => (tech.canManage ? null : { error: "read-only" });
 
 // Two ways a quotation is born, distinguished by whether an rfqId is given:
 // converting an RFQ (the hand-back to Sales), or creating one straight from the
 // Quotations screen, which is Internal and needs number/description/handledBy.
-export async function POST(request, ctx) {
-  const g = await guard(ctx.params);
-  if (g.fail) return g.fail;
+export const POST = route(spec, async (ctx) => {
+  const refusal = manageable(ctx);
+  if (refusal) return refusal;
 
-  const b = await body(request);
-  const result = b.rfqId ? await convertRfq(g, b) : await createQuotation(g, b);
-  if (result.error) {
-    const status = result.error === "already" || result.error === "duplicate" ? 409
-      : result.error === "notfound" ? 404 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json({ ok: true, quotation: result.quotation }, { status: 201 });
-}
+  const result = ctx.body.rfqId ? await convertRfq(ctx, ctx.body) : await createQuotation(ctx, ctx.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, quotation: result.quotation } };
+});
 
 // Edit lines, VAT or status. Totals are always recomputed server-side.
-export async function PUT(request, ctx) {
-  const g = await guard(ctx.params);
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+export const PUT = route(spec, async (ctx) => {
+  const refusal = manageable(ctx);
+  if (refusal) return refusal;
+  if (!ctx.body.id) return { error: "missing" };
 
-  const result = await updateQuotation(g, b.id, b);
-  if (result.error) {
-    const status = result.error === "notfound" ? 404 : result.error === "locked" ? 409 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json({ ok: true, quotation: result.quotation });
-}
+  const result = await updateQuotation(ctx, ctx.body.id, ctx.body);
+  if (result.error) return result;
+  return { ok: true, quotation: result.quotation };
+});
 
-export async function DELETE(request, ctx) {
-  const g = await guard(ctx.params);
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+export const DELETE = route(spec, async (ctx) => {
+  const refusal = manageable(ctx);
+  if (refusal) return refusal;
+  if (!ctx.body.id) return { error: "missing" };
 
-  const result = await removeQuotation(g, b.id);
-  if (result.error) return Response.json({ error: result.error }, { status: 404 });
-  return Response.json({ ok: true });
-}
+  const result = await removeQuotation(ctx, ctx.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

@@ -1798,13 +1798,17 @@ console.log("== status codes: what each refusal claims to be");
   // commits have to delete their line here, which is the checklist maintaining
   // itself instead of rotting.
   const KNOWN = [
-    // technical/quotations maps everything except notfound and locked to 400,
-    // so three permission refusals arrive as "you sent nonsense".
-    "technical.refused.convert", "technical.refused.lock", "technical.refused.unlock",
-    // `not-approved` is 422 here and 400 in technical — the SAME name, two
-    // statuses, decided independently by two routes. Exactly what one table is
-    // for; found the day the scanner started using it.
-    "projects.refused.notapproved", "technical.refused.lock.notapproved",
+    // FOUR ENTRIES LEFT THIS LIST when technical/quotations went through the
+    // wrapper: convert, lock and unlock stopped answering 403-as-400, and
+    // lock.notapproved stopped answering 409-as-400. Their goldens were
+    // re-recorded in the same commit, which is what deleting a line here costs
+    // and exactly why the guard is by name rather than by count.
+    //
+    // What remains is in a route the wrapper has not reached yet. `not-approved`
+    // is 422 in projects and was 400 in technical — the same name, two statuses,
+    // decided independently. Technical now agrees with the table; projects is
+    // the last one that does not.
+    "projects.refused.notapproved",
   ];
   const nameOf = (m) => m.split(":")[0];
   const unexpected = mismatches.filter((m) => !KNOWN.includes(nameOf(m)));

@@ -67,8 +67,12 @@ register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 // So the namespace is emptied on the way IN as well. It is the same one-prefix
 // delete, it costs nothing on a clean run, and it makes every run independent of
 // how the last one ended.
-const { delPrefix: sweepBefore } = await import("@/lib/data/store");
-await sweepBefore(process.env.NOMPANY_KEY_PREFIX);
+// CLAIM FIRST, THEN SWEEP AROUND THE LOCK.
+// The sweep must spare the lock or it destroys the very thing that tells the
+// next run to stay out — of this run AND of any run already in flight.
+const { claimNamespace, sweepExcept, lockKeyFor } = await import("./exclusive.mjs");
+await claimNamespace(process.env.NOMPANY_KEY_PREFIX, "gate-a.test.mjs");
+await sweepExcept(process.env.NOMPANY_KEY_PREFIX, lockKeyFor(process.env.NOMPANY_KEY_PREFIX));
 
 const { gateAFailures } = await import("./gate-a.mjs");
 

@@ -61,6 +61,23 @@ function finish(out, spec) {
   if (isResponse(out)) return stamp(out);
 
   if (isErrorShape(out)) {
+    // THE WHOLE REFUSAL GOES BACK, not just its name — a deliberate change, and
+    // the one place conversion alters a response body rather than only a status.
+    //
+    // Services attach context to refusals with obvious care: `clash` carries the
+    // startTime and endTime it collided with, `insufficient` carries have and
+    // needed, `in-use` carries the shipments still pointing at the thing, and
+    // `forbidden` carries the permission key you are missing. Most routes then
+    // wrote `{ error: result.error }` and threw every bit of it away, so the UI
+    // could only ever say "that didn't work". A few routes forwarded one field
+    // by hand, which is why the join screen can name the studio and nothing else
+    // can.
+    //
+    // Nothing in that set is sensitive: it is all addressed to the person who
+    // just made the request, about the request they just made. If a service ever
+    // wants to attach something internal, the fix is not to strip fields here —
+    // it is to not put it in a refusal that was always destined for a client.
+    //
     // A LOCAL OVERRIDE IS A SMELL, not a feature. It exists because a few error
     // names mean two different things in two different places — `invalid` is
     // "the password you typed is wrong" (401) in identity and "that field is
@@ -100,6 +117,8 @@ const refuse = (error, status) => stamp(Response.json({ error }, { status }));
  *   body      true to parse a JSON body
  *   name      label for the log line; defaults to the spec's auth + method
  *   status    { [errorName]: code } local overrides — see finish()
+ *   context   a module context builder (technicalContext, salesContext, …);
+ *             defaults to studioContext. Implies auth: "studio".
  *
  * The handler receives one context object rather than positional arguments, so
  * adding something to it later does not touch every call site:
@@ -141,7 +160,19 @@ export function route(spec, handler) {
       if (auth === "user") return finish(await handler({ ...base, user }), spec);
 
       // auth === "studio": membership authorises, the URL never does.
-      const context = await studioContext(user, params.slug);
+      //
+      // A MODULE ROUTE NAMES ITS OWN CONTEXT BUILDER rather than getting the bare
+      // studio one. technicalContext, salesContext and the rest each resolve the
+      // studio and then the section, and they return the same `{ error }` shape,
+      // so the wrapper can refuse through the same table without knowing which
+      // module it is looking at. `no-section` and `forbidden` stop being whatever
+      // each route happened to map them to.
+      //
+      // Deliberately ONE call, not studioContext followed by the module builder:
+      // the builder already resolves the studio itself, and asking twice is the
+      // duplicate this seam exists to remove rather than reproduce.
+      const build = spec.context || studioContext;
+      const context = await build(user, params.slug);
       if (context.error) return refuse(context.error, statusFor(context.error));
       return finish(await handler({ ...base, user, ...context }), spec);
     });
