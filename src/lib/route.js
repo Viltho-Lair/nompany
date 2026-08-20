@@ -32,6 +32,7 @@
 import { currentUser, currentIdentity } from "@/lib/identity";
 import { studioContext } from "@/lib/studios";
 import { statusFor } from "@/lib/httpStatus";
+import { isCrossSite, MUTATING } from "@/lib/origin";
 import { withRequest, requestId } from "@/lib/observability";
 
 /** A route's answer carries a status, a body, and sometimes headers. */
@@ -109,6 +110,17 @@ export function route(spec, handler) {
 
   return async function handle(request, ctx) {
     return withRequest(spec.name || auth, async () => {
+      // CSRF, REFUSED BEFORE ANYTHING IS READ — before the body, before the
+      // session lookup, before a single Redis command. A cross-site write must
+      // not be able to cost us work, and it must not be distinguishable by
+      // timing from one that failed later for a different reason.
+      //
+      // Reads are exempt: see origin.js for why, and for the larger point that
+      // this is one layer rather than the answer.
+      if (MUTATING.has(request.method) && isCrossSite(request)) {
+        return refuse("cross-site", 403);
+      }
+
       const params = ctx?.params ? await ctx.params : {};
       const base = { request, params };
 

@@ -1681,6 +1681,53 @@ console.log("== observability: a line you can trace, and a secret you cannot rea
 }
 
 // ============================================================================
+console.log("== CSRF: a write arriving from somebody else's page");
+// THE CONTROL HAS TO BE EXERCISED OR IT IS A CLAIM, NOT A CONTROL. A CSRF check
+// that is never fired is indistinguishable from one wired to the wrong method,
+// or to a header name nobody sends — and both failures look exactly like safety
+// right up until they don't.
+{
+  const PROFILE = await import("@/app/api/identity/profile/route.js");
+  await signIn(owner.id);
+
+  const attacker = { origin: "https://attacker.example" };
+  const ours = { origin: "http://nompany.test" };
+
+  // ORDER MATTERS. A legitimate value goes in FIRST, so that "the attacker's
+  // write did not land" is a comparison against something real rather than
+  // against absence. The first draft of this asserted on `firstName`, which the
+  // profile does not store at all: it read back null, passed, and proved
+  // nothing. A field that is never written looks identical to a field that was
+  // successfully defended.
+  const same = await capture(PROFILE.PUT, req("/api/identity/profile",
+    { method: "PUT", body: { fullName: "Owner Legitimate" }, headers: ours }), ctx());
+  ok("a same-origin write is allowed through", same.status === 200, String(same.status));
+
+  const cross = await capture(PROFILE.PUT, req("/api/identity/profile",
+    { method: "PUT", body: { fullName: "Mallory" }, headers: attacker }), ctx());
+  ok("a cross-site write is refused",
+    cross.status === 403 && cross.body?.error === "cross-site",
+    `${cross.status} ${JSON.stringify(cross.body)}`);
+
+  // REFUSING AND NOT WRITING ARE TWO DIFFERENT CLAIMS. A wrapper that returned
+  // 403 after the handler had already run would satisfy the assertion above and
+  // still have taken the write, so the record is read back rather than trusted.
+  const after = await capture(PROFILE.GET, req("/api/identity/profile"), ctx());
+  ok("...and the field still holds what its owner put there",
+    after.body?.fullName === "Owner Legitimate",
+    JSON.stringify(after.body?.fullName ?? null));
+
+  // DELIBERATE HOLE, PINNED SO IT STAYS DELIBERATE. Reads are exempt: blocking
+  // cross-site GETs would break ordinary linking, and reading a response
+  // cross-origin needs CORS to allow it, which is a different control. If
+  // somebody later "tightens" this into blocking reads, this fails and they get
+  // to read the reason instead of guessing at it.
+  const readCross = await capture(PROFILE.GET,
+    req("/api/identity/profile", { headers: attacker }), ctx());
+  ok("a cross-site READ is deliberately not blocked here", readCross.status === 200,
+    String(readCross.status));
+}
+
 console.log("== no golden is left behind");
 // A golden file that no case produces is debris. It is almost always the old
 // name of a case that was renamed, and it is worse than an empty file: it sits

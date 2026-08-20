@@ -38,6 +38,7 @@ const FORBIDDEN = [
   "suspended",         // the account exists and is switched off
   "unverified",        // the email behind it was never confirmed
   "owner-immutable", "typed-immutable",
+  "cross-site",        // a write arriving from somebody else's page
 ];
 
 // 404 — IT IS NOT THERE, or you are not allowed to know that it is. Membership

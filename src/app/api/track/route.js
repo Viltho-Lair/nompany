@@ -2,6 +2,7 @@ import { STAT, RL } from "@/lib/data/keys";
 import { hIncrBounded, pfAdd, incrWithTTL } from "@/lib/data/store";
 import { continentOf, CONTINENT_KEYS } from "@/lib/continents";
 import { deviceOf, DEVICE_KEYS } from "@/lib/devices";
+import { isCrossSite } from "@/lib/origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,23 +54,9 @@ const ipOf = (request) =>
   || request.headers.get("x-real-ip")
   || "";
 
-// A browser sends Origin on a cross-site POST, so this rejects the obvious
-// case: someone else's page quietly firing beacons at us. It is NOT a complete
-// control — a script that sends no Origin at all passes — which is why the rate
-// limit above exists and is the load-bearing half.
-function crossSite(request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  try {
-    return new URL(origin).host !== (request.headers.get("host") || "");
-  } catch {
-    return true; // an Origin we cannot parse is not one we trust
-  }
-}
-
 export async function POST(request) {
   try {
-    if (crossSite(request)) return Response.json({ ok: false }, { status: 200 });
+    if (isCrossSite(request)) return Response.json({ ok: false }, { status: 200 });
 
     const ip = ipOf(request);
     if ((await incrWithTTL(RL.trackIp(ip), RATE_WINDOW_SEC)) > RATE_MAX) {
