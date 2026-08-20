@@ -24,6 +24,8 @@ import { effectivePermissions } from "@/lib/access";
 import { studioContext } from "@/lib/studios";
 import { SESSION_COOKIE } from "@/lib/identity";
 import { withCommandCount } from "@/lib/data/commandCount";
+import { readArr } from "@/lib/data/store";
+import { S } from "@/lib/data/keys";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 import { golden, req, ctx, capture, RECORDING } from "./goldens.mjs";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -855,6 +857,153 @@ console.log("== inventory: one shared row, two owners, and a check digit");
   await shot("inventory.outsider", await capture(INV.GET, req(`/api/studios/${slug}/inventory`), P));
   __signOut();
   await shot("inventory.unauth", await capture(INV.GET, req(`/api/studios/${slug}/inventory`), P));
+}
+
+// ============================================================================
+console.log("== hr: whose records, which numbers, and what is on disk");
+// The sharpest tenancy rules in the product are inside a single studio rather
+// than between studios, and they all live here.
+//
+//   WHOSE RECORDS is scope. hr.employees and hr.vacations are the only two
+//   areas in the whole catalogue that declare themselves `scoped`, and the
+//   ladder is own < department < all. Scope is enforced in the READ — a screen
+//   that filtered client-side would be a screen that shipped everybody's salary
+//   to everybody's browser.
+//
+//   WHICH NUMBERS is a separate right. Somebody may legitimately administer a
+//   whole department's records without being entitled to read passport numbers,
+//   so presence and expiry are HR-wide and the numbers answer to
+//   hr.employees.salary.
+//
+//   WHAT IS ON DISK is neither. ID and passport numbers are AES-256-GCM
+//   encrypted at rest, so a dump of the collaborator row does not expose them
+//   even to somebody who never asked this API anything.
+{
+  const HR = await import("@/app/api/studios/[slug]/hr/route.js");
+  const EMPLOYEES = await import("@/app/api/studios/[slug]/hr/employees/route.js");
+  const VACATIONS = await import("@/app/api/studios/[slug]/hr/vacations/route.js");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const personWith = async (permissions, alias, scopes) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions, scopes });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return { user: u, collaborator: await getCollaboratorByUser(studio.id, u.id) };
+  };
+
+  await signIn(owner.id);
+
+  // ---- record an identity document ---------------------------------------
+  const ID_NUMBER = "1098765432";
+  const PASSPORT = "K01234567";
+  await shot("hr.employment.saved", await capture(
+    EMPLOYEES.PUT, req(`/api/studios/${slug}/hr/employees`, { method: "PUT", body: {
+      collaboratorId: member.id,
+      patch: { employeeCode: "EMP-014", mobile: "+966500000000", idNumber: ID_NUMBER,
+        passportNumber: PASSPORT, idExpiry: "2030-01-01", passportExpiry: "2031-06-30" },
+    } }), P));
+
+  // WHAT IS ACTUALLY ON DISK. Asserted against the stored row rather than
+  // against the code, so it stays true however the encryption is refactored —
+  // and it is the one assertion here that a permission bug cannot fake.
+  const rows = await readArr(S.collaborators(studio.id));
+  const stored = JSON.stringify(rows.find((c) => c.id === member.id));
+  ok("the ID number is not on disk in the clear", !stored.includes(ID_NUMBER));
+  ok("...nor is the passport number", !stored.includes(PASSPORT));
+  ok("...and what IS stored is marked as ciphertext", stored.includes("enc:v1:"));
+
+  // ---- who may read the numbers back -------------------------------------
+  const withSalary = await capture(HR.GET, req(`/api/studios/${slug}/hr`), P);
+  await shot("hr.list.withsalary", withSalary);
+  const meAsOwner = withSalary.body?.employees?.find((e) => e.id === member.id);
+  ok("a holder of hr.employees.salary reads the ID number", meAsOwner?.idNumber === ID_NUMBER, meAsOwner?.idNumber);
+
+  // Somebody who administers the whole department but was not given `salary`.
+  const admin = await personWith(
+    ["hr.employees.view", "hr.employees.create", "hr.employees.edit", "hr.vacations.view"],
+    "hradmin", { "hr.employees": "all" });
+  await signIn(admin.user.id);
+  const withoutSalary = await capture(HR.GET, req(`/api/studios/${slug}/hr`), P);
+  await shot("hr.list.withoutsalary", withoutSalary);
+  const seen = withoutSalary.body?.employees?.find((e) => e.id === member.id);
+  ok("without the salary right the number is withheld", !seen?.idNumber, JSON.stringify(seen?.idNumber));
+  ok("...but its PRESENCE is not a secret", seen?.hasId === true, JSON.stringify(seen?.hasId));
+  ok("...and neither is its expiry", seen?.idExpiry === "2030-01-01", seen?.idExpiry);
+
+  // THE DIVERGENCE THE AUDIT NAMED (M-9): writing the number needs `edit`,
+  // reading it needs `salary`. So this caller can OVERWRITE a number they cannot
+  // see. Pinned as current behaviour, not endorsed — the fix is to gate the
+  // write on the same right, and this is where that change announces itself.
+  const blindWrite = await capture(EMPLOYEES.PUT, req(`/api/studios/${slug}/hr/employees`, {
+    method: "PUT", body: { collaboratorId: member.id, patch: { idNumber: "9999999999" } },
+  }), P);
+  await shot("hr.employment.blindwrite", blindWrite);
+  ok("somebody who cannot READ an ID number can still overwrite it (M-9, pinned)",
+    blindWrite.status === 200, `${blindWrite.status} ${JSON.stringify(blindWrite.body).slice(0, 80)}`);
+
+  // Put it back, so later cases see the number the earlier ones recorded.
+  await signIn(owner.id);
+  await capture(EMPLOYEES.PUT, req(`/api/studios/${slug}/hr/employees`, {
+    method: "PUT", body: { collaboratorId: member.id, patch: { idNumber: ID_NUMBER } },
+  }), P);
+
+  // ---- scope: whose records ----------------------------------------------
+  // The default when a role grants no scope is `own`, the safe end of the
+  // ladder — somebody sees themselves and nobody else.
+  const ownScope = await personWith(["hr.employees.view"], "hrown", {});
+  await signIn(ownScope.user.id);
+  const mineOnly = await capture(HR.GET, req(`/api/studios/${slug}/hr`), P);
+  await shot("hr.list.ownscope", mineOnly);
+  ok("scope `own` returns exactly one person", mineOnly.body?.employees?.length === 1,
+    String(mineOnly.body?.employees?.length));
+  ok("...and that person is the caller", mineOnly.body?.employees?.[0]?.id === ownScope.collaborator.id,
+    mineOnly.body?.employees?.[0]?.alias);
+
+  // `all` sees the studio. The pair is the assertion: the same request, the same
+  // data, two different answers decided by the role.
+  await signIn(admin.user.id);
+  const everyone = await capture(HR.GET, req(`/api/studios/${slug}/hr`), P);
+  ok("scope `all` returns more than one", (everyone.body?.employees?.length ?? 0) > 1,
+    String(everyone.body?.employees?.length));
+
+  // ---- vacations: asking is not approving --------------------------------
+  // Requesting leave is deliberately NOT a manage-write — anybody who can open
+  // HR may ask for their own. Deciding is its own right.
+  const asker = await personWith(["hr.vacations.view", "hr.vacations.create"], "hrasker", {});
+  await signIn(asker.user.id);
+  const asked = await shot("hr.vacation.requested", await capture(
+    VACATIONS.POST, req(`/api/studios/${slug}/hr/vacations`, { method: "POST", body: {
+      from: "2026-09-01", to: "2026-09-05", reason: "Family",
+    } }), P));
+  const vacationId = asked.body?.vacation?.id;
+  ok("somebody can ask for their own leave", Boolean(vacationId), JSON.stringify(asked.body).slice(0, 120));
+
+  await shot("hr.vacation.refused.forothers", await capture(
+    VACATIONS.POST, req(`/api/studios/${slug}/hr/vacations`, { method: "POST", body: {
+      collaboratorId: member.id, from: "2026-10-01", to: "2026-10-02",
+    } }), P));
+
+  await shot("hr.vacation.refused.approve", await capture(
+    VACATIONS.PUT, req(`/api/studios/${slug}/hr/vacations`, { method: "PUT", body: {
+      id: vacationId, status: "Approved",
+    } }), P));
+
+  await signIn(owner.id);
+  await shot("hr.vacation.approved", await capture(
+    VACATIONS.PUT, req(`/api/studios/${slug}/hr/vacations`, { method: "PUT", body: {
+      id: vacationId, status: "Approved",
+    } }), P));
+
+  // ---- the walls ----------------------------------------------------------
+  await signIn(outsider.id);
+  await shot("hr.outsider", await capture(HR.GET, req(`/api/studios/${slug}/hr`), P));
+  __signOut();
+  await shot("hr.unauth", await capture(HR.GET, req(`/api/studios/${slug}/hr`), P));
 }
 
 // ============================================================================

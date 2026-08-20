@@ -1,0 +1,21 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "vacation": {
+      "id": "<vac_ID>",
+      "collaboratorId": "<col_ID>",
+      "type": "Annual",
+      "from": "2026-09-01",
+      "to": "2026-09-05",
+      "days": 5,
+      "reason": "Family",
+      "status": "Pending",
+      "decidedByCollaboratorId": "",
+      "requestedByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sec_ID>"
+    }
+  }
+}

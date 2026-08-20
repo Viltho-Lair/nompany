@@ -1,0 +1,303 @@
+{
+  "status": 200,
+  "body": {
+    "canManage": false,
+    "canViewDashboard": false,
+    "canAssignRoles": false,
+    "nav": {
+      "main": true,
+      "sales": false,
+      "sales-tickets": false,
+      "sales-clients": false,
+      "sales-live": false,
+      "sales-settings": false,
+      "technical": false,
+      "technical-quotations": false,
+      "technical-rfq": false,
+      "technical-live": false,
+      "technical-settings": false,
+      "projects": false,
+      "projects-list": false,
+      "projects-sla": false,
+      "projects-overtimes": false,
+      "projects-settings": false,
+      "inventory": false,
+      "inventory-stock": false,
+      "inventory-vendors": false,
+      "inventory-items": false,
+      "inventory-sheets": false,
+      "inventory-awb": false,
+      "hr": true,
+      "hr-employees": true,
+      "finance": false,
+      "finance-cash": false,
+      "finance-settings": false,
+      "operations": false,
+      "operations-tracking": false,
+      "operations-settings": false,
+      "quality": false,
+      "quality-documents": false,
+      "tasks": false,
+      "tasks-settings": false
+    },
+    "manage": {
+      "main": false,
+      "sales": false,
+      "sales-tickets": false,
+      "sales-clients": false,
+      "sales-live": false,
+      "sales-settings": false,
+      "technical": false,
+      "technical-quotations": false,
+      "technical-rfq": false,
+      "technical-live": false,
+      "technical-settings": false,
+      "projects": false,
+      "projects-list": false,
+      "projects-sla": false,
+      "projects-overtimes": false,
+      "projects-settings": false,
+      "inventory": false,
+      "inventory-stock": false,
+      "inventory-vendors": false,
+      "inventory-items": false,
+      "inventory-sheets": false,
+      "inventory-awb": false,
+      "hr": false,
+      "hr-employees": false,
+      "finance": false,
+      "finance-cash": false,
+      "finance-settings": false,
+      "operations": false,
+      "operations-tracking": false,
+      "operations-settings": false,
+      "quality": false,
+      "quality-documents": false,
+      "tasks": false,
+      "tasks-settings": false
+    },
+    "me": {
+      "collaboratorId": "<col_ID>"
+    },
+    "departments": [
+      {
+        "id": "finance",
+        "name": "Finance"
+      },
+      {
+        "id": "hr",
+        "name": "Human Resources"
+      },
+      {
+        "id": "inventory",
+        "name": "Inventory"
+      },
+      {
+        "id": "operations",
+        "name": "Operations"
+      },
+      {
+        "id": "projects",
+        "name": "Projects"
+      },
+      {
+        "id": "quality",
+        "name": "Quality"
+      },
+      {
+        "id": "sales",
+        "name": "Sales"
+      },
+      {
+        "id": "tasks",
+        "name": "Tasks"
+      },
+      {
+        "id": "technical",
+        "name": "Technical"
+      }
+    ],
+    "roles": [
+      {
+        "id": "role_admin",
+        "name": "Admin",
+        "description": "Everything, including capabilities added in future releases.",
+        "wildcard": true,
+        "permissionCount": null,
+        "held": 0
+      },
+      {
+        "id": "role_manager",
+        "name": "Manager",
+        "description": "Runs a department: full control of its work, sight of the rest.",
+        "wildcard": false,
+        "permissionCount": 43,
+        "held": 0
+      },
+      {
+        "id": "role_member",
+        "name": "Member",
+        "description": "Does the work: raises and edits records, deletes nothing.",
+        "wildcard": false,
+        "permissionCount": 13,
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-hradmin",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 4,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-hrown",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 1,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-projectmanager",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 3,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-projlister",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 3,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-salesclerk",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-salesviewer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 1,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-storeman",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-techeditor",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 3,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-techlocker",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 3,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-techpricer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 3,
+        "held": 1
+      },
+      {
+        "id": "role_lead",
+        "name": "Team Lead",
+        "description": "Does the work and assigns it, without settings or deletion.",
+        "wildcard": false,
+        "permissionCount": 27,
+        "held": 0
+      },
+      {
+        "id": "role_viewer",
+        "name": "Viewer",
+        "description": "Reads, changes nothing.",
+        "wildcard": false,
+        "permissionCount": 6,
+        "held": 0
+      }
+    ],
+    "certifications": [],
+    "employees": [
+      {
+        "id": "<col_ID>",
+        "alias": "hrown",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-hrown"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      }
+    ],
+    "vacations": [],
+    "expiring": [],
+    "headcount": {
+      "byDepartment": {
+        "finance": 0,
+        "hr": 0,
+        "inventory": 0,
+        "operations": 0,
+        "projects": 0,
+        "quality": 0,
+        "sales": 0,
+        "tasks": 0,
+        "technical": 0
+      },
+      "unassigned": 1,
+      "total": 1
+    },
+    "vocabulary": {
+      "leaveTypes": [
+        "Annual",
+        "Sick",
+        "Unpaid",
+        "Parental",
+        "Compassionate"
+      ],
+      "leaveStatuses": [
+        "Pending",
+        "Approved",
+        "Declined",
+        "Cancelled"
+      ],
+      "expiryWindowDays": 60
+    }
+  }
+}

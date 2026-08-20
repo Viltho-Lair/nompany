@@ -1,0 +1,495 @@
+{
+  "status": 200,
+  "body": {
+    "canManage": true,
+    "canViewDashboard": true,
+    "canAssignRoles": true,
+    "nav": {
+      "main": true,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": true,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": true,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "manage": {
+      "main": false,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": false,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": false,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "me": {
+      "collaboratorId": "<col_ID>"
+    },
+    "departments": [
+      {
+        "id": "finance",
+        "name": "Finance"
+      },
+      {
+        "id": "hr",
+        "name": "Human Resources"
+      },
+      {
+        "id": "inventory",
+        "name": "Inventory"
+      },
+      {
+        "id": "operations",
+        "name": "Operations"
+      },
+      {
+        "id": "projects",
+        "name": "Projects"
+      },
+      {
+        "id": "quality",
+        "name": "Quality"
+      },
+      {
+        "id": "sales",
+        "name": "Sales"
+      },
+      {
+        "id": "tasks",
+        "name": "Tasks"
+      },
+      {
+        "id": "technical",
+        "name": "Technical"
+      }
+    ],
+    "roles": [
+      {
+        "id": "role_admin",
+        "name": "Admin",
+        "description": "Everything, including capabilities added in future releases.",
+        "wildcard": true,
+        "permissionCount": null,
+        "held": 0
+      },
+      {
+        "id": "role_manager",
+        "name": "Manager",
+        "description": "Runs a department: full control of its work, sight of the rest.",
+        "wildcard": false,
+        "permissionCount": 43,
+        "held": 0
+      },
+      {
+        "id": "role_member",
+        "name": "Member",
+        "description": "Does the work: raises and edits records, deletes nothing.",
+        "wildcard": false,
+        "permissionCount": 13,
+        "held": 0
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-projectmanager",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 3,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-projlister",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 3,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-salesclerk",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-salesviewer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 1,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-storeman",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 2,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-techeditor",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 3,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-techlocker",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 3,
+        "held": 1
+      },
+      {
+        "id": "<rol_ID>",
+        "name": "role-techpricer",
+        "description": "",
+        "wildcard": false,
+        "permissionCount": 3,
+        "held": 1
+      },
+      {
+        "id": "role_lead",
+        "name": "Team Lead",
+        "description": "Does the work and assigns it, without settings or deletion.",
+        "wildcard": false,
+        "permissionCount": 27,
+        "held": 0
+      },
+      {
+        "id": "role_viewer",
+        "name": "Viewer",
+        "description": "Reads, changes nothing.",
+        "wildcard": false,
+        "permissionCount": 6,
+        "held": 0
+      }
+    ],
+    "certifications": [],
+    "employees": [
+      {
+        "id": "<col_ID>",
+        "alias": "Member",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [],
+        "roleNames": [],
+        "employeeCode": "EMP-014",
+        "dateOfJoin": "",
+        "mobile": "+966500000000",
+        "certificationIds": [],
+        "hasId": true,
+        "hasPassport": true,
+        "idExpiry": "2030-01-01",
+        "passportExpiry": "2031-06-30",
+        "idNumber": "1098765432",
+        "passportNumber": "K01234567"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "Owner",
+        "role": "owner",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [],
+        "roleNames": [],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "projectmanager",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-projectmanager"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "projlister",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-projlister"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "salesclerk",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-salesclerk"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "salesviewer",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-salesviewer"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "storeman",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-storeman"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "techeditor",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-techeditor"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "techlocker",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-techlocker"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "techpricer",
+        "role": "member",
+        "photo": "",
+        "departmentId": "",
+        "departmentName": "",
+        "roleIds": [
+          "<rol_ID>"
+        ],
+        "roleNames": [
+          "role-techpricer"
+        ],
+        "employeeCode": "",
+        "dateOfJoin": "",
+        "mobile": "",
+        "certificationIds": [],
+        "hasId": false,
+        "hasPassport": false,
+        "idExpiry": "",
+        "passportExpiry": "",
+        "idNumber": "",
+        "passportNumber": ""
+      }
+    ],
+    "vacations": [],
+    "expiring": [],
+    "headcount": {
+      "byDepartment": {
+        "finance": 0,
+        "hr": 0,
+        "inventory": 0,
+        "operations": 0,
+        "projects": 0,
+        "quality": 0,
+        "sales": 0,
+        "tasks": 0,
+        "technical": 0
+      },
+      "unassigned": 10,
+      "total": 10
+    },
+    "vocabulary": {
+      "leaveTypes": [
+        "Annual",
+        "Sick",
+        "Unpaid",
+        "Parental",
+        "Compassionate"
+      ],
+      "leaveStatuses": [
+        "Pending",
+        "Approved",
+        "Declined",
+        "Cancelled"
+      ],
+      "expiryWindowDays": 60
+    }
+  }
+}
