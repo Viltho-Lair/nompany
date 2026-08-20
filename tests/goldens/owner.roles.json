@@ -1,0 +1,557 @@
+{
+  "status": 200,
+  "body": {
+    "roles": [
+      {
+        "id": "role_admin",
+        "name": "Admin",
+        "wildcard": true,
+        "description": "Everything, including capabilities added in future releases.",
+        "permissions": [],
+        "scopes": {},
+        "studioId": "<std_ID>",
+        "createdAt": "<timestamp>"
+      },
+      {
+        "id": "role_manager",
+        "name": "Manager",
+        "description": "Runs a department: full control of its work, sight of the rest.",
+        "permissions": [
+          "sales.dashboard.view",
+          "technical.dashboard.view",
+          "projects.dashboard.view",
+          "inventory.dashboard.view",
+          "hr.dashboard.view",
+          "finance.dashboard.view",
+          "sales.tickets.view",
+          "sales.tickets.create",
+          "sales.tickets.edit",
+          "sales.clients.view",
+          "sales.clients.create",
+          "sales.clients.edit",
+          "sales.clients.delete",
+          "sales.live.view",
+          "technical.rfq.view",
+          "technical.rfq.create",
+          "technical.rfq.edit",
+          "technical.quotations.view",
+          "technical.quotations.create",
+          "technical.quotations.edit",
+          "technical.quotations.delete",
+          "projects.list.view",
+          "projects.list.create",
+          "projects.list.edit",
+          "projects.list.delete",
+          "projects.sla.view",
+          "projects.sla.create",
+          "projects.sla.edit",
+          "inventory.stock.view",
+          "inventory.items.view",
+          "operations.tracking.view",
+          "operations.tracking.create",
+          "operations.tracking.edit",
+          "tasks.board.view",
+          "tasks.board.create",
+          "tasks.board.edit",
+          "tasks.board.delete",
+          "hr.employees.view",
+          "hr.vacations.view",
+          "hr.vacations.create",
+          "hr.vacations.edit",
+          "hr.vacations.approve",
+          "technical.rfq.convert"
+        ],
+        "scopes": {
+          "hr.employees": "department",
+          "hr.vacations": "department"
+        },
+        "studioId": "<std_ID>",
+        "createdAt": "<timestamp>"
+      },
+      {
+        "id": "role_lead",
+        "name": "Team Lead",
+        "description": "Does the work and assigns it, without settings or deletion.",
+        "permissions": [
+          "sales.dashboard.view",
+          "technical.dashboard.view",
+          "projects.dashboard.view",
+          "sales.tickets.view",
+          "sales.tickets.create",
+          "sales.tickets.edit",
+          "sales.clients.view",
+          "sales.clients.create",
+          "sales.clients.edit",
+          "technical.rfq.view",
+          "technical.rfq.create",
+          "technical.rfq.edit",
+          "technical.quotations.view",
+          "technical.quotations.create",
+          "technical.quotations.edit",
+          "projects.list.view",
+          "projects.list.create",
+          "projects.list.edit",
+          "tasks.board.view",
+          "tasks.board.create",
+          "tasks.board.edit",
+          "tasks.board.delete",
+          "inventory.items.view",
+          "operations.tracking.view",
+          "operations.tracking.create",
+          "operations.tracking.edit",
+          "hr.vacations.view"
+        ],
+        "scopes": {
+          "hr.vacations": "own"
+        },
+        "studioId": "<std_ID>",
+        "createdAt": "<timestamp>"
+      },
+      {
+        "id": "role_member",
+        "name": "Member",
+        "description": "Does the work: raises and edits records, deletes nothing.",
+        "permissions": [
+          "sales.tickets.view",
+          "sales.tickets.create",
+          "sales.tickets.edit",
+          "sales.clients.view",
+          "technical.quotations.view",
+          "projects.list.view",
+          "tasks.board.view",
+          "tasks.board.create",
+          "tasks.board.edit",
+          "inventory.items.view",
+          "hr.vacations.view",
+          "hr.vacations.create",
+          "hr.vacations.edit"
+        ],
+        "scopes": {
+          "hr.vacations": "own"
+        },
+        "studioId": "<std_ID>",
+        "createdAt": "<timestamp>"
+      },
+      {
+        "id": "role_viewer",
+        "name": "Viewer",
+        "description": "Reads, changes nothing.",
+        "permissions": [
+          "sales.tickets.view",
+          "sales.clients.view",
+          "technical.quotations.view",
+          "projects.list.view",
+          "inventory.items.view",
+          "tasks.board.view"
+        ],
+        "scopes": {},
+        "studioId": "<std_ID>",
+        "createdAt": "<timestamp>"
+      }
+    ],
+    "areas": [
+      {
+        "key": "sales.dashboard",
+        "group": "Sales",
+        "label": "Dashboard",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "technical.dashboard",
+        "group": "Technical",
+        "label": "Dashboard",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "projects.dashboard",
+        "group": "Projects",
+        "label": "Dashboard",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "inventory.dashboard",
+        "group": "Inventory",
+        "label": "Dashboard",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "hr.dashboard",
+        "group": "Human Resources",
+        "label": "Dashboard",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "finance.dashboard",
+        "group": "Finance",
+        "label": "Dashboard",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "operations.dashboard",
+        "group": "Operations",
+        "label": "Main screen",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "quality.dashboard",
+        "group": "Quality",
+        "label": "Dashboard",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "sales.tickets",
+        "group": "Sales",
+        "label": "Tickets",
+        "verbs": [
+          "view",
+          "create",
+          "edit"
+        ]
+      },
+      {
+        "key": "sales.clients",
+        "group": "Sales",
+        "label": "Clients",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "sales.live",
+        "group": "Sales",
+        "label": "Live view",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "sales.settings",
+        "group": "Sales",
+        "label": "Settings",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      },
+      {
+        "key": "technical.rfq",
+        "group": "Technical",
+        "label": "RFQ",
+        "verbs": [
+          "view",
+          "create",
+          "edit"
+        ],
+        "extra": [
+          {
+            "key": "convert",
+            "label": "Convert to quotation"
+          }
+        ]
+      },
+      {
+        "key": "technical.quotations",
+        "group": "Technical",
+        "label": "Quotations",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ],
+        "extra": [
+          {
+            "key": "lock",
+            "label": "Lock permanently"
+          },
+          {
+            "key": "unlock",
+            "label": "Unlock a locked quotation"
+          }
+        ]
+      },
+      {
+        "key": "technical.live",
+        "group": "Technical",
+        "label": "Live view",
+        "verbs": [
+          "view"
+        ]
+      },
+      {
+        "key": "technical.settings",
+        "group": "Technical",
+        "label": "Settings",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      },
+      {
+        "key": "projects.list",
+        "group": "Projects",
+        "label": "Projects",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "projects.sla",
+        "group": "Projects",
+        "label": "SLA",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "projects.overtimes",
+        "group": "Projects",
+        "label": "Overtimes",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "projects.settings",
+        "group": "Projects",
+        "label": "Settings",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      },
+      {
+        "key": "inventory.stock",
+        "group": "Inventory",
+        "label": "Stock",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "inventory.vendors",
+        "group": "Inventory",
+        "label": "Vendors",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "inventory.items",
+        "group": "Inventory",
+        "label": "Registered items",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "inventory.sheets",
+        "group": "Inventory",
+        "label": "Project sheets",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      },
+      {
+        "key": "inventory.awb",
+        "group": "Inventory",
+        "label": "AWB tracking",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "hr.employees",
+        "group": "Human Resources",
+        "label": "Employees",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ],
+        "scoped": true,
+        "extra": [
+          {
+            "key": "salary",
+            "label": "See pay and salary"
+          }
+        ]
+      },
+      {
+        "key": "hr.vacations",
+        "group": "Human Resources",
+        "label": "Vacations",
+        "verbs": [
+          "view",
+          "create",
+          "edit"
+        ],
+        "scoped": true,
+        "extra": [
+          {
+            "key": "approve",
+            "label": "Approve requests"
+          }
+        ]
+      },
+      {
+        "key": "finance.cash",
+        "group": "Finance",
+        "label": "Cash",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "finance.settings",
+        "group": "Finance",
+        "label": "Settings",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      },
+      {
+        "key": "operations.tracking",
+        "group": "Operations",
+        "label": "Tracking",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "operations.settings",
+        "group": "Operations",
+        "label": "Settings",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      },
+      {
+        "key": "quality.documents",
+        "group": "Quality",
+        "label": "Documents",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ],
+        "extra": [
+          {
+            "key": "setup",
+            "label": "Manage document types and codes"
+          },
+          {
+            "key": "review",
+            "label": "Sign as reviewer"
+          },
+          {
+            "key": "approve",
+            "label": "Sign as approver"
+          },
+          {
+            "key": "publish",
+            "label": "Issue a revision"
+          },
+          {
+            "key": "obsolete",
+            "label": "Withdraw a document"
+          },
+          {
+            "key": "share",
+            "label": "Create an external share link"
+          }
+        ]
+      },
+      {
+        "key": "tasks.board",
+        "group": "Tasks",
+        "label": "Task board",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      },
+      {
+        "key": "tasks.settings",
+        "group": "Tasks",
+        "label": "Settings",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      },
+      {
+        "key": "people.members",
+        "group": "People",
+        "label": "People & access",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      },
+      {
+        "key": "studio.settings",
+        "group": "Studio",
+        "label": "Studio settings",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      }
+    ],
+    "canEdit": true
+  }
+}

@@ -1,0 +1,237 @@
+{
+  "status": 200,
+  "body": {
+    "canManage": true,
+    "canViewDashboard": true,
+    "canManageTickets": true,
+    "canManageClients": true,
+    "canManageSettings": true,
+    "nav": {
+      "main": true,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": true,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": true,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "manage": {
+      "main": false,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": false,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": false,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "hasTechnical": true,
+    "hasTasks": true,
+    "clients": [],
+    "tickets": [],
+    "people": [
+      {
+        "id": "<col_ID>",
+        "alias": "Member",
+        "role": "member"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "Owner",
+        "role": "owner"
+      }
+    ],
+    "services": [],
+    "studioDefaults": {
+      "country": "",
+      "city": "",
+      "currency": ""
+    },
+    "liveColumns": [
+      "ref",
+      "title",
+      "clientName",
+      "status",
+      "deadline"
+    ],
+    "salesCities": [],
+    "salesContactPositions": [],
+    "vocabulary": {
+      "statuses": [
+        "Lead",
+        "Opportunity",
+        "Commit",
+        "Closed Won",
+        "Closed Lost",
+        "Cancelled by Client",
+        "On-Hold",
+        "Dropped"
+      ],
+      "urgencies": [
+        "Low",
+        "Normal",
+        "High",
+        "Critical"
+      ],
+      "industries": [
+        "Residential",
+        "Commercial",
+        "Banking",
+        "Governmental",
+        "Education",
+        "Technology",
+        "Construction",
+        "Healthcare",
+        "Energy",
+        "Consulting",
+        "Engineering",
+        "Manufacturing",
+        "Logistics",
+        "Hospitality",
+        "Finance",
+        "Agriculture",
+        "Transportation",
+        "Automotive",
+        "Aerospace",
+        "Telecommunications",
+        "Media",
+        "Security",
+        "Architecture",
+        "Real-Estate",
+        "Pharmaceuticals",
+        "Chemicals",
+        "Mining",
+        "Retail",
+        "Wholesale",
+        "Legal",
+        "Insurance",
+        "Entertainment",
+        "Defense",
+        "Utilities"
+      ],
+      "liveColumnOptions": [
+        {
+          "key": "ref",
+          "label": "Ref"
+        },
+        {
+          "key": "title",
+          "label": "Title"
+        },
+        {
+          "key": "clientName",
+          "label": "Client"
+        },
+        {
+          "key": "status",
+          "label": "Status"
+        },
+        {
+          "key": "urgency",
+          "label": "Urgency"
+        },
+        {
+          "key": "industry",
+          "label": "Industry"
+        },
+        {
+          "key": "deadline",
+          "label": "Deadline"
+        },
+        {
+          "key": "value",
+          "label": "Value Quoted"
+        },
+        {
+          "key": "clientBudget",
+          "label": "Client budget"
+        },
+        {
+          "key": "contactName",
+          "label": "Contact"
+        },
+        {
+          "key": "contactPhone",
+          "label": "Phone"
+        },
+        {
+          "key": "locationCity",
+          "label": "City"
+        },
+        {
+          "key": "owner",
+          "label": "Owner"
+        },
+        {
+          "key": "probability",
+          "label": "Probability"
+        },
+        {
+          "key": "rfq",
+          "label": "RFQ"
+        },
+        {
+          "key": "createdAt",
+          "label": "Created"
+        },
+        {
+          "key": "updatedAt",
+          "label": "Updated"
+        }
+      ]
+    }
+  }
+}

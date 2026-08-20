@@ -1,0 +1,222 @@
+{
+  "status": 200,
+  "body": {
+    "studio": {
+      "id": "<std_ID>",
+      "name": "<studio-name>",
+      "slug": "<slug>"
+    },
+    "me": {
+      "collaboratorId": "<col_ID>",
+      "alias": "Owner",
+      "role": "owner",
+      "canAdminister": true
+    },
+    "sections": [
+      {
+        "id": "<sec_ID>",
+        "key": "main",
+        "name": "Main",
+        "enabled": true
+      },
+      {
+        "id": "<sec_ID>",
+        "key": "sales",
+        "name": "Sales",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "sales-tickets",
+        "name": "Tickets",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "sales-clients",
+        "name": "Clients",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "sales-live",
+        "name": "Live view",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "sales-settings",
+        "name": "Settings",
+        "enabled": true
+      },
+      {
+        "id": "<sec_ID>",
+        "key": "technical",
+        "name": "Technical",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "technical-quotations",
+        "name": "Quotations",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "technical-rfq",
+        "name": "RFQ",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "technical-live",
+        "name": "Live view",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "technical-settings",
+        "name": "Settings",
+        "enabled": true
+      },
+      {
+        "id": "<sec_ID>",
+        "key": "projects",
+        "name": "Projects",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "projects-list",
+        "name": "Project list",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "projects-sla",
+        "name": "SLA",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "projects-overtimes",
+        "name": "Overtimes",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "projects-settings",
+        "name": "Settings",
+        "enabled": true
+      },
+      {
+        "id": "<sec_ID>",
+        "key": "inventory",
+        "name": "Inventory",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "inventory-stock",
+        "name": "Stock Management",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "inventory-vendors",
+        "name": "Vendors",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "inventory-items",
+        "name": "Registered Items",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "inventory-sheets",
+        "name": "Project Sheets",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "inventory-awb",
+        "name": "AWB Tracking",
+        "enabled": true
+      },
+      {
+        "id": "<sec_ID>",
+        "key": "hr",
+        "name": "Human Resources",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "hr-employees",
+        "name": "Employees",
+        "enabled": true
+      },
+      {
+        "id": "<sec_ID>",
+        "key": "finance",
+        "name": "Finance",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "finance-cash",
+        "name": "Cash",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "finance-settings",
+        "name": "Settings",
+        "enabled": true
+      },
+      {
+        "id": "<sec_ID>",
+        "key": "operations",
+        "name": "Operations",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "operations-tracking",
+        "name": "Tracking",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "operations-settings",
+        "name": "Settings",
+        "enabled": true
+      },
+      {
+        "id": "<sec_ID>",
+        "key": "quality",
+        "name": "Quality",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "quality-documents",
+        "name": "Documents",
+        "enabled": true
+      },
+      {
+        "id": "<sec_ID>",
+        "key": "tasks",
+        "name": "Tasks",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "tasks-settings",
+        "name": "Task settings",
+        "enabled": true
+      }
+    ]
+  }
+}

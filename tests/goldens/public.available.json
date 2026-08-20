@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "body": {
+    "slug": "<slug>",
+    "available": false,
+    "reason": "taken"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "status": 200,
+  "body": {
+    "studio": {
+      "id": "<std_ID>",
+      "name": "<studio-name>",
+      "slug": "<slug>",
+      "logo": "",
+      "country": "",
+      "city": "",
+      "location": "",
+      "currency": "",
+      "deletionRequestedAt": "",
+      "deletionFinalisesAt": "",
+      "workingHours": null,
+      "legalInfo": [],
+      "favoriteCurrencies": []
+    },
+    "fx": {
+      "base": "",
+      "rates": {},
+      "updatedAt": 0,
+      "stale": false
+    },
+    "canManage": true,
+    "isOwner": true
+  }
+}

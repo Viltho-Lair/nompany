@@ -1,0 +1,233 @@
+{
+  "status": 200,
+  "body": {
+    "studio": {
+      "name": "<studio-name>",
+      "slug": "<slug>"
+    },
+    "me": {
+      "alias": "Owner",
+      "collaboratorId": "<col_ID>"
+    },
+    "nav": {
+      "main": true,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": true,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": true,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "sections": [
+      {
+        "key": "main",
+        "name": "Main",
+        "parentId": null
+      },
+      {
+        "key": "sales",
+        "name": "Sales",
+        "parentId": null
+      },
+      {
+        "key": "sales-tickets",
+        "name": "Tickets",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "sales-clients",
+        "name": "Clients",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "sales-live",
+        "name": "Live view",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "sales-settings",
+        "name": "Settings",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "technical",
+        "name": "Technical",
+        "parentId": null
+      },
+      {
+        "key": "technical-quotations",
+        "name": "Quotations",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "technical-rfq",
+        "name": "RFQ",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "technical-live",
+        "name": "Live view",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "technical-settings",
+        "name": "Settings",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "projects",
+        "name": "Projects",
+        "parentId": null
+      },
+      {
+        "key": "projects-list",
+        "name": "Project list",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "projects-sla",
+        "name": "SLA",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "projects-overtimes",
+        "name": "Overtimes",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "projects-settings",
+        "name": "Settings",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "inventory",
+        "name": "Inventory",
+        "parentId": null
+      },
+      {
+        "key": "inventory-stock",
+        "name": "Stock Management",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "inventory-vendors",
+        "name": "Vendors",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "inventory-items",
+        "name": "Registered Items",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "inventory-sheets",
+        "name": "Project Sheets",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "inventory-awb",
+        "name": "AWB Tracking",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "hr",
+        "name": "Human Resources",
+        "parentId": null
+      },
+      {
+        "key": "hr-employees",
+        "name": "Employees",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "finance",
+        "name": "Finance",
+        "parentId": null
+      },
+      {
+        "key": "finance-cash",
+        "name": "Cash",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "finance-settings",
+        "name": "Settings",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "operations",
+        "name": "Operations",
+        "parentId": null
+      },
+      {
+        "key": "operations-tracking",
+        "name": "Tracking",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "operations-settings",
+        "name": "Settings",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "quality",
+        "name": "Quality",
+        "parentId": null
+      },
+      {
+        "key": "quality-documents",
+        "name": "Documents",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "tasks",
+        "name": "Tasks",
+        "parentId": null
+      },
+      {
+        "key": "tasks-settings",
+        "name": "Task settings",
+        "parentId": "<sec_ID>"
+      }
+    ],
+    "headlines": {
+      "openTickets": 0,
+      "openRfqs": 0,
+      "liveQuotations": 0,
+      "liveProjects": 0,
+      "lowStock": 0,
+      "awaitingMe": 0,
+      "outstanding": 0,
+      "permitsExpiring": 0,
+      "headcount": 2
+    },
+    "recent": []
+  }
+}

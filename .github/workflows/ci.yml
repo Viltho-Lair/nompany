@@ -1,0 +1,85 @@
+name: CI
+
+# NOTHING ENFORCED THE SUITE BEFORE THIS. tests/suite.mjs is ~1700 lines of
+# genuinely good work that nobody was obliged to keep green, and Gate A's whole
+# purpose — recording the contract before the refactor rewrites the layers under
+# it — is worthless if the recording is only checked when somebody remembers.
+#
+# The suite talks to Redis. In development that is a LIVE, SHARED Redis Cloud
+# instance, isolated only by NOMPANY_KEY_PREFIX. CI gets its own ephemeral
+# `redis:8` service container instead: the prefix stays as the second line of
+# defence, never the first, and a pull request can never reach production data.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch cancels the first — a queue of stale runs
+# tells you about code nobody is looking at any more.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:8
+        ports: ["6379:6379"]
+        # Redis 8 is what production runs; pinning the major means a test that
+        # passes here fails there for a reason we would actually find.
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      REDIS_URL: redis://localhost:6379
+      NOMPANY_KEY_PREFIX: ci_
+      # The suite mints real bcrypt hashes and real AES field encryption; both
+      # need a key present or they take their fail-open path and prove nothing.
+      FIELD_ENCRYPTION_KEY: ci-only-not-a-real-key-0000000000
+      # Never a real one. Anything that tries to send mail in CI should fail
+      # loudly rather than deliver.
+      RESEND_API_KEY: ""
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Tests — access rules
+        run: node tests/access.test.js
+
+      - name: Tests — integration suite
+        run: node tests/integration.test.mjs
+
+      - name: Gate A — goldens, permission matrix, hop counts
+        # Golden responses are the parity contract: a renamed field, a null that
+        # became "", a dropped key or a changed status code fails HERE rather
+        # than reaching a client. Re-recording is a deliberate act with its own
+        # commit — it must never happen in CI, so NOMPANY_RECORD_GOLDENS is not
+        # set and cannot be.
+        run: node tests/gate-a.test.mjs
+
+      - name: Build
+        run: npx next build
+
+      - name: Client bundle budget
+        # 1.06 MB gzipped today across 51 chunks, with a single 312 KB chunk.
+        # The ceiling is set ABOVE that on purpose: this pins the REGRESSION, not
+        # the current size, and comes down as the component split lands.
+        run: node scripts/bundle-budget.mjs

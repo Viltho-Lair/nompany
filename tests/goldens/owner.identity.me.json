@@ -1,0 +1,43 @@
+{
+  "status": 200,
+  "body": {
+    "user": {
+      "id": "<usr_ID>",
+      "email": "<owner-email>",
+      "status": "active",
+      "provider": "",
+      "createdAt": "<timestamp>"
+    },
+    "profile": {
+      "fullName": "",
+      "shortName": "",
+      "phone": "",
+      "dob": "",
+      "photo": "",
+      "language": "en",
+      "workAddress": ""
+    },
+    "emailVerified": false,
+    "questionnaire": {
+      "intent": "",
+      "field": "",
+      "country": "",
+      "city": "",
+      "erps": [],
+      "packageKey": "",
+      "completedAt": ""
+    },
+    "studio": {
+      "id": "<std_ID>",
+      "name": "<studio-name>",
+      "slug": "<slug>"
+    },
+    "collaborations": [
+      {
+        "id": "<std_ID>",
+        "name": "<studio-name>",
+        "slug": "<slug>"
+      }
+    ]
+  }
+}
