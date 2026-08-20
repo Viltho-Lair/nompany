@@ -20,6 +20,7 @@ import { createStudio } from "@/lib/data/studios";
 import { addCollaborator, getCollaboratorByUser, updateCollaborator } from "@/lib/data/collaborators";
 import { listRoles, createRole } from "@/lib/data/roles";
 import { ALL_PERMISSIONS, AREAS, ADMIN_ROLE_ID } from "@/lib/permissions";
+import { STATUS } from "@/lib/httpStatus";
 import { effectivePermissions } from "@/lib/access";
 import { studioContext } from "@/lib/studios";
 import { SESSION_COOKIE } from "@/lib/identity";
@@ -1715,13 +1716,11 @@ console.log("== status codes: what each refusal claims to be");
 // a NEW one fails, and the list prints itself as more goldens land — nobody has
 // to remember to re-derive it.
 {
-  const EXPECTED = {
-    unauthorized: 401,
-    notfound: 404, "no-section": 404,
-    forbidden: 403, "read-only": 403, escalation: 403, "role-forbidden": 403,
-    already: 409, duplicate: 409, locked: 409, "in-use": 409,
-    "unknown-permission": 500,
-  };
+  // THE TABLE IS NOT COPIED HERE. It lives in src/lib/httpStatus.js, which is
+  // what the route wrapper will map through, so the scanner and the product
+  // cannot drift into two opinions about what a refusal is worth. A local copy
+  // is how this check would quietly stop meaning anything.
+  const EXPECTED = STATUS;
 
   const dir = new URL("./goldens/", import.meta.url);
   const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
@@ -1737,12 +1736,37 @@ console.log("== status codes: what each refusal claims to be");
   ok("the golden set is big enough to be worth scanning", files.length >= 50, String(files.length));
   for (const m of mismatches) console.log(`       for wave 2: ${m}`);
 
-  // KNOWN, AND ONLY THESE. Lower this number as the route wrapper lands; raising
-  // it means a route just started disagreeing with the rest of the product about
-  // what a refusal is called, and that should cost somebody a build.
-  const KNOWN = 3;
-  ok(`only the ${KNOWN} known status mismatches remain`, mismatches.length <= KNOWN,
-    mismatches.length > KNOWN ? mismatches.slice(KNOWN).join(" | ") : "");
+  // KNOWN, AND ONLY THESE — BY NAME, NOT BY COUNT.
+  //
+  // This was a number (3) until the scanner started reading the real table in
+  // src/lib/httpStatus.js instead of a twelve-entry copy, which found two more.
+  // That exposed the flaw in counting: the honest response to "5 where 3 were
+  // expected" is indistinguishable from the dishonest one, because both are
+  // spelled `KNOWN = 5`, and nobody reviewing the diff can tell whether a route
+  // regressed or the scanner got better.
+  //
+  // Named, both directions cost something. A NEW mismatch fails because it is
+  // not on the list. A FIXED one fails too, because a stale entry means the list
+  // is claiming a defect that no longer exists — so the wrapper's conversion
+  // commits have to delete their line here, which is the checklist maintaining
+  // itself instead of rotting.
+  const KNOWN = [
+    // technical/quotations maps everything except notfound and locked to 400,
+    // so three permission refusals arrive as "you sent nonsense".
+    "technical.refused.convert", "technical.refused.lock", "technical.refused.unlock",
+    // `not-approved` is 422 here and 400 in technical — the SAME name, two
+    // statuses, decided independently by two routes. Exactly what one table is
+    // for; found the day the scanner started using it.
+    "projects.refused.notapproved", "technical.refused.lock.notapproved",
+  ];
+  const nameOf = (m) => m.split(":")[0];
+  const unexpected = mismatches.filter((m) => !KNOWN.includes(nameOf(m)));
+  const stale = KNOWN.filter((k) => !mismatches.some((m) => nameOf(m) === k));
+
+  ok("no route has newly started disagreeing about what a refusal is worth",
+    unexpected.length === 0, unexpected.join(" | "));
+  ok("...and every mismatch still on the known list is still real",
+    stale.length === 0, stale.length ? `fixed — delete from KNOWN: ${stale.join(", ")}` : "");
 }
 
 // ============================================================================
