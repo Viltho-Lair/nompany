@@ -26,7 +26,7 @@ import { SESSION_COOKIE } from "@/lib/identity";
 import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/lib/superAuth";
 import { withCommandCount } from "@/lib/data/commandCount";
 import { withRequest, requestId, redact, log } from "@/lib/observability";
-import { readArr } from "@/lib/data/store";
+import { readArr, setJSON } from "@/lib/data/store";
 import { S } from "@/lib/data/keys";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 import { golden, req, ctx, capture, RECORDING, touched } from "./goldens.mjs";
@@ -365,6 +365,34 @@ console.log("== golden responses: the shape of every answer, pinned");
   add("missing.studio", async () => { await signIn(owner.id); return capture(STUDIO.GET, req("/api/studios/no-such-studio"), ctx({ slug: "no-such-studio" })); });
 
   // --- public ---------------------------------------------------------------
+  // THE PRICING RESPONSE CARRIES AN FX TABLE, and the first recording of it
+  // baked in about a hundred and fifty LIVE MARKET RATES. That golden was
+  // wrong in three separate ways at once:
+  //
+  //   1. It failed in CI, which is how it was found. CI has no
+  //      EXCHANGERATE_API_KEY — deliberately, because nobody wants a test
+  //      suite spending a metered quota — so the fetch threw, the snapshot
+  //      came back empty, and `rates` was {} against a golden full of numbers.
+  //   2. It would have failed in production too, on the first day the API
+  //      republished. Rates move daily. Nothing about the product would have
+  //      changed.
+  //   3. Locally it PASSED, and that was the worst part: this machine has a
+  //      real key in .env.local, so every run of the suite was making a live
+  //      call to a metered third-party API to fetch data it then asserted
+  //      against. The test was buying its own expected values.
+  //
+  // Seeded instead, with a table small enough to read and check by hand. The
+  // route derives every pair by division — rate(SAR→X) = usd[X] / usd[SAR] —
+  // so USD lands on 1/3.75 and SAR on exactly 1, and that arithmetic is the
+  // thing actually worth pinning. `nextUpdateAt` is far enough out that
+  // isFresh() is always true, which is what stops the network call.
+  await setJSON(KEYS.FX.snapshot, {
+    base: "USD",
+    rates: { USD: 1, SAR: 3.75, EUR: 0.92, GBP: 0.79, AED: 3.67, JPY: 150 },
+    updatedAt: 1750000000,
+    nextUpdateAt: 4102444800,   // 2100-01-01, i.e. never stale inside a test run
+    fetchedAt: 1750000000,
+  });
   add("public.pricing", async () => { __signOut(); return capture(PRICING.GET, req("/api/pricing"), ctx()); });
   add("public.available", async () => { await signIn(owner.id); return capture(AVAILABLE.GET, req(`/api/studios/available?slug=${slug}`), ctx()); });
 
