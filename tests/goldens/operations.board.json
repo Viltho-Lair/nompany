@@ -179,8 +179,8 @@
       }
     ],
     "window": {
-      "from": "2026-08-20",
-      "to": "2026-08-26"
+      "from": "<today>",
+      "to": "<today+6>"
     },
     "positions": [],
     "settings": {

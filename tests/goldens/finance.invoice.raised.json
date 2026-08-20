@@ -16,7 +16,7 @@
       ],
       "vatRate": 15,
       "status": "Draft",
-      "issueDate": "2026-08-20",
+      "issueDate": "<today>",
       "dueDate": "",
       "notes": "",
       "payments": [],

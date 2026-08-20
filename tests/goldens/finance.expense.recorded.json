@@ -8,7 +8,7 @@
       "description": "Freight forwarding",
       "category": "Other",
       "amount": 1200,
-      "date": "2026-08-20",
+      "date": "<today>",
       "projectId": "",
       "paidByCollaboratorId": "<col_ID>",
       "notes": "",

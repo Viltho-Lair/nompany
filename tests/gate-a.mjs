@@ -61,6 +61,29 @@ const member = await getCollaboratorByUser(studio.id, memberUser.id);
 const outsiderEmail = `g-outsider-${rand()}@test.invalid`;
 const outsider = (await createUser({ email: outsiderEmail, passwordHash: "x" })).user;
 
+// A DATE THE APP TOOK FROM ITS OWN CLOCK IS NOT A CONSTANT, and recording one
+// as though it were is how a golden suite starts failing on a calendar rather
+// than on a change.
+//
+// Five goldens carried a literal `2026-08-20`: an invoice's issueDate, an
+// expense's date, a project's receivedDate, and both ends of the operations
+// week window. Every one of those is `new Date()` inside the service, so all
+// five would have failed the following morning — and the week window, being
+// today through today+6, would have failed every single day after recording.
+// Nothing in the product would have changed. The suite was pinning the clock.
+//
+// Computed in UTC because every producer is: finance.js and projects.js slice
+// toISOString(), and operations.js weekWindow() carries its own comment about
+// why the window is built in one zone throughout. Taking local time here would
+// leave the placeholder matching nothing anywhere east of Greenwich — which is
+// precisely the machine that recorded these files, and precisely the mismatch
+// against a CI runner that thinks in UTC.
+const utcDay = (offset = 0) => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+};
+
 // Values that differ per run but are not id-shaped, so normalise() cannot spot
 // them on its own.
 const EXTRA = {
@@ -69,7 +92,30 @@ const EXTRA = {
   [memberEmail]: "<member-email>",
   [outsiderEmail]: "<outsider-email>",
   "Gate A Studio": "<studio-name>",
+  [utcDay(0)]: "<today>",
+  [utcDay(6)]: "<today+6>",   // the far end of the operations week window
 };
+
+// THE SUBSTITUTION ABOVE IS A BLIND STRING REPLACE, which is fine until a
+// fixture date happens to land on today or today+6 — then a date the test
+// deliberately chose gets rewritten into a placeholder, and its golden fails
+// for a reason that has nothing to do with the code.
+//
+// The fixtures are read out of this file rather than listed here, so the check
+// cannot go stale the way a hand-maintained copy would. The nearest one is
+// twelve days out, so this cannot fire today; it fires on the morning somebody
+// adds a date near now, and it says what to do about it.
+{
+  const fixtureDates = new Set(
+    (readFileSync(new URL(import.meta.url), "utf8").match(/"20\d\d-\d\d-\d\d"/g) || [])
+      .map((s) => s.slice(1, -1)));
+  const collisions = [utcDay(0), utcDay(6)].filter((d) => fixtureDates.has(d));
+  ok("no fixture date collides with a clock-derived placeholder",
+    collisions.length === 0,
+    collisions.length
+      ? `${collisions.join(", ")} is both a fixture and today/today+6 — move the fixture further out`
+      : "");
+}
 
 const signIn = async (userId) => __signIn(SESSION_COOKIE, await mintSession(userId, 600));
 
