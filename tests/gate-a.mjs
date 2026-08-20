@@ -718,6 +718,146 @@ console.log("== projects: opened from an approved quotation, and only once");
 }
 
 // ============================================================================
+console.log("== inventory: one shared row, two owners, and a check digit");
+// THE SHEET IS THE INTERESTING PART. A project sheet's line is ONE record, not
+// one per department — Inventory records that the material is on order and
+// Projects sees it; Projects records that installation is done and Inventory
+// sees it. Two records would make that a copy again, with the same drift and
+// the same arguments about which is right.
+//
+// So both departments read every column and each may WRITE only its own, and
+// saveSheetLine asks for whichever the caller SAYS they are writing as. That
+// makes the owner field a claim, and a claim is exactly the kind of thing a
+// refactor stops checking. It is checked before the sheet is even looked up.
+{
+  const INV = await import("@/app/api/studios/[slug]/inventory/route.js");
+  const ITEMS = await import("@/app/api/studios/[slug]/inventory/items/route.js");
+  const VENDORS = await import("@/app/api/studios/[slug]/inventory/vendors/route.js");
+  const STOCK = await import("@/app/api/studios/[slug]/inventory/stock/route.js");
+  const SHEETS = await import("@/app/api/studios/[slug]/inventory/sheets/route.js");
+  const AWB = await import("@/app/api/studios/[slug]/inventory/awb/route.js");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const personWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  await signIn(owner.id);
+
+  const vendor = await shot("inventory.vendor.created", await capture(
+    VENDORS.POST, req(`/api/studios/${slug}/inventory/vendors`, { method: "POST", body: { name: "Gulf AV Supply" } }), P));
+  const vendorId = vendor.body?.vendor?.id;
+  ok("the vendor was created", Boolean(vendorId), JSON.stringify(vendor.body).slice(0, 120));
+
+  await shot("inventory.vendor.duplicate", await capture(
+    VENDORS.POST, req(`/api/studios/${slug}/inventory/vendors`, { method: "POST", body: { name: "gulf av supply" } }), P));
+
+  // A FOREIGN-CURRENCY ITEM MUST DECLARE ITS LANDED COSTS. The quotation builder
+  // converts a bought-abroad price into the studio's money as
+  // (unitCost + shipping + customs) x crossRate, so an item priced in a currency
+  // that is not the studio's and carries neither figure would quote a number
+  // that is knowably wrong. Refused at the point of entry rather than producing
+  // a confident wrong price later.
+  await shot("inventory.item.refused.nocharges", await capture(
+    ITEMS.POST, req(`/api/studios/${slug}/inventory/items`, { method: "POST", body: {
+      name: "Ceiling microphone", sku: "MIC-CEIL-01", vendorId, unitCost: 420, currency: "USD",
+    } }), P));
+
+  const item = await shot("inventory.item.created", await capture(
+    ITEMS.POST, req(`/api/studios/${slug}/inventory/items`, { method: "POST", body: {
+      name: "Ceiling microphone", sku: "MIC-CEIL-01", vendorId,
+      unitCost: 420, currency: "USD", shippingCharges: 25, customsCharges: 15,
+    } }), P));
+  const itemId = item.body?.item?.id;
+  ok("the item was created", Boolean(itemId), JSON.stringify(item.body).slice(0, 120));
+
+  await shot("inventory.item.duplicate.sku", await capture(
+    ITEMS.POST, req(`/api/studios/${slug}/inventory/items`, { method: "POST", body: {
+      name: "Another mic", sku: "MIC-CEIL-01", vendorId,
+      unitCost: 10, currency: "USD", shippingCharges: 0, customsCharges: 0,
+    } }), P));
+
+  await shot("inventory.item.unknown.vendor", await capture(
+    ITEMS.POST, req(`/api/studios/${slug}/inventory/items`, { method: "POST", body: {
+      name: "Orphan", vendorId: "sal_novendorhere00",
+    } }), P));
+
+  await shot("inventory.stock.received", await capture(
+    STOCK.POST, req(`/api/studios/${slug}/inventory/stock`, { method: "POST", body: {
+      itemId, quantity: 12, kind: "in", note: "Opening stock",
+    } }), P));
+
+  // ---- THE OWNERSHIP CLAIM ------------------------------------------------
+  // Each of these holds a real write right in ONE of the two departments and
+  // asks to write as the OTHER. Both are refused on the right, before the sheet
+  // is looked up — so the refusal cannot be confused with "no such sheet".
+  const storeman = await personWith(
+    ["inventory.sheets.view", "inventory.sheets.edit"], "storeman");
+  await signIn(storeman.id);
+  const storemanClaim = await shot("inventory.sheet.refused.claiming.projects", await capture(
+    SHEETS.PUT, req(`/api/studios/${slug}/inventory/sheets`, { method: "PUT", body: {
+      sheetId: "she_whichever0000", rowId: "row-1", owner: "projects", values: { installed: true },
+    } }), P));
+  ok("a storeman claiming to write as Projects is refused on the right they lack",
+    storemanClaim.body?.key === "projects.list.edit", JSON.stringify(storemanClaim.body));
+
+  // The project manager needs inventory.sheets.VIEW as well, or they are refused
+  // at the door for not being able to open Inventory at all — which would look
+  // like the ownership check working and would not be it. Both sides of a
+  // symmetric rule have to be refused for the SAME reason, or only one of them
+  // is actually tested.
+  const pm = await personWith(
+    ["projects.list.view", "projects.list.edit", "inventory.sheets.view"], "projectmanager");
+  await signIn(pm.id);
+  const pmClaim = await shot("inventory.sheet.refused.claiming.inventory", await capture(
+    SHEETS.PUT, req(`/api/studios/${slug}/inventory/sheets`, { method: "PUT", body: {
+      sheetId: "she_whichever0000", rowId: "row-1", owner: "inventory", values: { serials: ["SN-1"] },
+    } }), P));
+  ok("...and it names the right they lack, not the module they cannot open",
+    pmClaim.body?.key === "inventory.sheets.edit", JSON.stringify(pmClaim.body));
+
+  // ---- AWB: eleven digits, and the last one is arithmetic -----------------
+  // An air waybill's check digit is the serial modulo 7. 176-1234567 gives 5,
+  // so 17612345675 is well formed and 17612345676 is not — the format is
+  // validated rather than trusted, which is what stops a typo becoming a
+  // shipment nobody can trace.
+  await signIn(owner.id);
+  const shipment = await shot("inventory.awb.tracked", await capture(
+    AWB.POST, req(`/api/studios/${slug}/inventory/awb`, { method: "POST", body: { awbNumber: "17612345675" } }), P));
+  ok("a well-formed waybill is accepted", shipment.status === 201, `${shipment.status} ${JSON.stringify(shipment.body).slice(0, 100)}`);
+  ok("...and stored in canonical form", shipment.body?.shipment?.awbNumber === "176-12345675",
+    shipment.body?.shipment?.awbNumber);
+
+  await shot("inventory.awb.badcheckdigit", await capture(
+    AWB.POST, req(`/api/studios/${slug}/inventory/awb`, { method: "POST", body: { awbNumber: "17612345676" } }), P));
+  await shot("inventory.awb.tooshort", await capture(
+    AWB.POST, req(`/api/studios/${slug}/inventory/awb`, { method: "POST", body: { awbNumber: "1761234" } }), P));
+  await shot("inventory.awb.duplicate", await capture(
+    AWB.POST, req(`/api/studios/${slug}/inventory/awb`, { method: "POST", body: { awbNumber: "176-1234567-5" } }), P));
+
+  // AWB is its own right, gated before the service.
+  await signIn(storeman.id);
+  await shot("inventory.awb.refused", await capture(
+    AWB.POST, req(`/api/studios/${slug}/inventory/awb`, { method: "POST", body: { awbNumber: "18012345675" } }), P));
+
+  // ---- the populated read and the walls -----------------------------------
+  await signIn(owner.id);
+  await shot("inventory.list.populated", await capture(INV.GET, req(`/api/studios/${slug}/inventory`), P));
+  await signIn(outsider.id);
+  await shot("inventory.outsider", await capture(INV.GET, req(`/api/studios/${slug}/inventory`), P));
+  __signOut();
+  await shot("inventory.unauth", await capture(INV.GET, req(`/api/studios/${slug}/inventory`), P));
+}
+
+// ============================================================================
 console.log("== status codes: what each refusal claims to be");
 // EVERY ROUTE MAPS ITS OWN ERRORS, and they do not agree. `notfound` is 404 in
 // most places, `forbidden` is 403 in most places, and the quotations route

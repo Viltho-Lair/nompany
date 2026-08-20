@@ -1,0 +1,27 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "shipment": {
+      "id": "<awb_ID>",
+      "awbNumber": "176-12345675",
+      "digits": "17612345675",
+      "prefix": "176",
+      "serial": "1234567",
+      "reference": "",
+      "origin": "",
+      "destination": "",
+      "pieces": 0,
+      "weightKg": 0,
+      "projectId": "",
+      "movements": [],
+      "trackedByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "currentStatus": "",
+      "currentStatusAt": "",
+      "delivered": false
+    }
+  }
+}

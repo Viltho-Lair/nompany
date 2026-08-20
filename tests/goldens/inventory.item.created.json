@@ -1,0 +1,29 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "item": {
+      "id": "<inv_ID>",
+      "sku": "MIC-CEIL-01",
+      "name": "Ceiling microphone",
+      "modelNumber": "",
+      "unit": "pcs",
+      "vendorId": "<inv_ID>",
+      "itemType": "",
+      "deliveryWeeks": "",
+      "needsInstallation": false,
+      "needsProgramming": false,
+      "serials": [],
+      "reorderLevel": 0,
+      "unitCost": 420,
+      "currency": "USD",
+      "shippingCharges": 25,
+      "customsCharges": 15,
+      "image": "",
+      "notes": "",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

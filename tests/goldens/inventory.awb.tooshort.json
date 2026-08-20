@@ -1,0 +1,7 @@
+{
+  "status": 400,
+  "body": {
+    "error": "awb",
+    "reason": "AWB must be 11 digits (got 7)"
+  }
+}

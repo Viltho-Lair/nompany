@@ -1,0 +1,18 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "vendor": {
+      "id": "<inv_ID>",
+      "name": "Gulf AV Supply",
+      "contactName": "",
+      "email": "",
+      "phone": "",
+      "notes": "",
+      "itemTypes": [],
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

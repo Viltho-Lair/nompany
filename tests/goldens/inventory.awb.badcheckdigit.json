@@ -1,0 +1,7 @@
+{
+  "status": 400,
+  "body": {
+    "error": "awb",
+    "reason": "Invalid check digit — should be 5, not 6"
+  }
+}

@@ -1,0 +1,326 @@
+{
+  "status": 200,
+  "body": {
+    "canManage": true,
+    "canViewDashboard": true,
+    "canManageStock": true,
+    "canManageVendors": true,
+    "canManageItems": true,
+    "canManageSheets": true,
+    "canManageAwb": true,
+    "nav": {
+      "main": true,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": true,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": true,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "currency": "",
+    "manage": {
+      "main": false,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": false,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": false,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-tracking": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "vendors": [
+      {
+        "id": "<inv_ID>",
+        "name": "Gulf AV Supply",
+        "contactName": "",
+        "email": "",
+        "phone": "",
+        "notes": "",
+        "itemTypes": [],
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      }
+    ],
+    "items": [
+      {
+        "id": "<inv_ID>",
+        "sku": "MIC-CEIL-01",
+        "name": "Ceiling microphone",
+        "modelNumber": "",
+        "unit": "pcs",
+        "vendorId": "<inv_ID>",
+        "itemType": "",
+        "deliveryWeeks": "",
+        "needsInstallation": false,
+        "needsProgramming": false,
+        "serials": [],
+        "reorderLevel": 0,
+        "unitCost": 420,
+        "currency": "USD",
+        "shippingCharges": 25,
+        "customsCharges": 15,
+        "image": "",
+        "notes": "",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "reservedSerials": [],
+        "vendorName": "Gulf AV Supply",
+        "onHand": 0,
+        "low": false,
+        "serialMismatch": false
+      }
+    ],
+    "movements": [],
+    "orders": [],
+    "deliveries": [],
+    "projects": [
+      {
+        "id": "<pro_ID>",
+        "number": "",
+        "title": "Boardroom refit, phase 1"
+      }
+    ],
+    "shipments": [
+      {
+        "id": "<awb_ID>",
+        "awbNumber": "176-12345675",
+        "digits": "17612345675",
+        "prefix": "176",
+        "serial": "1234567",
+        "reference": "",
+        "origin": "",
+        "destination": "",
+        "pieces": 0,
+        "weightKg": 0,
+        "projectId": "",
+        "movements": [],
+        "trackedByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "currentStatus": "",
+        "currentStatusAt": "",
+        "delivered": false,
+        "airlineName": "",
+        "airlineIata": "",
+        "trackUrl": ""
+      }
+    ],
+    "airlines": [],
+    "sheets": [
+      {
+        "id": "<pro_ID>",
+        "kind": "bulk",
+        "projectId": "<pro_ID>",
+        "quotationId": "<quo_ID>",
+        "rfqId": "<rfq_ID>",
+        "ticketId": "<sal_ID>",
+        "projectNumber": "",
+        "projectTitle": "Boardroom refit, phase 1",
+        "clientName": "Acme Holdings",
+        "quotationNumber": "Q-0001",
+        "poNumber": "",
+        "tables": [],
+        "lineCount": 0,
+        "serials": []
+      },
+      {
+        "id": "<pro_ID>",
+        "kind": "main",
+        "projectId": "<pro_ID>",
+        "quotationId": "<quo_ID>",
+        "rfqId": "<rfq_ID>",
+        "ticketId": "<sal_ID>",
+        "projectNumber": "",
+        "projectTitle": "Boardroom refit, phase 1",
+        "clientName": "Acme Holdings",
+        "quotationNumber": "Q-0001",
+        "poNumber": "",
+        "tables": [],
+        "lineCount": 0,
+        "serials": []
+      }
+    ],
+    "summary": {
+      "items": 1,
+      "low": 0,
+      "value": 0,
+      "awaiting": 0,
+      "units": 0,
+      "inTransit": 1
+    },
+    "vocabulary": {
+      "orderStatuses": [
+        "Draft",
+        "Ordered",
+        "Partly received",
+        "Received",
+        "Cancelled"
+      ],
+      "deliveryStatuses": [
+        "Draft",
+        "Issued",
+        "Cancelled"
+      ],
+      "units": [
+        "pcs",
+        "box",
+        "m",
+        "m²",
+        "kg",
+        "L",
+        "set",
+        "roll"
+      ],
+      "awbStatuses": [
+        {
+          "code": "FOH",
+          "label": "Freight on Hand",
+          "order": 10,
+          "desc": "Cargo received into the handler's care at origin."
+        },
+        {
+          "code": "RCS",
+          "label": "Received from Shipper",
+          "order": 20,
+          "desc": "Carrier accepted the cargo (ready for carriage)."
+        },
+        {
+          "code": "BKD",
+          "label": "Booked",
+          "order": 30,
+          "desc": "Space confirmed on a flight."
+        },
+        {
+          "code": "MAN",
+          "label": "Manifested",
+          "order": 40,
+          "desc": "Added to a flight's cargo manifest."
+        },
+        {
+          "code": "DEP",
+          "label": "Departed",
+          "order": 50,
+          "desc": "Flight departed the station."
+        },
+        {
+          "code": "ARR",
+          "label": "Arrived",
+          "order": 60,
+          "desc": "Flight arrived at a station."
+        },
+        {
+          "code": "RCF",
+          "label": "Received from Flight",
+          "order": 70,
+          "desc": "Unloaded & received at transit/destination."
+        },
+        {
+          "code": "TRM",
+          "label": "To be Transferred",
+          "order": 74,
+          "desc": "Awaiting transfer to an interline/road partner."
+        },
+        {
+          "code": "TFD",
+          "label": "Transferred",
+          "order": 76,
+          "desc": "Handed to an interline partner / trucking."
+        },
+        {
+          "code": "NFD",
+          "label": "Notified",
+          "order": 80,
+          "desc": "Consignee/broker notified — ready for collection."
+        },
+        {
+          "code": "AWD",
+          "label": "Arrival Docs Delivered",
+          "order": 85,
+          "desc": "Arrival documents handed over."
+        },
+        {
+          "code": "CCD",
+          "label": "Customs Cleared",
+          "order": 90,
+          "desc": "Released by customs."
+        },
+        {
+          "code": "DLV",
+          "label": "Delivered",
+          "order": 100,
+          "desc": "Picked up by / delivered to the consignee."
+        },
+        {
+          "code": "DIS",
+          "label": "Discrepancy",
+          "order": 105,
+          "desc": "Exception — refusal or reported issue.",
+          "exception": true
+        },
+        {
+          "code": "MSCA",
+          "label": "Shortage / Missing",
+          "order": 106,
+          "desc": "Exception — pieces missing at scan.",
+          "exception": true
+        }
+      ]
+    }
+  }
+}
