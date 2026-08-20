@@ -26,10 +26,15 @@ export async function POST(request) {
   });
 
   if (result.error) {
-    const status = result.error === "suspended" ? 403
-      : result.error === "rate-email" || result.error === "rate-ip" ? 429
-      : 401;
-    return Response.json({ error: result.error }, { status });
+    const limited = result.error === "rate-limited" || result.error === "rate-email" || result.error === "rate-ip";
+    const status = result.error === "suspended" ? 403 : limited ? 429 : 401;
+    const res = Response.json(
+      { error: result.error, ...(result.retryAfter ? { retryAfter: result.retryAfter } : {}) },
+      { status },
+    );
+    // Tell the client HOW LONG rather than leaving it to guess and hammer.
+    if (limited && result.retryAfter) res.headers.set("Retry-After", String(result.retryAfter));
+    return res;
   }
 
   // Unrecognised device → hand back a challenge instead of a session.

@@ -51,6 +51,23 @@ export async function incrWithTTL(key, ttlSec) {
   if (n === 1) await client.expire(key, ttlSec);
   return n;
 }
+// Seconds left on a key: -1 when it has no expiry, -2 when it is gone. A
+// lockout is only useful if the caller can say HOW LONG for, and the TTL Redis
+// is already holding is that answer — there is nothing to store separately.
+export async function ttlOf(key) {
+  return (await r()).ttl(key);
+}
+// LENGTHEN an existing window without restarting the count. `incrWithTTL` sets
+// the expiry on the first hit only, which is right for a fixed window and wrong
+// for an escalating lockout: tripping a limit has to be able to push the
+// release further out while leaving the tally where it is.
+export async function extendTTL(key, ttlSec) {
+  const client = await r();
+  const current = await client.ttl(key);
+  if (current === -2) return false;              // gone; nothing to extend
+  if (current >= ttlSec) return false;           // already locked for longer
+  return (await client.expire(key, ttlSec)) === 1;
+}
 export async function readArr(key) {
   return (await getJSON(key)) || [];
 }
@@ -252,6 +269,56 @@ export async function bumpCounter(key, field, floor = 0) {
     if (!/NOSCRIPT/i.test(e?.message || "")) throw e;
     return Number(await client.sendCommand(["EVAL", BUMP_LUA, ...args]));
   }
+}
+
+// A TALLY THAT CANNOT GROW A NEW FIELD FOREVER.
+//
+// `hIncrBy` on a caller-supplied field name is unbounded by construction: the
+// public traffic endpoint takes a page label from the request body, so anybody
+// can invent as many distinct fields as they can send requests. Redis is this
+// product's only storage, and a full instance fails every write in it.
+//
+// So: an existing field always counts; a NEW field counts only while the hash
+// is under its ceiling, and everything past that folds into one overflow field.
+// Real pages keep their own tallies, invented ones cost a single bucket, and
+// nothing has to be maintained as the site's page list changes.
+//
+// One EVALSHA — the read, the compare and the write are indivisible, so two
+// requests arriving together cannot both see room for the last field.
+const HINCR_BOUNDED_LUA = `
+local field = ARGV[1]
+if redis.call('HEXISTS', KEYS[1], field) == 1 then
+  return redis.call('HINCRBY', KEYS[1], field, 1)
+end
+if redis.call('HLEN', KEYS[1]) >= tonumber(ARGV[2]) then
+  return redis.call('HINCRBY', KEYS[1], ARGV[3], 1)
+end
+return redis.call('HINCRBY', KEYS[1], field, 1)
+`;
+const HINCR_BOUNDED_SHA = createHash("sha1").update(HINCR_BOUNDED_LUA).digest("hex");
+
+export async function hIncrBounded(key, field, { max, overflow }) {
+  const client = await r();
+  const args = ["1", key, String(field), String(max), String(overflow)];
+  try {
+    return Number(await client.sendCommand(["EVALSHA", HINCR_BOUNDED_SHA, ...args]));
+  } catch (e) {
+    if (!/NOSCRIPT/i.test(e?.message || "")) throw e;
+    return Number(await client.sendCommand(["EVAL", HINCR_BOUNDED_LUA, ...args]));
+  }
+}
+
+// ---- approximate cardinality (HyperLogLog) ---------------------------------
+// "How many distinct visitors today" asked of a structure that costs the same
+// whether the answer is ten or ten million — about 12 KB at its widest, and far
+// less while the count is low. A SET answers it exactly and grows without
+// bound, which for a value nobody needs to the unit is the wrong trade twice
+// over: it is the expensive answer AND the one an anonymous caller can inflate.
+export async function pfAdd(key, member) {
+  return (await r()).pfAdd(key, String(member));
+}
+export async function pfCount(key) {
+  return (await r()).pfCount(key);
 }
 
 export async function hGetAll(key) {

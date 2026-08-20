@@ -20,11 +20,14 @@ import {
 } from "@/lib/data/users";
 import { getOwnedStudio, listUserCollaborations } from "@/lib/data/studios";
 import {
-  createChallenge, verifyChallenge, resendChallenge,
+  createChallenge, verifyChallenge, resendChallenge, checkSendLimits,
   recordDevice, isTrustedDevice, revokeAllDevices,
   CODE_TTL_SEC, DEVICE_TTL_MS, MAX_ATTEMPTS,
 } from "@/lib/data/otp";
-import { hashPassword, verifyPassword, generatePassword } from "@/lib/passwords";
+import { hashPassword, verifyPassword, generatePassword, needsRehash } from "@/lib/passwords";
+import {
+  checkCredentialAttempts, recordCredentialFailure, clearCredentialFailures,
+} from "@/lib/data/attempts";
 import { checkPassword } from "@/lib/passwordPolicy";
 import { sendEmail } from "@/lib/email";
 import { verificationCodeEmail, passwordResetCodeEmail } from "@/lib/emailTemplates";
@@ -43,6 +46,15 @@ export const DEVICE_COOKIE = "nc_dev";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const RESET_TTL_MS = 60 * 60 * 1000;       // password reset code (own mechanism)
+
+// Constant-time comparison for anything secret. Length is compared first
+// because timingSafeEqual throws on a mismatch — the length of a six-digit code
+// is not the part worth hiding.
+function sameSecret(a, b) {
+  const x = Buffer.from(String(a || ""), "utf8");
+  const y = Buffer.from(String(b || ""), "utf8");
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
 
 const norm = (s) => String(s || "").trim().toLowerCase();
 // 6-digit code for the password-reset flow (OTP codes are minted in data/otp.js).
@@ -233,10 +245,41 @@ export async function signInWithProvider({ email, fullName, provider }) {
 // a challenge to complete. Credentials are always checked FIRST, so a code is
 // never sent to an address whose password was not supplied correctly.
 export async function login({ email, password, remember, deviceId, ip, device }) {
+  // THE GATE COMES FIRST — before the lookup, before bcrypt, and identically
+  // for an address nobody has ever registered, so it cannot be used to find out
+  // which addresses exist. The limiters used to sit inside createChallenge,
+  // which is only reached AFTER a correct password, so the first factor was
+  // unguarded entirely. See lib/data/attempts.js.
+  const gate = await checkCredentialAttempts({ ip, email });
+  if (gate.blocked) return { error: "rate-limited", retryAfter: gate.retryAfter };
+
   const user = await getUserByEmail(email);
-  if (!user) return { error: "invalid" };                 // generic — never reveals existence
+  if (!user) {
+    // Counted like any other failure: an attacker enumerating addresses must
+    // burn the same budget as one guessing passwords.
+    await recordCredentialFailure({ ip, email });
+    return { error: "invalid" };                          // generic — never reveals existence
+  }
   if (user.status === "suspended") return { error: "suspended" };
-  if (!(await verifyPassword(String(password || ""), user.passwordHash))) return { error: "invalid" };
+  if (!(await verifyPassword(String(password || ""), user.passwordHash))) {
+    await recordCredentialFailure({ ip, email });
+    return { error: "invalid" };
+  }
+  // Correct credential: wipe the slate for this source and account. Strikes
+  // survive — they are the memory of having been locked out.
+  await clearCredentialFailures({ ip, email });
+
+  // SILENTLY UPGRADE A HASH THAT PREDATES THE CURRENT COST. This is the only
+  // moment we hold the plaintext for an existing account, so it is the only
+  // moment the upgrade is possible without asking anybody to do anything.
+  // Fire-and-forget: a failed rehash leaves a working password at the old cost,
+  // which is exactly the state we were already in, and must never fail a
+  // sign-in that has already succeeded.
+  if (needsRehash(user.passwordHash)) {
+    hashPassword(password)
+      .then((passwordHash) => updateUser(user.id, { passwordHash }))
+      .catch((e) => console.error(`[identity] rehash failed for ${user.id}: ${e.message}`));
+  }
 
   // Passing the fingerprint here refreshes the stored row on every sign-in, so
   // the Security list shows where the browser was LAST used rather than where it
@@ -316,7 +359,20 @@ export async function changePassword(userId, currentPassword, nextPassword) {
 
 // Always resolves the same way to the caller — never reveals whether the email
 // is registered.
-export async function requestPasswordReset(email) {
+export async function requestPasswordReset({ email, ip } = {}) {
+  // Asking for a reset code is a SEND, not a guess, so it answers to the same
+  // send limits the OTP codes do rather than to the credential counters — a
+  // burst of reset requests must not consume somebody's sign-in budget and lock
+  // them out of an account they can still get into.
+  //
+  // Unlimited, this endpoint was an email cannon: one address, one script, as
+  // many messages as the provider would carry, all of them genuinely from us.
+  const limited = await checkSendLimits({ email, ip });
+  // STILL `ok`. The reply is identical whether the address exists, does not
+  // exist, or has asked too often — anything else would answer a question this
+  // endpoint deliberately refuses to answer.
+  if (limited.error) return { ok: true };
+
   const user = await getUserByEmail(email);
   if (!user) return { ok: true };
   const profile = await getProfile(user.id);
@@ -326,18 +382,32 @@ export async function requestPasswordReset(email) {
   return { ok: true };
 }
 
-export async function resetPassword({ email, code, newPassword }) {
+export async function resetPassword({ email, code, newPassword, ip }) {
+  // A reset code IS a credential, so guessing one answers to the same gate as
+  // guessing a password — and to the same lockout, so an attacker stopped at
+  // the sign-in door cannot simply walk round to this one.
+  const gate = await checkCredentialAttempts({ ip, email });
+  if (gate.blocked) return { error: "rate-limited", retryAfter: gate.retryAfter };
+
   const user = await getUserByEmail(email);
-  if (!user) return { error: "invalid" };
+  if (!user) {
+    await recordCredentialFailure({ ip, email });
+    return { error: "invalid" };
+  }
   const v = (await getVerification(user.id)) || {};
   if (!v.resetCode) return { error: "invalid" };
   // Same attempt cap as the OTP challenges, so both code mechanisms behave alike.
   if ((v.resetCodeAttempts || 0) >= MAX_ATTEMPTS) return { error: "locked" };
   if (!v.resetCodeExpires || Date.now() > v.resetCodeExpires) return { error: "expired" };
-  if (String(code || "").trim() !== v.resetCode) {
+  // Constant-time: a six-digit code compared with `!==` leaks how much of it
+  // matched through timing, and the per-user cap of five attempts is small
+  // enough that a leak of even one digit's worth of signal matters.
+  if (!sameSecret(String(code || "").trim(), v.resetCode)) {
     await updateVerification(user.id, { resetCodeAttempts: (v.resetCodeAttempts || 0) + 1 });
+    await recordCredentialFailure({ ip, email });
     return { error: "invalid" };
   }
+  await clearCredentialFailures({ ip, email });
   const pass = String(newPassword || "");
   const strength = checkPassword(pass);
   if (!strength.ok) return { error: "weak", failed: strength.failed };

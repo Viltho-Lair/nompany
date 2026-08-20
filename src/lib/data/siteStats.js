@@ -1,4 +1,5 @@
 import { getRedisClient } from "@/lib/data/redis";
+import { STAT } from "@/lib/data/keys";
 import { CONTINENTS, CONTINENT_KEYS } from "@/lib/continents";
 import { DEVICES, DEVICE_KEYS } from "@/lib/devices";
 
@@ -19,7 +20,9 @@ import { DEVICES, DEVICE_KEYS } from "@/lib/devices";
 const HOME_FIELD = "pv:home";
 const TOTAL_FIELD = "pv:__total";
 
-const key = (day) => `stat:day:${day}`;
+// Built through the shared key module, so the read side and the write side
+// cannot drift and the integration suite stays out of the real record.
+const key = (day) => STAT.day(day);
 const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 // YYYY-MM-DD in UTC, the same clock /api/track stamps with. Using the server's

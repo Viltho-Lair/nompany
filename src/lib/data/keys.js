@@ -148,6 +148,26 @@ export const FX = {
   lock: `${P}fx:lock`,
 };
 
+// ---- public website traffic (owned by nobody; deliberately never expires) --
+// One hash per day plus one HyperLogLog per day. Traffic history is the one
+// thing that only gets more useful with age — this spring is only interesting
+// next to last spring — so nothing here has a TTL, and both shapes are BOUNDED
+// instead: the hash caps its field count (see hIncrBounded) and the HLL is
+// constant-size whatever the visitor count.
+//
+// Namespaced like everything else, so the integration suite cannot write into
+// the real record. In production P is empty and the key is unchanged, so there
+// is no migration.
+export const STAT = {
+  day: (isoDate) => `${P}stat:day:${isoDate}`,
+  visitors: (isoDate) => `${P}stat:vis:${isoDate}`,
+  // Everything past the per-day field ceiling lands here rather than minting a
+  // new field. A page that shows up in this bucket is either a typo or an
+  // attempt to grow the hash.
+  OVERFLOW_FIELD: "pv:__other",
+  MAX_FIELDS_PER_DAY: 300,
+};
+
 // ---- rate limiting (ephemeral counters, owned by nobody) -------------------
 // NB: `normEmail` is declared further down as a const arrow function. That is
 // fine here because it is only dereferenced when the builder is CALLED, by
@@ -162,6 +182,24 @@ export const RL = {
   // legitimate attempts a day, so the window can be far tighter than the
   // subscriber-facing limits.
   superLoginIp: (ip) => `${P}rl:super:i:${String(ip || "unknown")}`,
+  // Public traffic ingest, per IP. The only endpoint in the product that an
+  // unauthenticated caller can make WRITE, so it is the only one where "how
+  // often" has to be enforced rather than assumed.
+  trackIp: (ip) => `${P}rl:track:i:${String(ip || "unknown")}`,
+
+  // FAILED CREDENTIAL ATTEMPTS — password sign-in and password reset.
+  //
+  // Three counters rather than one, and the SPREAD between them is the design:
+  // a single per-email limit would hand anybody a way to lock a named person
+  // out of their own account just by typing that address wrong on purpose. See
+  // lib/data/attempts.js for which limit catches which attack.
+  attemptPair: (ip, email) => `${P}rl:cred:p:${String(ip || "unknown")}:${normEmail(email)}`,
+  attemptIp: (ip) => `${P}rl:cred:i:${String(ip || "unknown")}`,
+  attemptEmail: (email) => `${P}rl:cred:e:${normEmail(email)}`,
+  // How many times this source has already been locked out. Outlives the
+  // counters, so the lockout gets longer each time rather than resetting to
+  // fifteen minutes forever.
+  attemptStrikes: (ip) => `${P}rl:cred:x:${String(ip || "unknown")}`,
 };
 
 // ---- per-studio keys (die with the studio) ---------------------------------
@@ -208,6 +246,10 @@ export const IX = {
   slug: (slug) => `${P}ix:slug:${String(slug || "").toLowerCase()}`, // → StudioID
   owner: (userId) => `${P}ix:owner:${userId}`,              // → StudioID (0..1 owned studio)
   session: (token) => `${P}ix:session:${token}`,            // → UserID (EX = real expiry)
+  // → SuperAdminID (EX = real expiry). Takes the DIGEST, not the token: this
+  // module is imported by a client component, so it must not pull node:crypto
+  // into the browser bundle. lib/superAuth.js hashes before calling.
+  superSession: (tokenHash) => `${P}ix:supersession:${tokenHash}`,
   stoken: (token) => `${P}ix:stoken:${token}`,              // → StudioID (EX = time-limited access token)
   collab: (userId) => `${P}ix:collab:${userId}`,            // SET of StudioIDs the user collaborates in
   // A share link's token -> the document it opens. Studio-agnostic ON PURPOSE:

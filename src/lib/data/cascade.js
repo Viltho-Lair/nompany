@@ -21,7 +21,7 @@
 //  ROLE    → the `roleIds` reference on every holder → row. The permissions
 //            themselves live ON the row, so they need no reaping.
 
-import { REG, U, S, SEC, IX } from "@/lib/data/keys";
+import { REG, U, S, SEC, IX, KEY_PREFIX } from "@/lib/data/keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "@/lib/data/store";
 import { emitPlatform, PLATFORM } from "@/lib/data/events";
 
@@ -193,10 +193,71 @@ export async function cascadeDeleteUser(userId) {
 // ---- orphan sweeper (weekly cron; also runnable on demand) -----------------
 // Verifies registries ↔ indexes ↔ key prefixes and repairs/reaps drift left by
 // a crash mid-cascade. Every fix is safe and idempotent.
+//
+// THIS FUNCTION DELETES BY PREFIX, so it is the one place in the codebase where
+// getting the key namespace wrong is unrecoverable rather than merely wrong.
+// It used to REPAIR through the prefixed builders (IX.email(), IX.slug()) and
+// REAP through bare literals ("u:", "s:", "ix:email:"). Under any KEY_PREFIX —
+// which tests/integration.test.mjs sets unconditionally — that combination
+// reads an EMPTY registry and then scans the REAL key space, so every live user
+// and studio subtree looks orphaned and is deleted. Two guards close that:
+//
+//   1. Every scan below is namespaced with P, exactly like every other key this
+//      module touches. A sweep can now only ever see its own namespace.
+//   2. An empty registry inside a namespace is refused outright. It is the
+//      normal state of a fresh namespace and it is never a licence to delete
+//      anything — belt and braces, because guard 1 is a change somebody could
+//      undo without realising what it was for.
+//
+// Deliberately NOT guarded on NODE_ENV: the failure this prevents is a
+// production runtime picking up a stray variable, so the check has to hold in
+// production too.
+//
+// BOTH GUARDS ARE EXPRESSED AS VALUES rather than inline conditions, because a
+// test cannot safely prove them by RUNNING this function: the suite shares one
+// Redis with production, so a regression test that executed the sweep would
+// itself delete the data it exists to protect. SWEEP_SCOPES and sweepRefusal()
+// are pure, so the guards can be asserted without a single DEL.
+const P = KEY_PREFIX;
+
+// EVERY prefix this function is allowed to scan, built once from the namespace.
+// If a seventh scan is ever added it belongs here, and the test that every
+// scope starts with KEY_PREFIX then covers it automatically.
+export const SWEEP_SCOPES = Object.freeze({
+  email: `${P}ix:email:`,
+  slug: `${P}ix:slug:`,
+  owner: `${P}ix:owner:`,
+  collab: `${P}ix:collab:`,
+  user: `${P}u:`,
+  studio: `${P}s:`,
+});
+
+/**
+ * Why a sweep must not run, or null if it may.
+ *
+ * An empty registry inside a NAMESPACE is the normal state of a fresh test run,
+ * and it is never a licence to delete anything. An empty registry with NO
+ * namespace is a genuinely empty database, where there is nothing to lose and
+ * nothing to reap either — so that case is allowed through and simply finds
+ * nothing.
+ */
+export function sweepRefusal(prefix, users, studios) {
+  if (prefix && !users.length && !studios.length) return "empty-registry-under-prefix";
+  return null;
+}
+
 export async function sweepOrphans() {
   const fixed = { emailIndexRepaired: 0, emailIndexReaped: 0, slugIndexRepaired: 0, slugIndexReaped: 0, ownerIndexReaped: 0, userPrefixesReaped: 0, studioPrefixesReaped: 0, collabSetsCleaned: 0 };
   const users = await readArr(REG.users);
   const studios = await readArr(REG.studios);
+
+  // GUARD 2. Nothing to reconcile against means nothing may be reaped.
+  const refusal = sweepRefusal(P, users, studios);
+  if (refusal) {
+    console.warn(`[sweep] refusing to run: key prefix "${P}" is set and both registries are empty.`);
+    return { skipped: refusal, prefix: P, checked: { users: 0, studios: 0 }, fixed };
+  }
+
   const userIds = new Set(users.map((u) => u.id));
   const studioIds = new Set(studios.map((s) => s.id));
 
@@ -205,17 +266,17 @@ export async function sweepOrphans() {
   for (const s of studios) if (!(await getIndex(IX.slug(s.slug)))) { await claim(IX.slug(s.slug), s.id); fixed.slugIndexRepaired++; }
 
   // indexes → registries (reap stale claims)
-  for (const k of await scanPrefix("ix:email:")) {
+  for (const k of await scanPrefix(SWEEP_SCOPES.email)) {
     const target = await getIndex(k);
     if (!userIds.has(target)) { await delKeys(k); fixed.emailIndexReaped++; }
   }
-  for (const k of await scanPrefix("ix:slug:")) {
+  for (const k of await scanPrefix(SWEEP_SCOPES.slug)) {
     const target = await getIndex(k);
     if (!studioIds.has(target)) { await delKeys(k); fixed.slugIndexReaped++; }
   }
-  for (const k of await scanPrefix("ix:owner:")) {
+  for (const k of await scanPrefix(SWEEP_SCOPES.owner)) {
     const target = await getIndex(k);
-    if (!studioIds.has(target) || !userIds.has(k.slice("ix:owner:".length))) { await delKeys(k); fixed.ownerIndexReaped++; }
+    if (!studioIds.has(target) || !userIds.has(k.slice(SWEEP_SCOPES.owner.length))) { await delKeys(k); fixed.ownerIndexReaped++; }
   }
 
   // stranded prefixes (owner registry row is gone → subtree should be gone)
@@ -224,12 +285,12 @@ export async function sweepOrphans() {
     for (const k of keys) { const id = k.slice(prefix.length).split(":")[0]; if (id && !known.has(id)) ids.add(id); }
     return ids;
   };
-  for (const id of strandedRoots(await scanPrefix("u:"), "u:", userIds)) { await delPrefix(`u:${id}:`); fixed.userPrefixesReaped++; }
-  for (const id of strandedRoots(await scanPrefix("s:"), "s:", studioIds)) { await delPrefix(`s:${id}:`); fixed.studioPrefixesReaped++; }
+  for (const id of strandedRoots(await scanPrefix(SWEEP_SCOPES.user), SWEEP_SCOPES.user, userIds)) { await delPrefix(`${SWEEP_SCOPES.user}${id}:`); fixed.userPrefixesReaped++; }
+  for (const id of strandedRoots(await scanPrefix(SWEEP_SCOPES.studio), SWEEP_SCOPES.studio, studioIds)) { await delPrefix(`${SWEEP_SCOPES.studio}${id}:`); fixed.studioPrefixesReaped++; }
 
   // collaboration back-pointer sets
-  for (const k of await scanPrefix("ix:collab:")) {
-    const userId = k.slice("ix:collab:".length);
+  for (const k of await scanPrefix(SWEEP_SCOPES.collab)) {
+    const userId = k.slice(SWEEP_SCOPES.collab.length);
     if (!userIds.has(userId)) { await delKeys(k); fixed.collabSetsCleaned++; continue; }
     for (const sid of await sMembers(k)) {
       if (!studioIds.has(sid)) { await sRem(k, sid); fixed.collabSetsCleaned++; continue; }

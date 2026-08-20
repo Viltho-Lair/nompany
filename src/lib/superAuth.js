@@ -8,11 +8,17 @@
 //
 // A superAdmin record: { id, email, passwordHash, sessionTokens[], createdAt,
 //   passwordSetAt }.
+//
+// `sessionTokens` holds DIGESTS, not tokens:
+//   { tokenHash, createdAt, expiresAt }
+// and it is a display list, not the authority. What authorises a request is
+// ix:supersession:<sha256(token)> -> SuperAdminID, carrying a real Redis EX.
+// See findSuperBySession for why that distinction is the whole point.
 
 import { cookies } from "next/headers";
-import { REG, makeId } from "@/lib/data/keys";
-import { readArr, editArr } from "@/lib/data/store";
-import { hashPassword, verifyPassword, newSessionToken, generatePassword } from "@/lib/passwords";
+import { REG, IX, makeId } from "@/lib/data/keys";
+import { readArr, editArr, claim, getIndex, release } from "@/lib/data/store";
+import { hashPassword, verifyPassword, newSessionToken, hashToken, generatePassword } from "@/lib/passwords";
 import { SUPER_COOKIE } from "@/lib/authConstants";
 
 export { SUPER_COOKIE };
@@ -57,10 +63,26 @@ export async function listSuperAdminEmails() {
   return new Set(rows.map((a) => normEmail(a.email)).filter(Boolean));
 }
 
+// THE SESSION INDEX IS THE AUTHORITY, and it is what carries the expiry.
+//
+// This used to scan g:superAdmins for an array containing the raw token, which
+// was wrong three times over. The token was stored in the CLEAR, so any read of
+// the database was a list of live console sessions. The comparison was
+// `Array.includes`, which is not constant-time on a secret. And nothing on the
+// row carried an expiry at all — SUPER_TTL_SEC was applied only to the cookie's
+// Max-Age, which is a hint the client controls, so a captured owner token stayed
+// valid until six newer sign-ins happened to push it off the end of the list.
+//
+// Now it works exactly the way the subscriber side already did: ix:supersession
+// holds sha256(token) -> SuperAdminID with a real Redis EX. Expiry is enforced
+// by the database, the stored value cannot be replayed, and the lookup is a
+// single O(1) GET on a key an attacker cannot construct without the token.
 export async function findSuperBySession(token) {
   if (!token) return null;
+  const adminId = await getIndex(IX.superSession(hashToken(token)));
+  if (!adminId) return null;
   const rows = await readArr(REG.superAdmins);
-  return rows.find((a) => Array.isArray(a.sessionTokens) && a.sessionTokens.includes(token)) || null;
+  return rows.find((a) => a.id === adminId) || null;
 }
 
 // Create a super-admin. If `password` is omitted, a random one is generated and
@@ -94,22 +116,45 @@ export async function loginSuper(email, password) {
   const admin = await findSuperByEmail(email);
   if (!admin) return null;
   if (!(await verifyPassword(password, admin.passwordHash))) return null;
+
   const token = newSessionToken();
-  // Appended to the token list as it stands at the moment of the write — two
-  // simultaneous sign-ins both end up signed in.
+  const tokenHash = hashToken(token);
+  const now = Date.now();
+
+  // THE INDEX FIRST, because it is what actually authorises: the row below is a
+  // list for the Security screen to render, and a session that exists in the
+  // list but not in the index is not a session.
+  await claim(IX.superSession(tokenHash), admin.id, SUPER_TTL_SEC);
+
+  // The list keeps DIGESTS, never tokens, and each row carries its own expiry so
+  // an old one can be dropped rather than lingering as a phantom device.
+  // Appended as the list stands at the moment of the write, so two simultaneous
+  // sign-ins both end up signed in.
   const updated = await patchAdmin(admin.id, (a) => ({
-    sessionTokens: [token, ...(Array.isArray(a.sessionTokens) ? a.sessionTokens : []).filter(Boolean)]
-      .slice(0, MAX_SESSIONS),
+    sessionTokens: [
+      { tokenHash, createdAt: now, expiresAt: now + SUPER_TTL_SEC * 1000 },
+      // Anything that is not the new shape is a raw token from before this
+      // change. It can no longer authorise anything, so it is dropped rather
+      // than migrated — there is nothing in it worth keeping.
+      ...(Array.isArray(a.sessionTokens) ? a.sessionTokens : [])
+        .filter((s) => s && typeof s === "object" && s.tokenHash && s.expiresAt > now),
+    ].slice(0, MAX_SESSIONS),
   }));
-  return { ...admin, sessionTokens: updated?.sessionTokens || [token], token };
+  return { ...admin, sessionTokens: updated?.sessionTokens || [], token };
 }
 
-// Invalidate only the presented token (other devices stay signed in).
+// Invalidate only the presented token (other devices stay signed in). The index
+// is released first — that is the half that decides — and the list is tidied
+// after, so a failure between the two leaves a signed-OUT session listed rather
+// than a signed-in one hidden.
 export async function logoutSuper(token) {
-  const admin = await findSuperBySession(token);
-  if (!admin) return;
-  await patchAdmin(admin.id, (a) => ({
-    sessionTokens: (a.sessionTokens || []).filter((t) => t && t !== token),
+  if (!token) return;
+  const tokenHash = hashToken(token);
+  const adminId = await getIndex(IX.superSession(tokenHash));
+  await release(IX.superSession(tokenHash));
+  if (!adminId) return;
+  await patchAdmin(adminId, (a) => ({
+    sessionTokens: (a.sessionTokens || []).filter((s) => s?.tokenHash !== tokenHash),
   }));
 }
 

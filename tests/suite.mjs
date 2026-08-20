@@ -12,6 +12,12 @@
 // wondering what it was for.
 
 import { KEY_PREFIX, IX } from "@/lib/data/keys";
+import { SWEEP_SCOPES, sweepRefusal } from "@/lib/data/cascade";
+import { hashPassword, verifyPassword, needsRehash } from "@/lib/passwords";
+import bcrypt from "bcryptjs";
+import {
+  checkCredentialAttempts, recordCredentialFailure, clearCredentialFailures, __limits as LIMITS,
+} from "@/lib/data/attempts";
 import { delPrefix, getIndex } from "@/lib/data/store";
 import { getRedisClient } from "@/lib/data/redis";
 import { createUser, mintSession } from "@/lib/data/users";
@@ -19,7 +25,7 @@ import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/lib
 import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/lib/data/collaborators";
 import { listRoles } from "@/lib/data/roles";
 import { ADMIN_ROLE_ID } from "@/lib/permissions";
-import { SESSION_COOKIE } from "@/lib/identity";
+import { SESSION_COOKIE, login as identityLogin } from "@/lib/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { explain } from "@/lib/access";
 import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/lib/tasks";
@@ -50,7 +56,7 @@ import { resolveBlocks, blocksFor } from "@/lib/quality";
 import { documentState, pendingRevision } from "@/lib/qualityDocuments";
 import { listSections, updateRow } from "@/lib/data/sections";
 import { readArr, writeArr } from "@/lib/data/store";
-import { S } from "@/lib/data/keys";
+import { S, REG as REG_KEYS } from "@/lib/data/keys";
 import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/lib/finance";
 import { inventoryContext, createItem, adjustStock, listProjectSheets, saveSheetLine } from "@/lib/inventory";
 import {
@@ -61,12 +67,18 @@ import {
 import { updateProfile } from "@/lib/data/users";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 
-import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/lib/superAuth";
+import {
+  seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
+} from "@/lib/superAuth";
+import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll } from "@/lib/data/store";
+import { STAT } from "@/lib/data/keys";
+import { hashToken } from "@/lib/passwords";
 
 const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/route.js")).PUT;
 const TASKS_ROUTE = await import("@/app/api/studios/[slug]/tasks/route.js");
 const EXPORT_CSV = (await import("@/app/api/super/site-analytics/export/route.js")).GET;
 const YEAR_ROLLOVER = (await import("@/app/api/cron/year-rollover/route.js")).GET;
+const TRACK = (await import("@/app/api/track/route.js")).POST;
 
 // ---- harness ---------------------------------------------------------------
 let fails = 0;
@@ -1498,6 +1510,246 @@ console.log("\n== a document reaches as far as the graph goes, and no further");
   ok("...so its own fields are withheld too",
     !offered("salesTicket", noSales).includes("sales.ticket.client"),
     offered("salesTicket", noSales).filter((k) => k.startsWith("sales.")).join(","));
+}
+
+// ============================================================================
+console.log("== public traffic ingest cannot grow without bound");
+// REGRESSION: /api/track took no session, no rate limit and no origin check,
+// and wrote two structures an anonymous caller controlled the size of — a SET
+// keyed on a caller-supplied visitor id, and a hash whose field names came from
+// a caller-supplied page label. Neither expires, by design. Redis is this
+// product's only storage, so a full instance fails every write in it: one curl
+// loop against a public endpoint takes down invoicing.
+{
+  const hkey = `${KEY_PREFIX}stat:test:${rand()}`;
+  const cap = { max: 3, overflow: "pv:__other" };
+
+  await hIncrBounded(hkey, "pv:home", cap);
+  await hIncrBounded(hkey, "pv:home", cap);
+  await hIncrBounded(hkey, "pv:pricing", cap);
+  await hIncrBounded(hkey, "pv:careers", cap);
+  let h = await hGetAll(hkey);
+  ok("real pages keep their own tallies", h["pv:home"] === "2" && h["pv:pricing"] === "1", JSON.stringify(h));
+
+  // Past the ceiling, invented labels cost ONE bucket between them rather than
+  // a field each — which is the whole of the protection.
+  for (let i = 0; i < 50; i += 1) await hIncrBounded(hkey, `pv:junk-${i}`, cap);
+  h = await hGetAll(hkey);
+  ok("a full day stops minting new fields", Object.keys(h).length === cap.max + 1, Object.keys(h).join(","));
+  ok("...and folds the rest into one bucket", h["pv:__other"] === "50", h["pv:__other"]);
+  // An EXISTING field must keep counting even when the hash is full, or a busy
+  // day would stop recording the pages people actually visit.
+  await hIncrBounded(hkey, "pv:home", cap);
+  ok("...while a page already counted keeps counting", (await hGetAll(hkey))["pv:home"] === "3");
+
+  // Distinct visitors, in constant space. Approximate on purpose: nobody needs
+  // this number to the unit, and the exact answer is the one a stranger can
+  // inflate without limit.
+  const vkey = `${KEY_PREFIX}stat:vistest:${rand()}`;
+  for (let i = 0; i < 400; i += 1) await pfAdd(vkey, `visitor-${i}`);
+  for (let i = 0; i < 400; i += 1) await pfAdd(vkey, `visitor-${i}`);   // same people again
+  const counted = await pfCount(vkey);
+  ok("distinct visitors are counted, not accumulated", Math.abs(counted - 400) <= 20, String(counted));
+
+  // THE ROUTE ITSELF. A cross-site Origin is refused, and refused quietly —
+  // telemetry must never surface an error to a visitor.
+  const beacon = (headers, body) => new Request("http://nompany.test/api/track", {
+    method: "POST", headers: { "Content-Type": "application/json", host: "nompany.test", ...headers },
+    body: JSON.stringify(body),
+  });
+  const evil = await TRACK(beacon({ origin: "https://somebody-elses-site.example" }, { type: "page_view", page: "home" }));
+  ok("a beacon from another origin is refused", (await evil.json()).ok === false);
+  ok("...quietly, with 200", evil.status === 200);
+
+  const mine = await TRACK(beacon({ origin: "http://nompany.test" }, { type: "page_view", page: "home", vid: `v-${rand()}` }));
+  ok("a same-origin beacon is accepted", (await mine.json()).ok === true);
+  const today = new Date().toISOString().slice(0, 10);
+  ok("...and lands in the day's tally", Number((await hGetAll(STAT.day(today)))["pv:__total"]) >= 1);
+}
+
+// ============================================================================
+console.log("== a console session expires, and is not stored where it can be replayed");
+// REGRESSION: a /super session was a RAW token pushed onto an array on the
+// g:superAdmins row, matched with Array.includes. Three faults in one place —
+// the bearer credential was stored in the clear, the comparison was not
+// constant-time, and NOTHING carried an expiry: SUPER_TTL_SEC was applied only
+// to the cookie's Max-Age, which the client controls. A captured owner token
+// stayed valid until six newer sign-ins pushed it off the end of the list.
+{
+  const email = `sup-${rand()}@test.invalid`;
+  const seeded = await seedSuperAdmin({ email, password: "console-password-here" });
+  const signedIn = await loginSuper(email, "console-password-here");
+  ok("an owner can sign in to the console", !!signedIn?.token, JSON.stringify(seeded?.error));
+
+  const found = await findSuperBySession(signedIn.token);
+  ok("...and the token resolves to them", found?.id === seeded.admin.id);
+  ok("a token nobody minted resolves to nobody",
+    (await findSuperBySession("not-a-real-token")) === null);
+  ok("an empty token resolves to nobody", (await findSuperBySession("")) === null);
+
+  // EXPIRY IS ENFORCED BY THE DATABASE, not by the cookie. This is the whole
+  // finding: the countdown has to live somewhere the client cannot edit.
+  const ttl = await ttlOf(IX.superSession(hashToken(signedIn.token)));
+  ok("the session index carries a real expiry", ttl > 0 && ttl <= SUPER_TTL_SEC, String(ttl));
+
+  // THE TOKEN ITSELF IS NOT IN THE DATABASE. Asserted against the stored row
+  // rather than against the code, so it stays true however the row is shaped.
+  const rows = await readArr(REG_KEYS.superAdmins);
+  const stored = JSON.stringify(rows.find((a) => a.id === seeded.admin.id));
+  ok("the raw token is nowhere in the stored row", !stored.includes(signedIn.token));
+  ok("...only its digest is", stored.includes(hashToken(signedIn.token)));
+
+  // A RAW STRING left over from before this change must not authorise anything.
+  await editArr(REG_KEYS.superAdmins, (all) => ({
+    next: all.map((a) => (a.id === seeded.admin.id
+      ? { ...a, sessionTokens: ["legacy-raw-token-from-before", ...(a.sessionTokens || [])] }
+      : a)),
+  }));
+  ok("a legacy raw token in the list authorises nothing",
+    (await findSuperBySession("legacy-raw-token-from-before")) === null);
+  ok("...while the real session still works",
+    (await findSuperBySession(signedIn.token))?.id === seeded.admin.id);
+
+  await logoutSuper(signedIn.token);
+  ok("signing out invalidates the token", (await findSuperBySession(signedIn.token)) === null);
+  ok("...and releases the index", (await ttlOf(IX.superSession(hashToken(signedIn.token)))) === -2);
+}
+
+// ============================================================================
+console.log("== a wrong password now costs something");
+// REGRESSION: login() verified the password and only THEN, on an unrecognised
+// device, reached createChallenge — which is where the rate limits lived. So
+// the limiters guarded the second factor and nothing guarded the first: a wrong
+// password returned immediately, uncounted, and guessing was bounded only by
+// bcrypt's cost and how many requests could run in parallel.
+{
+  ok("the lockout grows with each strike",
+    LIMITS.lockoutFor(1) < LIMITS.lockoutFor(2) && LIMITS.lockoutFor(2) < LIMITS.lockoutFor(3));
+  ok("...and stops growing at the top of the ladder",
+    LIMITS.lockoutFor(9) === LIMITS.lockoutFor(LIMITS.LOCKOUT_LADDER_SEC.length));
+
+  const ip = `10.0.0.${1 + Math.floor(Math.random() * 250)}`;
+  const email = `gate-${rand()}@test.invalid`;
+
+  ok("a fresh source may try", (await checkCredentialAttempts({ ip, email })).blocked === false);
+
+  // THE GATE IS READ-ONLY. If merely asking advanced the tally, an attacker
+  // could lock somebody out by asking rather than by guessing — and every page
+  // that renders a sign-in form would be spending their budget for them.
+  for (let i = 0; i < 10; i += 1) await checkCredentialAttempts({ ip, email });
+  ok("...and asking does not itself count against them",
+    (await checkCredentialAttempts({ ip, email })).blocked === false);
+
+  for (let i = 0; i < LIMITS.PAIR_MAX; i += 1) await recordCredentialFailure({ ip, email });
+  const shut = await checkCredentialAttempts({ ip, email });
+  ok("wrong passwords shut the door", shut.blocked === true, JSON.stringify(shut));
+  ok("...saying which limit tripped", shut.scope === "pair", shut.scope);
+  ok("...and for how long",
+    shut.retryAfter > 0 && shut.retryAfter <= LIMITS.LOCKOUT_LADDER_SEC[0], String(shut.retryAfter));
+
+  // The tight limit is per ACCOUNT-and-source. A single per-email limit would
+  // hand anybody a denial of service — type a colleague's address wrong five
+  // times and they are locked out of their own account — so a different account
+  // from the same machine is still allowed, up to the looser per-IP ceiling.
+  const colleague = `gate-${rand()}@test.invalid`;
+  ok("a different account from the same machine may still try",
+    (await checkCredentialAttempts({ ip, email: colleague })).blocked === false);
+
+  // An address nobody has registered must cost the same as one that exists,
+  // or the difference is an oracle for which addresses are real.
+  const ghostIp = `10.0.1.${1 + Math.floor(Math.random() * 250)}`;
+  const ghost = `nobody-${rand()}@test.invalid`;
+  for (let i = 0; i < LIMITS.PAIR_MAX; i += 1) await recordCredentialFailure({ ip: ghostIp, email: ghost });
+  ok("guessing at an address that does not exist is counted too",
+    (await checkCredentialAttempts({ ip: ghostIp, email: ghost })).blocked === true);
+
+  await clearCredentialFailures({ ip, email });
+  ok("a correct credential reopens the door",
+    (await checkCredentialAttempts({ ip, email })).blocked === false);
+
+  // AND IT IS WIRED IN, not merely available. The gate returns before the user
+  // lookup, so this reaches no mailer and proves the ordering at the same time:
+  // a locked-out source is refused without bcrypt ever running.
+  const wiredIp = `10.0.2.${1 + Math.floor(Math.random() * 250)}`;
+  const wiredEmail = `wired-${rand()}@test.invalid`;
+  for (let i = 0; i < LIMITS.PAIR_MAX; i += 1) await recordCredentialFailure({ ip: wiredIp, email: wiredEmail });
+  const refused = await identityLogin({ email: wiredEmail, password: "not even close", ip: wiredIp });
+  ok("login() itself refuses a locked-out source", refused.error === "rate-limited", JSON.stringify(refused));
+  ok("...and tells it when to come back", refused.retryAfter > 0, String(refused.retryAfter));
+}
+
+// ============================================================================
+console.log("== password hashes get stronger over time, and old ones keep working");
+// Raising BCRYPT_ROUNDS protects new accounts only. Everyone who signed up
+// earlier keeps the cost that was current on the day, forever, because a hash is
+// rewritten only when the password changes — so the raise silently does nothing
+// for the accounts that have existed longest. needsRehash() closes that, and
+// login() acts on it at the one moment the plaintext is in hand.
+{
+  const fresh = await hashPassword("correct horse battery staple");
+  ok("a new hash is minted at the current cost", Number(fresh.split("$")[2]) === 12, fresh.split("$")[2]);
+  ok("...and verifies", (await verifyPassword("correct horse battery staple", fresh)) === true);
+  ok("...and is not itself due for a rehash", needsRehash(fresh) === false);
+
+  // A hash minted at the OLD cost, generated here rather than pasted, so the
+  // test cannot drift from what bcrypt actually produces. It must still verify
+  // — bcrypt carries the cost inside the hash — and must be flagged.
+  const legacy = await bcrypt.hash("hunter2", 10);
+  ok("a hash minted at the old cost is still cost 10", legacy.split("$")[2] === "10", legacy.split("$")[2]);
+  ok("a hash minted at the old cost still verifies", (await verifyPassword("hunter2", legacy)) === true);
+  ok("...but is flagged for upgrade", needsRehash(legacy) === true);
+  ok("garbage is not mistaken for a weak hash", needsRehash("") === false && needsRehash("nonsense") === false);
+}
+
+// ============================================================================
+console.log("== the orphan sweep cannot reach outside its namespace");
+// REGRESSION, and the most dangerous one this repository has had. sweepOrphans
+// REPAIRED through the prefixed key builders and REAPED through bare literals:
+//   scanPrefix("u:")  scanPrefix("s:")  scanPrefix("ix:email:")  …
+// Under any KEY_PREFIX — which tests/integration.test.mjs sets unconditionally —
+// the registries read EMPTY while the scans saw the REAL key space, so every
+// live user and studio subtree was classified as orphaned and prefix-deleted.
+// One cron run away from an empty production database.
+//
+// NOTHING BELOW RUNS THE SWEEP. It cannot: this suite shares one Redis with
+// production, so a test that executed sweepOrphans to prove it is safe would be
+// the very thing it is guarding against. Both guards are therefore pure values —
+// SWEEP_SCOPES and sweepRefusal() — and are asserted directly.
+{
+  ok("the suite is namespaced at all (otherwise nothing below means anything)", KEY_PREFIX.length > 0);
+
+  const scopes = Object.entries(SWEEP_SCOPES);
+  ok("the sweep declares every prefix it may scan", scopes.length === 6, `got ${scopes.length}`);
+
+  const unscoped = scopes.filter(([, v]) => !v.startsWith(KEY_PREFIX));
+  ok("every scanned prefix is inside the namespace",
+    unscoped.length === 0, unscoped.map(([k, v]) => `${k}="${v}"`).join(", "));
+
+  // THE ASSERTION THAT MATTERS. A production key must not be matchable by any
+  // prefix this sweep scans — that is the whole of the protection, stated as
+  // the thing it prevents rather than as the code that prevents it.
+  const productionKeys = [
+    "u:usr_msol618vbohaw2:profile",
+    "s:std_msp4vswf2kdwy0:sections",
+    "s:std_msp4vswf2kdwy0:sec:sub_x:c:salesTickets",
+    "ix:email:someone@example.com",
+    "ix:slug:nompany",
+    "ix:owner:usr_msol618vbohaw2",
+    "ix:collab:usr_msol618vbohaw2",
+  ];
+  const reachable = productionKeys.filter((k) => scopes.some(([, v]) => k.startsWith(v)));
+  ok("a namespaced sweep cannot match a live key", reachable.length === 0, reachable.join(", "));
+
+  // GUARD 2 — belt and braces, in case someone unpicks guard 1 without knowing
+  // what it was for. An empty registry INSIDE a namespace is the normal state of
+  // a fresh test run and is never a licence to delete anything.
+  ok("an empty registry under a prefix refuses the sweep",
+    sweepRefusal("test_", [], []) === "empty-registry-under-prefix");
+  ok("...but one user is enough to proceed", sweepRefusal("test_", [{ id: "u" }], []) === null);
+  ok("...and so is one studio", sweepRefusal("test_", [], [{ id: "s" }]) === null);
+  // With NO namespace an empty registry is a genuinely empty database: there is
+  // nothing to lose and nothing to reap, so it is allowed through.
+  ok("an empty registry with no prefix is allowed through", sweepRefusal("", [], []) === null);
 }
 
 // ============================================================================
