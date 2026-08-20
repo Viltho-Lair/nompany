@@ -50,6 +50,13 @@ import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, re
 import { setCallPoint, listTemplates, templateForCallPoint, callPointReady,
   letterheadFor, saveLetterhead } from "@/lib/quality";
 import { barSlots, isRetiredToken } from "@/lib/qualityRender";
+import {
+  createDoc, getDoc, listDocs, saveContent, savePageSetup, removeDoc,
+} from "@/lib/qualityDocs";
+import {
+  moveRevision as moveDocRevision, startRevision as startDocRevision,
+  workflowFor, listRevisions as listDocRevisions,
+} from "@/lib/qualityDocRevisions";
 import { ticketQuotation } from "@/lib/sales";
 import { CALL_POINTS, callPointById, callPointOptions } from "@/lib/qualityCallPoints";
 import { resolveBlocks, blocksFor, generateDocument, listGenerated, getGenerated,
@@ -1494,6 +1501,128 @@ console.log("\n== nothing is issued until two people have signed it");
   // Naming the signers, and the same rule as signing.
   ok("one person cannot be both signers",
     (await setSigners(q, id, { reviewerCollaboratorId: member.collaborator.id, approverCollaboratorId: member.collaborator.id })).error === "same-signer");
+
+  __signOut();
+}
+
+// ============================================================================
+console.log("\n== the working copy, and the revision that freezes it");
+// The document editor holds ONE body and the editor edits it directly, so the
+// question the old model never had to answer becomes the central one: what
+// stops somebody typing into the procedure a company is currently working to?
+{
+  await signInAs(owner.id);
+  const q = await qualityContext(owner, slug);
+  const m = await qualityContext(member.user, slug);
+
+  const doc = (await createDoc(q, { title: "Calibration", prefix: "SOP", dept: "QA" })).document;
+  const id = doc.id;
+  ok("a new document gets a number", /^SOP-QA-\d+$/.test(doc.code), doc.code);
+  ok("...and reads as a draft", doc.state === "draft", doc.state);
+
+  const body = (text) => JSON.stringify({
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+  });
+
+  // A body is stored as a string, so the store parses it once purely to refuse
+  // something that is not a document — otherwise the editor is handed a crash
+  // the next time the row is opened.
+  ok("a body that is not a document is refused",
+    (await saveContent(await qualityContext(owner, slug), id, { content: "{}" })).error === "content");
+  ok("...and neither is a string that is not JSON at all",
+    (await saveContent(await qualityContext(owner, slug), id, { content: "nope" })).error === "content");
+
+  ok("a draft is writable", !(await saveContent(await qualityContext(owner, slug), id, { content: body("First") })).error);
+
+  // ---- the ladder ----
+  // NOT "wrong-state" — there is no revision at all yet. The row is written
+  // when somebody sends the document for review, so before that there is
+  // nothing on the ladder to move, and the machine says exactly that.
+  ok("it cannot be published before anybody has sent it for review",
+    (await moveDocRevision(await qualityContext(owner, slug), id, "publish")).error === "no-revision");
+
+  ok("the author sends it for review",
+    !(await moveDocRevision(await qualityContext(owner, slug), id, "submit")).error);
+
+  // THE SNAPSHOT. Under the old model the reviewer read whatever the author had
+  // since typed, because there was only ever one copy of the text.
+  const snapshot = (await listDocRevisions(await qualityContext(owner, slug), id))[0];
+  ok("...freezing a copy of the text as it stood", snapshot.content === body("First"), snapshot.content);
+  ok("...and of the paper it is set up for", snapshot.pageSize === "a4", String(snapshot.pageSize));
+
+  ok("the reviewer signs",
+    !(await moveDocRevision(await qualityContext(member.user, slug), id, "review", { note: "Reads correctly." })).error);
+  ok("the reviewer may not also approve",
+    (await moveDocRevision(await qualityContext(member.user, slug), id, "approve")).error === "same-signer");
+  ok("...but somebody else may",
+    !(await moveDocRevision(await qualityContext(owner, slug), id, "approve")).error);
+
+  ok("it is issued",
+    !(await moveDocRevision(await qualityContext(owner, slug), id, "publish", { effectiveDate: "2026-09-01" })).error);
+
+  // ---- the freeze, which is what this whole model turns on ----
+  const issued = await getDoc(await qualityContext(owner, slug), id);
+  ok("an issued document reads as effective", issued.document.state === "effective", issued.document.state);
+  ok("...and hands back the revision that was issued, not the working copy",
+    issued.issued?.content === body("First"), String(issued.issued?.content));
+  ok("...and says it may not be edited", issued.canEdit === false, String(issued.canEdit));
+
+  ok("THE FREEZE: typing into an issued document is refused",
+    (await saveContent(await qualityContext(owner, slug), id, { content: body("Sneaky") })).error === "issued");
+  ok("...and so is changing the paper under it",
+    (await savePageSetup(await qualityContext(owner, slug), id, { pageSize: "letter" })).error === "issued");
+
+  // ---- and what unfreezes it ----
+  const started = await startDocRevision(await qualityContext(owner, slug), id);
+  ok("starting the next revision is allowed", !started.error, started.error || "");
+  ok("...and numbers it 2", started.revision.rev === 2, String(started.revision?.rev));
+  ok("...which makes the document writable again",
+    !(await saveContent(await qualityContext(owner, slug), id, { content: body("Second") })).error);
+  ok("...and a second start is refused while one is open",
+    (await startDocRevision(await qualityContext(owner, slug), id)).error === "already-open");
+
+  const reopened = await getDoc(await qualityContext(owner, slug), id);
+  ok("with a revision open the working copy is what shows",
+    reopened.issued === null && reopened.canEdit === true, JSON.stringify({ i: reopened.issued, c: reopened.canEdit }));
+
+  // ---- rejection re-snapshots ----
+  await moveDocRevision(await qualityContext(owner, slug), id, "submit");
+  ok("a reviewer can send it back",
+    !(await moveDocRevision(await qualityContext(member.user, slug), id, "reject", { note: "Clause 3." })).error);
+  await saveContent(await qualityContext(owner, slug), id, { content: body("Third") });
+  await moveDocRevision(await qualityContext(owner, slug), id, "submit");
+  const resent = (await listDocRevisions(await qualityContext(owner, slug), id)).find((r) => r.rev === 2);
+  ok("...and resubmitting sends the FIXED text, not the text they turned down",
+    resent.content === body("Third"), resent.content);
+
+  await moveDocRevision(await qualityContext(member.user, slug), id, "review");
+  await moveDocRevision(await qualityContext(owner, slug), id, "approve");
+  await moveDocRevision(await qualityContext(owner, slug), id, "publish", { effectiveDate: "2026-10-01" });
+
+  const both = await listDocRevisions(await qualityContext(owner, slug), id);
+  ok("publishing rev 2 supersedes rev 1 rather than deleting it",
+    both.find((r) => r.rev === 1)?.state === "superseded" && both.find((r) => r.rev === 2)?.state === "effective",
+    JSON.stringify(both.map((r) => [r.rev, r.state])));
+  ok("...so what the procedure used to say is still readable",
+    both.find((r) => r.rev === 1)?.content === body("First"));
+
+  // ---- what the screen is allowed to draw ----
+  const flow = await workflowFor(await qualityContext(owner, slug), id, () => true);
+  ok("an issued document offers withdrawal and nothing else",
+    flow.moves.map((x) => x.action).join(",") === "withdraw", flow.moves.map((x) => x.action).join(","));
+  const asViewer = await workflowFor(await qualityContext(owner, slug), id, (p) => p !== "quality.documents.obsolete");
+  ok("...and offers nothing at all to somebody without the right",
+    asViewer.moves.length === 0, JSON.stringify(asViewer.moves));
+
+  // ---- deletion ----
+  ok("an issued document cannot be deleted",
+    (await removeDoc(await qualityContext(owner, slug), id)).error === "controlled");
+
+  const scratch = (await createDoc(await qualityContext(owner, slug), { title: "Scratch", prefix: "SOP", dept: "QA" })).document;
+  ok("...but a draft can be", !(await removeDoc(await qualityContext(owner, slug), scratch.id)).error);
+  ok("...and is gone from the register",
+    !(await listDocs(await qualityContext(owner, slug))).some((d) => d.id === scratch.id));
 
   __signOut();
 }

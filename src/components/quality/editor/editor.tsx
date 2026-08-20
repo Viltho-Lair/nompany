@@ -62,12 +62,19 @@ export function Editor({
   onChange,
   setup,
   onSetupChange,
+  editable = true,
 }: {
-  /** Tiptap JSON as stored in Convex, or `null` for a new document. */
+  /** Tiptap JSON as stored, or `null` for a new document. */
   initialContent: string | null;
   onChange: (content: string) => void;
   setup: PageSetup;
   onSetupChange: (change: Partial<PageSetup>) => void;
+  /**
+   * False when the document is issued and no revision is open. The sheets, the
+   * pagination and the bands all behave exactly as before — what is refused is
+   * typing into what a company is currently working to.
+   */
+  editable?: boolean;
 }) {
   // Parsed once, from the value present on mount. The editor is never re-seeded
   // from the server afterwards, so a save round-trip cannot yank the caret out
@@ -160,11 +167,19 @@ export function Editor({
         dir: directionOf(setup.language),
       },
     },
+    editable,
     onUpdate: ({ editor: instance }) => {
       onChange(JSON.stringify(instance.getJSON()));
     },
     onFocus: () => setSurface("body"),
   });
+
+  // Editability is read once when the instance is built, so starting the next
+  // revision has to say so rather than wait for a remount — a remount would
+  // throw away the undo history and the caret with it.
+  useEffect(() => {
+    bodyEditor?.setEditable(editable);
+  }, [bodyEditor, editable]);
 
   useEffect(() => {
     if (!bodyEditor) return;
@@ -229,6 +244,7 @@ export function Editor({
 
   return (
     <div className="flex flex-1 flex-col">
+      {editable && (
       <EditorToolbar
         key={surface}
         editor={activeEditor}
@@ -239,6 +255,7 @@ export function Editor({
           onSetupChange({ font: { family, category, sizePt } })
         }
       />
+      )}
 
       {/* Drives the printer to the same stock the sheets are drawn at. */}
       <style>{`@page { size: ${paper.widthMm}mm ${paper.heightMm}mm; margin: 0; }`}</style>

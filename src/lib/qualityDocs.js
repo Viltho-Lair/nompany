@@ -25,7 +25,7 @@ import { requirePermission } from "@/lib/access";
 import { readCol, addRow, updateRow, deleteRow } from "@/lib/data/sections";
 import { bumpCounter } from "@/lib/data/store";
 import { SEC } from "@/lib/data/keys";
-import { formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision } from "@/lib/qualityDocuments";
+import { formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision, isOpen } from "@/lib/qualityDocuments";
 
 // A NEW COLLECTION, not the old one reused. The old rows carry `sections` and
 // no `content`; letting them surface in the new register would show a list of
@@ -132,10 +132,44 @@ export async function getDoc(ctx, id) {
   ]);
   const doc = docs.find((d) => d.id === id);
   if (!doc) return { error: "notfound" };
-  return { document: withState(doc, revisions) };
+
+  const mine = revisions.filter((r) => r.documentId === id);
+  const open = mine.find((r) => isOpen(r.state)) || null;
+  const effective = mine.find((r) => r.state === "effective") || null;
+
+  // WHAT AN ISSUED DOCUMENT *IS*, as opposed to what is being written next.
+  // With nothing in flight the screen shows the issued revision and refuses to
+  // edit it; with a revision open it shows the working copy, which is that
+  // revision's draft.
+  return {
+    document: withState(doc, revisions),
+    issued: !open && effective ? effective : null,
+    canEdit: Boolean(open) || !effective,
+  };
 }
 
 // ---- writing -----------------------------------------------------------------
+
+/**
+ * WHETHER THE WORKING COPY MAY BE TOUCHED AT ALL.
+ *
+ * A document that has been issued is what people are working to, and the
+ * working copy is what prints. So once a revision is effective the copy freezes
+ * until somebody explicitly starts the next revision — otherwise a keystroke
+ * changes the procedure a company is being audited against, with no record that
+ * anything happened.
+ *
+ * A document nobody has issued yet is simply a draft, and drafts are for
+ * writing in.
+ */
+async function editable(ctx, documentId) {
+  const revisions = (await readCol(ctx.studio.id, ctx.section.id, REVISIONS))
+    .filter((r) => r.documentId === documentId);
+  if (revisions.some((r) => isOpen(r.state))) return null;
+  if (revisions.some((r) => r.state === "effective")) return { error: "issued" };
+  return null;
+}
+
 
 // The number is minted inside one Lua call, so two people creating a document
 // in the same second get two different codes rather than both reading the same
@@ -196,6 +230,9 @@ export async function saveContent(ctx, id, body) {
   const denied = requirePermission(ctx.access, "quality.documents.edit");
   if (denied) return denied;
 
+  const frozen = await editable(ctx, id);
+  if (frozen) return frozen;
+
   const content = String(body?.content ?? "");
   // A body is stringified ProseMirror JSON. Parsed once here purely to refuse
   // something that is not a document at all — a store that accepts arbitrary
@@ -217,6 +254,9 @@ export async function saveContent(ctx, id, body) {
 export async function savePageSetup(ctx, id, body) {
   const denied = requirePermission(ctx.access, "quality.documents.edit");
   if (denied) return denied;
+
+  const frozen = await editable(ctx, id);
+  if (frozen) return frozen;
 
   const patch = cleanSetup(body);
   if (!Object.keys(patch).length) return { error: "empty" };

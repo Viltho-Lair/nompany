@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, Cloud, CloudOff, Loader2, Printer } from "lucide-react";
 
 import { PageSetupMenu } from "@/components/quality/documents/page-setup-menu";
+import { WorkflowBar } from "@/components/quality/documents/workflow-bar";
 import { Editor } from "@/components/quality/editor/editor";
 import { Button } from "@/components/ui/button";
 import type { PageSetup } from "@/lib/docs/page-presets";
@@ -38,6 +39,8 @@ export function DocumentWorkspace({
   initialContent,
   initialSetup,
   state,
+  canEdit,
+  onChanged,
 }: {
   slug: string;
   documentId: string;
@@ -46,6 +49,8 @@ export function DocumentWorkspace({
   initialContent: string | null;
   initialSetup: PageSetup;
   state: string;
+  canEdit: boolean;
+  onChanged: () => void;
 }) {
   const [draftTitle, setDraftTitle] = useState(title);
   const [setup, setSetup] = useState<PageSetup>(initialSetup);
@@ -61,6 +66,9 @@ export function DocumentWorkspace({
 
   const patch = useCallback(
     async (body: Record<string, unknown>) => {
+      // A frozen document has nothing to save, and asking would earn a 409 that
+      // showed up as "Not saved" over a document nobody was editing.
+      if (!canEdit) return;
       const response = await fetch(
         `/api/studios/${slug}/quality/docs?id=${encodeURIComponent(documentId)}`,
         {
@@ -74,7 +82,7 @@ export function DocumentWorkspace({
       );
       if (!response.ok) throw new Error(String(response.status));
     },
-    [slug, documentId],
+    [slug, documentId, canEdit],
   );
 
   const saveContentNow = useCallback(
@@ -178,6 +186,7 @@ export function DocumentWorkspace({
           )}
           <input
             value={draftTitle}
+            readOnly={!canEdit}
             aria-label="Document title"
             onChange={(event) => {
               setDraftTitle(event.target.value);
@@ -192,11 +201,13 @@ export function DocumentWorkspace({
           <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STATUS_BADGE[state] || STATUS_BADGE.draft}`}>
             {state}
           </span>
-          <PageSetupMenu
-            setup={setup}
-            documentTitle={draftTitle}
-            onChange={handleSetupChange}
-          />
+          {canEdit && (
+            <PageSetupMenu
+              setup={setup}
+              documentTitle={draftTitle}
+              onChange={handleSetupChange}
+            />
+          )}
           {/* PRINT IS THE WHOLE EXPORT. The sheets on screen are page-sized and
               @page carries no margin of its own, so the browser has nothing left
               to decide — what is drawn is what comes out, page breaks, running
@@ -208,11 +219,19 @@ export function DocumentWorkspace({
         </div>
       </header>
 
+      <WorkflowBar
+        slug={slug}
+        documentId={documentId}
+        frozen={!canEdit}
+        onChanged={onChanged}
+      />
+
       <Editor
         initialContent={initialContent}
         onChange={handleContentChange}
         setup={setup}
         onSetupChange={handleSetupChange}
+        editable={canEdit}
       />
     </div>
   );

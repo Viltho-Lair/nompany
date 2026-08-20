@@ -36,7 +36,9 @@ export function DocumentView({
   documentId: string;
 }) {
   const [state, setState] = useState<
-    { status: "loading" } | { status: "missing" } | { status: "ready"; document: StoredDocument }
+    | { status: "loading" }
+    | { status: "missing" }
+    | { status: "ready"; document: StoredDocument; issued: StoredDocument | null; canEdit: boolean }
   >({ status: "loading" });
 
   const load = useCallback(async () => {
@@ -48,8 +50,17 @@ export function DocumentView({
       setState({ status: "missing" });
       return;
     }
-    const payload = (await response.json()) as { document: StoredDocument };
-    setState({ status: "ready", document: payload.document });
+    const payload = (await response.json()) as {
+      document: StoredDocument;
+      issued: StoredDocument | null;
+      canEdit: boolean;
+    };
+    setState({
+      status: "ready",
+      document: payload.document,
+      issued: payload.issued ?? null,
+      canEdit: payload.canEdit !== false,
+    });
   }, [studio.slug, documentId]);
 
   useEffect(() => {
@@ -63,16 +74,26 @@ export function DocumentView({
     return <DocumentNotFound slug={studio.slug} />;
   }
 
+  // WHAT AN ISSUED DOCUMENT SHOWS IS WHAT WAS ISSUED. With a revision in flight
+  // the working copy is that revision's draft and is what you see; with nothing
+  // in flight the screen is the frozen snapshot, so what is on the page — and
+  // what prints from it — is the version the company is working to.
+  const shown = state.issued ?? state.document;
+
   return (
     <DocumentWorkspace
-      key={documentId}
+      // Keyed on the revision as well as the document: starting the next
+      // revision swaps the body underneath, and the editor seeds itself once.
+      key={`${documentId}:${state.issued?.id ?? "working"}`}
       slug={studio.slug}
       documentId={state.document.id}
       code={state.document.code ?? ""}
       title={state.document.title ?? ""}
-      initialContent={state.document.content || null}
-      initialSetup={toPageSetup(state.document)}
+      initialContent={shown.content || null}
+      initialSetup={toPageSetup(shown)}
       state={state.document.state ?? "draft"}
+      canEdit={state.canEdit}
+      onChanged={load}
     />
   );
 }
