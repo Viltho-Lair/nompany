@@ -1,0 +1,91 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "project": {
+      "id": "<pro_ID>",
+      "number": "",
+      "title": "Boardroom refit, phase 1",
+      "quotationId": "<quo_ID>",
+      "quotationNumber": "Q-0001",
+      "rfqId": "<rfq_ID>",
+      "ticketId": "<sal_ID>",
+      "clientId": "<sal_ID>",
+      "clientName": "Acme Holdings",
+      "value": 0,
+      "stage": "Received",
+      "managerCollaboratorId": "",
+      "location": "",
+      "supportPeriodDays": 365,
+      "receivedDate": "2026-08-20",
+      "startDate": "",
+      "endDate": "",
+      "milestones": [
+        {
+          "id": "ms1",
+          "name": "Kick-off",
+          "done": false,
+          "doneAt": ""
+        },
+        {
+          "id": "ms2",
+          "name": "Procurement",
+          "done": false,
+          "doneAt": ""
+        },
+        {
+          "id": "ms3",
+          "name": "Execution",
+          "done": false,
+          "doneAt": ""
+        },
+        {
+          "id": "ms4",
+          "name": "Testing",
+          "done": false,
+          "doneAt": ""
+        },
+        {
+          "id": "ms5",
+          "name": "Handover",
+          "done": false,
+          "doneAt": ""
+        }
+      ],
+      "notes": "",
+      "openedByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "progress": 0
+    },
+    "sheets": [
+      {
+        "id": "<pro_ID>",
+        "projectId": "<pro_ID>",
+        "quotationId": "<quo_ID>",
+        "rfqId": "<rfq_ID>",
+        "ticketId": "<sal_ID>",
+        "kind": "main",
+        "lines": {},
+        "openedByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      },
+      {
+        "id": "<pro_ID>",
+        "projectId": "<pro_ID>",
+        "quotationId": "<quo_ID>",
+        "rfqId": "<rfq_ID>",
+        "ticketId": "<sal_ID>",
+        "kind": "bulk",
+        "lines": {},
+        "openedByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      }
+    ]
+  }
+}

@@ -610,6 +610,114 @@ console.log("== technical: converting, locking, and the rights that are not bigg
 }
 
 // ============================================================================
+console.log("== projects: opened from an approved quotation, and only once");
+// The far end of the order-to-cash spine, and the place three rules meet:
+//
+//   A PROJECT IS OPENED FROM AN APPROVED QUOTATION, not from a wish. Approval
+//   is asked of the Tasks board, the same authority Technical's lock asks.
+//
+//   A QUOTATION OPENS EXACTLY ONE PROJECT. "A ticket has one project. A second
+//   project means a second ticket, because a client asking for more work starts
+//   the process from scratch."
+//
+//   THE PROJECT CARRIES THE WHOLE LINEAGE — ticketId, quotationId, clientId —
+//   because every downstream record (sheets, invoices, deliveries, overtimes,
+//   AWBs, tasks) hangs off the project and needs to reach back up.
+{
+  const PROJECTS = await import("@/app/api/studios/[slug]/projects/route.js");
+  const SLA = await import("@/app/api/studios/[slug]/projects/sla/route.js");
+  const OVERTIMES = await import("@/app/api/studios/[slug]/projects/overtimes/route.js");
+  const TECH = await import("@/app/api/studios/[slug]/technical/route.js");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const personWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  await signIn(owner.id);
+
+  // Re-read rather than carrying a variable across blocks: each block should
+  // stand up on its own, so one being deleted cannot quietly break the next.
+  const tech = await capture(TECH.GET, req(`/api/studios/${slug}/technical`), P);
+  const approved = tech.body?.quotations?.find((q) => q.status === "Approved");
+  ok("there is an approved quotation to open a project from", Boolean(approved?.id),
+    `${tech.body?.quotations?.length ?? 0} quotations`);
+
+  await shot("projects.empty", await capture(PROJECTS.GET, req(`/api/studios/${slug}/projects`), P));
+
+  // ---- a quotation nobody approved cannot open a project -----------------
+  // An INTERNAL quotation, created straight from the Quotations screen rather
+  // than converted from an RFQ — the second of the two ways a quotation is born,
+  // and the one that arrives unapproved. Made here rather than reused from the
+  // Technical block, because the only approved quotation in the studio is the
+  // one that legitimately opens a project below.
+  const QUOTES = await import("@/app/api/studios/[slug]/technical/quotations/route.js");
+  const internal = await capture(QUOTES.POST, req(`/api/studios/${slug}/technical/quotations`, {
+    method: "POST",
+    body: { number: "Q-INTERNAL-1", description: "Site survey, not yet approved", handledBy: "Owner" },
+  }), P);
+  const draftId = internal.body?.quotation?.id;
+  ok("an internal quotation can be raised without an RFQ", Boolean(draftId),
+    JSON.stringify(internal.body).slice(0, 140));
+  ok("...and arrives unapproved", internal.body?.quotation?.status !== "Approved",
+    internal.body?.quotation?.status);
+
+  const notApproved = await shot("projects.refused.notapproved", await capture(
+    PROJECTS.POST, req(`/api/studios/${slug}/projects`, { method: "POST", body: { quotationId: draftId } }), P));
+  ok("a project cannot be opened from an unapproved quotation",
+    notApproved.body?.error === "not-approved", `${notApproved.status} ${JSON.stringify(notApproved.body)}`);
+  await shot("projects.refused.noquotation", await capture(
+    PROJECTS.POST, req(`/api/studios/${slug}/projects`, { method: "POST", body: { quotationId: "quo_nothinghere000" } }), P));
+
+  // ---- opening it --------------------------------------------------------
+  const opened = await shot("projects.opened", await capture(
+    PROJECTS.POST, req(`/api/studios/${slug}/projects`, { method: "POST", body: { quotationId: approved?.id } }), P));
+  const project = opened.body?.project;
+  ok("the project opened", Boolean(project?.id), JSON.stringify(opened.body).slice(0, 140));
+
+  // THE LINEAGE, asserted field by field. Every downstream record hangs off
+  // this row, so a missing key here is a whole department unable to reach back.
+  ok("the project names its quotation", project?.quotationId === approved?.id, project?.quotationId);
+  ok("...its ticket", Boolean(project?.ticketId), project?.ticketId);
+  ok("...and its client", Boolean(project?.clientId), project?.clientId);
+
+  // ---- and only once -----------------------------------------------------
+  await shot("projects.refused.twice", await capture(
+    PROJECTS.POST, req(`/api/studios/${slug}/projects`, { method: "POST", body: { quotationId: approved?.id } }), P));
+
+  const populated = await capture(PROJECTS.GET, req(`/api/studios/${slug}/projects`), P);
+  await shot("projects.list.populated", populated);
+  ok("one quotation yielded exactly one project", populated.body?.projects?.length === 1,
+    String(populated.body?.projects?.length));
+
+  // ---- SLA and Overtimes answer to their OWN rights ----------------------
+  // Both are sub-sections of Projects with grants of their own, so somebody who
+  // may run the project list is not thereby entitled to set service levels or
+  // approve overtime. Each route gates on its own flag, before the service.
+  const lister = await personWith(
+    ["projects.list.view", "projects.list.create", "projects.list.edit"], "projlister");
+  await signIn(lister.id);
+  await shot("projects.refused.sla", await capture(
+    SLA.POST, req(`/api/studios/${slug}/projects/sla`, { method: "POST", body: { name: "Four hour response" } }), P));
+  await shot("projects.refused.overtimes", await capture(
+    OVERTIMES.POST, req(`/api/studios/${slug}/projects/overtimes`, { method: "POST", body: { projectId: project?.id } }), P));
+
+  // ---- the walls ---------------------------------------------------------
+  await signIn(outsider.id);
+  await shot("projects.outsider", await capture(PROJECTS.GET, req(`/api/studios/${slug}/projects`), P));
+  __signOut();
+  await shot("projects.unauth", await capture(PROJECTS.GET, req(`/api/studios/${slug}/projects`), P));
+}
+
+// ============================================================================
 console.log("== status codes: what each refusal claims to be");
 // EVERY ROUTE MAPS ITS OWN ERRORS, and they do not agree. `notfound` is 404 in
 // most places, `forbidden` is 403 in most places, and the quotations route
