@@ -1,4 +1,4 @@
-import { currentUser } from "@/lib/identity";
+import { route } from "@/lib/route";
 import {
   projectsContext, listProjects, approvedQuotations, projectPeople,
   listSlas, listOvertimes, overtimeDirectory, readProjectsSettings, saveProjectsSettings,
@@ -11,26 +11,20 @@ import { can } from "@/lib/access";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function context(paramsPromise, { write } = {}) {
-  const user = await currentUser();
-  if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
-  const { slug } = await paramsPromise;
-  const ctx = await projectsContext(user, slug);
-  if (ctx.error) {
-    const status = ctx.error === "notfound" || ctx.error === "no-section" ? 404 : 403;
-    return { fail: Response.json({ error: ctx.error }, { status }) };
-  }
-  if (write && !ctx.canManage) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
-  return ctx;
-}
-const body = async (r) => { try { return await r.json(); } catch { return {}; } };
+// AUTH AND ERROR MAPPING BOTH LEAVE THIS FILE. What stays is the one thing the
+// services cannot do for themselves — refusing a write at the door — because a
+// permission check belongs beside the thing it protects, not in a wrapper.
+//
+// The hand-written ladder this replaces sent `not-approved` as 422 while
+// technical sent the same name as 400. Neither was wrong on its own; having two
+// answers to one question was.
+const spec = { auth: "studio", context: projectsContext, body: true, name: "projects" };
+const writeSpec = { ...spec, body: true };
+const manageable = (c) => (c.canManage ? null : { error: "read-only" });
 
 // One read for the whole Projects screen — the list, its SLA contracts, the
 // overtime logged against it, and the directory the pickers need.
-export async function GET(request, ctx) {
-  const c = await context(ctx.params);
-  if (c.fail) return c.fail;
-
+export const GET = route({ ...spec, body: false }, async (c) => {
   const [projects, quotations, people, slas, overtimes, directory, sheets] = await Promise.all([
     listProjects(c), approvedQuotations(c), projectPeople(c),
     listSlas(c), listOvertimes(c), overtimeDirectory(c),
@@ -40,7 +34,7 @@ export async function GET(request, ctx) {
     // which is where the shared record lives.
     listProjectSheets(c),
   ]);
-  return Response.json({
+  return {
     canManage: c.canManage,
     // Whether the module's OWN screen may be opened. The dashboard summarises
     // everything underneath it, so it is withheld on a right of its own.
@@ -68,60 +62,51 @@ export async function GET(request, ctx) {
     directory,
     settings: readProjectsSettings(c.settingsSection),
     vocabulary: { stages: PROJECT_STAGES, requirementWeights: REQUIREMENT_WEIGHTS },
-  });
-}
+  };
+});
 
 // Projects Settings — requirement weights, the default overtime department and
 // the stage vocabulary.
-export async function PATCH(request, ctx) {
-  const c = await context(ctx.params);
-  if (c.fail) return c.fail;
-  if (!c.canManageSettings) return Response.json({ error: "read-only" }, { status: 403 });
+export const PATCH = route(spec, async (c) => {
+  if (!c.canManageSettings) return { error: "read-only" };
 
-  const result = await saveProjectsSettings(c, await body(request));
-  if (result.error) {
-    // A refusal is not a malformed request. 403 so a client can tell "you may
-    // not" from "you sent nonsense" — they need different handling.
-    const status = result.error === "forbidden" ? 403 : result.error === "unknown-permission" ? 500 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json({ ok: true, settings: readProjectsSettings({ settings: result.settings }) });
-}
+  const result = await saveProjectsSettings(c, c.body);
+  if (result.error) return result;
+  return { ok: true, settings: readProjectsSettings({ settings: result.settings }) };
+});
 
-export async function POST(request, ctx) {
-  const c = await context(ctx.params, { write: true });
-  if (c.fail) return c.fail;
+export const POST = route(writeSpec, async (c) => {
+  const refusal = manageable(c);
+  if (refusal) return refusal;
 
-  const result = await openProject(c, await body(request));
-  if (result.error) {
-    const status = result.error === "already" ? 409
-      : result.error === "quotation" || result.error === "no-technical" ? 404
-      : result.error === "not-approved" ? 422 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
+  const result = await openProject(c, c.body);
+  if (result.error) return result;
   // The sheets travel back so the caller can say they were drawn up. Empty in
   // a studio with no Inventory section, which is not an error.
-  return Response.json({ ok: true, project: result.project, sheets: result.sheets }, { status: 201 });
-}
+  return { status: 201, body: { ok: true, project: result.project, sheets: result.sheets } };
+});
 
-export async function PUT(request, ctx) {
-  const c = await context(ctx.params, { write: true });
-  if (c.fail) return c.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+export const PUT = route(writeSpec, async (c) => {
+  const refusal = manageable(c);
+  if (refusal) return refusal;
+  if (!c.body.id) return { error: "missing" };
 
-  const result = await updateProject(c, b.id, b);
-  if (result.error) return Response.json({ error: result.error }, { status: result.error === "notfound" ? 404 : 400 });
-  return Response.json({ ok: true, project: result.project });
-}
+  const result = await updateProject(c, c.body.id, c.body);
+  if (result.error) return result;
+  return { ok: true, project: result.project };
+});
 
-export async function DELETE(request, ctx) {
-  const c = await context(ctx.params, { write: true });
-  if (c.fail) return c.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+// THIS USED TO ANSWER 404 TO EVERY ERROR, so being refused for lack of
+// permission was indistinguishable from the project not existing — the one
+// answer that tells a client to stop asking rather than to go and ask for
+// access. removeProject only returns `notfound`, so the table gives the same
+// 404 for the real case and the honest status for everything else.
+export const DELETE = route(writeSpec, async (c) => {
+  const refusal = manageable(c);
+  if (refusal) return refusal;
+  if (!c.body.id) return { error: "missing" };
 
-  const result = await removeProject(c, b.id);
-  if (result.error) return Response.json({ error: result.error }, { status: 404 });
-  return Response.json({ ok: true });
-}
+  const result = await removeProject(c, c.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

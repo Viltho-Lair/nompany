@@ -1808,7 +1808,17 @@ console.log("== status codes: what each refusal claims to be");
     // is 422 in projects and was 400 in technical — the same name, two statuses,
     // decided independently. Technical now agrees with the table; projects is
     // the last one that does not.
-    "projects.refused.notapproved",
+    // QUALITY, NOT YET CONVERTED. These three appeared the moment `no-revision`
+    // was added to the table — the scanner getting sharper, not a route getting
+    // worse, which is the distinction a bare count could never express and the
+    // whole reason this list holds names.
+    //
+    // 404 is right for them: `no-revision` fires when the row being signed is
+    // ABSENT, and signables.js already has `wrong-state` (409) for the row that
+    // exists but has moved on. Two different answers to two different questions.
+    "quality.refused.approve.outoforder",
+    "quality.refused.publish.outoforder",
+    "quality.refused.review.afterissue",
   ];
   const nameOf = (m) => m.split(":")[0];
   const unexpected = mismatches.filter((m) => !KNOWN.includes(nameOf(m)));

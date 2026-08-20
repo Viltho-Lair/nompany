@@ -44,7 +44,23 @@ const FORBIDDEN = [
 // 404 — IT IS NOT THERE, or you are not allowed to know that it is. Membership
 // refusals deliberately render identically to absence (see CLAUDE.md), so this
 // is load-bearing for tenancy, not just tidiness.
-const NOT_FOUND = ["notfound", "not-found", "no-record", "no-section"];
+const NOT_FOUND = [
+  "notfound", "not-found", "no-record",
+  // A SECTION THE STUDIO DOES NOT HAVE is the same answer as a row it does not
+  // have. These names are per-module spellings of "no-section" and were each
+  // mapped to 404 by hand in the route that produced them; listing them is what
+  // stops conversion silently downgrading them to 400.
+  "no-section", "no-technical", "no-sales", "no-projects", "no-tasks",
+  "no-revision",       // the revision being signed is not there
+  "quotation",         // the quotation a project was opened against is gone
+];
+
+// DELIBERATELY NOT 404, though they read like it. `no-file` means the upload
+// carried no file — the caller sent a bad request, not a request for something
+// absent. `no-email` means the OAuth provider handed back no address, which is a
+// failed sign-in. `no-path` means two records have no relationship path and
+// arrives WITH `records: []`, so it is a soft empty answer rather than a
+// refusal. All three stay 400, which is what their routes already send.
 
 // 409 — THE REQUEST IS WELL FORMED AND THE WORLD DISAGREES WITH IT. This is the
 // class most often mislabelled 400 today, and the distinction is worth keeping:
