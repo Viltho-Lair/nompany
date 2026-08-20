@@ -5,7 +5,7 @@
 //   1. GOLDEN RESPONSES. Every route's status and response SHAPE, recorded
 //      before the refactor starts. This is what turns "exact functional parity"
 //      from a promise into a property.
-//   2. THE PERMISSION MATRIX. Every one of the 104 keys in the catalogue,
+//   2. THE PERMISSION MATRIX. Every one of the 103 keys in the catalogue,
 //      granted alone, resolving to itself and to nothing else. This is what
 //      stops a rewrite of effectivePermissions from quietly widening access.
 //   3. HOP COUNTS. How many Redis round trips a route costs. The audit's
@@ -13,6 +13,7 @@
 //
 // Nothing in Wave 2 starts until this is green.
 
+import * as KEYS from "@/lib/data/keys";
 import { KEY_PREFIX } from "@/lib/data/keys";
 import { createUser, mintSession } from "@/lib/data/users";
 import { createStudio } from "@/lib/data/studios";
@@ -25,6 +26,8 @@ import { SESSION_COOKIE } from "@/lib/identity";
 import { withCommandCount } from "@/lib/data/commandCount";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 import { golden, req, ctx, capture, RECORDING } from "./goldens.mjs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -74,7 +77,11 @@ console.log("== the permission matrix: one key grants exactly itself");
 // resolution is a flat Set with no inheritance. This proves it stays flat —
 // every key, granted alone, resolving to itself and to nothing else.
 {
-  ok("the catalogue is the size the audit measured", ALL_PERMISSIONS.length === 104, String(ALL_PERMISSIONS.length));
+  // A COUNT, deliberately hardcoded. Deriving it from the catalogue would make
+  // the assertion tautological — the point is that adding or removing a right
+  // is a visible act. 104 at the audit; 103 after quality.documents.share was
+  // removed for granting nothing.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 103, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -136,6 +143,126 @@ console.log("== the permission matrix: one key grants exactly itself");
   // Every area's ladder stores what it grants, rather than computing it.
   const laddered = AREAS.filter((a) => a.verbs.includes("edit"));
   ok("there are laddered areas to check", laddered.length > 10, String(laddered.length));
+}
+
+// ============================================================================
+console.log("== the architecture, asserted rather than remembered");
+// THREE WHOLE CLASSES OF DEFECT, each of which has already happened here once,
+// and none of which any individual test would catch — because the fault is
+// always something that ISN'T there.
+//
+// A permission granted on the access grid that enforces nothing. A key builder
+// declared and never read. A route with no authentication. Each is invisible
+// while you are looking at the file that has the problem, because the problem
+// is the absence of a second file.
+//
+// These scan the source rather than exercising it, so they cover code nobody
+// has written yet.
+{
+  const SRC = "src";
+  const sources = [];
+  (function walk(dir) {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) { walk(path); continue; }
+      // Stored with forward slashes whatever the platform, because every match
+      // below is a path pattern and a Windows backslash would silently match
+      // nothing — which reads as "all clear" rather than as a broken test.
+      if (/\.(js|jsx|ts|tsx)$/.test(path)) {
+        sources.push({ path: path.split("\\").join("/"), text: readFileSync(path, "utf8") });
+      }
+    }
+  })(SRC);
+  ok("there are sources to scan", sources.length > 300, String(sources.length));
+
+  const seenIn = (needle, exclude) =>
+    sources.filter((f) => !f.path.includes(exclude) && f.text.includes(needle));
+
+  // ---- 1. every declared right is enforced somewhere ----------------------
+  // THE ONE THAT CAUGHT quality.documents.share. It sat on the access grid, was
+  // grantable, and granted nothing: the key builder, the collection and the
+  // reserved route prefix all existed and no code read any of them. Somebody
+  // could have handed out what they believed was the power to publish a
+  // controlled document to the outside world.
+  //
+  // Verbs are checked at AREA level because resolution composes them —
+  // `access.has(`${area}.${verb}`)` in sectionViewable — so the literal
+  // "sales.tickets.view" legitimately appears nowhere. EXTRAS are always
+  // spelled out, which is exactly why they are the ones that die quietly.
+  const orphanAreas = AREAS.filter((a) => !seenIn(a.key, "permissions.js").length);
+  ok("every area is referenced by something that enforces it",
+    orphanAreas.length === 0, orphanAreas.map((a) => a.key).join(", "));
+
+  const orphanExtras = [];
+  for (const area of AREAS) {
+    for (const extra of area.extra || []) {
+      const key = `${area.key}.${extra.key}`;
+      if (!seenIn(key, "permissions.js").length) orphanExtras.push(key);
+    }
+  }
+  ok("every extra right is actually checked somewhere",
+    orphanExtras.length === 0, orphanExtras.join(", "));
+
+  // ---- 2. every key builder has a reader ----------------------------------
+  // A declared key that nothing reads is a promise the product does not keep:
+  // s:<id>:activityLog implied an audit trail that never existed, and
+  // ix:stoken implied time-limited access links that were never minted.
+  const GROUPS = { REG: KEYS.REG, U: KEYS.U, S: KEYS.S, SEC: KEYS.SEC, IX: KEYS.IX,
+    OTP: KEYS.OTP, CHAT: KEYS.CHAT, FX: KEYS.FX, RL: KEYS.RL, STAT: KEYS.STAT, MEDIA: KEYS.MEDIA };
+  const unread = [];
+  for (const [group, members] of Object.entries(GROUPS)) {
+    for (const name of Object.keys(members || {})) {
+      if (!seenIn(`${group}.${name}`, "data/keys.js").length) unread.push(`${group}.${name}`);
+    }
+  }
+  ok("every key builder is read by something", unread.length === 0, unread.join(", "));
+
+  // ---- 3. every route authenticates --------------------------------------
+  // Resolved ONE level through imports, because most routes delegate to a guard
+  // (hrGuard, financeGuard, studioSide, nompanySide) rather than calling
+  // currentUser themselves — a naive scan reports those as unauthenticated and
+  // gets ignored within a week.
+  const AUTH = /currentUser|currentSuperAdmin|cronDenied|studioSide|nompanySide|Guard\(|studioContext/;
+
+  // Deliberately public, each for a stated reason. Adding to this list is how a
+  // new public surface gets argued for, rather than appearing by omission.
+  const PUBLIC = {
+    "api/pricing/route.js": "the marketing price list",
+    "api/track/route.js": "anonymous traffic beacon; rate-limited and origin-checked instead",
+    "api/auth/oauth/[provider]/start/route.js": "starts sign-in; there is no session yet",
+    "api/auth/callback/[provider]/route.js": "completes sign-in; the provider is the credential",
+    "api/identity/login/route.js": "the sign-in door",
+    "api/identity/signup/route.js": "the sign-up door",
+    "api/identity/forgot/route.js": "password reset request",
+    "api/identity/reset/route.js": "password reset completion",
+    "api/identity/otp/verify/route.js": "completes an OTP challenge; the code is the credential",
+    "api/identity/otp/resend/route.js": "resends a code for an in-flight challenge",
+    "api/identity/logout/route.js": "clears a cookie; refusing an unauthenticated caller helps nobody",
+    "api/identity/me/route.js": "answers null when signed out",
+    "api/super/login/route.js": "the console door",
+    "api/super/logout/route.js": "clears a cookie",
+    "api/fonts/route.ts": "the document editor's font catalogue; no tenant data",
+    "api/media/[id]/route.js": "public blobs are public by definition; private ones check membership",
+  };
+
+  const routes = sources.filter((f) => /app\/api\/.*route\.(js|ts)$/.test(f.path));
+  ok("the route scan found the routes", routes.length >= 90, String(routes.length));
+
+  const unguarded = [];
+  for (const route of routes) {
+    const rel = route.path.replace(/^src\/app\//, "");
+    if (PUBLIC[rel]) continue;
+    if (AUTH.test(route.text)) continue;
+    // One hop: does anything it imports from @/lib do the authenticating?
+    const imported = [...route.text.matchAll(/from "@\/lib\/([a-zA-Z0-9/_-]+)"/g)].map((m) => m[1]);
+    const delegated = imported.some((mod) => {
+      const file = sources.find((f) => f.path === `src/lib/${mod}.js` || f.path === `src/lib/${mod}.ts`);
+      return file && AUTH.test(file.text);
+    });
+    if (!delegated) unguarded.push(rel);
+  }
+  ok("every route authenticates, directly or through a guard",
+    unguarded.length === 0, unguarded.join(", "));
 }
 
 // ============================================================================

@@ -506,10 +506,6 @@
           {
             "key": "obsolete",
             "label": "Withdraw a document"
-          },
-          {
-            "key": "share",
-            "label": "Create an external share link"
           }
         ]
       },

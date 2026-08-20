@@ -24,6 +24,22 @@ Branch `wave-0-security-hardening`. Suite green, `tsc --noEmit` clean, productio
 | 0.8 Redis eviction policy | M-14 | **done** — verified `noeviction` (already correct); asserted in the suite and reported weekly by the sweep |
 | Media keys namespaced | *found while working* | **done** — `lib/media.js` built `g:media:<id>` from a bare literal, so the suite wrote real blobs; now via `MEDIA.blob` |
 | Namespace test over every key builder | *found while working* | **done** — 61 builders checked; closes the class that produced C-1 and the media leak |
+| M-1 dead capabilities removed | M-1 | **done** — `quality.documents.share`, `ix:qshare`, `qualityShareLinks`, `S.tokens`, `ix:stoken`, `activityLog`, `S.media`, plus `RL.contactIp` and `MEDIA.prefix` found by the new check |
+
+### Gate A (Wave 1) — in progress
+
+| Piece | State |
+|---|---|
+| Golden-response harness + normaliser | **done**, negative-tested by renaming a field |
+| Golden coverage | **21 of 97 routes** — the rest is mechanical |
+| Permission matrix (103 keys) | **done** — resolution proven exhaustive |
+| Hop counting | **done** — independently reproduces the audit's 8-wave figure |
+| Architectural assertions | **done** — 6 checks, found 3 dead builders on first run |
+| CI (typecheck, 3 suites, build, budget, ephemeral redis:8) | **done** |
+| Bundle budget | **done** — 1091 KB gz against a 1200 KB ceiling |
+| Per-route permission enforcement | not yet — follows the remaining goldens |
+| ESLint config | not yet — no `eslint` in devDependencies |
+| Observability (request ids, structured logs) | not yet |
 
 **Opened while working, not yet decided:** `login()` checks `status === "suspended"` *before* verifying the password, so a suspended account is distinguishable from a non-existent one with no password at all — an enumeration oracle. Moving the check below `verifyPassword` closes it and costs one line, but it changes what a suspended person sees when they mistype their password. Decide before Wave 1 records golden responses.
 

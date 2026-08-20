@@ -159,7 +159,6 @@ export const FX = {
 // S.media (declared below, still unused) and out of Redis entirely.
 export const MEDIA = {
   blob: (id) => `${P}g:media:${id}`,
-  prefix: `${P}g:media:`,
 };
 
 // ---- public website traffic (owned by nobody; deliberately never expires) --
@@ -189,9 +188,6 @@ export const STAT = {
 export const RL = {
   otpEmail: (email) => `${P}rl:otp:e:${normEmail(email)}`,
   otpIp: (ip) => `${P}rl:otp:i:${String(ip || "unknown")}`,
-  // Public contact form, per IP — the one place an unauthenticated caller can
-  // write anything.
-  contactIp: (ip) => `${P}rl:contact:i:${String(ip || "unknown")}`,
   // /super sign-in, per IP. The console has exactly one door and a handful of
   // legitimate attempts a day, so the window can be far tighter than the
   // subscriber-facing limits.
@@ -227,10 +223,8 @@ export const S = {
   collaborators: (studioId) => `${P}s:${studioId}:collaborators`,
   sections: (studioId) => `${P}s:${studioId}:sections`,
   roles: (studioId) => `${P}s:${studioId}:roles`,
-  tokens: (studioId) => `${P}s:${studioId}:tokens`,
   settings: (studioId) => `${P}s:${studioId}:settings`,
   notifications: (studioId) => `${P}s:${studioId}:notifications`,
-  activityLog: (studioId) => `${P}s:${studioId}:activityLog`,
   // HOW MANY REFERENCES OF EACH KIND HAVE EVER BEEN ISSUED — a hash, one field
   // per prefix ("INV", "PO", "ACME"). It exists because "the next number" is
   // the one thing in this product that CANNOT be derived from the records:
@@ -243,8 +237,6 @@ export const S = {
   // and addressable by cursor — it is what "what changed since I last looked?"
   // reads. Under the studio prefix, so it cascades with the studio for free.
   events: (studioId) => `${P}s:${studioId}:events`,
-  media: (studioId, mediaId) => `${P}s:${studioId}:media:${mediaId}`,
-  mediaPrefix: (studioId) => `${P}s:${studioId}:media:`,
 };
 
 // ---- per-section keys (die with the section) -------------------------------
@@ -264,16 +256,7 @@ export const IX = {
   // module is imported by a client component, so it must not pull node:crypto
   // into the browser bundle. lib/superAuth.js hashes before calling.
   superSession: (tokenHash) => `${P}ix:supersession:${tokenHash}`,
-  stoken: (token) => `${P}ix:stoken:${token}`,              // → StudioID (EX = time-limited access token)
   collab: (userId) => `${P}ix:collab:${userId}`,            // SET of StudioIDs the user collaborates in
-  // A share link's token -> the document it opens. Studio-agnostic ON PURPOSE:
-  // /q/<token> is reached by somebody with no session and no idea which studio
-  // they are looking at, so the token has to be the whole address.
-  //
-  // EXPIRY IS THE TTL. Redis stops resolving the key on the day the link was
-  // set to die, so nothing has to run to enforce it and there is no window in
-  // which a forgotten sweep leaves a live link behind.
-  qshare: (token) => `${P}ix:qshare:${String(token || "")}`,
 };
 export { normEmail };
 
@@ -405,7 +388,7 @@ export const SECTION_COLLECTIONS = {
   // screens that write them land; a name here before then is a key nothing
   // fills.
   "quality-documents": ["qualityDocuments", "qualityTypes", "qualityRevisions", "qualityAudit",
-    "qualityAcknowledgements", "qualityShareLinks"],
+    "qualityAcknowledgements"],
 };
 
 // ---- studio slug rules -----------------------------------------------------

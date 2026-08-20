@@ -118,14 +118,13 @@ export async function cascadeDeleteStudio(studioId) {
 
   // read children we need BEFORE the prefix is deleted
   const collaborators = await readArr(S.collaborators(studioId));
-  const tokens = await readArr(S.tokens(studioId));
 
-  // members' back-pointers + live access-token indexes
+  // members' back-pointers. Time-limited access tokens used to be released
+  // here too; nothing ever minted one, so there was nothing to release.
   for (const c of collaborators) await sRem(IX.collab(c.userId), studioId);
-  for (const t of tokens) await release(IX.stoken(t.token));
 
   // the whole subtree in one stroke: sections + all data, collaborators,
-  // grants, tokens, notifications, media, settings, activity log
+  // notifications, settings
   await delPrefix(S.prefix(studioId));
 
   // uniqueness claims

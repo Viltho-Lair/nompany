@@ -6,11 +6,6 @@
 //    (nompany.com/<slug>) and the tenant handle.
 //  • Creation seeds the fixed section list (each with a fresh SectionID) and
 //    the owner's Collaborator row (role "owner") — a studio is born complete.
-//  • Time-limited access tokens: ix:stoken:<token> carries a Redis EX, so
-//    expiry is enforced by Redis itself, not by a date check.
-//
-// STUDIO-scoped data lives ONLY under s:<StudioID>:* — never on a user.
-// Deletion goes through cascade.js (cascadeDeleteStudio).
 
 import { REG, U, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/lib/data/keys";
 import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, sMembers, hIncrBy, hGetAll, hDel } from "@/lib/data/store";

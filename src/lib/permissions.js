@@ -160,10 +160,16 @@ export const AREAS = [
       { key: "approve", label: "Sign as approver" },
       { key: "publish", label: "Issue a revision" },
       { key: "obsolete", label: "Withdraw a document" },
-      // THE MODULE'S ONLY PUBLIC SURFACE. Reading a controlled document and
-      // publishing one to somebody outside the studio are not the same power,
-      // and only one of them can be undone by revoking a link.
-      { key: "share", label: "Create an external share link" },
+      // NO `share`. External share links were declared here, given a key
+      // builder (ix:qshare), a collection (qualityShareLinks) and a reserved
+      // route prefix (/q) — and nothing was ever written to read or write any
+      // of them. So the right appeared on the access grid, could be granted,
+      // and granted nothing.
+      //
+      // That is precisely the dead capability this catalogue's own rule
+      // forbids, and it is worse than a missing feature: somebody could hand
+      // out what they believed was the power to publish a controlled document
+      // externally. It returns when the transition that exercises it exists.
     ] },
 
   { key: "tasks.board", group: "Tasks", label: "Task board", verbs: ["view", "create", "edit", "delete"] },
