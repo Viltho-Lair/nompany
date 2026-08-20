@@ -1,0 +1,34 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "invoice": {
+      "id": "<inv_ID>",
+      "reference": "INV-0001",
+      "projectId": "",
+      "clientName": "Acme Holdings",
+      "lines": [
+        {
+          "description": "Boardroom refit, stage 1",
+          "qty": 1,
+          "unitPrice": 25000
+        }
+      ],
+      "vatRate": 15,
+      "status": "Draft",
+      "issueDate": "2026-08-20",
+      "dueDate": "",
+      "notes": "",
+      "payments": [],
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "subtotal": 25000,
+      "vat": 3750,
+      "total": 28750,
+      "paid": 0,
+      "outstanding": 28750
+    }
+  }
+}

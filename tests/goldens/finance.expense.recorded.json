@@ -1,0 +1,21 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "expense": {
+      "id": "<exp_ID>",
+      "reference": "EXP-0001",
+      "description": "Freight forwarding",
+      "category": "Other",
+      "amount": 1200,
+      "date": "2026-08-20",
+      "projectId": "",
+      "paidByCollaboratorId": "<col_ID>",
+      "notes": "",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    }
+  }
+}

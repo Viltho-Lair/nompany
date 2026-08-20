@@ -1007,6 +1007,109 @@ console.log("== hr: whose records, which numbers, and what is on disk");
 }
 
 // ============================================================================
+console.log("== finance: a number that only goes forward, and money that is derived");
+// TWO RULES, and the first one is the reason a counter exists at all.
+//
+//   A REFERENCE ONLY EVER MOVES FORWARD. It is the one thing in this product
+//   that cannot be derived from the records: delete the newest invoice and the
+//   highest surviving reference goes backwards, so a count-based scheme would
+//   reissue a number a client is already holding. The tally is stored, seeded
+//   from the rows in hand, and stepped inside one Lua call so two invoices
+//   raised in the same moment cannot both be INV-0004.
+//
+//   MONEY IS DERIVED, NEVER STORED. Totals are computed from the lines on every
+//   read, so there is no second number that can disagree with the first.
+{
+  const FINANCE = await import("@/app/api/studios/[slug]/finance/route.js");
+  const INVOICES = await import("@/app/api/studios/[slug]/finance/invoices/route.js");
+  const EXPENSES = await import("@/app/api/studios/[slug]/finance/expenses/route.js");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const personWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+  const raise = (body) => capture(
+    INVOICES.POST, req(`/api/studios/${slug}/finance/invoices`, { method: "POST", body }), P);
+
+  await signIn(owner.id);
+
+  const LINES = [{ description: "Boardroom refit, stage 1", qty: 1, unitPrice: 25000 }];
+
+  await shot("finance.invoice.refused.nolines", await raise({ clientName: "Acme Holdings", lines: [] }));
+  await shot("finance.invoice.refused.noclient", await raise({ lines: LINES }));
+
+  const first = await shot("finance.invoice.raised", await raise({ clientName: "Acme Holdings", lines: LINES }));
+  const firstRef = first.body?.invoice?.reference;
+  const firstId = first.body?.invoice?.id;
+  ok("the first invoice is numbered", Boolean(firstRef), JSON.stringify(first.body).slice(0, 120));
+
+  // MONEY IS DERIVED. 25000 at the default 15% VAT is 3750 and 28750, computed
+  // from the line rather than taken from the request — a client that posted its
+  // own total would be posting a number nobody checked.
+  const inv = first.body?.invoice;
+  ok("the subtotal comes from the lines", inv?.subtotal === 25000, String(inv?.subtotal));
+  ok("...the VAT from the rate", inv?.vat === 3750, String(inv?.vat));
+  ok("...and the total from both", inv?.total === 28750, String(inv?.total));
+
+  const second = await raise({ clientName: "Acme Holdings", lines: LINES });
+  const secondRef = second.body?.invoice?.reference;
+  ok("the second invoice gets the next number", secondRef !== firstRef, `${firstRef} then ${secondRef}`);
+
+  // THE ASSERTION THIS BLOCK EXISTS FOR. Delete the newest invoice — the
+  // highest surviving reference now goes BACKWARDS — and raise another. A
+  // scheme that counted rows, or read the maximum off the rows, would hand the
+  // deleted invoice's number to a different client.
+  const deleted = await capture(INVOICES.DELETE, req(`/api/studios/${slug}/finance/invoices`, {
+    method: "DELETE", body: { id: second.body?.invoice?.id },
+  }), P);
+  ok("the newest invoice can be deleted", deleted.status === 200, `${deleted.status} ${JSON.stringify(deleted.body).slice(0, 80)}`);
+
+  const third = await raise({ clientName: "Acme Holdings", lines: LINES });
+  const thirdRef = third.body?.invoice?.reference;
+  ok("a deleted number is NOT reissued", thirdRef !== secondRef, `deleted ${secondRef}, then got ${thirdRef}`);
+  ok("...and the sequence still moves forward", thirdRef > secondRef, `${secondRef} then ${thirdRef}`);
+
+  // Two raised at once must not collide — the tally is stepped inside Redis,
+  // not read-then-written by the caller.
+  const [a, b, c] = await Promise.all([
+    raise({ clientName: "Acme Holdings", lines: LINES }),
+    raise({ clientName: "Acme Holdings", lines: LINES }),
+    raise({ clientName: "Acme Holdings", lines: LINES }),
+  ]);
+  const refs = [a, b, c].map((r) => r.body?.invoice?.reference);
+  ok("three invoices raised at once get three different numbers",
+    new Set(refs).size === 3, refs.join(", "));
+
+  // ---- expenses, and the module read --------------------------------------
+  await shot("finance.expense.recorded", await capture(
+    EXPENSES.POST, req(`/api/studios/${slug}/finance/expenses`, { method: "POST", body: {
+      description: "Freight forwarding", amount: 1200, category: "Logistics",
+    } }), P));
+
+  const board = await capture(FINANCE.GET, req(`/api/studios/${slug}/finance`), P);
+  ok("the finance board lists what was raised", (board.body?.invoices?.length ?? 0) >= 4,
+    String(board.body?.invoices?.length));
+
+  // ---- rights --------------------------------------------------------------
+  const viewer = await personWith(["finance.cash.view"], "financeviewer");
+  await signIn(viewer.id);
+  await shot("finance.refused.raise", await raise({ clientName: "Acme Holdings", lines: LINES }));
+
+  await signIn(outsider.id);
+  await shot("finance.outsider", await capture(FINANCE.GET, req(`/api/studios/${slug}/finance`), P));
+  __signOut();
+  await shot("finance.unauth", await capture(FINANCE.GET, req(`/api/studios/${slug}/finance`), P));
+}
+
+// ============================================================================
 console.log("== status codes: what each refusal claims to be");
 // EVERY ROUTE MAPS ITS OWN ERRORS, and they do not agree. `notfound` is 404 in
 // most places, `forbidden` is 403 in most places, and the quotations route
