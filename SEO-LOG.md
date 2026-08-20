@@ -20,7 +20,7 @@ Semrush "How to Improve SEO", SEO.com "How to Improve SEO", Shopify SEO checklis
 - [ ] **Verify the dynamic OG card** — routes `/-/opengraph-image` and
       `/-/twitter-image` already generate share images (`[locale]/opengraph-image.js`
       + `src/lib/ogImage.js`). Confirm the image content/branding is current (nompany,
-      not MegaTech) and that og:image/twitter:image resolve on each page.
+      not the pre-pivot brand) and that og:image/twitter:image resolve on each page.
 - [ ] **Audit `<h1>` per public page** — exactly one H1, primary keyword near the
       front (home, /features, /about, /careers, /contact, /team).
 - [ ] **Image alt text audit** across public pages/components; ensure descriptive,
@@ -54,7 +54,7 @@ Semrush "How to Improve SEO", SEO.com "How to Improve SEO", Shopify SEO checklis
 
 ## 2026-08-07 — Day 1: baseline audit + post-pivot cleanup
 
-Baseline audit of the SEO stack after the MegaTech → nompany pivot. Fixed the
+Baseline audit of the SEO stack after the pivot to nompany. Fixed the
 highest-impact foundational issues. All changes verified on the local dev server.
 
 **Changed**
@@ -77,7 +77,7 @@ highest-impact foundational issues. All changes verified on the local dev server
     `/*/onboarding`, `/*/subscribe`, `/*/verify`, `/*/reset`, `/*/forgot`
     (locale-prefixed, via wildcard).
 - `src/app/manifest.js`
-  - Full rebrand MegaTech → nompany (name, description, categories); theme color
+  - Full rebrand to nompany (name, description, categories); theme color
     aligned to the slate palette (`#0f172a`); added a maskable icon entry.
 
 **Verified (local dev, no build errors)**

@@ -1,82 +1,82 @@
-# MegaTech Arabia — Website
+# nompany
 
-A dynamic, bilingual (English / Arabic) corporate website for **MegaTech Arabia**, with an admin control panel for managing all content.
+Multi-tenant ERP. Each customer is a **studio**, reached by slug at the apex
+domain (`nompany.com/<slug>`), with nine departmental modules behind one
+permission model.
 
-- **Framework:** Next.js 15 (App Router)
-- **Styling:** Tailwind CSS 3
-- **Data:** JSON file store (`data/db.json`, created from `data/seed.json` on first run)
-- **Languages:** English (LTR) and Arabic (RTL), switchable from the header
+- **Framework:** Next.js 16 (App Router, Turbopack) · React 19
+- **Storage:** Redis — the ownership tree *is* the key tree, so a cascade delete
+  is a prefix delete
+- **Styling:** Tailwind CSS 3 · shadcn/ui · MUI
+- **Hosting:** Vercel
+
+Marketing lives in a separate repo and is served from `www`; this app serves no
+public marketing pages.
 
 ## Getting started
 
 ```bash
 npm install
+```
+
+```bash
 npm run dev
 ```
 
-Then open:
+`REDIS_URL` and `FIELD_ENCRYPTION_KEY` must be set in `.env.local`. **The
+development `REDIS_URL` points at a live, shared instance — there is no separate
+dev database.** Read `CLAUDE.md` before running anything that writes.
 
-- Public site: <http://localhost:3000> (redirects to `/en`; Arabic at `/ar`)
-- Admin panel: <http://localhost:3000/admin>
+## Modules
 
-### Admin credentials
+`Sales · Projects · Technical · Finance · Inventory · Operations · HR ·
+Tasks · Quality`
 
+Plus identity (users, studios, collaborators) and a separate `/super` console
+that runs on its own registry and cookie, outside every cascade.
+
+## Three identities
+
+They are genuinely distinct and never interchangeable:
+
+| Identity | Cookie | Notes |
+| --- | --- | --- |
+| User | `nc_sid` | A person, global to the product |
+| Collaborator | — | Studio-local; `CollaboratorID` ≠ `UserID` |
+| SuperAdmin | `nom_super` | Separate registry, outside every cascade |
+
+Membership authorises; the URL never does. "Not found" and "not a member"
+render identically on purpose.
+
+## Tests
+
+```bash
+npm test
 ```
-username: admin
-password: admin
-```
 
-> These are demo credentials. To change them, set `ADMIN_USER` and `ADMIN_PASS`
-> environment variables (see `src/lib/auth.js`). Replace the simple cookie
-> session with a real auth provider before deploying publicly.
+Three suites, all of which CI enforces:
 
-## What you can manage
+- `tests/access.test.js` — every guarded write is guarded (source scan)
+- `tests/integration.test.mjs` — behaviour across modules
+- `tests/gate-a.mjs` — **the parity contract**: golden responses, the
+  permission matrix, Redis hop counts, and architectural assertions
 
-From **/admin** you can create, edit and delete:
+Gate A exists so the refactor waves can claim exact functional parity and have
+it checked rather than asserted. Re-recording goldens
+(`NOMPANY_RECORD_GOLDENS=1`) is a deliberate act that belongs in its own commit
+with a stated reason.
 
-- **Company info** — brand names, taglines, about text, contact details, office hours, social links and the homepage statistics (all in English and Arabic).
-- **Services**, **Projects**, **Vendors**, **Clients**, **Careers** — full CRUD.
-- **Messages** — submissions from the contact form (view and delete).
+Every suite namespaces its keys under `NOMPANY_KEY_PREFIX` and sweeps on both
+entry and exit. Never call `sweepOrphans()` from a test.
 
-Changes are written to `data/db.json` and appear on the site immediately.
+## Docs
 
-## Sections
-
-`Home · Services · Projects · Vendors · Clients · Careers · Contact`
-
-## Brand notes
-
-- Colours come from the supplied palette (navy `#031f5d → #0159ae`, greys `#8f8f8f → #5c5c5e`).
-- The logo is not legible on dark backgrounds, so headers and section
-  surfaces stay light. In the dark footer the wordmark logo sits on a white
-  chip so it remains visible.
-- Fonts load from Google Fonts (Saira + IBM Plex Sans for Latin, Tajawal +
-  IBM Plex Sans Arabic for Arabic), so an internet connection is needed on
-  first load.
-
-## Resetting content
-
-Delete `data/db.json` and restart — it will be recreated from `data/seed.json`.
+`docs/` carries the architecture audit and the refactor plan — start with
+[`docs/README.md`](docs/README.md). `CLAUDE.md` holds the invariants that must
+survive any rewrite.
 
 ## Production build
 
 ```bash
 npm run build
-npm start
-```
-
-## Project structure
-
-```
-src/
-  app/
-    [locale]/        Public pages (en / ar)
-    admin/           Control panel (login-protected)
-    api/             Auth + CRUD endpoints
-  components/        UI + admin components
-  lib/               db, i18n, auth, schemas
-data/
-  seed.json          Pristine seed content
-  db.json            Live data (generated)
-public/brand/        Logos
 ```

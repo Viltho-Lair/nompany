@@ -91,7 +91,7 @@ module.exports = {
         danger: "rgb(var(--doc-destructive) / <alpha-value>)", // Rose — Failed
         info: "rgb(var(--doc-info) / <alpha-value>)",       // Sky — In Progress
         // Geex "Control Panel" secondary accent (purple) — used as a highlight
-        // alongside the MegaTech blue primary. Plus the design's light page/
+        // alongside the blue primary. Plus the design's light page/
         // surface tones so the Studio matches the Figma system.
         accent: {
           50: "#f5edfd",

@@ -228,7 +228,7 @@ All twelve studio modules are client components, 37-69 KB of source each, fetchi
 `"tsx": false` while every file in `src/components/ui/` is `.tsx`; `"cssVariables": false` while the design direction requires token-driven theming. Running `npx shadcn add` today emits `.jsx` with hardcoded colours into a `.tsx` token-based folder.
 
 ### M-7 · Legacy keys still in production Redis
-`megatech:db` (10.8 KB), `megatech:settings`, and five `megatech:c:*` keys survive from the pre-pivot system. **No source file reads any of them.** They are invisible to every cascade and to the sweep.
+Three families of pre-pivot keys (a 10.8 KB `db` string, a `settings` hash, and five collection keys) survive from the pre-pivot system. **No source file reads any of them.** They are invisible to every cascade and to the sweep.
 
 ### M-8 · Coarse write gate can mislead
 `hrGuard(params, { write: true })` tests `sectionManageable` — "any write on any area of this module". Someone holding `hr.employees.edit` but not `hr.vacations.create` passes the gate and is then correctly refused by `requirePermission` inside the service. The behaviour is safe (defence in depth works), but the client receives `read-only` from the gate in some paths and `forbidden` from the service in others for the same class of refusal.
@@ -354,7 +354,7 @@ These are structural necessities absent from the product, ordered by how much la
 | M-4 | Medium | 131 client components, 1.06 MB gz | build output |
 | M-5 | Medium | Four disjoint token systems | `globals.css`, `tailwind.config.js` |
 | M-6 | Medium | `components.json` contradicts repository | `components.json` |
-| M-7 | Medium | Legacy `megatech:*` keys in production | live Redis |
+| M-7 | Medium | Legacy pre-pivot keys in production | live Redis |
 | M-8 | Medium | Coarse write gate misleads | `lib/hr.js:98` |
 | M-9 | Medium | Write/read rights diverge on encrypted PII | `lib/hr.js:370` |
 | M-10 | Medium | Sweep will time out before data outgrows it | `lib/data/cascade.js:196` |

@@ -85,7 +85,7 @@ The code already uses `Promise.all` correctly *within* a step. The cost is entir
 | 590,857 | string | `g:media:968ababc…` |
 | 565,533 ×4 | string | `g:media:…` |
 | 58,700 | **stream** | `s:std_msp4vswf2kdwy0:events` |
-| 10,820 | string | `megatech:db` ← **legacy, zero readers** |
+| 10,820 | string | legacy pre-pivot string ← **zero readers** |
 | 8,409 | string | `s:std_…:sections` (34 rows, 247 B/row) |
 | 5,143 | string | `…:c:generatedDocuments` (1 row) |
 

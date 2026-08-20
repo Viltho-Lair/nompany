@@ -1,5 +1,5 @@
 // nompany's public contact + identity, kept in CODE (not the shared `settings`
-// Redis record, which still feeds MegaTech's ERP). Single source of truth for
+// Redis record, which still feeds the ERP). Single source of truth for
 // the footer, Contact page and JSON-LD. See [[nompany-pivot]].
 
 // The public marketing site was rebuilt on 2026-08-12 and now lives at

@@ -1,8 +1,8 @@
 {
-  "name": "megatech-arabia",
+  "name": "nompany",
   "version": "1.0.0",
   "private": true,
-  "description": "Dynamic bilingual (EN/AR) corporate website for MegaTech Arabia with an admin control panel.",
+  "description": "nompany — multi-tenant ERP. Slug-routed studios over Redis, Next.js App Router.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

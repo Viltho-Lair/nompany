@@ -51,7 +51,7 @@ The plan is shaped by four assumptions. Each is drawn from evidence in the repos
 
 | # | Assumption | Evidence | If wrong |
 |---|---|---|---|
-| **A1** | **Pre-launch or pilot.** No paying tenants depend on uptime yet. | 3 studios, 5 users, 15 media blobs on the live instance. 214 commits since 2026-08-06. Legacy `megatech:*` keys still present. | **Big change.** The SQL migration gains a dual-write phase (+4 weeks), every schema change needs a backfill script, and Wave 0 fixes need staged rollout instead of direct deploy. |
+| **A1** | **Pre-launch or pilot.** No paying tenants depend on uptime yet. | 3 studios, 5 users, 15 media blobs on the live instance. 214 commits since 2026-08-06. Legacy pre-pivot keys still present. | **Big change.** The SQL migration gains a dual-write phase (+4 weeks), every schema change needs a backfill script, and Wave 0 fixes need staged rollout instead of direct deploy. |
 | **A2** | **Small team — one to three developers.** | Single git author across all 214 commits. | Waves can run more in parallel; the calendar compresses roughly linearly up to about three streams. |
 | **A3** | **The data is precious even though the tenant count is small.** | Real quotations, invoices and controlled documents exist in the reference studio. | If it is genuinely disposable test data, Wave 5 can drop dual-write entirely and cut over in one step. |
 | **A4** | **Functional parity is required.** Nothing the product does today may stop working. | Stated in the brief. | If specific features can be dropped, say which — several (the dead capabilities in M-1) are cheaper to delete than to finish. |
@@ -137,7 +137,7 @@ been deleted.
 **Also in week 1, zero-risk housekeeping:**
 - Delete `jsconfig.json` (M-13).
 - Fix `components.json` → `"tsx": true`, `"cssVariables": true` (M-6).
-- Delete the legacy `megatech:db`, `megatech:settings`, `megatech:c:*` keys after one export (M-7).
+- Delete the legacy pre-pivot keys after one export (M-7).
 - Pin the function region in `vercel.json` to the Redis region, and measure before/after (M-11).
 
 **Wave 0 exit:** all eight deployed; the sweep test proves the guard; a deployed latency probe reports the in-region hop cost.
@@ -315,7 +315,7 @@ These are what keep a six-month plan from drifting.
 
 | Day | Work |
 |---|---|
-| **Mon** | 0.1 sweep guard + its test. Deploy. Then 0.7 bcrypt. Export and delete `megatech:*`. |
+| **Mon** | 0.1 sweep guard + its test. Deploy. Then 0.7 bcrypt. Export and delete the legacy pre-pivot keys. |
 | **Tue** | 0.2 login rate limiter (+ forgot/reset). Deploy. |
 | **Wed** | 0.3 console session expiry. 0.4 track limiter + HyperLogLog. Deploy. |
 | **Thu** | 0.5 security headers, CSP report-only. 0.6 media ownership check. Deploy. |
