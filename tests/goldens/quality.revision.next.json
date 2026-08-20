@@ -1,0 +1,111 @@
+{
+  "status": 200,
+  "body": {
+    "revision": {
+      "id": "<qua_ID>",
+      "documentId": "<uuid>",
+      "rev": 2,
+      "state": "draft",
+      "content": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Commission the room, then sign here.\"}]}]}",
+      "pageSize": "a4",
+      "marginPreset": "normal",
+      "fontFamily": "Inter",
+      "fontCategory": "sans-serif",
+      "fontSizePt": 11,
+      "language": "en",
+      "authorCollaboratorId": "<col_ID>",
+      "authorAlias": "Owner",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>"
+    },
+    "workflow": {
+      "state": "effective",
+      "revision": {
+        "id": "<qua_ID>",
+        "documentId": "<uuid>",
+        "rev": 2,
+        "state": "draft",
+        "content": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Commission the room, then sign here.\"}]}]}",
+        "pageSize": "a4",
+        "marginPreset": "normal",
+        "fontFamily": "Inter",
+        "fontCategory": "sans-serif",
+        "fontSizePt": 11,
+        "language": "en",
+        "authorCollaboratorId": "<col_ID>",
+        "authorAlias": "Owner",
+        "createdAt": "<timestamp>",
+        "updatedAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      },
+      "revisions": [
+        {
+          "id": "<qua_ID>",
+          "documentId": "<uuid>",
+          "rev": 2,
+          "state": "draft",
+          "content": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Commission the room, then sign here.\"}]}]}",
+          "pageSize": "a4",
+          "marginPreset": "normal",
+          "fontFamily": "Inter",
+          "fontCategory": "sans-serif",
+          "fontSizePt": 11,
+          "language": "en",
+          "authorCollaboratorId": "<col_ID>",
+          "authorAlias": "Owner",
+          "createdAt": "<timestamp>",
+          "updatedAt": "<timestamp>",
+          "studioId": "<std_ID>",
+          "sectionId": "<sub_ID>"
+        },
+        {
+          "id": "<qua_ID>",
+          "documentId": "<uuid>",
+          "rev": 1,
+          "state": "effective",
+          "content": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Commission the room, then sign here.\"}]}]}",
+          "pageSize": "a4",
+          "marginPreset": "normal",
+          "fontFamily": "Inter",
+          "fontCategory": "sans-serif",
+          "fontSizePt": 11,
+          "language": "en",
+          "authorCollaboratorId": "<col_ID>",
+          "authorAlias": "Owner",
+          "createdAt": "<timestamp>",
+          "updatedAt": "<timestamp>",
+          "studioId": "<std_ID>",
+          "sectionId": "<sub_ID>",
+          "review": {
+            "byCollaboratorId": "<col_ID>",
+            "byAlias": "qboth",
+            "role": "Reviewed by",
+            "at": "<timestamp>",
+            "note": "",
+            "signatureUrl": ""
+          },
+          "approval": {
+            "byCollaboratorId": "<col_ID>",
+            "byAlias": "qapprover",
+            "role": "Approved by",
+            "at": "<timestamp>",
+            "note": "",
+            "signatureUrl": ""
+          },
+          "effectiveDate": "2026-12-01"
+        }
+      ],
+      "moves": [
+        {
+          "action": "submit",
+          "label": "Send for review"
+        }
+      ],
+      "waitingOn": "",
+      "label": "Draft"
+    }
+  }
+}

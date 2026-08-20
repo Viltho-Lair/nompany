@@ -50,6 +50,12 @@ const RE = [
   [/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z\b/g, "<timestamp>"],
   [/\b\d{13}-\d+\b/g, "<streamId>"],            // Redis stream entry ids
   [/\b[a-f0-9]{32}\b/g, "<hex32>"],             // media ids
+  // Quality documents are minted with randomUUID() rather than makeId(), so the
+  // structural pattern above does not see them. Found by the compare step: the
+  // first recording embedded a live UUID and the very next run disagreed with
+  // itself — which is exactly the failure a golden suite should produce rather
+  // than tolerate.
+  [/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "<uuid>"],
   [/\b[A-Za-z0-9_-]{40,}\b/g, "<token>"],       // session tokens, base64url
 ];
 

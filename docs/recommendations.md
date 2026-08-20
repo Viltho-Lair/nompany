@@ -21,7 +21,7 @@ And one finding is a live hazard rather than a design flaw:
 
 > **`sweepOrphans()` is key-prefix-unaware and deletes by prefix.** Run once with `NOMPANY_KEY_PREFIX` set — which the project's own integration bootstrap sets to `test_` — it would classify every real user and studio subtree as orphaned and delete the entire production dataset. See **C-1**.
 
-**Counts:** 6 critical, 11 high, 14 medium, 10 low. Full table in §6.
+**Counts:** 6 critical, 11 high, 15 medium, 10 low. Full table in §6.
 
 ---
 
@@ -248,6 +248,39 @@ No `.github/`. No `.eslintrc*` or `eslint.config.*` although `package.json` decl
 ### M-13 · `jsconfig.json` and `tsconfig.json` both present
 Next ignores `jsconfig.json` when `tsconfig.json` exists. It is dead configuration that will silently diverge.
 
+### M-15 · The coarse write gate makes five declared rights unusable alone
+`src/lib/quality.js:79`, `src/lib/access.js:sectionManageable`
+
+Quality's workflow routes are gated `{ write: true }`, which tests `canManage` —
+and `canManage` is `sectionManageable`, which only ever looks at the **create,
+edit and delete verbs**. All five of Quality's powers are declared as `extra`
+entries, not verbs:
+
+`setup` · `review` · `approve` · `publish` · `obsolete`
+
+So somebody granted exactly *"view a document and sign it off"* never reaches
+the service that would let them — they are refused `read-only` by the gate.
+**A quality manager who signs but never authors cannot sign anything.**
+
+That defeats the separation of duties the module is built around. The catalogue
+declares review and approve separately, in its own words, *"because they are two
+people"* — and a reviewer who must also hold `edit` to exercise the right is
+being handed authoring access purely to get past a gate.
+
+This is M-8 with teeth. M-8 said the coarse gate produces a misleading error
+message; here it makes a granted right unexercisable, which is the
+dead-capability shape the permission catalogue explicitly forbids.
+
+**Found by** a golden that asserted an approver could approve and got
+`403 read-only`. Pinned by `quality.refused.approve.pureapprover`.
+
+**Fix.** The gate should ask whether the caller holds *any* right the route can
+act on, not whether they hold a write verb. Cleanest as part of Wave 2's route
+wrapper, where `{ write: true }` becomes a declared permission set per route
+rather than a module-wide flag.
+
+---
+
 ### M-14 · Redis eviction policy unverified
 The whole product depends on Redis never evicting. Nothing in the repo asserts `maxmemory-policy noeviction`, and nothing alerts on memory headroom. With C-3 and C-6 both able to grow the dataset without bound, an eviction policy of `allkeys-lru` would silently delete live invoices.
 
@@ -329,6 +362,7 @@ These are structural necessities absent from the product, ordered by how much la
 | M-12 | Medium | No CI, no lint config, no test runner | repo root |
 | M-13 | Medium | Duplicate `jsconfig.json` | repo root |
 | M-14 | Medium | Redis eviction policy unverified | infrastructure |
+| M-15 | Medium | Coarse write gate makes 5 declared rights unusable alone | `lib/quality.js:79` |
 | L-1 – L-10 | Low | See §4 | — |
 
 ---

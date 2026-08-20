@@ -1,0 +1,28 @@
+{
+  "status": 201,
+  "body": {
+    "document": {
+      "id": "<uuid>",
+      "code": "SOP-TEC-001",
+      "title": "Boardroom commissioning procedure",
+      "typeId": "",
+      "dept": "TEC",
+      "prefix": "SOP",
+      "content": "",
+      "pageSize": "a4",
+      "marginPreset": "normal",
+      "fontFamily": "Inter",
+      "fontCategory": "sans-serif",
+      "fontSizePt": 11,
+      "language": "en",
+      "createdAt": "<timestamp>",
+      "updatedAt": "<timestamp>",
+      "createdBy": "<col_ID>",
+      "createdByAlias": "Owner",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "state": "draft",
+      "pending": null
+    }
+  }
+}

@@ -1242,6 +1242,185 @@ console.log("== operations & tasks: a shift knows about leave, and finishing is 
 }
 
 // ============================================================================
+console.log("== quality: four signatures, four rights, and nobody signs twice");
+// The controlled-document register, and the strictest workflow in the product.
+//
+//   draft ──submit──► review ──review──► approval ──approve──► approved
+//                       │                   │                     │
+//                       └──── reject ───────┘                  publish
+//                                                                 ▼
+//                                                             effective ──withdraw──► superseded
+//
+// FOUR RIGHTS, NOT ONE. review, approve, publish and obsolete are declared
+// separately in the catalogue and none of them is a bigger `edit`. Folding
+// review and approve together would let one person sign both halves, and a
+// revision signed twice by one hand has been reviewed by nobody.
+//
+// AND THE RULE THAT CANNOT LIVE IN THE PERMISSION MODEL. Holding both rights is
+// legitimate — a small studio may have one person who is genuinely both — but
+// using both ON ONE RECORD is not. So it is enforced at the transition, by
+// comparing the reviewer's CollaboratorID to the actor's.
+{
+  const DOCS = await import("@/app/api/studios/[slug]/quality/docs/route.js");
+  const FLOW = await import("@/app/api/studios/[slug]/quality/docs/workflow/route.js");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const personWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return { user: u, collaborator: await getCollaboratorByUser(studio.id, u.id) };
+  };
+  const move = (id, action, body = {}) => capture(
+    FLOW.POST,
+    req(`/api/studios/${slug}/quality/docs/workflow?id=${id}`, { method: "POST", body: { action, ...body } }),
+    P);
+
+  await signIn(owner.id);
+
+  const doc = await shot("quality.document.created", await capture(
+    DOCS.POST, req(`/api/studios/${slug}/quality/docs`, { method: "POST", body: {
+      title: "Boardroom commissioning procedure", prefix: "SOP", dept: "TEC",
+    } }), P));
+  const docId = doc.body?.document?.id ?? doc.body?.doc?.id ?? doc.body?.id;
+  ok("the document was created", Boolean(docId), JSON.stringify(doc.body).slice(0, 160));
+
+  // ---- the ladder must be climbed in order --------------------------------
+  // Signing as approver before anybody has reviewed is a state error, not a
+  // permission one — the owner holds every right and is still refused.
+  await shot("quality.refused.approve.outoforder", await move(docId, "approve"));
+  await shot("quality.refused.publish.outoforder", await move(docId, "publish"));
+
+  // A DOCUMENT WITH NOTHING IN IT CANNOT BE SENT FOR REVIEW, which is the right
+  // refusal and one worth having: an empty revision signed by two people is the
+  // exact ceremony this module exists to prevent.
+  await shot("quality.refused.submit.empty", await move(docId, "submit"));
+
+  // The body is stringified ProseMirror JSON, not HTML — the store parses it once
+  // purely to refuse anything that is not a document. CAPTURED and asserted
+  // rather than fired and forgotten: the first version of this sent HTML, was
+  // refused, and the failure surfaced three steps later as "no revision", which
+  // is the least useful place to learn about it.
+  const CONTENT = JSON.stringify({
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text: "Commission the room, then sign here." }] }],
+  });
+  const written = await capture(DOCS.PATCH, req(`/api/studios/${slug}/quality/docs?id=${docId}`, {
+    method: "PATCH", body: { content: CONTENT },
+  }), P);
+  ok("the document accepts content", written.status === 200, `${written.status} ${JSON.stringify(written.body).slice(0, 120)}`);
+
+  // A REVISION IS THE UNIT THAT GETS SIGNED, not the document — and a new
+  // document already HAS its first one, open and in draft. `start` is for the
+  // revision AFTER an issue, so on a document nobody has issued yet there is
+  // nothing to revise and it says so.
+  const tooEarly = await shot("quality.refused.start.notissued", await move(docId, "start"));
+  ok("a document nobody has issued has no next revision to open",
+    tooEarly.body?.error === "not-issued", `${tooEarly.status} ${JSON.stringify(tooEarly.body)}`);
+
+  const submitted = await shot("quality.submitted", await move(docId, "submit"));
+  ok("a document with content and an open revision can be sent for review",
+    submitted.status === 200, `${submitted.status} ${JSON.stringify(submitted.body).slice(0, 120)}`);
+
+  // ---- each signature is its own right -------------------------------------
+  // An author who may write the document and send it for review, and nothing
+  // more. Refused at both signature steps, each naming a different right.
+  const author = await personWith(
+    ["quality.documents.view", "quality.documents.create", "quality.documents.edit"], "qauthor");
+  await signIn(author.user.id);
+  const noReview = await shot("quality.refused.review", await move(docId, "review"));
+  ok("editing a document does not entitle you to review it",
+    noReview.body?.error === "forbidden", `${noReview.status} ${JSON.stringify(noReview.body)}`);
+
+  // ---- NOBODY SIGNS BOTH HALVES -------------------------------------------
+  // One person holding BOTH rights, which is legitimate. They review, and are
+  // then refused their own approval — not because of what they hold, but
+  // because of who signed the line above.
+  const both = await personWith(
+    ["quality.documents.view", "quality.documents.edit",
+      "quality.documents.review", "quality.documents.approve"], "qboth");
+  await signIn(both.user.id);
+
+  const reviewed = await shot("quality.reviewed", await move(docId, "review"));
+  ok("somebody holding the review right may sign as reviewer", reviewed.status === 200,
+    `${reviewed.status} ${JSON.stringify(reviewed.body).slice(0, 100)}`);
+
+  const sameHand = await shot("quality.refused.approve.samesigner", await move(docId, "approve"));
+  ok("the same hand cannot then sign as approver", sameHand.body?.error === "same-signer",
+    `${sameHand.status} ${JSON.stringify(sameHand.body)}`);
+  ok("...and it is a conflict, not a permission refusal — they DO hold the right",
+    sameHand.status === 409, String(sameHand.status));
+
+  // A PURE APPROVER IS LOCKED OUT ENTIRELY, and this is a finding rather than a
+  // rule. The workflow route is gated `{ write: true }`, which asks canManage —
+  // and canManage is sectionManageable, which only ever looks at the create,
+  // edit and delete VERBS. `approve` is an EXTRA, so somebody granted exactly
+  // "view a document and sign it off" never reaches the service that would let
+  // them.
+  //
+  // That defeats the separation of duties the module is built around: a quality
+  // manager who signs but never authors is the normal case in a controlled
+  // register, and the catalogue declares review and approve separately so they
+  // CAN be two people. All five of quality's extras — setup, review, approve,
+  // publish, obsolete — are unusable in isolation for the same reason.
+  //
+  // Pinned, not fixed: changing the gate mid-Gate-A would move goldens recorded
+  // to describe today. Recorded as M-15.
+  const pureApprover = await personWith(
+    ["quality.documents.view", "quality.documents.approve"], "qpureapprover");
+  await signIn(pureApprover.user.id);
+  const lockedOut = await shot("quality.refused.approve.pureapprover", await move(docId, "approve"));
+  ok("somebody granted only view+approve cannot reach the workflow at all (M-15, pinned)",
+    lockedOut.body?.error === "read-only", `${lockedOut.status} ${JSON.stringify(lockedOut.body)}`);
+
+  // So the working approver needs an authoring right they have no use for,
+  // purely to get past the gate.
+  const approver = await personWith(
+    ["quality.documents.view", "quality.documents.edit", "quality.documents.approve"], "qapprover");
+  await signIn(approver.user.id);
+  const approved = await shot("quality.approved", await move(docId, "approve"));
+  ok("a second pair of hands may approve it", approved.status === 200,
+    `${approved.status} ${JSON.stringify(approved.body).slice(0, 100)}`);
+
+  // ---- publishing is somebody else's decision again ------------------------
+  const noPublish = await shot("quality.refused.publish", await move(docId, "publish"));
+  ok("approving does not entitle you to issue", noPublish.body?.error === "forbidden",
+    `${noPublish.status} ${JSON.stringify(noPublish.body)}`);
+
+  await signIn(owner.id);
+  const issued = await shot("quality.published", await move(docId, "publish", {
+    effectiveDate: "2026-12-01", nextReviewDate: "2027-12-01",
+  }));
+  ok("the owner can issue the revision", issued.status === 200,
+    `${issued.status} ${JSON.stringify(issued.body).slice(0, 120)}`);
+
+  // ---- what an issued document will accept ---------------------------------
+  await shot("quality.refused.review.afterissue", await move(docId, "review"));
+
+  // NOW `start` means something: the issued revision stays effective and
+  // untouched while its successor is drafted beside it. That is the whole point
+  // of a controlled register — the version people are working to does not
+  // become editable because somebody began the next one.
+  const next = await shot("quality.revision.next", await move(docId, "start"));
+  ok("an issued document can begin its next revision", next.status === 200,
+    `${next.status} ${JSON.stringify(next.body).slice(0, 120)}`);
+  await shot("quality.refused.start.alreadyopen", await move(docId, "start"));
+
+  // ---- the walls ----------------------------------------------------------
+  await signIn(outsider.id);
+  await shot("quality.outsider", await capture(
+    DOCS.GET, req(`/api/studios/${slug}/quality/docs`), P));
+  __signOut();
+  await shot("quality.unauth", await capture(
+    DOCS.GET, req(`/api/studios/${slug}/quality/docs`), P));
+}
+
+// ============================================================================
 console.log("== status codes: what each refusal claims to be");
 // EVERY ROUTE MAPS ITS OWN ERRORS, and they do not agree. `notfound` is 404 in
 // most places, `forbidden` is 403 in most places, and the quotations route
