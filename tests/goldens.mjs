@@ -59,6 +59,22 @@ const RE = [
   [/\b[A-Za-z0-9_-]{40,}\b/g, "<token>"],       // session tokens, base64url
 ];
 
+// LINE ENDINGS ARE NOT PART OF THE CONTRACT, and treating them as part of it
+// made the suite pass or fail depending on the machine.
+//
+// git's autocrlf checks these files out with CRLF on Windows and LF everywhere
+// else. A golden recorded under one and compared under the other differs on
+// EVERY line — the first being an open brace against an open brace followed by
+// a carriage return, which is a diff that says nothing about the response and
+// everything about the checkout.
+//
+// A test whose result depends on the developer's git config is worse than no
+// test: it fails for a reason nobody can act on, so it gets deleted. Stripped on
+// both sides here, and .gitattributes pins the stored form as well, so the two
+// halves agree from either direction.
+const CR = String.fromCharCode(13);
+const unixEndings = (text) => text.split(CR).join("");
+
 /**
  * Replace everything that legitimately differs between runs, so what remains is
  * the contract. `extra` carries fixture-specific values (the random slug, the
@@ -71,7 +87,7 @@ export function normalise(value, extra = {}) {
     if (!literal) continue;
     text = text.split(literal).join(placeholder);
   }
-  return text;
+  return unixEndings(text);
 }
 
 // ---- compare ---------------------------------------------------------------
@@ -100,7 +116,7 @@ export function golden(name, payload, extra = {}) {
   if (!existsSync(file)) {
     return { ok: false, detail: `no golden recorded — run NOMPANY_RECORD_GOLDENS=1 npm test` };
   }
-  const expected = readFileSync(file, "utf8").trimEnd();
+  const expected = unixEndings(readFileSync(file, "utf8")).trimEnd();
   if (expected === actual) return { ok: true };
   return { ok: false, detail: firstDifference(expected, actual) };
 }

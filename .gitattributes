@@ -1,0 +1,28 @@
+# LINE ENDINGS, PINNED.
+#
+# core.autocrlf is on for at least one developer here, which meant files were
+# stored as LF and checked out as CRLF on Windows and LF on Linux. That is
+# usually invisible — until something compares file contents byte for byte.
+#
+# tests/goldens/* are exactly that: a recorded response compared against a fresh
+# one. A golden recorded on Windows and compared on Linux differed on every
+# line, starting with `{` against `{\r`, which is a diff that says nothing about
+# the response and everything about the checkout. The comparison strips line
+# endings now, and this pins the stored form too, so the two halves agree from
+# either direction.
+* text=auto eol=lf
+
+# Goldens deliberately take the rule above rather than an exemption. Marking
+# them -text ("never convert") would have stored whatever bytes the machine
+# doing the commit happened to hold, pinning the fixtures to one checkout
+# instead of to LF -- which is the bug, not the fix.
+
+# Binary, and none of git's business.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
