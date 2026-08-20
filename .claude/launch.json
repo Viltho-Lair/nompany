@@ -4,20 +4,45 @@
     {
       "name": "nompany-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "-p", "3000"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3000"
+      ],
       "port": 3000
     },
     {
       "name": "nompany-dev-verify",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "-p", "3010"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3010"
+      ],
       "port": 3010
     },
     {
-      "//": "New main website — lives in the sibling nompany-main-website repo, which launch.json cannot cd into. Start it there with `npm run dev -- -p 3020`; this entry only attaches.",
+      "//": "New main website \u2014 lives in the sibling nompany-main-website repo, which launch.json cannot cd into. Start it there with `npm run dev -- -p 3020`; this entry only attaches.",
       "name": "new-main-website",
       "url": "http://localhost:3020",
       "port": 3020
+    },
+    {
+      "//": "Static server over docs/ so the procedure atlas can be previewed and verified.",
+      "name": "docs-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8099",
+        "--directory",
+        "docs"
+      ],
+      "port": 8099
     }
   ]
 }

@@ -1,0 +1,850 @@
+<title>Nompany Procedure Atlas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  /* ── tokens: complete light palette on bare :root ───────────────────── */
+  :root {
+    --paper:      #F6F4EF;   /* warm drafting paper */
+    --paper-2:    #FFFFFF;   /* laid-on sheet */
+    --paper-3:    #EDEAE2;   /* sunken well */
+    --ink:        #10192A;   /* blueprint ink */
+    --ink-2:      #4A5568;
+    --ink-3:      #7A8699;
+    --rule:       #D3D8DF;
+    --rule-soft:  #E5E4DE;
+    --trace:      #1D4ED8;   /* the drawn line — product brand-700 */
+    --trace-soft: #E4EBFB;
+    --signal:     #A8560A;   /* hazard / dead capability */
+    --signal-soft:#FAEEDC;
+    --verify:     #0E7065;   /* measured, confirmed */
+    --verify-soft:#DFF0EC;
+    --grid:       rgba(29, 78, 216, .07);
+    --shadow:     0 1px 2px rgba(16,25,42,.05), 0 8px 24px -12px rgba(16,25,42,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #0A111D;
+      --paper-2:    #101A2B;
+      --paper-3:    #0D1524;
+      --ink:        #E7EDF7;
+      --ink-2:      #A5B2C6;
+      --ink-3:      #6F7F97;
+      --rule:       #22304A;
+      --rule-soft:  #1A2437;
+      --trace:      #7EB0FF;
+      --trace-soft: #16274A;
+      --signal:     #F0B429;
+      --signal-soft:#33260C;
+      --verify:     #45D6BC;
+      --verify-soft:#0B2E2C;
+      --grid:       rgba(126, 176, 255, .07);
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #0A111D;
+    --paper-2:    #101A2B;
+    --paper-3:    #0D1524;
+    --ink:        #E7EDF7;
+    --ink-2:      #A5B2C6;
+    --ink-3:      #6F7F97;
+    --rule:       #22304A;
+    --rule-soft:  #1A2437;
+    --trace:      #7EB0FF;
+    --trace-soft: #16274A;
+    --signal:     #F0B429;
+    --signal-soft:#33260C;
+    --verify:     #45D6BC;
+    --verify-soft:#0B2E2C;
+    --grid:       rgba(126, 176, 255, .07);
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 28px -14px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet { max-width: 1120px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ── title block: the corner stamp on an engineering drawing ────────── */
+  .titleblock {
+    margin: 40px 0 56px;
+    border: 1.5px solid var(--ink);
+    background: var(--paper-2);
+    box-shadow: var(--shadow);
+  }
+  .titleblock-main { padding: 34px 32px 28px; border-bottom: 1.5px solid var(--ink); }
+  .stamp {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--trace); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: "Saira", system-ui, sans-serif;
+    font-weight: 800; font-size: clamp(30px, 5.4vw, 52px);
+    line-height: 1.02; letter-spacing: -.022em; margin: 0;
+    text-wrap: balance;
+  }
+  .titleblock-main p {
+    margin: 14px 0 0; max-width: 62ch; color: var(--ink-2); font-size: 16.5px;
+  }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); }
+  .field { padding: 13px 18px; border-inline-end: 1px solid var(--rule); }
+  .field:last-child { border-inline-end: 0; }
+  .field dt {
+    font-family: "IBM Plex Mono", monospace; font-size: 9.5px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ink-3); margin: 0 0 3px;
+  }
+  .field dd {
+    margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 13px;
+    font-variant-numeric: tabular-nums; color: var(--ink);
+  }
+
+  /* ── sections ───────────────────────────────────────────────────────── */
+  section { margin: 0 0 68px; scroll-margin-top: 24px; }
+  .eyebrow {
+    display: flex; align-items: baseline; gap: 14px;
+    padding-bottom: 10px; margin-bottom: 24px;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .eyebrow .no {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    color: var(--trace); letter-spacing: .1em; flex: none;
+  }
+  h2 {
+    font-family: "Saira", system-ui, sans-serif; font-weight: 700;
+    font-size: clamp(21px, 3vw, 27px); letter-spacing: -.014em;
+    margin: 0; line-height: 1.15; text-wrap: balance;
+  }
+  h3 {
+    font-family: "Saira", system-ui, sans-serif; font-weight: 700;
+    font-size: 16px; letter-spacing: .01em; margin: 34px 0 10px;
+  }
+  p { margin: 0 0 15px; max-width: 68ch; }
+  .lede { color: var(--ink-2); }
+  strong { font-weight: 600; }
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .875em; font-variant-numeric: tabular-nums;
+  }
+  code { background: var(--paper-3); padding: 1px 5px; border-radius: 3px; color: var(--ink); }
+
+  /* ── figures ────────────────────────────────────────────────────────── */
+  figure {
+    margin: 30px 0; padding: 26px 24px 18px;
+    background: var(--paper-2); border: 1px solid var(--rule);
+    box-shadow: var(--shadow); overflow-x: auto;
+  }
+  figure svg { display: block; width: 100%; max-width: 100%; height: auto; min-width: 560px; }
+  figcaption {
+    margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--rule-soft);
+    font-size: 13.5px; color: var(--ink-2); max-width: 76ch;
+  }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  /* ── tables ─────────────────────────────────────────────────────────── */
+  .scroll { overflow-x: auto; margin: 22px 0; border: 1px solid var(--rule); background: var(--paper-2); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 720px; }
+  th, td { text-align: start; padding: 9px 14px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  thead th {
+    font-family: "IBM Plex Mono", monospace; font-size: 9.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-3); font-weight: 500;
+    border-bottom: 1.5px solid var(--ink); white-space: nowrap; background: var(--paper-2);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.k { font-family: "IBM Plex Mono", monospace; font-size: 12px; white-space: nowrap; }
+  td.n { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; text-align: end; white-space: nowrap; }
+
+  /* ── chips ──────────────────────────────────────────────────────────── */
+  .chip {
+    display: inline-block; font-family: "IBM Plex Mono", monospace;
+    font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 2px; white-space: nowrap; font-weight: 500;
+  }
+  .chip-live { background: var(--verify-soft); color: var(--verify); }
+  .chip-dead { background: var(--signal-soft); color: var(--signal); }
+  .chip-perm { background: var(--trace-soft); color: var(--trace); }
+
+  /* ── callout ────────────────────────────────────────────────────────── */
+  .note {
+    margin: 24px 0; padding: 17px 20px; background: var(--paper-2);
+    border: 1px solid var(--rule); border-inline-start: 3px solid var(--trace);
+  }
+  .note.hazard { border-inline-start-color: var(--signal); }
+  .note.hazard .note-t { color: var(--signal); }
+  .note-t {
+    font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--trace); margin: 0 0 6px;
+  }
+  .note p:last-child { margin-bottom: 0; }
+
+  /* ── metric row ─────────────────────────────────────────────────────── */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 24px 0; }
+  .metric { background: var(--paper-2); padding: 16px 18px; }
+  .metric .v {
+    font-family: "Saira", sans-serif; font-weight: 700; font-size: 27px;
+    font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: -.02em;
+  }
+  .metric .v.bad { color: var(--signal); }
+  .metric .v.good { color: var(--verify); }
+  .metric .l { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+
+  ol.steps { max-width: 68ch; padding-inline-start: 22px; }
+  ol.steps li { margin-bottom: 9px; }
+  ul.plain { max-width: 68ch; padding-inline-start: 20px; }
+  ul.plain li { margin-bottom: 7px; }
+
+  footer {
+    margin-top: 76px; padding-top: 22px; border-top: 1.5px solid var(--ink);
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--ink-3);
+    display: flex; flex-wrap: wrap; gap: 8px 28px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    a { transition: color .18s ease; }
+  }
+  a { color: var(--trace); }
+  :focus-visible { outline: 2px solid var(--trace); outline-offset: 2px; }
+</style>
+
+<div class="sheet">
+
+  <div class="titleblock">
+    <div class="titleblock-main">
+      <p class="stamp">Procedure atlas · as-built survey</p>
+      <h1>Nompany Procedure Atlas</h1>
+      <p>Every path a request takes through the multi-tenant ERP: how a click becomes an authorised write, how a sales enquiry becomes an invoice, where the data lands, and what the machinery costs. Drawn from the source at commit <code>166300f</code> and measured against the live instance.</p>
+    </div>
+    <dl class="fields">
+      <div class="field"><dt>Surveyed</dt><dd>2026-08-20</dd></div>
+      <div class="field"><dt>Commit</dt><dd>166300f</dd></div>
+      <div class="field"><dt>Source</dt><dd>61,890 LOC</dd></div>
+      <div class="field"><dt>Endpoints</dt><dd>97 routes</dd></div>
+      <div class="field"><dt>Departments</dt><dd>12</dd></div>
+      <div class="field"><dt>Permissions</dt><dd>104 keys</dd></div>
+    </dl>
+  </div>
+
+  <!-- ══ 01 ══════════════════════════════════════════════════════════ -->
+  <section id="request">
+    <div class="eyebrow"><span class="no">01</span><h2>What one request costs</h2></div>
+
+    <p class="lede">Every studio screen is assembled by the same chain of dependent Redis lookups. Each hop must finish before the next can start, because each one supplies the key the next hop needs. The chain is the latency.</p>
+
+    <figure>
+      <svg viewBox="0 0 900 340" role="img" aria-label="Eight dependent Redis round trips resolve one Sales screen request in 1421 milliseconds; the same eight reads issued as a single batch take 180 milliseconds.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--trace)"/>
+          </marker>
+        </defs>
+
+        <text x="0" y="14" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink-3)" letter-spacing="1.4">TODAY — 8 DEPENDENT HOPS</text>
+
+        <g font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">
+          <g stroke="currentColor" stroke-width="1" fill="var(--paper-3)">
+            <rect x="0"   y="30" width="104" height="34"/>
+            <rect x="112" y="30" width="104" height="34"/>
+            <rect x="224" y="30" width="104" height="34"/>
+            <rect x="336" y="30" width="104" height="34"/>
+            <rect x="448" y="30" width="104" height="34"/>
+            <rect x="560" y="30" width="104" height="34"/>
+            <rect x="672" y="30" width="104" height="34"/>
+            <rect x="784" y="30" width="116" height="34"/>
+          </g>
+          <text x="52"  y="51" text-anchor="middle">ix:session</text>
+          <text x="164" y="51" text-anchor="middle">g:users</text>
+          <text x="276" y="51" text-anchor="middle">ix:slug</text>
+          <text x="388" y="51" text-anchor="middle">g:studios</text>
+          <text x="500" y="51" text-anchor="middle">collaborators</text>
+          <text x="612" y="51" text-anchor="middle">roles‖sections</text>
+          <text x="724" y="51" text-anchor="middle">sections again</text>
+          <text x="842" y="51" text-anchor="middle">8 collections</text>
+        </g>
+
+        <g stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)" color="var(--ink-2)">
+          <line x1="104" y1="47" x2="110" y2="47"/>
+          <line x1="216" y1="47" x2="222" y2="47"/>
+          <line x1="328" y1="47" x2="334" y2="47"/>
+          <line x1="440" y1="47" x2="446" y2="47"/>
+          <line x1="552" y1="47" x2="558" y2="47"/>
+          <line x1="664" y1="47" x2="670" y2="47"/>
+          <line x1="776" y1="47" x2="782" y2="47"/>
+        </g>
+
+        <g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-3)" text-anchor="middle">
+          <text x="52"  y="80">who</text>
+          <text x="164" y="80">which user</text>
+          <text x="276" y="80">which studio</text>
+          <text x="388" y="80">the studio</text>
+          <text x="500" y="80">a member?</text>
+          <text x="612" y="80">what may they</text>
+          <text x="724" y="80">(duplicate)</text>
+          <text x="842" y="80">the data</text>
+        </g>
+
+        <g stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3">
+          <line x1="0" y1="98" x2="900" y2="98"/>
+        </g>
+        <text x="0" y="118" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink-3)" letter-spacing="1.4">MEASURED · 164ms RTT · LIVE INSTANCE</text>
+
+        <rect x="0" y="128" width="884" height="26" fill="var(--signal-soft)" stroke="var(--signal)" stroke-width="1"/>
+        <text x="12" y="145" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--signal)">1421 ms — GET /api/studios/&lt;slug&gt;/sales</text>
+
+        <rect x="0" y="162" width="112" height="26" fill="var(--verify-soft)" stroke="var(--verify)" stroke-width="1"/>
+        <text x="122" y="179" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--verify)">180 ms — identical reads, one batch</text>
+
+        <text x="0" y="222" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink-3)" letter-spacing="1.4">ACHIEVABLE — 2 HOPS</text>
+
+        <g font-family="IBM Plex Mono, monospace" font-size="11">
+          <rect x="0" y="238" width="250" height="36" fill="var(--trace-soft)" stroke="var(--trace)" stroke-width="1.2"/>
+          <text x="125" y="255" text-anchor="middle" fill="var(--trace)">session + identity</text>
+          <text x="125" y="268" text-anchor="middle" fill="var(--trace)" font-size="9.5">one key, request-cached</text>
+
+          <rect x="330" y="238" width="300" height="36" fill="var(--trace-soft)" stroke="var(--trace)" stroke-width="1.2"/>
+          <text x="480" y="255" text-anchor="middle" fill="var(--trace)">studio context + all collections</text>
+          <text x="480" y="268" text-anchor="middle" fill="var(--trace)" font-size="9.5">one pipelined MGET</text>
+
+          <rect x="710" y="238" width="190" height="36" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="4 3"/>
+          <text x="805" y="260" text-anchor="middle" fill="var(--ink-2)">response</text>
+        </g>
+        <g stroke="var(--trace)" stroke-width="1.6" marker-end="url(#arT)">
+          <line x1="250" y1="256" x2="326" y2="256"/>
+          <line x1="630" y1="256" x2="706" y2="256"/>
+        </g>
+
+        <text x="0" y="308" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">Hops 3–4 collapse into one slug→studio document. Hop 7 is a duplicate of hop 6. Hops 1–2 are cacheable per request.</text>
+        <text x="0" y="326" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">No schema change is required for any of it.</text>
+      </svg>
+      <figcaption><b>The hop count is the defect, not the network.</b> Absolute times scale with round-trip time — in-region on Vercel these are milliseconds, not seconds — but eight sequential hops stay eight sequential hops wherever the function runs, and no co-location change removes them. Hop 7 re-reads what hop 6 already returned.</figcaption>
+    </figure>
+
+    <div class="metrics">
+      <div class="metric"><div class="v bad">1421<span style="font-size:15px">ms</span></div><div class="l">Sales endpoint, 8 hops</div></div>
+      <div class="metric"><div class="v bad">1532<span style="font-size:15px">ms</span></div><div class="l">Studio shell, 9 hops</div></div>
+      <div class="metric"><div class="v good">180<span style="font-size:15px">ms</span></div><div class="l">Same data, batched</div></div>
+      <div class="metric"><div class="v good">7.9×</div><div class="l">Available without migrating</div></div>
+    </div>
+  </section>
+
+  <!-- ══ 02 ══════════════════════════════════════════════════════════ -->
+  <section id="authz">
+    <div class="eyebrow"><span class="no">02</span><h2>How a click becomes an authorised write</h2></div>
+
+    <p class="lede">Access is resolved <strong>once</strong> per request, in one function, and every department context is built on that answer. This is the structural fix for the class of bug where the button a screen offers and the write path behind it disagree.</p>
+
+    <figure>
+      <svg viewBox="0 0 900 372" role="img" aria-label="A request's cookie resolves to a user, then to a collaborator row inside the studio, whose roles and personal overrides resolve to one flat permission set that gates both the rendered buttons and the write path.">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar2t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--trace)"/>
+          </marker>
+          <marker id="ar2s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--signal)"/>
+          </marker>
+        </defs>
+
+        <g font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" stroke="currentColor" stroke-width="1">
+          <rect x="0" y="24" width="150" height="40" fill="var(--paper-3)"/>
+          <rect x="0" y="96" width="150" height="40" fill="var(--paper-3)"/>
+          <rect x="0" y="168" width="150" height="40" fill="var(--paper-3)"/>
+        </g>
+        <g font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" text-anchor="middle">
+          <text x="75" y="42">nc_sid cookie</text>
+          <text x="75" y="56" font-size="9.5" fill="var(--ink-3)">the claim</text>
+          <text x="75" y="114">User</text>
+          <text x="75" y="128" font-size="9.5" fill="var(--ink-3)">the account</text>
+          <text x="75" y="186">Collaborator</text>
+          <text x="75" y="200" font-size="9.5" fill="var(--ink-3)">identity in THIS studio</text>
+        </g>
+        <g stroke="currentColor" stroke-width="1.4" marker-end="url(#ar2)" color="var(--ink-2)">
+          <line x1="75" y1="64" x2="75" y2="92"/>
+          <line x1="75" y1="136" x2="75" y2="164"/>
+        </g>
+        <g font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-3)">
+          <text x="84" y="82">ix:session · EX enforced by Redis</text>
+          <text x="84" y="154">membership — absent ⇒ 403, nothing revealed</text>
+        </g>
+
+        <!-- inputs to resolution -->
+        <g font-family="IBM Plex Mono, monospace" font-size="10.5" text-anchor="middle">
+          <rect x="212" y="150" width="128" height="30" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/>
+          <text x="276" y="169" fill="currentColor">roleIds[]</text>
+          <rect x="212" y="190" width="128" height="30" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/>
+          <text x="276" y="209" fill="currentColor">overrides</text>
+        </g>
+        <g stroke="currentColor" stroke-width="1.2" marker-end="url(#ar2)" color="var(--ink-2)">
+          <line x1="150" y1="180" x2="208" y2="167"/>
+          <line x1="150" y1="192" x2="208" y2="203"/>
+        </g>
+
+        <!-- resolver -->
+        <rect x="392" y="140" width="196" height="90" fill="var(--trace-soft)" stroke="var(--trace)" stroke-width="1.6"/>
+        <text x="490" y="166" text-anchor="middle" font-family="Saira, sans-serif" font-weight="700" font-size="14" fill="var(--trace)">effectivePermissions</text>
+        <g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--trace)" text-anchor="middle">
+          <text x="490" y="184">owner or wildcard ⇒ everything</text>
+          <text x="490" y="198">else ∪ roles + allow − deny</text>
+          <text x="490" y="216">→ Set&lt;string&gt;  ·  no inheritance</text>
+        </g>
+        <g stroke="var(--trace)" stroke-width="1.6" marker-end="url(#ar2t)">
+          <line x1="340" y1="165" x2="388" y2="175"/>
+          <line x1="340" y1="205" x2="388" y2="196"/>
+        </g>
+
+        <!-- two consumers -->
+        <g stroke="var(--trace)" stroke-width="1.6" marker-end="url(#ar2t)">
+          <line x1="588" y1="166" x2="658" y2="120"/>
+          <line x1="588" y1="204" x2="658" y2="250"/>
+        </g>
+        <g font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle">
+          <rect x="662" y="88" width="238" height="56" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/>
+          <text x="781" y="110" fill="currentColor">sectionViewable / can()</text>
+          <text x="781" y="128" font-size="9.5" fill="var(--ink-3)">which nav rows and buttons render</text>
+
+          <rect x="662" y="224" width="238" height="56" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/>
+          <text x="781" y="246" fill="currentColor">requirePermission()</text>
+          <text x="781" y="264" font-size="9.5" fill="var(--ink-3)">the write, guarded at the write</text>
+        </g>
+        <text x="781" y="164" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="var(--trace)">one answer, two consumers</text>
+        <text x="781" y="180" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="var(--trace)">— so they cannot drift</text>
+
+        <!-- escalation guard -->
+        <rect x="212" y="264" width="376" height="46" fill="var(--signal-soft)" stroke="var(--signal)" stroke-width="1.2"/>
+        <text x="400" y="284" text-anchor="middle" font-family="Saira, sans-serif" font-weight="700" font-size="13" fill="var(--signal)">escalates() — nobody grants what they do not hold</text>
+        <text x="400" y="300" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--signal)">enforced at BOTH doors: People screen · join-request approval</text>
+        <g stroke="var(--signal)" stroke-width="1.4" marker-end="url(#ar2s)">
+          <line x1="490" y1="230" x2="440" y2="260"/>
+        </g>
+
+        <text x="0" y="340" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">Default deny: a person with no role can do nothing. There is no fallback path.</text>
+        <text x="0" y="358" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">Only leaves are rights — "Sales" is a heading, so nothing inherits from anything and the question never arises.</text>
+      </svg>
+      <figcaption><b>One resolution, two consumers.</b> The permission set gates the rendered UI and the write path from the same value, computed once. The escalation guard sits across the two paths that can hand out access, because approving a join request as "admin" assigns the wildcard role — the same act as editing someone's roles, and previously unchecked.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ══ 03 ══════════════════════════════════════════════════════════ -->
+  <section id="ordertocash">
+    <div class="eyebrow"><span class="no">03</span><h2>The order-to-cash procedure</h2></div>
+
+    <p class="lede">The spine of the product. An enquiry enters Sales and leaves as invoices, deliveries and shipments — crossing six departments, each of which owns its own records and never writes another's.</p>
+
+    <figure>
+      <svg viewBox="0 0 900 470" role="img" aria-label="A sales ticket becomes an RFQ, then a quotation, then an approval task, then a project, which fans out into sheets, material orders, invoices, expenses, deliveries, overtimes, air waybills and tasks.">
+        <defs>
+          <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--trace)"/>
+          </marker>
+          <marker id="ar3d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar3s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--signal)"/>
+          </marker>
+        </defs>
+
+        <!-- department lanes -->
+        <g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-3)" letter-spacing="1.2">
+          <line x1="0" y1="34" x2="900" y2="34" stroke="var(--rule)" stroke-width="1"/>
+          <text x="0" y="28">SALES</text>
+          <line x1="0" y1="118" x2="900" y2="118" stroke="var(--rule)" stroke-width="1"/>
+          <text x="0" y="112">TECHNICAL</text>
+          <line x1="0" y1="202" x2="900" y2="202" stroke="var(--rule)" stroke-width="1"/>
+          <text x="0" y="196">TASKS</text>
+          <line x1="0" y1="272" x2="900" y2="272" stroke="var(--rule)" stroke-width="1"/>
+          <text x="0" y="266">PROJECTS</text>
+          <line x1="0" y1="356" x2="900" y2="356" stroke="var(--rule)" stroke-width="1"/>
+          <text x="0" y="350">INVENTORY · FINANCE · HR</text>
+        </g>
+
+        <!-- SALES -->
+        <g font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle">
+          <rect x="86" y="44" width="128" height="40" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="150" y="62" fill="currentColor">Sales ticket</text>
+          <text x="150" y="76" font-size="9" fill="var(--ink-3)">status "Lead"</text>
+
+          <rect x="600" y="44" width="150" height="40" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="675" y="62" fill="currentColor">final status</text>
+          <text x="675" y="76" font-size="9" fill="var(--ink-3)">Sales picks · post-approval</text>
+        </g>
+
+        <!-- TECHNICAL -->
+        <g font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle">
+          <rect x="86" y="128" width="128" height="40" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="150" y="146" fill="currentColor">RFQ</text>
+          <text x="150" y="160" font-size="9" fill="var(--ink-3)">ticket → "Opportunity"</text>
+
+          <rect x="300" y="128" width="140" height="40" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="370" y="146" fill="currentColor">Quotation</text>
+          <text x="370" y="160" font-size="9" fill="var(--ink-3)">lock / unlock separate</text>
+        </g>
+
+        <!-- TASKS -->
+        <g font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle">
+          <rect x="450" y="212" width="150" height="38" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="525" y="229" fill="currentColor">Approval task</text>
+          <text x="525" y="243" font-size="9" fill="var(--ink-3)">assignee resolved on read</text>
+        </g>
+
+        <!-- PROJECTS -->
+        <g font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle">
+          <rect x="380" y="282" width="180" height="44" fill="var(--trace-soft)" stroke="var(--trace)" stroke-width="1.6"/>
+          <text x="470" y="301" fill="var(--trace)" font-family="Saira, sans-serif" font-weight="700" font-size="13">Project</text>
+          <text x="470" y="316" font-size="9" fill="var(--trace)">carries ticketId · quotationId · clientId</text>
+        </g>
+
+        <!-- fan-out -->
+        <g font-family="IBM Plex Mono, monospace" font-size="9.5" text-anchor="middle" fill="currentColor">
+          <rect x="0"   y="378" width="104" height="30" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/><text x="52" y="397">Project sheet</text>
+          <rect x="112" y="378" width="104" height="30" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/><text x="164" y="397">Material order</text>
+          <rect x="224" y="378" width="104" height="30" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/><text x="276" y="397">Invoice</text>
+          <rect x="336" y="378" width="104" height="30" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/><text x="388" y="397">Expense</text>
+          <rect x="448" y="378" width="104" height="30" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/><text x="500" y="397">Delivery</text>
+          <rect x="560" y="378" width="104" height="30" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/><text x="612" y="397">Overtime</text>
+          <rect x="672" y="378" width="104" height="30" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/><text x="724" y="397">AWB shipment</text>
+          <rect x="784" y="378" width="116" height="30" fill="var(--paper-3)" stroke="currentColor" stroke-width="1"/><text x="842" y="397">Task</text>
+        </g>
+
+        <!-- arrows: sales → rfq -->
+        <g stroke="var(--trace)" stroke-width="1.8" fill="none" marker-end="url(#ar3)">
+          <path d="M 150 84 L 150 124"/>
+          <path d="M 214 148 L 296 148"/>
+          <path d="M 400 168 L 430 208 L 446 219"/>
+          <path d="M 525 250 L 500 276 L 476 278"/>
+        </g>
+        <g font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--trace)">
+          <text x="158" y="108">Request RFQ</text>
+          <text x="222" y="142">Convert</text>
+          <text x="404" y="192">Send for approval</text>
+          <text x="486" y="266">Approved ⇒ open project</text>
+        </g>
+
+        <!-- approved → final status -->
+        <g stroke="var(--trace)" stroke-width="1.5" fill="none" marker-end="url(#ar3)" stroke-dasharray="5 3">
+          <path d="M 600 219 L 675 219 L 675 88"/>
+        </g>
+        <text x="684" y="150" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--trace)">unlocks status choice</text>
+
+        <!-- rejection -->
+        <g stroke="var(--signal)" stroke-width="1.5" fill="none" marker-end="url(#ar3s)">
+          <path d="M 86 148 L 44 148 L 44 64 L 82 64"/>
+        </g>
+        <text x="0" y="176" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--signal)">RFQ rejected</text>
+        <text x="0" y="188" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--signal)">⇒ "Closed Lost"</text>
+
+        <!-- project fan-out arrows -->
+        <g stroke="currentColor" stroke-width="1.1" fill="none" marker-end="url(#ar3d)" color="var(--ink-2)">
+          <path d="M 400 326 L 52 366 L 52 374"/>
+          <path d="M 420 326 L 164 368 L 164 374"/>
+          <path d="M 440 326 L 276 368 L 276 374"/>
+          <path d="M 455 326 L 388 368 L 388 374"/>
+          <path d="M 480 326 L 500 368 L 500 374"/>
+          <path d="M 495 326 L 612 368 L 612 374"/>
+          <path d="M 515 326 L 724 368 L 724 374"/>
+          <path d="M 535 326 L 842 366 L 842 374"/>
+        </g>
+        <text x="0" y="428" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">Every child holds <tspan font-family="IBM Plex Mono, monospace" font-size="11">projectId</tspan>. The parent holds no back-pointers — a back-pointer would be a second copy of the same fact,</text>
+        <text x="0" y="446" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">and writing it would mean a downstream module modifying a record belonging to a department it does not own.</text>
+        <text x="0" y="464" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--signal)">Finance excludes Cancelled invoices and Cancelled material orders from project totals — a rule carried on the edge, not in Finance.</text>
+      </svg>
+      <figcaption><b>Status is automated up to approval, then handed back.</b> A ticket is "Lead" on creation and "Opportunity" once an RFQ is raised; only after the approval task completes may a Sales user choose from Commit / Closed Won / Closed Lost / Cancelled by Client / On-Hold / Dropped. Sales reads Technical's and Tasks' records without holding either grant — what became of the ticket is part of the ticket's own story, not a window into another queue.</figcaption>
+    </figure>
+
+    <h3>Every action on that path</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Button / action</th><th>Endpoint</th><th>Permission</th><th>Writes</th></tr></thead>
+        <tbody>
+          <tr><td>New ticket</td><td class="k">POST /sales/tickets</td><td><span class="chip chip-perm">sales.tickets.create</span></td><td class="k">salesTickets</td></tr>
+          <tr><td>Edit ticket / set urgency</td><td class="k">PUT /sales/tickets</td><td><span class="chip chip-perm">sales.tickets.edit</span></td><td class="k">salesTickets</td></tr>
+          <tr><td>Request RFQ</td><td class="k">POST /sales/tickets/rfq</td><td><span class="chip chip-perm">sales.tickets.edit</span></td><td class="k">rfqs + salesTickets</td></tr>
+          <tr><td>Send for approval</td><td class="k">POST /sales/tickets/approval</td><td><span class="chip chip-perm">sales.tickets.edit</span></td><td class="k">tasks</td></tr>
+          <tr><td>Upload purchase order</td><td class="k">POST /sales/tickets/po</td><td><span class="chip chip-perm">sales.tickets.edit</span></td><td class="k">salesTickets + g:media</td></tr>
+          <tr><td>Add / edit client</td><td class="k">POST·PUT·DELETE /sales/clients</td><td><span class="chip chip-perm">sales.clients.*</span></td><td class="k">salesClients</td></tr>
+          <tr><td>Convert RFQ → quotation</td><td class="k">POST /technical/rfqs</td><td><span class="chip chip-perm">technical.rfq.convert</span></td><td class="k">quotations + rfqs</td></tr>
+          <tr><td>Build / price a quotation</td><td class="k">POST·PUT /technical/quotations</td><td><span class="chip chip-perm">technical.quotations.edit</span></td><td class="k">quotations</td></tr>
+          <tr><td>Lock quotation</td><td class="k">PUT /technical/quotations</td><td><span class="chip chip-perm">technical.quotations.lock</span></td><td class="k">quotations</td></tr>
+          <tr><td>Unlock quotation</td><td class="k">PUT /technical/quotations</td><td><span class="chip chip-perm">technical.quotations.unlock</span></td><td class="k">quotations</td></tr>
+          <tr><td>Open project</td><td class="k">POST /projects</td><td><span class="chip chip-perm">projects.list.create</span></td><td class="k">projects</td></tr>
+          <tr><td>Edit sheet — Inventory columns</td><td class="k">PUT /inventory/sheets</td><td><span class="chip chip-perm">inventory.sheets.edit</span></td><td class="k">projectSheets</td></tr>
+          <tr><td>Edit sheet — Projects columns</td><td class="k">PUT /inventory/sheets</td><td><span class="chip chip-perm">projects.list.edit</span></td><td class="k">projectSheets</td></tr>
+          <tr><td>Raise material order</td><td class="k">POST /inventory/orders</td><td><span class="chip chip-perm">inventory.sheets.edit</span></td><td class="k">materialOrders</td></tr>
+          <tr><td>Move stock</td><td class="k">POST /inventory/stock</td><td><span class="chip chip-perm">inventory.stock.*</span></td><td class="k">inventoryStock</td></tr>
+          <tr><td>Track a waybill</td><td class="k">POST·PUT /inventory/awb</td><td><span class="chip chip-perm">inventory.awb.*</span></td><td class="k">awbShipments</td></tr>
+          <tr><td>Raise invoice / expense</td><td class="k">POST /finance/invoices · /expenses</td><td><span class="chip chip-perm">finance.cash.create</span></td><td class="k">invoices · expenses</td></tr>
+          <tr><td>Log overtime</td><td class="k">POST /projects/overtimes</td><td><span class="chip chip-perm">projects.overtimes.create</span></td><td class="k">overtimes</td></tr>
+          <tr><td>Request vacation</td><td class="k">POST /hr/vacations</td><td><span class="chip chip-perm">hr.vacations.create</span></td><td class="k">vacations</td></tr>
+          <tr><td>Approve vacation</td><td class="k">PUT /hr/vacations</td><td><span class="chip chip-perm">hr.vacations.approve</span></td><td class="k">vacations</td></tr>
+          <tr><td>Reveal ID / passport number</td><td class="k">GET /hr</td><td><span class="chip chip-perm">hr.employees.salary</span></td><td>— decrypt only</td></tr>
+          <tr><td>Sign as reviewer</td><td class="k">POST /quality/docs/workflow</td><td><span class="chip chip-perm">quality.documents.review</span></td><td class="k">qualityRevisions</td></tr>
+          <tr><td>Sign as approver</td><td class="k">POST /quality/docs/workflow</td><td><span class="chip chip-perm">quality.documents.approve</span></td><td class="k">qualityRevisions</td></tr>
+          <tr><td>Issue a revision</td><td class="k">POST /quality/docs/workflow</td><td><span class="chip chip-perm">quality.documents.publish</span></td><td class="k">qualityDocuments</td></tr>
+          <tr><td>Create external share link</td><td class="k">— none exists —</td><td><span class="chip chip-dead">quality.documents.share</span></td><td><span class="chip chip-dead">dead</span></td></tr>
+          <tr><td>Approve / decline a join request</td><td class="k">POST /requests</td><td><span class="chip chip-perm">people.members.edit</span></td><td class="k">collaborators + g:joinRequests</td></tr>
+          <tr><td>Assign roles to a person</td><td class="k">PUT /collaborators</td><td><span class="chip chip-perm">people.members.edit</span> + escalation check</td><td class="k">collaborators</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note hazard">
+      <p class="note-t">Dead capability</p>
+      <p><code>quality.documents.share</code> is grantable on the Access screen and grants nothing. The key builder <code>ix:qshare</code>, the <code>qualityShareLinks</code> collection and the reserved <code>/q</code> route prefix all exist; <strong>no code reads or writes any of them.</strong> Two more follow the same pattern: <code>s:&lt;id&gt;:activityLog</code> and <code>ix:stoken</code> are declared and never touched.</p>
+    </div>
+  </section>
+
+  <!-- ══ 04 ══════════════════════════════════════════════════════════ -->
+  <section id="storage">
+    <div class="eyebrow"><span class="no">04</span><h2>Where everything lands</h2></div>
+
+    <p class="lede">The ownership tree <em>is</em> the key tree. That single decision is what makes cascading deletion equal to prefix deletion — Redis has no <code>ON DELETE CASCADE</code>, so the hierarchy has to carry the guarantee.</p>
+
+    <figure>
+      <svg viewBox="0 0 900 320" role="img" aria-label="Redis keys form an ownership hierarchy: global registries, per-user subtrees, per-studio subtrees containing per-section collections, plus indexes and ownerless ephemeral keys.">
+        <defs>
+          <marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <g font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">
+          <!-- global -->
+          <rect x="0" y="16" width="212" height="26" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="10" y="34">g:*  global registries</text>
+          <text x="10" y="58" font-size="9" fill="var(--ink-3)">users · studios · superAdmins · packages</text>
+          <text x="10" y="70" font-size="9" fill="var(--ink-3)">tiers · joinRequests · events · media</text>
+
+          <!-- user -->
+          <rect x="0" y="96" width="212" height="26" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="10" y="114">u:&lt;UserID&gt;:*</text>
+          <g font-size="9" fill="var(--ink-3)">
+            <text x="20" y="136">profile · verification · questionnaire</text>
+            <text x="20" y="148">sessions · devices · studioVisits</text>
+          </g>
+
+          <!-- studio -->
+          <rect x="260" y="96" width="240" height="26" fill="var(--trace-soft)" stroke="var(--trace)" stroke-width="1.4"/>
+          <text x="270" y="114" fill="var(--trace)">s:&lt;StudioID&gt;:*</text>
+          <g font-size="9" fill="var(--ink-3)">
+            <text x="280" y="136">collaborators · sections · roles · settings</text>
+            <text x="280" y="148">notifications · counters · chatUsage · events</text>
+          </g>
+
+          <!-- section -->
+          <rect x="300" y="168" width="320" height="26" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="310" y="186">s:&lt;StudioID&gt;:sec:&lt;SectionID&gt;:c:&lt;name&gt;</text>
+          <g font-size="9" fill="var(--ink-3)">
+            <text x="320" y="208">salesTickets · quotations · projects · invoices · tasks …</text>
+            <text x="320" y="220">one JSON array per collection · every row carries studioId + sectionId</text>
+          </g>
+
+          <!-- indexes -->
+          <rect x="560" y="16" width="230" height="26" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="570" y="34">ix:*  claims and lookups</text>
+          <g font-size="9" fill="var(--ink-3)">
+            <text x="570" y="58">email → UserID · slug → StudioID · owner (0..1)</text>
+            <text x="570" y="70">session (EX) · collab (SET)</text>
+          </g>
+
+          <!-- ephemeral -->
+          <rect x="660" y="168" width="240" height="26" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="4 3"/>
+          <text x="670" y="186" fill="var(--ink-2)">ownerless · TTL is the policy</text>
+          <g font-size="9" fill="var(--ink-3)">
+            <text x="670" y="208">otp: · chat: · fx: · rl:</text>
+            <text x="670" y="220">no cascade needs to know they exist</text>
+          </g>
+        </g>
+
+        <g stroke="currentColor" stroke-width="1.2" marker-end="url(#ar4)" color="var(--ink-2)" fill="none">
+          <path d="M 106 42 L 106 92"/>
+          <path d="M 212 29 L 380 29 L 380 92"/>
+          <path d="M 380 122 L 380 164"/>
+        </g>
+
+        <line x1="0" y1="248" x2="900" y2="248" stroke="var(--rule)" stroke-width="1"/>
+        <text x="0" y="270" font-family="Saira, sans-serif" font-weight="700" font-size="13" fill="var(--trace)">Deletion = prefix deletion</text>
+        <text x="0" y="288" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">Children first, registry last — so a crashed cascade re-run finds the root again and finishes. Every cascade is idempotent.</text>
+        <text x="0" y="308" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--signal)">Except: g:media:* is platform-scoped, so no cascade reaps it. Deleting a studio strands every file it uploaded.</text>
+      </svg>
+      <figcaption><b>A collection is one key holding one JSON array.</b> Reading one ticket reads every ticket; updating one row rewrites the collection. Correctness is preserved by a compare-and-set written in Lua — the write only lands if the key still holds exactly what was read — but there is no index, no <code>WHERE</code>, no <code>ORDER BY</code> and no pagination anywhere in the product.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ══ 05 ══════════════════════════════════════════════════════════ -->
+  <section id="realtime">
+    <div class="eyebrow"><span class="no">05</span><h2>How a change reaches every open screen</h2></div>
+
+    <p class="lede">Three pieces with a strict division of labour: the stream is truth, pub/sub is only a doorbell, and SSE is the wire. Confusing any two of them is how a reconnect silently drops events.</p>
+
+    <figure>
+      <svg viewBox="0 0 900 330" role="img" aria-label="A write appends to a per-studio Redis stream, then publishes a doorbell message that fans out through one subscriber connection per Node process to server-sent-event connections, one per browser tab, which replay missed entries from the stream by cursor.">
+        <defs>
+          <marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--trace)"/>
+          </marker>
+          <marker id="ar5d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <g font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle">
+          <rect x="0" y="40" width="128" height="42" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="64" y="59" fill="currentColor">the write</text>
+          <text x="64" y="73" font-size="9" fill="var(--ink-3)">editArr, already landed</text>
+
+          <rect x="180" y="40" width="164" height="42" fill="var(--trace-soft)" stroke="var(--trace)" stroke-width="1.6"/>
+          <text x="262" y="59" fill="var(--trace)">XADD s:&lt;id&gt;:events</text>
+          <text x="262" y="73" font-size="9" fill="var(--trace)">capped 500 · id IS the cursor</text>
+
+          <rect x="396" y="40" width="150" height="42" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="471" y="59" fill="currentColor">PUBLISH ev:s:&lt;id&gt;</text>
+          <text x="471" y="73" font-size="9" fill="var(--ink-3)">best-effort, never throws</text>
+
+          <rect x="598" y="40" width="164" height="42" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="680" y="59" fill="currentColor">one SUBSCRIBE / process</text>
+          <text x="680" y="73" font-size="9" fill="var(--ink-3)">refcounted · in-memory fan-out</text>
+        </g>
+
+        <g stroke="var(--trace)" stroke-width="1.8" marker-end="url(#ar5)">
+          <line x1="128" y1="61" x2="176" y2="61"/>
+          <line x1="344" y1="61" x2="392" y2="61"/>
+          <line x1="546" y1="61" x2="594" y2="61"/>
+        </g>
+        <text x="360" y="30" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--trace)" text-anchor="middle">strictly after XADD — the id is the client's cursor</text>
+
+        <!-- SSE + tabs -->
+        <g font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="middle">
+          <rect x="598" y="132" width="164" height="40" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="680" y="150" fill="currentColor">SSE /stream</text>
+          <text x="680" y="164" font-size="9" fill="var(--ink-3)">25s heartbeat · clean close 240s</text>
+
+          <rect x="598" y="212" width="164" height="40" fill="var(--paper-3)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="680" y="230" fill="currentColor">1 EventSource / TAB</text>
+          <text x="680" y="244" font-size="9" fill="var(--ink-3)">not per hook — 21 call sites</text>
+        </g>
+        <g stroke="currentColor" stroke-width="1.4" marker-end="url(#ar5d)" color="var(--ink-2)">
+          <line x1="680" y1="82" x2="680" y2="128"/>
+          <line x1="680" y1="172" x2="680" y2="208"/>
+        </g>
+
+        <!-- replay -->
+        <g stroke="var(--trace)" stroke-width="1.6" fill="none" marker-end="url(#ar5)" stroke-dasharray="6 4">
+          <path d="M 598 232 L 262 232 L 262 86"/>
+        </g>
+        <text x="290" y="252" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--trace)">on reconnect: Last-Event-ID → replay everything after that cursor</text>
+
+        <line x1="0" y1="278" x2="900" y2="278" stroke="var(--rule)" stroke-width="1"/>
+        <text x="0" y="298" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">An event carries only <tspan font-family="IBM Plex Mono, monospace" font-size="11">{type, sectionId, collection, rowId}</tspan> — enough to decide what to refetch, and nothing more.</text>
+        <text x="0" y="318" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--signal)">Today every consumer ignores rowId and refetches the whole module payload: one edit in a 30-seat studio = 30 full six-collection fetches.</text>
+      </svg>
+      <figcaption><b>One Redis connection per process, not per subscriber.</b> Under RESP2 a subscribed connection cannot run commands, so the obvious <code>duplicate()</code>-per-listener would open one Redis connection per browser tab — and connection count is this deployment's hard ceiling. Refcounted channels plus in-memory fan-out mean a thousand tabs on one instance still cost one connection.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ══ 06 ══════════════════════════════════════════════════════════ -->
+  <section id="notify">
+    <div class="eyebrow"><span class="no">06</span><h2>Who gets told, and who doesn't</h2></div>
+
+    <p class="lede">A notification is not an event. The event log is machinery — no words, forgotten once clients catch up. A notification is addressed to a person, says something in a sentence, and persists until read. Five producers exist. The gaps are where an ERP normally does its work.</p>
+
+    <figure>
+      <svg viewBox="0 0 900 300" role="img" aria-label="Five notification producers are implemented; four declared notification types have no producer at all, and eleven expected operational triggers are missing.">
+        <g font-family="IBM Plex Mono, monospace" font-size="10.5">
+          <text x="0" y="14" fill="var(--verify)" letter-spacing="1.3">SHIPPED — 5 PRODUCERS</text>
+          <g fill="currentColor">
+            <rect x="0"   y="26" width="172" height="28" fill="var(--verify-soft)" stroke="var(--verify)" stroke-width="1"/><text x="10" y="44" fill="var(--verify)">studio created → console</text>
+            <rect x="182" y="26" width="172" height="28" fill="var(--verify-soft)" stroke="var(--verify)" stroke-width="1"/><text x="192" y="44" fill="var(--verify)">chat waiting → console</text>
+            <rect x="364" y="26" width="172" height="28" fill="var(--verify-soft)" stroke="var(--verify)" stroke-width="1"/><text x="374" y="44" fill="var(--verify)">rating left → console</text>
+            <rect x="546" y="26" width="172" height="28" fill="var(--verify-soft)" stroke="var(--verify)" stroke-width="1"/><text x="556" y="44" fill="var(--verify)">join asked → admins</text>
+            <rect x="728" y="26" width="172" height="28" fill="var(--verify-soft)" stroke="var(--verify)" stroke-width="1"/><text x="738" y="44" fill="var(--verify)">revision → next signer</text>
+          </g>
+
+          <text x="0" y="90" fill="var(--signal)" letter-spacing="1.3">DECLARED, NEVER EMITTED — 4 TYPES</text>
+          <g>
+            <rect x="0"   y="102" width="212" height="28" fill="var(--signal-soft)" stroke="var(--signal)" stroke-width="1"/><text x="10" y="120" fill="var(--signal)">NOTIFY.joinDecided</text>
+            <rect x="224" y="102" width="212" height="28" fill="var(--signal-soft)" stroke="var(--signal)" stroke-width="1"/><text x="234" y="120" fill="var(--signal)">NOTIFY.taskAssigned</text>
+            <rect x="448" y="102" width="212" height="28" fill="var(--signal-soft)" stroke="var(--signal)" stroke-width="1"/><text x="458" y="120" fill="var(--signal)">NOTIFY.peopleChanged</text>
+            <rect x="672" y="102" width="228" height="28" fill="var(--signal-soft)" stroke="var(--signal)" stroke-width="1"/><text x="682" y="120" fill="var(--signal)">NOTIFY.mention</text>
+          </g>
+          <text x="0" y="150" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--signal)">Consequence: a person who asks to join a studio is never told whether they were approved or declined.</text>
+
+          <text x="0" y="186" fill="var(--ink-3)" letter-spacing="1.3">NO TRIGGER AT ALL — THE OPERATIONAL GAP</text>
+          <g fill="var(--ink-2)" font-size="10">
+            <rect x="0"   y="198" width="140" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="8" y="214">RFQ raised to you</text>
+            <rect x="150" y="198" width="140" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="158" y="214">quotation ready</text>
+            <rect x="300" y="198" width="140" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="308" y="214">approval pending</text>
+            <rect x="450" y="198" width="140" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="458" y="214">SLA breached</text>
+            <rect x="600" y="198" width="140" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="608" y="214">vacation decided</text>
+            <rect x="750" y="198" width="150" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="758" y="214">invoice overdue</text>
+
+            <rect x="0"   y="230" width="140" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="8" y="246">stock below level</text>
+            <rect x="150" y="230" width="140" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="158" y="246">AWB status moved</text>
+            <rect x="300" y="230" width="140" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="308" y="246">permit expiring</text>
+            <rect x="450" y="230" width="140" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="458" y="246">certification expiring</text>
+            <rect x="600" y="230" width="140" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="608" y="246">document to acknowledge</text>
+            <rect x="750" y="230" width="150" height="24" fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/><text x="758" y="246">seat limit reached</text>
+          </g>
+        </g>
+        <line x1="0" y1="272" x2="900" y2="272" stroke="var(--rule)" stroke-width="1"/>
+        <text x="0" y="292" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">The delivery machinery is finished — fan-out on write, per-person channel, bell with unread count and offline indicator. What is missing is what fires it.</text>
+      </svg>
+      <figcaption><b>The transport is done; the triggers are not.</b> Sixteen deadline- and state-driven moments in the ERP pass silently. Nine of the eleven greyed triggers are time-based, which means they need the scheduled evaluator that does not exist yet — not more notification plumbing.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ══ 07 ══════════════════════════════════════════════════════════ -->
+  <section id="hazards">
+    <div class="eyebrow"><span class="no">07</span><h2>Where the machinery is exposed</h2></div>
+
+    <div class="note hazard">
+      <p class="note-t">Critical · data loss</p>
+      <p>The weekly orphan sweep mixes two key-addressing conventions in one function: it <em>repairs</em> through the prefixed builders and <em>reaps</em> through bare string literals. Run once with a key prefix set — which the project's own integration bootstrap sets unconditionally — it reads empty registries, classifies every real user and studio subtree as orphaned, and deletes them by prefix.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Exposure</th><th>Where</th><th>What it allows</th></tr></thead>
+        <tbody>
+          <tr><td>Orphan sweep is prefix-unaware</td><td class="k">data/cascade.js:196</td><td>Deletion of the entire production dataset</td></tr>
+          <tr><td>Private media served to any signed-in account</td><td class="k">api/media/[id]:13</td><td>Cross-tenant read of signatures, ID scans, letterheads</td></tr>
+          <tr><td>Analytics ingest unauthenticated, no TTL</td><td class="k">api/track</td><td>Unbounded growth to the memory ceiling — every write in the product then fails</td></tr>
+          <tr><td>Password check precedes every rate limit</td><td class="k">lib/identity.js:235</td><td>Unlimited online guessing, bounded only by bcrypt cost 10</td></tr>
+          <tr><td>Console session expiry is cookie-only</td><td class="k">lib/superAuth.js:93</td><td>A captured owner token stays valid indefinitely</td></tr>
+          <tr><td>Uploads unquotaed, never reclaimed</td><td class="k">lib/media.js</td><td>Media is already 76% of the live dataset</td></tr>
+          <tr><td>Session tokens stored in plaintext</td><td class="k">data/users.js</td><td>Any database read is session takeover</td></tr>
+          <tr><td>No audit trail for privileged actions</td><td class="k">keys.js:181 (unused)</td><td>Plan changes, suspensions and role grants leave no record</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Full findings, severity ordering and fixes: <a href="./recommendations.md">recommendations.md</a>. The architecture in prose: <a href="./system_architecture.md">system_architecture.md</a>.</p>
+  </section>
+
+  <footer>
+    <span>nompany ERP</span>
+    <span>procedure atlas</span>
+    <span>surveyed 2026-08-20</span>
+    <span>commit 166300f</span>
+    <span>latency measured against the live instance, read-only</span>
+  </footer>
+</div>
