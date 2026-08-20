@@ -38,8 +38,8 @@ Branch `wave-0-security-hardening`. Suite green, `tsc --noEmit` clean, productio
 | CI (typecheck, 3 suites, build, budget, ephemeral redis:8) | **done** |
 | Bundle budget | **done** — 1091 KB gz against a 1200 KB ceiling |
 | Per-route permission enforcement | **done for every module** — each pins its own refusal shapes, and M-15 records where a granted right cannot be exercised at all |
-| ESLint config | not yet — no `eslint` in devDependencies |
-| Observability (request ids, structured logs) | not yet |
+| ESLint config | **done** — flat config, 0 errors, a 201-warning backlog gated by `scripts/lint-budget.mjs` so it can only shrink |
+| Observability (request ids, structured logs) | **done** — `src/lib/observability.js`; every line carries a request id, every request reports its Redis hop count |
 
 **Opened while working, not yet decided:** `login()` checks `status === "suspended"` *before* verifying the password, so a suspended account is distinguishable from a non-existent one with no password at all — an enumeration oracle. Moving the check below `verifyPassword` closes it and costs one line, but it changes what a suspended person sees when they mistype their password. Decide before Wave 1 records golden responses.
 

@@ -14,6 +14,7 @@
 
 import { createHash } from "node:crypto";
 import { getRedisClient } from "@/lib/data/redis";
+import { log } from "@/lib/observability";
 
 const r = () => getRedisClient();
 
@@ -197,7 +198,7 @@ export async function editJSON(key, fn, { keepTTL = false } = {}) {
   }
   // Losing this many rounds in a row is not ordinary contention — it means a hot
   // spot worth knowing about, so say so rather than failing silently.
-  console.error(`[store] gave up after ${MAX_ATTEMPTS} contended attempts on ${key}`);
+  log.error(`[store] gave up after ${MAX_ATTEMPTS} contended attempts on ${key}`);
   throw new ConflictError(key);
 }
 

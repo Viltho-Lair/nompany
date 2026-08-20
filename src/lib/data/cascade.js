@@ -24,6 +24,7 @@
 import { REG, U, S, SEC, IX, KEY_PREFIX } from "@/lib/data/keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "@/lib/data/store";
 import { emitPlatform, PLATFORM } from "@/lib/data/events";
+import { log } from "@/lib/observability";
 
 // ---- collaborator ----------------------------------------------------------
 export async function cascadeDeleteCollaborator(studioId, collaboratorId) {
@@ -253,7 +254,7 @@ export async function sweepOrphans() {
   // GUARD 2. Nothing to reconcile against means nothing may be reaped.
   const refusal = sweepRefusal(P, users, studios);
   if (refusal) {
-    console.warn(`[sweep] refusing to run: key prefix "${P}" is set and both registries are empty.`);
+    log.warn(`[sweep] refusing to run: key prefix "${P}" is set and both registries are empty.`);
     return { skipped: refusal, prefix: P, checked: { users: 0, studios: 0 }, fixed };
   }
 

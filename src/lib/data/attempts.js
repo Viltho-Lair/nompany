@@ -40,6 +40,7 @@
 
 import { RL } from "@/lib/data/keys";
 import { incrWithTTL, extendTTL, ttlOf, delKeys, getIndex } from "@/lib/data/store";
+import { log } from "@/lib/observability";
 
 // Windows and ceilings. Failures, not attempts.
 const PAIR_MAX = 5;
@@ -115,7 +116,7 @@ export async function recordCredentialFailure({ ip, email }) {
     extendTTL(RL.attemptPair(ip, email), lockout),
     extendTTL(RL.attemptIp(ip), lockout),
   ]);
-  console.warn(`[attempts] locked out ${ip || "unknown"} for ${lockout}s (strike ${strikes})`);
+  log.warn(`[attempts] locked out ${ip || "unknown"} for ${lockout}s (strike ${strikes})`);
   return { tripped: true, strikes, retryAfter: lockout };
 }
 

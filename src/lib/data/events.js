@@ -26,6 +26,7 @@
 import { S, REG } from "@/lib/data/keys";
 import { xAdd, xAfter, xLastId } from "@/lib/data/store";
 import { publish, CH } from "@/lib/data/bus";
+import { log } from "@/lib/observability";
 
 // Roughly the last few hundred changes per studio. A client that has been away
 // longer than this gets told to reload from scratch rather than replay.
@@ -71,7 +72,7 @@ export async function emit(studioId, { type, scope = SCOPE.SECTION, sectionId = 
   } catch (e) {
     // The write it describes has already succeeded; losing the notification is
     // not a reason to fail the request.
-    console.error(`[events] emit failed on ${studioId} (${type}): ${e.message}`);
+    log.error(`[events] emit failed on ${studioId} (${type}): ${e.message}`);
     return null;
   }
 }
@@ -128,7 +129,7 @@ export async function emitPlatform({ type, title = "", body = "", href = "", ref
     await publish(CH.super, { id, ...fields });
     return id;
   } catch (e) {
-    console.error(`[events] platform emit failed (${type}): ${e.message}`);
+    log.error(`[events] platform emit failed (${type}): ${e.message}`);
     return null;
   }
 }

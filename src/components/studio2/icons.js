@@ -167,7 +167,10 @@ const CONSOLE_MARKS = {
 };
 
 const consoleMarks = Object.fromEntries(
-  Object.entries(CONSOLE_MARKS).map(([name, d]) => [name, <path d={d} />]),
+  // `key` is not strictly needed — fromEntries turns these into an object, so no
+  // element is ever a sibling of another — but the rule cannot see that, and a
+  // key on a lone element costs nothing.
+  Object.entries(CONSOLE_MARKS).map(([name, d]) => [name, <path key={name} d={d} />]),
 );
 
 const PATHS = {

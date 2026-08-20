@@ -28,6 +28,7 @@
 // cursor — never correctness. Nothing here is allowed to fail a write.
 
 import { getRedisClient } from "@/lib/data/redis";
+import { log } from "@/lib/observability";
 
 // ---- channels --------------------------------------------------------------
 // Namespaced away from the key space (`s:` `u:` `g:` …) on purpose: channels are
@@ -75,7 +76,7 @@ async function subscriber() {
       // ceiling on this deployment, so being able to see at a glance how many
       // of them are bus subscribers is worth the one option.
       const client = (await getRedisClient()).duplicate({ name: SUB_NAME });
-      client.on("error", (err) => console.error(`[bus] subscriber error: ${err.message}`));
+      client.on("error", (err) => log.error(`[bus] subscriber error: ${err.message}`));
       await client.connect();
       return client;
     })().catch((err) => {
@@ -105,7 +106,7 @@ function deliver(channel, raw) {
       handler(payload);
     } catch (e) {
       // One bad listener must not stop the others from being told.
-      console.error(`[bus] handler failed on ${channel}: ${e.message}`);
+      log.error(`[bus] handler failed on ${channel}: ${e.message}`);
     }
   }
 }
@@ -161,7 +162,7 @@ export async function subscribe(channel, handler) {
     } catch (e) {
       // The connection is already gone or going. The subscription dies with it,
       // which is the outcome we wanted anyway.
-      console.error(`[bus] unsubscribe failed on ${channel}: ${e.message}`);
+      log.error(`[bus] unsubscribe failed on ${channel}: ${e.message}`);
     }
   };
 }
@@ -180,7 +181,7 @@ export async function publish(channel, payload) {
     const client = await getRedisClient();
     return (await client.publish(channel, JSON.stringify(payload))) || 0;
   } catch (e) {
-    console.error(`[bus] publish failed on ${channel}: ${e.message}`);
+    log.error(`[bus] publish failed on ${channel}: ${e.message}`);
     return 0;
   }
 }

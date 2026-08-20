@@ -31,6 +31,7 @@ import {
 import { checkPassword } from "@/lib/passwordPolicy";
 import { sendEmail } from "@/lib/email";
 import { verificationCodeEmail, passwordResetCodeEmail } from "@/lib/emailTemplates";
+import { log } from "@/lib/observability";
 
 // The ONE session cookie of the restructured model. Deliberately a new name so
 // it can never be confused with the old-structure cookies (nc_session/mt_admin)
@@ -161,7 +162,7 @@ async function deliverCode(to, name, code, template) {
   const msg = template({ name, code });
   const res = await sendEmail({ to, subject: msg.subject, html: msg.html, text: msg.text });
   if (!res?.ok) {
-    console.error(
+    log.error(
       `[identity] OTP delivery FAILED to ${to} after ${res?.attempts ?? 0} attempt(s): `
       + `${res?.error || "unknown error"}${res?.skipped ? " (suppressed)" : ""}`,
     );
@@ -278,7 +279,7 @@ export async function login({ email, password, remember, deviceId, ip, device })
   if (needsRehash(user.passwordHash)) {
     hashPassword(password)
       .then((passwordHash) => updateUser(user.id, { passwordHash }))
-      .catch((e) => console.error(`[identity] rehash failed for ${user.id}: ${e.message}`));
+      .catch((e) => log.error(`[identity] rehash failed for ${user.id}: ${e.message}`));
   }
 
   // Passing the fingerprint here refreshes the stored row on every sign-in, so

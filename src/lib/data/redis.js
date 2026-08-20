@@ -6,6 +6,7 @@
 
 import { createClient } from "redis";
 import { countingClient } from "@/lib/data/commandCount";
+import { log } from "@/lib/observability";
 
 let clientPromise = null;
 
@@ -19,7 +20,7 @@ export function getRedisClient() {
   }
   clientPromise = (async () => {
     const client = createClient({ url: process.env.REDIS_URL });
-    client.on("error", (err) => console.error("Redis client error:", err.message));
+    client.on("error", (err) => log.error("Redis client error:", err.message));
     await client.connect();
     // Wrapped so every command can report itself into an active counting scope.
     // Outside one there is no store and nothing is recorded — see

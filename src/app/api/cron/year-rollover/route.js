@@ -4,6 +4,7 @@ import { readDays, readPages, daysOfYear, recordActiveUsers } from "@/lib/data/s
 import { listUsersForConsole } from "@/lib/data/users";
 import { listSuperAdminEmails } from "@/lib/superAuth";
 import { statusOf, STATUS } from "@/lib/platformRoles";
+import { log, withRequest } from "@/lib/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +26,13 @@ export const dynamic = "force-dynamic";
 // question on demand, for any range, from the Analytics screen. This job exists
 // for the half that cannot be done on demand: WRITING DOWN TODAY'S ACTIVE-USER
 // COUNT, which nothing can reconstruct after the fact.
+// Wrapped for the same reason the sweep is: it runs unattended on a schedule,
+// so "which run wrote that line?" is a question somebody will need answered.
 export async function GET(request) {
+  return withRequest("cron/year-rollover", () => rollover(request));
+}
+
+async function rollover(request) {
   // Fails closed when CRON_SECRET is unset — see lib/cronAuth.js.
   const denied = cronDenied(request);
   if (denied) return denied;
@@ -51,7 +58,7 @@ export async function GET(request) {
     await recordActiveUsers(active);
   } catch (err) {
     // A missed snapshot costs one day of comparison, never the job.
-    console.error("Active-user snapshot failed:", err.message);
+    log.error("Active-user snapshot failed:", err.message);
   }
 
   // Month and day only: this is "is it 1 January", not "is it 1 January 2027".
@@ -78,7 +85,7 @@ export async function GET(request) {
     // Nowhere to send the summary. Worth saying out loud, but not an error: the
     // data it describes is still on file, and the export can produce it at any
     // time from the Analytics screen.
-    console.error(`Year rollover: no super admins on file; no summary sent for ${year}.`);
+    log.error(`Year rollover: no super admins on file; no summary sent for ${year}.`);
     return Response.json({ ok: true, year, sessions, pageViews, mailed: false, kept: days.length });
   }
 
@@ -117,7 +124,7 @@ export async function GET(request) {
     // A failed send used to be fatal, because the data was about to be destroyed
     // and this mail was its only copy. Nothing is destroyed now, so an
     // undelivered summary is worth logging and nothing more.
-    console.error("Year rollover email failed:", err.message);
+    log.error("Year rollover email failed:", err.message);
   }
 
   return Response.json({ ok: true, year, sessions, pageViews, mailed, kept: days.length });

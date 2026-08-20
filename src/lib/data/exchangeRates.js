@@ -26,6 +26,7 @@
 
 import { FX } from "@/lib/data/keys";
 import { getJSON, setJSON, claim, release } from "@/lib/data/store";
+import { log } from "@/lib/observability";
 
 const BASE = "USD";
 const ENDPOINT = (key) => `https://v6.exchangerate-api.com/v6/${key}/latest/${BASE}`;
@@ -90,7 +91,7 @@ export async function getExchangeSnapshot() {
     await release(FX.lock); // success frees the lock; failure leaves it to back off
     return { ...snap, stale: false };
   } catch (err) {
-    console.error("Exchange rate refresh failed:", err.message);
+    log.error("Exchange rate refresh failed:", err.message);
     // Shorten nothing — the lock's remaining FAIL_BACKOFF_SEC is the backoff.
     return cached
       ? { ...cached, stale: true, error: err.message }

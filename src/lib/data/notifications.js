@@ -33,6 +33,7 @@
 import { S, REG, makeId } from "@/lib/data/keys";
 import { readArr, editArr } from "@/lib/data/store";
 import { publish, CH } from "@/lib/data/bus";
+import { log } from "@/lib/observability";
 
 // Enough that nobody reaches the end of their bell in normal use, small enough
 // that the array stays a cheap read. Older rows fall off; they are notices, not
@@ -108,7 +109,7 @@ export async function notifyCollaborators(studioId, recipientIds, notice, opts =
 
     return rows;
   } catch (e) {
-    console.error(`[notifications] write failed on ${studioId}: ${e.message}`);
+    log.error(`[notifications] write failed on ${studioId}: ${e.message}`);
     return [];
   }
 }
@@ -161,7 +162,7 @@ export async function notifySuper(notice) {
     await publish(CH.super, { kind: "notif", ...row });
     return row;
   } catch (e) {
-    console.error(`[notifications] super write failed: ${e.message}`);
+    log.error(`[notifications] super write failed: ${e.message}`);
     return null;
   }
 }

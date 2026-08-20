@@ -61,6 +61,16 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: Lint
+        # Errors are always fatal. Warnings are a backlog with a ceiling that can
+        # only go down — see scripts/lint-budget.mjs for why neither "fail on
+        # every warning" nor "warn forever" survives contact with a real backlog.
+        #
+        # This step also earns its place on the day it landed: it found a SYNTAX
+        # ERROR in api/cron/year-rollover that `tsc --noEmit` had passed, because
+        # tsconfig sets checkJs false and the file is .js.
+        run: node scripts/lint-budget.mjs
+
       - name: Tests — access rules
         run: node tests/access.test.js
 

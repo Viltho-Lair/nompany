@@ -34,8 +34,16 @@ import { useLive } from "@/components/studio2/LiveProvider";
 export default function useLiveUpdates(slug, watch, onChange) {
   const live = useLive();
   // Held in a ref so a re-render with a new closure never re-subscribes.
+  //
+  // ASSIGNED IN AN EFFECT, not during render. Writing a ref while rendering is
+  // the documented anti-pattern: React is free to render a component twice and
+  // throw one result away, so a mutation made on the way past may belong to a
+  // render that never happened. The subscription below reads latest.current at
+  // EVENT time, which is long after effects have run, so nothing is lost by
+  // waiting — and no effect dependency array, deliberately: this must run after
+  // every render, because the whole point is to hold the newest closure.
   const latest = useRef(onChange);
-  latest.current = onChange;
+  useEffect(() => { latest.current = onChange; });
 
   const subscribe = live?.subscribe;
 

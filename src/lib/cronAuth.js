@@ -1,3 +1,4 @@
+import { log } from "@/lib/observability";
 // WHO MAY RUN A SCHEDULED JOB.
 //
 // The three cron routes each carried their own copy of this check, and each
@@ -18,7 +19,7 @@
 export function cronDenied(request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
-    console.error("[cron] CRON_SECRET is not set — refusing to run a scheduled job.");
+    log.error("[cron] CRON_SECRET is not set — refusing to run a scheduled job.");
     return Response.json({ error: "not-configured" }, { status: 503 });
   }
   if (request.headers.get("x-vercel-cron")) return null;

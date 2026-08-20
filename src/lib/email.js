@@ -1,3 +1,4 @@
+import { log } from "@/lib/observability";
 // Generic, reusable Resend email integration.
 //
 // This module is the ONLY place that talks to Resend. Everything else calls
@@ -110,13 +111,13 @@ export async function sendEmail(opts = {}) {
 
   // Global kill-switch — suppress ALL delivery until explicitly enabled.
   if (!emailsEnabled()) {
-    console.warn(`[email] EMAILS_ENABLED is not "true" — suppressing email "${subject}" to ${recipients.join(", ")}`);
+    log.warn(`[email] EMAILS_ENABLED is not "true" — suppressing email "${subject}" to ${recipients.join(", ")}`);
     return { ok: false, skipped: true, error: "Email sending disabled (EMAILS_ENABLED)" };
   }
 
   if (!getApiKey()) {
     // Soft no-op so local dev and misconfigured environments never crash.
-    console.warn(`[email] RESEND_API_KEY not set — skipping email "${subject}" to ${recipients.join(", ")}`);
+    log.warn(`[email] RESEND_API_KEY not set — skipping email "${subject}" to ${recipients.join(", ")}`);
     return { ok: false, skipped: true, error: "RESEND_API_KEY not configured" };
   }
 
@@ -176,19 +177,19 @@ export async function sendEmail(opts = {}) {
 
       // Refused, not failed — trying again cannot change the answer.
       if (!isRetryable(res.status)) {
-        console.error(`[email] refused (${res.status}) for "${subject}": ${lastError}`);
+        log.error(`[email] refused (${res.status}) for "${subject}": ${lastError}`);
         return { ok: false, error: lastError, attempts: attempt };
       }
 
       // If Resend told us how long to wait, believe it over our own guess.
       const after = Number(res.headers.get("retry-after"));
       if (Number.isFinite(after) && after > 0) waitMs = after * 1000;
-      console.warn(`[email] attempt ${attempt}/${MAX_ATTEMPTS} failed (${res.status}) for "${subject}": ${lastError}`);
+      log.warn(`[email] attempt ${attempt}/${MAX_ATTEMPTS} failed (${res.status}) for "${subject}": ${lastError}`);
     } catch (err) {
       lastError = err?.name === "AbortError"
         ? `no response within ${ATTEMPT_TIMEOUT_MS}ms`
         : err?.message || "network error";
-      console.warn(`[email] attempt ${attempt}/${MAX_ATTEMPTS} errored for "${subject}": ${lastError}`);
+      log.warn(`[email] attempt ${attempt}/${MAX_ATTEMPTS} errored for "${subject}": ${lastError}`);
     } finally {
       clearTimeout(timer);
     }
@@ -202,6 +203,6 @@ export async function sendEmail(opts = {}) {
     }
   }
 
-  console.error(`[email] gave up on "${subject}" after ${made} attempt(s): ${lastError}`);
+  log.error(`[email] gave up on "${subject}" after ${made} attempt(s): ${lastError}`);
   return { ok: false, error: lastError, attempts: made };
 }

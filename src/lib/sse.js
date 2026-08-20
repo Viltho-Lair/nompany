@@ -1,3 +1,4 @@
+import { log } from "@/lib/observability";
 // SERVER-SENT EVENTS — the transport, with none of the app in it.
 //
 // One long-lived HTTP response per connected tab, over which the server writes
@@ -95,10 +96,10 @@ export function sseResponse(request, start) {
       // wait for it — the response is over either way — but an ignored
       // rejection here would surface as an unhandled one, so it is caught.
       Promise.resolve(cleanup?.()).catch((e) =>
-        console.error(`[sse] cleanup failed: ${e.message}`),
+        log.error(`[sse] cleanup failed: ${e.message}`),
       );
     } catch (e) {
-      console.error(`[sse] cleanup failed: ${e.message}`);
+      log.error(`[sse] cleanup failed: ${e.message}`);
     }
     try {
       controller?.close();
@@ -162,7 +163,7 @@ export function sseResponse(request, start) {
           }
         })
         .catch((e) => {
-          console.error(`[sse] start failed: ${e.message}`);
+          log.error(`[sse] start failed: ${e.message}`);
           shutdown();
         });
     },

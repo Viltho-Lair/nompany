@@ -6,6 +6,7 @@ import { listSections } from "@/lib/data/sections";
 import { readSince, latestId, isCursor, SCOPE, TYPE } from "@/lib/data/events";
 import { subscribe, CH } from "@/lib/data/bus";
 import { sseResponse, resumeCursor } from "@/lib/sse";
+import { log } from "@/lib/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -176,7 +177,7 @@ export async function GET(request, ctx) {
         }).catch((err) => {
           // We could not re-establish what this caller may see. Refusing to
           // guess is the only safe answer: close, and let the reconnect decide.
-          console.error(`[stream] reauthorize failed on ${studio.id}: ${err.message}`);
+          log.error(`[stream] reauthorize failed on ${studio.id}: ${err.message}`);
           conn.send("bye", { reason: "reauthorize" });
           conn.close();
         });

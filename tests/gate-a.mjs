@@ -25,6 +25,7 @@ import { studioContext } from "@/lib/studios";
 import { SESSION_COOKIE } from "@/lib/identity";
 import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/lib/superAuth";
 import { withCommandCount } from "@/lib/data/commandCount";
+import { withRequest, requestId, redact, log } from "@/lib/observability";
 import { readArr } from "@/lib/data/store";
 import { S } from "@/lib/data/keys";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
@@ -1539,6 +1540,69 @@ console.log("== /super: a second identity, and the wall between them");
   }
 
   __signOut();
+}
+
+// ============================================================================
+console.log("== observability: a line you can trace, and a secret you cannot read");
+// console.error was the entire strategy — thirty-one calls across nineteen
+// modules, each a sentence with no way to tell which request produced it. On a
+// platform running however many instances Vercel keeps warm, an error and its
+// cause are two unrelated lines in two log streams, joined by guessing at
+// timestamps.
+{
+  ok("there is no request id outside a request", requestId() === "");
+
+  const seen = [];
+  const traced = await withRequest("test/route", async () => {
+    seen.push(requestId());
+    // Something that actually talks to Redis, so the completion line has hops
+    // to report rather than reporting zero and looking like it works.
+    await readArr(S.collaborators(studio.id));
+    await readArr(S.roles(studio.id));
+    return "done";
+  });
+  ok("a request returns its handler's value", traced === "done", String(traced));
+  ok("...and carries an id while it runs", /^[0-9a-f-]{36}$/.test(seen[0]), seen[0]);
+  ok("...which is gone once it ends", requestId() === "");
+
+  // TWO REQUESTS DO NOT SHARE AN ID, which is the whole point on a platform
+  // that runs them concurrently in one process.
+  const a = []; const b = [];
+  await Promise.all([
+    withRequest("test/a", async () => { a.push(requestId()); await readArr(S.roles(studio.id)); }),
+    withRequest("test/b", async () => { b.push(requestId()); await readArr(S.roles(studio.id)); }),
+  ]);
+  ok("concurrent requests get different ids", a[0] !== b[0], `${a[0]} vs ${b[0]}`);
+
+  // WHAT MUST NEVER REACH A LOG LINE. Enforced in one place rather than trusted
+  // to thirty-one call sites — a rule each caller remembers is a hope.
+  const cleaned = redact({
+    email: "someone@example.com",
+    password: "hunter2",
+    passwordHash: "$2b$12$abcdefghijklmnop",
+    token: "abc",
+    idNumber: "1098765432",
+    passportNumber: "K01234567",
+    salary: 42000,
+    nested: { sessionToken: "s3cret", harmless: "fine" },
+    bearer: "aVeryLongOpaqueLookingValueThatIsClearlyACredential123456",
+    ok: "kept",
+  });
+  const flat = JSON.stringify(cleaned);
+  for (const secret of ["hunter2", "$2b$12$", "1098765432", "K01234567", "s3cret", "aVeryLongOpaque"]) {
+    ok(`a secret never reaches a log line: ${secret.slice(0, 12)}`, !flat.includes(secret), flat.slice(0, 160));
+  }
+  ok("...while ordinary fields survive", cleaned.ok === "kept" && cleaned.nested.harmless === "fine", flat);
+  ok("...and a credential-shaped value is caught even under an innocent key",
+    cleaned.bearer === "<redacted>", String(cleaned.bearer));
+
+  // The logger must never be the thing that breaks a request.
+  let threw = false;
+  try {
+    const circular = { name: "loop" }; circular.self = circular;
+    log.info("a circular payload", circular);
+  } catch { threw = true; }
+  ok("logging a circular payload does not throw", threw === false);
 }
 
 // ============================================================================
