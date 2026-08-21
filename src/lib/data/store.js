@@ -229,10 +229,20 @@ export async function claim(key, value, ttlSec) {
   const args = ["SET", key, String(value), "NX"];
   if (ttlSec) args.push("EX", String(ttlSec));
   const res = await (await r()).sendCommand(args);
+  // A claim that landed changes what the index says, so anything remembering the
+  // old answer is now wrong. A claim that did NOT land changes nothing — but
+  // invalidating anyway costs a Map.delete and removes the need to be right
+  // about which case this was.
+  invalidate(key);
   return res === "OK";
 }
+// CACHED LIKE getJSON, and for a sharper reason. An index read is the FIRST half
+// of every "resolve a name to an id" pair — ix:slug, ix:session, ix:owner — so
+// it is exactly the read a prefetch is trying to get out of the critical path.
+// Leaving it uncached made the studio prefetch cost an extra command rather than
+// saving a wave: the value was fetched twice, once to warm and once for real.
 export async function getIndex(key) {
-  return (await r()).get(key);
+  return cachedRead(key, async () => (await r()).get(key));
 }
 export async function release(key) {
   invalidate(key);

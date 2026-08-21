@@ -110,7 +110,19 @@ export async function studioContext(user, slug) {
   if (!user) return { error: "unauthorized" };
   const studio = await getStudioBySlug(slug);
   if (!studio) return { error: "notfound" };
-  const collaborator = await getCollaboratorByUser(studio.id, user.id);
+  // COLLABORATORS, ROLES AND SECTIONS ALL KEY OFF studio.id ALONE, so none of
+  // them needed to wait for the others. Reading membership first and only then
+  // asking for roles and sections cost a whole round trip to discover something
+  // the other two reads did not depend on.
+  //
+  // The refusal still happens before any of it is USED, which is what matters:
+  // a non-member gets the same answer, one wave sooner, and learns nothing extra
+  // because nothing is returned to them either way.
+  const [collaborator, roles, sections] = await Promise.all([
+    getCollaboratorByUser(studio.id, user.id),
+    listRoles(studio.id),
+    listSections(studio.id),
+  ]);
   if (!collaborator) return { error: "forbidden" };
 
   // ACCESS IS RESOLVED ONCE, HERE. Every section context is built on this one,
@@ -120,7 +132,6 @@ export async function studioContext(user, slug) {
   //
   // Roles and grants are both read while the legacy bridge stands; the resolver
   // decides which one speaks. When grants are migrated, drop the two reads.
-  const [roles, sections] = await Promise.all([listRoles(studio.id), listSections(studio.id)]);
   const access = effectivePermissions({ studio, collaborator, roles });
 
   // `grants` is still returned because callers destructure it; it is no longer

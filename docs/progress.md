@@ -4,7 +4,7 @@
 this one is where we actually are. Updated when a wave item closes, not on a
 schedule.
 
-**Last updated:** 2026-08-21 · 47 commits since the audit baseline (`166300f`)
+**Last updated:** 2026-08-21 · 49 commits since the audit baseline (`166300f`)
 
 ---
 
@@ -13,7 +13,7 @@ schedule.
 | | |
 |---|---|
 | **Done** | Wave 0, Gate A, and Wave 2's three seams (A, B, C) |
-| **In progress** | Gate B — hop counts. The `readCol` migration is done |
+| **In progress** | W9 onward. Gate B's criteria are met |
 | **Blocked on nothing** | CI green on every push |
 | **Next gate** | **Gate B**: zero `readCol` in services · ≤2 hops per module request |
 
@@ -36,13 +36,16 @@ A gate is a promise the build keeps, not a milestone anybody declares.
 | Criterion | Target | Now |
 |---|---|---|
 | `readCol` in service code | 0 | ✅ **0** |
-| Hops — `/api/studios/[slug]` | ≤2 | 6 waves *(was 7)* |
-| Hops — `…/sales` | ≤2 | 7 waves *(was 8)* |
+| Hops — `/api/studios/[slug]` | ≤2 | ✅ **2 waves** *(was 8)* |
+| Hops — `…/sales` | ≤2 | **3 waves** *(was 8)* — 3 is the structural floor |
 | Goldens unchanged | 139 | ✅ 139 |
 
-Hop counts come down in **W8** (request-scoped cache + batched prefetch), not in
-the migration itself. The migration is what makes W8 possible to write once
-rather than thirteen times.
+The studio route meets the ≤2 target. Sales sits at 3, and 3 is the structural
+floor rather than a convenient stopping point: the section list cannot be fetched
+until the studio id is known, and the collections cannot be fetched until the
+section ids are. Going lower means denormalising one into the other — a real
+option with a real invalidation cost, and an open decision rather than an
+oversight.
 
 ---
 
@@ -78,7 +81,7 @@ status-code inventory that wrote Wave 2's own checklist.
 | **Seam B** — repository | ✅ built · 🟡 adopted | Interface + 25 assertions; 1 of 13 files migrated |
 | **Seam C** — module context | ✅ | 9 contexts → 1 factory. −448/+174 lines. **Killed hop 7 everywhere** |
 | W7 — speed refactors | 🟡 | R1 done (via Seam C). R2, R6, R9 open |
-| W8 — cache + prefetch | ⬜ | The 8→2 hop work |
+| W8 — cache + prefetch | ✅ | 8 waves → 2 (studio) and 3 (sales) |
 | W9 — targeted live updates | ⬜ | |
 | W10 — media to Blob · audit log | ⬜ | |
 | W11 — security round 2 · notifications | ⬜ | |

@@ -181,10 +181,18 @@ export async function mintSession(userId, ttlSec) {
   }));
   return token;
 }
+// TWO READS, ONE WAIT. The session index gives a user id and the registry is a
+// FIXED key — `g:users` — so the second read never needed the first one's
+// answer. Asking in sequence cost a whole round trip on every authenticated
+// request in the product, to join two values in memory afterwards.
+//
+// The cost of being wrong is one wasted read when a token exists but is stale,
+// against one saved wave every time it is not. The `!token` case still returns
+// before either read.
 export async function findUserBySession(token) {
   if (!token) return null;
-  const userId = await getIndex(IX.session(token));
-  return userId ? getUserById(userId) : null;
+  const [userId, rows] = await Promise.all([getIndex(IX.session(token)), readArr(REG.users)]);
+  return userId ? (rows.find((u) => u.id === userId) || null) : null;
 }
 export async function revokeSession(userId, token) {
   await release(IX.session(token));

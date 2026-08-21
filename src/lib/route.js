@@ -29,8 +29,10 @@
 // from the thing it protects, which is how the UI and the write paths came to
 // disagree in the first place.
 
-import { currentUser, currentIdentity } from "@/lib/identity";
+import { cookies } from "next/headers";
+import { currentUser, currentIdentity, SESSION_COOKIE } from "@/lib/identity";
 import { studioContext } from "@/lib/studios";
+import { getStudioBySlug } from "@/lib/data/studios";
 import { currentSuperAdmin } from "@/lib/superAuth";
 import { statusFor } from "@/lib/httpStatus";
 import { isCrossSite, MUTATING } from "@/lib/origin";
@@ -156,9 +158,34 @@ export function route(spec, handler) {
       return { args: { ...base, identity, user }, identity: user.id };
     }
 
+    // PREFETCH THE STUDIO WHILE THE USER IS BEING RESOLVED.
+    //
+    // Who you are and which studio the URL names are independent questions, and
+    // the wrapper was asking them one after the other — resolve the session,
+    // read the user registry, and only then start on the slug. Two full round
+    // trips spent in sequence for two answers that never depended on each other.
+    //
+    // Nothing is done with the result. It warms the request cache, so when the
+    // module context asks for the same studio a moment later the value is
+    // already there: no extra command, and no extra wave. That is the whole
+    // trick — a prefetch that changes no code path, only when the reads happen.
+    //
+    // GATED ON THE COOKIE, because an unauthenticated caller should not be able
+    // to make us do Redis work by naming a slug. Reading a cookie costs nothing;
+    // /api/track exists as a reminder of what an unbounded public read is worth.
+    let warming;
+    if (auth === "studio" && params.slug) {
+      const hasSession = Boolean((await cookies()).get(SESSION_COOKIE)?.value);
+      if (hasSession) warming = getStudioBySlug(params.slug).catch(() => null);
+    }
+
     const user = await currentUser();
     if (!user) return { refusal: refuse("unauthorized", 401) };
     if (auth === "user") return { args: { ...base, user }, identity: user.id };
+
+    // Joined so a rejected prefetch cannot surface as an unhandled rejection;
+    // its value is deliberately unused.
+    if (warming) await warming;
 
     // auth === "studio": membership authorises, the URL never does.
     //

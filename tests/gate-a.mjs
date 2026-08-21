@@ -2069,20 +2069,23 @@ console.log("== hop counts: how many round trips a screen costs");
   const studioCall = await withCommandCount(() => capture(STUDIO.GET, req(`/api/studios/${slug}`), ctx({ slug })));
   console.log(`       GET /api/studios/<slug>        ${studioCall.commands} commands, ${studioCall.waves} waves`);
   ok("the studio route is measured at all", studioCall.commands > 0);
-  // LOWERED FROM 12 TO 7 when the route stopped re-reading sections that
-  // studioContext had already fetched and handed to it. The ceiling only ever
-  // ratchets down: it sits one wave above the measurement so an accidental
-  // extra round trip fails, and the next wave lowers it again. W8's target is 2.
-  ok("the studio route stays under its ceiling", studioCall.waves <= 7, `${studioCall.waves} waves: ${studioCall.names.join(",")}`);
+  // 12 → 7 when the route stopped re-reading sections studioContext had already
+  // handed it, and 7 → 3 when W8 landed. The measurement is 2, which is the
+  // number the plan set as the target for this route.
+  //
+  // The ceiling only ever ratchets down, and sits one wave above the
+  // measurement so an accidental extra round trip fails the build.
+  ok("the studio route stays under its ceiling", studioCall.waves <= 3, `${studioCall.waves} waves: ${studioCall.names.join(",")}`);
 
   const salesCall = await withCommandCount(() => capture(SALES.GET, req(`/api/studios/${slug}/sales`), ctx({ slug })));
   console.log(`       GET /api/studios/<slug>/sales  ${salesCall.commands} commands, ${salesCall.waves} waves`);
-  // LOWERED FROM 16 TO 8 when Seam C stopped every module context re-reading the
-  // section list studioContext had already fetched and handed over. One round
-  // trip, on every module request in the product, deleted in one place — the
-  // audit's R1. The ceiling sits one wave above the measurement, as the studio
-  // route's does; W8's target for both is 2.
-  ok("the sales route stays under its ceiling", salesCall.waves <= 8, `${salesCall.waves} waves: ${salesCall.names.slice(0, 20).join(",")}`);
+  // 16 → 8 with Seam C, and 8 → 4 with W8. The measurement is 3, and 3 is the
+  // structural floor for this route rather than a stopping point chosen for
+  // convenience: the section list cannot be fetched until the studio id is
+  // known, and the seven collections cannot be fetched until the section ids
+  // are. Going below it means denormalising one of those into the other — a
+  // real option, with a real invalidation cost, and not one to take silently.
+  ok("the sales route stays under its ceiling", salesCall.waves <= 4, `${salesCall.waves} waves: ${salesCall.names.slice(0, 20).join(",")}`);
 
   // THE DUPLICATE THE AUDIT NAMED: studioContext resolves sections and every
   // module context reads them again. Pinned as a count so the fix is visible
@@ -2091,6 +2094,18 @@ console.log("== hop counts: how many round trips a screen costs");
   // says which fix W8 needs: repeats are what a request-scoped cache collapses,
   // distinct keys are what batching helps. Printed rather than asserted, because
   // it is a diagnosis, and pinning it would only make the fix noisier to land.
+  // THE ORDER THE KEYS WERE ASKED FOR is what a wave count cannot show, and it
+  // is how W8 was designed rather than guessed: a wave can only be removed by
+  // finding a key whose NAME depends on a value fetched in the wave before it.
+  // Four of the original seven turned out not to — g:users and g:studios are
+  // fixed keys that were being read after the index that "found" them.
+  //
+  // Set NOMPANY_HOP_TRACE=1 to print it again the next time this matters.
+  if (process.env.NOMPANY_HOP_TRACE === "1") {
+    console.log("       sales read order:");
+    salesCall.keys.forEach((k, i) => console.log(`         ${String(i + 1).padStart(2)}  ${k}`));
+  }
+
   const uniq = new Set(salesCall.keys);
   const repeats = salesCall.keys.length - uniq.size;
   console.log(`       sales keys: ${salesCall.keys.length} reads, ${uniq.size} distinct, ${repeats} repeated`);
