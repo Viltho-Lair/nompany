@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import { route } from "@/lib/route";
 import { patchAdmin } from "@/lib/superAuth";
 import { beginEnrolment, verifyCode, makeRecoveryCodes, sealSecret, openSecret, mfaEnabled } from "@/lib/superMfa";
@@ -25,7 +26,17 @@ export const GET = route(spec, async ({ admin }) => {
   // NOT PERSISTED. The client holds it for the length of the enrolment and
   // sends it back with the first code; an abandoned enrolment leaves nothing.
   const { secret, uri } = beginEnrolment(admin.email);
-  return { enabled: false, secret, uri };
+
+  // THE QR IS RENDERED SERVER-SIDE AS AN SVG STRING, not fetched from a chart
+  // service and not built in the browser. A QR of an otpauth:// URI IS the
+  // secret — handing it to a third party to draw would post the console's second
+  // factor to somebody else's logs, which is a strange way to add security.
+  //
+  // SVG rather than a PNG data URI so it stays sharp and stays small (~1.2 KB),
+  // and inline so no image host has to be allowed through the CSP.
+  const qr = await QRCode.toString(uri, { type: "svg", margin: 1, width: 200 }).catch(() => "");
+
+  return { enabled: false, secret, uri, qr };
 });
 
 export const POST = route({ ...spec, body: true }, async ({ admin, body }) => {

@@ -26,7 +26,17 @@
       "port": 3010
     },
     {
-      "//": "New main website \u2014 lives in the sibling nompany-main-website repo, which launch.json cannot cd into. Start it there with `npm run dev -- -p 3020`; this entry only attaches.",
+      "//": "A dev server on its own key namespace, with a seeded login. This is the one to use for verifying a SCREEN: `npm run dev` runs against live Redis, so any session it can offer is a real one.",
+      "name": "nompany-sandbox",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:sandbox"
+      ],
+      "port": 3010
+    },
+    {
+      "//": "New main website — lives in the sibling nompany-main-website repo, which launch.json cannot cd into. Start it there with `npm run dev -- -p 3020`; this entry only attaches.",
       "name": "new-main-website",
       "url": "http://localhost:3020",
       "port": 3020

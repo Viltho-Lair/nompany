@@ -100,6 +100,7 @@ export const NAV = [
       },
       { label: "Documentation", icon: "book", href: `${BASE}/docs` },
       { label: "Settings", icon: "settings", href: `${BASE}/settings/profile` },
+      { label: "Security", icon: "shield", href: `${BASE}/settings/security` },
     ],
   },
 ];
