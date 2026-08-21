@@ -31,12 +31,18 @@ export async function POST(request) {
   const slug = String(form?.get("slug") || url.searchParams.get("slug") || "").trim();
 
   let studioId = "";
+  // THE PLAN DECIDES THE BUDGET, so the studio's package travels with the
+  // upload. Uploads used to be unlimited in number and size-capped per file
+  // only, which is how fifteen files came to hold the largest share of the
+  // dataset with nothing in the product able to say so.
+  let packageKey = "";
   if (slug) {
     const context = await studioContext(user, slug);
     if (context.error) {
       return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
     }
     studioId = context.studio.id;
+    packageKey = context.studio.packageKey || "";
   } else if (isPrivate) {
     // Refused rather than quietly stored as a personal file: a private upload
     // with no studio would be readable only by the uploader, so the signature
@@ -53,9 +59,14 @@ export async function POST(request) {
     visibility: isPrivate ? "private" : "public",
     owner: user.id,
     studioId,
+    packageKey,
   });
   if (result.error) {
-    return Response.json({ error: result.error }, { status: result.error === "too-large" ? 413 : 400 });
+    // 507 for a full studio, 413 for one oversized file. They are different
+    // problems with different answers — delete something, or send something
+    // smaller — and collapsing both into 400 tells the uploader neither.
+    const status = result.error === "too-large" ? 413 : result.error === "quota" ? 507 : 400;
+    return Response.json(result, { status });
   }
   return Response.json(result, { status: 201 });
 }

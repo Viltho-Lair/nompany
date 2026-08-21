@@ -1,7 +1,7 @@
 import { currentUser } from "@/lib/identity";
 import { getStudioById } from "@/lib/data/studios";
 import { getCollaboratorByUser } from "@/lib/data/collaborators";
-import { getMedia } from "@/lib/media";
+import { getMedia, readMedia } from "@/lib/media";
 
 export const runtime = "nodejs";
 
@@ -38,11 +38,28 @@ export async function GET(request, ctx) {
     if (denied) return denied;
   }
 
-  return new Response(media.buffer, {
+  // A PUBLIC FILE IS REDIRECTED; A PRIVATE ONE IS STREAMED.
+  //
+  // The binary now lives in Vercel Blob at an unguessable but PUBLIC URL, and
+  // that URL must never reach a client for a private file — it would replace the
+  // membership check above with a shareable string, which is not the same thing
+  // and cannot be taken back once the link is out. So a private file is fetched
+  // server-side and served through this route, which stays the only door.
+  //
+  // A public one has nothing to protect, so it redirects: the CDN serves it,
+  // cached and close to the reader, and we pay no egress for it at all.
+  if (media.visibility !== "private") {
+    return Response.redirect(media.url, 307);
+  }
+
+  const buffer = await readMedia(media);
+  if (!buffer) return new Response("Not found", { status: 404 });
+
+  return new Response(buffer, {
     headers: {
       "Content-Type": media.contentType,
-      "Content-Length": String(media.size),
-      "Cache-Control": media.visibility === "private" ? "private, no-store" : "public, max-age=31536000, immutable",
+      "Content-Length": String(buffer.length),
+      "Cache-Control": "private, no-store",
     },
   });
 }

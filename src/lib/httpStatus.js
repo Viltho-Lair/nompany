@@ -120,6 +120,12 @@ const RATE_LIMITED = ["rate-limited", "rate-email", "rate-ip", "cooldown", "rate
 // 413 — the upload is bigger than the ceiling.
 const TOO_LARGE = ["too-large"];
 
+// 507 — THE STUDIO IS FULL. Distinct from 413 on purpose: 413 says this one file
+// is too big, 507 says there is no room for any more. The answers differ — send
+// something smaller, or delete something — so collapsing them loses the only
+// part the uploader can act on.
+const NO_ROOM = ["quota"];
+
 // 500 — OUR BUG, NOT THEIRS. `unknown-permission` means a route asked for a
 // permission key the catalogue does not define; no request the caller could
 // have sent would avoid it, so telling them "bad request" would be a lie that
@@ -134,6 +140,7 @@ const build = () => {
   put(NOT_FOUND, 404);
   put(CONFLICT, 409);
   put(TOO_LARGE, 413);
+  put(NO_ROOM, 507);
   put(RATE_LIMITED, 429);
   put(SERVER_FAULT, 500);
   return Object.freeze(table);

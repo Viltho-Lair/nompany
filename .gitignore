@@ -12,3 +12,7 @@ data/db.json
 
 # TypeScript incremental build cache.
 tsconfig.tsbuildinfo
+
+# Media exported from production by scripts/migrate-media-to-blob.mjs. Real
+# customer files — never committed, and deleted once the migration is proven.
+media-export/

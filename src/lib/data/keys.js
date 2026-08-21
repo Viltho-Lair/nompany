@@ -272,6 +272,12 @@ export const S = {
   // Under the studio prefix, so it cascades with the studio for free — a deleted
   // studio must not leave a record of its people behind.
   audit: (studioId) => `${P}s:${studioId}:audit`,
+  // HOW MANY BYTES OF MEDIA THIS STUDIO HOLDS. A hash with one field, under the
+  // studio prefix so it dies with the studio — the tally is meaningless once
+  // there is no studio to bill it to. Kept as a running total rather than
+  // recomputed, because summing every record on every upload is the N+1 this
+  // product keeps finding.
+  mediaUsage: (studioId) => `${P}s:${studioId}:mediaUsage`,
   // The studio's EVENT LOG (a Redis Stream, not a JSON array). Ordered, capped,
   // and addressable by cursor — it is what "what changed since I last looked?"
   // reads. Under the studio prefix, so it cascades with the studio for free.
