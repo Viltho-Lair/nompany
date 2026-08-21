@@ -28,6 +28,7 @@ import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/lib/superAuth";
 import { withCommandCount } from "@/lib/data/commandCount";
 import { withRequest, requestId, redact, log } from "@/lib/observability";
 import { readArr, setJSON } from "@/lib/data/store";
+import { readCol } from "@/lib/data/sections";
 import { S } from "@/lib/data/keys";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 import { golden, req, ctx, capture, RECORDING, touched } from "./goldens.mjs";
@@ -1682,6 +1683,147 @@ console.log("== observability: a line you can trace, and a secret you cannot rea
 }
 
 // ============================================================================
+console.log("== the repository: a query somebody else could answer");
+// SEAM B IS A PURE LIFT, so the only thing worth asserting is that it did not
+// change anything. Every case below is checked against the hand-written
+// expression it replaces — the same filter, the same comparator, the same
+// null-guard — rather than against what the repository "should" do, because
+// what it should do IS what the call sites already did.
+{
+  const { repo, orderBy } = await import("@/lib/data/repo");
+  const sales = await import("@/lib/sales");
+  await signIn(owner.id);
+
+  const context = await sales.salesContext(owner, slug);
+  const scope = { studio: context.studio, section: context.clientsSection || context.section };
+  const CLIENTS = repo("salesClients");
+
+  const raw = await readCol(scope.studio.id, scope.section.id, "salesClients");
+  ok("there are rows to query", raw.length > 0, String(raw.length));
+
+  // ---- find with no query is readCol ---------------------------------------
+  const everything = await CLIENTS.find(scope);
+  ok("an unfiltered find is exactly the collection",
+    JSON.stringify(everything) === JSON.stringify(raw), `${everything.length} vs ${raw.length}`);
+
+  // ---- where: exact, in, ne, contains --------------------------------------
+  const one = raw[0];
+  ok("an exact match finds what filter() finds",
+    JSON.stringify(await CLIENTS.find(scope, { where: { id: one.id } }))
+      === JSON.stringify(raw.filter((r) => r.id === one.id)), one.id);
+
+  const ids = raw.slice(0, 2).map((r) => r.id);
+  ok("`in` matches includes()",
+    JSON.stringify(await CLIENTS.find(scope, { where: { id: { in: ids } } }))
+      === JSON.stringify(raw.filter((r) => ids.includes(r.id))), ids.join(","));
+
+  ok("a bare array reads as `in` too",
+    JSON.stringify(await CLIENTS.find(scope, { where: { id: ids } }))
+      === JSON.stringify(raw.filter((r) => ids.includes(r.id))), "");
+
+  ok("`ne` matches !==",
+    JSON.stringify(await CLIENTS.find(scope, { where: { id: { ne: one.id } } }))
+      === JSON.stringify(raw.filter((r) => r.id !== one.id)), "");
+
+  // AN UNDEFINED CONDITION IS IGNORED, not matched against. Every hand-written
+  // filter chain in the services guards optional parts with `if (x)`; a caller
+  // must be able to build the object without stripping the empty ones.
+  ok("an undefined condition does not filter anything out",
+    (await CLIENTS.find(scope, { where: { name: undefined } })).length === raw.length, "");
+
+  // ---- order: the comparator the call sites actually use --------------------
+  // 47 of the 51 sorts in the service modules are
+  // `(a.f || "").localeCompare(b.f || "")`. If `order` used a plain `<` this
+  // assertion is where it would show, and it would show as a reordered list
+  // rather than as an error.
+  const byName = await CLIENTS.find(scope, { order: { field: "name" } });
+  const handSorted = [...raw].sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")));
+  ok("ordering matches localeCompare with the || \"\" guard",
+    byName.map((r) => r.name).join("|") === handSorted.map((r) => r.name).join("|"),
+    byName.map((r) => r.name).join(" , ").slice(0, 90));
+
+  const desc = await CLIENTS.find(scope, { order: { field: "name", dir: "desc" } });
+  ok("...and desc is exactly its reverse",
+    desc.map((r) => r.id).join("|") === [...byName].reverse().map((r) => r.id).join("|"), "");
+
+  // ---- limit and pagination ------------------------------------------------
+  ok("limit truncates after ordering, not before",
+    JSON.stringify(await CLIENTS.find(scope, { order: { field: "name" }, limit: 1 }))
+      === JSON.stringify(byName.slice(0, 1)), "");
+
+  const first = await CLIENTS.page(scope, { order: { field: "name" }, limit: 1 });
+  ok("a page reports the total, not just its own size",
+    first.total === raw.length && first.rows.length === 1, `${first.rows.length}/${first.total}`);
+
+  if (raw.length > 1) {
+    const second = await CLIENTS.page(scope, { order: { field: "name" }, limit: 1, cursor: first.nextCursor });
+    ok("the next page starts after the cursor, with no repeat",
+      second.rows[0]?.id !== first.rows[0]?.id, `${first.rows[0]?.id} then ${second.rows[0]?.id}`);
+  }
+
+  // A CURSOR WHOSE ROW WAS DELETED MEANS "START AGAIN", not a crash and not an
+  // empty page — findIndex returns -1 and +1 makes it 0. Somebody deleting a
+  // record while another person pages past it is ordinary.
+  const stale = await CLIENTS.page(scope, { order: { field: "name" }, limit: 1, cursor: "sal_gone" });
+  ok("a stale cursor restarts rather than failing", stale.rows.length === 1, String(stale.rows.length));
+
+  // ---- byId and count ------------------------------------------------------
+  ok("byId finds it", (await CLIENTS.byId(scope, one.id))?.id === one.id, one.id);
+  ok("byId of nothing is null", (await CLIENTS.byId(scope, "sal_nope")) === null, "");
+  ok("count counts without the caller materialising anything",
+    (await CLIENTS.count(scope)) === raw.length, String(raw.length));
+
+  // ---- the discipline ------------------------------------------------------
+  // WHERE IS DATA, NOT A FUNCTION. The moment a predicate is accepted here the
+  // seam has failed at its only job, because a JavaScript callback cannot become
+  // a SQL WHERE clause. An unknown operator is a loud error rather than a
+  // silently-ignored condition that returns too many rows.
+  let threw = "";
+  try { await CLIENTS.find(scope, { where: { name: { matches: /x/ } } }); }
+  catch (e) { threw = e.message; }
+  ok("an unknown operator is refused loudly", threw.includes("unknown operator"), threw);
+
+  // ---- the comparator, asked directly -------------------------------------
+  // THE FIXTURE ABOVE CANNOT PROVE THIS. Two rows called "Acme Holdings" and
+  // "Second Client" sort the same way under localeCompare and under `<`, so the
+  // assertion further up would stay green if the default silently became a
+  // plain comparison. These inputs are chosen because the two disagree: in code
+  // units "Zoe" < "ätna", and to a reader "ätna" belongs beside "Apple".
+  {
+    const rows = [{ id: "c", name: "Zoe" }, { id: "a", name: "ätna" }, { id: "b", name: "Apple" }];
+    const viaRepo = [...rows].sort(orderBy({ field: "name" })).map((r) => r.name);
+    const viaHand = [...rows].sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? ""))).map((r) => r.name);
+    const viaPlain = [...rows].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)).map((r) => r.name);
+
+    ok("the default comparator IS localeCompare", viaRepo.join("|") === viaHand.join("|"), viaRepo.join(" , "));
+    ok("...and these inputs would have caught a plain `<`", viaHand.join("|") !== viaPlain.join("|"),
+      `localeCompare: ${viaHand.join(" , ")} vs plain: ${viaPlain.join(" , ")}`);
+  }
+
+  // NUMBERS ARE NOT TEXT, and "10" < "9" as strings. The `as: "number"` option
+  // exists for the handful of genuinely numeric sorts; this is what it buys.
+  {
+    const rows = [{ id: "a", n: 9 }, { id: "b", n: 10 }, { id: "c", n: 100 }];
+    const numeric = [...rows].sort(orderBy({ field: "n", as: "number" })).map((r) => r.n);
+    const textual = [...rows].sort(orderBy({ field: "n" })).map((r) => r.n);
+    ok("as:number sorts numerically", numeric.join(",") === "9,10,100", numeric.join(","));
+    ok("...and text would have got it wrong", textual.join(",") !== "9,10,100", textual.join(","));
+  }
+
+  // TIES BREAK ON id, so a page boundary cannot land inside a group of equal
+  // rows and show one of them on both pages.
+  {
+    const rows = [{ id: "z", name: "same" }, { id: "a", name: "same" }];
+    const sorted = [...rows].sort(orderBy({ field: "name" })).map((r) => r.id);
+    ok("equal rows fall back to a total order on id", sorted.join(",") === "a,z", sorted.join(","));
+  }
+
+  let noScope = "";
+  try { await CLIENTS.find({ studio: context.studio }); }
+  catch (e) { noScope = e.message; }
+  ok("a scope without a section is refused", noScope.includes("scope needs"), noScope);
+}
+
 console.log("== idempotency: a retry does not bill twice");
 // THE POINT IS NOT THAT THE RESPONSE REPEATS. It is that the WRITE happened
 // once. A wrapper that re-ran the handler and returned the second result would
