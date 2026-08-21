@@ -1842,6 +1842,78 @@ console.log("== the console's second factor");
     mfa.mfaEnabled(await sup.findSuperByEmail(email)), "");
 }
 
+console.log("== the console can see where it is signed in");
+// THE SCREEN SHOWED THREE INVENTED ROWS. settings/profile has listed "Chrome ·
+// Windows 11", "Safari · iPhone 16" and "Firefox · macOS" since it was built,
+// hardcoded in the page file, while superAuth kept the real digests and nothing
+// read them. A list of sessions that is not the sessions is worse than none:
+// the reason to open the screen is to look for a row you do not recognise.
+{
+  const sup = await import("@/lib/superAuth");
+  const { hashToken } = await import("@/lib/passwords");
+
+  const email = `g-sess-${rand()}@test.invalid`;
+  await sup.seedSuperAdmin({ email, password: "console-pw-12345" });
+  const admin = await sup.findSuperByEmail(email);
+
+  const phone = await sup.loginSuper(email, "console-pw-12345", {
+    device: { label: "Safari on iPhone", location: "Riyadh, SA" },
+  });
+  const laptop = await sup.loginSuper(email, "console-pw-12345", {
+    device: { label: "Chrome on Windows", location: "Riyadh, SA" },
+  });
+
+  const listed = await sup.listSuperSessions(admin.id, laptop.token);
+  ok("both sign-ins are listed", listed.length === 2, String(listed.length));
+
+  // THE POINT OF THE LABEL. Two rows that both said "session" would carry no
+  // more information than the count, and the question the screen answers is
+  // "which of these is not me".
+  ok("...each naming the browser it came from",
+    listed.some((s) => s.label === "Safari on iPhone") && listed.some((s) => s.label === "Chrome on Windows"),
+    JSON.stringify(listed.map((s) => s.label)));
+
+  // Nobody can act on a list where they cannot tell which row they are reading
+  // it on — the one row you must NOT end by accident.
+  const here = listed.find((s) => s.current);
+  ok("...and the browser reading the list knows itself",
+    here?.tokenHash === hashToken(laptop.token) && listed.filter((s) => s.current).length === 1,
+    JSON.stringify(listed.map((s) => s.current)));
+
+  // THE DIGEST, NEVER THE TOKEN. The list travels to a browser; if it carried
+  // the token, the screen built to spot a stolen session would hand one over.
+  const raw = JSON.stringify(listed);
+  ok("...and no row carries a usable token",
+    !raw.includes(phone.token) && !raw.includes(laptop.token), "");
+
+  // ---- ending one ----------------------------------------------------------
+  const gone = await sup.revokeSuperSession(admin.id, hashToken(phone.token));
+  ok("a session can be ended by its digest", gone === true, String(gone));
+  ok("...and that cookie stops working",
+    (await sup.findSuperBySession(phone.token)) === null, "");
+  ok("...while the one you are on still does",
+    Boolean(await sup.findSuperBySession(laptop.token)), "");
+  ok("...and it leaves the list", (await sup.listSuperSessions(admin.id)).length === 1, "");
+
+  // ---- one owner cannot sign another out ----------------------------------
+  // THE ONLY WAY THIS ROUTE COULD LEAK. The digest is safe to publish, which is
+  // exactly why the revoke must not trust it on its own: a console owner who
+  // saw another's digest anywhere must not be able to spend it. The scope check
+  // is inside the read, not in the route, so no caller can forget it.
+  const other = `g-sess2-${rand()}@test.invalid`;
+  await sup.seedSuperAdmin({ email: other, password: "console-pw-12345" });
+  const stranger = await sup.findSuperByEmail(other);
+
+  const refused = await sup.revokeSuperSession(stranger.id, hashToken(laptop.token));
+  ok("one console owner cannot end another's session", refused === false, String(refused));
+  ok("...and that session is untouched",
+    Boolean(await sup.findSuperBySession(laptop.token)), "");
+
+  // A STRANGER'S LIST IS THEIR OWN, for the same reason. Reading is the half
+  // that would turn the digest into something worth stealing.
+  ok("...nor see it", (await sup.listSuperSessions(stranger.id)).length === 0, "");
+}
+
 console.log("== an OAuth sign-in is a device too");
 // REPORTED, THEN VERIFIED: a user who registered with Google or Microsoft never
 // saw any devices on their account. signInWithProvider minted a session and

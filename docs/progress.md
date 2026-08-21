@@ -73,6 +73,15 @@ observability with request ids · ESLint.
 but never authors could sign nothing), L-10 (an unreachable branch), and the
 status-code inventory that wrote Wave 2's own checklist.
 
+**Found by asking, not by the harness:** the OAuth device gap. A user who
+registered with Google or Microsoft never saw a device on their account —
+`recordDevice` was called in exactly one place, the OTP path — so the screen
+where somebody would notice an unfamiliar sign-in rendered empty for every OAuth
+account that had live sessions. The console's own session list was the same
+shape: three hardcoded rows where the real digests had been kept since C-5 and
+never read. Both were reported, not detected; a test only exists for them now
+because somebody looked at a screen and asked why it was empty.
+
 ## Wave 2 — seams and performance 🟡
 
 | Item | State | Notes |
@@ -82,9 +91,9 @@ status-code inventory that wrote Wave 2's own checklist.
 | **Seam C** — module context | ✅ | 9 contexts → 1 factory. −448/+174 lines. **Killed hop 7 everywhere** |
 | W7 — speed refactors | 🟡 | R1 done (via Seam C). R2, R6, R9 open |
 | W8 — cache + prefetch | ✅ | 8 waves → 2 (studio) and 3 (sales) |
-| W9 — targeted live updates | ⬜ | |
-| W10 — media to Blob · audit log | ⬜ | |
-| W11 — security round 2 · notifications | ⬜ | |
+| W9 — targeted live updates | ✅ | The stream names the row; the doorbell stopped carrying the message |
+| W10 — media to Blob · audit log | 🟡 | Audit log ✅. Blob is written and tested, blocked on the store being created |
+| W11 — security round 2 · notifications | ✅ | Session digests at rest, console MFA, real console sessions |
 | W12 — repository adoption · sweep rewrite | 🟡 | The `readCol` migration below |
 
 ### The `readCol` migration

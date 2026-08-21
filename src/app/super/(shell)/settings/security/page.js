@@ -1,6 +1,7 @@
 import { PageHeader, Row, Col } from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
 import MfaCard from "./MfaCard";
+import SessionsCard from "./SessionsCard";
 
 export const metadata = { title: "Security · Console" };
 
@@ -12,9 +13,10 @@ export const metadata = { title: "Security · Console" };
 // means the console has never had a screen that could tell you anything true
 // about its own access.
 //
-// This one talks to /api/super/mfa and shows what is actually stored. Sessions
-// come next: superAuth already keeps `sessionTokens` with digests and expiries,
-// which is the data a real list needs — it has simply never been rendered.
+// This one talks to /api/super/mfa and /api/super/sessions and shows what is
+// actually stored. The sessions were the interesting half: superAuth has kept
+// `sessionTokens` with digests and expiries since C-5, and nothing had ever
+// rendered them, so the console displayed three invented rows instead.
 export default function ConsoleSecurityPage() {
   return (
     <>
@@ -25,6 +27,9 @@ export default function ConsoleSecurityPage() {
       <Row>
         <Col span={7}>
           <MfaCard />
+        </Col>
+        <Col span={5}>
+          <SessionsCard />
         </Col>
       </Row>
     </>

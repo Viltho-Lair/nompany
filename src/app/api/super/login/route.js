@@ -1,6 +1,6 @@
 import { route } from "@/lib/route";
 import { loginSuper, superCookie, publicSuperAdmin } from "@/lib/superAuth";
-import { requestIsHttps, clientIp } from "@/lib/identity";
+import { requestIsHttps, clientIp, deviceFingerprint } from "@/lib/identity";
 import { incrWithTTL } from "@/lib/data/store";
 import { RL } from "@/lib/data/keys";
 
@@ -32,7 +32,12 @@ export const POST = route(
     const tries = await incrWithTTL(RL.superLoginIp(clientIp(request)), WINDOW_SEC);
     if (tries > MAX_ATTEMPTS) return { error: "rate" };
 
-    const admin = await loginSuper(body.email, body.password, { code: String(body.code || "") });
+    const admin = await loginSuper(body.email, body.password, {
+      code: String(body.code || ""),
+      // The browser and the city, so the Security screen can answer "is that
+      // one me?" rather than listing six identical timestamps.
+      device: deviceFingerprint(request),
+    });
 
     // One generic failure for "no such admin", "wrong password" and "wrong
     // code" alike — the console never confirms who holds an account on it.

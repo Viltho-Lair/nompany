@@ -10,7 +10,7 @@
 //   passwordSetAt }.
 //
 // `sessionTokens` holds DIGESTS, not tokens:
-//   { tokenHash, createdAt, expiresAt }
+//   { tokenHash, createdAt, expiresAt, label, location }
 // and it is a display list, not the authority. What authorises a request is
 // ix:supersession:<sha256(token)> -> SuperAdminID, carrying a real Redis EX.
 // See findSuperBySession for why that distinction is the whole point.
@@ -123,7 +123,7 @@ export async function seedSuperAdmin({ email, password } = {}) {
 // and nothing to replay. Anything that reversed that — minting first and
 // verifying second — would leave a working session behind for the seconds
 // between, which is all a leaked password needs.
-export async function loginSuper(email, password, { code = "" } = {}) {
+export async function loginSuper(email, password, { code = "", device = null } = {}) {
   const admin = await findSuperByEmail(email);
   if (!admin) return null;
   if (!(await verifyPassword(password, admin.passwordHash))) return null;
@@ -162,7 +162,23 @@ export async function loginSuper(email, password, { code = "" } = {}) {
   // sign-ins both end up signed in.
   const updated = await patchAdmin(admin.id, (a) => ({
     sessionTokens: [
-      { tokenHash, createdAt: now, expiresAt: now + SUPER_TTL_SEC * 1000 },
+      {
+        tokenHash,
+        createdAt: now,
+        expiresAt: now + SUPER_TTL_SEC * 1000,
+        // WHAT THE ROW WAS ALWAYS MISSING. Digests and expiries make a list that
+        // is true and useless: "a session started at 14:02" answers nothing a
+        // person could act on. The browser and the city are what turn it into
+        // "that one is not me" — which is the only question anybody opens a
+        // session list to ask.
+        //
+        // The same deviceFingerprint the studio side has collected for months.
+        // No IP is stored: the studio path keeps an HMAC of it and the console
+        // has no screen that would show one, so keeping it here would be storing
+        // an address for nobody.
+        label: String(device?.label || ""),
+        location: String(device?.location || ""),
+      },
       // Anything that is not the new shape is a raw token from before this
       // change. It can no longer authorise anything, so it is dropped rather
       // than migrated — there is nothing in it worth keeping.
@@ -171,6 +187,60 @@ export async function loginSuper(email, password, { code = "" } = {}) {
     ].slice(0, MAX_SESSIONS),
   }));
   return { ...admin, sessionTokens: updated?.sessionTokens || [], token };
+}
+
+// EVERY LIVE SESSION, newest first — for the console's own Security screen.
+//
+// Expired rows are filtered rather than trusted: the list is a DISPLAY of what
+// the index holds, and the index expires on its own through Redis. A row whose
+// expiresAt has passed authorises nothing, so showing it would be showing a
+// session that is not one.
+export async function listSuperSessions(adminId, currentToken = "") {
+  const admin = (await readArr(REG.superAdmins)).find((a) => a.id === adminId);
+  if (!admin) return [];
+
+  const now = Date.now();
+  const currentHash = currentToken ? hashToken(currentToken) : "";
+
+  return (Array.isArray(admin.sessionTokens) ? admin.sessionTokens : [])
+    .filter((s) => s && typeof s === "object" && s.tokenHash && s.expiresAt > now)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .map((s) => ({
+      // The DIGEST is safe to hand out: it is the index key, not the credential,
+      // and no cookie can be forged from it without a preimage. It is what the
+      // revoke call names, so there is nothing to look up twice.
+      tokenHash: s.tokenHash,
+      createdAt: s.createdAt,
+      expiresAt: s.expiresAt,
+      // Rows written before this existed carry neither, and say so rather than
+      // pretending to a precision they never had.
+      label: s.label || "Unknown device",
+      location: s.location || "",
+      current: Boolean(currentHash) && s.tokenHash === currentHash,
+    }));
+}
+
+/**
+ * Sign one session out by its digest — "that one is not me".
+ *
+ * THE INDEX GOES FIRST, as it does everywhere here: it is the half that decides,
+ * and a failure between the two leaves a signed-OUT session still listed rather
+ * than a signed-in one hidden.
+ */
+export async function revokeSuperSession(adminId, tokenHash) {
+  if (!adminId || !tokenHash) return false;
+
+  // SCOPED TO THIS ADMIN inside the read, not after it. Without that, one
+  // console owner could sign another out by naming a digest they saw.
+  const admin = (await readArr(REG.superAdmins)).find((a) => a.id === adminId);
+  const owns = (admin?.sessionTokens || []).some((s) => s?.tokenHash === tokenHash);
+  if (!owns) return false;
+
+  await release(IX.superSession(tokenHash));
+  await patchAdmin(adminId, (a) => ({
+    sessionTokens: (a.sessionTokens || []).filter((s) => s?.tokenHash !== tokenHash),
+  }));
+  return true;
 }
 
 // Invalidate only the presented token (other devices stay signed in). The index
