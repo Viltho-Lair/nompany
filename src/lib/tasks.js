@@ -17,7 +17,8 @@
 // drift from the items it counts.
 
 import { requirePermission, can } from "@/lib/access";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { getSectionByKey, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -79,10 +80,17 @@ export async function saveTasksSettings(ctx, body) {
   return updated ? { taskAssignees: readTaskAssignees({ settings: next }) } : { error: "notfound" };
 }
 
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository is bound to a
+// collection rather than to a scope, so the same object answers for every studio
+// and section — the scope arrives with each call, which is what keeps a query
+// from ever naming another tenant's keys.
+const Tasks = repo(TASKS);
+const Projects = repo(PROJECTS);
+
 export async function listTasks(ctx) {
-  const { studio, section, collaborator, canManage, taskAssignees } = ctx;
+  const { studio, collaborator, canManage, taskAssignees } = ctx;
   const [tasks, people, projects] = await Promise.all([
-    readCol(studio.id, section.id, TASKS),
+    Tasks.find(ctx),
     listCollaborators(studio.id),
     projectRows({ studio }),
   ]);
@@ -136,7 +144,7 @@ export async function createTask(ctx, body) {
   const denied = requirePermission(ctx.access, "tasks.board.create");
   if (denied) return denied;
 
-  const { studio, section, collaborator } = ctx;
+  const { studio, collaborator } = ctx;
   const title = str(body?.title, 200);
   if (!title) return { error: "title" };
 
@@ -156,7 +164,7 @@ export async function createTask(ctx, body) {
   // read from Task settings, and changes the moment those settings change.
   const type = TASK_TYPES.includes(body?.type) ? body.type : "";
 
-  const task = await addRow(studio.id, section.id, TASKS, {
+  const task = await Tasks.create(ctx, {
     title,
     type,
     approvals: {},
@@ -179,9 +187,8 @@ export async function createTask(ctx, body) {
 // assignee may move their own task along and tick its checklist, but not
 // reassign it or rewrite what was asked of them.
 export async function updateTask(ctx, id, body) {
-  const { studio, section, collaborator } = ctx;
-  const rows = await readCol(studio.id, section.id, TASKS);
-  const current = rows.find((t) => t.id === id);
+  const { studio, collaborator } = ctx;
+  const current = await Tasks.byId(ctx, id);
   if (!current) return { error: "notfound" };
 
   // A TYPED TASK IS NOT A TO-DO SOMEBODY WROTE, it is a decision the product
@@ -289,7 +296,7 @@ export async function updateTask(ctx, id, body) {
     return changes;
   };
 
-  const task = await updateRow(studio.id, section.id, TASKS, id, apply);
+  const task = await Tasks.update(ctx, id, apply);
   return task ? { task: { ...task, progress: progressOf(task.checklist) } } : { error: "notfound" };
 }
 
@@ -301,9 +308,8 @@ export async function updateTask(ctx, id, body) {
 // A manager may act for any authority, which is what makes the board unblockable
 // when somebody is away.
 export async function decideTask(ctx, id, body) {
-  const { studio, section, collaborator, canManage, taskAssignees } = ctx;
-  const rows = await readCol(studio.id, section.id, TASKS);
-  const current = rows.find((t) => t.id === id);
+  const { studio, collaborator, canManage, taskAssignees } = ctx;
+  const current = await Tasks.byId(ctx, id);
   if (!current) return { error: "notfound" };
   if (!isApprovalTask(current)) return { error: "not-approval" };
 
@@ -345,7 +351,7 @@ export async function decideTask(ctx, id, body) {
     return changes;
   };
 
-  const task = await updateRow(studio.id, section.id, TASKS, id, apply);
+  const task = await Tasks.update(ctx, id, apply);
   if (!task) return { error: "notfound" };
 
   // FINANCE SIGNING THE PO IS WHAT ISSUES THE PROJECT NUMBER. Done here, next
@@ -380,12 +386,11 @@ export async function removeTask(ctx, id) {
   // when; deleting it does not undo the approval, it destroys the evidence of
   // one while the quotation goes on being approved. Whoever wants it gone wants
   // the approval withdrawn, and that is what withdrawing is for.
-  const rows = await readCol(ctx.studio.id, ctx.section.id, TASKS);
-  const current = rows.find((t) => t.id === id);
+  const current = await Tasks.byId(ctx, id);
   if (!current) return { error: "notfound" };
   if (isApprovalTask(current)) return { error: "typed-immutable" };
 
-  const removed = await deleteRow(ctx.studio.id, ctx.section.id, TASKS, id);
+  const removed = await Tasks.remove(ctx, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -419,7 +424,10 @@ async function ownerOf(studioId, childKey, parentKey) {
 async function projectRows({ studio }) {
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return [];
-  return readCol(studio.id, owner.id, PROJECTS);
+  // A DIFFERENT SECTION, SAME COLLECTION. The scope is what varies, so reading
+  // another department's rows is a different argument rather than a different
+  // function — and it still cannot name another studio.
+  return Projects.find({ studio, section: owner });
 }
 
 export async function taskProjects(ctx) {
