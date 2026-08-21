@@ -1736,6 +1736,62 @@ console.log("== one row, by the id a live event named");
   ok("a row that is gone answers notfound", gone.status === 404 && gone.body?.error === "notfound",
     `${gone.status} ${JSON.stringify(gone.body)}`);
 
+  // THE ASSERTION THE WHOLE PATCH PATH RESTS ON. A board splices this row into
+  // the array the list endpoint gave it, so if the two disagree by even one
+  // field the screen quietly shows something the server never said — and it
+  // stays wrong until somebody reloads, which is the failure targeted patching
+  // is supposed to prevent rather than cause.
+  //
+  // A Sales ticket is not its stored row: it carries clientName, RFQ status,
+  // quotation value and a project link, all derived from four other
+  // collections. Returning the raw row here would blank every one of them.
+  const fromList = (await tickets.listTickets(sc)).find((t) => t.id === someTicket.id);
+  const fromRow = (await ask(`collection=salesTickets&id=${someTicket.id}`)).body?.row;
+  ok("a patched row is byte-identical to the listed one",
+    JSON.stringify(fromRow) === JSON.stringify(fromList),
+    JSON.stringify(fromRow) === JSON.stringify(fromList) ? "" :
+      `list ${JSON.stringify(fromList).slice(0, 90)} vs row ${JSON.stringify(fromRow).slice(0, 90)}`);
+
+  // ...and it would have caught a raw row, which is the version that looks fine
+  // in isolation and is wrong on screen.
+  const raw = await (await import("@/lib/data/repo")).repo("salesTickets")
+    .byId({ studio: sc.studio, section: sc.ticketsSection }, someTicket.id);
+  ok("...and the raw stored row would NOT have passed that",
+    JSON.stringify(raw) !== JSON.stringify(fromList),
+    `raw has ${Object.keys(raw || {}).length} fields, composed has ${Object.keys(fromList || {}).length}`);
+
+  // ---- what the board does with an event ----------------------------------
+  // The decision is a pure function precisely so it can be asked here, without a
+  // browser or a session. Every wrong answer is a board that disagrees with the
+  // server and stays that way until somebody reloads — the exact failure this
+  // feature exists to prevent, so the branching is worth pinning individually.
+  {
+    const { decide } = await import("@/lib/livePatch");
+    const into = { salesTickets: "tickets", salesClients: "clients" };
+    const ev = (over) => ({ type: "row.updated", collection: "salesTickets", rowId: "sal_1", ...over });
+
+    ok("an update to a held collection is patched",
+      decide(ev(), into).action === "patch" && decide(ev(), into).field === "tickets",
+      JSON.stringify(decide(ev(), into)));
+
+    // CREATES AND DELETES RELOAD. They change the list's length and order, and
+    // the totals rendered above it — none of which a spliced row can fix.
+    for (const type of ["row.created", "row.deleted"]) {
+      ok(`a ${type} reloads instead`, decide(ev({ type }), into).action === "reload", type);
+    }
+
+    // A COLLECTION THIS BOARD DOES NOT HOLD. Sales watching Technical is the
+    // ordinary case: the event names a row in `rfqs`, and what changed here is a
+    // derived column on a ticket whose id the event never mentions.
+    ok("an event for a collection the board does not hold reloads",
+      decide(ev({ collection: "rfqs" }), into).action === "reload", "rfqs");
+
+    ok("an event with no row id reloads", decide(ev({ rowId: "" }), into).action === "reload", "");
+    ok("an event with no collection reloads", decide(ev({ collection: "" }), into).action === "reload", "");
+    ok("a malformed event reloads rather than throwing",
+      decide(undefined, into).action === "reload" && decide(ev(), undefined).action === "reload", "");
+  }
+
   // ONE ROW COSTS FAR LESS THAN THE MODULE, which is the entire point. Measured
   // rather than asserted as a ratio, because the number that matters is that it
   // is small and stays small.

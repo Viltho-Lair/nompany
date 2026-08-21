@@ -51,8 +51,33 @@ function bindParams(params, bound) {
   }
 }
 
+// MULTI-LINE DESTRUCTURES ARE STILL ONE STATEMENT.
+//
+//   const { studio, ticketsSection, clientsSection,
+//           tasksSection, projectsSection } = ctx;
+//
+// A per-line matcher sees neither half: the first line has no `= ctx;` and the
+// second has no `const {`. So it binds nothing, and then reports every name on
+// those two lines as an unresolved use — sixteen of them, in code that runs.
+//
+// Joined onto the opening line here, with the continuations blanked rather than
+// removed, so every line number this reports still points where a reader expects.
+function joinDestructures(lines) {
+  const out = [...lines];
+  for (let i = 0; i < out.length; i += 1) {
+    if (!/const\s*\{/.test(out[i]) || /\}\s*=/.test(out[i])) continue;
+    for (let j = i + 1; j < out.length && j < i + 8; j += 1) {
+      out[i] += ` ${out[j].trim()}`;
+      const closed = /\}\s*=/.test(out[j]);
+      out[j] = "";
+      if (closed) break;
+    }
+  }
+  return out;
+}
+
 function check(file) {
-  const lines = readFileSync(file, "utf8").split(/\r?\n/);
+  const lines = joinDestructures(readFileSync(file, "utf8").split(/\r?\n/));
   const issues = [];
 
   // WHAT THE MODULE ITSELF BINDS is in scope everywhere inside it. Without this

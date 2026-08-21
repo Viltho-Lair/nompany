@@ -2,6 +2,7 @@ import { route } from "@/lib/route";
 import { repo } from "@/lib/data/repo";
 import { NODES } from "@/lib/relations";
 import { can } from "@/lib/access";
+import { salesContext, ticketById } from "@/lib/sales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,13 +28,32 @@ export const dynamic = "force-dynamic";
 // becoming a way to read a collection whose own screen you are not allowed to
 // open — the sub-section grants exist precisely so those two are different
 // questions.
+// A COMPOSED ROW WHERE THE BOARD SHOWS A COMPOSED ROW.
+//
+// This is the correctness trap in targeted patching, and it is silent. A board's
+// Sales ticket is not the stored row: it carries its client's name, its RFQ
+// status, its quotation value and its project link, all derived from four other
+// collections. Handing the client the RAW row to splice in would blank every one
+// of those columns and look like a rendering bug for as long as nobody reloaded.
+//
+// So a collection may declare a composer. Where there is one, this returns
+// exactly what the list endpoint would have returned for that row; where there
+// is none, the stored row IS what the board shows and the repository answer is
+// already right.
+const COMPOSERS = {
+  salesTickets: async ({ user, slug }, id) => {
+    const ctx = await salesContext(user, slug);
+    return ctx.error ? null : ticketById(ctx, id);
+  },
+};
+
 const byCollection = new Map(
   Object.entries(NODES).map(([kind, node]) => [node.collection, { kind, ...node }]),
 );
 
 export const GET = route(
   { auth: "studio", name: "studios/[slug]/rows" },
-  async ({ request, studio, sections, access }) => {
+  async ({ request, studio, sections, access, user }) => {
     const url = new URL(request.url);
     const collection = url.searchParams.get("collection") || "";
     const id = url.searchParams.get("id") || "";
@@ -49,7 +69,10 @@ export const GET = route(
     const section = sections.find((s) => s.key === node.sectionKey);
     if (!section) return { error: "no-section" };
 
-    const row = await repo(collection).byId({ studio, section }, id);
+    const compose = COMPOSERS[collection];
+    const row = compose
+      ? await compose({ user, slug: studio.slug }, id)
+      : await repo(collection).byId({ studio, section }, id);
 
     // A DELETED ROW IS A 404, AND THE BOARD WANTS THAT ANSWER. `row.deleted`
     // events name an id that is already gone; the client asking for it is not an

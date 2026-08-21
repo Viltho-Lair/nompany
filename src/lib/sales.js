@@ -580,16 +580,47 @@ export async function listTickets({ studio, ticketsSection, clientsSection, rfqS
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
   return [...tickets]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-    .map((t) => {
-      const summary = ticketSummary(t, rfqs, quotations, tasks, taskAssignees, projects);
-      const { quotedValue, ...rest } = summary;
-      return {
-        ...t,
-        clientName: nameById[t.clientId] || t.clientName || "",
-        ...rest,
-        value: Number(t.value) > 0 ? Number(t.value) : quotedValue,
-      };
-    });
+    .map((t) => composeTicket(t, { nameById, rfqs, quotations, tasks, taskAssignees, projects }));
+}
+
+// WHAT A BOARD'S TICKET ACTUALLY IS — the stored row plus its client's name and
+// everything ticketSummary derives from the RFQs, quotations, tasks and projects
+// pointing at it. Extracted so there is ONE copy: the list builds every row
+// through it, and ticketById builds one, which is what makes patching a single
+// row on the client safe rather than a way to blank four columns.
+function composeTicket(t, { nameById, rfqs, quotations, tasks, taskAssignees, projects }) {
+  const { quotedValue, ...rest } = ticketSummary(t, rfqs, quotations, tasks, taskAssignees, projects);
+  return {
+    ...t,
+    clientName: nameById[t.clientId] || t.clientName || "",
+    ...rest,
+    value: Number(t.value) > 0 ? Number(t.value) : quotedValue,
+  };
+}
+
+// ONE composed ticket, for the live patch path.
+//
+// It reads the same five neighbouring collections the list does, because a
+// ticket's RFQ status and project link are facts about OTHER records — there is
+// no version of this that reads one key. What it saves is the payload: one
+// ticket instead of every ticket, every client, every service and the whole
+// vocabulary, on every open tab, every time somebody edits a row.
+export async function ticketById(ctx, id) {
+  const { studio, ticketsSection, clientsSection, rfqSection, quotationsSection,
+          tasksSection, projectsSection, taskAssignees } = ctx;
+
+  const [ticket, clients, rfqs, quotations, tasks, projects] = await Promise.all([
+    Tickets.byId({ studio, section: ticketsSection }, id),
+    Clients.find({ studio, section: clientsSection }),
+    rfqSection ? Rfqs.find({ studio, section: rfqSection }) : [],
+    quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : [],
+    tasksSection ? Tasks.find({ studio, section: tasksSection }) : [],
+    projectsSection ? Projects.find({ studio, section: projectsSection }) : [],
+  ]);
+  if (!ticket) return null;
+
+  const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
+  return composeTicket(ticket, { nameById, rfqs, quotations, tasks, taskAssignees, projects });
 }
 
 // ONE quotation, in full, for the Sales-side viewer. Sales may read the document

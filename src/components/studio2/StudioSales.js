@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import useLiveRows from "@/components/studio2/useLiveRows";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
@@ -90,9 +91,22 @@ export default function StudioSales({ slug, view = "sales" }) {
   useEffect(() => { load(); }, [load]);
 
   // A colleague raised or moved a ticket - reflect it without a refresh.
-  useLiveUpdates(slug, "sales", load);
-  // An RFQ raised on a ticket changes what its RFQ column says, and that
-  // happens in Technical — so this board watches that section too.
+  //
+  // An EDIT to a ticket or a client replaces that one row; everything else still
+  // reloads the board. See useLiveRows for why only updates are safe to patch:
+  // a create or a delete changes the list's length and order, and the summary
+  // figures above it.
+  useLiveRows(slug, "sales", {
+    load,
+    setData,
+    into: { salesTickets: "tickets", salesClients: "clients" },
+  });
+
+  // An RFQ raised on a ticket changes what its RFQ column says, and that happens
+  // in Technical — so this board watches that section too. NOT patched: a
+  // Technical event names a row in `rfqs` or `quotations`, and what it changes
+  // here is a DERIVED column on some ticket whose id the event never mentions.
+  // The board cannot know which row to ask for, so it asks for all of them.
   useLiveUpdates(slug, "technical", load);
 
   async function send(kind, method, payload) {
