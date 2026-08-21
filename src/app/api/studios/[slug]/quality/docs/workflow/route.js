@@ -4,46 +4,37 @@
 // draws a button only where pressing it would succeed. POST makes the move.
 // Both read the same transition table, which is why the two can never disagree
 // about what is legal.
+//
+// THIS FILE USED TO KEEP ITS OWN STATUS LADDER — the fifth copy in the codebase,
+// and the one that proved the point. It was missing `no-revision`, so three
+// refusals here answered 400 where the rest of the product answers 404 for the
+// same meaning: the revision you named is not there. Nobody wrote that
+// deliberately; a private copy simply fell behind, silently, which is what
+// private copies do. It also listed `denied: 403` for an error name no service
+// has ever returned.
 
-import { qualityGuard } from "@/lib/quality";
+import { route } from "@/lib/route";
+import { qualityContext } from "@/lib/quality";
 import { can } from "@/lib/access";
 import { workflowFor, moveRevision, startRevision } from "@/lib/qualityDocRevisions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STATUS = {
-  notfound: 404,
-  forbidden: 403,
-  denied: 403,
-  "wrong-state": 409,
-  "already-open": 409,
-  "not-issued": 409,
-  obsolete: 409,
-  "same-signer": 409,
-};
+const spec = { auth: "studio", context: qualityContext, name: "quality/docs/workflow" };
+const idOf = (request) => new URL(request.url).searchParams.get("id") || "";
 
-const bad = (out) => Response.json(out, { status: STATUS[out.error] || 400 });
+export const GET = route(spec, async ({ request, ...q }) => {
+  const id = idOf(request);
+  if (!id) return { error: "missing" };
+  return workflowFor(q, id, (permission) => can(q.access, permission));
+});
 
-export async function GET(request, ctx) {
-  const g = await qualityGuard(ctx.params);
-  if (g.fail) return g.fail;
+export const POST = route({ ...spec, body: true }, async ({ request, body, ...q }) => {
+  if (!q.canManage) return { error: "read-only" };
 
-  const id = new URL(request.url).searchParams.get("id") || "";
-  if (!id) return Response.json({ error: "missing" }, { status: 400 });
-
-  const out = await workflowFor(g, id, (permission) => can(g.access, permission));
-  return out.error ? bad(out) : Response.json(out);
-}
-
-export async function POST(request, ctx) {
-  const g = await qualityGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-
-  const id = new URL(request.url).searchParams.get("id") || "";
-  if (!id) return Response.json({ error: "missing" }, { status: 400 });
-
-  const body = await request.json().catch(() => ({}));
+  const id = idOf(request);
+  if (!id) return { error: "missing" };
   const action = String(body?.action || "");
 
   // STARTING THE NEXT REVISION IS NOT A MOVE ON THE LADDER. Nothing is being
@@ -51,12 +42,9 @@ export async function POST(request, ctx) {
   // writable again, under a new revision number. It goes through here because
   // it is the same screen and the same guard, not because it is a transition.
   const out = action === "start"
-    ? await startRevision(g, id)
-    : await moveRevision(g, id, action, body);
+    ? await startRevision(q, id)
+    : await moveRevision(q, id, action, body);
 
-  if (out.error) return bad(out);
-  return Response.json({
-    ...out,
-    workflow: await workflowFor(g, id, (permission) => can(g.access, permission)),
-  });
-}
+  if (out.error) return out;
+  return { ...out, workflow: await workflowFor(q, id, (permission) => can(q.access, permission)) };
+});

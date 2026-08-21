@@ -31,7 +31,6 @@ import { DOCS } from "@/lib/qualityDocs";
 import { studioContext, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { departmentsFromSections } from "@/lib/departments";
-import { currentUser } from "@/lib/identity";
 import { NODES, traverse } from "@/lib/relations";
 import {
   STATIC_FIELDS, BLOCK_SOURCES, availableFields, availableBlocks, groupFields,
@@ -59,7 +58,6 @@ export async function qualityContext(user, slug) {
   return {
     studio, collaborator, access, roles, section, sections,
     canManage: sectionManageable(access, section.key, keys),
-    canSetup: can(access, "quality.documents.setup"),
     // Departments are the studio's own top-level sections, so this list is
     // whatever the studio is actually divided into today.
     departments: departmentsFromSections(sections),
@@ -67,19 +65,6 @@ export async function qualityContext(user, slug) {
   };
 }
 
-export async function qualityGuard(paramsPromise, { write, setup } = {}) {
-  const user = await currentUser();
-  if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
-  const { slug } = await paramsPromise;
-  const q = await qualityContext(user, slug);
-  if (q.error) {
-    const status = q.error === "notfound" || q.error === "no-section" ? 404 : 403;
-    return { fail: Response.json({ error: q.error }, { status }) };
-  }
-  if (write && !q.canManage) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
-  if (setup && !q.canSetup) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
-  return q;
-}
 
 // ---- rendering a document ---------------------------------------------------
 

@@ -32,7 +32,7 @@ Branch `wave-0-security-hardening`. Suite green, `tsc --noEmit` clean, productio
 |---|---|
 | Golden-response harness + normaliser | **done**, negative-tested by renaming a field |
 | Golden coverage | **139 goldens; every surface covered** — nine studio departments, identity, and the `/super` console, including the wall between the two identities in both directions |
-| Permission matrix (103 keys) | **done** — resolution proven exhaustive |
+| Permission matrix (102 keys) | **done** — resolution proven exhaustive |
 | Hop counting | **done** — independently reproduces the audit's 8-wave figure |
 | Architectural assertions | **done** — 6 checks, found 3 dead builders on first run |
 | CI (typecheck, 3 suites, build, budget, ephemeral redis:8) | **done** |

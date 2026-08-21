@@ -136,15 +136,26 @@ export const AREAS = [
   { key: "operations.tracking", group: "Operations", label: "Tracking", verbs: ["view", "create", "edit", "delete"] },
   { key: "operations.settings", group: "Operations", label: "Settings", verbs: ["view", "edit"] },
 
-  // The controlled-document register. `setup` is an EXTRA rather than a rung
-  // because managing the studio's document taxonomy — the types, their prefixes
-  // and the department codes every document number is built from — is not "a
-  // bigger edit" of a document. It decides what every future document will be
-  // called, which is a different power from writing one, exactly as converting
-  // an RFQ is a different power from editing it.
+  // The controlled-document register.
   //
-  // Review, approve, publish, withdraw and share are deliberately ABSENT until
-  // the transitions that exercise them exist. A right nothing can act on is the
+  // NO `setup`. It was declared for managing the studio's document taxonomy —
+  // the types, their prefixes and the department codes every document number is
+  // built from — and that taxonomy was never built. There is no types
+  // collection, no codes registry and no screen: mintCode() takes the prefix and
+  // department straight off the request body and defaults to "DOC".
+  //
+  // It survived this long by looking alive. `canSetup` computed it into the
+  // quality context, which was enough for the architectural check to count the
+  // key as referenced — but its only consumer was a `setup` branch of
+  // qualityGuard that no route ever called. A mention is not enforcement, and
+  // the check could not tell the difference. Deleting the dead guard during the
+  // wrapper conversion left the key with nothing at all, and the check fired.
+  //
+  // Second one of these, after `share` below. Both were rights somebody could
+  // grant in good faith believing they conferred something.
+  //
+  // Review, approve, publish and withdraw are deliberately ABSENT until the
+  // transitions that exercise them exist. A right nothing can act on is the
   // dead capability this catalogue is built to avoid.
   // REVIEW AND APPROVE ARE TWO RIGHTS, not one, because they are two people.
   // Folding them together would let the same person sign both halves, and a
@@ -155,7 +166,6 @@ export const AREAS = [
   // usually somebody else's to time.
   { key: "quality.documents", group: "Quality", label: "Documents", verbs: ["view", "create", "edit", "delete"],
     extra: [
-      { key: "setup", label: "Manage document types and codes" },
       { key: "review", label: "Sign as reviewer" },
       { key: "approve", label: "Sign as approver" },
       { key: "publish", label: "Issue a revision" },

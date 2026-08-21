@@ -5,7 +5,7 @@
 //   1. GOLDEN RESPONSES. Every route's status and response SHAPE, recorded
 //      before the refactor starts. This is what turns "exact functional parity"
 //      from a promise into a property.
-//   2. THE PERMISSION MATRIX. Every one of the 103 keys in the catalogue,
+//   2. THE PERMISSION MATRIX. Every one of the 102 keys in the catalogue,
 //      granted alone, resolving to itself and to nothing else. This is what
 //      stops a rewrite of effectivePermissions from quietly widening access.
 //   3. HOP COUNTS. How many Redis round trips a route costs. The audit's
@@ -131,8 +131,9 @@ console.log("== the permission matrix: one key grants exactly itself");
   // A COUNT, deliberately hardcoded. Deriving it from the catalogue would make
   // the assertion tautological — the point is that adding or removing a right
   // is a visible act. 104 at the audit; 103 after quality.documents.share was
-  // removed for granting nothing.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 103, String(ALL_PERMISSIONS.length));
+  // removed for granting nothing; 102 after quality.documents.setup went the
+  // same way, for the same reason, found by the same check.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 102, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -1808,17 +1809,12 @@ console.log("== status codes: what each refusal claims to be");
     // is 422 in projects and was 400 in technical — the same name, two statuses,
     // decided independently. Technical now agrees with the table; projects is
     // the last one that does not.
-    // QUALITY, NOT YET CONVERTED. These three appeared the moment `no-revision`
-    // was added to the table — the scanner getting sharper, not a route getting
-    // worse, which is the distinction a bare count could never express and the
-    // whole reason this list holds names.
+    // EMPTY, AND THAT IS THE POINT OF THE EXERCISE. Every route the wrapper has
+    // reached now answers with the same vocabulary as every other route.
     //
-    // 404 is right for them: `no-revision` fires when the row being signed is
-    // ABSENT, and signables.js already has `wrong-state` (409) for the row that
-    // exists but has moved on. Two different answers to two different questions.
-    "quality.refused.approve.outoforder",
-    "quality.refused.publish.outoforder",
-    "quality.refused.review.afterissue",
+    // The list is kept rather than deleted because the remaining departments are
+    // still on their own hand-written ladders, and the first of them to disagree
+    // with the table will fail the build and be named here until it is converted.
   ];
   const nameOf = (m) => m.split(":")[0];
   const unexpected = mismatches.filter((m) => !KNOWN.includes(nameOf(m)));

@@ -178,7 +178,7 @@ Wave 0 of `docs/execution-plan.md` is complete — the orphan-sweep guard, crede
 rate limiting, console session expiry, traffic-ingest bounds, media tenancy, security
 headers, bcrypt 12 with rehash-on-login, and the dead capabilities in M-1 deleted.
 
-**Gate A is in progress.** Done: the golden harness, the permission matrix over 103
+**Gate A is in progress.** Done: the golden harness, the permission matrix over 102
 keys, hop counting, six architectural assertions, CI, the bundle budget. Remaining:
 goldens for Finance, Operations, Tasks, Quality and `/super` (88 recorded so far),
 per-route permission enforcement beyond Sales, an ESLint config, and observability.

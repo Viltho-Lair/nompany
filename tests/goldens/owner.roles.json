@@ -488,10 +488,6 @@
         ],
         "extra": [
           {
-            "key": "setup",
-            "label": "Manage document types and codes"
-          },
-          {
             "key": "review",
             "label": "Sign as reviewer"
           },
