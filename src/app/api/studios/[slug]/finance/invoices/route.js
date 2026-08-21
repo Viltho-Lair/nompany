@@ -1,52 +1,49 @@
-import { financeGuard, createInvoice, editInvoice, recordPayment, removeInvoice } from "@/lib/finance";
+import { route } from "@/lib/route";
+import { financeContext, createInvoice, editInvoice, recordPayment, removeInvoice } from "@/lib/finance";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "studio", context: financeContext, body: true, name: "finance/invoices" };
+const manageable = (fin) => (fin.canManage ? null : { error: "read-only" });
 
-export async function POST(request, ctx) {
-  const g = await financeGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const result = await createInvoice(g, await body(request));
-  if (result.error) {
-    // A refusal is not a malformed request. 403 so a client can tell "you may
-    // not" from "you sent nonsense" — they need different handling.
-    const status = result.error === "forbidden" ? 403 : result.error === "unknown-permission" ? 500 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json({ ok: true, invoice: result.invoice }, { status: 201 });
-}
+export const POST = route(spec, async (fin) => {
+  const refusal = manageable(fin);
+  if (refusal) return refusal;
+
+  const result = await createInvoice(fin, fin.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, invoice: result.invoice } };
+});
 
 // Editing an invoice, or recording a payment against it. Payments go through
 // their own service call because they are append-only history, not an edit.
-export async function PUT(request, ctx) {
-  const g = await financeGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+//
+// An overpayment refusal carries the outstanding balance with it. This route
+// forwarded that field by hand — it was the only one in Finance that did — and
+// the wrapper now carries every refusal's context the same way, so the other
+// refusals here stopped being bare names too.
+export const PUT = route(spec, async (fin) => {
+  const refusal = manageable(fin);
+  if (refusal) return refusal;
+  if (!fin.body.id) return { error: "missing" };
 
-  const result = b.payment ? await recordPayment(g, b.id, b.payment) : await editInvoice(g, b.id, b);
+  const result = fin.body.payment
+    ? await recordPayment(fin, fin.body.id, fin.body.payment)
+    : await editInvoice(fin, fin.body.id, fin.body);
 
-  if (result.error) {
-    const status = result.error === "notfound" ? 404
-      : result.error === "issued" || result.error === "has-payments" || result.error === "overpayment" ? 409
-      : 400;
-    return Response.json({ error: result.error, outstanding: result.outstanding }, { status });
-  }
-  return Response.json({ ok: true, invoice: result.invoice });
-}
+  if (result.error) return result;
+  return { ok: true, invoice: result.invoice };
+});
 
-export async function DELETE(request, ctx) {
-  const g = await financeGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removeInvoice(g, b.id);
-  if (result.error) {
-    // An issued invoice is part of the record — cancel it rather than erasing
-    // what a client was told they owed.
-    return Response.json({ error: result.error }, { status: result.error === "issued" ? 409 : 404 });
-  }
-  return Response.json({ ok: true });
-}
+// An issued invoice is part of the record — cancel it rather than erasing what
+// a client was told they owed.
+export const DELETE = route(spec, async (fin) => {
+  const refusal = manageable(fin);
+  if (refusal) return refusal;
+  if (!fin.body.id) return { error: "missing" };
+
+  const result = await removeInvoice(fin, fin.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

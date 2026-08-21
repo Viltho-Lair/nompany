@@ -21,7 +21,6 @@ import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { traverseIn } from "@/lib/relations";
 import { nextReference } from "@/lib/references";
-import { currentUser } from "@/lib/identity";
 
 const INVOICES = "invoices";
 const EXPENSES = "expenses";
@@ -111,18 +110,6 @@ export async function saveFinanceSettings(ctx, body) {
   return updated ? { cashCategories: readCashCategories({ settings: next }) } : { error: "notfound" };
 }
 
-export async function financeGuard(paramsPromise, { write } = {}) {
-  const user = await currentUser();
-  if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
-  const { slug } = await paramsPromise;
-  const fin = await financeContext(user, slug);
-  if (fin.error) {
-    const status = fin.error === "notfound" || fin.error === "no-section" ? 404 : 403;
-    return { fail: Response.json({ error: fin.error }, { status }) };
-  }
-  if (write && !fin.canManage) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
-  return fin;
-}
 
 // ---- money -----------------------------------------------------------------
 // One place computes an invoice's numbers, so the list, the detail and the

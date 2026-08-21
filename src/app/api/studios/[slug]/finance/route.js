@@ -1,5 +1,6 @@
+import { route } from "@/lib/route";
 import {
-  financeGuard, listInvoices, listExpenses, profitability, billableProjects, summarise,
+  financeContext, listInvoices, listExpenses, profitability, billableProjects, summarise,
   INVOICE_STATUSES, EXPENSE_CATEGORIES, PAYMENT_METHODS, DEFAULT_VAT_RATE,
 } from "@/lib/finance";
 
@@ -9,16 +10,15 @@ export const dynamic = "force-dynamic";
 // One read for the whole Finance screen. Every figure here is computed from the
 // records that justify it — invoice totals from their lines, amounts paid from
 // their payments, project cost from purchase orders plus booked expenses.
-export async function GET(request, ctx) {
-  const g = await financeGuard(ctx.params);
-  if (g.fail) return g.fail;
-
+export const GET = route(
+  { auth: "studio", context: financeContext, name: "finance" },
+  async (g) => {
   const [invoices, expenses, projects] = await Promise.all([
     listInvoices(g), listExpenses(g), billableProjects(g),
   ]);
   const projectMargins = await profitability(g, { invoices, expenses });
 
-  return Response.json({
+  return {
     canManage: g.canManage,
     // Whether the module's OWN screen may be opened. The dashboard summarises
     // everything underneath it, so it is withheld on a right of its own.
@@ -36,5 +36,5 @@ export async function GET(request, ctx) {
       paymentMethods: PAYMENT_METHODS,
       defaultVatRate: DEFAULT_VAT_RATE,
     },
-  });
-}
+  };
+});

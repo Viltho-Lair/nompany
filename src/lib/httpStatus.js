@@ -85,6 +85,9 @@ const CONFLICT = [
   // quotation is not finished yet. Nothing about the request needs changing —
   // it needs asking again later.
   "rfq-pending", "not-quoted",
+  // Refused rather than absorbed: the payment exceeds what is outstanding, which
+  // means something is wrong with one of them and a person should decide which.
+  "overpayment",
 ];
 
 // 429 — SLOW DOWN. Separated from 403 on purpose: a rate limit is temporary and
