@@ -3,7 +3,10 @@ import {
   isProvider, providerConfigured, exchangeCode, readState,
   clearedStateCookie, OAUTH_STATE_COOKIE,
 } from "@/lib/oauth";
-import { signInWithProvider, sessionCookie, requestIsHttps } from "@/lib/identity";
+import {
+  signInWithProvider, sessionCookie, requestIsHttps,
+  deviceFingerprint, deviceCookie, DEVICE_COOKIE,
+} from "@/lib/identity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,12 +36,27 @@ export async function GET(request, ctx) {
   const profile = await exchangeCode({ provider, code, request });
   if (profile.error) return Response.redirect(back(request, profile.error), 302);
 
-  const result = await signInWithProvider({ ...profile, provider });
+  // The same device details the password path collects — see deviceFingerprint.
+  // The cookie carries the id of a browser this account has used before, so a
+  // returning one updates its row instead of adding a second.
+  const jar = await cookies();
+  const result = await signInWithProvider({
+    ...profile,
+    provider,
+    deviceId: jar.get(DEVICE_COOKIE)?.value || "",
+    device: deviceFingerprint(request),
+  });
   if (result.error) return Response.redirect(back(request, result.error), 302);
 
   const res = Response.redirect(new URL("/en/questionnaire", url.origin), 302);
   const out = new Response(res.body, res);
   out.headers.append("Set-Cookie", sessionCookie(result.token, result.ttl, requestIsHttps(request)));
+  // AND THE DEVICE COOKIE, or the id is never handed back and this browser
+  // appears as a brand new device on every single sign-in — a Security page
+  // that grows a row per visit is no more useful than one that stays empty.
+  if (result.deviceId) {
+    out.headers.append("Set-Cookie", deviceCookie(result.deviceId, requestIsHttps(request)));
+  }
   out.headers.append("Set-Cookie", clearedStateCookie());
   return out;
 }

@@ -1740,6 +1740,43 @@ console.log("== the answer a person who asked to join never got");
   await signIn(owner.id);
 }
 
+console.log("== an OAuth sign-in is a device too");
+// REPORTED, THEN VERIFIED: a user who registered with Google or Microsoft never
+// saw any devices on their account. signInWithProvider minted a session and
+// returned — recordDevice was called in exactly one place, the OTP path.
+//
+// Worse than a missing feature. The device list is where somebody notices a
+// sign-in they do not recognise, and for every OAuth account it rendered as
+// though nothing had ever signed in, while the account had live sessions.
+{
+  const identity = await import("@/lib/identity");
+  const devices = await import("@/lib/data/otp");
+
+  const email = `g-oauth-${rand()}@test.invalid`;
+  const fingerprint = { label: "Chrome on Windows", deviceType: "Computer", location: "Riyadh, SA", ipHash: "abc123" };
+
+  const first = await identity.signInWithProvider({
+    email, fullName: "OAuth Person", provider: "google", deviceId: "", device: fingerprint,
+  });
+  ok("the provider sign-in worked", Boolean(first.token), JSON.stringify(first.error ?? ""));
+  ok("...and it handed back a device id", Boolean(first.deviceId), String(first.deviceId));
+
+  const listed = await devices.listDevices(first.user.id);
+  ok("the account can see the browser it signed in from",
+    listed.length === 1 && listed[0].label === "Chrome on Windows",
+    JSON.stringify(listed.map((d) => d.label)));
+
+  // SIGNING IN AGAIN FROM THE SAME BROWSER UPDATES THE ROW. Without the device
+  // cookie being handed back, the id is never returned and Security grows a row
+  // per visit — no more useful than one that stays empty.
+  const again = await identity.signInWithProvider({
+    email, fullName: "OAuth Person", provider: "google",
+    deviceId: first.deviceId, device: fingerprint,
+  });
+  const after = await devices.listDevices(again.user.id);
+  ok("...and returning does not add a second row", after.length === 1, String(after.length));
+}
+
 console.log("== credentials at rest");
 // H-1 and H-9. Both are about what a COPY of the database is worth — a backup, a
 // support export, or the second application sharing this Redis Cloud instance.

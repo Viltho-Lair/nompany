@@ -225,7 +225,7 @@ export async function resendOtp({ challengeId, ip }) {
 // existing user is signed straight in; a new one is created with the email
 // pre-verified and a random password they never see (they can set their own
 // later via "forgot password"). Returns { user, token, ttl } or { error }.
-export async function signInWithProvider({ email, fullName, provider }) {
+export async function signInWithProvider({ email, fullName, provider, deviceId, device }) {
   const mail = norm(email);
   if (!EMAIL_RE.test(mail)) return { error: "email" };
 
@@ -253,7 +253,21 @@ export async function signInWithProvider({ email, fullName, provider }) {
 
   const token = await mintSession(user.id, REMEMBER_TTL);
   await touchLastLogin(user.id);
-  return { user, token, ttl: REMEMBER_TTL };
+
+  // RECORD THE BROWSER, exactly as the OTP path does.
+  //
+  // It did not, and the result was worse than a missing feature: an account that
+  // signs in with Google or Microsoft showed an EMPTY device list forever, while
+  // having live sessions the whole time. Security is where somebody notices a
+  // sign-in they do not recognise, and for every OAuth user it was rendering as
+  // though nothing had ever signed in at all.
+  //
+  // Trusted, deliberately. The flag decides whether a device may skip the OTP
+  // step, and there is no OTP step here — the provider already proved the
+  // address, which is the whole reason this path exists. Recording it as
+  // untrusted would describe the sign-in inaccurately without changing anything.
+  const recordedId = await recordDevice(user.id, deviceId, device || {}, { trusted: true });
+  return { user, token, ttl: REMEMBER_TTL, deviceId: recordedId };
 }
 
 // ---- login (risk-based: OTP only from an unrecognised device) --------------
