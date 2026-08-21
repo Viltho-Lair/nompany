@@ -42,6 +42,13 @@ import { encryptField, decryptField } from "@/lib/fieldCrypto";
 const CERTIFICATIONS = "certifications";
 const VACATIONS = "vacations";
 
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
+// collection, not a scope — the studio and section arrive per call, which is
+// what stops a query naming another tenant's keys and what lets one object
+// answer for a sibling department's rows as easily as its own.
+const Certifications = repo(CERTIFICATIONS);
+const Vacations = repo(VACATIONS);
+
 export const LEAVE_TYPES = ["Annual", "Sick", "Unpaid", "Parental", "Compassionate"];
 export const LEAVE_STATUSES = ["Pending", "Approved", "Declined", "Cancelled"];
 export const DEFAULT_LEAVE_TYPE = "Annual";
@@ -56,9 +63,6 @@ const day = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v
 // THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
 // collection name, not a scope — the studio and section arrive with each call,
 // which is what keeps a query from ever naming another tenant's keys.
-const Certifications = repo(CERTIFICATIONS);
-const Vacations = repo(VACATIONS);
-
 export const hrContext = moduleContext({
   root: "hr",
   // Employees owns the reference lists (departments/certifications); vacations

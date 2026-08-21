@@ -13,7 +13,8 @@
 
 import { sectionManageable, requirePermission } from "@/lib/access";
 import { nextUniqueRef } from "@/lib/references";
-import { readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -37,6 +38,17 @@ const INVENTORY_ITEMS = "inventoryItems";
 const TICKETS = "salesTickets";
 const CLIENTS = "salesClients";
 const TASKS = "tasks";
+
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
+// collection, not a scope — the studio and section arrive per call, which is
+// what stops a query naming another tenant's keys and what lets one object
+// answer for a sibling department's rows as easily as its own.
+const Clients = repo(CLIENTS);
+const InventoryItems = repo(INVENTORY_ITEMS);
+const Quotations = repo(QUOTATIONS);
+const Rfqs = repo(RFQS);
+const Tasks = repo(TASKS);
+const Tickets = repo(TICKETS);
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const num = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : 0);
 
@@ -150,8 +162,8 @@ const NO_TICKET = {
 export async function ticketFacts({ studio, salesTicketsSection, salesClientsSection }) {
   if (!salesTicketsSection) return () => NO_TICKET;
   const [tickets, clients] = await Promise.all([
-    readCol(studio.id, salesTicketsSection.id, TICKETS),
-    salesClientsSection ? readCol(studio.id, salesClientsSection.id, CLIENTS) : [],
+    Tickets.find({ studio, section: salesTicketsSection }),
+    salesClientsSection ? Clients.find({ studio, section: salesClientsSection }) : [],
   ]);
   // The client's NAME is the client record's, not the ticket's — a second hop
   // down the same kind of key, and for the same reason.
@@ -177,7 +189,7 @@ export async function ticketFacts({ studio, salesTicketsSection, salesClientsSec
 
 export async function listRfqs(ctx) {
   const [rows, factsFor] = await Promise.all([
-    readCol(ctx.studio.id, ctx.rfqSection.id, RFQS),
+    Rfqs.find({ studio: ctx.studio, section: ctx.rfqSection }),
     ticketFacts(ctx),
   ]);
   return [...rows]
@@ -238,13 +250,13 @@ export async function requestRfq(ctx, body) {
   // RFQ, and the name is now read back from the client record at display time.
   const ticketId = str(body?.ticketId, 60);
   const [tickets, existing, quotations, tasks] = await Promise.all([
-    readCol(studio.id, salesTicketsSection.id, TICKETS),
-    readCol(studio.id, rfqSection.id, RFQS),
-    readCol(studio.id, quotationsSection.id, QUOTATIONS),
+    Tickets.find({ studio, section: salesTicketsSection }),
+    Rfqs.find({ studio, section: rfqSection }),
+    Quotations.find({ studio, section: quotationsSection }),
     // Only to ask whether the current quotation is approved, and only through
     // the helper below. A studio with no Tasks section has no approvals to read,
     // so nothing here refuses on their absence.
-    ctx.tasksSection ? readCol(studio.id, ctx.tasksSection.id, TASKS) : [],
+    ctx.tasksSection ? Tasks.find({ studio, section: ctx.tasksSection }) : [],
   ]);
   const ticket = tickets.find((t) => t.id === ticketId);
   if (!ticket) return { error: "ticket" };
@@ -346,7 +358,7 @@ export async function updateRfq(ctx, id, body) {
   // Best-effort and one-way: a ticket a Sales user has already closed, won or
   // otherwise decided is left where they put it.
   if (patch.status === "Rejected" && rfq.ticketId && salesTicketsSection) {
-    const tickets = await readCol(studio.id, salesTicketsSection.id, TICKETS);
+    const tickets = await Tickets.find({ studio, section: salesTicketsSection });
     const ticket = tickets.find((t) => t.id === rfq.ticketId);
     if (ticket && (ticket.status === DEFAULT_STATUS || ticket.status === "Opportunity")) {
       await updateRow(studio.id, salesTicketsSection.id, TICKETS, rfq.ticketId, {
@@ -397,9 +409,9 @@ const quotationHandler = (q, rfq) =>
 
 export async function listQuotations(ctx) {
   const [rows, rfqRows, tasks, factsFor] = await Promise.all([
-    readCol(ctx.studio.id, ctx.quotationsSection.id, QUOTATIONS),
-    ctx.rfqSection ? readCol(ctx.studio.id, ctx.rfqSection.id, RFQS) : [],
-    ctx.tasksSection ? readCol(ctx.studio.id, ctx.tasksSection.id, TASKS) : [],
+    Quotations.find({ studio: ctx.studio, section: ctx.quotationsSection }),
+    ctx.rfqSection ? Rfqs.find({ studio: ctx.studio, section: ctx.rfqSection }) : [],
+    ctx.tasksSection ? Tasks.find({ studio: ctx.studio, section: ctx.tasksSection }) : [],
     ticketFacts(ctx),
   ]);
   const rfqById = new Map(rfqRows.map((r) => [r.id, r]));
@@ -463,7 +475,7 @@ export async function createQuotation(ctx, body) {
   if (!description) return { error: "description" };
   if (!handledBy) return { error: "handledBy" };
 
-  const quotations = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
+  const quotations = await Quotations.find({ studio, section: quotationsSection });
   if (quotations.some((q) => String(q.number || "").toLowerCase() === number.toLowerCase())) {
     return { error: "duplicate" };
   }
@@ -511,12 +523,12 @@ export async function convertRfq(ctx, body) {
 
   const { studio, rfqSection, quotationsSection, settingsSection, collaborator } = ctx;
   const rfqId = str(body?.rfqId, 60);
-  const rfqs = await readCol(studio.id, rfqSection.id, RFQS);
+  const rfqs = await Rfqs.find({ studio, section: rfqSection });
   const rfq = rfqs.find((r) => r.id === rfqId);
   if (!rfq) return { error: "notfound" };
   if (rfq.status === "Converted") return { error: "already" };
 
-  const quotations = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
+  const quotations = await Quotations.find({ studio, section: quotationsSection });
 
   // A SECOND RFQ ON THE SAME TICKET IS A REVISION, not a fresh start. Sales
   // raises one when the last quotation needs changing, so the new document
@@ -591,7 +603,7 @@ export async function updateQuotation(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, quotationsSection, collaborator } = ctx;
-  const rows = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
+  const rows = await Quotations.find({ studio, section: quotationsSection });
   const current = rows.find((q) => q.id === id);
   if (!current) return { error: "notfound" };
   // A LOCKED quotation is finished business — the priced document a client was
@@ -697,7 +709,7 @@ export async function updateQuotation(ctx, id, body) {
   // list it is drawn from already carried the right answer.
   if (body?.locked === true) {
     const approvedNow = patch.status === "Approved"
-      || quotationApproved(current, ctx.tasksSection ? await readCol(studio.id, ctx.tasksSection.id, TASKS) : []);
+      || quotationApproved(current, ctx.tasksSection ? await Tasks.find({ studio, section: ctx.tasksSection }) : []);
     if (!approvedNow) return { error: "not-approved" };
     patch.locked = true;
   }
@@ -720,10 +732,10 @@ export async function removeQuotation(ctx, id) {
 export async function openTickets({ studio, salesSection, salesTicketsSection, salesClientsSection, rfqSection, quotationsSection, tasksSection }) {
   if (!salesSection) return [];
   const [tickets, rfqs, quotations, tasks] = await Promise.all([
-    readCol(studio.id, salesTicketsSection.id, TICKETS),
-    readCol(studio.id, rfqSection.id, RFQS),
-    readCol(studio.id, quotationsSection.id, QUOTATIONS),
-    tasksSection ? readCol(studio.id, tasksSection.id, TASKS) : [],
+    Tickets.find({ studio, section: salesTicketsSection }),
+    Rfqs.find({ studio, section: rfqSection }),
+    Quotations.find({ studio, section: quotationsSection }),
+    tasksSection ? Tasks.find({ studio, section: tasksSection }) : [],
   ]);
   return tickets
     // BOTH RULES requestRfq refuses on, not just the first. A ticket whose
@@ -738,7 +750,7 @@ export async function openTickets({ studio, salesSection, salesTicketsSection, s
 // Sorted by name because that is what somebody types.
 export async function catalogueItems({ studio, inventoryItemsSection }) {
   if (!inventoryItemsSection) return [];
-  const rows = await readCol(studio.id, inventoryItemsSection.id, INVENTORY_ITEMS);
+  const rows = await InventoryItems.find({ studio, section: inventoryItemsSection });
 
   // TODAY'S RATES, ONCE FOR THE WHOLE CATALOGUE. An item bought abroad is priced
   // in somebody else's money, and a quotation is written in the studio's — so

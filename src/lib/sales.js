@@ -13,7 +13,8 @@
 // studios and a removed collaborator doesn't drag a user account with them.
 
 import { requirePermission } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -41,6 +42,18 @@ const QUOTATIONS = "quotations";
 // ticket what became of that request.
 const TASKS = "tasks";
 const PROJECTS = "projects";
+
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
+// collection, not a scope — the studio and section arrive per call, which is
+// what stops a query naming another tenant's keys and what lets one object
+// answer for a sibling department's rows as easily as its own.
+const Clients = repo(CLIENTS);
+const Projects = repo(PROJECTS);
+const Quotations = repo(QUOTATIONS);
+const Rfqs = repo(RFQS);
+const Services = repo(SERVICES);
+const Tasks = repo(TASKS);
+const Tickets = repo(TICKETS);
 // The task type the Tasks board already routes to Sales + Management. Sending a
 // quotation for approval raises one of these rather than a type of its own, so
 // there is one approval queue in the studio and not two.
@@ -185,7 +198,7 @@ export async function saveSalesSettings(ctx, body) {
 
 // ---- service catalogue ------------------------------------------------------
 export async function listServices({ studio, settingsSection }) {
-  const rows = await readCol(studio.id, settingsSection.id, SERVICES);
+  const rows = await Services.find({ studio, section: settingsSection });
   return [...rows].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }
 
@@ -199,7 +212,7 @@ export async function createService(ctx, body) {
   const { studio, settingsSection, collaborator } = ctx;
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
-  const existing = await readCol(studio.id, settingsSection.id, SERVICES);
+  const existing = await Services.find({ studio, section: settingsSection });
   if (existing.some((s) => String(s.name || "").trim().toLowerCase() === name.toLowerCase())) {
     return { error: "duplicate" };
   }
@@ -225,7 +238,7 @@ export async function editService(ctx, id, body) {
   if (body?.name !== undefined) {
     const name = str(body.name, 160);
     if (!name) return { error: "name" };
-    const rows = await readCol(studio.id, settingsSection.id, SERVICES);
+    const rows = await Services.find({ studio, section: settingsSection });
     if (rows.some((s) => s.id !== id && String(s.name || "").trim().toLowerCase() === name.toLowerCase())) {
       return { error: "duplicate" };
     }
@@ -246,7 +259,7 @@ export async function removeService(ctx, id) {
   if (denied) return denied;
 
   const { studio, settingsSection, ticketsSection } = ctx;
-  const tickets = await readCol(studio.id, ticketsSection.id, TICKETS);
+  const tickets = await Tickets.find({ studio, section: ticketsSection });
   const used = tickets.filter((t) => (t.serviceIds || []).includes(id)).length;
   if (used > 0) return { error: "in-use", tickets: used };
   const removed = await deleteRow(studio.id, settingsSection.id, SERVICES, id);
@@ -255,7 +268,7 @@ export async function removeService(ctx, id) {
 
 // ---- clients ---------------------------------------------------------------
 export async function listClients({ studio, clientsSection }) {
-  const rows = await readCol(studio.id, clientsSection.id, CLIENTS);
+  const rows = await Clients.find({ studio, section: clientsSection });
   return [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
@@ -271,7 +284,7 @@ export async function createClient(ctx, body) {
   if (!name) return { error: "name" };
 
   // Case-insensitive duplicate guard — "Acme" and "ACME " are the same client.
-  const existing = await readCol(studio.id, clientsSection.id, CLIENTS);
+  const existing = await Clients.find({ studio, section: clientsSection });
   if (existing.some((c) => normaliseClientName(c.name) === normaliseClientName(name))) {
     return { error: "duplicate" };
   }
@@ -304,7 +317,7 @@ export async function editClient(ctx, id, body) {
   if (body?.name !== undefined) {
     const name = str(body.name, 160);
     if (!name) return { error: "name" };
-    const rows = await readCol(studio.id, clientsSection.id, CLIENTS);
+    const rows = await Clients.find({ studio, section: clientsSection });
     if (rows.some((c) => c.id !== id && normaliseClientName(c.name) === normaliseClientName(name))) {
       return { error: "duplicate" };
     }
@@ -330,7 +343,7 @@ export async function removeClient(ctx, id) {
   if (denied) return denied;
 
   const { studio, clientsSection, ticketsSection } = ctx;
-  const tickets = await readCol(studio.id, ticketsSection.id, TICKETS);
+  const tickets = await Tickets.find({ studio, section: ticketsSection });
   const used = tickets.filter((t) => t.clientId === id).length;
   if (used > 0) return { error: "in-use", tickets: used };
   const removed = await deleteRow(studio.id, clientsSection.id, CLIENTS, id);
@@ -555,14 +568,14 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees, projects)
 
 export async function listTickets({ studio, ticketsSection, clientsSection, rfqSection, quotationsSection, tasksSection, projectsSection, taskAssignees }) {
   const [tickets, clients, rfqs, quotations, tasks, projects] = await Promise.all([
-    readCol(studio.id, ticketsSection.id, TICKETS),
-    readCol(studio.id, clientsSection.id, CLIENTS),
-    rfqSection ? readCol(studio.id, rfqSection.id, RFQS) : [],
-    quotationsSection ? readCol(studio.id, quotationsSection.id, QUOTATIONS) : [],
-    tasksSection ? readCol(studio.id, tasksSection.id, TASKS) : [],
+    Tickets.find({ studio, section: ticketsSection }),
+    Clients.find({ studio, section: clientsSection }),
+    rfqSection ? Rfqs.find({ studio, section: rfqSection }) : [],
+    quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : [],
+    tasksSection ? Tasks.find({ studio, section: tasksSection }) : [],
     // A studio without a Projects section simply gets no project on its
     // tickets, the same way one without Tasks gets no approval button.
-    projectsSection ? readCol(studio.id, projectsSection.id, PROJECTS) : [],
+    projectsSection ? Projects.find({ studio, section: projectsSection }) : [],
   ]);
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
   return [...tickets]
@@ -592,13 +605,13 @@ export async function ticketQuotation({ studio, ticketsSection, clientsSection, 
   const id = str(quotationId, 60);
   if (!id) return { error: "notfound" };
 
-  const quotations = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
+  const quotations = await Quotations.find({ studio, section: quotationsSection });
   const quotation = quotations.find((q) => q.id === id);
   // A quotation with no ticket behind it is Technical's internal work, and no
   // business of the Sales screens.
   if (!quotation || !quotation.ticketId) return { error: "notfound" };
 
-  const tickets = await readCol(studio.id, ticketsSection.id, TICKETS);
+  const tickets = await Tickets.find({ studio, section: ticketsSection });
   const ticket = tickets.find((t) => t.id === quotation.ticketId);
   if (!ticket) return { error: "notfound" };
 
@@ -616,8 +629,8 @@ export async function ticketQuotation({ studio, ticketsSection, clientsSection, 
   // The lines, the prices and the totals stay exactly as stored — those ARE the
   // document. What is carried is what the document never owned.
   const [clients, tasks] = await Promise.all([
-    clientsSection ? readCol(studio.id, clientsSection.id, CLIENTS) : [],
-    tasksSection ? readCol(studio.id, tasksSection.id, TASKS) : [],
+    clientsSection ? Clients.find({ studio, section: clientsSection }) : [],
+    tasksSection ? Tasks.find({ studio, section: tasksSection }) : [],
   ]);
 
   // IS THIS THE ONE THAT COUNTS. Only the latest quotation carries a Print
@@ -701,10 +714,10 @@ export async function sendTicketForApproval(ctx, body) {
 
   const ticketId = str(body?.ticketId, 60);
   const [tickets, rfqs, quotations, tasks] = await Promise.all([
-    readCol(studio.id, ticketsSection.id, TICKETS),
-    rfqSection ? readCol(studio.id, rfqSection.id, RFQS) : [],
-    readCol(studio.id, quotationsSection.id, QUOTATIONS),
-    readCol(studio.id, tasksSection.id, TASKS),
+    Tickets.find({ studio, section: ticketsSection }),
+    rfqSection ? Rfqs.find({ studio, section: rfqSection }) : [],
+    Quotations.find({ studio, section: quotationsSection }),
+    Tasks.find({ studio, section: tasksSection }),
   ]);
   const ticket = tickets.find((t) => t.id === ticketId);
   if (!ticket) return { error: "ticket" };
@@ -805,9 +818,9 @@ export async function submitTicketPo(ctx, body) {
   if (!description && !attachment.url) return { error: "evidence" };
 
   const [tickets, quotations, tasks] = await Promise.all([
-    readCol(studio.id, ticketsSection.id, TICKETS),
-    readCol(studio.id, quotationsSection.id, QUOTATIONS),
-    readCol(studio.id, tasksSection.id, TASKS),
+    Tickets.find({ studio, section: ticketsSection }),
+    Quotations.find({ studio, section: quotationsSection }),
+    Tasks.find({ studio, section: tasksSection }),
   ]);
   const ticket = tickets.find((t) => t.id === ticketId);
   if (!ticket) return { error: "ticket" };
@@ -921,7 +934,7 @@ export async function createTicket(ctx, body) {
   // Services are chosen from the catalogue in Sales -> Settings. Unknown ids
   // are dropped rather than trusted, so a stale client can't attach a service
   // this studio doesn't have.
-  const known = new Set((await readCol(studio.id, ctx.settingsSection.id, SERVICES)).map((s) => s.id));
+  const known = new Set((await Services.find({ studio, section: ctx.settingsSection })).map((s) => s.id));
   const serviceIds = [...new Set((Array.isArray(body?.serviceIds) ? body.serviceIds : []).map(String))]
     .filter((id) => known.has(id));
   // Per service the client may opt out of Installation and/or Programming.
@@ -940,7 +953,7 @@ export async function createTicket(ctx, body) {
   if (clientBudget != null && (!Number.isFinite(clientBudget) || clientBudget < 0)) return { error: "budget" };
 
   // Upsert the client by name (case-insensitive); fall back to an explicit id.
-  const clients = await readCol(studio.id, clientsSection.id, CLIENTS);
+  const clients = await Clients.find({ studio, section: clientsSection });
   let client = clientName
     ? clients.find((c) => normaliseClientName(c.name) === normaliseClientName(clientName))
     : clients.find((c) => c.id === clientId);
@@ -964,7 +977,7 @@ export async function createTicket(ctx, body) {
   }
 
   // Reference is per-client and human-readable: ACME-001, ACME-002, …
-  const tickets = await readCol(studio.id, ticketsSection.id, TICKETS);
+  const tickets = await Tickets.find({ studio, section: ticketsSection });
   // COUNTING IS NOT NUMBERING. `count + 1` repeats a reference the moment any
   // gap exists — a removed row, or two tickets raised in the same moment — and a
   // reference a client already holds must never point at two things. Take the
@@ -1023,7 +1036,7 @@ export async function editTicket(ctx, id, body) {
   // overwrite: a discussion records who said what and when, and accepting the
   // whole array would let a single edit rewrite all of it.
   if (typeof body?.addComment === "string" && body.addComment.trim()) {
-    const existing = (await readCol(studio.id, ticketsSection.id, TICKETS)).find((t) => t.id === id);
+    const existing = (await Tickets.find({ studio, section: ticketsSection })).find((t) => t.id === id);
     if (!existing) return { error: "notfound" };
     const comment = {
       id: `cmt_${Math.random().toString(36).slice(2, 10)}`,
@@ -1067,7 +1080,7 @@ export async function editTicket(ctx, id, body) {
   // Same rule as creation: unknown service ids are dropped, not trusted, and a
   // ticket is never left with none.
   if (body?.serviceIds !== undefined) {
-    const known = new Set((await readCol(studio.id, settingsSection.id, SERVICES)).map((s) => s.id));
+    const known = new Set((await Services.find({ studio, section: settingsSection })).map((s) => s.id));
     const serviceIds = [...new Set((Array.isArray(body.serviceIds) ? body.serviceIds : []).map(String))]
       .filter((sid) => known.has(sid));
     if (serviceIds.length === 0) return { error: "services" };
@@ -1102,7 +1115,7 @@ export async function editTicket(ctx, id, body) {
     // ReferenceError waiting for the first ticket without a client on it.
     const clientId = ticket.clientId;
     if (clientId) {
-      const clients = await readCol(studio.id, clientsSection.id, CLIENTS);
+      const clients = await Clients.find({ studio, section: clientsSection });
       const client = clients.find((c) => c.id === clientId);
       if (client) {
         const nextLocations = upsertLocation(client.locations, patch.location);

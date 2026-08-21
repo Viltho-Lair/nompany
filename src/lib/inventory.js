@@ -19,7 +19,8 @@
 
 import { requirePermission } from "@/lib/access";
 import { isKnownCurrency } from "@/lib/currencies";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { getSectionByKey, addRow, updateRow, deleteRow } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -61,6 +62,22 @@ const ORDERS = "materialOrders";
 const SHEETS = "projectSheets";
 const DELIVERIES = "deliveries";
 const PROJECTS = "projects";
+const TASKS = "tasks";
+const QUOTATIONS = "quotations";
+
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
+// collection, not a scope — the studio and section arrive per call, which is
+// what stops a query naming another tenant's keys and what lets one object
+// answer for a sibling department's rows as easily as its own.
+const Deliveries = repo(DELIVERIES);
+const Items = repo(ITEMS);
+const Orders = repo(ORDERS);
+const Projects = repo(PROJECTS);
+const Quotations = repo(QUOTATIONS);
+const Sheets = repo(SHEETS);
+const Stock = repo(STOCK);
+const Tasks = repo(TASKS);
+const Vendors = repo(VENDORS);
 
 export const ORDER_STATUSES = ["Draft", "Ordered", "Partly received", "Received", "Cancelled"];
 export const DELIVERY_STATUSES = ["Draft", "Issued", "Cancelled"];
@@ -126,7 +143,7 @@ export const inventoryContext = moduleContext({
 
 // ---- vendors ---------------------------------------------------------------
 export async function listVendors({ studio, vendorsSection }) {
-  const rows = await readCol(studio.id, vendorsSection.id, VENDORS);
+  const rows = await Vendors.find({ studio, section: vendorsSection });
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
@@ -139,7 +156,7 @@ export async function createVendor(ctx, body) {
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
 
-  const rows = await readCol(studio.id, vendorsSection.id, VENDORS);
+  const rows = await Vendors.find({ studio, section: vendorsSection });
   if (rows.some((v) => v.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
 
   const vendor = await addRow(studio.id, vendorsSection.id, VENDORS, {
@@ -164,7 +181,7 @@ export async function editVendor(ctx, id, body) {
   if (body?.name !== undefined) {
     const name = str(body.name, 160);
     if (!name) return { error: "name" };
-    const rows = await readCol(studio.id, vendorsSection.id, VENDORS);
+    const rows = await Vendors.find({ studio, section: vendorsSection });
     if (rows.some((v) => v.id !== id && v.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
@@ -184,8 +201,8 @@ export async function removeVendor(ctx, id) {
 
   const { studio, vendorsSection, sheetsSection, itemsSection } = ctx;
   const [items, orders] = await Promise.all([
-    readCol(studio.id, itemsSection.id, ITEMS),
-    readCol(studio.id, sheetsSection.id, ORDERS),
+    Items.find({ studio, section: itemsSection }),
+    Orders.find({ studio, section: sheetsSection }),
   ]);
   const used = items.filter((i) => i.vendorId === id).length;
   const ordered = orders.filter((o) => o.vendorId === id).length;
@@ -200,7 +217,7 @@ export async function removeVendor(ctx, id) {
 // the item rows do not each go looking.
 async function reservedSerials({ studio, sheetsSection }) {
   if (!sheetsSection) return new Set();
-  const sheets = await readCol(studio.id, sheetsSection.id, SHEETS);
+  const sheets = await Sheets.find({ studio, section: sheetsSection });
   const out = new Set();
   for (const sh of sheets) {
     const lines = sh.lines && typeof sh.lines === "object" ? sh.lines : {};
@@ -212,9 +229,9 @@ async function reservedSerials({ studio, sheetsSection }) {
 export async function listItems(ctx) {
   const { studio, itemsSection, vendorsSection, stockSection } = ctx;
   const [items, vendors, movements, reserved] = await Promise.all([
-    readCol(studio.id, itemsSection.id, ITEMS),
-    readCol(studio.id, vendorsSection.id, VENDORS),
-    readCol(studio.id, stockSection.id, STOCK),
+    Items.find({ studio, section: itemsSection }),
+    Vendors.find({ studio, section: vendorsSection }),
+    Stock.find({ studio, section: stockSection }),
     reservedSerials(ctx),
   ]);
   const vendorName = Object.fromEntries(vendors.map((v) => [v.id, v.name]));
@@ -257,7 +274,7 @@ export async function createItem(ctx, body) {
 
   const vendorId = str(body?.vendorId, 60);
   if (vendorId) {
-    const vendors = await readCol(studio.id, vendorsSection.id, VENDORS);
+    const vendors = await Vendors.find({ studio, section: vendorsSection });
     if (!vendors.some((v) => v.id === vendorId)) return { error: "vendor" };
   }
 
@@ -267,7 +284,7 @@ export async function createItem(ctx, body) {
   const customsCharges = charge(body?.customsCharges);
   if (foreign && (shippingCharges === "" || customsCharges === "")) return { error: "charges" };
 
-  const rows = await readCol(studio.id, itemsSection.id, ITEMS);
+  const rows = await Items.find({ studio, section: itemsSection });
   const sku = str(body?.sku, 40).toUpperCase() || nextSku(rows);
   if (rows.some((i) => i.sku.toUpperCase() === sku)) return { error: "duplicate-sku" };
 
@@ -318,14 +335,14 @@ export async function editItem(ctx, id, body) {
   if (body?.sku !== undefined) {
     const sku = str(body.sku, 40).toUpperCase();
     if (!sku) return { error: "sku" };
-    const rows = await readCol(studio.id, itemsSection.id, ITEMS);
+    const rows = await Items.find({ studio, section: itemsSection });
     if (rows.some((i) => i.id !== id && i.sku.toUpperCase() === sku)) return { error: "duplicate-sku" };
     patch.sku = sku;
   }
   if (body?.vendorId !== undefined) {
     const vendorId = str(body.vendorId, 60);
     if (vendorId) {
-      const vendors = await readCol(studio.id, vendorsSection.id, VENDORS);
+      const vendors = await Vendors.find({ studio, section: vendorsSection });
       if (!vendors.some((v) => v.id === vendorId)) return { error: "vendor" };
     }
     patch.vendorId = vendorId;
@@ -345,7 +362,7 @@ export async function editItem(ctx, id, body) {
   // request happened to mention. An edit that touches none of the three — a
   // serial list, a picture — costs nothing extra.
   if (body?.currency !== undefined || body?.shippingCharges !== undefined || body?.customsCharges !== undefined) {
-    const rows = await readCol(studio.id, itemsSection.id, ITEMS);
+    const rows = await Items.find({ studio, section: itemsSection });
     const current = rows.find((r) => r.id === id);
     if (!current) return { error: "notfound" };
     const currency = body?.currency !== undefined ? cur(body.currency) : cur(current.currency);
@@ -377,9 +394,9 @@ export async function removeItem(ctx, id) {
 
   const { studio, itemsSection, sheetsSection, deliveriesSection, stockSection } = ctx;
   const [movements, orders, deliveries] = await Promise.all([
-    readCol(studio.id, stockSection.id, STOCK),
-    readCol(studio.id, sheetsSection.id, ORDERS),
-    readCol(studio.id, deliveriesSection.id, DELIVERIES),
+    Stock.find({ studio, section: stockSection }),
+    Orders.find({ studio, section: sheetsSection }),
+    Deliveries.find({ studio, section: deliveriesSection }),
   ]);
   const moved = movements.filter((m) => m.itemId === id).length;
   const onOrder = orders.filter((o) => (o.lines || []).some((l) => l.itemId === id)).length;
@@ -415,8 +432,8 @@ export function balances(movements) {
 
 export async function listMovements({ studio, stockSection, itemsSection }, { limit = 200 } = {}) {
   const [movements, items, people] = await Promise.all([
-    readCol(studio.id, stockSection.id, STOCK),
-    readCol(studio.id, itemsSection.id, ITEMS),
+    Stock.find({ studio, section: stockSection }),
+    Items.find({ studio, section: itemsSection }),
     listCollaborators(studio.id),
   ]);
   const itemName = Object.fromEntries(items.map((i) => [i.id, `${i.sku} · ${i.name}`]));
@@ -457,7 +474,7 @@ export async function adjustStock(ctx, body) {
 
   const { studio, stockSection, itemsSection } = ctx;
   const itemId = str(body?.itemId, 60);
-  const items = await readCol(studio.id, itemsSection.id, ITEMS);
+  const items = await Items.find({ studio, section: itemsSection });
   if (!items.some((i) => i.id === itemId)) return { error: "item" };
 
   const amount = qty(body?.qty);
@@ -466,7 +483,7 @@ export async function adjustStock(ctx, body) {
   // A negative adjustment can't take an item below zero — you cannot have less
   // than none of something.
   if (amount < 0) {
-    const movements = await readCol(studio.id, stockSection.id, STOCK);
+    const movements = await Stock.find({ studio, section: stockSection });
     const have = balances(movements)[itemId] || 0;
     if (have + amount < 0) return { error: "insufficient", have, needed: Math.abs(amount) };
   }
@@ -574,8 +591,8 @@ function composeSheet(sheet, quote, vendorOf, stockFor, modelOf) {
 async function ensureSheetsExist({ studio, sheetsSection, projectsListSection }) {
   if (!sheetsSection || !projectsListSection) return;
   const [sheets, projects] = await Promise.all([
-    readCol(studio.id, sheetsSection.id, SHEETS),
-    readCol(studio.id, projectsListSection.id, "projects"),
+    Sheets.find({ studio, section: sheetsSection }),
+    Projects.find({ studio, section: projectsListSection }),
   ]);
   // THE SHEET THAT ALREADY EXISTED IS NOT LOST. The first version of this wrote
   // ONE row per project with no `kind` and a `rows` array copied off the
@@ -636,7 +653,7 @@ export async function saveSheetLine(ctx, body) {
   const denied = requirePermission(ctx.access, `${SHEET_OWNERS[owner].permission}.edit`);
   if (denied) return denied;
 
-  const sheets = await readCol(studio.id, sheetsSection.id, SHEETS);
+  const sheets = await Sheets.find({ studio, section: sheetsSection });
   const sheet = sheets.find((x) => x.id === sheetId);
   if (!sheet) return { error: "notfound" };
 
@@ -667,15 +684,15 @@ export async function listProjectSheets(ctx) {
   // looks, and a project that already has them is left alone.
   await ensureSheetsExist(ctx);
   const [sheets, projects, quotes, items, vendors, tasks] = await Promise.all([
-    readCol(studio.id, sheetsSection.id, SHEETS),
-    projectsListSection ? readCol(studio.id, projectsListSection.id, "projects") : [],
-    quotationsSection ? readCol(studio.id, quotationsSection.id, "quotations") : [],
-    itemsSection ? readCol(studio.id, itemsSection.id, ITEMS) : [],
-    vendorsSection ? readCol(studio.id, vendorsSection.id, VENDORS) : [],
+    Sheets.find({ studio, section: sheetsSection }),
+    projectsListSection ? Projects.find({ studio, section: projectsListSection }) : [],
+    quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : [],
+    itemsSection ? Items.find({ studio, section: itemsSection }) : [],
+    vendorsSection ? Vendors.find({ studio, section: vendorsSection }) : [],
     // The PO the client sent lives on the `po` TASK raised against this
     // sheet's quotation. Read back through quotationId like everything else,
     // so searching a PO number finds the sheet it belongs to.
-    ctx.tasksSection ? readCol(studio.id, ctx.tasksSection.id, "tasks") : [],
+    ctx.tasksSection ? Tasks.find({ studio, section: ctx.tasksSection }) : [],
   ]);
   const projectById = new Map(projects.map((p) => [p.id, p]));
   const quoteById = new Map(quotes.map((q) => [q.id, q]));
@@ -737,9 +754,9 @@ export async function listProjectSheets(ctx) {
 
 export async function listOrders({ studio, sheetsSection, vendorsSection, itemsSection }) {
   const [orders, vendors, items, projects] = await Promise.all([
-    readCol(studio.id, sheetsSection.id, ORDERS),
-    readCol(studio.id, vendorsSection.id, VENDORS),
-    readCol(studio.id, itemsSection.id, ITEMS),
+    Orders.find({ studio, section: sheetsSection }),
+    Vendors.find({ studio, section: vendorsSection }),
+    Items.find({ studio, section: itemsSection }),
     projectRows({ studio }),
   ]);
   const vendorName = Object.fromEntries(vendors.map((v) => [v.id, v.name]));
@@ -772,17 +789,17 @@ export async function createOrder(ctx, body) {
 
   const { studio, itemsSection, sheetsSection, vendorsSection } = ctx;
   const vendorId = str(body?.vendorId, 60);
-  const vendors = await readCol(studio.id, vendorsSection.id, VENDORS);
+  const vendors = await Vendors.find({ studio, section: vendorsSection });
   if (!vendors.some((v) => v.id === vendorId)) return { error: "vendor" };
 
   const projectId = str(body?.projectId, 60);
   if (projectId && !(await projectExists(ctx, projectId))) return { error: "project" };
 
-  const items = await readCol(studio.id, itemsSection.id, ITEMS);
+  const items = await Items.find({ studio, section: itemsSection });
   const lines = cleanLines(body?.lines, items);
   if (!lines.length) return { error: "lines" };
 
-  const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
+  const orders = await Orders.find({ studio, section: sheetsSection });
   const order = await addRow(studio.id, sheetsSection.id, ORDERS, {
     // A purchase order number goes to a vendor, so it cannot be reused after a
     // draft is deleted — derived, not counted. See lib/references.js.
@@ -804,7 +821,7 @@ export async function editOrder(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, itemsSection, sheetsSection } = ctx;
-  const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
+  const orders = await Orders.find({ studio, section: sheetsSection });
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
 
@@ -821,7 +838,7 @@ export async function editOrder(ctx, id, body) {
   if (body?.lines !== undefined) {
     // Lines are frozen once anything has been received against them.
     if ((order.lines || []).some((l) => (l.received || 0) > 0)) return { error: "received-already" };
-    const items = await readCol(studio.id, itemsSection.id, ITEMS);
+    const items = await Items.find({ studio, section: itemsSection });
     const lines = cleanLines(body.lines, items);
     if (!lines.length) return { error: "lines" };
     patch.lines = lines;
@@ -844,7 +861,7 @@ export async function receiveOrder(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, sheetsSection } = ctx;
-  const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
+  const orders = await Orders.find({ studio, section: sheetsSection });
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
   if (order.status === "Cancelled") return { error: "cancelled" };
@@ -894,7 +911,7 @@ export async function removeOrder(ctx, id) {
   if (denied) return denied;
 
   const { studio, sheetsSection } = ctx;
-  const orders = await readCol(studio.id, sheetsSection.id, ORDERS);
+  const orders = await Orders.find({ studio, section: sheetsSection });
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
   if ((order.lines || []).some((l) => (l.received || 0) > 0)) return { error: "received-already" };
@@ -906,8 +923,8 @@ export async function removeOrder(ctx, id) {
 // ---- deliveries (stock out, to a project) ----------------------------------
 export async function listDeliveries({ studio, itemsSection, deliveriesSection }) {
   const [deliveries, items, projects, people] = await Promise.all([
-    readCol(studio.id, deliveriesSection.id, DELIVERIES),
-    readCol(studio.id, itemsSection.id, ITEMS),
+    Deliveries.find({ studio, section: deliveriesSection }),
+    Items.find({ studio, section: itemsSection }),
     projectRows({ studio }),
     listCollaborators(studio.id),
   ]);
@@ -936,11 +953,11 @@ export async function createDelivery(ctx, body) {
   if (!projectId) return { error: "project" };
   if (!(await projectExists(ctx, projectId))) return { error: "project" };
 
-  const items = await readCol(studio.id, itemsSection.id, ITEMS);
+  const items = await Items.find({ studio, section: itemsSection });
   const lines = cleanLines(body?.lines, items).map(({ itemId, qty: q }) => ({ itemId, qty: q }));
   if (!lines.length) return { error: "lines" };
 
-  const deliveries = await readCol(studio.id, deliveriesSection.id, DELIVERIES);
+  const deliveries = await Deliveries.find({ studio, section: deliveriesSection });
   const delivery = await addRow(studio.id, deliveriesSection.id, DELIVERIES, {
     reference: await nextReference(studio.id, { rows: deliveries, field: "reference", prefix: "DN" }),
     projectId, lines,
@@ -961,8 +978,8 @@ export async function issueDelivery(ctx, id) {
 
   const { studio, stockSection, deliveriesSection } = ctx;
   const [deliveries, movements] = await Promise.all([
-    readCol(studio.id, deliveriesSection.id, DELIVERIES),
-    readCol(studio.id, stockSection.id, STOCK),
+    Deliveries.find({ studio, section: deliveriesSection }),
+    Stock.find({ studio, section: stockSection }),
   ]);
   const delivery = deliveries.find((d) => d.id === id);
   if (!delivery) return { error: "notfound" };
@@ -999,7 +1016,7 @@ export async function removeDelivery(ctx, id) {
   if (denied) return denied;
 
   const { studio, deliveriesSection } = ctx;
-  const deliveries = await readCol(studio.id, deliveriesSection.id, DELIVERIES);
+  const deliveries = await Deliveries.find({ studio, section: deliveriesSection });
   const delivery = deliveries.find((d) => d.id === id);
   if (!delivery) return { error: "notfound" };
   if (delivery.status === "Issued") return { error: "already-issued" };
@@ -1034,7 +1051,7 @@ async function ownerOf(studioId, childKey, parentKey) {
 async function projectRows({ studio }) {
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return [];
-  return readCol(studio.id, owner.id, PROJECTS);
+  return Projects.find({ studio, section: owner });
 }
 
 async function projectExists(ctx, projectId) {

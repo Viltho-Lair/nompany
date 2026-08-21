@@ -22,15 +22,19 @@ import { AWB_STATUS_BY_CODE, summarizeMovements } from "@/lib/awbStatus";
 const SHIPMENTS = "awbShipments";
 const AIRLINES = "awbAirlines";
 
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
+// collection, not a scope — the studio and section arrive per call, which is
+// what stops a query naming another tenant's keys and what lets one object
+// answer for a sibling department's rows as easily as its own.
+const Airlines = repo(AIRLINES);
+const Shipments = repo(SHIPMENTS);
+
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const qty = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 1000) / 1000 : 0; };
 const count = (v) => Math.max(0, Math.round(Number(v)) || 0);
 
 // ---- airline registry -------------------------------------------------------
 // The AWB sub-section owns both collections.
-const Airlines = repo(AIRLINES);
-const Shipments = repo(SHIPMENTS);
-
 export async function listAirlines({ studio, awbSection }) {
   const rows = await Airlines.find({ studio, section: awbSection });
   return [...rows].sort((a, b) => String(a.prefix || "").localeCompare(String(b.prefix || "")));

@@ -29,6 +29,15 @@ const EXPENSES = "expenses";
 const PROJECTS = "projects";
 const ORDERS = "materialOrders";
 
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
+// collection, not a scope — the studio and section arrive per call, which is
+// what stops a query naming another tenant's keys and what lets one object
+// answer for a sibling department's rows as easily as its own.
+const Invoices = repo(INVOICES);
+const Expenses = repo(EXPENSES);
+const Projects = repo(PROJECTS);
+const Orders = repo(ORDERS);
+
 export const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Cancelled"];
 export const EXPENSE_CATEGORIES = [
   "Materials", "Subcontractor", "Transport", "Travel", "Salaries",
@@ -45,11 +54,6 @@ const round = (n) => Math.round((Number(n) || 0) * 100) / 100;
 // THE COLLECTIONS THIS MODULE QUERIES, named once. Projects and Orders belong
 // to other departments; reading them is a different SCOPE rather than a
 // different function, and the scope still cannot cross a studio.
-const Invoices = repo(INVOICES);
-const Expenses = repo(EXPENSES);
-const Projects = repo(PROJECTS);
-const Orders = repo(ORDERS);
-
 export const financeContext = moduleContext({
   root: "finance",
   sub: { cash: "finance-cash", settings: "finance-settings" },

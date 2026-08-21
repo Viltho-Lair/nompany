@@ -4,7 +4,7 @@
 this one is where we actually are. Updated when a wave item closes, not on a
 schedule.
 
-**Last updated:** 2026-08-21 · 44 commits since the audit baseline (`166300f`)
+**Last updated:** 2026-08-21 · 47 commits since the audit baseline (`166300f`)
 
 ---
 
@@ -13,7 +13,7 @@ schedule.
 | | |
 |---|---|
 | **Done** | Wave 0, Gate A, and Wave 2's three seams (A, B, C) |
-| **In progress** | Gate B — the `readCol` migration, 1 of 13 files |
+| **In progress** | Gate B — hop counts. The `readCol` migration is done |
 | **Blocked on nothing** | CI green on every push |
 | **Next gate** | **Gate B**: zero `readCol` in services · ≤2 hops per module request |
 
@@ -28,14 +28,14 @@ A gate is a promise the build keeps, not a milestone anybody declares.
 | Gate | Exit criteria | State |
 |---|---|---|
 | **A** | Golden responses recorded · permission matrix exhaustive · hop counts pinned · CI enforcing all three | ✅ **green** |
-| **B** | Zero direct `readCol` in service code · ≤2 hops per module request · goldens unchanged throughout | 🟡 **1 of 3** |
+| **B** | Zero direct `readCol` in service code · ≤2 hops per module request · goldens unchanged throughout | 🟡 **2 of 3** |
 | **C** *(W3)* | Every module `.tsx`, departmental structure, no cross-imports outside declared seams | ⬜ not started |
 
 ### Gate B, in detail
 
 | Criterion | Target | Now |
 |---|---|---|
-| `readCol` in service code | 0 | **183** across 12 files |
+| `readCol` in service code | 0 | ✅ **0** |
 | Hops — `/api/studios/[slug]` | ≤2 | 6 waves *(was 7)* |
 | Hops — `…/sales` | ≤2 | 7 waves *(was 8)* |
 | Goldens unchanged | 139 | ✅ 139 |
@@ -88,19 +88,10 @@ status-code inventory that wrote Wave 2's own checklist.
 
 | File | Sites | State |
 |---|---|---|
-| `tasks.js` | 5 | ✅ |
-| `inventory.js` | 48 | ⬜ |
-| `sales.js` | 31 | ⬜ |
-| `operations.js` | 22 | ⬜ |
-| `technical.js` | 21 | ⬜ |
-| `projects.js` | 15 | ⬜ |
-| `finance.js` | 10 | ⬜ |
-| `awbTracking.js` | 9 | ⬜ |
-| `qualityDocs.js` | 8 | ⬜ |
-| `qualityDocRevisions.js` | 7 | ⬜ |
-| `hr.js` | 7 | ⬜ |
-| `quality.js` | 4 | ⬜ |
-| `main.js` | 1 | ⬜ |
+| all 13 service modules | 188 | ✅ |
+
+Every service module reads and writes through `repo()`. `readCol`, `addRow`,
+`updateRow` and `deleteRow` are now internal to `src/lib/data/`.
 
 ---
 

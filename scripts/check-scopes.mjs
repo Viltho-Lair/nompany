@@ -1,107 +1,136 @@
-// EVERY BARE `studio.id` / `section.id` THAT NO LONGER RESOLVES.
+// EVERY NAME A FUNCTION USES BUT DOES NOT BIND.
 //
-// The repository migration deletes the reason a function destructured `studio`
-// and `section` from its context, so the destructure gets trimmed — and twice
-// already that trimmed away a name still used forty lines further down.
+// The repository migration deletes the reason a function destructured `studio`,
+// `section` or `somethingSection` from its context, so the destructure gets
+// trimmed — and more than once that trimmed away a name still used forty lines
+// further down.
 //
 // NOTHING ELSE CATCHES IT. `tsc --noEmit` passes, because checkJs is false and
 // these are .js files; ESLint's config does not flag an undefined identifier.
-// Both were found by a suite crashing at runtime, on two different code paths,
-// one of which Gate A does not walk.
+// Every instance so far was found by a suite crashing at runtime, on paths that
+// differ between suites, at about seven minutes a look.
 //
-// So this asks the question directly rather than waiting to be told: walk each
-// function, collect what it destructures from ctx or takes as a destructured
-// parameter, and report every use of a name that is not there. It is a
-// heuristic, not a type checker — but it is aimed at exactly the mistake this
-// migration keeps making, and it answers in under a second instead of seven
-// minutes.
+// So this asks the question directly: walk each function, collect what it binds
+// — parameters, object and array destructures, plain consts — and report every
+// use of a name that is not among them. It is a heuristic, not a type checker,
+// but it is aimed at exactly the mistake this migration keeps making and it
+// answers in under a second.
+//
+// Run it over everything, or over the files you just touched:
+//   node scripts/check-scopes.mjs
+//   node scripts/check-scopes.mjs src/lib/sales.js src/lib/inventory.js
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const DIR = "src/lib";
+
+// The context names shared by every module.
 const WATCHED = ["studio", "section", "collaborator", "access", "ctx"];
 
-// Split a parameter list into the names it binds, including destructured ones.
+// EVERY `somethingSection` COUNTS TOO, and leaving them out is what let a real
+// one through: the migration rewrote a call to name a bare `tasksSection` the
+// function never bound, and a check watching five fixed names said nothing. A
+// list of names is a list of the mistakes you already thought of — the SHAPE is
+// what generalises.
+//
+// Matched as a VALUE rather than only as `X.y`, because the use that got through
+// was `section: tasksSection`, with no trailing dot. A trailing `:` is skipped:
+// that is a key being written, not a name being read.
+const SECTION_NAME = /(?<![\w.])(\w+Section)\b(?!\s*:)/g;
+
+/** Split a parameter list into the names it binds, destructured ones included. */
 function bindParams(params, bound) {
   for (const raw of (params || "").split(",")) {
     const part = raw.trim();
     if (!part) continue;
-    if (part.includes("{")) {
-      for (const p of part.replace(/[{}]/g, "").split(/[,]/)) {
-        const name = p.trim().split(":")[0].split("=")[0].trim();
-        if (name) bound.add(name);
-      }
-      continue;
+    for (const p of part.replace(/[{}[\]]/g, "").split(",")) {
+      const name = p.trim().split(":")[0].split("=")[0].trim();
+      if (name) bound.add(name);
     }
-    const name = part.split("=")[0].replace(/[{}]/g, "").trim();
-    if (name) bound.add(name);
   }
 }
 
 function check(file) {
   const lines = readFileSync(file, "utf8").split(/\r?\n/);
   const issues = [];
+
+  // WHAT THE MODULE ITSELF BINDS is in scope everywhere inside it. Without this
+  // the check reported `updateSection` six times — an imported FUNCTION whose
+  // name happens to end in "Section", which is the cost of matching on a shape
+  // rather than on a list. Module scope is the cheap half of the answer.
+  const moduleScope = new Set();
+  for (const line of lines) {
+    const imported = line.match(/^import\s+\{([^}]*)\}/);
+    if (imported) bindParams(imported[1], moduleScope);
+    const named = line.match(/^(?:export\s+)?const\s+(\w+)\s*=/);
+    if (named) moduleScope.add(named[1]);
+  }
+
   let fn = null;
-  let bound = new Set();
+  let bound = new Set(moduleScope);
 
   for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-
-    // COMMENTS ARE NOT CODE. The first version of this flagged the word
-    // `access` inside a sentence about access, which is the kind of noise that
-    // gets a check switched off within a day.
-    const code = line.replace(/\/\/.*$/, "").replace(/\/\*.*?\*\//g, "");
+    // COMMENTS ARE NOT CODE. An early version flagged the word `access` inside a
+    // sentence about access, which is the kind of noise that gets a check
+    // switched off within a day.
+    const code = lines[i].replace(/\/\/.*$/, "").replace(/\/\*.*?\*\//g, "");
     if (!code.trim()) continue;
 
     const declared = code.match(/(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)/);
     if (declared) {
       fn = declared[1];
-      bound = new Set();
+      bound = new Set(moduleScope);
       // EVERY PARAMETER BINDS, destructured or not. Missing the plain ones is
-      // what made the first run report 283 problems in code that works — most
-      // of these functions take `ctx` by name rather than pulling it apart.
+      // what made the first run report 283 problems in working code — most of
+      // these functions take `ctx` by name rather than pulling it apart.
       bindParams(declared[2], bound);
       continue;
     }
 
-    // `const { a, b } = ctx;` and `const { a } = someContext;`
+    if (!fn) continue;
+
+    // `const { a, b } = ctx;`
     const destructured = code.match(/const\s*\{([^}]*)\}\s*=\s*(\w+)\s*;/);
-    if (destructured && fn) {
-      for (const p of destructured[1].split(",")) {
-        const name = p.trim().split(":")[0].trim();
-        if (name) bound.add(name);
-      }
+    if (destructured) {
+      bindParams(destructured[1], bound);
       continue;
     }
 
-    // Array destructuring binds too: `const [a, b, studio] = await Promise.all(…)`.
+    // `const [a, b, studio] = await Promise.all(…)`
     const arrayed = code.match(/const\s*\[([^\]]*)\]\s*=/);
-    if (arrayed && fn) for (const p of arrayed[1].split(",")) {
-      const name = p.trim().split("=")[0].trim();
-      if (name) bound.add(name);
+    if (arrayed) bindParams(arrayed[1], bound);
+
+    // An arrow's parameters, and a plain `const x = …`.
+    const arrow = code.match(/(?:async\s*)?\(([^)]*)\)\s*=>/);
+    if (arrow) bindParams(arrow[1], bound);
+    const assigned = code.match(/const\s+(\w+)\s*=/);
+    if (assigned) bound.add(assigned[1]);
+
+    for (const m of code.matchAll(SECTION_NAME)) {
+      if (!bound.has(m[1])) {
+        issues.push({ fn, line: i + 1, name: m[1], text: code.trim().slice(0, 72) });
+      }
     }
 
-    // A plain `const x = …`, and an arrow's parameters, bind as well.
-    const arrow = code.match(/(?:const\s+\w+\s*=\s*)?(?:async\s*)?\(([^)]*)\)\s*=>/);
-    if (arrow && fn) bindParams(arrow[1], bound);
-    const assigned = code.match(/const\s+(\w+)\s*=/);
-    if (assigned && fn) bound.add(assigned[1]);
-
-    if (!fn) continue;
     for (const name of WATCHED) {
-      // `studio.id` but not `ctx.studio.id`, `.studio.id` or `mystudio.id`
-      if (new RegExp(`(?<![\\w.])${name}\\.`).test(line) && !bound.has(name)) {
-        issues.push({ fn, line: i + 1, name, text: line.trim().slice(0, 72) });
+      // `studio.` but not `ctx.studio.`, `.studio.` or `mystudio.`
+      if (new RegExp(`(?<![\\w.])${name}\\.`).test(code) && !bound.has(name)) {
+        issues.push({ fn, line: i + 1, name, text: code.trim().slice(0, 72) });
       }
     }
   }
   return issues;
 }
 
-const files = readdirSync(DIR).filter((f) => f.endsWith(".js")).map((f) => join(DIR, f));
-const all = files.flatMap((f) => check(f).map((i) => ({ ...i, file: f })));
+// A file argument narrows the sweep, which is what makes this usable mid-edit
+// rather than only as a final gate.
+const only = process.argv.slice(2);
+const files = only.length
+  ? only
+  : readdirSync(DIR).filter((f) => f.endsWith(".js")).map((f) => join(DIR, f));
 
+const all = files.flatMap((f) => check(f).map((i) => ({ ...i, file: f })));
 for (const i of all) {
   console.log(`${i.file}:${i.line}  ${i.fn}() uses \`${i.name}\` it does not bind — ${i.text}`);
 }

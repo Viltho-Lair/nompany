@@ -9,7 +9,8 @@
 // commercial gate, and it lives in Technical/Sales, not here.
 
 import { requirePermission } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -37,6 +38,16 @@ const SHEETS = "projectSheets";
 // rather than two copies of them — see openProject.
 export const SHEET_KINDS = ["main", "bulk"];
 const TASKS = "tasks";
+
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
+// collection, not a scope — the studio and section arrive per call, which is
+// what stops a query naming another tenant's keys and what lets one object
+// answer for a sibling department's rows as easily as its own.
+const Overtimes = repo(OVERTIMES);
+const Projects = repo(PROJECTS);
+const Quotations = repo(QUOTATIONS);
+const Slas = repo(SLAS);
+const Tasks = repo(TASKS);
 // A department is a top-level SECTION, so the overtime picker's filter is
 // derived from the studio's own structure rather than read out of HR — see
 // lib/departments.js.
@@ -119,7 +130,7 @@ export function progressOf(milestones) {
 export async function listProjects(ctx) {
   const { studio, listSection } = ctx;
   const [rows, factsFor] = await Promise.all([
-    readCol(studio.id, listSection.id, PROJECTS),
+    Projects.find({ studio, section: listSection }),
     ticketFacts(ctx),
   ]);
   return [...rows]
@@ -139,9 +150,9 @@ export async function approvedQuotations(ctx) {
   const { studio, listSection, quotationsSection, tasksSection } = ctx;
   if (!quotationsSection) return [];
   const [quotes, projects, tasks, factsFor] = await Promise.all([
-    readCol(studio.id, quotationsSection.id, QUOTATIONS),
-    readCol(studio.id, listSection.id, PROJECTS),
-    tasksSection ? readCol(studio.id, tasksSection.id, TASKS) : [],
+    Quotations.find({ studio, section: quotationsSection }),
+    Projects.find({ studio, section: listSection }),
+    tasksSection ? Tasks.find({ studio, section: tasksSection }) : [],
     ticketFacts(ctx),
   ]);
   const used = new Set(projects.map((p) => p.quotationId).filter(Boolean));
@@ -170,7 +181,7 @@ export async function openProject(ctx, body) {
   if (!technicalSection) return { error: "no-technical" };
 
   const quotationId = str(body?.quotationId, 60);
-  const quotes = await readCol(studio.id, quotationsSection.id, QUOTATIONS);
+  const quotes = await Quotations.find({ studio, section: quotationsSection });
   const quote = quotes.find((q) => q.id === quotationId);
   if (!quote) return { error: "quotation" };
   // THE COMMERCIAL GATE: only approved work becomes a project. Asked of the
@@ -178,10 +189,10 @@ export async function openProject(ctx, body) {
   // made on the board, and nothing writes it back onto the document. This is
   // exactly what refused every project opened from a quotation the studio had
   // just approved.
-  const tasks = tasksSection ? await readCol(studio.id, tasksSection.id, TASKS) : [];
+  const tasks = tasksSection ? await Tasks.find({ studio, section: tasksSection }) : [];
   if (!quotationApproved(quote, tasks)) return { error: "not-approved" };
 
-  const existing = await readCol(studio.id, listSection.id, PROJECTS);
+  const existing = await Projects.find({ studio, section: listSection });
   if (existing.some((p) => p.quotationId === quotationId)) return { error: "already" };
 
   // The quotation no longer holds a copy of the ticket's title and client, so
@@ -282,7 +293,7 @@ export async function openProject(ctx, body) {
 // one is on documents the client is holding.
 export async function issueProjectNumber({ studio, listSection }, quotationId) {
   if (!listSection || !quotationId) return { issued: "" };
-  const rows = await readCol(studio.id, listSection.id, PROJECTS);
+  const rows = await Projects.find({ studio, section: listSection });
   const project = rows.find((p) => p.quotationId === quotationId);
   if (!project) return { issued: "" };            // no project yet — nothing to number
   if (project.number) return { issued: project.number, project };
@@ -300,7 +311,7 @@ export async function updateProject(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, listSection } = ctx;
-  const rows = await readCol(studio.id, listSection.id, PROJECTS);
+  const rows = await Projects.find({ studio, section: listSection });
   const current = rows.find((p) => p.id === id);
   if (!current) return { error: "notfound" };
 
@@ -358,7 +369,7 @@ export async function projectPeople({ studio }) {
 // everything instead of leaving stale dates behind. Only what cannot be derived
 // is kept: which visits were completed, and the emergency visits actually used.
 export async function listSlas({ studio, slaSection }) {
-  const rows = await readCol(studio.id, slaSection.id, SLAS);
+  const rows = await Slas.find({ studio, section: slaSection });
   return [...rows].sort((a, b) => String(b.signingDate || "").localeCompare(String(a.signingDate || "")));
 }
 
@@ -401,7 +412,7 @@ export async function updateSla(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, slaSection } = ctx;
-  const rows = await readCol(studio.id, slaSection.id, SLAS);
+  const rows = await Slas.find({ studio, section: slaSection });
   const current = rows.find((s) => s.id === id);
   if (!current) return { error: "notfound" };
 
@@ -458,7 +469,7 @@ export async function removeSla(ctx, id) {
 // stretch, so the matrix can add them up per project and per person, and one
 // person's record can be corrected without touching anyone else's.
 export async function listOvertimes({ studio, overtimesSection }) {
-  const rows = await readCol(studio.id, overtimesSection.id, OVERTIMES);
+  const rows = await Overtimes.find({ studio, section: overtimesSection });
   return [...rows].sort((a, b) =>
     String(b.date || "").localeCompare(String(a.date || "")) ||
     String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
@@ -509,7 +520,7 @@ export async function createOvertime(ctx, body) {
   if (ids.length === 0) return { error: "people" };
 
   const [projects, { people }] = await Promise.all([
-    readCol(studio.id, listSection.id, PROJECTS),
+    Projects.find({ studio, section: listSection }),
     overtimeDirectory(ctx),
   ]);
   const project = projects.find((p) => p.id === projectId);
@@ -543,13 +554,13 @@ export async function updateOvertime(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, overtimesSection, listSection } = ctx;
-  const rows = await readCol(studio.id, overtimesSection.id, OVERTIMES);
+  const rows = await Overtimes.find({ studio, section: overtimesSection });
   const current = rows.find((o) => o.id === id);
   if (!current) return { error: "notfound" };
 
   const patch = {};
   if (body?.projectId !== undefined) {
-    const projects = await readCol(studio.id, listSection.id, PROJECTS);
+    const projects = await Projects.find({ studio, section: listSection });
     const project = projects.find((p) => p.id === str(body.projectId, 60));
     if (!project) return { error: "project" };
     patch.projectId = project.id;

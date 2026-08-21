@@ -15,7 +15,8 @@
 // so neither can quietly go stale.
 
 import { requirePermission } from "@/lib/access";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -28,6 +29,17 @@ const SHIFTS = "shifts";
 const POSITIONS = "trackingPositions";
 const VACATIONS = "vacations";
 const PROJECTS = "projects";
+
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
+// collection, not a scope — the studio and section arrive per call, which is
+// what stops a query naming another tenant's keys and what lets one object
+// answer for a sibling department's rows as easily as its own.
+const Locations = repo(LOCATIONS);
+const Permits = repo(PERMITS);
+const Positions = repo(POSITIONS);
+const Projects = repo(PROJECTS);
+const Shifts = repo(SHIFTS);
+const Vacations = repo(VACATIONS);
 
 export const LOCATION_KINDS = ["Site", "Office", "Warehouse", "Client premises"];
 export const PERMIT_TYPES = ["Work permit", "Hot work", "Height work", "Confined space", "Electrical", "Vehicle access", "Other"];
@@ -110,7 +122,7 @@ export function readOperationsSettings(settingsSection) {
 // recorded at all unless that person has the page open and has agreed to share.
 export async function listPositions({ studio, trackingSection }) {
   const [rows, people] = await Promise.all([
-    readCol(studio.id, trackingSection.id, POSITIONS),
+    Positions.find({ studio, section: trackingSection }),
     listCollaborators(studio.id),
   ]);
   const aliasOf = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
@@ -138,7 +150,7 @@ export async function reportPosition(ctx, body) {
     at: new Date().toISOString(),
   };
 
-  const rows = await readCol(studio.id, trackingSection.id, POSITIONS);
+  const rows = await Positions.find({ studio, section: trackingSection });
   const mine = rows.find((r) => r.collaboratorId === collaborator.id);
   const position = mine
     ? await updateRow(studio.id, trackingSection.id, POSITIONS, mine.id, row)
@@ -153,7 +165,7 @@ export async function clearPosition(ctx, collaboratorId) {
   const target = str(collaboratorId, 60) || collaborator.id;
   if (target !== collaborator.id && !canManageTracking) return { error: "forbidden" };
 
-  const rows = await readCol(studio.id, trackingSection.id, POSITIONS);
+  const rows = await Positions.find({ studio, section: trackingSection });
   const mine = rows.find((r) => r.collaboratorId === target);
   if (!mine) return { ok: true };
   const removed = await deleteRow(studio.id, trackingSection.id, POSITIONS, mine.id);
@@ -162,7 +174,7 @@ export async function clearPosition(ctx, collaboratorId) {
 
 // ---- locations -------------------------------------------------------------
 export async function listLocations({ studio, section }) {
-  const rows = await readCol(studio.id, section.id, LOCATIONS);
+  const rows = await Locations.find({ studio, section });
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
@@ -175,7 +187,7 @@ export async function createLocation(ctx, body) {
   const name = str(body?.name, 160);
   if (!name) return { error: "name" };
 
-  const rows = await readCol(studio.id, section.id, LOCATIONS);
+  const rows = await Locations.find({ studio, section });
   if (rows.some((l) => l.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
 
   const location = await addRow(studio.id, section.id, LOCATIONS, {
@@ -200,7 +212,7 @@ export async function editLocation(ctx, id, body) {
   if (body?.name !== undefined) {
     const name = str(body.name, 160);
     if (!name) return { error: "name" };
-    const rows = await readCol(studio.id, section.id, LOCATIONS);
+    const rows = await Locations.find({ studio, section });
     if (rows.some((l) => l.id !== id && l.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
@@ -222,8 +234,8 @@ export async function removeLocation(ctx, id) {
 
   const { studio, section } = ctx;
   const [permits, shifts] = await Promise.all([
-    readCol(studio.id, section.id, PERMITS),
-    readCol(studio.id, section.id, SHIFTS),
+    Permits.find({ studio, section }),
+    Shifts.find({ studio, section }),
   ]);
   const p = permits.filter((x) => x.locationId === id).length;
   const s = shifts.filter((x) => x.locationId === id).length;
@@ -246,8 +258,8 @@ export function permitState(permit, when = today()) {
 
 export async function listPermits({ studio, section }) {
   const [permits, locations, people, projects] = await Promise.all([
-    readCol(studio.id, section.id, PERMITS),
-    readCol(studio.id, section.id, LOCATIONS),
+    Permits.find({ studio, section }),
+    Locations.find({ studio, section }),
     listCollaborators(studio.id),
     projectRows({ studio }),
   ]);
@@ -279,7 +291,7 @@ export async function createPermit(ctx, body) {
 
   const locationId = str(body?.locationId, 60);
   if (locationId) {
-    const locations = await readCol(studio.id, section.id, LOCATIONS);
+    const locations = await Locations.find({ studio, section });
     if (!locations.some((l) => l.id === locationId)) return { error: "location" };
   }
   const projectId = str(body?.projectId, 60);
@@ -292,7 +304,7 @@ export async function createPermit(ctx, body) {
   const validTo = day(body?.validTo);
   if (validFrom && validTo && validTo < validFrom) return { error: "range" };
 
-  const permits = await readCol(studio.id, section.id, PERMITS);
+  const permits = await Permits.find({ studio, section });
   const permit = await addRow(studio.id, section.id, PERMITS, {
     // Derived from the highest already issued, so removing a permit cannot hand
     // its reference to the next one. See lib/references.js.
@@ -317,7 +329,7 @@ export async function editPermit(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, section } = ctx;
-  const rows = await readCol(studio.id, section.id, PERMITS);
+  const rows = await Permits.find({ studio, section });
   const current = rows.find((p) => p.id === id);
   if (!current) return { error: "notfound" };
 
@@ -330,7 +342,7 @@ export async function editPermit(ctx, id, body) {
   if (body?.locationId !== undefined) {
     const locationId = str(body.locationId, 60);
     if (locationId) {
-      const locations = await readCol(studio.id, section.id, LOCATIONS);
+      const locations = await Locations.find({ studio, section });
       if (!locations.some((l) => l.id === locationId)) return { error: "location" };
     }
     patch.locationId = locationId;
@@ -377,8 +389,8 @@ export function shiftHours(shift) {
 
 export async function listShifts({ studio, section }, { from = "", to = "" } = {}) {
   const [shifts, locations, people] = await Promise.all([
-    readCol(studio.id, section.id, SHIFTS),
-    readCol(studio.id, section.id, LOCATIONS),
+    Shifts.find({ studio, section }),
+    Locations.find({ studio, section }),
     listCollaborators(studio.id),
   ]);
   const locName = Object.fromEntries(locations.map((l) => [l.id, l.name]));
@@ -410,7 +422,7 @@ export async function createShift(ctx, body) {
 
   const locationId = str(body?.locationId, 60);
   if (locationId) {
-    const locations = await readCol(studio.id, section.id, LOCATIONS);
+    const locations = await Locations.find({ studio, section });
     if (!locations.some((l) => l.id === locationId)) return { error: "location" };
   }
 
@@ -420,7 +432,7 @@ export async function createShift(ctx, body) {
 
   // Two shifts for the same person at the same time is a scheduling mistake,
   // not something to silently accept.
-  const shifts = await readCol(studio.id, section.id, SHIFTS);
+  const shifts = await Shifts.find({ studio, section });
   const clash = shifts.find((s) => s.collaboratorId === collaboratorId && s.date === date
     && overlaps(s.startTime, s.endTime, startTime, endTime));
   if (clash) return { error: "clash", startTime: clash.startTime, endTime: clash.endTime };
@@ -446,7 +458,7 @@ export async function editShift(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, section } = ctx;
-  const rows = await readCol(studio.id, section.id, SHIFTS);
+  const rows = await Shifts.find({ studio, section });
   const current = rows.find((s) => s.id === id);
   if (!current) return { error: "notfound" };
 
@@ -465,7 +477,7 @@ export async function editShift(ctx, id, body) {
   if (body?.locationId !== undefined) {
     const locationId = str(body.locationId, 60);
     if (locationId) {
-      const locations = await readCol(studio.id, section.id, LOCATIONS);
+      const locations = await Locations.find({ studio, section });
       if (!locations.some((l) => l.id === locationId)) return { error: "location" };
     }
     patch.locationId = locationId;
@@ -500,7 +512,7 @@ function overlaps(aStart, aEnd, bStart, bEnd) {
 async function approvedLeaveOn({ studio }, collaboratorId, date) {
   const hr = await getSectionByKey(studio.id, "hr");
   if (!hr) return null;
-  const rows = await readCol(studio.id, hr.id, VACATIONS);
+  const rows = await Vacations.find({ studio, section: hr });
   return rows.find((v) => v.collaboratorId === collaboratorId && v.status === "Approved"
     && v.from <= date && v.to >= date) || null;
 }
@@ -514,7 +526,7 @@ async function ownerOf(studioId, childKey, parentKey) {
 async function projectRows({ studio }) {
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return [];
-  return readCol(studio.id, owner.id, PROJECTS);
+  return Projects.find({ studio, section: owner });
 }
 
 export async function operationsProjects(ctx) {

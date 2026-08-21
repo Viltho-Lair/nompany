@@ -34,6 +34,13 @@ import {
 const TASKS = "tasks";
 const PROJECTS = "projects";
 
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
+// collection, not a scope — the studio and section arrive per call, which is
+// what stops a query naming another tenant's keys and what lets one object
+// answer for a sibling department's rows as easily as its own.
+const Tasks = repo(TASKS);
+const Projects = repo(PROJECTS);
+
 export const TASK_STATUSES = ["Open", "In progress", "Blocked", "Done"];
 export const TASK_PRIORITIES = ["Low", "Normal", "High", "Urgent"];
 export const DEFAULT_STATUS = "Open";
@@ -84,9 +91,6 @@ export async function saveTasksSettings(ctx, body) {
 // collection rather than to a scope, so the same object answers for every studio
 // and section — the scope arrives with each call, which is what keeps a query
 // from ever naming another tenant's keys.
-const Tasks = repo(TASKS);
-const Projects = repo(PROJECTS);
-
 export async function listTasks(ctx) {
   const { studio, collaborator, canManage, taskAssignees } = ctx;
   const [tasks, people, projects] = await Promise.all([
