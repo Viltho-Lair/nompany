@@ -1,46 +1,43 @@
-import { operationsGuard, createShift, editShift, removeShift } from "@/lib/operations";
+import { route } from "@/lib/route";
+import { operationsContext, createShift, editShift, removeShift } from "@/lib/operations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "studio", context: operationsContext, body: true, name: "operations/shifts" };
+const manageable = (ops) => (ops.canManage ? null : { error: "read-only" });
 
-// A clash with another shift, or with leave HR has already approved, comes back
-// as a 409 with the detail needed to explain it — not a silent accept.
-function fail(result) {
-  const status = result.error === "notfound" ? 404
-    : result.error === "clash" || result.error === "on-leave" ? 409 : 400;
-  return Response.json({
-    error: result.error,
-    startTime: result.startTime, endTime: result.endTime,
-    from: result.from, to: result.to, type: result.type,
-  }, { status });
-}
+export const POST = route(spec, async (ops) => {
+  const refusal = manageable(ops);
+  if (refusal) return refusal;
 
-export async function POST(request, ctx) {
-  const g = await operationsGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const result = await createShift(g, await body(request));
-  if (result.error) return fail(result);
-  return Response.json({ ok: true, shift: result.shift }, { status: 201 });
-}
+  const result = await createShift(ops, ops.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, shift: result.shift } };
+});
 
-export async function PUT(request, ctx) {
-  const g = await operationsGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await editShift(g, b.id, b);
-  if (result.error) return fail(result);
-  return Response.json({ ok: true, shift: result.shift });
-}
+export const PUT = route(spec, async (ops) => {
+  const refusal = manageable(ops);
+  if (refusal) return refusal;
+  if (!ops.body.id) return { error: "missing" };
 
-export async function DELETE(request, ctx) {
-  const g = await operationsGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removeShift(g, b.id);
-  if (result.error) return Response.json({ error: result.error }, { status: 404 });
-  return Response.json({ ok: true });
-}
+  const result = await editShift(ops, ops.body.id, ops.body);
+  if (result.error) return result;
+  return { ok: true, shift: result.shift };
+});
+
+// A CLASH IS A 409 WITH ITS EVIDENCE. Another shift in the same window comes
+// back with startTime and endTime; leave HR has already approved comes back as
+// on-leave with from, to and type. This route named all five fields by hand to
+// keep them — the wrapper carries every refusal's context now, so the detail
+// survives without anybody maintaining a list of which fields matter.
+
+export const DELETE = route(spec, async (ops) => {
+  const refusal = manageable(ops);
+  if (refusal) return refusal;
+  if (!ops.body.id) return { error: "missing" };
+
+  const result = await removeShift(ops, ops.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

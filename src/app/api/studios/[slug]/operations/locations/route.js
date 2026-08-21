@@ -1,41 +1,41 @@
-import { operationsGuard, createLocation, editLocation, removeLocation } from "@/lib/operations";
+import { route } from "@/lib/route";
+import { operationsContext, createLocation, editLocation, removeLocation } from "@/lib/operations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "studio", context: operationsContext, body: true, name: "operations/locations" };
+const manageable = (ops) => (ops.canManage ? null : { error: "read-only" });
 
-export async function POST(request, ctx) {
-  const g = await operationsGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const result = await createLocation(g, await body(request));
-  if (result.error) return Response.json({ error: result.error }, { status: result.error === "duplicate" ? 409 : 400 });
-  return Response.json({ ok: true, location: result.location }, { status: 201 });
-}
+export const POST = route(spec, async (ops) => {
+  const refusal = manageable(ops);
+  if (refusal) return refusal;
 
-export async function PUT(request, ctx) {
-  const g = await operationsGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await editLocation(g, b.id, b);
-  if (result.error) {
-    return Response.json({ error: result.error }, { status: result.error === "notfound" ? 404 : result.error === "duplicate" ? 409 : 400 });
-  }
-  return Response.json({ ok: true, location: result.location });
-}
+  const result = await createLocation(ops, ops.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, location: result.location } };
+});
 
-export async function DELETE(request, ctx) {
-  const g = await operationsGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removeLocation(g, b.id);
-  if (result.error) {
-    // Permits and shifts point at this place — deleting it would leave both
-    // referring to somewhere that no longer exists.
-    return Response.json({ error: result.error, permits: result.permits, shifts: result.shifts },
-      { status: result.error === "in-use" ? 409 : 404 });
-  }
-  return Response.json({ ok: true });
-}
+export const PUT = route(spec, async (ops) => {
+  const refusal = manageable(ops);
+  if (refusal) return refusal;
+  if (!ops.body.id) return { error: "missing" };
+
+  const result = await editLocation(ops, ops.body.id, ops.body);
+  if (result.error) return result;
+  return { ok: true, location: result.location };
+});
+
+// Permits and shifts point at this place — deleting it would leave both
+// referring to somewhere that no longer exists. The refusal names them, and
+// those two lists travel back on their own now.
+
+export const DELETE = route(spec, async (ops) => {
+  const refusal = manageable(ops);
+  if (refusal) return refusal;
+  if (!ops.body.id) return { error: "missing" };
+
+  const result = await removeLocation(ops, ops.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

@@ -1,39 +1,37 @@
-import { operationsGuard, createPermit, editPermit, removePermit } from "@/lib/operations";
+import { route } from "@/lib/route";
+import { operationsContext, createPermit, editPermit, removePermit } from "@/lib/operations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "studio", context: operationsContext, body: true, name: "operations/permits" };
+const manageable = (ops) => (ops.canManage ? null : { error: "read-only" });
 
-export async function POST(request, ctx) {
-  const g = await operationsGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const result = await createPermit(g, await body(request));
-  if (result.error) {
-    // A refusal is not a malformed request. 403 so a client can tell "you may
-    // not" from "you sent nonsense" — they need different handling.
-    const status = result.error === "forbidden" ? 403 : result.error === "unknown-permission" ? 500 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json({ ok: true, permit: result.permit }, { status: 201 });
-}
+export const POST = route(spec, async (ops) => {
+  const refusal = manageable(ops);
+  if (refusal) return refusal;
 
-export async function PUT(request, ctx) {
-  const g = await operationsGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await editPermit(g, b.id, b);
-  if (result.error) return Response.json({ error: result.error }, { status: result.error === "notfound" ? 404 : 400 });
-  return Response.json({ ok: true, permit: result.permit });
-}
+  const result = await createPermit(ops, ops.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, permit: result.permit } };
+});
 
-export async function DELETE(request, ctx) {
-  const g = await operationsGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removePermit(g, b.id);
-  if (result.error) return Response.json({ error: result.error }, { status: 404 });
-  return Response.json({ ok: true });
-}
+export const PUT = route(spec, async (ops) => {
+  const refusal = manageable(ops);
+  if (refusal) return refusal;
+  if (!ops.body.id) return { error: "missing" };
+
+  const result = await editPermit(ops, ops.body.id, ops.body);
+  if (result.error) return result;
+  return { ok: true, permit: result.permit };
+});
+
+export const DELETE = route(spec, async (ops) => {
+  const refusal = manageable(ops);
+  if (refusal) return refusal;
+  if (!ops.body.id) return { error: "missing" };
+
+  const result = await removePermit(ops, ops.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

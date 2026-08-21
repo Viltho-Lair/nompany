@@ -1,35 +1,27 @@
-import { operationsGuard, reportPosition, clearPosition } from "@/lib/operations";
+import { route } from "@/lib/route";
+import { operationsContext, reportPosition, clearPosition } from "@/lib/operations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const body = async (r) => { try { return await r.json(); } catch { return {}; } };
+// NO canManage CHECK on either of these, deliberately.
+//
+// Reporting YOUR OWN position is not a privileged act, it is a personal one, and
+// the collaborator id comes from the session rather than the body — so nobody
+// can place someone else on the map whatever they send. Clearing follows the
+// same rule in reverse: your own always, somebody else's needs the Manage grant
+// on Tracking, which clearPosition asks for itself. That is the grant you need
+// when a phone is left logged in on a desk.
+const spec = { auth: "studio", context: operationsContext, body: true, name: "operations/tracking" };
 
-// Report YOUR OWN position. Viewing Operations is enough — sharing where you
-// are is not a privileged act, it is a personal one, and the collaborator id is
-// taken from the session so nobody can place someone else on the map.
-export async function POST(request, ctx) {
-  const g = await operationsGuard(ctx.params);
-  if (g.fail) return g.fail;
+export const POST = route(spec, async (ops) => {
+  const result = await reportPosition(ops, ops.body);
+  if (result.error) return result;
+  return { ok: true, position: result.position };
+});
 
-  const result = await reportPosition(g, await body(request));
-  if (result.error) {
-    // A refusal is not a malformed request. 403 so a client can tell "you may
-    // not" from "you sent nonsense" — they need different handling.
-    const status = result.error === "forbidden" ? 403 : result.error === "unknown-permission" ? 500 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json({ ok: true, position: result.position });
-}
-
-// Come off the map. Your own always; somebody else's needs the Manage grant on
-// Tracking — which is what you need when a phone is left logged in on a desk.
-export async function DELETE(request, ctx) {
-  const g = await operationsGuard(ctx.params);
-  if (g.fail) return g.fail;
-
-  const b = await body(request);
-  const result = await clearPosition(g, b.collaboratorId);
-  if (result.error) return Response.json({ error: result.error }, { status: result.error === "forbidden" ? 403 : 404 });
-  return Response.json({ ok: true });
-}
+export const DELETE = route(spec, async (ops) => {
+  const result = await clearPosition(ops, ops.body.collaboratorId);
+  if (result.error) return result;
+  return { ok: true };
+});

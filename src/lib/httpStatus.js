@@ -79,6 +79,7 @@ const CONFLICT = [
   "wrong-state",       // the signable transition table refused the move
   "same-signer",       // reviewer is not approver, enforced at the transition
   "clash", "overlap",  // a shift or a leave already occupies that window
+  "on-leave",          // the person is away on the day you are scheduling them
   "pending",           // a join request is already open; never stack duplicates
   // Both were 400 in the sales routes and both are the world disagreeing rather
   // than the caller being wrong: a revision is already on its way, or the

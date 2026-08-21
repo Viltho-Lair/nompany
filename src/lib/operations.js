@@ -19,7 +19,6 @@ import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, 
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { nextReference } from "@/lib/references";
-import { currentUser } from "@/lib/identity";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "@/lib/operationsCalendar";
 
 const LOCATIONS = "locations";
@@ -191,18 +190,6 @@ export async function clearPosition(ctx, collaboratorId) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
-export async function operationsGuard(paramsPromise, { write } = {}) {
-  const user = await currentUser();
-  if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
-  const { slug } = await paramsPromise;
-  const ops = await operationsContext(user, slug);
-  if (ops.error) {
-    const status = ops.error === "notfound" || ops.error === "no-section" ? 404 : 403;
-    return { fail: Response.json({ error: ops.error }, { status }) };
-  }
-  if (write && !ops.canManage) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
-  return ops;
-}
 
 // ---- locations -------------------------------------------------------------
 export async function listLocations({ studio, section }) {
