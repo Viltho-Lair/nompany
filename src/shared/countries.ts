@@ -183,7 +183,7 @@ export const COUNTRIES = [
 ];
 
 // ISO 3166-1 alpha-2 code → flag emoji (two regional-indicator symbols).
-export function flagEmoji(code) {
+export function flagEmoji(code: string): string {
   const cc = String(code || "").trim().toUpperCase();
   if (cc.length !== 2 || !/^[A-Z]{2}$/.test(cc)) return "🏳️";
   return String.fromCodePoint(...[...cc].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
@@ -193,7 +193,7 @@ export const DEFAULT_COUNTRY = "SA";
 
 // Split a stored phone ("+966 5512…") into { code, number } using the longest
 // matching dial-code prefix; falls back to Saudi Arabia.
-export function parsePhone(value) {
+export function parsePhone(value: string): { code: string; number: string } {
   const v = String(value || "").trim();
   if (!v) return { code: DEFAULT_COUNTRY, number: "" };
   const byLongestDial = [...COUNTRIES].sort((a, b) => b.dial.length - a.dial.length);

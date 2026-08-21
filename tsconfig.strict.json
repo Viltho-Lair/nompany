@@ -1,0 +1,25 @@
+{
+  "//": [
+    "THE RATCHET. The repo-wide tsconfig runs with checkJs false and noImplicitAny",
+    "false, because grading a hundred files nobody wrote types for produces a",
+    "number so large it gets ignored. This config grades only the folders that",
+    "have been converted, with noImplicitAny ON, and CI runs both.",
+    "",
+    "A folder is added to `include` when its wave lands and never removed. That is",
+    "the whole mechanism: strictness arrives one directory at a time, each arrival",
+    "is a visible line in a diff, and nothing can quietly regress because the",
+    "folder it belongs to is already listed.",
+    "",
+    "When `include` covers src/** the two configs have met, and this file and the",
+    "allowJs escape hatch both go — which is Wave 3's last step, not its first."
+  ],
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "checkJs": false,
+    "incremental": false
+  },
+  "include": [
+    "src/shared/**/*"
+  ]
+}

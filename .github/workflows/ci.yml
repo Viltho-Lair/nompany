@@ -61,6 +61,17 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: Typecheck — converted folders, strictly
+        # THE RATCHET. The repo-wide config runs with checkJs and noImplicitAny
+        # off, because grading a hundred files nobody wrote types for produces a
+        # number that gets ignored. This one grades only what Wave 3 has
+        # converted, with noImplicitAny ON, and a folder joins its `include` when
+        # its step lands and never leaves.
+        #
+        # Two configs meeting is how Wave 3 ends: when `include` covers src/**,
+        # this file and the allowJs escape hatch both go.
+        run: npx tsc --noEmit -p tsconfig.strict.json
+
       - name: Lint
         # Errors are always fatal. Warnings are a backlog with a ceiling that can
         # only go down — see scripts/lint-budget.mjs for why neither "fail on

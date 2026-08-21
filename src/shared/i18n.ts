@@ -1,23 +1,33 @@
-export const locales = ["en", "ar"];
+// THE LOCALE UNION, derived from the list rather than declared beside it. Two
+// places to add "fr" is one place to forget.
+export const locales = ["en", "ar"] as const;
+export type Locale = (typeof locales)[number];
 export const defaultLocale = "en";
 
-export function dirFor(locale) {
+export function dirFor(locale: string): "rtl" | "ltr" {
   return locale === "ar" ? "rtl" : "ltr";
 }
 
-export function isLocale(value) {
-  return locales.includes(value);
+// A TYPE GUARD, not a boolean. Callers that check this then index a dictionary
+// with the value, and telling the compiler what the check PROVED is the whole
+// reason to write it in TypeScript rather than leaving it as a runtime test.
+export function isLocale(value: unknown): value is Locale {
+  return typeof value === "string" && (locales as readonly string[]).includes(value);
 }
 
 // Pick the correct field variant (e.g. title_en / title_ar) from a record.
 // Falls back to the English variant when the requested locale's value is
 // missing OR blank — so an English-only record never renders an empty string
 // (e.g. a blank Arabic title) on the localized site.
-export function field(record, base, locale) {
+export function field(
+  record: Record<string, unknown> | null | undefined,
+  base: string,
+  locale: string,
+): string {
   if (!record) return "";
   const val = record[`${base}_${locale}`];
-  if (val != null && String(val).trim() !== "") return val;
-  return record[`${base}_en`] ?? "";
+  if (val != null && String(val).trim() !== "") return String(val);
+  return String(record[`${base}_en`] ?? "");
 }
 
 const dictionaries = {
@@ -351,6 +361,8 @@ const dictionaries = {
   },
 };
 
-export function getDict(locale) {
-  return dictionaries[locale] || dictionaries.en;
+export function getDict(locale: string) {
+  // Narrowed rather than cast: `dictionaries` is keyed by the two locales, and
+  // asking whether this string is one of them is exactly what isLocale answers.
+  return isLocale(locale) ? dictionaries[locale] : dictionaries.en;
 }

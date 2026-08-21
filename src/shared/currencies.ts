@@ -192,19 +192,30 @@ const TABLE = [
 ];
 
 // The list itself: [{ code, name, country }, …] in code order.
-export const CURRENCIES_FROM_EXCHANGE_API = TABLE.map(([code, name, country]) => ({ code, name, country }));
+// THE VOCABULARY'S SHAPE, named once. Exported because callers hold these — a
+// picker's options, a search result — and an inline object literal repeated at
+// six call sites is the same drift this codebase keeps finding in comments.
+export type Currency = { code: string; name: string; country: string };
+
+// A RATE TABLE quotes many currencies against one common base. Which base is the
+// caller's business — crossRate divides two of them and never needs to know.
+export type Rates = Record<string, number | string>;
+
+export const CURRENCIES_FROM_EXCHANGE_API: Currency[] =
+  TABLE.map(([code, name, country]) => ({ code, name, country }));
 
 const BY_CODE = new Map(CURRENCIES_FROM_EXCHANGE_API.map((c) => [c.code, c]));
 
 // Look one up. Unknown codes come back as a stub rather than undefined, so a
 // label never renders as "undefined" if the API ever quotes something new.
-export function currency(code) {
+export function currency(code: string): Currency {
   const c = String(code || "").trim().toUpperCase();
   return BY_CODE.get(c) || { code: c, name: c, country: "" };
 }
 
-export const currencyName = (code) => currency(code).name;
-export const isKnownCurrency = (code) => BY_CODE.has(String(code || "").trim().toUpperCase());
+export const currencyName = (code: string): string => currency(code).name;
+export const isKnownCurrency = (code: string): boolean =>
+  BY_CODE.has(String(code || "").trim().toUpperCase());
 
 // ---- cross rates -----------------------------------------------------------
 // Pure arithmetic over a rate table, kept HERE rather than beside the fetching
@@ -213,7 +224,7 @@ export const isKnownCurrency = (code) => BY_CODE.has(String(code || "").trim().t
 // Units of `to` for one unit of `from`, where `rates` quotes both against one
 // common base. Returns null when either side is unquoted, so a caller renders a
 // dash instead of a wrong number.
-export function crossRate(rates, from, to) {
+export function crossRate(rates: Rates | null | undefined, from: string, to: string): number | null {
   if (!rates) return null;
   const a = Number(rates[from]);
   const b = Number(rates[to]);
@@ -223,7 +234,7 @@ export function crossRate(rates, from, to) {
 
 // Every currency a table actually quotes, in code order — the truth about what a
 // picker may offer, as opposed to what the vocabulary above knows how to name.
-export function quotedCodes(rates) {
+export function quotedCodes(rates: Rates | null | undefined): string[] {
   return rates ? Object.keys(rates).sort() : [];
 }
 
@@ -231,7 +242,7 @@ export function quotedCodes(rates) {
 // dollar need no decimals, a dinar needs several. Fixed decimals would render
 // either "15,835.0000" or "0.31" depending on which you picked, and both are
 // wrong for the other end of the range.
-export function fmtRate(rate) {
+export function fmtRate(rate: number | null | undefined): string {
   if (rate == null || !Number.isFinite(rate)) return "—";
   const digits = rate >= 1000 ? 2 : rate >= 1 ? 4 : 6;
   return rate.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -239,8 +250,8 @@ export function fmtRate(rate) {
 
 // Search by code, name or country — what a type-ahead dropdown needs. `codes`
 // narrows the haystack to what is actually quoted today; omit it to search all.
-export function searchCurrencies(query, codes) {
-  const pool = codes
+export function searchCurrencies(query: string, codes?: string[] | null): Currency[] {
+  const pool: Currency[] = codes
     ? codes.map((c) => currency(c))
     : CURRENCIES_FROM_EXCHANGE_API;
   const q = String(query || "").trim().toLowerCase();
@@ -277,9 +288,22 @@ export function searchCurrencies(query, codes) {
 //
 // Pure arithmetic over a rate table, like everything else in this section, so the
 // screen that explains a converted price can use the same function that made it.
-export function landedUnitCost(item, studioCurrency, rates) {
-  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-  const round = (v) => Math.round((v + Number.EPSILON) * 100) / 100;
+// The fields this reads off a stored item, and nothing else — an inventory row
+// carries a dozen more that are none of this function's business.
+export type PricedItem = {
+  currency?: string;
+  unitCost?: number | string;
+  shippingCharges?: number | string;
+  customsCharges?: number | string;
+};
+
+export function landedUnitCost(
+  item: PricedItem | null | undefined,
+  studioCurrency: string,
+  rates: Rates | null | undefined,
+) {
+  const n = (v: unknown): number => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const round = (v: number): number => Math.round((v + Number.EPSILON) * 100) / 100;
 
   const from = String(item?.currency || "").trim().toUpperCase();
   const to = String(studioCurrency || "").trim().toUpperCase();

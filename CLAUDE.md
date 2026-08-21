@@ -123,6 +123,7 @@ file. (`docs/` keeps ISO dates; the logs do not.)
 ```bash
 npm test            # access rules, integration suite, Gate A — real routes, real Redis, prefixed namespace
 npx tsc --noEmit
+npx tsc --noEmit -p tsconfig.strict.json   # converted folders, with noImplicitAny
 npx next build
 ```
 
