@@ -1,54 +1,48 @@
-import { inventoryGuard, createOrder, editOrder, receiveOrder, removeOrder } from "@/lib/inventory";
+import { route } from "@/lib/route";
+import { inventoryContext, createOrder, editOrder, receiveOrder, removeOrder } from "@/lib/inventory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "studio", context: inventoryContext, body: true, name: "inventory/orders" };
+const manageable = (inv) => (inv.canManage ? null : { error: "read-only" });
 
-export async function POST(request, ctx) {
-  const g = await inventoryGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const result = await createOrder(g, await body(request));
-  if (result.error) {
-    // A refusal is not a malformed request. 403 so a client can tell "you may
-    // not" from "you sent nonsense" — they need different handling.
-    const status = result.error === "forbidden" ? 403 : result.error === "unknown-permission" ? 500 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json({ ok: true, order: result.order }, { status: 201 });
-}
+export const POST = route(spec, async (inv) => {
+  const refusal = manageable(inv);
+  if (refusal) return refusal;
+
+  const result = await createOrder(inv, inv.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, order: result.order } };
+});
 
 // Editing an order, or receiving goods against it. Receiving is a PUT with
 // `receive` lines because it changes the same record — but it goes through its
 // own service call, since it also writes the stock movements.
-export async function PUT(request, ctx) {
-  const g = await inventoryGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+//
+// An `over-receive` refusal carries the itemId and how much of it is still
+// outstanding, so the line that is wrong can say so.
+export const PUT = route(spec, async (inv) => {
+  const refusal = manageable(inv);
+  if (refusal) return refusal;
+  if (!inv.body.id) return { error: "missing" };
 
-  const result = b.receive
-    ? await receiveOrder(g, b.id, { lines: b.receive })
-    : await editOrder(g, b.id, b);
+  const result = inv.body.receive
+    ? await receiveOrder(inv, inv.body.id, { lines: inv.body.receive })
+    : await editOrder(inv, inv.body.id, inv.body);
 
-  if (result.error) {
-    const status = result.error === "notfound" ? 404
-      : result.error === "over-receive" || result.error === "received-already" ? 409 : 400;
-    return Response.json({ error: result.error, itemId: result.itemId, remaining: result.remaining }, { status });
-  }
-  return Response.json({ ok: true, order: result.order });
-}
+  if (result.error) return result;
+  return { ok: true, order: result.order };
+});
 
-export async function DELETE(request, ctx) {
-  const g = await inventoryGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removeOrder(g, b.id);
-  if (result.error) {
-    // Once goods have been received the order explains real movements — cancel
-    // it rather than deleting the reason those movements exist.
-    return Response.json({ error: result.error }, { status: result.error === "received-already" ? 409 : 404 });
-  }
-  return Response.json({ ok: true });
-}
+// Once goods have been received the order explains real movements — cancel it
+// rather than deleting the reason those movements exist.
+export const DELETE = route(spec, async (inv) => {
+  const refusal = manageable(inv);
+  if (refusal) return refusal;
+  if (!inv.body.id) return { error: "missing" };
+
+  const result = await removeOrder(inv, inv.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

@@ -1,4 +1,5 @@
-import { inventoryGuard, adjustStock } from "@/lib/inventory";
+import { route } from "@/lib/route";
+import { inventoryContext, adjustStock } from "@/lib/inventory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,21 +10,15 @@ export const dynamic = "force-dynamic";
 //
 // The ledger is append-only: there is no PUT or DELETE here on purpose. A wrong
 // movement is corrected by another movement, so the history stays truthful.
-export async function POST(request, ctx) {
-  const g = await inventoryGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
+export const POST = route(
+  { auth: "studio", context: inventoryContext, body: true, name: "inventory/stock" },
+  async (inv) => {
+    if (!inv.canManage) return { error: "read-only" };
 
-  let b = {};
-  try { b = await request.json(); } catch { b = {}; }
-
-  const result = await adjustStock(g, b);
-  if (result.error) {
-    // A refusal is not a malformed request. 403 so a client can tell "you may
-    // not" from "you sent nonsense" — they need different handling.
-    const status = result.error === "forbidden" ? 403
-      : result.error === "unknown-permission" ? 500
-      : result.error === "insufficient" ? 409 : 400;
-    return Response.json({ error: result.error, have: result.have, needed: result.needed }, { status });
-  }
-  return Response.json({ ok: true, movement: result.movement }, { status: 201 });
-}
+    // An `insufficient` refusal carries `have` and `needed` — the two numbers
+    // that tell somebody what to do about it.
+    const result = await adjustStock(inv, inv.body);
+    if (result.error) return result;
+    return { status: 201, body: { ok: true, movement: result.movement } };
+  },
+);

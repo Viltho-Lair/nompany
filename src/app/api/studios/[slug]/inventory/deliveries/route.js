@@ -1,46 +1,40 @@
-import { inventoryGuard, createDelivery, issueDelivery, removeDelivery } from "@/lib/inventory";
+import { route } from "@/lib/route";
+import { inventoryContext, createDelivery, issueDelivery, removeDelivery } from "@/lib/inventory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "studio", context: inventoryContext, body: true, name: "inventory/deliveries" };
+const manageable = (inv) => (inv.canManage ? null : { error: "read-only" });
 
-export async function POST(request, ctx) {
-  const g = await inventoryGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const result = await createDelivery(g, await body(request));
-  if (result.error) {
-    // A refusal is not a malformed request. 403 so a client can tell "you may
-    // not" from "you sent nonsense" — they need different handling.
-    const status = result.error === "forbidden" ? 403 : result.error === "unknown-permission" ? 500 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json({ ok: true, delivery: result.delivery }, { status: 201 });
-}
+export const POST = route(spec, async (inv) => {
+  const refusal = manageable(inv);
+  if (refusal) return refusal;
+
+  const result = await createDelivery(inv, inv.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, delivery: result.delivery } };
+});
 
 // Issuing a delivery note is what takes the stock out. Availability is checked
-// against the ledger at this moment, not when the note was drafted.
-export async function PUT(request, ctx) {
-  const g = await inventoryGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+// against the ledger at this moment, not when the note was drafted — so an
+// `insufficient` refusal carries `short`, the quantity actually missing.
+export const PUT = route(spec, async (inv) => {
+  const refusal = manageable(inv);
+  if (refusal) return refusal;
+  if (!inv.body.id) return { error: "missing" };
 
-  const result = await issueDelivery(g, b.id);
-  if (result.error) {
-    const status = result.error === "notfound" ? 404
-      : result.error === "insufficient" || result.error === "already-issued" ? 409 : 400;
-    return Response.json({ error: result.error, short: result.short }, { status });
-  }
-  return Response.json({ ok: true, delivery: result.delivery });
-}
+  const result = await issueDelivery(inv, inv.body.id);
+  if (result.error) return result;
+  return { ok: true, delivery: result.delivery };
+});
 
-export async function DELETE(request, ctx) {
-  const g = await inventoryGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removeDelivery(g, b.id);
-  if (result.error) return Response.json({ error: result.error }, { status: result.error === "already-issued" ? 409 : 404 });
-  return Response.json({ ok: true });
-}
+export const DELETE = route(spec, async (inv) => {
+  const refusal = manageable(inv);
+  if (refusal) return refusal;
+  if (!inv.body.id) return { error: "missing" };
+
+  const result = await removeDelivery(inv, inv.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

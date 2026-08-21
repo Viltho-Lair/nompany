@@ -1,5 +1,6 @@
+import { route } from "@/lib/route";
 import {
-  inventoryGuard, listVendors, listItems, listMovements, listOrders, listDeliveries,
+  inventoryContext, listVendors, listItems, listMovements, listOrders, listDeliveries,
   openProjects, stockValue, listProjectSheets, ORDER_STATUSES, DELIVERY_STATUSES, UNITS,
 } from "@/lib/inventory";
 import { listShipments, listAirlines } from "@/lib/awbTracking";
@@ -10,16 +11,15 @@ export const dynamic = "force-dynamic";
 
 // One read for the whole Inventory screen. On-hand quantities, the stock value
 // and every shipment's current milestone are all derived here, never stored.
-export async function GET(request, ctx) {
-  const g = await inventoryGuard(ctx.params);
-  if (g.fail) return g.fail;
-
+export const GET = route(
+  { auth: "studio", context: inventoryContext, name: "inventory" },
+  async (g) => {
   const [vendors, items, movements, orders, deliveries, projects, shipments, airlines, sheets] = await Promise.all([
     listVendors(g), listItems(g), listMovements(g), listOrders(g), listDeliveries(g), openProjects(g),
     listShipments(g), listAirlines(g), listProjectSheets(g),
   ]);
 
-  return Response.json({
+  return {
     canManage: g.canManage,
     // Whether the module's OWN screen may be opened. The dashboard summarises
     // everything underneath it, so it is withheld on a right of its own.
@@ -54,5 +54,6 @@ export async function GET(request, ctx) {
       orderStatuses: ORDER_STATUSES, deliveryStatuses: DELIVERY_STATUSES, units: UNITS,
       awbStatuses: AWB_STATUS,
     },
-  });
-}
+  };
+});
+

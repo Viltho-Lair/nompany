@@ -23,7 +23,6 @@ import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listSections } 
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { nextReference } from "@/lib/references";
-import { currentUser } from "@/lib/identity";
 // What each department adds to a quotation row, and who owns which column.
 import { SHEET_OWNERS, cleanSheetLine } from "@/lib/sheetColumns";
 
@@ -159,18 +158,6 @@ export async function inventoryContext(user, slug) {
   };
 }
 
-export async function inventoryGuard(paramsPromise, { write } = {}) {
-  const user = await currentUser();
-  if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
-  const { slug } = await paramsPromise;
-  const inv = await inventoryContext(user, slug);
-  if (inv.error) {
-    const status = inv.error === "notfound" || inv.error === "no-section" ? 404 : 403;
-    return { fail: Response.json({ error: inv.error }, { status }) };
-  }
-  if (write && !inv.canManage) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
-  return inv;
-}
 
 // ---- vendors ---------------------------------------------------------------
 export async function listVendors({ studio, vendorsSection }) {

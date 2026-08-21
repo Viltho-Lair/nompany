@@ -1,41 +1,42 @@
-import { inventoryGuard, createItem, editItem, removeItem } from "@/lib/inventory";
+import { route } from "@/lib/route";
+import { inventoryContext, createItem, editItem, removeItem } from "@/lib/inventory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "studio", context: inventoryContext, body: true, name: "inventory/items" };
+const manageable = (inv) => (inv.canManage ? null : { error: "read-only" });
 
-export async function POST(request, ctx) {
-  const g = await inventoryGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const result = await createItem(g, await body(request));
-  if (result.error) return Response.json({ error: result.error }, { status: result.error === "duplicate-sku" ? 409 : 400 });
-  return Response.json({ ok: true, item: result.item }, { status: 201 });
-}
+export const POST = route(spec, async (inv) => {
+  const refusal = manageable(inv);
+  if (refusal) return refusal;
 
-export async function PUT(request, ctx) {
-  const g = await inventoryGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await editItem(g, b.id, b);
-  if (result.error) {
-    return Response.json({ error: result.error }, { status: result.error === "notfound" ? 404 : result.error === "duplicate-sku" ? 409 : 400 });
-  }
-  return Response.json({ ok: true, item: result.item });
-}
+  const result = await createItem(inv, inv.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, item: result.item } };
+});
 
-export async function DELETE(request, ctx) {
-  const g = await inventoryGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removeItem(g, b.id);
-  if (result.error) {
-    // An item that has moved keeps its history — deleting it would erase the
-    // record of stock that really came in or went out.
-    return Response.json({ error: result.error, movements: result.movements, orders: result.orders, deliveries: result.deliveries },
-      { status: result.error === "in-use" ? 409 : 404 });
-  }
-  return Response.json({ ok: true });
-}
+export const PUT = route(spec, async (inv) => {
+  const refusal = manageable(inv);
+  if (refusal) return refusal;
+  if (!inv.body.id) return { error: "missing" };
+
+  const result = await editItem(inv, inv.body.id, inv.body);
+  if (result.error) return result;
+  return { ok: true, item: result.item };
+});
+
+// An item that has moved keeps its history — deleting it would erase the record
+// of stock that really came in or went out. The refusal names the movements,
+// orders and deliveries still holding it, and those lists now travel back on
+// their own: this route forwarded all three by hand.
+
+export const DELETE = route(spec, async (inv) => {
+  const refusal = manageable(inv);
+  if (refusal) return refusal;
+  if (!inv.body.id) return { error: "missing" };
+
+  const result = await removeItem(inv, inv.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

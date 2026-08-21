@@ -91,6 +91,10 @@ const CONFLICT = [
   // A retry arrived while the original is still running. Not a replay, because
   // there is no recorded answer yet — see lib/idempotency.js.
   "in-progress",
+  // Inventory state, all three the world disagreeing rather than the caller
+  // being wrong: the stock would go negative, the delivery exceeds what is still
+  // outstanding, or the order has not been placed yet.
+  "insufficient", "over-receive", "not-ordered",
 ];
 
 // 429 — SLOW DOWN. Separated from 403 on purpose: a rate limit is temporary and
