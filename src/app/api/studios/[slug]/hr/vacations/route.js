@@ -1,49 +1,42 @@
-import { hrGuard, requestVacation, decideVacation, removeVacation } from "@/lib/hr";
+import { route } from "@/lib/route";
+import { hrContext, requestVacation, decideVacation, removeVacation } from "@/lib/hr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "studio", context: hrContext, body: true, name: "hr/vacations" };
 
-// Requesting leave is NOT a write in the manage sense — anyone who can open HR
-// may ask for their own. Filing it for someone else is checked in the service.
-export async function POST(request, ctx) {
-  const g = await hrGuard(ctx.params);
-  if (g.fail) return g.fail;
-  const result = await requestVacation(g, await body(request));
-  if (result.error) {
-    const status = result.error === "forbidden" ? 403
-      : result.error === "notfound" ? 404
-      : result.error === "overlap" ? 409 : 400;
-    return Response.json({ error: result.error, from: result.from, to: result.to }, { status });
-  }
-  return Response.json({ ok: true, vacation: result.vacation }, { status: 201 });
-}
+// NO canManage ON POST OR PUT, and that is not an oversight.
+//
+// Requesting leave is not a write in the manage sense — anyone who can open HR
+// may ask for their own, and filing it for somebody ELSE is what the service
+// checks. Cancelling your own pending request is allowed the same way; deciding
+// anyone else's is not. Both distinctions live in hr.js, next to the write they
+// guard, which is why neither is repeated here.
+//
+// DELETE is different: removing the record of a leave request is an HR act.
+export const POST = route(spec, async (hr) => {
+  // An `overlap` refusal carries the from/to of the leave already in the way.
+  const result = await requestVacation(hr, hr.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, vacation: result.vacation } };
+});
 
-// Approve / decline / cancel. Cancelling your own pending request is allowed
-// without the Manage grant; deciding anyone else's is not.
-export async function PUT(request, ctx) {
-  const g = await hrGuard(ctx.params);
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id || !b.status) return Response.json({ error: "missing" }, { status: 400 });
+export const PUT = route(spec, async (hr) => {
+  if (!hr.body.id || !hr.body.status) return { error: "missing" };
 
-  const result = await decideVacation(g, b.id, b.status);
-  if (result.error) {
-    const status = result.error === "forbidden" ? 403
-      : result.error === "notfound" ? 404
-      : result.error === "already-decided" ? 409 : 400;
-    return Response.json({ error: result.error, status: result.status }, { status });
-  }
-  return Response.json({ ok: true, vacation: result.vacation });
-}
+  // `already-decided` carries the status it already holds, so the screen can say
+  // what happened rather than just refusing.
+  const result = await decideVacation(hr, hr.body.id, hr.body.status);
+  if (result.error) return result;
+  return { ok: true, vacation: result.vacation };
+});
 
-export async function DELETE(request, ctx) {
-  const g = await hrGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removeVacation(g, b.id);
-  if (result.error) return Response.json({ error: result.error }, { status: 404 });
-  return Response.json({ ok: true });
-}
+export const DELETE = route(spec, async (hr) => {
+  if (!hr.canManage) return { error: "read-only" };
+  if (!hr.body.id) return { error: "missing" };
+
+  const result = await removeVacation(hr, hr.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

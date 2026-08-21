@@ -35,7 +35,6 @@ import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/
 import { departmentsFromSections } from "@/lib/departments";
 import { getProfile } from "@/lib/data/users";
 import { encryptField, decryptField } from "@/lib/fieldCrypto";
-import { currentUser } from "@/lib/identity";
 
 const CERTIFICATIONS = "certifications";
 const VACATIONS = "vacations";
@@ -92,21 +91,6 @@ export async function hrContext(user, slug) {
   };
 }
 
-// Viewing HR is enough to read; CHANGING it needs the Manage grant. HR has more
-// sub-routes than the other modules, so the guard is written once here rather
-// than copied into each of them.
-export async function hrGuard(paramsPromise, { write } = {}) {
-  const user = await currentUser();
-  if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
-  const { slug } = await paramsPromise;
-  const hr = await hrContext(user, slug);
-  if (hr.error) {
-    const status = hr.error === "notfound" || hr.error === "no-section" ? 404 : 403;
-    return { fail: Response.json({ error: hr.error }, { status }) };
-  }
-  if (write && !hr.canManage) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
-  return hr;
-}
 
 // ---- departments -----------------------------------------------------------
 // DERIVED, NOT STORED. There is no departments collection any more and no CRUD

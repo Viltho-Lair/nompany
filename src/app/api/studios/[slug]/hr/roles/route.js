@@ -1,4 +1,5 @@
-import { hrGuard, createHrRole, editHrRole, removeHrRole } from "@/lib/hr";
+import { route } from "@/lib/route";
+import { hrContext, createHrRole, editHrRole, removeHrRole } from "@/lib/hr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,39 +14,34 @@ export const dynamic = "force-dynamic";
 // There is no GET: the roles travel on the HR screen's single read, like every
 // other list it draws.
 
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "studio", context: hrContext, body: true, name: "hr/roles" };
+const manageable = (hr) => (hr.canManage ? null : { error: "read-only" });
 
-const status = (error) => (error === "duplicate" ? 409
-  : error === "in-use" ? 409
-  : error === "protected" ? 403
-  : error === "notfound" ? 404 : 400);
+export const POST = route(spec, async (hr) => {
+  const refusal = manageable(hr);
+  if (refusal) return refusal;
 
-export async function POST(request, ctx) {
-  const g = await hrGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const result = await createHrRole(g, await body(request));
-  if (result.error) return Response.json({ error: result.error }, { status: status(result.error) });
-  return Response.json({ ok: true, role: result.role }, { status: 201 });
-}
+  const result = await createHrRole(hr, hr.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, role: result.role } };
+});
 
-export async function PUT(request, ctx) {
-  const g = await hrGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await editHrRole(g, b.id, b);
-  if (result.error) return Response.json({ error: result.error }, { status: status(result.error) });
-  return Response.json({ ok: true });
-}
+export const PUT = route(spec, async (hr) => {
+  const refusal = manageable(hr);
+  if (refusal) return refusal;
+  if (!hr.body.id) return { error: "missing" };
 
-export async function DELETE(request, ctx) {
-  const g = await hrGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removeHrRole(g, b.id);
-  if (result.error) {
-    return Response.json({ error: result.error, people: result.people }, { status: status(result.error) });
-  }
-  return Response.json({ ok: true });
-}
+  const result = await editHrRole(hr, hr.body.id, hr.body);
+  if (result.error) return result;
+  return { ok: true, role: result.role };
+});
+
+export const DELETE = route(spec, async (hr) => {
+  const refusal = manageable(hr);
+  if (refusal) return refusal;
+  if (!hr.body.id) return { error: "missing" };
+
+  const result = await removeHrRole(hr, hr.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

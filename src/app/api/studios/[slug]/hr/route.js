@@ -1,5 +1,6 @@
+import { route } from "@/lib/route";
 import {
-  hrGuard, listDepartments, listHrRoles, listCertifications, listEmployees,
+  hrContext, listDepartments, listHrRoles, listCertifications, listEmployees,
   listVacations, expiringDocuments, headcount,
   LEAVE_TYPES, LEAVE_STATUSES, EXPIRY_WINDOW_DAYS,
 } from "@/lib/hr";
@@ -10,10 +11,9 @@ export const dynamic = "force-dynamic";
 // One read for the whole HR screen. ID and passport numbers are decrypted only
 // when the viewer can manage HR — a view-only grant sees that a document is on
 // file and when it expires, never the number itself.
-export async function GET(request, ctx) {
-  const g = await hrGuard(ctx.params);
-  if (g.fail) return g.fail;
-
+export const GET = route(
+  { auth: "studio", context: hrContext, name: "hr" },
+  async (g) => {
   // Departments are DERIVED from the section list the context already carries,
   // so there is nothing to await for them.
   const departments = listDepartments(g);
@@ -23,7 +23,7 @@ export async function GET(request, ctx) {
     listVacations(g, { meId: g.collaborator.id }),
   ]);
 
-  return Response.json({
+  return {
     canManage: g.canManage,
     // Whether the module's OWN screen may be opened. The dashboard summarises
     // everything underneath it, so it is withheld on a right of its own.
@@ -41,5 +41,5 @@ export async function GET(request, ctx) {
     expiring: expiringDocuments(employees),
     headcount: headcount(employees, departments),
     vocabulary: { leaveTypes: LEAVE_TYPES, leaveStatuses: LEAVE_STATUSES, expiryWindowDays: EXPIRY_WINDOW_DAYS },
-  });
-}
+  };
+});
