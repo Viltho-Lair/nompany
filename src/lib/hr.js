@@ -27,9 +27,10 @@
 // viewer who can *manage* HR. Everyone else sees that a document is on file and
 // when it expires — never the number.
 
-import { sectionViewable, sectionManageable, requirePermission, scopeFor, can, escalates, cleanAssignment, dashboardViewable } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow, listSections } from "@/lib/data/sections";
-import { studioContext, sectionNav, manageMap } from "@/lib/studios";
+import { requirePermission, scopeFor, can, escalates, cleanAssignment } from "@/lib/access";
+import { readCol, addRow, updateRow, deleteRow } from "@/lib/data/sections";
+import { moduleContext } from "@/lib/modules/context";
+
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
 import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/lib/data/roles";
 import { departmentsFromSections } from "@/lib/departments";
@@ -50,47 +51,18 @@ const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "";
 
 // Resolve studio + membership + the hr section + this person's rights on it.
-export async function hrContext(user, slug) {
-  const context = await studioContext(user, slug);
-  if (context.error) return context;
-  // `access` is resolved in studioContext; forwarding it is what lets every
-  // service function guard itself without resolving anything again.
-  // `roles` travels with `access`: scopeFor needs it, and a context that
-  // carries one without the other is half an answer.
-  const { studio, collaborator, access, roles } = context;
-
-  const sections = await listSections(studio.id);
-  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
-  const section = byKey["hr"];
-  if (!section) return { error: "no-section" };
-  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
-  // anybody holding a role but no legacy grant — every new hire once roles are
-  // in use — was shown the section in the nav and refused when they opened it.
-  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
-
-  // Employees owns the reference lists (departments/positions/certifications);
-  // vacations stay on the parent as studio-wide HR settings.
-  const employeesSection = byKey["hr-employees"] || section;
-
-  return {
-    studio, collaborator, access, roles, section, employeesSection,
-    // THE SECTION LIST TRAVELS, because the departments are in it. HR reads it
-    // rather than a collection of its own — see lib/departments.js.
-    sections,
-    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
-    canManageEmployees: sectionManageable(access, employeesSection.key, (sections || []).map((x) => x.key)),
-    // Handing somebody a role is an ACCESS act, not an HR one, so it is gated
-    // on the access permission wherever it is done from — including here.
+export const hrContext = moduleContext({
+  root: "hr",
+  // Employees owns the reference lists (departments/certifications); vacations
+  // stay on the parent as studio-wide HR settings.
+  sub: { employees: "hr-employees" },
+  flags: ["employees"],
+  extend: ({ access }) => ({
+    // Handing somebody a role is an ACCESS act, not an HR one, so it is gated on
+    // the access permission wherever it is done from — including here.
     canAssignRoles: !requirePermission(access, "people.members.edit"),
-    // May they open the module's OWN screen — the dashboard is a summary of
-    // everything underneath it, and is withheld on a right of its own.
-    canViewDashboard: dashboardViewable(access, section.key),
-    nav: sectionNav(studio, collaborator, sections, access),
-    // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, access),
-  };
-}
-
+  }),
+});
 
 // ---- departments -----------------------------------------------------------
 // DERIVED, NOT STORED. There is no departments collection any more and no CRUD

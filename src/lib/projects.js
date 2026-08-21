@@ -8,9 +8,10 @@
 // A project may only be opened from an APPROVED quotation — that approval is the
 // commercial gate, and it lives in Technical/Sales, not here.
 
-import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
-import { studioContext, sectionNav, manageMap } from "@/lib/studios";
+import { requirePermission } from "@/lib/access";
+import { readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { moduleContext } from "@/lib/modules/context";
+
 import { listCollaborators } from "@/lib/data/collaborators";
 import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "@/lib/projectSchedule";
 import { nextReference } from "@/lib/references";
@@ -42,71 +43,28 @@ const TASKS = "tasks";
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const nonNeg = (v, fallback = 0) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : fallback; };
 
-export async function projectsContext(user, slug) {
-  const context = await studioContext(user, slug);
-  if (context.error) return context;
-  // `access` is resolved in studioContext; forwarding it is what lets every
-  // service function guard itself without resolving anything again.
-  // `roles` travels with `access`: scopeFor needs it, and a context that
-  // carries one without the other is half an answer.
-  const { studio, collaborator, access, roles } = context;
-
-  const sections = await listSections(studio.id);
-  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
-  const section = byKey["projects"];
-  const technical = byKey["technical"];
-  if (!section) return { error: "no-section" };
-  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
-  // anybody holding a role but no legacy grant — every new hire once roles are
-  // in use — was shown the section in the nav and refused when they opened it.
-  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
-
-  // Sub-sections own the collections; the parent is the fallback for a studio
-  // predating the model. Quotations still live under Technical.
-  const listSection = byKey["projects-list"] || section;
-  const slaSection = byKey["projects-sla"] || section;
-  const overtimesSection = byKey["projects-overtimes"] || section;
-  const settingsSection = byKey["projects-settings"] || section;
-  const quotationsSection = byKey["technical-quotations"] || technical;
-  // Sales owns the ticket a project came from. A quotation no longer holds a
-  // copy of the ticket's title and client — they are read back through the
-  // ticketId it carries — so the sections behind that read travel here too.
-  const salesTicketsSection = byKey["sales-tickets"] || byKey["sales"] || null;
-  const salesClientsSection = byKey["sales-clients"] || byKey["sales"] || null;
-  // Where the project sheet is written. Absent in a studio with no Inventory
-  // section, and openProject simply makes no sheet rather than refusing to
-  // make the project.
-  const sheetsSection = byKey["inventory-sheets"] || byKey["inventory"] || null;
-  // Inventory's catalogue and vendors, for composing a sheet's Bulk view — the
-  // vendor each item is bought from lives on the item. Read only.
-  const itemsSection = byKey["inventory-items"] || byKey["inventory"] || null;
-  const vendorsSection = byKey["inventory-vendors"] || byKey["inventory"] || null;
-  // The board the approval lives on. Projects READS it to ask whether a
-  // quotation was signed off, and never writes it.
-  const tasksSection = byKey["tasks"] || null;
-
-  return {
-    studio, collaborator, access, roles, section, technicalSection: technical,
-    // The SECTION LIST travels, because the departments the overtime picker
-    // filters by are derived from it — see lib/departments.js.
-    sections,
-    listSection, slaSection, overtimesSection, settingsSection, quotationsSection,
-    salesTicketsSection, salesClientsSection, sheetsSection, tasksSection,
-    itemsSection, vendorsSection, projectsListSection: byKey["projects-list"] || section,
-    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
-    canManageList: sectionManageable(access, listSection.key, (sections || []).map((x) => x.key)),
-    canManageSla: sectionManageable(access, slaSection.key, (sections || []).map((x) => x.key)),
-    canManageOvertimes: sectionManageable(access, overtimesSection.key, (sections || []).map((x) => x.key)),
-    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
-    settings: settingsSection.settings || {},
-    // May they open the module's OWN screen — the dashboard is a summary of
-    // everything underneath it, and is withheld on a right of its own.
-    canViewDashboard: dashboardViewable(access, section.key),
-    nav: sectionNav(studio, collaborator, sections, access),
-    // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, access),
-  };
-}
+export const projectsContext = moduleContext({
+  root: "projects",
+  sub: {
+    list: "projects-list", sla: "projects-sla", overtimes: "projects-overtimes",
+    settings: "projects-settings",
+    // The same section as `list`, under the name the cross-department readers
+    // use for it. Both spellings existed before this and resolved identically.
+    projectsList: "projects-list",
+  },
+  foreign: {
+    technical: "technical",
+    quotations: ["technical-quotations", "technical"],
+    salesTickets: ["sales-tickets", "sales"],
+    salesClients: ["sales-clients", "sales"],
+    sheets: ["inventory-sheets", "inventory"],
+    items: ["inventory-items", "inventory"],
+    vendors: ["inventory-vendors", "inventory"],
+    tasks: "tasks",
+  },
+  flags: ["list", "sla", "overtimes", "settings"],
+  extend: ({ settingsSection }) => ({ settings: settingsSection.settings || {} }),
+});
 
 // Projects Settings live on the projects-settings sub-section's own `settings`
 // object, so they need no key of their own and die with the sub-section.

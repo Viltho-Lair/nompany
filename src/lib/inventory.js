@@ -17,10 +17,11 @@
 // project (stock out). Receiving and issuing never touch quantities directly;
 // they append movements, and the balance follows.
 
-import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
+import { requirePermission } from "@/lib/access";
 import { isKnownCurrency } from "@/lib/currencies";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, listSections } from "@/lib/data/sections";
-import { studioContext, sectionNav, manageMap } from "@/lib/studios";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow } from "@/lib/data/sections";
+import { moduleContext } from "@/lib/modules/context";
+
 import { listCollaborators } from "@/lib/data/collaborators";
 import { nextReference } from "@/lib/references";
 // What each department adds to a quotation row, and who owns which column.
@@ -104,60 +105,24 @@ function cleanSerials(list) {
 // Resolve studio + membership + the inventory section. The PROJECTS section is
 // resolved too but is optional — inventory works without it; you just can't
 // point an order or a delivery at a project.
-export async function inventoryContext(user, slug) {
-  const context = await studioContext(user, slug);
-  if (context.error) return context;
-  // `access` is resolved in studioContext; forwarding it is what lets every
-  // service function guard itself without resolving anything again.
-  // `roles` travels with `access`: scopeFor needs it, and a context that
-  // carries one without the other is half an answer.
-  const { studio, collaborator, access, roles } = context;
-
-  const sections = await listSections(studio.id);
-  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
-  const section = byKey["inventory"];
-  const projects = byKey["projects"];
-  if (!section) return { error: "no-section" };
-  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
-  // anybody holding a role but no legacy grant — every new hire once roles are
-  // in use — was shown the section in the nav and refused when they opened it.
-  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
-
-  // Each collection sits under the sub-section that owns it. `deliveries` stays
-  // on the parent: it is raised from several places, not from one screen.
-  const stockSection = byKey["inventory-stock"] || section;
-  const vendorsSection = byKey["inventory-vendors"] || section;
-  const itemsSection = byKey["inventory-items"] || section;
-  const sheetsSection = byKey["inventory-sheets"] || section;
-  const awbSection = byKey["inventory-awb"] || section;
-  const projectsListSection = byKey["projects-list"] || projects;
-  // The quotation OWNS the sheet's rows. Inventory reads it and never
-  // writes it — see composeSheet.
-  const quotationsSection = byKey["technical-quotations"] || byKey["technical"] || null;
-  // The board the client's PO lives on, read so a sheet can report its PO
-  // number. Never written from here.
-  const tasksSection = byKey["tasks"] || null;
-
-  return {
-    studio, collaborator, access, roles, section, projectsSection: projects,
-    stockSection, vendorsSection, itemsSection, sheetsSection, awbSection, projectsListSection,
-    quotationsSection, tasksSection,
-    deliveriesSection: section,
-    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
-    canManageStock: sectionManageable(access, stockSection.key, (sections || []).map((x) => x.key)),
-    canManageVendors: sectionManageable(access, vendorsSection.key, (sections || []).map((x) => x.key)),
-    canManageItems: sectionManageable(access, itemsSection.key, (sections || []).map((x) => x.key)),
-    canManageSheets: sectionManageable(access, sheetsSection.key, (sections || []).map((x) => x.key)),
-    canManageAwb: sectionManageable(access, awbSection.key, (sections || []).map((x) => x.key)),
-    // May they open the module's OWN screen — the dashboard is a summary of
-    // everything underneath it, and is withheld on a right of its own.
-    canViewDashboard: dashboardViewable(access, section.key),
-    nav: sectionNav(studio, collaborator, sections, access),
-    // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, access),
-  };
-}
-
+export const inventoryContext = moduleContext({
+  root: "inventory",
+  sub: {
+    stock: "inventory-stock", vendors: "inventory-vendors", items: "inventory-items",
+    sheets: "inventory-sheets", awb: "inventory-awb",
+  },
+  foreign: {
+    projects: "projects",
+    projectsList: ["projects-list", "projects"],
+    quotations: ["technical-quotations", "technical"],
+    tasks: "tasks",
+  },
+  flags: ["stock", "vendors", "items", "sheets", "awb"],
+  // Deliveries have no sub-section of their own and never had: the notes live on
+  // the parent, so naming it explicitly is clearer than a caller remembering to
+  // reach for `section`.
+  extend: ({ section }) => ({ deliveriesSection: section }),
+});
 
 // ---- vendors ---------------------------------------------------------------
 export async function listVendors({ studio, vendorsSection }) {

@@ -2077,7 +2077,12 @@ console.log("== hop counts: how many round trips a screen costs");
 
   const salesCall = await withCommandCount(() => capture(SALES.GET, req(`/api/studios/${slug}/sales`), ctx({ slug })));
   console.log(`       GET /api/studios/<slug>/sales  ${salesCall.commands} commands, ${salesCall.waves} waves`);
-  ok("the sales route stays under its ceiling", salesCall.waves <= 16, `${salesCall.waves} waves: ${salesCall.names.slice(0, 20).join(",")}`);
+  // LOWERED FROM 16 TO 8 when Seam C stopped every module context re-reading the
+  // section list studioContext had already fetched and handed over. One round
+  // trip, on every module request in the product, deleted in one place — the
+  // audit's R1. The ceiling sits one wave above the measurement, as the studio
+  // route's does; W8's target for both is 2.
+  ok("the sales route stays under its ceiling", salesCall.waves <= 8, `${salesCall.waves} waves: ${salesCall.names.slice(0, 20).join(",")}`);
 
   // THE DUPLICATE THE AUDIT NAMED: studioContext resolves sections and every
   // module context reads them again. Pinned as a count so the fix is visible

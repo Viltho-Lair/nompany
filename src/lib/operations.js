@@ -14,9 +14,10 @@
 // Permit validity and shift hours are DERIVED from their dates, never stored,
 // so neither can quietly go stale.
 
-import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
-import { studioContext, sectionNav, manageMap } from "@/lib/studios";
+import { requirePermission } from "@/lib/access";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { moduleContext } from "@/lib/modules/context";
+
 import { listCollaborators } from "@/lib/data/collaborators";
 import { nextReference } from "@/lib/references";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "@/lib/operationsCalendar";
@@ -38,46 +39,15 @@ const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(
 const clock = (v) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 const today = () => new Date().toISOString().slice(0, 10);
 
-export async function operationsContext(user, slug) {
-  const context = await studioContext(user, slug);
-  if (context.error) return context;
-  // `access` is resolved in studioContext; forwarding it is what lets every
-  // service function guard itself without resolving anything again.
-  // `roles` travels with `access`: scopeFor needs it, and a context that
-  // carries one without the other is half an answer.
-  const { studio, collaborator, access, roles } = context;
-
-  const sections = await listSections(studio.id);
-  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
-  const section = byKey["operations"];
-  if (!section) return { error: "no-section" };
-  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
-  // anybody holding a role but no legacy grant — every new hire once roles are
-  // in use — was shown the section in the nav and refused when they opened it.
-  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
-
-  // locations / permits / shifts stay on the PARENT: they are tabs of one
-  // screen, not sub-sections. Tracking and Settings are the real sub-sections.
-  const trackingSection = byKey["operations-tracking"] || section;
-  const settingsSection = byKey["operations-settings"] || section;
-  const hrSection = byKey["hr"] || null;
-  const projectsListSection = byKey["projects-list"] || byKey["projects"] || null;
-
-  return {
-    studio, collaborator, access, roles, section, trackingSection, settingsSection, hrSection, projectsListSection,
-    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
-    canManageTracking: sectionManageable(access, trackingSection.key, (sections || []).map((x) => x.key)),
-    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
-    settings: settingsSection.settings || {},
-    // May they open the module's OWN screen. Operations' parent is the
-    // locations/permits/shifts screen rather than a summary, but the question
-    // is the same one and it had no answer at all before.
-    canViewDashboard: dashboardViewable(access, section.key),
-    nav: sectionNav(studio, collaborator, sections, access),
-    // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, access),
-  };
-}
+export const operationsContext = moduleContext({
+  root: "operations",
+  sub: { tracking: "operations-tracking", settings: "operations-settings" },
+  // HR, because a shift must not be scheduled over leave HR has approved, and
+  // Projects because a shift is worked against one.
+  foreign: { hr: "hr", projectsList: ["projects-list", "projects"] },
+  flags: ["tracking", "settings"],
+  extend: ({ settingsSection }) => ({ settings: settingsSection.settings || {} }),
+});
 
 // Operations Settings live on the operations-settings sub-section's own
 // `settings` object, so they need no key of their own and die with it.
@@ -189,7 +159,6 @@ export async function clearPosition(ctx, collaboratorId) {
   const removed = await deleteRow(studio.id, trackingSection.id, POSITIONS, mine.id);
   return removed ? { ok: true } : { error: "notfound" };
 }
-
 
 // ---- locations -------------------------------------------------------------
 export async function listLocations({ studio, section }) {

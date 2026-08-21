@@ -12,12 +12,12 @@
 // refer to someone's identity *inside this studio*, so nothing leaks across
 // studios and a removed collaborator doesn't drag a user account with them.
 
-import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
-import { studioContext, sectionNav, manageMap } from "@/lib/studios";
+import { requirePermission } from "@/lib/access";
+import { readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { moduleContext } from "@/lib/modules/context";
+
 import { listCollaborators } from "@/lib/data/collaborators";
-import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES,
-  TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "@/lib/tickets";
+import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "@/lib/tickets";
 import { normaliseClientName, normaliseContactName, clientSlug } from "@/lib/salesClients";
 import { nextUniqueRef } from "@/lib/references";
 import { traverseIn } from "@/lib/relations";
@@ -99,80 +99,38 @@ function upsertLocation(existing, { name, country, city, url }) {
 
 // Resolve studio + membership + the sales section + this person's rights on it.
 // Every route starts here, so permission is checked once, in one place.
-export async function salesContext(user, slug) {
-  const context = await studioContext(user, slug);
-  if (context.error) return context;
-  // `access` is resolved in studioContext; forwarding it is what lets every
-  // service function guard itself without resolving anything again.
-  // `roles` travels with `access`: scopeFor needs it, and a context that
-  // carries one without the other is half an answer.
-  const { studio, collaborator, access, roles } = context;
-
-  const sections = await listSections(studio.id);
-  const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
-  const section = byKey["sales"];
-  if (!section) return { error: "no-section" };
-
-  // Sub-sections own the collections. Fall back to the parent so a studio that
-  // predates the sub-section model still resolves rather than 500ing.
-  const ticketsSection = byKey["sales-tickets"] || section;
-  const clientsSection = byKey["sales-clients"] || section;
-  const settingsSection = byKey["sales-settings"] || section;
-
-  // Technical, when this studio has it. What became of a ticket after Sales
-  // raised an RFQ is part of the ticket's own story, so the Sales screens show
-  // it — read-only, and NOT gated on a Technical grant: this is the state of
-  // their own record, not a window into Technical's queue. A studio without a
-  // Technical section simply has no RFQ column and no "Request RFQ" button.
-  const technicalSection = byKey["technical"] || null;
-  const rfqSection = technicalSection ? (byKey["technical-rfq"] || technicalSection) : null;
-  const quotationsSection = technicalSection ? (byKey["technical-quotations"] || technicalSection) : null;
-
-  // Tasks, for the same reason and on the same terms: sending a finished
-  // quotation for approval raises a task, and whether that approval came back
-  // is part of the ticket's own story. Read WITHOUT a Tasks grant — this is the
-  // state of their own record, not a window into somebody else's board — and a
-  // studio with no Tasks section simply gets no approval button.
-  const tasksSection = byKey["tasks"] || null;
-  const tasksSettingsSection = tasksSection ? (byKey["tasks-settings"] || tasksSection) : null;
-
-  // PROJECTS, on exactly the terms Tasks is read on: what became of the ticket
-  // is part of the ticket's own story. A ticket carries no projectId and never
-  // has — the project holds the ticket's — so this is the reverse edge the
-  // registry declares, and until it was declared nothing anywhere asked the
-  // question. A parent that cannot say how its child is doing is a parent
-  // nobody can plan from.
-  const projectsSection = byKey["projects-list"] || byKey["projects"] || null;
-
-  // Seeing Sales at all is the parent grant; the per-collection grants are
-  // checked against the sub-section that owns each one.
-  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
-  // anybody holding a role but no legacy grant — every new hire once roles are
-  // in use — was shown the section in the nav and refused when they opened it.
-  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
-
-  return {
-    studio, collaborator, access, roles, section, ticketsSection, clientsSection, settingsSection,
-    technicalSection, rfqSection, quotationsSection, tasksSection, projectsSection,
+export const salesContext = moduleContext({
+  root: "sales",
+  sub: { tickets: "sales-tickets", clients: "sales-clients", settings: "sales-settings" },
+  // TECHNICAL, TASKS AND PROJECTS, READ ON THE TICKET'S OWN TERMS. What became of
+  // a ticket after Sales raised an RFQ, whether the approval came back, and
+  // whether a project opened are all part of the ticket's own story — so the
+  // Sales screens show them read-only and WITHOUT a grant on those departments.
+  // This is the state of their own record, not a window into somebody else's
+  // queue. A studio missing any of these sections simply loses that column and
+  // that button, rather than being offered one that could only ever fail.
+  //
+  // A ticket carries no projectId and never has — the project holds the
+  // ticket's — so Projects here is the reverse edge the registry declares, and
+  // until it was declared nothing anywhere asked the question. A parent that
+  // cannot say how its child is doing is a parent nobody can plan from.
+  foreign: {
+    technical: "technical",
+    rfq: ["technical-rfq", "technical"],
+    quotations: ["technical-quotations", "technical"],
+    tasks: "tasks",
+    tasksSettings: ["tasks-settings", "tasks"],
+    projects: ["projects-list", "projects"],
+  },
+  flags: ["tickets", "clients", "settings"],
+  extend: ({ tasksSettingsSection, settingsSection }) => ({
     // Who currently holds each approval authority, resolved from Task settings
     // on every read — appointing somebody there hands them the open approvals
     // immediately, so this is never copied onto a row.
     taskAssignees: readTaskAssignees(tasksSettingsSection),
-    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
-    canViewTickets: sectionViewable(access, ticketsSection.key, sections.map((s) => s.key)),
-    canManageTickets: sectionManageable(access, ticketsSection.key, (sections || []).map((x) => x.key)),
-    canViewClients: sectionViewable(access, clientsSection.key, sections.map((s) => s.key)),
-    canManageClients: sectionManageable(access, clientsSection.key, (sections || []).map((x) => x.key)),
-    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
     ...readSalesVocab(settingsSection),
-    // May they open the module's OWN screen — the dashboard is a summary of
-    // everything underneath it, and is withheld on a right of its own.
-    canViewDashboard: dashboardViewable(access, section.key),
-    nav: sectionNav(studio, collaborator, sections, access),
-    // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, access),
-  };
-}
+  }),
+});
 
 // ---- sales settings ---------------------------------------------------------
 // Two kinds of setting live here:

@@ -25,10 +25,10 @@
 // Everything the old builder needed and nothing else needs was deleted rather
 // than left to rot: a module nobody calls is a module nobody notices is wrong.
 
-import { sectionViewable, sectionManageable, can, requirePermission } from "@/lib/access";
-import { listSections, readCol, updateRow } from "@/lib/data/sections";
+import { can, requirePermission } from "@/lib/access";
+import { readCol, updateRow } from "@/lib/data/sections";
 import { DOCS } from "@/lib/qualityDocs";
-import { studioContext, sectionNav } from "@/lib/studios";
+import { moduleContext } from "@/lib/modules/context";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { departmentsFromSections } from "@/lib/departments";
 import { NODES, traverse } from "@/lib/relations";
@@ -42,28 +42,12 @@ const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 
 // ---- context ---------------------------------------------------------------
 
-export async function qualityContext(user, slug) {
-  const context = await studioContext(user, slug);
-  if (context.error) return context;
-  // `access` and `roles` travel with the context; dropping either is what
-  // silently disarms every guard downstream.
-  const { studio, collaborator, access, roles } = context;
-
-  const sections = await listSections(studio.id);
-  const keys = sections.map((s) => s.key);
-  const section = sections.find((s) => s.key === "quality-documents");
-  if (!section) return { error: "no-section" };
-  if (!sectionViewable(access, section.key, keys)) return { error: "forbidden" };
-
-  return {
-    studio, collaborator, access, roles, section, sections,
-    canManage: sectionManageable(access, section.key, keys),
-    // Departments are the studio's own top-level sections, so this list is
-    // whatever the studio is actually divided into today.
-    departments: departmentsFromSections(sections),
-    nav: sectionNav(studio, collaborator, sections, access),
-  };
-}
+export const qualityContext = moduleContext({
+  root: "quality-documents",
+  // Departments are the studio's own top-level sections, so this list is
+  // whatever the studio is actually divided into today.
+  extend: ({ sections }) => ({ departments: departmentsFromSections(sections) }),
+});
 
 
 // ---- rendering a document ---------------------------------------------------

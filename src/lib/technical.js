@@ -11,10 +11,11 @@
 //   • raising an RFQ is a SALES act on their ticket   -> needs Sales:manage
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
-import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
+import { sectionManageable, requirePermission } from "@/lib/access";
 import { nextUniqueRef } from "@/lib/references";
-import { readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
-import { studioContext, sectionNav, manageMap } from "@/lib/studios";
+import { readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { moduleContext } from "@/lib/modules/context";
+
 import { listCollaborators } from "@/lib/data/collaborators";
 import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "@/lib/rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/lib/tickets";
@@ -41,59 +42,32 @@ const num = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : 0
 
 // Resolve both sections at once: Technical (where the data lives) and Sales
 // (where tickets come from), plus this person's rights on each.
-export async function technicalContext(user, slug) {
-  const context = await studioContext(user, slug);
-  if (context.error) return context;
-  // `access` is resolved in studioContext; forwarding it is what lets every
-  // service function guard itself without resolving anything again.
-  // `roles` travels with `access`: scopeFor needs it, and a context that
-  // carries one without the other is half an answer.
-  const { studio, collaborator, access, roles } = context;
-
-  const sections = await listSections(studio.id);
-  const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
-  const technical = byKey["technical"];
-  const sales = byKey["sales"];
-  if (!technical) return { error: "no-section" };
-
-  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
-  // anybody holding a role but no legacy grant — every new hire once roles are
-  // in use — was shown the section in the nav and refused when they opened it.
-  if (!sectionViewable(access, technical.key, sections.map((s) => s.key))) return { error: "forbidden" };
-
-  // Sub-sections own the collections; the parent is the fallback for any studio
-  // predating the sub-section model. Tickets still live under Sales.
-  const quotationsSection = byKey["technical-quotations"] || technical;
-  const rfqSection = byKey["technical-rfq"] || technical;
-  const settingsSection = byKey["technical-settings"] || technical;
-  const salesTicketsSection = byKey["sales-tickets"] || sales;
-  const salesClientsSection = byKey["sales-clients"] || sales;
-  // Registered Items lives under Inventory. Technical READS it to fill the
-  // builder's item picker and never writes it — a studio without the section
-  // simply gets an empty list rather than a broken screen.
-  const inventoryItemsSection = byKey["inventory-items"] || byKey["inventory"] || null;
-  // The board the approval lives on. Technical READS it so a quotation can
-  // report that it was signed off, and never writes it.
-  const tasksSection = byKey["tasks"] || null;
-
-  return {
-    studio, collaborator, access, roles, section: technical, salesSection: sales,
-    quotationsSection, rfqSection, settingsSection, salesTicketsSection, salesClientsSection,
-    inventoryItemsSection, tasksSection,
-    canManage: sectionManageable(access, technical.key, (sections || []).map((x) => x.key)),
-    canManageQuotations: sectionManageable(access, quotationsSection.key, (sections || []).map((x) => x.key)),
-    canManageRfq: sectionManageable(access, rfqSection.key, (sections || []).map((x) => x.key)),
-    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
-    canManageSales: Boolean(sales) && sectionManageable(access, sales.key, sections.map((x) => x.key)),
+export const technicalContext = moduleContext({
+  root: "technical",
+  sub: {
+    quotations: "technical-quotations", rfq: "technical-rfq", settings: "technical-settings",
+  },
+  // Sales, because a quotation answers a Sales ticket; Inventory items because a
+  // quotation line can name one; Tasks because sending one for approval raises
+  // one. All read-only and none gated on that department's grant — this is the
+  // state of Technical's own record, not a window into somebody else's queue.
+  foreign: {
+    sales: "sales",
+    salesTickets: ["sales-tickets", "sales"],
+    salesClients: ["sales-clients", "sales"],
+    inventoryItems: ["inventory-items", "inventory"],
+    tasks: "tasks",
+  },
+  flags: ["quotations", "rfq", "settings"],
+  extend: ({ access, sections, salesSection, settingsSection }) => ({
+    // HANDING A TICKET BACK IS A SALES ACT, so it is asked of the Sales section
+    // rather than of Technical's. A studio with no Sales section cannot do it at
+    // all, which is what the Boolean guards.
+    canManageSales: Boolean(salesSection)
+      && sectionManageable(access, salesSection.key, sections.map((x) => x.key)),
     ...readTechnicalSettings(settingsSection),
-    // May they open the module's OWN screen — the dashboard is a summary of
-    // everything underneath it, and is withheld on a right of its own.
-    canViewDashboard: dashboardViewable(access, technical.key),
-    nav: sectionNav(studio, collaborator, sections, access),
-    // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, access),
-  };
-}
+  }),
+});
 
 // ---- technical settings -----------------------------------------------------
 // Live-view columns and the quotation cover copy, both on the

@@ -15,9 +15,10 @@
 // plus expenses booked here. Nothing is copied into Finance and left to rot —
 // it is recomputed on every read.
 
-import { sectionViewable, sectionManageable, requirePermission, dashboardViewable } from "@/lib/access";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
-import { studioContext, sectionNav, manageMap } from "@/lib/studios";
+import { requirePermission } from "@/lib/access";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { moduleContext } from "@/lib/modules/context";
+
 import { listCollaborators } from "@/lib/data/collaborators";
 import { traverseIn } from "@/lib/relations";
 import { nextReference } from "@/lib/references";
@@ -40,44 +41,16 @@ const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(
 const cash = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
 const round = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
-export async function financeContext(user, slug) {
-  const context = await studioContext(user, slug);
-  if (context.error) return context;
-  // `access` is resolved in studioContext; forwarding it is what lets every
-  // service function guard itself without resolving anything again.
-  // `roles` travels with `access`: scopeFor needs it, and a context that
-  // carries one without the other is half an answer.
-  const { studio, collaborator, access, roles } = context;
-
-  const sections = await listSections(studio.id);
-  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
-  const section = byKey["finance"];
-  if (!section) return { error: "no-section" };
-  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
-  // anybody holding a role but no legacy grant — every new hire once roles are
-  // in use — was shown the section in the nav and refused when they opened it.
-  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
-
-  // Cash owns the money rows; Settings owns the categories they are filed under.
-  const cashSection = byKey["finance-cash"] || section;
-  const settingsSection = byKey["finance-settings"] || section;
-  const projectsListSection = byKey["projects-list"] || byKey["projects"] || null;
-  const sheetsSection = byKey["inventory-sheets"] || byKey["inventory"] || null;
-
-  return {
-    studio, collaborator, access, roles, section, cashSection, settingsSection, projectsListSection, sheetsSection,
-    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
-    canManageCash: sectionManageable(access, cashSection.key, (sections || []).map((x) => x.key)),
-    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
-    cashCategories: readCashCategories(settingsSection),
-    // May they open the module's OWN screen — the dashboard is a summary of
-    // everything underneath it, and is withheld on a right of its own.
-    canViewDashboard: dashboardViewable(access, section.key),
-    nav: sectionNav(studio, collaborator, sections, access),
-    // Manage, per section key — each screen asks about itself.
-    manage: manageMap(studio, collaborator, sections, access),
-  };
-}
+export const financeContext = moduleContext({
+  root: "finance",
+  sub: { cash: "finance-cash", settings: "finance-settings" },
+  // Projects and Inventory sheets, when the studio has them. Read on the same
+  // terms Sales reads Technical: what a project cost is part of the invoice's
+  // own story, and a studio without those sections simply has no margin column.
+  foreign: { projectsList: ["projects-list", "projects"], sheets: ["inventory-sheets", "inventory"] },
+  flags: ["cash", "settings"],
+  extend: ({ settingsSection }) => ({ cashCategories: readCashCategories(settingsSection) }),
+});
 
 // The Old System's "Finance Settings - Cash categories": the list an expense is
 // filed under. Stored on the finance-settings sub-section's own settings object.
@@ -109,7 +82,6 @@ export async function saveFinanceSettings(ctx, body) {
   const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
   return updated ? { cashCategories: readCashCategories({ settings: next }) } : { error: "notfound" };
 }
-
 
 // ---- money -----------------------------------------------------------------
 // One place computes an invoice's numbers, so the list, the detail and the

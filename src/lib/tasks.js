@@ -16,9 +16,10 @@
 // Progress comes from the checklist, never stored separately, so it cannot
 // drift from the items it counts.
 
-import { sectionViewable, sectionManageable, requirePermission, can } from "@/lib/access";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
-import { studioContext, sectionNav } from "@/lib/studios";
+import { requirePermission, can } from "@/lib/access";
+import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { moduleContext } from "@/lib/modules/context";
+
 import { listCollaborators } from "@/lib/data/collaborators";
 // Issuing the project number is a CONSEQUENCE of Finance signing the PO, so it
 // is called from decideTask rather than from a screen — see the note there.
@@ -40,42 +41,16 @@ export const DEFAULT_PRIORITY = "Normal";
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 
-export async function tasksContext(user, slug) {
-  const context = await studioContext(user, slug);
-  if (context.error) return context;
-  // `access` comes from studioContext; dropping it here is what silently
-  // disarms every check downstream.
-  // `roles` travels with `access`: scopeFor needs it, and a context that
-  // carries one without the other is half an answer.
-  const { studio, collaborator, access, roles } = context;
-
-  const sections = await listSections(studio.id);
-  const byKey = Object.fromEntries(sections.map((x) => [x.key, x]));
-  const section = byKey["tasks"];
-  if (!section) return { error: "no-section" };
-  // THE VIEW GUARD, asked of the permission set. It read grants until now, so
-  // anybody holding a role but no legacy grant — every new hire once roles are
-  // in use — was shown the section in the nav and refused when they opened it.
-  if (!sectionViewable(access, section.key, sections.map((s) => s.key))) return { error: "forbidden" };
-
-  // The task list stays on the PARENT — in the Old System the Tasks nav item is
-  // the list itself, with Settings as its only sub-item.
-  const settingsSection = byKey["tasks-settings"] || section;
-  const projectsListSection = byKey["projects-list"] || byKey["projects"] || null;
-
-  return {
-    // `access` and `roles` TRAVEL WITH THE CONTEXT, like every other module's.
-    // They were resolved above and then dropped from this object, so every
-    // guard below read `undefined` and refused everybody — the owner included.
-    // A board nobody can write to looks like a permission problem and is not
-    // one, which is why this is the first thing the context hands over.
-    studio, collaborator, access, roles, section, settingsSection, projectsListSection,
-    canManage: sectionManageable(access, section.key, (sections || []).map((x) => x.key)),
-    canManageSettings: sectionManageable(access, settingsSection.key, (sections || []).map((x) => x.key)),
-    taskAssignees: readTaskAssignees(settingsSection),
-    nav: sectionNav(studio, collaborator, sections, access),
-  };
-}
+export const tasksContext = moduleContext({
+  root: "tasks",
+  sub: { settings: "tasks-settings" },
+  foreign: { projectsList: ["projects-list", "projects"] },
+  flags: ["settings"],
+  // Who currently holds each approval authority, resolved from Task settings on
+  // every read — appointing somebody there hands them the open approvals
+  // immediately, so this is never copied onto a row.
+  extend: ({ settingsSection }) => ({ taskAssignees: readTaskAssignees(settingsSection) }),
+});
 
 // ---- task routing -----------------------------------------------------------
 // Lives in lib/taskRouting.js so the board can import it without pulling this
@@ -103,7 +78,6 @@ export async function saveTasksSettings(ctx, body) {
   const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
   return updated ? { taskAssignees: readTaskAssignees({ settings: next }) } : { error: "notfound" };
 }
-
 
 export async function listTasks(ctx) {
   const { studio, section, collaborator, canManage, taskAssignees } = ctx;
