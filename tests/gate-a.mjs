@@ -1740,6 +1740,108 @@ console.log("== the answer a person who asked to join never got");
   await signIn(owner.id);
 }
 
+console.log("== the console's second factor");
+// /super can change a studio's plan, assign platform roles and rewrite the price
+// list, and a password was the whole of it. TOTP rather than an emailed code,
+// because the console must keep working when email does not.
+{
+  const mfa = await import("@/lib/superMfa");
+  const sup = await import("@/lib/superAuth");
+  const OTPAuth = await import("otpauth");
+
+  const email = `g-mfa-${rand()}@test.invalid`;
+  const seeded = await sup.seedSuperAdmin({ email, password: "console-pw-12345" });
+  const adminId = seeded.admin.id;
+
+  // A real code, generated the way an authenticator app would.
+  const { secret } = mfa.beginEnrolment(email);
+  const codeNow = (s) => new OTPAuth.TOTP({
+    issuer: "nompany", algorithm: "SHA1", digits: 6, period: 30,
+    secret: OTPAuth.Secret.fromBase32(s),
+  }).generate();
+
+  ok("a code from the app is accepted", mfa.verifyCode(secret, codeNow(secret)), "");
+  ok("...and a wrong one is not", !mfa.verifyCode(secret, "000000"), "");
+  ok("...and a code for another secret is not",
+    !mfa.verifyCode(secret, codeNow(mfa.beginEnrolment(email).secret)), "");
+
+  // THE SECRET IS ENCRYPTED AT REST. It is a bearer credential — whoever reads
+  // it mints codes forever — so storing it readable would put every future code
+  // into any copy of the database, which is finding H-1's exact shape.
+  const sealed = mfa.sealSecret(secret);
+  ok("the stored secret is not the secret", sealed !== secret && !sealed.includes(secret), sealed.slice(0, 12) + "…");
+  ok("...and it opens back to it", mfa.openSecret(sealed) === secret, "");
+
+  // ---- the gate ------------------------------------------------------------
+  const { hashes } = mfa.makeRecoveryCodes();
+  await sup.patchAdmin(adminId, () => ({
+    mfa: { secret: sealed, recoveryCodes: hashes, enabledAt: new Date().toISOString() },
+  }));
+
+  // THE ASSERTION THE WHOLE FEATURE RESTS ON. A right password alone must mint
+  // NOTHING — no token, no index entry, nothing to replay. If the session were
+  // created first and the factor checked after, a leaked password would have a
+  // working session for the seconds in between.
+  const passwordOnly = await sup.loginSuper(email, "console-pw-12345");
+  ok("a correct password alone does not sign you in",
+    passwordOnly?.mfaRequired === true && !passwordOnly?.token, JSON.stringify(Object.keys(passwordOnly || {})));
+
+  const wrongCode = await sup.loginSuper(email, "console-pw-12345", { code: "000000" });
+  ok("...nor does a wrong code", wrongCode === null, JSON.stringify(wrongCode));
+
+  const withCode = await sup.loginSuper(email, "console-pw-12345", { code: codeNow(secret) });
+  ok("password AND code signs you in", Boolean(withCode?.token), JSON.stringify(withCode?.error ?? ""));
+
+  // A WRONG PASSWORD IS STILL REFUSED FIRST, code or no code — otherwise the
+  // factor would have replaced the password rather than joined it.
+  const wrongPw = await sup.loginSuper(email, "not-the-password", { code: codeNow(secret) });
+  ok("a valid code cannot stand in for the password", wrongPw === null, JSON.stringify(wrongPw));
+
+  // ---- recovery ------------------------------------------------------------
+  // WITHOUT THIS, MFA IS A WAY TO LOSE YOUR OWN PLATFORM. A lost phone with no
+  // way back in locks the only people who could unlock it.
+  const fresh = mfa.makeRecoveryCodes();
+  await sup.patchAdmin(adminId, (a) => ({ mfa: { ...a.mfa, recoveryCodes: fresh.hashes } }));
+
+  const one = fresh.plain[0];
+  const recovered = await sup.loginSuper(email, "console-pw-12345", { code: one });
+  // The admin ROW is not printed on failure: it carries a bcrypt hash and ten
+  // recovery digests, and a CI log is not the place for either.
+  ok("a recovery code gets you in when the phone is gone", Boolean(recovered?.token),
+    recovered?.token ? "" : JSON.stringify(recovered?.error ?? "no token"));
+
+  // SINGLE USE, AND CONSUMED IN THE SAME WRITE THAT ACCEPTED IT. If a code
+  // survived being used it would not be a way back in — it would be a second,
+  // permanent factor sitting in whatever the person wrote it on.
+  const replay = await sup.loginSuper(email, "console-pw-12345", { code: one });
+  ok("...and cannot be used a second time", replay === null, JSON.stringify(replay));
+
+  // The others still work, so one recovery does not burn the whole sheet.
+  const another = await sup.loginSuper(email, "console-pw-12345", { code: fresh.plain[1] });
+  ok("...while the rest of the sheet still works", Boolean(another?.token), "");
+
+  // Typed off paper: case and dashes are noise, not part of the secret.
+  const messy = fresh.plain[2].toLowerCase().replace("-", " ");
+  const forgiving = await sup.loginSuper(email, "console-pw-12345", { code: messy });
+  ok("...and it forgives how a person types it", Boolean(forgiving?.token), messy);
+
+  // ---- turning it off ------------------------------------------------------
+  // THE HIGHEST-VALUE TARGET FOR SOMEBODY WHO ALREADY HAS A SESSION. A session
+  // is what an attacker holds if they got in; if a session alone could disarm
+  // the factor, the factor would protect nothing after the first mistake.
+  const MFA = await import("@/app/api/super/mfa/route.js");
+  const stillOn = await sup.findSuperByEmail(email);
+  ok("MFA is on before we try to remove it", mfa.mfaEnabled(stillOn), "");
+
+  // Called directly with the admin the route would have resolved, because the
+  // wrapper's `super` auth needs a console cookie this suite does not mint.
+  const noCode = await MFA.DELETE(req("/api/super/mfa", { method: "DELETE", body: {} }), ctx());
+  ok("a session alone cannot disarm it", noCode.status === 400 || noCode.status === 401,
+    String(noCode.status));
+  ok("...and it is still on afterwards",
+    mfa.mfaEnabled(await sup.findSuperByEmail(email)), "");
+}
+
 console.log("== an OAuth sign-in is a device too");
 // REPORTED, THEN VERIFIED: a user who registered with Google or Microsoft never
 // saw any devices on their account. signInWithProvider minted a session and

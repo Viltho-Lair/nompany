@@ -32,10 +32,18 @@ export const POST = route(
     const tries = await incrWithTTL(RL.superLoginIp(clientIp(request)), WINDOW_SEC);
     if (tries > MAX_ATTEMPTS) return { error: "rate" };
 
-    const admin = await loginSuper(body.email, body.password);
-    // One generic failure for "no such admin" and "wrong password" alike — the
-    // console never confirms who holds an account on it.
+    const admin = await loginSuper(body.email, body.password, { code: String(body.code || "") });
+
+    // One generic failure for "no such admin", "wrong password" and "wrong
+    // code" alike — the console never confirms who holds an account on it.
     if (!admin) return { error: "invalid" };
+
+    // THE SECOND FACTOR IS ASKED FOR ONLY AFTER THE PASSWORD WAS RIGHT, which
+    // is unavoidable — the form has to know whether to show the field — and is
+    // why the rate limit above counts every attempt rather than only failures.
+    // Somebody who learns that an address has MFA has already supplied its
+    // password; the code is what stands between them and the console.
+    if (admin.mfaRequired) return { status: 401, body: { error: "mfa-required" } };
 
     const res = Response.json({ ok: true, admin: publicSuperAdmin(admin) });
     res.headers.append("Set-Cookie", superCookie(admin.token, requestIsHttps(request)));

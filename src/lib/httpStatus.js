@@ -27,7 +27,13 @@
 // and no code emits the other spelling any more. It stays listed because the
 // cost of an entry nothing produces is nothing, and the cost of the alternative
 // is a 401 quietly becoming a 400 the day somebody types it again.
-const UNAUTHENTICATED = ["unauthorized", "unauthorised"];
+const UNAUTHENTICATED = [
+  "unauthorized", "unauthorised",
+  // The password was right and the second factor is still owed. 401 rather than
+  // 403: the credential is incomplete, not refused, and a client should present
+  // the code field rather than give up.
+  "mfa-required",
+];
 
 // 403 — WE KNOW WHO YOU ARE AND THE ANSWER IS STILL NO. The distinction from
 // 401 matters: a client that retries with fresh credentials is wasting its time

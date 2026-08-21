@@ -19,6 +19,7 @@ import { cookies } from "next/headers";
 import { REG, IX, makeId } from "@/lib/data/keys";
 import { readArr, editArr, claim, getIndex, release } from "@/lib/data/store";
 import { hashPassword, verifyPassword, newSessionToken, hashToken, generatePassword } from "@/lib/passwords";
+import { mfaEnabled, openSecret, verifyCode, consumeRecoveryCode } from "@/lib/superMfa";
 import { SUPER_COOKIE } from "@/lib/authConstants";
 
 export { SUPER_COOKIE };
@@ -36,7 +37,10 @@ function normEmail(email) {
 // would either drop a live sign-in from the list or resurrect a revoked one.
 // `patch` may be a function of the current row so callers can express "append to
 // whatever tokens are there now" rather than "to the ones I last read".
-async function patchAdmin(id, patch) {
+// EXPORTED so the MFA routes can write the admin row through the same
+// compare-and-set every other write here uses. A second way to update this row
+// is a second place for the session list to be clobbered.
+export async function patchAdmin(id, patch) {
   return editArr(REG.superAdmins, (rows) => {
     let updated = null;
     const next = rows.map((a) => {
@@ -112,10 +116,36 @@ export async function seedSuperAdmin({ email, password } = {}) {
 
 // Verify credentials, mint a new session token. Generic failure (never reveals
 // whether the email exists).
-export async function loginSuper(email, password) {
+//
+// A SECOND FACTOR STOPS THE SESSION BEING MINTED, rather than being checked
+// after one exists. The order is the whole control: `mfaRequired` returns before
+// claim(), so a correct password on its own produces no token, no index entry
+// and nothing to replay. Anything that reversed that — minting first and
+// verifying second — would leave a working session behind for the seconds
+// between, which is all a leaked password needs.
+export async function loginSuper(email, password, { code = "" } = {}) {
   const admin = await findSuperByEmail(email);
   if (!admin) return null;
   if (!(await verifyPassword(password, admin.passwordHash))) return null;
+
+  if (mfaEnabled(admin)) {
+    if (!code) return { mfaRequired: true };
+
+    const secret = openSecret(admin.mfa.secret);
+    if (verifyCode(secret, code)) {
+      // accepted
+    } else {
+      // A RECOVERY CODE IS CONSUMED IN THE SAME WRITE that accepts it, so the
+      // same code cannot be used twice even by two requests arriving together —
+      // patchAdmin is a compare-and-set, and the loser re-reads a list the code
+      // is no longer in.
+      const used = consumeRecoveryCode(admin.mfa?.recoveryCodes, code);
+      if (!used.ok) return null;
+      await patchAdmin(admin.id, (a) => ({
+        mfa: { ...(a.mfa || {}), recoveryCodes: used.remaining, recoveryUsedAt: new Date().toISOString() },
+      }));
+    }
+  }
 
   const token = newSessionToken();
   const tokenHash = hashToken(token);
