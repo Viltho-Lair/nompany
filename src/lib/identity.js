@@ -108,9 +108,23 @@ export function deviceFingerprint(request) {
 }
 
 // Keyed digest, truncated: enough to compare two sign-ins, useless as a lookup.
+// THE SAME KEY, AND THE SAME FAILURE — the third arm of H-9. This returns an
+// empty string when FIELD_ENCRYPTION_KEY is unset, which makes every device
+// indistinguishable from every other: "is this a device you have used before?"
+// silently answers yes to all of them, and device history stops being a security
+// feature while continuing to render as one.
+//
+// It does NOT throw, unlike encryptField. Nothing here is stored that could
+// later be read in the clear — the failure is a lost signal, not a leaked
+// secret — and refusing to sign somebody in because we cannot fingerprint their
+// device would be the wrong trade. So it is loud instead, once, and the caller
+// gets an empty fingerprint it can recognise as absent rather than as a match.
 function hashIp(ip) {
   const key = process.env.FIELD_ENCRYPTION_KEY || "";
-  if (!key) return "";
+  if (!key) {
+    log.error("[identity] device fingerprints are disabled: FIELD_ENCRYPTION_KEY is not set");
+    return "";
+  }
   return crypto.createHmac("sha256", key).update(String(ip)).digest("hex").slice(0, 24);
 }
 

@@ -10,7 +10,7 @@
 
 import { REG, U, IX, ID, normEmail } from "@/lib/data/keys";
 import { readArr, editArr, editJSON, getJSON, setJSON, claim, getIndex, release } from "@/lib/data/store";
-import { newSessionToken } from "@/lib/passwords";
+import { newSessionToken, hashToken } from "@/lib/passwords";
 import { listStudios, ownedStudioId, collaborationStudioIds } from "@/lib/data/studios";
 import { isAssignableRole } from "@/lib/platformRoles";
 import { emitPlatform, PLATFORM } from "@/lib/data/events";
@@ -168,19 +168,49 @@ export const getQuestionnaire = (userId) => getJSON(U.questionnaire(userId));
 export const updateQuestionnaire = patchDoc(U.questionnaire);
 
 // ---- sessions (1:N; expiry enforced by Redis EX on the index key) ----------
+// THE DIGEST IS STORED, NEVER THE TOKEN — finding H-1.
+//
+// A session token is a bearer credential: whoever holds it is signed in. Stored
+// as the key of `ix:session:<token>`, every copy of the database is a list of
+// live sessions that can be replayed as-is — a backup, a support export, or the
+// second application on this shared Redis Cloud instance. The console already
+// did this correctly under C-5 and stores `tokenHash`; user sessions were the
+// half left behind.
+//
+// The cookie the browser holds is unchanged. Only the lookup moves, so nobody is
+// signed out and no client learns anything new.
+//
+// Plain SHA-256 rather than bcrypt, deliberately: the input is 32 bytes of
+// CSPRNG output, not something a person chose, so there is no dictionary to slow
+// down and no reason to pay a work factor on every authenticated request.
 export async function mintSession(userId, ttlSec) {
   const token = newSessionToken();
+  const digest = hashToken(token);
   const now = Date.now();
-  await claim(IX.session(token), userId, ttlSec); // fresh random token — claim always succeeds
+  await claim(IX.session(digest), userId, ttlSec); // fresh random token — claim always succeeds
   // Atomic: signing in on two devices at once must list BOTH sessions. A lost
   // row here leaves a live session that "sign out everywhere" cannot see.
   await editArr(U.sessions(userId), (sessions) => ({
-    next: [{ token, createdAt: now, expiresAt: now + ttlSec * 1000 }, ...sessions]
+    next: [{ tokenHash: digest, createdAt: now, expiresAt: now + ttlSec * 1000 }, ...sessions]
       .filter((s) => s.expiresAt > now)
       .slice(0, 10), // bound per user
   }));
   return token;
 }
+
+// EVERY KEY A SESSION ROW COULD BE UNDER, old shape and new.
+//
+// Rows written before this change hold a plaintext `token`; rows written after
+// hold `tokenHash`. Both forms are live at once until the last old session
+// expires, and releasing only one of them would leave the other usable — a
+// revocation that silently did not revoke. Sessions carry a TTL, so this stops
+// being needed on its own; it is deleted when the oldest possible session has
+// lapsed, not before.
+const sessionKeys = (row) => [
+  row?.tokenHash ? IX.session(row.tokenHash) : null,
+  row?.token ? IX.session(hashToken(row.token)) : null,
+  row?.token ? IX.session(row.token) : null,
+].filter(Boolean);
 // TWO READS, ONE WAIT. The session index gives a user id and the registry is a
 // FIXED key — `g:users` — so the second read never needed the first one's
 // answer. Asking in sequence cost a whole round trip on every authenticated
@@ -191,17 +221,31 @@ export async function mintSession(userId, ttlSec) {
 // before either read.
 export async function findUserBySession(token) {
   if (!token) return null;
-  const [userId, rows] = await Promise.all([getIndex(IX.session(token)), readArr(REG.users)]);
+  const [byHash, rows] = await Promise.all([
+    getIndex(IX.session(hashToken(token))),
+    readArr(REG.users),
+  ]);
+
+  // A SESSION MINTED BEFORE THIS CHANGE is still under its plaintext key, and
+  // signing everybody out to tidy up the storage of a credential they are
+  // holding correctly would be a worse trade than one extra read on the way
+  // past. Looked up only when the hashed form missed, so the cost falls on
+  // stale cookies rather than on every request, and it disappears by itself
+  // when the last old session's TTL lapses.
+  const userId = byHash || await getIndex(IX.session(token));
   return userId ? (rows.find((u) => u.id === userId) || null) : null;
 }
 export async function revokeSession(userId, token) {
-  await release(IX.session(token));
-  await editArr(U.sessions(userId), (sessions) => ({ next: sessions.filter((s) => s.token !== token) }));
+  const digest = hashToken(token);
+  await Promise.all([release(IX.session(digest)), release(IX.session(token))]);
+  await editArr(U.sessions(userId), (sessions) => ({
+    next: sessions.filter((s) => s.tokenHash !== digest && s.token !== token),
+  }));
 }
 // The list is emptied atomically and the indexes released from the list AS IT
 // WAS EMPTIED — so a session minted mid-revoke is either revoked with the rest
 // or lands after, never left live-but-unlisted.
 export async function revokeAllSessions(userId) {
   const revoked = await editArr(U.sessions(userId), (sessions) => ({ next: [], result: sessions }));
-  for (const s of revoked) await release(IX.session(s.token));
+  for (const s of revoked) for (const key of sessionKeys(s)) await release(key);
 }

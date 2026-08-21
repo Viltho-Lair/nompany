@@ -24,6 +24,7 @@
 import { REG, U, S, SEC, IX, KEY_PREFIX } from "@/lib/data/keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "@/lib/data/store";
 import { emitPlatform, PLATFORM } from "@/lib/data/events";
+import { hashToken } from "@/lib/passwords";
 import { log } from "@/lib/observability";
 
 // ---- collaborator ----------------------------------------------------------
@@ -177,7 +178,12 @@ export async function cascadeDeleteUser(userId) {
   // 3) session indexes, then every u:<id>:* satellite (profile, verification
   //    code, questionnaire, session list)
   const sessions = await readArr(U.sessions(userId));
-  for (const s of sessions) await release(IX.session(s.token));
+  // Both shapes — see sessionKeys in data/users.js. A user being deleted must
+  // not leave a live session behind because its row used the older form.
+  for (const s of sessions) {
+    if (s?.tokenHash) await release(IX.session(s.tokenHash));
+    if (s?.token) { await release(IX.session(hashToken(s.token))); await release(IX.session(s.token)); }
+  }
   await delPrefix(U.prefix(userId));
 
   // 4) their join-requests + remaining indexes

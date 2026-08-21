@@ -1683,6 +1683,66 @@ console.log("== observability: a line you can trace, and a secret you cannot rea
 }
 
 // ============================================================================
+console.log("== credentials at rest");
+// H-1 and H-9. Both are about what a COPY of the database is worth — a backup, a
+// support export, or the second application sharing this Redis Cloud instance.
+{
+  const users = await import("@/lib/data/users");
+  const { hashToken } = await import("@/lib/passwords");
+  const { KEY_PREFIX } = await import("@/lib/data/keys");
+  const store = await import("@/lib/data/store");
+
+  // ---- H-1: the session token is not the key -------------------------------
+  const token = await users.mintSession(owner.id, 600);
+  ok("the cookie value is still a plain token", /^[A-Za-z0-9_-]{20,}$/.test(token), token.slice(0, 12) + "…");
+
+  const underDigest = await store.getIndex(`${KEY_PREFIX}ix:session:${hashToken(token)}`);
+  ok("the index is keyed by the DIGEST", underDigest === owner.id, String(underDigest));
+
+  // THE ASSERTION THAT MATTERS. Anyone reading the database must not be holding
+  // a usable session, and before this change the key WAS the credential.
+  const underToken = await store.getIndex(`${KEY_PREFIX}ix:session:${token}`);
+  ok("...and NOT by the token itself", underToken === null, String(underToken));
+
+  // The whole point of hashing it is that it still works.
+  const found = await users.findUserBySession(token);
+  ok("the token still resolves to its user", found?.id === owner.id, String(found?.id));
+
+  // The per-user list is what "sign out everywhere" reads, so a plaintext token
+  // there would be the same leak by another route.
+  const rows = await store.readArr(`${KEY_PREFIX}u:${owner.id}:sessions`);
+  ok("the session list stores digests, not tokens",
+    rows.every((r) => r.tokenHash && !r.token), JSON.stringify(Object.keys(rows[0] || {})));
+
+  // REVOCATION MUST STILL REACH IT. A credential stored under a name nobody can
+  // reproduce is worse than one stored in the clear.
+  await users.revokeSession(owner.id, token);
+  ok("revoking by the plain token still works",
+    (await users.findUserBySession(token)) === null, "");
+  await signIn(owner.id);
+
+  // ---- H-9: encryption fails closed ---------------------------------------
+  const { encryptField, decryptField } = await import("@/lib/fieldCrypto");
+  const round = decryptField(encryptField("1098765432"));
+  ok("a field round-trips with a key present", round === "1098765432", round);
+
+  // WITHOUT A KEY IT REFUSES, rather than writing the ID number in the clear.
+  // The old behaviour returned the plaintext so "the app still works in local
+  // dev", which meant a deploy missing the variable stored passport numbers
+  // readable with no error and no way to tell which records afterwards.
+  const key = process.env.FIELD_ENCRYPTION_KEY;
+  delete process.env.FIELD_ENCRYPTION_KEY;
+  let threw = "";
+  try { encryptField("1098765432"); } catch (e) { threw = e.message; }
+  process.env.FIELD_ENCRYPTION_KEY = key;
+  ok("without a key it refuses to encrypt", threw.includes("refusing to store PII"), threw);
+
+  // ...and it would NOT have refused before, which is what makes that assertion
+  // worth having rather than a restatement of the code.
+  ok("...where the old behaviour returned the plaintext",
+    encryptField("1098765432") !== "1098765432", "still encrypts with the key back");
+}
+
 console.log("== the audit log: who did what");
 // H-11. Super admins can change a studio's plan and assign platform roles;
 // studio admins can grant themselves rights and unlock a locked quotation. None
