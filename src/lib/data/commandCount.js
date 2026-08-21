@@ -60,6 +60,7 @@ export async function withCommandCount(fn) {
     const before = existing.commands;
     const beforeWaves = existing.waves;
     const beforeNames = existing.names.length;
+    const beforeKeys = existing.keys.length;
     const result = await fn();
     return {
       result,
@@ -68,25 +69,32 @@ export async function withCommandCount(fn) {
       commands: existing.commands - before,
       waves: existing.waves - beforeWaves,
       names: existing.names.slice(beforeNames),
+      keys: existing.keys.slice(beforeKeys),
     };
   }
 
-  const store = { commands: 0, waves: 0, inFlight: 0, names: [] };
+  const store = { commands: 0, waves: 0, inFlight: 0, names: [], keys: [] };
   const result = await storage.run(store, fn);
-  return { result, commands: store.commands, waves: store.waves, names: store.names };
+  return { result, commands: store.commands, waves: store.waves, names: store.names, keys: store.keys };
 }
 
 /** The counter for the current scope, or null outside one. */
 export function currentCount() {
   const store = storage.getStore();
-  return store ? { commands: store.commands, waves: store.waves, names: [...store.names] } : null;
+  return store ? { commands: store.commands, waves: store.waves, names: [...store.names], keys: [...store.keys] } : null;
 }
 
-function opened(name) {
+// WHICH KEY, not just which command. `waves` says how many times the code
+// waited; only the key says WHY — whether the same value was fetched twice
+// (which a request-scoped cache collapses) or seventeen different ones (which
+// only batching helps). Designing W8 without this is guessing at which of the
+// two problems you have.
+function opened(name, key) {
   const store = storage.getStore();
   if (!store) return null;
   store.commands += 1;
   store.names.push(name);
+  if (typeof key === "string") store.keys.push(key);
   // A wave opens when the first command starts with nothing else in flight.
   if (store.inFlight === 0) store.waves += 1;
   store.inFlight += 1;
@@ -113,7 +121,7 @@ export function countingClient(client) {
       }
 
       return function counted(...args) {
-        const store = opened(prop);
+        const store = opened(prop, args[0]);
         let out;
         try {
           out = value.apply(target, args);

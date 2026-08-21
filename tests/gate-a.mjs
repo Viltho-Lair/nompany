@@ -2087,6 +2087,18 @@ console.log("== hop counts: how many round trips a screen costs");
   // THE DUPLICATE THE AUDIT NAMED: studioContext resolves sections and every
   // module context reads them again. Pinned as a count so the fix is visible
   // when it lands rather than being taken on trust.
+  // WHICH KEYS, AND HOW MANY OF THEM ARE THE SAME ONE. This is the number that
+  // says which fix W8 needs: repeats are what a request-scoped cache collapses,
+  // distinct keys are what batching helps. Printed rather than asserted, because
+  // it is a diagnosis, and pinning it would only make the fix noisier to land.
+  const uniq = new Set(salesCall.keys);
+  const repeats = salesCall.keys.length - uniq.size;
+  console.log(`       sales keys: ${salesCall.keys.length} reads, ${uniq.size} distinct, ${repeats} repeated`);
+  for (const k of uniq) {
+    const n = salesCall.keys.filter((x) => x === k).length;
+    if (n > 1) console.log(`         ×${n}  ${k}`);
+  }
+
   const sectionReads = salesCall.names.filter((n) => n === "get").length;
   ok("the sales route's read count is recorded", sectionReads > 0, `${sectionReads} GETs`);
 

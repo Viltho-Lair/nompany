@@ -13,6 +13,7 @@
 //    batches — safe on any DB size.
 
 import { createHash } from "node:crypto";
+import { cachedRead, invalidate } from "@/lib/data/requestCache";
 import { getRedisClient } from "@/lib/data/redis";
 import { log } from "@/lib/observability";
 
@@ -20,16 +21,22 @@ const r = () => getRedisClient();
 
 // ---- JSON documents --------------------------------------------------------
 export async function getJSON(key) {
-  const raw = await (await r()).get(key);
-  return raw == null ? null : JSON.parse(raw);
+  // THE ONE READ FUNNEL, so this is the one place the request cache attaches.
+  // editJSON deliberately does NOT come through here — see requestCache.js.
+  return cachedRead(key, async () => {
+    const raw = await (await r()).get(key);
+    return raw == null ? null : JSON.parse(raw);
+  });
 }
 export async function setJSON(key, value) {
   await (await r()).set(key, JSON.stringify(value));
+  invalidate(key);
 }
 // Self-expiring JSON document (OTP challenges). Raw SET ... EX via sendCommand
 // for the same reason claim() uses it: immunity to node-redis option-API drift.
 export async function setJSONEx(key, value, ttlSec) {
   await (await r()).sendCommand(["SET", key, JSON.stringify(value), "EX", String(ttlSec)]);
+  invalidate(key);
 }
 // Re-arm (or shorten) the expiry on a key that already exists. editJSON with
 // keepTTL leaves the countdown where it was, which is right for a challenge and
@@ -42,6 +49,7 @@ export async function touchTTL(key, ttlSec) {
 // Atomic single-use consume: returns true only for the caller that removed it,
 // so two parallel verifications of the same code can never both succeed.
 export async function consume(key) {
+  invalidate(key);
   return (await (await r()).del(key)) === 1;
 }
 // Fixed-window counter: INCR, and set the window on first hit. Returns the
@@ -80,6 +88,7 @@ export async function delKeys(...keys) {
   if (!flat.length) return 0;
   const client = await r();
   let n = 0;
+  invalidate(flat);
   for (let i = 0; i < flat.length; i += 100) n += await client.del(flat.slice(i, i + 100));
   return n;
 }
@@ -188,7 +197,14 @@ export async function editJSON(key, fn, { keepTTL = false } = {}) {
     if (!("next" in outcome)) return outcome.result;
 
     const { ok, actual } = await cas(key, raw, JSON.stringify(outcome.next), keepTTL);
-    if (ok) return outcome.result;
+    if (ok) {
+      // THE WRITE LANDED, so any cached copy of this key is now a lie. Note
+      // that editJSON's own read above deliberately bypasses the cache: a
+      // compare-and-set must see the value as it actually stands, never a
+      // remembered one.
+      invalidate(key);
+      return outcome.result;
+    }
 
     // Refused. The script already told us what is there now, so re-apply
     // against that — no second read. The jitter only stops retries from
@@ -219,15 +235,18 @@ export async function getIndex(key) {
   return (await r()).get(key);
 }
 export async function release(key) {
+  invalidate(key);
   await (await r()).del(key);
 }
 
 // ---- sets (used for ix:collab:<UserID>) ------------------------------------
 export async function sAdd(key, member) {
   await (await r()).sAdd(key, String(member));
+  invalidate(key);
 }
 export async function sRem(key, member) {
   await (await r()).sRem(key, String(member));
+  invalidate(key);
 }
 export async function sMembers(key) {
   return (await r()).sMembers(key);

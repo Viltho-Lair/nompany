@@ -27,6 +27,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { currentCount, withCommandCount } from "@/lib/data/commandCount";
+import { withRequestCache } from "@/lib/data/requestCache";
 
 const storage = new AsyncLocalStorage();
 const isProd = process.env.NODE_ENV === "production";
@@ -113,13 +114,13 @@ export async function withRequest(route, fn) {
       // ask for them. A number that has to be opted into is a number that is
       // missing from the routes nobody suspected.
       let counted = null;
-      const { result } = await withCommandCount(async () => {
+      const { result } = await withCommandCount(async () => withRequestCache(async () => {
         const out = await fn(scope);
         // Read WHILE the counting scope is still open — finish() runs after it
         // has closed, and would see nothing.
         counted = currentCount();
         return out;
-      });
+      }));
       finish(scope, "ok", counted);
       return result;
     } catch (error) {
