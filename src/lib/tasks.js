@@ -20,7 +20,6 @@ import { sectionViewable, sectionManageable, requirePermission, can } from "@/li
 import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection, listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav } from "@/lib/studios";
 import { listCollaborators } from "@/lib/data/collaborators";
-import { currentUser } from "@/lib/identity";
 // Issuing the project number is a CONSEQUENCE of Finance signing the PO, so it
 // is called from decideTask rather than from a screen — see the note there.
 import { issueProjectNumber } from "@/lib/projects";
@@ -105,18 +104,6 @@ export async function saveTasksSettings(ctx, body) {
   return updated ? { taskAssignees: readTaskAssignees({ settings: next }) } : { error: "notfound" };
 }
 
-export async function tasksGuard(paramsPromise, { write } = {}) {
-  const user = await currentUser();
-  if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
-  const { slug } = await paramsPromise;
-  const t = await tasksContext(user, slug);
-  if (t.error) {
-    const status = t.error === "notfound" || t.error === "no-section" ? 404 : 403;
-    return { fail: Response.json({ error: t.error }, { status }) };
-  }
-  if (write && !t.canManage) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
-  return t;
-}
 
 export async function listTasks(ctx) {
   const { studio, section, collaborator, canManage, taskAssignees } = ctx;

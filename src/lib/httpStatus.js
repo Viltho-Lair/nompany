@@ -37,7 +37,6 @@ const FORBIDDEN = [
   "authority",         // signing outside the authorities you hold
   "suspended",         // the account exists and is switched off
   "unverified",        // the email behind it was never confirmed
-  "owner-immutable", "typed-immutable",
   "cross-site",        // a write arriving from somebody else's page
   "sales-required",    // the Technical action needs Sales:manage, which you lack
 ];
@@ -80,6 +79,14 @@ const CONFLICT = [
   "same-signer",       // reviewer is not approver, enforced at the transition
   "clash", "overlap",  // a shift or a leave already occupies that window
   "on-leave",          // the person is away on the day you are scheduling them
+  // THESE TWO WERE IN THE 403 LIST AND BOTH ROUTES DISAGREED WITH ME. Refusing
+  // to edit a typed task, or to change the owner's row, is a rule about the
+  // RECORD rather than about the caller — no grant would make it succeed, and
+  // no amount of "you may not" explains it. The tasks route argues exactly that
+  // in its own comment; the collaborators route sends 409 too. A table written
+  // from the shape of a name rather than from what it means gets this backwards,
+  // and would have quietly downgraded both on conversion.
+  "typed-immutable", "owner-immutable",
   "pending",           // a join request is already open; never stack duplicates
   // Both were 400 in the sales routes and both are the world disagreeing rather
   // than the caller being wrong: a revision is already on its way, or the

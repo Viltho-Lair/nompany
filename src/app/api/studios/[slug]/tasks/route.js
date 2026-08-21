@@ -1,5 +1,6 @@
+import { route } from "@/lib/route";
 import {
-  tasksGuard, listTasks, createTask, updateTask, decideTask, removeTask,
+  tasksContext, listTasks, createTask, updateTask, decideTask, removeTask,
   taskProjects, assignablePeople, summarise,
   TASK_STATUSES, TASK_PRIORITIES,
   TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES, TASK_TYPE_LABELS,
@@ -9,15 +10,12 @@ import { can } from "@/lib/access";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "studio", context: tasksContext, body: true, name: "tasks" };
 
 // One read for the whole board.
-export async function GET(request, ctx) {
-  const g = await tasksGuard(ctx.params);
-  if (g.fail) return g.fail;
-
+export const GET = route({ ...spec, body: false }, async (g) => {
   const [tasks, people, projects] = await Promise.all([listTasks(g), assignablePeople(g), taskProjects(g)]);
-  return Response.json({
+  return {
     canManage: g.canManage,
     // DELETE IS ITS OWN RIGHT, and `canManage` is true for anybody holding any
     // write on the board — so offering the Delete button off canManage showed
@@ -36,65 +34,47 @@ export async function GET(request, ctx) {
     tasks, people, projects,
     summary: summarise(tasks, g.collaborator.id),
     vocabulary: { statuses: TASK_STATUSES, priorities: TASK_PRIORITIES, typeLabels: TASK_TYPE_LABELS },
-  });
-}
+  };
+});
 
 // Creating and assigning work is running the board — Manage only.
-export async function POST(request, ctx) {
-  const g = await tasksGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const result = await createTask(g, await body(request));
-  if (result.error) {
-    // A refusal is not a malformed request. 403 so a client can tell "you may
-    // not" from "you sent nonsense" — they need different handling.
-    const status = result.error === "forbidden" ? 403 : result.error === "unknown-permission" ? 500 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json({ ok: true, task: result.task }, { status: 201 });
-}
+export const POST = route(spec, async (g) => {
+  if (!g.canManage) return { error: "read-only" };
+
+  const result = await createTask(g, g.body);
+  if (result.error) return result;
+  return { status: 201, body: { ok: true, task: result.task } };
+});
 
 // NOT gated on Manage: the assignee may move their own task along and tick its
-// checklist. Anything beyond that is refused inside the service, per field.
-export async function PUT(request, ctx) {
-  const g = await tasksGuard(ctx.params);
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
+// checklist. Anything beyond that is refused inside the service, per field —
+// which is why a `forbidden-field` refusal carries the fields it means.
+export const PUT = route(spec, async (g) => {
+  if (!g.body.id) return { error: "missing" };
 
   // Deciding a typed task is its own act, gated on holding the authority rather
-  // than on running the board — that is the point of appointing people.
-  if (b.authority !== undefined) {
-    const decided = await decideTask(g, b.id, b);
-    if (decided.error) {
-      const status = decided.error === "notfound" ? 404
-        : decided.error === "not-yours" ? 403
-        : decided.error === "cooldown" ? 429 : 400;
-      return Response.json({ error: decided.error, waitMs: decided.waitMs }, { status });
-    }
-    return Response.json({ ok: true, task: decided.task });
+  // than on running the board — that is the point of appointing people. A
+  // `cooldown` refusal is a 429 carrying waitMs, not a 403: it is temporary, and
+  // a client should treat the two completely differently.
+  if (g.body.authority !== undefined) {
+    const decided = await decideTask(g, g.body.id, g.body);
+    if (decided.error) return decided;
+    return { ok: true, task: decided.task };
   }
 
-  const result = await updateTask(g, b.id, b);
-  if (result.error) {
-    // A typed task is a decision, not a to-do: refusing to edit one is a rule
-    // about the record, not about the caller, so it is a 409 rather than a 403.
-    const status = result.error === "notfound" ? 404
-      : result.error === "typed-immutable" ? 409
-      : result.error === "forbidden" || result.error === "forbidden-field" ? 403 : 400;
-    return Response.json({ error: result.error, fields: result.fields }, { status });
-  }
-  return Response.json({ ok: true, task: result.task });
-}
+  // A typed task is a decision, not a to-do: refusing to edit one is a rule
+  // about the RECORD, not about the caller, so `typed-immutable` is a 409. The
+  // shared table had it at 403 until this route was converted and disagreed.
+  const result = await updateTask(g, g.body.id, g.body);
+  if (result.error) return result;
+  return { ok: true, task: result.task };
+});
 
-export async function DELETE(request, ctx) {
-  const g = await tasksGuard(ctx.params, { write: true });
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const result = await removeTask(g, b.id);
-  if (result.error) {
-    return Response.json({ error: result.error },
-      { status: result.error === "typed-immutable" ? 409 : result.error === "forbidden" ? 403 : 404 });
-  }
-  return Response.json({ ok: true });
-}
+export const DELETE = route(spec, async (g) => {
+  if (!g.canManage) return { error: "read-only" };
+  if (!g.body.id) return { error: "missing" };
+
+  const result = await removeTask(g, g.body.id);
+  if (result.error) return result;
+  return { ok: true };
+});

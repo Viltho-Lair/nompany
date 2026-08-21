@@ -1,6 +1,7 @@
 {
   "status": 403,
   "body": {
-    "error": "forbidden"
+    "error": "forbidden",
+    "key": "tasks.board.delete"
   }
 }
