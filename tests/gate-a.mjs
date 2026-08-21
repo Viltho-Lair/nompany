@@ -1683,6 +1683,95 @@ console.log("== observability: a line you can trace, and a secret you cannot rea
 }
 
 // ============================================================================
+console.log("== the audit log: who did what");
+// H-11. Super admins can change a studio's plan and assign platform roles;
+// studio admins can grant themselves rights and unlock a locked quotation. None
+// of it left a record, and S.activityLog had been declared for exactly this and
+// then removed, having never had a reader or a writer.
+{
+  const audit = await import("@/lib/data/audit");
+  const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.js");
+  const P = ctx({ slug });
+  await signIn(owner.id);
+
+  const before = await audit.since(studio.id, "", 200);
+
+  const made = await capture(CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, {
+    method: "POST",
+    body: { name: `Audited Co ${rand()}`, country: "Saudi Arabia", city: "Riyadh" },
+  }), P);
+  ok("the write happened", made.status === 201, String(made.status));
+
+  const after = await audit.since(studio.id, "", 200);
+  ok("...and it left exactly one entry", after.length === before.length + 1,
+    `${before.length} then ${after.length}`);
+
+  const entry = after[after.length - 1];
+  ok("the entry names the action", entry?.action === "POST sales/clients", entry?.action);
+  ok("...the studio it happened in", entry?.studioId === studio.id, entry?.studioId);
+  ok("...and the status the caller was told", entry?.status === "201", entry?.status);
+
+  // THE ACTOR IS THE COLLABORATOR, NOT THE USER. CollaboratorID is the identity
+  // inside a studio — every signature, assignment and notification is addressed
+  // to it — so an audit trail naming the UserID would not join up with any of
+  // them. Getting this wrong is the kind of thing nobody notices until the one
+  // day the log is the only record left.
+  ok("the actor is the collaborator, not the user",
+    entry?.actor === owner.collaborator?.id || entry?.actorType === "collaborator",
+    `${entry?.actorType} ${entry?.actor}`);
+  ok("...and it is tied to a request id", Boolean(entry?.requestId), entry?.requestId);
+
+  // READS ARE NOT LOGGED. A trail nobody can read through is not one anybody
+  // will, and a GET is not an act somebody has to answer for.
+  const beforeRead = await audit.since(studio.id, "", 200);
+  await capture(CLIENTS.PUT, req(`/api/studios/${slug}/sales/clients`,
+    { method: "PUT", body: {} }), P);
+  const SALES = await import("@/app/api/studios/[slug]/sales/route.js");
+  await capture(SALES.GET, req(`/api/studios/${slug}/sales`), P);
+  const afterRead = await audit.since(studio.id, "", 200);
+  ok("a read leaves no entry, a refused write still does",
+    afterRead.length === beforeRead.length + 1, `${beforeRead.length} then ${afterRead.length}`);
+
+  // A REFUSAL IS RECORDED TOO, and that is the point rather than an oversight:
+  // somebody repeatedly attempting what they may not do is exactly what an audit
+  // trail is read to find.
+  const refusedEntry = afterRead[afterRead.length - 1];
+  ok("...and the refusal recorded the status it answered",
+    Number(refusedEntry?.status) >= 400, refusedEntry?.status);
+
+  // A CONSOLE ACTION BELONGS TO NO STUDIO, and that is where H-11's worst cases
+  // live: changing a studio's plan, assigning a platform role, rewriting the
+  // price list. Those cannot be filed under a tenant — and must outlive any
+  // tenant they touched — so they go to a separate log. Asserted here because
+  // the branch is one `?:` in a key builder, which is exactly the kind of thing
+  // that is obviously right and silently backwards.
+  {
+    const beforePlatform = await audit.since("", "", 200);
+    await audit.record({
+      actor: "sup_test", actorType: audit.ACTOR.SUPER,
+      action: "PUT super/studios/[id]", subject: studio.id, status: 200,
+    });
+    const afterPlatform = await audit.since("", "", 200);
+    ok("a console action lands in the platform log",
+      afterPlatform.length === beforePlatform.length + 1,
+      `${beforePlatform.length} then ${afterPlatform.length}`);
+
+    const platformEntry = afterPlatform[afterPlatform.length - 1];
+    ok("...with no studio to file it under", platformEntry?.studioId === "",
+      JSON.stringify(platformEntry?.studioId));
+    ok("...and it did NOT land in the studio's log",
+      (await audit.since(studio.id, "", 200)).every((e) => e.actor !== "sup_test"), "");
+  }
+
+  // THE BODY IS NEVER COPIED IN. It carries passwords on identity, ID numbers on
+  // HR and bank details on Finance; a log written to survive an audit is the last
+  // place to duplicate them.
+  const fields = Object.keys(entry || {});
+  ok("no request body is stored in the entry",
+    !fields.some((f) => ["body", "payload", "password", "name"].includes(f)),
+    fields.join(","));
+}
+
 console.log("== one row, by the id a live event named");
 // THE OTHER HALF OF H-6. The stream now says WHICH row changed; this is what a
 // board does with that. The assertions worth having are not "it returns a row"

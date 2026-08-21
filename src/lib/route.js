@@ -37,6 +37,7 @@ import { currentSuperAdmin } from "@/lib/superAuth";
 import { statusFor } from "@/lib/httpStatus";
 import { isCrossSite, MUTATING } from "@/lib/origin";
 import { withRequest, requestId } from "@/lib/observability";
+import { record as recordAudit, ACTOR } from "@/lib/data/audit";
 import { digestFor, beginIdempotent, finishIdempotent, abandonIdempotent } from "@/lib/idempotency";
 
 /** A route's answer carries a status, a body, and sometimes headers. */
@@ -112,6 +113,45 @@ function stamp(res) {
 }
 
 const refuse = (error, status) => stamp(Response.json({ error }, { status }));
+
+/**
+ * Record one mutation, after it happened.
+ *
+ * WHICH IDENTITY ACTED is the question this has to get right, because the
+ * product has three and they are not ranks of one another. Inside a studio the
+ * actor is the COLLABORATOR — CollaboratorID is the identity there, and every
+ * signature, assignment and notification is addressed to it, so a log naming the
+ * UserID instead would not join up with any of them. A console action is a
+ * SuperAdmin, from a separate registry, outside every cascade. An account-level
+ * action is the User themselves.
+ *
+ * Never throws, and never delays the caller's answer by more than the write: the
+ * action has already happened, and refusing to report a completed change is not
+ * a reason to fail it.
+ */
+async function audit(res, spec, request, args, identity) {
+  const actorType = args.admin ? ACTOR.SUPER
+    : args.collaborator ? ACTOR.COLLABORATOR
+      : ACTOR.USER;
+  const actor = args.admin?.id || args.collaborator?.id || args.user?.id || identity || "";
+
+  // The id the request named, wherever it named it. Bodies use `id` almost
+  // everywhere; a few routes carry it in the path instead.
+  const subject = args.body?.id || args.params?.id || args.params?.userId
+    || new URL(request.url).searchParams.get("id") || "";
+
+  await recordAudit({
+    studioId: args.studio?.id || "",
+    actor,
+    actorType,
+    action: `${request.method} ${spec.name || ""}`.trim(),
+    subject: String(subject || ""),
+    status: res.status,
+    ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip") || "",
+    requestId: requestId(),
+  });
+}
 
 /**
  * Build a Next route handler from a spec and a handler.
@@ -225,11 +265,20 @@ export function route(spec, handler) {
       const { refusal, args, identity } = await resolve(base, params);
       if (refusal) return refusal;
 
+      // WHO DID WHAT — written after the handler, so it records what actually
+      // happened rather than what was attempted. Reads are not logged: an audit
+      // trail nobody can read through is not one anybody will.
+      const auditing = MUTATING.has(request.method);
+
       // IDEMPOTENCY IS OPT-IN AND ONLY FOR WRITES. No header, no behaviour
       // change — which is what lets this land under every converted route at
       // once without altering a single existing caller.
       const key = request.headers.get("idempotency-key");
-      if (!key || !MUTATING.has(request.method)) return finish(await handler(args), spec);
+      if (!key || !MUTATING.has(request.method)) {
+        const out = finish(await handler(args), spec);
+        if (auditing) await audit(out, spec, request, args, identity);
+        return out;
+      }
 
       const digest = digestFor({
         identity,
@@ -270,6 +319,7 @@ export function route(spec, handler) {
       } else {
         await abandonIdempotent(digest);
       }
+      if (auditing) await audit(res, spec, request, args, identity);
       return res;
     });
   };

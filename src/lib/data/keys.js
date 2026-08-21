@@ -87,6 +87,10 @@ export const REG = {
   // outlives every studio and every user, and no cascade touches it (a studio
   // being deleted is itself one of the things it records).
   events: `${P}g:events`,
+  // The console's own audit trail. /super actions belong to no studio — changing
+  // a plan, assigning a platform role, rewriting the catalogue — so they cannot
+  // live under one, and they must outlive any studio they touched.
+  audit: `${P}g:audit`,
   // Notifications addressed to nompany's OWNERS. The studio-side equivalent is
   // s:<StudioID>:notifications, which cascades with its studio; this one does
   // not, for the same reason g:events does not.
@@ -256,6 +260,18 @@ export const S = {
   // already holding. A tally only ever moves forward, so it cannot.
   // Under the studio prefix, so it dies with the studio like everything else.
   counters: (studioId) => `${P}s:${studioId}:counters`,
+  // WHO DID WHAT, AND WHEN. A Redis Stream like the event log, and for the same
+  // reasons: ordered, capped, and addressable by cursor.
+  //
+  // It is NOT the event log, though the two look alike. Events answer "what
+  // changed, so I can refetch" and are read by every open tab; this answers "who
+  // changed it", is read by an admin after the fact, and records the actor, the
+  // address they came from and the request id that ties it to the server logs.
+  // An event is discarded once seen; an audit entry is the point.
+  //
+  // Under the studio prefix, so it cascades with the studio for free — a deleted
+  // studio must not leave a record of its people behind.
+  audit: (studioId) => `${P}s:${studioId}:audit`,
   // The studio's EVENT LOG (a Redis Stream, not a JSON array). Ordered, capped,
   // and addressable by cursor — it is what "what changed since I last looked?"
   // reads. Under the studio prefix, so it cascades with the studio for free.
