@@ -62,6 +62,13 @@ export default function useLiveUpdates(slug, watch, onChange) {
 
   useEffect(() => {
     if (!subscribe || !watch) return undefined;
-    return subscribe(watch, () => latest.current?.());
+    // THE EVENT IS PASSED THROUGH. It carries { type, section, collection,
+    // rowId }, and this line used to drop all of it — every board was told
+    // "something changed" and could do nothing but refetch its whole module.
+    //
+    // Existing callers are unaffected: a handler that ignores the argument
+    // behaves exactly as before, which is what lets boards adopt targeted
+    // patching one at a time instead of all twenty-seven at once.
+    return subscribe(watch, (event) => latest.current?.(event));
   }, [subscribe, watch]);
 }

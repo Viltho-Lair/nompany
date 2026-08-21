@@ -1683,6 +1683,68 @@ console.log("== observability: a line you can trace, and a secret you cannot rea
 }
 
 // ============================================================================
+console.log("== one row, by the id a live event named");
+// THE OTHER HALF OF H-6. The stream now says WHICH row changed; this is what a
+// board does with that. The assertions worth having are not "it returns a row"
+// but the three ways it could quietly become a hole.
+{
+  const ROWS = await import("@/app/api/studios/[slug]/rows/route.js");
+  const P = ctx({ slug });
+  const ask = (q, as) => (as ? signIn(as) : Promise.resolve())
+    .then(() => capture(ROWS.GET, req(`/api/studios/${slug}/rows?${q}`), P));
+
+  await signIn(owner.id);
+  const tickets = await import("@/lib/sales");
+  const sc = await tickets.salesContext(owner, slug);
+  const someTicket = (await tickets.listTickets(sc))[0];
+  ok("there is a ticket to fetch", Boolean(someTicket?.id), String(someTicket?.id));
+
+  const one = await ask(`collection=salesTickets&id=${someTicket.id}`);
+  ok("the owner gets the row the event named",
+    one.status === 200 && one.body?.row?.id === someTicket.id, `${one.status} ${one.body?.row?.id}`);
+
+  // A COLLECTION NOBODY DECLARED IS NOT READABLE THROUGH THIS DOOR. relations.js
+  // is the registry, and it says of itself that a graph reaching everything can
+  // be pointed at anything. Without this, the endpoint is a way to read any
+  // collection in the studio by guessing its name.
+  const madeUp = await ask("collection=collaborators&id=whatever");
+  ok("an undeclared collection is refused, not fetched",
+    madeUp.status === 404 && madeUp.body?.error === "unknown-kind",
+    `${madeUp.status} ${JSON.stringify(madeUp.body)}`);
+
+  // THE NODE'S OWN PERMISSION, NOT THE MODULE'S. This is the assertion that
+  // stops the endpoint becoming a side door: somebody who may open Sales but
+  // holds no tickets grant must not read a ticket through it.
+  const nosy = (await createUser({ email: `g-nosy-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  const nosyRole = await createRole(studio.id, {
+    name: `role-nosy-${rand()}`,
+    permissions: ["sales.clients.view"],
+  });
+  await addCollaborator(studio.id, { userId: nosy.id, alias: "Nosy", role: "member", roleIds: [nosyRole.id] });
+
+  const refused = await ask(`collection=salesTickets&id=${someTicket.id}`, nosy.id);
+  ok("a viewer without the node's grant is refused",
+    refused.status === 403 && refused.body?.error === "forbidden",
+    `${refused.status} ${JSON.stringify(refused.body)}`);
+  ok("...and is told which grant it wanted", refused.body?.key === "sales.tickets.view",
+    JSON.stringify(refused.body?.key));
+
+  // A DELETED ROW IS A 404 AND THAT IS THE USEFUL ANSWER — `row.deleted` names
+  // an id that is already gone, and 404 is how the board learns to drop it.
+  await signIn(owner.id);
+  const gone = await ask("collection=salesTickets&id=sal_nosuchrow");
+  ok("a row that is gone answers notfound", gone.status === 404 && gone.body?.error === "notfound",
+    `${gone.status} ${JSON.stringify(gone.body)}`);
+
+  // ONE ROW COSTS FAR LESS THAN THE MODULE, which is the entire point. Measured
+  // rather than asserted as a ratio, because the number that matters is that it
+  // is small and stays small.
+  const rowCall = await withCommandCount(() => capture(
+    ROWS.GET, req(`/api/studios/${slug}/rows?collection=salesTickets&id=${someTicket.id}`), P));
+  console.log(`       one row: ${rowCall.commands} commands, ${rowCall.waves} waves`);
+  ok("a single row costs fewer waves than the whole module", rowCall.waves <= 3, String(rowCall.waves));
+}
+
 console.log("== the repository: a query somebody else could answer");
 // SEAM B IS A PURE LIFT, so the only thing worth asserting is that it did not
 // change anything. Every case below is checked against the hand-written

@@ -90,12 +90,22 @@ export async function GET(request, ctx) {
 
   // The wire shape is the polling route's shape, unchanged — the client that
   // consumed one consumes the other.
+  // ROW ID TRAVELS. It was being dropped here, which is the whole of finding
+  // H-6: the log records which row changed, the publisher carries it, and this
+  // function threw it away one step before the client — so every board could
+  // only ever answer "something changed" with a full refetch of its module.
+  //
+  // It leaks nothing. `visible` has already decided the caller may see this
+  // section, and a row id is opaque without the collection it lives in, which
+  // they can read anyway. What it buys is the difference between "reload the
+  // Sales screen" and "replace ticket sal_123".
   const wire = (e) => ({
     id: e.id,
     type: e.type,
     scope: e.scope,
     section: keyOf.get(e.sectionId) || "",
     collection: e.collection,
+    rowId: e.rowId || "",
     at: e.at,
   });
 
