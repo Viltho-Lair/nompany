@@ -38,6 +38,7 @@
         "name": "<studio-name>",
         "slug": "<slug>"
       }
-    ]
+    ],
+    "joinRequests": []
   }
 }

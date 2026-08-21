@@ -100,10 +100,28 @@ export async function notifyCollaborators(studioId, recipientIds, notice, opts =
     // Ring each recipient's own channel. Per person, not per studio: a
     // notification has an audience of one, and broadcasting it to the studio
     // would hand everyone else a copy of a message addressed to someone else.
+    //
+    // THE DOORBELL CARRIES NO MESSAGE — finding L-7. This published the whole
+    // row: title, body and href, over Redis pub/sub. Pub/sub is not addressed
+    // to anyone — it is a broadcast on a shared instance, readable by anything
+    // holding SUBSCRIBE, and the per-user CHANNEL NAME is not a permission. So
+    // the notice itself was leaving the database in the clear while the copy in
+    // Redis sat behind a membership check.
+    //
+    // Only { kind, id, studioId, recipientId } goes out now. That is enough for
+    // the stream route to know whose it is and which connection it belongs on,
+    // and it already reads the body from S.notifications on a connection it has
+    // authenticated — so nothing is lost and no client pays a round trip. The
+    // same idea as the event log: the stream is truth, pub/sub is a doorbell.
     await Promise.all(
       rows.map((row) => {
         const userId = opts.userIdOf?.(row.recipientId);
-        return userId ? publish(CH.user(userId), { kind: "notif", ...row }) : null;
+        return userId ? publish(CH.user(userId), {
+          kind: "notif",
+          id: row.id,
+          studioId: row.studioId,
+          recipientId: row.recipientId,
+        }) : null;
       }).filter(Boolean),
     );
 

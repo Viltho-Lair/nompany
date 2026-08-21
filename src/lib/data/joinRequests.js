@@ -88,7 +88,18 @@ export async function listPendingForStudio(studioId) {
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
+// EVERY REQUEST THIS PERSON HAS RAISED, whatever became of it.
+//
+// It existed before finding M-2 and had no caller — which is most of why M-2 was
+// possible. A request row has carried `status` and `decidedAt` since the day it
+// was written; nothing ever showed them to the person who asked, so they
+// re-opened the studio address and guessed from whether it let them in.
+//
+// Read at the ACCOUNT level, where they are a User rather than a member of
+// anything, because somebody DECLINED never gets a CollaboratorID and so has no
+// identity inside that studio to be told in.
 export async function listForUser(userId) {
+  if (!userId) return [];
   const rows = await readArr(REG.joinRequests);
   return rows.filter((r) => r.userId === userId);
 }

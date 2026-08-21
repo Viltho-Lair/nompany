@@ -1683,6 +1683,63 @@ console.log("== observability: a line you can trace, and a secret you cannot rea
 }
 
 // ============================================================================
+console.log("== the answer a person who asked to join never got");
+// M-2. Four notification types were declared and never emitted, and this is the
+// one with a visible consequence: somebody who asks to join a studio was never
+// told whether they were approved or declined. They re-opened the studio address
+// and guessed from whether it let them in.
+{
+  const joins = await import("@/lib/data/joinRequests");
+  const { requestJoinByCode, approveJoinRequest, declineJoinRequest } = await import("@/lib/studios");
+  const notifications = await import("@/lib/data/notifications");
+
+  // ---- approved: told inside the studio, because they are now in it --------
+  const joiner = (await createUser({ email: `g-joiner-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  const asked = await requestJoinByCode(joiner, slug);
+  ok("the request was raised", Boolean(asked.request?.id), JSON.stringify(asked.error ?? ""));
+
+  // The owner's own context, for the collaborator id and the access the approval
+  // is checked against — approving as admin runs through escalates(), which
+  // needs a real permission set rather than a stand-in.
+  const ownerCtx = await studioContext(owner, slug);
+  const approved = await approveJoinRequest({
+    studio, actingCollaborator: ownerCtx.collaborator, actorAccess: ownerCtx.access,
+    requestId: asked.request.id, alias: "Joiner", role: "member",
+  });
+  ok("...and approved", Boolean(approved.collaborator?.id), JSON.stringify(approved.error ?? ""));
+
+  // THE NOTIFICATION GOES TO THE COLLABORATOR ROW, which is why it is sent after
+  // addCollaborator and not after the decision: until that row exists they have
+  // no CollaboratorID, and a notice addressed to one that does not exist is a
+  // message nobody can ever read.
+  const theirs = await notifications.listForCollaborator(studio.id, approved.collaborator.id);
+  ok("an approved joiner is told, in the studio they just entered",
+    theirs.some((n) => n.type === "join.decided"), JSON.stringify(theirs.map((n) => n.type)));
+
+  // ---- declined: told on their own account, because there is nowhere else ---
+  const refused = (await createUser({ email: `g-refused-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  const asked2 = await requestJoinByCode(refused, slug);
+  await declineJoinRequest({
+    studio, actingCollaborator: ownerCtx.collaborator, requestId: asked2.request.id,
+  });
+
+  const mine = await joins.listForUser(refused.id);
+  ok("a declined request records its outcome",
+    mine.some((r) => r.id === asked2.request.id && r.status === "declined"),
+    JSON.stringify(mine.map((r) => r.status)));
+
+  // AND THE DECLINE NAMES NO STUDIO. Somebody refused entry learns that they
+  // were refused and nothing else — otherwise the account screen becomes a way
+  // to confirm which slugs exist and what they are called, which is the one
+  // thing invariant 2 still protects now that existence itself is public.
+  await __signIn(SESSION_COOKIE, await mintSession(refused.id, 600));
+  const me = await capture((await import("@/app/api/identity/me/route.js")).GET, req("/api/identity/me"), ctx());
+  const row = (me.body?.joinRequests || []).find((r) => r.id === asked2.request.id);
+  ok("the account screen shows them the answer", row?.status === "declined", JSON.stringify(row?.status));
+  ok("...and a decline names no studio", row?.studio === null, JSON.stringify(row?.studio));
+  await signIn(owner.id);
+}
+
 console.log("== credentials at rest");
 // H-1 and H-9. Both are about what a COPY of the database is worth — a backup, a
 // support export, or the second application sharing this Redis Cloud instance.

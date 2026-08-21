@@ -5,6 +5,7 @@ import { listRoles } from "@/lib/data/roles";
 import { listSections } from "@/lib/data/sections";
 import { readSince, latestId, isCursor, SCOPE, TYPE } from "@/lib/data/events";
 import { subscribe, CH } from "@/lib/data/bus";
+import { listForCollaborator } from "@/lib/data/notifications";
 import { sseResponse, resumeCursor } from "@/lib/sse";
 import { log } from "@/lib/observability";
 
@@ -148,12 +149,23 @@ export async function GET(request, ctx) {
     // a studio event is "anyone here who may see this section", a notification
     // is one named person. Publishing it on the studio channel would hand a
     // copy to everyone else connected.
-    const releaseNotifs = await subscribe(CH.user(user.id), (n) => {
+    // THE DOORBELL SAYS WHICH ONE, AND THIS CONNECTION FETCHES IT. Pub/sub used
+    // to carry the whole notice — see the note in data/notifications.js — so the
+    // body travelled in the clear over a shared instance. It now carries only an
+    // id, and the body is read here, on a connection that has already been
+    // authenticated and whose reader is known.
+    const releaseNotifs = await subscribe(CH.user(user.id), async (n) => {
       if (!conn.open) return;
       // Only this studio's — the same person may have a tab open on another
       // studio, and its notifications belong on that connection, not this one.
       if (n?.kind !== "notif" || (n.studioId && n.studioId !== studio.id)) return;
-      conn.send("notif", n);
+
+      const mine = await listForCollaborator(studio.id, collaborator.id);
+      const row = mine.find((x) => x.id === n.id);
+      // ADDRESSED TO SOMEBODY ELSE, or already gone. listForCollaborator filters
+      // by recipient, so a doorbell naming an id this person may not read simply
+      // finds nothing — the fetch is the check, not a second one to remember.
+      if (row && conn.open) conn.send("notif", { kind: "notif", ...row });
     });
 
     // ---- then listen -------------------------------------------------------

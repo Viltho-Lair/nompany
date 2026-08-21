@@ -19,6 +19,7 @@ import {
   mintSession, findUserBySession, revokeSession, revokeAllSessions, touchLastLogin, touchLastSeen,
 } from "@/lib/data/users";
 import { getOwnedStudio, listUserCollaborations } from "@/lib/data/studios";
+import { listForUser as listJoinRequestsForUser } from "@/lib/data/joinRequests";
 import {
   createChallenge, verifyChallenge, resendChallenge, checkSendLimits,
   recordDevice, isTrustedDevice, revokeAllDevices,
@@ -336,9 +337,13 @@ export async function currentUser() {
 export async function currentIdentity() {
   const user = await currentUser();
   if (!user) return null;
-  const [profile, verification, questionnaire, studio, collaborations] = await Promise.all([
+  const [profile, verification, questionnaire, studio, collaborations, requests] = await Promise.all([
     getProfile(user.id), getVerification(user.id), getQuestionnaire(user.id),
     getOwnedStudio(user.id), listUserCollaborations(user.id),
+    // WHAT BECAME OF THE STUDIOS THEY ASKED TO JOIN — finding M-2. Added to the
+    // wave that was already running rather than fetched on its own, so the
+    // account screen learns this for no extra round trip.
+    listJoinRequestsForUser(user.id),
   ]);
   return {
     user: publicUser(user),
@@ -347,6 +352,26 @@ export async function currentIdentity() {
     questionnaire: questionnaire || {},
     studio: studio ? { id: studio.id, name: studio.name, slug: studio.slug } : null,
     collaborations: collaborations.map((s) => ({ id: s.id, name: s.name, slug: s.slug })),
+    // A PERSON WHO ASKED TO JOIN WAS NEVER TOLD THE ANSWER — finding M-2, and
+    // the most visible consequence of four notification types that were declared
+    // and never emitted. The row has said so all along; nothing surfaced it, so
+    // they re-opened the studio address and guessed.
+    //
+    // THE STUDIO IS NAMED ONLY FOR AN APPROVAL. A decline must not become a way
+    // to confirm which slugs exist and what they are called — somebody refused
+    // entry learns that they were refused, and nothing else. The name comes from
+    // `collaborations`, which they can only be in if they were let in, so there
+    // is no second read and no way for it to leak by accident.
+    joinRequests: requests.map((r) => {
+      const joined = collaborations.find((c) => c.id === r.studioId);
+      return {
+        id: r.id,
+        status: r.status,
+        createdAt: r.createdAt,
+        decidedAt: r.decidedAt || "",
+        studio: joined ? { id: joined.id, name: joined.name, slug: joined.slug } : null,
+      };
+    }),
   };
 }
 

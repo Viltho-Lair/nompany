@@ -8,6 +8,7 @@
 
 import { effectivePermissions, requirePermission, scopeFor, sectionViewable, sectionManageable, escalates } from "@/lib/access";
 import { listRoles } from "@/lib/data/roles";
+import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
 import {
   createStudio, getStudioById, getStudioBySlug, getOwnedStudio,
   listUserCollaborations, changeStudioSlug,
@@ -255,6 +256,31 @@ export async function approveJoinRequest({ studio, actingCollaborator, actorAcce
   });
   if (added.error === "already") return { collaborator: await getCollaboratorByUser(studio.id, request.userId), request: decided.request };
   if (added.error) return { error: added.error };
+
+  // TELL THEM THEY ARE IN — NOTIFY.joinDecided, declared since the notification
+  // module was written and never once emitted. It is sent AFTER addCollaborator
+  // rather than after decideJoinRequest, and the order is the point: until the
+  // row exists they have no CollaboratorID, and a notification addressed to one
+  // that does not exist is a message nobody can ever read.
+  //
+  // The DECLINE has no counterpart here, and cannot: somebody refused entry
+  // never gets a CollaboratorID, so there is no identity inside this studio to
+  // address. They learn it from their own account instead — see the joinRequests
+  // block in currentIdentity — which is also the only place it can be said
+  // without confirming to a stranger that the studio exists.
+  await notifyCollaborators(
+    studio.id,
+    [added.collaborator.id],
+    {
+      type: NOTIFY.joinDecided,
+      title: `You are in ${studio.name}`,
+      body: "Your request to join was approved.",
+      href: "",
+      tone: "success",
+    },
+    { userIdOf: () => request.userId },
+  );
+
   return { collaborator: added.collaborator, request: decided.request };
 }
 
