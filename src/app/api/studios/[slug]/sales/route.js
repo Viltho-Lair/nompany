@@ -1,4 +1,4 @@
-import { currentUser } from "@/lib/identity";
+import { route } from "@/lib/route";
 import {
   salesContext, listClients, listTickets, assignablePeople, saveSalesSettings, listServices,
   TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS,
@@ -9,21 +9,13 @@ export const dynamic = "force-dynamic";
 
 // One read for the whole Sales screen: clients, tickets, the people who can be
 // assigned work, the vocabulary, and whether this person may change anything.
-export async function GET(request, ctx) {
-  const user = await currentUser();
-  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
-  const { slug } = await ctx.params;
+const spec = { auth: "studio", context: salesContext, name: "sales" };
 
-  const sales = await salesContext(user, slug);
-  if (sales.error) {
-    const status = sales.error === "notfound" || sales.error === "no-section" ? 404 : 403;
-    return Response.json({ error: sales.error }, { status });
-  }
-
+export const GET = route(spec, async (sales) => {
   const [clients, tickets, people, services] = await Promise.all([
     listClients(sales), listTickets(sales), assignablePeople(sales), listServices(sales),
   ]);
-  return Response.json({
+  return {
     // ONE FLAG PER SUB-SECTION. Tickets, Clients and Settings are separate
     // sections with separate grants, so the screens must be told separately —
     // sending only the parent's answer is what made a sub-section grant look
@@ -65,28 +57,11 @@ export async function GET(request, ctx) {
       statuses: TICKET_STATUSES, urgencies: TICKET_URGENCIES, industries: TICKET_INDUSTRIES,
       liveColumnOptions: TICKET_LIVE_COLUMNS,
     },
-  });
-}
+  };
+});
 
 // Sales Settings — currently the Live view's column selection.
-export async function PUT(request, ctx) {
-  const user = await currentUser();
-  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
-  const { slug } = await ctx.params;
-
-  const sales = await salesContext(user, slug);
-  if (sales.error) {
-    const status = sales.error === "notfound" || sales.error === "no-section" ? 404 : 403;
-    return Response.json({ error: sales.error }, { status });
-  }
-  if (!sales.canManageSettings) return Response.json({ error: "read-only" }, { status: 403 });
-
-  const result = await saveSalesSettings(sales, await request.json().catch(() => ({})));
-  if (result.error) {
-    // A refusal is not a malformed request. 403 so a client can tell "you may
-    // not" from "you sent nonsense" — they need different handling.
-    const status = result.error === "forbidden" ? 403 : result.error === "unknown-permission" ? 500 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json(result);
-}
+export const PUT = route({ ...spec, body: true }, async (sales) => {
+  if (!sales.canManageSettings) return { error: "read-only" };
+  return saveSalesSettings(sales, sales.body);
+});

@@ -39,6 +39,7 @@ const FORBIDDEN = [
   "unverified",        // the email behind it was never confirmed
   "owner-immutable", "typed-immutable",
   "cross-site",        // a write arriving from somebody else's page
+  "sales-required",    // the Technical action needs Sales:manage, which you lack
 ];
 
 // 404 — IT IS NOT THERE, or you are not allowed to know that it is. Membership
@@ -53,6 +54,7 @@ const NOT_FOUND = [
   "no-section", "no-technical", "no-sales", "no-projects", "no-tasks",
   "no-revision",       // the revision being signed is not there
   "quotation",         // the quotation a project was opened against is gone
+  "ticket",            // the sales ticket an action was raised against is gone
 ];
 
 // DELIBERATELY NOT 404, though they read like it. `no-file` means the upload
@@ -78,6 +80,11 @@ const CONFLICT = [
   "same-signer",       // reviewer is not approver, enforced at the transition
   "clash", "overlap",  // a shift or a leave already occupies that window
   "pending",           // a join request is already open; never stack duplicates
+  // Both were 400 in the sales routes and both are the world disagreeing rather
+  // than the caller being wrong: a revision is already on its way, or the
+  // quotation is not finished yet. Nothing about the request needs changing —
+  // it needs asking again later.
+  "rfq-pending", "not-quoted",
 ];
 
 // 429 — SLOW DOWN. Separated from 403 on purpose: a rate limit is temporary and

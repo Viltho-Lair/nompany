@@ -1,4 +1,4 @@
-import { currentUser } from "@/lib/identity";
+import { route } from "@/lib/route";
 import { salesContext, requestTicketRfq } from "@/lib/sales";
 
 export const runtime = "nodejs";
@@ -8,27 +8,13 @@ export const dynamic = "force-dynamic";
 // /technical/rfqs; this endpoint exists so Sales can raise one from the ticket
 // row without needing to see the Technical section at all — the permission that
 // matters is Sales:manage either way.
-export async function POST(request, ctx) {
-  const user = await currentUser();
-  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
-  const { slug } = await ctx.params;
+export const POST = route(
+  { auth: "studio", context: salesContext, body: true, name: "sales/tickets/rfq" },
+  async (sales) => {
+    if (!sales.canManage) return { error: "read-only" };
 
-  const sales = await salesContext(user, slug);
-  if (sales.error) {
-    const status = sales.error === "notfound" || sales.error === "no-section" ? 404 : 403;
-    return Response.json({ error: sales.error }, { status });
-  }
-  if (!sales.canManage) return Response.json({ error: "read-only" }, { status: 403 });
-
-  const body = await request.json().catch(() => ({}));
-  const result = await requestTicketRfq(sales, body);
-  if (result.error) {
-    // "approved" is a conflict for the same reason "already" is: the ticket is
-    // in a state where a second RFQ is not a thing that can happen.
-    const status = result.error === "already" || result.error === "approved" ? 409
-      : result.error === "forbidden" || result.error === "sales-required" ? 403
-      : result.error === "ticket" || result.error === "no-technical" ? 404 : 400;
-    return Response.json({ error: result.error }, { status });
-  }
-  return Response.json({ ok: true, rfq: result.rfq }, { status: 201 });
-}
+    const result = await requestTicketRfq(sales, sales.body);
+    if (result.error) return result;
+    return { status: 201, body: { ok: true, rfq: result.rfq } };
+  },
+);
