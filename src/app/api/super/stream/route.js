@@ -1,4 +1,4 @@
-import { currentSuperAdmin } from "@/lib/superAuth";
+import { route } from "@/lib/route";
 import { readPlatformSince, latestPlatformId, isCursor } from "@/lib/data/events";
 import { subscribe, CH } from "@/lib/data/bus";
 import { sseResponse, resumeCursor } from "@/lib/sse";
@@ -17,10 +17,13 @@ export const maxDuration = 300;
 // The gate is the one that matters, though, and it is the same one the (shell)
 // layout applies: a valid `nc_super` session, checked against the stored token
 // list server-side. The edge only knows whether the cookie exists.
-export async function GET(request) {
-  const admin = await currentSuperAdmin();
-  if (!admin) return Response.json({ error: "unauthorized" }, { status: 401 });
-
+//
+// THE HANDLER RETURNS A Response AND THE WRAPPER PASSES IT STRAIGHT THROUGH.
+// That matters here: the body is a stream that stays open for minutes, so
+// nothing may read or buffer it. The completion line therefore records when the
+// connection was ESTABLISHED, not when it closed, which is the honest reading of
+// a request whose response has barely begun when the handler returns.
+export const GET = route({ auth: "super", name: "super/stream" }, async ({ request }) => {
   return sseResponse(request, async (conn) => {
     const since = resumeCursor(request);
     let cursor = since;
@@ -48,4 +51,4 @@ export async function GET(request) {
       conn.send(e?.kind === "notif" ? "notif" : "change", e, e.id);
     });
   });
-}
+});

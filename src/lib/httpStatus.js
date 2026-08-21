@@ -20,10 +20,13 @@
 // not accept", which is exactly 400.
 
 // 401 — WE DO NOT KNOW WHO YOU ARE. Not "you may not": no credential at all.
-// Both spellings are here because both exist in the codebase, which is itself a
-// small bug: `unauthorised` appears where `unauthorized` was meant. Converging
-// them is a rename with callers, so the table accepts both rather than letting
-// one of them silently fall through to 400.
+//
+// `unauthorised` is kept as a SAFETY NET, not a description. /super/users was
+// the last route spelling it the British way, and going through the wrapper
+// converged it — the console now answers `unauthorized` like everything else,
+// and no code emits the other spelling any more. It stays listed because the
+// cost of an entry nothing produces is nothing, and the cost of the alternative
+// is a 401 quietly becoming a 400 the day somebody types it again.
 const UNAUTHENTICATED = ["unauthorized", "unauthorised"];
 
 // 403 — WE KNOW WHO YOU ARE AND THE ANSWER IS STILL NO. The distinction from
@@ -54,6 +57,7 @@ const NOT_FOUND = [
   "no-revision",       // the revision being signed is not there
   "quotation",         // the quotation a project was opened against is gone
   "ticket",            // the sales ticket an action was raised against is gone
+  "unknown-kind",      // /super was asked for a catalogue that does not exist
 ];
 
 // DELIBERATELY NOT 404, though they read like it. `no-file` means the upload
@@ -87,6 +91,10 @@ const CONFLICT = [
   // from the shape of a name rather than from what it means gets this backwards,
   // and would have quietly downgraded both on conversion.
   "typed-immutable", "owner-immutable",
+  // /super's console vocabulary. A chat room that has ended, an invitation the
+  // other side never accepted, and a user who is already a SuperAdmin are all
+  // the same shape: the request is fine and the record has moved past it.
+  "ended", "not-accepted", "super",
   "pending",           // a join request is already open; never stack duplicates
   // Both were 400 in the sales routes and both are the world disagreeing rather
   // than the caller being wrong: a revision is already on its way, or the
@@ -107,7 +115,7 @@ const CONFLICT = [
 
 // 429 — SLOW DOWN. Separated from 403 on purpose: a rate limit is temporary and
 // a permission refusal is not, and a client should treat them differently.
-const RATE_LIMITED = ["rate-limited", "rate-email", "rate-ip", "cooldown"];
+const RATE_LIMITED = ["rate-limited", "rate-email", "rate-ip", "cooldown", "rate"];
 
 // 413 — the upload is bigger than the ceiling.
 const TOO_LARGE = ["too-large"];

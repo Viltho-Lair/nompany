@@ -1,4 +1,4 @@
-import { nompanySide } from "@/lib/chatAccess";
+import { route } from "@/lib/route";
 import { acceptRoom } from "@/lib/data/chat";
 import { forNompany } from "@/lib/chatConstants";
 
@@ -12,18 +12,16 @@ export const dynamic = "force-dynamic";
 // The admin's own address is the label. The studio never sees it (the studio
 // side is answered by "nompany Support"); it exists so the console can say who
 // is on which conversation.
-export async function POST(request, ctx) {
-  const { id } = await ctx.params;
-  const access = await nompanySide(id);
-  if (access.error) return Response.json({ error: access.error }, { status: access.status });
+export const POST = route(
+  { auth: "super", name: "super/chat/accept" },
+  async ({ params, admin }) => {
+    const result = await acceptRoom(params.id, { adminId: admin.id, adminLabel: admin.email });
 
-  const { admin } = access;
-  const result = await acceptRoom(id, { adminId: admin.id, adminLabel: admin.email });
-  if (result.taken) {
-    return Response.json({ taken: true, adminLabel: result.room?.adminLabel || "" }, { status: 409 });
-  }
-  if (result.error) {
-    return Response.json({ error: result.error }, { status: result.error === "not-found" ? 404 : 409 });
-  }
-  return Response.json({ room: forNompany(result.room) });
-}
+    // `taken` is not an error shape — it is a 409 that carries who holds it.
+    if (result.taken) {
+      return { status: 409, body: { taken: true, adminLabel: result.room?.adminLabel || "" } };
+    }
+    if (result.error) return result;
+    return { room: forNompany(result.room) };
+  },
+);

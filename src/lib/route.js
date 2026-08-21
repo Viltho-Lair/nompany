@@ -31,6 +31,7 @@
 
 import { currentUser, currentIdentity } from "@/lib/identity";
 import { studioContext } from "@/lib/studios";
+import { currentSuperAdmin } from "@/lib/superAuth";
 import { statusFor } from "@/lib/httpStatus";
 import { isCrossSite, MUTATING } from "@/lib/origin";
 import { withRequest, requestId } from "@/lib/observability";
@@ -114,7 +115,7 @@ const refuse = (error, status) => stamp(Response.json({ error }, { status }));
  * Build a Next route handler from a spec and a handler.
  *
  * spec:
- *   auth      "public" | "user" | "identity" | "studio"   (default "user")
+ *   auth      "public" | "user" | "identity" | "studio" | "super"  (default "user")
  *   body      true to parse a JSON body
  *   name      label for the log line; defaults to the spec's auth + method
  *   status    { [errorName]: code } local overrides — see finish()
@@ -133,6 +134,18 @@ export function route(spec, handler) {
   // — it needs the identity to scope its key, and it must wrap the handler.
   async function resolve(base, params) {
     if (auth === "public") return { args: base, identity: "" };
+
+    // A THIRD IDENTITY, NOT A BIGGER SECOND ONE. /super runs on a SuperAdmin —
+    // its own registry, its own cookie, outside every cascade — and it is
+    // emphatically not a User with extra rights. Giving it its own branch here
+    // rather than folding it into the user path is what keeps the two from ever
+    // being mistaken for one another: no studio context is built, no membership
+    // is consulted, and a studio owner's session cannot reach any of it.
+    if (auth === "super") {
+      const admin = await currentSuperAdmin();
+      if (!admin) return { refusal: refuse("unauthorized", 401) };
+      return { args: { ...base, admin }, identity: `super:${admin.id}` };
+    }
 
     // `identity` is the fuller read (user + profile + studios); `user` is the
     // cheap one. Routes ask for what they use so nobody pays for the other.

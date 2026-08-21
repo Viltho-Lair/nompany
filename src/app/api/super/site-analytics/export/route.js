@@ -1,4 +1,4 @@
-import { currentSuperAdmin } from "@/lib/superAuth";
+import { route } from "@/lib/route";
 import { readDays, readPages, readContinents, readDevices, daysOfYear, daysBack } from "@/lib/data/siteStats";
 
 export const runtime = "nodejs";
@@ -17,9 +17,11 @@ export const dynamic = "force-dynamic";
 //
 // Owner-only, like every other /super route: the session is verified against the
 // stored token list, not merely presented.
-export async function GET(request) {
-  const admin = await currentSuperAdmin();
-  if (!admin) return Response.json({ error: "unauthorized" }, { status: 401 });
+// THE HANDLER RETURNS A RAW Response BECAUSE THE BODY IS NOT JSON. A CSV
+// download needs its own Content-Type and Content-Disposition, and the
+// wrapper passes any Response through untouched apart from stamping the
+// request id — which is exactly what a file download wants.
+export const GET = route({ auth: "super", name: "super/site-analytics/export" }, async ({ request }) => {
 
   const params = new URL(request.url).searchParams;
   const back = Number.parseInt(params.get("days") || "", 10);
@@ -67,7 +69,7 @@ export async function GET(request) {
       "Cache-Control": "no-store",
     },
   });
-}
+});
 
 // A cell containing a comma, a quote or a newline has to be quoted, and an inner
 // quote doubled. Page paths are slugged on the way in so this rarely fires —

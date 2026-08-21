@@ -1,4 +1,4 @@
-import { currentSuperAdmin } from "@/lib/superAuth";
+import { route } from "@/lib/route";
 import { isKind, listCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem } from "@/lib/data/catalog";
 
 export const runtime = "nodejs";
@@ -6,41 +6,41 @@ export const dynamic = "force-dynamic";
 
 // One route for packages, tiers and ERP services: same shape, same gate, and the
 // per-kind cleaning lives in the data module rather than being repeated here.
-async function open(ctx) {
-  const admin = await currentSuperAdmin();
-  if (!admin) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
-  const { kind } = await ctx.params;
-  if (!isKind(kind)) return { fail: Response.json({ error: "unknown-kind" }, { status: 404 }) };
-  return { kind };
-}
-const body = async (request) => { try { return await request.json(); } catch { return {}; } };
+const spec = { auth: "super", body: true, name: "super/catalog/[kind]" };
 
-export async function GET(request, ctx) {
-  const g = await open(ctx);
-  if (g.fail) return g.fail;
-  return Response.json({ items: await listCatalog(g.kind) });
-}
+// A kind that is not one of the three is a 404, not a 400 — the caller asked for
+// a catalogue that does not exist, which is the same answer as asking for a row
+// that does not exist.
+const known = (kind) => (isKind(kind) ? null : { error: "unknown-kind" });
 
-export async function POST(request, ctx) {
-  const g = await open(ctx);
-  if (g.fail) return g.fail;
-  return Response.json({ ok: true, item: await createCatalogItem(g.kind, await body(request)) }, { status: 201 });
-}
+export const GET = route({ ...spec, body: false }, async ({ params }) => {
+  const refusal = known(params.kind);
+  if (refusal) return refusal;
+  return { items: await listCatalog(params.kind) };
+});
 
-export async function PUT(request, ctx) {
-  const g = await open(ctx);
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const item = await updateCatalogItem(g.kind, b.id, b);
-  return item ? Response.json({ ok: true, item }) : Response.json({ error: "notfound" }, { status: 404 });
-}
+export const POST = route(spec, async ({ params, body }) => {
+  const refusal = known(params.kind);
+  if (refusal) return refusal;
+  return { status: 201, body: { ok: true, item: await createCatalogItem(params.kind, body) } };
+});
 
-export async function DELETE(request, ctx) {
-  const g = await open(ctx);
-  if (g.fail) return g.fail;
-  const b = await body(request);
-  if (!b.id) return Response.json({ error: "missing" }, { status: 400 });
-  const gone = await deleteCatalogItem(g.kind, b.id);
-  return gone ? Response.json({ ok: true }) : Response.json({ error: "notfound" }, { status: 404 });
-}
+export const PUT = route(spec, async ({ params, body }) => {
+  const refusal = known(params.kind);
+  if (refusal) return refusal;
+  if (!body.id) return { error: "missing" };
+
+  const item = await updateCatalogItem(params.kind, body.id, body);
+  if (!item) return { error: "notfound" };
+  return { ok: true, item };
+});
+
+export const DELETE = route(spec, async ({ params, body }) => {
+  const refusal = known(params.kind);
+  if (refusal) return refusal;
+  if (!body.id) return { error: "missing" };
+
+  const gone = await deleteCatalogItem(params.kind, body.id);
+  if (!gone) return { error: "notfound" };
+  return { ok: true };
+});

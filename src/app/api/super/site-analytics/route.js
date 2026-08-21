@@ -1,4 +1,4 @@
-import { currentSuperAdmin } from "@/lib/superAuth";
+import { route } from "@/lib/route";
 import { readDays, readPages, readContinents, readDevices, byMonth, daysBack, daysOfYear } from "@/lib/data/siteStats";
 
 export const runtime = "nodejs";
@@ -10,9 +10,7 @@ export const dynamic = "force-dynamic";
 // different x-axis: seven days by weekday name, thirty by dd/mm, a year by
 // month. The BUCKETING happens here rather than in the browser so the client
 // gets exactly the points it plots.
-export async function GET(request) {
-  const admin = await currentSuperAdmin();
-  if (!admin) return Response.json({ error: "unauthorized" }, { status: 401 });
+export const GET = route({ auth: "super", name: "super/site-analytics" }, async ({ request }) => {
 
   const range = new URL(request.url).searchParams.get("range") || "30d";
   const year = new Date().getUTCFullYear();
@@ -38,7 +36,7 @@ export async function GET(request) {
     sessions: points.reduce((s, p) => s + p.sessions, 0),
     pageViews: points.reduce((s, p) => s + p.pageViews, 0),
   });
-}
+});
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

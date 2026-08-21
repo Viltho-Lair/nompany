@@ -1,4 +1,4 @@
-import { nompanySide } from "@/lib/chatAccess";
+import { route } from "@/lib/route";
 import { listRooms } from "@/lib/data/chat";
 import { summarize, WAITING, ACTIVE } from "@/lib/chatConstants";
 
@@ -17,10 +17,7 @@ export const dynamic = "force-dynamic";
 //
 // Rows carry the last line and a count, never the thread — polling the queue
 // must not re-send every open conversation.
-export async function GET() {
-  const access = await nompanySide(null);
-  if (access.error) return Response.json({ error: access.error }, { status: access.status });
-
+export const GET = route({ auth: "super", name: "super/chat/rooms" }, async ({ admin }) => {
   const rooms = await listRooms();
   const waiting = [];
   const mine = [];
@@ -28,8 +25,8 @@ export async function GET() {
   for (const room of rooms) {
     const row = summarize(room);
     if (room.status === WAITING) waiting.push(row);
-    else if (room.status === ACTIVE && room.adminId === access.admin.id) mine.push(row);
+    else if (room.status === ACTIVE && room.adminId === admin.id) mine.push(row);
     else taken.push(row);
   }
-  return Response.json({ waiting, mine, taken, adminId: access.admin.id });
-}
+  return { waiting, mine, taken, adminId: admin.id };
+});

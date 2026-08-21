@@ -1,3 +1,4 @@
+import { route } from "@/lib/route";
 import { loginSuper, superCookie, publicSuperAdmin } from "@/lib/superAuth";
 import { requestIsHttps, clientIp } from "@/lib/identity";
 import { incrWithTTL } from "@/lib/data/store";
@@ -8,24 +9,36 @@ export const runtime = "nodejs";
 // The owner's door. Deliberately plainer than /api/identity/login: no OTP, no
 // trusted devices, no "remember me" — a super-admin session is short-lived and
 // re-established by typing the password again.
+//
+// PUBLIC, obviously: there is no session yet. This is the one route under /super
+// that cannot ask for one, which is exactly why it carries the rate limit.
 const MAX_ATTEMPTS = 10;
 const WINDOW_SEC = 10 * 60;
 
-export async function POST(request) {
-  let body = {};
-  try { body = await request.json(); } catch { body = {}; }
+export const POST = route(
+  {
+    auth: "public",
+    body: true,
+    name: "super/login",
+    // `invalid` HERE MEANS "that credential was rejected", which is a 401. The
+    // same name means "that field is malformed" everywhere else, which is a 400.
+    // Identity's password route carries the same override for the same reason,
+    // and both go away when the services stop reusing one name for two meanings.
+    status: { invalid: 401 },
+  },
+  async ({ request, body }) => {
+    // Counted per IP and BEFORE the password is checked, so a wrong guess costs
+    // an attempt whether or not the address exists.
+    const tries = await incrWithTTL(RL.superLoginIp(clientIp(request)), WINDOW_SEC);
+    if (tries > MAX_ATTEMPTS) return { error: "rate" };
 
-  // Counted per IP and BEFORE the password is checked, so a wrong guess costs
-  // an attempt whether or not the address exists.
-  const tries = await incrWithTTL(RL.superLoginIp(clientIp(request)), WINDOW_SEC);
-  if (tries > MAX_ATTEMPTS) return Response.json({ error: "rate" }, { status: 429 });
+    const admin = await loginSuper(body.email, body.password);
+    // One generic failure for "no such admin" and "wrong password" alike — the
+    // console never confirms who holds an account on it.
+    if (!admin) return { error: "invalid" };
 
-  const admin = await loginSuper(body.email, body.password);
-  // One generic failure for "no such admin" and "wrong password" alike — the
-  // console never confirms who holds an account on it.
-  if (!admin) return Response.json({ error: "invalid" }, { status: 401 });
-
-  const res = Response.json({ ok: true, admin: publicSuperAdmin(admin) });
-  res.headers.append("Set-Cookie", superCookie(admin.token, requestIsHttps(request)));
-  return res;
-}
+    const res = Response.json({ ok: true, admin: publicSuperAdmin(admin) });
+    res.headers.append("Set-Cookie", superCookie(admin.token, requestIsHttps(request)));
+    return res;
+  },
+);

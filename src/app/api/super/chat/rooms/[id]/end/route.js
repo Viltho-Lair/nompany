@@ -1,4 +1,5 @@
-import { nompanySide } from "@/lib/chatAccess";
+import { route } from "@/lib/route";
+import { nompanyRoom } from "@/lib/chatAccess";
 import { endRoom } from "@/lib/data/chat";
 
 export const runtime = "nodejs";
@@ -6,18 +7,22 @@ export const dynamic = "force-dynamic";
 
 // Close the conversation from the console. The holder only — the same rule as
 // replying, for the same reason.
-export async function POST(request, ctx) {
-  const { id } = await ctx.params;
-  const access = await nompanySide(id);
-  if (access.error) {
-    if (access.error === "not-found") return Response.json({ ok: true, status: "gone" });
-    return Response.json({ error: access.error }, { status: access.status });
-  }
+export const POST = route(
+  { auth: "super", name: "super/chat/end" },
+  async ({ params, admin }) => {
+    const found = await nompanyRoom(params.id);
 
-  const { room, admin } = access;
-  if (room.adminId && room.adminId !== admin.id) {
-    return Response.json({ error: "not-yours", adminLabel: room.adminLabel }, { status: 403 });
-  }
-  await endRoom(id);
-  return Response.json({ ok: true, status: "ended" });
-}
+    // ENDING A ROOM THAT IS ALREADY GONE IS A SUCCESS, not a 404. The caller
+    // wanted it closed and it is closed; answering "not found" would make a
+    // double-click look like a failure.
+    if (found.error) return { ok: true, status: "gone" };
+
+    const { room } = found;
+    if (room.adminId && room.adminId !== admin.id) {
+      return { error: "not-yours", adminLabel: room.adminLabel };
+    }
+
+    await endRoom(params.id);
+    return { ok: true, status: "ended" };
+  },
+);

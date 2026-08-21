@@ -14,7 +14,6 @@
 // the conversation with nothing kept in the browser.
 
 import { currentUser } from "@/lib/identity";
-import { currentSuperAdmin } from "@/lib/superAuth";
 import { getRoom } from "@/lib/data/chat";
 
 // The person who opened the room, and nobody else — not their studio's admins,
@@ -31,11 +30,14 @@ export async function studioSide(roomId) {
 
 // Any super admin may READ the queue and a room; taking one is a separate,
 // first-wins step (acceptRoom), and replying is gated on holding it.
-export async function nompanySide(roomId) {
-  const admin = await currentSuperAdmin();
-  if (!admin) return { status: 401, error: "unauthorized" };
-  if (!roomId) return { admin };
+//
+// THE SESSION LOOKUP IS GONE FROM HERE. This used to call currentSuperAdmin()
+// itself, which meant every console chat route resolved the same admin twice —
+// once for the route's gate and once again here. The route wrapper already
+// holds it, so this is now only what its name should always have meant: find
+// the room, or say it is not there.
+export async function nompanyRoom(roomId) {
   const room = await getRoom(roomId);
-  if (!room) return { status: 404, error: "not-found" };
-  return { room, admin };
+  if (!room) return { error: "not-found" };
+  return { room };
 }

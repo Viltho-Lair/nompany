@@ -1,23 +1,18 @@
-import { currentSuperAdmin } from "@/lib/superAuth";
+import { route } from "@/lib/route";
 import { listSuper, markSuperRead } from "@/lib/data/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const spec = { auth: "super", name: "super/notifications" };
+
 // What was already waiting when an owner opened the console. The stream carries
 // what arrives afterwards; this is the starting state the bell's count is built
 // from, so a reload does not reset it to zero.
-
-export async function GET() {
-  const admin = await currentSuperAdmin();
-  if (!admin) return Response.json({ error: "unauthorized" }, { status: 401 });
-
+export const GET = route(spec, async () => {
   const notifications = await listSuper();
-  return Response.json({
-    notifications,
-    unread: notifications.filter((n) => !n.readAt).length,
-  });
-}
+  return { notifications, unread: notifications.filter((n) => !n.readAt).length };
+});
 
 // Mark read. Body { ids: [] } or {} for "all".
 //
@@ -25,18 +20,10 @@ export async function GET() {
 // to nompany rather than to one owner, so one of them clearing an alert clears
 // it for all of them. That is the intent — a handled alert is handled — not an
 // oversight.
-export async function PATCH(request) {
-  const admin = await currentSuperAdmin();
-  if (!admin) return Response.json({ error: "unauthorized" }, { status: 401 });
-
-  let ids = [];
-  try {
-    const body = await request.json();
-    ids = Array.isArray(body?.ids) ? body.ids.filter((v) => typeof v === "string") : [];
-  } catch {
-    // No body — "mark everything read".
-  }
-
-  const changed = await markSuperRead(ids);
-  return Response.json({ ok: true, changed });
-}
+//
+// A MISSING BODY MEANS "EVERYTHING", which is why the empty-object default the
+// wrapper supplies is exactly right here rather than something to guard against.
+export const PATCH = route({ ...spec, body: true }, async ({ body }) => {
+  const ids = Array.isArray(body?.ids) ? body.ids.filter((v) => typeof v === "string") : [];
+  return { ok: true, changed: await markSuperRead(ids) };
+});
