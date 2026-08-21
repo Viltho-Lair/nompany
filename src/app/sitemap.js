@@ -1,4 +1,4 @@
-import { locales } from "@/lib/i18n";
+import { locales } from "@/shared/i18n";
 import { urlFor, alternatesFor } from "@/lib/seo";
 
 // Public routes (relative to a locale). "" is the landing page, which carries

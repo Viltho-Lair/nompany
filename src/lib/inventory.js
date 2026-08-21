@@ -18,7 +18,7 @@
 // they append movements, and the balance follows.
 
 import { requirePermission } from "@/lib/access";
-import { isKnownCurrency } from "@/lib/currencies";
+import { isKnownCurrency } from "@/shared/currencies";
 import { repo } from "@/lib/data/repo";
 import { getSectionByKey, addRow, updateRow, deleteRow } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
-import { CURRENCIES_FROM_EXCHANGE_API } from "@/lib/currencies";
+import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
 import Riyal from "@/components/Riyal";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { MagneticButton } from "../ui/MagneticButton";

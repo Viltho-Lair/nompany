@@ -5,7 +5,7 @@ import ApplyForm from "@/components/ApplyForm";
 import JsonLd from "@/components/JsonLd";
 import RichText from "@/components/RichText";
 import { getSiteCollection, getSiteSettings } from "@/lib/data/site";
-import { getDict, field } from "@/lib/i18n";
+import { getDict, field } from "@/shared/i18n";
 import { urlFor, alternatesFor, breadcrumbLd, jobPostingLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";

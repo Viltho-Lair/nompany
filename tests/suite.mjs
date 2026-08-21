@@ -37,7 +37,7 @@ import {
 import { projectsContext, openProject, listProjects } from "@/lib/projects";
 import { technicalContext, requestRfq, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/lib/technical";
 import { rfqInfo } from "@/lib/salesAnalytics";
-import { landedUnitCost, crossRate } from "@/lib/currencies";
+import { landedUnitCost, crossRate } from "@/shared/currencies";
 import { qualityContext, watermarkFor } from "@/lib/quality";
 import { getJSON } from "@/lib/data/store";
 import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/lib/relations";

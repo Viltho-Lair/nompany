@@ -6,7 +6,7 @@ import {
   ELEMENTS, GROUPS, TOGGLES, byType, hasOptions, isStructure, newQuestion,
 } from "@/lib/questionnaireElements";
 import { INDUSTRIES } from "@/lib/industries";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES } from "@/shared/countries";
 import { ERP_SYSTEMS } from "@/lib/questionnaire";
 
 // What each bound source actually contains, so a question wired to one can SHOW

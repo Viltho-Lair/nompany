@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { getDict, isLocale, defaultLocale, dirFor } from "@/lib/i18n";
+import { getDict, isLocale, defaultLocale, dirFor } from "@/shared/i18n";
 import BackButton from "@/components/public/BackButton";
 
 // Root 404 for URLs that match no route (e.g. old removed pages). Renders inside

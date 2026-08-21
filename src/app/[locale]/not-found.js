@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { getDict, isLocale, defaultLocale } from "@/lib/i18n";
+import { getDict, isLocale, defaultLocale } from "@/shared/i18n";
 import BackButton from "@/components/public/BackButton";
 
 // Custom 404 in the nompany design. Renders inside the [locale] layout, so the

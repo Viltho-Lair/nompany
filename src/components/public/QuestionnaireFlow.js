@@ -6,7 +6,7 @@ import { AiAssistant } from "@/components/landing/mascot/AiAssistant";
 import { PointerProvider } from "@/components/landing/providers/PointerProvider";
 import { LogoMark, Wordmark } from "@/components/landing/Logo";
 import { INDUSTRIES } from "@/lib/industries";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import {
   AVERAGE_MINUTES, ERP_NONE, ERP_OTHER, ERP_SYSTEMS,

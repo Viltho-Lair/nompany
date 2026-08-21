@@ -1,6 +1,6 @@
 import { requirePermission } from "@/lib/access";
 import { renameStudio } from "@/lib/data/studios";
-import { isKnownCurrency, crossRate } from "@/lib/currencies";
+import { isKnownCurrency, crossRate } from "@/shared/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { currentUser } from "@/lib/identity";
 import { studioContext } from "@/lib/studios";

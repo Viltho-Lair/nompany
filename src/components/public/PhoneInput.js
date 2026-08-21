@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji, parsePhone } from "@/lib/countries";
+import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji, parsePhone } from "@/shared/countries";
 
 // Phone-number field with a searchable country-code selector (flag + dial code),
 // matching the reference: a country button on the left opens a search-filtered

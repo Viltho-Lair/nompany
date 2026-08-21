@@ -1,7 +1,7 @@
 import Link from "next/link";
 import EditorialHeader from "@/components/public/EditorialHeader";
 import Reveal from "@/components/Reveal";
-import { getDict, field } from "@/lib/i18n";
+import { getDict, field } from "@/shared/i18n";
 import { buildMetadata, breadcrumbLd, urlFor } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 import RichText from "@/components/RichText";

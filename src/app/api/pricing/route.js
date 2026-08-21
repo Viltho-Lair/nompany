@@ -1,6 +1,6 @@
 import { listCatalog, getCatalogSettings, yearlyPrice } from "@/lib/data/catalog";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
-import { crossRate } from "@/lib/currencies";
+import { crossRate } from "@/shared/currencies";
 import { currencyForCountry } from "@/lib/countryCurrency";
 
 export const runtime = "nodejs";

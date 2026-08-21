@@ -22,7 +22,7 @@ import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation }
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/lib/tickets";
 import { quotationApproved } from "@/lib/taskRouting";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
-import { landedUnitCost } from "@/lib/currencies";
+import { landedUnitCost } from "@/shared/currencies";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,

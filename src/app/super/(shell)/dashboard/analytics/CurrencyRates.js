@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardHead, CardBody, Badge, Icon } from "../../../_components/ui";
 import { CurrencySymbol } from "@/components/Currency";
-import { crossRate, currency, fmtRate, quotedCodes, searchCurrencies } from "@/lib/currencies";
+import { crossRate, currency, fmtRate, quotedCodes, searchCurrencies } from "@/shared/currencies";
 
 // "Currency Exchange Rates Today" — the full-width band under the KPI tiles.
 //

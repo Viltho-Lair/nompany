@@ -1,10 +1,10 @@
 "use client";
 
-import { CURRENCIES_FROM_EXCHANGE_API, searchCurrencies, currency as currencyOf, fmtRate } from "@/lib/currencies";
+import { CURRENCIES_FROM_EXCHANGE_API, searchCurrencies, currency as currencyOf, fmtRate } from "@/shared/currencies";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
 

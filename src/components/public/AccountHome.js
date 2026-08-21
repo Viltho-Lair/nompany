@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import PhoneInput from "@/components/public/PhoneInput";
-import { parsePhone } from "@/lib/countries";
+import { parsePhone } from "@/shared/countries";
 import LangMenu from "@/components/LangMenu";
 import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";

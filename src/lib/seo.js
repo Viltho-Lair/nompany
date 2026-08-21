@@ -1,4 +1,4 @@
-import { locales, defaultLocale } from "@/lib/i18n";
+import { locales, defaultLocale } from "@/shared/i18n";
 import { youtubeVideoId, youtubeThumbnailUrl } from "@/lib/youtube";
 import { CONTACT, SITE_DESCRIPTION } from "@/lib/site";
 

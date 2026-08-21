@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getDict } from "@/lib/i18n";
+import { getDict } from "@/shared/i18n";
 import { currentUser } from "@/lib/identity";
 import { enabledProviders } from "@/lib/oauth";
 import SignupForm from "@/components/public/SignupForm";

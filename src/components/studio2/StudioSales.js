@@ -14,7 +14,7 @@ import {
   WidgetTitle, FunnelChart, BarBreakdown,
 } from "@/components/studio2/ui";
 import { linkToClient } from "@/lib/studioLinks";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
 import { salesFunnel, probabilityBuckets, atRiskTickets, rfqInfo, isUnresolved } from "@/lib/salesAnalytics";

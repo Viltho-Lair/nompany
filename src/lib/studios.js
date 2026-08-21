@@ -27,7 +27,7 @@ import { ADMIN_ROLE_ID } from "@/lib/permissions";
 import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/lib/data/keys";
 import { getVerification, getProfile } from "@/lib/data/users";
 import { memberLimitOf } from "@/lib/plans";
-import { slugify } from "@/lib/slug";
+import { slugify } from "@/shared/slug";
 
 // ---- creating the one studio a user may own --------------------------------
 // Gated on a verified email: the address must be proven before a company can

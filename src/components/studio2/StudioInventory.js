@@ -1,6 +1,6 @@
 "use client";
 
-import { CURRENCIES_FROM_EXCHANGE_API } from "@/lib/currencies";
+import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";

@@ -4,7 +4,7 @@ import JsonLd from "@/components/JsonLd";
 import MuiProvider from "@/components/MuiProvider";
 import { getSiteSettings } from "@/lib/data/site";
 import { organizationLd, websiteLd, SITE_URL } from "@/lib/seo";
-import { dirFor, isLocale, defaultLocale } from "@/lib/i18n";
+import { dirFor, isLocale, defaultLocale } from "@/shared/i18n";
 
 // nompany is a fixed product brand (not tenant-configurable), so the tab-title
 // suffix ("%s · nompany"), applicationName, authors/creator/publisher and the

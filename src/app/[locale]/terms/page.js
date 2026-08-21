@@ -1,4 +1,4 @@
-import { getDict } from "@/lib/i18n";
+import { getDict } from "@/shared/i18n";
 import { breadcrumbLd, urlFor, buildMetadata } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 import { TERMS_META, TERMS_SECTIONS } from "@/lib/legalTerms";
