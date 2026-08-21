@@ -148,6 +148,29 @@ export const FX = {
   lock: `${P}fx:lock`,
 };
 
+// ---- idempotency -----------------------------------------------------------
+// ONE ANSWER PER KEY, so a retry cannot bill twice.
+//
+// A network timeout does not tell the client whether the write happened. Its
+// only options are to retry — and risk a second invoice, a second payment, a
+// second ticket — or not to, and risk having lost the first. An idempotency key
+// makes the retry safe: the second request is answered with the recorded
+// response of the first rather than executed again.
+//
+// SCOPED TO THE CALLER, not global. The key is chosen by the client, so a key
+// that only named itself would let one user replay — or worse, claim — another
+// user's response by guessing a UUID. The identity is folded into the hash, so
+// the same string from two people is two different records.
+//
+// Ownerless and TTL'd, like OTP and FX: it belongs to a request rather than to a
+// studio, and no cascade should have to know it exists.
+//
+//   idem:<sha256(identity|method|path|key)>   the recorded {status, body}, or
+//                                             an in-flight marker
+export const IDEM = {
+  record: (digest) => `${P}idem:${digest}`,
+};
+
 // ---- uploaded files --------------------------------------------------------
 // Platform-scoped, and NAMESPACED like everything else. It was built from a
 // bare literal in lib/media.js, which meant the integration suite wrote real

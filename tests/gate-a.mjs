@@ -1682,6 +1682,91 @@ console.log("== observability: a line you can trace, and a secret you cannot rea
 }
 
 // ============================================================================
+console.log("== idempotency: a retry does not bill twice");
+// THE POINT IS NOT THAT THE RESPONSE REPEATS. It is that the WRITE happened
+// once. A wrapper that re-ran the handler and returned the second result would
+// satisfy any assertion about matching bodies while quietly creating two
+// expenses, so the claim is checked against the collection, not the reply.
+//
+// EXPENSES, DELIBERATELY, AND NOT CLIENTS. The first draft used sales/clients
+// and the count assertion was worthless there: createClient refuses a duplicate
+// NAME on its own, so "exists exactly once" stayed true with idempotency
+// switched off entirely. It was measuring the service's dedupe, not this.
+//
+// Two identical expenses are legitimate — the same taxi fare twice in a day is
+// two expenses — so nothing but idempotency stands between a retry and a second
+// row. Which is the actual risk: a timeout on the endpoint that books money.
+{
+  const EXPENSES = await import("@/app/api/studios/[slug]/finance/expenses/route.js");
+  const finance = await import("@/lib/finance");
+  await signIn(owner.id);
+
+  const P = ctx({ slug });
+  const send = (key, amount) => capture(EXPENSES.POST, req(`/api/studios/${slug}/finance/expenses`, {
+    method: "POST",
+    body: { amount, category: "Travel", note: "idempotency fixture" },
+    headers: key ? { "idempotency-key": key } : {},
+  }), P);
+
+  const countAt = async (amount) => {
+    const context = await finance.financeContext(owner, slug);
+    return (await finance.listExpenses(context)).filter((e) => Number(e.amount) === amount).length;
+  };
+
+  const first = await send("bill-once-1", 4200);
+  ok("the first attempt is created", first.status === 201, `${first.status} ${JSON.stringify(first.body).slice(0, 80)}`);
+
+  const retry = await send("bill-once-1", 4200);
+  ok("the retry replays the first answer",
+    retry.status === first.status && JSON.stringify(retry.body) === JSON.stringify(first.body),
+    `${retry.status} ${JSON.stringify(retry.body).slice(0, 80)}`);
+
+  // THE ASSERTION THAT MATTERS. Nothing else in the stack would stop a second
+  // row here, so this fails the moment the wrapper stops replaying.
+  ok("...and the money was booked exactly once", (await countAt(4200)) === 1, String(await countAt(4200)));
+
+  // WITHOUT THE HEADER NOTHING CHANGES, which is what makes this safe to switch
+  // on under every converted route at once. The request RUNS, and a second
+  // identical expense is a perfectly ordinary thing to have.
+  const noKey = await send("", 4200);
+  ok("an unkeyed repeat is executed, not replayed",
+    noKey.body?.expense?.id !== first.body?.expense?.id, String(noKey.status));
+  ok("...so now there are two", (await countAt(4200)) === 2, String(await countAt(4200)));
+
+  // A DIFFERENT KEY IS A DIFFERENT INTENTION.
+  const other = await send("bill-once-2", 7700);
+  ok("a different key runs for real", other.status === 201, String(other.status));
+
+  // THE KEY IS SCOPED TO THE CALLER. The client chooses the string, so a key
+  // that only named itself would let one user replay — or claim — another's
+  // answer by guessing a UUID.
+  //
+  // THE SECOND USER MUST BE ABLE TO DO THE THING. The first draft used the plain
+  // member, who holds no Finance rights: they got 403, the assertion passed, and
+  // it proved nothing — they would have been refused whether or not the key was
+  // scoped. A permitted user is the only one whose success could have come from
+  // the wrong place.
+  const booker = (await createUser({ email: `g-booker-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  const bookerRole = await createRole(studio.id, {
+    name: `role-booker-${rand()}`,
+    permissions: ["finance.cash.view", "finance.cash.create"],
+  });
+  await addCollaborator(studio.id, { userId: booker.id, alias: "Booker", role: "member", roleIds: [bookerRole.id] });
+
+  await signIn(booker.id);
+  const stolen = await capture(EXPENSES.POST, req(`/api/studios/${slug}/finance/expenses`, {
+    method: "POST",
+    body: { amount: 999, category: "Travel", note: "second caller" },
+    headers: { "idempotency-key": "bill-once-1" },
+  }), P);
+  ok("a permitted second user reusing the key is not handed the first user's answer",
+    stolen.body?.expense?.id !== first.body?.expense?.id,
+    `${stolen.status} ${stolen.body?.expense?.id ?? JSON.stringify(stolen.body).slice(0, 60)}`);
+  ok("...and booked their own amount, not the first caller's",
+    Number(stolen.body?.expense?.amount) === 999, JSON.stringify(stolen.body?.expense?.amount ?? null));
+  await signIn(owner.id);
+}
+
 console.log("== CSRF: a write arriving from somebody else's page");
 // THE CONTROL HAS TO BE EXERCISED OR IT IS A CLAIM, NOT A CONTROL. A CSRF check
 // that is never fired is indistinguishable from one wired to the wrong method,

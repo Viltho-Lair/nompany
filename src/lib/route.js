@@ -34,6 +34,7 @@ import { studioContext } from "@/lib/studios";
 import { statusFor } from "@/lib/httpStatus";
 import { isCrossSite, MUTATING } from "@/lib/origin";
 import { withRequest, requestId } from "@/lib/observability";
+import { digestFor, beginIdempotent, finishIdempotent, abandonIdempotent } from "@/lib/idempotency";
 
 /** A route's answer carries a status, a body, and sometimes headers. */
 const isResponse = (v) => v instanceof Response;
@@ -127,6 +128,43 @@ const refuse = (error, status) => stamp(Response.json({ error }, { status }));
 export function route(spec, handler) {
   const auth = spec.auth || "user";
 
+  // WHO IS ASKING, and what the handler gets. Split out of the request path so
+  // that idempotency can sit between "we know who you are" and "we do the work"
+  // — it needs the identity to scope its key, and it must wrap the handler.
+  async function resolve(base, params) {
+    if (auth === "public") return { args: base, identity: "" };
+
+    // `identity` is the fuller read (user + profile + studios); `user` is the
+    // cheap one. Routes ask for what they use so nobody pays for the other.
+    if (auth === "identity") {
+      const identity = await currentIdentity();
+      if (!identity) return { refusal: refuse("unauthorized", 401) };
+      const user = identity.user || identity;
+      return { args: { ...base, identity, user }, identity: user.id };
+    }
+
+    const user = await currentUser();
+    if (!user) return { refusal: refuse("unauthorized", 401) };
+    if (auth === "user") return { args: { ...base, user }, identity: user.id };
+
+    // auth === "studio": membership authorises, the URL never does.
+    //
+    // A MODULE ROUTE NAMES ITS OWN CONTEXT BUILDER rather than getting the bare
+    // studio one. technicalContext, salesContext and the rest each resolve the
+    // studio and then the section, and they return the same `{ error }` shape,
+    // so the wrapper can refuse through the same table without knowing which
+    // module it is looking at. `no-section` and `forbidden` stop being whatever
+    // each route happened to map them to.
+    //
+    // Deliberately ONE call, not studioContext followed by the module builder:
+    // the builder already resolves the studio itself, and asking twice is the
+    // duplicate this seam exists to remove rather than reproduce.
+    const build = spec.context || studioContext;
+    const context = await build(user, params.slug);
+    if (context.error) return { refusal: refuse(context.error, statusFor(context.error)) };
+    return { args: { ...base, user, ...context }, identity: user.id };
+  }
+
   return async function handle(request, ctx) {
     return withRequest(spec.name || auth, async () => {
       // CSRF, REFUSED BEFORE ANYTHING IS READ — before the body, before the
@@ -142,39 +180,57 @@ export function route(spec, handler) {
 
       const params = ctx?.params ? await ctx.params : {};
       const base = { request, params };
-
       if (spec.body) base.body = await readBody(request);
 
-      if (auth === "public") return finish(await handler(base), spec);
+      const { refusal, args, identity } = await resolve(base, params);
+      if (refusal) return refusal;
 
-      // `identity` is the fuller read (user + profile + studios); `user` is the
-      // cheap one. Routes ask for what they use so nobody pays for the other.
-      if (auth === "identity") {
-        const identity = await currentIdentity();
-        if (!identity) return refuse("unauthorized", 401);
-        return finish(await handler({ ...base, identity, user: identity.user || identity }), spec);
+      // IDEMPOTENCY IS OPT-IN AND ONLY FOR WRITES. No header, no behaviour
+      // change — which is what lets this land under every converted route at
+      // once without altering a single existing caller.
+      const key = request.headers.get("idempotency-key");
+      if (!key || !MUTATING.has(request.method)) return finish(await handler(args), spec);
+
+      const digest = digestFor({
+        identity,
+        method: request.method,
+        path: new URL(request.url).pathname,
+        key,
+      });
+
+      const seen = await beginIdempotent(digest);
+      if (seen.replay) {
+        const res = Response.json(seen.replay.body, { status: seen.replay.status });
+        // So a client can tell a replay from the original. Without it, "did my
+        // retry do anything?" is unanswerable from the response alone.
+        res.headers.set("Idempotent-Replay", "true");
+        return stamp(res);
+      }
+      // The original is still running. We do not have its answer yet, and
+      // inventing one would be worse than saying so.
+      if (seen.busy) return refuse("in-progress", 409);
+
+      let res;
+      try {
+        res = finish(await handler(args), spec);
+      } catch (error) {
+        // A CRASH IS NOT A RESULT. Freezing a 500 into the record would make a
+        // transient failure permanent for this key for a day — the retry that
+        // would have succeeded gets answered with the crash instead.
+        await abandonIdempotent(digest);
+        throw error;
       }
 
-      const user = await currentUser();
-      if (!user) return refuse("unauthorized", 401);
-      if (auth === "user") return finish(await handler({ ...base, user }), spec);
-
-      // auth === "studio": membership authorises, the URL never does.
-      //
-      // A MODULE ROUTE NAMES ITS OWN CONTEXT BUILDER rather than getting the bare
-      // studio one. technicalContext, salesContext and the rest each resolve the
-      // studio and then the section, and they return the same `{ error }` shape,
-      // so the wrapper can refuse through the same table without knowing which
-      // module it is looking at. `no-section` and `forbidden` stop being whatever
-      // each route happened to map them to.
-      //
-      // Deliberately ONE call, not studioContext followed by the module builder:
-      // the builder already resolves the studio itself, and asking twice is the
-      // duplicate this seam exists to remove rather than reproduce.
-      const build = spec.context || studioContext;
-      const context = await build(user, params.slug);
-      if (context.error) return refuse(context.error, statusFor(context.error));
-      return finish(await handler({ ...base, user, ...context }), spec);
+      // Recorded below 500 only, for the same reason. A 400 IS a result and
+      // deserves to be replayed: the request was wrong the first time and it is
+      // still wrong.
+      if (res.status < 500) {
+        const body = await res.clone().json().catch(() => null);
+        await finishIdempotent(digest, res.status, body);
+      } else {
+        await abandonIdempotent(digest);
+      }
+      return res;
     });
   };
 }

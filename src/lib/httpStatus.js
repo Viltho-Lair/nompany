@@ -88,6 +88,9 @@ const CONFLICT = [
   // Refused rather than absorbed: the payment exceeds what is outstanding, which
   // means something is wrong with one of them and a person should decide which.
   "overpayment",
+  // A retry arrived while the original is still running. Not a replay, because
+  // there is no recorded answer yet — see lib/idempotency.js.
+  "in-progress",
 ];
 
 // 429 — SLOW DOWN. Separated from 403 on purpose: a rate limit is temporary and
