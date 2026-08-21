@@ -28,7 +28,9 @@
 // when it expires — never the number.
 
 import { requirePermission, scopeFor, can, escalates, cleanAssignment } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+
+import { addRow, updateRow, deleteRow } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
@@ -51,6 +53,12 @@ const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "";
 
 // Resolve studio + membership + the hr section + this person's rights on it.
+// THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
+// collection name, not a scope — the studio and section arrive with each call,
+// which is what keeps a query from ever naming another tenant's keys.
+const Certifications = repo(CERTIFICATIONS);
+const Vacations = repo(VACATIONS);
+
 export const hrContext = moduleContext({
   root: "hr",
   // Employees owns the reference lists (departments/certifications); vacations
@@ -190,7 +198,7 @@ export async function removeHrRole(ctx, id) {
 
 // ---- certifications --------------------------------------------------------
 export async function listCertifications({ studio, employeesSection }) {
-  const rows = await readCol(studio.id, employeesSection.id, CERTIFICATIONS);
+  const rows = await Certifications.find({ studio, section: employeesSection });
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
@@ -203,7 +211,7 @@ export async function createCertification(ctx, body) {
   const name = str(body?.name, 140);
   if (!name) return { error: "name" };
 
-  const rows = await readCol(studio.id, employeesSection.id, CERTIFICATIONS);
+  const rows = await Certifications.find({ studio, section: employeesSection });
   if (rows.some((c) => c.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
 
   const certification = await addRow(studio.id, employeesSection.id, CERTIFICATIONS, {
@@ -226,7 +234,7 @@ export async function editCertification(ctx, id, body) {
   if (body?.name !== undefined) {
     const name = str(body.name, 140);
     if (!name) return { error: "name" };
-    const rows = await readCol(studio.id, employeesSection.id, CERTIFICATIONS);
+    const rows = await Certifications.find({ studio, section: employeesSection });
     if (rows.some((c) => c.id !== id && c.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
@@ -370,7 +378,7 @@ export async function saveEmployment(ctx, collaboratorId, body) {
   if (body?.passportNumber !== undefined) patch.passportNumber = encryptField(str(body.passportNumber, 60));
 
   if (body?.certificationIds !== undefined) {
-    const certs = await readCol(studio.id, employeesSection.id, CERTIFICATIONS);
+    const certs = await Certifications.find({ studio, section: employeesSection });
     const valid = new Set(certs.map((c) => c.id));
     patch.certificationIds = (Array.isArray(body.certificationIds) ? body.certificationIds : [])
       .map((x) => str(x, 60)).filter((x) => valid.has(x)).slice(0, 50);
@@ -404,7 +412,7 @@ export function expiringDocuments(employees, today = new Date()) {
 export async function listVacations(ctx, { meId }) {
   const { studio, section } = ctx;
   const [rows, people] = await Promise.all([
-    readCol(studio.id, section.id, VACATIONS),
+    Vacations.find({ studio, section }),
     listCollaborators(studio.id),
   ]);
   const aliasById = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
@@ -453,7 +461,7 @@ export async function requestVacation(ctx, body) {
   const days = countDays(from, to);
 
   // Overlapping leave for the same person is almost always a double entry.
-  const rows = await readCol(studio.id, section.id, VACATIONS);
+  const rows = await Vacations.find({ studio, section });
   const clash = rows.find((v) => v.collaboratorId === target
     && v.status !== "Declined" && v.status !== "Cancelled"
     && v.from <= to && v.to >= from);
@@ -475,7 +483,7 @@ export async function requestVacation(ctx, body) {
 
 export async function decideVacation(ctx, id, decision) {
   const { studio, section, collaborator, canManage } = ctx;
-  const rows = await readCol(studio.id, section.id, VACATIONS);
+  const rows = await Vacations.find({ studio, section });
   const row = rows.find((v) => v.id === id);
   if (!row) return { error: "notfound" };
 

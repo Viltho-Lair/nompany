@@ -16,7 +16,8 @@
 // it is recomputed on every read.
 
 import { requirePermission } from "@/lib/access";
-import { getSectionByKey, readCol, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -40,6 +41,14 @@ const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 const cash = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
 const round = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+// THE COLLECTIONS THIS MODULE QUERIES, named once. Projects and Orders belong
+// to other departments; reading them is a different SCOPE rather than a
+// different function, and the scope still cannot cross a studio.
+const Invoices = repo(INVOICES);
+const Expenses = repo(EXPENSES);
+const Projects = repo(PROJECTS);
+const Orders = repo(ORDERS);
 
 export const financeContext = moduleContext({
   root: "finance",
@@ -105,7 +114,7 @@ function statusFor(invoice, totals) {
 // ---- invoices --------------------------------------------------------------
 export async function listInvoices({ studio, cashSection }) {
   const [invoices, projects] = await Promise.all([
-    readCol(studio.id, cashSection.id, INVOICES),
+    Invoices.find({ studio, section: cashSection }),
     projectRows({ studio }),
   ]);
   const projectNumber = Object.fromEntries(projects.map((p) => [p.id, p.number]));
@@ -147,7 +156,7 @@ export async function createInvoice(ctx, body) {
   const lines = cleanLines(body?.lines);
   if (!lines.length) return { error: "lines" };
 
-  const invoices = await readCol(studio.id, cashSection.id, INVOICES);
+  const invoices = await Invoices.find({ studio, section: cashSection });
   const today = new Date().toISOString().slice(0, 10);
   const invoice = await addRow(studio.id, cashSection.id, INVOICES, {
     // Derived from the highest INV already issued, never from how many exist:
@@ -174,7 +183,7 @@ export async function editInvoice(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, cashSection } = ctx;
-  const invoices = await readCol(studio.id, cashSection.id, INVOICES);
+  const invoices = await Invoices.find({ studio, section: cashSection });
   const current = invoices.find((i) => i.id === id);
   if (!current) return { error: "notfound" };
 
@@ -226,7 +235,7 @@ export async function recordPayment(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, cashSection, collaborator } = ctx;
-  const invoices = await readCol(studio.id, cashSection.id, INVOICES);
+  const invoices = await Invoices.find({ studio, section: cashSection });
   const invoice = invoices.find((i) => i.id === id);
   if (!invoice) return { error: "notfound" };
   if (invoice.status === "Draft") return { error: "not-issued" };
@@ -260,7 +269,7 @@ export async function removeInvoice(ctx, id) {
   if (denied) return denied;
 
   const { studio, cashSection } = ctx;
-  const invoices = await readCol(studio.id, cashSection.id, INVOICES);
+  const invoices = await Invoices.find({ studio, section: cashSection });
   const invoice = invoices.find((i) => i.id === id);
   if (!invoice) return { error: "notfound" };
   if (invoice.status !== "Draft") return { error: "issued" };
@@ -272,7 +281,7 @@ export async function removeInvoice(ctx, id) {
 // ---- expenses --------------------------------------------------------------
 export async function listExpenses({ studio, cashSection }) {
   const [expenses, projects, people] = await Promise.all([
-    readCol(studio.id, cashSection.id, EXPENSES),
+    Expenses.find({ studio, section: cashSection }),
     projectRows({ studio }),
     listCollaborators(studio.id),
   ]);
@@ -303,7 +312,7 @@ export async function createExpense(ctx, body) {
     if (!projects.some((p) => p.id === projectId)) return { error: "project" };
   }
 
-  const expenses = await readCol(studio.id, cashSection.id, EXPENSES);
+  const expenses = await Expenses.find({ studio, section: cashSection });
   const expense = await addRow(studio.id, cashSection.id, EXPENSES, {
     reference: await nextReference(studio.id, { rows: expenses, field: "reference", prefix: "EXP" }),
     description: str(body?.description, 300),
@@ -427,13 +436,13 @@ async function ownerOf(studioId, childKey, parentKey) {
 async function projectRows({ studio }) {
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return [];
-  return readCol(studio.id, owner.id, PROJECTS);
+  return Projects.find({ studio, section: owner });
 }
 
 async function orderRows({ studio }) {
   const owner = await ownerOf(studio.id, "inventory-sheets", "inventory");
   if (!owner) return [];
-  return readCol(studio.id, owner.id, ORDERS);
+  return Orders.find({ studio, section: owner });
 }
 
 export async function billableProjects(ctx) {
@@ -466,7 +475,7 @@ export async function setCommercials(ctx, id, body) {
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return { error: "no-projects" };
 
-  const rows = await readCol(studio.id, owner.id, PROJECTS);
+  const rows = await Projects.find({ studio, section: owner });
   if (!rows.some((p) => p.id === id)) return { error: "notfound" };
 
   const patch = {};

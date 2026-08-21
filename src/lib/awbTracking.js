@@ -14,7 +14,8 @@
 // printed under it.
 
 import { requirePermission } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { addRow, updateRow, deleteRow } from "@/lib/data/sections";
 import { parseAwb } from "@/lib/awb";
 import { AWB_STATUS_BY_CODE, summarizeMovements } from "@/lib/awbStatus";
 
@@ -26,8 +27,12 @@ const qty = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? M
 const count = (v) => Math.max(0, Math.round(Number(v)) || 0);
 
 // ---- airline registry -------------------------------------------------------
+// The AWB sub-section owns both collections.
+const Airlines = repo(AIRLINES);
+const Shipments = repo(SHIPMENTS);
+
 export async function listAirlines({ studio, awbSection }) {
-  const rows = await readCol(studio.id, awbSection.id, AIRLINES);
+  const rows = await Airlines.find({ studio, section: awbSection });
   return [...rows].sort((a, b) => String(a.prefix || "").localeCompare(String(b.prefix || "")));
 }
 
@@ -42,7 +47,7 @@ export async function createAirline(ctx, body) {
   if (prefix.length !== 3) return { error: "prefix" };
   if (!name) return { error: "name" };
 
-  const rows = await readCol(studio.id, awbSection.id, AIRLINES);
+  const rows = await Airlines.find({ studio, section: awbSection });
   // The prefix IS the identity — two carriers cannot share one, or a waybill
   // would resolve to whichever row happened to be found first.
   if (rows.some((a) => a.prefix === prefix)) return { error: "duplicate" };
@@ -67,7 +72,7 @@ export async function editAirline(ctx, id, body) {
   if (body?.prefix !== undefined) {
     const prefix = str(body.prefix, 3).replace(/\D/g, "");
     if (prefix.length !== 3) return { error: "prefix" };
-    const rows = await readCol(studio.id, awbSection.id, AIRLINES);
+    const rows = await Airlines.find({ studio, section: awbSection });
     if (rows.some((a) => a.id !== id && a.prefix === prefix)) return { error: "duplicate" };
     patch.prefix = prefix;
   }
@@ -88,8 +93,8 @@ export async function removeAirline(ctx, id) {
 
   const { studio, awbSection } = ctx;
   const [airlines, shipments] = await Promise.all([
-    readCol(studio.id, awbSection.id, AIRLINES),
-    readCol(studio.id, awbSection.id, SHIPMENTS),
+    Airlines.find({ studio, section: awbSection }),
+    Shipments.find({ studio, section: awbSection }),
   ]);
   const airline = airlines.find((a) => a.id === id);
   if (!airline) return { error: "notfound" };
@@ -105,8 +110,8 @@ export async function removeAirline(ctx, id) {
 // from the movements.
 export async function listShipments({ studio, awbSection }) {
   const [shipments, airlines] = await Promise.all([
-    readCol(studio.id, awbSection.id, SHIPMENTS),
-    readCol(studio.id, awbSection.id, AIRLINES),
+    Shipments.find({ studio, section: awbSection }),
+    Airlines.find({ studio, section: awbSection }),
   ]);
   const byPrefix = Object.fromEntries(airlines.map((a) => [a.prefix, a]));
 
@@ -149,7 +154,7 @@ export async function trackShipment(ctx, body) {
   const parsed = parseAwb(body?.awbNumber);
   if (!parsed.valid) return { error: "awb", reason: parsed.reason };
 
-  const rows = await readCol(studio.id, awbSection.id, SHIPMENTS);
+  const rows = await Shipments.find({ studio, section: awbSection });
   if (rows.some((s) => s.digits === parsed.digits)) return { error: "duplicate" };
 
   const shipment = await addRow(studio.id, awbSection.id, SHIPMENTS, {
@@ -176,7 +181,7 @@ export async function updateShipment(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, awbSection, collaborator } = ctx;
-  const rows = await readCol(studio.id, awbSection.id, SHIPMENTS);
+  const rows = await Shipments.find({ studio, section: awbSection });
   const current = rows.find((s) => s.id === id);
   if (!current) return { error: "notfound" };
 

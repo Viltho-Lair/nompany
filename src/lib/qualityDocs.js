@@ -22,7 +22,8 @@
 
 import { randomUUID } from "node:crypto";
 import { requirePermission } from "@/lib/access";
-import { readCol, addRow, updateRow, deleteRow } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { addRow, updateRow, deleteRow } from "@/lib/data/sections";
 import { bumpCounter } from "@/lib/data/store";
 import { SEC } from "@/lib/data/keys";
 import { formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision, isOpen } from "@/lib/qualityDocuments";
@@ -115,10 +116,15 @@ const withState = (doc, revisions) => ({
   pending: pendingRevision(doc, revisions),
 });
 
+// `ctx` IS a scope — it already carries `studio` and `section` — so these read
+// exactly what the hand-written calls read, with one fewer thing to get wrong.
+const Docs = repo(DOCS);
+const Revisions = repo(REVISIONS);
+
 export async function listDocs(ctx) {
   const [docs, revisions] = await Promise.all([
-    readCol(ctx.studio.id, ctx.section.id, DOCS),
-    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+    Docs.find(ctx),
+    Revisions.find(ctx),
   ]);
   return docs
     .map((d) => withState(d, revisions))
@@ -127,8 +133,8 @@ export async function listDocs(ctx) {
 
 export async function getDoc(ctx, id) {
   const [docs, revisions] = await Promise.all([
-    readCol(ctx.studio.id, ctx.section.id, DOCS),
-    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+    Docs.find(ctx),
+    Revisions.find(ctx),
   ]);
   const doc = docs.find((d) => d.id === id);
   if (!doc) return { error: "notfound" };
@@ -163,13 +169,12 @@ export async function getDoc(ctx, id) {
  * writing in.
  */
 async function editable(ctx, documentId) {
-  const revisions = (await readCol(ctx.studio.id, ctx.section.id, REVISIONS))
+  const revisions = (await Revisions.find(ctx))
     .filter((r) => r.documentId === documentId);
   if (revisions.some((r) => isOpen(r.state))) return null;
   if (revisions.some((r) => r.state === "effective")) return { error: "issued" };
   return null;
 }
-
 
 // The number is minted inside one Lua call, so two people creating a document
 // in the same second get two different codes rather than both reading the same
@@ -189,7 +194,7 @@ export async function createDoc(ctx, body) {
   const prefix = str(body?.prefix, 8).toUpperCase() || "DOC";
   const dept = str(body?.dept, 8).toUpperCase() || "GEN";
 
-  const docs = await readCol(ctx.studio.id, ctx.section.id, DOCS);
+  const docs = await Docs.find(ctx);
   const code = await mintCode(ctx, { prefix, dept, docs });
   const now = new Date().toISOString();
 
@@ -271,9 +276,9 @@ export async function removeDoc(ctx, id) {
   const denied = requirePermission(ctx.access, "quality.documents.delete");
   if (denied) return denied;
 
-  const revisions = await readCol(ctx.studio.id, ctx.section.id, REVISIONS);
+  const revisions = await Revisions.find(ctx);
   const mine = revisions.filter((r) => r.documentId === id);
-  const doc = (await readCol(ctx.studio.id, ctx.section.id, DOCS)).find((d) => d.id === id);
+  const doc = await Docs.byId(ctx, id);
   if (!doc) return { error: "notfound" };
 
   // AN ISSUED DOCUMENT IS NOT DELETABLE. Somebody is working from it, and the

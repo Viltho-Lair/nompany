@@ -26,7 +26,8 @@
 // than left to rot: a module nobody calls is a module nobody notices is wrong.
 
 import { can, requirePermission } from "@/lib/access";
-import { readCol, updateRow } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { updateRow } from "@/lib/data/sections";
 import { DOCS } from "@/lib/qualityDocs";
 import { moduleContext } from "@/lib/modules/context";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -36,7 +37,6 @@ import {
   STATIC_FIELDS, BLOCK_SOURCES, availableFields, availableBlocks, groupFields,
   legalKeyFor, subjectById, SUBJECTS, reachOf,
 } from "@/lib/qualityFields";
-
 
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 
@@ -49,7 +49,6 @@ export const qualityContext = moduleContext({
   extend: ({ sections }) => ({ departments: departmentsFromSections(sections) }),
 });
 
-
 // ---- rendering a document ---------------------------------------------------
 
 // Dotted into a record: "location.city" off a sales ticket.
@@ -60,7 +59,7 @@ const dotted = (obj, path) =>
 const readerFor = (ctx) => async (node) => {
   const n = NODES[node];
   const section = ctx.sections.find((x) => x.key === n.sectionKey);
-  return section ? readCol(ctx.studio.id, section.id, n.collection) : [];
+  return section ? repo(n.collection).find({ studio: ctx.studio, section }) : [];
 };
 
 // EVERY RECORD THIS DOCUMENT CAN REACH, resolved once each.
@@ -103,7 +102,7 @@ async function subjectRecord(ctx, document) {
 
   const section = ctx.sections.find((x) => x.key === subject.sectionKey);
   if (!section) return { subject, record: null, allowed: true };
-  const rows = await readCol(ctx.studio.id, section.id, subject.collection);
+  const rows = await repo(subject.collection).find({ studio: ctx.studio, section });
   return { subject, record: rows.find((r) => r.id === document.subjectId) || null, allowed: true };
 }
 
@@ -268,7 +267,7 @@ export async function subjectOptions(ctx, subjectType) {
 
   const section = ctx.sections.find((x) => x.key === subject.sectionKey);
   if (!section) return { options: [] };
-  const rows = await readCol(ctx.studio.id, section.id, subject.collection);
+  const rows = await repo(subject.collection).find({ studio: ctx.studio, section });
   return {
     options: rows.slice(0, 500).map((r) => ({
       id: r.id,
@@ -295,7 +294,7 @@ export async function bindSubject(ctx, documentId, body) {
     if (!can(ctx.access, subject.permission)) return { error: "forbidden" };
     if (subjectId) {
       const section = ctx.sections.find((x) => x.key === subject.sectionKey);
-      const rows = section ? await readCol(ctx.studio.id, section.id, subject.collection) : [];
+      const rows = section ? await repo(subject.collection).find({ studio: ctx.studio, section }) : [];
       if (!rows.some((r) => r.id === subjectId)) return { error: "no-record" };
     }
   }

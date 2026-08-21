@@ -10,7 +10,8 @@
 // Everything is derived on read, like every other module: nothing here is a
 // stored dashboard that could drift from what the sections actually say.
 
-import { readCol, listSections } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
 import { sectionViewable } from "@/lib/access";
 import { listCollaborators } from "@/lib/data/collaborators";
@@ -52,7 +53,9 @@ export async function mainContext(user, slug) {
 async function readIfVisible(ctx, key, fallbackKey, collection) {
   const section = ctx.seen(key, fallbackKey);
   if (!section) return null;
-  return readCol(ctx.studio.id, section.id, collection);
+  // The collection is chosen by the caller, so the repository is built per call
+  // rather than hoisted — it binds a name, not a connection.
+  return repo(collection).find({ studio: ctx.studio, section });
 }
 
 // The headline figures, each one omitted entirely when its section is not the

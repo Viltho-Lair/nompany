@@ -20,7 +20,8 @@
 // did, silently, because there was only ever one copy of the text.
 
 import { requirePermission } from "@/lib/access";
-import { readCol, addRow, updateRow } from "@/lib/data/sections";
+import { repo } from "@/lib/data/repo";
+import { addRow, updateRow } from "@/lib/data/sections";
 import { moveSignable, availableMoves } from "@/lib/signables";
 import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
 import { TRANSITIONS, REV_LABELS, isOpen, documentState } from "@/lib/qualityDocuments";
@@ -57,8 +58,11 @@ async function audit(ctx, { documentId, revisionId = "", action, detail = "" }) 
   });
 }
 
+const Docs = repo(DOCS);
+const Revisions = repo(REVISIONS);
+
 export async function listRevisions(ctx, documentId) {
-  const rows = await readCol(ctx.studio.id, ctx.section.id, REVISIONS);
+  const rows = await Revisions.find(ctx);
   return rows
     .filter((r) => r.documentId === documentId)
     .sort((a, b) => (Number(b.rev) || 0) - (Number(a.rev) || 0));
@@ -79,8 +83,8 @@ const waitingOn = (document, state) =>
  */
 export async function workflowFor(ctx, documentId, holds) {
   const [docs, revisions] = await Promise.all([
-    readCol(ctx.studio.id, ctx.section.id, DOCS),
-    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+    Docs.find(ctx),
+    Revisions.find(ctx),
   ]);
   const document = docs.find((d) => d.id === documentId);
   if (!document) return { error: "notfound" };
@@ -123,8 +127,8 @@ export async function startRevision(ctx, documentId) {
   if (denied) return denied;
 
   const [docs, revisions] = await Promise.all([
-    readCol(ctx.studio.id, ctx.section.id, DOCS),
-    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+    Docs.find(ctx),
+    Revisions.find(ctx),
   ]);
   const document = docs.find((d) => d.id === documentId);
   if (!document) return { error: "notfound" };
@@ -167,8 +171,8 @@ export async function startRevision(ctx, documentId) {
  */
 export async function moveRevision(ctx, documentId, action, body = {}) {
   const [docs, revisions] = await Promise.all([
-    readCol(ctx.studio.id, ctx.section.id, DOCS),
-    readCol(ctx.studio.id, ctx.section.id, REVISIONS),
+    Docs.find(ctx),
+    Revisions.find(ctx),
   ]);
   const document = docs.find((d) => d.id === documentId);
   if (!document) return { error: "notfound" };
