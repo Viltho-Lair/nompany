@@ -4,9 +4,9 @@
 and the studio. Rebuild Finance around AP / AR / GL / FA. Turn every department page
 into a data-dense dashboard. Port nine animation techniques from the marketing site.
 
-This document is the **research and proposal**. Nothing in it is built. It exists to
-be argued with, and section 10 is the list of decisions that have to land before
-any of it becomes code.
+This document is the **research and the plan**. Nothing in it is built yet.
+Section 10 was the list of decisions that had to land first; they landed on
+22/08/2026 and it now records the answers. Step 0 of §9 is where the work starts.
 
 `ui-ux-overhaul.md` already covers tokens, the component taxonomy, skeletons and
 accessibility, and none of that is repeated here. This is what that document does
@@ -60,9 +60,15 @@ providers into a shared `src/components/motion/` that the landing, the studio an
 `application/packages`, `application/tiers`, plus `dashboard/analytics`.
 
 This is the *same task* as the standing "remove all placeholder data" item, and it
-is the larger half of it. The shells are well made; the data is invented. Deciding
-which of the eight dashboards nompany actually needs is a product decision, not a
-frontend one — see §10.
+is the larger half of it. The shells are well made; the data is invented.
+
+**Decided 22/08/2026: five of the eight go.** `crm`, `ecommerce`, `marketing`,
+`saas` and `project` are deleted outright — nompany does not run a storefront or a
+marketing funnel, and a dashboard about a business we are not in is not a shell
+worth keeping. Three remain and get real data: **revenue** (studios, packages,
+tiers, MRR), **adoption** (sign-ups, active studios, module usage, traffic) and
+**support** (chat load, response time, open issues). `hr` and `finance` fold into
+revenue and adoption rather than surviving as their own pages.
 
 **The studio ships every department to every route.**
 `src/app/studio/[[...segments]]/page.js` is one catch-all that imports all twenty
@@ -101,11 +107,20 @@ Of the four Finance pillars:
   it is most of the visible value.
 - **1b — AP, GL and FA, which need records.** Three new collections, three new
   sub-sections, three new permission groups. This is backend work by any reading and
-  needs an explicit yes.
+  needed an explicit yes. **It has it** (22/08/2026), including a **full
+  double-entry ledger** rather than the summary alternative — so invoices, bills,
+  expenses and payments all post, and the trial balance is a real one.
 
-If the answer to 1b is no, Finance still gets a real dashboard; it gets AR and P&L
-rather than the full four pillars, and the AP/GL/FA panels render as "not yet
-tracked" rather than as invented numbers.
+1a still ships first and on its own. It is a real Finance dashboard on existing
+data, it lands weeks before 1b, and it is what proves the widget pattern against
+records that already exist.
+
+**What a full ledger adds beyond §2.2's schema.** Double entry means every invoice,
+bill, expense and payment *posts* — so the services that write them gain a posting
+step, and the two rules that are not expressible in a Zod schema become transition
+guards: an entry balances, and a posted entry is reversed rather than edited. It
+also means a chart of accounts has to exist before the first posting, which makes
+seeding it part of Finance settings rather than an afterthought.
 
 ---
 
@@ -743,6 +758,68 @@ So today: a task assigned to you, an invoice going overdue, a quotation approved
 a permit expiring, an RFQ landing in your queue — none of them tell anybody. The
 bell works perfectly and there is nothing to put in it.
 
+### 8B.1 Clicking one — surveyed, and one bug
+
+**Does it forward to the item?** Yes, when the notification carries an `href`.
+The bell renders `<Link href={`/${slug}/${n.href}`}>`, built from the slug the tab
+is actually on — so a renamed studio does not strand its own old notifications.
+
+**Does it mark itself read?** **No, and it should.** Clicking navigates and closes
+the panel; the row stays unread until somebody presses *mark all read*. The API
+already accepts `PATCH { ids: [...] }` and `markRead()` already takes a list — the
+capability exists and the bell simply does not call it. One `fetch` on click, plus
+the same optimistic update `markAllRead` already does correctly.
+
+**Two defects in what little exists:**
+
+- `qualityDocRevisions.ts` writes an **absolute** href —
+  `/${slug}/quality-documents/${id}` — where the contract, documented in
+  `notifications.ts`, is studio-relative. The bell then builds
+  `/acme//acme/quality-documents/doc_1`. **That link is broken today.**
+- `lib/studios.ts` writes `href: ""` on join-decided, so the one notification
+  telling somebody they were let into a studio goes nowhere when clicked.
+
+Both are a line each, and both belong in step 11a.
+
+### 8B.2 What deserves a notification — the answer to "is a new project not worth one?"
+
+It is, and the research says so more strongly than expected: **the system already
+knows.** `platform/db/sections.ts` emits `row.created`, `row.updated` and
+`row.deleted` on every single write, carrying the section, the collection and the
+row id. A project being opened, a sheet being created, a PO being received — all
+three already publish an event, and that event is what refreshes the boards.
+
+So nothing needs to be *detected*. What is missing is the second half: **who should
+be told.** An event says "the projects collection changed"; a notification says
+"this is yours, and it is waiting on you". Turning the first into the second is a
+recipient rule per case, and that is the whole of step 11a.
+
+The proposed test — and the reason not every event becomes a notification — is that
+a notification is owed when **somebody is waiting on you**, or when **something you
+raised was decided**. A row changing is neither. On that test:
+
+| Event | Owed? | To whom |
+|---|---|---|
+| **Project assigned to you** | **Yes** | The manager named on it — it is now their work |
+| **Project opened from a quotation** | Yes | Sales, who raised the ticket: their deal became a job |
+| **Project sheets created** | No | A consequence of opening the project, not a separate fact. It rides on the project notification |
+| **PO received** (`receivedAt` stamped) | **Yes** | Whoever raised it, and Finance — goods arriving is what makes a bill payable |
+| **PO placed** | Yes | The approver, if the studio requires one |
+| **Delivery issued** | Yes | The project's manager — stock left the building against their job |
+| **Invoice overdue** | **Yes**, daily digest | Finance. The only one here that is time-driven rather than event-driven, so it needs the cron, not an emitter |
+| **Task assigned / typed task raised** | **Yes** | The authority holders. `NOTIFY.taskAssigned` is declared and has never fired |
+| **Approval given or refused** | **Yes** | Whoever raised it |
+| **RFQ raised** | Yes | Technical's handlers |
+| **Quotation submitted** | Yes | The Sales owner of the ticket |
+| **Permit / certification expiring** | **Yes**, 30/7/1 days | The holder and Operations or HR. Time-driven — cron |
+| **Leave requested / decided** | **Yes** | HR, then the asker. This is Nova's example (§8A.3) |
+| **Stock below reorder** | Yes | Inventory, once per crossing — not once per movement |
+| **Row edited by a colleague** | No | That is what the live refresh is for |
+
+Two of these — overdue invoices and expiring documents — are **not events at all**.
+Nothing happens on the day an invoice goes overdue; time simply passes. They need a
+daily sweep, and `api/cron/year-rollover` shows the shape one takes here.
+
 **Three gaps beyond the producers**, each a decision rather than a bug:
 
 - **Delivery needs the studio open.** `LiveProvider` mounts in the studio shell, so
@@ -797,73 +874,68 @@ test with a worked example. No step lands red.
 
 ---
 
-## 10. Decisions needed before any of this is code
+## 10. Decisions — answered 22/08/2026
 
-1. **Finance 1b — yes or no?** AP, GL and FA need new records, new sections and new
-   permissions. That is backend work, and Rule 1 says not to do it. 1a is a real
-   Finance dashboard without it. Which?
+| # | Question | Answer |
+|---|---|---|
+| 1 | Finance 1b — AP, GL, FA | **Yes.** Build it |
+| 2 | How much of a ledger | **Full double-entry.** Chart of accounts, journal, trial balance |
+| 3 | The five surplus `/super` dashboards | **Delete them.** Keep revenue, adoption, support |
+| 4 | A new chart library | See §10.1 — the honest version of my answer |
+| 5 | Nova's placement | **Beside the chat button, same alignment.** The panel expands upward from the button like the chat box, and **only one may be open at a time** |
+| 6 | `/account` | **Leave the routing.** Rewrite Security against real data, and research what account settings are missing (§10.2) |
+| 7 | Studio language | **Per tenant**, with a language button |
+| 8 | Arabic digits | **The user's own choice, in account settings** |
+| 9 | Documentation language | **English first, Arabic after** |
+| 10 | The Arabic glossary | **Reviewed after** the first pass |
+| 11 | Nova's model | Deferred. **Pre-built buttons are valid and are the first build** — see §10.3 |
+| 12 | How far the producers go | Widened — see §8B.2 |
 
-2. **How much of a ledger?** If 1b is yes: a *real* double-entry GL with a chart of
-   accounts is a significant module and changes how invoices and bills post. A
-   *summary* GL — income vs expense by account category, no double entry — is a
-   quarter of the work and covers what the brief's "high-level income vs expenses,
-   journal entry summaries" actually asks for. Full or summary?
+### 10.1 The chart library — the honest answer
 
-3. **The eight `/super` dashboards.** `crm`, `ecommerce`, `marketing`, `saas`,
-   `project`, `hr`, `finance`, `analytics` are template pages with invented data.
-   nompany's own console plausibly needs three: **platform revenue** (studios,
-   packages, tiers, MRR), **adoption** (sign-ups, active studios, module usage,
-   traffic) and **support** (chat load, response time, open issues). Delete the
-   other five, or keep them as shells to be wired later?
+The question was whether I researched alternatives or merely found what we had, and
+the honest answer is: **I found ours first, and I did not survey the field.**
 
-4. **Charts: confirm no new library.** The existing SVG kit is 0 KB, server-rendered
-   and already themed. Recharts or Nivo would cost ~100 KB gzipped against a budget
-   with 95 KB of headroom, and would hydrate on the client. My recommendation is to
-   extend the kit. Agreed?
+What I did establish, and stand behind: the existing kit covers area, line, bar,
+stacked bar, bar-list, donut, radial and sparkline; it renders on the server, costs
+zero client JavaScript, themes off the same CSS tokens as everything else, and
+already ships a matching skeleton. Against a budget with 95 KB of headroom, and a
+plan whose first step is *reducing* the shared chunk, a library that hydrates on the
+client is a poor trade for shapes we can already draw.
 
-5. **Nova's panel.** A breathing icon in the top bar is chrome and is safe. An "AI
-   Insights" panel implies insights, and we have no model wired. Ship the icon now
-   with the panel showing genuinely-derived observations ("three invoices crossed 60
-   days this week"), or hold the whole thing until there is something behind it?
+What I did **not** do is check whether anything on the §2.4 list is beyond it. Three
+are: the **P&L waterfall**, the **depreciation schedule with a projected tail**, and
+the **cash in-vs-out overlay with a running balance**. Each is a variation on paths
+the kit already emits, and my estimate is a day for the three — but that is an
+estimate, not a survey.
 
-6. **`/account`.** Worth the same treatment, or is it a smaller job — tidy the
-   932-line component, rewrite the Security tab against real data, and leave the
-   routing alone?
+So the recommendation stands and the reasoning is now stated properly: **extend the
+kit, and revisit only if a specific widget defeats it.** If you would rather I
+actually survey the field before that is settled, say so and I will — the candidates
+worth measuring are Recharts, visx and uPlot, on bundle cost, server rendering,
+RTL and token theming.
 
-7. **Where a studio's language comes from.** The proposal is the user's profile
-   `language` — which already exists and is already written at signup — with a
-   per-studio override on the Collaborator row. The alternative is a studio-wide
-   setting that everybody in that tenant shares. Which? (Not a URL segment: the slug
-   is the address.)
+### 10.2 `/account` — what to research
 
-8. **Arabic numerals.** In Arabic, dates and money default to Arabic-Indic digits
-   (٢٢/٠٨/٢٠٢٦, ١٬٢٥٠٫٠٠). For an ERP the usual call is Western digits inside
-   Arabic text — `ar-SA-u-nu-latn`. Confirm, and it is decided once inside
-   `fmtDate`/`fmtMoney` rather than per screen.
+Routing stays. Security is rewritten against real data. The open question is what
+else belongs there, and it is a real gap: the account hub is one 932-line component
+covering personal info, the questionnaire, studios and devices — and the product has
+grown past it. Candidates to research and bring back for approval: notification
+preferences (which of §8B.2's list reach email, and a digest cadence), language and
+number-format choice (decisions 7 and 8), the session and device list, sign-in
+history, data export, account closure, and which studio opens by default.
 
-9. **The documentation's home and language.** A docs site, or in-app contextual help
-   beside the screens it describes? And bilingual from the start, or English first
-   with Arabic following? An English-only manual for an Arabic operator is half a
-   manual.
+### 10.3 Nova without a model
 
-10. **Translation ownership.** I can produce the English strings and a first Arabic
-    pass, but domain Arabic — "الذمم المدينة" for accounts receivable, not a
-    transliteration — should be reviewed by somebody who works in it. Do you want to
-    review the ~200-term glossary before the bulk extraction, or after?
+Confirmed as the first build, and it is stronger than it sounds. A guided tree —
+**Human Resources → Request vacation → from when to when** — needs no model at all:
+the branches are the departments, the leaves are the typed tasks that already exist
+in `TASK_TYPE_AUTHORITIES`, and the form is the same one the screen renders.
 
-11. **Nova's model, and what leaves the tenant.** Capability 1 needs no model —
-    retrieval over the documentation answers it. Capabilities 2 and 3 need intent
-    recognition, which means a provider, and a studio's data reaching a third party
-    is a decision that is yours and not mine. Which provider, and does anything
-    beyond the user's own sentence leave the boundary?
-
-12. **Notification producers — how far?** Ten of twelve departments raise none
-    today. Every workflow *could* notify; not every workflow *should*, or the bell
-    becomes noise nobody reads. My proposal is that a notification is owed when
-    somebody is **waiting on you** or when **something you raised was decided** —
-    and nothing else. Agreed, or is there a wider list?
-
----
+It is also the safer product. Every path is one somebody designed, every request is
+shown before it is raised, and there is no sentence to misread. Free-text intent
+becomes an *addition* to a working assistant rather than the thing it depends on —
+and if the model decision is never taken, Nova still works.
 
 ## 11. What this does not change
 
