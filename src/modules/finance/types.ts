@@ -4,6 +4,7 @@ import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 
 export type { Invoice, InvoiceLine, Payment, Expense } from "./schema";
+export type { Account, JournalLine, JournalEntry } from "./schema";
 
 import type { Invoice } from "./schema";
 
@@ -34,6 +35,7 @@ export type InvoiceView = Invoice & InvoiceTotals & {
 // "this studio has no Projects section" is a real answer the screens handle.
 export type FinanceContext = ModuleContext & {
   cashSection: Section;
+  ledgerSection: Section;
   settingsSection: Section;
   projectsListSection: Section | null;
   sheetsSection: Section | null;

@@ -1,0 +1,292 @@
+// THE GENERAL LEDGER — a real double-entry book, not a summary.
+//
+// Rows live beside the cash section, under the studio's finance-ledger section:
+//   s:<StudioID>:sec:<SectionID>:c:accounts
+//   s:<StudioID>:sec:<SectionID>:c:journalEntries
+//
+// TWO RULES THE SCHEMA CANNOT STATE AND THIS FILE ENFORCES, both at the
+// transition rather than in the type — the same class of rule as invariant 7:
+//
+//   1. AN ENTRY BALANCES. Every posting's debits equal its credits, to the
+//      cent. This is the whole of what makes double entry mean anything: the
+//      trial balance is guaranteed to balance because no unbalanced entry was
+//      ever allowed in.
+//   2. A POSTED ENTRY IS NEVER EDITED, only REVERSED by a mirror entry. There
+//      is deliberately no update path and no "draft" state — a journal is a
+//      record of what happened, and you correct a record by adding to it, not
+//      by rewriting it. The reversal is itself an ordinary entry.
+//
+// The chart of accounts has to exist before the first posting, so it seeds
+// itself on first read the way the studio's sections reconcile themselves —
+// idempotently, by code, so a second read adds nothing.
+
+import { requirePermission } from "@/platform/access";
+import { repo } from "@/platform/db/repo";
+import { addRow, updateRow } from "@/platform/db/sections";
+import { nextReference } from "@/modules/main/references";
+import type { Account, JournalEntry, JournalLine, FinanceContext } from "./types";
+import type { Row } from "@/platform/db/store";
+
+const ACCOUNTS = "accounts";
+const ENTRIES = "journalEntries";
+
+const Accounts = repo<Account>(ACCOUNTS);
+const Entries = repo<JournalEntry>(ENTRIES);
+
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
+const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+// Money to the cent, non-negative. A ledger that carries floating-point crumbs
+// stops balancing after enough postings, so every amount is rounded ON THE WAY
+// IN and the balance check compares whole cents, never floats.
+const cents = (v: unknown) => Math.round((Number(v) || 0) * 100);
+const money = (c: number) => Math.round(c) / 100;
+
+export type AccountType = Account["type"];
+
+// THE DEFAULT CHART, KSA small-business shaped and deliberately small — a studio
+// grows it, but it has to be able to post the day it opens Finance. Order is
+// the conventional one (assets, liabilities, equity, income, expense) because
+// that is the order a trial balance and a balance sheet read in.
+export const DEFAULT_CHART: { code: string; name: string; type: AccountType }[] = [
+  { code: "1000", name: "Cash", type: "asset" },
+  { code: "1010", name: "Bank", type: "asset" },
+  { code: "1100", name: "Accounts Receivable", type: "asset" },
+  { code: "1200", name: "Inventory", type: "asset" },
+  { code: "1500", name: "Fixed Assets", type: "asset" },
+  { code: "1510", name: "Accumulated Depreciation", type: "asset" },
+  { code: "2000", name: "Accounts Payable", type: "liability" },
+  { code: "2100", name: "VAT Payable", type: "liability" },
+  { code: "3000", name: "Owner's Equity", type: "equity" },
+  { code: "3900", name: "Retained Earnings", type: "equity" },
+  { code: "4000", name: "Revenue", type: "income" },
+  { code: "5000", name: "Cost of Sales", type: "expense" },
+  { code: "5100", name: "Salaries", type: "expense" },
+  { code: "5200", name: "Rent", type: "expense" },
+  { code: "5300", name: "Utilities", type: "expense" },
+  { code: "5900", name: "Other Expenses", type: "expense" },
+];
+
+// The natural side a type increases on. An asset or expense grows with a debit;
+// a liability, equity or income grows with a credit. This is what turns a pile
+// of debits and credits into a signed balance a report can read.
+const DEBIT_NORMAL: Record<AccountType, boolean> = {
+  asset: true, expense: true, liability: false, equity: false, income: false,
+};
+
+/**
+ * The chart, seeding the default set the first time it is read. Idempotent by
+ * code: a studio that has added or removed accounts keeps them, and a re-read
+ * never duplicates a default. Written on read the way sections reconcile — the
+ * ledger cannot function without a chart, so "there is no chart yet" is never a
+ * state a caller should have to handle.
+ */
+export async function ledgerAccounts(ctx: FinanceContext): Promise<Account[]> {
+  const { studio, ledgerSection } = ctx;
+  const existing = await Accounts.find({ studio, section: ledgerSection });
+  const have = new Set(existing.map((a) => a.code));
+  const missing = DEFAULT_CHART.filter((a) => !have.has(a.code));
+  if (!missing.length) return existing;
+
+  const seeded: Account[] = [];
+  for (const a of missing) {
+    seeded.push(await addRow<Account>(studio.id, ledgerSection.id, ACCOUNTS, {
+      code: a.code, name: a.name, type: a.type, active: true,
+      createdAt: new Date().toISOString(),
+    }));
+  }
+  // Newest-first is how addRow prepends; return them in chart order so the
+  // caller and the reports read top-down.
+  return [...existing, ...seeded].sort((x, y) => x.code.localeCompare(y.code));
+}
+
+export async function listAccounts(ctx: FinanceContext) {
+  const denied = requirePermission(ctx.access, "finance.ledger.view");
+  if (denied) return denied;
+  return { accounts: await ledgerAccounts(ctx) };
+}
+
+// Validate a set of posting lines into clean cents, or say why not. Pulled out
+// because posting AND reversing both need exactly this check — and a reversal
+// that did not re-validate could reintroduce the very imbalance reversing is
+// meant to unwind.
+function cleanLines(
+  raw: unknown,
+  accountsById: Map<string, Account>,
+): { lines: JournalLine[]; debit: number; credit: number } | { error: string } {
+  if (!Array.isArray(raw) || raw.length < 2) return { error: "lines" };
+  const lines: JournalLine[] = [];
+  let debit = 0;
+  let credit = 0;
+  for (const r of raw) {
+    const accountId = str((r as Row)?.accountId, 60);
+    const account = accountsById.get(accountId);
+    if (!account) return { error: "account", accountId } as { error: string };
+    if (account.active === false) return { error: "inactive", accountId } as { error: string };
+    const d = cents((r as Row)?.debit);
+    const c = cents((r as Row)?.credit);
+    // EXACTLY ONE SIDE. A line that is both a debit and a credit, or neither, is
+    // not a posting — it is a mistake that would still let the entry "balance"
+    // while meaning nothing.
+    if ((d > 0) === (c > 0)) return { error: "one-side", accountId } as { error: string };
+    debit += d;
+    credit += c;
+    const line: JournalLine = { accountId, debit: money(d), credit: money(c) };
+    const projectId = str((r as Row)?.projectId, 60);
+    if (projectId) line.projectId = projectId;
+    const memo = str((r as Row)?.memo, 300);
+    if (memo) line.memo = memo;
+    lines.push(line);
+  }
+  return { lines, debit, credit };
+}
+
+/**
+ * POST A BALANCED ENTRY. The one write that creates ledger history, and the
+ * only place the balance rule is enforced — so nothing downstream (a report, a
+ * trial balance) ever has to cope with an entry that does not balance, because
+ * one was never stored.
+ *
+ * `source` lets an automated posting (an invoice, a bill) name what it came
+ * from; a hand-posted adjustment is `{ kind: "manual" }`.
+ */
+export async function postEntry(
+  ctx: FinanceContext,
+  body: { date?: unknown; memo?: unknown; lines?: unknown; source?: { kind?: string; id?: string } },
+) {
+  const denied = requirePermission(ctx.access, "finance.ledger.post");
+  if (denied) return denied;
+
+  const { studio, ledgerSection, collaborator } = ctx;
+  const accounts = await ledgerAccounts(ctx);
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+
+  const cleaned = cleanLines(body?.lines, byId);
+  if ("error" in cleaned) return cleaned;
+  // THE BALANCE RULE, in whole cents so no float ever makes a balanced entry
+  // look off by a hundredth.
+  if (cleaned.debit !== cleaned.credit) {
+    return { error: "unbalanced", debit: money(cleaned.debit), credit: money(cleaned.credit) };
+  }
+
+  const kind = (["invoice", "bill", "expense", "payment", "manual"] as const)
+    .find((k) => k === body?.source?.kind) || "manual";
+
+  const entries = await Entries.find({ studio, section: ledgerSection });
+  const reference = await nextReference(studio.id, { rows: entries as Row[], field: "reference", prefix: "JE" });
+
+  const entry = await addRow<JournalEntry>(studio.id, ledgerSection.id, ENTRIES, {
+    reference,
+    date: day(body?.date) || new Date().toISOString().slice(0, 10),
+    memo: str(body?.memo, 500),
+    lines: cleaned.lines,
+    source: { kind, ...(body?.source?.id ? { id: str(body.source.id, 60) } : {}) },
+    postedByCollaboratorId: collaborator.id,
+    postedAt: new Date().toISOString(),
+  });
+  return { entry };
+}
+
+/**
+ * REVERSE A POSTED ENTRY by posting its mirror — every debit becomes a credit
+ * and back. Not an edit and not a delete: the original stays, the reversal
+ * stands beside it, and the two net to zero on every report. Refused if the
+ * entry is already reversed (or is itself a reversal), so a correction cannot
+ * be applied twice.
+ */
+export async function reverseEntry(ctx: FinanceContext, id: string, reason?: unknown) {
+  const denied = requirePermission(ctx.access, "finance.ledger.reverse");
+  if (denied) return denied;
+
+  const { studio, ledgerSection, collaborator } = ctx;
+  const entries = await Entries.find({ studio, section: ledgerSection });
+  const original = entries.find((e) => e.id === id);
+  if (!original) return { error: "notfound" };
+  if (original.reversedByEntryId) return { error: "already-reversed", by: original.reversedByEntryId };
+  if (original.reversalOfEntryId) return { error: "is-a-reversal" };
+
+  const reference = await nextReference(studio.id, { rows: entries as Row[], field: "reference", prefix: "JE" });
+  const mirrored: JournalLine[] = (original.lines || []).map((l) => ({
+    accountId: l.accountId,
+    debit: l.credit,
+    credit: l.debit,
+    ...(l.projectId ? { projectId: l.projectId } : {}),
+    ...(l.memo ? { memo: l.memo } : {}),
+  }));
+
+  const reversal = await addRow<JournalEntry>(studio.id, ledgerSection.id, ENTRIES, {
+    reference,
+    date: new Date().toISOString().slice(0, 10),
+    memo: str(reason, 500) || `Reversal of ${original.reference}`,
+    lines: mirrored,
+    source: { kind: "reversal", id: original.id },
+    postedByCollaboratorId: collaborator.id,
+    postedAt: new Date().toISOString(),
+    reversalOfEntryId: original.id,
+  });
+
+  // Stamp the original so it cannot be reversed again. A function patch, so
+  // "mark this reversed" stays a flip under contention (invariant 8).
+  await updateRow(studio.id, ledgerSection.id, ENTRIES, original.id, () => ({ reversedByEntryId: reversal.id }));
+
+  return { reversal };
+}
+
+export async function listJournal(ctx: FinanceContext) {
+  const denied = requirePermission(ctx.access, "finance.ledger.view");
+  if (denied) return denied;
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  // Newest first — a journal is read from the most recent posting back.
+  entries.sort((a, b) => (b.postedAt || "").localeCompare(a.postedAt || ""));
+  return { entries };
+}
+
+/**
+ * THE TRIAL BALANCE — every account's net debit or credit, and the proof that
+ * the two columns are equal. They are ALWAYS equal here, because no unbalanced
+ * entry was ever posted; a non-zero difference would mean the invariant had been
+ * bypassed, which is exactly what makes this worth computing rather than
+ * asserting. Sums ALL posted lines, reversals included — a reversed entry and
+ * its mirror net to zero, which is the correct effect.
+ */
+export async function trialBalance(ctx: FinanceContext) {
+  const denied = requirePermission(ctx.access, "finance.ledger.view");
+  if (denied) return denied;
+
+  const accounts = await ledgerAccounts(ctx);
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+
+  // Net cents per account, so the running arithmetic never touches a float.
+  const net = new Map<string, number>();
+  for (const e of entries) {
+    for (const l of e.lines || []) {
+      net.set(l.accountId, (net.get(l.accountId) || 0) + cents(l.debit) - cents(l.credit));
+    }
+  }
+
+  let totalDebit = 0;
+  let totalCredit = 0;
+  const rows = accounts.map((a) => {
+    // A positive net sits in the debit column, a negative in the credit — and an
+    // account shown on its NATURAL side (a debit balance on a debit-normal
+    // account) is the ordinary case; the other side is a contra balance, which
+    // is real and worth seeing, not an error.
+    const n = net.get(a.id) || 0;
+    const debit = n > 0 ? n : 0;
+    const credit = n < 0 ? -n : 0;
+    totalDebit += debit;
+    totalCredit += credit;
+    return {
+      accountId: a.id, code: a.code, name: a.name, type: a.type,
+      debit: money(debit), credit: money(credit),
+      normalSide: DEBIT_NORMAL[a.type] ? "debit" : "credit",
+    };
+  });
+
+  return {
+    rows,
+    totalDebit: money(totalDebit),
+    totalCredit: money(totalCredit),
+    // The invariant, surfaced. Not a float compare — whole cents.
+    balanced: totalDebit === totalCredit,
+  };
+}

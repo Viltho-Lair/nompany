@@ -5,7 +5,7 @@
 //   1. GOLDEN RESPONSES. Every route's status and response SHAPE, recorded
 //      before the refactor starts. This is what turns "exact functional parity"
 //      from a promise into a property.
-//   2. THE PERMISSION MATRIX. Every one of the 102 keys in the catalogue,
+//   2. THE PERMISSION MATRIX. Every one of the 105 keys in the catalogue,
 //      granted alone, resolving to itself and to nothing else. This is what
 //      stops a rewrite of effectivePermissions from quietly widening access.
 //   3. HOP COUNTS. How many Redis round trips a route costs. The audit's
@@ -133,8 +133,9 @@ console.log("== the permission matrix: one key grants exactly itself");
   // the assertion tautological — the point is that adding or removing a right
   // is a visible act. 104 at the audit; 103 after quality.documents.share was
   // removed for granting nothing; 102 after quality.documents.setup went the
-  // same way, for the same reason, found by the same check.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 102, String(ALL_PERMISSIONS.length));
+  // same way, for the same reason, found by the same check; 105 when Finance 1b
+  // added finance.ledger's view, post and reverse.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 105, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -600,6 +601,26 @@ console.log("== the architecture, asserted rather than remembered");
       src.some((f) => f.text.includes("NOTIFY." + key)));
     ok("...and the known-gap list has no entry that is actually produced",
       stale.length === 0, stale.join(", "));
+  }
+
+  // ---- 8. every section is gated by an area -------------------------------
+  //
+  // A section key with no entry in SECTION_AREAS is treated as a heading with
+  // nothing to protect, so sectionViewable returns `!own` and shows it to
+  // EVERYONE — and a leaf shown to everyone drags its parent visible too. That
+  // is a tenant-visibility leak (invariant 2), and it is one line away at all
+  // times: add a sub-section to keys.ts, forget the mapping, and a no-role user
+  // sees the department. finance-ledger did exactly this for one commit; the
+  // goldens caught it, and now so does this, by name rather than by diff.
+  {
+    const { ALL_SECTION_KEYS } = await import("@/platform/db/keys");
+    const { SECTION_AREAS } = await import("@/platform/access/resolve");
+    // `main` is the studio HOME — the one section that is a heading with nothing
+    // to protect, shown to every member by design. It is the sole legitimate
+    // ungated section; anything else here is the leak above.
+    const HEADINGS = new Set(["main"]);
+    const unmapped = ALL_SECTION_KEYS.filter((k) => !SECTION_AREAS[k] && !HEADINGS.has(k));
+    ok("every section key is gated by an area mapping (bar the home)", unmapped.length === 0, unmapped.join(", "));
   }
 }
 

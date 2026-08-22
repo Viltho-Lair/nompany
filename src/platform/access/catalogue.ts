@@ -171,6 +171,13 @@ const OWN_AREAS = [
     scoped: true, extra: [{ key: "approve", label: "Approve requests" }] },
 
   { key: "finance.cash", group: "Finance", label: "Cash", verbs: ["view", "create", "edit", "delete"] },
+  // THE LEDGER HAS NO ORDINARY CRUD. An entry is posted and, if wrong, reversed;
+  // it is never edited or deleted, because it is the record of a decision (the
+  // same reasoning as a typed task). So `post` and `reverse` are `extra` powers
+  // outside the view/create/edit/delete ladder, and they are SEPARATE from each
+  // other on purpose — reversing somebody's posting is not a bigger post.
+  { key: "finance.ledger", group: "Finance", label: "Ledger", verbs: ["view"],
+    extra: [{ key: "post", label: "Post journal entries" }, { key: "reverse", label: "Reverse entries" }] },
   { key: "finance.settings", group: "Finance", label: "Settings", verbs: ["view", "edit"] },
 
   { key: "operations.tracking", group: "Operations", label: "Tracking", verbs: ["view", "create", "edit", "delete"] },

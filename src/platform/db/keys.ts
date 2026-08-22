@@ -356,6 +356,11 @@ export const SECTION_DEFS = [
   ] },
   { key: "finance", name: "Finance", children: [
     { key: "finance-cash", name: "Cash" },
+    // The general ledger: a chart of accounts and the double-entry journal. New
+    // in Wave 4's Finance 1b. finance-cash is deliberately NOT renamed — every
+    // existing invoice and expense carries its SectionID, and a rename orphans
+    // them; the ledger is a NEW section beside it, not a reshaping of it.
+    { key: "finance-ledger", name: "Ledger" },
     { key: "finance-settings", name: "Settings" },
   ] },
   { key: "operations", name: "Operations", children: [
@@ -428,6 +433,10 @@ export const SECTION_COLLECTIONS = {
   "hr-employees": ["certifications"],
   // finance
   "finance-cash": ["invoices", "expenses"],
+  // The chart of accounts and the journal. A journal entry is never edited once
+  // posted — only reversed by a mirror entry — so there is no separate
+  // "reversals" collection: a reversal is just another journalEntry.
+  "finance-ledger": ["accounts", "journalEntries"],
   // operations — Permits/Locations are tabs of the main screen, not sub-sections.
   operations: ["locations", "permits", "shifts"],
   // One last-known position per person, never a movement trail.

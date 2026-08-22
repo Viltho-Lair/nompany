@@ -58,12 +58,12 @@ const round = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
 // different function, and the scope still cannot cross a studio.
 export const financeContext = moduleContext<FinanceContext>({
   root: "finance",
-  sub: { cash: "finance-cash", settings: "finance-settings" },
+  sub: { cash: "finance-cash", ledger: "finance-ledger", settings: "finance-settings" },
   // Projects and Inventory sheets, when the studio has them. Read on the same
   // terms Sales reads Technical: what a project cost is part of the invoice's
   // own story, and a studio without those sections simply has no margin column.
   foreign: { projectsList: ["projects-list", "projects"], sheets: ["inventory-sheets", "inventory"] },
-  flags: ["cash", "settings"],
+  flags: ["cash", "ledger", "settings"],
   extend: ({ settingsSection }) => ({
     cashCategories: readCashCategories(settingsSection as { settings?: Record<string, unknown> }),
   }),

@@ -225,6 +225,41 @@ finance.assets        view create edit dispose
 raising a bill and authorising it are two acts, and invariant 7 says one person must
 not do both to one record.
 
+### 2.5 The general ledger — built (slice 1 of 1b)
+
+The GL is the heart of 1b and it is in. What landed, all backend and all
+verifiable by the one oracle a double-entry book has — the trial balance
+balances:
+
+- **`Account` + `JournalEntry`** schemas (Zod), a new `finance-ledger` section
+  beside `finance-cash` (NOT a rename — the existing rows keep their SectionID),
+  and the `finance.ledger` permission group whose powers are **view / post /
+  reverse**: no ordinary CRUD, because a posted entry is a record, corrected by
+  adding to it, never edited.
+- **A chart of accounts that seeds itself** on first read (idempotent by code) —
+  the ledger cannot post without one, so "no chart yet" is never a state a
+  caller meets.
+- **`postEntry`** enforces the two rules the schema cannot: every line is a
+  debit XOR a credit, and the debits equal the credits to the **whole cent** (no
+  float ever makes a balanced entry look off). An unbalanced entry is refused at
+  the door, so nothing downstream copes with a book that does not balance.
+- **`reverseEntry`** posts the mirror (debits and credits swapped), links both,
+  and refuses a second reversal — a correction is once-only. The original stays;
+  the two net to zero on every report.
+- **`trialBalance`** nets every account in cents and surfaces `balanced` — always
+  true, because no unbalanced entry was let in, which is the whole point.
+
+**A leak the goldens caught, now guarded twice.** Adding the section without
+mapping it in `SECTION_AREAS` made `finance-ledger` an ungated leaf, which
+`sectionViewable` shows to everyone — flipping the whole Finance parent visible
+for a no-role user (invariant 2). Fixed with the mapping, and Gate A block 8 now
+fails the build for ANY section key with no area mapping (bar the studio home),
+so the next forgotten sub-section is a named failure, not a diff.
+
+**What remains in 1b:** AP (the `Bill` record, with approve/pay and invariant 7),
+FA (the `FixedAsset` register with derived depreciation), and wiring the existing
+invoice/expense/payment writes to POST to this ledger — each its own slice.
+
 ### 2.4 The Finance dashboard — every data point
 
 Each widget carries the **analytics rung** it belongs to. A studio sees the widgets
@@ -912,7 +947,7 @@ Thirteen steps. Each one is shippable and each one ends green.
 | 11 | **The ERP documentation** (§8.6), generated where it can be | Written against screens that have stopped changing, or it is wrong on arrival — and it is Nova's corpus |
 | 11a | 🟡 **Notification producers** — Tasks (assign + approval), HR (both halves), Projects, Inventory done; RFQ/quotation (Sales↔Technical) and the time-driven crons remain | Six producers live. **See §8B** |
 | 11b | **Nova** — head, panel, and answering from the documentation (§8A) | Useful, and risks nothing. Capabilities 2 and 3 wait on the model decision |
-| 12 | **Finance 1b** — AP, GL, FA — *if approved* | Backend work; last, and separately |
+| 12 | 🟡 **Finance 1b** — GL done (chart, journal, posting, trial balance, reversal); AP (Bill) and FA (FixedAsset) remain | **GL slice landed — see §2.5** |
 | 13 | **Nova capabilities 2 and 3** — reads its studio, raises and routes requests | Writes. Last, behind a confirmation step and a model decision |
 
 Technique 6 (scrollytelling) lands with step 6, since Finance is the first

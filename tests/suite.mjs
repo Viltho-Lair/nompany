@@ -67,6 +67,7 @@ import { listSections, updateRow } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/modules/finance/finance";
+import { listAccounts, postEntry, reverseEntry, listJournal, trialBalance } from "@/modules/finance/ledger";
 import { inventoryContext, createItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation,
@@ -777,6 +778,128 @@ console.log("\n== references survive a deletion");
 
   const all = (await listInvoices(fin)).map((i) => i.reference);
   ok("every reference on file is unique", new Set(all).size === all.length, all.join(", "));
+}
+
+// ============================================================================
+console.log("\n== the ledger balances, because nothing unbalanced was let in");
+// A double-entry book is only worth keeping if the trial balance is guaranteed,
+// and it is guaranteed by refusing every entry whose debits do not equal its
+// credits AT THE DOOR — so no report downstream ever has to cope with a book
+// that does not balance. These prove the door, then prove the guarantee.
+{
+  const fin = await financeContext(owner, slug);
+
+  // The chart seeds itself on first read — the ledger cannot post without one.
+  const chart = await listAccounts(fin);
+  ok("the chart of accounts seeds itself", (chart.accounts || []).length >= 16,
+    JSON.stringify(chart.accounts?.length));
+  ok("...idempotently — a second read adds nothing",
+    (await listAccounts(fin)).accounts.length === chart.accounts.length,
+    "seeded twice");
+  const byCode = Object.fromEntries(chart.accounts.map((a) => [a.code, a.id]));
+  const AR = byCode["1100"];      // Accounts Receivable (asset)
+  const REV = byCode["4000"];     // Revenue (income)
+  const VAT = byCode["2100"];     // VAT Payable (liability)
+  const BANK = byCode["1010"];
+
+  // A balanced sale: AR 115 debit = Revenue 100 credit + VAT 15 credit.
+  const sale = await postEntry(fin, {
+    memo: "Invoice INV-1", source: { kind: "invoice", id: "inv_x" },
+    lines: [
+      { accountId: AR, debit: 115 },
+      { accountId: REV, credit: 100 },
+      { accountId: VAT, credit: 15 },
+    ],
+  });
+  ok("a balanced entry posts", !!sale.entry, JSON.stringify(sale.error ?? sale));
+  ok("...and takes a reference from the counter", /^JE-\d+$/.test(sale.entry?.reference || ""),
+    JSON.stringify(sale.entry?.reference));
+
+  // The door: debits must equal credits.
+  const bad = await postEntry(fin, {
+    lines: [{ accountId: AR, debit: 100 }, { accountId: REV, credit: 90 }],
+  });
+  ok("an unbalanced entry is refused", bad.error === "unbalanced", JSON.stringify(bad));
+
+  // The door: a line is a debit OR a credit, never both, never neither.
+  const twoSided = await postEntry(fin, {
+    lines: [{ accountId: AR, debit: 50, credit: 50 }, { accountId: REV, credit: 50 }],
+  });
+  ok("a line that is both a debit and a credit is refused", twoSided.error === "one-side", JSON.stringify(twoSided));
+  const noneSided = await postEntry(fin, {
+    lines: [{ accountId: AR, debit: 0, credit: 0 }, { accountId: REV, credit: 50 }],
+  });
+  ok("a line that is neither is refused too", noneSided.error === "one-side", JSON.stringify(noneSided));
+
+  // The door: an unknown account cannot be posted against.
+  const ghost = await postEntry(fin, {
+    lines: [{ accountId: "acc_nope", debit: 10 }, { accountId: REV, credit: 10 }],
+  });
+  ok("a posting to an unknown account is refused", ghost.error === "account", JSON.stringify(ghost));
+
+  // A second balanced entry: cash collection, Bank 115 debit = AR 115 credit.
+  await postEntry(fin, {
+    memo: "Payment", source: { kind: "payment" },
+    lines: [{ accountId: BANK, debit: 115 }, { accountId: AR, credit: 115 }],
+  });
+
+  // THE GUARANTEE: the trial balance balances.
+  const tb = await trialBalance(fin);
+  ok("the trial balance's two columns are equal", tb.balanced === true,
+    JSON.stringify({ d: tb.totalDebit, c: tb.totalCredit }));
+  ok("...and it is not trivially empty", tb.totalDebit > 0, String(tb.totalDebit));
+  // Revenue sits on its natural (credit) side with the 100 booked to it.
+  const revRow = tb.rows.find((r) => r.code === "4000");
+  ok("revenue shows a credit balance on its natural side",
+    revRow?.credit === 100 && revRow?.normalSide === "credit", JSON.stringify(revRow));
+  // AR was raised 115 then collected 115, so it nets to zero.
+  const arRow = tb.rows.find((r) => r.code === "1100");
+  ok("a raised-then-collected receivable nets to zero", arRow?.debit === 0 && arRow?.credit === 0,
+    JSON.stringify(arRow));
+
+  // REVERSAL is a mirror entry, not an edit or a delete.
+  const rev = await reverseEntry(fin, sale.entry.id, "keyed to the wrong client");
+  ok("an entry reverses into a mirror", !!rev.reversal, JSON.stringify(rev.error ?? rev));
+  ok("...whose lines swap debit and credit",
+    rev.reversal?.lines?.find((l) => l.accountId === AR)?.credit === 115,
+    JSON.stringify(rev.reversal?.lines));
+  ok("...tagged as a reversal of the original",
+    rev.reversal?.reversalOfEntryId === sale.entry.id, JSON.stringify(rev.reversal?.source));
+
+  // Reversing is a once-only correction.
+  const twice = await reverseEntry(fin, sale.entry.id, "again");
+  ok("an entry cannot be reversed twice", twice.error === "already-reversed", JSON.stringify(twice));
+  const reverseAReversal = await reverseEntry(fin, rev.reversal.id, "no");
+  ok("a reversal cannot itself be reversed", reverseAReversal.error === "is-a-reversal", JSON.stringify(reverseAReversal));
+
+  // AND THE BOOK STILL BALANCES — the reversal and its original net to zero.
+  const tb2 = await trialBalance(fin);
+  ok("the book still balances after a reversal", tb2.balanced === true,
+    JSON.stringify({ d: tb2.totalDebit, c: tb2.totalCredit }));
+  const journal = await listJournal(fin);
+  ok("the journal holds every posting, reversal included", journal.entries.length >= 3,
+    String(journal.entries.length));
+
+  // THE LEDGER IS GUARDED BY ITS SECTION, before any post/reverse right is even
+  // consulted: a role with no finance grant cannot reach it. The Viewer role
+  // grants nothing in Finance, so it is refused at the door. (Grant-isolation of
+  // finance.ledger.{view,post,reverse} themselves is the permission matrix's job
+  // in Gate A; enforcement is block 1's.) Viewer is Admin here from the People
+  // block, so it is set to Viewer for the check and handed back after, leaving
+  // the state exactly as later blocks expect it.
+  // POST and REVERSE are their OWN powers, checked before any work is done. The
+  // Viewer role grants nothing in Finance, so both refuse it — while the read
+  // surface (the summary) may still open, which is why the guard sits on the act
+  // and not on the section. Viewer is Admin here from the People block, so it is
+  // set to Viewer for the check and handed back after, leaving the state exactly
+  // as the blocks that follow expect it.
+  await updateCollaborator(studio.id, viewer.collaborator.id, { roleIds: [roleId("Viewer")] });
+  const viewerFin = await financeContext(viewer.user, slug);
+  const vPost = await postEntry(viewerFin, { lines: [{ accountId: AR, debit: 1 }, { accountId: REV, credit: 1 }] });
+  ok("a viewer cannot post to the ledger", vPost.error === "forbidden", JSON.stringify(vPost.error ?? vPost));
+  const vRev = await reverseEntry(viewerFin, sale.entry.id, "no");
+  ok("...nor reverse an entry", vRev.error === "forbidden", JSON.stringify(vRev.error ?? vRev));
+  await updateCollaborator(studio.id, viewer.collaborator.id, { roleIds: [ADMIN_ROLE_ID] });
 }
 
 // ============================================================================
