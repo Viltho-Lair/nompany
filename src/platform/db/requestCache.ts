@@ -31,10 +31,16 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
-const storage = new AsyncLocalStorage();
+// THE MAP HOLDS PROMISES OF UNKNOWN, and `unknown` is the honest element type:
+// a key's value is whatever was stored under it, and the caller who asked for it
+// is the only one who knows. `cachedRead` is generic so that knowledge survives
+// the round trip instead of being flattened to `any` at the cache boundary.
+type CacheMap = Map<string, Promise<unknown>>;
+
+const storage = new AsyncLocalStorage<CacheMap>();
 
 /** Run `fn` with a fresh per-request cache. Outside one, nothing is cached. */
-export function withRequestCache(fn) {
+export function withRequestCache<T>(fn: () => T): T {
   return storage.run(new Map(), fn);
 }
 
@@ -45,12 +51,16 @@ export function withRequestCache(fn) {
  * no store and `load()` simply runs. That is the honest behaviour: a cache with
  * no defined lifetime should not exist rather than guess at one.
  */
-export function cachedRead(key, load) {
+export function cachedRead<T>(key: string, load: () => Promise<T>): Promise<T> {
   const map = storage.getStore();
   if (!map) return load();
 
   const hit = map.get(key);
-  if (hit) return hit;
+  // The cast is the seam, and it is narrow: whatever `load` returns for a key is
+  // what was stored under it, so the only way to be wrong here is to call
+  // cachedRead twice for one key with two different loaders — which would be a
+  // bug about the key, not about the type.
+  if (hit) return hit as Promise<T>;
 
   // Stored BEFORE the await, so a second caller arriving while this is still in
   // flight joins it instead of starting another.
@@ -65,14 +75,14 @@ export function cachedRead(key, load) {
 }
 
 /** Forget these keys. Called by every write path in store.js. */
-export function invalidate(...keys) {
+export function invalidate(...keys: (string | string[] | null | undefined)[]): void {
   const map = storage.getStore();
   if (!map) return;
   for (const key of keys.flat()) if (key) map.delete(key);
 }
 
 /** How the request went, for the completion line. Null outside a request. */
-export function cacheStats() {
+export function cacheStats(): { keys: number } | null {
   const map = storage.getStore();
   return map ? { keys: map.size } : null;
 }

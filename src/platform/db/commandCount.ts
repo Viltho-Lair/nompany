@@ -25,7 +25,27 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
-const storage = new AsyncLocalStorage();
+// WHAT ONE COUNTING SCOPE HOLDS. `inFlight` is the only mutable-by-accident
+// field here and it is the one that decides whether a wave opens, so it is named
+// rather than inferred: a scope with a wrong inFlight reports plausible numbers.
+type Counter = {
+  commands: number;
+  waves: number;
+  inFlight: number;
+  names: string[];
+  keys: string[];
+};
+
+/** What a scope reports about itself. */
+export type CountReport<T> = {
+  result: T;
+  commands: number;
+  waves: number;
+  names: string[];
+  keys: string[];
+};
+
+const storage = new AsyncLocalStorage<Counter>();
 
 // Connection management and event wiring are not round trips.
 const NOT_A_COMMAND = new Set([
@@ -52,9 +72,8 @@ const NOT_A_COMMAND = new Set([
  * clean result — noticed. Hence joining: nesting now aggregates, so the inner
  * log line and the outer test see the same true number.
  *
- * @returns {Promise<{result: any, commands: number, waves: number, names: string[]}>}
  */
-export async function withCommandCount(fn) {
+export async function withCommandCount<T>(fn: () => T | Promise<T>): Promise<CountReport<T>> {
   const existing = storage.getStore();
   if (existing) {
     const before = existing.commands;
@@ -73,13 +92,13 @@ export async function withCommandCount(fn) {
     };
   }
 
-  const store = { commands: 0, waves: 0, inFlight: 0, names: [], keys: [] };
+  const store: Counter = { commands: 0, waves: 0, inFlight: 0, names: [], keys: [] };
   const result = await storage.run(store, fn);
   return { result, commands: store.commands, waves: store.waves, names: store.names, keys: store.keys };
 }
 
 /** The counter for the current scope, or null outside one. */
-export function currentCount() {
+export function currentCount(): Omit<CountReport<never>, "result"> | null {
   const store = storage.getStore();
   return store ? { commands: store.commands, waves: store.waves, names: [...store.names], keys: [...store.keys] } : null;
 }
@@ -89,7 +108,7 @@ export function currentCount() {
 // (which a request-scoped cache collapses) or seventeen different ones (which
 // only batching helps). Designing W8 without this is guessing at which of the
 // two problems you have.
-function opened(name, key) {
+function opened(name: string, key: unknown): Counter | null {
   const store = storage.getStore();
   if (!store) return null;
   store.commands += 1;
@@ -101,7 +120,7 @@ function opened(name, key) {
   return store;
 }
 
-function closed(store) {
+function closed(store: Counter | null): void {
   if (store) store.inFlight -= 1;
 }
 
@@ -112,7 +131,11 @@ function closed(store) {
  * large and version-dependent surface, and a façade would silently stop counting
  * whichever method somebody reached for next.
  */
-export function countingClient(client) {
+// GENERIC, because a Proxy hands back exactly what it wrapped. Naming
+// node-redis's client type here would mean naming its generic parameters too,
+// and those change between versions for reasons that have nothing to do with
+// counting commands — the wrapper does not care what it is wrapping.
+export function countingClient<T extends object>(client: T): T {
   return new Proxy(client, {
     get(target, prop, receiver) {
       const value = Reflect.get(target, prop, receiver);
@@ -120,7 +143,7 @@ export function countingClient(client) {
         return typeof value === "function" ? value.bind(target) : value;
       }
 
-      return function counted(...args) {
+      return function counted(...args: unknown[]) {
         const store = opened(prop, args[0]);
         let out;
         try {
@@ -137,8 +160,8 @@ export function countingClient(client) {
           return out;
         }
         return out.then(
-          (v) => { closed(store); return v; },
-          (e) => { closed(store); throw e; },
+          (v: unknown) => { closed(store); return v; },
+          (e: unknown) => { closed(store); throw e; },
         );
       };
     },

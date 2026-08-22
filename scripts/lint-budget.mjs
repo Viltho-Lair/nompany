@@ -23,7 +23,12 @@ import { execFileSync } from "node:child_process";
 // Measured 2026-08-20 after the config landed. Lower this as the backlog is
 // worked off. Raising it needs a reason in the commit message, and "the new code
 // also does this" is not one.
-const MAX_WARNINGS = 205;
+// 205 → 170 on 22/08/2026. Not a backlog that shrank: 33 of those warnings were
+// `no-unused-vars` fired at the PARAMETER NAMES IN TYPESCRIPT FUNCTION TYPES,
+// which bind nothing and exist to tell a reader what the callback receives. The
+// rule is off for .ts files now, so the count is 33 lower and the ceiling comes
+// down with it — leaving it at 205 would bank the false positives as headroom.
+const MAX_WARNINGS = 170;
 
 let report;
 try {

@@ -27,9 +27,21 @@ import { emitPlatform, PLATFORM } from "@/lib/data/events";
 import { hashToken } from "@/lib/passwords";
 import { log } from "@/lib/observability";
 
+// ---- what a cascade needs to know about the rows it reaps ------------------
+// NARROW ON PURPOSE. A cascade does not care what a collaborator or a studio IS
+// — it cares which pointers leave with it. Naming the full row types here would
+// make this module a second definition of every record it touches, and it would
+// have to change every time one of them grew a field it does not read.
+type Identified = { id: string };
+type CollaboratorRef = Identified & { userId: string; roleIds?: string[] };
+type SectionRef = Identified & { parentId?: string | null };
+type StudioRef = Identified & { name: string; slug: string; ownerUserId: string };
+type UserRef = Identified & { email: string };
+type SessionRef = { tokenHash?: string; token?: string };
+
 // ---- collaborator ----------------------------------------------------------
-export async function cascadeDeleteCollaborator(studioId, collaboratorId) {
-  const rows = await readArr(S.collaborators(studioId));
+export async function cascadeDeleteCollaborator(studioId: string, collaboratorId: string): Promise<boolean> {
+  const rows = await readArr<CollaboratorRef>(S.collaborators(studioId));
   const row = rows.find((c) => c.id === collaboratorId);
   if (!row) return false; // already gone — idempotent
 
@@ -70,19 +82,19 @@ export async function cascadeDeleteCollaborator(studioId, collaboratorId) {
 //
 // Children first, row last, so a re-run after a crash finds the row still there
 // and finishes the job.
-export async function cascadeDeleteRole(studioId, roleId) {
-  const rows = await readArr(S.roles(studioId));
+export async function cascadeDeleteRole(studioId: string, roleId: string): Promise<{ removed: boolean; stripped: number }> {
+  const rows = await readArr<Identified>(S.roles(studioId));
   const row = rows.find((r) => r.id === roleId);
 
   // Counted INSIDE the atomic write and returned as its result, not tallied by
   // a closure — editArr may re-run its callback under contention, and a counter
   // incremented from out here would double.
-  const stripped = await editArr(S.collaborators(studioId), (all) => {
+  const stripped = await editArr<CollaboratorRef, number>(S.collaborators(studioId), (all) => {
     const holders = all.filter((c) => (c.roleIds || []).includes(roleId));
     if (!holders.length) return { result: 0 };
     return {
       next: all.map((c) => ((c.roleIds || []).includes(roleId)
-        ? { ...c, roleIds: c.roleIds.filter((id) => id !== roleId) }
+        ? { ...c, roleIds: (c.roleIds || []).filter((id) => id !== roleId) }
         : c)),
       result: holders.length,
     };
@@ -97,8 +109,8 @@ export async function cascadeDeleteRole(studioId, roleId) {
 // own key prefix and its own grants, so both are reaped per id — children
 // first, then the parent, then the rows. Deleting a sub-section on its own
 // leaves the parent untouched.
-export async function cascadeDeleteSection(studioId, sectionId) {
-  const rows = await readArr(S.sections(studioId));
+export async function cascadeDeleteSection(studioId: string, sectionId: string): Promise<boolean> {
+  const rows = await readArr<SectionRef>(S.sections(studioId));
   const row = rows.find((s) => s.id === sectionId);
   const children = rows.filter((s) => s.parentId === sectionId);
   const doomed = [...children.map((c) => c.id), sectionId];
@@ -108,18 +120,18 @@ export async function cascadeDeleteSection(studioId, sectionId) {
   for (const id of doomed) await delPrefix(SEC.prefix(studioId, id));
 
   if (row) {
-    await editArr(S.sections(studioId), (all) => ({ next: all.filter((s) => !doomed.includes(s.id)) }));
+    await editArr<SectionRef, void>(S.sections(studioId), (all) => ({ next: all.filter((s) => !doomed.includes(s.id)) }));
   }
   return Boolean(row);
 }
 
 // ---- studio ----------------------------------------------------------------
-export async function cascadeDeleteStudio(studioId) {
-  const studios = await readArr(REG.studios);
+export async function cascadeDeleteStudio(studioId: string): Promise<boolean> {
+  const studios = await readArr<StudioRef>(REG.studios);
   const studio = studios.find((s) => s.id === studioId);
 
   // read children we need BEFORE the prefix is deleted
-  const collaborators = await readArr(S.collaborators(studioId));
+  const collaborators = await readArr<CollaboratorRef>(S.collaborators(studioId));
 
   // members' back-pointers. Time-limited access tokens used to be released
   // here too; nothing ever minted one, so there was nothing to release.
@@ -157,8 +169,8 @@ export async function cascadeDeleteStudio(studioId) {
 }
 
 // ---- user ------------------------------------------------------------------
-export async function cascadeDeleteUser(userId) {
-  const users = await readArr(REG.users);
+export async function cascadeDeleteUser(userId: string): Promise<boolean> {
+  const users = await readArr<UserRef>(REG.users);
   const user = users.find((u) => u.id === userId);
 
   // 1) the studio they OWN (full studio cascade — sections, data, everyone's
@@ -170,14 +182,14 @@ export async function cascadeDeleteUser(userId) {
   //    studios' lists; their business records survive per the plan)
   const collabStudioIds = await sMembers(IX.collab(userId));
   for (const sid of collabStudioIds) {
-    const rows = await readArr(S.collaborators(sid));
+    const rows = await readArr<CollaboratorRef>(S.collaborators(sid));
     const mine = rows.find((c) => c.userId === userId);
     if (mine) await cascadeDeleteCollaborator(sid, mine.id);
   }
 
   // 3) session indexes, then every u:<id>:* satellite (profile, verification
   //    code, questionnaire, session list)
-  const sessions = await readArr(U.sessions(userId));
+  const sessions = await readArr<SessionRef>(U.sessions(userId));
   // Both shapes — see sessionKeys in data/users.js. A user being deleted must
   // not leave a live session behind because its row used the older form.
   for (const s of sessions) {
@@ -247,15 +259,19 @@ export const SWEEP_SCOPES = Object.freeze({
  * nothing to reap either — so that case is allowed through and simply finds
  * nothing.
  */
-export function sweepRefusal(prefix, users, studios) {
+export function sweepRefusal(
+  prefix: string,
+  users: readonly unknown[],
+  studios: readonly unknown[],
+): string | null {
   if (prefix && !users.length && !studios.length) return "empty-registry-under-prefix";
   return null;
 }
 
 export async function sweepOrphans() {
   const fixed = { emailIndexRepaired: 0, emailIndexReaped: 0, slugIndexRepaired: 0, slugIndexReaped: 0, ownerIndexReaped: 0, userPrefixesReaped: 0, studioPrefixesReaped: 0, collabSetsCleaned: 0 };
-  const users = await readArr(REG.users);
-  const studios = await readArr(REG.studios);
+  const users = await readArr<UserRef>(REG.users);
+  const studios = await readArr<StudioRef>(REG.studios);
 
   // GUARD 2. Nothing to reconcile against means nothing may be reaped.
   const refusal = sweepRefusal(P, users, studios);
@@ -272,22 +288,28 @@ export async function sweepOrphans() {
   for (const s of studios) if (!(await getIndex(IX.slug(s.slug)))) { await claim(IX.slug(s.slug), s.id); fixed.slugIndexRepaired++; }
 
   // indexes → registries (reap stale claims)
+  //
+  // `?? ""` RATHER THAN A NULL CHECK, and it is the same decision either way: an
+  // index whose value vanished between the scan and the read points at nothing,
+  // which is precisely a stale claim, so it is reaped. Naming it "" makes that
+  // explicit — no id is the empty string — instead of leaving the compiler to
+  // ask a question the behaviour had already answered.
   for (const k of await scanPrefix(SWEEP_SCOPES.email)) {
-    const target = await getIndex(k);
+    const target = (await getIndex(k)) ?? "";
     if (!userIds.has(target)) { await delKeys(k); fixed.emailIndexReaped++; }
   }
   for (const k of await scanPrefix(SWEEP_SCOPES.slug)) {
-    const target = await getIndex(k);
+    const target = (await getIndex(k)) ?? "";
     if (!studioIds.has(target)) { await delKeys(k); fixed.slugIndexReaped++; }
   }
   for (const k of await scanPrefix(SWEEP_SCOPES.owner)) {
-    const target = await getIndex(k);
+    const target = (await getIndex(k)) ?? "";
     if (!studioIds.has(target) || !userIds.has(k.slice(SWEEP_SCOPES.owner.length))) { await delKeys(k); fixed.ownerIndexReaped++; }
   }
 
   // stranded prefixes (owner registry row is gone → subtree should be gone)
-  const strandedRoots = (keys, prefix, known) => {
-    const ids = new Set();
+  const strandedRoots = (keys: string[], prefix: string, known: ReadonlySet<string>) => {
+    const ids = new Set<string>();
     for (const k of keys) { const id = k.slice(prefix.length).split(":")[0]; if (id && !known.has(id)) ids.add(id); }
     return ids;
   };
@@ -300,7 +322,7 @@ export async function sweepOrphans() {
     if (!userIds.has(userId)) { await delKeys(k); fixed.collabSetsCleaned++; continue; }
     for (const sid of await sMembers(k)) {
       if (!studioIds.has(sid)) { await sRem(k, sid); fixed.collabSetsCleaned++; continue; }
-      const rows = await readArr(S.collaborators(sid));
+      const rows = await readArr<CollaboratorRef>(S.collaborators(sid));
       if (!rows.some((c) => c.userId === userId)) { await sRem(k, sid); fixed.collabSetsCleaned++; }
     }
   }

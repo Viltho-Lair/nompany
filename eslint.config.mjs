@@ -111,4 +111,23 @@ export default [
       "@next/next/no-assign-module-variable": "warn",
     },
   },
+
+  {
+    // A FUNCTION TYPE'S PARAMETER NAMES ARE DOCUMENTATION, NOT BINDINGS.
+    //
+    // `fn: (current: V | null) => EditOutcome<V, R>` names `current` so the
+    // reader knows what editJSON hands its callback. Nothing is bound and
+    // nothing can be used, so the base `no-unused-vars` rule — which does not
+    // know TypeScript — reports every one of them.
+    //
+    // Renaming them `_current` to satisfy it would delete the only thing they
+    // are there for, and one false positive per typed signature is how a
+    // warning count stops meaning anything. The rule stays on for real
+    // bindings; this turns it off ONLY in .ts files, where tsc's own unused
+    // checks are the ones that apply.
+    files: ["**/*.ts", "**/*.tsx"],
+    rules: {
+      "no-unused-vars": "off",
+    },
+  },
 ];

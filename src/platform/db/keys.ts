@@ -34,7 +34,7 @@ export const KEY_PREFIX =
 const P = KEY_PREFIX;
 
 // ---- identifiers -----------------------------------------------------------
-export function makeId(prefix) {
+export function makeId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 export const ID = {
@@ -53,7 +53,7 @@ export const ID = {
   qpage: () => makeId("qpg"),
   question: () => makeId("qsn"),
   chatRoom: () => makeId("cht"),
-  row: (collection) => makeId(collection.slice(0, 3)),
+  row: (collection: string) => makeId(collection.slice(0, 3)),
 };
 
 // ---- global registries -----------------------------------------------------
@@ -99,18 +99,18 @@ export const REG = {
 
 // ---- per-user keys (1:1 / 1:N satellites; die with the user) ---------------
 export const U = {
-  prefix: (userId) => `${P}u:${userId}:`,
-  profile: (userId) => `${P}u:${userId}:profile`,
-  verification: (userId) => `${P}u:${userId}:verification`,
-  questionnaire: (userId) => `${P}u:${userId}:questionnaire`,
-  sessions: (userId) => `${P}u:${userId}:sessions`,
+  prefix: (userId: string) => `${P}u:${userId}:`,
+  profile: (userId: string) => `${P}u:${userId}:profile`,
+  verification: (userId: string) => `${P}u:${userId}:verification`,
+  questionnaire: (userId: string) => `${P}u:${userId}:questionnaire`,
+  sessions: (userId: string) => `${P}u:${userId}:sessions`,
   // Trusted devices are USER data (this person's remembered browsers), so they
   // live under the user prefix and die with the user automatically.
-  devices: (userId) => `${P}u:${userId}:devices`,
+  devices: (userId: string) => `${P}u:${userId}:devices`,
   // How often THIS person has opened each studio: a hash of StudioID -> count.
   // It is a property of the person, not of any studio, so it belongs under the
   // user prefix and is reaped by the user cascade like everything else here.
-  studioVisits: (userId) => `${P}u:${userId}:studioVisits`,
+  studioVisits: (userId: string) => `${P}u:${userId}:studioVisits`,
 };
 
 // ---- OTP challenges (NOT user-scoped, deliberately) ------------------------
@@ -118,7 +118,7 @@ export const U = {
 // live under u:<UserID>:*. It is ephemeral auth state, not user data, and Redis
 // EX expires it for free (nothing to clean up, nothing to cascade).
 export const OTP = {
-  challenge: (challengeId) => `${P}otp:${challengeId}`,
+  challenge: (challengeId: string) => `${P}otp:${challengeId}`,
 };
 
 // ---- live chat rooms (ephemeral, like OTP: owned by nobody) ----------------
@@ -132,8 +132,8 @@ export const OTP = {
 //   chat:room:<RoomID>:held   the NX claim that makes "accept" first-wins
 //   chat:live                 the set of room ids currently in play
 export const CHAT = {
-  room: (roomId) => `${P}chat:room:${roomId}`,
-  held: (roomId) => `${P}chat:room:${roomId}:held`,
+  room: (roomId: string) => `${P}chat:room:${roomId}`,
+  held: (roomId: string) => `${P}chat:room:${roomId}:held`,
   live: `${P}chat:live`,
 };
 
@@ -172,7 +172,7 @@ export const FX = {
 //   idem:<sha256(identity|method|path|key)>   the recorded {status, body}, or
 //                                             an in-flight marker
 export const IDEM = {
-  record: (digest) => `${P}idem:${digest}`,
+  record: (digest: string) => `${P}idem:${digest}`,
 };
 
 // ---- uploaded files --------------------------------------------------------
@@ -185,7 +185,7 @@ export const IDEM = {
 // tracked as its own finding; the fix is to move studio-owned blobs under
 // S.media (declared below, still unused) and out of Redis entirely.
 export const MEDIA = {
-  blob: (id) => `${P}g:media:${id}`,
+  blob: (id: string) => `${P}g:media:${id}`,
 };
 
 // ---- public website traffic (owned by nobody; deliberately never expires) --
@@ -199,8 +199,8 @@ export const MEDIA = {
 // the real record. In production P is empty and the key is unchanged, so there
 // is no migration.
 export const STAT = {
-  day: (isoDate) => `${P}stat:day:${isoDate}`,
-  visitors: (isoDate) => `${P}stat:vis:${isoDate}`,
+  day: (isoDate: string) => `${P}stat:day:${isoDate}`,
+  visitors: (isoDate: string) => `${P}stat:vis:${isoDate}`,
   // Everything past the per-day field ceiling lands here rather than minting a
   // new field. A page that shows up in this bucket is either a typo or an
   // attempt to grow the hash.
@@ -213,16 +213,16 @@ export const STAT = {
 // fine here because it is only dereferenced when the builder is CALLED, by
 // which time the module is fully evaluated.
 export const RL = {
-  otpEmail: (email) => `${P}rl:otp:e:${normEmail(email)}`,
-  otpIp: (ip) => `${P}rl:otp:i:${String(ip || "unknown")}`,
+  otpEmail: (email: string) => `${P}rl:otp:e:${normEmail(email)}`,
+  otpIp: (ip: string) => `${P}rl:otp:i:${String(ip || "unknown")}`,
   // /super sign-in, per IP. The console has exactly one door and a handful of
   // legitimate attempts a day, so the window can be far tighter than the
   // subscriber-facing limits.
-  superLoginIp: (ip) => `${P}rl:super:i:${String(ip || "unknown")}`,
+  superLoginIp: (ip: string) => `${P}rl:super:i:${String(ip || "unknown")}`,
   // Public traffic ingest, per IP. The only endpoint in the product that an
   // unauthenticated caller can make WRITE, so it is the only one where "how
   // often" has to be enforced rather than assumed.
-  trackIp: (ip) => `${P}rl:track:i:${String(ip || "unknown")}`,
+  trackIp: (ip: string) => `${P}rl:track:i:${String(ip || "unknown")}`,
 
   // FAILED CREDENTIAL ATTEMPTS — password sign-in and password reset.
   //
@@ -230,28 +230,28 @@ export const RL = {
   // a single per-email limit would hand anybody a way to lock a named person
   // out of their own account just by typing that address wrong on purpose. See
   // lib/data/attempts.js for which limit catches which attack.
-  attemptPair: (ip, email) => `${P}rl:cred:p:${String(ip || "unknown")}:${normEmail(email)}`,
-  attemptIp: (ip) => `${P}rl:cred:i:${String(ip || "unknown")}`,
-  attemptEmail: (email) => `${P}rl:cred:e:${normEmail(email)}`,
+  attemptPair: (ip: string, email: string) => `${P}rl:cred:p:${String(ip || "unknown")}:${normEmail(email)}`,
+  attemptIp: (ip: string) => `${P}rl:cred:i:${String(ip || "unknown")}`,
+  attemptEmail: (email: string) => `${P}rl:cred:e:${normEmail(email)}`,
   // How many times this source has already been locked out. Outlives the
   // counters, so the lockout gets longer each time rather than resetting to
   // fifteen minutes forever.
-  attemptStrikes: (ip) => `${P}rl:cred:x:${String(ip || "unknown")}`,
+  attemptStrikes: (ip: string) => `${P}rl:cred:x:${String(ip || "unknown")}`,
 };
 
 // ---- per-studio keys (die with the studio) ---------------------------------
 export const S = {
-  prefix: (studioId) => `${P}s:${studioId}:`,
+  prefix: (studioId: string) => `${P}s:${studioId}:`,
   // How many live chats this studio has opened, by calendar month. One hash
   // under the studio prefix, so it dies with the studio and needs no cascade,
   // and one field per YYYY-MM, so last month's total survives as a record
   // rather than being reset over.
-  chatUsage: (studioId) => `${P}s:${studioId}:chatUsage`,
-  collaborators: (studioId) => `${P}s:${studioId}:collaborators`,
-  sections: (studioId) => `${P}s:${studioId}:sections`,
-  roles: (studioId) => `${P}s:${studioId}:roles`,
-  settings: (studioId) => `${P}s:${studioId}:settings`,
-  notifications: (studioId) => `${P}s:${studioId}:notifications`,
+  chatUsage: (studioId: string) => `${P}s:${studioId}:chatUsage`,
+  collaborators: (studioId: string) => `${P}s:${studioId}:collaborators`,
+  sections: (studioId: string) => `${P}s:${studioId}:sections`,
+  roles: (studioId: string) => `${P}s:${studioId}:roles`,
+  settings: (studioId: string) => `${P}s:${studioId}:settings`,
+  notifications: (studioId: string) => `${P}s:${studioId}:notifications`,
   // HOW MANY REFERENCES OF EACH KIND HAVE EVER BEEN ISSUED — a hash, one field
   // per prefix ("INV", "PO", "ACME"). It exists because "the next number" is
   // the one thing in this product that CANNOT be derived from the records:
@@ -259,7 +259,7 @@ export const S = {
   // backwards, and the next create would then reissue a number a client is
   // already holding. A tally only ever moves forward, so it cannot.
   // Under the studio prefix, so it dies with the studio like everything else.
-  counters: (studioId) => `${P}s:${studioId}:counters`,
+  counters: (studioId: string) => `${P}s:${studioId}:counters`,
   // WHO DID WHAT, AND WHEN. A Redis Stream like the event log, and for the same
   // reasons: ordered, capped, and addressable by cursor.
   //
@@ -271,31 +271,31 @@ export const S = {
   //
   // Under the studio prefix, so it cascades with the studio for free — a deleted
   // studio must not leave a record of its people behind.
-  audit: (studioId) => `${P}s:${studioId}:audit`,
+  audit: (studioId: string) => `${P}s:${studioId}:audit`,
   // The studio's EVENT LOG (a Redis Stream, not a JSON array). Ordered, capped,
   // and addressable by cursor — it is what "what changed since I last looked?"
   // reads. Under the studio prefix, so it cascades with the studio for free.
-  events: (studioId) => `${P}s:${studioId}:events`,
+  events: (studioId: string) => `${P}s:${studioId}:events`,
 };
 
 // ---- per-section keys (die with the section) -------------------------------
 export const SEC = {
-  prefix: (studioId, sectionId) => `${P}s:${studioId}:sec:${sectionId}:`,
-  col: (studioId, sectionId, name) => `${P}s:${studioId}:sec:${sectionId}:c:${name}`,
+  prefix: (studioId: string, sectionId: string) => `${P}s:${studioId}:sec:${sectionId}:`,
+  col: (studioId: string, sectionId: string, name: string) => `${P}s:${studioId}:sec:${sectionId}:c:${name}`,
 };
 
 // ---- indexes (uniqueness claims + O(1) lookups) ----------------------------
-const normEmail = (e) => String(e || "").trim().toLowerCase();
+const normEmail = (e: unknown) => String(e || "").trim().toLowerCase();
 export const IX = {
-  email: (email) => `${P}ix:email:${normEmail(email)}`,     // → UserID (uniqueness of login email)
-  slug: (slug) => `${P}ix:slug:${String(slug || "").toLowerCase()}`, // → StudioID
-  owner: (userId) => `${P}ix:owner:${userId}`,              // → StudioID (0..1 owned studio)
-  session: (token) => `${P}ix:session:${token}`,            // → UserID (EX = real expiry)
+  email: (email: string) => `${P}ix:email:${normEmail(email)}`,     // → UserID (uniqueness of login email)
+  slug: (slug: string) => `${P}ix:slug:${String(slug || "").toLowerCase()}`, // → StudioID
+  owner: (userId: string) => `${P}ix:owner:${userId}`,              // → StudioID (0..1 owned studio)
+  session: (token: string) => `${P}ix:session:${token}`,            // → UserID (EX = real expiry)
   // → SuperAdminID (EX = real expiry). Takes the DIGEST, not the token: this
   // module is imported by a client component, so it must not pull node:crypto
   // into the browser bundle. lib/superAuth.js hashes before calling.
-  superSession: (tokenHash) => `${P}ix:supersession:${tokenHash}`,
-  collab: (userId) => `${P}ix:collab:${userId}`,            // SET of StudioIDs the user collaborates in
+  superSession: (tokenHash: string) => `${P}ix:supersession:${tokenHash}`,
+  collab: (userId: string) => `${P}ix:collab:${userId}`,            // SET of StudioIDs the user collaborates in
 };
 export { normEmail };
 
@@ -439,7 +439,7 @@ export const RESERVED_SLUGS = new Set([
   "robots", "sitemap", "manifest", "icon", "favicon", "brand", "_next", "c", "q",
 ]);
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,63}$/;
-export function isValidSlug(slug) {
+export function isValidSlug(slug: unknown): boolean {
   const s = String(slug || "");
   return SLUG_RE.test(s) && !RESERVED_SLUGS.has(s);
 }

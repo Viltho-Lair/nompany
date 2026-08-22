@@ -21,6 +21,7 @@
   },
   "include": [
     "src/shared/**/*",
-    "src/platform/access/**/*"
+    "src/platform/access/**/*",
+    "src/platform/db/**/*"
   ]
 }

@@ -1,5 +1,13 @@
-// Thin Redis access layer for the restructured model. Every repository in
-// src/lib/data goes through these helpers; nothing else touches Redis directly.
+// Thin Redis access layer for the restructured model. Every repository goes
+// through these helpers; nothing else touches Redis directly.
+//
+// WHY THE VALUES ARE `unknown` AND NOT `any`. What a key holds is decided by the
+// repository that wrote it, and this layer has no way to know. `any` would let
+// that ignorance travel: every caller would silently receive a value it could
+// dereference however it liked, and the strictness this folder just gained would
+// stop at the first `getJSON`. `unknown` makes the caller say what it expects,
+// which is where the knowledge actually is — so the generic parameter on each
+// read is the honest form, defaulting to `unknown` for callers that do not care.
 //
 // Design notes:
 //  • JSON documents/arrays are plain string keys (JSON.stringify), matching the
@@ -19,22 +27,25 @@ import { log } from "@/lib/observability";
 
 const r = () => getRedisClient();
 
+/** A row in a collection. Repositories narrow this; the store never does. */
+export type Row = Record<string, unknown>;
+
 // ---- JSON documents --------------------------------------------------------
-export async function getJSON(key) {
+export async function getJSON<T = unknown>(key: string): Promise<T | null> {
   // THE ONE READ FUNNEL, so this is the one place the request cache attaches.
   // editJSON deliberately does NOT come through here — see requestCache.js.
-  return cachedRead(key, async () => {
+  return cachedRead<T | null>(key, async () => {
     const raw = await (await r()).get(key);
-    return raw == null ? null : JSON.parse(raw);
+    return raw == null ? null : (JSON.parse(raw) as T);
   });
 }
-export async function setJSON(key, value) {
+export async function setJSON(key: string, value: unknown): Promise<void> {
   await (await r()).set(key, JSON.stringify(value));
   invalidate(key);
 }
 // Self-expiring JSON document (OTP challenges). Raw SET ... EX via sendCommand
 // for the same reason claim() uses it: immunity to node-redis option-API drift.
-export async function setJSONEx(key, value, ttlSec) {
+export async function setJSONEx(key: string, value: unknown, ttlSec: number): Promise<void> {
   await (await r()).sendCommand(["SET", key, JSON.stringify(value), "EX", String(ttlSec)]);
   invalidate(key);
 }
@@ -43,18 +54,18 @@ export async function setJSONEx(key, value, ttlSec) {
 // wrong for anything whose TTL means "idle for this long" — a live chat room
 // has to start counting again on every message. Returns false when the key is
 // already gone, which is how a caller learns its TTL elapsed mid-write.
-export async function touchTTL(key, ttlSec) {
+export async function touchTTL(key: string, ttlSec: number): Promise<boolean> {
   return (await (await r()).expire(key, ttlSec)) === 1;
 }
 // Atomic single-use consume: returns true only for the caller that removed it,
 // so two parallel verifications of the same code can never both succeed.
-export async function consume(key) {
+export async function consume(key: string): Promise<boolean> {
   invalidate(key);
   return (await (await r()).del(key)) === 1;
 }
 // Fixed-window counter: INCR, and set the window on first hit. Returns the
 // running count so callers can compare against their limit.
-export async function incrWithTTL(key, ttlSec) {
+export async function incrWithTTL(key: string, ttlSec: number): Promise<number> {
   const client = await r();
   const n = await client.incr(key);
   if (n === 1) await client.expire(key, ttlSec);
@@ -63,27 +74,27 @@ export async function incrWithTTL(key, ttlSec) {
 // Seconds left on a key: -1 when it has no expiry, -2 when it is gone. A
 // lockout is only useful if the caller can say HOW LONG for, and the TTL Redis
 // is already holding is that answer — there is nothing to store separately.
-export async function ttlOf(key) {
+export async function ttlOf(key: string): Promise<number> {
   return (await r()).ttl(key);
 }
 // LENGTHEN an existing window without restarting the count. `incrWithTTL` sets
 // the expiry on the first hit only, which is right for a fixed window and wrong
 // for an escalating lockout: tripping a limit has to be able to push the
 // release further out while leaving the tally where it is.
-export async function extendTTL(key, ttlSec) {
+export async function extendTTL(key: string, ttlSec: number): Promise<boolean> {
   const client = await r();
   const current = await client.ttl(key);
   if (current === -2) return false;              // gone; nothing to extend
   if (current >= ttlSec) return false;           // already locked for longer
   return (await client.expire(key, ttlSec)) === 1;
 }
-export async function readArr(key) {
-  return (await getJSON(key)) || [];
+export async function readArr<T = Row>(key: string): Promise<T[]> {
+  return (await getJSON<T[]>(key)) || [];
 }
-export async function writeArr(key, rows) {
+export async function writeArr(key: string, rows: readonly unknown[]): Promise<void> {
   await setJSON(key, rows);
 }
-export async function delKeys(...keys) {
+export async function delKeys(...keys: (string | string[])[]): Promise<number> {
   const flat = keys.flat().filter(Boolean);
   if (!flat.length) return 0;
   const client = await r();
@@ -137,9 +148,9 @@ const CAS_SHA = createHash("sha1").update(CAS_LUA).digest("hex");
 // The tag for "this is what the key held". A missing key tags as "" so that
 // create-if-absent is expressible: if someone else creates it first, our write
 // is refused and we retry against their value.
-const tagOf = (raw) => (raw == null ? "" : createHash("sha1").update(raw).digest("hex"));
+const tagOf = (raw: string | null) => (raw == null ? "" : createHash("sha1").update(raw).digest("hex"));
 
-async function getRaw(key) {
+async function getRaw(key: string): Promise<string | null> {
   return (await r()).get(key);
 }
 
@@ -149,17 +160,17 @@ async function getRaw(key) {
 // Returns { ok, actual } — `actual` being the value the key really held at the
 // instant the write was refused (null when absent), which the caller re-applies
 // against instead of issuing a fresh read.
-async function cas(key, prevRaw, nextRaw, keepTTL) {
+async function cas(key: string, prevRaw: string | null, nextRaw: string, keepTTL: boolean) {
   const client = await r();
   const args = ["1", key, tagOf(prevRaw), nextRaw, keepTTL ? "1" : "0"];
   let reply;
   try {
     reply = await client.sendCommand(["EVALSHA", CAS_SHA, ...args]);
   } catch (e) {
-    if (!/NOSCRIPT/i.test(e?.message || "")) throw e;
+    if (!/NOSCRIPT/i.test((e as Error)?.message || "")) throw e;
     reply = await client.sendCommand(["EVAL", CAS_LUA, ...args]);
   }
-  const [ok, actual] = reply;
+  const [ok, actual] = reply as unknown as [unknown, string];
   return { ok: Number(ok) === 1, actual: actual === "" ? null : actual };
 }
 
@@ -167,13 +178,16 @@ async function cas(key, prevRaw, nextRaw, keepTTL) {
 // should answer 409 — "someone else changed this, try again" — rather than
 // pretend the write landed.
 export class ConflictError extends Error {
-  constructor(key) {
+  readonly key: string;
+
+  constructor(key: string) {
     super(`write conflict on ${key}`);
     this.name = "ConflictError";
     this.key = key;
   }
 }
-export const isConflict = (e) => e?.name === "ConflictError";
+export const isConflict = (e: unknown): e is ConflictError =>
+  (e as { name?: string })?.name === "ConflictError";
 
 // Every contended round has exactly ONE winner, so N writers piling onto one key
 // need up to N rounds to all get through. This is a queue draining, not a
@@ -190,10 +204,28 @@ const RETRY_JITTER_MS = 15;
 //   { next, result }  write `next`, then return `result` to the caller
 //   { result }        decide not to write at all (a rejected update, a no-op)
 // fn may run more than once, so it must be a pure function of what it is given.
-export async function editJSON(key, fn, { keepTTL = false } = {}) {
+/**
+ * What `fn` may hand back: a write, or a decision not to write.
+ *
+ * TWO SHAPES, NOT ONE OPTIONAL FIELD. `{ result }` and `{ next, ... }` are
+ * different answers — "I looked and there is nothing to do" versus "write this"
+ * — and a single optional `next` would make `next: undefined` mean the first,
+ * which is exactly the confusion `"next" in outcome` was written to avoid.
+ *
+ * `result` IS OPTIONAL ON THE WRITE, because plenty of writes have nothing to
+ * hand back: a cascade deleting rows says `{ next }` and means it. Those
+ * callers leave R as void, and `undefined` is the honest value for them.
+ */
+export type EditOutcome<V, R> = { result: R } | { next: V; result?: R };
+
+export async function editJSON<V = unknown, R = unknown>(
+  key: string,
+  fn: (current: V | null) => EditOutcome<V, R> | Promise<EditOutcome<V, R>>,
+  { keepTTL = false }: { keepTTL?: boolean } = {},
+): Promise<R> {
   let raw = await getRaw(key);                 // the only unconditional read
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const outcome = (await fn(raw == null ? null : JSON.parse(raw))) || {};
+    const outcome = (await fn(raw == null ? null : (JSON.parse(raw) as V))) || ({} as EditOutcome<V, R>);
     if (!("next" in outcome)) return outcome.result;
 
     const { ok, actual } = await cas(key, raw, JSON.stringify(outcome.next), keepTTL);
@@ -203,7 +235,7 @@ export async function editJSON(key, fn, { keepTTL = false } = {}) {
       // compare-and-set must see the value as it actually stands, never a
       // remembered one.
       invalidate(key);
-      return outcome.result;
+      return outcome.result as R;
     }
 
     // Refused. The script already told us what is there now, so re-apply
@@ -219,13 +251,17 @@ export async function editJSON(key, fn, { keepTTL = false } = {}) {
 }
 
 // The array flavour: an absent key reads as [], matching readArr().
-export async function editArr(key, fn, opts) {
-  return editJSON(key, (cur) => fn(Array.isArray(cur) ? cur : []), opts);
+export async function editArr<T = Row, R = unknown>(
+  key: string,
+  fn: (rows: T[]) => EditOutcome<T[], R> | Promise<EditOutcome<T[], R>>,
+  opts?: { keepTTL?: boolean },
+): Promise<R> {
+  return editJSON<T[], R>(key, (cur) => fn(Array.isArray(cur) ? cur : []), opts);
 }
 
 // ---- uniqueness claims / TTL indexes ---------------------------------------
 // claim(key, value[, ttlSec]) → true if WE claimed it (SET NX), false if taken.
-export async function claim(key, value, ttlSec) {
+export async function claim(key: string, value: string, ttlSec?: number): Promise<boolean> {
   const args = ["SET", key, String(value), "NX"];
   if (ttlSec) args.push("EX", String(ttlSec));
   const res = await (await r()).sendCommand(args);
@@ -234,38 +270,38 @@ export async function claim(key, value, ttlSec) {
   // invalidating anyway costs a Map.delete and removes the need to be right
   // about which case this was.
   invalidate(key);
-  return res === "OK";
+  return (res as unknown) === "OK";
 }
 // CACHED LIKE getJSON, and for a sharper reason. An index read is the FIRST half
 // of every "resolve a name to an id" pair — ix:slug, ix:session, ix:owner — so
 // it is exactly the read a prefetch is trying to get out of the critical path.
 // Leaving it uncached made the studio prefetch cost an extra command rather than
 // saving a wave: the value was fetched twice, once to warm and once for real.
-export async function getIndex(key) {
+export async function getIndex(key: string): Promise<string | null> {
   return cachedRead(key, async () => (await r()).get(key));
 }
-export async function release(key) {
+export async function release(key: string): Promise<void> {
   invalidate(key);
   await (await r()).del(key);
 }
 
 // ---- sets (used for ix:collab:<UserID>) ------------------------------------
-export async function sAdd(key, member) {
+export async function sAdd(key: string, member: string): Promise<void> {
   await (await r()).sAdd(key, String(member));
   invalidate(key);
 }
-export async function sRem(key, member) {
+export async function sRem(key: string, member: string): Promise<void> {
   await (await r()).sRem(key, String(member));
   invalidate(key);
 }
-export async function sMembers(key) {
+export async function sMembers(key: string): Promise<string[]> {
   return (await r()).sMembers(key);
 }
 
 // ---- counters ---------------------------------------------------------------
 // A hash of tallies. HINCRBY is atomic server-side, so two tabs bumping the same
 // counter cannot lose a write the way a read-modify-write on JSON would.
-export async function hIncrBy(key, field, by = 1) {
+export async function hIncrBy(key: string, field: string, by = 1): Promise<number> {
   return (await r()).hIncrBy(key, String(field), by);
 }
 // THE NEXT NUMBER IN A SEQUENCE THAT NEVER GOES BACKWARDS.
@@ -290,13 +326,13 @@ return cur
 `;
 const BUMP_SHA = createHash("sha1").update(BUMP_LUA).digest("hex");
 
-export async function bumpCounter(key, field, floor = 0) {
+export async function bumpCounter(key: string, field: string, floor = 0): Promise<number> {
   const client = await r();
   const args = ["1", key, String(field), String(Math.max(0, Math.floor(Number(floor) || 0)))];
   try {
     return Number(await client.sendCommand(["EVALSHA", BUMP_SHA, ...args]));
   } catch (e) {
-    if (!/NOSCRIPT/i.test(e?.message || "")) throw e;
+    if (!/NOSCRIPT/i.test((e as Error)?.message || "")) throw e;
     return Number(await client.sendCommand(["EVAL", BUMP_LUA, ...args]));
   }
 }
@@ -327,13 +363,17 @@ return redis.call('HINCRBY', KEYS[1], field, 1)
 `;
 const HINCR_BOUNDED_SHA = createHash("sha1").update(HINCR_BOUNDED_LUA).digest("hex");
 
-export async function hIncrBounded(key, field, { max, overflow }) {
+export async function hIncrBounded(
+  key: string,
+  field: string,
+  { max, overflow }: { max: number; overflow: string },
+): Promise<number> {
   const client = await r();
   const args = ["1", key, String(field), String(max), String(overflow)];
   try {
     return Number(await client.sendCommand(["EVALSHA", HINCR_BOUNDED_SHA, ...args]));
   } catch (e) {
-    if (!/NOSCRIPT/i.test(e?.message || "")) throw e;
+    if (!/NOSCRIPT/i.test((e as Error)?.message || "")) throw e;
     return Number(await client.sendCommand(["EVAL", HINCR_BOUNDED_LUA, ...args]));
   }
 }
@@ -344,17 +384,17 @@ export async function hIncrBounded(key, field, { max, overflow }) {
 // less while the count is low. A SET answers it exactly and grows without
 // bound, which for a value nobody needs to the unit is the wrong trade twice
 // over: it is the expensive answer AND the one an anonymous caller can inflate.
-export async function pfAdd(key, member) {
+export async function pfAdd(key: string, member: string): Promise<number> {
   return (await r()).pfAdd(key, String(member));
 }
-export async function pfCount(key) {
+export async function pfCount(key: string): Promise<number> {
   return (await r()).pfCount(key);
 }
 
-export async function hGetAll(key) {
+export async function hGetAll(key: string): Promise<Record<string, string>> {
   return (await r()).hGetAll(key);
 }
-export async function hDel(key, ...fields) {
+export async function hDel(key: string, ...fields: string[]): Promise<number> {
   if (!fields.length) return 0;
   return (await r()).hDel(key, fields.map(String));
 }
@@ -366,7 +406,7 @@ export async function hDel(key, ...fields) {
 
 // MAXLEN ~ n trims approximately (to whole nodes), which is far cheaper than
 // exact trimming and keeps the log bounded without a sweeper.
-export async function xAdd(key, fields, maxLen) {
+export async function xAdd(key: string, fields: Record<string, unknown>, maxLen?: number): Promise<unknown> {
   const argv = ["XADD", key];
   if (maxLen) argv.push("MAXLEN", "~", String(maxLen));
   argv.push("*");
@@ -377,11 +417,16 @@ export async function xAdd(key, fields, maxLen) {
 // Entries strictly AFTER `cursor`, oldest first. The leading "(" is Redis's
 // exclusive-range marker, so the caller never re-receives the entry it already
 // has. An empty cursor reads from the very start of the (already trimmed) log.
-export async function xAfter(key, cursor, count) {
+/** One stream entry: its id, plus whatever fields were written into it. */
+export type StreamEntry = { id: string } & Record<string, string>;
+
+export async function xAfter(key: string, cursor: string, count: number): Promise<StreamEntry[]> {
   const start = cursor ? `(${cursor}` : "-";
+  // XRANGE replies as [[id, [field, value, field, value, ...]], ...] — the flat
+  // field list is the wire format, and unflattening it is this function's job.
   const reply = await (await r()).sendCommand(["XRANGE", key, start, "+", "COUNT", String(count)]);
-  return (reply || []).map(([id, flat]) => {
-    const fields = {};
+  return ((reply || []) as unknown as [string, string[]][]).map(([id, flat]) => {
+    const fields: Record<string, string> = {};
     for (let i = 0; i < flat.length; i += 2) fields[flat[i]] = flat[i + 1];
     return { id, ...fields };
   });
@@ -389,8 +434,9 @@ export async function xAfter(key, cursor, count) {
 
 // The newest id, or "0-0" for an empty log — what a fresh client adopts so it
 // starts from "now" instead of replaying history it never needed.
-export async function xLastId(key) {
-  const reply = await (await r()).sendCommand(["XREVRANGE", key, "+", "-", "COUNT", "1"]);
+export async function xLastId(key: string): Promise<string> {
+  const reply = (await (await r()).sendCommand(["XREVRANGE", key, "+", "-", "COUNT", "1"])) as unknown as
+    [string, string[]][] | null;
   return reply?.[0]?.[0] || "0-0";
 }
 
@@ -412,7 +458,7 @@ export async function xLastId(key) {
 // over it would turn a warning into an outage.
 export async function memoryPolicy() {
   const raw = await (await r()).info("memory");
-  const field = (k) => (raw.split(/\r?\n/).find((l) => l.startsWith(`${k}:`)) || "").split(":")[1]?.trim() || "";
+  const field = (k: string) => (raw.split(/\r?\n/).find((l) => l.startsWith(`${k}:`)) || "").split(":")[1]?.trim() || "";
   const policy = field("maxmemory_policy");
   return {
     policy,
@@ -425,15 +471,15 @@ export async function memoryPolicy() {
 }
 
 // ---- prefix scan / delete (THE cascade primitive) --------------------------
-export async function scanPrefix(prefix) {
+export async function scanPrefix(prefix: string): Promise<string[]> {
   const client = await r();
-  const keys = [];
+  const keys: string[] = [];
   for await (const batch of client.scanIterator({ MATCH: `${prefix}*`, COUNT: 500 })) {
     keys.push(...(Array.isArray(batch) ? batch : [batch]));
   }
   return keys;
 }
-export async function delPrefix(prefix) {
+export async function delPrefix(prefix: string): Promise<number> {
   const keys = await scanPrefix(prefix);
   return delKeys(keys);
 }
