@@ -1,4 +1,44 @@
-import { ALL_PERMISSIONS, isPermission, AREAS, keysForLevel } from "./catalogue";
+import { ALL_PERMISSIONS, isPermission } from "./catalogue";
+import type { PermissionKey, Scope } from "./catalogue";
+
+// THE THREE ROWS THIS MODULE READS, described by what it needs from them rather
+// than by what they are. A collaborator row carries a dozen fields; access cares
+// about four, and saying so keeps this module from becoming a second definition
+// of the collaborator record that is free to drift from the real one. The row
+// types themselves arrive with platform/db.
+//
+// STRINGS, NOT PermissionKey, on the stored lists. These come out of Redis,
+// written by a request that could have said anything — which is why every read
+// of them below goes through isPermission rather than trusting the field. A
+// role whose `permissions` were typed as the union would be a promise the
+// database cannot keep.
+export type Collaborator = {
+  readonly role?: string;
+  readonly alias?: string;
+  readonly roleIds?: readonly string[];
+  readonly overrides?: { readonly allow?: readonly string[]; readonly deny?: readonly string[] };
+};
+
+export type Role = {
+  readonly id: string;
+  readonly name?: string;
+  readonly wildcard?: boolean;
+  readonly permissions?: readonly string[];
+  readonly scopes?: Readonly<Record<string, Scope>>;
+};
+
+// What resolution hands back, and what every guard takes. Readonly because
+// nothing downstream may add to somebody's access after the fact — that is the
+// whole of invariant 3, expressed in a way the compiler can hold.
+export type PermissionSet = ReadonlySet<PermissionKey>;
+
+// The question every one of these functions is asked about: who, in which
+// studio, holding which roles.
+export type Subject = {
+  readonly studio?: unknown;
+  readonly collaborator?: Collaborator | null;
+  readonly roles?: readonly Role[];
+};
 
 // THE ONE PLACE THAT ANSWERS "MAY THIS PERSON DO THIS".
 //
@@ -14,10 +54,10 @@ import { ALL_PERMISSIONS, isPermission, AREAS, keysForLevel } from "./catalogue"
 
 // Section key -> the area(s) behind it. The nav asks about SECTIONS and the
 // model holds AREAS, so this is the one place that maps between them.
-export const SECTION_AREAS = {
+export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // THE PARENTS THAT ARE NOT ONLY HEADINGS. Each of these renders a dashboard of
   // its own, so each has a right of its own — see DASHBOARD_AREAS in
-  // lib/permissions.js. They still have children, and both answers matter:
+  // platform/access/catalogue.ts. They still have children, and both answers matter:
   // sectionViewable below asks the parent's own area FIRST and falls through to
   // the children, so withholding the dashboard hides the summary without making
   // the ticket screen underneath it unreachable.
@@ -65,12 +105,12 @@ export const SECTION_AREAS = {
 // Roles and personal overrides, and nothing else. There is no fallback: a
 // person with no role can do nothing, which is the default-deny the old model
 // claimed and never quite managed.
-export function effectivePermissions({ studio, collaborator, roles = [] }) {
+export function effectivePermissions({ collaborator, roles = [] }: Subject): PermissionSet {
   // The owner is not permissioned. They own the studio, and a studio that can
   // lock out its own owner is a support ticket that cannot be answered.
   if (collaborator?.role === "owner") return new Set(ALL_PERMISSIONS);
 
-  const held = new Set();
+  const held = new Set<PermissionKey>();
   const assigned = Array.isArray(collaborator?.roleIds) ? collaborator.roleIds : [];
   const mine = (roles || []).filter((r) => assigned.includes(r.id));
 
@@ -84,18 +124,21 @@ export function effectivePermissions({ studio, collaborator, roles = [] }) {
   // is applied after allow so an exception can genuinely take something away.
   const ov = collaborator?.overrides || {};
   for (const k of ov.allow || []) if (isPermission(k)) held.add(k);
-  for (const k of ov.deny || []) held.delete(k);
+  // The guard on the deny side is the type asking a question worth answering:
+  // deleting a key the catalogue does not have was always a no-op, so nothing
+  // changes, and the set stays a set of permissions rather than of strings.
+  for (const k of ov.deny || []) if (isPermission(k)) held.delete(k);
 
   return held;
 }
 
 // The scope for an area: the widest any assigned role gives. Absent means the
 // area is not scoped, or nothing granted one — callers treat that as "own".
-export function scopeFor({ collaborator, roles = [] }, areaKey) {
+export function scopeFor({ collaborator, roles = [] }: Subject, areaKey: string): Scope {
   if (collaborator?.role === "owner") return "all";
   const assigned = Array.isArray(collaborator?.roleIds) ? collaborator.roleIds : [];
-  const order = { own: 0, department: 1, all: 2 };
-  let best = null;
+  const order: Record<Scope, number> = { own: 0, department: 1, all: 2 };
+  let best: Scope | null = null;
   for (const r of (roles || []).filter((x) => assigned.includes(x.id))) {
     if (r.wildcard) return "all";
     const s = r.scopes?.[areaKey];
@@ -107,7 +150,8 @@ export function scopeFor({ collaborator, roles = [] }, areaKey) {
 // ---- enforcement -----------------------------------------------------------
 
 // The read side. Cheap, so screens can ask it per button.
-export const can = (access, key) => Boolean(access?.has?.(key));
+export const can = (access: PermissionSet | null | undefined, key: PermissionKey): boolean =>
+  Boolean(access?.has?.(key));
 
 // The WRITE side, and the reason this module exists. Every mutation calls this
 // before it touches anything, so "who may do this" is answered in one place
@@ -115,7 +159,16 @@ export const can = (access, key) => Boolean(access?.has?.(key));
 //
 // Returns a plain error rather than throwing: every caller here already returns
 // { error } shapes, and an exception would need a try/catch around each one.
-export function requirePermission(access, key) {
+export function requirePermission(
+  access: PermissionSet | null | undefined,
+  key: PermissionKey,
+): { error: string; key: string } | null {
+  // THE RUNTIME CHECK STAYS, and is not made dead by the parameter type. Every
+  // caller today is JavaScript, which this signature does not grade at all, and
+  // the ones that will be TypeScript still pass keys that came off a request.
+  // It becomes redundant on the day the last caller is typed — and on that day
+  // it will be a line that has never once fired, which is a different argument
+  // from this one.
   if (!isPermission(key)) return { error: "unknown-permission", key };
   if (!can(access, key)) return { error: "forbidden", key };
   return null;
@@ -126,8 +179,9 @@ export function requirePermission(access, key) {
 // that bridges the two, so the sidebar and the guards cannot drift apart —
 // so the sidebar and the guards cannot drift apart.
 
-const anyKey = (access, sectionKey, suffixes) =>
-  (SECTION_AREAS[sectionKey] || []).some((area) => suffixes.some((v) => access.has(`${area}.${v}`)));
+const anyKey = (access: PermissionSet, sectionKey: string, suffixes: readonly string[]) =>
+  (SECTION_AREAS[sectionKey] || []).some((area) =>
+    suffixes.some((v) => access.has(`${area}.${v}` as PermissionKey)));
 
 // A section is worth showing if the person may see anything in it.
 //
@@ -145,7 +199,7 @@ const anyKey = (access, sectionKey, suffixes) =>
 // every ticket screen behind the dashboard right; asking only the children would
 // make the dashboard right unwithholdable, since anybody who may see a child
 // would see the summary of all of them.
-export function sectionViewable(access, sectionKey, allKeys = []) {
+export function sectionViewable(access: PermissionSet, sectionKey: string, allKeys: readonly string[] = []): boolean {
   const own = SECTION_AREAS[sectionKey];
   if (own && anyKey(access, sectionKey, ["view"])) return true;
   const children = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
@@ -158,7 +212,7 @@ export function sectionViewable(access, sectionKey, allKeys = []) {
 // A section's screens are editable if the person holds ANY write on its areas.
 // Deliberately coarse: this only decides whether buttons are offered. What each
 // button actually does is guarded by its own key at the point of doing it.
-export function sectionManageable(access, sectionKey, allKeys = []) {
+export function sectionManageable(access: PermissionSet, sectionKey: string, allKeys: readonly string[] = []): boolean {
   const own = SECTION_AREAS[sectionKey];
   if (own && anyKey(access, sectionKey, ["create", "edit", "delete"])) return true;
   // A HEADING has no writes of its own — "sales" is a nav parent, not a right.
@@ -178,9 +232,12 @@ export function sectionManageable(access, sectionKey, allKeys = []) {
 // underneath it. Asked by each module's context so every screen answers the
 // question the same way, and answers `true` for a section that has no dashboard
 // right declared, so nothing that never had one starts refusing.
-export function dashboardViewable(access, sectionKey) {
-  const key = `${sectionKey}.dashboard`;
-  return isPermission(`${key}.view`) ? can(access, `${key}.view`) : true;
+export function dashboardViewable(access: PermissionSet, sectionKey: string): boolean {
+  const key = `${sectionKey}.dashboard.view`;
+  // The guard narrows the string to the union, which is exactly the border this
+  // function sits on: `sectionKey` is a nav id, and only some nav ids name a
+  // dashboard right.
+  return isPermission(key) ? can(access, key) : true;
 }
 
 // ---- assigning access to somebody ------------------------------------------
@@ -188,16 +245,26 @@ export function dashboardViewable(access, sectionKey) {
 // What a collaborator row may carry about access, cleaned. updateCollaborator
 // spreads whatever it is handed, so without this an unknown key or a made-up
 // role id would be stored verbatim and read back as real.
-export function cleanAssignment(patch, knownRoleIds = []) {
-  const out = {};
-  if (patch?.roleIds !== undefined) {
+export type Assignment = {
+  roleIds?: string[];
+  overrides?: { allow: PermissionKey[]; deny: PermissionKey[] };
+};
+
+// `patch` is `unknown` because it is a request body. Anything narrower would be
+// a claim about data nobody has checked yet, which is the claim this function
+// exists to stop being made.
+export function cleanAssignment(patch: unknown, knownRoleIds: readonly string[] = []): Assignment {
+  const p = (patch || {}) as { roleIds?: unknown; overrides?: { allow?: unknown; deny?: unknown } };
+  const out: Assignment = {};
+  if (p.roleIds !== undefined) {
     const known = new Set(knownRoleIds);
-    out.roleIds = [...new Set((Array.isArray(patch.roleIds) ? patch.roleIds : []).map(String))]
+    out.roleIds = [...new Set((Array.isArray(p.roleIds) ? p.roleIds : []).map(String))]
       .filter((id) => known.has(id)).slice(0, 10);
   }
-  if (patch?.overrides !== undefined) {
-    const ov = patch.overrides || {};
-    const keys = (list) => [...new Set((Array.isArray(list) ? list : []).map(String).filter(isPermission))].slice(0, 60);
+  if (p.overrides !== undefined) {
+    const ov = p.overrides || {};
+    const keys = (list: unknown): PermissionKey[] =>
+      [...new Set((Array.isArray(list) ? list : []).map(String).filter(isPermission))].slice(0, 60);
     out.overrides = { allow: keys(ov.allow), deny: keys(ov.deny) };
   }
   return out;
@@ -212,14 +279,18 @@ export function cleanAssignment(patch, knownRoleIds = []) {
 // than just the people.members.edit guard on the route.
 //
 // An owner or Admin holds everything, so this never obstructs them.
-export function escalates(actorAccess, assignment, roles = []) {
-  const granting = new Set(assignment?.overrides?.allow || []);
+export function escalates(
+  actorAccess: PermissionSet | null | undefined,
+  assignment: Assignment | null | undefined,
+  roles: readonly Role[] = [],
+): { error: string; keys: string[] } | null {
+  const granting = new Set<PermissionKey>(assignment?.overrides?.allow || []);
   for (const id of assignment?.roleIds || []) {
     const role = roles.find((r) => r.id === id);
     if (!role) continue;
     // Handing somebody the wildcard is handing them everything.
     if (role.wildcard) { for (const k of ALL_PERMISSIONS) granting.add(k); continue; }
-    for (const k of role.permissions || []) granting.add(k);
+    for (const k of role.permissions || []) if (isPermission(k)) granting.add(k);
   }
   const beyond = [...granting].filter((k) => !actorAccess?.has?.(k));
   return beyond.length ? { error: "escalation", keys: beyond.slice(0, 5) } : null;
@@ -234,7 +305,13 @@ export function escalates(actorAccess, assignment, roles = []) {
 // Cheap only because resolution is one function: this re-runs the same steps
 // and reports which one settled it, rather than reimplementing the rules and
 // risking an explanation that disagrees with the enforcement.
-export function explain({ collaborator, roles = [] }, key) {
+export type Explanation = { allowed: boolean; reason: string };
+
+// TAKES A STRING, deliberately, where everything else takes a PermissionKey.
+// "Why can't Sara do X?" is asked about whatever somebody typed, and answering
+// "that is not a permission this product has" is one of the useful answers —
+// a signature that made the question unaskable would delete it.
+export function explain({ collaborator, roles = [] }: Subject, key: string): Explanation {
   const who = collaborator?.alias || "They";
   if (!isPermission(key)) return { allowed: false, reason: `${key} is not a permission this product has.` };
 

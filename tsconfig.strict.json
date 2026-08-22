@@ -20,6 +20,7 @@
     "incremental": false
   },
   "include": [
-    "src/shared/**/*"
+    "src/shared/**/*",
+    "src/platform/access/**/*"
   ]
 }

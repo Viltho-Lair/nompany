@@ -32,7 +32,7 @@ const announce = (studioId) => emit(studioId, { type: TYPE.grantsChanged, scope:
 // admins each time a feature ships. Every other role is an explicit list, which
 // is why a new permission reaches nobody until somebody says so.
 //
-// Defined in lib/permissions.js and re-exported here, so server code can keep
+// Defined in platform/access/catalogue.ts and re-exported here, so server code can keep
 // importing it from the module it belongs to while the browser gets it without
 // the store.
 export { ADMIN_ROLE_ID };

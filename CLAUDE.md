@@ -29,7 +29,7 @@ when the code looks cleaner afterwards.
    row, not a name, not a count, not a section. Never widen that from "contents" to
    "existence" — this text used to claim both rendered identically, three places in
    the code disagreed with it, and the code was right.
-3. **Access is resolved once**, in `effectivePermissions` (`src/lib/access.js`), and
+3. **Access is resolved once**, in `effectivePermissions` (`src/platform/access/resolve.ts`), and
    every module context is built on `studioContext`. No route re-derives it.
 4. **Default deny.** No role means nothing. There is no fallback path.
 5. **Nobody grants what they do not hold** — `escalates()`, enforced at **both** doors:

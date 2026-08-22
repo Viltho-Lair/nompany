@@ -71,7 +71,7 @@ export {
 };
 
 export async function saveTasksSettings(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "tasks.settings.edit");
   if (denied) return denied;
 
@@ -144,7 +144,7 @@ export async function listTasks(ctx) {
 }
 
 export async function createTask(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "tasks.board.create");
   if (denied) return denied;
 
@@ -380,7 +380,7 @@ export async function decideTask(ctx, id, body) {
 }
 
 export async function removeTask(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "tasks.board.delete");
   if (denied) return denied;
 

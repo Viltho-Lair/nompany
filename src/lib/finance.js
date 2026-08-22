@@ -83,7 +83,7 @@ export function readCashCategories(settingsSection) {
 }
 
 export async function saveFinanceSettings(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.settings.edit");
   if (denied) return denied;
 
@@ -139,7 +139,7 @@ export async function listInvoices({ studio, cashSection }) {
 }
 
 export async function createInvoice(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.create");
   if (denied) return denied;
 
@@ -182,7 +182,7 @@ export async function createInvoice(ctx, body) {
 }
 
 export async function editInvoice(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.edit");
   if (denied) return denied;
 
@@ -234,7 +234,7 @@ export async function editInvoice(ctx, id, body) {
 // Recording a payment is append-only: the history of what was received, and
 // when, is what makes the balance defensible.
 export async function recordPayment(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.edit");
   if (denied) return denied;
 
@@ -268,7 +268,7 @@ export async function recordPayment(ctx, id, body) {
 
 // Only a draft can be deleted. Once issued it is part of the record — cancel it.
 export async function removeInvoice(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.delete");
   if (denied) return denied;
 
@@ -302,7 +302,7 @@ export async function listExpenses({ studio, cashSection }) {
 }
 
 export async function createExpense(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.create");
   if (denied) return denied;
 
@@ -333,7 +333,7 @@ export async function createExpense(ctx, body) {
 }
 
 export async function editExpense(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.edit");
   if (denied) return denied;
 
@@ -359,7 +359,7 @@ export async function editExpense(ctx, id, body) {
 }
 
 export async function removeExpense(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.delete");
   if (denied) return denied;
 
@@ -471,7 +471,7 @@ export async function billableProjects(ctx) {
 // UNIQUE, because a project number is quoted on invoices and delivery notes and
 // two projects sharing one is not a cosmetic problem.
 export async function setCommercials(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.edit");
   if (denied) return denied;
 

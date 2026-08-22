@@ -15,8 +15,17 @@
 // The ladder. Cumulative BY CONVENTION, not by resolution: granting "edit" on
 // an area stores view+create+edit as three separate keys, so what is stored is
 // always exactly what is allowed. Nothing is computed at check time.
-export const LEVELS = ["none", "view", "edit", "full"];
-export const LEVEL_VERBS = {
+export const LEVELS = ["none", "view", "edit", "full"] as const;
+export type Level = (typeof LEVELS)[number];
+
+// The four verbs, and the only four. `as const` throughout this file is not
+// decoration: it is what turns these lists into the PermissionKey union at the
+// bottom, so a mistyped key stops being a runtime "unknown-permission" and
+// becomes a red squiggle.
+export const VERBS = ["view", "create", "edit", "delete"] as const;
+export type Verb = (typeof VERBS)[number];
+
+export const LEVEL_VERBS: Record<Level, readonly Verb[]> = {
   none: [],
   view: ["view"],
   edit: ["view", "create", "edit"],
@@ -25,7 +34,8 @@ export const LEVEL_VERBS = {
 
 // Scope answers "whose records", and only exists where it means something.
 // Everywhere else, asking would teach people to stop reading the control.
-export const SCOPES = ["own", "department", "all"];
+export const SCOPES = ["own", "department", "all"] as const;
+export type Scope = (typeof SCOPES)[number];
 
 // The one wildcard role's id. It lives HERE rather than in data/roles.js so a
 // client component can name it without dragging the Redis-backed store into the
@@ -64,11 +74,21 @@ export const ADMIN_ROLE_ID = "role_admin";
 // right. Without one it would be a heading with areas nowhere, and
 // sectionViewable treats a section with no areas and no viewable children as
 // having nothing to protect: Quality would have shown for everybody.
-const DASHBOARD_AREAS = [
+//
+// STILL GENERATED, not written out. One row per module is the point — the eight
+// are the same right with a different subject — and spelling them out to satisfy
+// the type system would trade the reason for the convenience. The tuple below
+// carries the literal types instead, and the union at the bottom is built from
+// it rather than from the mapped result, which `.map` would have widened to
+// `string`.
+const DASHBOARD_MODULES = [
   ["sales", "Sales"], ["technical", "Technical"], ["projects", "Projects"],
   ["inventory", "Inventory"], ["hr", "Human Resources"], ["finance", "Finance"],
   ["operations", "Operations"], ["quality", "Quality"],
-].map(([key, group]) => ({
+] as const;
+type DashboardModule = (typeof DASHBOARD_MODULES)[number][0];
+
+const DASHBOARD_AREAS: readonly Area[] = DASHBOARD_MODULES.map(([key, group]) => ({
   key: `${key}.dashboard`, group,
   // Operations' parent is a working screen rather than a dashboard, so it is
   // named for what it actually is on the access grid.
@@ -76,9 +96,29 @@ const DASHBOARD_AREAS = [
   verbs: ["view"],
 }));
 
-export const AREAS = [
-  ...DASHBOARD_AREAS,
+// WHAT AN AREA IS, structurally. Named rather than inferred because it is the
+// contract `levelsFor`, `levelOf` and `keysForLevel` all take, and inferring it
+// from the list below would make every one of them depend on the exact tuple
+// rather than on the shape.
+export type Area = {
+  readonly key: string;
+  readonly group: string;
+  readonly label: string;
+  readonly verbs: readonly Verb[];
+  readonly scoped?: boolean;
+  readonly extra?: readonly { readonly key: string; readonly label: string }[];
+};
 
+// The areas declared one by one. The dashboards are NOT spread in here — they
+// join in AREAS below — because a spread of `readonly Area[]` widens the whole
+// literal: `as const` cannot see through it, every key becomes `string`, and
+// PermissionKey silently degrades into "any key crossed with any verb".
+//
+// That is exactly what happened on the first draft of this conversion, and the
+// type caught it: `sales.tickets.delete` type-checked, on an area whose comment
+// three lines down says it deliberately has no delete. The runtime bug hiding
+// underneath was a duplicate — every dashboard permission listed twice.
+const OWN_AREAS = [
   // NO DELETE. A sales ticket is closed, never erased — its quotations, RFQs
   // and comments all point back at it. Declaring a right nothing can exercise
   // is the same dead-capability trap as the department grants that were stored
@@ -187,21 +227,56 @@ export const AREAS = [
 
   { key: "people.members", group: "People", label: "People & access", verbs: ["view", "edit"] },
   { key: "studio.settings", group: "Studio", label: "Studio settings", verbs: ["view", "edit"] },
-];
+] as const;
 
-// Every key this product recognises: "sales.tickets.view", "hr.employees.salary".
+export const AREAS: readonly Area[] = [...DASHBOARD_AREAS, ...OWN_AREAS];
+
+// EVERY KEY THIS PRODUCT RECOGNISES, as a type.
+//
+// This is what the whole file was `as const` for. `requirePermission(access,
+// "sales.tickets.viw")` is now a compile error rather than a runtime
+// `unknown-permission` that only fires if the line is reached — which for a
+// guard on a rare branch can be a long time.
+//
+// Derived from the same two arrays the runtime list is built from, so the two
+// cannot disagree: there is no way to add an area except through OWN_AREAS or
+// DASHBOARD_MODULES, and both feed both.
+type PermsOf<A> = A extends Area
+  ? `${A["key"]}.${A["verbs"][number]}`
+    | (A extends { extra: readonly { key: string }[] } ? `${A["key"]}.${A["extra"][number]["key"]}` : never)
+  : never;
+
+export type PermissionKey =
+  | `${DashboardModule}.dashboard.view`
+  | PermsOf<(typeof OWN_AREAS)[number]>;
+
+// The same set as a value: "sales.tickets.view", "hr.employees.salary".
+//
+// The cast is the one seam between the type and the runtime, and it is narrow
+// by construction: this flattens exactly the arrays PermissionKey is derived
+// from. Widening it — a second source of areas, a key built anywhere else —
+// makes the cast a lie, which is why there is no other way to declare an area.
 export const ALL_PERMISSIONS = AREAS.flatMap((a) => [
   ...a.verbs.map((v) => `${a.key}.${v}`),
   ...(a.extra || []).map((x) => `${a.key}.${x.key}`),
-]);
+]) as PermissionKey[];
 
-const KNOWN = new Set(ALL_PERMISSIONS);
-export const isPermission = (key) => KNOWN.has(String(key || ""));
-export const areaOf = (key) => AREAS.find((a) => String(key || "").startsWith(`${a.key}.`)) || null;
+const KNOWN: ReadonlySet<string> = new Set(ALL_PERMISSIONS);
+
+// A TYPE GUARD, not a boolean. This is the border: everything on the far side
+// of it — a role's stored permissions, an override, a request body — is a
+// string from Redis, and this is the single place a string becomes a
+// PermissionKey. Typing it `key is PermissionKey` is what lets cleanPermissions
+// below return the union without a cast of its own.
+export const isPermission = (key: unknown): key is PermissionKey =>
+  KNOWN.has(String(key ?? ""));
+
+export const areaOf = (key: string | null | undefined): Area | null =>
+  AREAS.find((a) => String(key || "").startsWith(`${a.key}.`)) || null;
 
 // Only known keys survive, and duplicates collapse. A permission the product
 // does not recognise cannot be stored, whatever a request says.
-export function cleanPermissions(list) {
+export function cleanPermissions(list: unknown): PermissionKey[] {
   return [...new Set((Array.isArray(list) ? list : []).map(String).filter(isPermission))];
 }
 
@@ -209,8 +284,8 @@ export function cleanPermissions(list) {
 // ticket, which is closed rather than erased — has no "full" distinct from
 // "edit", and offering both would be two buttons that do the same thing.
 // A rung only exists if it grants something the rung below it does not.
-export function levelsFor(area) {
-  const out = [];
+export function levelsFor(area: Area): Level[] {
+  const out: Level[] = [];
   let previous = "";
   for (const level of LEVELS) {
     const verbs = LEVEL_VERBS[level].filter((v) => area.verbs.includes(v));
@@ -228,7 +303,7 @@ export function levelsFor(area) {
 // Walks the area's OWN rungs, highest first. Walking the full four would report
 // "full" for an area that has no delete, because every verb it does have would
 // be held.
-export function levelOf(area, held) {
+export function levelOf(area: Area, held: ReadonlySet<string>): Level {
   const rungs = levelsFor(area);
   for (let i = rungs.length - 1; i > 0; i -= 1) {
     const wanted = LEVEL_VERBS[rungs[i]].filter((v) => area.verbs.includes(v));
@@ -238,8 +313,25 @@ export function levelOf(area, held) {
 }
 
 // The keys a ladder rung means for one area — what the segmented control writes.
-export function keysForLevel(area, level) {
+export function keysForLevel(area: Area, level: Level): string[] {
   return (LEVEL_VERBS[level] || []).filter((v) => area.verbs.includes(v)).map((v) => `${area.key}.${v}`);
 }
 
 export const GROUPS = [...new Set(AREAS.map((a) => a.group))];
+
+// ---- proof that the union is load-bearing ----------------------------------
+// A type nobody checks is decoration. These four lines are checked by both
+// tsconfigs on every build, and the two `@ts-expect-error` directives are the
+// interesting half: tsc reports an UNUSED directive as an error, so if
+// PermissionKey ever went slack enough to accept a typo, the build fails on the
+// comment rather than silently letting the typo through.
+type Assert<T extends true> = T;
+
+export type _RealKeyIsAccepted = Assert<"sales.tickets.view" extends PermissionKey ? true : false>;
+export type _ExtraKeyIsAccepted = Assert<"hr.employees.salary" extends PermissionKey ? true : false>;
+export type _DashboardKeyIsAccepted = Assert<"finance.dashboard.view" extends PermissionKey ? true : false>;
+
+// @ts-expect-error a typo is not a permission
+export type _TypoIsRejected = Assert<"sales.tickets.viw" extends PermissionKey ? true : false>;
+// @ts-expect-error `delete` is not a verb sales tickets have — they close, never erase
+export type _UndeclaredVerbIsRejected = Assert<"sales.tickets.delete" extends PermissionKey ? true : false>;

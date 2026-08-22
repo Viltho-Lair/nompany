@@ -81,7 +81,7 @@ export const projectsContext = moduleContext({
 // object, so they need no key of their own and die with the sub-section.
 // Patch semantics: only the keys present in the body are touched.
 export async function saveProjectsSettings(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.settings.edit");
   if (denied) return denied;
 
@@ -173,7 +173,7 @@ export async function approvedQuotations(ctx) {
 }
 
 export async function openProject(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.list.create");
   if (denied) return denied;
 
@@ -306,7 +306,7 @@ export async function issueProjectNumber({ studio, listSection }, quotationId) {
 }
 
 export async function updateProject(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.list.edit");
   if (denied) return denied;
 
@@ -348,7 +348,7 @@ export async function updateProject(ctx, id, body) {
 }
 
 export async function removeProject(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.list.delete");
   if (denied) return denied;
 
@@ -387,7 +387,7 @@ function slaFields(body) {
 }
 
 export async function createSla(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.sla.create");
   if (denied) return denied;
 
@@ -407,7 +407,7 @@ export async function createSla(ctx, body) {
 }
 
 export async function updateSla(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.sla.edit");
   if (denied) return denied;
 
@@ -456,7 +456,7 @@ export async function updateSla(ctx, id, body) {
 }
 
 export async function removeSla(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.sla.delete");
   if (denied) return denied;
 
@@ -502,7 +502,7 @@ export async function overtimeDirectory({ studio, sections }) {
 // action here and several rows in the collection — which is what the matrix
 // needs to attribute the hours.
 export async function createOvertime(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.overtimes.create");
   if (denied) return denied;
 
@@ -549,7 +549,7 @@ export async function createOvertime(ctx, body) {
 }
 
 export async function updateOvertime(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.overtimes.edit");
   if (denied) return denied;
 
@@ -591,7 +591,7 @@ export async function updateOvertime(ctx, id, body) {
 }
 
 export async function removeOvertime(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.overtimes.delete");
   if (denied) return denied;
 

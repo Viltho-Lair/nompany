@@ -41,7 +41,7 @@ export async function listAirlines({ studio, awbSection }) {
 }
 
 export async function createAirline(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.awb.create");
   if (denied) return denied;
 
@@ -67,7 +67,7 @@ export async function createAirline(ctx, body) {
 }
 
 export async function editAirline(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.awb.edit");
   if (denied) return denied;
 
@@ -91,7 +91,7 @@ export async function editAirline(ctx, id, body) {
 // A carrier is removable only while nothing it flew is still being tracked —
 // otherwise those shipments lose the name of whoever is carrying them.
 export async function removeAirline(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.awb.delete");
   if (denied) return denied;
 
@@ -148,7 +148,7 @@ export async function listShipments({ studio, awbSection }) {
 // the door rather than sitting in the list forever, never moving, because it
 // refers to nothing.
 export async function trackShipment(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js. Every other
+  // Guarded before anything is read or written — see platform/access/resolve.ts. Every other
   // write in this file asked for its right and this one did not, which made the
   // route's section-level check the only thing standing in front of it.
   const denied = requirePermission(ctx.access, "inventory.awb.create");
@@ -180,7 +180,7 @@ export async function trackShipment(ctx, body) {
 }
 
 export async function updateShipment(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.awb.edit");
   if (denied) return denied;
 
@@ -222,7 +222,7 @@ export async function updateShipment(ctx, id, body) {
 }
 
 export async function removeShipment(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.awb.delete");
   if (denied) return denied;
 

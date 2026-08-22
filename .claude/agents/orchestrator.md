@@ -76,7 +76,7 @@ grep -rn "<route path>\|<permission key>\|<collection name>" src tests
 ```
 
 String references do not show up as imports: route paths, permission keys in
-`src/lib/permissions.js`, collection names, key builders in `keys.js`,
+`src/platform/access/catalogue.ts`, collection names, key builders in `keys.js`,
 translation keys, CSS custom properties. Removal and every dependent update land
 in **one** commit. A deletion that leaves a caller broken is a worse outcome than
 the duplication it was meant to fix.
@@ -186,7 +186,7 @@ Refuse work that breaks one; escalate to the user rather than negotiating.
 2. **Membership authorises; the URL never does.** A slug names a tenant. A
    non-member gets 404/403 and learns nothing — "not found" and "not a member"
    render identically, on purpose.
-3. **Access is resolved once**, in `effectivePermissions` (`src/lib/access.js`),
+3. **Access is resolved once**, in `effectivePermissions` (`src/platform/access/resolve.ts`),
    and every module context is built on `studioContext`. No route re-derives it.
 4. **Default deny.** No role means nothing. There is no fallback.
 5. **Nobody grants what they do not hold** — `escalates()`, enforced at BOTH
@@ -248,8 +248,8 @@ run two of them concurrently on the same file.
 ### Handoff contract
 
 **Never run two agents that write the same file concurrently.** The shared files
-are `src/lib/data/keys.js`, `src/lib/data/store.js`, `src/lib/access.js`,
-`src/lib/permissions.js`, `tests/suite.mjs` and `src/app/globals.css`. If two
+are `src/lib/data/keys.js`, `src/lib/data/store.js`, `src/platform/access/resolve.ts`,
+`src/platform/access/catalogue.ts`, `tests/suite.mjs` and `src/app/globals.css`. If two
 tasks both need one, sequence them and say so; do not hope the merge works.
 
 A subagent starts with **no memory of this conversation**. An under-specified

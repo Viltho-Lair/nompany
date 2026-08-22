@@ -9,7 +9,7 @@
 
 ## 0. Executive summary
 
-The codebase is unusually disciplined for its size. Access control is centralised in exactly one resolver (`src/lib/access.js`), writes are genuinely atomic (compare-and-set in Lua, `src/lib/data/store.js`), the ownership tree is encoded in the key tree so deletion is prefix deletion, and the reasoning behind almost every decision is written down next to it. That is a better foundation than most systems this age have.
+The codebase is unusually disciplined for its size. Access control is centralised in exactly one resolver (`src/platform/access/resolve.ts`), writes are genuinely atomic (compare-and-set in Lua, `src/lib/data/store.js`), the ownership tree is encoded in the key tree so deletion is prefix deletion, and the reasoning behind almost every decision is written down next to it. That is a better foundation than most systems this age have.
 
 Three things are nonetheless structurally wrong, and they compound:
 
@@ -249,7 +249,7 @@ No `.github/`. No `.eslintrc*` or `eslint.config.*` although `package.json` decl
 Next ignores `jsconfig.json` when `tsconfig.json` exists. It is dead configuration that will silently diverge.
 
 ### M-15 · The coarse write gate makes five declared rights unusable alone
-`src/lib/quality.js:79`, `src/lib/access.js:sectionManageable`
+`src/lib/quality.js:79`, `src/platform/access/resolve.ts:sectionManageable`
 
 Quality's workflow routes are gated `{ write: true }`, which tests `canManage` —
 and `canManage` is `sectionManageable`, which only ever looks at the **create,

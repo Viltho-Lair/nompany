@@ -130,7 +130,7 @@ export async function listHrRoles(ctx) {
 }
 
 export async function createHrRole(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.create");
   if (denied) return denied;
 
@@ -149,7 +149,7 @@ export async function createHrRole(ctx, body) {
 }
 
 export async function editHrRole(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.edit");
   if (denied) return denied;
 
@@ -187,7 +187,7 @@ export async function editHrRole(ctx, id, body) {
 //
 // An unheld role changes nobody's access, so it stays HR's.
 export async function removeHrRole(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.delete");
   if (denied) return denied;
 
@@ -207,7 +207,7 @@ export async function listCertifications({ studio, employeesSection }) {
 }
 
 export async function createCertification(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.create");
   if (denied) return denied;
 
@@ -229,7 +229,7 @@ export async function createCertification(ctx, body) {
 }
 
 export async function editCertification(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.edit");
   if (denied) return denied;
 
@@ -251,7 +251,7 @@ export async function editCertification(ctx, id, body) {
 }
 
 export async function removeCertification(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.delete");
   if (denied) return denied;
 
@@ -334,7 +334,7 @@ export async function listEmployees(ctx, meId = "") {
 
 // Write the HR fields onto someone's studio-local row. Manage-only.
 export async function saveEmployment(ctx, collaboratorId, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.edit");
   if (denied) return denied;
 
@@ -446,7 +446,7 @@ export async function listVacations(ctx, { meId }) {
 // Anyone who can open HR may request their OWN leave; only a manager may file
 // it for someone else.
 export async function requestVacation(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.vacations.create");
   if (denied) return denied;
 
@@ -518,7 +518,7 @@ export async function decideVacation(ctx, id, decision) {
 }
 
 export async function removeVacation(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.vacations.edit");
   if (denied) return denied;
 

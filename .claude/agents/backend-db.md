@@ -78,7 +78,7 @@ grep -rn "<route path>\|<permission key>\|<collection name>" src tests
 ```
 
 String references do not show up as imports: route paths, permission keys in
-`src/lib/permissions.js`, collection names, key builders in `keys.js`,
+`src/platform/access/catalogue.ts`, collection names, key builders in `keys.js`,
 translation keys, CSS custom properties. Removal and every dependent update land
 in **one** commit. A deletion that leaves a caller broken is a worse outcome than
 the duplication it was meant to fix.

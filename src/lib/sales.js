@@ -178,7 +178,7 @@ export function readSalesVocab(settingsSection) {
 
 // Patch semantics: only the keys present in the body are touched.
 export async function saveSalesSettings(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js. Every other
+  // Guarded before anything is read or written — see platform/access/resolve.ts. Every other
   // module's settings saver asked for its right and this one did not, leaving
   // the route's check as the only thing in front of it. Found by the wiring
   // audit in tests/access.test.js, which is the whole point of having one.

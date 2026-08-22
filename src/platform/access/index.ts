@@ -1,6 +1,6 @@
 // ACCESS, AS ONE MODULE.
 //
-// `lib/permissions.js` and `lib/access.js` were always one subject split across
+// `platform/access/catalogue.ts` and `platform/access/resolve.ts` were always one subject split across
 // two files — the catalogue of what exists, and the resolution of who holds it —
 // and every caller that needed one usually needed the other. Five files imported
 // both, from two paths, which is five places where somebody could reach for the

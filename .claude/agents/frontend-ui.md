@@ -76,7 +76,7 @@ grep -rn "<route path>\|<permission key>\|<collection name>" src tests
 ```
 
 String references do not show up as imports: route paths, permission keys in
-`src/lib/permissions.js`, collection names, key builders in `keys.js`,
+`src/platform/access/catalogue.ts`, collection names, key builders in `keys.js`,
 translation keys, CSS custom properties. Removal and every dependent update land
 in **one** commit. A deletion that leaves a caller broken is a worse outcome than
 the duplication it was meant to fix.
@@ -284,7 +284,7 @@ regression, not the current size — bring it down as the split lands.
 - **Never render a control the caller may not use** without also gating the action
   behind `requirePermission` server-side. The UI gate is a courtesy; the server
   gate is the authority. Both read the same permission set.
-- **A disabled control must say why.** `explain()` in `src/lib/access.js` answers
+- **A disabled control must say why.** `explain()` in `src/platform/access/resolve.ts` answers
   "why can't Sara lock a quotation?" in a sentence and currently has no UI. Wire it
   into the disabled-state tooltip — highest-value UX addition available, and the
   backend already exists.

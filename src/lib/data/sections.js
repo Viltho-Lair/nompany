@@ -8,7 +8,7 @@
 // (cascade.js → cascadeDeleteSection).
 //
 // Sections do NOT carry access of their own. Who may open one is answered from
-// the permission catalogue in lib/access.js, via the roles on somebody's
+// the permission catalogue in platform/access/resolve.ts, via the roles on somebody's
 // collaborator row — see the note where the grant helpers used to be.
 
 import { S, SEC, ID, SECTION_COLLECTIONS, SECTION_DEFS, ALL_SECTION_KEYS } from "@/lib/data/keys";
@@ -196,4 +196,4 @@ export async function deleteRow(studioId, sectionId, name, rowId) {
 // page load whose result was threaded through three functions and dropped.
 //
 // What replaced them: lib/data/roles.js for the definitions, `roleIds` on the
-// collaborator row for the assignment, and lib/access.js for the answer.
+// collaborator row for the assignment, and platform/access/resolve.ts for the answer.

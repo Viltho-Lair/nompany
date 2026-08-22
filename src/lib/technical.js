@@ -100,7 +100,7 @@ export function readTechnicalSettings(settingsSection) {
 }
 
 export async function saveTechnicalSettings(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.settings.edit");
   if (denied) return denied;
 
@@ -223,7 +223,7 @@ function uniqueRfqReference(rows, base) {
 }
 
 export async function requestRfq(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   //
   // TWO DOORS, TWO RIGHTS. Raised from TECHNICAL it is a Technical create, so
   // technical.rfq.create is what is asked for. Raised from the SALES ticket row
@@ -333,7 +333,7 @@ export async function requestRfq(ctx, body) {
 }
 
 export async function updateRfq(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.rfq.edit");
   if (denied) return denied;
 
@@ -463,7 +463,7 @@ export async function listQuotations(ctx) {
 // is marked Internal — `lead` is what an RFQ conversion overwrites with the
 // source ticket.
 export async function createQuotation(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.quotations.create");
   if (denied) return denied;
 
@@ -517,7 +517,7 @@ export async function createQuotation(ctx, body) {
 }
 
 export async function convertRfq(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.rfq.convert");
   if (denied) return denied;
 
@@ -598,7 +598,7 @@ export async function convertRfq(ctx, body) {
 }
 
 export async function updateQuotation(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.quotations.edit");
   if (denied) return denied;
 
@@ -719,7 +719,7 @@ export async function updateQuotation(ctx, id, body) {
 }
 
 export async function removeQuotation(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.quotations.delete");
   if (denied) return denied;
 

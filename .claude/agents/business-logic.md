@@ -76,7 +76,7 @@ grep -rn "<route path>\|<permission key>\|<collection name>" src tests
 ```
 
 String references do not show up as imports: route paths, permission keys in
-`src/lib/permissions.js`, collection names, key builders in `keys.js`,
+`src/platform/access/catalogue.ts`, collection names, key builders in `keys.js`,
 translation keys, CSS custom properties. Removal and every dependent update land
 in **one** commit. A deletion that leaves a caller broken is a worse outcome than
 the duplication it was meant to fix.
@@ -149,7 +149,7 @@ questions whose answers would change what you do next.
 1. **Locate the rule, do not re-derive it.** Before writing a condition, check
    `relations.js` (which record may reach which), `signables.js` (which transition
    is legal), `taskRouting.js` (who holds authority) and
-   `src/lib/permissions.js` (what the right is called). Most rules already exist
+   `src/platform/access/catalogue.ts` (what the right is called). Most rules already exist
    and are named.
 2. **Write it in the service, not the route.** The route is a pre-filter; the
    service function is the authority.
@@ -266,7 +266,7 @@ immediately. Never copy an assignee onto a row.
   service function**, not only at the route. The route's coarse `{write: true}`
   gate is a pre-filter; the service is the authority. This is why a loose gate is
   not by itself a vulnerability.
-- Use the exact key from the catalogue in `src/lib/permissions.js`. A typo returns
+- Use the exact key from the catalogue in `src/platform/access/catalogue.ts`. A typo returns
   `unknown-permission` at runtime on a path nobody may ever exercise.
 - Extras are separate powers, not bigger edits: `technical.rfq.convert`,
   `technical.quotations.lock` and `.unlock` (two rights, because unlocking reopens

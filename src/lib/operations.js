@@ -65,7 +65,7 @@ export const operationsContext = moduleContext({
 // `settings` object, so they need no key of their own and die with it.
 // Patch semantics: only the keys present in the body are touched.
 export async function saveOperationsSettings(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.settings.edit");
   if (denied) return denied;
 
@@ -179,7 +179,7 @@ export async function listLocations({ studio, section }) {
 }
 
 export async function createLocation(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.create");
   if (denied) return denied;
 
@@ -203,7 +203,7 @@ export async function createLocation(ctx, body) {
 }
 
 export async function editLocation(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.edit");
   if (denied) return denied;
 
@@ -228,7 +228,7 @@ export async function editLocation(ctx, id, body) {
 // Refuses while permits or shifts still point at it — deleting would leave a
 // rota and a stack of paperwork referring to a place that no longer exists.
 export async function removeLocation(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.delete");
   if (denied) return denied;
 
@@ -281,7 +281,7 @@ export async function listPermits({ studio, section }) {
 }
 
 export async function createPermit(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.create");
   if (denied) return denied;
 
@@ -324,7 +324,7 @@ export async function createPermit(ctx, body) {
 }
 
 export async function editPermit(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.edit");
   if (denied) return denied;
 
@@ -363,7 +363,7 @@ export async function editPermit(ctx, id, body) {
 }
 
 export async function removePermit(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.delete");
   if (denied) return denied;
 
@@ -408,7 +408,7 @@ export async function listShifts({ studio, section }, { from = "", to = "" } = {
 }
 
 export async function createShift(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.create");
   if (denied) return denied;
 
@@ -453,7 +453,7 @@ export async function createShift(ctx, body) {
 }
 
 export async function editShift(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.edit");
   if (denied) return denied;
 
@@ -488,7 +488,7 @@ export async function editShift(ctx, id, body) {
 }
 
 export async function removeShift(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.delete");
   if (denied) return denied;
 

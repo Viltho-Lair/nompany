@@ -8,7 +8,7 @@
 // time, so every one of those helpers answered false for everybody. Dead code
 // that LOOKS like a security check is worse than none: it reads as though
 // urgency is Leader-gated or the employee directory is HR-gated, and neither
-// was true any more. Access is answered in lib/access.js, in one place.
+// was true any more. Access is answered in platform/access/resolve.ts, in one place.
 
 // The platform owner's session for /super. A SEPARATE identity from the studio
 // session above — an owner is not a subscriber — so it gets its own cookie and

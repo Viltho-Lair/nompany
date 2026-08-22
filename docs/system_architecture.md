@@ -172,14 +172,14 @@ Other primitives: `claim` (`SET NX [EX]` — uniqueness), `hIncrBy` (atomic tall
 
 Two modules, and the split between them is the point.
 
-**`src/lib/permissions.js` — the catalogue.** One row per protected area, declared explicitly and *not derived from the navigation tree*. There is no `sales` permission; Sales is a heading. Only leaves are rights, so nothing inherits from anything and the "does Sales imply Sales › Tickets?" question — which has no correct answer — never arises.
+**`src/platform/access/catalogue.ts` — the catalogue.** One row per protected area, declared explicitly and *not derived from the navigation tree*. There is no `sales` permission; Sales is a heading. Only leaves are rights, so nothing inherits from anything and the "does Sales imply Sales › Tickets?" question — which has no correct answer — never arises.
 
 - **Ladder:** `none → view → edit → full`, cumulative **by convention, not by resolution**. Granting "edit" stores `view`+`create`+`edit` as three separate keys, so what is stored is always exactly what is allowed. Nothing is computed at check time.
 - **Extras** are powers that do not nest in the ladder: `technical.rfq.convert`, `technical.quotations.lock` / `.unlock` (two rights, because unlocking reopens a document a client is holding), `hr.employees.salary`, `hr.vacations.approve`, `quality.documents.{setup,review,approve,publish,obsolete,share}`. **Review and approve are two rights because they are two people** — a revision signed twice by one hand has been reviewed by nobody.
 - **Dashboard areas** (`sales.dashboard` … `quality.dashboard`) are view-only rights on the eight module parents that render a screen of their own. Without them, anyone who could open one ticket screen could read the whole department's funnel and win rate.
 - `levelsFor(area)` omits rungs that grant nothing new — a sales ticket has no delete, so it has no "full" distinct from "edit".
 
-**`src/lib/access.js` — the resolver.** Deliberately dumb: a `Set` of strings, membership tested. No inheritance, no wildcards except the single Admin flag.
+**`src/platform/access/resolve.ts` — the resolver.** Deliberately dumb: a `Set` of strings, membership tested. No inheritance, no wildcards except the single Admin flag.
 
 ```
 owner                      → ALL_PERMISSIONS   (a studio that can lock out its own owner is an unanswerable support ticket)

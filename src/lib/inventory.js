@@ -148,7 +148,7 @@ export async function listVendors({ studio, vendorsSection }) {
 }
 
 export async function createVendor(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.vendors.create");
   if (denied) return denied;
 
@@ -172,7 +172,7 @@ export async function createVendor(ctx, body) {
 }
 
 export async function editVendor(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.vendors.edit");
   if (denied) return denied;
 
@@ -195,7 +195,7 @@ export async function editVendor(ctx, id, body) {
 }
 
 export async function removeVendor(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.vendors.delete");
   if (denied) return denied;
 
@@ -264,7 +264,7 @@ export async function listItems(ctx) {
 }
 
 export async function createItem(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.items.create");
   if (denied) return denied;
 
@@ -325,7 +325,7 @@ export async function createItem(ctx, body) {
 }
 
 export async function editItem(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.items.edit");
   if (denied) return denied;
 
@@ -388,7 +388,7 @@ export async function editItem(ctx, id, body) {
 // An item with movement history is never deleted — that would erase the record
 // of stock that really moved. Items with a clean history can go.
 export async function removeItem(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.items.delete");
   if (denied) return denied;
 
@@ -462,7 +462,7 @@ async function record(ctx, { itemId, kind, quantity, reason, sourceType = "", so
 
 // A manual correction — stock-take differences, damage, opening balances.
 export async function adjustStock(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   //
   // This was the ONE write in the file with no guard of its own, and the route
   // above it only asks the coarse section question ("may you write anything in
@@ -783,7 +783,7 @@ export function orderTotal(lines) {
 }
 
 export async function createOrder(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.create");
   if (denied) return denied;
 
@@ -816,7 +816,7 @@ export async function createOrder(ctx, body) {
 }
 
 export async function editOrder(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.edit");
   if (denied) return denied;
 
@@ -856,7 +856,7 @@ export async function editOrder(ctx, id, body) {
 // Receiving is the only way stock comes IN from an order. It appends one
 // movement per line received and lets the status follow the numbers.
 export async function receiveOrder(ctx, id, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.edit");
   if (denied) return denied;
 
@@ -906,7 +906,7 @@ export async function receiveOrder(ctx, id, body) {
 // An order that has received stock is never deleted — the movements it created
 // are real. Cancel it instead.
 export async function removeOrder(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.delete");
   if (denied) return denied;
 
@@ -944,7 +944,7 @@ export async function listDeliveries({ studio, itemsSection, deliveriesSection }
 }
 
 export async function createDelivery(ctx, body) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.create");
   if (denied) return denied;
 
@@ -972,7 +972,7 @@ export async function createDelivery(ctx, body) {
 // Issuing is the only way stock goes OUT to a project. Availability is checked
 // against the ledger at the moment of issue, not when the note was drafted.
 export async function issueDelivery(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.edit");
   if (denied) return denied;
 
@@ -1011,7 +1011,7 @@ export async function issueDelivery(ctx, id) {
 }
 
 export async function removeDelivery(ctx, id) {
-  // Guarded before anything is read or written — see lib/access.js.
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.delete");
   if (denied) return denied;
 
