@@ -290,6 +290,28 @@ export async function login({ email, password, remember, deviceId, ip, device })
     await recordCredentialFailure({ ip, email });
     return { error: "invalid" };                          // generic — never reveals existence
   }
+  // SUSPENSION IS CHECKED BEFORE THE PASSWORD, and that is a decision rather
+  // than an accident of ordering.
+  //
+  // It costs something real: anybody who can guess an address learns whether it
+  // belongs to a suspended account, without knowing the password. Every other
+  // failure here is deliberately indistinguishable — a wrong password and an
+  // address nobody has ever registered both return `invalid` — so this is the
+  // one place login says something specific about an account that exists.
+  //
+  // Bought with it: a suspended person is told they are suspended. Behind the
+  // password, they would have to type the right one to be told anything, and
+  // somebody who has forgotten it — likely, months after being switched off —
+  // would be sent round the reset loop to arrive at the same wall. The support
+  // ticket that produces is worse than the enumeration, because the enumeration
+  // tells an attacker something they can do nothing with: a suspended account
+  // has no session to take.
+  //
+  // It also means a switched-off account never spends a bcrypt-12 verify, which
+  // is the cheapest kind of denial-of-service to hand out.
+  //
+  // Pinned by an assertion in Gate A ("the console's own..."/suspension block),
+  // so reversing the order is a test failure rather than a silent change.
   if (user.status === "suspended") return { error: "suspended" };
   if (!(await verifyPassword(String(password || ""), user.passwordHash))) {
     await recordCredentialFailure({ ip, email });

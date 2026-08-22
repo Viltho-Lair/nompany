@@ -15,7 +15,7 @@
 
 import * as KEYS from "@/lib/data/keys";
 import { KEY_PREFIX } from "@/lib/data/keys";
-import { createUser, mintSession } from "@/lib/data/users";
+import { createUser, updateUser, mintSession } from "@/lib/data/users";
 import { createStudio } from "@/lib/data/studios";
 import { addCollaborator, getCollaboratorByUser, updateCollaborator } from "@/lib/data/collaborators";
 import { listRoles, createRole } from "@/lib/data/roles";
@@ -1839,6 +1839,54 @@ console.log("== the console's second factor");
     String(noCode.status));
   ok("...and it is still on afterwards",
     mfa.mfaEnabled(await sup.findSuperByEmail(email)), "");
+}
+
+console.log("== a switched-off account is told so, and the price of saying it");
+// AN OPEN DECISION, CLOSED, AND PINNED HERE SO IT STAYS CLOSED.
+//
+// login() checks `suspended` BEFORE verifying the password, which makes it the
+// one thing this endpoint says about an account that exists — every other
+// failure is deliberately indistinguishable. That is an enumeration oracle, it
+// was on the open-decisions list for that reason, and it is now the chosen
+// behaviour: a suspended person learns why they cannot get in without first
+// having to remember a password they were switched off from using months ago,
+// and a suspended account never spends a bcrypt-12 verify.
+//
+// The assertion is here so the order cannot be quietly "fixed": somebody reading
+// the code without the reason would move this line below the password check,
+// and every existing test would still pass.
+{
+  const identity = await import("@/lib/identity");
+  const { hashPassword } = await import("@/lib/passwords");
+
+  const email = `g-susp-${rand()}@test.invalid`;
+  const made = await createUser({ email, passwordHash: await hashPassword("right-password-1234") });
+  await updateUser(made.user.id, { status: "suspended" });
+
+  // THE LOAD-BEARING ONE. A wrong password, and it still says "suspended" —
+  // which is only possible if the check runs first.
+  const wrongPw = await identity.login({ email, password: "not-the-password", ip: "203.0.113.9" });
+  ok("a suspended account says so without a correct password",
+    wrongPw?.error === "suspended", JSON.stringify(wrongPw?.error));
+
+  const rightPw = await identity.login({ email, password: "right-password-1234", ip: "203.0.113.9" });
+  ok("...and with one, it still refuses", rightPw?.error === "suspended" && !rightPw?.token,
+    JSON.stringify(rightPw?.error));
+
+  // THE LINE THAT IS NOT CROSSED. Suspension is specific; everything else about
+  // whether an address exists stays generic, so the oracle is exactly one bit
+  // wide and not one bit wider.
+  const stranger = await identity.login({
+    email: `g-nobody-${rand()}@test.invalid`, password: "whatever-1234", ip: "203.0.113.9",
+  });
+  ok("an address nobody registered is still just `invalid`",
+    stranger?.error === "invalid", JSON.stringify(stranger?.error));
+
+  const live = `g-live-${rand()}@test.invalid`;
+  await createUser({ email: live, passwordHash: await hashPassword("right-password-1234") });
+  const wrong = await identity.login({ email: live, password: "wrong-one-1234", ip: "203.0.113.9" });
+  ok("...and so is a wrong password on a live account",
+    wrong?.error === "invalid", JSON.stringify(wrong?.error));
 }
 
 console.log("== the console can see where it is signed in");
