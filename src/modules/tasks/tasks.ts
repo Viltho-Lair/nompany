@@ -30,7 +30,8 @@ import {
   APPROVAL_COOLDOWN_MS, isApprovalTask, readTaskAssignees, resolveTaskAssignees,
   enrichTask, canSeeTask, progressOf, summarise,
 } from "./taskRouting";
-import type { Task, ChecklistItem, TasksContext } from "./types";
+import type { Task, ChecklistItem, TasksContext, EnrichedTask, Approval } from "./types";
+import type { Section } from "@/platform/db/sections";
 
 const TASKS = "tasks";
 const PROJECTS = "projects";
@@ -47,7 +48,7 @@ export const TASK_PRIORITIES = ["Low", "Normal", "High", "Urgent"];
 export const DEFAULT_STATUS = "Open";
 export const DEFAULT_PRIORITY = "Normal";
 
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 
 export const tasksContext = moduleContext({
@@ -58,7 +59,9 @@ export const tasksContext = moduleContext({
   // Who currently holds each approval authority, resolved from Task settings on
   // every read — appointing somebody there hands them the open approvals
   // immediately, so this is never copied onto a row.
-  extend: ({ settingsSection }) => ({ taskAssignees: readTaskAssignees(settingsSection) }),
+  extend: ({ settingsSection }) => ({
+    taskAssignees: readTaskAssignees(settingsSection),
+  }),
 });
 
 // ---- task routing -----------------------------------------------------------
@@ -110,7 +113,7 @@ export async function listTasks(ctx: TasksContext) {
     .filter((t) => canSeeTask(t, { meId: collaborator.id, canManage }))
     .sort((a, b) => {
       // Open work first, then by due date, then newest.
-      const done = (t) => (t.status === "Done" ? 1 : 0);
+      const done = (t: EnrichedTask) => (t.status === "Done" ? 1 : 0);
       if (done(a) !== done(b)) return done(a) - done(b);
       if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
       if (!!a.dueDate !== !!b.dueDate) return a.dueDate ? -1 : 1;
@@ -135,7 +138,7 @@ export async function listTasks(ctx: TasksContext) {
         label: TASK_AUTHORITIES.find((a) => a.code === code)?.label || code,
         holders: (t.byAuthority?.[code] || []).map((id) => alias[id]).filter(Boolean),
         approved: !!t.approvals?.[code]?.approved,
-        byAlias: alias[t.approvals?.[code]?.byCollaboratorId] || "",
+        byAlias: alias[t.approvals?.[code]?.byCollaboratorId || ""] || "",
         at: t.approvals?.[code]?.at || "",
         // Nobody has been appointed to this authority, so this task is stuck —
         // worth saying out loud rather than letting it sit there forever.
@@ -287,13 +290,17 @@ export async function updateTask(ctx: TasksContext, id: string, body: Record<str
   // back to In progress, so status can never contradict the checklist. This runs
   // against `row` — the live record inside the write lock — so the status always
   // matches the checklist that was actually stored.
-  const apply = (row) => {
-    const changes = { ...patch };
-    if (toggleId) {
-      changes.checklist = (row.checklist || []).map((c) => (c.id === toggleId ? { ...c, done: !c.done } : c));
-    }
-    if (changes.checklist) {
-      const done = progressOf(changes.checklist);
+  const apply = (row: Task) => {
+    const changes: Record<string, unknown> = { ...patch };
+    // Named rather than read back off `changes`, which is a bag of unknowns:
+    // the tick and a checklist sent in the patch are the same thing to the
+    // status rule below, and both have to reach it.
+    const checklist = toggleId
+      ? (row.checklist || []).map((c) => (c.id === toggleId ? { ...c, done: !c.done } : c))
+      : (patch.checklist as ChecklistItem[] | undefined);
+    if (toggleId) changes.checklist = checklist;
+    if (checklist) {
+      const done = progressOf(checklist);
       const status = changes.status ?? row.status;
       if (done === 100 && status !== "Done") { changes.status = "Done"; changes.completedAt = row.completedAt || new Date().toISOString(); }
       if (done !== null && done < 100 && status === "Done") { changes.status = "In progress"; changes.completedAt = ""; }
@@ -337,8 +344,8 @@ export async function decideTask(ctx: TasksContext, id: string, body: Record<str
 
   // Applied to the live row inside the write lock: two authorities deciding at
   // the same moment must not overwrite each other's approval.
-  const apply = (row) => {
-    const approvals = { ...(row.approvals && typeof row.approvals === "object" ? row.approvals : {}) };
+  const apply = (row: Task) => {
+    const approvals: Record<string, Approval> = { ...(row.approvals && typeof row.approvals === "object" ? row.approvals as Record<string, Approval> : {}) };
     if (approved) {
       approvals[authority] = { approved: true, byCollaboratorId: collaborator.id, at: new Date().toISOString() };
     } else {
@@ -407,7 +414,7 @@ export async function removeTask(ctx: TasksContext, id: string) {
 // drop the second of three items, add another, and the new one is `ck3` again.
 // Duplicates arriving from an older client are renamed here rather than trusted,
 // because this is the last place before they are stored.
-function cleanChecklist(list) {
+function cleanChecklist(list: unknown): ChecklistItem[] {
   const seen = new Set();
   return (Array.isArray(list) ? list : []).slice(0, 50).map((c, i) => {
     let id = str(c?.id, 20);
@@ -422,11 +429,11 @@ function cleanChecklist(list) {
 // itself stays permission-gated in the UI.
 // Cross-section reads resolve the sub-section that OWNS the collection, falling
 // back to the parent so a studio predating the sub-section model still works.
-async function ownerOf(studioId: string, childKey, parentKey) {
+async function ownerOf(studioId: string, childKey: string, parentKey: string) {
   return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
 }
 
-async function projectRows({ studio }) {
+async function projectRows({ studio }: Pick<TasksContext, "studio">) {
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return [];
   // A DIFFERENT SECTION, SAME COLLECTION. The scope is what varies, so reading
@@ -442,7 +449,7 @@ export async function taskProjects(ctx: TasksContext) {
     .map((p) => ({ id: p.id, number: p.number, title: p.title || "" }));
 }
 
-export async function assignablePeople({ studio }) {
+export async function assignablePeople({ studio }: Pick<TasksContext, "studio">) {
   const rows = await listCollaborators(studio.id);
   return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" }));
 }

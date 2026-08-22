@@ -1,14 +1,14 @@
 // Pure helpers for the projects dashboard + SLA system. Safe on client & server.
-import type { Sla } from "./types";
+import type { Sla, Project, EmergencyVisit } from "./types";
 
-export function addDays(dateStr, days: number) {
+export function addDays(dateStr: string | number | Date, days: number) {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + Math.round(days));
   return d;
 }
 
 // Whole days from today (midnight) until `date`. Negative = in the past.
-export function daysUntil(date) {
+export function daysUntil(date: string | number | Date | null | undefined) {
   if (!date) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -36,7 +36,22 @@ export type SlaVisit = {
   completed: boolean;
 };
 
-export function slaVisits(sla) {
+/**
+ * A CALL-OUT AS THE DASHBOARD READS IT — the stored record plus the same
+ * `daysRemaining` a planned visit carries, so `allVisits` can sort the two
+ * kinds together. `emergency` is the discriminant the screen renders on.
+ */
+export type EmergencyVisitView = EmergencyVisit & {
+  daysRemaining: number | null;
+  emergency: true;
+};
+
+/** Either kind of visit, which is what the "closest visits" list holds. */
+export type AnyVisit =
+  | (SlaVisit & { emergency: false })
+  | EmergencyVisitView;
+
+export function slaVisits(sla: Sla) {
   const start = sla?.startDate;
   if (!start) return [];
   const duration = Number(sla.durationDays) || 365;
@@ -53,14 +68,16 @@ export function slaVisits(sla) {
 
 // Ad-hoc emergency visits recorded on the contract (stored, not derived).
 // Each item: { id, date, completed }.
-export function emergencyVisits(sla) {
+export function emergencyVisits(sla: Sla) {
   const list = Array.isArray(sla?.emergencyVisitsList) ? sla.emergencyVisitsList : [];
-  return list.map((e) => ({ ...e, daysRemaining: daysUntil(e.date), emergency: true }));
+  return list.map((e): EmergencyVisitView => ({
+    ...e, daysRemaining: daysUntil(e.date), emergency: true,
+  }));
 }
 
 // Contract end date (last day covered by the SLA). Null when the start date
 // isn't set yet, so callers can decide how to handle that.
-export function contractEndDate(sla) {
+export function contractEndDate(sla: Sla) {
   const start = sla?.startDate;
   if (!start) return null;
   const duration = Number(sla.durationDays) || 365;
@@ -69,21 +86,21 @@ export function contractEndDate(sla) {
 
 // Every visit on the SLA — planned + emergency — sorted by date ascending. Used
 // by the dashboard so both kinds show up in "closest visits".
-export function allVisits(sla: Sla) {
-  const regular = slaVisits(sla).map((v) => ({ ...v, emergency: false }));
+export function allVisits(sla: Sla): AnyVisit[] {
+  const regular = slaVisits(sla).map((v) => ({ ...v, emergency: false as const }));
   return [...regular, ...emergencyVisits(sla)]
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 // The soonest visit (planned or emergency) that hasn't passed yet and isn't
 // completed, or null.
-export function nextVisit(sla) {
-  const upcoming = allVisits(sla).filter((v) => !v.completed && v.daysRemaining >= 0);
+export function nextVisit(sla: Sla) {
+  const upcoming = allVisits(sla).filter((v) => !v.completed && (v.daysRemaining ?? -1) >= 0);
   return upcoming.length ? upcoming[0] : null;
 }
 
 // Complementary support window: from the project end date for supportPeriodDays.
-export function supportStatus(project) {
+export function supportStatus(project: Project | null | undefined) {
   if (!project?.endDate) return { known: false, inSupport: false };
   const days = Number(project.supportPeriodDays ?? 365) || 365;
   const supportEnd = addDays(project.endDate, days);
@@ -95,10 +112,10 @@ export function supportStatus(project) {
   return { known: true, supportEnd, daysRemaining, inSupport: (daysRemaining ?? -1) >= 0 };
 }
 
-export function fmtDate(date) {
+export function fmtDate(date: unknown) {
   if (!date) return "—";
   try {
-    return new Date(date).toLocaleDateString("en-GB"); // dd/mm/yyyy everywhere
+    return new Date(date as string | number | Date).toLocaleDateString("en-GB"); // dd/mm/yyyy everywhere
   } catch {
     return String(date);
   }

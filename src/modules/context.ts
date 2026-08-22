@@ -73,13 +73,25 @@ export type ModuleContext = {
   [named: string]: unknown;
 };
 
+/**
+ * WHAT `extend` RECEIVES. The same context, but with the index signature
+ * narrowed to what the factory has just put behind it: every unnamed key on a
+ * context at this point is a `<name>Section` from `sub` or `foreign`, and a
+ * foreign one is null when the studio has no such section.
+ *
+ * Nine departments destructure their own sub-section in `extend`. Off the bare
+ * ModuleContext each of those is `unknown` — correct, and useless — so this is
+ * where the factory says what it already knows rather than nine files casting.
+ */
+export type ExtendContext = ModuleContext & { [named: string]: Section | null };
+
 /** What a department declares about itself. */
 export type ModuleSpec = {
   root: string;
   sub?: Record<string, string | string[]>;
   foreign?: Record<string, string | string[]>;
   flags?: readonly string[];
-  extend?: (ctx: ModuleContext, byKey: Record<string, Section>) => unknown;
+  extend?: (ctx: ExtendContext, byKey: Record<string, Section>) => unknown;
 };
 
 const pick = (byKey: Record<string, Section>, keys: string | string[]): Section | null => {
@@ -157,6 +169,6 @@ export function moduleContext(spec: ModuleSpec) {
     // being handed its parent's answer.
     out.manage = manageMap(studio, collaborator, sections, access);
 
-    return extend ? { ...out, ...(await extend(out, byKey) as object) } : out;
+    return extend ? { ...out, ...(await extend(out as ExtendContext, byKey) as object) } : out;
   };
 }

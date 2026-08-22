@@ -20,10 +20,11 @@
 
 import { S } from "@/platform/db/keys";
 import { bumpCounter } from "@/platform/db/store";
+import type { Row } from "@/platform/db/store";
 
 // THE HIGHEST NUMBER ALREADY ISSUED UNDER A PREFIX, read off the rows in hand.
 // Used as the floor the counter is seeded from the first time a studio asks.
-export function highestIssued(rows, field, prefix: string) {
+export function highestIssued(rows: Row[], field: string, prefix: string) {
   const head = `${prefix}-`.toUpperCase();
   let highest = 0;
   for (const row of rows || []) {
@@ -46,10 +47,19 @@ export function highestIssued(rows, field, prefix: string) {
 //
 // The floor comes from the rows the caller already read, so a studio with
 // history seeds itself on first use and nothing has to be migrated.
-export async function nextReference(studioId, { rows, field, prefix, pad = 4, startAt = 1 }) {
+export async function nextReference(
+  studioId: string,
+  { rows, field, prefix, pad = 4, startAt = 1 }: {
+    rows: Row[];
+    field: string;
+    prefix: string;
+    pad?: number;
+    startAt?: number;
+  },
+) {
   const floor = Math.max(highestIssued(rows, field, prefix), Math.max(0, startAt - 1));
   const n = await bumpCounter(S.counters(studioId), prefix.toUpperCase(), floor);
-  const taken = new Set((rows || []).map((r) => String(r?.[field] || "").toUpperCase()));
+  const taken = new Set((rows || []).map((r: Row) => String(r?.[field] || "").toUpperCase()));
   // The tally cannot collide with itself; it can still collide with a reference
   // somebody typed in by hand, so step past those.
   let candidate = `${prefix}-${String(n).padStart(pad, "0")}`;
@@ -66,8 +76,8 @@ export async function nextReference(studioId, { rows, field, prefix, pad = 4, st
 // and neither can a quotation's number be reissued, because convertRfq reuses
 // the prior one deliberately. Anything with a delete path must use
 // nextReference instead.
-export function nextUniqueRef(rows, field, prefix: string, pad = 3, startAt = 0) {
-  const taken = new Set((rows || []).map((r) => String(r?.[field] || "").toUpperCase()));
+export function nextUniqueRef(rows: Row[], field: string, prefix: string, pad = 3, startAt = 0) {
+  const taken = new Set((rows || []).map((r: Row) => String(r?.[field] || "").toUpperCase()));
   const head = `${prefix}-`.toUpperCase();
   let highest = startAt - 1;
   for (const raw of taken) {

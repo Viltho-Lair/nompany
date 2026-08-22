@@ -35,6 +35,7 @@ import type { Section } from "@/platform/db/sections";
 import type { Quotation } from "@/modules/technical/types";
 import type { Project } from "@/modules/projects/types";
 import type { Row } from "@/platform/db/store";
+import type { Task } from "@/modules/tasks/types";
 
 const VENDORS = "inventoryVendors";
 const ITEMS = "inventoryItems";
@@ -84,7 +85,7 @@ const Projects = repo(PROJECTS);
 const Quotations = repo(QUOTATIONS);
 const Sheets = repo<Sheet>(SHEETS);
 const Stock = repo<Movement>(STOCK);
-const Tasks = repo(TASKS);
+const Tasks = repo<Task>(TASKS);
 const Vendors = repo<Vendor>(VENDORS);
 
 export const ORDER_STATUSES = ["Draft", "Ordered", "Partly received", "Received", "Cancelled"];
@@ -713,7 +714,7 @@ export async function listProjectSheets(ctx: InventoryContext) {
     // The PO the client sent lives on the `po` TASK raised against this
     // sheet's quotation. Read back through quotationId like everything else,
     // so searching a PO number finds the sheet it belongs to.
-    ctx.tasksSection ? Tasks.find({ studio, section: ctx.tasksSection as Section }) : ([] as Row[]),
+    ctx.tasksSection ? Tasks.find({ studio, section: ctx.tasksSection as Section }) : ([] as Task[]),
   ]);
   // THE ELEMENT TYPE IS NAMED ON EACH MAP, because `new Map(rows.map(...))`
   // infers a tuple type from the callback and loses which side is the key. The
@@ -743,7 +744,7 @@ export async function listProjectSheets(ctx: InventoryContext) {
     const pool = all.filter((sn) => own.has(sn) || !spoken.has(sn));
     return { pool, onHand: pool.filter((sn) => !own.has(sn)).length };
   };
-  const poFor = (quotationId) => tasks.find((t) => t.type === "po" && t.quotationId === quotationId) || null;
+  const poFor = (quotationId: string) => tasks.find((t) => t.type === "po" && t.quotationId === quotationId) || null;
 
   return [...sheets]
     .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""))
@@ -765,7 +766,7 @@ export async function listProjectSheets(ctx: InventoryContext) {
         quotationNumber: quote?.number || "",
         // What the client's own order says — the PO's description is where a PO
         // number is written, since a PO is a document rather than a field.
-        poNumber: (poFor(sheet.quotationId)?.po as { description?: string })?.description || "",
+        poNumber: poFor(sheet.quotationId)?.po?.description || "",
         tables,
         lineCount: tables.reduce((n, t) => n + t.rows.length, 0),
         // The serials held for the items on this sheet, so a search for one

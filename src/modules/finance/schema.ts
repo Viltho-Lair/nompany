@@ -8,7 +8,7 @@ import { z } from "zod";
 /** One billable line. `total` is derived on the way out, never stored. */
 export const InvoiceLineSchema = z.object({
   description: z.string().max(300),
-  quantity: z.number(),
+  qty: z.number(),
   unitPrice: z.number(),
 });
 

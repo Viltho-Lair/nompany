@@ -422,7 +422,11 @@ console.log("\n== schemas: what a department says it stores");
 
   const invoice = {
     id: "inv_1", studioId: "s", sectionId: "sec", reference: "INV-0001",
-    projectId: "", clientName: "Acme", lines: [{ description: "Panel", quantity: 2, unitPrice: 50 }],
+    // `qty`, NOT `quantity` — cleanLines writes `qty` and invoiceTotals reads
+    // it. The schema said `quantity` for a while and this fixture agreed with
+    // the schema instead of with the code, so the pair passed while neither
+    // matched a stored invoice. Inventory is where `quantity` is the word.
+    projectId: "", clientName: "Acme", lines: [{ description: "Panel", qty: 2, unitPrice: 50 }],
     vatRate: 15, status: "Draft", issueDate: "2026-08-22", dueDate: "", notes: "",
   };
   accepts("an invoice as createInvoice writes it", InvoiceSchema, invoice);

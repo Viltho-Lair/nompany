@@ -22,11 +22,13 @@ export const COMPANY_DEFAULTS = {
 // Merge a tenant's saved company config over the defaults. Accepts the whole
 // `settings` object and reads settings.company.*, falling back to legacy
 // top-level fields where they exist (settings.logo).
-export function resolveCompanySettings(settings) {
-  const c = (settings && typeof settings.company === "object" && settings.company) || {};
-  const flat = settings || {};
+export function resolveCompanySettings(settings: Record<string, unknown> | null | undefined) {
+  const c = (settings?.company && typeof settings.company === "object"
+    ? settings.company as Record<string, unknown>
+    : {});
+  const flat: Record<string, unknown> = settings || {};
   const merged = { ...COMPANY_DEFAULTS, ...c };
-  merged.logo = c.logo || flat.logo || COMPANY_DEFAULTS.logo;
+  merged.logo = String(c.logo || flat.logo || COMPANY_DEFAULTS.logo);
   // Coerce the couple of numeric fields (forms submit strings).
   const dec = Number(merged.currencyDecimals);
   merged.currencyDecimals = Number.isFinite(dec) ? Math.max(0, Math.min(4, dec)) : 2;
@@ -43,7 +45,7 @@ export function resolveCompanySettings(settings) {
 //   { text }            — a pre-rendered string for the empty/invalid case
 // so a React <Money> can render `{body} <Riyal/>` while string callers keep a
 // plain formatted string via formatMoney below.
-export function formatMoneyParts(v, cfg = COMPANY_DEFAULTS) {
+export function formatMoneyParts(v: unknown, cfg = COMPANY_DEFAULTS) {
   if (v == null || v === "") return { text: "—" };
   const n = Number(v);
   if (!Number.isFinite(n)) return { text: String(v) };
@@ -55,17 +57,17 @@ export function formatMoneyParts(v, cfg = COMPANY_DEFAULTS) {
   return { body, currency: cfg.currency || "SAR" };
 }
 
-export function formatMoney(v, cfg = COMPANY_DEFAULTS) {
+export function formatMoney(v: unknown, cfg = COMPANY_DEFAULTS) {
   const p = formatMoneyParts(v, cfg);
   return p.text != null ? p.text : `${p.body} ${p.currency}`;
 }
 
-export function formatDate(v, cfg = COMPANY_DEFAULTS) {
+export function formatDate(v: unknown, cfg = COMPANY_DEFAULTS) {
   if (!v) return "—";
-  try { return new Date(v).toLocaleDateString(cfg.dateLocale || "en-GB"); } catch { return String(v); }
+  try { return new Date(v as string | number | Date).toLocaleDateString(cfg.dateLocale || "en-GB"); } catch { return String(v); }
 }
 
-export function formatDateTime(v, cfg = COMPANY_DEFAULTS) {
+export function formatDateTime(v: unknown, cfg = COMPANY_DEFAULTS) {
   if (!v) return "—";
-  try { return new Date(v).toLocaleString(cfg.dateLocale || "en-GB"); } catch { return String(v); }
+  try { return new Date(v as string | number | Date).toLocaleString(cfg.dateLocale || "en-GB"); } catch { return String(v); }
 }

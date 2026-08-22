@@ -10,6 +10,8 @@
 // the row. A copied assignment would freeze at the moment it was written and
 // quietly keep routing work to whoever used to hold the job.
 
+import type { Task, ChecklistItem, TaskAssignees, EnrichedTask, BoardTask } from "./types";
+
 export const TASK_AUTHORITIES = [
   { code: "mng", label: "Management" },
   { code: "fin", label: "Finance" },
@@ -17,11 +19,18 @@ export const TASK_AUTHORITIES = [
   { code: "log", label: "Logistics" },
   { code: "hr", label: "Human Resources" },
   { code: "permit", label: "Permit team" },
-];
-export const AUTHORITY_CODES = TASK_AUTHORITIES.map((a) => a.code);
+] as const;
+
+/** The six codes, as a type. `as const` above is what makes this a union. */
+export type AuthorityCode = (typeof TASK_AUTHORITIES)[number]["code"];
+
+export const AUTHORITY_CODES: readonly AuthorityCode[] = TASK_AUTHORITIES.map((a) => a.code);
 
 // Two-party types need BOTH authorities to complete, per the Old System.
-export const TASK_TYPE_AUTHORITIES = {
+// TYPED AS Record<string, ...> DELIBERATELY. A task's `type` arrives off a
+// stored row and is a plain string; a literal-keyed table would force every
+// lookup through a cast to ask the question the table exists to answer.
+export const TASK_TYPE_AUTHORITIES: Record<string, readonly AuthorityCode[]> = {
   approval: ["sales", "mng"],
   po: ["mng", "fin"],
   "material-po": ["fin", "mng"],
@@ -99,7 +108,7 @@ export const TASK_TYPE_LABELS = {
 export const APPROVAL_COOLDOWN_MS = 5 * 60 * 1000;
 
 // Is this task waiting on a decision, rather than on somebody doing the work?
-export const isApprovalTask = (task) => Boolean(task?.type) && TASK_TYPES.includes(task.type);
+export const isApprovalTask = (task: Task | null | undefined) => Boolean(task?.type) && TASK_TYPES.includes(String(task?.type));
 
 // IS THIS QUOTATION APPROVED — asked of the APPROVAL, not of a copy.
 //
@@ -117,7 +126,10 @@ export const isApprovalTask = (task) => Boolean(task?.type) && TASK_TYPES.includ
 // counts — a studio may mark a quotation Approved by hand, and quotations
 // approved before this existed keep working — but it is no longer the only
 // answer, and it is not the one that matters when a real approval exists.
-export function quotationApproved(quotation, tasks) {
+export function quotationApproved(
+  quotation: { id?: string; status?: string } | null | undefined,
+  tasks: Task[] | null | undefined,
+) {
   if (!quotation) return false;
   if (quotation.status === "Approved") return true;
   return (tasks || []).some((t) => t.type === "approval" && t.quotationId === quotation.id && t.status === "Done");
@@ -125,37 +137,51 @@ export function quotationApproved(quotation, tasks) {
 
 // { authorityCode: [CollaboratorID] } — CollaboratorIDs, never UserIDs. Unknown
 // codes are dropped, so a typo cannot create a silent bucket routing to nobody.
-export function readTaskAssignees(settingsSection) {
-  const raw = settingsSection?.settings?.taskAssignees || {};
-  const out: Record<string, unknown> = {};
+export function readTaskAssignees(
+  // NOT a Section: updateTaskSettings calls this with a bare `{ settings }` to
+  // read back what it is about to write, before any section holds it.
+  settingsSection: { settings?: Record<string, unknown> } | null | undefined,
+): TaskAssignees {
+  const settings = settingsSection?.settings as Record<string, unknown> | undefined;
+  const raw = (settings?.taskAssignees || {}) as Record<string, unknown>;
+  const out: TaskAssignees = {};
   for (const code of AUTHORITY_CODES) {
-    const ids = Array.isArray(raw[code]) ? raw[code] : [];
+    const ids: unknown[] = Array.isArray(raw[code]) ? raw[code] as unknown[] : [];
     out[code] = [...new Set(ids.map((v) => String(v ?? "").trim()).filter(Boolean))].slice(0, 50);
   }
   return out;
 }
 
 // Who owns a task right now, derived from CURRENT settings.
-export function resolveTaskAssignees(task, taskAssignees) {
-  const codes = TASK_TYPE_AUTHORITIES[task?.type] || [];
-  const byAuthority = {};
-  const flat = new Set();
+export function resolveTaskAssignees(
+  task: Task | null | undefined,
+  taskAssignees: TaskAssignees | null | undefined,
+): { authorities: string[]; byAuthority: TaskAssignees; assigneeIds: string[] } {
+  const codes = TASK_TYPE_AUTHORITIES[String(task?.type)] || [];
+  const byAuthority: TaskAssignees = {};
+  const flat = new Set<string>();
   for (const c of codes) {
     byAuthority[c] = taskAssignees?.[c] || [];
     for (const id of byAuthority[c]) flat.add(id);
   }
-  return { authorities: codes, byAuthority, assigneeIds: [...flat] };
+  return { authorities: [...codes], byAuthority, assigneeIds: [...flat] };
 }
 
 // A typed task with its routing resolved. `myAuthorities` is which of them the
 // viewer personally holds — empty means they may be able to SEE it, but it is
 // not theirs to decide.
-export function enrichTask(task, taskAssignees, meId: string) {
+export function enrichTask(
+  task: Task,
+  taskAssignees: TaskAssignees | null | undefined,
+  meId: string,
+): EnrichedTask {
   if (!isApprovalTask(task)) {
     return { ...task, authorities: [], byAuthority: {}, assigneeIds: [], approvals: {}, approvalState: null, myAuthorities: [] };
   }
   const { authorities, byAuthority, assigneeIds } = resolveTaskAssignees(task, taskAssignees);
-  const approvals = task.approvals && typeof task.approvals === "object" ? task.approvals : {};
+  const approvals = (task.approvals && typeof task.approvals === "object"
+    ? task.approvals
+    : {}) as Record<string, { approved?: boolean } | undefined>;
   // Only the authorities this type actually routes to count toward completion —
   // an approval left behind by a type change must not keep a task alive.
   const decided = authorities.filter((c) => approvals[c]?.approved);
@@ -176,7 +202,10 @@ export function enrichTask(task, taskAssignees, meId: string) {
 
 // Who may see a typed task: a manager, whoever raised it, or anyone holding one
 // of its authorities. An untyped task follows the board's ordinary rules.
-export function canSeeTask(task, { meId, canManage }) {
+export function canSeeTask(
+  task: EnrichedTask,
+  { meId, canManage }: { meId: string; canManage: boolean },
+) {
   if (!isApprovalTask(task)) return true;
   if (canManage) return true;
   if (task.createdByCollaboratorId === meId) return true;
@@ -185,14 +214,14 @@ export function canSeeTask(task, { meId, canManage }) {
 
 // Checklist progress. No checklist at all is not the same as an empty one, so
 // it answers null rather than 0.
-export function progressOf(checklist) {
+export function progressOf(checklist: ChecklistItem[] | null | undefined) {
   const list = Array.isArray(checklist) ? checklist : [];
   if (!list.length) return null;
   return Math.round((list.filter((c) => c.done).length / list.length) * 100);
 }
 
 // Headline counts, including how much is landing on the person looking.
-export function summarise(tasks, meId: string) {
+export function summarise(tasks: BoardTask[], meId: string) {
   const live = tasks.filter((t) => t.status !== "Done");
   return {
     open: live.length,

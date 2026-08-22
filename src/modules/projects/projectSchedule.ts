@@ -21,7 +21,7 @@ export const DEFAULT_SUPPORT_DAYS = 365;
 
 // "17:30" → 17.5. Returns `fallback` for anything that isn't a real time, so a
 // half-typed field reads as missing rather than as midnight.
-export function hhmmToHours(hhmm, fallback = NaN) {
+export function hhmmToHours(hhmm: unknown, fallback = NaN) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm ?? "").trim());
   if (!m) return fallback;
   const h = Number(m[1]), min = Number(m[2]);
@@ -32,7 +32,7 @@ export function hhmmToHours(hhmm, fallback = NaN) {
 // Hours between two times on the same day, to two decimals. Zero when either is
 // unreadable or the end is not after the start — an overtime record that spans
 // no time is not a record.
-export function hoursBetween(from, to) {
+export function hoursBetween(from: unknown, to: unknown) {
   const a = hhmmToHours(from), b = hhmmToHours(to);
   if (Number.isNaN(a) || Number.isNaN(b) || b <= a) return 0;
   return Math.round((b - a) * 100) / 100;
@@ -41,7 +41,10 @@ export function hoursBetween(from, to) {
 // Re-scale the configured weights across only the requirements a project has,
 // so the shares always add up to 100. With none set, every requirement present
 // weighs the same.
-export function scaledWeights(present, configured = DEFAULT_REQUIREMENT_WEIGHTS) {
+export function scaledWeights(
+  present: readonly string[],
+  configured: Record<string, unknown> = DEFAULT_REQUIREMENT_WEIGHTS,
+) {
   const keys = REQUIREMENT_WEIGHTS.map((w) => w.key).filter((k) => present.includes(k));
   if (keys.length === 0) return {};
   const raw = keys.map((k) => {

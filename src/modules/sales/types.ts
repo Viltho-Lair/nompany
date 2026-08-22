@@ -3,6 +3,7 @@
 
 import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
+import type { TaskAssignees } from "@/modules/tasks/types";
 
 export type { Client, Service, SalesTicket, Contact, Site, ServiceRequirement } from "./schema";
 
@@ -28,5 +29,5 @@ export type SalesContext = ModuleContext & {
   canManageClients: boolean;
   canViewSettings: boolean;
   canManageSettings: boolean;
-  taskAssignees: unknown;
+  taskAssignees: TaskAssignees;
 };

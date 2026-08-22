@@ -23,7 +23,8 @@ import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { traverseIn } from "@/platform/relations";
 import { nextReference } from "@/modules/main/references";
-import type { Invoice, Expense, InvoiceLine, Payment, FinanceContext } from "./types";
+import type { Invoice, InvoiceView, Expense, InvoiceLine, Payment, FinanceContext } from "./types";
+import type { Row } from "@/platform/db/store";
 
 const INVOICES = "invoices";
 const EXPENSES = "expenses";
@@ -47,10 +48,10 @@ export const EXPENSE_CATEGORIES = [
 export const PAYMENT_METHODS = ["Bank transfer", "Cash", "Card", "Cheque", "Other"];
 export const DEFAULT_VAT_RATE = 15;
 
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
-const cash = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
-const round = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const cash = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
+const round = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
 
 // THE COLLECTIONS THIS MODULE QUERIES, named once. Projects and Orders belong
 // to other departments; reading them is a different SCOPE rather than a
@@ -102,24 +103,31 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
 // ---- money -----------------------------------------------------------------
 // One place computes an invoice's numbers, so the list, the detail and the
 // totals can never disagree.
-export function invoiceTotals(invoice) {
+export function invoiceTotals(invoice: Invoice | null | undefined) {
   const lines = Array.isArray(invoice?.lines) ? invoice.lines : [];
-  const subtotal = round(lines.reduce((sum, l) => sum + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0));
+  const subtotal = round(lines.reduce(
+    (sum: number, l: Record<string, unknown>) => sum + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0),
+    0,
+  ));
   const vat = round(subtotal * ((Number(invoice?.vatRate) || 0) / 100));
   const total = round(subtotal + vat);
-  const paid = round((Array.isArray(invoice?.payments) ? invoice.payments : []).reduce((s, p) => s + (Number(p.amount) || 0), 0));
+  const paid = round((Array.isArray(invoice?.payments) ? invoice.payments : [])
+    .reduce((s: number, p: Record<string, unknown>) => s + (Number(p.amount) || 0), 0));
   return { subtotal, vat, total, paid, outstanding: round(Math.max(0, total - paid)) };
 }
 
 // "Paid" is a consequence of the payments, never an assertion. A cancelled
 // invoice stays cancelled; a draft stays a draft until it is issued.
-function statusFor(invoice, totals) {
+function statusFor(
+  invoice: Invoice,
+  totals: { total: number; paid: number; outstanding: number },
+) {
   if (invoice.status === "Cancelled" || invoice.status === "Draft") return invoice.status;
   return totals.paid >= totals.total && totals.total > 0 ? "Paid" : "Sent";
 }
 
 // ---- invoices --------------------------------------------------------------
-export async function listInvoices({ studio, cashSection }) {
+export async function listInvoices({ studio, cashSection }: Pick<FinanceContext, "studio" | "cashSection">) {
   const [invoices, projects] = await Promise.all([
     Invoices.find({ studio, section: cashSection }),
     projectRows({ studio }),
@@ -165,7 +173,7 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
 
   const invoices = await Invoices.find({ studio, section: cashSection });
   const today = new Date().toISOString().slice(0, 10);
-  const invoice = await addRow(studio.id, cashSection.id, INVOICES, {
+  const invoice = await addRow<Invoice>(studio.id, cashSection.id, INVOICES, {
     // Derived from the highest INV already issued, never from how many exist:
     // deleting a draft must not hand its number to the next invoice, and two
     // raised at once must not both be INV-0004. See modules/main/references.js.
@@ -230,7 +238,7 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
   if (body?.issueDate !== undefined) patch.issueDate = day(body.issueDate);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);
 
-  const updated = await updateRow(studio.id, cashSection.id, INVOICES, id, patch);
+  const updated = await updateRow<Invoice>(studio.id, cashSection.id, INVOICES, id, patch);
   return updated ? { invoice: { ...updated, ...invoiceTotals(updated) } } : { error: "notfound" };
 }
 
@@ -265,8 +273,13 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
     byCollaboratorId: collaborator.id,
   }];
 
-  const updated = await updateRow(studio.id, cashSection.id, INVOICES, id, { payments });
-  return { invoice: { ...updated, ...invoiceTotals(updated), status: statusFor(updated, invoiceTotals(updated)) } };
+  const updated = await updateRow<Invoice>(studio.id, cashSection.id, INVOICES, id, { payments });
+  // The invoice was read before the write, so it can be gone by the time the
+  // compare-and-set lands. Every other writer here answers "notfound" for that;
+  // this one used to spread a null and then read `.status` off it.
+  if (!updated) return { error: "notfound" };
+  const after = invoiceTotals(updated);
+  return { invoice: { ...updated, ...after, status: statusFor(updated, after) } };
 }
 
 // Only a draft can be deleted. Once issued it is part of the record — cancel it.
@@ -286,7 +299,7 @@ export async function removeInvoice(ctx: FinanceContext, id: string) {
 }
 
 // ---- expenses --------------------------------------------------------------
-export async function listExpenses({ studio, cashSection }) {
+export async function listExpenses({ studio, cashSection }: Pick<FinanceContext, "studio" | "cashSection">) {
   const [expenses, projects, people] = await Promise.all([
     Expenses.find({ studio, section: cashSection }),
     projectRows({ studio }),
@@ -320,7 +333,7 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
   }
 
   const expenses = await Expenses.find({ studio, section: cashSection });
-  const expense = await addRow(studio.id, cashSection.id, EXPENSES, {
+  const expense = await addRow<Expense>(studio.id, cashSection.id, EXPENSES, {
     reference: await nextReference(studio.id, { rows: expenses, field: "reference", prefix: "EXP" }),
     description: str(body?.description, 300),
     category: EXPENSE_CATEGORIES.includes(String(body?.category)) ? String(body?.category) : "Other",
@@ -357,7 +370,7 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
     patch.projectId = projectId;
   }
 
-  const expense = await updateRow(studio.id, cashSection.id, EXPENSES, id, patch);
+  const expense = await updateRow<Expense>(studio.id, cashSection.id, EXPENSES, id, patch);
   return expense ? { expense } : { error: "notfound" };
 }
 
@@ -374,7 +387,10 @@ export async function removeExpense(ctx: FinanceContext, id: string) {
 // Per project: what it was sold for, what has been billed and collected, and
 // what it has cost. Recomputed on every read from the sections that own each
 // number, so Finance never holds a stale copy of anyone else's data.
-export async function profitability(ctx: FinanceContext, { invoices, expenses }) {
+export async function profitability(
+  ctx: FinanceContext,
+  { invoices, expenses }: { invoices: InvoiceView[]; expenses: Expense[] },
+) {
   const [projects, orders, people] = await Promise.all([projectRows(ctx), orderRows(ctx), listCollaborators(ctx.studio.id)]);
   const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
 
@@ -384,7 +400,7 @@ export async function profitability(ctx: FinanceContext, { invoices, expenses })
     // platform/relations.js rather than repeated here. Expenses have no such rule,
     // which is now visible in the declaration instead of being an absence
     // somebody has to notice in a filter.
-    const of = (node, rows) => traverseIn("project", p, node, { rows: { [node]: rows } }).records;
+    const of = (node: string, rows: Row[]) => traverseIn("project", p, node, { rows: { [node]: rows } }).records;
 
     // `traverseIn` walks plain rows, so what comes back is the graph's Row —
     // narrowed here because these two totals are the whole point of the call.
@@ -426,7 +442,7 @@ export async function profitability(ctx: FinanceContext, { invoices, expenses })
 }
 
 // ---- shared ----------------------------------------------------------------
-function cleanLines(list) {
+function cleanLines(list: unknown): InvoiceLine[] {
   return (Array.isArray(list) ? list : [])
     .map((l) => ({
       description: str(l?.description, 300),
@@ -442,17 +458,17 @@ function cleanLines(list) {
 // allowed to open those screens — the links to them stay permission-gated.
 // Cross-section reads resolve the sub-section that OWNS the collection, falling
 // back to the parent so a studio predating the sub-section model still works.
-async function ownerOf(studioId: string, childKey, parentKey) {
+async function ownerOf(studioId: string, childKey: string, parentKey: string) {
   return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
 }
 
-async function projectRows({ studio }) {
+async function projectRows({ studio }: Pick<FinanceContext, "studio">) {
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return [];
   return Projects.find({ studio, section: owner });
 }
 
-async function orderRows({ studio }) {
+async function orderRows({ studio }: Pick<FinanceContext, "studio">) {
   const owner = await ownerOf(studio.id, "inventory-sheets", "inventory");
   if (!owner) return [];
   return Orders.find({ studio, section: owner });
@@ -507,7 +523,7 @@ export async function setCommercials(ctx: FinanceContext, id: string, body: Reco
 }
 
 // Headline numbers for the whole studio.
-export function summarise(invoices, expenses) {
+export function summarise(invoices: InvoiceView[], expenses: Expense[]) {
   const live = invoices.filter((i) => i.status !== "Cancelled" && i.status !== "Draft");
   return {
     invoiced: round(live.reduce((s, i) => s + i.total, 0)),

@@ -28,6 +28,7 @@ import { isFinishedQuotation } from "@/modules/technical/quotations";
 import { readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES, quotationApproved } from "@/modules/tasks/taskRouting";
 import type { SalesContext, Client, Service, SalesTicket, Site } from "./types";
 import type { TechnicalContext } from "@/modules/technical/types";
+import type { Task } from "@/modules/tasks/types";
 
 export { TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, DEFAULT_STATUS, DEFAULT_URGENCY,
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS };
@@ -54,7 +55,7 @@ const Projects = repo(PROJECTS);
 const Quotations = repo(QUOTATIONS);
 const Rfqs = repo(RFQS);
 const Services = repo<Service>(SERVICES);
-const Tasks = repo(TASKS);
+const Tasks = repo<Task>(TASKS);
 const Tickets = repo<SalesTicket>(TICKETS);
 // The task type the Tasks board already routes to Sales + Management. Sending a
 // quotation for approval raises one of these rather than a type of its own, so
@@ -778,7 +779,7 @@ export async function sendTicketForApproval(ctx: SalesContext, body: Record<stri
 
   const revision = Number(quotation.revision) || 1;
   const name = `${quotation.number || "Quotation"}${revision > 1 ? ` Rev ${revision}` : ""}`;
-  const task = await addRow(studio.id, tasksSection.id, TASKS, {
+  const task = await addRow<Task>(studio.id, tasksSection.id, TASKS, {
     type: APPROVAL_TYPE,
     title: `Approve quotation ${name} · ${ticket.clientName || ticket.ref || ""}`.trim(),
     description: [ticket.title, ticket.ref].filter(Boolean).join(" · "),
@@ -884,7 +885,7 @@ export async function submitTicketPo(ctx: SalesContext, body: Record<string, unk
   // Finance twice — the same rule the approval obeys.
   if (tasks.some((k) => k.type === PO_TYPE && k.quotationId === quotation.id)) return { error: "already" };
 
-  const task = await addRow(studio.id, tasksSection.id, TASKS, {
+  const task = await addRow<Task>(studio.id, tasksSection.id, TASKS, {
     type: PO_TYPE,
     title: `Approve PO for ${quotation.number || "quotation"} · ${ticket.clientName || ticket.ref || ""}`.trim(),
     description: [ticket.title, ticket.ref].filter(Boolean).join(" · "),

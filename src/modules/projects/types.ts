@@ -4,7 +4,7 @@
 import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 
-export type { Project, Sla, Overtime } from "./schema";
+export type { Project, Sla, Overtime, EmergencyVisit } from "./schema";
 
 // ---- this department's context ---------------------------------------------
 // Generated from the spec in the service file: `sub` and `foreign` become

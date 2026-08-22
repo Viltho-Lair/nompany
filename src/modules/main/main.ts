@@ -16,6 +16,7 @@ import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
 import { sectionViewable } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { enrichTask, readTaskAssignees } from "@/modules/tasks/taskRouting";
+import type { Task } from "@/modules/tasks/types";
 // The sections' OWN definitions of "below reorder level" and "expiring", so the
 // front door cannot quietly disagree with the screen it is summarising.
 import { balances } from "@/modules/inventory/inventory";
@@ -25,6 +26,7 @@ import type { StudioRef, CollaboratorRef } from "../context";
 import type { PermissionSet } from "@/platform/access";
 import type { Section } from "@/platform/db/sections";
 import type { Movement } from "@/modules/inventory/types";
+import type { Row } from "@/platform/db/store";
 
 /**
  * WHAT `seen` IS, and why main hands one out instead of a list of flags. It
@@ -35,7 +37,23 @@ import type { Movement } from "@/modules/inventory/types";
  */
 export type SeenFn = (key: string, fallbackKey?: string | null) => Section | null;
 
-export async function mainContext(user, slug: string) {
+/**
+ * WHAT mainContext HANDS BACK. Written out rather than inferred because the
+ * function returns `context` unchanged on the error path, so its inferred type
+ * is a union with an error object and every consumer would have to narrow it
+ * again. The route already checks `.error` before calling anything here.
+ */
+export type MainContext = {
+  studio: StudioRef;
+  collaborator: CollaboratorRef;
+  sections: Section[];
+  byKey: Record<string, Section | undefined>;
+  seen: SeenFn;
+  visible: ReturnType<typeof visibleSections>;
+  nav: ReturnType<typeof sectionNav>;
+};
+
+export async function mainContext(user: { id?: unknown } | null | undefined, slug: string) {
   const context = await studioContext(user, slug);
   if (context.error) return context;
   // `access` comes from studioContext; dropping it here is what silently
@@ -69,18 +87,23 @@ export async function mainContext(user, slug: string) {
 
 // Read a collection only when its section is visible; otherwise answer with
 // nothing at all, so a caller cannot accidentally count what it may not see.
-async function readIfVisible(ctx, key: string, fallbackKey, collection) {
+async function readIfVisible<T extends Row = Row>(
+  ctx: MainContext,
+  key: string,
+  fallbackKey: string | null,
+  collection: string,
+): Promise<T[] | null> {
   const section = ctx.seen(key, fallbackKey);
   if (!section) return null;
   // The collection is chosen by the caller, so the repository is built per call
   // rather than hoisted — it binds a name, not a connection.
-  return repo(collection).find({ studio: ctx.studio, section });
+  return repo<T>(collection).find({ studio: ctx.studio, section });
 }
 
 // The headline figures, each one omitted entirely when its section is not the
 // viewer's to see. `null` means "not yours to know", which the screen renders as
 // an absent tile rather than a zero — a zero would be a claim.
-export async function headlines(ctx: ModuleContext) {
+export async function headlines(ctx: MainContext) {
   const meId = ctx.collaborator.id;
   const today = new Date().toISOString().slice(0, 10);
 
@@ -95,10 +118,10 @@ export async function headlines(ctx: ModuleContext) {
     // sub-section, so somebody who may see the catalogue but not the stock
     // movements gets no answer rather than a wrong one.
     readIfVisible(ctx, "inventory-stock", "inventory", "inventoryStock"),
-    readIfVisible(ctx, "tasks", null, "tasks"),
+    readIfVisible<Task>(ctx, "tasks", null, "tasks"),
     readIfVisible(ctx, "finance-cash", "finance", "invoices"),
     readIfVisible(ctx, "operations", null, "permits"),
-    (ctx.seen as SeenFn)("hr-employees", "hr") ? listCollaborators(ctx.studio.id) : null,
+    ctx.seen("hr-employees", "hr") ? listCollaborators(ctx.studio.id) : null,
   ]);
 
   // Derived exactly as the Inventory screen derives it, from the same helper.
@@ -108,7 +131,7 @@ export async function headlines(ctx: ModuleContext) {
   // uses — so the number on the home page and the number on the board agree.
   let awaitingMe: number | null = null;
   if (tasks) {
-    const byKey = ctx.byKey as Record<string, Section | undefined>;
+    const byKey = ctx.byKey;
     const settingsSection = byKey["tasks-settings"] || byKey["tasks"];
     const assignees = readTaskAssignees(settingsSection);
     awaitingMe = tasks
@@ -148,7 +171,7 @@ export async function headlines(ctx: ModuleContext) {
 
 // The few things that changed most recently, across everything the viewer can
 // see — so the front door answers "what happened while I was away".
-export async function recent(ctx: ModuleContext, limit = 8) {
+export async function recent(ctx: MainContext, limit = 8) {
   const [tickets, quotations, projects, tasks] = await Promise.all([
     readIfVisible(ctx, "sales-tickets", "sales", "salesTickets"),
     readIfVisible(ctx, "technical-quotations", "technical", "quotations"),

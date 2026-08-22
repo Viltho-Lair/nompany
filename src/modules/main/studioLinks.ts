@@ -16,14 +16,14 @@ const to = (slug: string, section: string, params: Record<string, unknown>) => {
   return `/${slug}/${section}${query ? `?${query}` : ""}`;
 };
 
-export const linkToClient = (slug, id) => (id ? to(slug, "sales", { client: id }) : "");
-export const linkToTicket = (slug, id) => (id ? to(slug, "sales", { ticket: id }) : "");
-export const linkToRfq = (slug, id) => (id ? to(slug, "technical", { rfq: id }) : "");
-export const linkToQuotation = (slug, id) => (id ? to(slug, "technical", { quotation: id }) : "");
-export const linkToProject = (slug, id) => (id ? to(slug, "projects", { project: id }) : "");
+export const linkToClient = (slug: string, id: string) => (id ? to(slug, "sales", { client: id }) : "");
+export const linkToTicket = (slug: string, id: string) => (id ? to(slug, "sales", { ticket: id }) : "");
+export const linkToRfq = (slug: string, id: string) => (id ? to(slug, "technical", { rfq: id }) : "");
+export const linkToQuotation = (slug: string, id: string) => (id ? to(slug, "technical", { quotation: id }) : "");
+export const linkToProject = (slug: string, id: string) => (id ? to(slug, "projects", { project: id }) : "");
 
 // A link is only offered when the person can actually open that section —
 // otherwise it renders as plain text rather than a dead end.
-export function linkIf(canSee, href) {
+export function linkIf(canSee: unknown, href: unknown) {
   return canSee ? href : "";
 }

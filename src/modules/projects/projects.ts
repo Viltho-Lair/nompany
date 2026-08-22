@@ -23,6 +23,7 @@ import { departmentsFromSections } from "@/lib/departments";
 import { quotationApproved } from "@/modules/tasks/taskRouting";
 import type { ProjectsContext, Project, Sla, Overtime } from "./types";
 import type { Section } from "@/platform/db/sections";
+import type { Task } from "@/modules/tasks/types";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 export const DEFAULT_STAGE = "Received";
@@ -49,12 +50,12 @@ const Overtimes = repo<Overtime>(OVERTIMES);
 const Projects = repo<Project>(PROJECTS);
 const Quotations = repo(QUOTATIONS);
 const Slas = repo<Sla>(SLAS);
-const Tasks = repo(TASKS);
+const Tasks = repo<Task>(TASKS);
 // A department is a top-level SECTION, so the overtime picker's filter is
 // derived from the studio's own structure rather than read out of HR — see
 // lib/departments.js.
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
-const nonNeg = (v, fallback = 0) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : fallback; };
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
+const nonNeg = (v: unknown, fallback = 0) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : fallback; };
 
 export const projectsContext = moduleContext({
   root: "projects",
@@ -99,7 +100,9 @@ export async function saveProjectsSettings(ctx: ProjectsContext, body: Record<st
   // blank field means "not set" and is stored as such, so it can fall back to an
   // even split rather than to a zero that would silently drop the requirement.
   if (body?.requirementWeights !== undefined) {
-    const raw = body.requirementWeights && typeof body.requirementWeights === "object" ? body.requirementWeights : {};
+    const raw: Record<string, unknown> = body.requirementWeights && typeof body.requirementWeights === "object"
+      ? body.requirementWeights as Record<string, unknown>
+      : {};
     next.requirementWeights = Object.fromEntries(
       REQUIREMENT_WEIGHTS.map((w) => [w.key, raw[w.key] === "" || raw[w.key] == null ? "" : nonNeg(raw[w.key], 0)]),
     );
@@ -113,7 +116,7 @@ export async function saveProjectsSettings(ctx: ProjectsContext, body: Record<st
   return updated ? { settings: next } : { error: "notfound" };
 }
 
-export function readProjectsSettings(settingsSection) {
+export function readProjectsSettings(settingsSection: Section | null | undefined) {
   const s = settingsSection?.settings || {};
   return {
     stages: Array.isArray(s.stages) && s.stages.length ? s.stages : PROJECT_STAGES,
@@ -125,7 +128,7 @@ export function readProjectsSettings(settingsSection) {
 
 // Progress is DERIVED from the milestone checklist — never stored independently,
 // so it can't drift out of step with the work.
-export function progressOf(milestones) {
+export function progressOf(milestones: unknown) {
   const list = Array.isArray(milestones) ? milestones : [];
   if (!list.length) return 0;
   return Math.round((list.filter((m) => m.done).length / list.length) * 100);
@@ -299,7 +302,10 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
 // Idempotent: a project that already has a number keeps it. An approval
 // withdrawn and given again must not mint a second number, because the first
 // one is on documents the client is holding.
-export async function issueProjectNumber({ studio, listSection }, quotationId) {
+export async function issueProjectNumber(
+  { studio, listSection }: Pick<ProjectsContext, "studio" | "listSection">,
+  quotationId: string,
+) {
   if (!listSection || !quotationId) return { issued: "" };
   const rows = await Projects.find({ studio, section: listSection });
   const project = rows.find((p) => p.quotationId === quotationId);
@@ -365,7 +371,7 @@ export async function removeProject(ctx: ProjectsContext, id: string) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
-export async function projectPeople({ studio }) {
+export async function projectPeople({ studio }: Pick<ProjectsContext, "studio">) {
   const rows = await listCollaborators(studio.id);
   return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" }));
 }
@@ -377,12 +383,12 @@ export async function projectPeople({ studio }) {
 // from the start, duration and count, so changing the contract reschedules
 // everything instead of leaving stale dates behind. Only what cannot be derived
 // is kept: which visits were completed, and the emergency visits actually used.
-export async function listSlas({ studio, slaSection }) {
+export async function listSlas({ studio, slaSection }: Pick<ProjectsContext, "studio" | "slaSection">) {
   const rows = await Slas.find({ studio, section: slaSection });
   return [...rows].sort((a, b) => String(b.signingDate || "").localeCompare(String(a.signingDate || "")));
 }
 
-function slaFields(body) {
+function slaFields(body: Record<string, unknown>) {
   return {
     title: str(body?.title, 200),
     projectId: str(body?.projectId, 60),
@@ -477,7 +483,7 @@ export async function removeSla(ctx: ProjectsContext, id: string) {
 // Hours somebody worked on a project outside the plan. One row per person per
 // stretch, so the matrix can add them up per project and per person, and one
 // person's record can be corrected without touching anyone else's.
-export async function listOvertimes({ studio, overtimesSection }) {
+export async function listOvertimes({ studio, overtimesSection }: Pick<ProjectsContext, "studio" | "overtimesSection">) {
   const rows = await Overtimes.find({ studio, section: overtimesSection });
   return [...rows].sort((a, b) =>
     String(b.date || "").localeCompare(String(a.date || "")) ||
@@ -487,7 +493,7 @@ export async function listOvertimes({ studio, overtimesSection }) {
 // Who overtime can be logged against, and the departments the picker filters by.
 // People are COLLABORATORS — the studio-local identity every other module
 // assigns work to — carrying whatever department HR has put them in.
-export async function overtimeDirectory({ studio, sections }) {
+export async function overtimeDirectory({ studio, sections }: Pick<ProjectsContext, "studio" | "sections">) {
   const people = await listCollaborators(studio.id);
   // NOT HR'S COLLECTION ANY MORE. A department is a top-level section, so the
   // filter is derived from the studio's own structure — which also means

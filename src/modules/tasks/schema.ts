@@ -65,6 +65,20 @@ export const TaskSchema = z.object({
   // that decideTask reaches into Projects on exactly this field.
   quotationId: z.string().optional(),
 
+  /**
+   * THE CLIENT'S PURCHASE ORDER, on a `po` task and nowhere else — this is the
+   * one thing an approval task genuinely OWNS rather than reaches for. It is
+   * what Finance is being asked to authorise, so a copy on the quotation would
+   * be a second version of the document somebody sent.
+   */
+  po: z.object({
+    description: z.string(),
+    attachmentUrl: z.string(),
+    attachmentName: z.string(),
+    submittedByCollaboratorId: z.string(),
+    submittedAt: z.string(),
+  }).optional(),
+
   // ---- derived, never stored ------------------------------------------------
   /** Ticked items over total. Computed on the way out, so it is optional here. */
   progress: z.number().optional(),

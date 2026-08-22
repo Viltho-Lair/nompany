@@ -31,6 +31,7 @@ import {
 import type { TechnicalContext, Rfq, Quotation } from "./types";
 import type { SalesTicket } from "@/modules/sales/types";
 import type { Section } from "@/platform/db/sections";
+import type { Task } from "@/modules/tasks/types";
 
 export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns };
@@ -50,7 +51,7 @@ const Clients = repo(CLIENTS);
 const InventoryItems = repo(INVENTORY_ITEMS);
 const Quotations = repo<Quotation>(QUOTATIONS);
 const Rfqs = repo<Rfq>(RFQS);
-const Tasks = repo(TASKS);
+const Tasks = repo<Task>(TASKS);
 const Tickets = repo(TICKETS);
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const num = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : 0);

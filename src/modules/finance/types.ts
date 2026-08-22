@@ -5,6 +5,26 @@ import type { Section } from "@/platform/db/sections";
 
 export type { Invoice, InvoiceLine, Payment, Expense } from "./schema";
 
+import type { Invoice } from "./schema";
+
+/** What `invoiceTotals` computes. Derived on every read, never stored. */
+export type InvoiceTotals = {
+  subtotal: number;
+  vat: number;
+  total: number;
+  paid: number;
+  outstanding: number;
+};
+
+// ONE INVOICE AS THE LIST HANDS IT OVER — the stored row plus everything
+// derived on the way out. Named because `summarise` needs the derived fields
+// present, and taking a bare Invoice there would let a caller pass a raw row
+// whose totals are all undefined.
+export type InvoiceView = Invoice & InvoiceTotals & {
+  projectNumber: string;
+  overdue: boolean;
+};
+
 // ---- this department's context ---------------------------------------------
 //
 // Generated from the spec in finance.ts: `sub` and `foreign` become
