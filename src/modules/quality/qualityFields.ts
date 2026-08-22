@@ -53,6 +53,26 @@ export const subjectById = (id) => SUBJECTS.find((s) => s.id === id) || null;
 // `path` is dotted into the resolved record. `via: "collaborator"` means the
 // value is a CollaboratorID that has to become somebody's name — an id printed
 // on a document is a document nobody can read.
+/**
+ * ONE FIELD A CONTROLLED DOCUMENT CAN MERGE. `path` is dotted and read off the
+ * record `subject` names; `permission` is what the author must hold, which is
+ * checked as well as the document's binding — see the note below on why both.
+ *
+ * `via: "collaborator"` means the path yields a CollaboratorID and the merge
+ * resolves it to an alias. Optional because most fields are the value itself.
+ */
+export type MergeField = {
+  key: string;
+  label: string;
+  path: string;
+  kind: string;
+  group: string;
+  department: string;
+  subject?: string;
+  permission?: string;
+  via?: string;
+};
+
 const SALES_TICKET = [
   ["sales.ticket.ref", "Ticket reference", "ref"],
   ["sales.ticket.title", "Ticket title", "title"],
@@ -70,7 +90,7 @@ const SALES_TICKET = [
 ].map(([key, label, path]) => ({
   key, label, path, kind: "scalar",
   group: "Sales", department: "sales", subject: "salesTicket",
-}));
+} as MergeField));
 
 SALES_TICKET.push({
   key: "sales.ticket.owner", label: "Ticket owner", path: "assignedToCollaboratorId",
@@ -133,7 +153,7 @@ export const legalFieldsFrom = (legalInfo) =>
 // Called by the content allowlist, so this is what decides whether a placeholder
 // survives being saved. A key that is neither declared nor legal-shaped is
 // dropped rather than stored and rendered as a gap later.
-export function isFieldKey(key) {
+export function isFieldKey(key: string) {
   const k = String(key || "");
   return STATIC_KEY_SET.has(k) || LEGAL_KEY.test(k);
 }
@@ -178,7 +198,15 @@ export function reachOf(subjectType, target, holds) {
   return { hops: path.length, path };
 }
 
-export function availableFields({ subjectType = null, legalInfo = [], holds = () => true }) {
+export function availableFields({
+  subjectType = null,
+  legalInfo = [],
+  holds = () => true,
+}: {
+  subjectType?: string | null;
+  legalInfo?: unknown[];
+  holds?: (permission: string) => boolean;
+}) {
   return [...STATIC_FIELDS, ...legalFieldsFrom(legalInfo)].filter((f) => {
     if (!f.subject) return true;
     if (!subjectType) return false;
@@ -291,7 +319,10 @@ const BLOCK_KEYS = new Set(BLOCK_SOURCES.map((b) => b.key));
 export const isBlockSource = (key) => BLOCK_KEYS.has(String(key || ""));
 export const blockByKey = (key) => BLOCK_SOURCES.find((b) => b.key === key) || null;
 
-export function availableBlocks({ subjectType = null, holds = () => true }) {
+export function availableBlocks({
+  subjectType = null,
+  holds = () => true,
+}: { subjectType?: string | null; holds?: (permission: string) => boolean }) {
   return BLOCK_SOURCES.filter((b) => Boolean(reachOf(subjectType, b.subject, holds)) && holds(b.permission));
 }
 

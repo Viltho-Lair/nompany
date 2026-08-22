@@ -37,8 +37,39 @@ import {
   STATIC_FIELDS, BLOCK_SOURCES, availableFields, availableBlocks, groupFields,
   legalKeyFor, subjectById, SUBJECTS, reachOf,
 } from "./qualityFields";
+import type { QualityContext } from "./types";
+import { netUnitPrice, discountPct } from "@/modules/technical/quotations";
+import type { PermissionKey } from "@/platform/access";
 
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+
+// THREE REFERENCE ERRORS THAT HAD NEVER BEEN CALLED.
+//
+// `money()`, `netUnitPrice()` and `discountPct()` were all used in the
+// quotation-lines block below and all three defined nowhere — not here, not
+// imported, not globals. Building a controlled document with a quotation lines
+// block would have thrown on the first of them, and the only reason nobody has
+// is that nothing has exercised that path since the block was written.
+//
+// THE OTHER TWO ARE IMPORTED, NOT REDEFINED, and that is the difference that
+// matters. `money` is a rounding rule and copying it costs nothing. Net unit
+// price and the discount clamp are TECHNICAL'S PRICING, and a controlled
+// document showing a different net price from the quotation it was built out of
+// would be worse than one that throws.
+//
+// TypeScript found it on the day this file was converted. `check-scopes.mjs` —
+// the script written specifically to catch undefined identifiers, after two of
+// them shipped — reports this file clean, which is worth knowing about the
+// script as much as about the bug.
+//
+// Two decimal places, the same rule inventory.ts uses on the same kind of
+// value. Not imported from there: a quality document reaching into Inventory
+// for a rounding rule would be a dependency between two departments that have
+// nothing to do with each other.
+const money = (v: unknown) => {
+  const num = Number(v);
+  return Number.isFinite(num) && num > 0 ? Math.round(num * 100) / 100 : 0;
+};
 
 // ---- context ---------------------------------------------------------------
 
@@ -71,12 +102,12 @@ const readerFor = (ctx) => async (node) => {
 // naming themselves.
 async function reachedRecords(ctx, document, wanted) {
   const { subject, record } = await subjectRecord(ctx, document);
-  const out = {};
+  const out: Record<string, unknown> = {};
   if (!subject || !record) return out;
   out[subject.id] = record;
 
   const read = readerFor(ctx);
-  const holds = (permission) => can(ctx.access, permission);
+  const holds = (permission: string) => can(ctx.access, permission as PermissionKey);
   for (const target of wanted) {
     if (target === subject.id || out[target]) continue;
     if (!reachOf(subject.id, target, holds)) continue;
@@ -98,7 +129,7 @@ async function subjectRecord(ctx, document) {
   // is producing for; on a document being authored it is empty and the caller
   // supplies a preview id instead. Either way it is never persisted.
   if (!subject || !document?.subjectId) return { subject: null, record: null, allowed: false };
-  if (!can(ctx.access, subject.permission)) return { subject, record: null, allowed: false };
+  if (!can(ctx.access, subject.permission as PermissionKey)) return { subject, record: null, allowed: false };
 
   const section = ctx.sections.find((x) => x.key === subject.sectionKey);
   if (!section) return { subject, record: null, allowed: true };
@@ -115,9 +146,10 @@ async function subjectRecord(ctx, document) {
 // A field that cannot be resolved is left OUT of the map rather than set to "".
 // The renderer then prints its name in the gap, so an empty spot on a page says
 // which field is empty instead of looking like a mistake in the text.
-export async function mergeValuesFor(ctx, document, { rev = null } = {}) {
+export async function mergeValuesFor(ctx: QualityContext, document, { rev = null } = {}) {
   const people = await listCollaborators(ctx.studio.id);
-  const department = ctx.departments.find((d) => d.id === document.departmentId);
+  const department = (ctx.departments as { id: string; name?: string }[] | undefined)
+    ?.find((d) => d.id === document.departmentId);
   const alias = (id) => people.find((c) => c.id === id)?.alias || "";
 
   const values = {
@@ -154,7 +186,7 @@ export async function mergeValuesFor(ctx, document, { rev = null } = {}) {
     const record = reached[f.subject];
     if (!record) continue;
     const raw = dotted(record, f.path);
-    values[f.key] = f.via === "collaborator" ? alias(raw) : String(raw ?? "");
+    values[f.key] = (f as { via?: string }).via === "collaborator" ? alias(raw) : String(raw ?? "");
   }
 
   return values;
@@ -166,14 +198,14 @@ export async function mergeValuesFor(ctx, document, { rev = null } = {}) {
 // record to read at all, and the permission decides whether THIS person may.
 // A block they may not see resolves to nothing, and the renderer says which
 // block is missing rather than leaving an unexplained hole in the page.
-export async function resolveBlocks(ctx, document) {
+export async function resolveBlocks(ctx: QualityContext, document) {
   const reached = await reachedRecords(ctx, document, [...new Set(BLOCK_SOURCES.map((b) => b.subject))]);
 
-  const out = {};
+  const out: Record<string, unknown> = {};
   for (const source of BLOCK_SOURCES) {
     const record = reached[source.subject];
     if (!record) continue;
-    if (!can(ctx.access, source.permission)) continue;
+    if (!can(ctx.access, source.permission as PermissionKey)) continue;
 
     if (source.key === "quotation.lines") {
       // ONE TABLE PER NAMED GROUP. Flattening them into a single list and
@@ -184,9 +216,10 @@ export async function resolveBlocks(ctx, document) {
       // itemsFromTables in quotations.js flattens for the TOTALS, where the
       // grouping genuinely does not matter. Copying that shape here copied the
       // mechanism without its reason.
-      const groups = [];
-      for (const table of Array.isArray(record.tables) ? record.tables : []) {
-        const rows = [];
+      const groups: { title: string; rows: unknown[]; subtotal: number }[] = [];
+      const tables = (record as { tables?: unknown[] }).tables;
+      for (const table of (Array.isArray(tables) ? tables : []) as { title?: string; rows?: Record<string, unknown>[] }[]) {
+        const rows: Record<string, unknown>[] = [];
         let subtotal = 0;
         for (const r of table.rows || []) {
           const qty = Number(r.qty) || 0;
@@ -213,13 +246,13 @@ export async function resolveBlocks(ctx, document) {
       // the document was priced; doing the arithmetic again here would be a
       // second answer, and the two would part company the first time either
       // rounding rule changed.
-      const rate = Number(record.vatRate) || 0;
+      const rate = Number((record as Record<string, unknown>).vatRate) || 0;
       out[source.key] = {
         columns: source.columns,
         rows: [
-          { label: "Subtotal", value: money(record.subtotal) },
-          { label: rate ? `VAT (${rate}%)` : "VAT", value: money(record.vat) },
-          { label: "Total", value: money(record.total), strong: true },
+          { label: "Subtotal", value: money((record as Record<string, unknown>).subtotal) },
+          { label: rate ? `VAT (${rate}%)` : "VAT", value: money((record as Record<string, unknown>).vat) },
+          { label: "Total", value: money((record as Record<string, unknown>).total), strong: true },
         ],
       };
     }
@@ -228,21 +261,21 @@ export async function resolveBlocks(ctx, document) {
 }
 
 // What the Insert block menu should offer.
-export function blocksFor(ctx, document) {
+export function blocksFor(ctx: QualityContext, document) {
   return availableBlocks({
     subjectType: document?.subjectType || null,
-    holds: (permission) => can(ctx.access, permission),
+    holds: (permission: string) => can(ctx.access, permission as PermissionKey),
   });
 }
 
 // What the Insert field menu should offer, grouped by department. Filtered by
 // what the document is bound to AND by what this author holds — see the note in
 // modules/quality/qualityFields.js about why both filters are needed.
-export function fieldsFor(ctx, document) {
-  const holds = (permission) => can(ctx.access, permission);
+export function fieldsFor(ctx: QualityContext, document) {
+  const holds = (permission: string) => can(ctx.access, permission as PermissionKey);
   const fields = availableFields({
     subjectType: document?.subjectType || null,
-    legalInfo: ctx.studio.legalInfo,
+    legalInfo: ctx.studio.legalInfo as unknown[],
     holds,
   }).map((f) => ({ ...f, kind: "field" }));
 
@@ -260,10 +293,10 @@ export function fieldsFor(ctx, document) {
 
 // The records a document may be bound to, for the picker. Permission-checked:
 // a list of every sales ticket is itself Sales data.
-export async function subjectOptions(ctx, subjectType) {
+export async function subjectOptions(ctx: QualityContext, subjectType) {
   const subject = subjectById(subjectType);
   if (!subject) return { error: "unknown-subject" };
-  if (!can(ctx.access, subject.permission)) return { error: "forbidden" };
+  if (!can(ctx.access, subject.permission as PermissionKey)) return { error: "forbidden" };
 
   const section = ctx.sections.find((x) => x.key === subject.sectionKey);
   if (!section) return { options: [] };
@@ -279,7 +312,7 @@ export async function subjectOptions(ctx, subjectType) {
 // BINDING IS OPTIONAL. A procedure is about nothing in particular and resolves
 // its Company and Document fields perfectly well; binding is what makes a
 // DEPARTMENT'S fields reachable, and it is the mechanism templates are built on.
-export async function bindSubject(ctx, documentId, body) {
+export async function bindSubject(ctx: QualityContext, documentId: string, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "quality.documents.edit");
   if (denied) return denied;
 
@@ -291,7 +324,7 @@ export async function bindSubject(ctx, documentId, body) {
     if (!subject) return { error: "unknown-subject" };
     // Nobody may bind a document to a record they cannot see. Otherwise the
     // document becomes a way to read one.
-    if (!can(ctx.access, subject.permission)) return { error: "forbidden" };
+    if (!can(ctx.access, subject.permission as PermissionKey)) return { error: "forbidden" };
     if (subjectId) {
       const section = ctx.sections.find((x) => x.key === subject.sectionKey);
       const rows = section ? await repo(subject.collection).find({ studio: ctx.studio, section }) : [];

@@ -6,8 +6,12 @@
 //
 // Client-safe: no server imports.
 
-const to = (slug, section, params) => {
-  const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v));
+const to = (slug: string, section: string, params: Record<string, unknown>) => {
+  // Falsy values are dropped rather than sent empty — a link with `?id=` in it
+  // reads as "this record" to a screen that then cannot find it.
+  const q = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v).map(([k, v]) => [k, String(v)]),
+  );
   const query = q.toString();
   return `/${slug}/${section}${query ? `?${query}` : ""}`;
 };

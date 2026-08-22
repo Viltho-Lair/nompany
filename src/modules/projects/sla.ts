@@ -1,6 +1,7 @@
 // Pure helpers for the projects dashboard + SLA system. Safe on client & server.
+import type { Sla } from "./types";
 
-export function addDays(dateStr, days) {
+export function addDays(dateStr, days: number) {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + Math.round(days));
   return d;
@@ -20,6 +21,21 @@ export function daysUntil(date) {
 // Visits are spread evenly across the duration (interval = duration / visits),
 // so visit k falls on start + k*interval and the last lands on start+duration.
 // `completedVisits` on the SLA is an array of visit indexes marked done.
+/**
+ * ONE VISIT ON THE SCHEDULE. Derived from the SLA's duration and visit count
+ * rather than stored: a plan that is written down goes stale the moment either
+ * number is edited, and the dates are wholly a function of the two.
+ *
+ * `daysRemaining` is null for a date that has already passed — which is
+ * different from zero, and is what the dashboard sorts on.
+ */
+export type SlaVisit = {
+  index: number;
+  date: Date;
+  daysRemaining: number | null;
+  completed: boolean;
+};
+
 export function slaVisits(sla) {
   const start = sla?.startDate;
   if (!start) return [];
@@ -27,7 +43,7 @@ export function slaVisits(sla) {
   const n = Math.max(1, Math.round(Number(sla.visits) || 1));
   const interval = duration / n;
   const done = new Set(Array.isArray(sla.completedVisits) ? sla.completedVisits : []);
-  const out = [];
+  const out: SlaVisit[] = [];
   for (let k = 1; k <= n; k++) {
     const date = addDays(start, k * interval);
     out.push({ index: k, date, daysRemaining: daysUntil(date), completed: done.has(k) });
@@ -53,9 +69,10 @@ export function contractEndDate(sla) {
 
 // Every visit on the SLA — planned + emergency — sorted by date ascending. Used
 // by the dashboard so both kinds show up in "closest visits".
-export function allVisits(sla) {
+export function allVisits(sla: Sla) {
   const regular = slaVisits(sla).map((v) => ({ ...v, emergency: false }));
-  return [...regular, ...emergencyVisits(sla)].sort((a, b) => new Date(a.date) - new Date(b.date));
+  return [...regular, ...emergencyVisits(sla)]
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 // The soonest visit (planned or emergency) that hasn't passed yet and isn't
@@ -71,7 +88,11 @@ export function supportStatus(project) {
   const days = Number(project.supportPeriodDays ?? 365) || 365;
   const supportEnd = addDays(project.endDate, days);
   const daysRemaining = daysUntil(supportEnd);
-  return { known: true, supportEnd, daysRemaining, inSupport: daysRemaining >= 0 };
+  // `daysUntil` returns null for a date it cannot read, and the support window
+  // is computed from a project's end date — which is blank until the project
+  // has one. A null here means "no end date yet", and out of support is the
+  // safe reading of that.
+  return { known: true, supportEnd, daysRemaining, inSupport: (daysRemaining ?? -1) >= 0 };
 }
 
 export function fmtDate(date) {

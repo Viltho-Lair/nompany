@@ -23,7 +23,7 @@ import { bumpCounter } from "@/platform/db/store";
 
 // THE HIGHEST NUMBER ALREADY ISSUED UNDER A PREFIX, read off the rows in hand.
 // Used as the floor the counter is seeded from the first time a studio asks.
-export function highestIssued(rows, field, prefix) {
+export function highestIssued(rows, field, prefix: string) {
   const head = `${prefix}-`.toUpperCase();
   let highest = 0;
   for (const row of rows || []) {
@@ -66,11 +66,12 @@ export async function nextReference(studioId, { rows, field, prefix, pad = 4, st
 // and neither can a quotation's number be reissued, because convertRfq reuses
 // the prior one deliberately. Anything with a delete path must use
 // nextReference instead.
-export function nextUniqueRef(rows, field, prefix, pad = 3, startAt = 0) {
+export function nextUniqueRef(rows, field, prefix: string, pad = 3, startAt = 0) {
   const taken = new Set((rows || []).map((r) => String(r?.[field] || "").toUpperCase()));
   const head = `${prefix}-`.toUpperCase();
   let highest = startAt - 1;
-  for (const value of taken) {
+  for (const raw of taken) {
+    const value = String(raw ?? "");
     if (!value.startsWith(head)) continue;
     const n = Number.parseInt(value.slice(head.length), 10);
     if (Number.isFinite(n) && n > highest) highest = n;

@@ -27,6 +27,14 @@ import { listCollaborators } from "@/platform/auth/collaborators";
 import { nextReference } from "@/modules/main/references";
 // What each department adds to a quotation row, and who owns which column.
 import { SHEET_OWNERS, cleanSheetLine } from "./sheetColumns";
+import type {
+  InventoryContext, Vendor, Item, Movement, Order, OrderLine, Delivery, Sheet,
+} from "./types";
+import type { PermissionKey } from "@/platform/access";
+import type { Section } from "@/platform/db/sections";
+import type { Quotation } from "@/modules/technical/types";
+import type { Project } from "@/modules/projects/types";
+import type { Row } from "@/platform/db/store";
 
 const VENDORS = "inventoryVendors";
 const ITEMS = "inventoryItems";
@@ -69,15 +77,15 @@ const QUOTATIONS = "quotations";
 // collection, not a scope — the studio and section arrive per call, which is
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
-const Deliveries = repo(DELIVERIES);
-const Items = repo(ITEMS);
-const Orders = repo(ORDERS);
+const Deliveries = repo<Delivery>(DELIVERIES);
+const Items = repo<Item>(ITEMS);
+const Orders = repo<Order>(ORDERS);
 const Projects = repo(PROJECTS);
 const Quotations = repo(QUOTATIONS);
-const Sheets = repo(SHEETS);
-const Stock = repo(STOCK);
+const Sheets = repo<Sheet>(SHEETS);
+const Stock = repo<Movement>(STOCK);
 const Tasks = repo(TASKS);
-const Vendors = repo(VENDORS);
+const Vendors = repo<Vendor>(VENDORS);
 
 export const ORDER_STATUSES = ["Draft", "Ordered", "Partly received", "Received", "Cancelled"];
 export const DELIVERY_STATUSES = ["Draft", "Issued", "Cancelled"];
@@ -147,7 +155,7 @@ export async function listVendors({ studio, vendorsSection }) {
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
-export async function createVendor(ctx, body) {
+export async function createVendor(ctx: InventoryContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.vendors.create");
   if (denied) return denied;
@@ -171,13 +179,13 @@ export async function createVendor(ctx, body) {
   return { vendor };
 }
 
-export async function editVendor(ctx, id, body) {
+export async function editVendor(ctx: InventoryContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.vendors.edit");
   if (denied) return denied;
 
   const { studio, vendorsSection } = ctx;
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.name !== undefined) {
     const name = str(body.name, 160);
     if (!name) return { error: "name" };
@@ -194,7 +202,7 @@ export async function editVendor(ctx, id, body) {
   return vendor ? { vendor } : { error: "notfound" };
 }
 
-export async function removeVendor(ctx, id) {
+export async function removeVendor(ctx: InventoryContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.vendors.delete");
   if (denied) return denied;
@@ -221,12 +229,16 @@ async function reservedSerials({ studio, sheetsSection }) {
   const out = new Set();
   for (const sh of sheets) {
     const lines = sh.lines && typeof sh.lines === "object" ? sh.lines : {};
-    for (const line of Object.values(lines)) for (const sn of line?.serials || []) out.add(sn);
+    // A SHEET LINE IS INVENTORY'S OWN COLUMNS on a quotation row, keyed by that
+    // row's id — see SheetSchema. `serials` is the one this reads.
+    for (const line of Object.values(lines) as { serials?: string[] }[]) {
+      for (const sn of line?.serials || []) out.add(sn);
+    }
   }
   return out;
 }
 
-export async function listItems(ctx) {
+export async function listItems(ctx: InventoryContext) {
   const { studio, itemsSection, vendorsSection, stockSection } = ctx;
   const [items, vendors, movements, reserved] = await Promise.all([
     Items.find({ studio, section: itemsSection }),
@@ -253,7 +265,7 @@ export async function listItems(ctx) {
         vendorName: vendorName[i.vendorId] || "",
         onHand: held,
         // "Below reorder level" is derived, so it can never be a stale flag.
-        low: i.reorderLevel > 0 && held <= i.reorderLevel,
+        low: (i.reorderLevel || 0) > 0 && held <= (i.reorderLevel || 0),
         // On-hand is the LEDGER's answer; the serial list is a record of which
         // units are held. When a serial-tracked item's two disagree, somebody
         // has moved stock without noting the serial — worth saying so out loud
@@ -263,7 +275,7 @@ export async function listItems(ctx) {
     });
 }
 
-export async function createItem(ctx, body) {
+export async function createItem(ctx: InventoryContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.items.create");
   if (denied) return denied;
@@ -293,7 +305,7 @@ export async function createItem(ctx, body) {
     // The vendor's own part number, which is what a purchase order quotes and
     // what somebody searches for when the name is ambiguous.
     modelNumber: str(body?.modelNumber, 80),
-    unit: UNITS.includes(body?.unit) ? body.unit : UNITS[0],
+    unit: UNITS.includes(String(body?.unit)) ? String(body?.unit) : UNITS[0],
     vendorId,
     // Picked from the vendor's own list of what it supplies; the estimate comes
     // with it rather than being typed again per item.
@@ -324,13 +336,13 @@ export async function createItem(ctx, body) {
   return { item };
 }
 
-export async function editItem(ctx, id, body) {
+export async function editItem(ctx: InventoryContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.items.edit");
   if (denied) return denied;
 
   const { studio, vendorsSection, itemsSection } = ctx;
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.name !== undefined) { const v = str(body.name, 160); if (!v) return { error: "name" }; patch.name = v; }
   if (body?.sku !== undefined) {
     const sku = str(body.sku, 40).toUpperCase();
@@ -347,7 +359,7 @@ export async function editItem(ctx, id, body) {
     }
     patch.vendorId = vendorId;
   }
-  if (body?.unit !== undefined && UNITS.includes(body.unit)) patch.unit = body.unit;
+  if (body?.unit !== undefined && UNITS.includes(String(body.unit))) patch.unit = String(body.unit);
   if (body?.modelNumber !== undefined) patch.modelNumber = str(body.modelNumber, 80);
   if (body?.itemType !== undefined) patch.itemType = str(body.itemType, 80);
   if (body?.deliveryWeeks !== undefined) patch.deliveryWeeks = weeks(body.deliveryWeeks);
@@ -387,7 +399,7 @@ export async function editItem(ctx, id, body) {
 
 // An item with movement history is never deleted — that would erase the record
 // of stock that really moved. Items with a clean history can go.
-export async function removeItem(ctx, id) {
+export async function removeItem(ctx: InventoryContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.items.delete");
   if (denied) return denied;
@@ -396,7 +408,7 @@ export async function removeItem(ctx, id) {
   const [movements, orders, deliveries] = await Promise.all([
     Stock.find({ studio, section: stockSection }),
     Orders.find({ studio, section: sheetsSection }),
-    Deliveries.find({ studio, section: deliveriesSection }),
+    Deliveries.find({ studio, section: deliveriesSection as Section }),
   ]);
   const moved = movements.filter((m) => m.itemId === id).length;
   const onOrder = orders.filter((o) => (o.lines || []).some((l) => l.itemId === id)).length;
@@ -421,8 +433,11 @@ function nextSku(rows) {
 // On-hand per item, summed from every movement. `out` is stored as a positive
 // quantity with kind "out" so a movement always reads naturally on its own; the
 // sign is applied here, in one place.
-export function balances(movements) {
-  const out = {};
+// STOCK IS THE SUM OF THE LEDGER, never a number anybody keeps. Rounded to
+// three places at each step so a long run of fractional adjustments cannot
+// drift the way repeated float addition does.
+export function balances(movements: Movement[]): Record<string, number> {
+  const out: Record<string, number> = {};
   for (const m of movements) {
     const delta = m.kind === "out" ? -Math.abs(m.qty) : m.kind === "adjust" ? m.qty : Math.abs(m.qty);
     out[m.itemId] = Math.round(((out[m.itemId] || 0) + delta) * 1000) / 1000;
@@ -461,7 +476,7 @@ async function record(ctx, { itemId, kind, quantity, reason, sourceType = "", so
 }
 
 // A manual correction — stock-take differences, damage, opening balances.
-export async function adjustStock(ctx, body) {
+export async function adjustStock(ctx: InventoryContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   //
   // This was the ONE write in the file with no guard of its own, and the route
@@ -484,7 +499,7 @@ export async function adjustStock(ctx, body) {
   // than none of something.
   if (amount < 0) {
     const movements = await Stock.find({ studio, section: stockSection });
-    const have = balances(movements)[itemId] || 0;
+    const have = Number(balances(movements)[itemId]) || 0;
     if (have + amount < 0) return { error: "insufficient", have, needed: Math.abs(amount) };
   }
 
@@ -606,7 +621,10 @@ async function ensureSheetsExist({ studio, sheetsSection, projectsListSection })
   // there was never a screen that wrote those rows — and it is reconstructible
   // from the quotation regardless.
   for (const old of sheets) {
-    if (old.kind && old.rows === undefined) continue;
+    // `rows` IS THE OLD SHAPE. Sheets used to carry an array of rows; they
+    // carry a `lines` map keyed by quotation line id now. A sheet that has a
+    // kind and no `rows` has already been migrated, and this loop skips it.
+    if (old.kind && (old as { rows?: unknown }).rows === undefined) continue;
     await updateRow(studio.id, sheetsSection.id, SHEETS, old.id, {
       kind: old.kind || "main",
       rows: undefined,
@@ -641,7 +659,7 @@ async function ensureSheetsExist({ studio, sheetsSection, projectsListSection })
 // they claim to be. Somebody holding both writes both, which is correct: a small
 // studio where one person runs stores and site should not have to pretend to be
 // two people.
-export async function saveSheetLine(ctx, body) {
+export async function saveSheetLine(ctx: InventoryContext, body: Record<string, unknown>) {
   const { studio, sheetsSection } = ctx;
   if (!sheetsSection) return { error: "no-section" };
 
@@ -650,7 +668,10 @@ export async function saveSheetLine(ctx, body) {
   if (!sheetId || !rowId) return { error: "missing" };
 
   const owner = body?.owner === "projects" ? "projects" : "inventory";
-  const denied = requirePermission(ctx.access, `${SHEET_OWNERS[owner].permission}.edit`);
+  // The template literal builds a key the catalogue does have — the owner map
+  // holds `inventory.sheets` and `projects.list` — but a template's type is
+  // `${string}.edit`, which PermissionKey cannot accept without being told.
+  const denied = requirePermission(ctx.access, `${SHEET_OWNERS[owner].permission}.edit` as PermissionKey);
   if (denied) return denied;
 
   const sheets = await Sheets.find({ studio, section: sheetsSection });
@@ -673,7 +694,7 @@ export async function saveSheetLine(ctx, body) {
 // Every sheet in the studio, composed. Keys only on the row itself: the project
 // number, the client and the quotation number are read back through the ids the
 // sheet carries, so a renumbered project or a renamed client needs no migration.
-export async function listProjectSheets(ctx) {
+export async function listProjectSheets(ctx: InventoryContext) {
   const { studio, sheetsSection, projectsListSection, quotationsSection, itemsSection, vendorsSection } = ctx;
   if (!sheetsSection) return [];
   // SEEDED LAZILY, the same way the starter roles are. Sheets were written at
@@ -685,31 +706,35 @@ export async function listProjectSheets(ctx) {
   await ensureSheetsExist(ctx);
   const [sheets, projects, quotes, items, vendors, tasks] = await Promise.all([
     Sheets.find({ studio, section: sheetsSection }),
-    projectsListSection ? Projects.find({ studio, section: projectsListSection }) : [],
-    quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : [],
-    itemsSection ? Items.find({ studio, section: itemsSection }) : [],
-    vendorsSection ? Vendors.find({ studio, section: vendorsSection }) : [],
+    projectsListSection ? Projects.find({ studio, section: projectsListSection }) : ([] as Project[]),
+    quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : ([] as Quotation[]),
+    itemsSection ? Items.find({ studio, section: itemsSection }) : ([] as Item[]),
+    vendorsSection ? Vendors.find({ studio, section: vendorsSection }) : ([] as Vendor[]),
     // The PO the client sent lives on the `po` TASK raised against this
     // sheet's quotation. Read back through quotationId like everything else,
     // so searching a PO number finds the sheet it belongs to.
-    ctx.tasksSection ? Tasks.find({ studio, section: ctx.tasksSection }) : [],
+    ctx.tasksSection ? Tasks.find({ studio, section: ctx.tasksSection as Section }) : ([] as Row[]),
   ]);
-  const projectById = new Map(projects.map((p) => [p.id, p]));
-  const quoteById = new Map(quotes.map((q) => [q.id, q]));
-  const itemById = new Map(items.map((i) => [i.id, i]));
-  const vendorById = new Map(vendors.map((v) => [v.id, v]));
-  const vendorOf = (itemId) => vendorById.get(itemById.get(itemId)?.vendorId) || null;
+  // THE ELEMENT TYPE IS NAMED ON EACH MAP, because `new Map(rows.map(...))`
+  // infers a tuple type from the callback and loses which side is the key. The
+  // three cross-module ones are read-only here: Inventory never writes a
+  // project or a quotation, which is the rule sales.js states in so many words.
+  const projectById = new Map<string, Project>(projects.map((p) => [p.id, p] as [string, Project]));
+  const quoteById = new Map<string, Quotation>(quotes.map((q) => [q.id, q] as [string, Quotation]));
+  const itemById = new Map<string, Item>(items.map((i) => [i.id, i]));
+  const vendorById = new Map<string, Vendor>(vendors.map((v) => [v.id, v]));
+  const vendorOf = (itemId: string) => vendorById.get(String(itemById.get(itemId)?.vendorId || "")) || null;
 
   // Every serial already allocated anywhere in the studio, so the same unit is
   // never offered to two rows. Built once for all sheets rather than per row.
   const spoken = new Set();
   for (const sh of sheets) {
     const lines = sh.lines && typeof sh.lines === "object" ? sh.lines : {};
-    for (const line of Object.values(lines)) {
+    for (const line of Object.values(lines) as { serials?: string[] }[]) {
       for (const sn of line?.serials || []) spoken.add(sn);
     }
   }
-  const modelOf = (itemId) => itemById.get(itemId)?.modelNumber || "";
+  const modelOf = (itemId: string) => itemById.get(itemId)?.modelNumber || "";
   const stockFor = (itemId, mine) => {
     const all = itemById.get(itemId)?.serials || [];
     const own = new Set(mine);
@@ -740,7 +765,7 @@ export async function listProjectSheets(ctx) {
         quotationNumber: quote?.number || "",
         // What the client's own order says — the PO's description is where a PO
         // number is written, since a PO is a document rather than a field.
-        poNumber: poFor(sheet.quotationId)?.po?.description || "",
+        poNumber: (poFor(sheet.quotationId)?.po as { description?: string })?.description || "",
         tables,
         lineCount: tables.reduce((n, t) => n + t.rows.length, 0),
         // The serials held for the items on this sheet, so a search for one
@@ -769,9 +794,9 @@ export async function listOrders({ studio, sheetsSection, vendorsSection, itemsS
       ...o,
       vendorName: vendorName[o.vendorId] || "",
       projectNumber: projectNumber[o.projectId] || "",
-      lines: (o.lines || []).map((l) => ({ ...l, itemLabel: itemLabel[l.itemId] || "(removed item)" })),
+      lines: (o.lines || []).map((l) => ({ ...l, itemLabel: itemLabel[String(l.itemId || "")] || "(removed item)" })),
       total: orderTotal(o.lines),
-      outstanding: (o.lines || []).reduce((n, l) => n + Math.max(0, l.qty - (l.received || 0)), 0),
+      outstanding: (o.lines || []).reduce((n, l) => n + Math.max(0, (l.qty || 0) - Number(l.received || 0)), 0),
     }));
 }
 
@@ -782,7 +807,7 @@ export function orderTotal(lines) {
     .reduce((sum, l) => sum + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0) * 100) / 100;
 }
 
-export async function createOrder(ctx, body) {
+export async function createOrder(ctx: InventoryContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.create");
   if (denied) return denied;
@@ -815,7 +840,7 @@ export async function createOrder(ctx, body) {
   return { order };
 }
 
-export async function editOrder(ctx, id, body) {
+export async function editOrder(ctx: InventoryContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.edit");
   if (denied) return denied;
@@ -825,9 +850,9 @@ export async function editOrder(ctx, id, body) {
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.status !== undefined) {
-    if (!ORDER_STATUSES.includes(body.status)) return { error: "status" };
+    if (!ORDER_STATUSES.includes(String(body.status))) return { error: "status" };
     // Received/Partly received are consequences of receiving goods, not things
     // you assert — otherwise the status could contradict the ledger.
     if (body.status === "Received" || body.status === "Partly received") return { error: "derived-status" };
@@ -837,7 +862,7 @@ export async function editOrder(ctx, id, body) {
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);
   if (body?.lines !== undefined) {
     // Lines are frozen once anything has been received against them.
-    if ((order.lines || []).some((l) => (l.received || 0) > 0)) return { error: "received-already" };
+    if ((order.lines || []).some((l) => Number(l.received || 0) > 0)) return { error: "received-already" };
     const items = await Items.find({ studio, section: itemsSection });
     const lines = cleanLines(body.lines, items);
     if (!lines.length) return { error: "lines" };
@@ -855,7 +880,7 @@ export async function editOrder(ctx, id, body) {
 
 // Receiving is the only way stock comes IN from an order. It appends one
 // movement per line received and lets the status follow the numbers.
-export async function receiveOrder(ctx, id, body) {
+export async function receiveOrder(ctx: InventoryContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.edit");
   if (denied) return denied;
@@ -880,13 +905,17 @@ export async function receiveOrder(ctx, id, body) {
   for (const [itemId, amount] of asked) {
     const line = lines.find((l) => l.itemId === itemId);
     if (!line) return { error: "line", itemId };
-    const remaining = line.qty - (line.received || 0);
+    const remaining = (line.qty || 0) - Number(line.received || 0);
     if (amount > remaining) return { error: "over-receive", itemId, remaining };
   }
 
   for (const [itemId, amount] of asked) {
-    const line = lines.find((l) => l.itemId === itemId);
-    line.received = Math.round(((line.received || 0) + amount) * 1000) / 1000;
+    // The loop above already refused every id that has no line, so this cannot
+    // miss — but the compiler cannot see across the two loops, and asserting it
+    // here is cheaper than merging them and losing the "check everything before
+    // writing anything" property that makes a partial receive impossible.
+    const line = lines.find((l) => l.itemId === itemId) as OrderLine;
+    line.received = Math.round((Number(line.received || 0) + amount) * 1000) / 1000;
     await record(ctx, {
       itemId, kind: "in", quantity: amount,
       reason: `Received on ${order.reference}`,
@@ -894,7 +923,7 @@ export async function receiveOrder(ctx, id, body) {
     });
   }
 
-  const complete = lines.every((l) => (l.received || 0) >= l.qty);
+  const complete = lines.every((l) => Number(l.received || 0) >= (l.qty || 0));
   const updated = await updateRow(studio.id, sheetsSection.id, ORDERS, id, {
     lines,
     status: complete ? "Received" : "Partly received",
@@ -905,7 +934,7 @@ export async function receiveOrder(ctx, id, body) {
 
 // An order that has received stock is never deleted — the movements it created
 // are real. Cancel it instead.
-export async function removeOrder(ctx, id) {
+export async function removeOrder(ctx: InventoryContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.delete");
   if (denied) return denied;
@@ -914,14 +943,14 @@ export async function removeOrder(ctx, id) {
   const orders = await Orders.find({ studio, section: sheetsSection });
   const order = orders.find((o) => o.id === id);
   if (!order) return { error: "notfound" };
-  if ((order.lines || []).some((l) => (l.received || 0) > 0)) return { error: "received-already" };
+  if ((order.lines || []).some((l) => Number(l.received || 0) > 0)) return { error: "received-already" };
 
   const removed = await deleteRow(studio.id, sheetsSection.id, ORDERS, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
 // ---- deliveries (stock out, to a project) ----------------------------------
-export async function listDeliveries({ studio, itemsSection, deliveriesSection }) {
+export async function listDeliveries({ studio, itemsSection, deliveriesSection }: InventoryContext) {
   const [deliveries, items, projects, people] = await Promise.all([
     Deliveries.find({ studio, section: deliveriesSection }),
     Items.find({ studio, section: itemsSection }),
@@ -937,13 +966,13 @@ export async function listDeliveries({ studio, itemsSection, deliveriesSection }
     .map((d) => ({
       ...d,
       projectNumber: projectNumber[d.projectId] || "",
-      issuedByAlias: alias[d.issuedByCollaboratorId] || "",
-      lines: (d.lines || []).map((l) => ({ ...l, itemLabel: itemLabel[l.itemId] || "(removed item)" })),
-      units: (d.lines || []).reduce((n, l) => n + l.qty, 0),
+      issuedByAlias: alias[d.issuedByCollaboratorId || ""] || "",
+      lines: (d.lines || []).map((l) => ({ ...l, itemLabel: itemLabel[String(l.itemId || "")] || "(removed item)" })),
+      units: (d.lines || []).reduce((n, l) => n + (l.qty || 0), 0),
     }));
 }
 
-export async function createDelivery(ctx, body) {
+export async function createDelivery(ctx: InventoryContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.create");
   if (denied) return denied;
@@ -971,7 +1000,7 @@ export async function createDelivery(ctx, body) {
 
 // Issuing is the only way stock goes OUT to a project. Availability is checked
 // against the ledger at the moment of issue, not when the note was drafted.
-export async function issueDelivery(ctx, id) {
+export async function issueDelivery(ctx: InventoryContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.edit");
   if (denied) return denied;
@@ -990,8 +1019,8 @@ export async function issueDelivery(ctx, id) {
   // the note half-issued.
   const have = balances(movements);
   const short = delivery.lines
-    .filter((l) => (have[l.itemId] || 0) < l.qty)
-    .map((l) => ({ itemId: l.itemId, have: have[l.itemId] || 0, needed: l.qty }));
+    .filter((l) => (have[String(l.itemId || "")] || 0) < (l.qty || 0))
+    .map((l) => ({ itemId: l.itemId, have: have[String(l.itemId || "")] || 0, needed: l.qty }));
   if (short.length) return { error: "insufficient", short };
 
   for (const l of delivery.lines) {
@@ -1010,7 +1039,7 @@ export async function issueDelivery(ctx, id) {
   return { delivery: updated };
 }
 
-export async function removeDelivery(ctx, id) {
+export async function removeDelivery(ctx: InventoryContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.stock.delete");
   if (denied) return denied;
@@ -1044,7 +1073,7 @@ function cleanLines(list, items) {
 // it is buying for. The links to them are still permission-gated in the UI.
 // Cross-section reads resolve the sub-section that OWNS the collection, falling
 // back to the parent so a studio predating the sub-section model still works.
-async function ownerOf(studioId, childKey, parentKey) {
+async function ownerOf(studioId: string, childKey, parentKey) {
   return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
 }
 
@@ -1054,13 +1083,13 @@ async function projectRows({ studio }) {
   return Projects.find({ studio, section: owner });
 }
 
-async function projectExists(ctx, projectId) {
+async function projectExists(ctx, projectId: string) {
   const rows = await projectRows(ctx);
   return rows.some((p) => p.id === projectId);
 }
 
 // Projects an order or delivery can be pointed at.
-export async function openProjects(ctx) {
+export async function openProjects(ctx: InventoryContext) {
   const rows = await projectRows(ctx);
   return rows
     .filter((p) => p.stage !== "Completed")

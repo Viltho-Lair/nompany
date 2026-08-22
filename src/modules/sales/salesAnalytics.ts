@@ -67,8 +67,11 @@ export function atRiskTickets(tickets, days = 14) {
       return urgent || (d !== null && d <= days);
     })
     .sort((a, b) => {
-      const da = a.deadline ? daysUntil(a.deadline) : Infinity;
-      const db = b.deadline ? daysUntil(b.deadline) : Infinity;
+      // `daysUntil` answers null for a date it cannot read, and a deadline that
+      // will not parse sorts last rather than first — the same reading as no
+      // deadline at all.
+      const da = (a.deadline ? daysUntil(a.deadline) : null) ?? Infinity;
+      const db = (b.deadline ? daysUntil(b.deadline) : null) ?? Infinity;
       return da - db;
     });
 }

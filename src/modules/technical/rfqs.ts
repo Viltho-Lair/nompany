@@ -15,7 +15,7 @@ export const RFQ_STATUSES = ["New", "In-review", "Converted", "Rejected"];
 // Every RFQ ever raised on one ticket, NEWEST FIRST. A ticket can be sent over
 // more than once — a second RFQ when Sales wants the last quotation revised —
 // so "the ticket's RFQ" always means the latest of these.
-export function rfqsForTicket(ticketId, rfqs) {
+export function rfqsForTicket(ticketId: string, rfqs) {
   return traverseIn("salesTicket", { id: ticketId }, "rfq", { rows: { rfq: rfqs || [] } }).records;
 }
 
@@ -26,7 +26,7 @@ export function rfqsForTicket(ticketId, rfqs) {
 // what greys "Request RFQ" out into "Quotation Sent".
 //
 // Returns the RFQ still being waited on, or null when nothing is outstanding.
-export function pendingRfq(ticketId, rfqs, quotations) {
+export function pendingRfq(ticketId: string, rfqs, quotations) {
   const latest = rfqsForTicket(ticketId, rfqs)[0];
   if (!latest || latest.status === "Rejected") return null;
   // The RFQ's own quotation, followed by the stored key rather than looked up
@@ -38,7 +38,7 @@ export function pendingRfq(ticketId, rfqs, quotations) {
 // The ticket's CURRENT quotation — the one it is priced from. Latest first, the
 // same order and the same declared edge everything else reads, so no two screens
 // can disagree about which document counts.
-export function latestTicketQuotation(ticketId, quotations) {
+export function latestTicketQuotation(ticketId: string, quotations) {
   return traverseIn("salesTicket", { id: ticketId }, "quotation", { rows: { quotation: quotations || [] } }).records[0] || null;
 }
 
@@ -54,7 +54,7 @@ export function latestTicketQuotation(ticketId, quotations) {
 // Asked of the APPROVAL and not of the document's own status — see
 // quotationApproved — so a quotation signed on the board counts, which is how
 // most of them are approved.
-export function approvedQuotationFor(ticketId, quotations, tasks) {
+export function approvedQuotationFor(ticketId: string, quotations, tasks) {
   const latest = latestTicketQuotation(ticketId, quotations);
   return quotationApproved(latest, tasks) ? latest : null;
 }

@@ -6,6 +6,11 @@
 // into the browser bundle to get them. modules/quality/quality.js owns everything that
 // touches storage and re-exports this, so a server-side caller keeps one import.
 
+// The two record types come from schema.ts, which imports zod — a runtime
+// dependency this file has spent its whole life avoiding. `import type` is
+// erased entirely, so the claim above about the browser bundle still holds.
+import type { QualityDocument, QualityRevision } from "./types";
+
 // ---- the lifecycle ---------------------------------------------------------
 //
 // The full ladder is declared here because a document's status has to mean the
@@ -75,7 +80,7 @@ export const defaultDeptCode = (sectionKey) =>
 // documents that exist. Feeds bumpCounter's floor so a studio that already holds
 // documents — or one whose counter was never primed — cannot be handed a number
 // somebody is already using.
-export function highestSeq(documents, prefix, dept) {
+export function highestSeq(documents, prefix: string, dept) {
   const re = new RegExp(`^${prefix}-${dept}-(\\d+)$`);
   let top = 0;
   for (const d of documents || []) {
@@ -118,7 +123,7 @@ export const MAX_TITLE = 200;
 // Whether a proposed prefix is free. Two types sharing a prefix would mint two
 // documents with the same code, which is the one thing a document code may
 // never do.
-export function prefixTaken(types, prefix, exceptId = "") {
+export function prefixTaken(types, prefix: string, exceptId = "") {
   return (types || []).some((t) => t.id !== exceptId && t.prefix === prefix);
 }
 
@@ -171,7 +176,10 @@ export const canMove = (action, state) => Boolean(TRANSITIONS[action]?.from.incl
 // two agree only until a transition writes one and not the other. This reads
 // the facts that cannot be wrong: whether it has been withdrawn, whether any
 // revision was ever issued, and what the open revision is doing.
-export function documentState(document, revisions = []) {
+export function documentState(
+  document: QualityDocument | null | undefined,
+  revisions: QualityRevision[] = [],
+) {
   if (document?.obsoletedAt) return "obsolete";
   const mine = revisions.filter((r) => r.documentId === document?.id);
   const open = mine.find((r) => isOpen(r.state));
@@ -183,7 +191,10 @@ export function documentState(document, revisions = []) {
 // Whether a NEW revision is in flight over an already-issued document. The
 // register shows this beside the status, because "effective, and rev 3 is with
 // the approver" is two facts and a person needs both.
-export function pendingRevision(document, revisions = []) {
+export function pendingRevision(
+  document: QualityDocument | null | undefined,
+  revisions: QualityRevision[] = [],
+) {
   const open = revisions.find((r) => r.documentId === document?.id && isOpen(r.state));
   return open ? { rev: open.rev, state: open.state, label: REV_LABELS[open.state] } : null;
 }

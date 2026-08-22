@@ -36,7 +36,22 @@ export const SHEET_OWNERS = {
 // column declares its owner, cleanSheetLine lets a department write only its
 // own, and the route asks the matching right — so Projects' real columns are a
 // list entry each when they are known, and nothing else has to change.
-export const SHEET_COLUMNS = [
+/**
+ * ONE COLUMN ON A PROJECT SHEET, and `owner` is the field that matters:
+ * Inventory's columns answer to inventory.sheets.edit and Projects' to
+ * projects.list.edit, on the same row. `options` only exists on the columns
+ * that are a fixed choice.
+ */
+export type SheetColumn = {
+  key: string;
+  owner: string;
+  label: string;
+  kind: string;
+  hint: string;
+  options?: readonly string[];
+};
+
+export const SHEET_COLUMNS: readonly SheetColumn[] = [
   {
     // ALLOCATION, not typing. A serial is a unit that physically exists in
     // stock, so it is chosen from what is actually there — and a serial already
@@ -65,7 +80,7 @@ export const columnsFor = (owner) => SHEET_COLUMNS.filter((c) => c.owner === own
 export function rowStatus({ qty = 0, assigned = 0, inStock = 0 }) {
   const need = Math.max(0, qty - assigned);
   if (qty > 0 && need === 0) return { fulfilled: true, lines: [] };
-  const lines = [];
+  const lines: { key: string; n: number; text: string }[] = [];
   if (assigned > 0) lines.push({ key: "assigned", n: assigned, text: `${assigned} assigned` });
   if (inStock > 0) lines.push({ key: "stock", n: inStock, text: `${inStock} in stock` });
   if (need > 0) lines.push({ key: "needed", n: need, text: `${need} needed` });
@@ -76,7 +91,7 @@ export function rowStatus({ qty = 0, assigned = 0, inStock = 0 }) {
 // this returns and nothing else, so an unknown key cannot be written and read
 // back later as if the product had ever meant it.
 export function cleanSheetLine(patch, owner) {
-  const out = {};
+  const out: Record<string, unknown> = {};
   for (const col of SHEET_COLUMNS) {
     // A department may only write ITS OWN columns. The route asks the
     // permission; this decides which keys that permission covers, so the two
@@ -85,7 +100,7 @@ export function cleanSheetLine(patch, owner) {
     if (patch?.[col.key] === undefined) continue;
     const v = patch[col.key];
     if (col.kind === "number") out[col.key] = Math.max(0, Math.floor(Number(v) || 0));
-    else if (col.kind === "choice") { if (col.options.includes(v)) out[col.key] = v; }
+    else if (col.kind === "choice") { if ((col.options || []).includes(String(v))) out[col.key] = v; }
     else if (col.kind === "serials") {
       out[col.key] = [...new Set((Array.isArray(v) ? v : []).map((x) => String(x ?? "").trim()).filter(Boolean))].slice(0, 200);
     } else out[col.key] = String(v ?? "").trim().slice(0, 500);

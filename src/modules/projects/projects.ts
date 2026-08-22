@@ -21,6 +21,8 @@ import { departmentsFromSections } from "@/lib/departments";
 // Whether a quotation is approved is answered by its APPROVAL, not by a copy of
 // one — see the note on quotationApproved.
 import { quotationApproved } from "@/modules/tasks/taskRouting";
+import type { ProjectsContext, Project, Sla, Overtime } from "./types";
+import type { Section } from "@/platform/db/sections";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 export const DEFAULT_STAGE = "Received";
@@ -43,10 +45,10 @@ const TASKS = "tasks";
 // collection, not a scope — the studio and section arrive per call, which is
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
-const Overtimes = repo(OVERTIMES);
-const Projects = repo(PROJECTS);
+const Overtimes = repo<Overtime>(OVERTIMES);
+const Projects = repo<Project>(PROJECTS);
 const Quotations = repo(QUOTATIONS);
-const Slas = repo(SLAS);
+const Slas = repo<Sla>(SLAS);
 const Tasks = repo(TASKS);
 // A department is a top-level SECTION, so the overtime picker's filter is
 // derived from the studio's own structure rather than read out of HR — see
@@ -74,13 +76,15 @@ export const projectsContext = moduleContext({
     tasks: "tasks",
   },
   flags: ["list", "sla", "overtimes", "settings"],
-  extend: ({ settingsSection }) => ({ settings: settingsSection.settings || {} }),
+  extend: ({ settingsSection }) => ({
+    settings: (settingsSection as { settings?: Record<string, unknown> })?.settings || {},
+  }),
 });
 
 // Projects Settings live on the projects-settings sub-section's own `settings`
 // object, so they need no key of their own and die with the sub-section.
 // Patch semantics: only the keys present in the body are touched.
-export async function saveProjectsSettings(ctx, body) {
+export async function saveProjectsSettings(ctx: ProjectsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.settings.edit");
   if (denied) return denied;
@@ -127,7 +131,7 @@ export function progressOf(milestones) {
   return Math.round((list.filter((m) => m.done).length / list.length) * 100);
 }
 
-export async function listProjects(ctx) {
+export async function listProjects(ctx: ProjectsContext) {
   const { studio, listSection } = ctx;
   const [rows, factsFor] = await Promise.all([
     Projects.find({ studio, section: listSection }),
@@ -146,7 +150,7 @@ export async function listProjects(ctx) {
 
 // Quotations that are Approved and not already delivering — what "open a
 // project" can choose from.
-export async function approvedQuotations(ctx) {
+export async function approvedQuotations(ctx: ProjectsContext) {
   const { studio, listSection, quotationsSection, tasksSection } = ctx;
   if (!quotationsSection) return [];
   const [quotes, projects, tasks, factsFor] = await Promise.all([
@@ -159,7 +163,7 @@ export async function approvedQuotations(ctx) {
   return quotes
     // Approved BY THE TASK or by hand — the picker offers what may actually be
     // opened, which is the same question openProject asks below.
-    .filter((q) => quotationApproved(q, tasks) && !used.has(q.id))
+    .filter((q) => quotationApproved(q, tasks) && !used.has(String(q.id)))
     // Title and client are the TICKET'S, reached through the quotation's
     // ticketId. An Internal quotation has no ticket and titles itself.
     .map((q) => {
@@ -172,7 +176,7 @@ export async function approvedQuotations(ctx) {
     });
 }
 
-export async function openProject(ctx, body) {
+export async function openProject(ctx: ProjectsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.list.create");
   if (denied) return denied;
@@ -181,7 +185,10 @@ export async function openProject(ctx, body) {
   if (!technicalSection) return { error: "no-technical" };
 
   const quotationId = str(body?.quotationId, 60);
-  const quotes = await Quotations.find({ studio, section: quotationsSection });
+  // FOREIGN AND THEREFORE NULLABLE — a studio without Technical has no
+  // quotations to open a project from, and the guard above this has already
+  // refused that case.
+  const quotes = await Quotations.find({ studio, section: quotationsSection as Section });
   const quote = quotes.find((q) => q.id === quotationId);
   if (!quote) return { error: "quotation" };
   // THE COMMERCIAL GATE: only approved work becomes a project. Asked of the
@@ -227,7 +234,8 @@ export async function openProject(ctx, body) {
     location: str(body?.location, 200),
     // The complementary support window runs from the project's END date, so it
     // means nothing until the project has one — but the length is decided now.
-    supportPeriodDays: nonNeg(body?.supportPeriodDays, ctx.settings?.supportPeriodDays ?? DEFAULT_SUPPORT_DAYS),
+    supportPeriodDays: nonNeg(body?.supportPeriodDays,
+      (ctx.settings as { supportPeriodDays?: number })?.supportPeriodDays ?? DEFAULT_SUPPORT_DAYS),
     receivedDate: now.slice(0, 10),
     startDate: str(body?.startDate, 10),
     endDate: str(body?.endDate, 10),
@@ -305,7 +313,7 @@ export async function issueProjectNumber({ studio, listSection }, quotationId) {
   return { issued: number, project: updated };
 }
 
-export async function updateProject(ctx, id, body) {
+export async function updateProject(ctx: ProjectsContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.list.edit");
   if (denied) return denied;
@@ -315,11 +323,11 @@ export async function updateProject(ctx, id, body) {
   const current = rows.find((p) => p.id === id);
   if (!current) return { error: "notfound" };
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
   if (body?.stage !== undefined) {
-    if (!PROJECT_STAGES.includes(body.stage)) return { error: "stage" };
-    patch.stage = body.stage;
+    if (!PROJECT_STAGES.includes(String(body.stage))) return { error: "stage" };
+    patch.stage = String(body.stage);
   }
   for (const f of ["startDate", "endDate"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 10);
   if (body?.managerCollaboratorId !== undefined) patch.managerCollaboratorId = str(body.managerCollaboratorId, 60);
@@ -344,10 +352,11 @@ export async function updateProject(ctx, id, body) {
   }
 
   const project = await updateRow(studio.id, listSection.id, PROJECTS, id, patch);
+  if (!project) return { error: "notfound" };
   return { project: { ...project, progress: progressOf(project.milestones) } };
 }
 
-export async function removeProject(ctx, id) {
+export async function removeProject(ctx: ProjectsContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.list.delete");
   if (denied) return denied;
@@ -386,7 +395,7 @@ function slaFields(body) {
   };
 }
 
-export async function createSla(ctx, body) {
+export async function createSla(ctx: ProjectsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.sla.create");
   if (denied) return denied;
@@ -406,7 +415,7 @@ export async function createSla(ctx, body) {
   return { sla };
 }
 
-export async function updateSla(ctx, id, body) {
+export async function updateSla(ctx: ProjectsContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.sla.edit");
   if (denied) return denied;
@@ -416,7 +425,7 @@ export async function updateSla(ctx, id, body) {
   const current = rows.find((s) => s.id === id);
   if (!current) return { error: "notfound" };
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
   if (body?.projectId !== undefined) patch.projectId = str(body.projectId, 60);
   if (body?.signingDate !== undefined) patch.signingDate = str(body.signingDate, 10);
@@ -433,7 +442,7 @@ export async function updateSla(ctx, id, body) {
     const limit = patch.visits ?? current.visits ?? 1;
     patch.completedVisits = [...new Set((Array.isArray(body.completedVisits) ? body.completedVisits : [])
       .map((n) => Math.round(Number(n)))
-      .filter((n) => Number.isFinite(n) && n >= 1 && n <= limit))].sort((a, b) => a - b);
+      .filter((n) => Number.isFinite(n) && n >= 1 && n <= Number(limit)))].sort((a, b) => a - b);
   }
 
   // Emergency visits are REAL, dated call-outs, so unlike the planned schedule
@@ -447,7 +456,7 @@ export async function updateSla(ctx, id, body) {
         completed: Boolean(e?.completed),
       }))
       .filter((e) => e.date);
-    if (list.length > cap) return { error: "emergency-cap", cap };
+    if (list.length > Number(cap)) return { error: "emergency-cap", cap };
     patch.emergencyVisitsList = list;
   }
 
@@ -455,7 +464,7 @@ export async function updateSla(ctx, id, body) {
   return { sla };
 }
 
-export async function removeSla(ctx, id) {
+export async function removeSla(ctx: ProjectsContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.sla.delete");
   if (denied) return denied;
@@ -491,9 +500,9 @@ export async function overtimeDirectory({ studio, sections }) {
         id: c.id,
         alias: c.alias || "Unnamed",
         departmentId: c.departmentId || "",
-        departmentName: depName[c.departmentId] || "",
+        departmentName: depName[String(c.departmentId || "")] || "",
       }))
-      .sort((a, b) => a.alias.localeCompare(b.alias)),
+      .sort((a, b) => String(a.alias).localeCompare(String(b.alias))),
     departments,
   };
 }
@@ -501,7 +510,7 @@ export async function overtimeDirectory({ studio, sections }) {
 // One record per person selected, so logging a whole crew's evening is one
 // action here and several rows in the collection — which is what the matrix
 // needs to attribute the hours.
-export async function createOvertime(ctx, body) {
+export async function createOvertime(ctx: ProjectsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.overtimes.create");
   if (denied) return denied;
@@ -548,7 +557,7 @@ export async function createOvertime(ctx, body) {
   return { overtimes: created };
 }
 
-export async function updateOvertime(ctx, id, body) {
+export async function updateOvertime(ctx: ProjectsContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.overtimes.edit");
   if (denied) return denied;
@@ -558,7 +567,7 @@ export async function updateOvertime(ctx, id, body) {
   const current = rows.find((o) => o.id === id);
   if (!current) return { error: "notfound" };
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.projectId !== undefined) {
     const projects = await Projects.find({ studio, section: listSection });
     const project = projects.find((p) => p.id === str(body.projectId, 60));
@@ -590,7 +599,7 @@ export async function updateOvertime(ctx, id, body) {
   return { overtime };
 }
 
-export async function removeOvertime(ctx, id) {
+export async function removeOvertime(ctx: ProjectsContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.overtimes.delete");
   if (denied) return denied;

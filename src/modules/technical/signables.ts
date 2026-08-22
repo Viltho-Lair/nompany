@@ -17,6 +17,7 @@
 // record, handed in as `after`.
 
 import { requirePermission } from "@/platform/access";
+import type { PermissionKey, PermissionSet } from "@/platform/access";
 
 export const SIGNATURE_SLOTS = { review: "review", approve: "approval" };
 export const SIGNATURE_ROLES = { review: "Reviewed by", approval: "Approved by" };
@@ -39,28 +40,59 @@ const text = (v, max) => String(v ?? "").trim().slice(0, max);
  *   audit       — optional (entry) => void
  *   notify      — optional (state) => void, told where it now sits
  */
-export async function moveSignable(spec, action, body = {}) {
+/**
+ * ONE TRANSITION on a signable — who may make it, what it moves from, and what
+ * it moves to. `permission` is a catalogue key; `from` is the states it is
+ * legal out of, which is what makes an out-of-order move a refusal rather than
+ * a silent overwrite.
+ */
+export type Transition = {
+  permission: string;
+  from: readonly string[];
+  to: string;
+  label?: string;
+};
+
+/** What a caller hands `moveSignable`: the row, who is acting, and the ladder. */
+export type SignableSpec = {
+  access: PermissionSet;
+  actor?: { id?: string; alias?: string };
+  transitions: Record<string, Transition>;
+  row: Record<string, unknown> | null | undefined;
+  auditPrefix?: string;
+  apply: (patch: Record<string, unknown>) => Promise<unknown>;
+  after?: (moved: string, patch: Record<string, unknown>, now: string) => Promise<unknown> | unknown;
+  audit?: (entry: Record<string, unknown>) => Promise<unknown> | unknown;
+  /** Told where it now sits. A workflow that waits silently waits forever. */
+  notify?: (state: string) => Promise<unknown> | unknown;
+};
+
+export async function moveSignable(
+  spec: SignableSpec,
+  action: string,
+  body: Record<string, unknown> = {},
+) {
   const move = spec.transitions?.[action];
   if (!move) return { error: "unknown-action" };
 
-  const denied = requirePermission(spec.access, move.permission);
+  const denied = requirePermission(spec.access, move.permission as PermissionKey);
   if (denied) return denied;
 
   const row = spec.row;
   if (!row) return { error: "no-revision" };
-  if (!move.from.includes(row.state)) return { error: "wrong-state", state: row.state };
+  if (!move.from.includes(String(row.state))) return { error: "wrong-state", state: row.state };
 
   // NOBODY SIGNS BOTH HALVES. Review and approval are two rights precisely so
   // they can be two people, and something carrying one person's name in both
   // slots has been reviewed by nobody. It belongs here rather than in the
   // permission model, because holding both rights is legitimate and using both
   // on one record is not.
-  if (action === "approve" && row.review?.byCollaboratorId === spec.actor?.id) {
+  if (action === "approve" && (row.review as { byCollaboratorId?: string })?.byCollaboratorId === spec.actor?.id) {
     return { error: "same-signer" };
   }
 
   const now = new Date().toISOString();
-  const patch = { state: move.to, updatedAt: now };
+  const patch: Record<string, unknown> = { state: move.to, updatedAt: now };
 
   const slot = SIGNATURE_SLOTS[action];
   if (slot) {
@@ -73,7 +105,7 @@ export async function moveSignable(spec, action, body = {}) {
       // Optional, and optional on purpose: a signature is a name, a role and a
       // moment. The graphic is decoration on top of that record, so a signature
       // without one is not a lesser signature.
-      signatureUrl: MEDIA_URL.test(String(body?.signatureUrl || "")) ? body.signatureUrl : "",
+      signatureUrl: MEDIA_URL.test(String(body?.signatureUrl || "")) ? String(body.signatureUrl) : "",
     };
   }
 
@@ -108,7 +140,11 @@ export async function moveSignable(spec, action, body = {}) {
 // Which moves this person could make right now. Read by the screen so a button
 // is only ever drawn where pressing it would succeed — and computed from the
 // same table the move above enforces, so the two cannot disagree.
-export function availableMoves(transitions, state, holds) {
+export function availableMoves(
+  transitions: Record<string, Transition> | null | undefined,
+  state: string,
+  holds: (permission: string) => boolean,
+) {
   return Object.entries(transitions || {})
     .filter(([, move]) => move.from.includes(state) && holds(move.permission))
     .map(([action, move]) => ({ action, label: move.label }));

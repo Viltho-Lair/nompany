@@ -44,7 +44,7 @@ export const callPointById = (id) => CALL_POINTS.find((c) => c.id === String(id 
 // ONE CALL POINT, ONE TEMPLATE. A button that sometimes produces one document
 // and sometimes another is a button nobody can predict; needing a second
 // document in the same place means declaring a second call point beside it.
-export function callPointTaken(templates, callPointId, exceptId = "") {
+export function callPointTaken(templates, callPointId: string, exceptId = "") {
   return (templates || []).some((t) => t.id !== exceptId && t.callPointId === callPointId);
 }
 
@@ -75,7 +75,7 @@ export const HOMES = {
   // viewer's own address carries both.
   quotation: {
     needs: "salesTicket",
-    href: (slug, record, ticket) =>
+    href: (slug: string, record, ticket) =>
       ticket ? `/${slug}/sales-tickets/${ticket.id}/quotations/${record.id}` : `/${slug}/quality-documents`,
   },
   salesTicket: { needs: null, href: (slug, record) => `/${slug}/sales-tickets/${record.id}` },

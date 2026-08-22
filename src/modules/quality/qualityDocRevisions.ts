@@ -26,6 +26,8 @@ import { moveSignable, availableMoves } from "@/modules/technical/signables";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { TRANSITIONS, REV_LABELS, isOpen, documentState } from "./qualityDocuments";
 import { DOCS, REVISIONS } from "./qualityDocs";
+import type { QualityContext, QualityDocument, QualityRevision } from "./types";
+import type { PermissionKey } from "@/platform/access";
 
 const AUDIT = "qualityAudit";
 
@@ -58,10 +60,10 @@ async function audit(ctx, { documentId, revisionId = "", action, detail = "" }) 
   });
 }
 
-const Docs = repo(DOCS);
-const Revisions = repo(REVISIONS);
+const Docs = repo<QualityDocument>(DOCS);
+const Revisions = repo<QualityRevision>(REVISIONS);
 
-export async function listRevisions(ctx, documentId) {
+export async function listRevisions(ctx: QualityContext, documentId: string) {
   const rows = await Revisions.find(ctx);
   return rows
     .filter((r) => r.documentId === documentId)
@@ -81,7 +83,7 @@ const waitingOn = (document, state) =>
  * Computed from the same table the move enforces, so a button is only ever
  * drawn where pressing it would succeed.
  */
-export async function workflowFor(ctx, documentId, holds) {
+export async function workflowFor(ctx: QualityContext, documentId: string, holds) {
   const [docs, revisions] = await Promise.all([
     Docs.find(ctx),
     Revisions.find(ctx),
@@ -101,8 +103,8 @@ export async function workflowFor(ctx, documentId, holds) {
   return {
     state: documentState(document, revisions),
     revision: open || effective,
-    revisions: mine.sort((a, b) => (Number(b.rev) || 0) - (Number(a.rev) || 0)),
-    moves: availableMoves(TRANSITIONS, state, holds),
+    revisions: (mine as QualityRevision[]).sort((a, b) => (Number(b.rev) || 0) - (Number(a.rev) || 0)),
+    moves: availableMoves(TRANSITIONS, state as string, holds),
     waitingOn: open ? waitingOn(document, open.state) : "",
     label: open ? REV_LABELS[open.state] : effective ? REV_LABELS.effective : REV_LABELS.draft,
   };
@@ -122,7 +124,7 @@ export async function workflowFor(ctx, documentId, holds) {
  * happens to hold — a revision is an edit of what is current, not a resumption
  * of an abandoned one.
  */
-export async function startRevision(ctx, documentId) {
+export async function startRevision(ctx: QualityContext, documentId: string) {
   const denied = requirePermission(ctx.access, "quality.documents.edit");
   if (denied) return denied;
 
@@ -158,7 +160,7 @@ export async function startRevision(ctx, documentId) {
     ...snapshotOf(effective), updatedAt: new Date().toISOString(),
   });
 
-  await audit(ctx, { documentId, revisionId: revision.id, action: "revision.started", detail: `Rev ${revision.rev}` });
+  await audit(ctx, { documentId, revisionId: String(revision.id), action: "revision.started", detail: `Rev ${revision.rev}` });
   return { revision };
 }
 
@@ -169,7 +171,7 @@ export async function startRevision(ctx, documentId) {
  * that is about a controlled document specifically — which row is in play, when
  * the text is frozen, and what publishing and withdrawing MEAN.
  */
-export async function moveRevision(ctx, documentId, action, body = {}) {
+export async function moveRevision(ctx: QualityContext, documentId, action, body = {}) {
   const [docs, revisions] = await Promise.all([
     Docs.find(ctx),
     Revisions.find(ctx),
@@ -189,7 +191,7 @@ export async function moveRevision(ctx, documentId, action, body = {}) {
   // hold whatever the document said before the author had written anything, and
   // opening a document to read it would start a revision nobody asked for.
   if (action === "submit") {
-    const denied = requirePermission(ctx.access, TRANSITIONS.submit.permission);
+    const denied = requirePermission(ctx.access, TRANSITIONS.submit.permission as PermissionKey);
     if (denied) return denied;
 
     const snapshot = snapshotOf(document);
@@ -199,12 +201,16 @@ export async function moveRevision(ctx, documentId, action, body = {}) {
       // A rejected revision goes round again, carrying whatever the author has
       // since fixed. Re-snapshotting is the point: the reviewer must not be
       // sent back the text they already turned down.
-      current = await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, current.id, {
+      // updateRow answers null for a row that vanished mid-write; `current` was
+      // read a line ago and the branch exists because it was there, so keeping
+      // the old value is the honest fallback rather than dropping to null and
+      // making every use below optional.
+      current = (await updateRow<QualityRevision>(ctx.studio.id, ctx.section.id, REVISIONS, current.id, {
         ...snapshot, updatedAt: new Date().toISOString(),
-      });
+      })) || current;
     } else {
       const highest = mine.reduce((n, r) => Math.max(n, Number(r.rev) || 0), 0);
-      current = await addRow(ctx.studio.id, ctx.section.id, REVISIONS, {
+      current = await addRow<QualityRevision>(ctx.studio.id, ctx.section.id, REVISIONS, {
         documentId,
         rev: highest + 1,
         state: "draft",
@@ -218,37 +224,43 @@ export async function moveRevision(ctx, documentId, action, body = {}) {
     }
   }
 
+  // BOTH BRANCHES ABOVE ASSIGN and neither can leave it unset — the else half
+  // creates one. Narrowed once here rather than at each of the six uses below.
+  const revision = current as QualityRevision;
+
   const result = await moveSignable({
     access: ctx.access,
     actor: { id: ctx.collaborator.id, alias: ctx.collaborator.alias || "" },
     transitions: TRANSITIONS,
-    row: current,
+    row: revision,
     auditPrefix: "revision",
 
-    apply: (patch) => updateRow(ctx.studio.id, ctx.section.id, REVISIONS, current.id, patch),
+    apply: (patch: Record<string, unknown>) =>
+      updateRow(ctx.studio.id, ctx.section.id, REVISIONS, revision.id, patch),
 
     // WHAT THE MOVE MEANS — the half that is not generic.
     after: async (moved, patch, now) => {
       if (moved === "publish") {
-        const effectiveDate = day(body?.effectiveDate) || now.slice(0, 10);
+        const effectiveDate = day((body as Record<string, unknown>)?.effectiveDate) || now.slice(0, 10);
         // The revision this one replaces is SUPERSEDED, not deleted. Retaining
         // withdrawn versions is the requirement, and it is also the only way to
         // answer "what did the procedure say in March".
         for (const r of mine) {
-          if (r.state === "effective" && r.id !== current.id) {
+          if (r.state === "effective" && r.id !== revision.id) {
             await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, r.id, {
               state: "superseded", supersededAt: now,
             });
           }
         }
         await updateRow(ctx.studio.id, ctx.section.id, DOCS, documentId, {
-          revision: current.rev,
-          effectiveRevisionId: current.id,
+          revision: revision.rev,
+          effectiveRevisionId: revision.id,
           effectiveDate,
-          nextReviewDate: day(body?.nextReviewDate) || document.nextReviewDate || "",
+          nextReviewDate: day((body as Record<string, unknown>)?.nextReviewDate)
+            || (document as Record<string, unknown>).nextReviewDate || "",
           updatedAt: now,
         });
-        await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, current.id, { effectiveDate });
+        await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, revision.id, { effectiveDate });
       }
 
       if (moved === "withdraw") {
@@ -259,8 +271,8 @@ export async function moveRevision(ctx, documentId, action, body = {}) {
     },
 
     audit: (entry) => audit(ctx, {
-      documentId, revisionId: current.id, action: entry.action,
-      detail: `Rev ${current.rev}${entry.note ? ` - ${entry.note}` : ""}`,
+      documentId, revisionId: revision.id, action: entry.action,
+      detail: `Rev ${revision.rev}${entry.note ? ` - ${entry.note}` : ""}`,
     }),
 
     notify: async (state) => {
@@ -275,6 +287,6 @@ export async function moveRevision(ctx, documentId, action, body = {}) {
     },
   }, action, body);
 
-  if (result.error) return result;
+  if ("error" in result) return result;
   return { revision: result.row };
 }

@@ -20,10 +20,16 @@
 //   node scripts/check-scopes.mjs
 //   node scripts/check-scopes.mjs src/modules/sales/sales.js src/modules/inventory/inventory.js
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const DIR = "src/lib";
+// WHERE THE SERVICE CODE IS, and it stopped being one directory. Wave 3 moved
+// the twelve departments to src/modules; this said "src/lib" and would have gone
+// on reporting "no unresolved references" over a tree that no longer held any of
+// them. Third scanner caught doing this in one session — the access suite's two
+// were the others — which is the argument for the floor at the bottom rather
+// than for being more careful next time.
+const DIRS = ["src/lib", "src/modules"];
 
 // The context names shared by every module.
 const WATCHED = ["studio", "section", "collaborator", "access", "ctx"];
@@ -153,11 +159,32 @@ function check(file) {
 const only = process.argv.slice(2);
 const files = only.length
   ? only
-  : readdirSync(DIR).filter((f) => f.endsWith(".js")).map((f) => join(DIR, f));
+  : DIRS.flatMap(function walk(dir) {
+    return readdirSync(dir).flatMap((entry) => {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) return walk(path);
+      // .js ONLY, and that is not an oversight. TypeScript reports an undefined
+      // identifier better than this can — it found `money` in quality.ts, which
+      // this script had been calling clean because its watch-list never named
+      // it. So this covers what tsc does not yet see, and shrinks to nothing as
+      // Wave 3 finishes, which is the right shape for a stopgap.
+      return path.endsWith(".js") ? [path] : [];
+    });
+  });
 
 const all = files.flatMap((f) => check(f).map((i) => ({ ...i, file: f })));
 for (const i of all) {
   console.log(`${i.file}:${i.line}  ${i.fn}() uses \`${i.name}\` it does not bind — ${i.text}`);
 }
 console.log(all.length ? `\n${all.length} unresolved reference(s)` : "no unresolved references");
+// THE FLOOR. Everything above is a filesystem scan, and one that finds nothing
+// reports success — exactly how this check quietly stopped covering the
+// departments. The number only has to be far enough above zero that "read
+// nothing" cannot hide underneath it.
+if (!process.argv[2] && files.length < 20) {
+  console.error(`
+Refusing to pass: only ${files.length} files were read. Something moved.`);
+  process.exit(1);
+}
+
 process.exit(all.length ? 1 : 0);

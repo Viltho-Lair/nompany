@@ -13,8 +13,12 @@ import { addCollaborator } from "@/platform/auth/collaborators";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
+import type { Section } from "@/platform/db/sections";
 
-export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" }) {
+export async function createStudio(
+  { ownerUserId, name, slug, ownerAlias = "" }:
+  { ownerUserId?: string; name?: string; slug?: string; ownerAlias?: string },
+) {
   const cleanName = String(name || "").trim();
   const cleanSlug = String(slug || "").toLowerCase();
   if (!ownerUserId || !cleanName) return { error: "missing" };
@@ -43,9 +47,9 @@ export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" })
     // Seed the fixed section list. Parents get a SectionID, sub-sections get
     // their own id and point at their parent — one flat array, one id space,
     // so grants and the cascade treat both alike.
-    const sections = [];
+    const sections: Section[] = [];
     SECTION_DEFS.forEach((d) => {
-      const parent = {
+      const parent: Section = {
         id: ID.section(), studioId: id, key: d.key, name: d.name, parentId: null,
         enabled: true, sortOrder: sections.length, settings: {}, createdAt: now,
       };
@@ -98,7 +102,7 @@ export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" })
 }
 
 // ---- lookups ---------------------------------------------------------------
-export async function getStudioById(studioId) {
+export async function getStudioById(studioId: string) {
   if (!studioId) return null;
   const rows = await readArr(REG.studios);
   return rows.find((s) => s.id === studioId) || null;
@@ -106,14 +110,14 @@ export async function getStudioById(studioId) {
 // The same shape as findUserBySession, and the same fix: `g:studios` is a fixed
 // key, so resolving the slug and reading the registry are independent questions
 // that were being asked one after the other.
-export async function getStudioBySlug(slug) {
+export async function getStudioBySlug(slug: string) {
   const [id, rows] = await Promise.all([
     getIndex(IX.slug(String(slug || "").toLowerCase())),
     readArr(REG.studios),
   ]);
   return id ? (rows.find((s) => s.id === id) || null) : null;
 }
-export async function getOwnedStudio(userId) {
+export async function getOwnedStudio(userId: string) {
   const id = await getIndex(IX.owner(userId));
   return id ? getStudioById(id) : null;
 }
@@ -124,30 +128,41 @@ export async function listStudios() {
 // The two back-pointers on their own, for callers that already hold the studio
 // registry and only need ids (listing every user's studios would otherwise
 // re-read g:studios once per person).
-export const ownedStudioId = (userId) => getIndex(IX.owner(userId));
-export const collaborationStudioIds = (userId) => sMembers(IX.collab(userId));
+export const ownedStudioId = (userId: string) => getIndex(IX.owner(userId));
+export const collaborationStudioIds = (userId: string) => sMembers(IX.collab(userId));
 
 // The studios a user COLLABORATES in (their own is via getOwnedStudio). Derived
 // from the ix:collab back-pointer set — never stored twice.
-export async function listUserCollaborations(userId) {
+/**
+ * A STUDIO AS THE REGISTRY HOLDS IT. Named down to what callers read and open
+ * past that: what else a studio carries — its plan, its branding, its legal
+ * information — belongs to the screens that edit it, and restating all of it
+ * here would be a second definition free to drift.
+ */
+export type StudioRow = { id: string; name?: string; slug?: string } & Record<string, unknown>;
+
+export async function listUserCollaborations(userId: string): Promise<StudioRow[]> {
   const ids = await sMembers(IX.collab(userId));
   if (!ids.length) return [];
-  const rows = await readArr(REG.studios);
-  const byId = new Map(rows.map((s) => [s.id, s]));
+  const rows = await readArr<StudioRow>(REG.studios);
+  const byId = new Map(rows.map((s) => [s.id, s] as [string, StudioRow]));
   // `filter(Boolean)` removes the misses, and the cast is what says so — an id
   // in the back-pointer set with no registry row is drift the sweeper cleans,
   // not something a caller has to handle.
-  return /** @type {any[]} */ (ids.map((id) => byId.get(id)).filter(Boolean));
+  return ids.map((id) => byId.get(id)).filter(Boolean) as StudioRow[];
 }
 
 // ---- registry updates (id/ownerUserId immutable; slug via changeStudioSlug) -
-export async function updateStudio(studioId, patch) {
-  return editArr(REG.studios, (rows) => {
-    let updated = null;
+export async function updateStudio(studioId: string, patch: Record<string, unknown>) {
+  return editArr<StudioRow, StudioRow | null>(REG.studios, (rows) => {
+    let updated: StudioRow | null = null;
     const next = rows.map((s) => {
       if (s.id !== studioId) return s;
-      const { id, ownerUserId, slug, ...safe } = patch || {};
-      updated = { ...s, ...safe, id: s.id, ownerUserId: s.ownerUserId, slug: s.slug };
+      // The three destructured out are the immutable ones — id, owner and slug
+      // — and naming them is how they are excluded, which is why none is read.
+      // The slug has its own path because it carries a uniqueness claim.
+      const { id: _id, ownerUserId: _owner, slug: _slug, ...safe } = patch || {};
+      updated = { ...s, ...safe, id: s.id, ownerUserId: s.ownerUserId, slug: s.slug } as StudioRow;
       return updated;
     });
     return updated ? { next, result: updated } : { result: null };
@@ -156,7 +171,7 @@ export async function updateStudio(studioId, patch) {
 
 // Slug change = claim the new address, then release the old one (never a gap
 // where both or neither resolve).
-export async function changeStudioSlug(studioId, newSlug) {
+export async function changeStudioSlug(studioId: string, newSlug: unknown) {
   const clean = String(newSlug || "").toLowerCase();
   if (!isValidSlug(clean)) return { error: "slug-invalid" };
   const studio = await getStudioById(studioId);
@@ -166,7 +181,7 @@ export async function changeStudioSlug(studioId, newSlug) {
   await editArr(REG.studios, (rows) => ({
     next: rows.map((s) => (s.id === studioId ? { ...s, slug: clean } : s)),
   }));
-  await release(IX.slug(studio.slug));
+  await release(IX.slug(String(studio.slug || "")));
   return { studio: { ...studio, slug: clean } };
 }
 
@@ -184,7 +199,10 @@ export async function changeStudioSlug(studioId, newSlug) {
 // rare, it is the owner's deliberate act, and the people affected are the
 // handful of colleagues who will be told. What is gone with the deferral: the
 // cron, `pendingName`, `pendingSlug`, `renameAt`, and everything that read them.
-export async function renameStudio(studioId, { name, slug }) {
+export async function renameStudio(
+  studioId: string,
+  { name, slug }: { name?: unknown; slug?: unknown },
+) {
   const studio = await getStudioById(studioId);
   if (!studio) return { error: "notfound" };
 
@@ -204,7 +222,9 @@ export async function renameStudio(studioId, { name, slug }) {
     if (!isValidSlug(cleanSlug)) return { error: "slug-invalid" };
     const out = await changeStudioSlug(studioId, cleanSlug);
     if (out.error) return { error: out.error === "slug-taken" ? "slug-taken" : out.error };
-    current = out.studio;
+    // changeStudioSlug returns the row it just wrote whenever it did not error,
+    // and the branch above has already returned on every error path.
+    current = out.studio as StudioRow;
   }
   if (wantsName) current = (await updateStudio(studioId, { name: cleanName })) || current;
 
@@ -220,14 +240,14 @@ export async function renameStudio(studioId, { name, slug }) {
 // are the ones actually being worked in. Deliberately a plain tally: no history
 // is kept, nothing is written about WHEN, and nobody but the person themselves
 // can read it — it lives under their own key prefix.
-export async function recordStudioVisit(userId, studioId) {
+export async function recordStudioVisit(userId: string, studioId: string) {
   if (!userId || !studioId) return;
   await hIncrBy(U.studioVisits(userId), studioId, 1);
 }
 
-export async function studioVisitCounts(userId) {
+export async function studioVisitCounts(userId: string) {
   const raw = await hGetAll(U.studioVisits(userId));
-  const out = {};
+  const out: Record<string, unknown> = {};
   for (const [id, n] of Object.entries(raw || {})) out[id] = Number(n) || 0;
   return out;
 }
@@ -235,7 +255,7 @@ export async function studioVisitCounts(userId) {
 // A studio this person can no longer reach leaves a tally behind. It is inert —
 // ranking only ever sorts studios already in hand — but pruning keeps the hash
 // from growing without bound across a long-lived account.
-export async function pruneStudioVisits(userId, liveStudioIds) {
+export async function pruneStudioVisits(userId: string, liveStudioIds: readonly string[]) {
   const counts = await studioVisitCounts(userId);
   const live = new Set(liveStudioIds);
   const stale = Object.keys(counts).filter((id) => !live.has(id));

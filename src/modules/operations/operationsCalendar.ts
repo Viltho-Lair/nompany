@@ -32,7 +32,7 @@ export const DEFAULT_SCHEDULE = DAYS.reduce((acc, d) => {
 }, {});
 
 export function normalizeSchedule(ws) {
-  const out = {};
+  const out: Record<string, unknown> = {};
   for (const d of DAYS) {
     const v = (ws && ws[d]) || DEFAULT_SCHEDULE[d];
     out[d] = { on: !!v.on, from: v.from || "", to: v.to || "" };
@@ -92,8 +92,11 @@ export function visibleWindow(schedule, workingOnly) {
 // Is `at` inside the configured working hours? Evaluated in the VIEWER's local
 // time — unlike the Old System, which hard-coded UTC+3 because it served one
 // company in one country. A studio's schedule means the hours where it works.
-export function isWithinWorkingHours(schedule, at = new Date()) {
-  const s = normalizeSchedule(schedule);
+/** One day in the working week, as the settings screen writes it. */
+export type WorkingDay = { on?: boolean; from?: string; to?: string };
+
+export function isWithinWorkingHours(schedule: unknown, at = new Date()) {
+  const s = normalizeSchedule(schedule) as Record<string, WorkingDay | undefined>;
   const e = s[DAYS[at.getDay()]];
   if (!e || !e.on) return false;
   const h = at.getHours() + at.getMinutes() / 60;

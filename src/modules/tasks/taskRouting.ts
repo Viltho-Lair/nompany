@@ -127,7 +127,7 @@ export function quotationApproved(quotation, tasks) {
 // codes are dropped, so a typo cannot create a silent bucket routing to nobody.
 export function readTaskAssignees(settingsSection) {
   const raw = settingsSection?.settings?.taskAssignees || {};
-  const out = {};
+  const out: Record<string, unknown> = {};
   for (const code of AUTHORITY_CODES) {
     const ids = Array.isArray(raw[code]) ? raw[code] : [];
     out[code] = [...new Set(ids.map((v) => String(v ?? "").trim()).filter(Boolean))].slice(0, 50);

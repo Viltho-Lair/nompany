@@ -28,6 +28,9 @@ import {
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
   cleanQuotationTables, itemsFromTables, isFinishedQuotation,
 } from "./quotations";
+import type { TechnicalContext, Rfq, Quotation } from "./types";
+import type { SalesTicket } from "@/modules/sales/types";
+import type { Section } from "@/platform/db/sections";
 
 export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns };
@@ -45,8 +48,8 @@ const TASKS = "tasks";
 // answer for a sibling department's rows as easily as its own.
 const Clients = repo(CLIENTS);
 const InventoryItems = repo(INVENTORY_ITEMS);
-const Quotations = repo(QUOTATIONS);
-const Rfqs = repo(RFQS);
+const Quotations = repo<Quotation>(QUOTATIONS);
+const Rfqs = repo<Rfq>(RFQS);
 const Tasks = repo(TASKS);
 const Tickets = repo(TICKETS);
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
@@ -76,7 +79,7 @@ export const technicalContext = moduleContext({
     // rather than of Technical's. A studio with no Sales section cannot do it at
     // all, which is what the Boolean guards.
     canManageSales: Boolean(salesSection)
-      && sectionManageable(access, salesSection.key, sections.map((x) => x.key)),
+      && sectionManageable(access, (salesSection as Section).key, sections.map((x) => x.key)),
     ...readTechnicalSettings(settingsSection),
   }),
 });
@@ -99,7 +102,7 @@ export function readTechnicalSettings(settingsSection) {
   };
 }
 
-export async function saveTechnicalSettings(ctx, body) {
+export async function saveTechnicalSettings(ctx: TechnicalContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.settings.edit");
   if (denied) return denied;
@@ -167,8 +170,8 @@ export async function ticketFacts({ studio, salesTicketsSection, salesClientsSec
   ]);
   // The client's NAME is the client record's, not the ticket's — a second hop
   // down the same kind of key, and for the same reason.
-  const nameById = new Map(clients.map((c) => [c.id, c.name]));
-  const byId = new Map(tickets.map((t) => [t.id, t]));
+  const nameById = new Map(clients.map((c) => [c.id, c.name] as [string, string]));
+  const byId = new Map(tickets.map((t) => [t.id, t] as [string, SalesTicket]));
   return (ticketId) => {
     const t = ticketId ? byId.get(ticketId) : null;
     if (!t) return NO_TICKET;
@@ -187,7 +190,7 @@ export async function ticketFacts({ studio, salesTicketsSection, salesClientsSec
   };
 }
 
-export async function listRfqs(ctx) {
+export async function listRfqs(ctx: TechnicalContext) {
   const [rows, factsFor] = await Promise.all([
     Rfqs.find({ studio: ctx.studio, section: ctx.rfqSection }),
     ticketFacts(ctx),
@@ -222,7 +225,7 @@ function uniqueRfqReference(rows, base) {
   return `${base}-${n}`;
 }
 
-export async function requestRfq(ctx, body) {
+export async function requestRfq(ctx: TechnicalContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   //
   // TWO DOORS, TWO RIGHTS. Raised from TECHNICAL it is a Technical create, so
@@ -312,7 +315,7 @@ export async function requestRfq(ctx, body) {
   // strand work Technical still has open.
   const superseded = latestTicketQuotation(ticketId, quotations);
   if (superseded && isFinishedQuotation(superseded) && !superseded.locked) {
-    await updateRow(studio.id, quotationsSection.id, QUOTATIONS, superseded.id, {
+    await updateRow(studio.id, quotationsSection.id, QUOTATIONS, String(superseded.id), {
       locked: true,
       supersededByRfqId: rfq.id,
       lockedAt: new Date().toISOString(),
@@ -332,16 +335,16 @@ export async function requestRfq(ctx, body) {
   return { rfq };
 }
 
-export async function updateRfq(ctx, id, body) {
+export async function updateRfq(ctx: TechnicalContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.rfq.edit");
   if (denied) return denied;
 
   const { studio, rfqSection, salesTicketsSection } = ctx;
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.status !== undefined) {
-    if (!RFQ_STATUSES.includes(body.status)) return { error: "status" };
-    patch.status = body.status;
+    if (!RFQ_STATUSES.includes(String(body.status))) return { error: "status" };
+    patch.status = String(body.status);
   }
   if (body?.handledByCollaboratorId !== undefined) patch.handledByCollaboratorId = str(body.handledByCollaboratorId, 60);
   if (body?.description !== undefined) patch.description = str(body.description, 4000);
@@ -361,7 +364,7 @@ export async function updateRfq(ctx, id, body) {
     const tickets = await Tickets.find({ studio, section: salesTicketsSection });
     const ticket = tickets.find((t) => t.id === rfq.ticketId);
     if (ticket && (ticket.status === DEFAULT_STATUS || ticket.status === "Opportunity")) {
-      await updateRow(studio.id, salesTicketsSection.id, TICKETS, rfq.ticketId, {
+      await updateRow(studio.id, salesTicketsSection.id, TICKETS, String(rfq.ticketId || ""), {
         status: RFQ_REJECTED_TICKET_STATUS, updatedAt: new Date().toISOString(),
       });
     }
@@ -407,18 +410,18 @@ export function nextQuotationNumber(quotations, settings) {
 const quotationHandler = (q, rfq) =>
   rfq?.handledByCollaboratorId || q?.handledByCollaboratorId || q?.handledBy || "";
 
-export async function listQuotations(ctx) {
+export async function listQuotations(ctx: TechnicalContext) {
   const [rows, rfqRows, tasks, factsFor] = await Promise.all([
     Quotations.find({ studio: ctx.studio, section: ctx.quotationsSection }),
     ctx.rfqSection ? Rfqs.find({ studio: ctx.studio, section: ctx.rfqSection }) : [],
     ctx.tasksSection ? Tasks.find({ studio: ctx.studio, section: ctx.tasksSection }) : [],
     ticketFacts(ctx),
   ]);
-  const rfqById = new Map(rfqRows.map((r) => [r.id, r]));
+  const rfqById = new Map(rfqRows.map((r) => [r.id, r] as [string, Rfq]));
   return [...rows]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((q) => {
-      const handledBy = quotationHandler(q, rfqById.get(q.rfqId));
+      const handledBy = quotationHandler(q, rfqById.get(q.rfqId || ""));
       // APPROVED IS CARRIED FROM THE APPROVAL, never copied onto the document.
       // The list showed whatever `status` said, so a quotation Sales and
       // Management had both signed still read "Completed" — the decision was on
@@ -462,7 +465,7 @@ export async function listQuotations(ctx) {
 // UNIQUE case-insensitively so search stays predictable, and such a quotation
 // is marked Internal — `lead` is what an RFQ conversion overwrites with the
 // source ticket.
-export async function createQuotation(ctx, body) {
+export async function createQuotation(ctx: TechnicalContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.quotations.create");
   if (denied) return denied;
@@ -516,7 +519,7 @@ export async function createQuotation(ctx, body) {
   return { quotation };
 }
 
-export async function convertRfq(ctx, body) {
+export async function convertRfq(ctx: TechnicalContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.rfq.convert");
   if (denied) return denied;
@@ -597,7 +600,7 @@ export async function convertRfq(ctx, body) {
   return { quotation };
 }
 
-export async function updateQuotation(ctx, id, body) {
+export async function updateQuotation(ctx: TechnicalContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.quotations.edit");
   if (denied) return denied;
@@ -640,11 +643,11 @@ export async function updateQuotation(ctx, id, body) {
     if (noLock) return noLock;
   }
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.title !== undefined) patch.title = str(body.title, 200);
   if (body?.status !== undefined) {
-    if (!QUOTATION_STATUSES.includes(body.status)) return { error: "status" };
-    patch.status = body.status;
+    if (!QUOTATION_STATUSES.includes(String(body.status))) return { error: "status" };
+    patch.status = String(body.status);
     // When it lands on Approved, stamp WHEN — that date is what the dashboard
     // measures turnaround from, and it must not move if it is approved twice.
     if (body.status === "Approved" && !current.completedAt) patch.completedAt = new Date().toISOString();
@@ -718,7 +721,7 @@ export async function updateQuotation(ctx, id, body) {
   return { quotation };
 }
 
-export async function removeQuotation(ctx, id) {
+export async function removeQuotation(ctx: TechnicalContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.quotations.delete");
   if (denied) return denied;
@@ -742,7 +745,8 @@ export async function openTickets({ studio, salesSection, salesTicketsSection, s
     // quotation is approved would otherwise still be offered in the picker and
     // then be turned down on save — which is the failure the Sales button was
     // just fixed for, arriving through the other door.
-    .filter((t) => !pendingRfq(t.id, rfqs, quotations) && !approvedQuotationFor(t.id, quotations, tasks))
+    .filter((t) => !pendingRfq(String(t.id), rfqs, quotations)
+      && !approvedQuotationFor(String(t.id), quotations, tasks))
     .map((t) => ({ id: t.id, ref: t.ref, title: t.title }));
 }
 

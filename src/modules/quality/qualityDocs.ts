@@ -27,6 +27,7 @@ import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { bumpCounter } from "@/platform/db/store";
 import { SEC } from "@/platform/db/keys";
 import { formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision, isOpen } from "./qualityDocuments";
+import type { QualityContext, QualityDocument, QualityRevision } from "./types";
 
 // A NEW COLLECTION, not the old one reused. The old rows carry `sections` and
 // no `content`; letting them surface in the new register would show a list of
@@ -99,7 +100,7 @@ const SETUP_FIELDS = {
 };
 
 const cleanSetup = (body) => {
-  const out = {};
+  const out: Record<string, unknown> = {};
   for (const [field, clean] of Object.entries(SETUP_FIELDS)) {
     if (body?.[field] !== undefined) out[field] = clean(body[field]);
   }
@@ -118,10 +119,10 @@ const withState = (doc, revisions) => ({
 
 // `ctx` IS a scope — it already carries `studio` and `section` — so these read
 // exactly what the hand-written calls read, with one fewer thing to get wrong.
-const Docs = repo(DOCS);
-const Revisions = repo(REVISIONS);
+const Docs = repo<QualityDocument>(DOCS);
+const Revisions = repo<QualityRevision>(REVISIONS);
 
-export async function listDocs(ctx) {
+export async function listDocs(ctx: QualityContext) {
   const [docs, revisions] = await Promise.all([
     Docs.find(ctx),
     Revisions.find(ctx),
@@ -131,7 +132,7 @@ export async function listDocs(ctx) {
     .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
 }
 
-export async function getDoc(ctx, id) {
+export async function getDoc(ctx: QualityContext, id: string) {
   const [docs, revisions] = await Promise.all([
     Docs.find(ctx),
     Revisions.find(ctx),
@@ -168,7 +169,7 @@ export async function getDoc(ctx, id) {
  * A document nobody has issued yet is simply a draft, and drafts are for
  * writing in.
  */
-async function editable(ctx, documentId) {
+async function editable(ctx, documentId: string) {
   const revisions = (await Revisions.find(ctx))
     .filter((r) => r.documentId === documentId);
   if (revisions.some((r) => isOpen(r.state))) return null;
@@ -186,7 +187,7 @@ async function mintCode(ctx, { prefix, dept, docs }) {
   return formatCode(prefix, dept, seq);
 }
 
-export async function createDoc(ctx, body) {
+export async function createDoc(ctx: QualityContext, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "quality.documents.create");
   if (denied) return denied;
 
@@ -217,7 +218,7 @@ export async function createDoc(ctx, body) {
   return { document: withState(row, []) };
 }
 
-export async function renameDoc(ctx, id, body) {
+export async function renameDoc(ctx: QualityContext, id: string, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "quality.documents.edit");
   if (denied) return denied;
   const title = str(body?.title, MAX_TITLE) || "Untitled document";
@@ -231,7 +232,7 @@ export async function renameDoc(ctx, id, body) {
  * The hot path. Called on a debounce while somebody types, so it patches and
  * returns without reading anything it does not need.
  */
-export async function saveContent(ctx, id, body) {
+export async function saveContent(ctx: QualityContext, id: string, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "quality.documents.edit");
   if (denied) return denied;
 
@@ -256,7 +257,7 @@ export async function saveContent(ctx, id, body) {
   return row ? { ok: true } : { error: "notfound" };
 }
 
-export async function savePageSetup(ctx, id, body) {
+export async function savePageSetup(ctx: QualityContext, id: string, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "quality.documents.edit");
   if (denied) return denied;
 
@@ -272,7 +273,7 @@ export async function savePageSetup(ctx, id, body) {
   return row ? { document: row } : { error: "notfound" };
 }
 
-export async function removeDoc(ctx, id) {
+export async function removeDoc(ctx: QualityContext, id: string) {
   const denied = requirePermission(ctx.access, "quality.documents.delete");
   if (denied) return denied;
 

@@ -67,14 +67,17 @@ export function quotationTimeline(quotations, days = 30) {
   // of the window, since nothing would be keyed with today's UTC date at all.
   const now = new Date();
   const endOfWindow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const buckets = [];
+  // ONE BUCKET PER DAY, seeded at zero so a day with nothing in it draws as a
+  // gap rather than being missing from the series.
+  const buckets: { date: string; value: number }[] = [];
   for (let i = days - 1; i >= 0; i--) {
     buckets.push({ date: new Date(endOfWindow - i * 86400000).toISOString().slice(0, 10), value: 0 });
   }
-  const byDate = new Map(buckets.map((b) => [b.date, b]));
+  const byDate = new Map(buckets.map((b) => [b.date, b] as [string, { date: string; value: number }]));
   for (const q of quotations) {
     const key = String(q.createdAt || "").slice(0, 10);
-    if (byDate.has(key)) byDate.get(key).value += 1;
+    const bucket = byDate.get(key);
+    if (bucket) bucket.value += 1;
   }
   // Labels are day-and-month only; the year is the same across a 30-day window.
   return buckets.map((b) => ({ label: b.date.slice(5), value: b.value }));

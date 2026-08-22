@@ -18,6 +18,7 @@ import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { parseAwb } from "./awb";
 import { AWB_STATUS_BY_CODE, summarizeMovements } from "./awbStatus";
+import type { InventoryContext } from "./types";
 
 const SHIPMENTS = "awbShipments";
 const AIRLINES = "awbAirlines";
@@ -40,7 +41,7 @@ export async function listAirlines({ studio, awbSection }) {
   return [...rows].sort((a, b) => String(a.prefix || "").localeCompare(String(b.prefix || "")));
 }
 
-export async function createAirline(ctx, body) {
+export async function createAirline(ctx: InventoryContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.awb.create");
   if (denied) return denied;
@@ -66,13 +67,13 @@ export async function createAirline(ctx, body) {
   return { airline };
 }
 
-export async function editAirline(ctx, id, body) {
+export async function editAirline(ctx: InventoryContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.awb.edit");
   if (denied) return denied;
 
   const { studio, awbSection } = ctx;
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.prefix !== undefined) {
     const prefix = str(body.prefix, 3).replace(/\D/g, "");
     if (prefix.length !== 3) return { error: "prefix" };
@@ -90,7 +91,7 @@ export async function editAirline(ctx, id, body) {
 
 // A carrier is removable only while nothing it flew is still being tracked —
 // otherwise those shipments lose the name of whoever is carrying them.
-export async function removeAirline(ctx, id) {
+export async function removeAirline(ctx: InventoryContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.awb.delete");
   if (denied) return denied;
@@ -117,22 +118,22 @@ export async function listShipments({ studio, awbSection }) {
     Shipments.find({ studio, section: awbSection }),
     Airlines.find({ studio, section: awbSection }),
   ]);
-  const byPrefix = Object.fromEntries(airlines.map((a) => [a.prefix, a]));
+  const byPrefix = Object.fromEntries(airlines.map((a) => [String(a.prefix || ""), a]));
 
   return [...shipments]
     .map((s) => {
-      const airline = byPrefix[s.prefix] || null;
+      const airline = byPrefix[String(s.prefix || "")] || null;
       return {
         ...s,
         ...summarizeMovements(s.movements),
-        airlineName: airline?.name || "",
-        airlineIata: airline?.iata || "",
+        airlineName: String(airline?.name || ""),
+        airlineIata: String(airline?.iata || ""),
         // The carrier's own tracking page, when it has published a template.
         trackUrl: airline?.trackUrlTemplate
-          ? airline.trackUrlTemplate
-            .split("{AWB}").join(s.awbNumber || "")
-            .split("{PREFIX}").join(s.prefix || "")
-            .split("{SERIAL}").join(s.serial || "")
+          ? String(airline.trackUrlTemplate)
+            .split("{AWB}").join(String(s.awbNumber || ""))
+            .split("{PREFIX}").join(String(s.prefix || ""))
+            .split("{SERIAL}").join(String(s.serial || ""))
           : "",
       };
     })
@@ -140,14 +141,14 @@ export async function listShipments({ studio, awbSection }) {
     // most recently moved, so what just happened is at the top of each group.
     .sort((a, b) =>
       Number(a.delivered) - Number(b.delivered) ||
-      String(b.currentStatusAt || b.createdAt || "").localeCompare(String(a.currentStatusAt || a.createdAt || "")));
+      String(b.currentStatusAt || "").localeCompare(String(a.currentStatusAt || "")));
 }
 
 // Start following a waybill. The number is validated ARITHMETICALLY here — 11
 // digits and a correct mod-7 check digit — so a mistyped waybill is refused at
 // the door rather than sitting in the list forever, never moving, because it
 // refers to nothing.
-export async function trackShipment(ctx, body) {
+export async function trackShipment(ctx: InventoryContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts. Every other
   // write in this file asked for its right and this one did not, which made the
   // route's section-level check the only thing standing in front of it.
@@ -179,7 +180,7 @@ export async function trackShipment(ctx, body) {
   return { shipment: { ...shipment, ...summarizeMovements([]) } };
 }
 
-export async function updateShipment(ctx, id, body) {
+export async function updateShipment(ctx: InventoryContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.awb.edit");
   if (denied) return denied;
@@ -189,7 +190,7 @@ export async function updateShipment(ctx, id, body) {
   const current = rows.find((s) => s.id === id);
   if (!current) return { error: "notfound" };
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.reference !== undefined) patch.reference = str(body.reference, 160);
   for (const f of ["origin", "destination"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 8).toUpperCase();
   if (body?.pieces !== undefined) patch.pieces = count(body.pieces);
@@ -200,7 +201,8 @@ export async function updateShipment(ctx, id, body) {
   // logging a milestone at once must not overwrite each other, and who recorded
   // it is taken from the session rather than the payload.
   if (body?.movement) {
-    const code = str(body.movement.code, 8).toUpperCase();
+    const movement = body.movement as Record<string, unknown>;
+    const code = str(movement.code, 8).toUpperCase();
     if (!AWB_STATUS_BY_CODE[code]) return { error: "status" };
     patch.movements = [
       ...(Array.isArray(current.movements) ? current.movements : []),
@@ -208,10 +210,10 @@ export async function updateShipment(ctx, id, body) {
         id: `mv${Date.now().toString(36)}`,
         code,
         // An event that carries no time is being logged as it happens.
-        at: str(body.movement.at, 40) || new Date().toISOString(),
-        station: str(body.movement.station, 8).toUpperCase(),
-        flightNo: str(body.movement.flightNo, 16).toUpperCase(),
-        note: str(body.movement.note, 300),
+        at: str(movement.at, 40) || new Date().toISOString(),
+        station: str(movement.station, 8).toUpperCase(),
+        flightNo: str(movement.flightNo, 16).toUpperCase(),
+        note: str(movement.note, 300),
         byCollaboratorId: collaborator.id,
       },
     ];
@@ -221,7 +223,7 @@ export async function updateShipment(ctx, id, body) {
   return shipment ? { shipment: { ...shipment, ...summarizeMovements(shipment.movements) } } : { error: "notfound" };
 }
 
-export async function removeShipment(ctx, id) {
+export async function removeShipment(ctx: InventoryContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "inventory.awb.delete");
   if (denied) return denied;

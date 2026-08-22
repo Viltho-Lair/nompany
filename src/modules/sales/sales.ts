@@ -26,6 +26,8 @@ import { requestRfq } from "@/modules/technical/technical";
 import { pendingRfq, rfqsForTicket } from "@/modules/technical/rfqs";
 import { isFinishedQuotation } from "@/modules/technical/quotations";
 import { readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES, quotationApproved } from "@/modules/tasks/taskRouting";
+import type { SalesContext, Client, Service, SalesTicket, Site } from "./types";
+import type { TechnicalContext } from "@/modules/technical/types";
 
 export { TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, DEFAULT_STATUS, DEFAULT_URGENCY,
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS };
@@ -47,13 +49,13 @@ const PROJECTS = "projects";
 // collection, not a scope — the studio and section arrive per call, which is
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
-const Clients = repo(CLIENTS);
+const Clients = repo<Client>(CLIENTS);
 const Projects = repo(PROJECTS);
 const Quotations = repo(QUOTATIONS);
 const Rfqs = repo(RFQS);
-const Services = repo(SERVICES);
+const Services = repo<Service>(SERVICES);
 const Tasks = repo(TASKS);
-const Tickets = repo(TICKETS);
+const Tickets = repo<SalesTicket>(TICKETS);
 // The task type the Tasks board already routes to Sales + Management. Sending a
 // quotation for approval raises one of these rather than a type of its own, so
 // there is one approval queue in the studio and not two.
@@ -162,7 +164,7 @@ function cleanVocab(value, max = 120) {
     const k = t.toLowerCase();
     if (seen.has(k)) continue;
     seen.add(k);
-    out.push(t);
+    (out as string[]).push(t);
   }
   return out;
 }
@@ -177,7 +179,7 @@ export function readSalesVocab(settingsSection) {
 }
 
 // Patch semantics: only the keys present in the body are touched.
-export async function saveSalesSettings(ctx, body) {
+export async function saveSalesSettings(ctx: SalesContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts. Every other
   // module's settings saver asked for its right and this one did not, leaving
   // the route's check as the only thing in front of it. Found by the wiring
@@ -202,7 +204,7 @@ export async function listServices({ studio, settingsSection }) {
   return [...rows].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }
 
-export async function createService(ctx, body) {
+export async function createService(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
@@ -226,7 +228,7 @@ export async function createService(ctx, body) {
   return { service };
 }
 
-export async function editService(ctx, id, body) {
+export async function editService(ctx: SalesContext, id: string, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
@@ -234,7 +236,7 @@ export async function editService(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, settingsSection } = ctx;
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.name !== undefined) {
     const name = str(body.name, 160);
     if (!name) return { error: "name" };
@@ -251,7 +253,7 @@ export async function editService(ctx, id, body) {
 
 // Refuses while tickets still reference the service, so a delete can't leave a
 // ticket pointing at a serviceId that no longer resolves.
-export async function removeService(ctx, id) {
+export async function removeService(ctx: SalesContext, id: string) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
@@ -272,7 +274,7 @@ export async function listClients({ studio, clientsSection }) {
   return [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
-export async function createClient(ctx, body) {
+export async function createClient(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
@@ -305,7 +307,7 @@ export async function createClient(ctx, body) {
   return { client };
 }
 
-export async function editClient(ctx, id, body) {
+export async function editClient(ctx: SalesContext, id: string, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
@@ -313,7 +315,7 @@ export async function editClient(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, clientsSection } = ctx;
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.name !== undefined) {
     const name = str(body.name, 160);
     if (!name) return { error: "name" };
@@ -335,7 +337,7 @@ export async function editClient(ctx, id, body) {
 }
 
 // Refuses while tickets still reference the client, so a delete can't orphan work.
-export async function removeClient(ctx, id) {
+export async function removeClient(ctx: SalesContext, id: string) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
@@ -439,7 +441,7 @@ function poFor(quotation, tasks, taskAssignees) {
 // ticket reporting what became of it is Sales' business. Passing a gate here
 // would take that away from people who have it today, which is a regression
 // wearing the costume of a refactor.
-export function quotationsForTicket(ticketId, quotations) {
+export function quotationsForTicket(ticketId: string, quotations) {
   return traverseIn("salesTicket", { id: ticketId }, "quotation", { rows: { quotation: quotations } }).records;
 }
 export const latestQuotationFor = (ticketId, quotations) => quotationsForTicket(ticketId, quotations)[0] || null;
@@ -478,7 +480,13 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees, projects)
         .filter((k) => k.type === APPROVAL_TYPE && k.quotationId === newest.id)
         .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null
     : null;
-  let approval = null;
+  // WHAT THE APPROVAL TASK SAYS, folded onto the quotation. Null when there is
+  // no task — an Internal quotation never raises one — which the screens read as
+  // "nobody has been asked", not as "refused".
+  let approval: {
+    taskId: unknown; quotationId: unknown; approved: unknown;
+    required: unknown; granted: unknown; at: unknown;
+  } | null = null;
   if (approvalTask) {
     const { authorities } = resolveTaskAssignees(approvalTask, taskAssignees);
     const approvals = approvalTask.approvals && typeof approvalTask.approvals === "object" ? approvalTask.approvals : {};
@@ -605,7 +613,7 @@ function composeTicket(t, { nameById, rfqs, quotations, tasks, taskAssignees, pr
 // no version of this that reads one key. What it saves is the payload: one
 // ticket instead of every ticket, every client, every service and the whole
 // vocabulary, on every open tab, every time somebody edits a row.
-export async function ticketById(ctx, id) {
+export async function ticketById(ctx: SalesContext, id: string) {
   const { studio, ticketsSection, clientsSection, rfqSection, quotationsSection,
           tasksSection, projectsSection, taskAssignees } = ctx;
 
@@ -706,7 +714,7 @@ export async function ticketQuotation({ studio, ticketsSection, clientsSection, 
 // Send a ticket over to Technical. Raising an RFQ is a SALES act on a SALES
 // record, so the permission checked is Sales:manage — the same call from the
 // Technical screen goes through technicalContext and lands in the same place.
-export async function requestTicketRfq(ctx, body) {
+export async function requestTicketRfq(ctx: SalesContext, body: Record<string, unknown>) {
   const { section, ticketsSection, clientsSection, rfqSection } = ctx;
   if (!rfqSection) return { error: "no-technical" };
   // THE WHOLE CONTEXT TRAVELS. Picking fields out by hand is what broke this
@@ -716,6 +724,11 @@ export async function requestTicketRfq(ctx, body) {
   // 500 over there. Spreading means anything requestRfq reaches for next is
   // already in its hand; only the three Sales sections need naming, because
   // Technical calls them something else.
+  //
+  // The cast states what the spread has just built. Technical's context type
+  // names sections Sales does not have, and requestRfq guards on `viaSales`
+  // before touching any of them — which is the check that makes this safe and
+  // is one function away rather than expressible here.
   return requestRfq({
     ...ctx,
     viaSales: true, // which door this came through: see requestRfq's guard
@@ -723,7 +736,7 @@ export async function requestTicketRfq(ctx, body) {
     salesTicketsSection: ticketsSection,
     salesClientsSection: clientsSection,
     canManageSales: true, // the route already established Sales:manage
-  }, { ticketId: str(body?.ticketId, 60) });
+  } as unknown as TechnicalContext, { ticketId: str(body?.ticketId, 60) });
 }
 
 // Send the ticket's finished quotation for approval.
@@ -734,7 +747,7 @@ export async function requestTicketRfq(ctx, body) {
 // button is shown to, which is the whole point of that button. What it WRITES is
 // an ordinary approval task, so the people appointed to Sales and Management in
 // Task settings receive it on the board they already use.
-export async function sendTicketForApproval(ctx, body) {
+export async function sendTicketForApproval(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN.
   const denied = requirePermission(ctx.access, "sales.tickets.edit");
   if (denied) return denied;
@@ -830,7 +843,7 @@ export async function sendTicketForApproval(ctx, body) {
 //
 // KEYS, NOT COPIES. The task holds ticketId and quotationId and reads the rest
 // back through them. Its own is the PO itself: what the client sent, and when.
-export async function submitTicketPo(ctx, body) {
+export async function submitTicketPo(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN.
   const denied = requirePermission(ctx.access, "sales.tickets.edit");
   if (denied) return denied;
@@ -930,7 +943,7 @@ export async function submitTicketPo(ctx, body) {
 // existing rows: typing a brand-new client, contact or location is always
 // allowed. The contact and location used here are folded into the client
 // record without disturbing any other contact/location already on file.
-export async function createTicket(ctx, body) {
+export async function createTicket(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
@@ -951,7 +964,7 @@ export async function createTicket(ctx, body) {
     phone: str(body?.contactPhone, 60),
     position: str(body?.contactPosition, 120),
   };
-  const loc = body?.location && typeof body.location === "object" ? body.location : {};
+  const loc = (body?.location && typeof body.location === "object" ? body.location : {}) as Record<string, unknown>;
   // Country joins city and map link on the site: a site is somewhere, and the
   // studio's own country is only the default it starts from.
   const location = {
@@ -991,7 +1004,7 @@ export async function createTicket(ctx, body) {
   if (!client && clientId) client = clients.find((c) => c.id === clientId);
   if (!client) {
     if (!clientName) return { error: "client" };
-    client = await addRow(studio.id, clientsSection.id, CLIENTS, {
+    client = await addRow<Client>(studio.id, clientsSection.id, CLIENTS, {
       name: clientName, code: clientSlug(clientName), industry, website: "", notes: "",
       contacts: [], locations: [],
       createdByCollaboratorId: collaborator.id, createdAt: new Date().toISOString(),
@@ -1053,7 +1066,7 @@ export async function createTicket(ctx, body) {
 // Everything the ticket form can change. The CLIENT is not on the list: moving a
 // ticket to another company would rewrite its reference and orphan the contacts
 // and locations folded into the old one, so it stays where it was raised.
-export async function editTicket(ctx, id, body) {
+export async function editTicket(ctx: SalesContext, id: string, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
@@ -1061,7 +1074,7 @@ export async function editTicket(ctx, id, body) {
   if (denied) return denied;
 
   const { studio, ticketsSection, clientsSection, settingsSection, collaborator } = ctx;
-  const patch = {};
+  const patch: Record<string, unknown> = {};
 
   // COMMENTS ARE APPEND-ONLY. One line of text arrives, never a list to
   // overwrite: a discussion records who said what and when, and accepting the
@@ -1082,8 +1095,8 @@ export async function editTicket(ctx, id, body) {
   }
 
   if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
-  if (body?.status !== undefined && TICKET_STATUSES.includes(body.status)) patch.status = body.status;
-  if (body?.urgency !== undefined && TICKET_URGENCIES.includes(body.urgency)) patch.urgency = body.urgency;
+  if (body?.status !== undefined && TICKET_STATUSES.includes(String(body.status))) patch.status = String(body.status);
+  if (body?.urgency !== undefined && TICKET_URGENCIES.includes(String(body.urgency))) patch.urgency = String(body.urgency);
   if (body?.industry !== undefined) { const v = str(body.industry, 80); if (!v) return { error: "industry" }; patch.industry = v; }
   if (body?.deadline !== undefined) { const v = str(body.deadline, 10); if (!v) return { error: "deadline" }; patch.deadline = v; }
   if (body?.contactName !== undefined) patch.contactName = str(body.contactName, 120);
@@ -1091,7 +1104,7 @@ export async function editTicket(ctx, id, body) {
   if (body?.contactPhone !== undefined) patch.contactPhone = str(body.contactPhone, 60);
   if (body?.contactPosition !== undefined) patch.contactPosition = str(body.contactPosition, 120);
   if (body?.location !== undefined) {
-    const loc = body.location && typeof body.location === "object" ? body.location : {};
+    const loc = (body.location && typeof body.location === "object" ? body.location : {}) as Record<string, unknown>;
     // COUNTRY belongs here exactly as it does on create. It was missing, so
     // editing a ticket rebuilt the location without it and silently dropped
     // whatever country the ticket had.
@@ -1138,7 +1151,10 @@ export async function editTicket(ctx, id, body) {
   //
   // upsertLocation merges by name and returns the SAME array when nothing
   // changed, so this writes only when there is something new to record.
-  if (patch.location && patch.location.name && clientsSection) {
+  // `patch` is an open record, so the site it may hold is narrowed here — this
+  // is the one place the edit path reaches back into the client.
+  const patchedSite = patch.location as Site | undefined;
+  if (patchedSite && patchedSite.name && clientsSection) {
     // The updated ticket is the only thing in scope here, and the only thing
     // that needs to be: updateRow returns the row as it now stands, clientId
     // included. It used to fall back to `existing`, which is declared inside
@@ -1149,7 +1165,7 @@ export async function editTicket(ctx, id, body) {
       const clients = await Clients.find({ studio, section: clientsSection });
       const client = clients.find((c) => c.id === clientId);
       if (client) {
-        const nextLocations = upsertLocation(client.locations, patch.location);
+        const nextLocations = upsertLocation(client.locations, patchedSite);
         if (nextLocations !== client.locations) {
           await updateRow(studio.id, clientsSection.id, CLIENTS, client.id, { locations: nextLocations });
         }
