@@ -5,6 +5,7 @@ import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { updateStudio } from "@/modules/main/studios";
+import { studioLocale, isLocale, defaultLocale } from "@/shared/i18n";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,15 @@ export const dynamic = "force-dynamic";
 
 // Explicit allowlist. updateStudio() takes any patch except id/ownerUserId/slug,
 // so the boundary that decides what a request may write has to be here.
-const FIELDS = ["logo", "country", "city", "location", "currency", "workingHours", "legalInfo", "favoriteCurrencies"];
+const FIELDS = [
+  "logo", "country", "city", "location", "currency",
+  // THE TENANT'S LANGUAGE — see studioLocale in shared/i18n. It sets the
+  // direction and the dictionary for everyone inside this studio, which is why
+  // it sits behind studio.settings.edit like every other shared decision here
+  // rather than being a per-person preference.
+  "language",
+  "workingHours", "legalInfo", "favoriteCurrencies",
+];
 
 // Mon-first, which is how a working week is read here.
 export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -79,6 +88,7 @@ const clean = (studio: Record<string, unknown>) => ({
   id: studio.id, name: studio.name, slug: studio.slug, logo: studio.logo || "",
   country: studio.country || "", city: studio.city || "", location: studio.location || "",
   currency: studio.currency || "",
+  language: studioLocale(studio),
   deletionRequestedAt: studio.deletionRequestedAt || "",
   deletionFinalisesAt: studio.deletionRequestedAt
     ? new Date(Date.parse(String(studio.deletionRequestedAt)) + GRACE_MS).toISOString()
@@ -181,6 +191,10 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // Working hours is the one structured field; everything else is text, and
     // "" is a real value — it is how the logo is removed.
     patch[key] = key === "workingHours" ? cleanHours(body[key])
+      // Refused rather than coerced: an unrecognised language would set the
+      // whole tenant to a dictionary that does not exist. `isLocale` is the
+      // same guard the public site uses on its own URL segment.
+      : key === "language" ? (isLocale(body[key]) ? body[key] : defaultLocale)
       : key === "legalInfo" ? cleanLegal(body[key])
       : key === "favoriteCurrencies" ? cleanFavourites(body[key])
       : String(body[key] ?? "").slice(0, 500);

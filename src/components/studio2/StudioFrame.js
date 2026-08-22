@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { dirFor } from "@/shared/locale";
 import { Icon } from "@/components/studio2/icons";
 import StudioChat from "@/components/studio2/StudioChat";
 import RateNompany from "@/components/studio2/RateNompany";
@@ -112,7 +113,9 @@ function PlanTag({ color, label, children }) {
   );
 }
 
-export default function StudioFrame({ studio, me, sections, activeKey, chat = null, children }) {
+export default function StudioFrame({
+  studio, me, sections, activeKey, chat = null, locale = "en", children,
+}) {
   const [open, setOpen] = useState(false);
   // The header avatar is the ACCOUNT, not the studio membership: `me` carries a
   // studio-local alias and role, but the picture belongs to the person and lives
@@ -320,7 +323,21 @@ export default function StudioFrame({ studio, me, sections, activeKey, chat = nu
     // connection of their own — see the note in LiveProvider about why that is
     // a hard requirement rather than a preference.
     <LiveProvider slug={studio.slug}>
-    <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
+    {/* LANG AND DIR SIT HERE, NOT ON <html>.
+        A studio's language is the tenant's, resolved from the studio record —
+        and the root layout never reads that record, because it never touches
+        the database. So the shell declares it, the way /super's Shell already
+        declares its own. Both attributes are inherited, so everything below is
+        laid out and announced correctly without a single component asking.
+
+        `dir` also switches every logical property in the tree at once: ps-/pe-,
+        ms-/me- and border-s- are what the sidebar and the tables are written
+        in, so the whole layout mirrors from this one attribute. */}
+    <div
+      lang={locale}
+      dir={dirFor(locale)}
+      className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300"
+    >
       {/* Floating rounded sidebar — Geex control-panel style */}
       <aside className="fixed inset-y-4 start-4 z-30 hidden w-64 overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex lg:block">
         {sidebar}

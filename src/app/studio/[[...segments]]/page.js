@@ -8,6 +8,7 @@ import { listSections } from "@/platform/db/sections";
 import { getProfile } from "@/platform/auth/users";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
 import { chatDisplayName } from "@/lib/chatConstants";
+import { studioLocale } from "@/shared/i18n";
 import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import LiveProvider from "@/components/studio2/LiveProvider";
@@ -229,6 +230,10 @@ export default async function StudioPage({ params }) {
     sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),
     activeKey: isPeople ? "people" : isAccess ? "access" : isSettings ? "studio-settings" : (active?.key || ""),
     chat,
+    // THE TENANT'S LANGUAGE, not the visitor's and not the URL's — a studio's
+    // address is its slug, so there is nowhere in it to put a locale. See
+    // studioLocale in shared/i18n for why it is one setting per company.
+    locale: studioLocale(studio),
   };
 
   return (

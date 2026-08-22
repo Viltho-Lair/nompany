@@ -7,6 +7,11 @@ import Combo from "@/components/studio2/Combo";
 import { COUNTRIES } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
+import { locales } from "@/shared/locale";
+
+// EACH NAMED IN ITSELF. A picker that says "Arabic" to somebody looking for
+// العربية is a picker they have to already read English to use.
+const LANGUAGE_NAMES = { en: "English", ar: "العربية" };
 
 // Studio settings — the studio's own identity, reached from the sidebar where
 // "My account" used to sit. The account itself is still one click away, behind
@@ -173,6 +178,26 @@ export default function StudioSettings({ slug }) {
               <option value="">— not set —</option>
               {CURRENCIES_FROM_EXCHANGE_API.map((c) => (
                 <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+              ))}
+            </select>
+          )}
+        />
+
+        <EditRow
+          icon="globe" label="Language" canManage={canManage}
+          value={LANGUAGE_NAMES[studio.language] || LANGUAGE_NAMES.en}
+          hint="Everyone in this studio reads it in this language."
+          onSave={(v) => save({ language: v })}
+          render={(draft, set) => (
+            /* ONE LANGUAGE PER COMPANY, not per person. A studio's records, its
+               documents and its vocabulary are shared, and half a studio in
+               Arabic is a studio whose people cannot read each other's work.
+               Changing it also flips the layout — see the note on lang/dir in
+               StudioFrame — so it sits behind the same right as everything else
+               on this screen. */
+            <select className={INPUT} value={draft || "en"} onChange={(e) => set(e.target.value)}>
+              {locales.map((code) => (
+                <option key={code} value={code}>{LANGUAGE_NAMES[code]}</option>
               ))}
             </select>
           )}

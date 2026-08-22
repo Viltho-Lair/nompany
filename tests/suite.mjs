@@ -22,6 +22,8 @@ import { delPrefix, getIndex } from "@/platform/db/store";
 import { getRedisClient } from "@/platform/db/redis";
 import { createUser, mintSession } from "@/platform/auth/users";
 import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/modules/main/studios";
+import { studioLocale, dirFor } from "@/shared/locale";
+import * as SETTINGS from "@/app/api/studios/[slug]/settings/route.ts";
 import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/platform/auth/collaborators";
 import { listRoles } from "@/modules/people/roles";
 import { SESSION_COOKIE, login as identityLogin } from "@/platform/auth/identity";
@@ -1749,6 +1751,54 @@ console.log("== password hashes get stronger over time, and old ones keep workin
   ok("a hash minted at the old cost still verifies", (await verifyPassword("hunter2", legacy)) === true);
   ok("...but is flagged for upgrade", needsRehash(legacy) === true);
   ok("garbage is not mistaken for a weak hash", needsRehash("") === false && needsRehash("nonsense") === false);
+}
+
+// ============================================================================
+console.log("== a studio's language is the tenant's, and it is a real setting");
+// THERE IS NOWHERE IN THE URL TO PUT IT. A studio's address IS its slug —
+// nompany.com/<slug>/… — so unlike the public site there is no /ar/ segment to
+// read a locale from, and the root layout never touches the database, so it
+// cannot resolve one either. The language is a field on the studio record,
+// read by studioLocale and declared as lang/dir on the shell.
+//
+// Asserted because every step of that is silent when it goes wrong. A studio
+// with no language reads as English and looks correct; a studio with a nonsense
+// language would ALSO read as English and look correct; and the difference
+// between "defaulted" and "quietly stored" is the whole of whether the setting
+// works. Only the route can tell them apart, because updateStudio takes any
+// patch it is handed — the allowlist is the boundary, not the writer.
+{
+  const langOwner = (await createUser({ email: `lang-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  const langSlug = `t-${rand()}${rand()}`;
+  const madeLang = await createStudio({ ownerUserId: langOwner.id, name: "Language", slug: langSlug });
+  ok("fixture studio created", !madeLang.error, madeLang.error);
+  const langId = madeLang.studio.id;
+
+  ok("a studio created without a language reads as English",
+    studioLocale(madeLang.studio) === "en", JSON.stringify(madeLang.studio.language));
+  ok("...and so does one predating the field entirely", studioLocale({}) === "en");
+
+  await updateStudio(langId, { language: "ar" });
+  const arabic = await getStudioBySlug(langSlug);
+  ok("setting it to Arabic sticks", studioLocale(arabic) === "ar", String(arabic.language));
+  ok("...and Arabic is the direction the shell declares", dirFor(studioLocale(arabic)) === "rtl");
+  ok("...where English is not", dirFor(studioLocale(madeLang.studio)) === "ltr");
+
+  await signInAs(langOwner.id);
+  const refused = await SETTINGS.PUT(jsonReq({ language: "klingon" }), { params: params(langSlug) });
+  ok("a language nobody has a dictionary for is accepted as a request", refused.status === 200);
+  ok("...but the studio falls back to English rather than storing it",
+    studioLocale(await getStudioBySlug(langSlug)) === "en",
+    String((await getStudioBySlug(langSlug)).language));
+
+  // And it has to reach the screen that renders the picker, which reads it off
+  // this response and nowhere else.
+  const shown = await SETTINGS.GET(new Request("http://localhost/test"), { params: params(langSlug) });
+  const body = await shown.json();
+  ok("the settings response carries the language, so the picker can show it",
+    body.studio?.language === "en", JSON.stringify(body.studio?.language));
+
+  await signInAs(owner.id);
 }
 
 // ============================================================================
