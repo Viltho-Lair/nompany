@@ -19,6 +19,7 @@ A full-system audit and forward plan. Every claim is verified against the source
 | **[typescript-modularization.md](./typescript-modularization.md)** | The move to TypeScript, structured by departmental module with lint-enforced cross-references. |
 | **[database-migration-mssql.md](./database-migration-mssql.md)** | Redis → SQL Server: full schema mapping, dual-write migration, verification, rollback. |
 | **[ui-ux-overhaul.md](./ui-ux-overhaul.md)** | The frontend redesign, mapped item-for-item to `UIDesignSystem_Checklist.pdf`. |
+| **[w4-dashboards-and-motion.md](./w4-dashboards-and-motion.md)** | Wave 4's brief: the Finance rebuild, a dashboard per department, the nine motion techniques, Arabic and RTL, and the operator documentation. **Proposal — nothing in it is built.** |
 | **[security-and-notifications.md](./security-and-notifications.md)** | Access-control audit with threat model, plus the notification producers and UI that do not exist yet. |
 
 ---

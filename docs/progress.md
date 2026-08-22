@@ -163,13 +163,35 @@ config's, and that file is what augments `fetch`'s options with Next's
 strict config and nowhere else, which reads as a bug in the route.
 
 
-**W4** UI/UX system — independent, can run alongside. Two requirements added
-22/08/2026 and detailed in `execution-plan.md`: **no placeholder data in any
-field** (a sweep of everything left over from the old-system migration), and
-**a dashboard for every studio section**, tiered by complexity the way `/super`
-tiers are. The second is blocked on two decisions — a tier is a studio-authored
-record with a free-text name today, so it needs an explicit `analyticsLevel`
-field, and the four levels need naming (standard and basic read as one rung).
+**W4** UI/UX system — independent, can run alongside. Briefed in full on
+22/08/2026 and researched in **`w4-dashboards-and-motion.md`**, which is a
+proposal awaiting approval; nothing in it is built.
+
+The brief: rebuild Finance around AP/AR/GL/FA, turn every department page into a
+data-dense dashboard, port nine animation techniques from the marketing site,
+rewire `/super` / `/account` / studio routing, and — carried from earlier —
+remove every placeholder field, translate the studio and the main site into real
+Arabic with working RTL, render every date dd/mm/yyyy, redesign the login page,
+and write the operator documentation the product has never had.
+
+Four findings from the survey change the shape of it:
+
+- **The chart kit already exists.** `app/super/_components/charts.js` is 417
+  lines of dependency-free, server-rendered, token-themed SVG with a matching
+  skeleton. No charting library should be added; it costs 0 KB against 95 KB of
+  budget headroom.
+- **The nine techniques already exist**, numbered `TECHNIQUE 1`–`9` in
+  `components/landing/`. Phase 3 is a promotion into a shared `components/motion/`,
+  not a build.
+- **~15 of `/super`'s 22 pages are template mock data** — which makes the
+  placeholder sweep and the `/super` rewire the same task.
+- **The studio ships every department to every route**, which is the 305 KB
+  chunk. The routing split pays for everything else in the brief.
+
+Analysis is a **paid** capability, tiered `basic` / `simple` / `moderate` /
+`advanced`; packages and tiers are both paid services in future. Every widget
+carries its rung, and `analyticsLevelOf()` is the one function the entitlement
+model will later replace.
 **W5** SQL Server — needs the repository seam *adopted*, not just built.
 
 ---
