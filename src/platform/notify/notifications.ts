@@ -50,6 +50,7 @@ export const NOTIFY = {
   leaveDecided: "leave.decided",
   projectAssigned: "project.assigned",
   purchaseReceived: "purchase.received",
+  approvalDecided: "approval.decided",
   mention: "mention",
   system: "system",
 };

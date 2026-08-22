@@ -410,8 +410,35 @@ export async function decideTask(ctx: TasksContext, id: string, body: Record<str
     return changes;
   };
 
+  const wasDone = current.status === "Done";
   const task = await Tasks.update(ctx, id, apply);
   if (!task) return { error: "notfound" };
+
+  // TELL WHOEVER RAISED THE APPROVAL WHAT BECAME OF IT — "approval given or
+  // refused" from the plan. Two moments matter to the person who asked, and
+  // only two: it became fully signed (granted), or an authority pulled their
+  // signature and sent it back. The intermediate signatures on a two-authority
+  // PO are not their news — the outcome is. Never to the signer themselves.
+  const raiser = current.createdByCollaboratorId || "";
+  const justGranted = task.status === "Done" && !wasDone;
+  const sentBack = !approved && wasDone;
+  if ((justGranted || sentBack) && raiser && raiser !== collaborator.id) {
+    const person = (await listCollaborators(studio.id)).find((c) => c.id === raiser);
+    if (person) {
+      await notifyCollaborators(
+        studio.id,
+        [raiser],
+        {
+          type: NOTIFY.approvalDecided,
+          title: justGranted ? "Your approval came through" : "An approval was sent back",
+          body: current.title || "",
+          href: "tasks",
+          tone: justGranted ? "success" : "warning",
+        },
+        { userIdOf: (cid) => (cid === person.id ? String(person.userId) : undefined) },
+      );
+    }
+  }
 
   // FINANCE SIGNING THE PO IS WHAT ISSUES THE PROJECT NUMBER. Done here, next
   // to the write that causes it, for the same reason raising the first RFQ

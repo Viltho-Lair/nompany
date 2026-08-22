@@ -855,6 +855,7 @@ change the assignee must not re-ring the holder), and **never an un-assignment**
 | `hr.decideVacation` | a manager approves/declines | the person who **asked** (not the manager who filed it) | `leaveDecided` |
 | `projects.openProject` / `updateProject` | a project gets a manager | the manager | `projectAssigned` |
 | `inventory.receiveOrder` | an order is received **in full** | whoever raised the PO (not the storekeeper) | `purchaseReceived` |
+| `tasks.decideTask` | an approval completes, or an authority withdraws | whoever raised it | `approvalDecided` |
 
 The vacation pair is the whole of Nova's scenario (§8A.3): someone in Sales asks,
 an approver decides, and the asker hears the outcome without refreshing anything —
@@ -909,7 +910,7 @@ Thirteen steps. Each one is shippable and each one ends green.
 | 9 | ✅ **Dates**: fixed the mm/dd/yyyy bug, consolidated the studio's duplicate formatter, added Western-digit Arabic + a Gate-A rule (§8.4) | **Done — see §8.4** |
 | 10 | `/super` and `/account` rewire; **placeholder sweep** | The mock data goes when there is real data to replace it |
 | 11 | **The ERP documentation** (§8.6), generated where it can be | Written against screens that have stopped changing, or it is wrong on arrival — and it is Nova's corpus |
-| 11a | 🟡 **Notification producers** — Tasks, HR (both halves), Projects, Inventory done; Sales/Technical/Operations/Finance/Access remain | The transport was finished; four departments now produce. **See §8B** |
+| 11a | 🟡 **Notification producers** — Tasks (assign + approval), HR (both halves), Projects, Inventory done; RFQ/quotation (Sales↔Technical) and the time-driven crons remain | Six producers live. **See §8B** |
 | 11b | **Nova** — head, panel, and answering from the documentation (§8A) | Useful, and risks nothing. Capabilities 2 and 3 wait on the model decision |
 | 12 | **Finance 1b** — AP, GL, FA — *if approved* | Backend work; last, and separately |
 | 13 | **Nova capabilities 2 and 3** — reads its studio, raises and routes requests | Writes. Last, behind a confirmation step and a model decision |

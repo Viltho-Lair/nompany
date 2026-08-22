@@ -236,6 +236,15 @@ console.log("\n== tasks: the board's own buttons, end to end");
   // Its own verb still works: a decision is made by deciding it.
   const signed = await decideTask(await tasksContext(owner, slug), decision.task?.id, { authority: "sales", approved: true });
   ok("...while deciding it still works", signed.task?.approvals?.sales?.approved === true, JSON.stringify(signed.error));
+  // THE APPROVAL PRODUCER'S SELF-GUARD: owner raised this AND signed it, so the
+  // outcome is not news to them. The positive case — a raiser hearing that
+  // somebody else granted their approval — rides the same announce pattern the
+  // five producers above prove end-to-end, and Gate A block 7 guarantees the
+  // type has a producer at all.
+  const octx = await tasksContext(owner, slug);
+  ok("signing your own approval task rings no bell for you",
+    !(await listForCollaborator(studio.id, octx.collaborator.id)).some((n) => n.type === NOTIFY.approvalDecided),
+    "the signer who is also the raiser is not told");
 
   // The Delete BUTTON asks about delete, not about "holds any write" — a Member
   // holds tasks.board.edit and not delete, and used to be shown a button that
