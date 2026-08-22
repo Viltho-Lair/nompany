@@ -1,3 +1,5 @@
+import os from "node:os";
+
 /** @type {import('next').NextConfig} */
 
 // SECURITY HEADERS.
@@ -81,6 +83,23 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+
+  experimental: {
+    // ONE WORKER PER FOUR CORES, NOT ONE PER CORE.
+    //
+    // Next sizes its build pool from the CPU count, which on a 20-thread
+    // Windows box is nineteen workers for "Collecting page data" and nineteen
+    // more for "Generating static pages". Each one reserves its own V8 heap,
+    // and the machine fast-failed the pool three builds running — exit
+    // 0xC0000409, with the dying worker reporting an allocation failure at
+    // 22 MB while 18 GB of the machine was free. It is a spawn problem, not a
+    // memory one, and it reproduced on an unmodified tree.
+    //
+    // Four is enough to keep the step parallel and few enough that the pool
+    // comes up. The build is not the bottleneck here; a build that dies once a
+    // day is.
+    cpus: Math.max(1, Math.min(4, (os.cpus()?.length || 4))),
+  },
   // "Which framework and version is this" is free reconnaissance and buys us
   // nothing in return.
   poweredByHeader: false,
