@@ -26,6 +26,7 @@
     "src/platform/auth/**/*",
     "src/modules/context.ts",
     "src/modules/people/**/*",
+    "src/modules/hr/**/*",
     "src/platform/http/**/*",
     "src/platform/realtime/**/*",
     "src/platform/notify/**/*",

@@ -9,6 +9,7 @@
 import { readArr, editArr, getJSON, setJSON } from "@/platform/db/store";
 import { ID, REG } from "@/platform/db/keys";
 import { normalizeColor, hexForName, DEFAULT_HEX } from "@/lib/planColors";
+import type { Row } from "@/platform/db/store";
 
 const now = () => new Date().toISOString();
 
@@ -16,8 +17,8 @@ const now = () => new Date().toISOString();
 // four names the product ships with.
 
 
-const str = (v, max) => String(v ?? "").trim().slice(0, max);
-const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };
+const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };
 
 // Per kind: where it lives, how ids are minted, and how a submitted record is
 // cleaned. The clean function IS the write boundary — anything not named here
@@ -33,7 +34,7 @@ export const PACKAGE_TYPE_LABELS = { free: "Free", compound: "Compound", premium
 // A category is a headcount band inside a compound package: its own range and
 // its own per-head rate, which is what lets one card price 10-25 differently
 // from 26-49. The total follows from the rate, exactly as it does on a package.
-function cleanCategories(v) {
+function cleanCategories(v: unknown) {
   return (Array.isArray(v) ? v : []).slice(0, 12).map((c, i) => {
     const perEmployee = num(c?.costPerEmployee);
     const maxEmployees = num(c?.maxEmployees);
@@ -50,7 +51,7 @@ function cleanCategories(v) {
 
 // Bullets arrive as one block of text and are stored as lines. Blank lines are
 // dropped — an empty bullet is a dot with nothing beside it.
-function cleanLines(v) {
+function cleanLines(v: unknown) {
   const list = Array.isArray(v) ? v : String(v ?? "").split(/\r?\n/);
   return list.map((x) => str(x, 160)).filter(Boolean).slice(0, 20);
 }
@@ -62,7 +63,7 @@ export async function getCatalogSettings() {
   return { ...DEFAULT_CATALOG_SETTINGS, ...stored, yearlyDiscountPct: pct(stored.yearlyDiscountPct) };
 }
 
-export async function saveCatalogSettings(patch) {
+export async function saveCatalogSettings(patch: Record<string, unknown>) {
   const next = { yearlyDiscountPct: pct(patch?.yearlyDiscountPct) };
   await setJSON(REG.catalogSettings, next);
   return next;
@@ -70,25 +71,39 @@ export async function saveCatalogSettings(patch) {
 
 // A percentage, clamped. Over 100 would price a year below nothing, and a
 // negative discount is a surcharge wearing the wrong label.
-const pct = (v) => {
+const pct = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n * 100) / 100)) : 0;
 };
 
 // What a year costs once the discount is taken off. One function, so /super and
 // the public pricing page can never round it differently.
-export function yearlyPrice(total, discountPct) {
+export function yearlyPrice(total: unknown, discountPct: unknown) {
   const t = Number(total) || 0;
   const d = Math.min(100, Math.max(0, Number(discountPct) || 0));
   return Math.round((t - t * (d / 100)) * 100) / 100;
 }
 
-export const KINDS = {
+export /**
+ * ONE CATALOGUE KIND: where its rows live, how an id is minted, and the one
+ * function that decides what a request may store. `clean` is the whole security
+ * boundary for this file — a field it does not name cannot be written, whatever
+ * the body says.
+ */
+type CatalogKind = {
+  key: string;
+  id: () => string;
+  clean: (b: Record<string, unknown>) => Record<string, unknown>;
+};
+
+// A RECORD, so `kind` off a request can index it. `isKind` is the guard that
+// makes that safe and every caller runs it first.
+const KINDS: Record<string, CatalogKind> = {
   packages: {
     key: REG.packages,
     id: ID.package,
     clean: (b) => {
-      const type = PACKAGE_TYPES.includes(b.type) ? b.type : "compound";
+      const type = PACKAGE_TYPES.includes(String(b.type)) ? String(b.type) : "compound";
       // A COMPOUND package is priced by category — each one its own headcount
       // band with its own per-head rate. Free and Premium have a single range
       // and no figure on the card, so categories would be furniture.
@@ -123,7 +138,7 @@ export const KINDS = {
         // The badge. Stored, so it can move without a code change.
         popular: Boolean(b.popular),
         isPublic: Boolean(b.isPublic),
-        color: normalizeColor(b.color) || hexForName(b.name),
+        color: normalizeColor(b.color) || hexForName(String(b.name || "")),
         supportTicketsPerMonth: num(b.supportTicketsPerMonth),
         // Whether this package gets the live chat button at all. An explicit
         // switch, because the old rule read the package NAME and asked whether
@@ -136,7 +151,7 @@ export const KINDS = {
   tiers: {
     key: REG.tiers,
     id: ID.tier,
-    clean: (b) => ({
+    clean: (b: Record<string, unknown>) => ({
       name: str(b.name, 80) || "New tier",
       // Service IDS, not names: renaming a service must not orphan the tiers
       // that include it.
@@ -153,30 +168,30 @@ export const KINDS = {
   services: {
     key: REG.erpServices,
     id: ID.erpService,
-    clean: (b) => ({
+    clean: (b: Record<string, unknown>) => ({
       name: str(b.name, 80) || "New service",
       description: str(b.description, 300),
     }),
   },
 };
 
-export const isKind = (k) => Object.hasOwn(KINDS, String(k || ""));
+export const isKind = (k: unknown) => Object.hasOwn(KINDS, String(k || ""));
 
-export async function listCatalog(kind) {
+export async function listCatalog(kind: string) {
   return readArr(KINDS[kind].key);
 }
 
-export async function createCatalogItem(kind, body) {
+export async function createCatalogItem(kind: string, body: Record<string, unknown>) {
   const spec = KINDS[kind];
   const row = { id: spec.id(), ...spec.clean(body || {}), createdAt: now(), updatedAt: now() };
   await editArr(spec.key, (rows) => ({ next: [...rows, row] }));
   return row;
 }
 
-export async function updateCatalogItem(kind, id: string, body) {
+export async function updateCatalogItem(kind: string, id: string, body: Record<string, unknown>) {
   const spec = KINDS[kind];
   return editArr(spec.key, (rows) => {
-    let updated = null;
+    let updated: Record<string, unknown> | null = null;
     const next = rows.map((r) => {
       if (r.id !== id) return r;
       // Merged, not replaced: a form that sends one field must not blank the rest.
@@ -187,7 +202,7 @@ export async function updateCatalogItem(kind, id: string, body) {
   });
 }
 
-export async function deleteCatalogItem(kind, id: string) {
+export async function deleteCatalogItem(kind: string, id: string) {
   const spec = KINDS[kind];
   const gone = await editArr(spec.key, (rows) => {
     const next = rows.filter((r) => r.id !== id);
@@ -216,8 +231,8 @@ export async function deleteCatalogItem(kind, id: string) {
 export const DEFAULT_PACKAGE = "Free";
 export const DEFAULT_TIER = "Standard";
 
-const byName = (rows, name) =>
-  rows.find((r) => String(r.name || "").trim().toLowerCase() === name.toLowerCase()) || null;
+const byName = (rows: Row[], name: string) =>
+  rows.find((r: Row) => String(r.name || "").trim().toLowerCase() === name.toLowerCase()) || null;
 
 export async function ensureDefaultPlan() {
   const [packages, tiers] = await Promise.all([listCatalog("packages"), listCatalog("tiers")]);
@@ -235,5 +250,10 @@ export async function ensureDefaultPlan() {
       name: DEFAULT_TIER, serviceIds: [], cost: 0, durationMonths: 0, isPublic: true, color: "#64748b",
     });
   }
+  // Both branches above create one when it is missing, so neither can be null
+  // here — and if `byName` ever answered null after a successful create, the
+  // studio would be pointed at a package that does not exist, which is worth
+  // failing loudly rather than defaulting past.
+  if (!pkg || !tier) throw new Error("catalog: default package or tier could not be created");
   return { packageId: pkg.id, tierId: tier.id };
 }

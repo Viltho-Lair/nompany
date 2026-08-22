@@ -5,6 +5,7 @@
 // behind on every studio sold under the old wording.
 
 import { listCatalog, DEFAULT_PACKAGE, DEFAULT_TIER } from "@/lib/data/catalog";
+import type { Row } from "@/platform/db/store";
 
 // PACKAGE_TONE went with the named-colour model — packages carry a hex now and
 // toneOf derives the rest. Re-exporting a name planColors no longer has was a
@@ -15,9 +16,9 @@ export { toneOf } from "@/lib/planColors";
 // Resolve one studio's plan against the catalogue. Falls back to the default
 // NAMES rather than to nothing, so a studio whose package was deleted still
 // reads as something a person can act on instead of a blank.
-export function planOf(studio, packages, tiers) {
-  const pkg = packages.find((p) => p.id === studio?.packageId) || null;
-  const tier = tiers.find((t) => t.id === studio?.tierId) || null;
+export function planOf(studio: Row | null | undefined, packages: Row[], tiers: Row[]) {
+  const pkg = packages.find((p: Row) => p.id === studio?.packageId) || null;
+  const tier = tiers.find((t: Row) => t.id === studio?.tierId) || null;
   return {
     packageId: pkg?.id || "",
     packageName: pkg?.name || DEFAULT_PACKAGE,
@@ -56,19 +57,19 @@ export async function loadCatalogues() {
 // ASKED OF THE PACKAGE, not of its name. This used to compare the package name
 // against "Free", which meant renaming a package silently switched chat on or
 // off for every studio on it.
-export function hasLiveChat(plan) {
+export function hasLiveChat(plan: { chatEnabled?: unknown } | null | undefined) {
   return Boolean(plan?.chatEnabled);
 }
 
 // The same question asked from a studio row, for callers (the API) that hold a
 // studio rather than a resolved plan.
-export async function studioHasLiveChat(studio) {
+export async function studioHasLiveChat(studio: Row | null | undefined) {
   const { packages, tiers } = await loadCatalogues();
   return hasLiveChat(planOf(studio, packages, tiers));
 }
 
 // THE LIMIT THAT BITES. Returns null when the package sets no ceiling.
-export async function memberLimitOf(studio) {
+export async function memberLimitOf(studio: Row | null | undefined) {
   const { packages, tiers } = await loadCatalogues();
   const { maxMembers } = planOf(studio, packages, tiers);
   return maxMembers > 0 ? maxMembers : null;

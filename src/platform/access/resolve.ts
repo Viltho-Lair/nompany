@@ -253,7 +253,7 @@ export type Assignment = {
 // `patch` is `unknown` because it is a request body. Anything narrower would be
 // a claim about data nobody has checked yet, which is the claim this function
 // exists to stop being made.
-export function cleanAssignment(patch: unknown, knownRoleIds: readonly string[] = []): Assignment {
+export function cleanAssignment(patch: Record<string, unknown>, knownRoleIds: readonly string[] = []): Assignment {
   const p = (patch || {}) as { roleIds?: unknown; overrides?: { allow?: unknown; deny?: unknown } };
   const out: Assignment = {};
   if (p.roleIds !== undefined) {

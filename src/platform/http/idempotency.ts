@@ -90,7 +90,7 @@ export async function beginIdempotent(digest: string): Promise<IdempotentStart> 
 }
 
 /** Record the answer so every later repeat of this key gets it. */
-export async function finishIdempotent(digest: string, status: number, body: unknown): Promise<void> {
+export async function finishIdempotent(digest: string, status: number, body: Record<string, unknown>): Promise<void> {
   // setJSONEx, NOT setJSON, AND THIS WAS A BUG. It read `setJSON(key, value,
   // TTL_SEC)` — a two-parameter function called with three arguments, which
   // JavaScript accepts in silence and TypeScript refused the moment this file

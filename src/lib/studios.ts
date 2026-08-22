@@ -30,35 +30,45 @@ import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/platform/db/keys";
 import { getVerification, getProfile } from "@/platform/auth/users";
 import { memberLimitOf } from "@/lib/plans";
 import { slugify } from "@/shared/slug";
+import type { Row } from "@/platform/db/store";
+import type { Section } from "@/platform/db/sections";
+import type { PermissionSet } from "@/platform/access";
+import type { CollaboratorRef } from "@/modules/context";
+import type { StudioRow } from "@/modules/main/studios";
 
 // ---- creating the one studio a user may own --------------------------------
 // Gated on a verified email: the address must be proven before a company can
 // exist under it. Ownership is 0..1, enforced by the ix:owner claim underneath.
-export async function createStudioForUser(user, { name, slug }) {
+export async function createStudioForUser(
+  user: { id?: unknown },
+  { name, slug }: { name?: unknown; slug?: unknown },
+) {
   const cleanName = String(name || "").trim();
   if (!cleanName) return { error: "name" };
 
-  const verification = await getVerification(user.id);
+  const verification = await getVerification(String(user.id));
   if (!verification?.emailVerifiedAt) return { error: "unverified" };
 
-  const wanted = slugify(slug || cleanName);
+  const wanted = slugify(String(slug || cleanName));
   if (!isValidSlug(wanted)) {
     return { error: RESERVED_SLUGS.has(wanted) ? "slug-reserved" : "slug-invalid" };
   }
   // Seed the owner's studio-local name from their personal profile so they
   // don't appear as an unnamed member in their own people list. It stays a
   // COPY — renaming themselves here never touches their account profile.
-  const profile = await getProfile(user.id);
+  const profile = await getProfile(String(user.id));
   const ownerAlias = (profile?.shortName || profile?.fullName || "").trim();
 
-  const created = await createStudio({ ownerUserId: user.id, name: cleanName, slug: wanted, ownerAlias });
+  const created = await createStudio({
+    ownerUserId: String(user.id), name: cleanName, slug: wanted, ownerAlias,
+  });
   if (created.error) return created;
   return { studio: created.studio, sections: created.sections };
 }
 
 // Is this company code free? Used by the "choose your address" field.
-export async function slugAvailability(rawSlug) {
-  const slug = slugify(rawSlug || "");
+export async function slugAvailability(rawSlug: unknown) {
+  const slug = slugify(String(rawSlug || ""));
   if (!SLUG_RE.test(slug)) return { slug, available: false, reason: "invalid" };
   if (RESERVED_SLUGS.has(slug)) return { slug, available: false, reason: "reserved" };
   const taken = await getIndex(IX.slug(slug));
@@ -79,10 +89,11 @@ export async function studiosForUser(userId: string) {
   ]);
   // A rename takes effect the moment it is saved, so there is nothing queued to
   // report and no pending shape to carry — what the row says IS the studio.
-  const shape = (s) => ({
-    id: s.id, name: s.name, slug: s.slug, logo: s.logo || "", visits: visits[s.id] || 0,
+  const shape = (s: Record<string, unknown>) => ({
+    id: s.id, name: s.name, slug: s.slug, logo: s.logo || "", visits: visits[String(s.id)] || 0,
   });
-  const byVisits = (a, b) => b.visits - a.visits || String(a.name).localeCompare(String(b.name));
+  const byVisits = (a: { visits: unknown; name?: unknown }, b: { visits: unknown; name?: unknown }) =>
+    Number(b.visits) - Number(a.visits) || String(a.name).localeCompare(String(b.name));
 
   // Creating a studio seeds its owner as a Collaborator row, so the owner is a
   // member of their own studio and `ix:collab` legitimately points at it. That
@@ -153,7 +164,7 @@ export async function studioContext(user: { id?: unknown } | null | undefined, s
 //
 // people.members.edit is the right the screens behind this actually need:
 // approving a join request, editing somebody's access, opening Access.
-export function canAdminister(access) {
+export function canAdminister(access: PermissionSet) {
   return !requirePermission(access, "people.members.edit");
 }
 
@@ -167,16 +178,16 @@ export function canAdminister(access) {
 // that was passed down three levels and dropped. It is gone from all three.
 
 // The sections this person may actually open — what the studio nav renders.
-export function visibleSections(studio, collaborator, sections, access) {
-  const keys = (sections || []).map((s) => s.key);
-  return (sections || []).filter((s) => s.enabled !== false && sectionViewable(access, s.key, keys));
+export function visibleSections(studio: Row | null | undefined, collaborator: unknown, sections: Section[], access: PermissionSet) {
+  const keys = (sections || []).map((s: Section) => s.key);
+  return (sections || []).filter((s: Section) => s.enabled !== false && sectionViewable(access, s.key, keys));
 }
 
 // { sales: true, technical: false, … } — used by the modules to decide whether a
 // cross-record reference should be a link or plain text.
-export function sectionNav(studio, collaborator, sections, access) {
-  const visible = new Set(visibleSections(studio, collaborator, sections, access).map((s) => s.key));
-  return Object.fromEntries((sections || []).map((s) => [s.key, visible.has(s.key)]));
+export function sectionNav(studio: Row | null | undefined, collaborator: unknown, sections: Section[], access: PermissionSet) {
+  const visible = new Set(visibleSections(studio, collaborator, sections, access).map((s: Section) => s.key));
+  return Object.fromEntries((sections || []).map((s: Section) => [s.key, visible.has(s.key)]));
 }
 
 // { "sales-tickets": true, "sales-clients": false, … } — MANAGE, per section
@@ -186,7 +197,7 @@ export function sectionNav(studio, collaborator, sections, access) {
 // showing, so handing it this map lets each one ask about ITSELF. Threading a
 // separate canManageX prop per sub-section was how the parent's answer ended up
 // standing in for all of them.
-export function manageMap(studio, collaborator, sections, access) {
+export function manageMap(studio: Row | null | undefined, collaborator: unknown, sections: Section[], access: PermissionSet) {
   return Object.fromEntries((sections || []).map((s) => [s.key, sectionManageable(access, s.key, (sections || []).map((x) => x.key))]));
 }
 
@@ -198,8 +209,8 @@ export { requirePermission, scopeFor };
 // Typing a code only ever RAISES A REQUEST. We deliberately report whether the
 // code matched a studio (the slug is a public address anyway), but never who is
 // in it or anything about it beyond its name.
-export async function requestJoinByCode(user, code) {
-  const studio = await getStudioBySlug(slugify(code || ""));
+export async function requestJoinByCode(user: { id?: unknown }, code: unknown) {
+  const studio = await getStudioBySlug(slugify(String(code || "")));
   if (!studio) return { error: "notfound" };
   if (studio.ownerUserId === user.id) return { error: "own-studio" };
 
@@ -217,7 +228,16 @@ export async function listJoinRequests(studioId: string) {
 
 // Approving is what actually creates the Collaborator row — the person's
 // identity INSIDE this studio, with its own CollaboratorID.
-export async function approveJoinRequest({ studio, actingCollaborator, actorAccess, requestId, alias, role }) {
+export async function approveJoinRequest({
+  studio, actingCollaborator, actorAccess, requestId, alias, role,
+}: {
+  studio: StudioRow;
+  actingCollaborator: CollaboratorRef;
+  actorAccess: PermissionSet;
+  requestId: string;
+  alias?: unknown;
+  role?: unknown;
+}) {
   const request = await getJoinRequest(requestId);
   if (!request || request.studioId !== studio.id) return { error: "notfound" };
 
@@ -286,7 +306,11 @@ export async function approveJoinRequest({ studio, actingCollaborator, actorAcce
   return { collaborator: added.collaborator, request: decided.request };
 }
 
-export async function declineJoinRequest({ studio, actingCollaborator, requestId }) {
+export async function declineJoinRequest({ studio, actingCollaborator, requestId }: {
+  studio: StudioRow;
+  actingCollaborator: CollaboratorRef;
+  requestId: string;
+}) {
   const request = await getJoinRequest(requestId);
   if (!request || request.studioId !== studio.id) return { error: "notfound" };
   return decideJoinRequest(requestId, { status: DECLINED, decidedByCollaboratorId: actingCollaborator.id });

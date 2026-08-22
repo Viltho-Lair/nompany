@@ -39,6 +39,8 @@ import { departmentsFromSections } from "@/lib/departments";
 import { getProfile } from "@/platform/auth/users";
 import { encryptField, decryptField } from "@/platform/auth/fieldCrypto";
 import type { Certification, Vacation, ExpiringDocument, HrContext } from "./types";
+import type { StudioRef, CollaboratorRef } from "../context";
+import type { Section } from "@/platform/db/sections";
 
 const CERTIFICATIONS = "certifications";
 const VACATIONS = "vacations";
@@ -57,7 +59,7 @@ export const DEFAULT_LEAVE_TYPE = "Annual";
 // A document counts as "expiring" this far ahead, so HR sees it coming.
 export const EXPIRY_WINDOW_DAYS = 60;
 
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "";
 
 // Resolve studio + membership + the hr section + this person's rights on it.
@@ -82,7 +84,7 @@ export const hrContext = moduleContext({
 // to reach it — the studio's top-level sections are its departments, so this is
 // a projection of the section list the context already carries. See
 // lib/departments.js for why.
-export function listDepartments({ sections }) {
+export function listDepartments({ sections }: { sections: Section[] }) {
   return departmentsFromSections(sections);
 }
 
@@ -202,7 +204,9 @@ export async function removeHrRole(ctx: HrContext, id: string) {
 }
 
 // ---- certifications --------------------------------------------------------
-export async function listCertifications({ studio, employeesSection }) {
+export async function listCertifications(
+  { studio, employeesSection }: { studio: StudioRef; employeesSection: Section },
+) {
   const rows = await Certifications.find({ studio, section: employeesSection });
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
@@ -286,7 +290,7 @@ export async function listEmployees(ctx: HrContext, meId = "") {
   const scope = scopeFor(ctx, "hr.employees");
   const reveal = can(ctx.access, "hr.employees.salary");
   const me = people.find((c) => c.id === meId);
-  const inScope = (c) => scope === "all"
+  const inScope = (c: CollaboratorRef) => scope === "all"
     || c.id === meId
     || (scope === "department" && Boolean(me?.departmentId) && c.departmentId === me?.departmentId);
   const depName = Object.fromEntries(departments.map((d) => [d.id, d.name]));
@@ -303,7 +307,7 @@ export async function listEmployees(ctx: HrContext, meId = "") {
   // "", which the screen already knows how to draw as initials. Nothing else
   // crosses over from the account — the alias, the role and every HR field
   // below are studio-local and stay that way.
-  const visible = people.filter(inScope);
+  const visible = people.filter((c) => inScope(c as CollaboratorRef));
   const photos = await Promise.all(
     visible.map((c) => (c.userId ? getProfile(String(c.userId)).then((p) => p?.photo || "").catch(() => "") : "")),
   );
@@ -395,7 +399,7 @@ export async function saveEmployment(ctx: HrContext, collaboratorId: string, bod
 
 // Documents falling due. Derived on every read rather than stored, so it can
 // never drift out of date.
-export function expiringDocuments(employees, today = new Date()) {
+export function expiringDocuments(employees: Record<string, unknown>[], today = new Date()) {
   const limit = new Date(today);
   limit.setDate(limit.getDate() + EXPIRY_WINDOW_DAYS);
   const out: ExpiringDocument[] = [];
@@ -414,7 +418,7 @@ export function expiringDocuments(employees, today = new Date()) {
 }
 
 // ---- leave -----------------------------------------------------------------
-export async function listVacations(ctx: HrContext, { meId }) {
+export async function listVacations(ctx: HrContext, { meId }: { meId?: string }) {
   const { studio, section } = ctx;
   const [rows, people] = await Promise.all([
     Vacations.find({ studio, section }),
@@ -428,14 +432,14 @@ export async function listVacations(ctx: HrContext, { meId }) {
   // further had nowhere to sit.
   const scope = scopeFor(ctx, "hr.vacations");
   const me = people.find((c) => c.id === meId);
-  const mine = (v) => v.collaboratorId === meId;
-  const sameDepartment = (v) => {
+  const mine = (v: Vacation) => v.collaboratorId === meId;
+  const sameDepartment = (v: Vacation) => {
     if (!me?.departmentId) return false;
     const owner = people.find((c) => c.id === v.collaboratorId);
     return owner?.departmentId === me.departmentId;
   };
   const inScope = scope === "all" ? () => true
-    : scope === "department" ? (v) => mine(v) || sameDepartment(v)
+    : scope === "department" ? (v: Vacation) => mine(v) || sameDepartment(v)
     : mine;
 
   return rows
@@ -486,7 +490,7 @@ export async function requestVacation(ctx: HrContext, body: Record<string, unkno
   return { vacation };
 }
 
-export async function decideVacation(ctx: HrContext, id: string, decision) {
+export async function decideVacation(ctx: HrContext, id: string, decision: unknown) {
   const { studio, section, collaborator, canManage } = ctx;
   const rows = await Vacations.find({ studio, section });
   const row = rows.find((v) => v.id === id);
@@ -507,7 +511,7 @@ export async function decideVacation(ctx: HrContext, id: string, decision) {
     if (denied) return denied;
     if (!canManage) return { error: "forbidden" };
   }
-  if (!LEAVE_STATUSES.includes(decision)) return { error: "status" };
+  if (!LEAVE_STATUSES.includes(String(decision))) return { error: "status" };
   if (row.status !== "Pending") return { error: "already-decided", status: row.status };
 
   const vacation = await updateRow(studio.id, section.id, VACATIONS, id, {
@@ -535,11 +539,15 @@ function countDays(from: string, to: string): number {
 }
 
 // Headcount per department, derived from the people themselves.
-export function headcount(employees, departments) {
-  const byId = Object.fromEntries(departments.map((d) => [d.id, 0]));
+export function headcount(
+  employees: Record<string, unknown>[],
+  departments: { id: string; name?: string }[],
+) {
+  const byId: Record<string, number> = Object.fromEntries(departments.map((d) => [d.id, 0]));
   let unassigned = 0;
   for (const e of employees) {
-    if (e.departmentId && byId[e.departmentId] !== undefined) byId[e.departmentId] += 1;
+    const dept = String(e.departmentId || "");
+    if (dept && byId[dept] !== undefined) byId[dept] += 1;
     else unassigned += 1;
   }
   return { byDepartment: byId, unassigned, total: employees.length };

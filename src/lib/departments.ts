@@ -23,7 +23,15 @@
 // nobody can be placed in a part of the studio that is not running.
 const NOT_A_DEPARTMENT = new Set(["main"]);
 
-export function departmentsFromSections(sections) {
+/**
+ * WHAT A DEPARTMENT LOOKS LIKE FROM HERE. Declared locally rather than imported
+ * from platform/db: this file is client-safe by design — see the note at the
+ * top — and while `import type` is erased, a structural type keeps the promise
+ * literally rather than on a technicality.
+ */
+type SectionLike = { key: string; name?: string; parentId?: unknown; enabled?: unknown };
+
+export function departmentsFromSections(sections: SectionLike[] | null | undefined) {
   return (sections || [])
     .filter((s) => !s.parentId && s.enabled !== false && !NOT_A_DEPARTMENT.has(s.key))
     .map((s) => ({ id: s.key, name: s.name || s.key }))
@@ -34,6 +42,9 @@ export function departmentsFromSections(sections) {
 // a section that has since been switched off keeps the value on their row —
 // deleting it would be this module deciding to lose data — but the screens read
 // it back through here and say "not placed" rather than printing a bare key.
-export function departmentName(departments, id: string) {
+export function departmentName(
+  departments: { id: string; name: string }[] | null | undefined,
+  id: string,
+) {
   return (departments || []).find((d) => d.id === id)?.name || "";
 }
