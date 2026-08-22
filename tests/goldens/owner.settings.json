@@ -10,6 +10,7 @@
       "city": "",
       "location": "",
       "currency": "",
+      "language": "en",
       "deletionRequestedAt": "",
       "deletionFinalisesAt": "",
       "workingHours": null,
