@@ -305,7 +305,11 @@ export async function moveRevision(
         type: NOTIFY.system,
         title: `${document.code} needs you`,
         body: `${REV_LABELS[state]} - ${document.title}`,
-        href: `/${ctx.studio.slug}/quality-documents/${documentId}`,
+        // STUDIO-RELATIVE, per the contract on notifyCollaborators. This wrote
+        // the slug in too, and the bell prefixes the slug it is on — so the one
+        // notice telling somebody a revision needs them built
+        // /acme//acme/quality-documents/doc_1 and went nowhere.
+        href: `quality-documents/${documentId}`,
       }).catch(() => {});
     },
   }, action, body);

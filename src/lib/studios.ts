@@ -336,7 +336,10 @@ export async function approveJoinRequest({
       type: NOTIFY.joinDecided,
       title: `You are in ${studio.name}`,
       body: "Your request to join was approved.",
-      href: "",
+      // The studio's own home, which is the whole point of the notice: they
+      // were let in, and this is the way in. It was "" — so the one
+      // notification that exists to open a door rendered as plain text.
+      href: "main",
       tone: "success",
     },
     { userIdOf: () => request.userId },

@@ -78,24 +78,37 @@ export default function NotificationBell({ slug }) {
     return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  async function markAllRead() {
-    if (!unread) return;
+  // MARK READ, OPTIMISTICALLY, for one notification or for all of them.
+  //
+  // `ids` empty means "all mine" — the same contract the PATCH route has always
+  // had. It took a list from the first day and nothing ever passed one, so
+  // clicking a notification opened it and left it unread: the bell rendered a
+  // dot beside something the person had plainly just read, and the only way to
+  // clear it was the button that clears everything.
+  //
+  // Optimistic because the count is the whole point of the thing. It goes down
+  // on the click rather than after a round trip, and the load() at the end
+  // reconciles whatever the server actually did.
+  const markRead = useCallback(async (ids) => {
     const at = new Date().toISOString();
-    // Optimistic: the count is the whole point of the button, so it should go
-    // to zero on the click rather than after a round trip.
-    setRows((prev) => prev.map((n) => (n.readAt ? n : { ...n, readAt: at })));
-    live?.setNotifications?.((prev) => prev.map((n) => (n.readAt ? n : { ...n, readAt: at })));
+    const wanted = ids?.length ? new Set(ids) : null;
+    const applied = (prev) => prev.map((n) => (
+      n.readAt || (wanted && !wanted.has(n.id)) ? n : { ...n, readAt: at }
+    ));
+
+    setRows(applied);
+    live?.setNotifications?.(applied);
     try {
       await fetch(`/api/studios/${slug}/notifications`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(ids?.length ? { ids } : {}),
       });
     } catch {
       // The optimistic state stands; the next load() reconciles it.
     }
     load();
-  }
+  }, [slug, live, load]);
 
   return (
     <div className="relative" ref={panel} onClick={(e) => e.stopPropagation()}>
@@ -133,7 +146,7 @@ export default function NotificationBell({ slug }) {
             {unread > 0 && (
               <button
                 type="button"
-                onClick={markAllRead}
+                onClick={() => unread && markRead([])}
                 className="text-xs font-600 text-brand-600 hover:underline dark:text-brand-400"
               >
                 Mark all read
@@ -174,17 +187,32 @@ export default function NotificationBell({ slug }) {
                 const cls = `flex w-full gap-3 px-4 py-3 text-start hover:bg-slate-50 dark:hover:bg-white/5 ${
                   n.readAt ? "" : "bg-brand-500/[.04]"
                 }`;
+                // READING ONE IS WHAT MARKS IT READ. Both branches do it: a
+                // notification with nowhere to go is still one you have now
+                // seen, and leaving it unread means the count outlives the
+                // thing it was counting.
+                const read = () => { if (!n.readAt) markRead([n.id]); };
+
                 // Stored hrefs are studio-relative, so the address is built here
                 // from the slug this tab is actually on — a studio that gets
                 // renamed does not strand its own old notifications.
                 return (
                   <li key={n.id}>
                     {n.href ? (
-                      <Link href={`/${slug}/${n.href}`} className={cls} onClick={() => setOpen(false)}>
+                      <Link
+                        href={`/${slug}/${n.href}`}
+                        className={cls}
+                        onClick={() => { read(); setOpen(false); }}
+                      >
                         {body}
                       </Link>
                     ) : (
-                      <div className={cls}>{body}</div>
+                      // A BUTTON, NOT A DIV. It does something now — it clears
+                      // itself — so it has to be reachable from the keyboard
+                      // like every other control in this list.
+                      <button type="button" className={cls} onClick={read}>
+                        {body}
+                      </button>
                     )}
                   </li>
                 );
