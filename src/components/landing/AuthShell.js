@@ -6,6 +6,7 @@ import { AmbientBackground } from "@/components/landing/AmbientBackground";
 import { LogoMark, Wordmark } from "@/components/landing/Logo";
 import { PointerProvider } from "@/components/landing/providers/PointerProvider";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
+import { dirFor } from "@/shared/locale";
 
 /* ==================================================================
    Full-screen frame for the auth screens, in the landing page's design
@@ -14,11 +15,18 @@ import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
    Deliberately has no header and no footer — the only chrome is the
    wordmark, which doubles as the way back to the landing page. `Nav`
    and `Footer` suppress themselves on these routes (see BARE_ROUTES).
+
+   DIRECTION FOLLOWS THE LOCALE, because the auth copy is already
+   translated — /ar/login renders `dict.auth` in Arabic. It used to sit
+   in a hardcoded `dir="ltr"` frame, so the Arabic read left-to-right:
+   the label on the wrong side of every field, the OTP "resend" adrift.
+   The console (super/_components) passes no locale, so it stays `en`
+   → ltr, which is what it wants — the console is English only.
 ================================================================== */
 
 export default function AuthShell({ locale = "en", title, subtitle, children, aside }) {
   return (
-    <div dir="ltr" className="landing-page relative flex min-h-screen flex-col items-center justify-center px-5 py-14">
+    <div dir={dirFor(locale)} className="landing-page relative flex min-h-screen flex-col items-center justify-center px-5 py-14">
       <PointerProvider>
         <AmbientBackground />
 
