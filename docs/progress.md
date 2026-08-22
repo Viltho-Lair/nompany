@@ -132,8 +132,6 @@ Things waiting on a person, not on work.
 | Decision | Why it is open |
 |---|---|
 | The palette for W4 | The marketing site is dark-first indigo/Sora; the ERP is light-first blue/Saira. One of them has to move |
-| The dashboard tier ladder | Four levels were named standard/basic/moderate/advanced; standard and basic read as the same rung |
-| How a tier declares its analytics level | `/super` tiers are studio-authored records with free-text names. Keying dashboards off the name breaks on the first rename |
 
 **Recently closed.**
 
@@ -145,6 +143,12 @@ Things waiting on a person, not on work.
   verify. The oracle is exactly one bit wide and stays that way: a wrong password
   and an unregistered address both still return `invalid`. Four Gate A assertions
   pin the order so it cannot be quietly reversed.
+- **The dashboard tier ladder is basic / simple / moderate / advanced.** Standard
+  and basic were the same rung; the ladder now climbs once per name.
+- **A tier declares its own `analyticsLevel`,** explicitly, from that fixed set.
+  Not inferred from the tier's name — a `/super` tier is a studio-authored record
+  and its name is free text, so anything keyed to the name breaks on the first
+  rename.
 - **Invariant 2 was overstated** and the code was right — existence is public by
   design; what a non-member learns nothing about is the contents.
 - **`quality.documents.setup`** deleted rather than built.

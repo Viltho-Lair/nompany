@@ -282,18 +282,18 @@ The complexity is **tiered the way `/super` tiers are**, so a studio on Standard
 gets simple direct statistics (counts, sums, this-month-vs-last) and the higher
 tiers unlock progressively heavier analysis.
 
-Two things to settle before this can be built, and both are real blockers:
+Both settled 22/08/2026:
 
-- **A tier is a studio-authored record today, not an enum.** `/super` tiers carry
-  a name, a service list, a cost and a duration; "Standard" is only the seeded
-  default (`DEFAULT_TIER` in `lib/data/catalog.js`) and nothing stops a tier
-  called anything at all. Keying dashboard complexity off a free-text name
-  written by whoever created the catalogue entry would break the first time
-  somebody renames one. A tier needs an explicit `analyticsLevel` field from a
-  fixed set — which is a catalogue change, and yours to approve.
-- **Which four levels.** Standard / basic / moderate / advanced was the wording;
-  standard and basic read as the same rung, so the ladder needs naming before
-  anything keys off it.
+- **The ladder is `basic` / `simple` / `moderate` / `advanced`.** Standard and
+  basic read as one rung, so the first name changed. Each level unlocks
+  progressively heavier analysis; `basic` is counts and sums.
+- **A tier carries an explicit `analyticsLevel`** from that set. NOT inferred
+  from the tier's name: a `/super` tier is a studio-authored record whose name is
+  free text (`DEFAULT_TIER` in `lib/data/catalog.js` seeds one called "Standard"
+  and nothing stops another being called anything at all), so a dashboard keyed
+  to the name would break the first time somebody renamed one. This is a
+  catalogue change — a new field on the tier record, defaulted for existing rows.
+
 
 Scheduling: the per-section analysis is research, the tier field is a small
 catalogue change, and the drawing shares the W4 component-split slice — same
