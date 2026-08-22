@@ -338,11 +338,25 @@ html.studio-chrome body,
 html.studio-chrome .font-display {
   font-family: "Cabin", system-ui, sans-serif;
 }
-/* Arabic (RTL) Studio uses the display family per design spec. dir="rtl" is set
-   on the <html> element by the Studio language switcher. */
+/* Arabic (RTL) Studio uses the display family per design spec.
+
+   TWO FORMS, BECAUSE dir DOES NOT SIT ON <html> HERE. A studio's language is a
+   setting on the tenant's record, and the root layout — which is what writes
+   <html lang dir> for the public site — never touches the database. So the
+   STUDIO SHELL declares it on its own element instead (see StudioFrame), and a
+   rule anchored to `html[dir="rtl"]` never fires.
+   
+   Measured before it was written: with dir on a nested element, --font-display
+   correctly resolved to Tajawal — the unanchored [dir="rtl"] rule above matches
+   anything — but font-family stayed Cabin, a Latin face with no Arabic glyphs,
+   so every Arabic screen fell through to a system fallback. The descendant form
+   is what fixes that; the html-anchored form is kept for the day the attribute
+   does land up there. */
 html.studio-chrome[dir="rtl"],
 html.studio-chrome[dir="rtl"] body,
-html.studio-chrome[dir="rtl"] .font-display {
+html.studio-chrome[dir="rtl"] .font-display,
+html.studio-chrome [dir="rtl"],
+html.studio-chrome [dir="rtl"] .font-display {
   font-family: var(--font-display), Saira, system-ui, sans-serif;
 }
 
