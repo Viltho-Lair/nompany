@@ -28,7 +28,19 @@
 // Each names where it lives. A node absent from here cannot be traversed, which
 // is deliberate: a graph that reaches everything is a graph that can be pointed
 // at anything.
-export const NODES = {
+/** What one traversable record type declares about itself. */
+export type Node = {
+  label: string;
+  sectionKey: string;
+  collection: string;
+  permission: string;
+};
+
+// TYPED AS A RECORD, NOT LEFT AS A LITERAL. Every lookup here is by a NodeKey
+// that came from an edge or a caller, so `string` has to be able to index it —
+// and the alternative, narrowing NodeKey to `keyof typeof NODES`, would make
+// adding a node a change in two places instead of one.
+export const NODES: Record<string, Node> = {
   salesTicket: { label: "Sales ticket", sectionKey: "sales-tickets", collection: "salesTickets", permission: "sales.tickets.view" },
   client: { label: "Client", sectionKey: "sales-clients", collection: "salesClients", permission: "sales.clients.view" },
   rfq: { label: "RFQ", sectionKey: "technical-rfq", collection: "rfqs", permission: "technical.rfq.view" },
@@ -66,8 +78,33 @@ export const MANY = "many";
 // and writing it would mean a downstream module reaching up and modifying a
 // record belonging to a department it does not own — which sales.js forbids in
 // so many words: "Sales never WRITES them."
-const edge = (from, to, direction, key, cardinality, extra = {}) =>
-  ({ from, to, direction, key, cardinality, ...extra });
+/** A record type this graph can traverse. Keys of NODES; kept as `string` so a
+ *  node added there needs no second declaration here. */
+export type NodeKey = string;
+
+/** How many rows the far end of an edge can meaningfully have. */
+export type Cardinality = typeof ONE | typeof SEQUENCE | typeof MANY;
+
+/**
+ * ONE EDGE, AND EVERY FIELD ON IT IS LOAD-BEARING. `direction` decides whether
+ * the walk looks up an id or scans for one; `exclude` and `order` are the RULE
+ * that used to live scattered across seven filters — which quotation counts,
+ * whether a cancelled invoice is included.
+ */
+export type Edge = {
+  from: NodeKey;
+  to: NodeKey;
+  direction: "forward" | "reverse";
+  key: string;
+  cardinality: Cardinality;
+  exclude?: Record<string, unknown>;
+  order?: string;
+};
+
+const edge = (
+  from: NodeKey, to: NodeKey, direction: "forward" | "reverse",
+  key: string, cardinality: Cardinality, extra: Partial<Edge> = {},
+): Edge => ({ from, to, direction, key, cardinality, ...extra });
 
 export const EDGES = [
   // ---- upstream: the child holds the key ----
@@ -125,7 +162,7 @@ export const EDGES = [
   edge("project", "task", "reverse", "projectId", MANY),
 ];
 
-export const edgeBetween = (from, to) => EDGES.find((e) => e.from === from && e.to === to) || null;
+export const edgeBetween = (from: NodeKey, to: NodeKey): Edge | null => EDGES.find((e) => e.from === from && e.to === to) || null;
 
 // ---- paths -------------------------------------------------------------------
 //
@@ -136,15 +173,15 @@ export const edgeBetween = (from, to) => EDGES.find((e) => e.from === from && e.
 // project that already knows.
 //
 // Breadth-first, so the shortest path wins and nothing loops.
-export function pathBetween(from, to, { maxHops = 4 } = {}) {
+export function pathBetween(from: NodeKey, to: NodeKey, { maxHops = 4 }: { maxHops?: number } = {}): Edge[] | null {
   if (!NODES[from] || !NODES[to]) return null;
   if (from === to) return [];
 
   const seen = new Set([from]);
-  let frontier = [{ node: from, path: [] }];
+  let frontier: { node: NodeKey; path: Edge[] }[] = [{ node: from, path: [] }];
 
   for (let hop = 0; hop < maxHops; hop += 1) {
-    const next = [];
+    const next: typeof frontier = [];
     for (const { node, path } of frontier) {
       for (const e of EDGES.filter((x) => x.from === node)) {
         if (seen.has(e.to)) continue;
@@ -163,8 +200,10 @@ export function pathBetween(from, to, { maxHops = 4 } = {}) {
 // Every record type reachable from one, with the path to it. Used to answer
 // "what could a document printed from here talk about" — and to make a MISSING
 // edge visible, which is the thing seven scattered filters could never do.
-export function reachableFrom(from, opts) {
-  const out = [];
+export type Reachable = { to: NodeKey; hops: number; path: Edge[] };
+
+export function reachableFrom(from: NodeKey, opts?: { maxHops?: number }): Reachable[] {
+  const out: Reachable[] = [];
   for (const to of Object.keys(NODES)) {
     if (to === from) continue;
     const path = pathBetween(from, to, opts);
@@ -174,14 +213,31 @@ export function reachableFrom(from, opts) {
 }
 
 // ---- walking one ------------------------------------------------------------
+//
+// `Row` is declared here rather than imported from platform/db, and that is the
+// point of this module: it is PURE and reader-injected, so it can be tested
+// against plain arrays and imported by a client component without dragging the
+// store in behind it. Importing the store's Row type would be a type-only
+// import today and an ordinary one the first time somebody was careless.
+type Row = Record<string, unknown>;
 
-const pick = (rows, e) => {
+/** What a walk found, and how far it got before a right stopped it. */
+export type WalkResult = {
+  records: Row[];
+  record?: Row | null;
+  path?: Edge[];
+  error?: string;
+  at?: NodeKey;
+};
+
+
+const pick = (rows: Row[], e: Edge): Row[] => {
   const kept = e.exclude
-    ? rows.filter((r) => !Object.entries(e.exclude).every(([k, v]) => r[k] === v))
+    ? rows.filter((r) => !Object.entries(e.exclude || {}).every(([k, v]) => r[k] === v))
     : rows;
   if (e.cardinality !== SEQUENCE) return kept;
   // Newest first, so [0] is the one that counts.
-  return [...kept].sort((a, b) => String(b[e.order] || "").localeCompare(String(a[e.order] || "")));
+  return [...kept].sort((a, b) => String(b[e.order || ""] || "").localeCompare(String(a[e.order || ""] || "")));
 };
 
 // The walk itself, over rows already in hand. Sync, because the callers that
@@ -189,14 +245,18 @@ const pick = (rows, e) => {
 // quotations and tasks because the screen above it had loaded them anyway, and
 // making a summary async to re-read what it was given would be a step
 // backwards dressed as a refactor.
-function walk(path, record, rowsFor, holds) {
-  let current = [record].filter(Boolean);
+function walk(
+  path: Edge[], record: Row | null | undefined,
+  rowsFor: (node: NodeKey) => Row[] | undefined,
+  holds?: (permission: string) => boolean,
+): WalkResult {
+  let current = [record].filter(Boolean) as Row[];
   for (const e of path) {
     if (holds && !holds(NODES[e.to].permission)) return { error: "forbidden", at: e.to, records: [] };
     if (!current.length) return { records: [], record: null, path };
 
     const rows = rowsFor(e.to) || [];
-    const found = [];
+    const found: Row[] = [];
     for (const row of current) {
       if (e.direction === "forward") {
         const hit = rows.find((r) => r.id === row[e.key]);
@@ -225,7 +285,10 @@ function walk(path, record, rowsFor, holds) {
  * is missing from it resolves empty rather than throwing, so a caller can hand
  * over only the hops it cares about.
  */
-export function traverseIn(from, record, to, { rows = {}, holds } = {}) {
+export function traverseIn(
+  from: NodeKey, record: Row | null | undefined, to: NodeKey,
+  { rows = {}, holds }: { rows?: Record<string, Row[]>; holds?: (permission: string) => boolean } = {},
+): WalkResult {
   const path = pathBetween(from, to);
   if (!path) return { error: "no-path", records: [] };
   return walk(path, record, (node) => rows[node], holds);
@@ -244,13 +307,19 @@ export function traverseIn(from, record, to, { rows = {}, holds } = {}) {
  * ask. Passing nothing means "already established" — which is what keeps a
  * retrofit from silently taking information away from people who have it today.
  */
-export async function traverse(from, record, to, { read, holds } = {}) {
+export async function traverse(
+  from: NodeKey, record: Row | null | undefined, to: NodeKey,
+  {
+    read,
+    holds,
+  }: { read: (node: NodeKey) => Promise<Row[]> | Row[]; holds?: (permission: string) => boolean },
+): Promise<WalkResult> {
   const path = pathBetween(from, to);
   if (!path) return { error: "no-path", records: [] };
 
   // Every hop is known before the walk starts, so each collection is read once
   // rather than once per record found at the hop before it.
-  const rows = {};
+  const rows: Record<string, Row[]> = {};
   for (const e of path) {
     if (holds && !holds(NODES[e.to].permission)) return { error: "forbidden", at: e.to, records: [] };
     if (!(e.to in rows)) rows[e.to] = (await read(e.to)) || [];

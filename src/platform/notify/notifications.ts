@@ -50,7 +50,25 @@ export const NOTIFY = {
   system: "system",
 };
 
-function build({ type, title, body = "", href = "", tone = "primary" }) {
+/** One stored notification, as this module writes it. */
+export type NotificationRow = {
+  id: string;
+  studioId?: string;
+  recipientId?: string;
+  readAt?: string;
+  [field: string]: unknown;
+};
+
+/** What a caller says it wants somebody told. */
+export type Notice = {
+  type: string;
+  title: string;
+  body?: string;
+  href?: string;
+  tone?: string;
+};
+
+function build({ type, title, body = "", href = "", tone = "primary" }: Notice) {
   return {
     id: makeId("ntf"),
     type,
@@ -84,7 +102,16 @@ function build({ type, title, body = "", href = "", tone = "primary" }) {
  *        caller map recipients to UserIDs so the doorbell can be rung on the
  *        right per-person channel
  */
-export async function notifyCollaborators(studioId, recipientIds, notice, opts = {}) {
+export async function notifyCollaborators(
+  studioId: string,
+  recipientIds: readonly string[],
+  notice: Notice,
+  // `userIdOf` IS THE CALLER'S JOB because this module addresses CollaboratorIDs
+  // (invariant 6) and the pub/sub channel is keyed by UserID. The mapping lives
+  // where the collaborator list already is; asking for it here would mean a
+  // second read of a list the caller is holding.
+  opts: { userIdOf?: (collaboratorId: string) => string | undefined } = {},
+) {
   const ids = [...new Set((recipientIds || []).filter(Boolean))];
   if (!studioId || !ids.length || !notice?.type || !notice?.title) return [];
 
@@ -127,13 +154,13 @@ export async function notifyCollaborators(studioId, recipientIds, notice, opts =
 
     return rows;
   } catch (e) {
-    log.error(`[notifications] write failed on ${studioId}: ${e.message}`);
+    log.error(`[notifications] write failed on ${studioId}: ${(e as Error).message}`);
     return [];
   }
 }
 
 /** This collaborator's notifications, newest first. */
-export async function listForCollaborator(studioId, collaboratorId) {
+export async function listForCollaborator(studioId: string, collaboratorId: string) {
   if (!studioId || !collaboratorId) return [];
   const rows = await readArr(S.notifications(studioId));
   return rows.filter((n) => n.recipientId === collaboratorId);
@@ -146,12 +173,12 @@ export async function listForCollaborator(studioId, collaboratorId) {
  * part of what gets committed, so a request naming someone else's notification
  * id cannot mark it read no matter what it claims.
  */
-export async function markRead(studioId, collaboratorId, ids) {
+export async function markRead(studioId: string, collaboratorId: string, ids: readonly string[]) {
   if (!studioId || !collaboratorId) return 0;
   const wanted = ids?.length ? new Set(ids) : null;
   const at = new Date().toISOString();
 
-  return editArr(S.notifications(studioId), (rows) => {
+  return editArr<NotificationRow, number>(S.notifications(studioId), (rows) => {
     let changed = 0;
     const next = rows.map((n) => {
       if (n.recipientId !== collaboratorId || n.readAt) return n;
@@ -180,7 +207,7 @@ export async function notifySuper(notice) {
     await publish(CH.super, { kind: "notif", ...row });
     return row;
   } catch (e) {
-    log.error(`[notifications] super write failed: ${e.message}`);
+    log.error(`[notifications] super write failed: ${(e as Error).message}`);
     return null;
   }
 }
@@ -189,10 +216,10 @@ export async function listSuper() {
   return readArr(REG.superNotifications);
 }
 
-export async function markSuperRead(ids) {
+export async function markSuperRead(ids: readonly string[]) {
   const wanted = ids?.length ? new Set(ids) : null;
   const at = new Date().toISOString();
-  return editArr(REG.superNotifications, (rows) => {
+  return editArr<NotificationRow, number>(REG.superNotifications, (rows) => {
     let changed = 0;
     const next = rows.map((n) => {
       if (n.readAt) return n;

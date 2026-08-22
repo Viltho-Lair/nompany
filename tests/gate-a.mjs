@@ -2488,6 +2488,37 @@ console.log("== idempotency: a retry does not bill twice");
   // row here, so this fails the moment the wrapper stops replaying.
   ok("...and the money was booked exactly once", (await countAt(4200)) === 1, String(await countAt(4200)));
 
+  // THE RECORD EXPIRES, AND IT DID NOT. `finishIdempotent` called
+  // `setJSON(key, value, TTL_SEC)` — a two-parameter function handed three
+  // arguments, which JavaScript accepts in silence. TypeScript refused it the
+  // moment platform/http was converted, and the consequence was worse than a
+  // missing TTL: `claim` sets the key with EX 24h, and a plain Redis SET
+  // without KEEPTTL REMOVES the expiry it finds. So every completed idempotent
+  // write left a permanent key, in a product whose only storage is Redis and
+  // whose eviction policy is deliberately noeviction — the end state being
+  // writes failing platform-wide from a key space nobody was watching grow.
+  //
+  // ASSERTED ON THE UNIT, not through a route. The bug was invisible to
+  // behaviour — replay worked perfectly either way — so the only thing that
+  // catches it is asking Redis what the TTL actually is, and the route's digest
+  // is built from a path and an identity this suite would have to reconstruct
+  // exactly to name the same key.
+  {
+    const { IDEM } = await import("@/platform/db/keys");
+    const { beginIdempotent, finishIdempotent } = await import("@/platform/http/idempotency");
+    const { ttlOf } = await import("@/platform/db/store");
+
+    const digest = `g-ttl-${rand()}`;
+    await beginIdempotent(digest);
+    const claimed = await ttlOf(IDEM.record(digest));
+    ok("the reservation carries a TTL", claimed > 0, `${claimed}s`);
+
+    await finishIdempotent(digest, 201, { ok: true });
+    const recorded = await ttlOf(IDEM.record(digest));
+    ok("...and recording the answer does not clear it", recorded > 0, `${recorded}s`);
+  }
+
+
   // WITHOUT THE HEADER NOTHING CHANGES, which is what makes this safe to switch
   // on under every converted route at once. The request RUNS, and a second
   // identical expense is a perfectly ordinary thing to have.

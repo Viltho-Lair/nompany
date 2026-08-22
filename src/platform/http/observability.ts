@@ -29,7 +29,15 @@ import { randomUUID } from "node:crypto";
 import { currentCount, withCommandCount } from "@/platform/db/commandCount";
 import { withRequestCache } from "@/platform/db/requestCache";
 
-const storage = new AsyncLocalStorage();
+// WHAT A LOG LINE MAY CARRY. `unknown` rather than a narrower value type, and
+// deliberately: fields are whatever a call site thought was worth saying, and
+// redact() below is written to walk anything. Narrowing it here would only push
+// casts out to a hundred call sites.
+export type Fields = Record<string, unknown>;
+
+type RequestScope = { id: string; route: string; startedAt: number };
+
+const storage = new AsyncLocalStorage<RequestScope>();
 const isProd = process.env.NODE_ENV === "production";
 
 // Keys whose VALUE is never safe to print, whatever it is called in context.
@@ -41,13 +49,13 @@ const SECRET_SHAPE = /^[A-Za-z0-9_-]{40,}$/;
  * Strip anything that must not be logged. Applied to every payload, so a new
  * call site cannot leak by forgetting.
  */
-export function redact(value, depth = 0) {
+export function redact(value: unknown, depth = 0): unknown {
   if (value == null || depth > 4) return value;
   if (typeof value === "string") return SECRET_SHAPE.test(value) ? "<redacted>" : value;
   if (typeof value !== "object") return value;
   if (Array.isArray(value)) return value.slice(0, 20).map((v) => redact(v, depth + 1));
-  const out = {};
-  for (const [key, v] of Object.entries(value)) {
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value as object)) {
     out[key] = SECRET_KEYS.test(key) ? "<redacted>" : redact(v, depth + 1);
   }
   return out;
@@ -56,7 +64,7 @@ export function redact(value, depth = 0) {
 // JSON.stringify throws on a cycle, and a logger that can throw is worse than no
 // logger: it turns a line somebody wanted into a request somebody lost. Caught
 // by a test that logged an object pointing at itself.
-function safely(value) {
+function safely(value: unknown): string {
   const seen = new WeakSet();
   try {
     return JSON.stringify(value, (_key, v) => {
@@ -67,18 +75,18 @@ function safely(value) {
       return v;
     });
   } catch (e) {
-    return `<unserialisable: ${e?.message || "unknown"}>`;
+    return `<unserialisable: ${(e as Error)?.message || "unknown"}>`;
   }
 }
 
-function emit(level, message, fields = {}) {
+function emit(level: "info" | "warn" | "error", message: string, fields: Fields = {}): void {
   const request = storage.getStore();
   const line = {
     level,
     at: new Date().toISOString(),
     msg: message,
     ...(request ? { requestId: request.id, route: request.route } : {}),
-    ...redact(fields),
+    ...(redact(fields) as Fields),
   };
   const write = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
   if (isProd) { write(safely(line)); return; }
@@ -89,14 +97,18 @@ function emit(level, message, fields = {}) {
   write(`${level.toUpperCase().padEnd(5)} ${request ? `[${request.id.slice(0, 8)}] ` : ""}${message}${extras ? `  ${extras}` : ""}`);
 }
 
+// FIELDS IS OPTIONAL, which is what the thirty-one call sites this replaced
+// actually pass: some hand a message and nothing else, some an error's message,
+// one a whole object. A signature demanding a second argument would have been
+// one nobody could adopt.
 export const log = {
-  info: (message, fields) => emit("info", message, fields),
-  warn: (message, fields) => emit("warn", message, fields),
-  error: (message, fields) => emit("error", message, fields),
+  info: (message: string, fields?: Fields) => emit("info", message, fields),
+  warn: (message: string, fields?: Fields) => emit("warn", message, fields),
+  error: (message: string, fields?: Fields) => emit("error", message, fields),
 };
 
 /** The current request's id, or "" outside one. Put it on error responses. */
-export const requestId = () => storage.getStore()?.id || "";
+export const requestId = (): string => storage.getStore()?.id || "";
 
 /**
  * Run a request inside a logging scope, and emit one completion line.
@@ -105,7 +117,7 @@ export const requestId = () => storage.getStore()?.id || "";
  * decorates: the counter has to be established before the handler runs and read
  * after it finishes.
  */
-export async function withRequest(route, fn) {
+export async function withRequest<T>(route: string, fn: (scope: RequestScope) => Promise<T> | T): Promise<T> {
   const scope = { id: randomUUID(), route, startedAt: Date.now() };
   return storage.run(scope, async () => {
     try {
@@ -113,7 +125,7 @@ export async function withRequest(route, fn) {
       // the completion line can report hops without every route remembering to
       // ask for them. A number that has to be opted into is a number that is
       // missing from the routes nobody suspected.
-      let counted = null;
+      let counted: ReturnType<typeof currentCount> = null;
       const { result } = await withCommandCount(async () => withRequestCache(async () => {
         const out = await fn(scope);
         // Read WHILE the counting scope is still open — finish() runs after it
@@ -126,14 +138,15 @@ export async function withRequest(route, fn) {
     } catch (error) {
       // The one place an unhandled error is guaranteed to be seen WITH its
       // request id, before whatever the caller does with it.
-      emit("error", "request failed", { error: error?.message, stack: error?.stack?.split("\n")[1]?.trim() });
+      const err = error as Error;
+      emit("error", "request failed", { error: (err as Error)?.message, stack: (err as Error)?.stack?.split("\n")[1]?.trim() });
       finish(scope, "error", null);
       throw error;
     }
   });
 }
 
-function finish(scope, outcome, counted) {
+function finish(scope: RequestScope, outcome: string, counted: ReturnType<typeof currentCount>): void {
   emit("info", "request finished", {
     outcome,
     ms: Date.now() - scope.startedAt,

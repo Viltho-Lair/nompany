@@ -29,6 +29,9 @@
 // from the thing it protects, which is how the UI and the write paths came to
 // disagree in the first place.
 
+/** What a handler may hand back when a bare body is not enough. */
+type Shaped = { status: number; body: unknown; headers?: Record<string, unknown> };
+
 import { cookies } from "next/headers";
 import { currentUser, currentIdentity, SESSION_COOKIE } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
@@ -40,9 +43,25 @@ import { withRequest, requestId } from "./observability";
 import { record as recordAudit, ACTOR } from "./audit";
 import { digestFor, beginIdempotent, finishIdempotent, abandonIdempotent } from "./idempotency";
 
-/** A route's answer carries a status, a body, and sometimes headers. */
-const isResponse = (v) => v instanceof Response;
-const isErrorShape = (v) => v && typeof v === "object" && typeof v.error === "string";
+/**
+ * WHAT A ROUTE SPEC SAYS. Every field is optional except in combination: `body`
+ * only means something on a write, `context` only on a studio route, and
+ * `status` only where a service's own refusal name needs a local override.
+ */
+export type RouteSpec = {
+  auth?: "public" | "user" | "identity" | "studio" | "super";
+  body?: boolean;
+  name?: string;
+  status?: Record<string, number>;
+  context?: (user: unknown, slug: string) => Promise<Record<string, unknown>>;
+};
+
+/** What the wrapper hands a handler: the request, the params, and whoever it resolved. */
+export type RouteArgs = Record<string, any>;
+
+const isResponse = (v: unknown): v is Response => v instanceof Response;
+const isErrorShape = (v: unknown): v is { error: string } =>
+  Boolean(v) && typeof v === "object" && typeof (v as { error?: unknown }).error === "string";
 
 /**
  * Parse a JSON body without ever throwing.
@@ -52,17 +71,17 @@ const isErrorShape = (v) => v && typeof v === "object" && typeof v.error === "st
  * the validation that follows produces a better message than "unparseable"
  * would. Kept identical here so conversion changes nothing.
  */
-async function readBody(request) {
+async function readBody(request: Request): Promise<unknown> {
   try { return (await request.json()) ?? {}; } catch { return {}; }
 }
 
 /**
  * Turn whatever a handler returned into a Response.
  *
- * @param {*} out       handler's return value
- * @param {object} spec the route spec, for local status overrides
+ * @param out   handler's return value
+ * @param spec  the route spec, for local status overrides
  */
-function finish(out, spec) {
+function finish(out: unknown, spec: RouteSpec): Response {
   if (isResponse(out)) return stamp(out);
 
   if (isErrorShape(out)) {
@@ -94,9 +113,10 @@ function finish(out, spec) {
   }
 
   // `{ status, body }` for the handful of routes that mean 201 or 204.
-  if (out && typeof out === "object" && "body" in out && typeof out.status === "number") {
-    const res = Response.json(out.body, { status: out.status });
-    for (const [k, v] of Object.entries(out.headers || {})) res.headers.append(k, v);
+  if (out && typeof out === "object" && "body" in out && typeof (out as Shaped).status === "number") {
+    const shaped = out as Shaped;
+    const res = Response.json(shaped.body, { status: shaped.status });
+    for (const [k, v] of Object.entries(shaped.headers || {})) res.headers.append(k, String(v));
     return stamp(res);
   }
 
@@ -106,13 +126,13 @@ function finish(out, spec) {
 // THE REQUEST ID GOES OUT AS WELL AS INTO THE LOG. A user reporting "it failed"
 // can read this off the network tab, and it is the only thing that turns their
 // sentence into the exact line in the log stream. Costs one header.
-function stamp(res) {
+function stamp(res: Response): Response {
   const id = requestId();
   if (id && !res.headers.has("X-Request-Id")) res.headers.set("X-Request-Id", id);
   return res;
 }
 
-const refuse = (error, status) => stamp(Response.json({ error }, { status }));
+const refuse = (error: string, status: number) => stamp(Response.json({ error }, { status }));
 
 /**
  * Record one mutation, after it happened.
@@ -129,7 +149,9 @@ const refuse = (error, status) => stamp(Response.json({ error }, { status }));
  * action has already happened, and refusing to report a completed change is not
  * a reason to fail it.
  */
-async function audit(res, spec, request, args, identity) {
+async function audit(
+  res: Response, spec: RouteSpec, request: Request, args: RouteArgs, identity: string,
+): Promise<void> {
   const actorType = args.admin ? ACTOR.SUPER
     : args.collaborator ? ACTOR.COLLABORATOR
       : ACTOR.USER;
@@ -168,13 +190,16 @@ async function audit(res, spec, request, args, identity) {
  * adding something to it later does not touch every call site:
  *   { request, params, user, identity, studio, collaborator, access, sections, body }
  */
-export function route(spec, handler) {
+export function route(spec: RouteSpec, handler: (args: RouteArgs) => unknown) {
   const auth = spec.auth || "user";
 
   // WHO IS ASKING, and what the handler gets. Split out of the request path so
   // that idempotency can sit between "we know who you are" and "we do the work"
   // — it needs the identity to scope its key, and it must wrap the handler.
-  async function resolve(base, params) {
+  async function resolve(
+    base: Record<string, unknown>,
+    params: Record<string, string>,
+  ): Promise<{ refusal?: Response; args?: RouteArgs; identity?: string }> {
     if (auth === "public") return { args: base, identity: "" };
 
     // A THIRD IDENTITY, NOT A BIGGER SECOND ONE. /super runs on a SuperAdmin —
@@ -194,8 +219,13 @@ export function route(spec, handler) {
     if (auth === "identity") {
       const identity = await currentIdentity();
       if (!identity) return { refusal: refuse("unauthorized", 401) };
-      const user = identity.user || identity;
-      return { args: { ...base, identity, user }, identity: user.id };
+      // `identity.user || identity` is the original line, and it is defensive
+      // rather than descriptive: currentIdentity always returns the fuller
+      // shape, so the fallback covers a case that has never occurred. Kept as
+      // it was — this conversion does not get to decide that — and the id is
+      // read off whichever half answered.
+      const user = (identity as { user?: unknown }).user || identity;
+      return { args: { ...base, identity, user }, identity: String((user as { id?: unknown })?.id || "") };
     }
 
     // PREFETCH THE STUDIO WHILE THE USER IS BEING RESOLVED.
@@ -221,7 +251,7 @@ export function route(spec, handler) {
 
     const user = await currentUser();
     if (!user) return { refusal: refuse("unauthorized", 401) };
-    if (auth === "user") return { args: { ...base, user }, identity: user.id };
+    if (auth === "user") return { args: { ...base, user }, identity: String(user.id) };
 
     // Joined so a rejected prefetch cannot surface as an unhandled rejection;
     // its value is deliberately unused.
@@ -241,11 +271,14 @@ export function route(spec, handler) {
     // duplicate this seam exists to remove rather than reproduce.
     const build = spec.context || studioContext;
     const context = await build(user, params.slug);
-    if (context.error) return { refusal: refuse(context.error, statusFor(context.error)) };
-    return { args: { ...base, user, ...context }, identity: user.id };
+    if (context.error) {
+      const name = String(context.error);
+      return { refusal: refuse(name, statusFor(name)) };
+    }
+    return { args: { ...base, user, ...context }, identity: String(user.id) };
   }
 
-  return async function handle(request, ctx) {
+  return async function handle(request: Request, ctx?: { params?: Promise<Record<string, string>> }) {
     return withRequest(spec.name || auth, async () => {
       // CSRF, REFUSED BEFORE ANYTHING IS READ — before the body, before the
       // session lookup, before a single Redis command. A cross-site write must
@@ -259,11 +292,16 @@ export function route(spec, handler) {
       }
 
       const params = ctx?.params ? await ctx.params : {};
-      const base = { request, params };
+      const base: Record<string, unknown> = { request, params };
       if (spec.body) base.body = await readBody(request);
 
-      const { refusal, args, identity } = await resolve(base, params);
-      if (refusal) return refusal;
+      const resolved = await resolve(base, params);
+      if (resolved.refusal) return resolved.refusal;
+      // Narrowed here rather than in the destructure above: `refusal` and `args`
+      // are alternatives, and destructuring both loses the fact that ruling one
+      // out establishes the other.
+      const args = resolved.args as RouteArgs;
+      const identity = resolved.identity || "";
 
       // WHO DID WHAT — written after the handler, so it records what actually
       // happened rather than what was attempted. Reads are not logged: an audit
@@ -288,7 +326,7 @@ export function route(spec, handler) {
       });
 
       const seen = await beginIdempotent(digest);
-      if (seen.replay) {
+      if ("replay" in seen) {
         const res = Response.json(seen.replay.body, { status: seen.replay.status });
         // So a client can tell a replay from the original. Without it, "did my
         // retry do anything?" is unanswerable from the response alone.
@@ -297,7 +335,7 @@ export function route(spec, handler) {
       }
       // The original is still running. We do not have its answer yet, and
       // inventing one would be worse than saying so.
-      if (seen.busy) return refuse("in-progress", 409);
+      if ("busy" in seen) return refuse("in-progress", 409);
 
       let res;
       try {

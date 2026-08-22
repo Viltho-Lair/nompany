@@ -36,7 +36,7 @@ const MAX_READ = 200;
 // A cursor is a Redis stream id: "<millis>-<seq>". Anything else is rejected
 // rather than passed through to Redis.
 const CURSOR_RE = /^\d+-\d+$/;
-export const isCursor = (v) => CURSOR_RE.test(String(v || ""));
+export const isCursor = (v: unknown): boolean => CURSOR_RE.test(String(v || ""));
 
 // Who is allowed to hear about an event.
 //  • "section" — gated by the caller's view permission on that SectionID.
@@ -55,7 +55,19 @@ export const TYPE = {
 
 // Append one event. Returns the new entry id, or null if the log could not be
 // written — callers deliberately ignore the result.
-export async function emit(studioId, { type, scope = SCOPE.SECTION, sectionId = "", collection = "", rowId = "" }) {
+/** What an emitter says happened. `type` is the only required half. */
+export type EventInput = {
+  type?: string;
+  scope?: string;
+  sectionId?: string;
+  collection?: string;
+  rowId?: string;
+};
+
+export async function emit(
+  studioId: string,
+  { type, scope = SCOPE.SECTION, sectionId = "", collection = "", rowId = "" }: EventInput,
+) {
   if (!studioId || !type) return null;
   try {
     const fields = { type, scope, sectionId, collection, rowId, at: new Date().toISOString() };
@@ -72,14 +84,18 @@ export async function emit(studioId, { type, scope = SCOPE.SECTION, sectionId = 
   } catch (e) {
     // The write it describes has already succeeded; losing the notification is
     // not a reason to fail the request.
-    log.error(`[events] emit failed on ${studioId} (${type}): ${e.message}`);
+    log.error(`[events] emit failed on ${studioId} (${type}): ${(e as Error).message}`);
     return null;
   }
 }
 
 // Everything after `cursor`, oldest first. `visible` decides per event whether
 // THIS caller may hear about it — the log is studio-wide, the answer is not.
-export async function readSince(studioId, cursor, visible) {
+export async function readSince(
+  studioId: string,
+  cursor: string,
+  visible?: (event: Record<string, string>) => boolean,
+) {
   const rows = await xAfter(S.events(studioId), isCursor(cursor) ? cursor : "", MAX_READ);
   const events = typeof visible === "function" ? rows.filter(visible) : rows;
   return {
@@ -95,7 +111,7 @@ export async function readSince(studioId, cursor, visible) {
 }
 
 // Where a fresh client starts: "now", so opening a page replays nothing.
-export async function latestId(studioId) {
+export async function latestId(studioId: string) {
   return xLastId(S.events(studioId));
 }
 
@@ -121,7 +137,15 @@ export const PLATFORM = {
   ratingLeft: "rating.left",
 };
 
-export async function emitPlatform({ type, title = "", body = "", href = "", refId = "" }) {
+export type PlatformEventInput = {
+  type?: string;
+  title?: string;
+  body?: string;
+  href?: string;
+  refId?: string;
+};
+
+export async function emitPlatform({ type, title = "", body = "", href = "", refId = "" }: PlatformEventInput) {
   if (!type) return null;
   try {
     const fields = { type, title, body, href, refId, at: new Date().toISOString() };
@@ -129,14 +153,14 @@ export async function emitPlatform({ type, title = "", body = "", href = "", ref
     await publish(CH.super, { id, ...fields });
     return id;
   } catch (e) {
-    log.error(`[events] platform emit failed (${type}): ${e.message}`);
+    log.error(`[events] platform emit failed (${type}): ${(e as Error).message}`);
     return null;
   }
 }
 
 // The console's equivalents of readSince/latestId. No `visible` predicate:
 // every owner sees the whole platform log, which is the point of the console.
-export async function readPlatformSince(cursor) {
+export async function readPlatformSince(cursor: string) {
   const rows = await xAfter(REG.events, isCursor(cursor) ? cursor : "", MAX_READ);
   return {
     cursor: rows.length ? rows[rows.length - 1].id : (isCursor(cursor) ? cursor : await latestPlatformId()),

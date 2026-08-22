@@ -15,7 +15,7 @@ const BRAND = {
 };
 
 // Escape a value for safe interpolation into HTML text nodes / attributes.
-function esc(value) {
+function esc(value: unknown): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -25,7 +25,7 @@ function esc(value) {
 }
 
 // Shared responsive shell. `bodyHtml` is trusted, already-escaped markup.
-function layout({ title, bodyHtml, preheader = "" }) {
+function layout({ title, bodyHtml, preheader = "" }: { title: string; bodyHtml: string; preheader?: string }) {
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -65,7 +65,7 @@ function layout({ title, bodyHtml, preheader = "" }) {
 }
 
 // Render a small "label: value" detail row, omitted entirely when value is blank.
-function detailRow(label, value) {
+function detailRow(label: string, value: unknown): string {
   if (!value) return "";
   return `<tr>
     <td style="padding:6px 0;font-size:13px;color:${BRAND.muted};white-space:nowrap;">${esc(label)}</td>
@@ -82,7 +82,7 @@ function detailRow(label, value) {
 // @param {string} [opts.ip]        Originating IP address.
 // @param {string} [opts.userAgent] Browser / device string.
 // @returns {{ subject: string, html: string, text: string }}
-export function loginNotificationEmail({ name, userId, time, ip, userAgent } = {}) {
+export function loginNotificationEmail({ name, userId, time, ip, userAgent }: { name?: string; userId?: string; time?: string; ip?: string; userAgent?: string } = {}) {
   const greetingName = name || userId || "there";
   const subject = "New sign-in to your nompany account";
 
@@ -124,7 +124,7 @@ export function loginNotificationEmail({ name, userId, time, ip, userAgent } = {
 }
 
 // A primary call-to-action button.
-function ctaButton(label, url) {
+function ctaButton(label: string, url: string | undefined): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
     <tr><td style="border-radius:8px;background:${BRAND.color};">
       <a href="${esc(url)}" style="display:inline-block;padding:12px 26px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">${esc(label)}</a>
@@ -134,7 +134,7 @@ function ctaButton(label, url) {
 
 // Email-verification message. Verifying unlocks Studio access; the link expires
 // in 24 hours (a fresh one can be requested from the account page).
-export function verifyEmailEmail({ name, url } = {}) {
+export function verifyEmailEmail({ name, url }: { name?: string; url?: string } = {}) {
   const greetingName = name || "there";
   const subject = "Confirm your nompany email";
   const bodyHtml = `
@@ -151,7 +151,7 @@ export function verifyEmailEmail({ name, url } = {}) {
 }
 
 // A large, selectable one-time code block.
-function codeBlock(code) {
+function codeBlock(code: string | undefined) {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
     <tr><td style="border-radius:10px;background:#f1f5f9;border:1px solid #e2e8f0;padding:16px 28px;">
       <span style="font-family:ui-monospace,Consolas,monospace;font-size:30px;font-weight:700;letter-spacing:8px;color:${BRAND.text};">${esc(code)}</span>
@@ -161,7 +161,7 @@ function codeBlock(code) {
 
 // RESTRUCTURED IDENTITY: email verification is a CODE the person types (their
 // own unique code tied to their email), not a link. See [[nompany-db-restructure]].
-export function verificationCodeEmail({ name, code } = {}) {
+export function verificationCodeEmail({ name, code }: { name?: string; code?: string } = {}) {
   const greetingName = name || "there";
   const subject = "Your nompany verification code";
   const bodyHtml = `
@@ -178,7 +178,7 @@ export function verificationCodeEmail({ name, code } = {}) {
 }
 
 // Password reset — also a typed code (same model as verification).
-export function passwordResetCodeEmail({ name, code } = {}) {
+export function passwordResetCodeEmail({ name, code }: { name?: string; code?: string } = {}) {
   const greetingName = name || "there";
   const subject = "Your nompany password reset code";
   const bodyHtml = `
@@ -196,7 +196,7 @@ export function passwordResetCodeEmail({ name, code } = {}) {
 
 // Studio invitation — a manager invited this address to join their studio.
 // Names the person who invited them (and their email) per the studio's request.
-export function studioInviteEmail({ companyName, url, invitedByName, invitedByEmail } = {}) {
+export function studioInviteEmail({ companyName, url, invitedByName, invitedByEmail }: { companyName?: string; url?: string; invitedByName?: string; invitedByEmail?: string } = {}) {
   const studio = companyName || "a nompany studio";
   const inviter = invitedByName || "A studio manager";
   const subject = `You're invited to join ${studio} on nompany`;
@@ -215,7 +215,7 @@ export function studioInviteEmail({ companyName, url, invitedByName, invitedByEm
 }
 
 // Password-reset message.
-export function passwordResetEmail({ name, url } = {}) {
+export function passwordResetEmail({ name, url }: { name?: string; url?: string } = {}) {
   const greetingName = name || "there";
   const subject = "Reset your nompany password";
   const bodyHtml = `

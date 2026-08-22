@@ -25,10 +25,9 @@
 // top-level GET navigations, and this check still passes header-less clients.
 
 /**
- * @param {Request} request
- * @returns {boolean} true when Origin is present and disagrees with Host
+ * @returns true when Origin is present and disagrees with Host
  */
-export function isCrossSite(request) {
+export function isCrossSite(request: Request): boolean {
   const origin = request.headers.get("origin");
   if (!origin) return false;
   try {

@@ -71,7 +71,7 @@ export async function record({
     };
     return await xAdd(studioId ? S.audit(studioId) : REG.audit, fields, MAX_ENTRIES);
   } catch (e) {
-    log.error(`[audit] could not record "${action}": ${e.message}`);
+    log.error(`[audit] could not record "${action}": ${(e as Error).message}`);
     return null;
   }
 }
@@ -81,7 +81,7 @@ export async function record({
  *
  * @param {string} studioId  "" reads the console's own log
  */
-export async function since(studioId, cursor = "", count = 100) {
+export async function since(studioId: string, cursor = "", count = 100) {
   // xAfter already flattens each entry to { id, ...fields }.
   return xAfter(studioId ? S.audit(studioId) : REG.audit, cursor, count);
 }

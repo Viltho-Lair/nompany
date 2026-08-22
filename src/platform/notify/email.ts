@@ -44,7 +44,7 @@ const TOTAL_BUDGET_MS = 10000;     // hard ceiling on the entire call
 // A 4xx means Resend understood us and said no — a malformed address will still
 // be malformed in a second, so retrying only wastes the caller's time. 429 and
 // 5xx are the transient ones, as are network errors and our own timeout.
-function isRetryable(status) {
+function isRetryable(status: number) {
   return status === 408 || status === 429 || (status >= 500 && status <= 599);
 }
 
@@ -77,7 +77,7 @@ function defaultFrom() {
 
 // Normalise a recipient value into the array-of-strings Resend expects. Accepts
 // a single address or an array; drops blanks and de-dupes.
-function toRecipients(to) {
+function toRecipients(to: string | string[] | undefined): string[] {
   const list = Array.isArray(to) ? to : [to];
   return [...new Set(list.map((v) => String(v || "").trim()).filter(Boolean))];
 }
@@ -101,7 +101,28 @@ function toRecipients(to) {
 //          Never throws — inspect `ok` / `error` if you care about the result.
 //          `attempts` is how many tries it took (or took before giving up).
 //          Retries, timeout and the overall budget are described above.
-export async function sendEmail(opts = {}) {
+export type EmailOptions = {
+  to?: string | string[];
+  subject?: string;
+  html?: string;
+  text?: string;
+  from?: string;
+  replyTo?: string;
+  cc?: string | string[];
+  bcc?: string | string[];
+  attachments?: unknown[];
+  headers?: Record<string, string>;
+};
+
+export type EmailResult = {
+  ok: boolean;
+  skipped?: boolean;
+  id?: string;
+  error?: string;
+  attempts?: number;
+};
+
+export async function sendEmail(opts: EmailOptions = {}): Promise<EmailResult> {
   const { to, subject, html, text, from, replyTo, cc, bcc, attachments, headers } = opts;
 
   const recipients = toRecipients(to);
@@ -121,7 +142,10 @@ export async function sendEmail(opts = {}) {
     return { ok: false, skipped: true, error: "RESEND_API_KEY not configured" };
   }
 
-  const payload = {
+  // BUILT BY ACCUMULATION, so an absent option is an absent field rather than
+  // an explicit null — Resend treats the two differently, and the optional
+  // fields here are exactly the ones it rejects when present and empty.
+  const payload: Record<string, unknown> = {
     from: from || defaultFrom(),
     to: recipients,
     subject,
@@ -164,7 +188,7 @@ export async function sendEmail(opts = {}) {
         signal: controller.signal,
       });
 
-      let data = null;
+      let data: { id?: string; message?: string; error?: string } | null = null;
       try {
         data = await res.json();
       } catch {
@@ -186,9 +210,9 @@ export async function sendEmail(opts = {}) {
       if (Number.isFinite(after) && after > 0) waitMs = after * 1000;
       log.warn(`[email] attempt ${attempt}/${MAX_ATTEMPTS} failed (${res.status}) for "${subject}": ${lastError}`);
     } catch (err) {
-      lastError = err?.name === "AbortError"
+      lastError = (err as Error)?.name === "AbortError"
         ? `no response within ${ATTEMPT_TIMEOUT_MS}ms`
-        : err?.message || "network error";
+        : (err as Error)?.message || "network error";
       log.warn(`[email] attempt ${attempt}/${MAX_ATTEMPTS} errored for "${subject}": ${lastError}`);
     } finally {
       clearTimeout(timer);

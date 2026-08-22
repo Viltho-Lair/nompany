@@ -16,9 +16,20 @@
  * a board that disagrees with the server and stays that way until somebody
  * reloads, which is precisely the failure this feature is supposed to prevent.
  *
- * @returns {{ action: "patch", field: string } | { action: "reload", why: string }}
  */
-export function decide(event, into) {
+export type LiveDecision =
+  | { action: "patch"; field: string }
+  | { action: "reload"; why: string };
+
+/** The event as it comes off the stream; every field may be absent. */
+export type LiveEvent = { type?: string; collection?: string; rowId?: string };
+
+export function decide(
+  event: LiveEvent | null | undefined,
+  // WHICH STATE FIELD HOLDS WHICH COLLECTION, as the board declares it. The
+  // value is the setter's field name, so a board can name it whatever it likes.
+  into: Record<string, string> | null | undefined,
+): LiveDecision {
   if (!event?.collection) return { action: "reload", why: "no collection" };
 
   const field = into?.[event.collection];
@@ -33,7 +44,7 @@ export function decide(event, into) {
   // createdAt, which an edit never touches — so replacing an element in place
   // gives exactly the array a refetch would. A create or a delete changes the
   // length, the order, and the totals rendered above the list.
-  if (event.type !== "row.updated") return { action: "reload", why: event.type };
+  if (event.type !== "row.updated") return { action: "reload", why: event.type || "no type" };
 
   return { action: "patch", field };
 }

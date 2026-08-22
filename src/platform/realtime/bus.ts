@@ -28,14 +28,15 @@
 // cursor — never correctness. Nothing here is allowed to fail a write.
 
 import { getRedisClient } from "@/platform/db/redis";
+import type { RedisClient } from "@/platform/db/redis";
 import { log } from "@/platform/http/observability";
 
 // ---- channels --------------------------------------------------------------
 // Namespaced away from the key space (`s:` `u:` `g:` …) on purpose: channels are
 // not keys, nothing persists them, and no cascade should ever match one.
 export const CH = {
-  studio: (studioId) => `ev:s:${studioId}`,
-  user: (userId) => `nt:u:${userId}`,
+  studio: (studioId: string) => `ev:s:${studioId}`,
+  user: (userId: string) => `nt:u:${userId}`,
   super: "ev:super",
 };
 
@@ -45,13 +46,31 @@ export const CH = {
 // and every message would be delivered once per surviving copy.
 const GLOBAL_KEY = Symbol.for("nompany.bus");
 
+/** What one handler is handed. A published payload is JSON and nothing more. */
+export type BusHandler = (payload: unknown) => void;
+
+type Registry = {
+  handlers: Map<string, Set<BusHandler>>;
+  sub: Promise<RedisClient> | null;
+};
+
+// A SYMBOL-KEYED GLOBAL, AND ONE CAST TO REACH IT. Hanging the registry off
+// globalThis is the whole mechanism — Next's dev server re-evaluates modules on
+// every change, and a module-level Map would be a NEW map each time while the
+// old connection stayed open, so every message would arrive once per surviving
+// copy. `Symbol.for` yields a plain `symbol` rather than a `unique symbol`, so
+// it cannot name a property in a type; a symbol index signature is the shape
+// that does, and it is applied here rather than at each of the three uses.
+type SymbolStore = { [key: symbol]: Registry | undefined };
+
 // The subscriber connection's CLIENT SETNAME. There should never be more than
 // one of these per running process.
 export const SUB_NAME = "nompany-bus-sub";
 
-function registry() {
-  if (!globalThis[GLOBAL_KEY]) {
-    globalThis[GLOBAL_KEY] = {
+function registry(): Registry {
+  const g = globalThis as unknown as SymbolStore;
+  if (!g[GLOBAL_KEY]) {
+    g[GLOBAL_KEY] = {
       // channel → Set<handler>. The set IS the refcount: a channel is
       // SUBSCRIBEd when its first handler arrives and UNSUBSCRIBEd when its
       // last one leaves, so an idle instance holds no subscriptions at all.
@@ -61,7 +80,7 @@ function registry() {
       sub: null,
     };
   }
-  return globalThis[GLOBAL_KEY];
+  return g[GLOBAL_KEY] as Registry;
 }
 
 // The dedicated subscriber connection. node-redis restores its own
@@ -76,7 +95,7 @@ async function subscriber() {
       // ceiling on this deployment, so being able to see at a glance how many
       // of them are bus subscribers is worth the one option.
       const client = (await getRedisClient()).duplicate({ name: SUB_NAME });
-      client.on("error", (err) => log.error(`[bus] subscriber error: ${err.message}`));
+      client.on("error", (err) => log.error(`[bus] subscriber error: ${(err as Error).message}`));
       await client.connect();
       return client;
     })().catch((err) => {
@@ -92,7 +111,7 @@ async function subscriber() {
 // One listener per channel, registered with Redis once. It hands the message to
 // whichever handlers are currently registered — the set is read at delivery
 // time, so a handler that unsubscribed a moment ago never hears anything.
-function deliver(channel, raw) {
+function deliver(channel: string, raw: string): void {
   const set = registry().handlers.get(channel);
   if (!set?.size) return;
   let payload;
@@ -106,7 +125,7 @@ function deliver(channel, raw) {
       handler(payload);
     } catch (e) {
       // One bad listener must not stop the others from being told.
-      log.error(`[bus] handler failed on ${channel}: ${e.message}`);
+      log.error(`[bus] handler failed on ${channel}: ${(e as Error).message}`);
     }
   }
 }
@@ -117,11 +136,8 @@ function deliver(channel, raw) {
  * close path, and neither should have to know whether the other got there
  * first.
  *
- * @param {string} channel
- * @param {(payload: any) => void} handler
- * @returns {Promise<() => Promise<void>>}
  */
-export async function subscribe(channel, handler) {
+export async function subscribe(channel: string, handler: BusHandler): Promise<() => Promise<void>> {
   const reg = registry();
   let set = reg.handlers.get(channel);
 
@@ -133,7 +149,7 @@ export async function subscribe(channel, handler) {
     set.add(handler);
     try {
       const client = await subscriber();
-      await client.subscribe(channel, (raw) => deliver(channel, raw));
+      await client.subscribe(channel, (raw: string) => deliver(channel, raw));
     } catch (e) {
       // Could not subscribe: drop the half-built entry so the next caller
       // retries from scratch instead of listening to a channel Redis never
@@ -162,7 +178,7 @@ export async function subscribe(channel, handler) {
     } catch (e) {
       // The connection is already gone or going. The subscription dies with it,
       // which is the outcome we wanted anyway.
-      log.error(`[bus] unsubscribe failed on ${channel}: ${e.message}`);
+      log.error(`[bus] unsubscribe failed on ${channel}: ${(e as Error).message}`);
     }
   };
 }
@@ -174,14 +190,14 @@ export async function subscribe(channel, handler) {
  * Never throws: callers publish immediately after a write that has already
  * succeeded, and losing the notification is not a reason to fail their request.
  *
- * @returns {Promise<number>} subscribers reached, or 0 if the publish failed
+ * @returns subscribers reached, or 0 if the publish failed
  */
-export async function publish(channel, payload) {
+export async function publish(channel: string, payload: unknown): Promise<number> {
   try {
     const client = await getRedisClient();
     return (await client.publish(channel, JSON.stringify(payload))) || 0;
   } catch (e) {
-    log.error(`[bus] publish failed on ${channel}: ${e.message}`);
+    log.error(`[bus] publish failed on ${channel}: ${(e as Error).message}`);
     return 0;
   }
 }

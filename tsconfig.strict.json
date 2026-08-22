@@ -22,6 +22,10 @@
   "include": [
     "src/shared/**/*",
     "src/platform/access/**/*",
-    "src/platform/db/**/*"
+    "src/platform/db/**/*",
+    "src/platform/http/**/*",
+    "src/platform/realtime/**/*",
+    "src/platform/notify/**/*",
+    "src/platform/relations.ts"
   ]
 }

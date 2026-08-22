@@ -26,7 +26,7 @@
 
 import crypto from "crypto";
 import { IDEM } from "@/platform/db/keys";
-import { getJSON, setJSON, claim, release } from "@/platform/db/store";
+import { getJSON, setJSONEx, claim, release } from "@/platform/db/store";
 
 // Long enough to cover any retry a human or a client library will attempt, short
 // enough that a key is not a permanent record. Stripe uses 24h; there is no
@@ -46,21 +46,32 @@ const IN_FLIGHT = { inFlight: true };
  * endpoint is a different intention, and treating it as a repeat would answer a
  * DELETE with the body of a POST.
  */
-export function digestFor({ identity, method, path, key }) {
+export function digestFor(
+  { identity, method, path, key }:
+  { identity?: string | null; method: string; path: string; key: string },
+): string {
   return crypto.createHash("sha256")
     .update(`${identity || "anon"}|${method}|${path}|${key}`)
     .digest("hex");
 }
 
+/** What a completed answer looks like in the record. */
+type StoredAnswer = { status: number; body: unknown };
+
+/** The three things a first look can find. */
+export type IdempotentStart =
+  | { replay: StoredAnswer }
+  | { busy: true }
+  | { reserved: true };
+
 /**
  * Look for a previous answer, or reserve the right to produce one.
  *
- * @returns {Promise<{replay?: {status:number, body:any}, busy?: boolean, reserved?: boolean}>}
  */
-export async function beginIdempotent(digest) {
+export async function beginIdempotent(digest: string): Promise<IdempotentStart> {
   const key = IDEM.record(digest);
 
-  const existing = await getJSON(key);
+  const existing = await getJSON<StoredAnswer>(key);
   if (existing && typeof existing.status === "number") return { replay: existing };
   if (existing) return { busy: true };
 
@@ -71,7 +82,7 @@ export async function beginIdempotent(digest) {
     // Somebody claimed it between the read and the write. Re-read rather than
     // assuming in-flight: a very fast first request may already have finished,
     // in which case the caller deserves the real answer.
-    const now = await getJSON(key);
+    const now = await getJSON<StoredAnswer>(key);
     if (now && typeof now.status === "number") return { replay: now };
     return { busy: true };
   }
@@ -79,8 +90,19 @@ export async function beginIdempotent(digest) {
 }
 
 /** Record the answer so every later repeat of this key gets it. */
-export async function finishIdempotent(digest, status, body) {
-  await setJSON(IDEM.record(digest), { status, body }, TTL_SEC);
+export async function finishIdempotent(digest: string, status: number, body: unknown): Promise<void> {
+  // setJSONEx, NOT setJSON, AND THIS WAS A BUG. It read `setJSON(key, value,
+  // TTL_SEC)` — a two-parameter function called with three arguments, which
+  // JavaScript accepts in silence and TypeScript refused the moment this file
+  // was converted.
+  //
+  // The consequence was not a missing TTL, it was a CLEARED one. `claim` above
+  // sets the key with EX 24h; a plain Redis SET without KEEPTTL removes the
+  // expiry it finds. So every completed idempotent write left a permanent key,
+  // in a product whose only storage is Redis and whose only eviction policy is
+  // noeviction — the failure mode being that writes eventually stop, platform
+  // wide, from a key space nobody was watching grow.
+  await setJSONEx(IDEM.record(digest), { status, body }, TTL_SEC);
 }
 
 /**
@@ -91,6 +113,6 @@ export async function finishIdempotent(digest, status, body) {
  * — the retry that would have succeeded would be answered with the crash
  * instead. Releasing lets the next attempt run for real.
  */
-export async function abandonIdempotent(digest) {
+export async function abandonIdempotent(digest: string): Promise<void> {
   await release(IDEM.record(digest)).catch(() => {});
 }

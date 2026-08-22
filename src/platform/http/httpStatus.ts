@@ -132,9 +132,9 @@ const TOO_LARGE = ["too-large"];
 // sends them looking in the wrong place.
 const SERVER_FAULT = ["unknown-permission"];
 
-const build = () => {
-  const table = {};
-  const put = (names, status) => { for (const n of names) table[n] = status; };
+const build = (): Readonly<Record<string, number>> => {
+  const table: Record<string, number> = {};
+  const put = (names: readonly string[], status: number) => { for (const n of names) table[n] = status; };
   put(UNAUTHENTICATED, 401);
   put(FORBIDDEN, 403);
   put(NOT_FOUND, 404);
@@ -153,10 +153,9 @@ export const DEFAULT_STATUS = 400;
 /**
  * What HTTP status a service error name is worth.
  *
- * @param {string} error - the `error` field a service returned
- * @returns {number}
+ * @param error - the `error` field a service returned
  */
-export function statusFor(error) {
+export function statusFor(error: string): number {
   return STATUS[error] ?? DEFAULT_STATUS;
 }
 
