@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AreaChart, ChartFrame, ChartSkeleton } from "../../../_components/charts";
+import { AreaChart, ChartFrame, ChartSkeleton } from "@/components/charts";
 import { Skeleton } from "../../../_components/ui";
 import Icon from "../../../_components/Icon";
 

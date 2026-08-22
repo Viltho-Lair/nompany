@@ -1,7 +1,7 @@
 import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Progress, StatCard, Table, Icon,
 } from "../../../_components/ui";
-import { AreaChart, ChartFrame, BarChart, BarList, Donut } from "../../../_components/charts";
+import { AreaChart, ChartFrame, BarChart, BarList, Donut } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 
 export const metadata = { title: "Marketing" };
@@ -120,10 +120,10 @@ export default function MarketingDashboard() {
                 <tr key={c.name}>
                   <td className="whitespace-nowrap font-500">{c.name}</td>
                   <td className="whitespace-nowrap text-[var(--ad-muted-foreground)]">{c.channel}</td>
-                  <td className="ad-num whitespace-nowrap">{c.spend}</td>
-                  <td className="ad-num">{c.leads.toLocaleString()}</td>
-                  <td className="ad-num whitespace-nowrap">{c.cpl}</td>
-                  <td className="ad-num whitespace-nowrap font-500 text-[var(--ad-success)]">{c.roas}</td>
+                  <td className="num whitespace-nowrap">{c.spend}</td>
+                  <td className="num">{c.leads.toLocaleString()}</td>
+                  <td className="num whitespace-nowrap">{c.cpl}</td>
+                  <td className="num whitespace-nowrap font-500 text-[var(--ad-success)]">{c.roas}</td>
                   <td className="text-end"><Badge tone={c.tone}>{c.status}</Badge></td>
                 </tr>
               ))}

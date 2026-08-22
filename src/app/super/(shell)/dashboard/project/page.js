@@ -1,7 +1,7 @@
 import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, Progress, StatCard, Table, Icon,
   toneBg, toneFg, toneInk,} from "../../../_components/ui";
-import { AreaChart, ChartFrame, BarList, Radial } from "../../../_components/charts";
+import { AreaChart, ChartFrame, BarList, Radial } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 
 export const metadata = { title: "Project" };
@@ -141,11 +141,11 @@ export default function ProjectDashboard() {
                   <td>
                     <div className="flex min-w-[130px] items-center gap-2">
                       <Progress value={p.progress} tone={p.tone} height={5} />
-                      <span className="ad-num w-9 shrink-0 text-xs text-[var(--ad-muted-foreground)]">{p.progress}%</span>
+                      <span className="num w-9 shrink-0 text-xs text-[var(--ad-muted-foreground)]">{p.progress}%</span>
                     </div>
                   </td>
                   <td><Badge tone={p.tone}>{p.status}</Badge></td>
-                  <td className="ad-num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{p.due}</td>
+                  <td className="num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{p.due}</td>
                 </tr>
               ))}
             </Table>

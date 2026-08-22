@@ -348,16 +348,16 @@ function QueueSkeleton({ rows = 4 }) {
       {[0, 1].map((section) => (
         <div key={section} className="border-b" style={{ borderColor: "var(--ad-border)" }}>
           <div className="flex items-center gap-2 px-4 py-2.5">
-            <span className="ad-skel ad-skel-text block h-2 w-20" />
+            <span className="skel skel-text block h-2 w-20" />
           </div>
           <ul>
             {Array.from({ length: rows / 2 }, (_, i) => (
               <li key={i} className="flex items-start gap-3 px-4 py-3.5">
-                <span className="ad-skel ad-skel-circle block h-10 w-10 shrink-0" />
+                <span className="skel skel-circle block h-10 w-10 shrink-0" />
                 <span className="min-w-0 flex-1">
-                  <span className="ad-skel ad-skel-text block h-3 w-32" />
-                  <span className="ad-skel ad-skel-text mt-1.5 block h-2.5 w-24 opacity-70" />
-                  <span className="ad-skel ad-skel-text mt-1.5 block h-2 w-28 opacity-70" />
+                  <span className="skel skel-text block h-3 w-32" />
+                  <span className="skel skel-text mt-1.5 block h-2.5 w-24 opacity-70" />
+                  <span className="skel skel-text mt-1.5 block h-2 w-28 opacity-70" />
                 </span>
               </li>
             ))}

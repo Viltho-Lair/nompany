@@ -19,9 +19,9 @@ function SummaryCardSkeleton({ title, sub, rows = 4 }) {
     <Card className="h-full overflow-hidden">
       <CardHead title={title} sub={sub} />
       <div className="grid items-center gap-4 border-b border-[var(--ad-border)] px-6" style={{ gridTemplateColumns: "1fr 80px 100px", height: 40 }}>
-        <Skeleton className="ad-skel-text h-2 w-16 opacity-70" />
-        <Skeleton className="ad-skel-text h-2 w-12 opacity-70" />
-        <Skeleton className="ad-skel-text h-2 w-12 justify-self-end opacity-70" />
+        <Skeleton className="skel-text h-2 w-16 opacity-70" />
+        <Skeleton className="skel-text h-2 w-12 opacity-70" />
+        <Skeleton className="skel-text h-2 w-12 justify-self-end opacity-70" />
       </div>
       {Array.from({ length: rows }, (_, i) => (
         <div
@@ -33,9 +33,9 @@ function SummaryCardSkeleton({ title, sub, rows = 4 }) {
             borderBottom: i === rows - 1 ? "none" : "1px solid var(--ad-border)",
           }}
         >
-          <Skeleton className="ad-skel-text h-2.5 w-24" />
-          <Skeleton className="ad-skel-text h-2.5 w-8" />
-          <Skeleton className="ad-skel-text h-2.5 w-10 justify-self-end" />
+          <Skeleton className="skel-text h-2.5 w-24" />
+          <Skeleton className="skel-text h-2.5 w-8" />
+          <Skeleton className="skel-text h-2.5 w-10 justify-self-end" />
         </div>
       ))}
     </Card>

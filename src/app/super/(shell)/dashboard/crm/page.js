@@ -1,7 +1,7 @@
 import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, Progress, StatCard, Table, Icon,
   toneBg, toneFg, toneInk,} from "../../../_components/ui";
-import { AreaChart, ChartFrame, BarChart, Donut } from "../../../_components/charts";
+import { AreaChart, ChartFrame, BarChart, Donut } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 
 export const metadata = { title: "CRM" };
@@ -143,15 +143,15 @@ export default function CrmPage() {
                       <span className="text-[var(--ad-muted-foreground)]">{d.owner}</span>
                     </span>
                   </td>
-                  <td className="ad-num whitespace-nowrap font-500">{d.value}</td>
+                  <td className="num whitespace-nowrap font-500">{d.value}</td>
                   <td><Badge tone={d.tone}>{d.stage}</Badge></td>
                   <td>
                     <div className="flex min-w-[120px] items-center gap-2">
                       <Progress value={d.prob} tone={d.tone} height={5} />
-                      <span className="ad-num w-9 shrink-0 text-xs text-[var(--ad-muted-foreground)]">{d.prob}%</span>
+                      <span className="num w-9 shrink-0 text-xs text-[var(--ad-muted-foreground)]">{d.prob}%</span>
                     </div>
                   </td>
-                  <td className="ad-num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{d.close}</td>
+                  <td className="num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{d.close}</td>
                 </tr>
               ))}
             </Table>

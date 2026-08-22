@@ -197,7 +197,7 @@ export async function markRead(studioId: string, collaboratorId: string, ids: re
  * where a notice is addressed to one person, the console's audience is "whoever
  * is on duty" — every owner sees the same list.
  */
-export async function notifySuper(notice) {
+export async function notifySuper(notice: Notice) {
   if (!notice?.type || !notice?.title) return null;
   try {
     const row = build(notice);

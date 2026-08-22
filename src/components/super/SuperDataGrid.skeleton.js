@@ -29,16 +29,16 @@ function Bar({ kind, width }) {
   if (kind === "avatar") {
     return (
       <span className="flex items-center gap-3">
-        <span className="ad-skel ad-skel-circle block h-8 w-8 shrink-0" />
+        <span className="skel skel-circle block h-8 w-8 shrink-0" />
         <span className="min-w-0 flex-1">
-          <span className="ad-skel ad-skel-text block h-2.5 w-24" />
-          <span className="ad-skel ad-skel-text mt-1.5 block h-2 w-32 opacity-70" />
+          <span className="skel skel-text block h-2.5 w-24" />
+          <span className="skel skel-text mt-1.5 block h-2 w-32 opacity-70" />
         </span>
       </span>
     );
   }
   if (kind === "pill") {
-    return <span className="ad-skel block h-5 w-16 rounded-full" />;
+    return <span className="skel block h-5 w-16 rounded-full" />;
   }
   // A number bar is narrower and end-aligned, because numeric columns are
   // end-aligned in the grid and a placeholder sitting on the wrong side of the
@@ -46,11 +46,11 @@ function Bar({ kind, width }) {
   if (kind === "number") {
     return (
       <span className="flex justify-end">
-        <span className="ad-skel ad-skel-text block h-2.5 w-12" />
+        <span className="skel skel-text block h-2.5 w-12" />
       </span>
     );
   }
-  return <span className="ad-skel ad-skel-text block h-2.5" style={{ width: width || "70%" }} />;
+  return <span className="skel skel-text block h-2.5" style={{ width: width || "70%" }} />;
 }
 
 export default function SuperDataGridSkeleton({
@@ -78,21 +78,21 @@ export default function SuperDataGridSkeleton({
         <div className="ad-card-head">
           <div className="min-w-0 flex-1">
             {/* 1rem title, 0.75rem sub — the two lines CardHead actually draws. */}
-            <span className="ad-skel block h-4 w-40 rounded-md" />
-            <span className="ad-skel ad-skel-text mt-2 block h-2.5 w-64 max-w-full opacity-70" />
+            <span className="skel block h-4 w-40 rounded-md" />
+            <span className="skel skel-text mt-2 block h-2.5 w-64 max-w-full opacity-70" />
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {Array.from({ length: actions }, (_, i) => (
               // Field height: .ad-input is 0.625rem of padding either side of a
               // 14px line, plus its border — 43px.
-              <span key={i} className="ad-skel block h-[43px] w-40 rounded-xl" />
+              <span key={i} className="skel block h-[43px] w-40 rounded-xl" />
             ))}
           </div>
         </div>
       ) : chrome === "toolbar" ? (
         <div className="flex items-center justify-between gap-3 px-4" style={{ minHeight: GRID_TOOLBAR_HEIGHT }}>
-          <span className="ad-skel block h-9 w-64 max-w-[50%] rounded-xl" />
-          <span className="ad-skel block h-9 w-28 rounded-full" />
+          <span className="skel block h-9 w-64 max-w-[50%] rounded-xl" />
+          <span className="skel block h-9 w-28 rounded-full" />
         </div>
       ) : null}
 
@@ -101,7 +101,7 @@ export default function SuperDataGridSkeleton({
         style={{ gridTemplateColumns: template, height: GRID_HEADER_HEIGHT }}
       >
         {cols.map((c, i) => (
-          <span key={c.field || i} className="ad-skel ad-skel-text block h-2 w-16 opacity-70" />
+          <span key={c.field || i} className="skel skel-text block h-2 w-16 opacity-70" />
         ))}
       </div>
 
@@ -125,9 +125,9 @@ export default function SuperDataGridSkeleton({
         className="flex items-center justify-end gap-4 border-t border-[var(--ad-border)] px-4"
         style={{ minHeight: GRID_FOOTER_HEIGHT }}
       >
-        <span className="ad-skel ad-skel-text block h-2 w-24" />
-        <span className="ad-skel ad-skel-circle block h-7 w-7" />
-        <span className="ad-skel ad-skel-circle block h-7 w-7" />
+        <span className="skel skel-text block h-2 w-24" />
+        <span className="skel skel-circle block h-7 w-7" />
+        <span className="skel skel-circle block h-7 w-7" />
       </div>
     </Card>
   );

@@ -23,6 +23,7 @@ import { ALL_PERMISSIONS, AREAS, ADMIN_ROLE_ID, effectivePermissions } from "@/p
 import { STATUS } from "@/platform/http/httpStatus";
 import { studioContext } from "@/lib/studios";
 import { SESSION_COOKIE } from "@/platform/auth/identity";
+import { EASE_OUT_EXPO, EASE_SOFT, sample as ease, css as easeCss } from "@/components/motion/tokens";
 import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/platform/auth/superAuth";
 import { withCommandCount } from "@/platform/db/commandCount";
 import { withRequest, requestId, redact, log } from "@/platform/http/observability";
@@ -270,7 +271,183 @@ console.log("== the architecture, asserted rather than remembered");
   ok("every key builder is read by something", unread.length === 0, unread.join(", "));
 
 
-  // ---- 4. RTL: physical CSS utilities cannot mirror ------------------------
+  // ---- 3. every route authenticates --------------------------------------
+  // Resolved ONE level through imports, because most routes delegate to a guard
+  // (hrGuard, financeGuard, studioSide, nompanySide) rather than calling
+  // currentUser themselves — a naive scan reports those as unauthenticated and
+  // gets ignored within a week.
+  const AUTH = /currentUser|currentSuperAdmin|cronDenied|studioSide|nompanySide|Guard\(|studioContext/;
+
+  // Deliberately public, each for a stated reason. Adding to this list is how a
+  // new public surface gets argued for, rather than appearing by omission.
+  const PUBLIC = {
+    "api/pricing/route.ts": "the marketing price list",
+    "api/track/route.ts": "anonymous traffic beacon; rate-limited and origin-checked instead",
+    "api/auth/oauth/[provider]/start/route.ts": "starts sign-in; there is no session yet",
+    "api/auth/callback/[provider]/route.ts": "completes sign-in; the provider is the credential",
+    "api/identity/login/route.ts": "the sign-in door",
+    "api/identity/signup/route.ts": "the sign-up door",
+    "api/identity/forgot/route.ts": "password reset request",
+    "api/identity/reset/route.ts": "password reset completion",
+    "api/identity/otp/verify/route.ts": "completes an OTP challenge; the code is the credential",
+    "api/identity/otp/resend/route.ts": "resends a code for an in-flight challenge",
+    "api/identity/logout/route.ts": "clears a cookie; refusing an unauthenticated caller helps nobody",
+    "api/identity/me/route.ts": "answers null when signed out",
+    "api/super/login/route.ts": "the console door",
+    "api/super/logout/route.ts": "clears a cookie",
+    "api/fonts/route.ts": "the document editor's font catalogue; no tenant data",
+    "api/media/[id]/route.ts": "public blobs are public by definition; private ones check membership",
+  };
+
+  const routes = sources.filter((f) => /app\/api\/.*route\.(js|ts)$/.test(f.path));
+  ok("the route scan found the routes", routes.length >= 90, String(routes.length));
+
+  const unguarded = [];
+  for (const route of routes) {
+    const rel = route.path.replace(/^src\/app\//, "");
+    if (PUBLIC[rel]) continue;
+    if (AUTH.test(route.text)) continue;
+    // One hop: does anything it imports do the authenticating?
+    //
+    // FOLLOWS ANY `@/` SPECIFIER, not just `@/lib`. Wave 3 moves modules out to
+    // `@/platform` and `@/shared` one folder at a time, and a check that only
+    // knew about `@/lib` would stop seeing the guard a route delegates to —
+    // reporting it unguarded when nothing changed but an import path. A test
+    // that cries wolf on a refactor gets an exception list, and an exception
+    // list is where real holes hide.
+    const imported = [...route.text.matchAll(/from "@\/([a-zA-Z0-9/_-]+)"/g)].map((m) => m[1]);
+    const delegated = imported.some((mod) => {
+      const file = sources.find((f) => ["", ".js", ".ts", "/index.js", "/index.ts"]
+        .some((ext) => f.path === `src/${mod}${ext}`));
+      return file && AUTH.test(file.text);
+    });
+    if (!delegated) unguarded.push(rel);
+  }
+  ok("every route authenticates, directly or through a guard",
+    unguarded.length === 0, unguarded.join(", "));
+
+  // ---- 4. the shared kit is actually shareable ----------------------------
+  //
+  // Wave 4 gives all twelve departments a dashboard, so the chart kit and the
+  // motion primitives moved out of the two places that owned them. A move like
+  // that fails QUIETLY in three specific ways, and each one below is one of
+  // them — none would fail a build, and the first two only show up as a screen
+  // that looks slightly wrong to somebody who is not looking for it.
+  {
+    const globals = readFileSync("src/app/globals.css", "utf8");
+    const superCss = readFileSync("src/app/super/super.css", "utf8");
+
+    // (a) THE TOKENS THE KIT DRAWS WITH MUST EXIST WHERE IT IS USED.
+    // `--ad-chart-*`, `--ad-muted*` and `--ad-border` are all declared INSIDE
+    // `.admindek`, and super.css is imported by `/super/layout.js` alone. A
+    // chart carrying those into a studio screen renders every series with an
+    // invalid colour — which paints black, or nothing, depending on the
+    // property. It builds, it deploys, and it is wrong.
+    const kit = sources.filter((f) => f.path.startsWith("src/components/charts/"));
+    ok("the chart kit is where the scan expects it", kit.length > 0, String(kit.length));
+    const consoleOnly = kit.flatMap((f) =>
+      [...f.text.matchAll(/var\(--ad-[a-z0-9-]+\)/g)].map((m) => `${f.path.split("/").pop()}:${m[0]}`));
+    ok("the shared chart kit uses no console-only token",
+      consoleOnly.length === 0, consoleOnly.join(", "));
+
+    // ...and the ramp it DOES use is on :root, not in a scope.
+    // Matched with a regex rather than by scanning for a closing brace at the
+    // start of a line: the file is CRLF on disk and is read verbatim, so that
+    // scan would be hunting for the wrong two characters and would quietly
+    // find nothing, which reads here as "the ramp is missing".
+    // EVERY `:root` rule, not the first — globals.css has four of them (the
+    // brand scale, the semantic layer, the studio surface, the doc tokens) and
+    // matching only the first found nothing while the ramp sat in the fourth.
+    const rootBlock = (globals.match(/:root\s*\{[^}]*}/g) || []).join("");
+    const ramp = [1, 2, 3, 4, 5].filter((n) => rootBlock.includes(`--chart-${n}:`));
+    ok("the five-series ramp is declared on :root", ramp.length === 5, `${ramp.length}/5`);
+    // And the console aliases it rather than restating it — one definition, so
+    // a retuned series cannot mean two different things on two surfaces.
+    ok("...and /super aliases that ramp rather than redeclaring it",
+      superCss.includes("--ad-chart-1-rgb: var(--chart-1)"));
+
+    // (b) THE UTILITY CLASSES TOO. `.num` and `.skel` were `.ad-num`/`.ad-skel`
+    // in super.css; the kit's own ChartSkeleton and BarList use them. Left
+    // behind, a studio skeleton would be an invisible box of the right size —
+    // a card that looks empty rather than loading.
+    ok("the number and skeleton utilities are global",
+      globals.includes(".num {") && globals.includes(".skel {"));
+    ok("...and no longer in the console's own sheet",
+      !superCss.includes(".num {") && !superCss.includes(".skel {"));
+    ok("...and the sweep keyframe moved with them", globals.includes("@keyframes skel-sweep"));
+
+    // (c) THE STUDIO'S CHUNK STAYS CLEAR OF `motion/react`.
+    //
+    // THE ONE THAT ACTUALLY COSTS MONEY. The library is ~30 KB gzipped and is
+    // today confined to components/landing/** — which is the only reason the
+    // studio's chunk does not carry it. The landing's CountUp used it, and
+    // Wave 4 wants a rolling KPI figure on every department dashboard: one
+    // `import { CountUp } from "@/components/landing/ui/CountUp"` in a studio
+    // card and every studio route pays for the landing's animation library.
+    // The shared one in components/motion is hand-driven for exactly this
+    // reason, and this holds the line. The landing may keep using it.
+    const leaked = sources
+      .filter((f) => f.text.includes('"motion/react"') || f.text.includes("'motion/react'"))
+      .filter((f) => !f.path.startsWith("src/components/landing/"))
+      .map((f) => f.path);
+    ok("motion/react stays inside the landing", leaked.length === 0, leaked.join(", "));
+    // ...and the scan can see it at all, or the line above passes on an empty set.
+    const usesIt = sources.filter((f) => f.text.includes('"motion/react"')).length;
+    ok("...and the scan is finding real imports of it", usesIt > 5, String(usesIt));
+
+    // (e) THE EASING ARITHMETIC, because it replaced a library's.
+    //
+    // CountUp used to hand `motion/react` a cubic-bezier and let it drive the
+    // number; the shared one samples the curve itself so the studio does not
+    // ship the library. That swap moved real maths into this repo, and a
+    // Newton-Raphson solve that quietly falls back to linear looks fine in a
+    // screenshot — the count still lands on the right figure, it just arrives
+    // mechanically. Nobody would file that, so it is asserted here.
+    //
+    // NOT VERIFIABLE IN THE BROWSER PANE, which never composites and therefore
+    // never fires requestAnimationFrame: an animation cannot be watched there
+    // at all. Deterministic arithmetic is the check that actually works.
+    ok("the curve is pinned at both ends",
+      ease(EASE_OUT_EXPO, 0) === 0 && ease(EASE_OUT_EXPO, 1) === 1);
+    ok("...and clamps outside them",
+      ease(EASE_OUT_EXPO, -1) === 0 && ease(EASE_OUT_EXPO, 2) === 1);
+
+    let monotonic = true;
+    let prev = -1;
+    for (let i = 0; i <= 100; i++) {
+      const v = ease(EASE_OUT_EXPO, i / 100);
+      if (v < prev - 1e-9) monotonic = false;
+      prev = v;
+    }
+    ok("...and never goes backwards", monotonic);
+
+    // THE ONE THAT CATCHES A LINEAR FALLBACK. EASE_OUT_EXPO decelerates hard,
+    // so it is most of the way there by the time it is a quarter through —
+    // a linear solve would answer 0.25 here, and 0.5 at the midpoint.
+    const quarter = ease(EASE_OUT_EXPO, 0.25);
+    const half = ease(EASE_OUT_EXPO, 0.5);
+    ok("an out-expo curve is well ahead of linear early on",
+      quarter > 0.6 && half > 0.85, `t=.25 -> ${quarter.toFixed(3)}, t=.5 -> ${half.toFixed(3)}`);
+    // ...and the symmetric one is not, or the test above would pass on any
+    // curve at all.
+    const soft = ease(EASE_SOFT, 0.25);
+    ok("...while the symmetric one is behind it", soft < 0.15, soft.toFixed(3));
+    ok("EASE_SOFT is symmetric about its midpoint",
+      Math.abs(ease(EASE_SOFT, 0.5) - 0.5) < 1e-3, ease(EASE_SOFT, 0.5).toFixed(4));
+
+    // The same numbers reach CSS unchanged, for the transitions that are
+    // declarative rather than driven.
+    ok("the curve serialises to a CSS value",
+      easeCss(EASE_OUT_EXPO) === "cubic-bezier(0.16, 1, 0.3, 1)", easeCss(EASE_OUT_EXPO));
+
+    // (d) NOTHING IMPORTS THE COPIES THAT WERE DELETED.
+    const stale = sources
+      .filter((f) => /components\/(Reveal|landing\/ui\/CountUp)"/.test(f.text))
+      .map((f) => f.path);
+    ok("nothing still imports the superseded copies", stale.length === 0, stale.join(", "));
+  }
+
+  // ---- 5. RTL: physical CSS utilities cannot mirror ------------------------
   //
   // A studio in Arabic mirrors from ONE attribute — `dir` on the shell — because
   // ps-/pe-, ms-/me-, start-/end- and border-s- are logical properties and the
@@ -344,61 +521,6 @@ console.log("== the architecture, asserted rather than remembered");
     // pass that proves nothing — the same failure the write-scan had.
     ok("...and the scan is reading real files", offenders.length > 0, String(offenders.length));
   }
-
-  // ---- 3. every route authenticates --------------------------------------
-  // Resolved ONE level through imports, because most routes delegate to a guard
-  // (hrGuard, financeGuard, studioSide, nompanySide) rather than calling
-  // currentUser themselves — a naive scan reports those as unauthenticated and
-  // gets ignored within a week.
-  const AUTH = /currentUser|currentSuperAdmin|cronDenied|studioSide|nompanySide|Guard\(|studioContext/;
-
-  // Deliberately public, each for a stated reason. Adding to this list is how a
-  // new public surface gets argued for, rather than appearing by omission.
-  const PUBLIC = {
-    "api/pricing/route.ts": "the marketing price list",
-    "api/track/route.ts": "anonymous traffic beacon; rate-limited and origin-checked instead",
-    "api/auth/oauth/[provider]/start/route.ts": "starts sign-in; there is no session yet",
-    "api/auth/callback/[provider]/route.ts": "completes sign-in; the provider is the credential",
-    "api/identity/login/route.ts": "the sign-in door",
-    "api/identity/signup/route.ts": "the sign-up door",
-    "api/identity/forgot/route.ts": "password reset request",
-    "api/identity/reset/route.ts": "password reset completion",
-    "api/identity/otp/verify/route.ts": "completes an OTP challenge; the code is the credential",
-    "api/identity/otp/resend/route.ts": "resends a code for an in-flight challenge",
-    "api/identity/logout/route.ts": "clears a cookie; refusing an unauthenticated caller helps nobody",
-    "api/identity/me/route.ts": "answers null when signed out",
-    "api/super/login/route.ts": "the console door",
-    "api/super/logout/route.ts": "clears a cookie",
-    "api/fonts/route.ts": "the document editor's font catalogue; no tenant data",
-    "api/media/[id]/route.ts": "public blobs are public by definition; private ones check membership",
-  };
-
-  const routes = sources.filter((f) => /app\/api\/.*route\.(js|ts)$/.test(f.path));
-  ok("the route scan found the routes", routes.length >= 90, String(routes.length));
-
-  const unguarded = [];
-  for (const route of routes) {
-    const rel = route.path.replace(/^src\/app\//, "");
-    if (PUBLIC[rel]) continue;
-    if (AUTH.test(route.text)) continue;
-    // One hop: does anything it imports do the authenticating?
-    //
-    // FOLLOWS ANY `@/` SPECIFIER, not just `@/lib`. Wave 3 moves modules out to
-    // `@/platform` and `@/shared` one folder at a time, and a check that only
-    // knew about `@/lib` would stop seeing the guard a route delegates to —
-    // reporting it unguarded when nothing changed but an import path. A test
-    // that cries wolf on a refactor gets an exception list, and an exception
-    // list is where real holes hide.
-    const imported = [...route.text.matchAll(/from "@\/([a-zA-Z0-9/_-]+)"/g)].map((m) => m[1]);
-    const delegated = imported.some((mod) => {
-      const file = sources.find((f) => ["", ".js", ".ts", "/index.js", "/index.ts"]
-        .some((ext) => f.path === `src/${mod}${ext}`));
-      return file && AUTH.test(file.text);
-    });
-    if (!delegated) unguarded.push(rel);
-  }
-  ok("every route authenticates, directly or through a guard",
-    unguarded.length === 0, unguarded.join(", "));
 }
 
 // ============================================================================

@@ -1,7 +1,7 @@
 import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Progress, KpiTile, Table, Icon,
 } from "../../../_components/ui";
-import { AreaChart, ChartFrame, BarList, Radial } from "../../../_components/charts";
+import { AreaChart, ChartFrame, BarList, Radial } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 
 export const metadata = { title: "SaaS" };

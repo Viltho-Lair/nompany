@@ -73,14 +73,15 @@
   --ad-input-rgb: var(--doc-input);
   --ad-ring-rgb: var(--doc-ring);
 
-  /* The five-series chart ramp. Brand first, then the semantic states, then a
-     neutral — so a chart legend and a status pill for the same thing are the
-     same colour, which is most of what a semantic layer is for. */
-  --ad-chart-1-rgb: var(--doc-primary);
-  --ad-chart-2-rgb: var(--doc-success);
-  --ad-chart-3-rgb: var(--doc-warning);
-  --ad-chart-4-rgb: var(--doc-info);
-  --ad-chart-5-rgb: var(--doc-muted-foreground);
+  /* The five-series chart ramp, now an alias of the one on :root in globals.css
+     — the studio draws charts too, and two definitions of one ramp is how the
+     console and the studio come to disagree about what "series 2" looks like.
+     The values are unchanged; only where they are stated has moved. */
+  --ad-chart-1-rgb: var(--chart-1);
+  --ad-chart-2-rgb: var(--chart-2);
+  --ad-chart-3-rgb: var(--chart-3);
+  --ad-chart-4-rgb: var(--chart-4);
+  --ad-chart-5-rgb: var(--chart-5);
 
   /* The rail is a SURFACE, not a slab of navy. The Studio's sidebar is a card
      floating on the page, so the console's is too, and it needs no tokens of
@@ -414,18 +415,6 @@
     line-height: 1.5;
   }
 
-  /* Numbers ---------------------------------------------------------------
-     EVERY reference, quantity, currency, ID and date in this product renders
-     through here. Tabular figures are not decoration: a column of `1,284` over
-     `9,911` only reads as a column when the digits share an advance, and
-     `INV-0042` beside `INV-0421` only compares at a glance in a fixed one. */
-  .ad-num {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: "tnum" 1;
-    letter-spacing: -0.01em;
-  }
-
   /* Table ----------------------------------------------------------------- */
   .ad-table {
     width: 100%;
@@ -528,39 +517,6 @@
     overflow-x: hidden;
   }
 
-  /* Skeletons -------------------------------------------------------------
-     A skeleton exists to RESERVE THE BOX, so the thing that arrives lands where
-     the placeholder stood. The sweep is a pseudo-element translating across the
-     block rather than an animated background-position, because a transform is
-     composited and background-position is not — twenty rows of the second
-     choice repaint the whole table every frame. */
-  .ad-skel {
-    position: relative;
-    overflow: hidden;
-    border-radius: 0.375rem;
-    background-color: rgb(var(--ad-muted-foreground-rgb) / 0.16);
-  }
-  .ad-skel::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    transform: translate3d(-100%, 0, 0);
-    background-image: linear-gradient(
-      90deg,
-      transparent,
-      rgb(var(--ad-card-rgb) / 0.55),
-      transparent
-    );
-    animation: ad-skel-sweep 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-  }
-  .ad-skel-text {
-    height: 0.75rem;
-    border-radius: 9999px;
-  }
-  .ad-skel-circle {
-    border-radius: 9999px;
-  }
-
   /* Direction-aware slide ------------------------------------------------
      Tailwind has no logical translate — there is no `translate-s-full` — so
      every drawer in this console used to carry an `ltr:translate-x-full
@@ -590,12 +546,6 @@
 .admindek[dir="rtl"],
 [dir="rtl"] .admindek {
   --ad-flip: -1;
-}
-
-@keyframes ad-skel-sweep {
-  to {
-    transform: translate3d(100%, 0, 0);
-  }
 }
 
 /* THE RAIL'S WIDTH, AND THE MARGIN BESIDE IT — driven by `.ad-collapsed` on the
@@ -642,9 +592,6 @@
   }
 }
 
-/* Reduced motion. The skeleton keeps its box and its tone and simply stops
-   sweeping — a still placeholder is the point; the shimmer was only ever a hint
-   that the wait is still going. */
 @media (prefers-reduced-motion: reduce) {
   .admindek *,
   .admindek *::before,
@@ -652,8 +599,5 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-  .admindek .ad-skel::after {
-    display: none;
   }
 }

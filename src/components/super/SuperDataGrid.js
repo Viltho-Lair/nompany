@@ -132,7 +132,7 @@ export default function SuperDataGrid({
       },
 
       // Figures are tabular WHEREVER they land in the grid. A column opts in by
-      // setting `cellClassName: "ad-num"`; this makes the pagination counts
+      // setting `cellClassName: "num"`; this makes the pagination counts
       // ("11–20 of 214") tabular too, so the footer stops twitching as you page.
       [`& .${gridClasses.footerContainer} .MuiTablePagination-displayedRows`]: {
         fontVariantNumeric: "tabular-nums",

@@ -212,9 +212,34 @@ Dates render through `fmtDate`/`fmtDateTime` in `src/lib/format.js`, which resol
 studio locale (`en-GB` default → **dd/mm/yyyy**). Never `toLocaleDateString()` at a call
 site; roughly a dozen such calls survive and are being converged.
 
-**Browser-pane trap:** the pane does not composite unless displayed, which freezes CSS
-transitions, so `getComputedStyle` returns stale mid-transition colours. Inject
-`*{transition:none!important}` before measuring anything with `transition-colors`.
+**Charts, numbers and skeletons are shared, and their tokens are on `:root`.**
+`src/components/charts` draws with `--chart-1..5`; `.num` (tabular figures) and
+`.skel`/`.skel-text`/`.skel-circle` are in `globals.css`. All of these were
+`--ad-chart-*`, `.ad-num` and `.ad-skel` inside `.admindek`, which is imported by
+`/super/layout.js` alone — a component carrying a console-scoped token into a studio
+screen resolves it to nothing and still builds. `/super` aliases the shared ramp
+rather than restating it. Gate A asserts both halves.
+
+**`motion/react` may not be imported outside `src/components/landing/`.** It is ~30 KB
+gzipped and that confinement is the only reason the studio's chunk does not carry it.
+Shared motion primitives live in `src/components/motion` and are hand-driven —
+`Reveal`, `CountUp`, and the house curves in `tokens.ts`, which the landing imports
+back. Gate A holds the line.
+
+**Browser-pane traps**, two of them, both paid for:
+
+- The pane does not composite unless displayed, which freezes CSS transitions, so
+  `getComputedStyle` returns stale mid-transition colours. Inject
+  `*{transition:none!important}` before measuring anything with `transition-colors`.
+- For the same reason `requestAnimationFrame` never fires and `IntersectionObserver`
+  never delivers, so **an animation cannot be observed there at all** — a working
+  count-up and a broken one look identical. Assert the arithmetic instead, and have
+  the component server-render its settled state so the pane is still worth looking at.
+
+**Verifying a screen needs a session, and `npm run dev:sandbox` is how.** It sets
+`NOMPANY_KEY_PREFIX` before Next starts, seeds one account and one studio, and prints
+the login — `sandbox@nompany.test` at `localhost:3010/sandbox`. `npm run dev` has no
+prefix and therefore *is* production. Sweep with `npm run dev:sandbox:clean`.
 
 ---
 

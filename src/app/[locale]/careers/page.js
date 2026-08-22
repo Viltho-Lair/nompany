@@ -1,6 +1,6 @@
 import Link from "next/link";
 import EditorialHeader from "@/components/public/EditorialHeader";
-import Reveal from "@/components/Reveal";
+import Reveal from "@/components/motion/Reveal";
 import { getDict, field } from "@/shared/i18n";
 import { buildMetadata, breadcrumbLd, urlFor } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";

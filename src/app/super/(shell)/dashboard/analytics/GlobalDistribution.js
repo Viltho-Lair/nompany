@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AreaChart, ChartFrame, ChartSkeleton } from "../../../_components/charts";
+import { AreaChart, ChartFrame, ChartSkeleton } from "@/components/charts";
 import { Skeleton } from "../../../_components/ui";
 
 // Global User Distribution, on the real geography of the traffic.
@@ -70,7 +70,7 @@ export default function GlobalDistribution() {
             {loading ? (
               <Skeleton className="h-6 w-20 rounded-md" />
             ) : (
-              <p className="ad-num text-xl font-700" style={{ color: c.color }}>
+              <p className="num text-xl font-700" style={{ color: c.color }}>
                 {fmt(c.visits)}
               </p>
             )}

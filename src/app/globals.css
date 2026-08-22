@@ -311,6 +311,10 @@
   html { scroll-behavior: auto; }
   .animate-pulseRing,
   .animate-fadeUp { animation: none !important; }
+  /* The skeleton keeps its box and its tone and simply stops sweeping — a still
+     placeholder is the point; the shimmer was only ever a hint that the wait is
+     still going. */
+  .skel::after { display: none; }
 }
 
 /* Studio "Control Panel" surface tokens (Geex design system), scoped to the
@@ -488,6 +492,69 @@ html.studio-chrome ::-webkit-scrollbar-corner {
 }
 @media (prefers-reduced-motion: reduce) {
   .plan-tag::after { animation: none; opacity: 0; }
+}
+
+/* ============================================================================
+   NUMBERS AND SKELETONS — app-wide, because both surfaces need them.
+   ==========================================================================
+   These began in `super.css` as `.num` and `.skel`, when only the console
+   had tables of figures and cards that fetched. Wave 4 gives every department a
+   dashboard, so both are now general utilities and the console prefix has gone
+   with them — a studio HR screen reading `skel` would be naming the wrong
+   design system. Tokens are `--doc-*`, which live on :root; the `--ad-*` ones
+   never leave `.admindek`.
+   ========================================================================== */
+@layer tw-components {
+  /* Numbers ---------------------------------------------------------------
+     EVERY reference, quantity, currency, ID and date in this product renders
+     through here. Tabular figures are not decoration: a column of `1,284` over
+     `9,911` only reads as a column when the digits share an advance, and
+     `INV-0042` beside `INV-0421` only compares at a glance in a fixed one. */
+  .num {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.01em;
+  }
+
+  /* Skeletons -------------------------------------------------------------
+     A skeleton exists to RESERVE THE BOX, so the thing that arrives lands where
+     the placeholder stood. The sweep is a pseudo-element translating across the
+     block rather than an animated background-position, because a transform is
+     composited and background-position is not — twenty rows of the second
+     choice repaint the whole table every frame. */
+  .skel {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.375rem;
+    background-color: rgb(var(--doc-muted-foreground) / 0.16);
+  }
+  .skel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translate3d(-100%, 0, 0);
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--doc-card) / 0.55),
+      transparent
+    );
+    animation: skel-sweep 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+  .skel-text {
+    height: 0.75rem;
+    border-radius: 9999px;
+  }
+  .skel-circle {
+    border-radius: 9999px;
+  }
+}
+
+@keyframes skel-sweep {
+  to {
+    transform: translate3d(100%, 0, 0);
+  }
 }
 
 /* Controlled documents (Quality → Documents) style themselves.
@@ -696,6 +763,21 @@ html.studio-chrome ::-webkit-scrollbar-corner {
   --doc-warning-foreground: 255 255 255;
   --doc-info: 2 132 199;              /* sky-600    - In Progress */
   --doc-info-foreground: 255 255 255;
+
+  /* THE FIVE-SERIES CHART RAMP, on :root because both surfaces draw charts now.
+     It began scoped to `.admindek` when only the console had them; the studio's
+     department dashboards read the same five, so one definition serves both and
+     `--ad-chart-*` aliases these rather than restating them.
+
+     Brand first, then the semantic states, then a neutral — so a chart legend
+     and a status pill for the same thing are the same colour, which is most of
+     what a semantic layer is for. Channel triples, not hexes, so a series can
+     be drawn at `rgb(var(--chart-1) / .28)` for its area fill. */
+  --chart-1: var(--doc-primary);
+  --chart-2: var(--doc-success);
+  --chart-3: var(--doc-warning);
+  --chart-4: var(--doc-info);
+  --chart-5: var(--doc-muted-foreground);
 }
 
 .dark {

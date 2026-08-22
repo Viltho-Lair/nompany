@@ -1,7 +1,7 @@
 import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, Progress, KpiTile, Table, Icon,
 } from "../../../_components/ui";
-import { AreaChart, ChartFrame, BarChart, Donut, BarList } from "../../../_components/charts";
+import { AreaChart, ChartFrame, BarChart, Donut, BarList } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 
 export const metadata = { title: "eCommerce" };
@@ -131,8 +131,8 @@ export default function EcommerceDashboard() {
                       <p className="text-xs text-[var(--ad-muted-foreground)]">{p.sku}</p>
                     </div>
                   </td>
-                  <td className="ad-num whitespace-nowrap">{p.sold.toLocaleString()}</td>
-                  <td className="ad-num whitespace-nowrap font-500">{p.revenue}</td>
+                  <td className="num whitespace-nowrap">{p.sold.toLocaleString()}</td>
+                  <td className="num whitespace-nowrap font-500">{p.revenue}</td>
                   <td>
                     {p.stock === 0 ? (
                       <Badge tone="danger">Out of stock</Badge>
@@ -182,17 +182,17 @@ export default function EcommerceDashboard() {
             <Table head={["Order", "Customer", "Items", "Total", "Status", { label: "Date", align: "end" }]}>
               {ORDERS.map((o) => (
                 <tr key={o.id}>
-                  <td className="ad-num whitespace-nowrap font-500 text-[var(--ad-primary)]">{o.id}</td>
+                  <td className="num whitespace-nowrap font-500 text-[var(--ad-primary)]">{o.id}</td>
                   <td>
                     <span className="inline-flex items-center gap-2.5 whitespace-nowrap">
                       <Avatar name={o.customer} size={30} />
                       {o.customer}
                     </span>
                   </td>
-                  <td className="ad-num">{o.items}</td>
-                  <td className="ad-num whitespace-nowrap font-500">{o.total}</td>
+                  <td className="num">{o.items}</td>
+                  <td className="num whitespace-nowrap font-500">{o.total}</td>
                   <td><Badge tone={o.tone}>{o.status}</Badge></td>
-                  <td className="ad-num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{o.date}</td>
+                  <td className="num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{o.date}</td>
                 </tr>
               ))}
             </Table>

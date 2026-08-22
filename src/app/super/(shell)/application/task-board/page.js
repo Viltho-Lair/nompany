@@ -67,7 +67,7 @@ export default function TaskBoardPage() {
               <div className="mb-4 flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TONE_FG[col.tone] }} />
                 <h6 className="text-sm font-600">{col.name}</h6>
-                <span className="ad-num text-xs text-[var(--ad-muted-foreground)]">{col.tasks.length}</span>
+                <span className="num text-xs text-[var(--ad-muted-foreground)]">{col.tasks.length}</span>
                 <button type="button" className="ad-icon-btn ms-auto h-7 w-7" aria-label={`Add to ${col.name}`}>
                   <Icon name="plus" className="h-3.5 w-3.5" />
                 </button>

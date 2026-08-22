@@ -44,15 +44,15 @@ function ListSkeleton({ view, rows = 6 }) {
             key={i}
             className="flex items-center gap-3 border-b border-[var(--ad-border)] px-5 py-3 last:border-0"
           >
-            <span className="ad-skel block h-8 w-8 shrink-0 rounded-lg" />
+            <span className="skel block h-8 w-8 shrink-0 rounded-lg" />
             <span className="min-w-0 flex-1">
-              <span className="ad-skel ad-skel-text block h-3 w-48 max-w-full" />
-              <span className="ad-skel ad-skel-text mt-1.5 block h-2 w-28 opacity-70" />
+              <span className="skel skel-text block h-3 w-48 max-w-full" />
+              <span className="skel skel-text mt-1.5 block h-2 w-28 opacity-70" />
             </span>
-            <span className="ad-skel ad-skel-text hidden h-2.5 w-24 sm:block" />
-            <span className="ad-skel ad-skel-text hidden h-2.5 w-10 sm:block" />
-            <span className="ad-skel ad-skel-text hidden h-2.5 w-10 sm:block" />
-            <span className="ad-skel ad-skel-text hidden h-2.5 w-20 sm:block" />
+            <span className="skel skel-text hidden h-2.5 w-24 sm:block" />
+            <span className="skel skel-text hidden h-2.5 w-10 sm:block" />
+            <span className="skel skel-text hidden h-2.5 w-10 sm:block" />
+            <span className="skel skel-text hidden h-2.5 w-20 sm:block" />
           </div>
         ))}
       </div>
@@ -68,10 +68,10 @@ function ListSkeleton({ view, rows = 6 }) {
       <span className="sr-only">{label}…</span>
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)] p-4">
-          <span className="ad-skel block h-10 w-10 rounded-lg" />
-          <span className="ad-skel ad-skel-text mt-3 block h-3 w-32 max-w-full" />
-          <span className="ad-skel ad-skel-text mt-2 block h-2 w-24 opacity-70" />
-          <span className="ad-skel ad-skel-text mt-3 block h-2 w-40 max-w-full opacity-70" />
+          <span className="skel block h-10 w-10 rounded-lg" />
+          <span className="skel skel-text mt-3 block h-3 w-32 max-w-full" />
+          <span className="skel skel-text mt-2 block h-2 w-24 opacity-70" />
+          <span className="skel skel-text mt-3 block h-2 w-40 max-w-full opacity-70" />
         </div>
       ))}
     </div>

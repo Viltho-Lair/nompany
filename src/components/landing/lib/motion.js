@@ -3,10 +3,17 @@
    easing/spring from here so the whole page feels like one system
    instead of a pile of individually-tuned animations.
 ------------------------------------------------------------------ */
-/** Expressive deceleration — the house curve for entrances. */
-export const EASE_OUT_EXPO = [0.16, 1, 0.3, 1];
-/** Symmetric curve for loops and state swaps. */
-export const EASE_SOFT = [0.65, 0, 0.35, 1];
+/* THE TWO CURVES NOW LIVE IN `components/motion/tokens.ts`, because the studio
+   eases things too and must not import this file — everything else here is a
+   `motion/react` variant object, and that library is the one thing the studio's
+   chunk is kept clear of. Re-exported rather than restated: two copies of a
+   cubic-bezier drift the moment one is tuned. */
+// IMPORTED AND RE-EXPORTED, not re-exported alone: `export ... from` creates
+// no local binding, and `fadeUp` below eases with EASE_OUT_EXPO. Written the
+// short way first, this file built cleanly and threw "EASE_OUT_EXPO is not
+// defined" in the browser — a .js file has no type checker to notice.
+import { EASE_OUT_EXPO, EASE_SOFT } from "@/components/motion/tokens";
+export { EASE_OUT_EXPO, EASE_SOFT };
 /** Springs. Low-stiffness/high-damping = premium, not bouncy-toy. */
 export const SPRING_SOFT = {
     type: "spring",

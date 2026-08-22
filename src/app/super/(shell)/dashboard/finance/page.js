@@ -1,7 +1,7 @@
 import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Progress, StatCard, Table, Icon,
 } from "../../../_components/ui";
-import { AreaChart, ChartFrame, BarChart, Donut, Sparkline } from "../../../_components/charts";
+import { AreaChart, ChartFrame, BarChart, Donut, Sparkline } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 
 export const metadata = { title: "Finance" };
@@ -149,10 +149,10 @@ export default function FinanceDashboard() {
             <Table head={["Invoice", "Client", "Amount", "Due", { label: "Status", align: "end" }]}>
               {INVOICES.map((v) => (
                 <tr key={v.id}>
-                  <td className="ad-num whitespace-nowrap font-500 text-[var(--ad-primary)]">{v.id}</td>
+                  <td className="num whitespace-nowrap font-500 text-[var(--ad-primary)]">{v.id}</td>
                   <td className="whitespace-nowrap">{v.client}</td>
-                  <td className="ad-num whitespace-nowrap font-500">{v.amount}</td>
-                  <td className="ad-num whitespace-nowrap text-[var(--ad-muted-foreground)]">{v.due}</td>
+                  <td className="num whitespace-nowrap font-500">{v.amount}</td>
+                  <td className="num whitespace-nowrap text-[var(--ad-muted-foreground)]">{v.due}</td>
                   <td className="text-end"><Badge tone={v.tone}>{v.status}</Badge></td>
                 </tr>
               ))}

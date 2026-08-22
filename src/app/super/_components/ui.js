@@ -4,7 +4,7 @@
 // Everything here now speaks the ERP's language rather than the template's: geex
 // radius, pill buttons, uppercase micro-labels, and — the change with the widest
 // reach — every figure rendered through `<Num>`, which is monospaced and
-// tabular. See the `.ad-num` note in super.css for why that is not cosmetic.
+// tabular. See the `.num` note in globals.css for why that is not cosmetic.
 //
 // NO LITERAL COLOURS. The tone table below used to hold `rgba(70,128,255,.12)`
 // and friends: tints hand-mixed from the template's palette, which meant a badge
@@ -113,7 +113,7 @@ export function Col({ span = 12, className = "", children }) {
 // need a second wrapper just to pick up the face.
 export function Num({ as: As = "span", className = "", children, ...rest }) {
   return (
-    <As className={`ad-num ${className}`} {...rest}>
+    <As className={`num ${className}`} {...rest}>
       {children}
     </As>
   );
@@ -346,14 +346,14 @@ export function StatCard({ label, value, delta, deltaLabel, icon, tone = "primar
 // should hear "loading users", once, not forty anonymous graphics.
 
 export function Skeleton({ className = "", style }) {
-  return <span className={`ad-skel block ${className}`} style={style} aria-hidden="true" />;
+  return <span className={`skel block ${className}`} style={style} aria-hidden="true" />;
 }
 
 export function SkeletonText({ lines = 1, className = "", widths = [] }) {
   return (
     <span className={`flex flex-col gap-2 ${className}`} aria-hidden="true">
       {Array.from({ length: lines }, (_, i) => (
-        <span key={i} className="ad-skel ad-skel-text block" style={{ width: widths[i] || "100%" }} />
+        <span key={i} className="skel skel-text block" style={{ width: widths[i] || "100%" }} />
       ))}
     </span>
   );
@@ -366,9 +366,9 @@ export function StatCardSkeleton() {
     <Card>
       <CardBody full className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <Skeleton className="ad-skel-text h-2.5 w-24" />
+          <Skeleton className="skel-text h-2.5 w-24" />
           <Skeleton className="mt-2.5 h-5 w-20 rounded-md" />
-          <Skeleton className="ad-skel-text mt-3 h-2.5 w-28" />
+          <Skeleton className="skel-text mt-3 h-2.5 w-28" />
         </div>
         <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
       </CardBody>

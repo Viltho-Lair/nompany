@@ -1,7 +1,7 @@
 import {
   PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, Progress, StatCard, Table, Icon,
 } from "../../../_components/ui";
-import { AreaChart, ChartFrame, Donut, BarList } from "../../../_components/charts";
+import { AreaChart, ChartFrame, Donut, BarList } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 
 export const metadata = { title: "HR" };
@@ -125,7 +125,7 @@ export default function HrDashboard() {
                     </span>
                   </td>
                   <td className="whitespace-nowrap text-[var(--ad-muted-foreground)]">{h.dept}</td>
-                  <td className="ad-num whitespace-nowrap">{h.start}</td>
+                  <td className="num whitespace-nowrap">{h.start}</td>
                   <td className="text-end"><Badge tone={h.tone}>{h.status}</Badge></td>
                 </tr>
               ))}

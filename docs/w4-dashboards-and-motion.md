@@ -843,7 +843,7 @@ Thirteen steps. Each one is shippable and each one ends green.
 |---|---|---|
 | 0 | **The i18n frame**: studio locale source (§8.1), `dir` on the shells, the Arabic glossary, `stylis-plugin-rtl` | Every string written after this point is written once. Doing it later means writing the dashboards twice |
 | 1 | Split the studio into route segments; add `loading.tsx` | Pays for everything after it; the 305 KB chunk is the constraint |
-| 2 | Promote `charts/` and `motion/` into shared, TypeScript; `Frame` takes a direction | Two folders, no behaviour change, immediately reusable |
+| 2 | ✅ Promote `charts/` and `motion/` into shared, TypeScript; the charts take a direction | Two folders, immediately reusable. **Done — see §9.2 for what it actually cost** |
 | 3 | **The login page** (§8.5) + the landing's language button (§8.3) | Small, contained, and it proves the motion kit outside the landing before the studio depends on it |
 | 4 | `dashboard/` primitives + `registry.ts` + `analyticsLevelOf` | The pattern, proven on one page |
 | 5 | **Technical and Sales dashboards** | Their analytics are already written and unused — fastest proof |
@@ -860,6 +860,62 @@ Thirteen steps. Each one is shippable and each one ends green.
 
 Technique 6 (scrollytelling) lands with step 6, since Finance is the first
 deep-dive. Technique 8 (Nova) lands with step 8 as chrome only.
+
+### 9.2 What step 2 turned out to involve
+
+Billed as "no behaviour change", and the code movement was. Four things came with
+it that the one-line description did not anticipate, all of them the same shape:
+**a component moves, and the things it silently depended on do not.**
+
+**The tokens.** `charts.js` drew with `--ad-chart-1..5`, `--ad-border`,
+`--ad-muted` and `--ad-muted-foreground`. Every one of those is declared *inside*
+`.admindek`, and `super.css` is imported by `/super/layout.js` alone — so the
+same component in a studio screen resolves all five series to nothing. The ramp
+is now `--chart-1..5` on `:root`, aliasing the `--doc-*` channels the semantic
+layer already had, and `--ad-chart-*` aliases *that*. One definition; `/super`
+unchanged.
+
+**The utility classes.** `ChartSkeleton` and `BarList` use `.ad-skel` and
+`.ad-num`, also console-only. A skeleton with no `.skel` rule is an invisible box
+of the correct size — a card that reads as *empty* rather than as *loading*, which
+is precisely the failure the skeleton was written to prevent. Both moved to
+`globals.css` and lost the prefix: `.num`, `.skel`, `.skel-text`, `.skel-circle`,
+`@keyframes skel-sweep`. 119 call sites renamed. `ad-` named a design system the
+studio is not part of.
+
+**The direction.** `ChartFrame` lays its x-axis labels out in a CSS grid, and a
+grid *already* reverses under `dir="rtl"` — so in an Arabic studio the labels
+would have run right-to-left over a line that still ran left-to-right, each
+pointing at the other's data. That is worse than not mirroring. `AreaChart` and
+`BarChart` now take `rtl`, which reflects the x mapping; `BarChart` also re-seats
+the bars *within* each group, or a grouped chart would swap its series against
+its own legend.
+
+**The library.** This is the one with a price on it. `CountUp` lived in
+`components/landing/ui`, driven by `motion/react` — ~30 KB gzipped, and today
+confined entirely to `components/landing/**`, which is the only reason the
+studio's chunk does not carry it. Every department dashboard wants a rolling KPI
+figure. One import from a studio card and every studio route pays for the
+landing's animation library. So the shared `CountUp` is hand-driven — a
+`requestAnimationFrame` loop and a cubic-bezier sampler — and the landing now
+uses that one too, which removed a duplicate rather than adding one. Gate A holds
+the line: `motion/react` may not be imported outside `components/landing/`.
+
+Two things fell out of doing it:
+
+- **A re-export creates no local binding.** `landing/lib/motion.js` had its two
+  curves replaced with `export { EASE_OUT_EXPO } from …` — and `fadeUp`, four
+  lines below, eases with it. The build passed; the landing threw
+  `EASE_OUT_EXPO is not defined` on load. A `.js` file has no type checker, and
+  this is the argument for step 8 converting these files rather than editing them.
+- **The browser pane cannot verify an animation at all.** It never composites, so
+  `requestAnimationFrame` never fires and `IntersectionObserver` never delivers —
+  a count-up observed there is indistinguishable from a broken one. `CountUp`
+  server-renders its *final* value for that reason (it is also what a crawler and
+  a reader with scripting off should see), and the easing is asserted
+  arithmetically in Gate A instead: pinned at both ends, monotonic, and measurably
+  ahead of linear at t=0.25 — which is the check that catches a solver quietly
+  falling back to a straight line.
 
 **Step 0 is not optional and it is not a formality.** §2.4 and §3 name well over a
 hundred widget titles, axis labels, empty states and locked-card teasers. Every one

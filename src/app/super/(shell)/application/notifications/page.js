@@ -49,15 +49,15 @@ const ORDER = ["Today", "Yesterday", "Earlier"];
 function NotificationsSkeleton({ rows = 5 }) {
   return (
     <>
-      <Skeleton className="ad-skel-text mb-3 h-2 w-16" />
+      <Skeleton className="skel-text mb-3 h-2 w-16" />
       <ul className="space-y-1">
         {Array.from({ length: rows }, (_, i) => (
           <li key={i} className="flex gap-3 p-3">
-            <Skeleton className="ad-skel-circle mt-0.5 h-9 w-9 shrink-0" />
+            <Skeleton className="skel-circle mt-0.5 h-9 w-9 shrink-0" />
             <div className="min-w-0 flex-1">
-              <Skeleton className="ad-skel-text h-3 w-56 max-w-full" />
-              <Skeleton className="ad-skel-text mt-2 h-2.5 w-72 max-w-full opacity-70" />
-              <Skeleton className="ad-skel-text mt-2.5 h-2 w-20 opacity-70" />
+              <Skeleton className="skel-text h-3 w-56 max-w-full" />
+              <Skeleton className="skel-text mt-2 h-2.5 w-72 max-w-full opacity-70" />
+              <Skeleton className="skel-text mt-2.5 h-2 w-20 opacity-70" />
             </div>
           </li>
         ))}

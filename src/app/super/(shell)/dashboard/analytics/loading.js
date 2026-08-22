@@ -1,5 +1,5 @@
 import { PageHeader, Row, Col, Card, CardHead, CardBody, Skeleton } from "../../../_components/ui";
-import { ChartSkeleton } from "../../../_components/charts";
+import { ChartSkeleton } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 
 // The Analytics dashboard while the server reads the active-user counters.
@@ -18,11 +18,11 @@ function KpiTileSkeleton() {
   return (
     <div className="rounded-geex bg-[var(--ad-muted)] p-6">
       <div className="flex items-center gap-4">
-        <span className="ad-skel ad-skel-circle block h-11 w-11 shrink-0" />
+        <span className="skel skel-circle block h-11 w-11 shrink-0" />
         <div className="min-w-0 flex-1">
-          <Skeleton className="ad-skel-text h-2.5 w-24" />
+          <Skeleton className="skel-text h-2.5 w-24" />
           <Skeleton className="mt-2 h-6 w-28 rounded-md" />
-          <Skeleton className="ad-skel-text mt-2.5 h-2 w-32" />
+          <Skeleton className="skel-text mt-2.5 h-2 w-32" />
         </div>
       </div>
     </div>
@@ -58,7 +58,7 @@ export default function LoadingAnalytics() {
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
                 {Array.from({ length: 6 }, (_, i) => (
                   <div key={i}>
-                    <Skeleton className="ad-skel-text h-2 w-12" />
+                    <Skeleton className="skel-text h-2 w-12" />
                     <Skeleton className="mt-2 h-5 w-20 rounded-md" />
                   </div>
                 ))}
@@ -84,12 +84,12 @@ export default function LoadingAnalytics() {
               {/* A donut, then three legend rows — the shape DeviceAnalytics
                   renders. */}
               <div className="flex flex-col items-center">
-                <Skeleton className="ad-skel-circle h-[180px] w-[180px]" />
+                <Skeleton className="skel-circle h-[180px] w-[180px]" />
                 <div className="mt-6 w-full space-y-3">
                   {[0, 1, 2].map((i) => (
                     <div key={i} className="flex items-center justify-between gap-3">
-                      <Skeleton className="ad-skel-text h-2.5 w-24" />
-                      <Skeleton className="ad-skel-text h-2.5 w-10" />
+                      <Skeleton className="skel-text h-2.5 w-24" />
+                      <Skeleton className="skel-text h-2.5 w-10" />
                     </div>
                   ))}
                 </div>
@@ -108,7 +108,7 @@ export default function LoadingAnalytics() {
                 {[0, 1, 2, 3].map((i) => (
                   <div key={i}>
                     <Skeleton className="h-6 w-20 rounded-md" />
-                    <Skeleton className="ad-skel-text mt-2 h-2 w-16" />
+                    <Skeleton className="skel-text mt-2 h-2 w-16" />
                     <Skeleton className="mt-2.5 h-1.5 w-full rounded-full" />
                   </div>
                 ))}
@@ -124,8 +124,8 @@ export default function LoadingAnalytics() {
             <CardHead title="Satisfaction" />
             <CardBody>
               <div className="flex flex-col items-center py-4">
-                <Skeleton className="ad-skel-circle h-[120px] w-[120px]" />
-                <Skeleton className="ad-skel-text mt-5 h-2.5 w-32" />
+                <Skeleton className="skel-circle h-[120px] w-[120px]" />
+                <Skeleton className="skel-text mt-5 h-2.5 w-32" />
               </div>
             </CardBody>
           </Card>

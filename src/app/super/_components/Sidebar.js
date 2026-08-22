@@ -36,7 +36,7 @@ function Brand({ collapsed }) {
           {/* The console's name is set in the same monospaced, tracked-out
               register the Studio uses for a slug — it identifies a surface, not
               a sentence. */}
-          <span className="ad-num truncate text-[10px] font-500 uppercase tracking-[0.18em] text-[var(--ad-muted-foreground)]">
+          <span className="num truncate text-[10px] font-500 uppercase tracking-[0.18em] text-[var(--ad-muted-foreground)]">
             super admin
           </span>
         </span>

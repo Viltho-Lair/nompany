@@ -13,7 +13,7 @@ import {
   Table,
   Icon,
   toneBg, toneFg, toneInk,} from "../../../_components/ui";
-import { AreaChart, ChartFrame, BarList, Radial } from "../../../_components/charts";
+import { AreaChart, ChartFrame, BarList, Radial } from "@/components/charts";
 import { BASE } from "../../../_components/nav";
 import CurrencyRates from "./CurrencyRates";
 import RealtimeAnalytics from "./RealtimeAnalytics";
@@ -296,11 +296,11 @@ export default async function AnalyticsPage() {
                       </div>
                     </td>
                     <td className="whitespace-nowrap">{t.product}</td>
-                    <td className="ad-num whitespace-nowrap font-500">{t.amount}</td>
+                    <td className="num whitespace-nowrap font-500">{t.amount}</td>
                     <td>
                       <Badge tone={STATUS_TONE[t.status]}>{t.status}</Badge>
                     </td>
-                    <td className="ad-num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{t.date}</td>
+                    <td className="num whitespace-nowrap text-end text-[var(--ad-muted-foreground)]">{t.date}</td>
                   </tr>
                 ))}
               </Table>
@@ -433,7 +433,7 @@ export default async function AnalyticsPage() {
                     <li key={r.name} className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-500">{r.name}</p>
-                        <p className="ad-num text-xs text-[var(--ad-muted-foreground)]">{r.amount}</p>
+                        <p className="num text-xs text-[var(--ad-muted-foreground)]">{r.amount}</p>
                       </div>
                       <span
                         className="inline-flex shrink-0 items-center gap-1 text-xs font-500"

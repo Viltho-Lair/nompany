@@ -2,7 +2,7 @@
 import { motion, useReducedMotion, useSpring, useTransform, } from "motion/react";
 import { EASE_OUT_EXPO, SPRING_SOFT } from "@/components/landing/lib/motion";
 import { usePointer } from "../providers/PointerProvider";
-import { CountUp } from "../ui/CountUp";
+import { CountUp } from "@/components/motion/CountUp";
 /* ==================================================================
    TECHNIQUE 4 — Hero animation
    An abstract Nompany dashboard that assembles itself: chrome drops in,

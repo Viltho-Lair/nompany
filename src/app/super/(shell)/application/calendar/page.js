@@ -49,7 +49,7 @@ function Cell({ day, muted, today, events = [] }) {
       style={{ borderColor: "var(--ad-border)", opacity: muted ? 0.4 : 1 }}
     >
       <span
-        className={`ad-num inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${today ? "font-700 text-white" : "font-500"}`}
+        className={`num inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${today ? "font-700 text-white" : "font-500"}`}
         style={today ? { backgroundColor: "var(--ad-primary)" } : undefined}
       >
         {day}

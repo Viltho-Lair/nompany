@@ -1,7 +1,7 @@
 "use client";
 import { motion } from "motion/react";
 import { fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
-import { CountUp } from "../ui/CountUp";
+import { CountUp } from "@/components/motion/CountUp";
 const STATS = [
     { value: 3.2, suffix: "M", decimals: 1, label: "transactions processed / day" },
     { value: 41, suffix: "%", label: "faster month-end close" },

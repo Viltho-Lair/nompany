@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarList } from "../../../_components/charts";
+import { BarList } from "@/components/charts";
 
 // Device Analytics, on what visitors actually browse with.
 //
