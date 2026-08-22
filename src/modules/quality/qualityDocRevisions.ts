@@ -31,7 +31,7 @@ import type { PermissionKey } from "@/platform/access";
 
 const AUDIT = "qualityAudit";
 
-const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 
 // The fields of a document that describe the page it is printed on. Frozen with
 // the text, because a revision issued on A4 with a 20mm margin does not become
@@ -43,15 +43,23 @@ const SETUP_SNAPSHOT = [
   "pageNumberPosition", "fontFamily", "fontCategory", "fontSizePt", "language",
 ];
 
-const snapshotOf = (document) => {
-  const out = { content: document.content || "" };
+const snapshotOf = (document: QualityDocument | QualityRevision) => {
+  const out: Record<string, unknown> = { content: document.content || "" };
   for (const field of SETUP_SNAPSHOT) {
     if (document[field] !== undefined) out[field] = document[field];
   }
   return out;
 };
 
-async function audit(ctx, { documentId, revisionId = "", action, detail = "" }) {
+async function audit(
+  ctx: QualityContext,
+  { documentId, revisionId = "", action, detail = "" }: {
+    documentId: string;
+    revisionId?: string;
+    action: string;
+    detail?: string;
+  },
+) {
   return addRow(ctx.studio.id, ctx.section.id, AUDIT, {
     documentId, revisionId, action, detail,
     byCollaboratorId: ctx.collaborator.id,
@@ -72,10 +80,16 @@ export async function listRevisions(ctx: QualityContext, documentId: string) {
 
 // Who a revision is waiting on, so a screen can say "with Sara" rather than
 // "in review" — the second tells nobody what to do next.
-const waitingOn = (document, state) =>
-  state === "review" ? document.reviewerCollaboratorId
+// UNDEFINED IS A VALUE HERE, and it has to survive: a document with no reviewer
+// yields undefined, JSON.stringify drops the key, and the golden for
+// quality.submitted records a body without it. Coercing to "" — or to the
+// string "undefined", which is what a bare String() does — changes the response
+// body, and one of those also makes the notify below address a collaborator by
+// that name instead of skipping.
+const waitingOn = (document: QualityDocument, state: string) =>
+  (state === "review" ? document.reviewerCollaboratorId
     : state === "approval" ? document.approverCollaboratorId
-      : "";
+      : "") as string | undefined;
 
 /**
  * What this person could do to this document right now, and where it stands.
@@ -83,7 +97,11 @@ const waitingOn = (document, state) =>
  * Computed from the same table the move enforces, so a button is only ever
  * drawn where pressing it would succeed.
  */
-export async function workflowFor(ctx: QualityContext, documentId: string, holds) {
+export async function workflowFor(
+  ctx: QualityContext,
+  documentId: string,
+  holds: (permission: string) => boolean,
+) {
   const [docs, revisions] = await Promise.all([
     Docs.find(ctx),
     Revisions.find(ctx),
@@ -171,7 +189,12 @@ export async function startRevision(ctx: QualityContext, documentId: string) {
  * that is about a controlled document specifically — which row is in play, when
  * the text is frozen, and what publishing and withdrawing MEAN.
  */
-export async function moveRevision(ctx: QualityContext, documentId, action, body = {}) {
+export async function moveRevision(
+  ctx: QualityContext,
+  documentId: string,
+  action: string,
+  body: Record<string, unknown> = {},
+) {
   const [docs, revisions] = await Promise.all([
     Docs.find(ctx),
     Revisions.find(ctx),
@@ -271,7 +294,7 @@ export async function moveRevision(ctx: QualityContext, documentId, action, body
     },
 
     audit: (entry) => audit(ctx, {
-      documentId, revisionId: revision.id, action: entry.action,
+      documentId, revisionId: String(revision.id), action: String(entry.action),
       detail: `Rev ${revision.rev}${entry.note ? ` - ${entry.note}` : ""}`,
     }),
 

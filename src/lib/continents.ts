@@ -32,7 +32,7 @@ for (const [continent, codes] of Object.entries(GROUPS)) {
 // Unknown or missing codes come back as "Others" rather than null: a visit from
 // somewhere unrecognised is still a visit, and losing it would make the columns
 // disagree with the page-view total.
-export function continentOf(countryCode) {
+export function continentOf(countryCode: unknown) {
   const code = String(countryCode || "").trim().toUpperCase();
   if (!code || code.length !== 2) return "Others";
   const found = BY_COUNTRY.get(code);
@@ -44,7 +44,7 @@ export function continentOf(countryCode) {
 
 // A short, storage-safe key per continent — these become hash fields, so they
 // must not carry spaces.
-export const CONTINENT_KEYS = {
+export const CONTINENT_KEYS: Record<string, string> = {
   Europe: "eu", Asia: "as", "North America": "na", Africa: "af",
   "South America": "sa", Oceania: "oc", Others: "other",
 };

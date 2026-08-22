@@ -29,7 +29,9 @@ import { NODES, pathBetween } from "@/platform/relations";
 // says where each record lives and which right guards it, and two lists of the
 // same fact agree only until one is edited. What stays here is the choice of
 // which are worth binding a document to, and how one is NAMED in a picker.
-const NAMING = {
+// KEYED BY STRING: a subject type arrives off a stored template or a request,
+// so the lookups below have to be able to ASK rather than assert.
+const NAMING: Record<string, { primary: string; secondary: string } | undefined> = {
   salesTicket: { primary: "ref", secondary: "title" },
   quotation: { primary: "number", secondary: "title" },
   project: { primary: "number", secondary: "title" },
@@ -46,7 +48,7 @@ export const SUBJECTS = BINDABLE.map((id) => ({
   naming: NAMING[id],
 }));
 
-export const subjectById = (id) => SUBJECTS.find((s) => s.id === id) || null;
+export const subjectById = (id: unknown) => SUBJECTS.find((s) => s.id === id) || null;
 
 // ---- fields -----------------------------------------------------------------
 //
@@ -64,13 +66,19 @@ export const subjectById = (id) => SUBJECTS.find((s) => s.id === id) || null;
 export type MergeField = {
   key: string;
   label: string;
-  path: string;
   kind: string;
   group: string;
-  department: string;
-  subject?: string;
+  // NULL IS A REAL ANSWER, and different from a missing one: a Company or
+  // Document field is about the studio and the document itself, so there is no
+  // record to reach and nothing to walk. `path`, `department` and `permission`
+  // only mean something once there IS a subject.
+  subject?: string | null;
+  path?: string;
+  department?: string;
   permission?: string;
   via?: string;
+  /** A studio's own legal row, keyed by a slug of its label. */
+  legal?: boolean;
 };
 
 const SALES_TICKET = [
@@ -137,15 +145,21 @@ const LEGAL_KEY = /^legal\.[a-z0-9][a-z0-9-]{0,48}$/;
 
 // A studio's label ("VAT Number") becomes a stable key ("legal.vat-number"), so
 // renaming the label does not orphan every document that pointed at it.
-export const legalKeyFor = (label) =>
+export const legalKeyFor = (label: unknown) =>
   LEGAL_PREFIX + String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
 
-export const legalFieldsFrom = (legalInfo) =>
-  (Array.isArray(legalInfo) ? legalInfo : [])
+export const legalFieldsFrom = (legalInfo: unknown): MergeField[] =>
+  (Array.isArray(legalInfo) ? legalInfo as { key?: unknown }[] : [])
     .filter((row) => row?.key && legalKeyFor(row.key).length > LEGAL_PREFIX.length)
     .map((row) => ({
-      key: legalKeyFor(row.key), label: String(row.key), group: "Legal information",
-      subject: null, kind: "scalar", legal: true,
+      key: legalKeyFor(row.key),
+      label: String(row.key),
+      group: "Legal information",
+      // A legal field belongs to the STUDIO, not to the record a document is
+      // bound to — so it has no subject to reach through and no path to walk.
+      subject: null,
+      kind: "scalar",
+      legal: true,
     }));
 
 // ---- validation -------------------------------------------------------------
@@ -158,7 +172,7 @@ export function isFieldKey(key: string) {
   return STATIC_KEY_SET.has(k) || LEGAL_KEY.test(k);
 }
 
-export const fieldByKey = (key) => STATIC_FIELDS.find((f) => f.key === key) || null;
+export const fieldByKey = (key: string) => STATIC_FIELDS.find((f) => f.key === key) || null;
 
 // ---- what to offer, and to whom ---------------------------------------------
 //
@@ -184,7 +198,11 @@ export const fieldByKey = (key) => STATIC_FIELDS.find((f) => f.key === key) || n
 // summary a module builds of its own records answers to the right that got the
 // reader onto the screen; a DOCUMENT is a thing that leaves the building, and a
 // field nobody may read must not be printable into one.
-export function reachOf(subjectType, target, holds) {
+export function reachOf(
+  subjectType: string | null | undefined,
+  target: string | null | undefined,
+  holds?: (permission: string) => boolean,
+) {
   if (!subjectType || !target || !NODES[target]) return null;
   // THE DESTINATION ITSELF IS A HOP, even when there is no journey. Checking
   // only the path let a zero-hop reach through ungated: a document bound to a
@@ -215,11 +233,11 @@ export function availableFields({
 }
 
 // Grouped for the picker, departments in the studio's own order where known.
-export function groupFields(fields) {
-  const out = new Map();
+export function groupFields(fields: MergeField[]) {
+  const out = new Map<string, MergeField[]>();
   for (const f of fields) {
     if (!out.has(f.group)) out.set(f.group, []);
-    out.get(f.group).push(f);
+    out.get(f.group)!.push(f);
   }
   return [...out.entries()];
 }
@@ -316,8 +334,8 @@ export const BLOCK_SOURCES = [
 ];
 
 const BLOCK_KEYS = new Set(BLOCK_SOURCES.map((b) => b.key));
-export const isBlockSource = (key) => BLOCK_KEYS.has(String(key || ""));
-export const blockByKey = (key) => BLOCK_SOURCES.find((b) => b.key === key) || null;
+export const isBlockSource = (key: unknown) => BLOCK_KEYS.has(String(key || ""));
+export const blockByKey = (key: string) => BLOCK_SOURCES.find((b) => b.key === key) || null;
 
 export function availableBlocks({
   subjectType = null,
@@ -340,4 +358,4 @@ export const INPUT_TYPES = [
   { id: "number", label: "Number" },
 ];
 const INPUT_TYPE_IDS = new Set(INPUT_TYPES.map((t) => t.id));
-export const isInputType = (t) => INPUT_TYPE_IDS.has(String(t || ""));
+export const isInputType = (t: unknown) => INPUT_TYPE_IDS.has(String(t || ""));

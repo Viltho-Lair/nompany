@@ -10,25 +10,27 @@
 
 import { COMPANY_DEFAULTS, formatMoney, formatMoneyParts, formatDate, formatDateTime } from "@/modules/main/companySettings";
 
-let _active = null;
+type CompanyConfig = typeof COMPANY_DEFAULTS;
+
+let _active: CompanyConfig | null = null;
 
 // Called once by StudioShell after settings load (client). Pass a resolved
 // company-settings config (from resolveCompanySettings).
-export function configureFormat(cfg) { _active = cfg || null; }
+export function configureFormat(cfg: CompanyConfig | null | undefined) { _active = cfg || null; }
 
 const active = () => _active || COMPANY_DEFAULTS;
 
-export function fmtDate(v) { return formatDate(v, active()); }
-export function fmtDateTime(v) { return formatDateTime(v, active()); }
+export function fmtDate(v: unknown) { return formatDate(v, active()); }
+export function fmtDateTime(v: unknown) { return formatDateTime(v, active()); }
 
 // Currency-aware money. `fmtSAR` is kept as a back-compat alias (now honours the
 // tenant's currency, not literally SAR) so existing imports keep working.
-export function fmtMoney(v) { return formatMoney(v, active()); }
+export function fmtMoney(v: unknown) { return formatMoney(v, active()); }
 export const fmtSAR = fmtMoney;
 
 // Rendered pieces of a money value (tenant currency) for the <Money> component,
 // so amounts can show the Riyal glyph instead of the "SAR" text. See Money.js.
-export function moneyParts(v) { return formatMoneyParts(v, active()); }
+export function moneyParts(v: unknown) { return formatMoneyParts(v, active()); }
 
 // The active VAT rate (tenant's, else default) — for consumers that compute tax.
 export function currentVatRate() { return active().vatRate ?? COMPANY_DEFAULTS.vatRate; }
@@ -47,8 +49,8 @@ const RELATIVE_STEPS: [number, number, string][] = [
   [604800, 86400, "d"],
 ];
 
-export function ago(value) {
-  const then = Date.parse(value);
+export function ago(value: unknown) {
+  const then = Date.parse(String(value ?? ""));
   if (!Number.isFinite(then)) return "";
   const secs = Math.max(0, (Date.now() - then) / 1000);
   if (secs < 45) return "just now";

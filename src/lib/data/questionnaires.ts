@@ -15,7 +15,7 @@ import { ID, REG } from "@/platform/db/keys";
 
 const now = () => new Date().toISOString();
 
-const str = (v, max) => String(v ?? "").trim().slice(0, max);
+const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
 export async function listQuestionnaires() {
   return readArr(REG.questionnaires);
@@ -49,7 +49,7 @@ export async function createQuestionnaireDef(
 // Only these may be written from a request; id, counters and createdAt are ours.
 const WRITABLE = ["name", "route", "status", "pages"];
 
-export async function updateQuestionnaireDef(id: string, patch) {
+export async function updateQuestionnaireDef(id: string, patch: Record<string, unknown>) {
   return editArr(REG.questionnaires, (rows) => {
     let updated: Record<string, unknown> | null = null;
     const next = rows.map((q) => {
@@ -94,7 +94,7 @@ export async function duplicateQuestionnaireDef(id: string, createdBy = "") {
 
 // A route belongs to at most one questionnaire — that is what makes "the
 // questionnaire at this route" a meaningful thing to ask for.
-export async function getQuestionnaireByRoute(route) {
+export async function getQuestionnaireByRoute(route: unknown) {
   const want = String(route || "").trim();
   if (!want) return null;
   return (await readArr(REG.questionnaires)).find((q) => (q.route || "") === want) || null;
@@ -107,7 +107,9 @@ export async function getQuestionnaireByRoute(route) {
 // environment that ever serves the page, and a lazy seed cannot be forgotten on
 // one of them. It is guarded by the route lookup, so it writes once: after that
 // this is a read, and whatever an author has since changed is what comes back.
-export async function ensureQuestionnaireForRoute({ route, name, pages }) {
+export async function ensureQuestionnaireForRoute(
+  { route, name, pages }: { route: string; name?: string; pages?: unknown[] },
+) {
   const existing = await getQuestionnaireByRoute(route);
   if (existing) return existing;
   const row = {

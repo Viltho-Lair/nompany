@@ -22,13 +22,13 @@ const TOTAL_FIELD = "pv:__total";
 
 // Built through the shared key module, so the read side and the write side
 // cannot drift and the integration suite stays out of the real record.
-const key = (day) => STAT.day(day);
-const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const key = (day: string) => STAT.day(day);
+const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 // YYYY-MM-DD in UTC, the same clock /api/track stamps with. Using the server's
 // local zone here would put a write and its read on different days for half the
 // world.
-export function isoDay(date) {
+export function isoDay(date: string | number | Date) {
   return new Date(date).toISOString().slice(0, 10);
 }
 
@@ -63,7 +63,7 @@ export async function readDays(days: string[]) {
   const client = await getRedisClient();
   // node-redis pipelines concurrent commands on one connection, so this is a
   // single round trip's worth of latency rather than one per day.
-  const hashes = await Promise.all(days.map((day) => client.hGetAll(key(day)).catch(() => ({}))));
+  const hashes = await Promise.all(days.map((day) => client.hGetAll(key(day)).catch((): Record<string, string> => ({}))));
   return days.map((day, i) => {
     const h = hashes[i] || {};
     return { day, sessions: n(h[HOME_FIELD]), pageViews: n(h[TOTAL_FIELD]) };
@@ -74,7 +74,7 @@ export async function readDays(days: string[]) {
 export async function readPages(days: string[]) {
   if (!days.length) return [];
   const client = await getRedisClient();
-  const hashes = await Promise.all(days.map((day) => client.hGetAll(key(day)).catch(() => ({}))));
+  const hashes = await Promise.all(days.map((day) => client.hGetAll(key(day)).catch((): Record<string, string> => ({}))));
   const totals: Record<string, number> = {};
   for (const h of hashes) {
     for (const [field, value] of Object.entries(h || {})) {
@@ -96,9 +96,9 @@ export async function readPages(days: string[]) {
 export async function readContinents(days: string[]) {
   const client = await getRedisClient();
   const hashes = days.length
-    ? await Promise.all(days.map((day) => client.hGetAll(key(day)).catch(() => ({}))))
+    ? await Promise.all(days.map((day) => client.hGetAll(key(day)).catch((): Record<string, string> => ({}))))
     : [];
-  const totals = Object.fromEntries(CONTINENTS.map((c) => [c, 0]));
+  const totals: Record<string, number> = Object.fromEntries(CONTINENTS.map((c) => [c, 0]));
   for (const h of hashes) {
     for (const name of CONTINENTS) {
       totals[name] += n((h || {})[`geo:${CONTINENT_KEYS[name]}`]);
@@ -121,9 +121,9 @@ export async function readContinents(days: string[]) {
 export async function readDevices(days: string[]) {
   const client = await getRedisClient();
   const hashes = days.length
-    ? await Promise.all(days.map((day) => client.hGetAll(key(day)).catch(() => ({}))))
+    ? await Promise.all(days.map((day) => client.hGetAll(key(day)).catch((): Record<string, string> => ({}))))
     : [];
-  const totals = Object.fromEntries(DEVICES.map((d) => [d, 0]));
+  const totals: Record<string, number> = Object.fromEntries(DEVICES.map((d) => [d, 0]));
   for (const h of hashes) {
     for (const name of DEVICES) totals[name] += n((h || {})[`dev:${DEVICE_KEYS[name]}`]);
   }
@@ -152,7 +152,7 @@ export async function readDevices(days: string[]) {
 // is a consistent single reading rather than drifting with each page load.
 const ACTIVE_FIELD = "users:active";
 
-export async function recordActiveUsers(count, day = isoDay(new Date())) {
+export async function recordActiveUsers(count: number, day = isoDay(new Date())) {
   const client = await getRedisClient();
   try { await client.hSetNX(key(day), ACTIVE_FIELD, String(Math.max(0, Math.trunc(count)))); }
   catch { /* a missed snapshot costs one day of comparison, never a page */ }
@@ -160,7 +160,7 @@ export async function recordActiveUsers(count, day = isoDay(new Date())) {
 
 // Null, not zero, when a day was never recorded — "we did not measure" and
 // "nobody was here" must not read the same, or the delta would invent a number.
-export async function readActiveUsers(day) {
+export async function readActiveUsers(day: string) {
   const client = await getRedisClient();
   try {
     const v = await client.hGet(key(day), ACTIVE_FIELD);
@@ -171,7 +171,7 @@ export async function readActiveUsers(day) {
 // Roll daily rows up into the twelve months of a year. Months that have not
 // happened yet are still present at zero: a year chart that stops in August
 // looks broken, whereas one that flatlines reads as "not yet".
-export function byMonth(rows, year) {
+export function byMonth(rows: { day: string; sessions: number; pageViews: number }[], year: number) {
   const months = Array.from({ length: 12 }, () => ({ sessions: 0, pageViews: 0 }));
   for (const r of rows) {
     const [y, m] = r.day.split("-").map(Number);

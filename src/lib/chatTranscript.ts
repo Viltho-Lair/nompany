@@ -1,5 +1,10 @@
 "use client";
 
+// A TYPE-ONLY IMPORT, and it has to stay one: lib/data/chat opens a Redis
+// client, and this file is client-safe. `import type` is erased before the
+// bundler sees it, so the shape is shared without the module being pulled in.
+import type { ChatRoom } from "@/lib/data/chat";
+
 // THE ONLY RECORD A CHAT EVER LEAVES.
 //
 // Nothing about a conversation is stored — the room expires and is gone — so
@@ -38,15 +43,15 @@ async function logoDataUrl() {
   }
 }
 
-const fmtStamp = (value) => {
+const fmtStamp = (value: string | null | undefined) => {
   const t = Date.parse(value || "");
   return Number.isFinite(t) ? new Date(t).toLocaleString("en-GB") : "—";
 };
-const fmtClock = (value) => {
+const fmtClock = (value: string | null | undefined) => {
   const t = Date.parse(value || "");
   return Number.isFinite(t) ? new Date(t).toLocaleTimeString("en-GB") : "";
 };
-const safe = (s) => String(s || "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+const safe = (s: unknown) => String(s || "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 
 /**
  * @param {object} chat
@@ -61,7 +66,7 @@ const safe = (s) => String(s || "").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g
  * @param {Array}  chat.messages     [{ from, text, at }]
  * @param {string} chat.createdAt
  */
-export async function downloadTranscript(chat) {
+export async function downloadTranscript(chat: ChatRoom & { handledBy?: string }) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();

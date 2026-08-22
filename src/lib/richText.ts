@@ -5,13 +5,13 @@
 
 const ALLOWED_TAGS = new Set(["b", "strong", "i", "em", "u", "ul", "ol", "li", "br", "p", "span"]);
 
-export function isProbablyHtml(value) {
+export function isProbablyHtml(value: unknown) {
   if (typeof value !== "string") return false;
   return /<(b|strong|i|em|u|ul|ol|li|br|p|span)\b[^>]*>/i.test(value);
 }
 
 // Strip everything except our allowlist; drop attributes entirely.
-export function sanitizeRichHtml(value) {
+export function sanitizeRichHtml(value: unknown) {
   if (!value) return "";
   let s = String(value);
   // Kill script / style blocks in one shot.

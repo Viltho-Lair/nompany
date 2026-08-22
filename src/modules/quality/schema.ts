@@ -28,6 +28,56 @@ export const QualityDocumentSchema = z.looseObject({
   updatedAt: z.string(),
   createdBy: z.string(),
   createdByAlias: z.string(),
+
+  // ---- what it is ABOUT, when it is about something ------------------------
+  // BINDING IS OPTIONAL. A procedure is about nothing in particular; binding is
+  // what makes a department's fields reachable. `subjectId` is set by
+  // generation and is never persisted on an authored document.
+  subjectType: z.string().optional(),
+  subjectId: z.string().optional(),
+  departmentId: z.string().optional(),
+  ownerCollaboratorId: z.string().optional(),
+  /** Who the workflow waits on at each gate — see waitingOn in qualityDocRevisions. */
+  reviewerCollaboratorId: z.string().optional(),
+  approverCollaboratorId: z.string().optional(),
+
+  // ---- the control dates ---------------------------------------------------
+  /** Mirrors the highest issued revision. `documentState` is still the truth. */
+  revision: z.number().optional(),
+  effectiveDate: z.string().optional(),
+  nextReviewDate: z.string().optional(),
+  obsoletedAt: z.string().optional(),
+  obsoletedByCollaboratorId: z.string().optional(),
+
+  // ---- the page it is printed on -------------------------------------------
+  // STORED FLAT, not nested, so a single toggle patches one field rather than
+  // reading and rewriting the whole setup. Every one is optional and every read
+  // falls back, so a document written before a field existed keeps working —
+  // which is why none of this is validated as a whole.
+  pageSize: z.string().optional(),
+  marginPreset: z.string().optional(),
+  marginTopMm: z.number().optional(),
+  marginRightMm: z.number().optional(),
+  marginBottomMm: z.number().optional(),
+  marginLeftMm: z.number().optional(),
+  showHeader: z.boolean().optional(),
+  headerContent: z.string().optional(),
+  headerText: z.string().optional(),
+  headerAlign: z.string().optional(),
+  headerHeightMm: z.number().optional(),
+  headerStartPage: z.number().optional(),
+  showFooter: z.boolean().optional(),
+  footerContent: z.string().optional(),
+  footerText: z.string().optional(),
+  footerAlign: z.string().optional(),
+  footerHeightMm: z.number().optional(),
+  footerStartPage: z.number().optional(),
+  pageNumberPosition: z.string().optional(),
+  fontFamily: z.string().optional(),
+  fontCategory: z.string().optional(),
+  fontSizePt: z.number().optional(),
+  /** RTL IS A DOCUMENT PROPERTY, not a studio one. */
+  language: z.string().optional(),
 });
 
 /**

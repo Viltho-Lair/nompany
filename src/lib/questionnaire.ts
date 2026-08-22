@@ -6,10 +6,10 @@ import { PLANS, pick } from "@/lib/pricing";
 // Package keys carried on ?package= from the header / pricing CTAs into signup.
 // Banded plans split into "-1" / "-2" (band index); micro + large are single.
 export const PACKAGE_KEYS = ["micro", "small-1", "small-2", "medium-1", "medium-2", "large"];
-export function isPackageKey(k) { return PACKAGE_KEYS.includes(String(k || "")); }
+export function isPackageKey(k: unknown) { return PACKAGE_KEYS.includes(String(k || "")); }
 
 // The pricing plan key behind a package key ("small-2" → "small").
-export function planKeyOf(key) { return String(key || "").split("-")[0]; }
+export function planKeyOf(key: unknown) { return String(key || "").split("-")[0]; }
 
 // Only Micro is free; every other package requires payment.
 export function isFreePackage(key: string) {
@@ -131,17 +131,34 @@ export const QUESTION_PAGES = [
   },
 ];
 
+/**
+ * ONE QUESTION, as far as completeness is concerned. Deliberately structural
+ * and not the whole element: the pages above carry `type`, `source`, `options`
+ * and half a dozen presentation fields, and none of them decide whether the
+ * question has been answered.
+ */
+export type QuestionnaireQuestion = { id?: string; key?: string; required?: boolean };
+
 // A question binds to `key` when it has one; otherwise it answers to its own id,
 // which is what an author-created question does until it is given a field.
-export const fieldOf = (q) => q?.key || q?.id;
+export const fieldOf = (q: QuestionnaireQuestion | null | undefined) => q?.key || q?.id || "";
 
-export function isAnswered(question, answers) {
+export function isAnswered(
+  question: QuestionnaireQuestion | null | undefined,
+  answers: Record<string, unknown> | null | undefined,
+) {
   const v = answers?.[fieldOf(question)];
   return Array.isArray(v) ? v.length > 0 : Boolean(String(v ?? "").trim());
 }
-export function isPageComplete(page, answers) {
+export function isPageComplete(
+  page: { questions?: QuestionnaireQuestion[] } | null | undefined,
+  answers: Record<string, unknown> | null | undefined,
+) {
   return (page?.questions || []).every((q) => !q.required || isAnswered(q, answers));
 }
-export function isAllComplete(pages, answers) {
+export function isAllComplete(
+  pages: { questions?: QuestionnaireQuestion[] }[] | null | undefined,
+  answers: Record<string, unknown> | null | undefined,
+) {
   return (pages || []).every((p) => isPageComplete(p, answers));
 }

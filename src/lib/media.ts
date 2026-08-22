@@ -13,11 +13,20 @@ import { MEDIA } from "@/platform/db/keys";
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB per file
 // Built through the shared key module so the namespace applies. A literal
 // here is how the integration suite came to write live blobs.
-const key = (id) => MEDIA.blob(id);
+const key = (id: string) => MEDIA.blob(id);
 
 // Store a file. `visibility: "public"` may be served to anyone with the link;
 // "private" requires a signed-in requester (enforced by the serve route).
-export async function putMedia({ buffer, contentType, filename, visibility = "public", owner = "", studioId = "" }) {
+export async function putMedia(
+  { buffer, contentType, filename, visibility = "public", owner = "", studioId = "" }: {
+    buffer: Buffer;
+    contentType: string;
+    filename: string;
+    visibility?: string;
+    owner?: string;
+    studioId?: string;
+  },
+) {
   if (!buffer?.length) return { error: "empty" };
   if (buffer.length > MAX_BYTES) return { error: "too-large" };
 
@@ -56,7 +65,7 @@ export async function deleteMedia(id: string) {
 }
 
 // Time-limit a blob (used for short-lived exports/attachments).
-export async function expireMedia(id: string, seconds) {
+export async function expireMedia(id: string, seconds: number) {
   const client = await getRedisClient();
   return client.expire(key(id), seconds);
 }

@@ -44,7 +44,7 @@ const MAX_TEXT = 4000;
 const MAX_MESSAGES = 1000;
 
 const now = () => new Date().toISOString();
-const trim = (v, max) => String(v ?? "").trim().slice(0, max);
+const trim = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
 /**
  * ONE MESSAGE IN A LIVE CHAT. `from` says which side sent it, and the room is
@@ -85,7 +85,13 @@ export async function getRoom(roomId: string) {
 // Reopening the widget must not queue a second conversation: the console would
 // see two identical waiting chats and the person would have split their own
 // thread in half without meaning to.
-export async function openRoom({ studio, userId, userName }) {
+export async function openRoom(
+  { studio, userId, userName }: {
+    studio: { id: string; name?: unknown; slug?: unknown };
+    userId: string;
+    userName: unknown;
+  },
+) {
   const existing = await findLiveRoom(studio.id, userId);
   if (existing) return existing;
 
@@ -131,7 +137,7 @@ export async function openRoom({ studio, userId, userName }) {
 
 // Append a line. Atomic, and keepTTL so the countdown is not reset to "no
 // expiry" by the write itself — the deliberate re-arm follows it.
-export async function addMessage(roomId: string, from, text) {
+export async function addMessage(roomId: string, from: string, text: unknown) {
   const body = trim(text, MAX_TEXT);
   if (!body) return getRoom(roomId);
 
@@ -151,7 +157,10 @@ export async function addMessage(roomId: string, from, text) {
 // FIRST WINS. The NX claim is the whole mechanism: two admins clicking Accept at
 // the same instant both reach this, exactly one gets the key, and the loser is
 // told who has it rather than silently taking over a conversation.
-export async function acceptRoom(roomId, { adminId, adminLabel }) {
+export async function acceptRoom(
+  roomId: string,
+  { adminId, adminLabel }: { adminId: string; adminLabel: string },
+) {
   const room = await getRoom(roomId);
   if (!room) return { error: "not-found" };
   if (room.status === ENDED) return { error: "ended" };

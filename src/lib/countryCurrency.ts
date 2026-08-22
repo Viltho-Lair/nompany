@@ -45,12 +45,12 @@ const GROUPS = {
 // Arabia is far more likely to think in dollars than in riyals.
 export const FALLBACK_CURRENCY = "USD";
 
-const BY_COUNTRY = new Map();
+const BY_COUNTRY = new Map<string, string>();
 for (const [currency, codes] of Object.entries(GROUPS)) {
   for (const code of codes.split(" ")) BY_COUNTRY.set(code, currency);
 }
 
-export function currencyForCountry(countryCode) {
+export function currencyForCountry(countryCode: unknown) {
   const code = String(countryCode || "").trim().toUpperCase();
   if (code.length !== 2) return FALLBACK_CURRENCY;
   return BY_COUNTRY.get(code) || FALLBACK_CURRENCY;

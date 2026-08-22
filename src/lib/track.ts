@@ -20,13 +20,13 @@ function vid() {
 
 // Normalise a pathname to a stable top-level page label (bounds cardinality):
 // strips a /en or /ar locale prefix and keeps the first segment ("home" for /).
-export function pageLabelFromPath(pathname) {
+export function pageLabelFromPath(pathname: unknown) {
   const parts = String(pathname || "/").split("/").filter(Boolean);
   const rest = parts[0] && /^[a-z]{2}$/.test(parts[0]) ? parts.slice(1) : parts;
   return (rest[0] || "home").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 40) || "home";
 }
 
-export function track(type, data = {}) {
+export function track(type: string, data: Record<string, unknown> = {}) {
   if (typeof window === "undefined") return;
   const payload = JSON.stringify({ type, vid: vid(), ...data });
   try {

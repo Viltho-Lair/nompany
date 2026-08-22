@@ -36,8 +36,8 @@ import type { QualityContext, QualityDocument, QualityRevision } from "./types";
 export const DOCS = "qualityDocs";
 export const REVISIONS = "qualityRevisions";
 
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
-const num = (v, min, max, fallback) => {
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
+const num = (v: unknown, min: number, max: number, fallback: number) => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
 };
@@ -58,12 +58,14 @@ const NUMBER_POSITIONS = [
   "footer-left", "footer-center", "footer-right",
 ];
 
-const oneOf = (list, v, fallback) => (list.includes(String(v)) ? String(v) : fallback);
+const oneOf = (list: readonly string[], v: unknown, fallback: string) => (list.includes(String(v)) ? String(v) : fallback);
 
 // The fields a page-setup patch may carry, and how each is cleaned. Anything
 // not named here is dropped rather than written — a client that invents a field
 // must not be able to grow the record.
-const SETUP_FIELDS = {
+// Each entry cleans ONE field of a page-setup patch. Typed as a map of
+// cleaners so `cleanSetup` can walk it without knowing which field is which.
+const SETUP_FIELDS: Record<string, (v: unknown) => unknown> = {
   pageSize: (v) => oneOf(PAGE_SIZES, v, "a4"),
   marginPreset: (v) => oneOf(MARGIN_PRESETS, v, "normal"),
   // A margin wider than the paper leaves no body to print, so each is clamped
@@ -99,7 +101,7 @@ const SETUP_FIELDS = {
   language: (v) => oneOf(["en", "ar"], v, "en"),
 };
 
-const cleanSetup = (body) => {
+const cleanSetup = (body: Record<string, unknown> | null | undefined) => {
   const out: Record<string, unknown> = {};
   for (const [field, clean] of Object.entries(SETUP_FIELDS)) {
     if (body?.[field] !== undefined) out[field] = clean(body[field]);
@@ -109,7 +111,7 @@ const cleanSetup = (body) => {
 
 // ---- reading -----------------------------------------------------------------
 
-const withState = (doc, revisions) => ({
+const withState = (doc: QualityDocument, revisions: QualityRevision[]) => ({
   ...doc,
   // DERIVED, never stored. A status field and a revision list disagree the
   // first time one of them is written without the other.
@@ -169,7 +171,7 @@ export async function getDoc(ctx: QualityContext, id: string) {
  * A document nobody has issued yet is simply a draft, and drafts are for
  * writing in.
  */
-async function editable(ctx, documentId: string) {
+async function editable(ctx: QualityContext, documentId: string) {
   const revisions = (await Revisions.find(ctx))
     .filter((r) => r.documentId === documentId);
   if (revisions.some((r) => isOpen(r.state))) return null;
@@ -181,7 +183,10 @@ async function editable(ctx, documentId: string) {
 // in the same second get two different codes rather than both reading the same
 // tally. It never goes backwards either, which is what keeps a deleted draft's
 // number spent — a reused document code is indistinguishable from a forged one.
-async function mintCode(ctx, { prefix, dept, docs }) {
+async function mintCode(
+  ctx: QualityContext,
+  { prefix, dept, docs }: { prefix: string; dept: string; docs: QualityDocument[] },
+) {
   const key = `${SEC.prefix(ctx.studio.id, ctx.section.id)}seq`;
   const seq = await bumpCounter(key, `${prefix}-${dept}`, highestSeq(docs, prefix, dept));
   return formatCode(prefix, dept, seq);
@@ -199,7 +204,7 @@ export async function createDoc(ctx: QualityContext, body: Record<string, unknow
   const code = await mintCode(ctx, { prefix, dept, docs });
   const now = new Date().toISOString();
 
-  const row = await addRow(ctx.studio.id, ctx.section.id, DOCS, {
+  const row = await addRow<QualityDocument>(ctx.studio.id, ctx.section.id, DOCS, {
     id: randomUUID(),
     code,
     title,

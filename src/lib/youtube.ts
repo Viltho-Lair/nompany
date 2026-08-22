@@ -1,10 +1,10 @@
 // Extracts a YouTube video ID from watch/share/short/embed URL formats.
 // Returns null for anything that isn't a recognizable YouTube URL.
-export function youtubeVideoId(url) {
+export function youtubeVideoId(url: unknown) {
   if (!url) return null;
-  let u;
+  let u: URL;
   try {
-    u = new URL(url);
+    u = new URL(String(url));
   } catch {
     return null;
   }
@@ -20,12 +20,12 @@ export function youtubeVideoId(url) {
   return null;
 }
 
-export function youtubeEmbedUrl(url) {
+export function youtubeEmbedUrl(url: unknown) {
   const id = youtubeVideoId(url);
   return id ? `https://www.youtube.com/embed/${id}` : null;
 }
 
-export function youtubeThumbnailUrl(url) {
+export function youtubeThumbnailUrl(url: unknown) {
   const id = youtubeVideoId(url);
   return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
 }

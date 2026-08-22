@@ -119,9 +119,10 @@ Every service module reads and writes through `repo()`. `readCol`, `addRow`,
 | `platform/{http,realtime,notify,relations}` | ✅ typed |
 | `platform/auth` | ✅ 13 files, 9 record types named |
 | Twelve departments | ✅ moved to `src/modules/<name>/`, typed, Zod schema each |
-| What was left of `src/lib` | ✅ typed |
+| What was left of `src/lib` | ✅ typed, and on the ratchet |
 | `src/app/api/**/route.js` | ⬜ 99 files — see below |
 | `src/components`, `src/app` pages | ⬜ W4's slice, deferred deliberately |
+| `noImplicitAny` over every `.ts`/`.tsx` | ✅ the ratchet reaches `src/**` |
 | `checkJs` repo-wide, `allowJs` deleted | ⬜ blocked on the two rows above |
 
 `npx tsc --noEmit` is clean over every file the server runs: 171 TypeScript
@@ -135,10 +136,19 @@ types the handler — which took it to 671. The rest are service return shapes
 that the routes read positionally, and they are better done alongside the plan's
 own step 20 (`app/` reduced to re-exports) than as a rename with 671 casts.
 
-**The strictness ratchet** holds shared, all of platform, `modules/context.ts`
-and `modules/people`. 614 `noImplicitAny` findings remain across the other ten
-departments — unannotated internal helpers, not a regression: the base config
-grades none of them.
+**The strictness ratchet is finished for TypeScript.** `tsconfig.strict.json`'s
+`include` is now `src/**/*`: every `.ts` and `.tsx` in the tree is graded with
+`noImplicitAny` on, and the folder list is gone because there was nothing left
+to add. It arrived one folder at a time — platform, then people and hr, then
+main/projects/finance/tasks, then sales/technical/operations/inventory/quality,
+then `src/lib` — 753 findings in all. What keeps the file alive is `checkJs`,
+which is the 311 remaining `.js` files, every one a browser file: they convert
+with W4 and this config and `allowJs` go with them.
+
+`next-env.d.ts` had to join the include: overriding `include` drops the base
+config's, and that file is what augments `fetch`'s options with Next's
+`next: { revalidate }` — without it `app/api/fonts/route.ts` failed under the
+strict config and nowhere else, which reads as a bug in the route.
 
 
 **W4** UI/UX system — independent, can run alongside. Two requirements added

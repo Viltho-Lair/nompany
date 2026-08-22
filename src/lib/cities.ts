@@ -42,6 +42,7 @@ export const CITIES = {
 };
 
 // Cities for a country ISO code, or [] when we don't curate that country.
-export function citiesFor(code) {
-  return CITIES[String(code || "").toUpperCase()] || [];
+export function citiesFor(code: unknown): string[] {
+  const table: Record<string, string[]> = CITIES;
+  return table[String(code || "").toUpperCase()] || [];
 }

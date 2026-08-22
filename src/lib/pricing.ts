@@ -6,18 +6,18 @@
 export const SAR_PER_USD = 3.75;
 
 // Locale picker for the {en, ar} label objects below.
-export function pick(obj, locale) {
+export function pick(obj: Record<string, string> | null | undefined, locale: string) {
   if (!obj) return "";
   return obj[locale] ?? obj.en ?? "";
 }
 
 // SAR → rounded USD.
-export function toUsd(sar) {
+export function toUsd(sar: number) {
   return Math.round(sar / SAR_PER_USD);
 }
 
 // SAR → grouped string (Western digits for price clarity in both locales).
-export function fmtSar(sar) {
+export function fmtSar(sar: number) {
   return sar.toLocaleString("en-US");
 }
 
@@ -117,7 +117,7 @@ export const ALL_DEPARTMENT_KEYS = DEPARTMENTS.map((d) => d.key);
 // Seat (employee/login) cap for a company's chosen package. An unset/unknown
 // package falls back to the free Micro tier; the Large tier (maxUsers null) is
 // unlimited. Used to gate adding/joining a studio ("company is full").
-export function seatLimitForPackage(packageKey) {
+export function seatLimitForPackage(packageKey: string | null | undefined) {
   const plan = PLANS.find((p) => p.key === packageKey) || PLANS.find((p) => p.key === "micro");
   return plan && plan.maxUsers != null ? plan.maxUsers : Infinity;
 }
@@ -126,8 +126,8 @@ export function seatLimitForPackage(packageKey) {
 // the package each company chose at signup (company.packageKey, set from the
 // pricing "Get Started" flow). Returns the most-chosen plan key, or null when no
 // subscriber has a recorded package yet (callers fall back to the hardcoded flag).
-export function mostPopularPlanKey(companies) {
-  const counts = {};
+export function mostPopularPlanKey(companies: { status?: string; packageKey?: string }[] | null | undefined) {
+  const counts: Record<string, number> = {};
   for (const c of companies || []) {
     if (!c || c.status === "canceled") continue;
     if (c.packageKey) counts[c.packageKey] = (counts[c.packageKey] || 0) + 1;
@@ -152,7 +152,7 @@ export function computePlan(moduleKeys: string[] = [], tierMult: number = 1) {
 }
 
 // Resolve a tier multiplier from its index (0/1/2) safely.
-export function tierMultByIndex(i) {
+export function tierMultByIndex(i: number) {
   return TIERS[i]?.mult ?? 1;
 }
 
@@ -170,7 +170,37 @@ export const YEARLY_DISCOUNT = 0.15;
 // the per-employee rate steps up across bands and the card shows the TOTAL
 // monthly price for the chosen count. Micro is free; Large is invoiced at
 // month-end by actual headcount (no fixed price shown).
-export const PLANS = [
+// ---- what a headcount plan is ----------------------------------------------
+/** One price band: everybody up to `upTo` employees pays `rate` each. */
+export type PlanBand = { upTo: number; rate: number; label: string };
+
+/**
+ * A HEADCOUNT PACKAGE from the public pricing page. Distinct from the in-app
+ * à-la-carte model above: this is what a company chooses at signup, and it is
+ * what `seatLimitForPackage` gates a studio on.
+ *
+ * `bands` is absent on the free tier, which has no per-employee rate to step.
+ */
+export type Plan = {
+  key: string;
+  free?: boolean;
+  minUsers: number;
+  /** null on the largest tier, which is unlimited. */
+  maxUsers: number | null;
+  defaultUsers?: number;
+  bands?: PlanBand[];
+  /** The top tier bills on headcount after the fact rather than on a band. */
+  invoicedMonthly?: boolean;
+  unlimited?: boolean;
+  name: Record<string, string>;
+  tagline: Record<string, string>;
+  users: Record<string, string>;
+  cta: string;
+  popular?: boolean;
+  features: Record<string, string[]>;
+};
+
+export const PLANS: Plan[] = [
   {
     key: "micro",
     free: true, minUsers: 1, maxUsers: 9,
@@ -224,7 +254,7 @@ export const PLANS = [
 ];
 
 // The per-employee SAR rate for a headcount (steps up across the plan's bands).
-export function rateForCount(plan, count: number) {
+export function rateForCount(plan: Plan, count: number) {
   if (!Array.isArray(plan.bands) || !plan.bands.length) return 0;
   const b = plan.bands.find((x) => count <= x.upTo) || plan.bands[plan.bands.length - 1];
   return b.rate;
@@ -232,7 +262,7 @@ export function rateForCount(plan, count: number) {
 
 // TOTAL monthly price (SAR) for a headcount in the chosen billing period
 // (yearly = 15% off) = count × per-employee rate.
-export function planTotal(plan, count: number, yearly) {
+export function planTotal(plan: Plan, count: number, yearly: boolean) {
   const total = rateForCount(plan, count) * count;
   return yearly ? total * (1 - YEARLY_DISCOUNT) : total;
 }
@@ -249,14 +279,14 @@ export const CURRENCIES = [
   { code: "GBP", rate: 1 / 4.80 },              // ≈ 0.2083
 ];
 
-export function convertFromSar(sar, code) {
+export function convertFromSar(sar: number, code: string) {
   const c = CURRENCIES.find((x) => x.code === code) || CURRENCIES[0];
   return sar * c.rate;
 }
 
 // Format an amount (already in the target currency) — SAR keeps up to 2 decimals
 // like the authored prices; converted currencies round to whole units.
-export function fmtCurrencyAmount(amount, code) {
+export function fmtCurrencyAmount(amount: number | string, code: string) {
   const digits = code === "SAR" ? 2 : 0;
   return Number(amount).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: digits });
 }

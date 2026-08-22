@@ -6,11 +6,11 @@
 // far less than what arrived.
 
 export const DEVICES = ["Desktop", "Mobile", "Tablet"];
-export const DEVICE_KEYS = { Desktop: "desktop", Mobile: "mobile", Tablet: "tablet" };
+export const DEVICE_KEYS: Record<string, string> = { Desktop: "desktop", Mobile: "mobile", Tablet: "tablet" };
 
 // Tablets are checked FIRST: an iPad's user-agent says "Mobile" too, so asking
 // about phones first would file every tablet as one.
-export function deviceOf(userAgent) {
+export function deviceOf(userAgent: unknown) {
   const ua = String(userAgent || "").toLowerCase();
   if (!ua) return "Desktop";
   if (/ipad|tablet|playbook|silk|(android(?!.*mobile))/.test(ua)) return "Tablet";

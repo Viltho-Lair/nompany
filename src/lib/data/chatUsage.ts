@@ -14,7 +14,7 @@ import { S } from "@/platform/db/keys";
 
 export const monthKey = (d = new Date()) => new Date(d).toISOString().slice(0, 7);
 
-export async function chatsUsed(studioId, month = monthKey()) {
+export async function chatsUsed(studioId: string | null | undefined, month = monthKey()) {
   if (!studioId) return 0;
   try {
     const client = await getRedisClient();
@@ -25,7 +25,7 @@ export async function chatsUsed(studioId, month = monthKey()) {
 
 // Counted when a chat is STARTED, not when it ends: the allowance is on opening
 // a conversation, and a chat that is abandoned still occupied someone.
-export async function recordChatStart(studioId, month = monthKey()) {
+export async function recordChatStart(studioId: string | null | undefined, month = monthKey()) {
   if (!studioId) return 0;
   try {
     const client = await getRedisClient();
@@ -35,7 +35,7 @@ export async function recordChatStart(studioId, month = monthKey()) {
 
 // The whole answer in one shape, so the shell and the API cannot compute
 // "remaining" differently.
-export function allowanceOf(used, allowed) {
+export function allowanceOf(used: unknown, allowed: unknown) {
   const cap = Number(allowed) || 0;
   const spent = Number(used) || 0;
   // NULL, not Infinity, for unlimited. This object is handed from a server

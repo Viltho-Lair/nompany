@@ -188,6 +188,18 @@ export const MEDIA = {
   blob: (id: string) => `${P}g:media:${id}`,
 };
 
+// ---- nompany's own public site (owned by nobody, outside every cascade) ----
+// Platform content, not tenant data: services, careers, the reviews wall, the
+// messages the contact form leaves. These lived as a template literal inside
+// lib/data/site.ts, which put them OUTSIDE the namespace and outside the
+// "every key builder is namespaced" assertion — that walks the groups in this
+// file and cannot see a key built anywhere else. Same escape route lib/media
+// took, and the same consequence: a test run writing into the live site.
+export const SITE = {
+  collection: (name: string) => `${P}g:site:${name}`,
+  settings: `${P}g:site:settings`,
+};
+
 // ---- public website traffic (owned by nobody; deliberately never expires) --
 // One hash per day plus one HyperLogLog per day. Traffic history is the one
 // thing that only gets more useful with age — this spring is only interesting

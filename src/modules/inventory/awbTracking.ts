@@ -18,7 +18,7 @@ import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { parseAwb } from "./awb";
 import { AWB_STATUS_BY_CODE, summarizeMovements } from "./awbStatus";
-import type { InventoryContext } from "./types";
+import type { InventoryContext, Airline, Shipment } from "./types";
 
 const SHIPMENTS = "awbShipments";
 const AIRLINES = "awbAirlines";
@@ -27,16 +27,16 @@ const AIRLINES = "awbAirlines";
 // collection, not a scope — the studio and section arrive per call, which is
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
-const Airlines = repo(AIRLINES);
-const Shipments = repo(SHIPMENTS);
+const Airlines = repo<Airline>(AIRLINES);
+const Shipments = repo<Shipment>(SHIPMENTS);
 
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
-const qty = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 1000) / 1000 : 0; };
-const count = (v) => Math.max(0, Math.round(Number(v)) || 0);
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
+const qty = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 1000) / 1000 : 0; };
+const count = (v: unknown) => Math.max(0, Math.round(Number(v)) || 0);
 
 // ---- airline registry -------------------------------------------------------
 // The AWB sub-section owns both collections.
-export async function listAirlines({ studio, awbSection }) {
+export async function listAirlines({ studio, awbSection }: Pick<InventoryContext, "studio" | "awbSection">) {
   const rows = await Airlines.find({ studio, section: awbSection });
   return [...rows].sort((a, b) => String(a.prefix || "").localeCompare(String(b.prefix || "")));
 }
@@ -113,7 +113,7 @@ export async function removeAirline(ctx: InventoryContext, id: string) {
 // ---- shipments --------------------------------------------------------------
 // Each one with its carrier resolved from the prefix and its status summarised
 // from the movements.
-export async function listShipments({ studio, awbSection }) {
+export async function listShipments({ studio, awbSection }: Pick<InventoryContext, "studio" | "awbSection">) {
   const [shipments, airlines] = await Promise.all([
     Shipments.find({ studio, section: awbSection }),
     Airlines.find({ studio, section: awbSection }),
@@ -219,7 +219,7 @@ export async function updateShipment(ctx: InventoryContext, id: string, body: Re
     ];
   }
 
-  const shipment = await updateRow(studio.id, awbSection.id, SHIPMENTS, id, patch);
+  const shipment = await updateRow<Shipment>(studio.id, awbSection.id, SHIPMENTS, id, patch);
   return shipment ? { shipment: { ...shipment, ...summarizeMovements(shipment.movements) } } : { error: "notfound" };
 }
 

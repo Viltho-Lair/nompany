@@ -63,14 +63,14 @@ export const ELEMENTS = [
   { type: "ending", group: "Structure", label: "End Screen", icon: "end", settings: [], defaults: {} },
 ];
 
-export const byType = (type) => ELEMENTS.find((e) => e.type === type) || null;
-export const isStructure = (type) => byType(type)?.group === "Structure";
+export const byType = (type: unknown) => ELEMENTS.find((e) => e.type === type) || null;
+export const isStructure = (type: unknown) => byType(type)?.group === "Structure";
 
 // Types whose answer is a list the author edits.
-export const hasOptions = (type) => Array.isArray(byType(type)?.defaults?.options);
+export const hasOptions = (type: unknown) => Array.isArray(byType(type)?.defaults?.options);
 
 // A fresh element, ready to drop onto a page.
-export function newQuestion(type, id: string) {
+export function newQuestion(type: string, id: string) {
   const def = byType(type);
   if (!def) return null;
   return {

@@ -68,7 +68,14 @@ const PREAMBLE = `:${" ".repeat(2048)}\n\n`;
  *   readonly open: boolean,
  * }) => (void | (() => void) | Promise<void | (() => void)>)} start
  */
-export function sseResponse(request, start) {
+export function sseResponse(
+  request: Request,
+  start: (conn: {
+    send: (event: string, data: unknown, id?: string) => void;
+    close: () => void;
+    readonly open: boolean;
+  }) => void | (() => void) | Promise<void | (() => void)>,
+) {
   let closed = false;
   // THE CONTROLLER ARRIVES LATER — ReadableStream hands it to `start`, which
   // runs after this closure is built. Everything here has to be declared before
@@ -192,7 +199,7 @@ export function sseResponse(request, start) {
  * after a soft navigation, where the client knows its cursor but EventSource
  * has not been given one yet.
  */
-export function resumeCursor(request) {
+export function resumeCursor(request: Request) {
   return (
     request.headers.get("last-event-id") ||
     new URL(request.url).searchParams.get("since") ||

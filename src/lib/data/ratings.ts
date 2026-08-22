@@ -17,12 +17,12 @@ import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 const DECLINED = 0;
 const PROMPT_AFTER_DAYS = 15;
 
-const clampStars = (v) => {
+const clampStars = (v: unknown) => {
   const n = Math.trunc(Number(v));
   return Number.isFinite(n) && n >= 1 && n <= 5 ? n : null;
 };
 
-export async function setRating(userId: string, stars) {
+export async function setRating(userId: string, stars: unknown) {
   const value = clampStars(stars);
   if (!userId || value === null) return { error: "stars" };
   const client = await getRedisClient();
@@ -68,13 +68,16 @@ export async function getRating(userId: string) {
 
 // Ask only once the user has had the product long enough to have an opinion,
 // and only if they have not already answered.
-export function eligibleSince(createdAt, now = Date.now()) {
+export function eligibleSince(createdAt: string | null | undefined, now = Date.now()) {
   const created = Date.parse(createdAt || "");
   if (!Number.isFinite(created)) return false;
   return now - created >= PROMPT_AFTER_DAYS * 24 * 60 * 60 * 1000;
 }
 
-export async function shouldPrompt(user, now = Date.now()) {
+export async function shouldPrompt(
+  user: { id?: string; createdAt?: string } | null | undefined,
+  now = Date.now(),
+) {
   if (!user?.id || !eligibleSince(user.createdAt, now)) return false;
   return (await getRating(user.id)) == null;
 }

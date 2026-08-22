@@ -37,11 +37,12 @@ import {
   STATIC_FIELDS, BLOCK_SOURCES, availableFields, availableBlocks, groupFields,
   legalKeyFor, subjectById, SUBJECTS, reachOf,
 } from "./qualityFields";
-import type { QualityContext } from "./types";
+import type { QualityContext, QualityDocument } from "./types";
+import type { MergeField } from "./qualityFields";
 import { netUnitPrice, discountPct } from "@/modules/technical/quotations";
 import type { PermissionKey } from "@/platform/access";
 
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 
 // THREE REFERENCE ERRORS THAT HAD NEVER BEEN CALLED.
 //
@@ -83,11 +84,12 @@ export const qualityContext = moduleContext({
 // ---- rendering a document ---------------------------------------------------
 
 // Dotted into a record: "location.city" off a sales ticket.
-const dotted = (obj, path) =>
-  String(path || "").split(".").reduce((o, k) => (o == null ? o : o[k]), obj);
+const dotted = (obj: unknown, path: string): unknown =>
+  String(path || "").split(".")
+    .reduce<unknown>((o, k) => (o == null ? o : (o as Record<string, unknown>)[k]), obj);
 
 // Reads any joined collection, resolving its section from the registry.
-const readerFor = (ctx) => async (node) => {
+const readerFor = (ctx: QualityContext) => async (node: string) => {
   const n = NODES[node];
   const section = ctx.sections.find((x) => x.key === n.sectionKey);
   return section ? repo(n.collection).find({ studio: ctx.studio, section }) : [];
@@ -100,7 +102,11 @@ const readerFor = (ctx) => async (node) => {
 // six times. Each hop is permission-checked against whoever is asking, so a
 // record they may not read resolves to nothing and its fields print as gaps
 // naming themselves.
-async function reachedRecords(ctx, document, wanted) {
+async function reachedRecords(
+  ctx: QualityContext,
+  document: QualityDocument,
+  wanted: (string | null | undefined)[],
+) {
   const { subject, record } = await subjectRecord(ctx, document);
   const out: Record<string, unknown> = {};
   if (!subject || !record) return out;
@@ -109,7 +115,7 @@ async function reachedRecords(ctx, document, wanted) {
   const read = readerFor(ctx);
   const holds = (permission: string) => can(ctx.access, permission as PermissionKey);
   for (const target of wanted) {
-    if (target === subject.id || out[target]) continue;
+    if (!target || target === subject.id || out[target]) continue;
     if (!reachOf(subject.id, target, holds)) continue;
     const hop = await traverse(subject.id, record, target, { read, holds });
     if (hop.record) out[target] = hop.record;
@@ -123,7 +129,7 @@ async function reachedRecords(ctx, document, wanted) {
 // document that prints a client's contact details to somebody who may not open
 // Sales would be a way of reading Sales without the right to — the document is
 // the leak, and the check has to be here where the value is fetched.
-async function subjectRecord(ctx, document) {
+async function subjectRecord(ctx: QualityContext, document: QualityDocument | null | undefined) {
   const subject = subjectById(document?.subjectType);
   // `subjectId` is set by GENERATION, which points the template at the record it
   // is producing for; on a document being authored it is empty and the caller
@@ -146,24 +152,28 @@ async function subjectRecord(ctx, document) {
 // A field that cannot be resolved is left OUT of the map rather than set to "".
 // The renderer then prints its name in the gap, so an empty spot on a page says
 // which field is empty instead of looking like a mistake in the text.
-export async function mergeValuesFor(ctx: QualityContext, document, { rev = null } = {}) {
+export async function mergeValuesFor(
+  ctx: QualityContext,
+  document: QualityDocument,
+  { rev = null }: { rev?: number | null } = {},
+) {
   const people = await listCollaborators(ctx.studio.id);
   const department = (ctx.departments as { id: string; name?: string }[] | undefined)
     ?.find((d) => d.id === document.departmentId);
-  const alias = (id) => people.find((c) => c.id === id)?.alias || "";
+  const alias = (id: unknown) => String(people.find((c) => c.id === id)?.alias || "");
 
-  const values = {
-    "company.name": ctx.studio.name || "",
-    "company.address": ctx.studio.location || "",
-    "company.country": ctx.studio.country || "",
-    "company.city": ctx.studio.city || "",
-    "document.code": document.code || "",
-    "document.title": document.title || "",
+  const values: Record<string, string> = {
+    "company.name": String(ctx.studio.name || ""),
+    "company.address": String(ctx.studio.location || ""),
+    "company.country": String(ctx.studio.country || ""),
+    "company.city": String(ctx.studio.city || ""),
+    "document.code": String(document.code || ""),
+    "document.title": String(document.title || ""),
     "document.revision": `Rev ${rev ?? document.revision ?? 0}`,
     "document.department": department?.name || "",
     "document.owner": alias(document.ownerCollaboratorId),
-    "document.effectiveDate": document.effectiveDate || "",
-    "document.nextReviewDate": document.nextReviewDate || "",
+    "document.effectiveDate": String(document.effectiveDate || ""),
+    "document.nextReviewDate": String(document.nextReviewDate || ""),
     // The day this is being rendered, not the day the template was written.
     "misc.today": new Date().toISOString().slice(0, 10),
   };
@@ -171,7 +181,10 @@ export async function mergeValuesFor(ctx: QualityContext, document, { rev = null
   // The studio's own legal rows — VAT number, CR number, whatever it puts on its
   // paperwork. Keyed by a slug of the label so renaming "VAT No." to "VAT
   // Number" does not orphan every document that pointed at it.
-  for (const row of Array.isArray(ctx.studio.legalInfo) ? ctx.studio.legalInfo : []) {
+  const legalRows = (Array.isArray(ctx.studio.legalInfo)
+    ? ctx.studio.legalInfo
+    : []) as { key?: unknown; value?: unknown }[];
+  for (const row of legalRows) {
     if (row?.key) values[legalKeyFor(row.key)] = String(row.value ?? "");
   }
 
@@ -185,7 +198,7 @@ export async function mergeValuesFor(ctx: QualityContext, document, { rev = null
     if (!f.subject) continue;
     const record = reached[f.subject];
     if (!record) continue;
-    const raw = dotted(record, f.path);
+    const raw = dotted(record, f.path || "");
     values[f.key] = (f as { via?: string }).via === "collaborator" ? alias(raw) : String(raw ?? "");
   }
 
@@ -198,7 +211,7 @@ export async function mergeValuesFor(ctx: QualityContext, document, { rev = null
 // record to read at all, and the permission decides whether THIS person may.
 // A block they may not see resolves to nothing, and the renderer says which
 // block is missing rather than leaving an unexplained hole in the page.
-export async function resolveBlocks(ctx: QualityContext, document) {
+export async function resolveBlocks(ctx: QualityContext, document: QualityDocument) {
   const reached = await reachedRecords(ctx, document, [...new Set(BLOCK_SOURCES.map((b) => b.subject))]);
 
   const out: Record<string, unknown> = {};
@@ -261,7 +274,7 @@ export async function resolveBlocks(ctx: QualityContext, document) {
 }
 
 // What the Insert block menu should offer.
-export function blocksFor(ctx: QualityContext, document) {
+export function blocksFor(ctx: QualityContext, document: QualityDocument | null | undefined) {
   return availableBlocks({
     subjectType: document?.subjectType || null,
     holds: (permission: string) => can(ctx.access, permission as PermissionKey),
@@ -271,7 +284,7 @@ export function blocksFor(ctx: QualityContext, document) {
 // What the Insert field menu should offer, grouped by department. Filtered by
 // what the document is bound to AND by what this author holds — see the note in
 // modules/quality/qualityFields.js about why both filters are needed.
-export function fieldsFor(ctx: QualityContext, document) {
+export function fieldsFor(ctx: QualityContext, document: QualityDocument | null | undefined) {
   const holds = (permission: string) => can(ctx.access, permission as PermissionKey);
   const fields = availableFields({
     subjectType: document?.subjectType || null,
@@ -284,7 +297,10 @@ export function fieldsFor(ctx: QualityContext, document) {
   // that one resolves to a word and the others to rows. A separate button asked
   // the author to know which kind of thing they were reaching for before they
   // could go looking for it.
-  const blocks = availableBlocks({ subjectType: document?.subjectType || null, holds })
+  // A BLOCK IS A FIELD as far as the menu is concerned — the only difference is
+  // that one resolves to a word and the others to rows — so it is shaped like
+  // one, with the parts a block has no answer for left blank.
+  const blocks: MergeField[] = availableBlocks({ subjectType: document?.subjectType || null, holds })
     .map((b) => ({ key: b.key, label: b.label, group: b.group, kind: "block" }));
 
   const all = [...fields, ...blocks];
@@ -293,7 +309,7 @@ export function fieldsFor(ctx: QualityContext, document) {
 
 // The records a document may be bound to, for the picker. Permission-checked:
 // a list of every sales ticket is itself Sales data.
-export async function subjectOptions(ctx: QualityContext, subjectType) {
+export async function subjectOptions(ctx: QualityContext, subjectType: unknown) {
   const subject = subjectById(subjectType);
   if (!subject) return { error: "unknown-subject" };
   if (!can(ctx.access, subject.permission as PermissionKey)) return { error: "forbidden" };
@@ -304,7 +320,8 @@ export async function subjectOptions(ctx: QualityContext, subjectType) {
   return {
     options: rows.slice(0, 500).map((r) => ({
       id: r.id,
-      label: [r[subject.naming.primary], r[subject.naming.secondary]].filter(Boolean).join(" — "),
+      label: [r[subject.naming?.primary || ""], r[subject.naming?.secondary || ""]]
+        .filter(Boolean).join(" — "),
     })).sort((a, b) => a.label.localeCompare(b.label)),
   };
 }
@@ -356,7 +373,7 @@ export { SUBJECTS };
 // one that has, and a withdrawn one must never be mistaken for current — those
 // two confusions are precisely what document control exists to prevent, and
 // they happen on paper, away from the screen that knew the difference.
-export function watermarkFor(document) {
+export function watermarkFor(document: { state?: unknown; obsoletedAt?: unknown } | null | undefined) {
   const state = document?.state || (document?.obsoletedAt ? "obsolete" : "draft");
   if (state === "obsolete") return "OBSOLETE";
   if (state === "effective") return "";

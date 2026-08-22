@@ -1,3 +1,5 @@
+import type { AwbMovement } from "./types";
+
 // Canonical air-cargo milestone model — client-safe (no imports).
 //
 // Air cargo movement is a sequence of IATA Cargo-IMP status events. This is the
@@ -24,25 +26,36 @@ export const AWB_STATUS = [
   { code: "MSCA", label: "Shortage / Missing", order: 106, desc: "Exception — pieces missing at scan.", exception: true },
 ];
 
-export const AWB_STATUS_BY_CODE = Object.fromEntries(AWB_STATUS.map((s) => [s.code, s]));
+/** One point on the lifecycle, as the carrier's scans report it. */
+export type AwbStatus = {
+  code: string;
+  label: string;
+  order: number;
+  desc: string;
+  /** An exception is not a stage — it sits beside the ladder, not on it. */
+  exception?: boolean;
+};
 
-export function statusLabel(code) {
+export const AWB_STATUS_BY_CODE: Record<string, AwbStatus | undefined> =
+  Object.fromEntries(AWB_STATUS.map((s) => [s.code, s]));
+
+export function statusLabel(code: string) {
   return AWB_STATUS_BY_CODE[code]?.label || code || "—";
 }
-export function statusOrder(code) {
+export function statusOrder(code: string) {
   return AWB_STATUS_BY_CODE[code]?.order ?? 0;
 }
-export function isException(code) {
+export function isException(code: string) {
   return !!AWB_STATUS_BY_CODE[code]?.exception;
 }
-export function isDelivered(code) {
+export function isDelivered(code: string) {
   return code === "DLV";
 }
 
 // Recompute a shipment's derived fields from its movement list: sort by event
 // time (then lifecycle order), pick the current (non-exception) status, and flag
 // delivery. Pure — returns a new object.
-export function summarizeMovements(movements) {
+export function summarizeMovements(movements: AwbMovement[] | null | undefined) {
   const list = Array.isArray(movements) ? [...movements] : [];
   list.sort((a, b) => (a.at || "").localeCompare(b.at || "") || statusOrder(a.code) - statusOrder(b.code));
   const progressed = list.filter((m) => !isException(m.code));

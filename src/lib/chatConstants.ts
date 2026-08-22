@@ -1,3 +1,8 @@
+// A TYPE-ONLY IMPORT, and it has to stay one: lib/data/chat opens a Redis
+// client, and this file is client-safe. `import type` is erased before the
+// bundler sees it, so the shape is shared without the module being pulled in.
+import type { ChatRoom } from "@/lib/data/chat";
+
 // Client-safe chat constants and projections — shared by the studio widget, the
 // /super console and the API routes. No server imports, so either side can pull
 // from it.
@@ -47,7 +52,7 @@ export function chatDisplayName(
 
 // What the STUDIO side may see. It gets no admin identity and no room-holder
 // id — only whether somebody from nompany has joined.
-export function forStudio(room) {
+export function forStudio(room: ChatRoom) {
   return {
     id: room.id,
     studioName: room.studioName,
@@ -62,7 +67,7 @@ export function forStudio(room) {
 
 // What the CONSOLE may see: the same thread plus who it is from and who holds
 // it, which is the whole point of the queue.
-export function forNompany(room) {
+export function forNompany(room: ChatRoom) {
   return {
     id: room.id,
     studioId: room.studioId,
@@ -80,7 +85,7 @@ export function forNompany(room) {
 
 // A queue row — everything the list needs and not one message more, so polling
 // the queue never re-sends every open conversation.
-export function summarize(room) {
+export function summarize(room: ChatRoom) {
   const messages = room.messages || [];
   const last = messages[messages.length - 1];
   return {
@@ -100,7 +105,7 @@ export function summarize(room) {
 }
 
 // HH:MM in the viewer's locale, for a message bubble.
-export function fmtTime(value) {
+export function fmtTime(value: string | null | undefined) {
   const t = Date.parse(value || "");
   if (!Number.isFinite(t)) return "";
   return new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });

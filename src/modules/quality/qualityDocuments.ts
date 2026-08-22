@@ -31,7 +31,7 @@ export const STATUS_LABELS = {
 // A document is a published, controlled thing from `effective` onwards. Before
 // that it is somebody's work in progress, which is what decides whether it may
 // still be deleted — see removeDocument in modules/quality/quality.js.
-export const isControlled = (status) => status === "effective" || status === "obsolete";
+export const isControlled = (status: string) => status === "effective" || status === "obsolete";
 
 // ---- languages -------------------------------------------------------------
 //
@@ -46,7 +46,7 @@ export const DOC_LANGUAGES = [
   { id: "en", name: "English", dir: "ltr" },
   { id: "ar", name: "العربية", dir: "rtl" },
 ];
-export const directionOf = (language) =>
+export const directionOf = (language: unknown) =>
   DOC_LANGUAGES.find((l) => l.id === language)?.dir || "ltr";
 
 // ---- document codes --------------------------------------------------------
@@ -60,12 +60,12 @@ export const directionOf = (language) =>
 export const CODE_PART_RE = /^[A-Z][A-Z0-9]{0,5}$/;
 export const SEQ_DIGITS = 3;
 
-export const formatCode = (prefix, dept, seq) =>
+export const formatCode = (prefix: string, dept: string, seq: number | string) =>
   `${prefix}-${dept}-${String(seq).padStart(SEQ_DIGITS, "0")}`;
 
 // Normalise anything somebody types into a code part: upper case, letters and
 // digits only, capped. Returns "" for input that cannot be one.
-export function cleanCodePart(value, max = 4) {
+export function cleanCodePart(value: unknown, max = 4) {
   const s = String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, max);
   return CODE_PART_RE.test(s) ? s : "";
 }
@@ -73,14 +73,18 @@ export function cleanCodePart(value, max = 4) {
 // The default short code for a department, which IS a top-level section key
 // (see lib/departments.js). "human-resources" -> "HUM", "sales" -> "SAL".
 // Editable afterwards; this only decides what it starts as.
-export const defaultDeptCode = (sectionKey) =>
+export const defaultDeptCode = (sectionKey: unknown) =>
   cleanCodePart(String(sectionKey || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 3)) || "GEN";
 
 // The highest sequence already issued for one type+department, read off the
 // documents that exist. Feeds bumpCounter's floor so a studio that already holds
 // documents — or one whose counter was never primed — cannot be handed a number
 // somebody is already using.
-export function highestSeq(documents, prefix: string, dept) {
+export function highestSeq(
+  documents: QualityDocument[] | null | undefined,
+  prefix: string,
+  dept: string,
+) {
   const re = new RegExp(`^${prefix}-${dept}-(\\d+)$`);
   let top = 0;
   for (const d of documents || []) {
@@ -102,7 +106,18 @@ export function highestSeq(documents, prefix: string, dept) {
 // a studio is created and there is no backfill, so anything planted that way
 // would reach new studios only and never the ones that already exist. A studio
 // that would rather start blank simply does not press the button.
-export const ISO_STARTER_TYPES = [
+/**
+ * A DOCUMENT TYPE the studio has declared. `prefix` is what every code minted
+ * under it begins with, which is why no two may share one.
+ */
+export type DocumentType = {
+  id?: string;
+  name: string;
+  prefix: string;
+  description?: string;
+};
+
+export const ISO_STARTER_TYPES: DocumentType[] = [
   { name: "Policy", prefix: "POL",
     description: "What the company commits to. Short, signed by top management, and rarely revised." },
   { name: "Procedure", prefix: "QP",
@@ -123,7 +138,11 @@ export const MAX_TITLE = 200;
 // Whether a proposed prefix is free. Two types sharing a prefix would mint two
 // documents with the same code, which is the one thing a document code may
 // never do.
-export function prefixTaken(types, prefix: string, exceptId = "") {
+export function prefixTaken(
+  types: DocumentType[] | null | undefined,
+  prefix: string,
+  exceptId = "",
+) {
   return (types || []).some((t) => t.id !== exceptId && t.prefix === prefix);
 }
 
@@ -139,7 +158,9 @@ export function prefixTaken(types, prefix: string, exceptId = "") {
 // the same time, and a single status field cannot say both without lying about
 // one of them.
 export const REV_STATES = ["draft", "review", "approval", "approved", "effective", "superseded", "rejected"];
-export const REV_LABELS = {
+// KEYED BY STRING: a revision's `state` arrives off a stored row, so these
+// tables have to be able to answer about one rather than assume it is legal.
+export const REV_LABELS: Record<string, string> = {
   draft: "Draft",
   review: "Waiting for review",
   approval: "Waiting for approval",
@@ -153,13 +174,21 @@ export const REV_LABELS = {
 // issued or retired. Exactly one of these may be open per document: two people
 // drafting two different next revisions is two documents wearing one code.
 export const OPEN_STATES = new Set(["draft", "review", "approval", "approved", "rejected"]);
-export const isOpen = (state) => OPEN_STATES.has(state);
+export const isOpen = (state: string) => OPEN_STATES.has(state);
 
 // Every legal move, with the right it needs and where it lands. Declared as a
 // table rather than as a chain of ifs so the whole machine can be read at once —
 // and so the screen can ask what is possible instead of reimplementing the rules
 // to decide which buttons to draw.
-export const TRANSITIONS = {
+/** One legal move: where it may start, where it lands, and the right it needs. */
+export type Transition = {
+  from: string[];
+  to: string;
+  permission: string;
+  label: string;
+};
+
+export const TRANSITIONS: Record<string, Transition> = {
   submit:   { from: ["draft", "rejected"], to: "review",    permission: "quality.documents.edit",     label: "Send for review" },
   review:   { from: ["review"],            to: "approval",  permission: "quality.documents.review",   label: "Sign as reviewer" },
   approve:  { from: ["approval"],          to: "approved",  permission: "quality.documents.approve",  label: "Sign as approver" },
@@ -168,7 +197,8 @@ export const TRANSITIONS = {
   withdraw: { from: ["effective"],         to: "superseded", permission: "quality.documents.obsolete", label: "Withdraw the document" },
 };
 
-export const canMove = (action, state) => Boolean(TRANSITIONS[action]?.from.includes(state));
+export const canMove = (action: string, state: string) =>
+  Boolean(TRANSITIONS[action]?.from.includes(state));
 
 // THE DOCUMENT'S OWN STATE, derived from its revisions rather than stored.
 //
@@ -185,7 +215,10 @@ export function documentState(
   const open = mine.find((r) => isOpen(r.state));
   if (mine.some((r) => r.state === "effective")) return "effective";
   if (!open) return "draft";
-  return { draft: "draft", rejected: "draft", review: "in-review", approval: "in-review", approved: "approved" }[open.state];
+  const BY_OPEN_STATE: Record<string, string> = {
+    draft: "draft", rejected: "draft", review: "in-review", approval: "in-review", approved: "approved",
+  };
+  return BY_OPEN_STATE[open.state] || "draft";
 }
 
 // Whether a NEW revision is in flight over an already-issued document. The

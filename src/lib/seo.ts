@@ -9,10 +9,13 @@ export const SITE_URL = (
 ).replace(/\/$/, "");
 
 // OpenGraph locale codes for each app locale.
-const OG_LOCALE = { en: "en_US", ar: "ar_SA" };
+const OG_LOCALE: Record<string, string> = { en: "en_US", ar: "ar_SA" };
 
 // Per-page SEO copy, keyed by route path ("" = the landing page).
-export const PAGES = {
+/** Title and description for one page, in one language. */
+type PageCopy = { title: string; description: string };
+
+export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
   "": {
     en: {
       title: "Run your company's whole operation from one platform",
@@ -51,7 +54,7 @@ export const PAGES = {
   },
 };
 
-const KEYWORDS = {
+const KEYWORDS: Record<string, string[]> = {
   en: [
     "modular ERP",
     "ERP software",
@@ -87,21 +90,21 @@ const KEYWORDS = {
 };
 
 // Absolute URL for a locale + route path.
-export function urlFor(locale, path = "") {
+export function urlFor(locale: string, path = "") {
   return `${SITE_URL}/${locale}${path}`;
 }
 
 // hreflang alternates (+ x-default) for a given route path.
 export function alternatesFor(path = "") {
-  const languages = {};
+  const languages: Record<string, string> = {};
   for (const loc of locales) languages[loc] = urlFor(loc, path);
   languages["x-default"] = urlFor(defaultLocale, path);
   return languages;
 }
 
 // Build a Next.js Metadata object for a public page.
-export function buildMetadata({ locale, path = "" }) {
-  const page = PAGES[path]?.[locale] || PAGES[path]?.[defaultLocale] || {};
+export function buildMetadata({ locale, path = "" }: { locale: string; path?: string }) {
+  const page: Partial<PageCopy> = PAGES[path]?.[locale] || PAGES[path]?.[defaultLocale] || {};
   const title = page.title;
   const description = page.description;
   const canonical = urlFor(locale, path);
@@ -139,7 +142,7 @@ function sameAs() {
   return CONTACT.socials.map((s) => s.href).filter(Boolean);
 }
 
-export function organizationLd(settings, locale = defaultLocale) {
+export function organizationLd(settings?: unknown, locale: string = defaultLocale) {
   const name = "nompany";
   return {
     "@context": "https://schema.org",
@@ -162,7 +165,7 @@ export function organizationLd(settings, locale = defaultLocale) {
   };
 }
 
-export function websiteLd(settings, locale = defaultLocale) {
+export function websiteLd(settings?: unknown, locale: string = defaultLocale) {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -184,7 +187,7 @@ function openingHours() {
   };
 }
 
-export function localBusinessLd(settings, locale = defaultLocale) {
+export function localBusinessLd(settings?: unknown, locale: string = defaultLocale) {
   const name = "nompany";
   return {
     "@context": "https://schema.org",
@@ -208,7 +211,7 @@ export function localBusinessLd(settings, locale = defaultLocale) {
   };
 }
 
-export function breadcrumbLd(items) {
+export function breadcrumbLd(items: { name: string; url: string }[]) {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -222,7 +225,11 @@ export function breadcrumbLd(items) {
 }
 
 // ItemList of services, each modelled as a schema.org Service.
-export function servicesLd(services, locale, pageUrl) {
+export function servicesLd(
+  services: Record<string, string>[],
+  locale: string,
+  pageUrl: string,
+) {
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -243,7 +250,7 @@ export function servicesLd(services, locale, pageUrl) {
 }
 
 // JobPosting for an open role.
-export function jobPostingLd(job, settings, locale) {
+export function jobPostingLd(job: Record<string, string>, settings: unknown, locale: string) {
   const title = locale === "ar" ? job.title_ar || job.title_en : job.title_en;
   const description =
     locale === "ar" ? job.desc_ar || job.desc_en : job.desc_en;
@@ -278,7 +285,7 @@ export function jobPostingLd(job, settings, locale) {
 
 // VideoObject for an embedded YouTube case-study video. Returns null when the
 // stored URL isn't a recognizable YouTube link (no embeddable video).
-export function videoObjectLd(item, locale) {
+export function videoObjectLd(item: Record<string, string>, locale: string) {
   const videoId = youtubeVideoId(item.youtube_url);
   if (!videoId) return null;
   const name = locale === "ar" ? item.title_ar || item.title_en : item.title_en;

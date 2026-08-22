@@ -9,24 +9,24 @@
 // only the platform's own marketing site.)
 
 import { readArr, editArr, editJSON, getJSON } from "@/platform/db/store";
+import type { Row } from "@/platform/db/store";
+import { SITE } from "@/platform/db/keys";
 
 const COLLECTIONS = new Set([
   "services", "careers", "previousProjects", "galleryImages",
   "reviews", "messages", "applications",
 ]);
 
-const key = (name) => `g:site:${name}`;
-
-export async function getSiteCollection(name) {
+export async function getSiteCollection(name: string) {
   if (!COLLECTIONS.has(name)) throw new Error(`Unknown site collection: ${name}`);
-  return readArr(key(name));
+  return readArr(SITE.collection(name));
 }
 
 // Atomic: `messages` and `applications` are written by the PUBLIC forms, so two
 // visitors submitting at the same moment is the normal case, not the edge case.
-export async function addSiteRow(name, row) {
+export async function addSiteRow(name: string, row: Record<string, unknown>) {
   if (!COLLECTIONS.has(name)) throw new Error(`Unknown site collection: ${name}`);
-  return editArr(key(name), (rows) => {
+  return editArr(SITE.collection(name), (rows: Row[]) => {
     const record = { id: row.id || `${name.slice(0, 3)}_${Date.now().toString(36)}`, ...row };
     return { next: [record, ...rows], result: record };
   });
@@ -35,11 +35,11 @@ export async function addSiteRow(name, row) {
 // Brand / contact / marketing copy for the public pages. Returns {} until the
 // owner console writes some — the pages fall back to lib/site.js + i18n.
 export async function getSiteSettings() {
-  return (await getJSON(key("settings"))) || {};
+  return (await getJSON<Record<string, unknown>>(SITE.settings)) || {};
 }
 
-export async function updateSiteSettings(patch) {
-  return editJSON(key("settings"), (cur) => {
+export async function updateSiteSettings(patch: Record<string, unknown>) {
+  return editJSON(SITE.settings, (cur: Record<string, unknown> | null) => {
     const next = { ...(cur || {}), ...patch };
     return { next, result: next };
   });
