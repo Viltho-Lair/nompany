@@ -24,6 +24,7 @@ import { getSectionByKey, addRow, updateRow, deleteRow } from "@/platform/db/sec
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { nextReference } from "@/modules/main/references";
 // What each department adds to a quotation row, and who owns which column.
 import { SHEET_OWNERS, cleanSheetLine } from "./sheetColumns";
@@ -968,6 +969,29 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
     status: complete ? "Received" : "Partly received",
     receivedAt: complete ? new Date().toISOString() : order.receivedAt || "",
   });
+
+  // "A new PO was received." The person who placed the order hears it landed —
+  // not the storekeeper booking it in, who is standing over the goods. Only on
+  // a FULL receipt: a partial arrival is an in-progress delivery, and a bell per
+  // box would train the recipient to ignore the one that says it is all here.
+  const buyerId = String(order.createdByCollaboratorId || "");
+  if (complete && updated && buyerId && buyerId !== ctx.collaborator.id) {
+    const buyer = (await listCollaborators(studio.id)).find((c) => c.id === buyerId);
+    if (buyer) {
+      await notifyCollaborators(
+        studio.id,
+        [buyerId],
+        {
+          type: NOTIFY.purchaseReceived,
+          title: "A purchase order was received in full",
+          body: String(order.reference || ""),
+          href: "inventory-orders",
+          tone: "success",
+        },
+        { userIdOf: (cid) => (cid === buyer.id ? String(buyer.userId) : undefined) },
+      );
+    }
+  }
   return { order: updated };
 }
 

@@ -14,6 +14,7 @@ import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/secti
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "./projectSchedule";
 import { nextReference } from "@/modules/main/references";
 import { ticketFacts } from "@/modules/technical/technical";
@@ -181,6 +182,33 @@ export async function approvedQuotations(ctx: ProjectsContext) {
     });
 }
 
+// TELL THE MANAGER A PROJECT IS THEIRS. "A new project is assigned" is a real
+// event the studio produced nothing for. Same three rules as a task assignment:
+// never on a no-op (the manager did not change), never on a self-assignment, and
+// never on un-assignment. `previousManagerId` is "" for a freshly opened project.
+async function announceProjectManager(
+  ctx: ProjectsContext,
+  project: Record<string, unknown>,
+  previousManagerId: string,
+) {
+  const manager = String(project.managerCollaboratorId || "");
+  if (!manager || manager === previousManagerId || manager === ctx.collaborator.id) return;
+  const person = (await listCollaborators(ctx.studio.id)).find((c) => c.id === manager);
+  if (!person) return;
+  await notifyCollaborators(
+    ctx.studio.id,
+    [manager],
+    {
+      type: NOTIFY.projectAssigned,
+      title: "You're managing a new project",
+      body: String(project.title || ""),
+      href: "projects-list",
+      tone: "primary",
+    },
+    { userIdOf: (id) => (id === person.id ? String(person.userId) : undefined) },
+  );
+}
+
 export async function openProject(ctx: ProjectsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.list.create");
@@ -287,6 +315,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     }
   }
 
+  await announceProjectManager(ctx, project, "");
   return { project: { ...project, progress: 0 }, sheets };
 }
 
@@ -361,6 +390,7 @@ export async function updateProject(ctx: ProjectsContext, id: string, body: Reco
 
   const project = await updateRow(studio.id, listSection.id, PROJECTS, id, patch);
   if (!project) return { error: "notfound" };
+  await announceProjectManager(ctx, project, current.managerCollaboratorId || "");
   return { project: { ...project, progress: progressOf(project.milestones) } };
 }
 

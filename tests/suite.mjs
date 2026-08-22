@@ -38,6 +38,7 @@ import { SESSION_COOKIE, login as identityLogin } from "@/platform/auth/identity
 import { studioContext, canAdminister } from "@/lib/studios";
 import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS } from "@/platform/access";
 import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/modules/tasks/tasks";
+import { listForCollaborator, NOTIFY } from "@/platform/notify/notifications";
 import { TASK_TYPE_AUTHORITIES } from "@/modules/tasks/taskRouting";
 import {
   salesContext, createService, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
@@ -66,7 +67,7 @@ import { listSections, updateRow } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/modules/finance/finance";
-import { inventoryContext, createItem, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
+import { inventoryContext, createItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation,
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
@@ -154,8 +155,26 @@ console.log("== tasks: the board writes at all");
   const made = await createTask(ctx, { title: "Ship the thing", assigneeCollaboratorId: viewer.collaborator.id });
   ok("owner can create a task", !!made.task, made.error);
 
+  // THE PRODUCER THAT HAD NEVER FIRED. NOTIFY.taskAssigned was declared from the
+  // start and nothing produced it — a task handed to somebody told them nothing.
+  // Owner assigned this to viewer above, so viewer, not owner, should hear.
+  const assignNote = (await listForCollaborator(studio.id, viewer.collaborator.id))
+    .find((n) => n.type === NOTIFY.taskAssigned);
+  ok("the assignee is told they were handed a task", Boolean(assignNote), NOTIFY.taskAssigned);
+  ok("...and the notice carries the task's title", assignNote?.body === "Ship the thing", JSON.stringify(assignNote?.body));
+  ok("...and the assigner did NOT notify themselves",
+    !(await listForCollaborator(studio.id, ctx.collaborator.id)).some((n) => n.type === NOTIFY.taskAssigned),
+    "self-assignment is not news");
+
+  const editedBefore = (await listForCollaborator(studio.id, viewer.collaborator.id))
+    .filter((n) => n.type === NOTIFY.taskAssigned).length;
   const edited = await updateTask(ctx, made.task?.id, { title: "Ship the thing, renamed" });
   ok("owner can edit a task", edited.task?.title === "Ship the thing, renamed", edited.error);
+  // A RENAME IS NOT A REASSIGNMENT. The assignee did not change, so no second
+  // bell — or every edit to a task spams whoever holds it.
+  const editedAfter = (await listForCollaborator(studio.id, viewer.collaborator.id))
+    .filter((n) => n.type === NOTIFY.taskAssigned).length;
+  ok("...and editing a task does not re-announce it", editedAfter === editedBefore, `${editedBefore} -> ${editedAfter}`);
 
   // A task is assigned by somebody authorised and COMPLETED by the person it
   // was given to — so finishing your own work cannot need a board right.
@@ -395,6 +414,17 @@ console.log("\n== the handler is carried, never copied");
     quotationId: conv.quotation?.id, managerCollaboratorId: member.collaborator.id,
   });
   ok("an approved quotation opens a project", !!opened.project, JSON.stringify(opened.error));
+  // A PROJECT ASSIGNED IS A PROJECT ANNOUNCED. Owner opened it with member as
+  // manager, so member — not owner — should hear it, and the notice links to
+  // the projects list.
+  {
+    const note = (await listForCollaborator(studio.id, member.collaborator.id))
+      .find((n) => n.type === NOTIFY.projectAssigned);
+    ok("the project's manager is told it is theirs", Boolean(note), NOTIFY.projectAssigned);
+    ok("...and the opener did not notify themselves",
+      !(await listForCollaborator(studio.id, proj.collaborator.id)).some((n) => n.type === NOTIFY.projectAssigned),
+      "self-assignment is not news");
+  }
   ok("...with a BLANK number until Finance issues one", opened.project?.number === "",
     JSON.stringify(opened.project?.number));
   ok("...carrying the whole chain of keys",
@@ -763,6 +793,48 @@ console.log("\n== the stock ledger is guarded");
 }
 
 // ============================================================================
+// ============================================================================
+console.log("\n== a purchase order lands, and the person who raised it hears");
+// "A new PO was received." The event the studio produced nothing for. The buyer
+// who raised the order is told when it arrives IN FULL — not the storekeeper who
+// booked it in, and not on a partial delivery.
+{
+  // Member raises the order, so member is the buyer. Admin for the block,
+  // because raising a PO needs inventory.stock.create; taken back after.
+  await updateCollaborator(studio.id, member.collaborator.id, { roleIds: [roleId("Admin")] });
+  const memberInv = await inventoryContext(member.user, slug);
+  const vendor = await createVendor(memberInv, { name: "Acme Supplies" });
+  ok("a vendor exists to order from", !!vendor.vendor, JSON.stringify(vendor.error));
+  const part = await createItem(memberInv, { name: "Bolt M6" });
+  ok("an item exists to order", !!part.item, JSON.stringify(part.error));
+
+  const order = await createOrder(memberInv, {
+    vendorId: vendor.vendor.id,
+    lines: [{ itemId: part.item.id, qty: 10 }],
+  });
+  ok("member raises a purchase order", !!order.order, JSON.stringify(order.error));
+  const placed = await editOrder(memberInv, order.order.id, { status: "Ordered" });
+  ok("...and places it with the vendor", placed.order?.status === "Ordered", JSON.stringify(placed.error));
+
+  const ownerInv = await inventoryContext(owner, slug);
+  const partial = await receiveOrder(ownerInv, order.order.id, { lines: [{ itemId: part.item.id, qty: 4 }] });
+  ok("a partial receipt is Partly received", partial.order?.status === "Partly received", JSON.stringify(partial.error));
+  ok("...and a partial arrival tells nobody yet",
+    !(await listForCollaborator(studio.id, member.collaborator.id)).some((n) => n.type === NOTIFY.purchaseReceived),
+    "a bell per box trains people to ignore the last one");
+
+  const rest = await receiveOrder(ownerInv, order.order.id, { lines: [{ itemId: part.item.id, qty: 6 }] });
+  ok("the balance completes the order", rest.order?.status === "Received", JSON.stringify(rest.error));
+  const landed = (await listForCollaborator(studio.id, member.collaborator.id))
+    .find((n) => n.type === NOTIFY.purchaseReceived);
+  ok("the buyer is told the PO arrived in full", Boolean(landed), NOTIFY.purchaseReceived);
+  ok("...and the storekeeper who booked it in is not",
+    !(await listForCollaborator(studio.id, ownerInv.collaborator.id)).some((n) => n.type === NOTIFY.purchaseReceived),
+    "the receiver is not the audience");
+
+  await updateCollaborator(studio.id, member.collaborator.id, { roleIds: [roleId("Member")] });
+}
+
 console.log("\n== leave: taking back your own request");
 // REGRESSION: the hr.vacations.approve guard sat above the self-cancel branch
 // it was written for, so withdrawing your own pending request required the
@@ -775,9 +847,48 @@ console.log("\n== leave: taking back your own request");
   const asked = await requestVacation(hr, { from: "2026-09-01", to: "2026-09-03", type: "Annual" });
   ok("a member can request their own leave", asked.vacation?.status === "Pending", JSON.stringify(asked));
 
+  // A PENDING REQUEST RINGS THE PEOPLE WHO CAN APPROVE IT, not the person who
+  // filed it. Owner holds hr.vacations.approve; the member does not.
+  const ownerCollabId = (await hrContext(owner, slug)).collaborator.id;
+  const approverNote = (await listForCollaborator(studio.id, ownerCollabId))
+    .find((n) => n.type === NOTIFY.leaveRequested);
+  ok("a pending leave request reaches an approver", Boolean(approverNote), NOTIFY.leaveRequested);
+  ok("...and not the requester's own bell",
+    !(await listForCollaborator(studio.id, member.collaborator.id)).some((n) => n.type === NOTIFY.leaveRequested),
+    "you do not notify yourself of your own request");
+
   const withdrawn = await decideVacation(hr, asked.vacation?.id, "Cancelled");
   ok("...and can cancel it without the approve right", withdrawn.vacation?.status === "Cancelled",
     JSON.stringify(withdrawn));
+  // A SELF-CANCEL TELLS NOBODY. Withdrawing your own request is not a decision
+  // somebody else made about your leave, so it produces no "your leave was …".
+  ok("...and withdrawing your own request notifies no one",
+    !(await listForCollaborator(studio.id, member.collaborator.id)).some((n) => n.type === NOTIFY.leaveDecided),
+    "a self-cancel is not a decision handed down");
+}
+
+// ============================================================================
+console.log("\n== leave: the requester hears the verdict");
+// THE HALF OF THE VACATION SCENARIO THAT MATTERS: someone asks, someone with the
+// right decides, and the asker is told the outcome without refreshing anything.
+{
+  const hr = await hrContext(member.user, slug);
+  const asked = await requestVacation(hr, { from: "2026-10-05", to: "2026-10-06", type: "Annual" });
+  ok("the member filed a fresh request", asked.vacation?.status === "Pending", JSON.stringify(asked));
+
+  // Owner holds the approve right; deciding somebody else's leave is a decision,
+  // so the requester should hear it.
+  const ownerHr = await hrContext(owner, slug);
+  const decided = await decideVacation(ownerHr, asked.vacation?.id, "Approved");
+  ok("an approver can approve it", decided.vacation?.status === "Approved", JSON.stringify(decided));
+
+  const verdict = (await listForCollaborator(studio.id, member.collaborator.id))
+    .find((n) => n.type === NOTIFY.leaveDecided);
+  ok("the requester is told the outcome", Boolean(verdict), NOTIFY.leaveDecided);
+  ok("...and the notice names the verdict", /approved/i.test(String(verdict?.title || "")), JSON.stringify(verdict?.title));
+  ok("...and the approver did not notify themselves",
+    !(await listForCollaborator(studio.id, ownerHr.collaborator.id)).some((n) => n.type === NOTIFY.leaveDecided),
+    "the decider is not the audience");
 }
 
 // ============================================================================

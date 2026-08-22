@@ -53,6 +53,10 @@ export const VacationSchema = z.object({
   createdAt: z.string(),
   decidedAt: z.string().optional(),
   decidedByCollaboratorId: z.string().optional(),
+  // WHO ASKED, which is not always whose leave it is: a manager may file leave
+  // for an employee, and the decision notification goes to the employee. Written
+  // by requestVacation from the start; the schema had simply never named it.
+  requestedByCollaboratorId: z.string().optional(),
 });
 
 export type Certification = z.infer<typeof CertificationSchema>;

@@ -22,6 +22,7 @@ import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 // Issuing the project number is a CONSEQUENCE of Finance signing the PO, so it
 // is called from decideTask rather than from a screen — see the note there.
 import { issueProjectNumber } from "@/modules/projects/projects";
@@ -147,6 +148,47 @@ export async function listTasks(ctx: TasksContext): Promise<BoardTask[]> {
     }));
 }
 
+// TELL THE PERSON THEY WERE HANDED SOMETHING. `NOTIFY.taskAssigned` existed for
+// this from the start and had never once fired — the constant was declared, the
+// bell could carry it, and nothing produced it. This is that producer.
+//
+// THREE THINGS IT DOES NOT DO, each on purpose:
+//   • never on a SELF-assignment — being handed your own work is not news;
+//   • never when the assignee did not CHANGE — an edit to a task's title must
+//     not re-announce it to the person already holding it;
+//   • never on UN-assignment — clearing the field has nobody to tell.
+// So it takes the previous assignee and compares, rather than firing on
+// "assignee is set".
+//
+// Best-effort, like every producer: the assignment has already been written, so
+// a failure to announce it must not fail the write — notifyCollaborators
+// swallows its own errors, and the missing `await` on the caller is deliberate
+// nowhere; we await so a test can observe it, and it cannot throw.
+async function announceAssignment(
+  ctx: TasksContext,
+  task: Task,
+  previousAssigneeId: string,
+) {
+  const assignee = task.assigneeCollaboratorId;
+  if (!assignee || assignee === previousAssigneeId || assignee === ctx.collaborator.id) return;
+  const person = (await listCollaborators(ctx.studio.id)).find((c) => c.id === assignee);
+  if (!person) return;
+  await notifyCollaborators(
+    ctx.studio.id,
+    [assignee],
+    {
+      type: NOTIFY.taskAssigned,
+      title: "You've been assigned a task",
+      // The title is what the person needs to recognise it; the bell links to
+      // the board, where "Mine" already filters to what is waiting on them.
+      body: task.title,
+      href: "tasks",
+      tone: "primary",
+    },
+    { userIdOf: (id) => (id === person.id ? String(person.userId) : undefined) },
+  );
+}
+
 export async function createTask(ctx: TasksContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "tasks.board.create");
@@ -188,6 +230,7 @@ export async function createTask(ctx: TasksContext, body: Record<string, unknown
     createdAt: new Date().toISOString(),
     completedAt: "",
   });
+  await announceAssignment(ctx, task, "");
   return { task: { ...task, progress: progressOf(task.checklist) } };
 }
 
@@ -309,7 +352,11 @@ export async function updateTask(ctx: TasksContext, id: string, body: Record<str
   };
 
   const task = await Tasks.update(ctx, id, apply);
-  return task ? { task: { ...task, progress: progressOf(task.checklist) } } : { error: "notfound" };
+  if (!task) return { error: "notfound" };
+  // `current` was read before the write, so its assignee is the PREVIOUS one —
+  // exactly what announceAssignment needs to tell a reassignment from an edit.
+  await announceAssignment(ctx, task, current.assigneeCollaboratorId || "");
+  return { task: { ...task, progress: progressOf(task.checklist) } };
 }
 
 // Record — or withdraw — ONE authority's decision on a typed task.

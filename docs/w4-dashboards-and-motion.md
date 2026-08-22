@@ -839,6 +839,39 @@ raised was decided**. A row changing is neither. On that test:
 | **Stock below reorder** | Yes | Inventory, once per crossing — not once per movement |
 | **Row edited by a colleague** | No | That is what the live refresh is for |
 
+### 8B.3 Done, and what the recipient rule turned out to be
+
+Four departments produce now, each following one shape — an `announce…` helper next
+to the write, best-effort (the thing already happened, so failing to announce it
+must never fail the write), with three guards baked in: **never a self-assignment**
+(being handed your own work is not news), **never a no-op** (an edit that did not
+change the assignee must not re-ring the holder), and **never an un-assignment**
+(clearing a field has nobody to tell). What shipped:
+
+| Producer | Fires | Recipient | Type |
+|---|---|---|---|
+| `tasks.createTask` / `updateTask` | a task is assigned or reassigned | the assignee | `taskAssigned` |
+| `hr.requestVacation` | a request is left Pending | everyone holding `hr.vacations.approve` | `leaveRequested` |
+| `hr.decideVacation` | a manager approves/declines | the person who **asked** (not the manager who filed it) | `leaveDecided` |
+| `projects.openProject` / `updateProject` | a project gets a manager | the manager | `projectAssigned` |
+| `inventory.receiveOrder` | an order is received **in full** | whoever raised the PO (not the storekeeper) | `purchaseReceived` |
+
+The vacation pair is the whole of Nova's scenario (§8A.3): someone in Sales asks,
+an approver decides, and the asker hears the outcome without refreshing anything —
+end-to-end, and asserted that way in the suite.
+
+**A guard was added to catch the next gap.** Gate A block 7 fails the build if any
+`NOTIFY.*` type has no producer, with `mention` and `peopleChanged` on a named
+allow-list — the two still declared-but-unproduced, now on the record rather than
+silently missing. `taskAssigned` was exactly that kind of silent gap for a year.
+
+**What remains**, and why each waits: the *approval given/refused* and *RFQ/quotation*
+producers sit in the Sales→Technical chain (`business-logic`'s domain, and best done
+with that agent); the *delivery issued* and *stock below reorder* producers are more
+Inventory; and the two **time-driven** ones — overdue invoices, expiring
+documents/permits — are not events and need the cron (`devops` + a sweep), which is
+its own piece of work.
+
 Two of these — overdue invoices and expiring documents — are **not events at all**.
 Nothing happens on the day an invoice goes overdue; time simply passes. They need a
 daily sweep, and `api/cron/year-rollover` shows the shape one takes here.
@@ -876,7 +909,7 @@ Thirteen steps. Each one is shippable and each one ends green.
 | 9 | ✅ **Dates**: fixed the mm/dd/yyyy bug, consolidated the studio's duplicate formatter, added Western-digit Arabic + a Gate-A rule (§8.4) | **Done — see §8.4** |
 | 10 | `/super` and `/account` rewire; **placeholder sweep** | The mock data goes when there is real data to replace it |
 | 11 | **The ERP documentation** (§8.6), generated where it can be | Written against screens that have stopped changing, or it is wrong on arrival — and it is Nova's corpus |
-| 11a | **Notification producers** across all twelve departments | The transport is finished; the producers are not. Nothing else in this plan works without them |
+| 11a | 🟡 **Notification producers** — Tasks, HR (both halves), Projects, Inventory done; Sales/Technical/Operations/Finance/Access remain | The transport was finished; four departments now produce. **See §8B** |
 | 11b | **Nova** — head, panel, and answering from the documentation (§8A) | Useful, and risks nothing. Capabilities 2 and 3 wait on the model decision |
 | 12 | **Finance 1b** — AP, GL, FA — *if approved* | Backend work; last, and separately |
 | 13 | **Nova capabilities 2 and 3** — reads its studio, raises and routes requests | Writes. Last, behind a confirmation step and a model decision |

@@ -46,6 +46,10 @@ export const NOTIFY = {
   joinDecided: "join.decided",
   peopleChanged: "people.changed",
   taskAssigned: "task.assigned",
+  leaveRequested: "leave.requested",
+  leaveDecided: "leave.decided",
+  projectAssigned: "project.assigned",
+  purchaseReceived: "purchase.received",
   mention: "mention",
   system: "system",
 };

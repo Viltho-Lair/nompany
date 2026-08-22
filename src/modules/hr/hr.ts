@@ -27,7 +27,7 @@
 // viewer who can *manage* HR. Everyone else sees that a document is on file and
 // when it expires — never the number.
 
-import { requirePermission, scopeFor, can, escalates, cleanAssignment } from "@/platform/access";
+import { requirePermission, scopeFor, can, escalates, cleanAssignment, effectivePermissions } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 
 import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
@@ -37,6 +37,7 @@ import { listCollaborators, getCollaborator, updateCollaborator } from "@/platfo
 import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
 import { departmentsFromSections } from "@/lib/departments";
 import { getProfile } from "@/platform/auth/users";
+import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { encryptField, decryptField } from "@/platform/auth/fieldCrypto";
 import type { Certification, Vacation, ExpiringDocument, HrContext } from "./types";
 import type { StudioRef, CollaboratorRef } from "../context";
@@ -448,6 +449,15 @@ export async function listVacations(ctx: HrContext, { meId }: { meId?: string })
     .map((v) => ({ ...v, alias: aliasById[v.collaboratorId] || "Unknown" }));
 }
 
+// WHO CAN APPROVE LEAVE, resolved from the same right the screen enforces
+// (`hr.vacations.approve`) rather than a flag — a request announced to somebody
+// who cannot act on it wastes the one person who saw it, exactly as with a join
+// request. Returns collaborators, so the caller has their UserIDs for the bell.
+async function leaveApprovers(studioId: string) {
+  const [people, roles] = await Promise.all([listCollaborators(studioId), listRoles(studioId)]);
+  return people.filter((c) => can(effectivePermissions({ collaborator: c, roles }), "hr.vacations.approve"));
+}
+
 // Anyone who can open HR may request their OWN leave; only a manager may file
 // it for someone else.
 export async function requestVacation(ctx: HrContext, body: Record<string, unknown>) {
@@ -487,6 +497,27 @@ export async function requestVacation(ctx: HrContext, body: Record<string, unkno
     requestedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
+  // A request that is already Approved (a manager filing for someone else) has
+  // nobody to ask, so only a genuinely Pending one rings the approvers — and
+  // never the requester's own bell for a request they just filed.
+  if (vacation?.status === "Pending") {
+    const approvers = (await leaveApprovers(studio.id)).filter((c) => c.id !== collaborator.id);
+    if (approvers.length) {
+      const userIdOf = new Map(approvers.map((c) => [String(c.id), String(c.userId)]));
+      await notifyCollaborators(
+        studio.id,
+        approvers.map((c) => String(c.id)),
+        {
+          type: NOTIFY.leaveRequested,
+          title: "A leave request is waiting",
+          body: `${person.alias || "Someone"} requested ${days} day${days === 1 ? "" : "s"} off.`,
+          href: "hr",
+          tone: "primary",
+        },
+        { userIdOf: (id) => userIdOf.get(id) },
+      );
+    }
+  }
   return { vacation };
 }
 
@@ -519,7 +550,31 @@ export async function decideVacation(ctx: HrContext, id: string, decision: unkno
     decidedByCollaboratorId: collaborator.id,
     decidedAt: new Date().toISOString(),
   });
-  return vacation ? { vacation } : { error: "notfound" };
+  if (!vacation) return { error: "notfound" };
+
+  // THE HALF OF THE SCENARIO THAT MATTERS: the requester hears the outcome. Not
+  // on a self-cancel — you do not notify yourself that you withdrew your own
+  // request — and the recipient is whoever ASKED, which on a manager-filed
+  // request is the employee, not the manager who typed it.
+  const requesterId = row.requestedByCollaboratorId || row.collaboratorId;
+  if (!isSelfCancel && requesterId && requesterId !== collaborator.id) {
+    const requester = await getCollaborator(studio.id, requesterId);
+    if (requester) {
+      await notifyCollaborators(
+        studio.id,
+        [requesterId],
+        {
+          type: NOTIFY.leaveDecided,
+          title: `Your leave was ${String(decision).toLowerCase()}`,
+          body: `${row.from}${row.to && row.to !== row.from ? ` – ${row.to}` : ""}`,
+          href: "hr",
+          tone: decision === "Approved" ? "success" : "warning",
+        },
+        { userIdOf: (id) => (id === requester.id ? String(requester.userId) : undefined) },
+      );
+    }
+  }
+  return { vacation };
 }
 
 export async function removeVacation(ctx: HrContext, id: string) {

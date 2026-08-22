@@ -568,6 +568,39 @@ console.log("== the architecture, asserted rather than remembered");
     // the day before in every Western timezone. Proven by the day surviving.
     ok("...and a date-only value does not drift a day", formatDate("2019-04-07").startsWith("07/"), formatDate("2019-04-07"));
   }
+
+  // ---- 7. every notification type has a producer --------------------------
+  //
+  // A NOTIFY.* constant with nothing that emits it is a promise the product does
+  // not keep — the same shape as a key builder nobody reads. It has bitten here:
+  // taskAssigned was declared from day one and no code produced it, so a task
+  // handed to somebody told them nothing until Wave 4 wired it.
+  //
+  // So every value on NOTIFY must be referenced OUTSIDE the notify module — i.e.
+  // somewhere that calls notifyCollaborators with it. The two on ALLOW are known
+  // gaps, named here rather than left invisible: `mention` waits on an @-parser
+  // that does not exist, and `peopleChanged` on the People screen's own edits.
+  // Deleting either without producing it is fine; ADDING a third silent type is
+  // the regression this catches.
+  {
+    const { NOTIFY } = await import("@/platform/notify/notifications");
+    const ALLOW = new Set(["mention", "peopleChanged"]);
+    const src = sources.filter((f) => !f.path.includes("platform/notify/notifications"));
+    const orphaned = [];
+    for (const key of Object.keys(NOTIFY)) {
+      if (ALLOW.has(key)) continue;
+      const needle = "NOTIFY." + key;
+      if (!src.some((f) => f.text.includes(needle))) orphaned.push(key);
+    }
+    ok("every NOTIFY type is produced somewhere", orphaned.length === 0, orphaned.join(", "));
+    // ...and the allow-list is not quietly hiding a type that DID get a producer
+    // — an entry that is now referenced should be removed from ALLOW so the
+    // check tightens as gaps are filled.
+    const stale = [...ALLOW].filter((key) =>
+      src.some((f) => f.text.includes("NOTIFY." + key)));
+    ok("...and the known-gap list has no entry that is actually produced",
+      stale.length === 0, stale.join(", "));
+  }
 }
 
 // ============================================================================
