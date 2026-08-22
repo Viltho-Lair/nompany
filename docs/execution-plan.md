@@ -259,6 +259,46 @@ Closes M-3, M-4, M-5, M-6, and the a11y and RTL gap items (#9, #10).
 
 **One thing to settle in week 9**, before the token layer is written: the ERP is light-first blue/Saira; the main website is dark-first indigo/Sora. My recommendation is to adopt the brand hue, accent family, easing curves and display face while keeping the ERP light-first with full dark mode. That decision is yours and it blocks the token layer.
 
+
+### Two requirements added 22/08/2026
+
+**1. No placeholder data in a field, anywhere.** Fields across the studio carry
+sample values left over from before the migration off the old system. A field is
+a space to be filled; filling it with plausible-looking data that is not the
+studio's data is the same failure the console's fabricated Security tab was —
+somebody reads it as a record. This is a sweep, not a feature: every `defaultValue`,
+`placeholder` that states a fact rather than a format, and every seeded sample
+row. A placeholder that shows the SHAPE ("+966 5X XXX XXXX", "dd/mm/yyyy") stays;
+one that shows a VALUE goes.
+
+**2. Every studio section gets a dashboard, and the dashboards are tiered.**
+Eight parents already have a `*.dashboard` view right in the catalogue and six
+render a module dashboard; the rest render nothing or a generic shell. Each
+section needs one built from statistic boxes, graphs and section information —
+and what a section can honestly show has to come from what its records actually
+hold, so each department needs its own analysis pass before anything is drawn.
+
+The complexity is **tiered the way `/super` tiers are**, so a studio on Standard
+gets simple direct statistics (counts, sums, this-month-vs-last) and the higher
+tiers unlock progressively heavier analysis.
+
+Two things to settle before this can be built, and both are real blockers:
+
+- **A tier is a studio-authored record today, not an enum.** `/super` tiers carry
+  a name, a service list, a cost and a duration; "Standard" is only the seeded
+  default (`DEFAULT_TIER` in `lib/data/catalog.js`) and nothing stops a tier
+  called anything at all. Keying dashboard complexity off a free-text name
+  written by whoever created the catalogue entry would break the first time
+  somebody renames one. A tier needs an explicit `analyticsLevel` field from a
+  fixed set — which is a catalogue change, and yours to approve.
+- **Which four levels.** Standard / basic / moderate / advanced was the wording;
+  standard and basic read as the same rung, so the ladder needs naming before
+  anything keys off it.
+
+Scheduling: the per-section analysis is research, the tier field is a small
+catalogue change, and the drawing shares the W4 component-split slice — same
+rule as above, done once per department rather than twice.
+
 ---
 
 ## 7. Wave 5 — SQL Server · **weeks 20-32**

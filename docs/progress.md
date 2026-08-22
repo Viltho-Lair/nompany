@@ -114,7 +114,13 @@ Every service module reads and writes through `repo()`. `readCol`, `addRow`,
 resolver behind one door, typed, with the `PermissionKey` union · `platform/db`
 next, then one department per step. `tsconfig.strict.json` gains a folder per
 step and never loses one.
-**W4** UI/UX system — independent, can run alongside.
+**W4** UI/UX system — independent, can run alongside. Two requirements added
+22/08/2026 and detailed in `execution-plan.md`: **no placeholder data in any
+field** (a sweep of everything left over from the old-system migration), and
+**a dashboard for every studio section**, tiered by complexity the way `/super`
+tiers are. The second is blocked on two decisions — a tier is a studio-authored
+record with a free-text name today, so it needs an explicit `analyticsLevel`
+field, and the four levels need naming (standard and basic read as one rung).
 **W5** SQL Server — needs the repository seam *adopted*, not just built.
 
 ---
@@ -126,6 +132,8 @@ Things waiting on a person, not on work.
 | Decision | Why it is open |
 |---|---|
 | The palette for W4 | The marketing site is dark-first indigo/Sora; the ERP is light-first blue/Saira. One of them has to move |
+| The dashboard tier ladder | Four levels were named standard/basic/moderate/advanced; standard and basic read as the same rung |
+| How a tier declares its analytics level | `/super` tiers are studio-authored records with free-text names. Keying dashboards off the name breaks on the first rename |
 
 **Recently closed.**
 
