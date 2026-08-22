@@ -4,24 +4,25 @@
 // No fetching and no formatting happen here.
 
 import { daysUntil } from "@/modules/projects/sla";
+import type { TicketView, RfqSummary } from "./types";
 
-const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 // The stages a ticket climbs, in order. Anything OFF this list (On-Hold,
 // Dropped, Cancelled by Client, Closed Lost) is not a stage a ticket "reached"
 // — it left the pipeline, so it counts toward no bar rather than inflating the
 // ones below it.
 const PIPELINE = ["Lead", "Opportunity", "Commit", "Closed Won"];
-const rank = (status) => PIPELINE.indexOf(status);
-const reached = (status, stage) => rank(status) >= stage;
+const rank = (status: string) => PIPELINE.indexOf(status);
+const reached = (status: string, stage: number) => rank(status) >= stage;
 
 // A ticket nobody is chasing any more: won, lost, or abandoned.
 export const CLOSED_STATUSES = ["Closed Won", "Closed Lost", "Cancelled by Client", "Dropped"];
-export const isClosed = (t) => CLOSED_STATUSES.includes(t?.status);
+export const isClosed = (t: TicketView | null | undefined) => CLOSED_STATUSES.includes(String(t?.status));
 
 // Lead → Opportunity → RFQ → Quotation → Won. Each stage counts the distinct
 // tickets that reached at least that milestone, so the bars descend.
-export function salesFunnel(tickets) {
+export function salesFunnel(tickets: TicketView[]) {
   return [
     { label: "Lead", value: tickets.filter((t) => reached(t.status, 0)).length },
     { label: "Opportunity", value: tickets.filter((t) => reached(t.status, 1)).length },
@@ -34,7 +35,7 @@ export function salesFunnel(tickets) {
 // Probability buckets for pipeline forecasting. `weighted` = Σ value × probability
 // (the expected value); `value` is the raw pipeline total in the bucket. Closed
 // tickets are excluded — they are no longer a forecast.
-export function probabilityBuckets(tickets) {
+export function probabilityBuckets(tickets: TicketView[]) {
   const ranges = [
     { label: "0–25%", lo: 0, hi: 25 },
     { label: "26–50%", lo: 26, hi: 50 },
@@ -58,7 +59,7 @@ export function probabilityBuckets(tickets) {
 
 // Tickets that need attention soon: still open AND (due within `days` OR flagged
 // High/Critical). Soonest deadline first, undated last.
-export function atRiskTickets(tickets, days = 14) {
+export function atRiskTickets(tickets: TicketView[], days = 14) {
   return tickets
     .filter((t) => {
       if (isClosed(t)) return false;
@@ -103,7 +104,10 @@ export function atRiskTickets(tickets, days = 14) {
 //
 // `aliasOf` maps CollaboratorID → name. Every caller already holds one; without
 // it the column still renders, naming the section rather than a person.
-export function rfqInfo(ticket, aliasOf = {}) {
+export function rfqInfo(
+  ticket: { rfq?: RfqSummary | null } | null | undefined,
+  aliasOf: Record<string, string> = {},
+) {
   const rfq = ticket?.rfq;
   if (!rfq) return { text: "—", tone: "text-slate-400", status: null, ref: "", requested: false, quoted: false };
   if (!rfq.quotationId) {
@@ -138,6 +142,6 @@ export function rfqInfo(ticket, aliasOf = {}) {
 
 // A ticket still waiting to be handed to Technical: pre-approval, and no RFQ
 // raised yet. This is what the amber stripe down the row means.
-export function isUnresolved(ticket) {
+export function isUnresolved(ticket: TicketView | null | undefined) {
   return (ticket?.status === "Lead" || ticket?.status === "Opportunity") && !(ticket?.rfqCount > 0);
 }

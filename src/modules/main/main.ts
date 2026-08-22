@@ -17,6 +17,7 @@ import { sectionViewable } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { enrichTask, readTaskAssignees } from "@/modules/tasks/taskRouting";
 import type { Task } from "@/modules/tasks/types";
+import type { Permit } from "@/modules/operations/types";
 // The sections' OWN definitions of "below reorder level" and "expiring", so the
 // front door cannot quietly disagree with the screen it is summarising.
 import { balances } from "@/modules/inventory/inventory";
@@ -120,7 +121,7 @@ export async function headlines(ctx: MainContext) {
     readIfVisible(ctx, "inventory-stock", "inventory", "inventoryStock"),
     readIfVisible<Task>(ctx, "tasks", null, "tasks"),
     readIfVisible(ctx, "finance-cash", "finance", "invoices"),
-    readIfVisible(ctx, "operations", null, "permits"),
+    readIfVisible<Permit>(ctx, "operations", null, "permits"),
     ctx.seen("hr-employees", "hr") ? listCollaborators(ctx.studio.id) : null,
   ]);
 

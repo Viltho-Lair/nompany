@@ -28,7 +28,7 @@ import {
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
   cleanQuotationTables, itemsFromTables, isFinishedQuotation,
 } from "./quotations";
-import type { TechnicalContext, Rfq, Quotation } from "./types";
+import type { TechnicalContext, Rfq, Quotation, QuotationItem } from "./types";
 import type { SalesTicket } from "@/modules/sales/types";
 import type { Section } from "@/platform/db/sections";
 import type { Task } from "@/modules/tasks/types";
@@ -52,9 +52,9 @@ const InventoryItems = repo(INVENTORY_ITEMS);
 const Quotations = repo<Quotation>(QUOTATIONS);
 const Rfqs = repo<Rfq>(RFQS);
 const Tasks = repo<Task>(TASKS);
-const Tickets = repo(TICKETS);
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
-const num = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : 0);
+const Tickets = repo<SalesTicket>(TICKETS);
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
+const num = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : 0);
 
 // Resolve both sections at once: Technical (where the data lives) and Sales
 // (where tickets come from), plus this person's rights on each.
@@ -79,8 +79,8 @@ export const technicalContext = moduleContext({
     // HANDING A TICKET BACK IS A SALES ACT, so it is asked of the Sales section
     // rather than of Technical's. A studio with no Sales section cannot do it at
     // all, which is what the Boolean guards.
-    canManageSales: Boolean(salesSection)
-      && sectionManageable(access, (salesSection as Section).key, sections.map((x) => x.key)),
+    canManageSales: Boolean(salesSection
+      && sectionManageable(access, salesSection.key, sections.map((x) => x.key))),
     ...readTechnicalSettings(settingsSection),
   }),
 });
@@ -88,7 +88,7 @@ export const technicalContext = moduleContext({
 // ---- technical settings -----------------------------------------------------
 // Live-view columns and the quotation cover copy, both on the
 // technical-settings sub-section's own `settings` object — no key of their own.
-export function readTechnicalSettings(settingsSection) {
+export function readTechnicalSettings(settingsSection: { settings?: Record<string, unknown> } | null | undefined) {
   const s = settingsSection?.settings || {};
   return {
     liveColumns: cleanQuotationLiveColumns(s.liveColumns),
@@ -123,7 +123,7 @@ export async function saveTechnicalSettings(ctx: TechnicalContext, body: Record<
 }
 
 // ---- money -----------------------------------------------------------------
-export function cleanItems(list) {
+export function cleanItems(list: unknown): QuotationItem[] {
   return (Array.isArray(list) ? list : []).slice(0, 200).map((i) => ({
     description: str(i?.description, 300),
     qty: num(i?.qty),
@@ -131,13 +131,13 @@ export function cleanItems(list) {
   })).filter((i) => i.description || i.qty || i.unitPrice);
 }
 // Totals are always DERIVED, never trusted from the client.
-export function computeTotals(items, vatRate) {
+export function computeTotals(items: unknown, vatRate: unknown) {
   const subtotal = cleanItems(items).reduce((sum, i) => sum + i.qty * i.unitPrice, 0);
   const rate = num(vatRate);
   const vat = subtotal * (rate / 100);
   return { subtotal: round(subtotal), vat: round(vat), total: round(subtotal + vat) };
 }
-const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 // ---- RFQs ------------------------------------------------------------------
 
@@ -163,7 +163,7 @@ const NO_TICKET = {
   industry: "", serviceIds: [], deadline: "", ticketDescription: "",
 };
 
-export async function ticketFacts({ studio, salesTicketsSection, salesClientsSection }) {
+export async function ticketFacts({ studio, salesTicketsSection, salesClientsSection }: Pick<TechnicalContext, "studio" | "salesTicketsSection" | "salesClientsSection">) {
   if (!salesTicketsSection) return () => NO_TICKET;
   const [tickets, clients] = await Promise.all([
     Tickets.find({ studio, section: salesTicketsSection }),
@@ -173,7 +173,7 @@ export async function ticketFacts({ studio, salesTicketsSection, salesClientsSec
   // down the same kind of key, and for the same reason.
   const nameById = new Map(clients.map((c) => [c.id, c.name] as [string, string]));
   const byId = new Map(tickets.map((t) => [t.id, t] as [string, SalesTicket]));
-  return (ticketId) => {
+  return (ticketId: string | null | undefined) => {
     const t = ticketId ? byId.get(ticketId) : null;
     if (!t) return NO_TICKET;
     return {
@@ -218,7 +218,7 @@ export async function listRfqs(ctx: TechnicalContext) {
 // note on withTicketUrgency for why that is wrong and what replaces it.
 // RFQ-ACME-001, then RFQ-ACME-001-2 and so on. The suffix is only reached when
 // the plain form is taken, so the common case stays the readable one.
-function uniqueRfqReference(rows, base) {
+function uniqueRfqReference(rows: Rfq[] | null | undefined, base: string) {
   const taken = new Set((rows || []).map((r) => String(r?.reference || "").toUpperCase()));
   if (!taken.has(base.toUpperCase())) return base;
   let n = 2;
@@ -379,8 +379,8 @@ export async function updateRfq(ctx: TechnicalContext, id: string, body: Record<
 // studio and never changes on its own; only the number moves.
 export const DEFAULT_NUMBERING = { mode: "fresh", prefix: "Q", start: 1 };
 
-export function readNumbering(settings) {
-  const n = settings?.numbering || {};
+export function readNumbering(settings: Record<string, unknown> | null | undefined) {
+  const n = (settings?.numbering || {}) as Record<string, unknown>;
   const prefix = String(n.prefix || DEFAULT_NUMBERING.prefix).trim().slice(0, 12) || DEFAULT_NUMBERING.prefix;
   const start = Number.isFinite(Number(n.start)) && Number(n.start) > 0 ? Math.floor(Number(n.start)) : 1;
   return { mode: n.mode === "from" ? "from" : "fresh", prefix, start };
@@ -389,7 +389,10 @@ export function readNumbering(settings) {
 // Fresh starts at 1; "from" starts at the number the studio gave. Either way the
 // next one is past the highest already issued, so switching the setting later
 // can never reach back and reuse a number.
-export function nextQuotationNumber(quotations, settings) {
+export function nextQuotationNumber(
+  quotations: Quotation[],
+  settings: Record<string, unknown> | null | undefined,
+) {
   const { mode, prefix, start } = readNumbering(settings);
   return nextUniqueRef(quotations, "number", prefix, 4, mode === "from" ? start : 1);
 }
@@ -408,8 +411,8 @@ export function nextQuotationNumber(quotations, settings) {
 //
 // The quotation's own fields are the fallback, for the INTERNAL ones raised
 // straight from the Quotations screen with no RFQ behind them.
-const quotationHandler = (q, rfq) =>
-  rfq?.handledByCollaboratorId || q?.handledByCollaboratorId || q?.handledBy || "";
+const quotationHandler = (q: Quotation | null | undefined, rfq: Rfq | null | undefined) =>
+  String(rfq?.handledByCollaboratorId || q?.handledByCollaboratorId || q?.handledBy || "");
 
 export async function listQuotations(ctx: TechnicalContext) {
   const [rows, rfqRows, tasks, factsFor] = await Promise.all([
@@ -488,7 +491,7 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
   // owns it and what number it carries; what is ON it is the builder's job.
   // Pricing an empty quotation into being was the RFQ screen doing the builder's
   // work badly.
-  const items = [];
+  const items: QuotationItem[] = [];
   const vatRate = DEFAULT_VAT_RATE;
   // The screen's "Handled by" is a PERSON PICKER, so what arrives in `handledBy`
   // is already a CollaboratorID. It was stored only under that name while every
@@ -733,8 +736,13 @@ export async function removeQuotation(ctx: TechnicalContext, id: string) {
 
 // Sales tickets with nothing outstanding — what "raise an RFQ" can pick. Same
 // rule the Sales button obeys, so the two doors offer exactly the same tickets.
-export async function openTickets({ studio, salesSection, salesTicketsSection, salesClientsSection, rfqSection, quotationsSection, tasksSection }) {
-  if (!salesSection) return [];
+export async function openTickets({
+  studio, salesSection, salesTicketsSection, salesClientsSection,
+  rfqSection, quotationsSection, tasksSection,
+}: Pick<TechnicalContext,
+  | "studio" | "salesSection" | "salesTicketsSection" | "salesClientsSection"
+  | "rfqSection" | "quotationsSection" | "tasksSection">) {
+  if (!salesSection || !salesTicketsSection) return [];
   const [tickets, rfqs, quotations, tasks] = await Promise.all([
     Tickets.find({ studio, section: salesTicketsSection }),
     Rfqs.find({ studio, section: rfqSection }),
@@ -753,7 +761,7 @@ export async function openTickets({ studio, salesSection, salesTicketsSection, s
 
 // The catalogue as the BUILDER needs it: what a line may be, and nothing more.
 // Sorted by name because that is what somebody types.
-export async function catalogueItems({ studio, inventoryItemsSection }) {
+export async function catalogueItems({ studio, inventoryItemsSection }: Pick<TechnicalContext, "studio" | "inventoryItemsSection">) {
   if (!inventoryItemsSection) return [];
   const rows = await InventoryItems.find({ studio, section: inventoryItemsSection });
 
@@ -780,7 +788,7 @@ export async function catalogueItems({ studio, inventoryItemsSection }) {
     // for either. unitCost is the only price Registered Items holds — if the
     // studio needs to quote above cost, that margin belongs on the item.
     .map((r) => {
-      const landed = landedUnitCost(r, studio.currency, snapshot.rates);
+      const landed = landedUnitCost(r, String(studio.currency || ""), snapshot.rates);
       return {
         id: r.id, name: String(r.name), sku: String(r.sku || ""),
         unit: String(r.unit || ""), image: String(r.image || ""),
@@ -805,7 +813,7 @@ export async function catalogueItems({ studio, inventoryItemsSection }) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function technicalPeople({ studio }) {
+export async function technicalPeople({ studio }: Pick<TechnicalContext, "studio">) {
   const rows = await listCollaborators(studio.id);
   return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" }));
 }

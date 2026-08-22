@@ -1,3 +1,5 @@
+import type { Quotation, QuotationLine, QuotationTable, QuotationItem } from "./types";
+
 // Quotation + RFQ shared constants. Kept out of modules/technical/technical.js so client
 // components can import them without pulling the Redis-backed section store in
 // with them — the same split modules/sales/tickets.js makes for Sales.
@@ -43,14 +45,14 @@ const QUOTATION_LIVE_KEYS = QUOTATION_LIVE_COLUMNS.map((c) => c.key);
 export const DEFAULT_QUOTATION_LIVE_COLUMNS = ["number", "title", "clientName", "status", "total"];
 
 // Keep only known keys, preserve the caller's order, fall back to the default.
-export function cleanQuotationLiveColumns(value) {
+export function cleanQuotationLiveColumns(value: unknown) {
   const picked = Array.isArray(value) ? value.filter((k) => QUOTATION_LIVE_KEYS.includes(k)) : [];
   return picked.length ? [...new Set(picked)] : [...DEFAULT_QUOTATION_LIVE_COLUMNS];
 }
 
 // A quotation nobody has finished — either untouched or mid-build. That is what
 // the list's amber stripe marks: work still owed, not work still unsent.
-export const isUnfinished = (q) => q?.status === "New" || q?.status === "Draft";
+export const isUnfinished = (q: Quotation | null | undefined) => q?.status === "New" || q?.status === "Draft";
 
 // A quotation that has LEFT THE BUILDER. Sales is waiting on Technical for
 // exactly as long as this is false: until the document is submitted (or turned
@@ -58,9 +60,10 @@ export const isUnfinished = (q) => q?.status === "New" || q?.status === "Draft";
 // second RFQ to raise. Everything past Completed still counts — a Sent or
 // Approved quotation is finished work, not work in progress.
 export const FINISHED_QUOTATION_STATUSES = ["Completed", "Sent", "Approved", "Rejected"];
-export const isFinishedQuotation = (q) => FINISHED_QUOTATION_STATUSES.includes(q?.status);
+export const isFinishedQuotation = (q: Quotation | null | undefined) =>
+  FINISHED_QUOTATION_STATUSES.includes(String(q?.status));
 
-const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 export const MAX_TABLES = 20;
 export const MAX_TABLE_ROWS = 200;
@@ -88,8 +91,8 @@ export const MAX_TABLE_ROWS = 200;
 // Per TABLE, not per document — the same item under "Ground floor" and again
 // under "First floor" is two pieces of work, which is what tables are for. And
 // an unlisted line has no itemId, so any number of them pass through untouched.
-function oneRowPerItem(rows) {
-  const seen = new Set();
+function oneRowPerItem(rows: QuotationLine[]): QuotationLine[] {
+  const seen = new Set<string>();
   return rows.map((r) => {
     if (!r.itemId) return r;
     if (seen.has(r.itemId)) return { ...r, itemId: "" };
@@ -98,44 +101,55 @@ function oneRowPerItem(rows) {
   });
 }
 
-export function cleanQuotationTables(value) {
-  return (Array.isArray(value) ? value : []).slice(0, MAX_TABLES).map((t, i) => ({
-    id: String(t?.id || `t${i + 1}`).slice(0, 40),
-    title: String(t?.title ?? "").trim().slice(0, 120),
-    rows: oneRowPerItem((Array.isArray(t?.rows) ? t.rows : []).slice(0, MAX_TABLE_ROWS).map((r, j) => ({
-      id: String(r?.id || `r${j + 1}`).slice(0, 40),
-      // WHICH registered item this line came from, kept beside the text rather
-      // than instead of it. The text is what the client was quoted and must
-      // still read correctly if the catalogue entry is later renamed or
-      // deleted; the id is what ties the line back to its home while it exists.
-      itemId: String(r?.itemId ?? "").slice(0, 60),
-      // The picture as it stood when the line was made, alongside the id, for
-      // the same reason the price is: the document must keep showing what was
-      // quoted even after the catalogue entry moves on.
-      image: String(r?.image ?? "").slice(0, 500),
-      description: String(r?.description ?? "").trim().slice(0, 300),
-      unit: String(r?.unit ?? "").trim().slice(0, 30),
-      qty: n(r?.qty),
-      // COPIED off the registered item when the line was picked, not looked up
-      // when the quotation is read. A quotation is a document somebody was
-      // given: re-pricing it from today's catalogue would rewrite what was
-      // quoted last month.
-      unitPrice: n(r?.unitPrice),
-      // A PERCENTAGE OFF THE UNIT PRICE — see netUnitPrice. Clamped to 0–100 on
-      // the way in, so no stored line can carry a discount that would have to be
-      // defended against every time it is read.
-      discount: discountPct(r?.discount),
-    })).filter((r) => r.description)),
-  }));
+export function cleanQuotationTables(value: unknown): QuotationTable[] {
+  return (Array.isArray(value) ? value as unknown[] : [])
+    .slice(0, MAX_TABLES)
+    .map((raw, i): QuotationTable => {
+      const t = (raw || {}) as Record<string, unknown>;
+      return {
+        id: String(t?.id || `t${i + 1}`).slice(0, 40),
+        title: String(t?.title ?? "").trim().slice(0, 120),
+        rows: oneRowPerItem((Array.isArray(t?.rows) ? t.rows as unknown[] : [])
+          .slice(0, MAX_TABLE_ROWS)
+          .map((raw, j): QuotationLine => {
+            const r = (raw || {}) as Record<string, unknown>;
+            return {
+              id: String(r?.id || `r${j + 1}`).slice(0, 40),
+              // WHICH registered item this line came from, kept beside the text rather
+              // than instead of it. The text is what the client was quoted and must
+              // still read correctly if the catalogue entry is later renamed or
+              // deleted; the id is what ties the line back to its home while it exists.
+              itemId: String(r?.itemId ?? "").slice(0, 60),
+              // The picture as it stood when the line was made, alongside the id, for
+              // the same reason the price is: the document must keep showing what was
+              // quoted even after the catalogue entry moves on.
+              image: String(r?.image ?? "").slice(0, 500),
+              description: String(r?.description ?? "").trim().slice(0, 300),
+              unit: String(r?.unit ?? "").trim().slice(0, 30),
+              qty: n(r?.qty),
+              // COPIED off the registered item when the line was picked, not looked up
+              // when the quotation is read. A quotation is a document somebody was
+              // given: re-pricing it from today's catalogue would rewrite what was
+              // quoted last month.
+              unitPrice: n(r?.unitPrice),
+              // A PERCENTAGE OFF THE UNIT PRICE — see netUnitPrice. Clamped to 0–100 on
+              // the way in, so no stored line can carry a discount that would have to be
+              // defended against every time it is read.
+              discount: discountPct(r?.discount),
+            };
+          })
+          .filter((r) => r.description)),
+      };
+    });
 }
 
 // The tables are the setup; `items` stays the flat priced list every other
 // screen already reads. DERIVING one from the other means the totals, the live
 // columns and the analytics keep working without knowing tables exist — and
 // there is still only one place a price is stored.
-export function itemsFromTables(tables) {
+export function itemsFromTables(tables: QuotationTable[] | null | undefined): QuotationItem[] {
   return (tables || []).flatMap((t) =>
-    (t.rows || []).map((r) => ({
+    (t.rows || []).map((r): QuotationItem => ({
       description: t.title ? `${t.title} — ${r.description}` : r.description,
       qty: r.qty,
       // The NET price per unit. The gross price and the discount percentage both
@@ -160,5 +174,6 @@ export function itemsFromTables(tables) {
 // clamp is applied here AND in cleanQuotationTables, so a stored line and a line
 // still being typed answer identically.
 export const MAX_DISCOUNT_PCT = 100;
-export const discountPct = (v) => Math.min(MAX_DISCOUNT_PCT, Math.max(0, n(v)));
-export const netUnitPrice = (r) => n(r?.unitPrice) * (1 - discountPct(r?.discount) / 100);
+export const discountPct = (v: unknown) => Math.min(MAX_DISCOUNT_PCT, Math.max(0, n(v)));
+export const netUnitPrice = (r: { unitPrice?: unknown; discount?: unknown } | null | undefined) =>
+  n(r?.unitPrice) * (1 - discountPct(r?.discount) / 100);

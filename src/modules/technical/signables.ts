@@ -19,13 +19,16 @@
 import { requirePermission } from "@/platform/access";
 import type { PermissionKey, PermissionSet } from "@/platform/access";
 
-export const SIGNATURE_SLOTS = { review: "review", approve: "approval" };
-export const SIGNATURE_ROLES = { review: "Reviewed by", approval: "Approved by" };
+// KEYED BY STRING: `action` arrives off a request body, and these tables exist
+// precisely to answer "is this one of the two?" — a literal-keyed lookup would
+// need a cast before it could be asked.
+export const SIGNATURE_SLOTS: Record<string, string | undefined> = { review: "review", approve: "approval" };
+export const SIGNATURE_ROLES: Record<string, string | undefined> = { review: "Reviewed by", approval: "Approved by" };
 
 // A signature graphic may only ever be something we already hold. The same
 // shape putMedia hands back, checked here rather than trusted from the request.
 const MEDIA_URL = /^\/api\/media\/[a-f0-9]{32}$/i;
-const text = (v, max) => String(v ?? "").trim().slice(0, max);
+const text = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
 /**
  * Move one signable along its ladder.

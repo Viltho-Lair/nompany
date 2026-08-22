@@ -5,6 +5,30 @@ import type { Section } from "@/platform/db/sections";
 
 export type { Location, Permit, Position, Shift } from "./schema";
 
+import type { Permit, Shift } from "./schema";
+
+// ---- what the screens receive ------------------------------------------------
+// Both are the stored row plus names resolved from ids and a state computed
+// from the dates. Derived on every read: a stored `state` would be wrong the
+// morning after a permit expired, and nothing would have written to it.
+
+/** A permit with its location, project and holders named, and its validity read. */
+export type PermitView = Permit & {
+  locationName: string;
+  projectNumber: string;
+  holderAliases: string[];
+  state: string;
+  /** Days until it expires, or null when it has no end date. */
+  daysLeft: number | null;
+};
+
+/** A shift with its location and person named, and its length computed. */
+export type ShiftView = Shift & {
+  locationName: string;
+  alias: string;
+  hours: number;
+};
+
 // ---- this department's context ---------------------------------------------
 // Generated from the spec in operations.ts — see the note in
 // modules/tasks/types.ts. `hrSection` is foreign and therefore nullable: a

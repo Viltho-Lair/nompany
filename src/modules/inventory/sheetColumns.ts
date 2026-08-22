@@ -67,7 +67,7 @@ export const SHEET_COLUMNS: readonly SheetColumn[] = [
   },
 ];
 
-export const columnsFor = (owner) => SHEET_COLUMNS.filter((c) => c.owner === owner);
+export const columnsFor = (owner: string) => SHEET_COLUMNS.filter((c) => c.owner === owner);
 
 // WHERE A ROW STANDS, derived and never stored. Storing it would be a fourth
 // number that has to agree with the other three, and it would be the one that
@@ -90,7 +90,10 @@ export function rowStatus({ qty = 0, assigned = 0, inStock = 0 }) {
 // Only known columns survive, cleaned to their kind. A sheet stores whatever
 // this returns and nothing else, so an unknown key cannot be written and read
 // back later as if the product had ever meant it.
-export function cleanSheetLine(patch, owner) {
+export function cleanSheetLine(raw: unknown, owner: string) {
+  // `unknown`, not Record: this is a request body, and the whole function is
+  // the thing that decides what it turns out to be.
+  const patch = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   for (const col of SHEET_COLUMNS) {
     // A department may only write ITS OWN columns. The route asks the

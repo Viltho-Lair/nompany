@@ -39,6 +39,56 @@ export const RfqSchema = z.object({
  * `completedAt` is nullable rather than "": it is the moment the quotation
  * became the thing a project can be opened from, and null means it has not.
  */
+/**
+ * ONE LINE ON A QUOTATION TABLE, exactly as `cleanQuotationTables` writes it.
+ *
+ * `itemId` and `image` sit BESIDE the text rather than instead of it, and
+ * `unitPrice` is copied at the moment the line is picked: a quotation is a
+ * document somebody was given, so re-reading it from today's catalogue would
+ * rewrite what was quoted last month.
+ */
+export const QuotationLineSchema = z.object({
+  id: z.string().max(40),
+  itemId: z.string().max(60),
+  image: z.string().max(500),
+  description: z.string().max(300),
+  unit: z.string().max(30),
+  qty: z.number(),
+  unitPrice: z.number(),
+  /** A PERCENTAGE off the unit price, clamped 0–100 — see netUnitPrice. */
+  discount: z.number(),
+});
+
+/**
+ * A TABLE ON A QUOTATION. The same item under "Ground floor" and again under
+ * "First floor" is two pieces of work, which is what tables are for — so the
+ * one-row-per-item rule applies per table, not per document.
+ */
+export const QuotationTableSchema = z.object({
+  id: z.string().max(40),
+  title: z.string().max(120),
+  rows: z.array(QuotationLineSchema),
+});
+
+/**
+ * THE FLAT PRICED LIST, derived from the tables rather than stored beside them.
+ * `unitPrice` here is the NET price — the discount is already taken off, so
+ * nothing downstream has to know discounts exist.
+ */
+export const QuotationItemSchema = z.object({
+  description: z.string(),
+  qty: z.number(),
+  unitPrice: z.number(),
+});
+
+/** One remark on the document, appended and never edited. */
+export const QuotationCommentSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  byCollaboratorId: z.string(),
+  createdAt: z.string(),
+});
+
 export const QuotationSchema = z.looseObject({
   id: z.string(),
   studioId: z.string(),
@@ -51,10 +101,10 @@ export const QuotationSchema = z.looseObject({
   handledBy: z.string().optional(),
   handledByCollaboratorId: z.string().optional(),
   status: z.string(),
-  tables: z.array(z.unknown()),
-  items: z.array(z.unknown()),
+  tables: z.array(QuotationTableSchema),
+  items: z.array(QuotationItemSchema),
   vatRate: z.number(),
-  comments: z.array(z.unknown()),
+  comments: z.array(QuotationCommentSchema),
   locked: z.boolean(),
   lead: z.string(),
   completedAt: z.string().nullable(),
@@ -77,3 +127,7 @@ export const QuotationSchema = z.looseObject({
 
 export type Rfq = z.infer<typeof RfqSchema>;
 export type Quotation = z.infer<typeof QuotationSchema>;
+export type QuotationLine = z.infer<typeof QuotationLineSchema>;
+export type QuotationTable = z.infer<typeof QuotationTableSchema>;
+export type QuotationItem = z.infer<typeof QuotationItemSchema>;
+export type QuotationComment = z.infer<typeof QuotationCommentSchema>;

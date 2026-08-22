@@ -29,7 +29,7 @@ import { getJSON, setJSON, claim, release } from "@/platform/db/store";
 import { log } from "@/platform/http/observability";
 
 const BASE = "USD";
-const ENDPOINT = (key) => `https://v6.exchangerate-api.com/v6/${key}/latest/${BASE}`;
+const ENDPOINT = (key: string) => `https://v6.exchangerate-api.com/v6/${key}/latest/${BASE}`;
 
 // How long a failed attempt blocks the next one. Long enough that a revoked key
 // or an exhausted quota cannot burn the month in retries, short enough that a
@@ -40,8 +40,13 @@ const FETCH_LOCK_SEC = 60;
 
 const now = () => Math.floor(Date.now() / 1000);
 
+// WHAT ONE DAY'S TABLE LOOKS LIKE: every pair against USD, plus the API's own
+// next-update stamp so freshness is the provider's answer rather than ours.
+type Snapshot = { rates?: Record<string, number>; nextUpdateAt?: number; fetchedAt?: number };
+
 // A snapshot is fresh until the API says the next batch has landed.
-const isFresh = (snap) => Boolean(snap?.rates) && now() < Number(snap.nextUpdateAt || 0);
+const isFresh = (snap: Snapshot | null | undefined) =>
+  Boolean(snap?.rates) && now() < Number(snap?.nextUpdateAt || 0);
 
 async function fetchSnapshot() {
   const key = process.env.EXCHANGERATE_API_KEY;
@@ -73,9 +78,6 @@ async function fetchSnapshot() {
 // something is cached, the cache is returned marked stale; only a first-ever
 // fetch failure with nothing cached surfaces an error.
 export async function getExchangeSnapshot() {
-  // WHAT ONE DAY'S TABLE LOOKS LIKE: every pair against USD, plus the API's own
-  // next-update stamp so freshness is the provider's answer rather than ours.
-  type Snapshot = { rates?: Record<string, number>; nextUpdateAt?: number; fetchedAt?: number };
   const cached = await getJSON<Snapshot>(FX.snapshot);
   if (isFresh(cached)) return { ...cached, stale: false };
 

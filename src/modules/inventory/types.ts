@@ -40,3 +40,47 @@ export type InventoryContext = ModuleContext & {
   canViewAwb: boolean;
   canManageAwb: boolean;
 };
+
+
+// ---- the sheet as a screen reads it -----------------------------------------
+//
+// A SHEET HOLDS NO LINE. The quotation owns the rows — description, unit,
+// quantity — and the sheet holds only what it knows about each: serials,
+// installation state, whatever `sheetColumns` lets its owner write. Everything
+// below is composed on every read from those two, which is why none of it is
+// stored and none of it can disagree with the document it was sold on.
+
+import type { Vendor } from "./schema";
+
+/** One row of a composed sheet: the quotation's line, plus what the sheet knows. */
+export type SheetLineView = {
+  rowId: string;
+  tableId: string;
+  tableTitle: string;
+  itemId: string;
+  description: string;
+  /** The REGISTERED ITEM'S, read back through itemId — never stored here. */
+  modelNumber: string;
+  unit: string;
+  qty: number;
+  /** Serials still allocatable to this line, this line's own included. */
+  availableSerials?: string[];
+  inStock?: number;
+  serials?: string[];
+  /** On a bulk sheet: which rows were summed into this one. */
+  fromRows?: string[];
+  [field: string]: unknown;
+};
+
+/** One group of rows: a quotation table on a main sheet, a vendor on a bulk one. */
+export type SheetGroup = {
+  id: string;
+  title: string;
+  rows: SheetLineView[];
+};
+
+/** What `stockFor` answers: what may still be allocated, and how much is free. */
+export type StockAvailability = { pool: string[]; onHand: number };
+
+/** Resolves an item to the vendor it is bought from, or null. */
+export type VendorLookup = (itemId: string) => Vendor | null;

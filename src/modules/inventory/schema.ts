@@ -76,11 +76,16 @@ export const MovementSchema = z.object({
 
 /** A line on an order or a delivery note. */
 export const OrderLineSchema = z.looseObject({
-  itemId: z.string().optional(),
-  qty: z.number().optional(),
-  unitPrice: z.number().optional(),
+  // NONE OF THESE ARE OPTIONAL. `cleanLines` is the only thing that writes an
+  // order or delivery line, it writes all four on every one, and it drops any
+  // line without a known item or a positive quantity — so a stored line always
+  // has them. They were optional here, which made every consumer defend against
+  // a shape the writer cannot produce.
+  itemId: z.string(),
+  qty: z.number(),
+  unitPrice: z.number(),
   /** How much of this line has actually arrived. Written by a receipt, never typed. */
-  received: z.number().optional(),
+  received: z.number(),
 });
 
 /** A purchase order. `reference` comes from the counter, never from a count. */

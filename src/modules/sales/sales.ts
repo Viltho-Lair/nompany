@@ -26,7 +26,13 @@ import { requestRfq } from "@/modules/technical/technical";
 import { pendingRfq, rfqsForTicket } from "@/modules/technical/rfqs";
 import { isFinishedQuotation } from "@/modules/technical/quotations";
 import { readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES, quotationApproved } from "@/modules/tasks/taskRouting";
-import type { SalesContext, Client, Service, SalesTicket, Site } from "./types";
+import type {
+  SalesContext, Client, Contact, Service, SalesTicket, Site,
+  QuotationRow, PoSummary, ProjectLink, ApprovalSummary, TicketSummary, TicketView,
+} from "./types";
+import type { Rfq, Quotation } from "@/modules/technical/types";
+import type { Project } from "@/modules/projects/types";
+import type { TaskAssignees } from "@/modules/tasks/types";
 import type { TechnicalContext } from "@/modules/technical/types";
 import type { Task } from "@/modules/tasks/types";
 
@@ -51,9 +57,9 @@ const PROJECTS = "projects";
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
 const Clients = repo<Client>(CLIENTS);
-const Projects = repo(PROJECTS);
-const Quotations = repo(QUOTATIONS);
-const Rfqs = repo(RFQS);
+const Projects = repo<Project>(PROJECTS);
+const Quotations = repo<Quotation>(QUOTATIONS);
+const Rfqs = repo<Rfq>(RFQS);
 const Services = repo<Service>(SERVICES);
 const Tasks = repo<Task>(TASKS);
 const Tickets = repo<SalesTicket>(TICKETS);
@@ -64,13 +70,13 @@ const APPROVAL_TYPE = "approval";
 // The client's purchase order, sent to Finance. Same routing table as every
 // other typed task — see modules/tasks/taskRouting.js.
 const PO_TYPE = "po";
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const now = () => new Date().toISOString();
 
 // Fold a contact into a client's list: match on name (case-insensitive) and
 // fill in blanks, else match a nameless duplicate on email/phone, else append.
 // Returns the ORIGINAL array when nothing changed, so callers can skip the write.
-function upsertContact(existing, { name, email, phone, position }) {
+function upsertContact(existing: Contact[] | undefined, { name, email, phone, position }: Contact) {
   const contacts = Array.isArray(existing) ? [...existing] : [];
   if (!name && !email && !phone) return existing ?? [];
   if (name) {
@@ -92,7 +98,7 @@ function upsertContact(existing, { name, email, phone, position }) {
 }
 
 // Same idea for a site/location. A location with no name is not worth storing.
-function upsertLocation(existing, { name, country, city, url }) {
+function upsertLocation(existing: Site[] | undefined, { name, country, city, url }: Site) {
   const locations = Array.isArray(existing) ? [...existing] : [];
   if (!name) return existing ?? [];
   const norm = name.toLowerCase().replace(/\s+/g, " ");
@@ -156,8 +162,8 @@ export const salesContext = moduleContext({
 //  • The SERVICE CATALOGUE — real rows with ids, so a collection.
 
 // A vocabulary list: trimmed, de-duplicated case-insensitively, order kept.
-function cleanVocab(value, max = 120) {
-  const out = [];
+function cleanVocab(value: unknown, max = 120) {
+  const out: string[] = [];
   const seen = new Set();
   for (const v of Array.isArray(value) ? value : []) {
     const t = str(v, max);
@@ -165,12 +171,12 @@ function cleanVocab(value, max = 120) {
     const k = t.toLowerCase();
     if (seen.has(k)) continue;
     seen.add(k);
-    (out as string[]).push(t);
+    out.push(t);
   }
   return out;
 }
 
-export function readSalesVocab(settingsSection) {
+export function readSalesVocab(settingsSection: { settings?: Record<string, unknown> } | null | undefined) {
   const s = settingsSection?.settings || {};
   return {
     liveColumns: cleanLiveColumns(s.liveColumns),
@@ -200,7 +206,7 @@ export async function saveSalesSettings(ctx: SalesContext, body: Record<string, 
 }
 
 // ---- service catalogue ------------------------------------------------------
-export async function listServices({ studio, settingsSection }) {
+export async function listServices({ studio, settingsSection }: Pick<SalesContext, "studio" | "settingsSection">) {
   const rows = await Services.find({ studio, section: settingsSection });
   return [...rows].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }
@@ -270,7 +276,7 @@ export async function removeService(ctx: SalesContext, id: string) {
 }
 
 // ---- clients ---------------------------------------------------------------
-export async function listClients({ studio, clientsSection }) {
+export async function listClients({ studio, clientsSection }: Pick<SalesContext, "studio" | "clientsSection">) {
   const rows = await Clients.find({ studio, section: clientsSection });
   return [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
@@ -353,13 +359,13 @@ export async function removeClient(ctx: SalesContext, id: string) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
-function cleanContacts(list) {
+function cleanContacts(list: unknown): Contact[] {
   return (Array.isArray(list) ? list : []).slice(0, 20).map((c) => ({
     name: str(c?.name, 120), email: str(c?.email, 160).toLowerCase(),
     phone: str(c?.phone, 40), position: str(c?.position, 80),
   })).filter((c) => c.name || c.email || c.phone);
 }
-function cleanLocations(list) {
+function cleanLocations(list: unknown): Site[] {
   return (Array.isArray(list) ? list : []).slice(0, 20).map((l) => ({
     name: str(l?.name, 120), country: str(l?.country, 80),
     city: str(l?.city, 80), url: str(l?.url, 300),
@@ -390,24 +396,28 @@ export { nextUniqueRef };
 // Quotations box and nothing more. The lines themselves are deliberately absent:
 // they are fetched one document at a time by the viewer, not carried on every
 // row of the tickets list.
-const quotationRow = (q) => ({
+const quotationRow = (q: Quotation): QuotationRow => ({
   id: q.id,
   number: q.number || "",
   revision: Number(q.revision) || 1,
   status: q.status || "",
   total: Number(q.total) || 0,
-  handledBy: q.handledByCollaboratorId || q.handledBy || "",
+  handledBy: String(q.handledByCollaboratorId || q.handledBy || ""),
   // Who put their name to the finished document, which is not always who it was
   // handed to — see the note on `submittedByCollaboratorId` in modules/technical/technical.js.
-  submittedBy: q.submittedByCollaboratorId || "",
-  createdAt: q.createdAt || "",
-  submittedAt: q.submittedAt || "",
-  completedAt: q.completedAt || "",
+  submittedBy: String(q.submittedByCollaboratorId || ""),
+  createdAt: String(q.createdAt || ""),
+  submittedAt: String(q.submittedAt || ""),
+  completedAt: String(q.completedAt || ""),
 });
 
 // The PO task raised against ONE quotation, resolved the same way the approval
 // is — routing read from settings on every read, never off the row.
-function poFor(quotation, tasks, taskAssignees) {
+function poFor(
+  quotation: Quotation | null | undefined,
+  tasks: Task[],
+  taskAssignees: TaskAssignees,
+): PoSummary | null {
   if (!quotation) return null;
   const task = tasks
     .filter((k) => k.type === PO_TYPE && k.quotationId === quotation.id)
@@ -415,7 +425,9 @@ function poFor(quotation, tasks, taskAssignees) {
   if (!task) return null;
 
   const { authorities } = resolveTaskAssignees(task, taskAssignees);
-  const approvals = task.approvals && typeof task.approvals === "object" ? task.approvals : {};
+  const approvals = (task.approvals && typeof task.approvals === "object"
+    ? task.approvals
+    : {}) as Record<string, { approved?: boolean } | undefined>;
   return {
     taskId: task.id,
     description: task.po?.description || "",
@@ -442,16 +454,17 @@ function poFor(quotation, tasks, taskAssignees) {
 // ticket reporting what became of it is Sales' business. Passing a gate here
 // would take that away from people who have it today, which is a regression
 // wearing the costume of a refactor.
-export function quotationsForTicket(ticketId: string, quotations) {
-  return traverseIn("salesTicket", { id: ticketId }, "quotation", { rows: { quotation: quotations } }).records;
+export function quotationsForTicket(ticketId: string, quotations: Quotation[]): Quotation[] {
+  return traverseIn<Quotation>("salesTicket", { id: ticketId }, "quotation", { rows: { quotation: quotations } }).records;
 }
-export const latestQuotationFor = (ticketId, quotations) => quotationsForTicket(ticketId, quotations)[0] || null;
+export const latestQuotationFor = (ticketId: string, quotations: Quotation[]) =>
+  quotationsForTicket(ticketId, quotations)[0] || null;
 
 // The project a ticket produced, or null. Reverse edge: the project holds the
 // ticket's id, so this is a scan — and `one`, declared, because the business
 // says one ticket yields one project.
-function projectFor(ticket, projects) {
-  const found = traverseIn("salesTicket", ticket, "project", { rows: { project: projects || [] } }).record;
+function projectFor(ticket: SalesTicket, projects: Project[] | null | undefined): ProjectLink | null {
+  const found = traverseIn<Project>("salesTicket", ticket, "project", { rows: { project: projects || [] } }).record;
   if (!found) return null;
   return {
     id: found.id,
@@ -463,7 +476,14 @@ function projectFor(ticket, projects) {
   };
 }
 
-function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees, projects) {
+function ticketSummary(
+  ticket: SalesTicket,
+  rfqs: Rfq[],
+  quotations: Quotation[],
+  tasks: Task[],
+  taskAssignees: TaskAssignees,
+  projects: Project[],
+): TicketSummary {
   const mine = rfqsForTicket(ticket.id, rfqs);
   const mineQuotations = quotationsForTicket(ticket.id, quotations);
   const newest = mineQuotations[0] || null;
@@ -484,13 +504,12 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees, projects)
   // WHAT THE APPROVAL TASK SAYS, folded onto the quotation. Null when there is
   // no task — an Internal quotation never raises one — which the screens read as
   // "nobody has been asked", not as "refused".
-  let approval: {
-    taskId: unknown; quotationId: unknown; approved: unknown;
-    required: unknown; granted: unknown; at: unknown;
-  } | null = null;
+  let approval: ApprovalSummary | null = null;
   if (approvalTask) {
     const { authorities } = resolveTaskAssignees(approvalTask, taskAssignees);
-    const approvals = approvalTask.approvals && typeof approvalTask.approvals === "object" ? approvalTask.approvals : {};
+    const approvals = (approvalTask.approvals && typeof approvalTask.approvals === "object"
+      ? approvalTask.approvals
+      : {}) as Record<string, { approved?: boolean } | undefined>;
     approval = {
       taskId: approvalTask.id,
       quotationId: newest.id,
@@ -504,7 +523,7 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees, projects)
     };
   }
 
-  const quoteOf = (r) => (r.quotationId ? quotations.find((q) => q.id === r.quotationId) || null : null);
+  const quoteOf = (r: Rfq) => (r.quotationId ? quotations.find((q) => q.id === r.quotationId) || null : null);
   const latest = mine[0] || null;
   const quote = latest ? quoteOf(latest) : null;
 
@@ -529,7 +548,7 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees, projects)
       handledByCollaboratorId: latest.handledByCollaboratorId || quote?.handledByCollaboratorId || "",
       // Empty until something is submitted, which is exactly what the RFQ
       // column reads to decide between "Handled by" and "Completed by".
-      completedByCollaboratorId: submitted?.submittedByCollaboratorId || "",
+      completedByCollaboratorId: String(submitted?.submittedByCollaboratorId || ""),
       quotationSubmitted: Boolean(submitted),
       quotationId: quote?.id || "",
       quotationNumber: quote?.number || "",
@@ -575,7 +594,12 @@ function ticketSummary(ticket, rfqs, quotations, tasks, taskAssignees, projects)
   };
 }
 
-export async function listTickets({ studio, ticketsSection, clientsSection, rfqSection, quotationsSection, tasksSection, projectsSection, taskAssignees }) {
+export async function listTickets({
+  studio, ticketsSection, clientsSection, rfqSection, quotationsSection,
+  tasksSection, projectsSection, taskAssignees,
+}: Pick<SalesContext,
+  | "studio" | "ticketsSection" | "clientsSection" | "rfqSection"
+  | "quotationsSection" | "tasksSection" | "projectsSection" | "taskAssignees">) {
   const [tickets, clients, rfqs, quotations, tasks, projects] = await Promise.all([
     Tickets.find({ studio, section: ticketsSection }),
     Clients.find({ studio, section: clientsSection }),
@@ -597,7 +621,17 @@ export async function listTickets({ studio, ticketsSection, clientsSection, rfqS
 // pointing at it. Extracted so there is ONE copy: the list builds every row
 // through it, and ticketById builds one, which is what makes patching a single
 // row on the client safe rather than a way to blank four columns.
-function composeTicket(t, { nameById, rfqs, quotations, tasks, taskAssignees, projects }) {
+function composeTicket(
+  t: SalesTicket,
+  { nameById, rfqs, quotations, tasks, taskAssignees, projects }: {
+    nameById: Record<string, string>;
+    rfqs: Rfq[];
+    quotations: Quotation[];
+    tasks: Task[];
+    taskAssignees: TaskAssignees;
+    projects: Project[];
+  },
+): TicketView {
   const { quotedValue, ...rest } = ticketSummary(t, rfqs, quotations, tasks, taskAssignees, projects);
   return {
     ...t,
@@ -640,7 +674,11 @@ export async function ticketById(ctx: SalesContext, id: string) {
 //
 // "Read-only", not "a copy". Nothing is copied out to Sales — the document is
 // read where it lives, and what the document does not own is carried below.
-export async function ticketQuotation({ studio, ticketsSection, clientsSection, quotationsSection, tasksSection }, quotationId) {
+export async function ticketQuotation(
+  { studio, ticketsSection, clientsSection, quotationsSection, tasksSection }: Pick<SalesContext,
+    "studio" | "ticketsSection" | "clientsSection" | "quotationsSection" | "tasksSection">,
+  quotationId: unknown,
+) {
   if (!quotationsSection) return { error: "notfound" };
   const id = str(quotationId, 60);
   if (!id) return { error: "notfound" };
@@ -983,8 +1021,10 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   const serviceIds = [...new Set((Array.isArray(body?.serviceIds) ? body.serviceIds : []).map(String))]
     .filter((id) => known.has(id));
   // Per service the client may opt out of Installation and/or Programming.
-  const rawSR = body?.serviceRequirements && typeof body.serviceRequirements === "object" ? body.serviceRequirements : {};
-  const serviceRequirements = {};
+  const rawSR = (body?.serviceRequirements && typeof body.serviceRequirements === "object"
+    ? body.serviceRequirements
+    : {}) as Record<string, { withoutInstallation?: unknown; withoutProgramming?: unknown } | undefined>;
+  const serviceRequirements: Record<string, unknown> = {};
   for (const id of serviceIds) {
     const e = rawSR[id] || {};
     serviceRequirements[id] = { withoutInstallation: !!e.withoutInstallation, withoutProgramming: !!e.withoutProgramming };
@@ -1130,7 +1170,9 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
       .filter((sid) => known.has(sid));
     if (serviceIds.length === 0) return { error: "services" };
     patch.serviceIds = serviceIds;
-    const rawSR = body?.serviceRequirements && typeof body.serviceRequirements === "object" ? body.serviceRequirements : {};
+    const rawSR = (body?.serviceRequirements && typeof body.serviceRequirements === "object"
+      ? body.serviceRequirements
+      : {}) as Record<string, { withoutInstallation?: unknown; withoutProgramming?: unknown } | undefined>;
     patch.serviceRequirements = Object.fromEntries(serviceIds.map((sid) => {
       const e = rawSR[sid] || {};
       return [sid, { withoutInstallation: !!e.withoutInstallation, withoutProgramming: !!e.withoutProgramming }];
@@ -1181,7 +1223,7 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
 
 // People who can be assigned work — this studio's collaborators, by their
 // studio-local alias.
-export async function assignablePeople({ studio }) {
+export async function assignablePeople({ studio }: Pick<SalesContext, "studio">) {
   const rows = await listCollaborators(studio.id);
   return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed", role: c.role }));
 }

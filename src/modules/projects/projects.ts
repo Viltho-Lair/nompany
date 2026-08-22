@@ -170,7 +170,7 @@ export async function approvedQuotations(ctx: ProjectsContext) {
     // Title and client are the TICKET'S, reached through the quotation's
     // ticketId. An Internal quotation has no ticket and titles itself.
     .map((q) => {
-      const t = factsFor(q.ticketId);
+      const t = factsFor(String(q.ticketId || ""));
       return {
         id: q.id, number: q.number, total: q.total,
         title: q.ticketId ? t.title : (q.title || ""),
@@ -213,7 +213,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   // because the project's title and client are read straight off the raw rows by
   // the Projects screens and by Finance's cash sheet, and those have to resolve
   // first. Next pass — see the note on ticketFacts.
-  const t = (await ticketFacts(ctx))(quote.ticketId);
+  const t = (await ticketFacts(ctx))(String(quote.ticketId || ""));
   const now = new Date().toISOString();
   const project = await addRow(studio.id, listSection.id, PROJECTS, {
     // BLANK UNTIL FINANCE ISSUES IT. The project number is quoted on invoices,

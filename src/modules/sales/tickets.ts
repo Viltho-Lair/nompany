@@ -17,7 +17,7 @@ export const DEFAULT_STATUS = "Lead";
 
 // RFQ can be requested from the pre-approval stages.
 export const TICKET_RFQ_STATUSES = ["Lead", "Opportunity"];
-export function canRequestRfqStatus(status) {
+export function canRequestRfqStatus(status: string) {
   return TICKET_RFQ_STATUSES.includes(status);
 }
 
@@ -77,7 +77,7 @@ export const TICKET_LIVE_COLUMN_KEYS = TICKET_LIVE_COLUMNS.map((c) => c.key);
 export const DEFAULT_LIVE_COLUMNS = ["ref", "title", "clientName", "status", "deadline"];
 
 // Keep only known keys, preserve the caller's order, fall back to the default.
-export function cleanLiveColumns(value) {
+export function cleanLiveColumns(value: unknown) {
   const picked = Array.isArray(value) ? value.filter((k) => TICKET_LIVE_COLUMN_KEYS.includes(k)) : [];
   return picked.length ? [...new Set(picked)] : [...DEFAULT_LIVE_COLUMNS];
 }
@@ -94,7 +94,7 @@ export function cleanLiveColumns(value) {
 
 // Coerce a value to a clamped integer in [0, 100]; returns fallback when
 // input is invalid.
-export function normaliseProbability(v, fallback = 0) {
+export function normaliseProbability(v: unknown, fallback = 0) {
   if (v === "" || v == null) return fallback;
   const n = Math.round(Number(v));
   if (!Number.isFinite(n)) return fallback;

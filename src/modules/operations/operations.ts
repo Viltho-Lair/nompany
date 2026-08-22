@@ -22,7 +22,10 @@ import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { nextReference } from "@/modules/main/references";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "./operationsCalendar";
-import type { Location, Permit, Position, Shift, OperationsContext } from "./types";
+import type { WorkingWeek } from "./operationsCalendar";
+import type {
+  Location, Permit, Position, Shift, PermitView, ShiftView, OperationsContext,
+} from "./types";
 import type { Vacation } from "@/modules/hr/types";
 
 const LOCATIONS = "locations";
@@ -52,7 +55,7 @@ export const PERMIT_TYPES = ["Work permit", "Hot work", "Height work", "Confined
 // How far ahead a permit counts as "expiring", so it can be renewed in time.
 export const EXPIRY_WINDOW_DAYS = 30;
 
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 const clock = (v: unknown) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -83,7 +86,9 @@ export async function saveOperationsSettings(ctx: OperationsContext, body: Recor
   // The weekly schedule the calendar is drawn against: seven named days, each
   // worked or not, each with a start and an end.
   if (body?.workSchedule !== undefined) {
-    const ws = body.workSchedule && typeof body.workSchedule === "object" ? body.workSchedule : {};
+    const ws = (body.workSchedule && typeof body.workSchedule === "object"
+      ? body.workSchedule
+      : {}) as WorkingWeek;
     next.workSchedule = Object.fromEntries(DAYS.map((d) => {
       const v = ws[d] || {};
       return [d, { on: !!v.on, from: clock(v.from), to: clock(v.to) }];
@@ -112,7 +117,7 @@ export async function saveOperationsSettings(ctx: OperationsContext, body: Recor
   return updated ? { settings: readOperationsSettings({ settings: next }) } : { error: "notfound" };
 }
 
-export function readOperationsSettings(settingsSection) {
+export function readOperationsSettings(settingsSection: { settings?: Record<string, unknown> } | null | undefined) {
   const s = settingsSection?.settings || {};
   return {
     workSchedule: normalizeSchedule(s.workSchedule),
@@ -128,7 +133,7 @@ export function readOperationsSettings(settingsSection) {
 // never a movement history — a trail of where somebody has been all week is a
 // different and far more invasive product, and it is not this one. Nothing is
 // recorded at all unless that person has the page open and has agreed to share.
-export async function listPositions({ studio, trackingSection }) {
+export async function listPositions({ studio, trackingSection }: Pick<OperationsContext, "studio" | "trackingSection">) {
   const [rows, people] = await Promise.all([
     Positions.find({ studio, section: trackingSection }),
     listCollaborators(studio.id),
@@ -181,7 +186,7 @@ export async function clearPosition(ctx: OperationsContext, collaboratorId: stri
 }
 
 // ---- locations -------------------------------------------------------------
-export async function listLocations({ studio, section }) {
+export async function listLocations({ studio, section }: Pick<OperationsContext, "studio" | "section">) {
   const rows = await Locations.find({ studio, section });
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
@@ -255,7 +260,7 @@ export async function removeLocation(ctx: OperationsContext, id: string) {
 
 // ---- permits ---------------------------------------------------------------
 // Validity is computed from the dates every time it is read.
-export function permitState(permit, when = today()) {
+export function permitState(permit: Permit, when = today()) {
   if (permit.validFrom && when < permit.validFrom) return "Not yet valid";
   if (!permit.validTo) return "Valid";
   if (when > permit.validTo) return "Expired";
@@ -264,7 +269,7 @@ export function permitState(permit, when = today()) {
   return new Date(`${permit.validTo}T00:00:00`) <= limit ? "Expiring" : "Valid";
 }
 
-export async function listPermits({ studio, section }) {
+export async function listPermits({ studio, section }: Pick<OperationsContext, "studio" | "section">) {
   const [permits, locations, people, projects] = await Promise.all([
     Permits.find({ studio, section }),
     Locations.find({ studio, section }),
@@ -381,14 +386,14 @@ export async function removePermit(ctx: OperationsContext, id: string) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
-async function validHolders(studioId: string, ids) {
+async function validHolders(studioId: string, ids: unknown) {
   const people = await listCollaborators(studioId);
   const known = new Set(people.map((c) => c.id));
   return (Array.isArray(ids) ? ids : []).map((x) => str(x, 60)).filter((x) => known.has(x)).slice(0, 100);
 }
 
 // ---- shifts (the rota) -----------------------------------------------------
-export function shiftHours(shift) {
+export function shiftHours(shift: Shift) {
   if (!shift.startTime || !shift.endTime) return 0;
   const [sh, sm] = shift.startTime.split(":").map(Number);
   const [eh, em] = shift.endTime.split(":").map(Number);
@@ -397,7 +402,10 @@ export function shiftHours(shift) {
   return Math.round((minutes / 60) * 100) / 100;
 }
 
-export async function listShifts({ studio, section }, { from = "", to = "" } = {}) {
+export async function listShifts(
+  { studio, section }: Pick<OperationsContext, "studio" | "section">,
+  { from = "", to = "" }: { from?: string; to?: string } = {},
+) {
   const [shifts, locations, people] = await Promise.all([
     Shifts.find({ studio, section }),
     Locations.find({ studio, section }),
@@ -444,7 +452,7 @@ export async function createShift(ctx: OperationsContext, body: Record<string, u
   // not something to silently accept.
   const shifts = await Shifts.find({ studio, section });
   const clash = shifts.find((s) => s.collaboratorId === collaboratorId && s.date === date
-    && overlaps(s.startTime, s.endTime, startTime, endTime));
+    && overlaps(s.startTime || "", s.endTime || "", startTime, endTime));
   if (clash) return { error: "clash", startTime: clash.startTime, endTime: clash.endTime };
 
   // Scheduling someone HR has already approved leave for is the same kind of
@@ -452,7 +460,7 @@ export async function createShift(ctx: OperationsContext, body: Record<string, u
   const onLeave = await approvedLeaveOn(ctx, collaboratorId, date);
   if (onLeave) return { error: "on-leave", from: onLeave.from, to: onLeave.to, type: onLeave.type };
 
-  const shift = await addRow(studio.id, section.id, SHIFTS, {
+  const shift = await addRow<Shift>(studio.id, section.id, SHIFTS, {
     date, collaboratorId, locationId, startTime, endTime,
     role: str(body?.role, 120),
     notes: str(body?.notes, 500),
@@ -478,7 +486,7 @@ export async function editShift(ctx: OperationsContext, id: string, body: Record
   if (!date || !startTime || !endTime) return { error: "time" };
 
   const clash = rows.find((s) => s.id !== id && s.collaboratorId === current.collaboratorId
-    && s.date === date && overlaps(s.startTime, s.endTime, startTime, endTime));
+    && s.date === date && overlaps(s.startTime || "", s.endTime || "", startTime, endTime));
   if (clash) return { error: "clash", startTime: clash.startTime, endTime: clash.endTime };
 
   const patch: Partial<Shift> = { date, startTime, endTime };
@@ -493,7 +501,7 @@ export async function editShift(ctx: OperationsContext, id: string, body: Record
     patch.locationId = locationId;
   }
 
-  const shift = await updateRow(studio.id, section.id, SHIFTS, id, patch);
+  const shift = await updateRow<Shift>(studio.id, section.id, SHIFTS, id, patch);
   return shift ? { shift: { ...shift, hours: shiftHours(shift) } } : { error: "notfound" };
 }
 
@@ -509,9 +517,9 @@ export async function removeShift(ctx: OperationsContext, id: string) {
 // Half-open comparison: a shift ending at 12:00 and one starting at 12:00 do
 // not overlap. Overnight shifts are compared on a 48-hour line so the wrap is
 // handled without special cases.
-function overlaps(aStart, aEnd, bStart, bEnd) {
-  const m = (t) => { const [h, min] = t.split(":").map(Number); return h * 60 + min; };
-  const span = (s, e) => { const a = m(s); let b = m(e); if (b <= a) b += 24 * 60; return [a, b]; };
+function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string) {
+  const m = (t: string) => { const [h, min] = t.split(":").map(Number); return h * 60 + min; };
+  const span = (s: string, e: string) => { const a = m(s); let b = m(e); if (b <= a) b += 24 * 60; return [a, b]; };
   const [a1, a2] = span(aStart, aEnd);
   const [b1, b2] = span(bStart, bEnd);
   return a1 < b2 && b1 < a2;
@@ -519,7 +527,11 @@ function overlaps(aStart, aEnd, bStart, bEnd) {
 
 // HR owns leave. Operations reads it to avoid scheduling over it — naming
 // someone's approved absence is not the same as being allowed to open HR.
-async function approvedLeaveOn({ studio }, collaboratorId, date) {
+async function approvedLeaveOn(
+  { studio }: Pick<OperationsContext, "studio">,
+  collaboratorId: string,
+  date: string,
+) {
   const hr = await getSectionByKey(studio.id, "hr");
   if (!hr) return null;
   const rows = await Vacations.find({ studio, section: hr });
@@ -529,11 +541,11 @@ async function approvedLeaveOn({ studio }, collaboratorId, date) {
 
 // Cross-section reads resolve the sub-section that OWNS the collection, falling
 // back to the parent so a studio predating the sub-section model still works.
-async function ownerOf(studioId: string, childKey, parentKey) {
+async function ownerOf(studioId: string, childKey: string, parentKey: string) {
   return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
 }
 
-async function projectRows({ studio }) {
+async function projectRows({ studio }: Pick<OperationsContext, "studio">) {
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return [];
   return Projects.find({ studio, section: owner });
@@ -544,7 +556,7 @@ export async function operationsProjects(ctx: OperationsContext) {
   return rows.filter((p) => p.stage !== "Completed").map((p) => ({ id: p.id, number: p.number }));
 }
 
-export async function schedulablePeople({ studio }) {
+export async function schedulablePeople({ studio }: Pick<OperationsContext, "studio">) {
   const rows = await listCollaborators(studio.id);
   return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" }));
 }
@@ -562,8 +574,13 @@ export function weekWindow(from = today()) {
   return { from, to: end.toISOString().slice(0, 10) };
 }
 
-export function summarise(permits, shifts, locations, window) {
-  const thisWeek = shifts.filter((s) => s.date >= window.from && s.date <= window.to);
+export function summarise(
+  permits: PermitView[],
+  shifts: ShiftView[],
+  locations: Location[],
+  window: { from: string; to: string },
+) {
+  const thisWeek = shifts.filter((s) => (s.date || "") >= window.from && (s.date || "") <= window.to);
   return {
     locations: locations.length,
     permitsExpiring: permits.filter((p) => p.state === "Expiring").length,

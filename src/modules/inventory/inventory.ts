@@ -29,10 +29,11 @@ import { nextReference } from "@/modules/main/references";
 import { SHEET_OWNERS, cleanSheetLine } from "./sheetColumns";
 import type {
   InventoryContext, Vendor, Item, Movement, Order, OrderLine, Delivery, Sheet,
+  SheetLineView, SheetGroup, StockAvailability, VendorLookup,
 } from "./types";
 import type { PermissionKey } from "@/platform/access";
 import type { Section } from "@/platform/db/sections";
-import type { Quotation } from "@/modules/technical/types";
+import type { Quotation, QuotationTable, QuotationLine } from "@/modules/technical/types";
 import type { Project } from "@/modules/projects/types";
 import type { Row } from "@/platform/db/store";
 import type { Task } from "@/modules/tasks/types";
@@ -42,26 +43,26 @@ const ITEMS = "inventoryItems";
 
 // A currency CODE, or nothing. Unknown codes are dropped rather than stored:
 // a three-letter string nobody can price against is worse than no answer.
-const cur = (v) => {
+const cur = (v: unknown) => {
   const c = String(v ?? "").trim().toUpperCase();
   return isKnownCurrency(c) ? c : "";
 };
 // FOREIGN means "not what the studio counts in". A blank item currency is the
 // studio's own money, so it is never foreign; a blank studio currency makes any
 // named currency foreign, because nothing here says otherwise.
-const foreignTo = (itemCurrency, studioCurrency) =>
+const foreignTo = (itemCurrency: string, studioCurrency: unknown) =>
   !!itemCurrency && itemCurrency !== cur(studioCurrency);
 // A charge that was TYPED, kept apart from one that was left blank: 0 is a real
 // answer ("nothing was paid to ship it") and "" is no answer at all, which is
 // what makes the two landed-cost fields mandatory rather than defaulted.
-const charge = (v) => {
+const charge = (v: unknown) => {
   if (v === "" || v == null) return "";
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : "";
 };
 // A picture of the thing, held as the URL /api/media hands back — the same way
 // the studio and client logos are held. The bytes never touch the item row.
-const img = (v) => String(v ?? "").trim().slice(0, 500);
+const img = (v: unknown) => String(v ?? "").trim().slice(0, 500);
 const STOCK = "inventoryStock";
 const ORDERS = "materialOrders";
 // THE SHEET ITSELF. Projects writes one when a project is opened, drawn from
@@ -93,17 +94,17 @@ export const DELIVERY_STATUSES = ["Draft", "Issued", "Cancelled"];
 export const UNITS = ["pcs", "box", "m", "m²", "kg", "L", "set", "roll"];
 export const MOVEMENT_KINDS = ["in", "out", "adjust"];
 
-const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
-const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
-const qty = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : 0; };
-const money = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
-const weeks = (v) => (v === "" || v == null ? "" : Math.max(0, Math.round(Number(v)) || 0));
+const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
+const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+const qty = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : 0; };
+const money = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
+const weeks = (v: unknown) => (v === "" || v == null ? "" : Math.max(0, Math.round(Number(v)) || 0));
 
 // What a vendor supplies, and how long each kind takes to arrive. Picking a type
 // on an item is what fills in its delivery estimate, so the estimate is the
 // vendor's own promise rather than a number somebody retyped per item.
-function cleanItemTypes(list) {
-  const seen = new Set();
+function cleanItemTypes(list: unknown) {
+  const seen = new Set<string>();
   return (Array.isArray(list) ? list : []).slice(0, 60).map((t) => ({
     type: str(t?.type, 80),
     weeks: weeks(t?.weeks),
@@ -119,8 +120,8 @@ function cleanItemTypes(list) {
 // Serial numbers held for an item. De-duplicated and trimmed; the ORDER is kept
 // because it is the order they were entered in, which is usually the order they
 // arrived in.
-function cleanSerials(list) {
-  const seen = new Set();
+function cleanSerials(list: unknown) {
+  const seen = new Set<string>();
   return (Array.isArray(list) ? list : []).slice(0, 2000).map((s) => str(s, 80)).filter((s) => {
     if (!s || seen.has(s)) return false;
     seen.add(s);
@@ -151,7 +152,7 @@ export const inventoryContext = moduleContext({
 });
 
 // ---- vendors ---------------------------------------------------------------
-export async function listVendors({ studio, vendorsSection }) {
+export async function listVendors({ studio, vendorsSection }: Pick<InventoryContext, "studio" | "vendorsSection">) {
   const rows = await Vendors.find({ studio, section: vendorsSection });
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
@@ -224,8 +225,8 @@ export async function removeVendor(ctx: InventoryContext, id: string) {
 // ---- items -----------------------------------------------------------------
 // Every serial spoken for by a project sheet. One read for the whole list, so
 // the item rows do not each go looking.
-async function reservedSerials({ studio, sheetsSection }) {
-  if (!sheetsSection) return new Set();
+async function reservedSerials({ studio, sheetsSection }: Pick<InventoryContext, "studio" | "sheetsSection">) {
+  if (!sheetsSection) return new Set<string>();
   const sheets = await Sheets.find({ studio, section: sheetsSection });
   const out = new Set();
   for (const sh of sheets) {
@@ -420,7 +421,7 @@ export async function removeItem(ctx: InventoryContext, id: string) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
-function nextSku(rows) {
+function nextSku(rows: Item[]) {
   const n = rows.length + 1;
   const taken = new Set(rows.map((i) => String(i.sku || "").toUpperCase()));
   for (let i = n; i < n + 1000; i++) {
@@ -446,7 +447,10 @@ export function balances(movements: Movement[]): Record<string, number> {
   return out;
 }
 
-export async function listMovements({ studio, stockSection, itemsSection }, { limit = 200 } = {}) {
+export async function listMovements(
+  { studio, stockSection, itemsSection }: Pick<InventoryContext, "studio" | "stockSection" | "itemsSection">,
+  { limit = 200 }: { limit?: number } = {},
+) {
   const [movements, items, people] = await Promise.all([
     Stock.find({ studio, section: stockSection }),
     Items.find({ studio, section: itemsSection }),
@@ -463,7 +467,17 @@ export async function listMovements({ studio, stockSection, itemsSection }, { li
 
 // Append-only. Everything that changes stock goes through here, so there is
 // exactly one way for a balance to move.
-async function record(ctx, { itemId, kind, quantity, reason, sourceType = "", sourceId = "" }) {
+async function record(
+  ctx: InventoryContext,
+  { itemId, kind, quantity, reason, sourceType = "", sourceId = "" }: {
+    itemId: string;
+    kind: string;
+    quantity: number;
+    reason: string;
+    sourceType?: string;
+    sourceId?: string;
+  },
+) {
   const { studio, stockSection, collaborator } = ctx;
   return addRow(studio.id, stockSection.id, STOCK, {
     itemId,
@@ -530,13 +544,21 @@ export async function adjustStock(ctx: InventoryContext, body: Record<string, un
 // each item summed across the whole project, then split by the vendor it is
 // bought from. Both are readings; neither can disagree with the quotation,
 // because neither holds a line.
-function composeSheet(sheet, quote, vendorOf, stockFor, modelOf) {
+function composeSheet(
+  sheet: Sheet,
+  quote: Quotation | null | undefined,
+  vendorOf: VendorLookup,
+  stockFor: (itemId: string, mine: string[]) => StockAvailability,
+  modelOf: (itemId: string) => string,
+): SheetGroup[] {
   const tables = Array.isArray(quote?.tables) ? quote.tables : [];
-  const own = sheet.lines && typeof sheet.lines === "object" ? sheet.lines : {};
+  const own = (sheet.lines && typeof sheet.lines === "object"
+    ? sheet.lines
+    : {}) as Record<string, Record<string, unknown> | undefined>;
   // Carried, then added to. `qty` is what was SOLD and belongs to the
   // quotation; everything the sheet knows rides beside it under its own names.
-  const carry = (t, r) => {
-    const line = {
+  const carry = (t: QuotationTable, r: QuotationLine): SheetLineView => {
+    const line: SheetLineView = {
       rowId: r.id,
       tableId: t.id,
       tableTitle: t.title || "",
@@ -573,25 +595,25 @@ function composeSheet(sheet, quote, vendorOf, stockFor, modelOf) {
   // floors is one order — then group those totals under the vendor each is
   // bought from. A line with no registered item cannot be summed against
   // anything, so it stands on its own.
-  const summed = new Map();
+  const summed = new Map<string, SheetLineView>();
   for (const t of tables) {
     for (const r of Array.isArray(t.rows) ? t.rows : []) {
       const line = carry(t, r);
       const key = line.itemId || `free:${line.rowId}`;
       const at = summed.get(key);
-      if (at) { at.qty += line.qty; at.fromRows.push(line.rowId); continue; }
+      if (at) { at.qty += line.qty; (at.fromRows ||= []).push(line.rowId); continue; }
       summed.set(key, { ...line, tableTitle: "", fromRows: [line.rowId] });
     }
   }
 
-  const byVendor = new Map();
+  const byVendor = new Map<string, SheetGroup>();
   for (const line of summed.values()) {
     const vendor = vendorOf(line.itemId);
     const key = vendor?.id || "";
     if (!byVendor.has(key)) {
       byVendor.set(key, { id: key || "unassigned", title: vendor?.name || "No vendor yet", rows: [] });
     }
-    byVendor.get(key).rows.push(line);
+    byVendor.get(key)!.rows.push(line);
   }
   // Unassigned last: it is the pile still to be placed, not a vendor.
   return [...byVendor.values()].sort((a, b) => {
@@ -604,7 +626,8 @@ function composeSheet(sheet, quote, vendorOf, stockFor, modelOf) {
 // Every project with a quotation behind it has a Main and a Bulk. Created on
 // first read rather than migrated, and idempotent — two readers racing cannot
 // make four sheets, because the write checks again inside the lock.
-async function ensureSheetsExist({ studio, sheetsSection, projectsListSection }) {
+async function ensureSheetsExist({ studio, sheetsSection, projectsListSection }: Pick<InventoryContext,
+  "studio" | "sheetsSection" | "projectsListSection">) {
   if (!sheetsSection || !projectsListSection) return;
   const [sheets, projects] = await Promise.all([
     Sheets.find({ studio, section: sheetsSection }),
@@ -685,8 +708,10 @@ export async function saveSheetLine(ctx: InventoryContext, body: Record<string, 
   // Applied to the live row inside the write lock: Inventory setting a serial
   // and Projects marking installation done at the same moment must not
   // overwrite each other, and they write different keys of the same record.
-  const updated = await updateRow(studio.id, sheetsSection.id, SHEETS, sheetId, (row) => {
-    const lines = row.lines && typeof row.lines === "object" ? row.lines : {};
+  const updated = await updateRow<Sheet>(studio.id, sheetsSection.id, SHEETS, sheetId, (row) => {
+    const lines = (row.lines && typeof row.lines === "object"
+      ? row.lines
+      : {}) as Record<string, Record<string, unknown> | undefined>;
     return { lines: { ...lines, [rowId]: { ...(lines[rowId] || {}), ...patch } } };
   });
   return updated ? { ok: true, line: updated.lines?.[rowId] || {} } : { error: "notfound" };
@@ -736,7 +761,7 @@ export async function listProjectSheets(ctx: InventoryContext) {
     }
   }
   const modelOf = (itemId: string) => itemById.get(itemId)?.modelNumber || "";
-  const stockFor = (itemId, mine) => {
+  const stockFor = (itemId: string, mine: string[]): StockAvailability => {
     const all = itemById.get(itemId)?.serials || [];
     const own = new Set(mine);
     // Free, plus this row's own — otherwise its own allocation would vanish
@@ -778,7 +803,8 @@ export async function listProjectSheets(ctx: InventoryContext) {
     });
 }
 
-export async function listOrders({ studio, sheetsSection, vendorsSection, itemsSection }) {
+export async function listOrders({ studio, sheetsSection, vendorsSection, itemsSection }: Pick<InventoryContext,
+  "studio" | "sheetsSection" | "vendorsSection" | "itemsSection">) {
   const [orders, vendors, items, projects] = await Promise.all([
     Orders.find({ studio, section: sheetsSection }),
     Vendors.find({ studio, section: vendorsSection }),
@@ -803,7 +829,7 @@ export async function listOrders({ studio, sheetsSection, vendorsSection, itemsS
 
 // The order total is computed from its lines on every read — a client can never
 // tell the server what something cost.
-export function orderTotal(lines) {
+export function orderTotal(lines: unknown) {
   return Math.round((Array.isArray(lines) ? lines : [])
     .reduce((sum, l) => sum + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0) * 100) / 100;
 }
@@ -1056,9 +1082,9 @@ export async function removeDelivery(ctx: InventoryContext, id: string) {
 }
 
 // ---- shared ----------------------------------------------------------------
-function cleanLines(list, items) {
+function cleanLines(list: unknown, items: Item[]): OrderLine[] {
   const known = new Set(items.map((i) => i.id));
-  const seen = new Set();
+  const seen = new Set<string>();
   return (Array.isArray(list) ? list : [])
     .map((l) => ({ itemId: str(l?.itemId, 60), qty: qty(l?.qty), unitPrice: money(l?.unitPrice), received: 0 }))
     .filter((l) => {
@@ -1074,17 +1100,17 @@ function cleanLines(list, items) {
 // it is buying for. The links to them are still permission-gated in the UI.
 // Cross-section reads resolve the sub-section that OWNS the collection, falling
 // back to the parent so a studio predating the sub-section model still works.
-async function ownerOf(studioId: string, childKey, parentKey) {
+async function ownerOf(studioId: string, childKey: string, parentKey: string) {
   return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
 }
 
-async function projectRows({ studio }) {
+async function projectRows({ studio }: Pick<InventoryContext, "studio">) {
   const owner = await ownerOf(studio.id, "projects-list", "projects");
   if (!owner) return [];
   return Projects.find({ studio, section: owner });
 }
 
-async function projectExists(ctx, projectId: string) {
+async function projectExists(ctx: InventoryContext, projectId: string) {
   const rows = await projectRows(ctx);
   return rows.some((p) => p.id === projectId);
 }
@@ -1098,6 +1124,6 @@ export async function openProjects(ctx: InventoryContext) {
 }
 
 // What Inventory is worth right now, valued at each item's unit cost.
-export function stockValue(items) {
-  return Math.round(items.reduce((sum, i) => sum + i.onHand * (i.unitCost || 0), 0) * 100) / 100;
+export function stockValue(items: { onHand?: number; unitCost?: number }[]) {
+  return Math.round(items.reduce((sum, i) => sum + (i.onHand || 0) * (i.unitCost || 0), 0) * 100) / 100;
 }

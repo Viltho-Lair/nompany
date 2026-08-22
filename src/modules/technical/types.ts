@@ -4,7 +4,9 @@
 import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 
-export type { Rfq, Quotation } from "./schema";
+export type {
+  Rfq, Quotation, QuotationLine, QuotationTable, QuotationItem, QuotationComment,
+} from "./schema";
 
 // ---- this department's context ---------------------------------------------
 // Generated from the spec in the service file: `sub` and `foreign` become

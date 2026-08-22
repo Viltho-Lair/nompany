@@ -1,6 +1,8 @@
 // RFQ shared constants + auth. Client-safe (no server-only imports).
 
 import { isFinishedQuotation } from "./quotations";
+import type { Rfq, Quotation } from "./types";
+import type { Task } from "@/modules/tasks/types";
 // Client-safe, like this file: platform/relations.js declares the edges and
 // imports nothing, taking its rows from the caller.
 import { traverseIn } from "@/platform/relations";
@@ -15,8 +17,8 @@ export const RFQ_STATUSES = ["New", "In-review", "Converted", "Rejected"];
 // Every RFQ ever raised on one ticket, NEWEST FIRST. A ticket can be sent over
 // more than once — a second RFQ when Sales wants the last quotation revised —
 // so "the ticket's RFQ" always means the latest of these.
-export function rfqsForTicket(ticketId: string, rfqs) {
-  return traverseIn("salesTicket", { id: ticketId }, "rfq", { rows: { rfq: rfqs || [] } }).records;
+export function rfqsForTicket(ticketId: string, rfqs: Rfq[] | null | undefined): Rfq[] {
+  return traverseIn<Rfq>("salesTicket", { id: ticketId }, "rfq", { rows: { rfq: rfqs || [] } }).records;
 }
 
 // THE ONE RULE BEHIND THE BUTTON, in one place because two sides ask it: the
@@ -26,20 +28,24 @@ export function rfqsForTicket(ticketId: string, rfqs) {
 // what greys "Request RFQ" out into "Quotation Sent".
 //
 // Returns the RFQ still being waited on, or null when nothing is outstanding.
-export function pendingRfq(ticketId: string, rfqs, quotations) {
+export function pendingRfq(
+  ticketId: string,
+  rfqs: Rfq[] | null | undefined,
+  quotations: Quotation[] | null | undefined,
+) {
   const latest = rfqsForTicket(ticketId, rfqs)[0];
   if (!latest || latest.status === "Rejected") return null;
   // The RFQ's own quotation, followed by the stored key rather than looked up
   // by hand — the same edge the rest of the product now reads.
-  const quote = traverseIn("rfq", latest, "quotation", { rows: { quotation: quotations || [] } }).record;
+  const quote = traverseIn<Quotation>("rfq", latest, "quotation", { rows: { quotation: quotations || [] } }).record;
   return isFinishedQuotation(quote) ? null : latest;
 }
 
 // The ticket's CURRENT quotation — the one it is priced from. Latest first, the
 // same order and the same declared edge everything else reads, so no two screens
 // can disagree about which document counts.
-export function latestTicketQuotation(ticketId: string, quotations) {
-  return traverseIn("salesTicket", { id: ticketId }, "quotation", { rows: { quotation: quotations || [] } }).records[0] || null;
+export function latestTicketQuotation(ticketId: string, quotations: Quotation[] | null | undefined) {
+  return traverseIn<Quotation>("salesTicket", { id: ticketId }, "quotation", { rows: { quotation: quotations || [] } }).records[0] || null;
 }
 
 // THE SECOND RULE BEHIND THE BUTTON, in one place because the same two sides ask
@@ -54,7 +60,11 @@ export function latestTicketQuotation(ticketId: string, quotations) {
 // Asked of the APPROVAL and not of the document's own status — see
 // quotationApproved — so a quotation signed on the board counts, which is how
 // most of them are approved.
-export function approvedQuotationFor(ticketId: string, quotations, tasks) {
+export function approvedQuotationFor(
+  ticketId: string,
+  quotations: Quotation[] | null | undefined,
+  tasks: Task[] | null | undefined,
+) {
   const latest = latestTicketQuotation(ticketId, quotations);
   return quotationApproved(latest, tasks) ? latest : null;
 }

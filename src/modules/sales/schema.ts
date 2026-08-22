@@ -8,6 +8,13 @@ import { z } from "zod";
 
 /** Somebody at a client, folded in from whatever ticket first named them. */
 export const ContactSchema = z.object({
+  /**
+   * ONLY THE LEGACY FOLD SETS ONE. A contact upserted into a client's list is
+   * matched by name, so it has never needed an id; `clientContacts` mints
+   * "legacy" for the single contact it synthesises out of the flat
+   * contactEmail/contactPhone pair below, and that is the only id in play.
+   */
+  id: z.string().optional(),
   name: z.string().max(120),
   email: z.string().max(200),
   phone: z.string().max(60),
@@ -47,6 +54,12 @@ export const ClientSchema = z.object({
   notes: z.string().max(2000),
   contacts: z.array(ContactSchema),
   locations: z.array(SiteSchema),
+
+  // LEGACY, pre-dating `contacts`. Nothing writes these any more; records made
+  // before the list existed still carry them, and `clientContacts` reads either
+  // shape so no screen has to know which era a client is from.
+  contactEmail: z.string().optional(),
+  contactPhone: z.string().optional(),
   createdByCollaboratorId: z.string(),
   createdAt: z.string(),
 });

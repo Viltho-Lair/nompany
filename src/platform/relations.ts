@@ -222,9 +222,13 @@ export function reachableFrom(from: NodeKey, opts?: { maxHops?: number }): Reach
 type Row = Record<string, unknown>;
 
 /** What a walk found, and how far it got before a right stopped it. */
-export type WalkResult = {
-  records: Row[];
-  record?: Row | null;
+// GENERIC OVER THE DESTINATION, because a walk to "quotation" returns
+// quotations. The default keeps every existing caller reading Rows; a caller
+// that says which node it is walking to gets that record type back instead of
+// casting the result at the other end.
+export type WalkResult<T extends Row = Row> = {
+  records: T[];
+  record?: T | null;
   path?: Edge[];
   error?: string;
   at?: NodeKey;
@@ -285,13 +289,13 @@ function walk(
  * is missing from it resolves empty rather than throwing, so a caller can hand
  * over only the hops it cares about.
  */
-export function traverseIn(
+export function traverseIn<T extends Row = Row>(
   from: NodeKey, record: Row | null | undefined, to: NodeKey,
   { rows = {}, holds }: { rows?: Record<string, Row[]>; holds?: (permission: string) => boolean } = {},
-): WalkResult {
+): WalkResult<T> {
   const path = pathBetween(from, to);
   if (!path) return { error: "no-path", records: [] };
-  return walk(path, record, (node) => rows[node], holds);
+  return walk(path, record, (node) => rows[node], holds) as WalkResult<T>;
 }
 
 /**
