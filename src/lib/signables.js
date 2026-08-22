@@ -16,7 +16,7 @@
 // note does neither. Those consequences stay with the module that owns the
 // record, handed in as `after`.
 
-import { requirePermission } from "@/lib/access";
+import { requirePermission } from "@/platform/access";
 
 export const SIGNATURE_SLOTS = { review: "review", approve: "approval" };
 export const SIGNATURE_ROLES = { review: "Reviewed by", approval: "Approved by" };

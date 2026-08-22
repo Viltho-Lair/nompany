@@ -12,7 +12,7 @@
 // refer to someone's identity *inside this studio*, so nothing leaks across
 // studios and a removed collaborator doesn't drag a user account with them.
 
-import { requirePermission } from "@/lib/access";
+import { requirePermission } from "@/platform/access";
 import { repo } from "@/lib/data/repo";
 import { addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";

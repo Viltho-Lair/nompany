@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { panel, h2, sub, input, label, btn, btnGhost, Empty } from "@/components/studio2/ui";
-import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/lib/permissions";
+import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platform/access";
 
 // THE ACCESS EDITOR.
 //

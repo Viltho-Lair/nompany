@@ -21,7 +21,7 @@
 //     runs the file; leaving them out of this list is what made the suite report
 //     ERR_MODULE_NOT_FOUND on `@/shared/slug` the moment it stopped being .js.
 
-import { existsSync } from "node:fs";
+import { statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 let ROOT = "";
@@ -30,19 +30,32 @@ export function initialize(data) {
   ROOT = data.root;
 }
 
-// The first candidate that exists on disk, or the bare one so Node reports a
+// A FILE, not merely something that exists. The bare candidate is here for a
+// specifier that already carries its extension — but `src/platform/access` also
+// "exists": it is the directory. `existsSync` said yes, resolution stopped
+// there, and Node refused a directory import while the `/index.js` candidate
+// two lines below was the answer all along. Anything that is not a file falls
+// through to the next candidate.
+const isFile = (url) => {
+  try { return statSync(fileURLToPath(url)).isFile(); } catch { return false; }
+};
+
+// The first candidate that is a file on disk, or the bare one so Node reports a
 // normal "not found" against the path actually asked for.
-function resolveFile(base) {
+//
+// `from` is what the path is relative TO: the project root for a `@/` alias,
+// the importing file's own URL for a `./sibling`.
+function resolveFile(base, from = null) {
   const candidates = [
     base,
     `${base}.js`, `${base}.ts`, `${base}.tsx`, `${base}.mjs`,
     `${base}/index.js`, `${base}/index.ts`,
   ];
   for (const c of candidates) {
-    const url = new URL(c, ROOT);
-    if (existsSync(fileURLToPath(url))) return url.href;
+    const url = new URL(c, from || ROOT);
+    if (isFile(url)) return url.href;
   }
-  return new URL(base, ROOT).href;
+  return new URL(base, from || ROOT).href;
 }
 
 export function resolve(specifier, context, next) {
@@ -52,5 +65,16 @@ export function resolve(specifier, context, next) {
   if (specifier.startsWith("@/")) {
     return next(resolveFile(`src/${specifier.slice(2)}`), context);
   }
+
+  // A SIBLING WITH NO EXTENSION. Modules inside a folder reach each other with
+  // `./catalogue` rather than the alias — going out to `@/` and back in would
+  // route a folder's internals through its own public door, which for a folder
+  // with an index is the module importing itself. Node wants the extension and
+  // a bundler does not, so the same candidate walk applies; without it the
+  // suite could load a folder's index and nothing the index re-exports.
+  if (/^\.\.?\//.test(specifier) && !/\.[a-z]+$/i.test(specifier) && context.parentURL) {
+    return next(resolveFile(specifier, context.parentURL), context);
+  }
+
   return next(specifier, context);
 }

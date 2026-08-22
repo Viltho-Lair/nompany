@@ -17,7 +17,7 @@
 // project (stock out). Receiving and issuing never touch quantities directly;
 // they append movements, and the balance follows.
 
-import { requirePermission } from "@/lib/access";
+import { requirePermission } from "@/platform/access";
 import { isKnownCurrency } from "@/shared/currencies";
 import { repo } from "@/lib/data/repo";
 import { getSectionByKey, addRow, updateRow, deleteRow } from "@/lib/data/sections";

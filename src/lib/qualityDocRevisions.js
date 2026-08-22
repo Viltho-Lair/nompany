@@ -19,7 +19,7 @@
 // no longer changes what the reviewer is looking at. Under the old model it
 // did, silently, because there was only ever one copy of the text.
 
-import { requirePermission } from "@/lib/access";
+import { requirePermission } from "@/platform/access";
 import { repo } from "@/lib/data/repo";
 import { addRow, updateRow } from "@/lib/data/sections";
 import { moveSignable, availableMoves } from "@/lib/signables";

@@ -21,7 +21,7 @@
 // and rewriting the whole setup.
 
 import { randomUUID } from "node:crypto";
-import { requirePermission } from "@/lib/access";
+import { requirePermission } from "@/platform/access";
 import { repo } from "@/lib/data/repo";
 import { addRow, updateRow, deleteRow } from "@/lib/data/sections";
 import { bumpCounter } from "@/lib/data/store";

@@ -1,4 +1,4 @@
-import { requirePermission, cleanAssignment, escalates } from "@/lib/access";
+import { requirePermission, cleanAssignment, escalates } from "@/platform/access";
 import { currentUser } from "@/lib/identity";
 import { studioContext, listCollaborators, updateCollaborator } from "@/lib/studios";
 import { cascadeDeleteCollaborator } from "@/lib/data/cascade";

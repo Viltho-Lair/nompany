@@ -15,7 +15,7 @@
 
 import { route } from "@/lib/route";
 import { qualityContext } from "@/lib/quality";
-import { can } from "@/lib/access";
+import { can } from "@/platform/access";
 import { workflowFor, moveRevision, startRevision } from "@/lib/qualityDocRevisions";
 
 export const runtime = "nodejs";

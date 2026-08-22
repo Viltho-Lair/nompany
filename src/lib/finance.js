@@ -15,7 +15,7 @@
 // plus expenses booked here. Nothing is copied into Finance and left to rot —
 // it is recomputed on every read.
 
-import { requirePermission } from "@/lib/access";
+import { requirePermission } from "@/platform/access";
 import { repo } from "@/lib/data/repo";
 import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";

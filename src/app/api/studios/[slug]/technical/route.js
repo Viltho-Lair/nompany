@@ -6,7 +6,7 @@ import {
 } from "@/lib/technical";
 import { TICKET_URGENCIES } from "@/lib/tickets";
 
-import { can } from "@/lib/access";
+import { can } from "@/platform/access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

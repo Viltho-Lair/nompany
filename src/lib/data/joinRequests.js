@@ -16,7 +16,7 @@ import { readArr, editArr } from "@/lib/data/store";
 import { emit, emitPlatform, SCOPE, TYPE, PLATFORM } from "@/lib/data/events";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { listRoles } from "@/lib/data/roles";
-import { effectivePermissions, can } from "@/lib/access";
+import { effectivePermissions, can } from "@/platform/access";
 import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
 
 export const PENDING = "pending";

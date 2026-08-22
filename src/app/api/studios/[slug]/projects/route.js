@@ -6,7 +6,7 @@ import {
 } from "@/lib/projects";
 import { REQUIREMENT_WEIGHTS } from "@/lib/projectSchedule";
 import { listProjectSheets } from "@/lib/inventory";
-import { can } from "@/lib/access";
+import { can } from "@/platform/access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

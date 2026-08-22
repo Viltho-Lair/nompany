@@ -16,7 +16,7 @@
 // Progress comes from the checklist, never stored separately, so it cannot
 // drift from the items it counts.
 
-import { requirePermission, can } from "@/lib/access";
+import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/lib/data/repo";
 import { getSectionByKey, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";

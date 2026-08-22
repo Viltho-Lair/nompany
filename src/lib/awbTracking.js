@@ -13,7 +13,7 @@
 // the recorded events add up to, so it can never disagree with the timeline
 // printed under it.
 
-import { requirePermission } from "@/lib/access";
+import { requirePermission } from "@/platform/access";
 import { repo } from "@/lib/data/repo";
 import { addRow, updateRow, deleteRow } from "@/lib/data/sections";
 import { parseAwb } from "@/lib/awb";

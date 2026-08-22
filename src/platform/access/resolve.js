@@ -1,4 +1,4 @@
-import { ALL_PERMISSIONS, isPermission, AREAS, keysForLevel } from "@/lib/permissions";
+import { ALL_PERMISSIONS, isPermission, AREAS, keysForLevel } from "./catalogue";
 
 // THE ONE PLACE THAT ANSWERS "MAY THIS PERSON DO THIS".
 //

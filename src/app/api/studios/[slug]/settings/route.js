@@ -1,4 +1,4 @@
-import { requirePermission } from "@/lib/access";
+import { requirePermission } from "@/platform/access";
 import { renameStudio } from "@/lib/data/studios";
 import { isKnownCurrency, crossRate } from "@/shared/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";

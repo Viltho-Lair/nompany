@@ -1,6 +1,6 @@
 import { currentUser } from "@/lib/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
-import { effectivePermissions, sectionViewable } from "@/lib/access";
+import { effectivePermissions, sectionViewable } from "@/platform/access";
 import { listRoles } from "@/lib/data/roles";
 import { listSections } from "@/lib/data/sections";
 import { readSince, latestId, isCursor, SCOPE, TYPE } from "@/lib/data/events";

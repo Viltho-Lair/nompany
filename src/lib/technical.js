@@ -11,7 +11,7 @@
 //   • raising an RFQ is a SALES act on their ticket   -> needs Sales:manage
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
-import { sectionManageable, requirePermission } from "@/lib/access";
+import { sectionManageable, requirePermission } from "@/platform/access";
 import { nextUniqueRef } from "@/lib/references";
 import { repo } from "@/lib/data/repo";
 import { addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";

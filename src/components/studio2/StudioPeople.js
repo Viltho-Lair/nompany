@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { ADMIN_ROLE_ID } from "@/lib/permissions";
+import { ADMIN_ROLE_ID } from "@/platform/access";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";

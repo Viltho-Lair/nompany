@@ -24,7 +24,7 @@
 // doing anything the first had not already done.
 
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
-import { sectionViewable, sectionManageable, dashboardViewable } from "@/lib/access";
+import { sectionViewable, sectionManageable, dashboardViewable } from "@/platform/access";
 
 // A sub-section falls back to the parent so a studio created before the
 // sub-section model still resolves rather than 500ing. A FOREIGN section never

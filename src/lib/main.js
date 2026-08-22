@@ -13,7 +13,7 @@
 import { repo } from "@/lib/data/repo";
 import { listSections } from "@/lib/data/sections";
 import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
-import { sectionViewable } from "@/lib/access";
+import { sectionViewable } from "@/platform/access";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { enrichTask, readTaskAssignees } from "@/lib/taskRouting";
 // The sections' OWN definitions of "below reorder level" and "expiring", so the

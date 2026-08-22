@@ -83,7 +83,7 @@ jobs:
         run: node scripts/lint-budget.mjs
 
       - name: Tests — access rules
-        run: node tests/access.test.js
+        run: node tests/access.test.mjs
 
       - name: Tests — integration suite
         run: node tests/integration.test.mjs

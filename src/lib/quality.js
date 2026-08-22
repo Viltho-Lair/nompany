@@ -25,7 +25,7 @@
 // Everything the old builder needed and nothing else needs was deleted rather
 // than left to rot: a module nobody calls is a module nobody notices is wrong.
 
-import { can, requirePermission } from "@/lib/access";
+import { can, requirePermission } from "@/platform/access";
 import { repo } from "@/lib/data/repo";
 import { updateRow } from "@/lib/data/sections";
 import { DOCS } from "@/lib/qualityDocs";

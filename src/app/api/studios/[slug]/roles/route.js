@@ -1,8 +1,7 @@
 import { currentUser } from "@/lib/identity";
 import { studioContext } from "@/lib/studios";
-import { requirePermission, escalates } from "@/lib/access";
+import { requirePermission, escalates, AREAS } from "@/platform/access";
 import { listRoles, createRole, updateRole, deleteRole, cleanRole, ADMIN_ROLE_ID } from "@/lib/data/roles";
-import { AREAS } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -27,7 +27,7 @@
 // viewer who can *manage* HR. Everyone else sees that a document is on file and
 // when it expires — never the number.
 
-import { requirePermission, scopeFor, can, escalates, cleanAssignment } from "@/lib/access";
+import { requirePermission, scopeFor, can, escalates, cleanAssignment } from "@/platform/access";
 import { repo } from "@/lib/data/repo";
 
 import { addRow, updateRow, deleteRow } from "@/lib/data/sections";

@@ -1,7 +1,7 @@
 import { route } from "@/lib/route";
 import { repo } from "@/lib/data/repo";
 import { NODES } from "@/lib/relations";
-import { can } from "@/lib/access";
+import { can } from "@/platform/access";
 import { salesContext, ticketById } from "@/lib/sales";
 
 export const runtime = "nodejs";

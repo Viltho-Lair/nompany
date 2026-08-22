@@ -8,7 +8,7 @@
 // A project may only be opened from an APPROVED quotation — that approval is the
 // commercial gate, and it lives in Technical/Sales, not here.
 
-import { requirePermission } from "@/lib/access";
+import { requirePermission } from "@/platform/access";
 import { repo } from "@/lib/data/repo";
 import { addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";

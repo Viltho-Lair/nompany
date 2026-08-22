@@ -5,7 +5,7 @@ import {
   TASK_STATUSES, TASK_PRIORITIES,
   TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES, TASK_TYPE_LABELS,
 } from "@/lib/tasks";
-import { can } from "@/lib/access";
+import { can } from "@/platform/access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

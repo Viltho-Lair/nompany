@@ -6,7 +6,10 @@
 // user-side effect is the derived ix:collab back-pointer, maintained by the
 // collaborators repo.
 
-import { effectivePermissions, requirePermission, scopeFor, sectionViewable, sectionManageable, escalates } from "@/lib/access";
+import {
+  effectivePermissions, requirePermission, scopeFor, sectionViewable, sectionManageable,
+  escalates, ADMIN_ROLE_ID,
+} from "@/platform/access";
 import { listRoles } from "@/lib/data/roles";
 import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
 import {
@@ -23,7 +26,6 @@ import {
   APPROVED, DECLINED,
 } from "@/lib/data/joinRequests";
 import { getIndex } from "@/lib/data/store";
-import { ADMIN_ROLE_ID } from "@/lib/permissions";
 import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/lib/data/keys";
 import { getVerification, getProfile } from "@/lib/data/users";
 import { memberLimitOf } from "@/lib/plans";

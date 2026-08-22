@@ -14,7 +14,7 @@
 // Permit validity and shift hours are DERIVED from their dates, never stored,
 // so neither can quietly go stale.
 
-import { requirePermission } from "@/lib/access";
+import { requirePermission } from "@/platform/access";
 import { repo } from "@/lib/data/repo";
 import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
 import { moduleContext } from "@/lib/modules/context";
