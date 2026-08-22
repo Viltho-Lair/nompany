@@ -264,7 +264,7 @@ Independent of the server work; runs in parallel throughout. Full detail in `ui-
 | 13 | **Toast layer.** There is none today — every mutation currently succeeds or fails silently. |
 | 14-19 | Component split per module (server shell / table island / lazy dialogs / pure `derive.ts`). Sales first. Shares the work with W3's per-department step — **do it once, in the same slice, not twice.** |
 | 20-22 | MUI Data Grid on the five dense grids; pagination wired to W2's cursor contract. |
-| 23-24 | Accessibility pass: keyboard, ARIA, contrast in CI, RTL completion (`stylis-plugin-rtl` install + logical properties). |
+| 23-24 | Accessibility pass: keyboard, ARIA, contrast in CI, RTL completion. **`stylis-plugin-rtl` landed 22/08/2026** with the Wave 4 i18n frame; what is left here is the logical-properties sweep across the screens. |
 
 Closes M-3, M-4, M-5, M-6, and the a11y and RTL gap items (#9, #10).
 

@@ -193,8 +193,20 @@ mode binds to the existing `.dark` class via `colorSchemeSelector: "class"`. Pre
 `className` over `sx`.
 
 Bilingual EN/AR: use logical properties (`ps-`/`pe-`/`ms-`/`me-`/`border-s-`).
-`stylis-plugin-rtl` is **not** installed, so MUI still renders LTR inside Arabic pages —
-known gap.
+**MUI mirrors now.** A studio's language is a field on the tenant's record
+(`studioLocale`), the SHELL declares `lang`/`dir` rather than `<html>` — the root
+layout never touches the database, so it cannot know a tenant's language — and an
+Arabic studio nests `MuiRtlProvider`: a second Emotion cache keyed `muirtl`, with
+`stylisPlugins: [prefixer, rtlPlugin]` and `enableCssLayer` still on, loaded through
+`dynamic()` so an English tenant never fetches it. Everything hand-written mirrors
+from the attribute alone, because logical properties are the browser's job; MUI
+emits physical CSS at runtime and has to be rewritten as it is serialised.
+
+Two traps, both paid for once: a rule anchored to `html[dir="rtl"]` never fires when
+`dir` is on the shell (the studio's Arabic font rule had exactly that bug), and
+`stylis-plugin-rtl` declares no `exports`, so Node's ESM loader takes the CJS `main`
+and hands back the module object where a bundler takes `module` and hands back the
+function.
 
 Dates render through `fmtDate`/`fmtDateTime` in `src/lib/format.js`, which resolves the
 studio locale (`en-GB` default → **dd/mm/yyyy**). Never `toLocaleDateString()` at a call

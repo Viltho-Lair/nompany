@@ -21,7 +21,7 @@ This document is organised to mirror the checklist, section for section, so ever
 | shadcn primitives present | 13 of ~40 needed | §2 |
 | `components.json` | `"tsx": false`, `"cssVariables": false` | Emits the wrong file type and hardcoded colours |
 | `tailwind.config` | `.js`, literal hexes | Checklist asks for `.ts` with tokens bound |
-| MUI RTL | `stylis-plugin-rtl` **not installed** | Arabic renders LTR inside MUI components |
+| MUI RTL | ~~not installed~~ **done 22/08/2026** | `MuiRtlProvider` — second cache, `stylisPlugins: [prefixer, rtlPlugin]`, layer preserved, split out of the shared chunk |
 
 The four token systems:
 
@@ -359,7 +359,7 @@ The checklist wants power users to work **entirely** by keyboard. Required:
 - `aria-busy` on skeleton regions.
 - Every icon-only button needs an `aria-label` — `NotificationBell` already does this correctly and is the pattern to copy.
 
-**RTL.** The app is bilingual and `stylis-plugin-rtl` is not installed, so MUI renders LTR inside Arabic pages. Install it, wire the emotion cache per direction, and complete the migration from physical to logical properties (`ps-`/`pe-`/`ms-`/`me-`/`border-s-`). Partially done; finish it.
+**RTL.** ~~`stylis-plugin-rtl` is not installed~~ — installed and wired 22/08/2026: `MuiRtlProvider` gives an Arabic studio a second Emotion cache with `[prefixer, rtlPlugin]`, keeping `enableCssLayer` so the mirrored rules stay inside `@layer mui`, and it is loaded through `dynamic()` so an English tenant never fetches it. What is left is the other half: the migration from physical to logical properties (`ps-`/`pe-`/`ms-`/`me-`/`border-s-`) is uneven across the screens — 57 uses in `StudioSales.js`, 9 in `StudioFinance.js` — so it is enforced as each screen is rewritten, and wants a lint rule so it cannot drift back.
 
 ---
 

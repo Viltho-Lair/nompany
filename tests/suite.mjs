@@ -23,6 +23,14 @@ import { getRedisClient } from "@/platform/db/redis";
 import { createUser, mintSession } from "@/platform/auth/users";
 import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/modules/main/studios";
 import { studioLocale, dirFor } from "@/shared/locale";
+import { compile, serialize, middleware, stringify, prefixer } from "stylis";
+// RESOLVED THE WAY THE BUNDLER RESOLVES IT. stylis-plugin-rtl ships both
+// builds and declares no "exports": bundlers take the `module` field, whose
+// ESM build has a clean `export default`, while Node ignores `module` and
+// loads the CJS `main` — where the default import is the module object, not
+// the plugin. Unwrapped here so this asserts what the app actually runs.
+import * as rtlModule from "stylis-plugin-rtl";
+const rtlPlugin = rtlModule.default?.default ?? rtlModule.default ?? rtlModule;
 import * as SETTINGS from "@/app/api/studios/[slug]/settings/route.ts";
 import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/platform/auth/collaborators";
 import { listRoles } from "@/modules/people/roles";
@@ -1799,6 +1807,36 @@ console.log("== a studio's language is the tenant's, and it is a real setting");
     body.studio?.language === "en", JSON.stringify(body.studio?.language));
 
   await signInAs(owner.id);
+}
+
+// ============================================================================
+console.log("== MUI mirrors, because a plugin rewrites its CSS as it is serialised");
+// EVERYTHING ELSE IN THE STUDIO MIRRORS FROM ONE ATTRIBUTE. `dir="rtl"` on the
+// shell flips ps-/pe-, ms-/me- and border-s-, because those are logical
+// properties and the browser owns them. MUI is the exception: it emits physical
+// CSS — padding-left, margin-right, left: 0 — from Emotion at runtime, so no
+// attribute can turn it round. The Data Grid, the date/time pickers and
+// Autocomplete are the three places that matters.
+//
+// stylis-plugin-rtl is what rewrites it, and this asserts the rewrite rather
+// than the install. A plugin that loads but no longer flips — a stylis major,
+// an API change, a bad resolution — is indistinguishable from a working one
+// until somebody opens an Arabic studio and finds the grid pointing the wrong
+// way. Five properties, one of each kind it has to handle.
+{
+  ok("the plugin resolves to a function at all", typeof rtlPlugin === "function",
+    `${typeof rtlPlugin}`);
+
+  const css = ".x{padding-left:8px;margin-right:4px;text-align:left;border-top-left-radius:6px;left:0;}";
+  const out = serialize(compile(css), middleware([prefixer, rtlPlugin, stringify]));
+
+  ok("padding-left becomes padding-right", out.includes("padding-right:8px"), out);
+  ok("...and margin-right becomes margin-left", out.includes("margin-left:4px"), out);
+  ok("...and text-align flips", out.includes("text-align:right"), out);
+  ok("...and a corner radius moves with it", out.includes("border-top-right-radius:6px"), out);
+  ok("...and an absolute edge does too", out.includes("right:0"), out);
+  ok("nothing physical is left pointing the old way",
+    !/padding-left|margin-right|text-align:left|border-top-left-radius|[^-]left:0/.test(out), out);
 }
 
 // ============================================================================

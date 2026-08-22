@@ -95,8 +95,15 @@ export default async function RootLayout({ children }) {
   return (
     <html lang={locale} dir={dir} className={htmlClass || undefined} suppressHydrationWarning>
       <body>
-        {/* Apply the saved/system theme, and any saved studio RTL choice,
-            before paint to avoid a flash. */}
+        {/* Apply the saved/system theme before paint, to avoid a flash.
+
+            IT USED TO CARRY A STUDIO RTL BRANCH TOO, reading a `studio-dir`
+            key out of localStorage. Nothing ever wrote that key, and its guard
+            — `pathname.indexOf('/studio') === 0` — could never be true anyway:
+            the proxy REWRITES nompany.com/<slug>/… onto the internal /studio
+            folder without changing the address bar, so the browser never sees
+            that path. Dead twice over, and a second mechanism for something a
+            studio's own record now decides. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
@@ -105,7 +112,7 @@ export default async function RootLayout({ children }) {
               // OS and so cannot be known server-side. It also refreshes the
               // cookie's year-long expiry on every visit, so a preference kept
               // in continuous use never quietly lapses back to the default.
-              "(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]+)/);var t=m?decodeURIComponent(m[1]):'';if(t){document.cookie='theme='+t+'; path=/; max-age=31536000; samesite=lax'+(location.protocol==='https:'?'; secure':'');}if(t==='system'){var sys=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',sys);document.documentElement.classList.toggle('light',!sys);}var sd=localStorage.getItem('studio-dir');if((sd==='rtl'||sd==='ltr')&&location.pathname.indexOf('/studio')===0){document.documentElement.setAttribute('dir',sd);document.documentElement.setAttribute('lang',sd==='rtl'?'ar':'en');}}catch(e){}})();",
+              "(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]+)/);var t=m?decodeURIComponent(m[1]):'';if(t){document.cookie='theme='+t+'; path=/; max-age=31536000; samesite=lax'+(location.protocol==='https:'?'; secure':'');}if(t==='system'){var sys=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',sys);document.documentElement.classList.toggle('light',!sys);}}catch(e){}})();",
           }}
         />
         <JsonLd data={[organizationLd(settings, locale), websiteLd(settings, locale)]} />

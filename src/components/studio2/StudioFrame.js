@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { dirFor } from "@/shared/locale";
+// LOADED ONLY BY THE STUDIOS THAT NEED IT. The RTL cache pulls in
+// stylis-plugin-rtl and a second Emotion cache; imported eagerly it landed
+// in the shared chunk, so every English studio paid 5 KB for mirroring it
+// never uses. Split, an English tenant never fetches it.
+const MuiRtlProvider = dynamic(() => import("@/components/MuiRtlProvider"));
 import { Icon } from "@/components/studio2/icons";
 import StudioChat from "@/components/studio2/StudioChat";
 import RateNompany from "@/components/studio2/RateNompany";
@@ -338,6 +344,14 @@ export default function StudioFrame({
       dir={dirFor(locale)}
       className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300"
     >
+    {/* MUI DOES NOT FOLLOW `dir`, so it gets its own cache when the tenant is
+        Arabic — see MuiRtlProvider. Everything hand-written above mirrors from
+        the attribute alone, because logical properties are the browser's job;
+        MUI emits physical CSS from Emotion at runtime and has to be rewritten
+        as it is serialised. Mounted INSIDE the dir element so the two agree,
+        and only for Arabic: an English studio keeps the root provider's cache
+        and pays nothing. */}
+    <Rtl on={dirFor(locale) === "rtl"}>
       {/* Floating rounded sidebar — Geex control-panel style */}
       <aside className="fixed inset-y-4 start-4 z-30 hidden w-64 overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex lg:block">
         {sidebar}
@@ -451,7 +465,14 @@ export default function StudioFrame({
           means anything. It decides nothing itself; the server says whether to
           ask. */}
       <RateNompany />
+    </Rtl>
     </div>
     </LiveProvider>
   );
+}
+
+// One place to decide, so the tree below reads the same in both languages
+// rather than being written out twice.
+function Rtl({ on, children }) {
+  return on ? <MuiRtlProvider>{children}</MuiRtlProvider> : children;
 }

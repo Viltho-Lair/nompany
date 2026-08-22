@@ -323,7 +323,7 @@ These are structural necessities absent from the product, ordered by how much la
 
 9. **No accessibility baseline.** No automated a11y check, no focus-visible audit, no contrast verification, and the studio's data tables are `<div>` grids in several modules. The design checklist requires 4.5:1 contrast, full keyboard navigation of data grids, and correct ARIA — none of which is currently measured. See `ui-ux-overhaul.md`.
 
-10. **RTL is half-built.** The app is bilingual (EN/AR) and `stylis-plugin-rtl` is not installed, so MUI components render LTR inside an RTL page. Logical properties (`ps-`/`ms-`) are used in some places and physical ones in others.
+10. **RTL is half-built.** ~~`stylis-plugin-rtl` is not installed~~ — **the MUI half landed 22/08/2026**: a studio's language is a tenant setting, the shell declares `lang`/`dir`, and an Arabic studio nests an RTL Emotion cache. What remains is the second half of this finding, unchanged: logical properties (`ps-`/`ms-`) are used in some places and physical ones in others — `StudioSales.js` 57 times, `StudioFinance.js` 9 — so the screens themselves still mirror unevenly. That is enforced as each is rewritten in Wave 4, and wants a lint rule so it cannot drift back.
 
 ---
 
