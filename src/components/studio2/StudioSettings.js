@@ -670,7 +670,14 @@ function HoursDialog({ slug, hours, onClose, onSaved }) {
                   onClick={() => set(key, { open: !row.open })}
                   className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${row.open ? "bg-brand-600" : "bg-slate-200 dark:bg-white/15"}`}
                 >
-                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${row.open ? "left-[22px]" : "left-0.5"}`} />
+                  {/* START AND END, NOT LEFT AND RIGHT. A toggle's knob sits at
+                      the START when off and the END when on, and in Arabic that
+                      is the other way round on the screen. Pinned to `left-` it
+                      read inverted in an RTL studio — off looking on — which is
+                      the worst way for a switch to be wrong. `end-0.5` also
+                      retires the magic 22px, which was the 44px track minus the
+                      20px knob minus the offset. */}
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${row.open ? "end-0.5" : "start-0.5"}`} />
                 </button>
                 <span className="w-24 shrink-0 text-sm font-500 text-slate-900 dark:text-white">{name}</span>
                 {row.open ? (

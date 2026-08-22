@@ -269,6 +269,82 @@ console.log("== the architecture, asserted rather than remembered");
   }
   ok("every key builder is read by something", unread.length === 0, unread.join(", "));
 
+
+  // ---- 4. RTL: physical CSS utilities cannot mirror ------------------------
+  //
+  // A studio in Arabic mirrors from ONE attribute — `dir` on the shell — because
+  // ps-/pe-, ms-/me-, start-/end- and border-s- are logical properties and the
+  // browser flips them. `pl-`, `ml-`, `left-` and `text-left` are not: they mean
+  // the same physical edge in both directions, so every one of them is a place
+  // an Arabic screen stays pointing the wrong way.
+  //
+  // A CEILING RATHER THAN A BAN, because a few are legitimately physical:
+  //
+  //   • The document editor's alignment controls. When an author clicks "align
+  //     left" they mean LEFT — that is a property of the document they are
+  //     writing, not of the interface they are writing it in. Excluded outright.
+  //   • Decorative positioning in viewport space — the landing's ambient blobs
+  //     sit where they sit; there is no reading order to respect.
+  //   • Centring: `left-1/2` with `-translate-x-1/2` centres identically either
+  //     way, and `start-1/2` would actually BREAK it, since translate-x stays
+  //     physical.
+  //
+  // So this counts and holds a line rather than forbidding. It exists because
+  // Wave 4 rewrites all twelve studio screens, and the cheapest moment to stop a
+  // backlog growing is before the rewriting starts. The number goes down as the
+  // landing and Quality are swept; it must never go up.
+  {
+    const PHYSICAL = new RegExp(
+      [
+        String.raw`(?:^|[\s"'\`{])(?:pl|pr|ml|mr)-[a-z0-9.[\]/-]+`,
+        String.raw`(?:^|[\s"'\`{])border-[lr]-[a-z0-9[\]/-]+`,
+        String.raw`(?:^|[\s"'\`{])(?:left|right)-[0-9a-z.[\]/-]+`,
+        String.raw`(?:^|[\s"'\`{])rounded-[lr]-[a-z0-9[\]/-]+`,
+        String.raw`\btext-(?:left|right)\b`,
+      ].join("|"),
+      "g",
+    );
+    // Prose, not classes: "right-to-left", "left-to-right", "right-hand".
+    const PROSE = /-(?:to|hand)\b/;
+    // The author's own alignment, not the interface's. See above.
+    const ALLOWED = ["components/quality/editor/"];
+
+    const offenders = [];
+    for (const f of sources) {
+      if (!/\.(js|jsx|tsx)$/.test(f.path)) continue;
+      if (!f.path.includes("src/components/") && !f.path.includes("src/app/")) continue;
+      if (ALLOWED.some((a) => f.path.includes(a))) continue;
+      for (const hit of f.text.match(PHYSICAL) || []) {
+        const cls = hit.replace(/^[\s"'\`{]/, "");
+        if (PROSE.test(cls)) continue;
+        offenders.push(`${f.path.split("/").pop()}:${cls}`);
+      }
+    }
+
+    // MEASURED 22/08/2026, and it is worth reading before assuming a big sweep
+    // is needed. 41, and the studio holds ONE of them:
+    //
+    //   20  the landing — decorative blobs in viewport space, plus real ones
+    //   16  shadcn primitives (dropdown-menu 8, select 5, dialog 2, avatar 1),
+    //       vendored source we own and can make logical
+    //    2  /super's CatalogEditor
+    //    2  Quality, outside the editor — both `ml-auto`
+    //    1  the studio: `left-1/2` paired with `-translate-x-1/2`, which is
+    //       centring and is CORRECT — `start-1/2` would break it, because
+    //       translate-x stays physical
+    //
+    // The studio's only real one was a toggle knob pinned to `left-`, so in
+    // Arabic the switch read inverted. Fixed in the commit that added this.
+    //
+    // Lower it as each area is swept; never raise it.
+    const CEILING = 41;
+    ok("physical CSS utilities stay inside their ceiling",
+      offenders.length <= CEILING, `${offenders.length} of ${CEILING} — ${offenders.slice(0, 6).join(", ")}`);
+    // And the counter itself has to be able to see them, or the line above is a
+    // pass that proves nothing — the same failure the write-scan had.
+    ok("...and the scan is reading real files", offenders.length > 0, String(offenders.length));
+  }
+
   // ---- 3. every route authenticates --------------------------------------
   // Resolved ONE level through imports, because most routes delegate to a guard
   // (hrGuard, financeGuard, studioSide, nompanySide) rather than calling
