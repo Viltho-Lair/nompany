@@ -20,6 +20,7 @@ A full-system audit and forward plan. Every claim is verified against the source
 | **[database-migration-mssql.md](./database-migration-mssql.md)** | Redis → SQL Server: full schema mapping, dual-write migration, verification, rollback. |
 | **[ui-ux-overhaul.md](./ui-ux-overhaul.md)** | The frontend redesign, mapped item-for-item to `UIDesignSystem_Checklist.pdf`. |
 | **[w4-dashboards-and-motion.md](./w4-dashboards-and-motion.md)** | Wave 4's brief: the Finance rebuild, a dashboard per department, the nine motion techniques, Arabic and RTL, and the operator documentation. **Proposal — nothing in it is built.** |
+| **[glossary.md](./glossary.md)** | Every word the product says, extracted from the source. The English is settled; the Arabic column is the thing awaiting review. Nothing is translated until it is. |
 | **[security-and-notifications.md](./security-and-notifications.md)** | Access-control audit with threat model, plus the notification producers and UI that do not exist yet. |
 
 ---
