@@ -279,22 +279,22 @@ console.log("== the architecture, asserted rather than remembered");
   // Deliberately public, each for a stated reason. Adding to this list is how a
   // new public surface gets argued for, rather than appearing by omission.
   const PUBLIC = {
-    "api/pricing/route.js": "the marketing price list",
-    "api/track/route.js": "anonymous traffic beacon; rate-limited and origin-checked instead",
-    "api/auth/oauth/[provider]/start/route.js": "starts sign-in; there is no session yet",
-    "api/auth/callback/[provider]/route.js": "completes sign-in; the provider is the credential",
-    "api/identity/login/route.js": "the sign-in door",
-    "api/identity/signup/route.js": "the sign-up door",
-    "api/identity/forgot/route.js": "password reset request",
-    "api/identity/reset/route.js": "password reset completion",
-    "api/identity/otp/verify/route.js": "completes an OTP challenge; the code is the credential",
-    "api/identity/otp/resend/route.js": "resends a code for an in-flight challenge",
-    "api/identity/logout/route.js": "clears a cookie; refusing an unauthenticated caller helps nobody",
-    "api/identity/me/route.js": "answers null when signed out",
-    "api/super/login/route.js": "the console door",
-    "api/super/logout/route.js": "clears a cookie",
+    "api/pricing/route.ts": "the marketing price list",
+    "api/track/route.ts": "anonymous traffic beacon; rate-limited and origin-checked instead",
+    "api/auth/oauth/[provider]/start/route.ts": "starts sign-in; there is no session yet",
+    "api/auth/callback/[provider]/route.ts": "completes sign-in; the provider is the credential",
+    "api/identity/login/route.ts": "the sign-in door",
+    "api/identity/signup/route.ts": "the sign-up door",
+    "api/identity/forgot/route.ts": "password reset request",
+    "api/identity/reset/route.ts": "password reset completion",
+    "api/identity/otp/verify/route.ts": "completes an OTP challenge; the code is the credential",
+    "api/identity/otp/resend/route.ts": "resends a code for an in-flight challenge",
+    "api/identity/logout/route.ts": "clears a cookie; refusing an unauthenticated caller helps nobody",
+    "api/identity/me/route.ts": "answers null when signed out",
+    "api/super/login/route.ts": "the console door",
+    "api/super/logout/route.ts": "clears a cookie",
     "api/fonts/route.ts": "the document editor's font catalogue; no tenant data",
-    "api/media/[id]/route.js": "public blobs are public by definition; private ones check membership",
+    "api/media/[id]/route.ts": "public blobs are public by definition; private ones check membership",
   };
 
   const routes = sources.filter((f) => /app\/api\/.*route\.(js|ts)$/.test(f.path));
@@ -333,17 +333,17 @@ console.log("== golden responses: the shape of every answer, pinned");
   const cases = [];
   const add = (name, fn) => cases.push({ name, fn });
 
-  const STUDIO = (await import("@/app/api/studios/[slug]/route.js"));
-  const STUDIOS = (await import("@/app/api/studios/route.js"));
-  const AVAILABLE = (await import("@/app/api/studios/available/route.js"));
-  const ME = (await import("@/app/api/identity/me/route.js"));
-  const NOTIF = (await import("@/app/api/studios/[slug]/notifications/route.js"));
-  const REQUESTS = (await import("@/app/api/studios/[slug]/requests/route.js"));
-  const ROLES = (await import("@/app/api/studios/[slug]/roles/route.js"));
-  const SALES = (await import("@/app/api/studios/[slug]/sales/route.js"));
-  const MAIN = (await import("@/app/api/studios/[slug]/main/route.js"));
-  const SETTINGS = (await import("@/app/api/studios/[slug]/settings/route.js"));
-  const PRICING = (await import("@/app/api/pricing/route.js"));
+  const STUDIO = (await import("@/app/api/studios/[slug]/route.ts"));
+  const STUDIOS = (await import("@/app/api/studios/route.ts"));
+  const AVAILABLE = (await import("@/app/api/studios/available/route.ts"));
+  const ME = (await import("@/app/api/identity/me/route.ts"));
+  const NOTIF = (await import("@/app/api/studios/[slug]/notifications/route.ts"));
+  const REQUESTS = (await import("@/app/api/studios/[slug]/requests/route.ts"));
+  const ROLES = (await import("@/app/api/studios/[slug]/roles/route.ts"));
+  const SALES = (await import("@/app/api/studios/[slug]/sales/route.ts"));
+  const MAIN = (await import("@/app/api/studios/[slug]/main/route.ts"));
+  const SETTINGS = (await import("@/app/api/studios/[slug]/settings/route.ts"));
+  const PRICING = (await import("@/app/api/pricing/route.ts"));
 
   // --- unauthenticated: every studio route must refuse identically -----------
   add("unauth.studio", async () => { __signOut(); return capture(STUDIO.GET, req(`/api/studios/${slug}`), ctx({ slug })); });
@@ -450,12 +450,12 @@ console.log("== sales: the module's whole surface, with data in it");
 //
 // Both are correct. Neither was written down. Both are goldens now.
 {
-  const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.js");
-  const SERVICES = await import("@/app/api/studios/[slug]/sales/services/route.js");
-  const TICKETS = await import("@/app/api/studios/[slug]/sales/tickets/route.js");
-  const RFQ = await import("@/app/api/studios/[slug]/sales/tickets/rfq/route.js");
-  const QUOTATIONS = await import("@/app/api/studios/[slug]/sales/quotations/route.js");
-  const SALES = await import("@/app/api/studios/[slug]/sales/route.js");
+  const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.ts");
+  const SERVICES = await import("@/app/api/studios/[slug]/sales/services/route.ts");
+  const TICKETS = await import("@/app/api/studios/[slug]/sales/tickets/route.ts");
+  const RFQ = await import("@/app/api/studios/[slug]/sales/tickets/rfq/route.ts");
+  const QUOTATIONS = await import("@/app/api/studios/[slug]/sales/quotations/route.ts");
+  const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -580,9 +580,9 @@ console.log("== technical: converting, locking, and the rights that are not bigg
 //   Bundling an unlock with an edit would be a way to smuggle a change past the
 //   lock in a single write.
 {
-  const RFQS = await import("@/app/api/studios/[slug]/technical/rfqs/route.js");
-  const QUOTES = await import("@/app/api/studios/[slug]/technical/quotations/route.js");
-  const TECH = await import("@/app/api/studios/[slug]/technical/route.js");
+  const RFQS = await import("@/app/api/studios/[slug]/technical/rfqs/route.ts");
+  const QUOTES = await import("@/app/api/studios/[slug]/technical/quotations/route.ts");
+  const TECH = await import("@/app/api/studios/[slug]/technical/route.ts");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -712,10 +712,10 @@ console.log("== projects: opened from an approved quotation, and only once");
 //   because every downstream record (sheets, invoices, deliveries, overtimes,
 //   AWBs, tasks) hangs off the project and needs to reach back up.
 {
-  const PROJECTS = await import("@/app/api/studios/[slug]/projects/route.js");
-  const SLA = await import("@/app/api/studios/[slug]/projects/sla/route.js");
-  const OVERTIMES = await import("@/app/api/studios/[slug]/projects/overtimes/route.js");
-  const TECH = await import("@/app/api/studios/[slug]/technical/route.js");
+  const PROJECTS = await import("@/app/api/studios/[slug]/projects/route.ts");
+  const SLA = await import("@/app/api/studios/[slug]/projects/sla/route.ts");
+  const OVERTIMES = await import("@/app/api/studios/[slug]/projects/overtimes/route.ts");
+  const TECH = await import("@/app/api/studios/[slug]/technical/route.ts");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -747,7 +747,7 @@ console.log("== projects: opened from an approved quotation, and only once");
   // and the one that arrives unapproved. Made here rather than reused from the
   // Technical block, because the only approved quotation in the studio is the
   // one that legitimately opens a project below.
-  const QUOTES = await import("@/app/api/studios/[slug]/technical/quotations/route.js");
+  const QUOTES = await import("@/app/api/studios/[slug]/technical/quotations/route.ts");
   const internal = await capture(QUOTES.POST, req(`/api/studios/${slug}/technical/quotations`, {
     method: "POST",
     body: { number: "Q-INTERNAL-1", description: "Site survey, not yet approved", handledBy: "Owner" },
@@ -818,12 +818,12 @@ console.log("== inventory: one shared row, two owners, and a check digit");
 // makes the owner field a claim, and a claim is exactly the kind of thing a
 // refactor stops checking. It is checked before the sheet is even looked up.
 {
-  const INV = await import("@/app/api/studios/[slug]/inventory/route.js");
-  const ITEMS = await import("@/app/api/studios/[slug]/inventory/items/route.js");
-  const VENDORS = await import("@/app/api/studios/[slug]/inventory/vendors/route.js");
-  const STOCK = await import("@/app/api/studios/[slug]/inventory/stock/route.js");
-  const SHEETS = await import("@/app/api/studios/[slug]/inventory/sheets/route.js");
-  const AWB = await import("@/app/api/studios/[slug]/inventory/awb/route.js");
+  const INV = await import("@/app/api/studios/[slug]/inventory/route.ts");
+  const ITEMS = await import("@/app/api/studios/[slug]/inventory/items/route.ts");
+  const VENDORS = await import("@/app/api/studios/[slug]/inventory/vendors/route.ts");
+  const STOCK = await import("@/app/api/studios/[slug]/inventory/stock/route.ts");
+  const SHEETS = await import("@/app/api/studios/[slug]/inventory/sheets/route.ts");
+  const AWB = await import("@/app/api/studios/[slug]/inventory/awb/route.ts");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -965,9 +965,9 @@ console.log("== hr: whose records, which numbers, and what is on disk");
 //   encrypted at rest, so a dump of the collaborator row does not expose them
 //   even to somebody who never asked this API anything.
 {
-  const HR = await import("@/app/api/studios/[slug]/hr/route.js");
-  const EMPLOYEES = await import("@/app/api/studios/[slug]/hr/employees/route.js");
-  const VACATIONS = await import("@/app/api/studios/[slug]/hr/vacations/route.js");
+  const HR = await import("@/app/api/studios/[slug]/hr/route.ts");
+  const EMPLOYEES = await import("@/app/api/studios/[slug]/hr/employees/route.ts");
+  const VACATIONS = await import("@/app/api/studios/[slug]/hr/vacations/route.ts");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -1124,9 +1124,9 @@ console.log("== finance: a number that only goes forward, and money that is deri
 //   MONEY IS DERIVED, NEVER STORED. Totals are computed from the lines on every
 //   read, so there is no second number that can disagree with the first.
 {
-  const FINANCE = await import("@/app/api/studios/[slug]/finance/route.js");
-  const INVOICES = await import("@/app/api/studios/[slug]/finance/invoices/route.js");
-  const EXPENSES = await import("@/app/api/studios/[slug]/finance/expenses/route.js");
+  const FINANCE = await import("@/app/api/studios/[slug]/finance/route.ts");
+  const INVOICES = await import("@/app/api/studios/[slug]/finance/invoices/route.ts");
+  const EXPENSES = await import("@/app/api/studios/[slug]/finance/expenses/route.ts");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -1228,10 +1228,10 @@ console.log("== operations & tasks: a shift knows about leave, and finishing is 
 //   move it to Done without holding a board right — and may not rewrite what
 //   was asked of them.
 {
-  const OPS = await import("@/app/api/studios/[slug]/operations/route.js");
-  const SHIFTS = await import("@/app/api/studios/[slug]/operations/shifts/route.js");
-  const LOCATIONS = await import("@/app/api/studios/[slug]/operations/locations/route.js");
-  const TASKS = await import("@/app/api/studios/[slug]/tasks/route.js");
+  const OPS = await import("@/app/api/studios/[slug]/operations/route.ts");
+  const SHIFTS = await import("@/app/api/studios/[slug]/operations/shifts/route.ts");
+  const LOCATIONS = await import("@/app/api/studios/[slug]/operations/locations/route.ts");
+  const TASKS = await import("@/app/api/studios/[slug]/tasks/route.ts");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -1258,7 +1258,7 @@ console.log("== operations & tasks: a shift knows about leave, and finishing is 
 
   // Whoever asked for leave in the HR block. Found by their approved vacation
   // rather than by name, so this stays true if the fixture is reshuffled.
-  const hr = await import("@/app/api/studios/[slug]/hr/route.js");
+  const hr = await import("@/app/api/studios/[slug]/hr/route.ts");
   const hrBoard = await capture(hr.GET, req(`/api/studios/${slug}/hr`), P);
   const leave = hrBoard.body?.vacations?.find((v) => v.status === "Approved");
   ok("HR has an approved absence to schedule around", Boolean(leave),
@@ -1347,8 +1347,8 @@ console.log("== quality: four signatures, four rights, and nobody signs twice");
 // using both ON ONE RECORD is not. So it is enforced at the transition, by
 // comparing the reviewer's CollaboratorID to the actor's.
 {
-  const DOCS = await import("@/app/api/studios/[slug]/quality/docs/route.js");
-  const FLOW = await import("@/app/api/studios/[slug]/quality/docs/workflow/route.js");
+  const DOCS = await import("@/app/api/studios/[slug]/quality/docs/route.ts");
+  const FLOW = await import("@/app/api/studios/[slug]/quality/docs/workflow/route.ts");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -1521,12 +1521,12 @@ console.log("== /super: a second identity, and the wall between them");
 // wall. Testing one side proves the door is locked; testing both proves it is a
 // wall.
 {
-  const SUPER_USERS = await import("@/app/api/super/users/[userId]/route.js");
-  const SUPER_STUDIOS = await import("@/app/api/super/studios/[id]/route.js");
-  const SUPER_CATALOG = await import("@/app/api/super/catalog/[kind]/route.js");
-  const SUPER_NOTIF = await import("@/app/api/super/notifications/route.js");
-  const STUDIO = await import("@/app/api/studios/[slug]/route.js");
-  const SALES = await import("@/app/api/studios/[slug]/sales/route.js");
+  const SUPER_USERS = await import("@/app/api/super/users/[userId]/route.ts");
+  const SUPER_STUDIOS = await import("@/app/api/super/studios/[id]/route.ts");
+  const SUPER_CATALOG = await import("@/app/api/super/catalog/[kind]/route.ts");
+  const SUPER_NOTIF = await import("@/app/api/super/notifications/route.ts");
+  const STUDIO = await import("@/app/api/studios/[slug]/route.ts");
+  const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
 
   const shot = async (name, payload) => {
     const r = golden(name, payload, EXTRA);
@@ -1740,7 +1740,7 @@ console.log("== the answer a person who asked to join never got");
   // to confirm which slugs exist and what they are called, which is the one
   // thing invariant 2 still protects now that existence itself is public.
   await __signIn(SESSION_COOKIE, await mintSession(refused.id, 600));
-  const me = await capture((await import("@/app/api/identity/me/route.js")).GET, req("/api/identity/me"), ctx());
+  const me = await capture((await import("@/app/api/identity/me/route.ts")).GET, req("/api/identity/me"), ctx());
   const row = (me.body?.joinRequests || []).find((r) => r.id === asked2.request.id);
   ok("the account screen shows them the answer", row?.status === "declined", JSON.stringify(row?.status));
   ok("...and a decline names no studio", row?.studio === null, JSON.stringify(row?.studio));
@@ -1836,7 +1836,7 @@ console.log("== the console's second factor");
   // THE HIGHEST-VALUE TARGET FOR SOMEBODY WHO ALREADY HAS A SESSION. A session
   // is what an attacker holds if they got in; if a session alone could disarm
   // the factor, the factor would protect nothing after the first mistake.
-  const MFA = await import("@/app/api/super/mfa/route.js");
+  const MFA = await import("@/app/api/super/mfa/route.ts");
   const stillOn = await sup.findSuperByEmail(email);
   ok("MFA is on before we try to remove it", mfa.mfaEnabled(stillOn), "");
 
@@ -2104,7 +2104,7 @@ console.log("== the audit log: who did what");
 // then removed, having never had a reader or a writer.
 {
   const audit = await import("@/platform/http/audit");
-  const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.js");
+  const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.ts");
   const P = ctx({ slug });
   await signIn(owner.id);
 
@@ -2140,7 +2140,7 @@ console.log("== the audit log: who did what");
   const beforeRead = await audit.since(studio.id, "", 200);
   await capture(CLIENTS.PUT, req(`/api/studios/${slug}/sales/clients`,
     { method: "PUT", body: {} }), P);
-  const SALES = await import("@/app/api/studios/[slug]/sales/route.js");
+  const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
   await capture(SALES.GET, req(`/api/studios/${slug}/sales`), P);
   const afterRead = await audit.since(studio.id, "", 200);
   ok("a read leaves no entry, a refused write still does",
@@ -2191,7 +2191,7 @@ console.log("== one row, by the id a live event named");
 // board does with that. The assertions worth having are not "it returns a row"
 // but the three ways it could quietly become a hole.
 {
-  const ROWS = await import("@/app/api/studios/[slug]/rows/route.js");
+  const ROWS = await import("@/app/api/studios/[slug]/rows/route.ts");
   const P = ctx({ slug });
   const ask = (q, as) => (as ? signIn(as) : Promise.resolve())
     .then(() => capture(ROWS.GET, req(`/api/studios/${slug}/rows?${q}`), P));
@@ -2460,7 +2460,7 @@ console.log("== idempotency: a retry does not bill twice");
 // two expenses — so nothing but idempotency stands between a retry and a second
 // row. Which is the actual risk: a timeout on the endpoint that books money.
 {
-  const EXPENSES = await import("@/app/api/studios/[slug]/finance/expenses/route.js");
+  const EXPENSES = await import("@/app/api/studios/[slug]/finance/expenses/route.ts");
   const finance = await import("@/modules/finance/finance");
   await signIn(owner.id);
 
@@ -2567,7 +2567,7 @@ console.log("== CSRF: a write arriving from somebody else's page");
 // or to a header name nobody sends — and both failures look exactly like safety
 // right up until they don't.
 {
-  const PROFILE = await import("@/app/api/identity/profile/route.js");
+  const PROFILE = await import("@/app/api/identity/profile/route.ts");
   await signIn(owner.id);
 
   const attacker = { origin: "https://attacker.example" };
@@ -2713,8 +2713,8 @@ console.log("== hop counts: how many round trips a screen costs");
 // this pins the regression, not the current inefficiency — each is lowered as
 // its wave lands.
 {
-  const SALES = (await import("@/app/api/studios/[slug]/sales/route.js"));
-  const STUDIO = (await import("@/app/api/studios/[slug]/route.js"));
+  const SALES = (await import("@/app/api/studios/[slug]/sales/route.ts"));
+  const STUDIO = (await import("@/app/api/studios/[slug]/route.ts"));
 
   await signIn(owner.id);
 

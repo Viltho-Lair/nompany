@@ -66,7 +66,7 @@ const day = (v: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ?
 // THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
 // collection name, not a scope — the studio and section arrive with each call,
 // which is what keeps a query from ever naming another tenant's keys.
-export const hrContext = moduleContext({
+export const hrContext = moduleContext<HrContext>({
   root: "hr",
   // Employees owns the reference lists (departments/certifications); vacations
   // stay on the parent as studio-wide HR settings.

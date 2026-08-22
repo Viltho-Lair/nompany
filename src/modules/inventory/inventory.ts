@@ -132,7 +132,7 @@ function cleanSerials(list: unknown) {
 // Resolve studio + membership + the inventory section. The PROJECTS section is
 // resolved too but is optional — inventory works without it; you just can't
 // point an order or a delivery at a project.
-export const inventoryContext = moduleContext({
+export const inventoryContext = moduleContext<InventoryContext>({
   root: "inventory",
   sub: {
     stock: "inventory-stock", vendors: "inventory-vendors", items: "inventory-items",
@@ -626,8 +626,10 @@ function composeSheet(
 // Every project with a quotation behind it has a Main and a Bulk. Created on
 // first read rather than migrated, and idempotent — two readers racing cannot
 // make four sheets, because the write checks again inside the lock.
-async function ensureSheetsExist({ studio, sheetsSection, projectsListSection }: Pick<InventoryContext,
-  "studio" | "sheetsSection" | "projectsListSection">) {
+async function ensureSheetsExist(
+  { studio, sheetsSection, projectsListSection }:
+  Pick<SheetReader, "studio" | "sheetsSection" | "projectsListSection">,
+) {
   if (!sheetsSection || !projectsListSection) return;
   const [sheets, projects] = await Promise.all([
     Sheets.find({ studio, section: sheetsSection }),
@@ -720,7 +722,17 @@ export async function saveSheetLine(ctx: InventoryContext, body: Record<string, 
 // Every sheet in the studio, composed. Keys only on the row itself: the project
 // number, the client and the quotation number are read back through the ids the
 // sheet carries, so a renumbered project or a renamed client needs no migration.
-export async function listProjectSheets(ctx: InventoryContext) {
+export type SheetReader = {
+  studio: { id: string } & Record<string, unknown>;
+  sheetsSection: Section | null;
+  projectsListSection: Section | null;
+  quotationsSection: Section | null;
+  itemsSection: Section | null;
+  vendorsSection: Section | null;
+  tasksSection?: Section | null;
+};
+
+export async function listProjectSheets(ctx: SheetReader) {
   const { studio, sheetsSection, projectsListSection, quotationsSection, itemsSection, vendorsSection } = ctx;
   if (!sheetsSection) return [];
   // SEEDED LAZILY, the same way the starter roles are. Sheets were written at

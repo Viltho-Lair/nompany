@@ -56,7 +56,7 @@ const round = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
 // THE COLLECTIONS THIS MODULE QUERIES, named once. Projects and Orders belong
 // to other departments; reading them is a different SCOPE rather than a
 // different function, and the scope still cannot cross a studio.
-export const financeContext = moduleContext({
+export const financeContext = moduleContext<FinanceContext>({
   root: "finance",
   sub: { cash: "finance-cash", settings: "finance-settings" },
   // Projects and Inventory sheets, when the studio has them. Read on the same

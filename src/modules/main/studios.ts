@@ -102,18 +102,18 @@ export async function createStudio(
 }
 
 // ---- lookups ---------------------------------------------------------------
-export async function getStudioById(studioId: string) {
+export async function getStudioById(studioId: string): Promise<StudioRow | null> {
   if (!studioId) return null;
-  const rows = await readArr(REG.studios);
+  const rows = await readArr<StudioRow>(REG.studios);
   return rows.find((s) => s.id === studioId) || null;
 }
 // The same shape as findUserBySession, and the same fix: `g:studios` is a fixed
 // key, so resolving the slug and reading the registry are independent questions
 // that were being asked one after the other.
-export async function getStudioBySlug(slug: string) {
+export async function getStudioBySlug(slug: string): Promise<StudioRow | null> {
   const [id, rows] = await Promise.all([
     getIndex(IX.slug(String(slug || "").toLowerCase())),
-    readArr(REG.studios),
+    readArr<StudioRow>(REG.studios),
   ]);
   return id ? (rows.find((s) => s.id === id) || null) : null;
 }

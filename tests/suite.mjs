@@ -74,12 +74,12 @@ import { STAT } from "@/platform/db/keys";
 import { putMedia } from "@/lib/media";
 import { hashToken } from "@/platform/auth/passwords";
 
-const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/route.js")).PUT;
-const TASKS_ROUTE = await import("@/app/api/studios/[slug]/tasks/route.js");
-const EXPORT_CSV = (await import("@/app/api/super/site-analytics/export/route.js")).GET;
-const YEAR_ROLLOVER = (await import("@/app/api/cron/year-rollover/route.js")).GET;
-const TRACK = (await import("@/app/api/track/route.js")).POST;
-const MEDIA_GET = (await import("@/app/api/media/[id]/route.js")).GET;
+const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/route.ts")).PUT;
+const TASKS_ROUTE = await import("@/app/api/studios/[slug]/tasks/route.ts");
+const EXPORT_CSV = (await import("@/app/api/super/site-analytics/export/route.ts")).GET;
+const YEAR_ROLLOVER = (await import("@/app/api/cron/year-rollover/route.ts")).GET;
+const TRACK = (await import("@/app/api/track/route.ts")).POST;
+const MEDIA_GET = (await import("@/app/api/media/[id]/route.ts")).GET;
 
 // ---- harness ---------------------------------------------------------------
 let fails = 0;

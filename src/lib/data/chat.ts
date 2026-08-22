@@ -157,10 +157,15 @@ export async function addMessage(roomId: string, from: string, text: unknown) {
 // FIRST WINS. The NX claim is the whole mechanism: two admins clicking Accept at
 // the same instant both reach this, exactly one gets the key, and the loser is
 // told who has it rather than silently taking over a conversation.
+export type AcceptResult =
+  | { error: string; taken?: undefined; room?: undefined }
+  | { taken: true; room: ChatRoom | null; error?: undefined }
+  | { error?: undefined; taken?: undefined; room: ChatRoom };
+
 export async function acceptRoom(
   roomId: string,
   { adminId, adminLabel }: { adminId: string; adminLabel: string },
-) {
+): Promise<AcceptResult> {
   const room = await getRoom(roomId);
   if (!room) return { error: "not-found" };
   if (room.status === ENDED) return { error: "ended" };

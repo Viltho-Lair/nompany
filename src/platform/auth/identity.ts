@@ -231,7 +231,7 @@ export async function verifyOtp(
 // Re-send the code for an in-flight challenge (new code, attempts reset).
 export async function resendOtp({ challengeId, ip }: { challengeId: string; ip?: string }) {
   const result = await resendChallenge(challengeId, { ip });
-  if (result.error || !result.challenge) return result;
+  if (result.error) return result;
   const profile = result.challenge.userId ? await getProfile(result.challenge.userId) : null;
   const emailSent = await deliverCode(result.challenge.email, profile?.fullName, result.code, verificationCodeEmail);
   return { ok: true, emailSent };
@@ -294,13 +294,34 @@ export async function signInWithProvider(
 // Returns either { user, token } for a trusted device, or { otpRequired } with
 // a challenge to complete. Credentials are always checked FIRST, so a code is
 // never sent to an address whose password was not supplied correctly.
+/**
+ * THE THREE ANSWERS A SIGN-IN CAN GIVE, as three arms rather than one bag.
+ *
+ * A session, a challenge, or a refusal — and which one it is decides what the
+ * route does with the response: set a session cookie, set an OTP cookie, or
+ * pick a status. Written as one object with everything optional, the route
+ * cannot tell them apart and `result.token` reads as possibly undefined on the
+ * path where it is guaranteed.
+ *
+ * `error` is discriminating on all three, so the guard every caller already
+ * writes narrows to the arm it meant.
+ */
+export type LoginResult =
+  | { error: string; retryAfter?: number;
+      otpRequired?: undefined; user?: undefined; token?: undefined; ttl?: undefined;
+      challengeId?: undefined; emailSent?: undefined }
+  | { error?: undefined; otpRequired: true; challengeId: string; emailSent: boolean;
+      user?: undefined; token?: undefined; ttl?: undefined }
+  | { error?: undefined; otpRequired?: undefined; user: User; token: string; ttl: number;
+      challengeId?: undefined; emailSent?: undefined };
+
 export async function login(
   { email, password, remember, deviceId, ip, device }:
   {
     email?: string; password?: string; remember?: boolean;
     deviceId?: string; ip?: string; device?: DeviceFacts;
   },
-) {
+): Promise<LoginResult> {
   // THE GATE COMES FIRST — before the lookup, before bcrypt, and identically
   // for an address nobody has ever registered, so it cannot be used to find out
   // which addresses exist. The limiters used to sit inside createChallenge,

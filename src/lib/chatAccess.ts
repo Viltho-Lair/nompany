@@ -15,11 +15,25 @@
 
 import { currentUser } from "@/platform/auth/identity";
 import { getRoom } from "@/lib/data/chat";
+import type { ChatRoom } from "@/lib/data/chat";
+import type { User } from "@/platform/auth/users";
+
+/**
+ * EITHER THE ROOM OR THE REASON, and never both. Written as one object with
+ * both optional, no route could tell which it held: `if (a.error) return` left
+ * `room` a maybe on the next line, so every read of it came back "possibly
+ * undefined". `error?: undefined` on the success arm is the discriminant the
+ * guard needs.
+ */
+type RoomAccess<T> = { status: number; error: string; room?: undefined }
+  | ({ error?: undefined } & T);
 
 // The person who opened the room, and nobody else — not their studio's admins,
 // not the studio's owner. A support conversation belongs to the two people
 // having it.
-export async function studioSide(roomId: string) {
+export async function studioSide(
+  roomId: string,
+): Promise<RoomAccess<{ room: ChatRoom; user: User }>> {
   const user = await currentUser();
   if (!user) return { status: 401, error: "unauthorized" };
   const room = await getRoom(roomId);
@@ -36,7 +50,9 @@ export async function studioSide(roomId: string) {
 // once for the route's gate and once again here. The route wrapper already
 // holds it, so this is now only what its name should always have meant: find
 // the room, or say it is not there.
-export async function nompanyRoom(roomId: string) {
+export async function nompanyRoom(
+  roomId: string,
+): Promise<{ error: string; room?: undefined } | { error?: undefined; room: ChatRoom }> {
   const room = await getRoom(roomId);
   if (!room) return { error: "not-found" };
   return { room };

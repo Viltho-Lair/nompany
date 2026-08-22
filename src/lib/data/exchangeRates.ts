@@ -42,7 +42,19 @@ const now = () => Math.floor(Date.now() / 1000);
 
 // WHAT ONE DAY'S TABLE LOOKS LIKE: every pair against USD, plus the API's own
 // next-update stamp so freshness is the provider's answer rather than ours.
-type Snapshot = { rates?: Record<string, number>; nextUpdateAt?: number; fetchedAt?: number };
+// EVERY FIELD fetchSnapshot WRITES, not the three isFresh happens to read.
+// `updatedAt` is the provider's own "last updated" stamp and is what both the
+// console and a studio's settings screen show; leaving it out of this type made
+// each of them read `undefined` where the stored snapshot has a number.
+type Snapshot = {
+  base?: string;
+  /** null when there has never been a table to serve — see getExchangeSnapshot. */
+  rates?: Record<string, number> | null;
+  /** The provider's stamp for the table, not ours for the fetch. */
+  updatedAt?: number;
+  nextUpdateAt?: number;
+  fetchedAt?: number;
+};
 
 // A snapshot is fresh until the API says the next batch has landed.
 const isFresh = (snap: Snapshot | null | undefined) =>
@@ -77,7 +89,20 @@ async function fetchSnapshot() {
 // The snapshot every caller should use. Never throws: if the refetch fails and
 // something is cached, the cache is returned marked stale; only a first-ever
 // fetch failure with nothing cached surfaces an error.
-export async function getExchangeSnapshot() {
+/**
+ * WHAT A CALLER GETS BACK: the table, however it was come by, plus whether it
+ * is stale and — only when there has never been one — why there is none.
+ *
+ * Declared rather than inferred: the four return paths produce four differently
+ * shaped literals, and a caller reading `updatedAt` off the union got "does not
+ * exist" from the one arm that has never had a snapshot to carry it.
+ */
+export type ExchangeSnapshot = Snapshot & {
+  stale: boolean;
+  error?: string;
+};
+
+export async function getExchangeSnapshot(): Promise<ExchangeSnapshot> {
   const cached = await getJSON<Snapshot>(FX.snapshot);
   if (isFresh(cached)) return { ...cached, stale: false };
 

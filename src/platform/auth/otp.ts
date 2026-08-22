@@ -45,8 +45,16 @@ function newCode(): string {
 
 // ---- abuse limits ----------------------------------------------------------
 // Checked when a code is SENT (verification attempts are bounded per challenge).
-/** A refusal, or nothing to say. Every limiter in this module answers this. */
-export type LimitResult = { error?: string; ok?: true };
+/**
+ * A REFUSAL, OR NOTHING TO SAY — as two arms rather than one bag of optionals.
+ *
+ * Written `{ error?: string; ok?: true }` it is a single type in which both
+ * fields are always maybe-there, so no caller can narrow it: `if (r.error)`
+ * leaves `error` a `string | undefined` on the other side, and the success
+ * fields read as missing. Two arms, and the check every caller already writes
+ * tells them which one they hold.
+ */
+export type LimitResult = { error: "rate-email" | "rate-ip" } | { error?: undefined; ok: true };
 
 export async function checkSendLimits({ email, ip }: { email?: string; ip?: string }): Promise<LimitResult> {
   if (email && (await incrWithTTL(RL.otpEmail(email), RL_WINDOW_SEC)) > RL_EMAIL_MAX) return { error: "rate-email" };
@@ -69,9 +77,14 @@ export type Challenge = {
   ip: string;
 };
 
+/** A new challenge, or the limiter's refusal. Two arms, so a caller can tell. */
+export type ChallengeResult =
+  | { error: "rate-email" | "rate-ip"; challengeId?: undefined; code?: undefined }
+  | { error?: undefined; challengeId: string; code: string };
+
 export async function createChallenge(
   { purpose, email, userId, ip }: { purpose: string; email: string; userId?: string; ip?: string },
-): Promise<{ challengeId?: string; code?: string; error?: string }> {
+): Promise<ChallengeResult> {
   const limited = await checkSendLimits({ email, ip });
   if (limited.error) return limited;
 
@@ -124,9 +137,14 @@ export async function verifyChallenge(
 }
 
 // Re-send: same challenge, brand-new code (so the old one dies), attempts reset.
+/** What a resend answers: a refusal with the wait, or the new code and its challenge. */
+export type ResendResult =
+  | { error: "expired" | "cooldown" | "rate-email" | "rate-ip"; retryInMs?: number }
+  | { error?: undefined; code: string; challenge: Challenge };
+
 export async function resendChallenge(
   challengeId: string, { ip }: { ip?: string } = {},
-): Promise<{ code?: string; challenge?: Challenge; error?: string; retryInMs?: number }> {
+): Promise<ResendResult> {
   const challenge = await getChallenge(challengeId);
   if (!challenge) return { error: "expired" };
   const since = Date.now() - (challenge.lastSentAt || 0);

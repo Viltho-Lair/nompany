@@ -159,10 +159,21 @@ export const can = (access: PermissionSet | null | undefined, key: PermissionKey
 //
 // Returns a plain error rather than throwing: every caller here already returns
 // { error } shapes, and an exception would need a try/catch around each one.
+/**
+ * THE TWO WAYS A WRITE IS REFUSED, as LITERALS rather than `string`.
+ *
+ * Every service returns this refusal straight to its route, and every route
+ * reads `if (result.error) return ...`. A `string` there does not narrow —
+ * the empty string is a string, so the refusal arm survives into the false
+ * branch and the success fields read as missing. Two literals, and the guard
+ * every route already writes means what it looks like.
+ */
+export type Refusal = { error: "unknown-permission" | "forbidden"; key: string };
+
 export function requirePermission(
   access: PermissionSet | null | undefined,
   key: PermissionKey,
-): { error: string; key: string } | null {
+): Refusal | null {
   // THE RUNTIME CHECK STAYS, and is not made dead by the parameter type. Every
   // caller today is JavaScript, which this signature does not grade at all, and
   // the ones that will be TypeScript still pass keys that came off a request.

@@ -31,8 +31,9 @@ import { getVerification, getProfile } from "@/platform/auth/users";
 import { memberLimitOf } from "@/lib/plans";
 import { slugify } from "@/shared/slug";
 import type { Row } from "@/platform/db/store";
+import type { JoinRequest } from "@/modules/people/types";
 import type { Section } from "@/platform/db/sections";
-import type { PermissionSet } from "@/platform/access";
+import type { PermissionSet, Role } from "@/platform/access";
 import type { CollaboratorRef } from "@/modules/context";
 import type { StudioRow } from "@/modules/main/studios";
 
@@ -120,7 +121,33 @@ export async function studiosForUser(userId: string) {
 // The address names the tenant; MEMBERSHIP authorises it. Returns
 // { studio, collaborator } only when this user actually belongs to that studio,
 // so a slug someone guessed reveals nothing.
-export async function studioContext(user: { id?: unknown } | null | undefined, slug: string) {
+/**
+ * WHAT A MEMBER'S CONTEXT IS. Written out rather than inferred, and the errors
+ * are LITERALS, because every caller narrows with `if (context.error) return`
+ * and a `string` there narrows nothing — the empty string is a string, so the
+ * refusal arm survives into the false branch and `studio` reads as possibly
+ * undefined on the very next line.
+ *
+ * `grants` is still here because callers destructure it; it is no longer
+ * consulted for access and goes when the last of them stops asking.
+ */
+export type StudioMembership = {
+  error?: undefined;
+  studio: StudioRow;
+  collaborator: CollaboratorRef;
+  access: PermissionSet;
+  roles: Role[];
+  sections: Section[];
+  grants: never[];
+};
+
+/** The three ways the address does not resolve to a membership. */
+export type MembershipError = { error: "unauthorized" | "notfound" | "forbidden" };
+
+export async function studioContext(
+  user: { id?: unknown } | null | undefined,
+  slug: string,
+): Promise<StudioMembership | MembershipError> {
   if (!user) return { error: "unauthorized" };
   const studio = await getStudioBySlug(slug);
   if (!studio) return { error: "notfound" };
@@ -228,6 +255,18 @@ export async function listJoinRequests(studioId: string) {
 
 // Approving is what actually creates the Collaborator row — the person's
 // identity INSIDE this studio, with its own CollaboratorID.
+/**
+ * WHAT DECIDING A JOIN REQUEST ANSWERS. Approving and declining share it, which
+ * is why the route can call either and read the same fields off the result.
+ *
+ * `limit` rides on the member-limit refusal so it can say what the ceiling
+ * actually is instead of leaving the studio to guess; `collaborator` is null on
+ * a decline, and on an approval of somebody who had already joined.
+ */
+export type JoinDecision =
+  | { error: string; limit?: number; collaborator?: undefined; request?: undefined }
+  | { error?: undefined; collaborator?: CollaboratorRef | null; request?: JoinRequest };
+
 export async function approveJoinRequest({
   studio, actingCollaborator, actorAccess, requestId, alias, role,
 }: {
@@ -237,7 +276,7 @@ export async function approveJoinRequest({
   requestId: string;
   alias?: unknown;
   role?: unknown;
-}) {
+}): Promise<JoinDecision> {
   const request = await getJoinRequest(requestId);
   if (!request || request.studioId !== studio.id) return { error: "notfound" };
 
@@ -263,7 +302,7 @@ export async function approveJoinRequest({
   }
 
   const decided = await decideJoinRequest(requestId, { status: APPROVED, decidedByCollaboratorId: actingCollaborator.id });
-  if (decided.error) return decided;
+  if (decided.error) return { error: decided.error };
 
   // APPROVING AS "ADMIN" ASSIGNS THE ADMIN ROLE — it does not stamp a flag and
   // it does not invent a third value for `role`. `role` means ownership and
@@ -310,10 +349,15 @@ export async function declineJoinRequest({ studio, actingCollaborator, requestId
   studio: StudioRow;
   actingCollaborator: CollaboratorRef;
   requestId: string;
-}) {
+}): Promise<JoinDecision> {
   const request = await getJoinRequest(requestId);
   if (!request || request.studioId !== studio.id) return { error: "notfound" };
-  return decideJoinRequest(requestId, { status: DECLINED, decidedByCollaboratorId: actingCollaborator.id });
+  // A DECLINE NAMES NO COLLABORATOR, and saying so is what lets the route read
+  // the same result off either decision.
+  const decided = await decideJoinRequest(requestId, {
+    status: DECLINED, decidedByCollaboratorId: actingCollaborator.id,
+  });
+  return decided.error ? { error: decided.error } : { collaborator: null, request: decided.request };
 }
 
 

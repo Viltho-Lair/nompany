@@ -56,7 +56,8 @@ export type SuperAdmin = {
   createdAt: string;
   passwordSetAt?: string;
   sessionTokens?: SuperSessionRow[];
-  mfa?: {
+  /** null when it has been turned off — see the disable path in super/mfa. */
+  mfa?: null | {
     secret?: string;
     recoveryCodes?: string[];
     enabledAt?: string;
@@ -159,11 +160,24 @@ export async function seedSuperAdmin({ email, password }: { email?: string; pass
 // and nothing to replay. Anything that reversed that — minting first and
 // verifying second — would leave a working session behind for the seconds
 // between, which is all a leaked password needs.
+/**
+ * WHAT A CONSOLE SIGN-IN ANSWERS: nothing at all (one generic failure for "no
+ * such admin", "wrong password" and "wrong code" alike — the console never
+ * confirms who holds an account on it), a demand for the second factor, or the
+ * admin with a session token on it.
+ *
+ * `mfaRequired` is the discriminant, and it is `true` on one arm and absent on
+ * the other so the route's `if (admin.mfaRequired)` narrows to the session.
+ */
+export type SuperLoginResult =
+  | { mfaRequired: true; token?: undefined }
+  | (SuperAdmin & { sessionTokens: SuperSessionRow[]; token: string; mfaRequired?: undefined });
+
 export async function loginSuper(
   email: string,
   password: string,
   { code = "", device = null }: { code?: string; device?: DeviceLabel | null } = {},
-) {
+): Promise<SuperLoginResult | null> {
   const admin = await findSuperByEmail(email);
   if (!admin) return null;
   if (!(await verifyPassword(password, admin.passwordHash))) return null;

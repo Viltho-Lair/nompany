@@ -60,7 +60,7 @@ const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) 
 const clock = (v: unknown) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 const today = () => new Date().toISOString().slice(0, 10);
 
-export const operationsContext = moduleContext({
+export const operationsContext = moduleContext<OperationsContext>({
   root: "operations",
   sub: { tracking: "operations-tracking", settings: "operations-settings" },
   // HR, because a shift must not be scheduled over leave HR has approved, and

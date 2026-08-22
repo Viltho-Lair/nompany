@@ -80,8 +80,15 @@ export const TaskSchema = z.object({
   }).optional(),
 
   // ---- derived, never stored ------------------------------------------------
-  /** Ticked items over total. Computed on the way out, so it is optional here. */
-  progress: z.number().optional(),
+  /**
+   * Ticked items over total, computed on the way out — so optional here.
+   *
+   * NULLABLE, and deliberately: `progressOf` answers null for a task with NO
+   * checklist, which is a different thing from one whose checklist is empty and
+   * therefore 0% done. The schema said `number` and the board has always been
+   * able to hand back null.
+   */
+  progress: z.number().nullable().optional(),
 });
 
 /** The board's own settings row: which authority answers which task type. */

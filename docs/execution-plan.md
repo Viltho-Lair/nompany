@@ -235,7 +235,18 @@ Runs from week 9, overlapping W2's later sprints. Full detail in `typescript-mod
 | 11-12 | `platform/db` — keys, store, cascade, the repository interface. **Only after Gate B.** |
 | 13 | `platform/auth`, `realtime`, `notify`, `http`, `relations` |
 | 14-19 | One department per step, ascending by cross-module reads: **tasks → main → people → finance → operations → hr → inventory → projects → technical → sales**. Quality is already TypeScript and only moves folders. |
-| 20 | `app/` reduced to re-exports; `noImplicitAny` + `checkJs` on repo-wide; `allowJs` deleted. |
+| 20 | `app/` reduced to re-exports; `checkJs` on repo-wide; `allowJs` deleted. |
+
+**`noImplicitAny` and the 99 route files both landed ahead of step 20**, on
+22/08/2026. `tsconfig.strict.json`'s `include` is `src/**/*`, so every `.ts` and
+`.tsx` in the tree is graded with it on and the folder list that made the
+ratchet a ratchet is gone — there is nothing left to add. The routes converted
+as a rename rather than a rewrite because four things were fixed at the seam
+instead of ninety-nine at the leaves; see `progress.md`.
+
+What step 20 still owns is `checkJs` and the `app/` restructure. `checkJs` is
+the 212 `.js` files left, every one of them a browser file: they convert with
+Wave 4's UI work, and `tsconfig.strict.json` and `allowJs` go with them.
 
 Per department, in strict order: **pure `git mv` commit** → rename to `.ts` → write `schema.ts` transcribed from the existing coercion → replace hand-rolled coercion → add `index.ts` manifest → enable `noImplicitAny` for that folder. Golden tests must not move at any point.
 

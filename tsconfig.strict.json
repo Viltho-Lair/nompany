@@ -11,7 +11,7 @@
     "folder it belongs to is already listed.",
     "",
     "`include` NOW COVERS src/**, and every .ts and .tsx in the tree is graded",
-    "with noImplicitAny on. What keeps this file alive is checkJs: the 311",
+    "with noImplicitAny on. What keeps this file alive is checkJs: the 212",
     "remaining .js files are all browser files, they convert with the UI work in",
     "Wave 4, and this config and the allowJs escape hatch go with them."
   ],
@@ -32,7 +32,7 @@
     // platform, then people and hr, then the ten departments, then src/lib —
     // and the folder list is gone because there is nothing left to add.
     //
-    // What is left is `checkJs`, and that is the 311 remaining .js files, every
+    // What is left is `checkJs`, and that is the 212 remaining .js files, every
     // one of them a browser file. They convert with the UI work in Wave 4, and
     // this config and the allowJs escape hatch both go with them.
     "src/**/*"

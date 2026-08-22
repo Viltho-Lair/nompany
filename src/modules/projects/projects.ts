@@ -57,7 +57,7 @@ const Tasks = repo<Task>(TASKS);
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const nonNeg = (v: unknown, fallback = 0) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : fallback; };
 
-export const projectsContext = moduleContext({
+export const projectsContext = moduleContext<ProjectsContext>({
   root: "projects",
   sub: {
     list: "projects-list", sla: "projects-sla", overtimes: "projects-overtimes",
@@ -116,7 +116,9 @@ export async function saveProjectsSettings(ctx: ProjectsContext, body: Record<st
   return updated ? { settings: next } : { error: "notfound" };
 }
 
-export function readProjectsSettings(settingsSection: Section | null | undefined) {
+export function readProjectsSettings(
+  settingsSection: { settings?: Record<string, unknown> } | null | undefined,
+) {
   const s = settingsSection?.settings || {};
   return {
     stages: Array.isArray(s.stages) && s.stages.length ? s.stages : PROJECT_STAGES,

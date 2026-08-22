@@ -68,13 +68,20 @@ const PREAMBLE = `:${" ".repeat(2048)}\n\n`;
  *   readonly open: boolean,
  * }) => (void | (() => void) | Promise<void | (() => void)>)} start
  */
+/**
+ * What `start` may hand back: nothing, or something to run when the connection
+ * closes. Async and nullable both, because a subscriber that never opened has
+ * nothing to release and releasing one is itself a round trip.
+ */
+type Cleanup = void | null | (() => void | Promise<void>);
+
 export function sseResponse(
   request: Request,
   start: (conn: {
     send: (event: string, data: unknown, id?: string) => void;
     close: () => void;
     readonly open: boolean;
-  }) => void | (() => void) | Promise<void | (() => void)>,
+  }) => Cleanup | Promise<Cleanup>,
 ) {
   let closed = false;
   // THE CONTROLLER ARRIVES LATER — ReadableStream hands it to `start`, which

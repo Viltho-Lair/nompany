@@ -307,8 +307,12 @@ console.log("\n== wiring");
   ok("  no department hand-rolls its own context",
     handRolled.length === 0, handRolled.map((c) => `${c.path}:${c.name}`).join(", "));
 
+  // THE TYPE ARGUMENT IS OPTIONAL IN THIS PATTERN and it is why the floor below
+  // exists: `moduleContext<FinanceContext>(` stopped matching `moduleContext\(`
+  // the day the factory became generic, and this count went from nine to zero
+  // while every other assertion in the file went on passing.
   const fromFactory = SERVICE_FILES.flatMap(({ text }) =>
-    [...text.matchAll(/export const (\w+Context) = moduleContext\(/g)].map((m) => m[1]));
+    [...text.matchAll(/export const (\w+Context) = moduleContext(?:<[^>]*>)?\(/g)].map((m) => m[1]));
   console.log(`  ${fromFactory.length} module contexts, all from the factory`);
   // THE FLOOR. Twelve departments, and the ones without a moduleContext call are
   // main (hand-rolled, exempt above) and people (no section of its own). A count

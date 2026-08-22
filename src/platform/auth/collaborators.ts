@@ -103,8 +103,11 @@ export async function getCollaborator(studioId: string, collaboratorId: string) 
   const rows = await readArr(S.collaborators(studioId));
   return rows.find((c) => c.id === collaboratorId) || null;
 }
-export async function getCollaboratorByUser(studioId: string, userId: string) {
-  const rows = await readArr(S.collaborators(studioId));
+export async function getCollaboratorByUser(
+  studioId: string,
+  userId: string,
+): Promise<Collaborator | null> {
+  const rows = await readArr<Collaborator>(S.collaborators(studioId));
   return rows.find((c) => c.userId === userId) || null;
 }
 

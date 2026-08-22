@@ -58,7 +58,7 @@ const num = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Numb
 
 // Resolve both sections at once: Technical (where the data lives) and Sales
 // (where tickets come from), plus this person's rights on each.
-export const technicalContext = moduleContext({
+export const technicalContext = moduleContext<TechnicalContext>({
   root: "technical",
   sub: {
     quotations: "technical-quotations", rfq: "technical-rfq", settings: "technical-settings",

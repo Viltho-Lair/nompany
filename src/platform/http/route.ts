@@ -38,6 +38,7 @@ import { studioContext } from "@/lib/studios";
 import { getStudioBySlug } from "@/modules/main/studios";
 import { currentSuperAdmin } from "@/platform/auth/superAuth";
 import { statusFor } from "./httpStatus";
+import type { ContextError } from "@/modules/context";
 import { isCrossSite, MUTATING } from "./origin";
 import { withRequest, requestId } from "./observability";
 import { record as recordAudit, ACTOR } from "./audit";
@@ -68,7 +69,12 @@ export type RouteSpec<A = RouteArgs> = {
    * whatever that builder returns — so `salesContext` gives the handler a
    * SalesContext without the route restating it.
    */
-  context?: (user: unknown, slug: string) => Promise<A | { error: string }>;
+  // MATCHED AGAINST ContextError BY NAME, not against `{ error: string }`.
+  // Written the loose way, `A` unifies with the builder's WHOLE return —
+  // context and refusal both — and every handler then has to narrow a union
+  // the wrapper has already narrowed for it: it returns the refusal before the
+  // handler is ever called.
+  context?: (user: unknown, slug: string) => Promise<A | ContextError>;
 };
 
 /**
@@ -80,8 +86,35 @@ export type RouteSpec<A = RouteArgs> = {
 export type RouteArgs = Record<string, any>;
 
 const isResponse = (v: unknown): v is Response => v instanceof Response;
-const isErrorShape = (v: unknown): v is { error: string } =>
-  Boolean(v) && typeof v === "object" && typeof (v as { error?: unknown }).error === "string";
+/**
+ * WHAT A ROUTE'S OWN GUARD ANSWERS: the thing, or the Response that refuses it.
+ *
+ * Five routes predate this wrapper and still guard by hand, returning
+ * `{ fail: Response }` on the way out. `fail?: undefined` on the other arm is
+ * what makes `if (g.fail) return g.fail;` narrow — without it the two arms
+ * share no discriminant and every field read after the guard is "does not
+ * exist on type". They fold into `route()` when their status ladders are
+ * reconciled against the goldens; until then they can at least be typed.
+ */
+export type Guarded<T> = (T & { fail?: undefined }) | { fail: Response };
+
+/**
+ * DID A SERVICE REFUSE — as a type guard, which is the whole point.
+ *
+ * Every route writes `if (result.error) return result;` and every one of them
+ * narrows nothing: a service answers `{ error: string } | { thing }`, and
+ * truthiness cannot remove the refusal arm because the empty string is a
+ * string. The line reads as a guard, TypeScript keeps both arms alive, and the
+ * success field on the next line comes back as "does not exist".
+ *
+ * Same runtime test the wrapper has always applied to a handler's RETURN, now
+ * shared with the routes that ask the same question one step earlier.
+ */
+export function refused<T>(v: T): v is Extract<T, { error: string }> {
+  return Boolean(v) && typeof v === "object" && typeof (v as { error?: unknown }).error === "string";
+}
+
+const isErrorShape = (v: unknown): v is { error: string } => refused(v);
 
 /**
  * Parse a JSON body without ever throwing.

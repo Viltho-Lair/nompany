@@ -60,6 +60,15 @@ export type StudioRef = { id: string; name?: string; slug?: string } & Row;
 export type CollaboratorRef = { id: string; alias?: string; role?: string } & Row;
 
 export type ModuleContext = {
+  /**
+   * ALWAYS ABSENT, and declared so on purpose. Every resolver answers
+   * `Context | { error: string }`, and every caller narrows with
+   * `if (ctx.error) return ...`. Without this field the two arms share no
+   * discriminant — `error` is just another `unknown` off the index signature —
+   * so the check reads as a check and narrows nothing, and the line after it
+   * still thinks the context might be the error.
+   */
+  error?: undefined;
   studio: StudioRef;
   collaborator: CollaboratorRef;
   access: PermissionSet;
@@ -84,6 +93,24 @@ export type ModuleContext = {
  * where the factory says what it already knows rather than nine files casting.
  */
 export type ExtendContext = ModuleContext & { [named: string]: Section | null };
+
+/**
+ * WHY A CONTEXT COULD NOT BE BUILT — and the values are LITERALS, not `string`,
+ * because that is what makes `if (ctx.error) return ...` narrow.
+ *
+ * A union of `Context | { error: string }` does not narrow on truthiness: the
+ * empty string is a string, so TypeScript has to keep the error arm alive in
+ * the false branch, and every line after the guard still thinks the context
+ * might be a refusal. Four literals, none of them empty, and the guard means
+ * what it reads as.
+ *
+ * The four are exhaustive: `unauthorized` and `notfound` come from
+ * studioContext, `forbidden` from the view check below, and `no-section` from
+ * a studio that has no section by this module's root key.
+ */
+export type ContextError = {
+  error: "unauthorized" | "notfound" | "forbidden" | "no-section";
+};
 
 /** What a department declares about itself. */
 export type ModuleSpec = {
@@ -110,13 +137,20 @@ const pick = (byKey: Record<string, Section>, keys: string | string[]): Section 
  *   extend    (ctx) => object, for whatever is genuinely this module's own
  *
  * Each resolver keeps the signature every caller already uses: (user, slug).
+ *
+ * GENERIC OVER THE DEPARTMENT'S OWN CONTEXT. The factory cannot infer what the
+ * spec produces — the names come from `sub`, `foreign` and `flags` at runtime —
+ * so each department states it once, at the one place that knows: `moduleContext
+ * <FinanceContext>({...})`. That is what carries the type through `route()` to
+ * a handler, which otherwise receives the bare ModuleContext and has to cast
+ * every field the department actually asked for.
  */
-export function moduleContext(spec: ModuleSpec) {
+export function moduleContext<C extends ModuleContext = ModuleContext>(spec: ModuleSpec) {
   const { root, sub = {}, foreign = {}, flags = [], extend } = spec;
 
-  return async function resolve(user: unknown, slug: string): Promise<ModuleContext | { error: string }> {
+  return async function resolve(user: unknown, slug: string): Promise<C | ContextError> {
     const context = await studioContext(user as { id?: unknown }, slug);
-    if (context.error) return context as { error: string };
+    if (context.error) return context as ContextError;
 
     // `access` is resolved once, in studioContext. Forwarding it is what lets
     // every service function guard itself without resolving anything again, and
@@ -169,6 +203,6 @@ export function moduleContext(spec: ModuleSpec) {
     // being handed its parent's answer.
     out.manage = manageMap(studio, collaborator, sections, access);
 
-    return extend ? { ...out, ...(await extend(out as ExtendContext, byKey) as object) } : out;
+    return (extend ? { ...out, ...(await extend(out as ExtendContext, byKey) as object) } : out) as C;
   };
 }

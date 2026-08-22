@@ -30,7 +30,7 @@ import {
   APPROVAL_COOLDOWN_MS, isApprovalTask, readTaskAssignees, resolveTaskAssignees,
   enrichTask, canSeeTask, progressOf, summarise,
 } from "./taskRouting";
-import type { Task, ChecklistItem, TasksContext, EnrichedTask, Approval } from "./types";
+import type { Task, ChecklistItem, TasksContext, EnrichedTask, BoardTask, Approval } from "./types";
 import type { Section } from "@/platform/db/sections";
 
 const TASKS = "tasks";
@@ -51,7 +51,7 @@ export const DEFAULT_PRIORITY = "Normal";
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 
-export const tasksContext = moduleContext({
+export const tasksContext = moduleContext<TasksContext>({
   root: "tasks",
   sub: { settings: "tasks-settings" },
   foreign: { projectsList: ["projects-list", "projects"] },
@@ -95,7 +95,7 @@ export async function saveTasksSettings(ctx: TasksContext, body: Record<string, 
 // collection rather than to a scope, so the same object answers for every studio
 // and section — the scope arrives with each call, which is what keeps a query
 // from ever naming another tenant's keys.
-export async function listTasks(ctx: TasksContext) {
+export async function listTasks(ctx: TasksContext): Promise<BoardTask[]> {
   const { studio, collaborator, canManage, taskAssignees } = ctx;
   const [tasks, people, projects] = await Promise.all([
     Tasks.find(ctx),

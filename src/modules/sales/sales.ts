@@ -121,7 +121,7 @@ function upsertLocation(existing: Site[] | undefined, { name, country, city, url
 
 // Resolve studio + membership + the sales section + this person's rights on it.
 // Every route starts here, so permission is checked once, in one place.
-export const salesContext = moduleContext({
+export const salesContext = moduleContext<SalesContext>({
   root: "sales",
   sub: { tickets: "sales-tickets", clients: "sales-clients", settings: "sales-settings" },
   // TECHNICAL, TASKS AND PROJECTS, READ ON THE TICKET'S OWN TERMS. What became of

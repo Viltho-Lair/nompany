@@ -120,21 +120,33 @@ Every service module reads and writes through `repo()`. `readCol`, `addRow`,
 | `platform/auth` | ✅ 13 files, 9 record types named |
 | Twelve departments | ✅ moved to `src/modules/<name>/`, typed, Zod schema each |
 | What was left of `src/lib` | ✅ typed, and on the ratchet |
-| `src/app/api/**/route.js` | ⬜ 99 files — see below |
+| `src/app/api/**/route.ts` | ✅ 99 files, both configs clean |
 | `src/components`, `src/app` pages | ⬜ W4's slice, deferred deliberately |
 | `noImplicitAny` over every `.ts`/`.tsx` | ✅ the ratchet reaches `src/**` |
 | `checkJs` repo-wide, `allowJs` deleted | ⬜ blocked on the two rows above |
 
-`npx tsc --noEmit` is clean over every file the server runs: 171 TypeScript
-files against 309 JavaScript, and every one of the 309 is a browser file.
+`npx tsc --noEmit` and the strict config are both clean over every file the
+server runs: 270 TypeScript files against 212 JavaScript, and every one of the
+212 is a browser file.
 
-**The API routes are their own step, not a rename.** Converting the 99 route
-files produced 994 type errors, and most of them were one seam: the wrapper
-handed every handler `RouteArgs`, so a route naming `salesContext` got no
-SalesContext. `route()` is generic over its context builder now — the builder
-types the handler — which took it to 671. The rest are service return shapes
-that the routes read positionally, and they are better done alongside the plan's
-own step 20 (`app/` reduced to re-exports) than as a rename with 671 casts.
+**The API routes are converted.** The first attempt produced 994 errors, the
+second 314; both times the bulk was one thing said four different ways, and
+naming it was the whole job:
+
+- `moduleContext` is generic over its department, so `financeContext` hands a
+  route a FinanceContext rather than the bare ModuleContext.
+- `route()`'s `context` is matched against `ContextError` by name, so `A` infers
+  the context alone instead of the union the wrapper has already narrowed.
+- **A `string` error does not discriminate a union.** `if (result.error)` cannot
+  remove an arm whose `error` is a `string` — the empty string is one — so every
+  success field after the guard read as missing. `refused()` in `platform/http`
+  is the same runtime test as a type guard, and it is what 40 routes now use.
+- `ContextError`, `Refusal`, `LimitResult`, `ResendResult`, `ChallengeResult`,
+  `LoginResult`, `SuperLoginResult`, `JoinDecision`, `AcceptResult`,
+  `ExchangeSnapshot`: ten services that answered "either-or" as one object with
+  everything optional now answer it as two arms.
+
+`checkJs` is what is left, and that is the 212 browser files.
 
 **The strictness ratchet is finished for TypeScript.** `tsconfig.strict.json`'s
 `include` is now `src/**/*`: every `.ts` and `.tsx` in the tree is graded with
@@ -142,7 +154,7 @@ own step 20 (`app/` reduced to re-exports) than as a rename with 671 casts.
 to add. It arrived one folder at a time — platform, then people and hr, then
 main/projects/finance/tasks, then sales/technical/operations/inventory/quality,
 then `src/lib` — 753 findings in all. What keeps the file alive is `checkJs`,
-which is the 311 remaining `.js` files, every one a browser file: they convert
+which is the 212 remaining `.js` files, every one a browser file: they convert
 with W4 and this config and `allowJs` go with them.
 
 `next-env.d.ts` had to join the include: overriding `include` drops the base

@@ -74,7 +74,7 @@ const money = (v: unknown) => {
 
 // ---- context ---------------------------------------------------------------
 
-export const qualityContext = moduleContext({
+export const qualityContext = moduleContext<QualityContext>({
   root: "quality-documents",
   // Departments are the studio's own top-level sections, so this list is
   // whatever the studio is actually divided into today.

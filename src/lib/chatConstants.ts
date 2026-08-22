@@ -39,7 +39,13 @@ export const QUEUE_POLL_MS = 4000;
 // to show someone how they are about to be introduced, and once by the API,
 // which is the copy that counts (the request never gets to name itself).
 export function chatDisplayName(
-  { alias, profile, email }: { alias?: string; profile?: { fullName?: string; shortName?: string }; email?: string } = {},
+  { alias, profile, email }: {
+    alias?: string;
+    // Null as well as absent: getProfile answers null for somebody who has
+    // never filled one in, and every caller hands that straight over.
+    profile?: { fullName?: string; shortName?: string } | null;
+    email?: string;
+  } = {},
 ) {
   return (
     (alias || "").trim()

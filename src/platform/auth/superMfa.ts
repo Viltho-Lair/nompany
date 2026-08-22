@@ -119,4 +119,4 @@ export function openSecret(sealed: unknown): string {
 }
 
 /** Is MFA switched on for this admin? */
-export const mfaEnabled = (admin: { mfa?: { enabledAt?: string; secret?: string } } | null | undefined) => Boolean(admin?.mfa?.enabledAt && admin?.mfa?.secret);
+export const mfaEnabled = (admin: { mfa?: null | { enabledAt?: string; secret?: string } } | null | undefined) => Boolean(admin?.mfa?.enabledAt && admin?.mfa?.secret);
