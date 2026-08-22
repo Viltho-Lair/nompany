@@ -79,8 +79,8 @@ const { gateAFailures } = await import("./gate-a.mjs");
 // Everything Gate A wrote lives under the namespace, so cleanup is one prefix
 // deletion. Runs whatever happened above — a failed assertion must not leave
 // keys behind.
-const { delPrefix } = await import("@/lib/data/store");
-const { getRedisClient } = await import("@/lib/data/redis");
+const { delPrefix } = await import("@/platform/db/store");
+const { getRedisClient } = await import("@/platform/db/redis");
 const swept = await delPrefix(process.env.NOMPANY_KEY_PREFIX);
 console.log(`swept ${swept} keys from "${process.env.NOMPANY_KEY_PREFIX}"`);
 await (await getRedisClient()).quit();

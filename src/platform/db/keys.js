@@ -11,10 +11,10 @@
 //   ix:*                                   uniqueness claims + lookup indexes
 //
 // RULES:
-//  • Nothing outside src/lib/data builds these keys by hand.
+//  • Nothing outside src/platform/db builds these keys by hand.
 //  • User-scoped data lives ONLY under u:<UserID>:* — never on a studio.
 //  • Studio-scoped data lives ONLY under s:<StudioID>:* — never on a user.
-//  • Deletion happens ONLY through src/lib/data/cascade.js.
+//  • Deletion happens ONLY through src/platform/db/cascade.js.
 
 // ---- key namespace ---------------------------------------------------------
 // EVERY key this module builds starts with P, which is empty in normal use.

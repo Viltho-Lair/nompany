@@ -3,7 +3,7 @@
 // platform data: they sit OUTSIDE every cascade and outlive every user/studio.
 //
 // RESTRUCTURED: this now reads/writes the new registry key `g:superAdmins`
-// (src/lib/data/keys.js REG.superAdmins). The old `nompany:g:c:superAdmins`
+// (src/platform/db/keys.js REG.superAdmins). The old `nompany:g:c:superAdmins`
 // location is gone along with the rest of the old structure.
 //
 // A superAdmin record: { id, email, passwordHash, sessionTokens[], createdAt,
@@ -16,8 +16,8 @@
 // See findSuperBySession for why that distinction is the whole point.
 
 import { cookies } from "next/headers";
-import { REG, IX, makeId } from "@/lib/data/keys";
-import { readArr, editArr, claim, getIndex, release } from "@/lib/data/store";
+import { REG, IX, makeId } from "@/platform/db/keys";
+import { readArr, editArr, claim, getIndex, release } from "@/platform/db/store";
 import { hashPassword, verifyPassword, newSessionToken, hashToken, generatePassword } from "@/lib/passwords";
 import { mfaEnabled, openSecret, verifyCode, consumeRecoveryCode } from "@/lib/superMfa";
 import { SUPER_COOKIE } from "@/lib/authConstants";

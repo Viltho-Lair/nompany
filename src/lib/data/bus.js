@@ -27,7 +27,7 @@
 // while a client is mid-reconnect, costs that client one replay from its
 // cursor — never correctness. Nothing here is allowed to fail a write.
 
-import { getRedisClient } from "@/lib/data/redis";
+import { getRedisClient } from "@/platform/db/redis";
 import { log } from "@/lib/observability";
 
 // ---- channels --------------------------------------------------------------

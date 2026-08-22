@@ -7,8 +7,8 @@
 // s:<StudioID>:media:<id> so they cascade with the studio.
 
 import { randomUUID } from "node:crypto";
-import { getRedisClient } from "@/lib/data/redis";
-import { MEDIA } from "@/lib/data/keys";
+import { getRedisClient } from "@/platform/db/redis";
+import { MEDIA } from "@/platform/db/keys";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB per file
 // Built through the shared key module so the namespace applies. A literal

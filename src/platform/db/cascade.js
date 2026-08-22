@@ -21,8 +21,8 @@
 //  ROLE    → the `roleIds` reference on every holder → row. The permissions
 //            themselves live ON the row, so they need no reaping.
 
-import { REG, U, S, SEC, IX, KEY_PREFIX } from "@/lib/data/keys";
-import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "@/lib/data/store";
+import { REG, U, S, SEC, IX, KEY_PREFIX } from "./keys";
+import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "./store";
 import { emitPlatform, PLATFORM } from "@/lib/data/events";
 import { hashToken } from "@/lib/passwords";
 import { log } from "@/lib/observability";

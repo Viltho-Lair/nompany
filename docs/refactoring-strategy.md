@@ -89,7 +89,7 @@ with **one** error table:
 **Refactor.** Introduce an explicit query vocabulary that Redis can satisfy today and SQL can satisfy natively later:
 
 ```js
-// src/lib/data/repo.js — the ONLY thing services call
+// src/platform/db/repo.js — the ONLY thing services call
 export function repo(collection) {
   return {
     byId(ctx, id),

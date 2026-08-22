@@ -38,8 +38,8 @@
 // address exists — the gate runs identically for an email nobody has ever
 // registered, which is what stops it becoming an existence oracle.
 
-import { RL } from "@/lib/data/keys";
-import { incrWithTTL, extendTTL, ttlOf, delKeys, getIndex } from "@/lib/data/store";
+import { RL } from "@/platform/db/keys";
+import { incrWithTTL, extendTTL, ttlOf, delKeys, getIndex } from "@/platform/db/store";
 import { log } from "@/lib/observability";
 
 // Windows and ceilings. Failures, not attempts.

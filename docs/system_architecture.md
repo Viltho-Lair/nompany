@@ -80,7 +80,7 @@ Each department then adds one guard of its own (`hrGuard`, `financeGuard`, `inve
 
 ## 4. Stored data — the complete key catalogue
 
-The ownership tree **is** the key tree, which is what makes cascading deletion equal to prefix deletion. Every key is built in `src/lib/data/keys.js` and nowhere else.
+The ownership tree **is** the key tree, which is what makes cascading deletion equal to prefix deletion. Every key is built in `src/platform/db/keys.js` and nowhere else.
 
 ### 4.1 Global registries — `g:*`
 | Key | Shape | Holds |
@@ -142,7 +142,7 @@ The **employee record is the collaborator row** — there is no `employees` coll
 
 ## 5. The write layer
 
-`src/lib/data/store.js` is the only module that speaks Redis. Everything above it goes through these primitives.
+`src/platform/db/store.js` is the only module that speaks Redis. Everything above it goes through these primitives.
 
 **Compare-and-set is the core idea.** A collection lives in one key holding the whole array, so a naive read-modify-write loses data whenever two overlap — two people ticking different checklist items is enough. `editArr`/`editJSON` close the window with a Lua script that compares a **SHA-1 of the stored string** and only writes if it still matches:
 
@@ -320,7 +320,7 @@ An event and a notification are different things and the code says so: **the eve
 
 ## 11. Deletion and integrity
 
-`src/lib/data/cascade.js` is the **only** legal deletion path for users, studios, sections, collaborators and roles. Redis has no `ON DELETE CASCADE`, so the guarantees come from three properties:
+`src/platform/db/cascade.js` is the **only** legal deletion path for users, studios, sections, collaborators and roles. Redis has no `ON DELETE CASCADE`, so the guarantees come from three properties:
 
 1. the ownership tree is the key tree, so cascade = prefix deletion;
 2. deletion is **children-first, registry-last**, so a re-run after a crash finds the root again and finishes — every cascade is idempotent;

@@ -24,8 +24,8 @@
 // key is revoked, yesterday's rates with an honest "as of" stamp beat an empty
 // box. Callers get `stale: true` and can say so.
 
-import { FX } from "@/lib/data/keys";
-import { getJSON, setJSON, claim, release } from "@/lib/data/store";
+import { FX } from "@/platform/db/keys";
+import { getJSON, setJSON, claim, release } from "@/platform/db/store";
 import { log } from "@/lib/observability";
 
 const BASE = "USD";

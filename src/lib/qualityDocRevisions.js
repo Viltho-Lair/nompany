@@ -20,8 +20,8 @@
 // did, silently, because there was only ever one copy of the text.
 
 import { requirePermission } from "@/platform/access";
-import { repo } from "@/lib/data/repo";
-import { addRow, updateRow } from "@/lib/data/sections";
+import { repo } from "@/platform/db/repo";
+import { addRow, updateRow } from "@/platform/db/sections";
 import { moveSignable, availableMoves } from "@/lib/signables";
 import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
 import { TRANSITIONS, REV_LABELS, isOpen, documentState } from "@/lib/qualityDocuments";

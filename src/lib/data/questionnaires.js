@@ -10,8 +10,8 @@
 // exactly as before; this registry is the definition side, and the two are
 // deliberately separate — deleting a form must never delete what people said.
 
-import { readArr, editArr } from "@/lib/data/store";
-import { ID, REG } from "@/lib/data/keys";
+import { readArr, editArr } from "@/platform/db/store";
+import { ID, REG } from "@/platform/db/keys";
 
 const now = () => new Date().toISOString();
 

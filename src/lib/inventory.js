@@ -19,8 +19,8 @@
 
 import { requirePermission } from "@/platform/access";
 import { isKnownCurrency } from "@/shared/currencies";
-import { repo } from "@/lib/data/repo";
-import { getSectionByKey, addRow, updateRow, deleteRow } from "@/lib/data/sections";
+import { repo } from "@/platform/db/repo";
+import { getSectionByKey, addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";

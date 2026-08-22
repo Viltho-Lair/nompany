@@ -11,8 +11,8 @@
 // the permission catalogue in platform/access/resolve.ts, via the roles on somebody's
 // collaborator row — see the note where the grant helpers used to be.
 
-import { S, SEC, ID, SECTION_COLLECTIONS, SECTION_DEFS, ALL_SECTION_KEYS } from "@/lib/data/keys";
-import { readArr, editArr } from "@/lib/data/store";
+import { S, SEC, ID, SECTION_COLLECTIONS, SECTION_DEFS, ALL_SECTION_KEYS } from "./keys";
+import { readArr, editArr } from "./store";
 import { emit, TYPE } from "@/lib/data/events";
 
 // ---- section rows ----------------------------------------------------------

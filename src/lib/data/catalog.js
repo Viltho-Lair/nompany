@@ -6,8 +6,8 @@
 // small records always read whole, exactly like the questionnaire registry, so
 // there is no cascade to maintain — deleting one is deleting its row.
 
-import { readArr, editArr, getJSON, setJSON } from "@/lib/data/store";
-import { ID, REG } from "@/lib/data/keys";
+import { readArr, editArr, getJSON, setJSON } from "@/platform/db/store";
+import { ID, REG } from "@/platform/db/keys";
 import { normalizeColor, hexForName, DEFAULT_HEX } from "@/lib/planColors";
 
 const now = () => new Date().toISOString();

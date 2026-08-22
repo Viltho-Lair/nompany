@@ -11,15 +11,15 @@
 // Each block names the defect it stands guard over, so nobody deletes it later
 // wondering what it was for.
 
-import { KEY_PREFIX, IX } from "@/lib/data/keys";
-import { SWEEP_SCOPES, sweepRefusal } from "@/lib/data/cascade";
+import { KEY_PREFIX, IX } from "@/platform/db/keys";
+import { SWEEP_SCOPES, sweepRefusal } from "@/platform/db/cascade";
 import { hashPassword, verifyPassword, needsRehash } from "@/lib/passwords";
 import bcrypt from "bcryptjs";
 import {
   checkCredentialAttempts, recordCredentialFailure, clearCredentialFailures, __limits as LIMITS,
 } from "@/lib/data/attempts";
-import { delPrefix, getIndex } from "@/lib/data/store";
-import { getRedisClient } from "@/lib/data/redis";
+import { delPrefix, getIndex } from "@/platform/db/store";
+import { getRedisClient } from "@/platform/db/redis";
 import { createUser, mintSession } from "@/lib/data/users";
 import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/lib/data/studios";
 import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/lib/data/collaborators";
@@ -38,9 +38,9 @@ import { technicalContext, requestRfq, convertRfq, updateRfq, updateQuotation, l
 import { rfqInfo } from "@/lib/salesAnalytics";
 import { landedUnitCost, crossRate } from "@/shared/currencies";
 import { qualityContext, watermarkFor } from "@/lib/quality";
-import { getJSON } from "@/lib/data/store";
+import { getJSON } from "@/platform/db/store";
 import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/lib/relations";
-import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/lib/data/keys";
+import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/platform/db/keys";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/lib/qualityFields";
 import {
@@ -52,9 +52,9 @@ import {
 } from "@/lib/qualityDocRevisions";
 import { resolveBlocks, blocksFor } from "@/lib/quality";
 import { documentState, pendingRevision } from "@/lib/qualityDocuments";
-import { listSections, updateRow } from "@/lib/data/sections";
-import { readArr, writeArr } from "@/lib/data/store";
-import { S, REG as REG_KEYS } from "@/lib/data/keys";
+import { listSections, updateRow } from "@/platform/db/sections";
+import { readArr, writeArr } from "@/platform/db/store";
+import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/lib/finance";
 import { inventoryContext, createItem, adjustStock, listProjectSheets, saveSheetLine } from "@/lib/inventory";
 import {
@@ -68,9 +68,9 @@ import { __signIn, __signOut } from "./nextHeaders.mjs";
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
 } from "@/lib/superAuth";
-import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll, memoryPolicy } from "@/lib/data/store";
-import * as KEYS from "@/lib/data/keys";
-import { STAT } from "@/lib/data/keys";
+import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll, memoryPolicy } from "@/platform/db/store";
+import * as KEYS from "@/platform/db/keys";
+import { STAT } from "@/platform/db/keys";
 import { putMedia } from "@/lib/media";
 import { hashToken } from "@/lib/passwords";
 

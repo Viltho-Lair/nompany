@@ -30,8 +30,8 @@
 // Writing one also rings the doorbell, so an open bell updates immediately
 // rather than at the next page load.
 
-import { S, REG, makeId } from "@/lib/data/keys";
-import { readArr, editArr } from "@/lib/data/store";
+import { S, REG, makeId } from "@/platform/db/keys";
+import { readArr, editArr } from "@/platform/db/store";
 import { publish, CH } from "@/lib/data/bus";
 import { log } from "@/lib/observability";
 

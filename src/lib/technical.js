@@ -13,8 +13,8 @@
 
 import { sectionManageable, requirePermission } from "@/platform/access";
 import { nextUniqueRef } from "@/lib/references";
-import { repo } from "@/lib/data/repo";
-import { addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { repo } from "@/platform/db/repo";
+import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";

@@ -17,8 +17,8 @@
 // drift from the items it counts.
 
 import { requirePermission, can } from "@/platform/access";
-import { repo } from "@/lib/data/repo";
-import { getSectionByKey, updateSection } from "@/lib/data/sections";
+import { repo } from "@/platform/db/repo";
+import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";

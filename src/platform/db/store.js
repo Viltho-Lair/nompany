@@ -13,8 +13,8 @@
 //    batches — safe on any DB size.
 
 import { createHash } from "node:crypto";
-import { cachedRead, invalidate } from "@/lib/data/requestCache";
-import { getRedisClient } from "@/lib/data/redis";
+import { cachedRead, invalidate } from "./requestCache";
+import { getRedisClient } from "./redis";
 import { log } from "@/lib/observability";
 
 const r = () => getRedisClient();

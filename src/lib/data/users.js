@@ -8,8 +8,8 @@
 // USER-scoped data lives HERE and only here — never on a studio.
 // Deletion goes through cascade.js (cascadeDeleteUser), never this file.
 
-import { REG, U, IX, ID, normEmail } from "@/lib/data/keys";
-import { readArr, editArr, editJSON, getJSON, setJSON, claim, getIndex, release } from "@/lib/data/store";
+import { REG, U, IX, ID, normEmail } from "@/platform/db/keys";
+import { readArr, editArr, editJSON, getJSON, setJSON, claim, getIndex, release } from "@/platform/db/store";
 import { newSessionToken, hashToken } from "@/lib/passwords";
 import { listStudios, ownedStudioId, collaborationStudioIds } from "@/lib/data/studios";
 import { isAssignableRole } from "@/lib/platformRoles";

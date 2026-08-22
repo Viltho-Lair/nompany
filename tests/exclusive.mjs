@@ -34,7 +34,7 @@ const LOCK_TTL_SEC = 10 * 60;
  * @returns {Promise<() => Promise<void>>} release function
  */
 export async function claimNamespace(prefix, label) {
-  const { claim, release, getIndex } = await import("@/lib/data/store");
+  const { claim, release, getIndex } = await import("@/platform/db/store");
   const key = lockKeyFor(prefix);
 
   // The lock key is INSIDE the prefix so it can never outlive the namespace it
@@ -92,7 +92,7 @@ export async function claimNamespace(prefix, label) {
  * @param {string} lockKey  the one key to keep
  */
 export async function sweepExcept(prefix, lockKey) {
-  const { scanPrefix, delKeys } = await import("@/lib/data/store");
+  const { scanPrefix, delKeys } = await import("@/platform/db/store");
   const keys = (await scanPrefix(prefix)).filter((k) => k !== lockKey);
   if (!keys.length) return 0;
   await delKeys(...keys);

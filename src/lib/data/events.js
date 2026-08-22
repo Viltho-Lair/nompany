@@ -23,8 +23,8 @@
 // event is a notification about it. A dropped event costs a client one polling
 // interval of staleness, never correctness.
 
-import { S, REG } from "@/lib/data/keys";
-import { xAdd, xAfter, xLastId } from "@/lib/data/store";
+import { S, REG } from "@/platform/db/keys";
+import { xAdd, xAfter, xLastId } from "@/platform/db/store";
 import { publish, CH } from "@/lib/data/bus";
 import { log } from "@/lib/observability";
 

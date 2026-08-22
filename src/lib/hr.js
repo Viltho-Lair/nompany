@@ -28,9 +28,9 @@
 // when it expires — never the number.
 
 import { requirePermission, scopeFor, can, escalates, cleanAssignment } from "@/platform/access";
-import { repo } from "@/lib/data/repo";
+import { repo } from "@/platform/db/repo";
 
-import { addRow, updateRow, deleteRow } from "@/lib/data/sections";
+import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";

@@ -18,8 +18,8 @@
 // This lived in lib/sales.js, which meant Technical imported its numbering from
 // Sales. It belongs to neither.
 
-import { S } from "@/lib/data/keys";
-import { bumpCounter } from "@/lib/data/store";
+import { S } from "@/platform/db/keys";
+import { bumpCounter } from "@/platform/db/store";
 
 // THE HIGHEST NUMBER ALREADY ISSUED UNDER A PREFIX, read off the rows in hand.
 // Used as the floor the counter is seeded from the first time a studio asks.

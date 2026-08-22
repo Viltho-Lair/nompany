@@ -1,5 +1,5 @@
 "use client";
-import { SECTION_DEFS } from "@/lib/data/keys";
+import { SECTION_DEFS } from "@/platform/db/keys";
 import { AnimatePresence, motion } from "motion/react";
 import { EASE_OUT_EXPO, fadeUp, stagger } from "@/components/landing/lib/motion";
 import { AnimatedHeadline } from "../text/AnimatedHeadline";

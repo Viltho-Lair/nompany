@@ -22,10 +22,10 @@
 
 import { randomUUID } from "node:crypto";
 import { requirePermission } from "@/platform/access";
-import { repo } from "@/lib/data/repo";
-import { addRow, updateRow, deleteRow } from "@/lib/data/sections";
-import { bumpCounter } from "@/lib/data/store";
-import { SEC } from "@/lib/data/keys";
+import { repo } from "@/platform/db/repo";
+import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
+import { bumpCounter } from "@/platform/db/store";
+import { SEC } from "@/platform/db/keys";
 import { formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision, isOpen } from "@/lib/qualityDocuments";
 
 // A NEW COLLECTION, not the old one reused. The old rows carry `sections` and

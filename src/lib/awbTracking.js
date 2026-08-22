@@ -14,8 +14,8 @@
 // printed under it.
 
 import { requirePermission } from "@/platform/access";
-import { repo } from "@/lib/data/repo";
-import { addRow, updateRow, deleteRow } from "@/lib/data/sections";
+import { repo } from "@/platform/db/repo";
+import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { parseAwb } from "@/lib/awb";
 import { AWB_STATUS_BY_CODE, summarizeMovements } from "@/lib/awbStatus";
 

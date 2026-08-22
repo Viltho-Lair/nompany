@@ -4,7 +4,7 @@ import Link from "next/link";
 import { currentUser, needsQuestionnaire } from "@/lib/identity";
 import { studioContext, canAdminister, visibleSections, recordStudioVisit } from "@/lib/studios";
 import { sectionManageable, can } from "@/platform/access";
-import { listSections } from "@/lib/data/sections";
+import { listSections } from "@/platform/db/sections";
 import { getProfile } from "@/lib/data/users";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
 import { chatDisplayName } from "@/lib/chatConstants";

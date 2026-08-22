@@ -17,10 +17,10 @@
 //     messages: [{ from: "studio"|"nompany", text, at }],
 //     createdAt, lastAt }
 
-import { CHAT, ID } from "@/lib/data/keys";
+import { CHAT, ID } from "@/platform/db/keys";
 import {
   getJSON, setJSONEx, editJSON, touchTTL, claim, delKeys, sAdd, sRem, sMembers,
-} from "@/lib/data/store";
+} from "@/platform/db/store";
 // The vocabulary is shared with the client — a status string means the same
 // thing in the widget as it does here, so there is exactly one definition of it.
 import { WAITING, ACTIVE, ENDED, STUDIO, NOMPANY } from "@/lib/chatConstants";

@@ -11,8 +11,8 @@
 // it is cleaned up by BOTH cascade paths (delete user → their requests; delete
 // studio → its requests).
 
-import { REG, ID } from "@/lib/data/keys";
-import { readArr, editArr } from "@/lib/data/store";
+import { REG, ID } from "@/platform/db/keys";
+import { readArr, editArr } from "@/platform/db/store";
 import { emit, emitPlatform, SCOPE, TYPE, PLATFORM } from "@/lib/data/events";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { listRoles } from "@/lib/data/roles";

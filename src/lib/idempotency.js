@@ -25,8 +25,8 @@
 // saying so. The client retries again and gets the recorded answer.
 
 import crypto from "crypto";
-import { IDEM } from "@/lib/data/keys";
-import { getJSON, setJSON, claim, release } from "@/lib/data/store";
+import { IDEM } from "@/platform/db/keys";
+import { getJSON, setJSON, claim, release } from "@/platform/db/store";
 
 // Long enough to cover any retry a human or a client library will attempt, short
 // enough that a key is not a permanent record. Stripe uses 24h; there is no

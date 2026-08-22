@@ -35,8 +35,8 @@
 // happened. Losing the record is bad; refusing a completed action because we
 // could not write about it is worse, and would make the audit log an outage.
 
-import { S, REG } from "@/lib/data/keys";
-import { xAdd, xAfter } from "@/lib/data/store";
+import { S, REG } from "@/platform/db/keys";
+import { xAdd, xAfter } from "@/platform/db/store";
 import { log } from "@/lib/observability";
 
 // Deep enough to answer "what happened this quarter" on a busy studio, capped

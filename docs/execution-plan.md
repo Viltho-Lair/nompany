@@ -85,10 +85,10 @@ Eight changes. All small, all local, all independently deployable. Ship them in 
 
 | # | Fix | Finding | Files | Effort |
 |---|---|---|---|---|
-| 0.1 | **Prefix-guard `sweepOrphans`** + refuse to delete when the registry is empty | C-1 | `lib/data/cascade.js` | 30 min |
-| 0.2 | **Rate-limit before `verifyPassword`**, keyed on email + IP, escalating lockout; same on `/forgot` and `/reset` | C-4 | `lib/identity.js`, `lib/data/keys.js` | 2 h |
+| 0.1 | **Prefix-guard `sweepOrphans`** + refuse to delete when the registry is empty | C-1 | `platform/db/cascade.js` | 30 min |
+| 0.2 | **Rate-limit before `verifyPassword`**, keyed on email + IP, escalating lockout; same on `/forgot` and `/reset` | C-4 | `lib/identity.js`, `platform/db/keys.js` | 2 h |
 | 0.3 | **Server-side console session expiry** — `ix:supersession:<sha256>` with `EX`; `timingSafeEqual` | C-5 | `lib/superAuth.js` | 3 h |
-| 0.4 | **Rate-limit + Origin check on `/api/track`**; HyperLogLog for the visitor set; TTL restored | C-3 | `api/track/route.js`, `lib/data/keys.js` | 3 h |
+| 0.4 | **Rate-limit + Origin check on `/api/track`**; HyperLogLog for the visitor set; TTL restored | C-3 | `api/track/route.js`, `platform/db/keys.js` | 3 h |
 | 0.5 | **Security headers** — CSP (report-only first), HSTS, `X-Frame-Options`, `Referrer-Policy`, `X-Content-Type-Options`, `poweredByHeader: false` | H-10 | `next.config.mjs` | 2 h |
 | 0.6 | **Ownership check on private media** — compare `owner`, and require studio membership for studio-scoped blobs | C-2 | `api/media/[id]/route.js` | 2 h |
 | 0.7 | **Bcrypt 10 → 12** | L-1 | `lib/passwords.js` | 5 min |
@@ -97,7 +97,7 @@ Eight changes. All small, all local, all independently deployable. Ship them in 
 **0.1 in full, because it is the one that cannot wait:**
 
 ```js
-import { KEY_PREFIX as P } from "@/lib/data/keys";
+import { KEY_PREFIX as P } from "@/platform/db/keys";
 
 export async function sweepOrphans() {
   const users = await readArr(REG.users);

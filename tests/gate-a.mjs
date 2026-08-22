@@ -13,8 +13,8 @@
 //
 // Nothing in Wave 2 starts until this is green.
 
-import * as KEYS from "@/lib/data/keys";
-import { KEY_PREFIX } from "@/lib/data/keys";
+import * as KEYS from "@/platform/db/keys";
+import { KEY_PREFIX } from "@/platform/db/keys";
 import { createUser, updateUser, mintSession } from "@/lib/data/users";
 import { createStudio } from "@/lib/data/studios";
 import { addCollaborator, getCollaboratorByUser, updateCollaborator } from "@/lib/data/collaborators";
@@ -24,11 +24,11 @@ import { STATUS } from "@/lib/httpStatus";
 import { studioContext } from "@/lib/studios";
 import { SESSION_COOKIE } from "@/lib/identity";
 import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/lib/superAuth";
-import { withCommandCount } from "@/lib/data/commandCount";
+import { withCommandCount } from "@/platform/db/commandCount";
 import { withRequest, requestId, redact, log } from "@/lib/observability";
-import { readArr, setJSON } from "@/lib/data/store";
-import { readCol } from "@/lib/data/sections";
-import { S } from "@/lib/data/keys";
+import { readArr, setJSON } from "@/platform/db/store";
+import { readCol } from "@/platform/db/sections";
+import { S } from "@/platform/db/keys";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 import { golden, req, ctx, capture, RECORDING, touched } from "./goldens.mjs";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -305,10 +305,18 @@ console.log("== the architecture, asserted rather than remembered");
     const rel = route.path.replace(/^src\/app\//, "");
     if (PUBLIC[rel]) continue;
     if (AUTH.test(route.text)) continue;
-    // One hop: does anything it imports from @/lib do the authenticating?
-    const imported = [...route.text.matchAll(/from "@\/lib\/([a-zA-Z0-9/_-]+)"/g)].map((m) => m[1]);
+    // One hop: does anything it imports do the authenticating?
+    //
+    // FOLLOWS ANY `@/` SPECIFIER, not just `@/lib`. Wave 3 moves modules out to
+    // `@/platform` and `@/shared` one folder at a time, and a check that only
+    // knew about `@/lib` would stop seeing the guard a route delegates to —
+    // reporting it unguarded when nothing changed but an import path. A test
+    // that cries wolf on a refactor gets an exception list, and an exception
+    // list is where real holes hide.
+    const imported = [...route.text.matchAll(/from "@\/([a-zA-Z0-9/_-]+)"/g)].map((m) => m[1]);
     const delegated = imported.some((mod) => {
-      const file = sources.find((f) => f.path === `src/lib/${mod}.js` || f.path === `src/lib/${mod}.ts`);
+      const file = sources.find((f) => ["", ".js", ".ts", "/index.js", "/index.ts"]
+        .some((ext) => f.path === `src/${mod}${ext}`));
       return file && AUTH.test(file.text);
     });
     if (!delegated) unguarded.push(rel);
@@ -2035,8 +2043,8 @@ console.log("== credentials at rest");
 {
   const users = await import("@/lib/data/users");
   const { hashToken } = await import("@/lib/passwords");
-  const { KEY_PREFIX } = await import("@/lib/data/keys");
-  const store = await import("@/lib/data/store");
+  const { KEY_PREFIX } = await import("@/platform/db/keys");
+  const store = await import("@/platform/db/store");
 
   // ---- H-1: the session token is not the key -------------------------------
   const token = await users.mintSession(owner.id, 600);
@@ -2249,7 +2257,7 @@ console.log("== one row, by the id a live event named");
 
   // ...and it would have caught a raw row, which is the version that looks fine
   // in isolation and is wrong on screen.
-  const raw = await (await import("@/lib/data/repo")).repo("salesTickets")
+  const raw = await (await import("@/platform/db/repo")).repo("salesTickets")
     .byId({ studio: sc.studio, section: sc.ticketsSection }, someTicket.id);
   ok("...and the raw stored row would NOT have passed that",
     JSON.stringify(raw) !== JSON.stringify(fromList),
@@ -2303,7 +2311,7 @@ console.log("== the repository: a query somebody else could answer");
 // null-guard — rather than against what the repository "should" do, because
 // what it should do IS what the call sites already did.
 {
-  const { repo, orderBy } = await import("@/lib/data/repo");
+  const { repo, orderBy } = await import("@/platform/db/repo");
   const sales = await import("@/lib/sales");
   await signIn(owner.id);
 

@@ -8,7 +8,7 @@
 // /c/<slug> profile it powered were removed on 2026-08-12 — nompany.com hosts
 // only the platform's own marketing site.)
 
-import { readArr, editArr, editJSON, getJSON } from "@/lib/data/store";
+import { readArr, editArr, editJSON, getJSON } from "@/platform/db/store";
 
 const COLLECTIONS = new Set([
   "services", "careers", "previousProjects", "galleryImages",

@@ -1,5 +1,5 @@
-import { getRedisClient } from "@/lib/data/redis";
-import { S } from "@/lib/data/keys";
+import { getRedisClient } from "@/platform/db/redis";
+import { S } from "@/platform/db/keys";
 
 // How many live chats a studio has started this month, against what its package
 // allows.

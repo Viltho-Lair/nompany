@@ -1,7 +1,7 @@
 import { requirePermission, cleanAssignment, escalates } from "@/platform/access";
 import { currentUser } from "@/lib/identity";
 import { studioContext, listCollaborators, updateCollaborator } from "@/lib/studios";
-import { cascadeDeleteCollaborator } from "@/lib/data/cascade";
+import { cascadeDeleteCollaborator } from "@/platform/db/cascade";
 import { getProfile } from "@/lib/data/users";
 
 export const runtime = "nodejs";

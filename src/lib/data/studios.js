@@ -7,8 +7,8 @@
 //  • Creation seeds the fixed section list (each with a fresh SectionID) and
 //    the owner's Collaborator row (role "owner") — a studio is born complete.
 
-import { REG, U, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/lib/data/keys";
-import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, sMembers, hIncrBy, hGetAll, hDel } from "@/lib/data/store";
+import { REG, U, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/platform/db/keys";
+import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, sMembers, hIncrBy, hGetAll, hDel } from "@/platform/db/store";
 import { addCollaborator } from "@/lib/data/collaborators";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
 import { emitPlatform, PLATFORM } from "@/lib/data/events";

@@ -14,7 +14,7 @@
 //     where the escalation bug lived. It is swapped for tests/nextHeaders.mjs,
 //     which holds a cookie jar the suite can set.
 
-//  3. Extensions. The source imports `@/lib/data/keys`, not `…/keys.js`,
+//  3. Extensions. The source imports `@/platform/db/keys`, not `…/keys.js`,
 //     because a bundler fills that in. Node does not, so the candidates are
 //     tried in the same order Next tries them — INCLUDING .ts and .tsx, which
 //     Wave 3 converts modules to one folder at a time. Node strips the types and

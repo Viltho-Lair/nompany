@@ -13,8 +13,8 @@
 // StudioIDs) is the user's derived "collaboration studios" list.
 // Row deletion goes through cascade.js (cascadeDeleteCollaborator).
 
-import { S, IX, ID } from "@/lib/data/keys";
-import { readArr, editArr, sAdd } from "@/lib/data/store";
+import { S, IX, ID } from "@/platform/db/keys";
+import { readArr, editArr, sAdd } from "@/platform/db/store";
 import { emit, SCOPE, TYPE } from "@/lib/data/events";
 
 // HR fields carried on the merged row (studio-scoped, admin/HR-editable).

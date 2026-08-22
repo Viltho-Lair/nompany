@@ -9,7 +9,7 @@
 
 ## 0. Executive summary
 
-The codebase is unusually disciplined for its size. Access control is centralised in exactly one resolver (`src/platform/access/resolve.ts`), writes are genuinely atomic (compare-and-set in Lua, `src/lib/data/store.js`), the ownership tree is encoded in the key tree so deletion is prefix deletion, and the reasoning behind almost every decision is written down next to it. That is a better foundation than most systems this age have.
+The codebase is unusually disciplined for its size. Access control is centralised in exactly one resolver (`src/platform/access/resolve.ts`), writes are genuinely atomic (compare-and-set in Lua, `src/platform/db/store.js`), the ownership tree is encoded in the key tree so deletion is prefix deletion, and the reasoning behind almost every decision is written down next to it. That is a better foundation than most systems this age have.
 
 Three things are nonetheless structurally wrong, and they compound:
 
@@ -28,7 +28,7 @@ And one finding is a live hazard rather than a design flaw:
 ## 1. Critical
 
 ### C-1 · `sweepOrphans()` can delete the entire production dataset
-`src/lib/data/cascade.js:196-233` · weekly cron, `vercel.json`
+`src/platform/db/cascade.js:196-233` · weekly cron, `vercel.json`
 
 The function mixes two addressing conventions in one body. The *repair* half builds keys through the prefixed builders:
 
@@ -43,11 +43,11 @@ for (const id of strandedRoots(await scanPrefix("u:"), "u:", userIds)) { await d
 for (const id of strandedRoots(await scanPrefix("s:"), "s:", studioIds)) { await delPrefix(`s:${id}:`); }
 ```
 
-`KEY_PREFIX` (`src/lib/data/keys.js:32`) is honoured everywhere except here. With `NOMPANY_KEY_PREFIX=test_`, `readArr(REG.users)` reads `test_g:users` — empty — so `userIds` and `studioIds` are empty sets, `scanPrefix("u:")` returns every **real** user key, every id fails the `known.has(id)` test, and `delPrefix` removes the subtree. Same for `s:`. Then `ix:email:`, `ix:slug:`, `ix:owner:` and `ix:collab:` are reaped on the same logic.
+`KEY_PREFIX` (`src/platform/db/keys.js:32`) is honoured everywhere except here. With `NOMPANY_KEY_PREFIX=test_`, `readArr(REG.users)` reads `test_g:users` — empty — so `userIds` and `studioIds` are empty sets, `scanPrefix("u:")` returns every **real** user key, every id fails the `known.has(id)` test, and `delPrefix` removes the subtree. Same for `s:`. Then `ix:email:`, `ix:slug:`, `ix:owner:` and `ix:collab:` are reaped on the same logic.
 
 `tests/integration.test.mjs:19` sets `NOMPANY_KEY_PREFIX` unconditionally. Nothing calls `sweepOrphans` from the suite today, which is the only reason this has not fired. There is no test, no guard, and no comment marking the line as dangerous.
 
-**Fix (today, ~10 lines).** Add `import { KEY_PREFIX as P } from "@/lib/data/keys"` and prefix all four literals. Add a hard refusal at the top of the function: if `KEY_PREFIX` is non-empty **and** both registries are empty, return without deleting — an empty registry is never a licence to delete everything. Add a suite case that runs the sweep under a prefix with live-shaped decoy keys outside it and asserts the decoys survive.
+**Fix (today, ~10 lines).** Add `import { KEY_PREFIX as P } from "@/platform/db/keys"` and prefix all four literals. Add a hard refusal at the top of the function: if `KEY_PREFIX` is non-empty **and** both registries are empty, return without deleting — an empty registry is never a licence to delete everything. Add a suite case that runs the sweep under a prefix with live-shaped decoy keys outside it and asserts the decoys survive.
 
 ---
 
@@ -331,7 +331,7 @@ These are structural necessities absent from the product, ordered by how much la
 
 | # | Severity | Finding | Primary location |
 |---|---|---|---|
-| C-1 | Critical | Orphan sweep can delete the production dataset | `lib/data/cascade.js:196` |
+| C-1 | Critical | Orphan sweep can delete the production dataset | `platform/db/cascade.js:196` |
 | C-2 | Critical | Cross-tenant read of private media | `api/media/[id]/route.js:13` |
 | C-3 | Critical | Unauthenticated unbounded writes via `/api/track` | `api/track/route.js` |
 | C-4 | Critical | No rate limit on password verification | `lib/identity.js:235` |
@@ -339,11 +339,11 @@ These are structural necessities absent from the product, ordered by how much la
 | C-6 | Critical | Media upload unquotaed and never reclaimed | `lib/media.js` |
 | H-1 | High | Session tokens stored in plaintext | `lib/data/users.js` |
 | H-2 | High | Whole user registry read per request | `lib/data/users.js:50` |
-| H-3 | High | Whole-collection-per-key storage model | `lib/data/sections.js:149` |
+| H-3 | High | Whole-collection-per-key storage model | `platform/db/sections.js:149` |
 | H-4 | High | 8-9 dependent round trips per screen | measured, §2 |
 | H-5 | High | `listSections` duplicated + reconciles on read | `lib/studios.js:123` |
 | H-6 | High | Live updates refetch whole payloads | `studio2/useLiveUpdates.js` |
-| H-7 | High | `ConflictError` returns 500 not 409 | `lib/data/store.js` |
+| H-7 | High | `ConflictError` returns 500 not 409 | `platform/db/store.js` |
 | H-8 | High | N+1 profile reads in list endpoints | `lib/hr.js:338` |
 | H-9 | High | Field encryption fails open and silent | `lib/fieldCrypto.js:35` |
 | H-10 | High | No CSRF defence, no security headers | `next.config.mjs` |
@@ -357,7 +357,7 @@ These are structural necessities absent from the product, ordered by how much la
 | M-7 | Medium | Legacy pre-pivot keys in production | live Redis |
 | M-8 | Medium | Coarse write gate misleads | `lib/hr.js:98` |
 | M-9 | Medium | Write/read rights diverge on encrypted PII | `lib/hr.js:370` |
-| M-10 | Medium | Sweep will time out before data outgrows it | `lib/data/cascade.js:196` |
+| M-10 | Medium | Sweep will time out before data outgrows it | `platform/db/cascade.js:196` |
 | M-11 | Medium | No function region pinned | `vercel.json` |
 | M-12 | Medium | No CI, no lint config, no test runner | repo root |
 | M-13 | Medium | Duplicate `jsconfig.json` | repo root |

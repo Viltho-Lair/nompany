@@ -1,5 +1,5 @@
-import { getRedisClient } from "@/lib/data/redis";
-import { STAT } from "@/lib/data/keys";
+import { getRedisClient } from "@/platform/db/redis";
+import { STAT } from "@/platform/db/keys";
 import { CONTINENTS, CONTINENT_KEYS } from "@/lib/continents";
 import { DEVICES, DEVICE_KEYS } from "@/lib/devices";
 

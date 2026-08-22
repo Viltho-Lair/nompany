@@ -1,7 +1,7 @@
-import { readArr, editArr } from "@/lib/data/store";
-import { S, ID } from "@/lib/data/keys";
+import { readArr, editArr } from "@/platform/db/store";
+import { S, ID } from "@/platform/db/keys";
 import { emit, SCOPE, TYPE } from "@/lib/data/events";
-import { cascadeDeleteRole } from "@/lib/data/cascade";
+import { cascadeDeleteRole } from "@/platform/db/cascade";
 import { cleanPermissions, keysForLevel, AREAS, SCOPES, ADMIN_ROLE_ID } from "@/platform/access";
 
 // CHANGING A ROLE CHANGES WHAT EVERYONE HOLDING IT MAY DO, so it is announced.

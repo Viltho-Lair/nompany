@@ -26,8 +26,8 @@
 // than left to rot: a module nobody calls is a module nobody notices is wrong.
 
 import { can, requirePermission } from "@/platform/access";
-import { repo } from "@/lib/data/repo";
-import { updateRow } from "@/lib/data/sections";
+import { repo } from "@/platform/db/repo";
+import { updateRow } from "@/platform/db/sections";
 import { DOCS } from "@/lib/qualityDocs";
 import { moduleContext } from "@/lib/modules/context";
 import { listCollaborators } from "@/lib/data/collaborators";

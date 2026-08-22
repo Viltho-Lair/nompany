@@ -1,5 +1,5 @@
-import { getRedisClient } from "@/lib/data/redis";
-import { REG } from "@/lib/data/keys";
+import { getRedisClient } from "@/platform/db/redis";
+import { REG } from "@/platform/db/keys";
 import { emitPlatform, PLATFORM } from "@/lib/data/events";
 import { notifySuper, NOTIFY } from "@/lib/data/notifications";
 

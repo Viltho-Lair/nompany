@@ -103,7 +103,7 @@ because somebody looked at a screen and asked why it was empty.
 | all 13 service modules | 188 | ✅ |
 
 Every service module reads and writes through `repo()`. `readCol`, `addRow`,
-`updateRow` and `deleteRow` are now internal to `src/lib/data/`.
+`updateRow` and `deleteRow` are now internal to `src/platform/db/`.
 
 ---
 

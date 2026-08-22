@@ -1,6 +1,6 @@
 import { cronDenied } from "@/lib/cronAuth";
-import { sweepOrphans } from "@/lib/data/cascade";
-import { memoryPolicy } from "@/lib/data/store";
+import { sweepOrphans } from "@/platform/db/cascade";
+import { memoryPolicy } from "@/platform/db/store";
 import { log, withRequest } from "@/lib/observability";
 
 export const runtime = "nodejs";

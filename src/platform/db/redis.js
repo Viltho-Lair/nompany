@@ -5,7 +5,7 @@
 // still exactly ONE connection until the old file is deleted.)
 
 import { createClient } from "redis";
-import { countingClient } from "@/lib/data/commandCount";
+import { countingClient } from "./commandCount";
 import { log } from "@/lib/observability";
 
 let clientPromise = null;
@@ -24,7 +24,7 @@ export function getRedisClient() {
     await client.connect();
     // Wrapped so every command can report itself into an active counting scope.
     // Outside one there is no store and nothing is recorded — see
-    // lib/data/commandCount.js for why the hop count is worth measuring at all.
+    // platform/db/commandCount.js for why the hop count is worth measuring at all.
     return countingClient(client);
   })();
   return clientPromise;

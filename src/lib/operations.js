@@ -15,8 +15,8 @@
 // so neither can quietly go stale.
 
 import { requirePermission } from "@/platform/access";
-import { repo } from "@/lib/data/repo";
-import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/lib/data/sections";
+import { repo } from "@/platform/db/repo";
+import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
 import { listCollaborators } from "@/lib/data/collaborators";

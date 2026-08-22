@@ -14,8 +14,8 @@
 // so a Redis dump yields no usable credentials, and compare in constant time.
 
 import crypto from "node:crypto";
-import { OTP, RL, U, makeId } from "@/lib/data/keys";
-import { getJSON, setJSONEx, consume, incrWithTTL, readArr, editArr, editJSON } from "@/lib/data/store";
+import { OTP, RL, U, makeId } from "@/platform/db/keys";
+import { getJSON, setJSONEx, consume, incrWithTTL, readArr, editArr, editJSON } from "@/platform/db/store";
 
 export const CODE_TTL_SEC = 10 * 60;               // a code is valid 10 minutes
 export const MAX_ATTEMPTS = 5;                     // wrong guesses per challenge

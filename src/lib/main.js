@@ -10,8 +10,8 @@
 // Everything is derived on read, like every other module: nothing here is a
 // stored dashboard that could drift from what the sections actually say.
 
-import { repo } from "@/lib/data/repo";
-import { listSections } from "@/lib/data/sections";
+import { repo } from "@/platform/db/repo";
+import { listSections } from "@/platform/db/sections";
 import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
 import { sectionViewable } from "@/platform/access";
 import { listCollaborators } from "@/lib/data/collaborators";

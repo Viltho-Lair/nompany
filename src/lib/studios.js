@@ -20,13 +20,13 @@ import {
 import {
   addCollaborator, listCollaborators, getCollaboratorByUser, updateCollaborator,
 } from "@/lib/data/collaborators";
-import { listSections } from "@/lib/data/sections";
+import { listSections } from "@/platform/db/sections";
 import {
   createJoinRequest, listPendingForStudio, getJoinRequest, decideJoinRequest,
   APPROVED, DECLINED,
 } from "@/lib/data/joinRequests";
-import { getIndex } from "@/lib/data/store";
-import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/lib/data/keys";
+import { getIndex } from "@/platform/db/store";
+import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/platform/db/keys";
 import { getVerification, getProfile } from "@/lib/data/users";
 import { memberLimitOf } from "@/lib/plans";
 import { slugify } from "@/shared/slug";

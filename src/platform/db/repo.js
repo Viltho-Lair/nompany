@@ -23,7 +23,7 @@
 // seam has failed at the only job it has. If a query cannot be expressed in this
 // vocabulary, widen the vocabulary — do not pass a callback.
 
-import { readCol, addRow, updateRow, deleteRow } from "@/lib/data/sections";
+import { readCol, addRow, updateRow, deleteRow } from "./sections";
 
 // ---- scope -----------------------------------------------------------------
 // EVERY KEY IS BUILT FROM THE CALLER'S OWN STUDIO. A repository call cannot name

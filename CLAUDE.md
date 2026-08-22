@@ -16,7 +16,7 @@ only what must be true in every session.
 Each of these exists because a real failure produced it. Breaking one is a bug even
 when the code looks cleaner afterwards.
 
-1. **Keys are built only in `src/lib/data/keys.js`.** Never a literal, never a
+1. **Keys are built only in `src/platform/db/keys.js`.** Never a literal, never a
    template at a call site. Two incidents came from this: `sweepOrphans` reaped
    bare `u:`/`s:` prefixes and would have prefix-deleted production, and
    `lib/media.js` wrote its blob key from a literal so the test suite put real
@@ -74,7 +74,7 @@ then its own **Domain Workflow** and **Constraint log**.
 | `researcher` | New ideas, provider and library evaluation, the **decision ledger** |
 | `frontend-ui` | Components, component state, tokens, skeletons, the Electron task-bar |
 | `business-logic` | Sales→quotation chain, approvals, `relations.js`, signables |
-| `backend-db` | `src/lib/data/**`, keys, cascade, the repository seam, the SQL migration |
+| `backend-db` | `src/platform/db/**` and `src/lib/data/**`, keys, cascade, the repository seam, the SQL migration |
 | `operations-integration` | HR, Finance, Inventory, Operations, and what an external payload *means* to a record |
 | `devops` | CI, deploys, environments, secrets, crons, and the *wiring* of external services |
 | `qa-security` | Tests, permission matrix, tenant-bleed proofs, hop counts. Read-only over `src/**` |

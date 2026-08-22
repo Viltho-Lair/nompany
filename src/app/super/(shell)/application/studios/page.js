@@ -1,7 +1,7 @@
 import { PageHeader, Card, CardHead, Row, Col, Table } from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
-import { readArr } from "@/lib/data/store";
-import { REG } from "@/lib/data/keys";
+import { readArr } from "@/platform/db/store";
+import { REG } from "@/platform/db/keys";
 import { listCollaborators } from "@/lib/data/collaborators";
 import { getUserById, getProfile } from "@/lib/data/users";
 import { loadCatalogues, planOf } from "@/lib/plans";
