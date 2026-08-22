@@ -307,10 +307,26 @@
   transform: translate(-50%, -50%);
 }
 
+/* THE AUTH STEP TRANSITION. The credentials panel and the one-time-code panel
+   are the same card showing two steps; keying each with its stage and playing
+   this on mount makes the second factor read as stepping FORWARD rather than the
+   card's contents blinking over. A rise, not a lateral slide, so it means the
+   same thing in Arabic as in English — direction is the browser's job and a
+   translateX would fight it. Also carries the inline error and notice, so a
+   refusal arrives rather than snaps in. */
+.auth-panel {
+  animation: auth-panel-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes auth-panel-in {
+  from { opacity: 0; transform: translateY(0.6rem); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .animate-pulseRing,
-  .animate-fadeUp { animation: none !important; }
+  .animate-fadeUp,
+  .auth-panel { animation: none !important; }
   /* The skeleton keeps its box and its tone and simply stops sweeping — a still
      placeholder is the point; the shimmer was only ever a hint that the wait is
      still going. */

@@ -2,7 +2,7 @@
 import { useId, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { EASE_OUT_EXPO, SPRING_SNAPPY } from "@/components/landing/lib/motion";
-export function FloatingField({ label, type = "text", value, onChange, status = "idle", error, required, multiline, autoComplete, }) {
+export function FloatingField({ label, type = "text", value, onChange, status = "idle", error, required, multiline, autoComplete, trailing = null, }) {
     const id = useId();
     const [focused, setFocused] = useState(false);
     const floated = focused || value.length > 0;
@@ -16,7 +16,7 @@ export function FloatingField({ label, type = "text", value, onChange, status = 
         onFocus: () => setFocused(true),
         onBlur: () => setFocused(false),
         onChange: (e) => onChange(e.target.value),
-        className: "peer w-full resize-none bg-transparent px-4 pt-6 pb-2.5 pr-12 text-sm text-fg outline-none placeholder:text-transparent",
+        className: "peer w-full resize-none bg-transparent px-4 pt-6 pb-2.5 pe-12 text-sm text-fg outline-none placeholder:text-transparent",
     };
     return (<div className="w-full">
       <div className={`relative overflow-hidden rounded-xl border bg-ink-soft/70 transition-colors duration-300 ${status === "error"
@@ -27,7 +27,7 @@ export function FloatingField({ label, type = "text", value, onChange, status = 
         {multiline ? (<textarea rows={4} {...shared}/>) : (<input type={type} {...shared}/>)}
 
         {/* Floating label */}
-        <motion.label htmlFor={id} className="pointer-events-none absolute left-4 origin-left text-fg-muted" animate={{
+        <motion.label htmlFor={id} className="pointer-events-none absolute start-4 origin-left text-fg-muted rtl:origin-right" animate={{
             y: floated ? -10 : 0,
             scale: floated ? 0.78 : 1,
             color: focused
@@ -42,9 +42,13 @@ export function FloatingField({ label, type = "text", value, onChange, status = 
             background: "linear-gradient(90deg, var(--color-iris), var(--color-cyan))",
         }} initial={false} animate={{ scaleX: focused ? 1 : 0 }} transition={{ duration: 0.4, ease: EASE_OUT_EXPO }}/>
 
+        {trailing && (
+          <div className="absolute inset-y-0 end-1 flex items-center">{trailing}</div>
+        )}
+
         {/* Success tick */}
         <AnimatePresence>
-          {status === "valid" && (<motion.span className="absolute top-1/2 right-4 -translate-y-1/2" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={SPRING_SNAPPY}>
+          {status === "valid" && (<motion.span className="absolute top-1/2 end-4 -translate-y-1/2" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={SPRING_SNAPPY}>
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <circle cx="10" cy="10" r="9" fill="var(--color-mint)" opacity="0.16"/>
                 <circle cx="10" cy="10" r="9" stroke="var(--color-mint)" strokeWidth="1.3"/>
