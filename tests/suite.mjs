@@ -66,8 +66,8 @@ import { documentState, pendingRevision } from "@/modules/quality/qualityDocumen
 import { listSections, updateRow } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
-import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/modules/finance/finance";
-import { listAccounts, postEntry, reverseEntry, listJournal, trialBalance } from "@/modules/finance/ledger";
+import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices } from "@/modules/finance/finance";
+import { listAccounts, postEntry, reverseEntry, listJournal, trialBalance, postInvoice, postExpense, postPayment } from "@/modules/finance/ledger";
 import { inventoryContext, createItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation,
@@ -900,6 +900,72 @@ console.log("\n== the ledger balances, because nothing unbalanced was let in");
   const vRev = await reverseEntry(viewerFin, sale.entry.id, "no");
   ok("...nor reverse an entry", vRev.error === "forbidden", JSON.stringify(vRev.error ?? vRev));
   await updateCollaborator(studio.id, viewer.collaborator.id, { roleIds: [ADMIN_ROLE_ID] });
+}
+
+// ============================================================================
+console.log("\n== the ledger posts the documents that feed it");
+// A ledger nobody posts to is a right nothing exercises. These post the real
+// documents — an invoice, its payment, an expense — into balanced entries with
+// the conventional accounts, ONCE each, and the trial balance survives it.
+{
+  const fin = await financeContext(owner, slug);
+  const chart = (await listAccounts(fin)).accounts;
+  const idOf = (code) => chart.find((a) => a.code === code)?.id;
+
+  // A 100 + 15% VAT invoice, issued so it can be posted.
+  const inv = await createInvoice(fin, { clientName: "Ledger Co", lines: [{ description: "Work", qty: 1, unitPrice: 100 }] });
+  ok("an invoice exists to post", !!inv.invoice, JSON.stringify(inv.error));
+
+  // A DRAFT IS NOT POSTABLE — it is not yet a claim on anyone.
+  const draftPost = await postInvoice(fin, inv.invoice.id);
+  ok("a draft invoice cannot be posted", draftPost.error === "not-postable", JSON.stringify(draftPost));
+
+  await editInvoice(fin, inv.invoice.id, { status: "Sent" });
+  const posted = await postInvoice(fin, inv.invoice.id);
+  ok("an issued invoice posts", !!posted.entry, JSON.stringify(posted.error ?? posted));
+  // Dr AR 115 = Cr Revenue 100 + Cr VAT 15.
+  const arLine = posted.entry.lines.find((l) => l.accountId === idOf("1100"));
+  const revLine = posted.entry.lines.find((l) => l.accountId === idOf("4000"));
+  const vatLine = posted.entry.lines.find((l) => l.accountId === idOf("2100"));
+  ok("...debiting receivable for the whole claim", arLine?.debit === 115, JSON.stringify(arLine));
+  ok("...crediting revenue for the net", revLine?.credit === 100, JSON.stringify(revLine));
+  ok("...and VAT payable for the tax", vatLine?.credit === 15, JSON.stringify(vatLine));
+
+  // ONCE. A document already in the ledger refuses a second posting.
+  const twice = await postInvoice(fin, inv.invoice.id);
+  ok("an invoice cannot be posted twice", twice.error === "already-posted", JSON.stringify(twice));
+
+  // A payment against it: Dr Bank, Cr Receivable, clearing what was owed.
+  const paid = await recordPayment(fin, inv.invoice.id, { amount: 115 });
+  ok("a payment is recorded", (paid.invoice?.payments || []).length === 1, JSON.stringify(paid.error ?? paid));
+  const payId = paid.invoice.payments[0].id;
+  const payPosted = await postPayment(fin, inv.invoice.id, payId);
+  ok("the payment posts", !!payPosted.entry, JSON.stringify(payPosted.error ?? payPosted));
+  ok("...debiting the bank it arrived in",
+    payPosted.entry.lines.find((l) => l.accountId === idOf("1010"))?.debit === 115, JSON.stringify(payPosted.entry.lines));
+  ok("...and clearing the receivable",
+    payPosted.entry.lines.find((l) => l.accountId === idOf("1100"))?.credit === 115, JSON.stringify(payPosted.entry.lines));
+  const payTwice = await postPayment(fin, inv.invoice.id, payId);
+  ok("a payment cannot be posted twice", payTwice.error === "already-posted", JSON.stringify(payTwice));
+
+  // An expense: Dr its category's account, Cr Bank. Rent maps to 5200.
+  const exp = await createExpense(fin, { amount: 500, category: "Rent" });
+  ok("an expense exists to post", !!exp.expense, JSON.stringify(exp.error));
+  const expPosted = await postExpense(fin, exp.expense.id);
+  ok("the expense posts to its category account",
+    expPosted.entry?.lines.find((l) => l.accountId === idOf("5200"))?.debit === 500, JSON.stringify(expPosted.error ?? expPosted.entry?.lines));
+  ok("...crediting the bank it left",
+    expPosted.entry.lines.find((l) => l.accountId === idOf("1010"))?.credit === 500, JSON.stringify(expPosted.entry.lines));
+  // An unmapped category still posts, to Other Expenses (5900) rather than being refused.
+  const misc = await createExpense(fin, { amount: 30, category: "Travel" });
+  const miscPosted = await postExpense(fin, misc.expense.id);
+  ok("an unmapped category falls to Other Expenses",
+    miscPosted.entry?.lines.find((l) => l.accountId === idOf("5900"))?.debit === 30, JSON.stringify(miscPosted.error ?? miscPosted.entry?.lines));
+
+  // AND THE BOOK STILL BALANCES after every document has posted.
+  const tb = await trialBalance(fin);
+  ok("the book balances after the documents post", tb.balanced === true,
+    JSON.stringify({ d: tb.totalDebit, c: tb.totalCredit }));
 }
 
 // ============================================================================

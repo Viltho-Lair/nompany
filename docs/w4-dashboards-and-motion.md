@@ -256,9 +256,21 @@ for a no-role user (invariant 2). Fixed with the mapping, and Gate A block 8 now
 fails the build for ANY section key with no area mapping (bar the studio home),
 so the next forgotten sub-section is a named failure, not a diff.
 
-**What remains in 1b:** AP (the `Bill` record, with approve/pay and invariant 7),
-FA (the `FixedAsset` register with derived depreciation), and wiring the existing
-invoice/expense/payment writes to POST to this ledger — each its own slice.
+**Posting the documents landed too.** `postInvoice` / `postExpense` / `postPayment`
+turn the real documents into balanced entries against the conventional accounts —
+an invoice debits Receivable and credits Revenue + VAT Payable, a payment debits
+Bank and clears Receivable, an expense debits its category's account and credits
+Bank. **Deliberate, not automatic**: the separate `post` right would be meaningless
+if the system posted on every write, so a person with it posts a document, ONCE —
+idempotent by source, a second attempt refused, a draft not postable at all. The
+default cash account is Bank (1010); a studio with several will want that
+configurable, noted for the settings screen. The suite proves each posting's
+accounts, the once-only guard, and that the trial balance survives every one.
+
+**What remains in 1b:** AP (the `Bill` record, with approve/pay and invariant 7)
+and FA (the `FixedAsset` register with derived depreciation) — each its own slice,
+and each wanting its screens, so they are the natural pair to build alongside the
+Finance dashboard rather than as more headless backend.
 
 ### 2.4 The Finance dashboard — every data point
 
@@ -947,7 +959,7 @@ Thirteen steps. Each one is shippable and each one ends green.
 | 11 | **The ERP documentation** (§8.6), generated where it can be | Written against screens that have stopped changing, or it is wrong on arrival — and it is Nova's corpus |
 | 11a | 🟡 **Notification producers** — Tasks (assign + approval), HR (both halves), Projects, Inventory done; RFQ/quotation (Sales↔Technical) and the time-driven crons remain | Six producers live. **See §8B** |
 | 11b | **Nova** — head, panel, and answering from the documentation (§8A) | Useful, and risks nothing. Capabilities 2 and 3 wait on the model decision |
-| 12 | 🟡 **Finance 1b** — GL done (chart, journal, posting, trial balance, reversal); AP (Bill) and FA (FixedAsset) remain | **GL slice landed — see §2.5** |
+| 12 | 🟡 **Finance 1b** — GL + document posting done; AP (Bill) and FA (FixedAsset) remain | **GL + posting landed — see §2.5** |
 | 13 | **Nova capabilities 2 and 3** — reads its studio, raises and routes requests | Writes. Last, behind a confirmation step and a model decision |
 
 Technique 6 (scrollytelling) lands with step 6, since Finance is the first
