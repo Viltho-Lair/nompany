@@ -56,7 +56,7 @@ const EMAIL_WINDOW_SEC = 60 * 60;
 const LOCKOUT_LADDER_SEC = [15 * 60, 60 * 60, 6 * 60 * 60, 24 * 60 * 60];
 const STRIKE_MEMORY_SEC = 24 * 60 * 60;
 
-const lockoutFor = (strikes) =>
+const lockoutFor = (strikes: number) =>
   LOCKOUT_LADDER_SEC[Math.min(Math.max(strikes, 1), LOCKOUT_LADDER_SEC.length) - 1];
 
 /**
@@ -66,9 +66,10 @@ const lockoutFor = (strikes) =>
  * Reads three counters and never writes, so asking costs nothing and cannot
  * itself be used to drive somebody's tally up.
  *
- * @returns {Promise<{blocked: boolean, retryAfter?: number, scope?: string}>}
  */
-export async function checkCredentialAttempts({ ip, email }) {
+export async function checkCredentialAttempts(
+  { ip = "", email = "" }: { ip?: string; email?: string },
+): Promise<{ blocked: boolean; retryAfter?: number; scope?: string }> {
   const gates = [
     { scope: "pair", key: RL.attemptPair(ip, email), max: PAIR_MAX },
     { scope: "ip", key: RL.attemptIp(ip), max: IP_MAX },
@@ -87,7 +88,7 @@ export async function checkCredentialAttempts({ ip, email }) {
 }
 
 // The current tally without touching it. A missing key reads as zero.
-async function tally(key) {
+async function tally(key: string) {
   const raw = await getIndex(key);
   return raw == null ? 0 : Number(raw) || 0;
 }
@@ -100,7 +101,7 @@ async function tally(key) {
  * per-email counter never escalates: it is a backstop, and stretching it would
  * turn the denial-of-service this design avoids straight back on.
  */
-export async function recordCredentialFailure({ ip, email }) {
+export async function recordCredentialFailure({ ip = "", email = "" }: { ip?: string; email?: string }) {
   const [pair, byIp /* email counter bumped, never escalated */] = await Promise.all([
     incrWithTTL(RL.attemptPair(ip, email), PAIR_WINDOW_SEC),
     incrWithTTL(RL.attemptIp(ip), IP_WINDOW_SEC),
@@ -128,7 +129,7 @@ export async function recordCredentialFailure({ ip, email }) {
  * left standing — they are the memory of having been locked out, and a single
  * success should not erase a day of that.
  */
-export async function clearCredentialFailures({ ip, email }) {
+export async function clearCredentialFailures({ ip = "", email = "" }: { ip?: string; email?: string }) {
   await delKeys(RL.attemptPair(ip, email), RL.attemptIp(ip));
 }
 

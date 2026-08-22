@@ -44,7 +44,7 @@ const WINDOW = 1;
 const RECOVERY_COUNT = 10;
 
 /** A fresh secret, and the URI an authenticator app reads from a QR code. */
-export function beginEnrolment(email) {
+export function beginEnrolment(email: string) {
   const secret = new OTPAuth.Secret({ size: 20 });
   const totp = new OTPAuth.TOTP({
     issuer: ISSUER,
@@ -58,7 +58,7 @@ export function beginEnrolment(email) {
 }
 
 /** Is this code right for this secret, now? */
-export function verifyCode(secretBase32, code) {
+export function verifyCode(secretBase32: string, code: unknown): boolean {
   const clean = String(code || "").replace(/\D/g, "");
   if (clean.length !== 6 || !secretBase32) return false;
 
@@ -90,7 +90,7 @@ export function makeRecoveryCodes() {
 }
 
 // Typed by a person, from paper or a screenshot: case and dashes are noise.
-const normaliseRecovery = (code) => String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const normaliseRecovery = (code: unknown) => String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 /**
  * Match a recovery code against the stored digests.
@@ -102,7 +102,7 @@ const normaliseRecovery = (code) => String(code || "").toUpperCase().replace(/[^
 // CONSUME, not "use". `useX` is reserved by convention for React hooks, and the
 // linter reads it that way — it refused this as a hook called from a
 // non-component. The name is better for it: consuming is exactly what happens.
-export function consumeRecoveryCode(hashes, code) {
+export function consumeRecoveryCode(hashes: string[] | undefined, code: unknown) {
   const digest = hashToken(normaliseRecovery(code));
   const list = Array.isArray(hashes) ? hashes : [];
   if (!list.includes(digest)) return { ok: false };
@@ -110,13 +110,13 @@ export function consumeRecoveryCode(hashes, code) {
 }
 
 /** The stored shape, for an admin row. */
-export function sealSecret(secretBase32) {
+export function sealSecret(secretBase32: string): string {
   return encryptField(secretBase32);
 }
 
-export function openSecret(sealed) {
+export function openSecret(sealed: unknown): string {
   return decryptField(sealed);
 }
 
 /** Is MFA switched on for this admin? */
-export const mfaEnabled = (admin) => Boolean(admin?.mfa?.enabledAt && admin?.mfa?.secret);
+export const mfaEnabled = (admin: { mfa?: { enabledAt?: string; secret?: string } } | null | undefined) => Boolean(admin?.mfa?.enabledAt && admin?.mfa?.secret);

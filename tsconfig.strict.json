@@ -23,6 +23,7 @@
     "src/shared/**/*",
     "src/platform/access/**/*",
     "src/platform/db/**/*",
+    "src/platform/auth/**/*",
     "src/platform/http/**/*",
     "src/platform/realtime/**/*",
     "src/platform/notify/**/*",

@@ -25,7 +25,7 @@ const SYMB = "@#$%^&+=?";
 export function generatePassword(length = 16) {
   const all = LOWER + UPPER + DIGIT + SYMB;
   // Guarantee at least one from each class so it always passes complexity checks.
-  const pick = (chars) => chars[crypto.randomInt(chars.length)];
+  const pick = (chars: string) => chars[crypto.randomInt(chars.length)];
   const req = [pick(LOWER), pick(UPPER), pick(DIGIT), pick(SYMB)];
   while (req.length < length) req.push(pick(all));
   // Fisher–Yates shuffle so the guaranteed chars aren't always first.
@@ -36,14 +36,14 @@ export function generatePassword(length = 16) {
   return req.join("");
 }
 
-export async function hashPassword(plaintext) {
+export async function hashPassword(plaintext: unknown): Promise<string> {
   return bcrypt.hash(String(plaintext), BCRYPT_ROUNDS);
 }
 
-export async function verifyPassword(plaintext, hash) {
+export async function verifyPassword(plaintext: unknown, hash: unknown): Promise<boolean> {
   if (!plaintext || !hash) return false;
   try {
-    return await bcrypt.compare(String(plaintext), hash);
+    return await bcrypt.compare(String(plaintext), String(hash));
   } catch {
     return false;
   }
@@ -59,7 +59,7 @@ export async function verifyPassword(plaintext, hash) {
 //
 // Reads the cost out of the hash itself ("$2b$10$…"), so it stays right no
 // matter what the constant becomes next.
-export function needsRehash(hash) {
+export function needsRehash(hash: unknown): boolean {
   const cost = Number(String(hash || "").split("$")[2]);
   return Number.isFinite(cost) && cost < BCRYPT_ROUNDS;
 }
@@ -81,6 +81,6 @@ export function newSessionToken() {
 // Plain SHA-256, deliberately, not bcrypt: the input is 32 bytes of CSPRNG
 // output rather than something a person chose, so there is no dictionary to
 // slow down and no reason to pay a work factor on every authenticated request.
-export function hashToken(token) {
+export function hashToken(token: string) {
   return crypto.createHash("sha256").update(String(token || "")).digest("hex");
 }

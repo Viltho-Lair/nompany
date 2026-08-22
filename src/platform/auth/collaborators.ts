@@ -38,9 +38,35 @@ const HR_DEFAULTS = {
 
 // UNIQUE(StudioID, UserID) is enforced INSIDE the atomic write, so two approvals
 // racing on the same person cannot both pass the check and both insert a row.
-export async function addCollaborator(studioId, { userId, alias = "", role = "member", roleIds = [], ...hr }) {
+/**
+ * A COLLABORATOR IS THE IDENTITY INSIDE A STUDIO (invariant 6) — every
+ * notification, signature and assignment is addressed to its id and never to a
+ * UserID. The HR fields ride on the same row, which is why the rest of it is
+ * left open: what Human Resources keeps about somebody is HR's business, not
+ * this module's, and enumerating it here would be a second definition free to
+ * drift from the one that matters.
+ */
+export type Collaborator = {
+  id: string;
+  studioId: string;
+  userId: string;
+  alias: string;
+  role: string;
+  roleIds: string[];
+  overrides: { allow: string[]; deny: string[] };
+  settings: Record<string, unknown>;
+  createdAt: string;
+  [field: string]: unknown;
+};
+
+export async function addCollaborator(
+  studioId: string,
+  { userId, alias = "", role = "member", roleIds = [], ...hr }:
+  { userId?: string; alias?: string; role?: string; roleIds?: string[] } & Record<string, unknown>,
+): Promise<{ error?: string; collaborator?: Collaborator }> {
   if (!studioId || !userId) return { error: "missing" };
-  const outcome = await editArr(S.collaborators(studioId), (rows) => {
+  const outcome = await editArr<Collaborator, { error?: string; collaborator?: Collaborator }>(
+    S.collaborators(studioId), (rows) => {
     if (rows.some((c) => c.userId === userId)) return { result: { error: "already" } };
     const collaborator = {
       id: ID.collaborator(),
@@ -70,22 +96,24 @@ export async function addCollaborator(studioId, { userId, alias = "", role = "me
   return outcome;
 }
 
-export async function listCollaborators(studioId) {
+export async function listCollaborators(studioId: string) {
   return readArr(S.collaborators(studioId));
 }
-export async function getCollaborator(studioId, collaboratorId) {
+export async function getCollaborator(studioId: string, collaboratorId: string) {
   const rows = await readArr(S.collaborators(studioId));
   return rows.find((c) => c.id === collaboratorId) || null;
 }
-export async function getCollaboratorByUser(studioId, userId) {
+export async function getCollaboratorByUser(studioId: string, userId: string) {
   const rows = await readArr(S.collaborators(studioId));
   return rows.find((c) => c.userId === userId) || null;
 }
 
 // id / studioId / userId are immutable — everything else is patchable.
-export async function updateCollaborator(studioId, collaboratorId, patch) {
-  const updated = await editArr(S.collaborators(studioId), (rows) => {
-    let hit = null;
+export async function updateCollaborator(
+  studioId: string, collaboratorId: string, patch: Record<string, unknown>,
+): Promise<Collaborator | null> {
+  const updated = await editArr<Collaborator, Collaborator | null>(S.collaborators(studioId), (rows) => {
+    let hit: Collaborator | null = null;
     const next = rows.map((c) => {
       if (c.id !== collaboratorId) return c;
       const { id, studioId: sid, userId, ...safe } = patch || {};

@@ -13,7 +13,18 @@ import crypto from "node:crypto";
 export const OAUTH_STATE_COOKIE = "nc_oauth";
 const STATE_TTL_SEC = 600;
 
-const PROVIDERS = {
+/** What a provider needs to be talked to. Two today; the shape is the contract. */
+type ProviderConfig = {
+  idEnv: string;
+  secretEnv: string;
+  authorize: string;
+  token: string;
+  scope: string;
+};
+
+// A RECORD, so a provider name that came off a URL can index it. `isProvider`
+// is the guard that makes that safe, and every caller runs it first.
+const PROVIDERS: Record<string, ProviderConfig> = {
   google: {
     idEnv: "GOOGLE_CLIENT_ID",
     secretEnv: "GOOGLE_CLIENT_SECRET",
@@ -31,10 +42,10 @@ const PROVIDERS = {
   },
 };
 
-export function isProvider(name) {
+export function isProvider(name: unknown): boolean {
   return Object.prototype.hasOwnProperty.call(PROVIDERS, String(name || ""));
 }
-export function providerConfigured(name) {
+export function providerConfigured(name: string): boolean {
   const p = PROVIDERS[name];
   return Boolean(p && process.env[p.idEnv] && process.env[p.secretEnv]);
 }
@@ -43,22 +54,22 @@ export function enabledProviders() {
   return Object.keys(PROVIDERS).filter(providerConfigured);
 }
 
-function origin(request) {
+function origin(request: Request) {
   const proto = request.headers.get("x-forwarded-proto") || new URL(request.url).protocol.replace(":", "");
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
   return `${proto}://${host}`;
 }
-export function redirectUri(request, provider) {
+export function redirectUri(request: Request, provider: string) {
   return `${origin(request)}/api/auth/callback/${provider}`;
 }
 
 // ---- state (CSRF) ----------------------------------------------------------
-export function makeState(next = "") {
+export function makeState(next: string = "") {
   const raw = `${crypto.randomBytes(16).toString("hex")}.${Date.now()}.${encodeURIComponent(next)}`;
   const sig = crypto.createHmac("sha256", stateSecret()).update(raw).digest("hex").slice(0, 32);
   return `${raw}.${sig}`;
 }
-export function readState(state) {
+export function readState(state: unknown) {
   const parts = String(state || "").split(".");
   if (parts.length !== 4) return null;
   const [nonce, ts, next, sig] = parts;
@@ -70,7 +81,7 @@ export function readState(state) {
 function stateSecret() {
   return process.env.OTP_SECRET || process.env.FIELD_ENCRYPTION_KEY || "nompany-oauth";
 }
-export function stateCookie(state, isHttps) {
+export function stateCookie(state: string, isHttps: boolean) {
   return `${OAUTH_STATE_COOKIE}=${state}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${STATE_TTL_SEC}${isHttps ? "; Secure" : ""}`;
 }
 export function clearedStateCookie() {
@@ -78,10 +89,16 @@ export function clearedStateCookie() {
 }
 
 // ---- the two calls ---------------------------------------------------------
-export function authorizeUrl({ provider, request, state }) {
+export function authorizeUrl(
+  { provider, request, state }: { provider: string; request: Request; state: string },
+): string {
   const p = PROVIDERS[provider];
+  // `process.env` reads are `string | undefined`, and URLSearchParams wants
+  // strings. An absent client id is a misconfigured deployment rather than a
+  // runtime branch — the provider refuses the empty value with a message that
+  // says so, which is more useful than a crash here would be.
   const params = new URLSearchParams({
-    client_id: process.env[p.idEnv],
+    client_id: process.env[p.idEnv] || "",
     redirect_uri: redirectUri(request, provider),
     response_type: "code",
     scope: p.scope,
@@ -92,15 +109,17 @@ export function authorizeUrl({ provider, request, state }) {
 }
 
 // Exchange the code and return { email, fullName } — or { error }.
-export async function exchangeCode({ provider, code, request }) {
+export async function exchangeCode(
+  { provider, code, request }: { provider: string; code: string; request: Request },
+) {
   const p = PROVIDERS[provider];
   try {
     const res = await fetch(p.token, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        client_id: process.env[p.idEnv],
-        client_secret: process.env[p.secretEnv],
+        client_id: process.env[p.idEnv] || "",
+        client_secret: process.env[p.secretEnv] || "",
         code,
         grant_type: "authorization_code",
         redirect_uri: redirectUri(request, provider),

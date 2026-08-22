@@ -3,13 +3,13 @@
 // Client-safe: no Node imports.
 
 export const PASSWORD_RULES = [
-  { key: "length", label: "At least 8 characters", test: (p) => String(p || "").length >= 8 },
-  { key: "upper",  label: "One uppercase letter",  test: (p) => /[A-Z]/.test(String(p || "")) },
-  { key: "symbol", label: "One symbol",            test: (p) => /[^A-Za-z0-9]/.test(String(p || "")) },
+  { key: "length", label: "At least 8 characters", test: (p: unknown) => String(p || "").length >= 8 },
+  { key: "upper",  label: "One uppercase letter",  test: (p: unknown) => /[A-Z]/.test(String(p || "")) },
+  { key: "symbol", label: "One symbol",            test: (p: unknown) => /[^A-Za-z0-9]/.test(String(p || "")) },
 ];
 
 // → { ok, failed: ["upper", …] }
-export function checkPassword(password) {
+export function checkPassword(password: unknown) {
   const failed = PASSWORD_RULES.filter((r) => !r.test(password)).map((r) => r.key);
   return { ok: failed.length === 0, failed };
 }

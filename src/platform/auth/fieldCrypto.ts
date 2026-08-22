@@ -36,7 +36,7 @@ function keyBuffer() {
 // Convenience in dev is not worth a silent failure mode in production on the
 // most sensitive field the product stores. It throws now, and a missing key is
 // a startup problem rather than a data problem discovered later.
-export function encryptField(plain) {
+export function encryptField(plain: unknown): string {
   const value = plain == null ? "" : String(plain);
   if (!value) return "";
   if (isEncrypted(value)) return value; // already encrypted — don't double-wrap
@@ -49,7 +49,7 @@ export function encryptField(plain) {
   return `${PREFIX}${iv.toString("base64")}:${tag.toString("base64")}:${enc.toString("base64")}`;
 }
 
-export function isEncrypted(value) {
+export function isEncrypted(value: unknown): boolean {
   return typeof value === "string" && value.startsWith(PREFIX);
 }
 
@@ -61,7 +61,7 @@ export function isEncrypted(value) {
 // listing — but it must not be SILENT either, which was the other half of H-9:
 // a key rotation blanked every existing value and nothing said so. It is logged
 // now, once per failure, with the reason and no ciphertext.
-export function decryptField(value) {
+export function decryptField(value: unknown): string {
   if (!isEncrypted(value)) return value == null ? "" : String(value);
   const key = keyBuffer();
   if (!key) {
@@ -69,13 +69,13 @@ export function decryptField(value) {
     return "";
   }
   try {
-    const [, , ivB64, tagB64, dataB64] = value.split(":");
+    const [, , ivB64, tagB64, dataB64] = String(value).split(":");
     const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(ivB64, "base64"));
     decipher.setAuthTag(Buffer.from(tagB64, "base64"));
     return Buffer.concat([decipher.update(Buffer.from(dataB64, "base64")), decipher.final()]).toString("utf8");
   } catch (e) {
     // The value itself is never logged: it is the thing being protected.
-    log.error(`[fieldCrypto] decrypt failed (${e.message}) — wrong key, or the value was written under another one`);
+    log.error(`[fieldCrypto] decrypt failed (${(e as Error).message}) — wrong key, or the value was written under another one`);
     return "";
   }
 }

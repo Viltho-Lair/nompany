@@ -16,7 +16,7 @@ import { log } from "@/platform/http/observability";
 // trustworthy where it appears. It is accepted as a second door, never as a
 // replacement for the secret being set at all.
 
-export function cronDenied(request) {
+export function cronDenied(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     log.error("[cron] CRON_SECRET is not set — refusing to run a scheduled job.");

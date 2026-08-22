@@ -29,7 +29,7 @@ export const SUPER_TTL_SEC = 60 * 60 * 12;
 const MAX_SESSIONS = 6;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-function normEmail(email) {
+function normEmail(email: unknown) {
   return String(email || "").trim().toLowerCase();
 }
 
@@ -40,9 +40,44 @@ function normEmail(email) {
 // EXPORTED so the MFA routes can write the admin row through the same
 // compare-and-set every other write here uses. A second way to update this row
 // is a second place for the session list to be clobbered.
-export async function patchAdmin(id, patch) {
-  return editArr(REG.superAdmins, (rows) => {
-    let updated = null;
+/**
+ * A CONSOLE OWNER. Its own registry, its own cookie, outside every cascade —
+ * emphatically not a User with extra rights, which is why this type is declared
+ * here rather than reusing the one in users.ts.
+ *
+ * `sessionTokens` holds DIGESTS. `mfa.secret` is sealed with fieldCrypto and
+ * `mfa.recoveryCodes` are hashed the way passwords are, so neither is readable
+ * from a copy of the database.
+ */
+export type SuperAdmin = {
+  id: string;
+  email: string;
+  passwordHash: string;
+  createdAt: string;
+  passwordSetAt?: string;
+  sessionTokens?: SuperSessionRow[];
+  mfa?: {
+    secret?: string;
+    recoveryCodes?: string[];
+    enabledAt?: string;
+  };
+};
+
+/** How a sign-in describes the browser it came from. Never the address itself. */
+export type DeviceLabel = { label?: string; location?: string };
+
+/** One live console session, as stored on the admin row. */
+export type SuperSessionRow = {
+  tokenHash: string;
+  createdAt: number;
+  expiresAt: number;
+  label?: string;
+  location?: string;
+};
+
+export async function patchAdmin(id: string, patch: (admin: SuperAdmin) => Partial<SuperAdmin>) {
+  return editArr<SuperAdmin, SuperAdmin | null>(REG.superAdmins, (rows) => {
+    let updated: SuperAdmin | null = null;
     const next = rows.map((a) => {
       if (a.id !== id) return a;
       updated = { ...a, ...(typeof patch === "function" ? patch(a) : patch), id: a.id };
@@ -52,10 +87,10 @@ export async function patchAdmin(id, patch) {
   });
 }
 
-export async function findSuperByEmail(email) {
+export async function findSuperByEmail(email: string) {
   const e = normEmail(email);
   if (!e) return null;
-  const rows = await readArr(REG.superAdmins);
+  const rows = await readArr<SuperAdmin>(REG.superAdmins);
   return rows.find((a) => normEmail(a.email) === e) || null;
 }
 
@@ -63,7 +98,7 @@ export async function findSuperByEmail(email) {
 // rows is a super admin. A super admin is a separate identity from the User of
 // the same address, so the match is on email and nothing else.
 export async function listSuperAdminEmails() {
-  const rows = await readArr(REG.superAdmins);
+  const rows = await readArr<SuperAdmin>(REG.superAdmins);
   return new Set(rows.map((a) => normEmail(a.email)).filter(Boolean));
 }
 
@@ -81,23 +116,23 @@ export async function listSuperAdminEmails() {
 // holds sha256(token) -> SuperAdminID with a real Redis EX. Expiry is enforced
 // by the database, the stored value cannot be replayed, and the lookup is a
 // single O(1) GET on a key an attacker cannot construct without the token.
-export async function findSuperBySession(token) {
+export async function findSuperBySession(token: string) {
   if (!token) return null;
   const adminId = await getIndex(IX.superSession(hashToken(token)));
   if (!adminId) return null;
-  const rows = await readArr(REG.superAdmins);
+  const rows = await readArr<SuperAdmin>(REG.superAdmins);
   return rows.find((a) => a.id === adminId) || null;
 }
 
 // Create a super-admin. If `password` is omitted, a random one is generated and
 // returned in cleartext EXACTLY ONCE (for relaying) — never stored raw.
 // Idempotent on email.
-export async function seedSuperAdmin({ email, password } = {}) {
+export async function seedSuperAdmin({ email, password }: { email?: string; password?: string } = {}) {
   const mail = normEmail(email);
   if (!EMAIL_RE.test(mail)) return { error: "email" };
   const plain = password || generatePassword(16);
   const now = new Date().toISOString();
-  const admin = {
+  const admin: SuperAdmin = {
     id: makeId("sup"),
     email: mail,
     passwordHash: await hashPassword(plain),
@@ -107,7 +142,8 @@ export async function seedSuperAdmin({ email, password } = {}) {
   };
   // Idempotence on email is decided INSIDE the write, so seeding twice at once
   // yields one super-admin, not two accounts sharing an address.
-  return editArr(REG.superAdmins, (rows) => {
+  type Seeded = { admin: SuperAdmin; existed: boolean; password?: string };
+  return editArr<SuperAdmin, Seeded>(REG.superAdmins, (rows) => {
     const existing = rows.find((a) => normEmail(a.email) === mail);
     if (existing) return { result: { admin: existing, existed: true } };
     return { next: [admin, ...rows], result: { admin, password: plain, existed: false } };
@@ -123,7 +159,11 @@ export async function seedSuperAdmin({ email, password } = {}) {
 // and nothing to replay. Anything that reversed that — minting first and
 // verifying second — would leave a working session behind for the seconds
 // between, which is all a leaked password needs.
-export async function loginSuper(email, password, { code = "", device = null } = {}) {
+export async function loginSuper(
+  email: string,
+  password: string,
+  { code = "", device = null }: { code?: string; device?: DeviceLabel | null } = {},
+) {
   const admin = await findSuperByEmail(email);
   if (!admin) return null;
   if (!(await verifyPassword(password, admin.passwordHash))) return null;
@@ -131,7 +171,7 @@ export async function loginSuper(email, password, { code = "", device = null } =
   if (mfaEnabled(admin)) {
     if (!code) return { mfaRequired: true };
 
-    const secret = openSecret(admin.mfa.secret);
+    const secret = openSecret(admin.mfa?.secret || "");
     if (verifyCode(secret, code)) {
       // accepted
     } else {
@@ -201,8 +241,8 @@ export async function loginSuper(email, password, { code = "", device = null } =
 // A function rather than an endpoint: the page is a server component, so it can
 // read this directly and render it in the same pass. An API for it would be one
 // more door onto the same data for a screen that never needed to ask twice.
-export async function superSecuritySummary(adminId) {
-  const admin = (await readArr(REG.superAdmins)).find((a) => a.id === adminId);
+export async function superSecuritySummary(adminId: string) {
+  const admin = (await readArr<SuperAdmin>(REG.superAdmins)).find((a) => a.id === adminId);
   if (!admin) return null;
 
   const now = Date.now();
@@ -226,8 +266,8 @@ export async function superSecuritySummary(adminId) {
 // the index holds, and the index expires on its own through Redis. A row whose
 // expiresAt has passed authorises nothing, so showing it would be showing a
 // session that is not one.
-export async function listSuperSessions(adminId, currentToken = "") {
-  const admin = (await readArr(REG.superAdmins)).find((a) => a.id === adminId);
+export async function listSuperSessions(adminId: string, currentToken = "") {
+  const admin = (await readArr<SuperAdmin>(REG.superAdmins)).find((a) => a.id === adminId);
   if (!admin) return [];
 
   const now = Date.now();
@@ -258,12 +298,12 @@ export async function listSuperSessions(adminId, currentToken = "") {
  * and a failure between the two leaves a signed-OUT session still listed rather
  * than a signed-in one hidden.
  */
-export async function revokeSuperSession(adminId, tokenHash) {
+export async function revokeSuperSession(adminId: string, tokenHash: string) {
   if (!adminId || !tokenHash) return false;
 
   // SCOPED TO THIS ADMIN inside the read, not after it. Without that, one
   // console owner could sign another out by naming a digest they saw.
-  const admin = (await readArr(REG.superAdmins)).find((a) => a.id === adminId);
+  const admin = (await readArr<SuperAdmin>(REG.superAdmins)).find((a) => a.id === adminId);
   const owns = (admin?.sessionTokens || []).some((s) => s?.tokenHash === tokenHash);
   if (!owns) return false;
 
@@ -278,7 +318,7 @@ export async function revokeSuperSession(adminId, tokenHash) {
 // is released first — that is the half that decides — and the list is tidied
 // after, so a failure between the two leaves a signed-OUT session listed rather
 // than a signed-in one hidden.
-export async function logoutSuper(token) {
+export async function logoutSuper(token: string) {
   if (!token) return;
   const tokenHash = hashToken(token);
   const adminId = await getIndex(IX.superSession(tokenHash));
@@ -290,14 +330,14 @@ export async function logoutSuper(token) {
 }
 
 // Client-safe projection — never the hash or tokens.
-export function publicSuperAdmin(a) {
+export function publicSuperAdmin(a: SuperAdmin | null | undefined) {
   if (!a) return null;
   return { id: a.id, email: a.email };
 }
 
 /* ---- the session cookie -------------------------------------------------- */
 
-export function superCookie(token, isHttps) {
+export function superCookie(token: string, isHttps: boolean) {
   const secure = isHttps ? "; Secure" : "";
   return `${SUPER_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SUPER_TTL_SEC}${secure}`;
 }

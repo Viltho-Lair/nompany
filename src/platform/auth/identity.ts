@@ -18,6 +18,8 @@ import {
   getQuestionnaire, updateQuestionnaire,
   mintSession, findUserBySession, revokeSession, revokeAllSessions, touchLastLogin, touchLastSeen,
 } from "./users";
+import type { User, Questionnaire } from "./users";
+import type { DeviceFacts } from "./otp";
 import { getOwnedStudio, listUserCollaborations } from "@/lib/data/studios";
 import { listForUser as listJoinRequestsForUser } from "@/lib/data/joinRequests";
 import {
@@ -52,34 +54,34 @@ const RESET_TTL_MS = 60 * 60 * 1000;       // password reset code (own mechanism
 // Constant-time comparison for anything secret. Length is compared first
 // because timingSafeEqual throws on a mismatch — the length of a six-digit code
 // is not the part worth hiding.
-function sameSecret(a, b) {
+function sameSecret(a: unknown, b: unknown): boolean {
   const x = Buffer.from(String(a || ""), "utf8");
   const y = Buffer.from(String(b || ""), "utf8");
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
-const norm = (s) => String(s || "").trim().toLowerCase();
+const norm = (s: unknown) => String(s || "").trim().toLowerCase();
 // 6-digit code for the password-reset flow (OTP codes are minted in data/otp.js).
 function newCode() {
   return String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
 // ---- cookies ---------------------------------------------------------------
-export function sessionCookie(token, maxAge, isHttps) {
+export function sessionCookie(token: string, maxAge: number, isHttps: boolean) {
   const secure = isHttps ? "; Secure" : "";
   return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 export function clearedSessionCookie() {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
-export function otpCookie(challengeId, isHttps) {
+export function otpCookie(challengeId: string, isHttps: boolean) {
   const secure = isHttps ? "; Secure" : "";
   return `${OTP_COOKIE}=${challengeId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${CODE_TTL_SEC}${secure}`;
 }
 export function clearedOtpCookie() {
   return `${OTP_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
-export function deviceCookie(deviceId, isHttps) {
+export function deviceCookie(deviceId: string, isHttps: boolean) {
   const secure = isHttps ? "; Secure" : "";
   return `${DEVICE_COOKIE}=${deviceId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(DEVICE_TTL_MS / 1000)}${secure}`;
 }
@@ -94,7 +96,7 @@ export function deviceCookie(deviceId, isHttps) {
 //
 // Location is COARSE and comes from the edge (Vercel geo headers), not from the
 // browser: city and country only, never coordinates, and no permission prompt.
-export function deviceFingerprint(request) {
+export function deviceFingerprint(request: Request | null | undefined) {
   const h = request?.headers;
   const ua = h?.get?.("user-agent") || "";
   const ip = h?.get?.("x-forwarded-for")?.split(",")[0]?.trim() || h?.get?.("x-real-ip") || "";
@@ -120,7 +122,7 @@ export function deviceFingerprint(request) {
 // secret — and refusing to sign somebody in because we cannot fingerprint their
 // device would be the wrong trade. So it is loud instead, once, and the caller
 // gets an empty fingerprint it can recognise as absent rather than as a match.
-function hashIp(ip) {
+function hashIp(ip: unknown): string {
   const key = process.env.FIELD_ENCRYPTION_KEY || "";
   if (!key) {
     log.error("[identity] device fingerprints are disabled: FIELD_ENCRYPTION_KEY is not set");
@@ -129,18 +131,18 @@ function hashIp(ip) {
   return crypto.createHmac("sha256", key).update(String(ip)).digest("hex").slice(0, 24);
 }
 
-export function deviceLabel(request) {
+export function deviceLabel(request: Request | null | undefined): string {
   const ua = request?.headers?.get?.("user-agent") || "";
   const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /Firefox\//.test(ua) ? "Firefox" : "Browser";
   const os = /Windows/.test(ua) ? "Windows" : /Mac OS/.test(ua) ? "macOS" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Linux/.test(ua) ? "Linux" : "device";
   return `${browser} on ${os}`;
 }
 // Caller IP for rate limiting (Vercel sets x-forwarded-for).
-export function clientIp(request) {
+export function clientIp(request: Request | null | undefined): string {
   const fwd = request?.headers?.get?.("x-forwarded-for") || "";
   return fwd.split(",")[0].trim() || request?.headers?.get?.("x-real-ip") || "";
 }
-export function requestIsHttps(request) {
+export function requestIsHttps(request: Request): boolean {
   try {
     return request.headers.get("x-forwarded-proto") === "https" || new URL(request.url).protocol === "https:";
   } catch { return false; }
@@ -150,7 +152,7 @@ export function requestIsHttps(request) {
 // Creates the User + its three satellites and opens an OTP challenge. It does
 // NOT mint a session — access begins only after the emailed code is verified,
 // so an unproven address can never hold a logged-in session.
-export async function signup({ email, password, fullName, ip }) {
+export async function signup({ email, password, fullName, ip }: { email?: string; password?: string; fullName?: string; ip?: string }) {
   const mail = norm(email);
   const pass = String(password || "");
   const name = String(fullName || "").trim();
@@ -160,10 +162,14 @@ export async function signup({ email, password, fullName, ip }) {
   if (!strength.ok) return { error: "weak", failed: strength.failed };
 
   const created = await createUser({ email: mail, passwordHash: await hashPassword(pass), fullName: name });
-  if (created.error) return { error: created.error }; // "exists" when the email is taken
+  // GUARDED ON THE VALUE, not only on the error. `createUser` claims the email
+  // index and then writes the registry row, so a failure between the two
+  // returns neither — and answering "failed" is better than reading `.id` off
+  // undefined at the next line.
+  if (created.error || !created.user) return { error: created.error || "failed" };
 
   const challenge = await createChallenge({ purpose: "signup", email: mail, userId: created.user.id, ip });
-  if (challenge.error) return { error: challenge.error };
+  if (challenge.error || !challenge.challengeId) return { error: challenge.error || "failed" };
   const emailSent = await deliverCode(mail, name, challenge.code, verificationCodeEmail);
   return { user: created.user, challengeId: challenge.challengeId, emailSent };
 }
@@ -173,7 +179,12 @@ export async function signup({ email, password, fullName, ip }) {
 // time we see `ok:false` the address has been refused or the provider stayed
 // down through every attempt — either way it is worth logging loudly, with the
 // attempt count, so the difference is visible afterwards.
-async function deliverCode(to, name, code, template) {
+/** An email template: takes what it needs, returns the three parts of a message. */
+type CodeTemplate = (o?: { name?: string; code?: string }) => { subject: string; html: string; text: string };
+
+async function deliverCode(
+  to: string, name: string | undefined, code: string | undefined, template: CodeTemplate,
+) {
   const msg = template({ name, code });
   const res = await sendEmail({ to, subject: msg.subject, html: msg.html, text: msg.text });
   if (!res?.ok) {
@@ -188,9 +199,15 @@ async function deliverCode(to, name, code, template) {
 // ---- OTP verification (completes signup OR an untrusted login) -------------
 // Success always proves control of the address, so it stamps emailVerifiedAt
 // for both purposes, mints the session, and optionally remembers the device.
-export async function verifyOtp({ challengeId, code, remember, trustThisDevice, device, deviceId }) {
+export async function verifyOtp(
+  { challengeId, code, remember, trustThisDevice, device, deviceId }:
+  {
+    challengeId: string; code: unknown; remember?: boolean; trustThisDevice?: boolean;
+    device?: DeviceFacts; deviceId?: string;
+  },
+) {
   const result = await verifyChallenge(challengeId, code);
-  if (result.error) return { error: result.error, attemptsLeft: result.attemptsLeft };
+  if (result.error || !result.challenge) return { error: result.error || "expired", attemptsLeft: result.attemptsLeft };
 
   const userId = result.challenge.userId;
   const user = await getUserById(userId);
@@ -212,9 +229,9 @@ export async function verifyOtp({ challengeId, code, remember, trustThisDevice, 
 }
 
 // Re-send the code for an in-flight challenge (new code, attempts reset).
-export async function resendOtp({ challengeId, ip }) {
+export async function resendOtp({ challengeId, ip }: { challengeId: string; ip?: string }) {
   const result = await resendChallenge(challengeId, { ip });
-  if (result.error) return result;
+  if (result.error || !result.challenge) return result;
   const profile = result.challenge.userId ? await getProfile(result.challenge.userId) : null;
   const emailSent = await deliverCode(result.challenge.email, profile?.fullName, result.code, verificationCodeEmail);
   return { ok: true, emailSent };
@@ -225,7 +242,10 @@ export async function resendOtp({ challengeId, ip }) {
 // existing user is signed straight in; a new one is created with the email
 // pre-verified and a random password they never see (they can set their own
 // later via "forgot password"). Returns { user, token, ttl } or { error }.
-export async function signInWithProvider({ email, fullName, provider, deviceId, device }) {
+export async function signInWithProvider(
+  { email, fullName, provider, deviceId, device }:
+  { email?: string; fullName?: string; provider?: string; deviceId?: string; device?: DeviceFacts },
+) {
   const mail = norm(email);
   if (!EMAIL_RE.test(mail)) return { error: "email" };
 
@@ -238,7 +258,7 @@ export async function signInWithProvider({ email, fullName, provider, deviceId, 
       passwordHash: await hashPassword(generatePassword(24)),
       fullName: String(fullName || "").trim(),
     });
-    if (created.error) return { error: created.error };
+    if (created.error || !created.user) return { error: created.error || "failed" };
     user = created.user;
   }
   // Remember HOW they got in, so the account page can explain why they have no
@@ -274,7 +294,13 @@ export async function signInWithProvider({ email, fullName, provider, deviceId, 
 // Returns either { user, token } for a trusted device, or { otpRequired } with
 // a challenge to complete. Credentials are always checked FIRST, so a code is
 // never sent to an address whose password was not supplied correctly.
-export async function login({ email, password, remember, deviceId, ip, device }) {
+export async function login(
+  { email, password, remember, deviceId, ip, device }:
+  {
+    email?: string; password?: string; remember?: boolean;
+    deviceId?: string; ip?: string; device?: DeviceFacts;
+  },
+) {
   // THE GATE COMES FIRST — before the lookup, before bcrypt, and identically
   // for an address nobody has ever registered, so it cannot be used to find out
   // which addresses exist. The limiters used to sit inside createChallenge,
@@ -283,7 +309,7 @@ export async function login({ email, password, remember, deviceId, ip, device })
   const gate = await checkCredentialAttempts({ ip, email });
   if (gate.blocked) return { error: "rate-limited", retryAfter: gate.retryAfter };
 
-  const user = await getUserByEmail(email);
+  const user = await getUserByEmail(email || "");
   if (!user) {
     // Counted like any other failure: an attacker enumerating addresses must
     // burn the same budget as one guessing passwords.
@@ -336,7 +362,7 @@ export async function login({ email, password, remember, deviceId, ip, device })
   // Passing the fingerprint here refreshes the stored row on every sign-in, so
   // the Security list shows where the browser was LAST used rather than where it
   // first was. It cannot grant trust — only the code step can do that.
-  if (await isTrustedDevice(user.id, deviceId, device)) {
+  if (await isTrustedDevice(user.id, deviceId || "", device)) {
     const ttl = remember ? REMEMBER_TTL : SESSION_TTL;
     const token = await mintSession(user.id, ttl);
     await touchLastLogin(user.id);
@@ -350,7 +376,7 @@ export async function login({ email, password, remember, deviceId, ip, device })
   return { otpRequired: true, challengeId: challenge.challengeId, emailSent };
 }
 
-export async function logout(token) {
+export async function logout(token: string) {
   const user = await findUserBySession(token);
   if (user) await revokeSession(user.id, token);
 }
@@ -412,13 +438,13 @@ export async function currentIdentity() {
 }
 
 // Never expose the password hash.
-export function publicUser(user) {
+export function publicUser(user: User | null | undefined) {
   if (!user) return null;
   return { id: user.id, email: user.email, status: user.status, provider: user.provider || "", createdAt: user.createdAt };
 }
 
 // ---- password: change / forgot / reset -------------------------------------
-export async function changePassword(userId, currentPassword, nextPassword) {
+export async function changePassword(userId: string, currentPassword: unknown, nextPassword: unknown) {
   const user = await getUserById(userId);
   if (!user) return { error: "notfound" };
   if (!(await verifyPassword(String(currentPassword || ""), user.passwordHash))) return { error: "invalid" };
@@ -435,7 +461,7 @@ export async function changePassword(userId, currentPassword, nextPassword) {
 
 // Always resolves the same way to the caller — never reveals whether the email
 // is registered.
-export async function requestPasswordReset({ email, ip } = {}) {
+export async function requestPasswordReset({ email, ip }: { email?: string; ip?: string } = {}) {
   // Asking for a reset code is a SEND, not a guess, so it answers to the same
   // send limits the OTP codes do rather than to the credential counters — a
   // burst of reset requests must not consume somebody's sign-in budget and lock
@@ -449,7 +475,7 @@ export async function requestPasswordReset({ email, ip } = {}) {
   // endpoint deliberately refuses to answer.
   if (limited.error) return { ok: true };
 
-  const user = await getUserByEmail(email);
+  const user = await getUserByEmail(email || "");
   if (!user) return { ok: true };
   const profile = await getProfile(user.id);
   const code = newCode();
@@ -458,14 +484,17 @@ export async function requestPasswordReset({ email, ip } = {}) {
   return { ok: true };
 }
 
-export async function resetPassword({ email, code, newPassword, ip }) {
+export async function resetPassword(
+  { email, code, newPassword, ip }:
+  { email?: string; code?: unknown; newPassword?: unknown; ip?: string },
+) {
   // A reset code IS a credential, so guessing one answers to the same gate as
   // guessing a password — and to the same lockout, so an attacker stopped at
   // the sign-in door cannot simply walk round to this one.
   const gate = await checkCredentialAttempts({ ip, email });
   if (gate.blocked) return { error: "rate-limited", retryAfter: gate.retryAfter };
 
-  const user = await getUserByEmail(email);
+  const user = await getUserByEmail(email || "");
   if (!user) {
     await recordCredentialFailure({ ip, email });
     return { error: "invalid" };
@@ -496,8 +525,8 @@ export async function resetPassword({ email, code, newPassword, ip }) {
 
 // ---- personal information (1:1, isolated to this user) ---------------------
 const PROFILE_FIELDS = ["fullName", "shortName", "phone", "dob", "photo", "language", "workAddress"];
-export async function savePersonalInfo(userId, patch = {}) {
-  const clean = {};
+export async function savePersonalInfo(userId: string, patch: Record<string, unknown> = {}) {
+  const clean: Record<string, string> = {};
   for (const f of PROFILE_FIELDS) {
     if (patch[f] === undefined) continue;
     clean[f] = f === "photo" ? String(patch[f] || "").slice(0, 1_500_000) : String(patch[f] || "").trim().slice(0, 300);
@@ -509,9 +538,12 @@ export async function savePersonalInfo(userId, patch = {}) {
 
 // ---- questionnaire (1:1, exclusively this user's) --------------------------
 const INTENTS = ["create", "join"];
-export async function saveQuestionnaire(userId, answers = {}) {
-  const clean = {
-    intent: INTENTS.includes(answers.intent) ? answers.intent : "",
+export async function saveQuestionnaire(
+  userId: string,
+  answers: Questionnaire = {},
+): Promise<{ error?: string; questionnaire?: Questionnaire }> {
+  const clean: Questionnaire = {
+    intent: INTENTS.includes(answers.intent || "") ? answers.intent : "",
     field: String(answers.field || "").trim().slice(0, 120),
     country: String(answers.country || "").trim().slice(0, 80),
     city: String(answers.city || "").trim().slice(0, 80),
@@ -531,7 +563,7 @@ export { getQuestionnaire };
 // It is the exact complement of the check on the questionnaire page itself
 // (which sends anyone already finished to their account), so the two can never
 // bounce a request back and forth.
-export async function needsQuestionnaire(userId) {
+export async function needsQuestionnaire(userId: string) {
   if (!userId) return false;                    // not signed in — a different gate's problem
   const answers = await getQuestionnaire(userId);
   return !answers?.completedAt;

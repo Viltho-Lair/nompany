@@ -134,7 +134,10 @@ export async function listUserCollaborations(userId) {
   if (!ids.length) return [];
   const rows = await readArr(REG.studios);
   const byId = new Map(rows.map((s) => [s.id, s]));
-  return ids.map((id) => byId.get(id)).filter(Boolean);
+  // `filter(Boolean)` removes the misses, and the cast is what says so — an id
+  // in the back-pointer set with no registry row is drift the sweeper cleans,
+  // not something a caller has to handle.
+  return /** @type {any[]} */ (ids.map((id) => byId.get(id)).filter(Boolean));
 }
 
 // ---- registry updates (id/ownerUserId immutable; slug via changeStudioSlug) -
