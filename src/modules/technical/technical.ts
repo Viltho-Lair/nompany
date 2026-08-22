@@ -11,13 +11,15 @@
 //   • raising an RFQ is a SALES act on their ticket   -> needs Sales:manage
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
-import { sectionManageable, requirePermission } from "@/platform/access";
+import { sectionManageable, requirePermission, effectivePermissions, can } from "@/platform/access";
 import { nextUniqueRef } from "@/modules/main/references";
 import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { listRoles } from "@/modules/people/roles";
+import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "./rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/modules/sales/tickets";
 import { quotationApproved } from "@/modules/tasks/taskRouting";
@@ -333,6 +335,35 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
       status: "Opportunity", updatedAt: new Date().toISOString(),
     });
   }
+
+  // TELL THE PEOPLE WHO WILL QUOTE IT. An RFQ sitting unhandled is the Sales →
+  // Technical handoff going quiet — the ticket moved to Opportunity and nobody
+  // downstream knows there is work waiting. The handlers are whoever can turn an
+  // RFQ into a quotation, resolved from that right rather than a flag (the same
+  // shape as leave approvers), so an RFQ announced to somebody who cannot act on
+  // it never wastes the one person who saw it. Never the raiser — raising it is
+  // how they already know.
+  try {
+    const [people, roles] = await Promise.all([listCollaborators(studio.id), listRoles(studio.id)]);
+    const handlers = people.filter((c) => c.id !== collaborator.id
+      && can(effectivePermissions({ collaborator: c, roles }), "technical.quotations.create"));
+    if (handlers.length) {
+      const userIdOf = new Map(handlers.map((c) => [String(c.id), String(c.userId)]));
+      await notifyCollaborators(
+        studio.id,
+        handlers.map((c) => String(c.id)),
+        {
+          type: NOTIFY.rfqRaised,
+          title: "An RFQ is waiting to be quoted",
+          body: String(rfq.reference || ""),
+          href: "technical-rfq",
+          tone: "primary",
+        },
+        { userIdOf: (id) => userIdOf.get(id) },
+      );
+    }
+  } catch { /* best-effort: the RFQ is raised; failing to announce it must not fail that */ }
+
   return { rfq };
 }
 

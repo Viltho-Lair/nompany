@@ -51,6 +51,7 @@ export const NOTIFY = {
   projectAssigned: "project.assigned",
   purchaseReceived: "purchase.received",
   approvalDecided: "approval.decided",
+  rfqRaised: "rfq.raised",
   mention: "mention",
   system: "system",
 };

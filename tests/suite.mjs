@@ -554,6 +554,39 @@ console.log("\n== the handler is carried, never copied");
 }
 
 // ============================================================================
+console.log("\n== an RFQ tells the people who will quote it");
+// The Sales to Technical handoff went quiet: a ticket moved to Opportunity and
+// nobody downstream knew work was waiting. The handlers are resolved from the
+// right to quote (technical.quotations.create), not a flag — the leave-approver
+// shape — and the raiser is never told, since raising it is how they know.
+{
+  const salesOwner = await salesContext(owner, slug);
+  // Member holds no Technical right by default, so give it the Admin role for
+  // this check — it is the second person who can quote, beside the owner who
+  // raises — and hand it back after.
+  await updateCollaborator(studio.id, member.collaborator.id, { roleIds: [ADMIN_ROLE_ID] });
+
+  const svc = await createService(salesOwner, { name: "Handoff" });
+  const tk = await createTicket(salesOwner, {
+    title: "Quote this", clientName: "Bell Co", deadline: "2026-12-01",
+    industry: "Technology", serviceIds: [svc.service?.id],
+  });
+  const asked = await requestTicketRfq(salesOwner, { ticketId: tk.ticket?.id });
+  ok("an RFQ is raised", !!asked.rfq, JSON.stringify(asked.error));
+
+  const memberNote = (await listForCollaborator(studio.id, member.collaborator.id))
+    .find((n) => n.type === NOTIFY.rfqRaised);
+  ok("a handler who can quote is told an RFQ is waiting", Boolean(memberNote), NOTIFY.rfqRaised);
+  ok("...and the notice carries the RFQ reference", memberNote?.body === asked.rfq?.reference,
+    JSON.stringify(memberNote?.body));
+  ok("...and the raiser is not told",
+    !(await listForCollaborator(studio.id, salesOwner.collaborator.id)).some((n) => n.type === NOTIFY.rfqRaised),
+    "raising it is how they already know");
+
+  await updateCollaborator(studio.id, member.collaborator.id, { roleIds: [roleId("Member")] });
+}
+
+// ============================================================================
 console.log("\n== raising a revision closes the quotation it revises");
 // A second RFQ is Sales asking for the last quotation to be REVISED. From that
 // moment the previous document is the record of what was offered before — the

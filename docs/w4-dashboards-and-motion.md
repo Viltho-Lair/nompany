@@ -903,6 +903,7 @@ change the assignee must not re-ring the holder), and **never an un-assignment**
 | `projects.openProject` / `updateProject` | a project gets a manager | the manager | `projectAssigned` |
 | `inventory.receiveOrder` | an order is received **in full** | whoever raised the PO (not the storekeeper) | `purchaseReceived` |
 | `tasks.decideTask` | an approval completes, or an authority withdraws | whoever raised it | `approvalDecided` |
+| `technical.requestRfq` | an RFQ is raised (from either door) | everyone who can quote (technical.quotations.create) | `rfqRaised` |
 
 The vacation pair is the whole of Nova's scenario (§8A.3): someone in Sales asks,
 an approver decides, and the asker hears the outcome without refreshing anything —
@@ -913,12 +914,13 @@ end-to-end, and asserted that way in the suite.
 allow-list — the two still declared-but-unproduced, now on the record rather than
 silently missing. `taskAssigned` was exactly that kind of silent gap for a year.
 
-**What remains**, and why each waits: the *approval given/refused* and *RFQ/quotation*
-producers sit in the Sales→Technical chain (`business-logic`'s domain, and best done
-with that agent); the *delivery issued* and *stock below reorder* producers are more
-Inventory; and the two **time-driven** ones — overdue invoices, expiring
-documents/permits — are not events and need the cron (`devops` + a sweep), which is
-its own piece of work.
+**What remains**, and why each waits: the *quotation submitted → Sales owner*
+notification has no single clean trigger — a quotation reaches Sales through the
+approval flow, which `approvalDecided` already announces to the raiser — so it is
+covered rather than missing; the *delivery issued* and *stock below reorder*
+producers are more Inventory; and the two **time-driven** ones — overdue invoices,
+expiring documents/permits — are not events and need the cron (`devops` + a sweep),
+which is its own piece of work.
 
 Two of these — overdue invoices and expiring documents — are **not events at all**.
 Nothing happens on the day an invoice goes overdue; time simply passes. They need a
@@ -957,7 +959,7 @@ Thirteen steps. Each one is shippable and each one ends green.
 | 9 | ✅ **Dates**: fixed the mm/dd/yyyy bug, consolidated the studio's duplicate formatter, added Western-digit Arabic + a Gate-A rule (§8.4) | **Done — see §8.4** |
 | 10 | `/super` and `/account` rewire; **placeholder sweep** | The mock data goes when there is real data to replace it |
 | 11 | **The ERP documentation** (§8.6), generated where it can be | Written against screens that have stopped changing, or it is wrong on arrival — and it is Nova's corpus |
-| 11a | 🟡 **Notification producers** — Tasks (assign + approval), HR (both halves), Projects, Inventory done; RFQ/quotation (Sales↔Technical) and the time-driven crons remain | Six producers live. **See §8B** |
+| 11a | 🟡 **Notification producers** — Tasks (assign + approval), HR (both halves), Projects, Inventory, RFQ done; the time-driven crons remain | Seven producers live. **See §8B** |
 | 11b | **Nova** — head, panel, and answering from the documentation (§8A) | Useful, and risks nothing. Capabilities 2 and 3 wait on the model decision |
 | 12 | 🟡 **Finance 1b** — GL + document posting done; AP (Bill) and FA (FixedAsset) remain | **GL + posting landed — see §2.5** |
 | 13 | **Nova capabilities 2 and 3** — reads its studio, raises and routes requests | Writes. Last, behind a confirmation step and a model decision |
