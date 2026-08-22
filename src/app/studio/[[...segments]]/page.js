@@ -1,3 +1,10 @@
+// IMPORTED UNDER ANOTHER NAME, because this file also has to export the route
+// segment config `export const dynamic = "force-dynamic"` — and "the name
+// `dynamic` is defined multiple times" is a build error, not a shadowing
+// warning. Any App Router page that both force-dynamics and code-splits hits
+// this, and the fix is the import, never the export: renaming the config would
+// silently make the studio statically rendered.
+import nextDynamic from "next/dynamic";
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
@@ -12,27 +19,96 @@ import { studioLocale } from "@/shared/i18n";
 import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import LiveProvider from "@/components/studio2/LiveProvider";
-import StudioDocs from "@/components/studio2/StudioDocs";
-import { DocumentList } from "@/components/quality/documents/document-list";
-import { DocumentView } from "@/components/quality/documents/document-view";
-import StudioSalesLive from "@/components/studio2/StudioSalesLive";
-import StudioTechnicalLive from "@/components/studio2/StudioTechnicalLive";
-import StudioPeople from "@/components/studio2/StudioPeople";
-import StudioRoles from "@/components/studio2/StudioRoles";
-import StudioSettings from "@/components/studio2/StudioSettings";
-import StudioSales from "@/components/studio2/StudioSales";
-import StudioTicketProfile from "@/components/studio2/StudioTicketProfile";
-import StudioProjectProfile from "@/components/studio2/StudioProjectProfile";
-import StudioSheetViewer from "@/components/studio2/StudioSheetViewer";
-import SalesQuotationViewer from "@/components/studio2/SalesQuotationViewer";
-import StudioTechnical from "@/components/studio2/StudioTechnical";
-import StudioProjects from "@/components/studio2/StudioProjects";
-import StudioHr from "@/components/studio2/StudioHr";
-import StudioInventory from "@/components/studio2/StudioInventory";
-import StudioFinance from "@/components/studio2/StudioFinance";
-import StudioTasks from "@/components/studio2/StudioTasks";
-import StudioOperations from "@/components/studio2/StudioOperations";
-import StudioMain from "@/components/studio2/StudioMain";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+
+// ONE SCREEN IS RENDERED PER REQUEST, SO ONE SCREEN IS DOWNLOADED.
+//
+// This page is the whole studio: the proxy rewrites /<slug>/… onto it and the
+// switch at the bottom picks a department. Imported statically, all twenty-odd
+// department components land in this route's client manifest — and this route
+// is EVERY route a tenant has, so somebody who only ever opens Sales was paying
+// for Projects, Inventory, Operations, HR, Finance, Tasks and the two viewers
+// as well. 12,600 lines of client component, and the reason the largest chunk
+// is the size it is.
+//
+// `dynamic()` gives each one its own chunk, fetched when the switch actually
+// reaches it. NO `ssr: false` — that is not allowed in a Server Component and
+// would be wrong anyway: these screens should still render on the server, they
+// simply should not all be shipped at once.
+//
+// StudioFrame and LiveProvider stay static. Every request renders both, so
+// splitting them would buy a round trip and save nothing.
+const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
+const DocumentList = nextDynamic(() =>
+  import("@/components/quality/documents/document-list").then((m) => m.DocumentList));
+const DocumentView = nextDynamic(() =>
+  import("@/components/quality/documents/document-view").then((m) => m.DocumentView));
+const StudioSalesLive = nextDynamic(() => import("@/components/studio2/StudioSalesLive"));
+const StudioTechnicalLive = nextDynamic(() => import("@/components/studio2/StudioTechnicalLive"));
+const StudioPeople = nextDynamic(
+  () => import("@/components/studio2/StudioPeople"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioRoles = nextDynamic(
+  () => import("@/components/studio2/StudioRoles"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioSettings = nextDynamic(
+  () => import("@/components/studio2/StudioSettings"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioSales = nextDynamic(
+  () => import("@/components/studio2/StudioSales"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioTicketProfile = nextDynamic(
+  () => import("@/components/studio2/StudioTicketProfile"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioProjectProfile = nextDynamic(
+  () => import("@/components/studio2/StudioProjectProfile"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioSheetViewer = nextDynamic(
+  () => import("@/components/studio2/StudioSheetViewer"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const SalesQuotationViewer = nextDynamic(
+  () => import("@/components/studio2/SalesQuotationViewer"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioTechnical = nextDynamic(
+  () => import("@/components/studio2/StudioTechnical"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioProjects = nextDynamic(
+  () => import("@/components/studio2/StudioProjects"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioHr = nextDynamic(
+  () => import("@/components/studio2/StudioHr"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioInventory = nextDynamic(
+  () => import("@/components/studio2/StudioInventory"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioFinance = nextDynamic(
+  () => import("@/components/studio2/StudioFinance"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioTasks = nextDynamic(
+  () => import("@/components/studio2/StudioTasks"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioOperations = nextDynamic(
+  () => import("@/components/studio2/StudioOperations"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioMain = nextDynamic(
+  () => import("@/components/studio2/StudioMain"),
+  { loading: () => <ScreenSkeleton /> },
+);
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Studio", robots: { index: false, follow: false } };

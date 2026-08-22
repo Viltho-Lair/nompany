@@ -165,11 +165,14 @@ every push to `main` and every pull request.
 - **Hop counts are part of the contract.** A route regressing from 2 Redis round trips
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
-  first is the one that matters: the LARGEST CHUNK is 305 KB gz against a 400 KB
-  ceiling, because that is what every route pays. Total client JS is 1302 KB gz
-  against 1500 KB, which catches sprawl rather than splitting. Bring both down as
-  the component split lands. (This line said 1091/1200 for a while after the
-  script had moved on — a stale number in the invariants file is worse than none.)
+  first is the one that matters: the LARGEST CHUNK is 197 KB gz against a 250 KB
+  ceiling, because that is what every route pays. Total client JS is 1323 KB gz
+  against 1500 KB, which catches sprawl rather than splitting. The studio's
+  department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
+  the total rose 12 KB in the same commit, which is the two ceilings doing their
+  job. Lower the chunk ceiling further as the screens are rewritten. (This line
+  said 1091/1200, then 305/400, as the script moved on — a stale number in the
+  invariants file is worse than none.)
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.

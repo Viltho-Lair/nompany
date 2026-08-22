@@ -842,7 +842,7 @@ Thirteen steps. Each one is shippable and each one ends green.
 | Step | What | Why here |
 |---|---|---|
 | 0 | **The i18n frame**: studio locale source (§8.1), `dir` on the shells, the Arabic glossary, `stylis-plugin-rtl` | Every string written after this point is written once. Doing it later means writing the dashboards twice |
-| 1 | Split the studio into route segments; add `loading.tsx` | Pays for everything after it; the 305 KB chunk is the constraint |
+| 1 | ✅ Split the studio's departments into per-screen chunks; skeleton while each loads | Pays for everything after it. **Done — 307→197 KB gz, the ceiling is 250 now** |
 | 2 | ✅ Promote `charts/` and `motion/` into shared, TypeScript; the charts take a direction | Two folders, immediately reusable. **Done — see §9.2 for what it actually cost** |
 | 3 | **The login page** (§8.5) + the landing's language button (§8.3) | Small, contained, and it proves the motion kit outside the landing before the studio depends on it |
 | 4 | `dashboard/` primitives + `registry.ts` + `analyticsLevelOf` | The pattern, proven on one page |
@@ -860,6 +860,41 @@ Thirteen steps. Each one is shippable and each one ends green.
 
 Technique 6 (scrollytelling) lands with step 6, since Finance is the first
 deep-dive. Technique 8 (Nova) lands with step 8 as chrome only.
+
+### 9.1 Step 1: the split, and what it actually was
+
+NOT route segments — one `dynamic()` per department on the existing catch-all.
+The studio is a single page (`app/studio/[[...segments]]/page.js`): the proxy
+rewrites `/<slug>/…` onto it and a switch at the bottom picks a department.
+Real folder segments would have meant thirteen copies of that resolution — the
+slug lookup, the membership gate, the questionnaire redirect, the visibility
+filter — and the plan's own Rule 1 (do not touch the studio's structural
+backend) argues against it. `nextDynamic()` gets the same chunk-per-screen with
+none of that: the switch is unchanged, each screen fetches when the switch
+reaches it.
+
+- **307 → 197 KB gz** on the largest chunk — the number every studio route pays.
+  The twenty-odd department screens were static imports on that one page, so a
+  Sales-only tenant downloaded Projects, Inventory, Operations, HR, Finance,
+  Tasks and both viewers too. The bundle ceiling is **250** now, and the total
+  went *up* 12 KB in the same commit — twenty chunk headers where there was one —
+  which is what the two ceilings exist to tell apart.
+- **The name collision.** A page cannot `import dynamic` and also
+  `export const dynamic = "force-dynamic"` — same binding, and it is a build
+  error, not a warning. Imported as `nextDynamic`; the fix is always the import,
+  never the export, or the studio silently goes static.
+- **The skeleton is the other half.** A split screen suspends while its chunk
+  arrives, and without a placeholder the shell renders around a hole — nav and
+  header stay, the middle goes white, which reads as broken rather than loading.
+  `ScreenSkeleton` reserves the shape a department page actually has (title, a
+  row of figures, a chart, a table) so the real screen lands where it stood. The
+  four full-screen screens that render *outside* the shell keep the default of
+  nothing — there is no content box to hold yet, so the previous page stays.
+- **UNVERIFIED ON SCREEN.** Signing into the sandbox needs an emailed OTP the
+  sandbox cannot send, and recovering the code programmatically is exactly what
+  the environment's guardrail stops — rightly. So the split is verified by
+  build, bundle budget and both typecheck configs, and the rendered studio is
+  not. This is the standing gap the CLAUDE.md sandbox note describes.
 
 ### 9.2 What step 2 turned out to involve
 

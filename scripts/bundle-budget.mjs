@@ -33,14 +33,28 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 // THE ONE THAT MATTERS. Every route pays the shared chunk, so this is the number
-// that tracks what a user actually waits for. 304 KB today; the component split
-// in docs/ui-ux-overhaul.md section 6 is what brings it toward the 400 KB
-// route-total target. Lower it as that lands. Never raise it without saying why.
-const MAX_CHUNK_GZIP_KB = 400;
+// that tracks what a user actually waits for.
+//
+// 197 KB, down from 307 — the studio's twenty-odd department screens used to be
+// static imports on one catch-all page, so a tenant who only ever opened Sales
+// downloaded Projects, Inventory, Operations, HR, Finance, Tasks and both
+// viewers with it. They are `nextDynamic()` now and each has its own chunk.
+//
+// The ceiling is 250 rather than 400: the number to hold is the one just above
+// where we actually are, or the next regression hides in the headroom. Lower it
+// as the department screens are rewritten in Wave 4. Never raise it without
+// saying why.
+const MAX_CHUNK_GZIP_KB = 250;
 
 // A SPRAWL CEILING, not a page weight. Deliberate vendor splits push this up
 // without making any page heavier, so it is set with room and is not the thing
-// that should normally fail. 1297 KB today.
+// that should normally fail.
+//
+// 1323 KB today, and it went UP by 12 KB in the same commit that took 110 KB
+// off the number above — which is exactly what these two ceilings are for.
+// Splitting one chunk into twenty adds twenty chunk headers and duplicates a
+// little shared glue; the total grows while every individual page gets lighter.
+// A commit that moves these two the same way is doing something else.
 const MAX_TOTAL_GZIP_KB = 1500;
 
 const DIR = ".next/static";
