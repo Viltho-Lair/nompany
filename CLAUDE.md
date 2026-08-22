@@ -164,8 +164,12 @@ every push to `main` and every pull request.
   `NOMPANY_RECORD_GOLDENS` is never set in CI.
 - **Hop counts are part of the contract.** A route regressing from 2 Redis round trips
   to 8 fails the build.
-- **The bundle budget pins the regression, not the size** — 1091 KB gz against a
-  1200 KB ceiling. Bring the ceiling down as the component split lands.
+- **The bundle budget pins the regression, not the size.** Two gates, and the
+  first is the one that matters: the LARGEST CHUNK is 305 KB gz against a 400 KB
+  ceiling, because that is what every route pays. Total client JS is 1302 KB gz
+  against 1500 KB, which catches sprawl rather than splitting. Bring both down as
+  the component split lands. (This line said 1091/1200 for a while after the
+  script had moved on — a stale number in the invariants file is worse than none.)
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.

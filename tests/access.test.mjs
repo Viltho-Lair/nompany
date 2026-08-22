@@ -364,5 +364,99 @@ console.log("\n== wiring");
 
 }
 
+
+console.log("\n== schemas: what a department says it stores");
+// A SCHEMA THAT COMPILES IS NOT A SCHEMA THAT WORKS.
+//
+// These are transcribed from the coercion that already writes each record, so
+// the thing that can go wrong is a transcription error — a field marked
+// required that the creator does not always set, a limit copied from the wrong
+// line. Either one type-checks perfectly and refuses a real row the first time
+// anything parses with it.
+//
+// So each schema is handed a row shaped the way its own creator writes it, and
+// asked. Cheap: no Redis, no fixtures, pure values.
+//
+// The negative cases are the half that matters. A schema that accepts
+// everything would pass every positive assertion above and be worth nothing.
+{
+  const { TaskSchema } = await import("@/modules/tasks/schema");
+  const { RoleSchema, JoinRequestSchema } = await import("@/modules/people/schema");
+  const { InvoiceSchema, ExpenseSchema } = await import("@/modules/finance/schema");
+  const { VacationSchema, CertificationSchema } = await import("@/modules/hr/schema");
+  const { PermitSchema, ShiftSchema, PositionSchema, LocationSchema } =
+    await import("@/modules/operations/schema");
+
+  const why = (r) => (r.success ? "" : JSON.stringify(r.error.issues[0]));
+  const accepts = (label, schema, row) => {
+    const r = schema.safeParse(row);
+    ok(`  ${label}`, r.success, why(r));
+  };
+  const refuses = (label, schema, row) => ok(`  ${label}`, !schema.safeParse(row).success);
+
+  const task = {
+    id: "tas_1", studioId: "std_1", sectionId: "sec_1", title: "Fit the panel", type: "",
+    description: "", status: "To do", priority: "Normal", assigneeCollaboratorId: "",
+    projectId: "", dueDate: "", checklist: [{ id: "c1", text: "Unbox", done: false }],
+    createdByCollaboratorId: "col_1", createdAt: "2026-08-22T00:00:00.000Z", completedAt: "",
+    approvals: {}, approvalWithdrawnAt: "",
+  };
+  accepts("a task as createTask writes it", TaskSchema, task);
+  refuses("...and not one without a title", TaskSchema, { ...task, title: undefined });
+
+  const role = {
+    id: "rol_1", studioId: "std_1", name: "Engineer", permissions: ["sales.tickets.view"],
+    scopes: { "hr.employees": "department" }, createdAt: "x",
+  };
+  accepts("a role as cleanRole writes it", RoleSchema, role);
+  // THE ENUM COMES FROM THE CATALOGUE. This is the assertion that says so: a
+  // scope the access module does not define is refused here without this file
+  // knowing what the three are.
+  refuses("...and not a scope the catalogue has never heard of", RoleSchema,
+    { ...role, scopes: { "hr.employees": "everything" } });
+
+  accepts("a join request", JoinRequestSchema, {
+    id: "req_1", studioId: "std_1", userId: "usr_1", status: "pending",
+    createdAt: "x", decidedAt: "", decidedByCollaboratorId: "",
+  });
+
+  const invoice = {
+    id: "inv_1", studioId: "s", sectionId: "sec", reference: "INV-0001",
+    projectId: "", clientName: "Acme", lines: [{ description: "Panel", quantity: 2, unitPrice: 50 }],
+    vatRate: 15, status: "Draft", issueDate: "2026-08-22", dueDate: "", notes: "",
+  };
+  accepts("an invoice as createInvoice writes it", InvoiceSchema, invoice);
+  refuses("...and not a VAT rate above 100", InvoiceSchema, { ...invoice, vatRate: 150 });
+
+  accepts("an expense", ExpenseSchema, {
+    id: "exp_1", studioId: "s", sectionId: "sec", reference: "EXP-0001", amount: 42, category: "Travel",
+  });
+
+  // BOTH DATE SPELLINGS, and this is where that is recorded rather than
+  // remembered: rows written by the request screen carry from/to, newer ones
+  // carry startDate/endDate, and both are still read.
+  accepts("a vacation with from/to", VacationSchema, {
+    id: "vac_1", studioId: "s", sectionId: "sec", collaboratorId: "col_1", kind: "Annual",
+    from: "2026-09-01", to: "2026-09-05", status: "Pending", createdAt: "x",
+  });
+  accepts("...and one with startDate/endDate", VacationSchema, {
+    id: "vac_2", studioId: "s", sectionId: "sec", collaboratorId: "col_1", kind: "Annual",
+    startDate: "2026-09-01", endDate: "2026-09-05", status: "Pending", createdAt: "x",
+  });
+
+  accepts("a certification", CertificationSchema, {
+    id: "cer_1", studioId: "s", sectionId: "sec", name: "IPAF", issuer: "",
+    validityMonths: 0, notes: "", createdAt: "x",
+  });
+  accepts("a permit", PermitSchema, { id: "per_1", studioId: "s", sectionId: "sec" });
+  accepts("a shift", ShiftSchema, { id: "shi_1", studioId: "s", sectionId: "sec" });
+  accepts("a position", PositionSchema, {
+    id: "pos_1", studioId: "s", sectionId: "sec", collaboratorId: "col_1", at: "x",
+  });
+  accepts("a location", LocationSchema, {
+    id: "loc_1", studioId: "s", sectionId: "sec", name: "Yard", kind: "Site",
+  });
+}
+
 console.log(fails ? `\n${fails} FAILURES\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);
