@@ -23,6 +23,7 @@ import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { traverseIn } from "@/platform/relations";
 import { nextReference } from "@/modules/main/references";
+import type { Invoice, Expense, InvoiceLine, Payment, FinanceContext } from "./types";
 
 const INVOICES = "invoices";
 const EXPENSES = "expenses";
@@ -33,8 +34,8 @@ const ORDERS = "materialOrders";
 // collection, not a scope — the studio and section arrive per call, which is
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
-const Invoices = repo(INVOICES);
-const Expenses = repo(EXPENSES);
+const Invoices = repo<Invoice>(INVOICES);
+const Expenses = repo<Expense>(EXPENSES);
 const Projects = repo(PROJECTS);
 const Orders = repo(ORDERS);
 
@@ -47,7 +48,7 @@ export const PAYMENT_METHODS = ["Bank transfer", "Cash", "Card", "Cheque", "Othe
 export const DEFAULT_VAT_RATE = 15;
 
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
-const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 const cash = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
 const round = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
@@ -62,17 +63,19 @@ export const financeContext = moduleContext({
   // own story, and a studio without those sections simply has no margin column.
   foreign: { projectsList: ["projects-list", "projects"], sheets: ["inventory-sheets", "inventory"] },
   flags: ["cash", "settings"],
-  extend: ({ settingsSection }) => ({ cashCategories: readCashCategories(settingsSection) }),
+  extend: ({ settingsSection }) => ({
+    cashCategories: readCashCategories(settingsSection as { settings?: Record<string, unknown> }),
+  }),
 });
 
 // The Old System's "Finance Settings - Cash categories": the list an expense is
 // filed under. Stored on the finance-settings sub-section's own settings object.
 export const DEFAULT_CASH_CATEGORIES = ["Materials", "Transport", "Accommodation", "Fuel", "Tools", "Other"];
 
-export function readCashCategories(settingsSection) {
+export function readCashCategories(settingsSection: { settings?: Record<string, unknown> } | null | undefined): string[] {
   const raw = settingsSection?.settings?.cashCategories;
-  const out = [];
-  const seen = new Set();
+  const out: string[] = [];
+  const seen = new Set<string>();
   for (const v of Array.isArray(raw) ? raw : []) {
     const t = String(v ?? "").trim().slice(0, 80);
     if (!t || seen.has(t.toLowerCase())) continue;
@@ -82,7 +85,7 @@ export function readCashCategories(settingsSection) {
   return out.length ? out : [...DEFAULT_CASH_CATEGORIES];
 }
 
-export async function saveFinanceSettings(ctx, body) {
+export async function saveFinanceSettings(ctx: FinanceContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.settings.edit");
   if (denied) return denied;
@@ -138,7 +141,7 @@ export async function listInvoices({ studio, cashSection }) {
     });
 }
 
-export async function createInvoice(ctx, body) {
+export async function createInvoice(ctx: FinanceContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.create");
   if (denied) return denied;
@@ -153,7 +156,7 @@ export async function createInvoice(ctx, body) {
     if (!project) return { error: "project" };
     // Snapshot the client, so the invoice still reads correctly if the project
     // is edited later.
-    clientName = clientName || project.clientName || "";
+    clientName = clientName || String(project.clientName || "");
   }
   if (!clientName) return { error: "client" };
 
@@ -181,7 +184,7 @@ export async function createInvoice(ctx, body) {
   return { invoice: { ...invoice, ...invoiceTotals(invoice) } };
 }
 
-export async function editInvoice(ctx, id, body) {
+export async function editInvoice(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.edit");
   if (denied) return denied;
@@ -191,14 +194,14 @@ export async function editInvoice(ctx, id, body) {
   const current = invoices.find((i) => i.id === id);
   if (!current) return { error: "notfound" };
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
 
   if (body?.status !== undefined) {
-    if (!INVOICE_STATUSES.includes(body.status)) return { error: "status" };
+    if (!INVOICE_STATUSES.includes(String(body.status))) return { error: "status" };
     // Paid follows the payments — you record money, you don't declare it.
     if (body.status === "Paid") return { error: "derived-status" };
     if (body.status === "Cancelled" && (current.payments || []).length) return { error: "has-payments" };
-    patch.status = body.status;
+    patch.status = String(body.status);
   }
 
   // An invoice that has left the building is frozen. Changing what a client was
@@ -233,7 +236,7 @@ export async function editInvoice(ctx, id, body) {
 
 // Recording a payment is append-only: the history of what was received, and
 // when, is what makes the balance defensible.
-export async function recordPayment(ctx, id, body) {
+export async function recordPayment(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.edit");
   if (denied) return denied;
@@ -257,7 +260,7 @@ export async function recordPayment(ctx, id, body) {
     id: `pay${(invoice.payments || []).length + 1}`,
     amount,
     date: day(body?.date) || new Date().toISOString().slice(0, 10),
-    method: PAYMENT_METHODS.includes(body?.method) ? body.method : PAYMENT_METHODS[0],
+    method: PAYMENT_METHODS.includes(String(body?.method)) ? String(body?.method) : PAYMENT_METHODS[0],
     reference: str(body?.reference, 120),
     byCollaboratorId: collaborator.id,
   }];
@@ -267,7 +270,7 @@ export async function recordPayment(ctx, id, body) {
 }
 
 // Only a draft can be deleted. Once issued it is part of the record — cancel it.
-export async function removeInvoice(ctx, id) {
+export async function removeInvoice(ctx: FinanceContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.delete");
   if (denied) return denied;
@@ -296,12 +299,12 @@ export async function listExpenses({ studio, cashSection }) {
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
     .map((e) => ({
       ...e,
-      projectNumber: projectNumber[e.projectId] || "",
-      paidByAlias: alias[e.paidByCollaboratorId] || "",
+      projectNumber: projectNumber[e.projectId || ""] || "",
+      paidByAlias: alias[e.paidByCollaboratorId || ""] || "",
     }));
 }
 
-export async function createExpense(ctx, body) {
+export async function createExpense(ctx: FinanceContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.create");
   if (denied) return denied;
@@ -320,7 +323,7 @@ export async function createExpense(ctx, body) {
   const expense = await addRow(studio.id, cashSection.id, EXPENSES, {
     reference: await nextReference(studio.id, { rows: expenses, field: "reference", prefix: "EXP" }),
     description: str(body?.description, 300),
-    category: EXPENSE_CATEGORIES.includes(body?.category) ? body.category : "Other",
+    category: EXPENSE_CATEGORIES.includes(String(body?.category)) ? String(body?.category) : "Other",
     amount,
     date: day(body?.date) || new Date().toISOString().slice(0, 10),
     projectId,
@@ -332,16 +335,16 @@ export async function createExpense(ctx, body) {
   return { expense };
 }
 
-export async function editExpense(ctx, id, body) {
+export async function editExpense(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.edit");
   if (denied) return denied;
 
   const { studio, cashSection } = ctx;
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.amount !== undefined) { const v = cash(body.amount); if (!v) return { error: "amount" }; patch.amount = v; }
   if (body?.description !== undefined) patch.description = str(body.description, 300);
-  if (body?.category !== undefined && EXPENSE_CATEGORIES.includes(body.category)) patch.category = body.category;
+  if (body?.category !== undefined && EXPENSE_CATEGORIES.includes(String(body.category))) patch.category = String(body.category);
   if (body?.date !== undefined) patch.date = day(body.date);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.paidByCollaboratorId !== undefined) patch.paidByCollaboratorId = str(body.paidByCollaboratorId, 60);
@@ -358,7 +361,7 @@ export async function editExpense(ctx, id, body) {
   return expense ? { expense } : { error: "notfound" };
 }
 
-export async function removeExpense(ctx, id) {
+export async function removeExpense(ctx: FinanceContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.delete");
   if (denied) return denied;
@@ -371,7 +374,7 @@ export async function removeExpense(ctx, id) {
 // Per project: what it was sold for, what has been billed and collected, and
 // what it has cost. Recomputed on every read from the sections that own each
 // number, so Finance never holds a stale copy of anyone else's data.
-export async function profitability(ctx, { invoices, expenses }) {
+export async function profitability(ctx: FinanceContext, { invoices, expenses }) {
   const [projects, orders, people] = await Promise.all([projectRows(ctx), orderRows(ctx), listCollaborators(ctx.studio.id)]);
   const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
 
@@ -383,13 +386,19 @@ export async function profitability(ctx, { invoices, expenses }) {
     // somebody has to notice in a filter.
     const of = (node, rows) => traverseIn("project", p, node, { rows: { [node]: rows } }).records;
 
-    const mine = of("invoice", invoices);
-    const invoiced = round(mine.reduce((s, i) => s + i.total, 0));
-    const collected = round(mine.reduce((s, i) => s + i.paid, 0));
+    // `traverseIn` walks plain rows, so what comes back is the graph's Row —
+    // narrowed here because these two totals are the whole point of the call.
+    const mine = of("invoice", invoices) as Invoice[];
+    const invoiced = round(mine.reduce((s, i) => s + (i.total || 0), 0));
+    const collected = round(mine.reduce((s, i) => s + (i.paid || 0), 0));
 
-    const materials = round(of("materialOrder", orders)
+    // Two more walks over plain graph rows. `lines` on a material order belongs
+    // to Inventory's record rather than Finance's, which is why it is read
+    // structurally here instead of being given a name this module would own.
+    type OrderLine = { qty?: unknown; unitPrice?: unknown };
+    const materials = round((of("materialOrder", orders) as { lines?: OrderLine[] }[])
       .reduce((s, o) => s + (o.lines || []).reduce((n, l) => n + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0), 0));
-    const booked = round(of("expense", expenses).reduce((s, e) => s + e.amount, 0));
+    const booked = round((of("expense", expenses) as Expense[]).reduce((s, e) => s + (Number(e.amount) || 0), 0));
     const cost = round(materials + booked);
     const value = round(p.value);
 
@@ -405,7 +414,7 @@ export async function profitability(ctx, { invoices, expenses }) {
       // so Finance issued a number into a field nothing else read, and Projects
       // and the sheets went on showing none. Same field for everybody now.
       projectNumber: p.number || "",
-      managerAlias: alias[p.managerCollaboratorId] || "",
+      managerAlias: alias[String(p.managerCollaboratorId || "")] || "",
       location: p.location || "",
       endDate: p.endDate || "",
       value, invoiced, collected, materials, expenses: booked, cost,
@@ -433,7 +442,7 @@ function cleanLines(list) {
 // allowed to open those screens — the links to them stay permission-gated.
 // Cross-section reads resolve the sub-section that OWNS the collection, falling
 // back to the parent so a studio predating the sub-section model still works.
-async function ownerOf(studioId, childKey, parentKey) {
+async function ownerOf(studioId: string, childKey, parentKey) {
   return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
 }
 
@@ -449,7 +458,7 @@ async function orderRows({ studio }) {
   return Orders.find({ studio, section: owner });
 }
 
-export async function billableProjects(ctx) {
+export async function billableProjects(ctx: FinanceContext) {
   const rows = await projectRows(ctx);
   return rows.map((p) => ({ id: p.id, number: p.number, title: p.title || "", clientName: p.clientName || "" }));
 }
@@ -470,7 +479,7 @@ export async function billableProjects(ctx) {
 //
 // UNIQUE, because a project number is quoted on invoices and delivery notes and
 // two projects sharing one is not a cosmetic problem.
-export async function setCommercials(ctx, id, body) {
+export async function setCommercials(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "finance.cash.edit");
   if (denied) return denied;
@@ -482,7 +491,7 @@ export async function setCommercials(ctx, id, body) {
   const rows = await Projects.find({ studio, section: owner });
   if (!rows.some((p) => p.id === id)) return { error: "notfound" };
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.poNumber !== undefined) patch.poNumber = str(body.poNumber, 60);
   if (body?.projectNumber !== undefined) {
     const number = str(body.projectNumber, 60);

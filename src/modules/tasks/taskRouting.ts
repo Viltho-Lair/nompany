@@ -150,7 +150,7 @@ export function resolveTaskAssignees(task, taskAssignees) {
 // A typed task with its routing resolved. `myAuthorities` is which of them the
 // viewer personally holds — empty means they may be able to SEE it, but it is
 // not theirs to decide.
-export function enrichTask(task, taskAssignees, meId) {
+export function enrichTask(task, taskAssignees, meId: string) {
   if (!isApprovalTask(task)) {
     return { ...task, authorities: [], byAuthority: {}, assigneeIds: [], approvals: {}, approvalState: null, myAuthorities: [] };
   }
@@ -192,7 +192,7 @@ export function progressOf(checklist) {
 }
 
 // Headline counts, including how much is landing on the person looking.
-export function summarise(tasks, meId) {
+export function summarise(tasks, meId: string) {
   const live = tasks.filter((t) => t.status !== "Done");
   return {
     open: live.length,

@@ -18,6 +18,7 @@ import { listCollaborators } from "@/platform/auth/collaborators";
 import { listRoles } from "./roles";
 import { effectivePermissions, can } from "@/platform/access";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
+import type { JoinRequest } from "./types";
 
 export const PENDING = "pending";
 export const APPROVED = "approved";
@@ -25,9 +26,9 @@ export const DECLINED = "declined";
 
 // The duplicate check and the insert are one atomic step: two taps on "request
 // to join" cannot both find no pending row and both add one.
-export async function createJoinRequest({ studioId, userId }) {
+export async function createJoinRequest({ studioId, userId }: { studioId?: string; userId?: string }) {
   if (!studioId || !userId) return { error: "missing" };
-  const outcome = await editArr(REG.joinRequests, (rows) => {
+  const outcome = await editArr<JoinRequest, { error?: string; request?: JoinRequest }>(REG.joinRequests, (rows) => {
     if (rows.some((r) => r.studioId === studioId && r.userId === userId && r.status === PENDING)) {
       return { result: { error: "pending" } }; // never stack duplicates
     }
@@ -57,10 +58,10 @@ export async function createJoinRequest({ studioId, userId }) {
     const [people, roles] = await Promise.all([listCollaborators(studioId), listRoles(studioId)]);
     const admins = people.filter((c) =>
       can(effectivePermissions({ collaborator: c, roles }), "people.members.edit"));
-    const userIdOf = new Map(admins.map((c) => [c.id, c.userId]));
+    const userIdOf = new Map(admins.map((c) => [String(c.id), String(c.userId)]));
     await notifyCollaborators(
       studioId,
-      admins.map((c) => c.id),
+      admins.map((c) => String(c.id)),
       {
         type: NOTIFY.joinRequested,
         title: "Someone asked to join",
@@ -81,8 +82,8 @@ export async function createJoinRequest({ studioId, userId }) {
   return outcome;
 }
 
-export async function listPendingForStudio(studioId) {
-  const rows = await readArr(REG.joinRequests);
+export async function listPendingForStudio(studioId: string) {
+  const rows = await readArr<JoinRequest>(REG.joinRequests);
   return rows
     .filter((r) => r.studioId === studioId && r.status === PENDING)
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
@@ -98,14 +99,14 @@ export async function listPendingForStudio(studioId) {
 // Read at the ACCOUNT level, where they are a User rather than a member of
 // anything, because somebody DECLINED never gets a CollaboratorID and so has no
 // identity inside that studio to be told in.
-export async function listForUser(userId) {
+export async function listForUser(userId: string) {
   if (!userId) return [];
-  const rows = await readArr(REG.joinRequests);
+  const rows = await readArr<JoinRequest>(REG.joinRequests);
   return rows.filter((r) => r.userId === userId);
 }
 
-export async function getJoinRequest(requestId) {
-  const rows = await readArr(REG.joinRequests);
+export async function getJoinRequest(requestId: string) {
+  const rows = await readArr<JoinRequest>(REG.joinRequests);
   return rows.find((r) => r.id === requestId) || null;
 }
 
@@ -114,8 +115,11 @@ export async function getJoinRequest(requestId) {
 // same moment, exactly one wins and the other is told "already-decided". That
 // is what stops a double-approve from creating two collaborator rows: the guard
 // is worthless if another request can slip between reading it and writing.
-export async function decideJoinRequest(requestId, { status, decidedByCollaboratorId }) {
-  const outcome = await editArr(REG.joinRequests, (rows) => {
+export async function decideJoinRequest(
+  requestId: string,
+  { status, decidedByCollaboratorId }: { status: string; decidedByCollaboratorId: string },
+) {
+  const outcome = await editArr<JoinRequest, { error?: string; request?: JoinRequest }>(REG.joinRequests, (rows) => {
     const current = rows.find((r) => r.id === requestId);
     if (!current) return { result: { error: "notfound" } };
     if (current.status !== PENDING) return { result: { error: "already-decided" } };

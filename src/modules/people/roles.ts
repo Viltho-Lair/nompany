@@ -3,6 +3,8 @@ import { S, ID } from "@/platform/db/keys";
 import { emit, SCOPE, TYPE } from "@/platform/realtime/events";
 import { cascadeDeleteRole } from "@/platform/db/cascade";
 import { cleanPermissions, keysForLevel, AREAS, SCOPES, ADMIN_ROLE_ID } from "@/platform/access";
+import type { Role } from "./types";
+import type { Scope, Level } from "@/platform/access";
 
 // CHANGING A ROLE CHANGES WHAT EVERYONE HOLDING IT MAY DO, so it is announced.
 //
@@ -12,7 +14,7 @@ import { cleanPermissions, keysForLevel, AREAS, SCOPES, ADMIN_ROLE_ID } from "@/
 // roles, nothing was left emitting the event — so the most consequential access
 // change in the product reached nobody until they happened to reconnect, and an
 // open screen kept offering buttons its owner no longer had.
-const announce = (studioId) => emit(studioId, { type: TYPE.grantsChanged, scope: SCOPE.PEOPLE });
+const announce = (studioId: string) => emit(studioId, { type: TYPE.grantsChanged, scope: SCOPE.PEOPLE });
 
 // ROLES — named bundles of permissions, defined per studio.
 //
@@ -37,17 +39,21 @@ const announce = (studioId) => emit(studioId, { type: TYPE.grantsChanged, scope:
 // the store.
 export { ADMIN_ROLE_ID };
 
-const str = (v, max) => String(v ?? "").trim().slice(0, max);
+const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
-function cleanScopes(v) {
-  const out = {};
-  for (const [area, scope] of Object.entries(v || {})) {
-    if (AREAS.some((a) => a.key === area && a.scoped) && SCOPES.includes(scope)) out[area] = scope;
+function cleanScopes(v: unknown): Record<string, Scope> {
+  const out: Record<string, Scope> = {};
+  for (const [area, scope] of Object.entries((v || {}) as Record<string, unknown>)) {
+    // The `as Scope` is earned by the line it sits on: SCOPES.includes has just
+    // established that the value is one of the three.
+    if (AREAS.some((a) => a.key === area && a.scoped) && SCOPES.includes(scope as Scope)) {
+      out[area] = scope as Scope;
+    }
   }
   return out;
 }
 
-export function cleanRole(body) {
+export function cleanRole(body: Record<string, unknown>) {
   return {
     name: str(body?.name, 60) || "New role",
     description: str(body?.description, 200),
@@ -62,7 +68,14 @@ export function cleanRole(body) {
 // A studio starts with roles rather than a blank editor. An empty permission
 // grid is where over-granting begins: faced with 110 unchecked boxes, people
 // tick everything to make the product work and never come back.
-const level = (areaKey, lvl) => keysForLevel(AREAS.find((a) => a.key === areaKey), lvl);
+// A STARTER ROLE NAMES AREAS THAT EXIST, so a miss here is a typo in the list
+// below rather than a runtime condition — but the seeded roles are what every
+// new studio gets, so it fails loudly rather than silently granting nothing.
+const level = (areaKey: string, lvl: Level) => {
+  const area = AREAS.find((a) => a.key === areaKey);
+  if (!area) throw new Error(`roles: starter role names an area that does not exist: ${areaKey}`);
+  return keysForLevel(area, lvl);
+};
 
 export const STARTER_ROLES = [
   {
@@ -134,22 +147,22 @@ export const STARTER_ROLES = [
 // Seeded lazily on first read, the same way the default plan is: a studio that
 // existed before roles did gets them the first time anybody looks, with no
 // migration to run and nothing to remember.
-export async function listRoles(studioId) {
-  const rows = await readArr(S.roles(studioId));
+export async function listRoles(studioId: string) {
+  const rows = await readArr<Role>(S.roles(studioId));
   if (rows.length) return rows;
   const seeded = STARTER_ROLES.map((r) => ({ ...r, studioId, createdAt: new Date().toISOString() }));
   await editArr(S.roles(studioId), (cur) => ({ next: cur.length ? cur : seeded }));
-  return readArr(S.roles(studioId));
+  return readArr<Role>(S.roles(studioId));
 }
 
-export async function createRole(studioId, body) {
+export async function createRole(studioId: string, body: Record<string, unknown>) {
   const row = { id: ID.role(), studioId, ...cleanRole(body), createdAt: new Date().toISOString() };
   await editArr(S.roles(studioId), (rows) => ({ next: [...rows, row] }));
   await announce(studioId);
   return row;
 }
 
-export async function updateRole(studioId, id, body) {
+export async function updateRole(studioId: string, id: string, body: Record<string, unknown>) {
   // The wildcard's permission list is meaningless and its name is load-bearing,
   // so Admin takes a description and nothing else.
   const out = await editArr(S.roles(studioId), (rows) => ({
@@ -174,7 +187,7 @@ export async function updateRole(studioId, id, body) {
 // before asking for it. Admin is the one exception, and not because it is held:
 // a studio with no wildcard role is one where a new capability reaches nobody,
 // including whoever is meant to fix that.
-export async function deleteRole(studioId, id) {
+export async function deleteRole(studioId: string, id: string) {
   if (id === ADMIN_ROLE_ID) return { error: "protected" };
   const out = await cascadeDeleteRole(studioId, id);
   await announce(studioId);

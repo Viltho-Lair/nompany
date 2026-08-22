@@ -24,6 +24,8 @@
     "src/platform/access/**/*",
     "src/platform/db/**/*",
     "src/platform/auth/**/*",
+    "src/modules/context.ts",
+    "src/modules/people/**/*",
     "src/platform/http/**/*",
     "src/platform/realtime/**/*",
     "src/platform/notify/**/*",

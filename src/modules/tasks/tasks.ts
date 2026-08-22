@@ -30,6 +30,7 @@ import {
   APPROVAL_COOLDOWN_MS, isApprovalTask, readTaskAssignees, resolveTaskAssignees,
   enrichTask, canSeeTask, progressOf, summarise,
 } from "./taskRouting";
+import type { Task, ChecklistItem, TasksContext } from "./types";
 
 const TASKS = "tasks";
 const PROJECTS = "projects";
@@ -38,7 +39,7 @@ const PROJECTS = "projects";
 // collection, not a scope — the studio and section arrive per call, which is
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
-const Tasks = repo(TASKS);
+const Tasks = repo<Task>(TASKS);
 const Projects = repo(PROJECTS);
 
 export const TASK_STATUSES = ["Open", "In progress", "Blocked", "Done"];
@@ -47,7 +48,7 @@ export const DEFAULT_STATUS = "Open";
 export const DEFAULT_PRIORITY = "Normal";
 
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
-const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 
 export const tasksContext = moduleContext({
   root: "tasks",
@@ -70,7 +71,7 @@ export {
   enrichTask, canSeeTask, progressOf, summarise,
 };
 
-export async function saveTasksSettings(ctx, body) {
+export async function saveTasksSettings(ctx: TasksContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "tasks.settings.edit");
   if (denied) return denied;
@@ -91,7 +92,7 @@ export async function saveTasksSettings(ctx, body) {
 // collection rather than to a scope, so the same object answers for every studio
 // and section — the scope arrives with each call, which is what keeps a query
 // from ever naming another tenant's keys.
-export async function listTasks(ctx) {
+export async function listTasks(ctx: TasksContext) {
   const { studio, collaborator, canManage, taskAssignees } = ctx;
   const [tasks, people, projects] = await Promise.all([
     Tasks.find(ctx),
@@ -143,7 +144,7 @@ export async function listTasks(ctx) {
     }));
 }
 
-export async function createTask(ctx, body) {
+export async function createTask(ctx: TasksContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "tasks.board.create");
   if (denied) return denied;
@@ -166,7 +167,7 @@ export async function createTask(ctx, body) {
 
   // A typed task is routed by its type and needs no assignee — who holds it is
   // read from Task settings, and changes the moment those settings change.
-  const type = TASK_TYPES.includes(body?.type) ? body.type : "";
+  const type = TASK_TYPES.includes(String(body?.type)) ? String(body?.type) : "";
 
   const task = await Tasks.create(ctx, {
     title,
@@ -174,8 +175,8 @@ export async function createTask(ctx, body) {
     approvals: {},
     approvalWithdrawnAt: "",
     description: str(body?.description, 4000),
-    status: TASK_STATUSES.includes(body?.status) ? body.status : DEFAULT_STATUS,
-    priority: TASK_PRIORITIES.includes(body?.priority) ? body.priority : DEFAULT_PRIORITY,
+    status: TASK_STATUSES.includes(String(body?.status)) ? String(body?.status) : DEFAULT_STATUS,
+    priority: TASK_PRIORITIES.includes(String(body?.priority)) ? String(body?.priority) : DEFAULT_PRIORITY,
     assigneeCollaboratorId,
     projectId,
     dueDate: day(body?.dueDate),
@@ -190,7 +191,7 @@ export async function createTask(ctx, body) {
 // What someone may change depends on who they are. A manager edits anything; the
 // assignee may move their own task along and tick its checklist, but not
 // reassign it or rewrite what was asked of them.
-export async function updateTask(ctx, id, body) {
+export async function updateTask(ctx: TasksContext, id: string, body: Record<string, unknown>) {
   const { studio, collaborator } = ctx;
   const current = await Tasks.byId(ctx, id);
   if (!current) return { error: "notfound" };
@@ -230,13 +231,13 @@ export async function updateTask(ctx, id, body) {
   }
   if (!boardEdit && !isAssignee) return { error: "forbidden" };
 
-  const patch = {};
+  const patch: Partial<Task> = {};
 
   if (body?.status !== undefined) {
-    if (!TASK_STATUSES.includes(body.status)) return { error: "status" };
-    patch.status = body.status;
+    if (!TASK_STATUSES.includes(String(body.status))) return { error: "status" };
+    patch.status = String(body.status);
     // Completion time is recorded, not asserted — and clears if reopened.
-    patch.completedAt = body.status === "Done" ? (current.completedAt || new Date().toISOString()) : "";
+    patch.completedAt = String(body.status) === "Done" ? (current.completedAt || new Date().toISOString()) : "";
   }
 
   // Ticking one box says WHICH box, not what the whole list should become — and
@@ -262,7 +263,7 @@ export async function updateTask(ctx, id, body) {
   } else {
     if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
     if (body?.description !== undefined) patch.description = str(body.description, 4000);
-    if (body?.priority !== undefined && TASK_PRIORITIES.includes(body.priority)) patch.priority = body.priority;
+    if (body?.priority !== undefined && TASK_PRIORITIES.includes(String(body.priority))) patch.priority = String(body.priority);
     if (body?.dueDate !== undefined) patch.dueDate = day(body.dueDate);
     if (body?.assigneeCollaboratorId !== undefined) {
       const assignee = str(body.assigneeCollaboratorId, 60);
@@ -311,7 +312,7 @@ export async function updateTask(ctx, id, body) {
 // for Sales and can never approve for Management, whatever the payload claims.
 // A manager may act for any authority, which is what makes the board unblockable
 // when somebody is away.
-export async function decideTask(ctx, id, body) {
+export async function decideTask(ctx: TasksContext, id: string, body: Record<string, unknown>) {
   const { studio, collaborator, canManage, taskAssignees } = ctx;
   const current = await Tasks.byId(ctx, id);
   if (!current) return { error: "notfound" };
@@ -343,7 +344,7 @@ export async function decideTask(ctx, id, body) {
     } else {
       delete approvals[authority];
     }
-    const changes = { approvals };
+    const changes: Partial<Task> = { approvals };
     if (!approved) changes.approvalWithdrawnAt = new Date().toISOString();
 
     // Every required authority has signed off, so the decision is made. Taking
@@ -373,13 +374,13 @@ export async function decideTask(ctx, id, body) {
     const owner = await ownerOf(studio.id, "projects-list", "projects");
     if (owner) {
       const out = await issueProjectNumber({ studio, listSection: owner }, task.quotationId);
-      numberIssued = out.issued || "";
+      numberIssued = String(out.issued || "");
     }
   }
   return { task, numberIssued };
 }
 
-export async function removeTask(ctx, id) {
+export async function removeTask(ctx: TasksContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "tasks.board.delete");
   if (denied) return denied;
@@ -421,7 +422,7 @@ function cleanChecklist(list) {
 // itself stays permission-gated in the UI.
 // Cross-section reads resolve the sub-section that OWNS the collection, falling
 // back to the parent so a studio predating the sub-section model still works.
-async function ownerOf(studioId, childKey, parentKey) {
+async function ownerOf(studioId: string, childKey, parentKey) {
   return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
 }
 
@@ -434,7 +435,7 @@ async function projectRows({ studio }) {
   return Projects.find({ studio, section: owner });
 }
 
-export async function taskProjects(ctx) {
+export async function taskProjects(ctx: TasksContext) {
   const rows = await projectRows(ctx);
   return rows
     .filter((p) => p.stage !== "Completed")

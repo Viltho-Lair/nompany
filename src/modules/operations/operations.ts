@@ -22,6 +22,8 @@ import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { nextReference } from "@/modules/main/references";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "./operationsCalendar";
+import type { Location, Permit, Position, Shift, OperationsContext } from "./types";
+import type { Vacation } from "@/modules/hr/types";
 
 const LOCATIONS = "locations";
 const PERMITS = "permits";
@@ -34,12 +36,16 @@ const PROJECTS = "projects";
 // collection, not a scope — the studio and section arrive per call, which is
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
-const Locations = repo(LOCATIONS);
-const Permits = repo(PERMITS);
-const Positions = repo(POSITIONS);
+const Locations = repo<Location>(LOCATIONS);
+const Permits = repo<Permit>(PERMITS);
+const Positions = repo<Position>(POSITIONS);
 const Projects = repo(PROJECTS);
-const Shifts = repo(SHIFTS);
-const Vacations = repo(VACATIONS);
+const Shifts = repo<Shift>(SHIFTS);
+// HR'S RECORD, READ FROM OPERATIONS. The type comes from the module that owns
+// it rather than being restated here — a second declaration of somebody else's
+// row is a second thing to keep in step, and this is exactly the cross-module
+// read the departmental structure is meant to make explicit rather than hide.
+const Vacations = repo<Vacation>(VACATIONS);
 
 export const LOCATION_KINDS = ["Site", "Office", "Warehouse", "Client premises"];
 export const PERMIT_TYPES = ["Work permit", "Hot work", "Height work", "Confined space", "Electrical", "Vehicle access", "Other"];
@@ -47,8 +53,8 @@ export const PERMIT_TYPES = ["Work permit", "Hot work", "Height work", "Confined
 export const EXPIRY_WINDOW_DAYS = 30;
 
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
-const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
-const clock = (v) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+const clock = (v: unknown) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 const today = () => new Date().toISOString().slice(0, 10);
 
 export const operationsContext = moduleContext({
@@ -58,13 +64,15 @@ export const operationsContext = moduleContext({
   // Projects because a shift is worked against one.
   foreign: { hr: "hr", projectsList: ["projects-list", "projects"] },
   flags: ["tracking", "settings"],
-  extend: ({ settingsSection }) => ({ settings: settingsSection.settings || {} }),
+  extend: ({ settingsSection }) => ({
+    settings: (settingsSection as { settings?: Record<string, unknown> })?.settings || {},
+  }),
 });
 
 // Operations Settings live on the operations-settings sub-section's own
 // `settings` object, so they need no key of their own and die with it.
 // Patch semantics: only the keys present in the body are touched.
-export async function saveOperationsSettings(ctx, body) {
+export async function saveOperationsSettings(ctx: OperationsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.settings.edit");
   if (denied) return denied;
@@ -127,14 +135,14 @@ export async function listPositions({ studio, trackingSection }) {
   ]);
   const aliasOf = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
   return [...rows]
-    .filter((r) => aliasOf[r.collaboratorId]) // somebody who has left stops being plotted
-    .map((r) => ({ ...r, alias: aliasOf[r.collaboratorId] }))
+    .filter((r) => aliasOf[String(r.collaboratorId)]) // somebody who has left stops being plotted
+    .map((r) => ({ ...r, alias: aliasOf[String(r.collaboratorId)] }))
     .sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
 }
 
 // A person reports only their OWN position: the collaborator id comes from the
 // session, never the payload, so no one can place somebody else on the map.
-export async function reportPosition(ctx, body) {
+export async function reportPosition(ctx: OperationsContext, body: Record<string, unknown>) {
   const { studio, trackingSection, collaborator } = ctx;
   const lat = Number(body?.lat);
   const lng = Number(body?.lng);
@@ -160,7 +168,7 @@ export async function reportPosition(ctx, body) {
 
 // Stop being on the map. Anyone may clear their own; managing tracking lets you
 // clear somebody else's, which is what you need when a phone is left logged in.
-export async function clearPosition(ctx, collaboratorId) {
+export async function clearPosition(ctx: OperationsContext, collaboratorId: string) {
   const { studio, trackingSection, collaborator, canManageTracking } = ctx;
   const target = str(collaboratorId, 60) || collaborator.id;
   if (target !== collaborator.id && !canManageTracking) return { error: "forbidden" };
@@ -178,7 +186,7 @@ export async function listLocations({ studio, section }) {
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
-export async function createLocation(ctx, body) {
+export async function createLocation(ctx: OperationsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.create");
   if (denied) return denied;
@@ -192,7 +200,7 @@ export async function createLocation(ctx, body) {
 
   const location = await addRow(studio.id, section.id, LOCATIONS, {
     name,
-    kind: LOCATION_KINDS.includes(body?.kind) ? body.kind : LOCATION_KINDS[0],
+    kind: LOCATION_KINDS.includes(String(body?.kind)) ? String(body?.kind) : LOCATION_KINDS[0],
     address: str(body?.address, 300),
     city: str(body?.city, 80),
     mapUrl: str(body?.mapUrl, 500),
@@ -202,13 +210,13 @@ export async function createLocation(ctx, body) {
   return { location };
 }
 
-export async function editLocation(ctx, id, body) {
+export async function editLocation(ctx: OperationsContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.edit");
   if (denied) return denied;
 
   const { studio, section } = ctx;
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.name !== undefined) {
     const name = str(body.name, 160);
     if (!name) return { error: "name" };
@@ -216,7 +224,7 @@ export async function editLocation(ctx, id, body) {
     if (rows.some((l) => l.id !== id && l.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
     patch.name = name;
   }
-  if (body?.kind !== undefined && LOCATION_KINDS.includes(body.kind)) patch.kind = body.kind;
+  if (body?.kind !== undefined && LOCATION_KINDS.includes(String(body.kind))) patch.kind = body.kind;
   for (const f of ["address", "mapUrl"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 500);
   if (body?.city !== undefined) patch.city = str(body.city, 80);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
@@ -227,7 +235,7 @@ export async function editLocation(ctx, id, body) {
 
 // Refuses while permits or shifts still point at it — deleting would leave a
 // rota and a stack of paperwork referring to a place that no longer exists.
-export async function removeLocation(ctx, id) {
+export async function removeLocation(ctx: OperationsContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.delete");
   if (denied) return denied;
@@ -272,15 +280,17 @@ export async function listPermits({ studio, section }) {
     .sort((a, b) => (a.validTo || "9999").localeCompare(b.validTo || "9999"))
     .map((p) => ({
       ...p,
-      locationName: locName[p.locationId] || "",
-      projectNumber: projectNumber[p.projectId] || "",
-      holderAliases: (p.holderCollaboratorIds || []).map((id) => alias[id] || "—"),
+      locationName: locName[String(p.locationId || "")] || "",
+      projectNumber: projectNumber[String(p.projectId || "")] || "",
+      holderAliases: (p.holderCollaboratorIds || []).map((id) => alias[String(id)] || "—"),
       state: permitState(p, now),
-      daysLeft: p.validTo ? Math.ceil((new Date(`${p.validTo}T00:00:00`) - new Date(`${now}T00:00:00`)) / 86400000) : null,
+      daysLeft: p.validTo
+        ? Math.ceil((new Date(`${p.validTo}T00:00:00`).getTime() - new Date(`${now}T00:00:00`).getTime()) / 86400000)
+        : null,
     }));
 }
 
-export async function createPermit(ctx, body) {
+export async function createPermit(ctx: OperationsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.create");
   if (denied) return denied;
@@ -310,7 +320,7 @@ export async function createPermit(ctx, body) {
     // its reference to the next one. See modules/main/references.js.
     reference: await nextReference(studio.id, { rows: permits, field: "reference", prefix: "PMT" }),
     title,
-    type: PERMIT_TYPES.includes(body?.type) ? body.type : PERMIT_TYPES[0],
+    type: PERMIT_TYPES.includes(String(body?.type)) ? String(body?.type) : PERMIT_TYPES[0],
     number: str(body?.number, 80),
     issuer: str(body?.issuer, 160),
     locationId, projectId,
@@ -323,7 +333,7 @@ export async function createPermit(ctx, body) {
   return { permit };
 }
 
-export async function editPermit(ctx, id, body) {
+export async function editPermit(ctx: OperationsContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.edit");
   if (denied) return denied;
@@ -333,9 +343,9 @@ export async function editPermit(ctx, id, body) {
   const current = rows.find((p) => p.id === id);
   if (!current) return { error: "notfound" };
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
-  if (body?.type !== undefined && PERMIT_TYPES.includes(body.type)) patch.type = body.type;
+  if (body?.type !== undefined && PERMIT_TYPES.includes(String(body.type))) patch.type = body.type;
   if (body?.number !== undefined) patch.number = str(body.number, 80);
   if (body?.issuer !== undefined) patch.issuer = str(body.issuer, 160);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
@@ -362,7 +372,7 @@ export async function editPermit(ctx, id, body) {
   return permit ? { permit } : { error: "notfound" };
 }
 
-export async function removePermit(ctx, id) {
+export async function removePermit(ctx: OperationsContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.delete");
   if (denied) return denied;
@@ -371,7 +381,7 @@ export async function removePermit(ctx, id) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
-async function validHolders(studioId, ids) {
+async function validHolders(studioId: string, ids) {
   const people = await listCollaborators(studioId);
   const known = new Set(people.map((c) => c.id));
   return (Array.isArray(ids) ? ids : []).map((x) => str(x, 60)).filter((x) => known.has(x)).slice(0, 100);
@@ -397,17 +407,17 @@ export async function listShifts({ studio, section }, { from = "", to = "" } = {
   const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
 
   return [...shifts]
-    .filter((s) => (!from || s.date >= from) && (!to || s.date <= to))
+    .filter((s) => (!from || (s.date || "") >= from) && (!to || (s.date || "") <= to))
     .sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.startTime || "").localeCompare(b.startTime || ""))
     .map((s) => ({
       ...s,
-      locationName: locName[s.locationId] || "",
-      alias: alias[s.collaboratorId] || "Unknown",
+      locationName: locName[String(s.locationId || "")] || "",
+      alias: alias[String(s.collaboratorId || "")] || "Unknown",
       hours: shiftHours(s),
     }));
 }
 
-export async function createShift(ctx, body) {
+export async function createShift(ctx: OperationsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.create");
   if (denied) return denied;
@@ -452,7 +462,7 @@ export async function createShift(ctx, body) {
   return { shift: { ...shift, hours: shiftHours(shift) } };
 }
 
-export async function editShift(ctx, id, body) {
+export async function editShift(ctx: OperationsContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.edit");
   if (denied) return denied;
@@ -471,7 +481,7 @@ export async function editShift(ctx, id, body) {
     && s.date === date && overlaps(s.startTime, s.endTime, startTime, endTime));
   if (clash) return { error: "clash", startTime: clash.startTime, endTime: clash.endTime };
 
-  const patch = { date, startTime, endTime };
+  const patch: Partial<Shift> = { date, startTime, endTime };
   if (body?.role !== undefined) patch.role = str(body.role, 120);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 500);
   if (body?.locationId !== undefined) {
@@ -487,7 +497,7 @@ export async function editShift(ctx, id, body) {
   return shift ? { shift: { ...shift, hours: shiftHours(shift) } } : { error: "notfound" };
 }
 
-export async function removeShift(ctx, id) {
+export async function removeShift(ctx: OperationsContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "operations.tracking.delete");
   if (denied) return denied;
@@ -514,12 +524,12 @@ async function approvedLeaveOn({ studio }, collaboratorId, date) {
   if (!hr) return null;
   const rows = await Vacations.find({ studio, section: hr });
   return rows.find((v) => v.collaboratorId === collaboratorId && v.status === "Approved"
-    && v.from <= date && v.to >= date) || null;
+    && (v.from || "") <= date && (v.to || "") >= date) || null;
 }
 
 // Cross-section reads resolve the sub-section that OWNS the collection, falling
 // back to the parent so a studio predating the sub-section model still works.
-async function ownerOf(studioId, childKey, parentKey) {
+async function ownerOf(studioId: string, childKey, parentKey) {
   return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
 }
 
@@ -529,7 +539,7 @@ async function projectRows({ studio }) {
   return Projects.find({ studio, section: owner });
 }
 
-export async function operationsProjects(ctx) {
+export async function operationsProjects(ctx: OperationsContext) {
   const rows = await projectRows(ctx);
   return rows.filter((p) => p.stage !== "Completed").map((p) => ({ id: p.id, number: p.number }));
 }

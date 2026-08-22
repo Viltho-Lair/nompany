@@ -38,6 +38,7 @@ import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/
 import { departmentsFromSections } from "@/lib/departments";
 import { getProfile } from "@/platform/auth/users";
 import { encryptField, decryptField } from "@/platform/auth/fieldCrypto";
+import type { Certification, Vacation, ExpiringDocument, HrContext } from "./types";
 
 const CERTIFICATIONS = "certifications";
 const VACATIONS = "vacations";
@@ -46,8 +47,8 @@ const VACATIONS = "vacations";
 // collection, not a scope — the studio and section arrive per call, which is
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
-const Certifications = repo(CERTIFICATIONS);
-const Vacations = repo(VACATIONS);
+const Certifications = repo<Certification>(CERTIFICATIONS);
+const Vacations = repo<Vacation>(VACATIONS);
 
 export const LEAVE_TYPES = ["Annual", "Sick", "Unpaid", "Parental", "Compassionate"];
 export const LEAVE_STATUSES = ["Pending", "Approved", "Declined", "Cancelled"];
@@ -57,7 +58,7 @@ export const DEFAULT_LEAVE_TYPE = "Annual";
 export const EXPIRY_WINDOW_DAYS = 60;
 
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
-const day = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "";
+const day = (v: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "";
 
 // Resolve studio + membership + the hr section + this person's rights on it.
 // THE COLLECTIONS THIS MODULE QUERIES, named once. A repository binds a
@@ -107,12 +108,12 @@ export function listDepartments({ sections }) {
 //
 // Admin is excluded from every write below. It is the studio's built-in
 // wildcard rather than a role anybody created, and it is not HR's to rename.
-export async function listHrRoles(ctx) {
+export async function listHrRoles(ctx: HrContext) {
   const [roles, people] = await Promise.all([
     listRoles(ctx.studio.id),
     listCollaborators(ctx.studio.id),
   ]);
-  const held = (id) => people.filter((c) => (c.roleIds || []).includes(id)).length;
+  const held = (id: string) => people.filter((c) => ((c.roleIds || []) as string[]).includes(id)).length;
   return [...roles]
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
     .map((r) => ({
@@ -129,7 +130,7 @@ export async function listHrRoles(ctx) {
     }));
 }
 
-export async function createHrRole(ctx, body) {
+export async function createHrRole(ctx: HrContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.create");
   if (denied) return denied;
@@ -148,7 +149,7 @@ export async function createHrRole(ctx, body) {
   return { role };
 }
 
-export async function editHrRole(ctx, id, body) {
+export async function editHrRole(ctx: HrContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.edit");
   if (denied) return denied;
@@ -159,7 +160,7 @@ export async function editHrRole(ctx, id, body) {
   if (!current) return { error: "notfound" };
   if (current.wildcard) return { error: "protected" };
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.name !== undefined) {
     const name = str(body.name, 60);
     if (!name) return { error: "name" };
@@ -186,14 +187,14 @@ export async function editHrRole(ctx, id, body) {
 // Without it, an HR grant would be a way to strip every manager in the studio.
 //
 // An unheld role changes nobody's access, so it stays HR's.
-export async function removeHrRole(ctx, id) {
+export async function removeHrRole(ctx: HrContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.delete");
   if (denied) return denied;
 
   if (id === ADMIN_ROLE_ID) return { error: "protected" };
   const people = await listCollaborators(ctx.studio.id);
-  const held = people.filter((c) => (c.roleIds || []).includes(id)).length;
+  const held = people.filter((c) => ((c.roleIds || []) as string[]).includes(id)).length;
   if (held > 0 && !ctx.canAssignRoles) return { error: "role-forbidden", people: held };
 
   const out = await deleteRole(ctx.studio.id, id);
@@ -206,7 +207,7 @@ export async function listCertifications({ studio, employeesSection }) {
   return [...rows].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
-export async function createCertification(ctx, body) {
+export async function createCertification(ctx: HrContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.create");
   if (denied) return denied;
@@ -228,13 +229,13 @@ export async function createCertification(ctx, body) {
   return { certification };
 }
 
-export async function editCertification(ctx, id, body) {
+export async function editCertification(ctx: HrContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.edit");
   if (denied) return denied;
 
   const { studio, employeesSection } = ctx;
-  const patch = {};
+  const patch: Record<string, unknown> = {};
   if (body?.name !== undefined) {
     const name = str(body.name, 140);
     if (!name) return { error: "name" };
@@ -250,14 +251,14 @@ export async function editCertification(ctx, id, body) {
   return certification ? { certification } : { error: "notfound" };
 }
 
-export async function removeCertification(ctx, id) {
+export async function removeCertification(ctx: HrContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.delete");
   if (denied) return denied;
 
   const { studio, employeesSection } = ctx;
   const people = await listCollaborators(studio.id);
-  const held = people.filter((c) => (c.certificationIds || []).includes(id)).length;
+  const held = people.filter((c) => ((c.certificationIds || []) as string[]).includes(id)).length;
   if (held) return { error: "in-use", people: held };
 
   const removed = await deleteRow(studio.id, employeesSection.id, CERTIFICATIONS, id);
@@ -268,7 +269,7 @@ export async function removeCertification(ctx, id) {
 // `reveal` decrypts the ID/passport numbers, and is only ever passed true for a
 // viewer who can manage HR. The shape is otherwise identical either way, so the
 // screen never has to branch on permission to render a row.
-export async function listEmployees(ctx, meId = "") {
+export async function listEmployees(ctx: HrContext, meId = "") {
   const { studio } = ctx;
   const [people, roles] = await Promise.all([
     listCollaborators(studio.id),
@@ -287,7 +288,7 @@ export async function listEmployees(ctx, meId = "") {
   const me = people.find((c) => c.id === meId);
   const inScope = (c) => scope === "all"
     || c.id === meId
-    || (scope === "department" && Boolean(me?.departmentId) && c.departmentId === me.departmentId);
+    || (scope === "department" && Boolean(me?.departmentId) && c.departmentId === me?.departmentId);
   const depName = Object.fromEntries(departments.map((d) => [d.id, d.name]));
   const roleName = Object.fromEntries(roles.map((r) => [r.id, r.name || ""]));
 
@@ -304,7 +305,7 @@ export async function listEmployees(ctx, meId = "") {
   // below are studio-local and stay that way.
   const visible = people.filter(inScope);
   const photos = await Promise.all(
-    visible.map((c) => (c.userId ? getProfile(c.userId).then((p) => p?.photo || "").catch(() => "") : "")),
+    visible.map((c) => (c.userId ? getProfile(String(c.userId)).then((p) => p?.photo || "").catch(() => "") : "")),
   );
 
   return visible.map((c, i) => ({
@@ -313,11 +314,11 @@ export async function listEmployees(ctx, meId = "") {
     role: c.role,
     photo: photos[i] || "",
     departmentId: c.departmentId || "",
-    departmentName: depName[c.departmentId] || "",
+    departmentName: depName[String(c.departmentId || "")] || "",
     // WHAT THEY ARE, which is now the same answer as what they may do. Carried
     // off the roles they hold rather than a position id of their own.
     roleIds: Array.isArray(c.roleIds) ? c.roleIds : [],
-    roleNames: (Array.isArray(c.roleIds) ? c.roleIds : []).map((id) => roleName[id]).filter(Boolean),
+    roleNames: (Array.isArray(c.roleIds) ? c.roleIds : []).map((id) => roleName[String(id)]).filter(Boolean),
     employeeCode: c.employeeCode || "",
     dateOfJoin: c.dateOfJoin || "",
     mobile: c.mobile || "",
@@ -329,11 +330,11 @@ export async function listEmployees(ctx, meId = "") {
     passportExpiry: c.passportExpiry || "",
     idNumber: reveal ? decryptField(c.idNumber) : "",
     passportNumber: reveal ? decryptField(c.passportNumber) : "",
-  })).sort((a, b) => a.alias.localeCompare(b.alias));
+  })).sort((a, b) => String(a.alias).localeCompare(String(b.alias)));
 }
 
 // Write the HR fields onto someone's studio-local row. Manage-only.
-export async function saveEmployment(ctx, collaboratorId, body) {
+export async function saveEmployment(ctx: HrContext, collaboratorId: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.employees.edit");
   if (denied) return denied;
@@ -342,7 +343,7 @@ export async function saveEmployment(ctx, collaboratorId, body) {
   const person = await getCollaborator(studio.id, collaboratorId);
   if (!person) return { error: "notfound" };
 
-  const patch = {};
+  const patch: Record<string, unknown> = {};
 
   // A DEPARTMENT IS A SECTION KEY now, so what it is checked against is the
   // studio's own section list rather than a collection of HR's.
@@ -397,15 +398,15 @@ export async function saveEmployment(ctx, collaboratorId, body) {
 export function expiringDocuments(employees, today = new Date()) {
   const limit = new Date(today);
   limit.setDate(limit.getDate() + EXPIRY_WINDOW_DAYS);
-  const out = [];
+  const out: ExpiringDocument[] = [];
   for (const e of employees) {
     for (const [kind, date] of [["ID", e.idExpiry], ["Passport", e.passportExpiry]]) {
       if (!date) continue;
       const when = new Date(`${date}T00:00:00`);
       if (Number.isNaN(when.getTime()) || when > limit) continue;
       out.push({
-        collaboratorId: e.id, alias: e.alias, kind, date,
-        daysLeft: Math.ceil((when - today) / 86400000),
+        collaboratorId: String(e.id), alias: String(e.alias), kind: String(kind), date: String(date),
+        daysLeft: Math.ceil((when.getTime() - today.getTime()) / 86400000),
       });
     }
   }
@@ -413,7 +414,7 @@ export function expiringDocuments(employees, today = new Date()) {
 }
 
 // ---- leave -----------------------------------------------------------------
-export async function listVacations(ctx, { meId }) {
+export async function listVacations(ctx: HrContext, { meId }) {
   const { studio, section } = ctx;
   const [rows, people] = await Promise.all([
     Vacations.find({ studio, section }),
@@ -445,7 +446,7 @@ export async function listVacations(ctx, { meId }) {
 
 // Anyone who can open HR may request their OWN leave; only a manager may file
 // it for someone else.
-export async function requestVacation(ctx, body) {
+export async function requestVacation(ctx: HrContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.vacations.create");
   if (denied) return denied;
@@ -468,12 +469,12 @@ export async function requestVacation(ctx, body) {
   const rows = await Vacations.find({ studio, section });
   const clash = rows.find((v) => v.collaboratorId === target
     && v.status !== "Declined" && v.status !== "Cancelled"
-    && v.from <= to && v.to >= from);
+    && (v.from || "") <= to && (v.to || "") >= from);
   if (clash) return { error: "overlap", from: clash.from, to: clash.to };
 
   const vacation = await addRow(studio.id, section.id, VACATIONS, {
     collaboratorId: target,
-    type: LEAVE_TYPES.includes(body?.type) ? body.type : DEFAULT_LEAVE_TYPE,
+    type: LEAVE_TYPES.includes(String(body?.type)) ? String(body?.type) : DEFAULT_LEAVE_TYPE,
     from, to, days,
     reason: str(body?.reason, 1000),
     // A manager filing leave directly has already made the decision.
@@ -485,7 +486,7 @@ export async function requestVacation(ctx, body) {
   return { vacation };
 }
 
-export async function decideVacation(ctx, id, decision) {
+export async function decideVacation(ctx: HrContext, id: string, decision) {
   const { studio, section, collaborator, canManage } = ctx;
   const rows = await Vacations.find({ studio, section });
   const row = rows.find((v) => v.id === id);
@@ -517,7 +518,7 @@ export async function decideVacation(ctx, id, decision) {
   return vacation ? { vacation } : { error: "notfound" };
 }
 
-export async function removeVacation(ctx, id) {
+export async function removeVacation(ctx: HrContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "hr.vacations.edit");
   if (denied) return denied;
@@ -527,10 +528,10 @@ export async function removeVacation(ctx, id) {
 }
 
 // Inclusive day count — a one-day leave is 1 day, not 0.
-function countDays(from, to) {
+function countDays(from: string, to: string): number {
   const a = new Date(`${from}T00:00:00`);
   const b = new Date(`${to}T00:00:00`);
-  return Math.max(1, Math.round((b - a) / 86400000) + 1);
+  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000) + 1);
 }
 
 // Headcount per department, derived from the people themselves.

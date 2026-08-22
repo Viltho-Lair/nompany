@@ -25,14 +25,65 @@
 
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
 import { sectionViewable, sectionManageable, dashboardViewable } from "@/platform/access";
+import type { PermissionSet, Role } from "@/platform/access";
+import type { Section } from "@/platform/db/sections";
+import type { Row } from "@/platform/db/store";
 
 // A sub-section falls back to the parent so a studio created before the
 // sub-section model still resolves rather than 500ing. A FOREIGN section never
 // falls back: "this studio has no Technical section" is a real answer that the
 // Sales screens are built to handle, and substituting the Sales section for it
 // would point Technical's collections at Sales' key space.
-const pick = (byKey, keys) => {
-  for (const k of [].concat(keys)) if (byKey[k]) return byKey[k];
+// ---- what a module context is ----------------------------------------------
+//
+// AN INDEX SIGNATURE, DELIBERATELY, and it is not laziness. The flags this
+// factory derives are NAMED BY THE SPEC — `canViewTickets`, `clientsSection`,
+// whatever a department asked for — so the exact key set is a property of each
+// call, not of the factory. Enumerating them here would mean a union that has
+// to be edited every time a department adds a sub-section, which is a second
+// place to keep in step with the first.
+//
+// The fields every context has regardless are named, so the ones that carry the
+// answer — `access` above all — cannot go missing without the compiler saying
+// so. That is the property the access suite asserts on this file.
+/**
+ * THE TWO ROWS EVERY CONTEXT CARRIES, named down to the fields every service
+ * reads off them and open past that. `studio.id` appears in essentially every
+ * function in every department; leaving it `unknown` would mean a cast at each
+ * one, which is a hundred casts asserting the same obvious thing.
+ *
+ * Open past that on purpose: what else a studio or a collaborator holds belongs
+ * to main and to HR respectively, and restating it here would be a second
+ * definition free to drift from theirs.
+ */
+export type StudioRef = { id: string; name?: string; slug?: string } & Row;
+export type CollaboratorRef = { id: string; alias?: string; role?: string } & Row;
+
+export type ModuleContext = {
+  studio: StudioRef;
+  collaborator: CollaboratorRef;
+  access: PermissionSet;
+  roles: Role[];
+  sections: Section[];
+  section: Section;
+  canManage: boolean;
+  canViewDashboard: boolean;
+  nav: unknown;
+  manage: unknown;
+  [named: string]: unknown;
+};
+
+/** What a department declares about itself. */
+export type ModuleSpec = {
+  root: string;
+  sub?: Record<string, string | string[]>;
+  foreign?: Record<string, string | string[]>;
+  flags?: readonly string[];
+  extend?: (ctx: ModuleContext, byKey: Record<string, Section>) => unknown;
+};
+
+const pick = (byKey: Record<string, Section>, keys: string | string[]): Section | null => {
+  for (const k of ([] as string[]).concat(keys)) if (byKey[k]) return byKey[k];
   return null;
 };
 
@@ -48,18 +99,23 @@ const pick = (byKey, keys) => {
  *
  * Each resolver keeps the signature every caller already uses: (user, slug).
  */
-export function moduleContext(spec) {
+export function moduleContext(spec: ModuleSpec) {
   const { root, sub = {}, foreign = {}, flags = [], extend } = spec;
 
-  return async function resolve(user, slug) {
+  return async function resolve(user: unknown, slug: string): Promise<ModuleContext | { error: string }> {
     const context = await studioContext(user, slug);
-    if (context.error) return context;
+    if (context.error) return context as { error: string };
 
     // `access` is resolved once, in studioContext. Forwarding it is what lets
     // every service function guard itself without resolving anything again, and
     // `roles` travels with it because scopeFor needs both — a context carrying
     // one without the other is half an answer.
-    const { studio, collaborator, access, roles, sections } = context;
+    // studioContext is still JavaScript, so what it hands back arrives untyped.
+    // Named here, once, rather than at each of the fifteen uses below — and the
+    // day studios.ts lands this line becomes a plain destructure again.
+    const { studio, collaborator, access, roles, sections } = context as unknown as {
+      studio: StudioRef; collaborator: CollaboratorRef; access: PermissionSet; roles: Role[]; sections: Section[];
+    };
 
     const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
     const section = byKey[root];
@@ -73,7 +129,7 @@ export function moduleContext(spec) {
     // and then refused them when they opened it.
     if (!sectionViewable(access, section.key, keys)) return { error: "forbidden" };
 
-    const out = { studio, collaborator, access, roles, sections, section };
+    const out = { studio, collaborator, access, roles, sections, section } as ModuleContext;
 
     for (const [name, key] of Object.entries(sub)) {
       out[`${name}Section`] = pick(byKey, key) || section;
@@ -87,7 +143,7 @@ export function moduleContext(spec) {
     // sub-section grant mean something rather than being shadowed by its parent.
     out.canManage = sectionManageable(access, section.key, keys);
     for (const name of flags) {
-      const target = out[`${name}Section`] || section;
+      const target = (out[`${name}Section`] as Section) || section;
       const Name = name[0].toUpperCase() + name.slice(1);
       out[`canView${Name}`] = sectionViewable(access, target.key, keys);
       out[`canManage${Name}`] = sectionManageable(access, target.key, keys);
@@ -101,6 +157,6 @@ export function moduleContext(spec) {
     // being handed its parent's answer.
     out.manage = manageMap(studio, collaborator, sections, access);
 
-    return extend ? { ...out, ...(await extend(out, byKey)) } : out;
+    return extend ? { ...out, ...(await extend(out, byKey) as object) } : out;
   };
 }
