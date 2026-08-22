@@ -20,7 +20,7 @@ import RealtimeAnalytics from "./RealtimeAnalytics";
 import GlobalDistribution from "./GlobalDistribution";
 import DeviceAnalytics from "./DeviceAnalytics";
 import { satisfaction } from "@/lib/data/ratings";
-import { listUsersForConsole } from "@/lib/data/users";
+import { listUsersForConsole } from "@/platform/auth/users";
 import { statusOf, STATUS } from "@/lib/platformRoles";
 import { recordActiveUsers, readActiveUsers, isoDay } from "@/lib/data/siteStats";
 

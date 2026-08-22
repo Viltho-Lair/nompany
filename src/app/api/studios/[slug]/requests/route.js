@@ -1,9 +1,9 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import {
   studioContext, canAdminister, listJoinRequests,
   approveJoinRequest, declineJoinRequest,
 } from "@/lib/studios";
-import { getUserById, getProfile } from "@/lib/data/users";
+import { getUserById, getProfile } from "@/platform/auth/users";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

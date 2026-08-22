@@ -1,4 +1,4 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { putMedia } from "@/lib/media";
 

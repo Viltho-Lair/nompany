@@ -16,7 +16,7 @@ only what must be true in every session.
 Each of these exists because a real failure produced it. Breaking one is a bug even
 when the code looks cleaner afterwards.
 
-1. **Keys are built only in `src/platform/db/keys.js`.** Never a literal, never a
+1. **Keys are built only in `src/platform/db/keys.ts`.** Never a literal, never a
    template at a call site. Two incidents came from this: `sweepOrphans` reaped
    bare `u:`/`s:` prefixes and would have prefix-deleted production, and
    `lib/media.js` wrote its blob key from a literal so the test suite put real
@@ -73,7 +73,7 @@ then its own **Domain Workflow** and **Constraint log**.
 | `orchestrator` | Sequencing, handoffs, and the **global Do-Not list** |
 | `researcher` | New ideas, provider and library evaluation, the **decision ledger** |
 | `frontend-ui` | Components, component state, tokens, skeletons, the Electron task-bar |
-| `business-logic` | Sales→quotation chain, approvals, `relations.js`, signables |
+| `business-logic` | Sales→quotation chain, approvals, `platform/relations`, signables |
 | `backend-db` | `src/platform/db/**` and `src/lib/data/**`, keys, cascade, the repository seam, the SQL migration |
 | `operations-integration` | HR, Finance, Inventory, Operations, and what an external payload *means* to a record |
 | `devops` | CI, deploys, environments, secrets, crons, and the *wiring* of external services |
@@ -91,6 +91,34 @@ The directives that bind everyone: teach yourself from the codebase; consult
 before removing; summarise accepted work against the user's acceptance criteria; log
 constraints — major ones to `orchestrator`'s global list, minor ones to your own
 file; and end every message with real questions.
+
+---
+
+## Where the code lives
+
+Wave 3 is moving `src/lib` apart, one folder per step, and each folder becomes
+TypeScript as it lands. What has moved has moved for good:
+
+| Folder | Holds | State |
+|---|---|---|
+| `src/shared/**` | Pure values with no dependants — currencies, countries, i18n, slug | TypeScript |
+| `src/platform/access/**` | The permission catalogue and the resolver | TypeScript |
+| `src/platform/db/**` | Everything that knows Redis exists — keys, store, cascade, repo, sections | TypeScript |
+| `src/platform/auth/**` | Identity, the console's own auth, passwords, OTP, devices, rate limits | JavaScript |
+| `src/platform/realtime/**` | The event stream, the pub/sub bus, live patches | JavaScript |
+| `src/platform/notify/**` | Notifications and email | JavaScript |
+| `src/platform/http/**` | The route wrapper, the status table, idempotency, audit, observability | JavaScript |
+| `src/lib/**` | The twelve departments and what is left of the data layer | JavaScript |
+
+Two rules that came out of doing it:
+
+- **Siblings import each other relatively** (`./keys`), never through the alias.
+  A folder's internals routing through its own public door is how a module ends
+  up importing itself once a barrel exists.
+- **A barrel is a judgement call, not a habit.** `platform/access` has one,
+  because nothing in it touches Redis and a client component may safely import
+  any of it. `platform/db` deliberately has none: `store` imports `redis`, which
+  opens a connection, and a landing-page component already imports a key builder.
 
 **Constraint-log and Do-Not-list dates are `dd/mm/yyyy`.** Always, in every agent
 file. (`docs/` keeps ISO dates; the logs do not.)

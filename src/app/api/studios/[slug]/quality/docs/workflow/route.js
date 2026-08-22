@@ -13,7 +13,7 @@
 // private copies do. It also listed `denied: 403` for an error name no service
 // has ever returned.
 
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { qualityContext } from "@/lib/quality";
 import { can } from "@/platform/access";
 import { workflowFor, moveRevision, startRevision } from "@/lib/qualityDocRevisions";

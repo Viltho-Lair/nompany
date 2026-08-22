@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getDict } from "@/shared/i18n";
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import ForgotFlow from "@/components/public/ForgotFlow";
 import AuthShell from "@/components/landing/AuthShell";
 

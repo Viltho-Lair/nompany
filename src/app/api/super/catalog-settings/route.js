@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { getCatalogSettings, saveCatalogSettings } from "@/lib/data/catalog";
 
 export const runtime = "nodejs";

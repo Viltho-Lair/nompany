@@ -1,6 +1,6 @@
-import { route } from "@/lib/route";
-import { loginSuper, superCookie, publicSuperAdmin } from "@/lib/superAuth";
-import { requestIsHttps, clientIp, deviceFingerprint } from "@/lib/identity";
+import { route } from "@/platform/http/route";
+import { loginSuper, superCookie, publicSuperAdmin } from "@/platform/auth/superAuth";
+import { requestIsHttps, clientIp, deviceFingerprint } from "@/platform/auth/identity";
 import { incrWithTTL } from "@/platform/db/store";
 import { RL } from "@/platform/db/keys";
 

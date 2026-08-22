@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { listQuestionnaires, createQuestionnaireDef, duplicateQuestionnaireDef } from "@/lib/data/questionnaires";
 
 export const runtime = "nodejs";

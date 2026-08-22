@@ -178,7 +178,7 @@ HR, Finance, Operations, Quality, Tasks, People, Access.
 These are not style preferences. Each exists because a real failure produced it.
 Refuse work that breaks one; escalate to the user rather than negotiating.
 
-1. **Keys are built only in `src/platform/db/keys.js`.** Never a string literal
+1. **Keys are built only in `src/platform/db/keys.ts`.** Never a string literal
    elsewhere. Two incidents came from this: `sweepOrphans` reaped bare `u:`/`s:`
    prefixes and would have deleted production, and `lib/media.js` wrote
    `g:media:<id>` so the test suite put real blobs in the live key space. The
@@ -248,7 +248,7 @@ run two of them concurrently on the same file.
 ### Handoff contract
 
 **Never run two agents that write the same file concurrently.** The shared files
-are `src/platform/db/keys.js`, `src/platform/db/store.js`, `src/platform/access/resolve.ts`,
+are `src/platform/db/keys.ts`, `src/platform/db/store.ts`, `src/platform/access/resolve.ts`,
 `src/platform/access/catalogue.ts`, `tests/suite.mjs` and `src/app/globals.css`. If two
 tasks both need one, sequence them and say so; do not hope the merge works.
 

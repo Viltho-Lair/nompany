@@ -1,7 +1,7 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { studioHasLiveChat } from "@/lib/plans";
-import { getProfile } from "@/lib/data/users";
+import { getProfile } from "@/platform/auth/users";
 import { openRoom } from "@/lib/data/chat";
 import { chatsUsed, recordChatStart, allowanceOf } from "@/lib/data/chatUsage";
 import { loadCatalogues, planOf } from "@/lib/plans";

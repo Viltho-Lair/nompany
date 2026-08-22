@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { inventoryContext } from "@/lib/inventory";
 import { createAirline, editAirline, removeAirline } from "@/lib/awbTracking";
 

@@ -40,7 +40,7 @@
 
 import { RL } from "@/platform/db/keys";
 import { incrWithTTL, extendTTL, ttlOf, delKeys, getIndex } from "@/platform/db/store";
-import { log } from "@/lib/observability";
+import { log } from "@/platform/http/observability";
 
 // Windows and ceilings. Failures, not attempts.
 const PAIR_MAX = 5;

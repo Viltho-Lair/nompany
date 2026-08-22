@@ -21,7 +21,7 @@ import { repo } from "@/platform/db/repo";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
-import { listCollaborators } from "@/lib/data/collaborators";
+import { listCollaborators } from "@/platform/auth/collaborators";
 // Issuing the project number is a CONSEQUENCE of Finance signing the PO, so it
 // is called from decideTask rather than from a screen — see the note there.
 import { issueProjectNumber } from "@/lib/projects";

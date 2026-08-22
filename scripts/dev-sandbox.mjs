@@ -57,10 +57,10 @@ process.env.NOMPANY_KEY_PREFIX = PREFIX;
 const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("../tests/loader.mjs", import.meta.url), { data: { root } });
 
-const { seedSuperAdmin } = await import("@/lib/superAuth");
-const { createUser } = await import("@/lib/data/users");
+const { seedSuperAdmin } = await import("@/platform/auth/superAuth");
+const { createUser } = await import("@/platform/auth/users");
 const { createStudio } = await import("@/lib/data/studios");
-const { hashPassword } = await import("@/lib/passwords");
+const { hashPassword } = await import("@/platform/auth/passwords");
 
 const EMAIL = "sandbox@nompany.test";
 const PASSWORD = "sandbox-password-1234";

@@ -1,4 +1,4 @@
-import { requestPasswordReset, clientIp } from "@/lib/identity";
+import { requestPasswordReset, clientIp } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 

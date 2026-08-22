@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { resendOtp, clientIp, OTP_COOKIE } from "@/lib/identity";
+import { resendOtp, clientIp, OTP_COOKIE } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 

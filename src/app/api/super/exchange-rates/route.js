@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 
 export const runtime = "nodejs";

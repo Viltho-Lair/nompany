@@ -1,6 +1,6 @@
-import { route } from "@/lib/route";
-import { listSuperAdminEmails } from "@/lib/superAuth";
-import { getUserById, setPlatformRole } from "@/lib/data/users";
+import { route } from "@/platform/http/route";
+import { listSuperAdminEmails } from "@/platform/auth/superAuth";
+import { getUserById, setPlatformRole } from "@/platform/auth/users";
 import { isAssignableRole } from "@/lib/platformRoles";
 
 export const runtime = "nodejs";

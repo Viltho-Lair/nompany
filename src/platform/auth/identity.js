@@ -1,5 +1,5 @@
 // IDENTITY SERVICE (restructured model) — the single place that turns HTTP
-// requests into User operations. Sits on top of src/lib/data/users.js and owns
+// requests into User operations. Sits on top of src/platform/auth/users.js and owns
 // NOTHING itself: every byte it writes lands under u:<UserID>:* .
 //
 // One identity, one session cookie. There is no separate "account" vs "studio"
@@ -7,7 +7,7 @@
 // is decided by the studio they enter (Phase 3), never by a second credential.
 //
 // USER-SCOPED ONLY. Nothing here may write studio data; studio membership lives
-// in the Collaborator row inside each studio (src/lib/data/collaborators.js).
+// in the Collaborator row inside each studio (src/platform/auth/collaborators.js).
 
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
@@ -17,22 +17,22 @@ import {
   getVerification, updateVerification,
   getQuestionnaire, updateQuestionnaire,
   mintSession, findUserBySession, revokeSession, revokeAllSessions, touchLastLogin, touchLastSeen,
-} from "@/lib/data/users";
+} from "./users";
 import { getOwnedStudio, listUserCollaborations } from "@/lib/data/studios";
 import { listForUser as listJoinRequestsForUser } from "@/lib/data/joinRequests";
 import {
   createChallenge, verifyChallenge, resendChallenge, checkSendLimits,
   recordDevice, isTrustedDevice, revokeAllDevices,
   CODE_TTL_SEC, DEVICE_TTL_MS, MAX_ATTEMPTS,
-} from "@/lib/data/otp";
-import { hashPassword, verifyPassword, generatePassword, needsRehash } from "@/lib/passwords";
+} from "./otp";
+import { hashPassword, verifyPassword, generatePassword, needsRehash } from "./passwords";
 import {
   checkCredentialAttempts, recordCredentialFailure, clearCredentialFailures,
-} from "@/lib/data/attempts";
-import { checkPassword } from "@/lib/passwordPolicy";
-import { sendEmail } from "@/lib/email";
-import { verificationCodeEmail, passwordResetCodeEmail } from "@/lib/emailTemplates";
-import { log } from "@/lib/observability";
+} from "./attempts";
+import { checkPassword } from "./passwordPolicy";
+import { sendEmail } from "@/platform/notify/email";
+import { verificationCodeEmail, passwordResetCodeEmail } from "@/platform/notify/emailTemplates";
+import { log } from "@/platform/http/observability";
 
 // The ONE session cookie of the restructured model. Deliberately a new name so
 // it can never be confused with the old-structure cookies (nc_session/mt_admin)
@@ -279,7 +279,7 @@ export async function login({ email, password, remember, deviceId, ip, device })
   // for an address nobody has ever registered, so it cannot be used to find out
   // which addresses exist. The limiters used to sit inside createChallenge,
   // which is only reached AFTER a correct password, so the first factor was
-  // unguarded entirely. See lib/data/attempts.js.
+  // unguarded entirely. See platform/auth/attempts.js.
   const gate = await checkCredentialAttempts({ ip, email });
   if (gate.blocked) return { error: "rate-limited", retryAfter: gate.retryAfter };
 

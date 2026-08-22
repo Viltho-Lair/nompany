@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getDict } from "@/shared/i18n";
-import { currentUser, needsQuestionnaire } from "@/lib/identity";
+import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
 import AccountHome from "@/components/public/AccountHome";
 
 export const dynamic = "force-dynamic";

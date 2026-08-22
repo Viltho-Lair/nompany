@@ -37,7 +37,7 @@
 
 import { S, REG } from "@/platform/db/keys";
 import { xAdd, xAfter } from "@/platform/db/store";
-import { log } from "@/lib/observability";
+import { log } from "./observability";
 
 // Deep enough to answer "what happened this quarter" on a busy studio, capped
 // because an unbounded structure in Redis is how the whole instance dies. When

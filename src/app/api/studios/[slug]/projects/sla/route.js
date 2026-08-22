@@ -1,4 +1,4 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { projectsContext, createSla, updateSla, removeSla } from "@/lib/projects";
 
 export const runtime = "nodejs";

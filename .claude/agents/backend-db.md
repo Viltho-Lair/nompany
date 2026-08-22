@@ -184,7 +184,7 @@ otherwise in code comments or in estimates.
 
 ### The rule that matters most
 
-**Every key is built in `src/platform/db/keys.js` and nowhere else.** Never a string
+**Every key is built in `src/platform/db/keys.ts` and nowhere else.** Never a string
 literal, never a template concatenated at a call site.
 
 Two real incidents:
@@ -243,7 +243,7 @@ create reissue a number a client already holds.
 
 ### Deletion
 
-Only through `src/platform/db/cascade.js`. Children-first, registry-last, so a re-run
+Only through `src/platform/db/cascade.ts`. Children-first, registry-last, so a re-run
 after a crash finds the root again and finishes — every cascade is idempotent.
 `sweepOrphans` reconciles registries, indexes and prefixes weekly and is guarded
 two ways: every scan is namespaced via `SWEEP_SCOPES`, and `sweepRefusal()`

@@ -1,4 +1,4 @@
-import { currentUser, saveQuestionnaire, getQuestionnaire } from "@/lib/identity";
+import { currentUser, saveQuestionnaire, getQuestionnaire } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

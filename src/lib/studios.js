@@ -1,5 +1,5 @@
 // STUDIO SERVICE — turns requests into Studio / Collaborator / JoinRequest
-// operations. Mirrors src/lib/identity.js, which owns the USER side.
+// operations. Mirrors src/platform/auth/identity.js, which owns the USER side.
 //
 // SCOPING RULE: everything here writes studio data (s:<StudioID>:*) or the
 // global studio/joinRequest registries. It never writes user data — the only
@@ -11,7 +11,7 @@ import {
   escalates, ADMIN_ROLE_ID,
 } from "@/platform/access";
 import { listRoles } from "@/lib/data/roles";
-import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
+import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import {
   createStudio, getStudioById, getStudioBySlug, getOwnedStudio,
   listUserCollaborations, changeStudioSlug,
@@ -19,7 +19,7 @@ import {
 } from "@/lib/data/studios";
 import {
   addCollaborator, listCollaborators, getCollaboratorByUser, updateCollaborator,
-} from "@/lib/data/collaborators";
+} from "@/platform/auth/collaborators";
 import { listSections } from "@/platform/db/sections";
 import {
   createJoinRequest, listPendingForStudio, getJoinRequest, decideJoinRequest,
@@ -27,7 +27,7 @@ import {
 } from "@/lib/data/joinRequests";
 import { getIndex } from "@/platform/db/store";
 import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/platform/db/keys";
-import { getVerification, getProfile } from "@/lib/data/users";
+import { getVerification, getProfile } from "@/platform/auth/users";
 import { memberLimitOf } from "@/lib/plans";
 import { slugify } from "@/shared/slug";
 

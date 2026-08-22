@@ -1,4 +1,4 @@
-import { signup, otpCookie, requestIsHttps, clientIp, publicUser } from "@/lib/identity";
+import { signup, otpCookie, requestIsHttps, clientIp, publicUser } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 

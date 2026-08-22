@@ -14,7 +14,7 @@ import { toneBg, toneInk } from "./ui";
 // that appears only when the account asks for it. No "forgot password", no
 // "remember me", no "create account", no social sign-in. None of those belong on
 // an owner's console: accounts here are provisioned by seeding
-// (src/lib/superAuth.js → seedSuperAdmin), never self-served, and a session is
+// (src/platform/auth/superAuth.js → seedSuperAdmin), never self-served, and a session is
 // deliberately short-lived rather than remembered.
 //
 // THE CODE FIELD APPEARS IN PLACE rather than on a second screen, and the email

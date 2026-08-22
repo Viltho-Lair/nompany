@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { operationsContext, createLocation, editLocation, removeLocation } from "@/lib/operations";
 
 export const runtime = "nodejs";

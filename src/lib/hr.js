@@ -33,11 +33,11 @@ import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
-import { listCollaborators, getCollaborator, updateCollaborator } from "@/lib/data/collaborators";
+import { listCollaborators, getCollaborator, updateCollaborator } from "@/platform/auth/collaborators";
 import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/lib/data/roles";
 import { departmentsFromSections } from "@/lib/departments";
-import { getProfile } from "@/lib/data/users";
-import { encryptField, decryptField } from "@/lib/fieldCrypto";
+import { getProfile } from "@/platform/auth/users";
+import { encryptField, decryptField } from "@/platform/auth/fieldCrypto";
 
 const CERTIFICATIONS = "certifications";
 const VACATIONS = "vacations";

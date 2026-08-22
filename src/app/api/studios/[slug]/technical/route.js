@@ -1,5 +1,5 @@
 import { nextQuotationNumber } from "@/lib/technical";
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import {
   technicalContext, listRfqs, listQuotations, openTickets, technicalPeople, catalogueItems,
   RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_VAT_RATE, QUOTATION_LIVE_COLUMNS, saveTechnicalSettings,

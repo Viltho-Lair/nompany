@@ -13,7 +13,7 @@
 
 import { S, SEC, ID, SECTION_COLLECTIONS, SECTION_DEFS, ALL_SECTION_KEYS } from "./keys";
 import { readArr, editArr } from "./store";
-import { emit, TYPE } from "@/lib/data/events";
+import { emit, TYPE } from "@/platform/realtime/events";
 import type { Row } from "./store";
 
 // ---- what a section is -----------------------------------------------------

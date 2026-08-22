@@ -1,5 +1,5 @@
-import { route } from "@/lib/route";
-import { listSuper, markSuperRead } from "@/lib/data/notifications";
+import { route } from "@/platform/http/route";
+import { listSuper, markSuperRead } from "@/platform/notify/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

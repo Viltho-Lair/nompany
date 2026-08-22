@@ -72,7 +72,7 @@ export default [
   {
     // The logger IS the writer, and the tests and scripts are run by people
     // watching a terminal.
-    files: ["src/lib/observability.js", "tests/**", "scripts/**"],
+    files: ["src/platform/http/observability.js", "tests/**", "scripts/**"],
     rules: { "no-console": "off" },
   },
 

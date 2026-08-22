@@ -30,8 +30,8 @@
 
 import * as OTPAuth from "otpauth";
 import crypto from "node:crypto";
-import { encryptField, decryptField } from "@/lib/fieldCrypto";
-import { hashToken } from "@/lib/passwords";
+import { encryptField, decryptField } from "./fieldCrypto";
+import { hashToken } from "./passwords";
 
 const ISSUER = "nompany";
 

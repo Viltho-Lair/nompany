@@ -23,7 +23,7 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { addRow, updateRow } from "@/platform/db/sections";
 import { moveSignable, availableMoves } from "@/lib/signables";
-import { notifyCollaborators, NOTIFY } from "@/lib/data/notifications";
+import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { TRANSITIONS, REV_LABELS, isOpen, documentState } from "@/lib/qualityDocuments";
 import { DOCS, REVISIONS } from "@/lib/qualityDocs";
 

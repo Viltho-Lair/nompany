@@ -1,4 +1,4 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { shouldPrompt, setRating, declineRating } from "@/lib/data/ratings";
 
 export const runtime = "nodejs";

@@ -16,7 +16,7 @@
 // Client-safe. The picker and the validator need the same declarations the
 // resolver works from, or the editor offers something the server then drops.
 
-import { NODES, pathBetween } from "@/lib/relations";
+import { NODES, pathBetween } from "@/platform/relations";
 
 // ---- subjects ---------------------------------------------------------------
 //
@@ -25,7 +25,7 @@ import { NODES, pathBetween } from "@/lib/relations";
 // and it is the mechanism templates will be built on.
 // WHICH RECORDS A DOCUMENT CAN BE ABOUT.
 //
-// Derived from lib/relations.js rather than re-declared: that module already
+// Derived from platform/relations.js rather than re-declared: that module already
 // says where each record lives and which right guards it, and two lists of the
 // same fact agree only until one is edited. What stays here is the choice of
 // which are worth binding a document to, and how one is NAMED in a picker.

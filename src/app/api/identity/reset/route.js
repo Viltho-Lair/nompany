@@ -1,4 +1,4 @@
-import { resetPassword, clearedSessionCookie, clientIp } from "@/lib/identity";
+import { resetPassword, clearedSessionCookie, clientIp } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 

@@ -1,6 +1,6 @@
-import { route } from "@/lib/route";
-import { readPlatformSince, latestPlatformId, isCursor } from "@/lib/data/events";
-import { subscribe, CH } from "@/lib/data/bus";
+import { route } from "@/platform/http/route";
+import { readPlatformSince, latestPlatformId, isCursor } from "@/platform/realtime/events";
+import { subscribe, CH } from "@/platform/realtime/bus";
 import { sseResponse, resumeCursor } from "@/lib/sse";
 
 export const runtime = "nodejs";

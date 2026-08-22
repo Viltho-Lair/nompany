@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { locales, defaultLocale } from "@/shared/i18n";
-import { SUPER_COOKIE } from "@/lib/authConstants";
+import { SUPER_COOKIE } from "@/platform/auth/authConstants";
 
 // SLUG-DRIVEN ROUTING.
 //

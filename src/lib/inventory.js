@@ -23,7 +23,7 @@ import { repo } from "@/platform/db/repo";
 import { getSectionByKey, addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
-import { listCollaborators } from "@/lib/data/collaborators";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { nextReference } from "@/lib/references";
 // What each department adds to a quotation row, and who owns which column.
 import { SHEET_OWNERS, cleanSheetLine } from "@/lib/sheetColumns";

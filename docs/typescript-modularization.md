@@ -65,7 +65,7 @@ src/
 │  ├─ realtime/                bus, events, sse
 │  ├─ notify/                  notifications
 │  ├─ http/                    the route wrapper, error table, idempotency
-│  └─ relations/               NODES, EDGES, pathBetween  (was lib/relations.js)
+│  └─ relations/               NODES, EDGES, pathBetween  (was platform/relations.js)
 │
 ├─ ui/                         ← design system: tokens, primitives, patterns (see ui-ux-overhaul.md)
 ├─ app/                        ← routing ONLY. Every page/route re-exports from a module.

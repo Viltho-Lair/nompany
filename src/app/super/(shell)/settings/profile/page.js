@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PageHeader, Card, CardHead, CardBody, Row, Col, Badge, Avatar, toneBg, toneInk } from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
 import { CURRENT_USER } from "../../../_components/session";
-import { currentSuperAdmin, superSecuritySummary, listSuperAdminEmails } from "@/lib/superAuth";
+import { currentSuperAdmin, superSecuritySummary, listSuperAdminEmails } from "@/platform/auth/superAuth";
 import SessionsCard from "../security/SessionsCard";
 
 export const metadata = { title: "Settings" };

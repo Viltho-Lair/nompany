@@ -1,7 +1,7 @@
-import { cronDenied } from "@/lib/cronAuth";
+import { cronDenied } from "@/platform/auth/cronAuth";
 import { sweepOrphans } from "@/platform/db/cascade";
 import { memoryPolicy } from "@/platform/db/store";
-import { log, withRequest } from "@/lib/observability";
+import { log, withRequest } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // Scheduled in vercel.json; every fix is idempotent, so re-runs are safe.
 // CRON_SECRET gates it, and a missing one refuses rather than opens the door —
 // this job DELETES keys, so it is the last place to be permissive about who is
-// calling. See lib/cronAuth.js.
+// calling. See platform/auth/cronAuth.js.
 //
 // It also reports the two INFRASTRUCTURE facts nothing else in the product
 // would notice going wrong: the eviction policy, and how much headroom is left.

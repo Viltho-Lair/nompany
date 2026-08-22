@@ -30,9 +30,9 @@ import { repo } from "@/platform/db/repo";
 import { updateRow } from "@/platform/db/sections";
 import { DOCS } from "@/lib/qualityDocs";
 import { moduleContext } from "@/lib/modules/context";
-import { listCollaborators } from "@/lib/data/collaborators";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { departmentsFromSections } from "@/lib/departments";
-import { NODES, traverse } from "@/lib/relations";
+import { NODES, traverse } from "@/platform/relations";
 import {
   STATIC_FIELDS, BLOCK_SOURCES, availableFields, availableBlocks, groupFields,
   legalKeyFor, subjectById, SUBJECTS, reachOf,

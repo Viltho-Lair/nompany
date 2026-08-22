@@ -828,8 +828,8 @@
           <tr><td>Orphan sweep is prefix-unaware</td><td class="k">data/cascade.js:196</td><td>Deletion of the entire production dataset</td></tr>
           <tr><td>Private media served to any signed-in account</td><td class="k">api/media/[id]:13</td><td>Cross-tenant read of signatures, ID scans, letterheads</td></tr>
           <tr><td>Analytics ingest unauthenticated, no TTL</td><td class="k">api/track</td><td>Unbounded growth to the memory ceiling — every write in the product then fails</td></tr>
-          <tr><td>Password check precedes every rate limit</td><td class="k">lib/identity.js:235</td><td>Unlimited online guessing, bounded only by bcrypt cost 10</td></tr>
-          <tr><td>Console session expiry is cookie-only</td><td class="k">lib/superAuth.js:93</td><td>A captured owner token stays valid indefinitely</td></tr>
+          <tr><td>Password check precedes every rate limit</td><td class="k">platform/auth/identity.js:235</td><td>Unlimited online guessing, bounded only by bcrypt cost 10</td></tr>
+          <tr><td>Console session expiry is cookie-only</td><td class="k">platform/auth/superAuth.js:93</td><td>A captured owner token stays valid indefinitely</td></tr>
           <tr><td>Uploads unquotaed, never reclaimed</td><td class="k">lib/media.js</td><td>Media is already 76% of the live dataset</td></tr>
           <tr><td>Session tokens stored in plaintext</td><td class="k">data/users.js</td><td>Any database read is session takeover</td></tr>
           <tr><td>No audit trail for privileged actions</td><td class="k">keys.js:181 (unused)</td><td>Plan changes, suspensions and role grants leave no record</td></tr>

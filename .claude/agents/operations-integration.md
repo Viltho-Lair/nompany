@@ -263,7 +263,7 @@ decision; do not turn it into a history table.
 
 - Every collection read goes through the module context built on `studioContext`.
   **Never take a `studioId` from a request body.**
-- Every key is built in `src/platform/db/keys.js`. Never a literal.
+- Every key is built in `src/platform/db/keys.ts`. Never a literal.
 - Every row carries `{ studioId, sectionId }`.
 - Guard every mutation with `requirePermission(ctx.access, key)` **inside the
   service function**. The route's coarse `{write:true}` gate is a pre-filter, not

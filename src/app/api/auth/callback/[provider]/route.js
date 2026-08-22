@@ -2,11 +2,11 @@ import { cookies } from "next/headers";
 import {
   isProvider, providerConfigured, exchangeCode, readState,
   clearedStateCookie, OAUTH_STATE_COOKIE,
-} from "@/lib/oauth";
+} from "@/platform/auth/oauth";
 import {
   signInWithProvider, sessionCookie, requestIsHttps,
   deviceFingerprint, deviceCookie, DEVICE_COOKIE,
-} from "@/lib/identity";
+} from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

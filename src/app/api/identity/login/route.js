@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import {
   login, sessionCookie, otpCookie, requestIsHttps, clientIp, publicUser, deviceFingerprint, DEVICE_COOKIE,
-} from "@/lib/identity";
+} from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
-import { route } from "@/lib/route";
-import { listSuperSessions, revokeSuperSession, SUPER_COOKIE } from "@/lib/superAuth";
-import { hashToken } from "@/lib/passwords";
+import { route } from "@/platform/http/route";
+import { listSuperSessions, revokeSuperSession, SUPER_COOKIE } from "@/platform/auth/superAuth";
+import { hashToken } from "@/platform/auth/passwords";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

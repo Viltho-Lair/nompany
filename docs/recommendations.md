@@ -9,7 +9,7 @@
 
 ## 0. Executive summary
 
-The codebase is unusually disciplined for its size. Access control is centralised in exactly one resolver (`src/platform/access/resolve.ts`), writes are genuinely atomic (compare-and-set in Lua, `src/platform/db/store.js`), the ownership tree is encoded in the key tree so deletion is prefix deletion, and the reasoning behind almost every decision is written down next to it. That is a better foundation than most systems this age have.
+The codebase is unusually disciplined for its size. Access control is centralised in exactly one resolver (`src/platform/access/resolve.ts`), writes are genuinely atomic (compare-and-set in Lua, `src/platform/db/store.ts`), the ownership tree is encoded in the key tree so deletion is prefix deletion, and the reasoning behind almost every decision is written down next to it. That is a better foundation than most systems this age have.
 
 Three things are nonetheless structurally wrong, and they compound:
 
@@ -28,7 +28,7 @@ And one finding is a live hazard rather than a design flaw:
 ## 1. Critical
 
 ### C-1 · `sweepOrphans()` can delete the entire production dataset
-`src/platform/db/cascade.js:196-233` · weekly cron, `vercel.json`
+`src/platform/db/cascade.ts:196-233` · weekly cron, `vercel.json`
 
 The function mixes two addressing conventions in one body. The *repair* half builds keys through the prefixed builders:
 
@@ -43,7 +43,7 @@ for (const id of strandedRoots(await scanPrefix("u:"), "u:", userIds)) { await d
 for (const id of strandedRoots(await scanPrefix("s:"), "s:", studioIds)) { await delPrefix(`s:${id}:`); }
 ```
 
-`KEY_PREFIX` (`src/platform/db/keys.js:32`) is honoured everywhere except here. With `NOMPANY_KEY_PREFIX=test_`, `readArr(REG.users)` reads `test_g:users` — empty — so `userIds` and `studioIds` are empty sets, `scanPrefix("u:")` returns every **real** user key, every id fails the `known.has(id)` test, and `delPrefix` removes the subtree. Same for `s:`. Then `ix:email:`, `ix:slug:`, `ix:owner:` and `ix:collab:` are reaped on the same logic.
+`KEY_PREFIX` (`src/platform/db/keys.ts:32`) is honoured everywhere except here. With `NOMPANY_KEY_PREFIX=test_`, `readArr(REG.users)` reads `test_g:users` — empty — so `userIds` and `studioIds` are empty sets, `scanPrefix("u:")` returns every **real** user key, every id fails the `known.has(id)` test, and `delPrefix` removes the subtree. Same for `s:`. Then `ix:email:`, `ix:slug:`, `ix:owner:` and `ix:collab:` are reaped on the same logic.
 
 `tests/integration.test.mjs:19` sets `NOMPANY_KEY_PREFIX` unconditionally. Nothing calls `sweepOrphans` from the suite today, which is the only reason this has not fired. There is no test, no guard, and no comment marking the line as dangerous.
 
@@ -93,7 +93,7 @@ Redis is the platform's single point of storage. When the instance reaches its m
 ---
 
 ### C-4 · Password verification has no rate limit
-`src/lib/identity.js:235`, `src/app/api/identity/login/route.js`
+`src/platform/auth/identity.js:235`, `src/app/api/identity/login/route.js`
 
 ```js
 export async function login({ email, password, … }) {
@@ -108,16 +108,16 @@ The rate limiters (`RL.otpEmail`, `RL.otpIp`) are inside `createChallenge`, whic
 
 `RL.superLoginIp` exists for the console door but there is no subscriber-side equivalent, and `/api/identity/forgot` and `/api/identity/reset` are likewise unlimited.
 
-**Fix.** Limit *before* `verifyPassword`, keyed on both email and IP, with exponential lockout. Raise `BCRYPT_ROUNDS` from 10 to 12 (`src/lib/passwords.js:8`) — a one-character change that quadruples per-attempt cost.
+**Fix.** Limit *before* `verifyPassword`, keyed on both email and IP, with exponential lockout. Raise `BCRYPT_ROUNDS` from 10 to 12 (`src/platform/auth/passwords.js:8`) — a one-character change that quadruples per-attempt cost.
 
 ---
 
 ### C-5 · Super-admin sessions never expire server-side
-`src/lib/superAuth.js:93-150`
+`src/platform/auth/superAuth.js:93-150`
 
 A console session is a raw token pushed onto `sessionTokens[]` on the `g:superAdmins` row. The array carries no `expiresAt`, and `findSuperBySession` accepts any token present in it. `SUPER_TTL_SEC = 43200` is applied **only** to the cookie's `Max-Age`, which is a client-side hint the client controls.
 
-A captured console token stays valid indefinitely — until six newer sign-ins push it off the end of a `slice(0, 6)`. Contrast the subscriber side, which does this correctly: `IX.session(token)` with Redis `EX` (`src/lib/data/users.js:mintSession`), where expiry is enforced by the database.
+A captured console token stays valid indefinitely — until six newer sign-ins push it off the end of a `slice(0, 6)`. Contrast the subscriber side, which does this correctly: `IX.session(token)` with Redis `EX` (`src/platform/auth/users.js:mintSession`), where expiry is enforced by the database.
 
 Also: `findSuperBySession` reads the whole registry and compares with `Array.includes` — a non-constant-time comparison on a secret.
 
@@ -141,10 +141,10 @@ Measured on the live instance right now: 15 `g:media:*` keys hold **6.5 MB of th
 ## 2. High
 
 ### H-1 · Session tokens are stored in plaintext
-`ix:session:<token>` → UserID (`src/lib/data/users.js`). Anyone who can read the database — a backup, a support export, a misconfigured `CONFIG GET`, or a second application on the same shared Redis Cloud instance — holds every live session. Store `sha256(token)` as the key; the cookie value stays the same, only the lookup changes. Same for the OTP challenge id (`OTP.challenge`).
+`ix:session:<token>` → UserID (`src/platform/auth/users.js`). Anyone who can read the database — a backup, a support export, a misconfigured `CONFIG GET`, or a second application on the same shared Redis Cloud instance — holds every live session. Store `sha256(token)` as the key; the cookie value stays the same, only the lookup changes. Same for the OTP challenge id (`OTP.challenge`).
 
 ### H-2 · Every authenticated request parses the whole user registry
-`getUserById` (`src/lib/data/users.js:50`) is `readArr(REG.users)` + `Array.find`. It sits on `currentUser()`, so it runs on **every authenticated request in the product**. Worse, `currentUser` also fires `touchLastSeen`, which calls `getUserById` *again* and then, every 3 minutes per user, rewrites the entire registry through `editArr`.
+`getUserById` (`src/platform/auth/users.js:50`) is `readArr(REG.users)` + `Array.find`. It sits on `currentUser()`, so it runs on **every authenticated request in the product**. Worse, `currentUser` also fires `touchLastSeen`, which calls `getUserById` *again* and then, every 3 minutes per user, rewrites the entire registry through `editArr`.
 
 At 10,000 users × ~250 B that is a 2.5 MB fetch-and-parse per request and a 2.5 MB compare-and-set per user per 3 minutes, all contending on one key. The registry is the single hottest key in the system and it is also the widest.
 
@@ -186,10 +186,10 @@ The absolute numbers scale with RTT — in-region on Vercel they would be ~10-40
 `store.js` raises `ConflictError` after 64 contended attempts; no route maps it. A client sees an opaque 500 and cannot distinguish "retry, someone else was writing" from "the server is broken". Known and open in the project's own notes; the fix is a shared `handle()` wrapper, not 57 edits.
 
 ### H-8 · N+1 reads in list endpoints
-`listEmployees` issues one `getProfile` per employee (`src/lib/hr.js:338`); `listUsersForConsole` issues three reads per user (`src/lib/data/users.js:121`). Parallel, so one RTT — but N commands, and N JSON parses, per page view.
+`listEmployees` issues one `getProfile` per employee (`src/lib/hr.js:338`); `listUsersForConsole` issues three reads per user (`src/platform/auth/users.js:121`). Parallel, so one RTT — but N commands, and N JSON parses, per page view.
 
 ### H-9 · Field encryption fails open and fails silent
-`encryptField` returns plaintext when `FIELD_ENCRYPTION_KEY` is unset (`src/lib/fieldCrypto.js:35`); `decryptField` returns `""` on any failure. A deploy with the key missing writes ID and passport numbers in the clear with no signal; a key rotation blanks every existing value with no error. The same key also derives the device IP HMAC (`identity.js:hashIp`), which returns `""` when unset — so device history silently stops working too.
+`encryptField` returns plaintext when `FIELD_ENCRYPTION_KEY` is unset (`src/platform/auth/fieldCrypto.js:35`); `decryptField` returns `""` on any failure. A deploy with the key missing writes ID and passport numbers in the clear with no signal; a key rotation blanks every existing value with no error. The same key also derives the device IP HMAC (`identity.js:hashIp`), which returns `""` when unset — so device history silently stops working too.
 
 ### H-10 · No CSRF defence beyond `SameSite=Lax`, and no security headers
 No `Origin`/`Referer` validation on any state-changing route; no CSRF token. `Lax` covers cross-site POST but not a same-site subdomain, and the platform deliberately spans `nompany.com` and `www.nompany.com`. `next.config.mjs` sets `reactStrictMode` and nothing else: no CSP, no HSTS, no `X-Frame-Options`, no `Referrer-Policy`, no `X-Content-Type-Options`, `poweredByHeader` left on.
@@ -213,7 +213,7 @@ Three of these, all discoverable as "the feature exists" from the outside:
 The permission catalogue's own stated rule (`permissions.js`) is that a right nothing can exercise is a bug. `quality.documents.share` violates it.
 
 ### M-2 · Four notification types are declared and never emitted
-`NOTIFY.joinDecided`, `NOTIFY.peopleChanged`, `NOTIFY.taskAssigned`, `NOTIFY.mention` (`src/lib/data/notifications.js:43`). Only five producers exist in the whole product. The most visible consequence: **a person who asks to join a studio is never told whether they were approved or declined.** They must re-open the studio address and guess. Full producer/UI gap analysis in `security-and-notifications.md`.
+`NOTIFY.joinDecided`, `NOTIFY.peopleChanged`, `NOTIFY.taskAssigned`, `NOTIFY.mention` (`src/platform/notify/notifications.js:43`). Only five producers exist in the whole product. The most visible consequence: **a person who asks to join a studio is never told whether they were approved or declined.** They must re-open the studio address and guess. Full producer/UI gap analysis in `security-and-notifications.md`.
 
 ### M-3 · No progressive loading anywhere in the studio
 Zero `loading.js` files, zero `<Suspense>` boundaries, zero skeletons in the twelve studio modules. Skeletons exist only in `components/quality/documents/document-skeleton.tsx` and on the marketing landing page. Every module renders empty, then fetches, then pops — the exact failure the design checklist's *Progressive Loading* section calls out. Addressed in `ui-ux-overhaul.md`.
@@ -331,25 +331,25 @@ These are structural necessities absent from the product, ordered by how much la
 
 | # | Severity | Finding | Primary location |
 |---|---|---|---|
-| C-1 | Critical | Orphan sweep can delete the production dataset | `platform/db/cascade.js:196` |
+| C-1 | Critical | Orphan sweep can delete the production dataset | `platform/db/cascade.ts:196` |
 | C-2 | Critical | Cross-tenant read of private media | `api/media/[id]/route.js:13` |
 | C-3 | Critical | Unauthenticated unbounded writes via `/api/track` | `api/track/route.js` |
-| C-4 | Critical | No rate limit on password verification | `lib/identity.js:235` |
-| C-5 | Critical | Super-admin sessions never expire server-side | `lib/superAuth.js:93` |
+| C-4 | Critical | No rate limit on password verification | `platform/auth/identity.js:235` |
+| C-5 | Critical | Super-admin sessions never expire server-side | `platform/auth/superAuth.js:93` |
 | C-6 | Critical | Media upload unquotaed and never reclaimed | `lib/media.js` |
-| H-1 | High | Session tokens stored in plaintext | `lib/data/users.js` |
-| H-2 | High | Whole user registry read per request | `lib/data/users.js:50` |
-| H-3 | High | Whole-collection-per-key storage model | `platform/db/sections.js:149` |
+| H-1 | High | Session tokens stored in plaintext | `platform/auth/users.js` |
+| H-2 | High | Whole user registry read per request | `platform/auth/users.js:50` |
+| H-3 | High | Whole-collection-per-key storage model | `platform/db/sections.ts:149` |
 | H-4 | High | 8-9 dependent round trips per screen | measured, §2 |
 | H-5 | High | `listSections` duplicated + reconciles on read | `lib/studios.js:123` |
 | H-6 | High | Live updates refetch whole payloads | `studio2/useLiveUpdates.js` |
-| H-7 | High | `ConflictError` returns 500 not 409 | `platform/db/store.js` |
+| H-7 | High | `ConflictError` returns 500 not 409 | `platform/db/store.ts` |
 | H-8 | High | N+1 profile reads in list endpoints | `lib/hr.js:338` |
-| H-9 | High | Field encryption fails open and silent | `lib/fieldCrypto.js:35` |
+| H-9 | High | Field encryption fails open and silent | `platform/auth/fieldCrypto.js:35` |
 | H-10 | High | No CSRF defence, no security headers | `next.config.mjs` |
 | H-11 | High | No audit trail for privileged actions | `keys.js:181` |
 | M-1 | Medium | Three declared-but-dead capabilities | `keys.js`, `permissions.js` |
-| M-2 | Medium | Four notification types never emitted | `lib/data/notifications.js:43` |
+| M-2 | Medium | Four notification types never emitted | `platform/notify/notifications.js:43` |
 | M-3 | Medium | No skeletons / Suspense / loading.js | `src/app` |
 | M-4 | Medium | 131 client components, 1.06 MB gz | build output |
 | M-5 | Medium | Four disjoint token systems | `globals.css`, `tailwind.config.js` |
@@ -357,7 +357,7 @@ These are structural necessities absent from the product, ordered by how much la
 | M-7 | Medium | Legacy pre-pivot keys in production | live Redis |
 | M-8 | Medium | Coarse write gate misleads | `lib/hr.js:98` |
 | M-9 | Medium | Write/read rights diverge on encrypted PII | `lib/hr.js:370` |
-| M-10 | Medium | Sweep will time out before data outgrows it | `platform/db/cascade.js:196` |
+| M-10 | Medium | Sweep will time out before data outgrows it | `platform/db/cascade.ts:196` |
 | M-11 | Medium | No function region pinned | `vercel.json` |
 | M-12 | Medium | No CI, no lint config, no test runner | repo root |
 | M-13 | Medium | Duplicate `jsconfig.json` | repo root |

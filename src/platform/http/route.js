@@ -20,7 +20,7 @@
 //   - authentication, and the 401 that follows from its absence
 //   - studio membership and the access resolution built on it
 //   - JSON body parsing that cannot throw
-//   - the error-to-status table (src/lib/httpStatus.js)
+//   - the error-to-status table (src/platform/http/httpStatus.js)
 //   - a request id, in the log line AND on the response
 //
 // WHAT IT DELIBERATELY DOES NOT OWN: permission checks inside a studio. Those
@@ -30,15 +30,15 @@
 // disagree in the first place.
 
 import { cookies } from "next/headers";
-import { currentUser, currentIdentity, SESSION_COOKIE } from "@/lib/identity";
+import { currentUser, currentIdentity, SESSION_COOKIE } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { getStudioBySlug } from "@/lib/data/studios";
-import { currentSuperAdmin } from "@/lib/superAuth";
-import { statusFor } from "@/lib/httpStatus";
-import { isCrossSite, MUTATING } from "@/lib/origin";
-import { withRequest, requestId } from "@/lib/observability";
-import { record as recordAudit, ACTOR } from "@/lib/data/audit";
-import { digestFor, beginIdempotent, finishIdempotent, abandonIdempotent } from "@/lib/idempotency";
+import { currentSuperAdmin } from "@/platform/auth/superAuth";
+import { statusFor } from "./httpStatus";
+import { isCrossSite, MUTATING } from "./origin";
+import { withRequest, requestId } from "./observability";
+import { record as recordAudit, ACTOR } from "./audit";
+import { digestFor, beginIdempotent, finishIdempotent, abandonIdempotent } from "./idempotency";
 
 /** A route's answer carries a status, a body, and sometimes headers. */
 const isResponse = (v) => v instanceof Response;

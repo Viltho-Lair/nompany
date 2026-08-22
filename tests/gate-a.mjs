@@ -15,17 +15,17 @@
 
 import * as KEYS from "@/platform/db/keys";
 import { KEY_PREFIX } from "@/platform/db/keys";
-import { createUser, updateUser, mintSession } from "@/lib/data/users";
+import { createUser, updateUser, mintSession } from "@/platform/auth/users";
 import { createStudio } from "@/lib/data/studios";
-import { addCollaborator, getCollaboratorByUser, updateCollaborator } from "@/lib/data/collaborators";
+import { addCollaborator, getCollaboratorByUser, updateCollaborator } from "@/platform/auth/collaborators";
 import { listRoles, createRole } from "@/lib/data/roles";
 import { ALL_PERMISSIONS, AREAS, ADMIN_ROLE_ID, effectivePermissions } from "@/platform/access";
-import { STATUS } from "@/lib/httpStatus";
+import { STATUS } from "@/platform/http/httpStatus";
 import { studioContext } from "@/lib/studios";
-import { SESSION_COOKIE } from "@/lib/identity";
-import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/lib/superAuth";
+import { SESSION_COOKIE } from "@/platform/auth/identity";
+import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/platform/auth/superAuth";
 import { withCommandCount } from "@/platform/db/commandCount";
-import { withRequest, requestId, redact, log } from "@/lib/observability";
+import { withRequest, requestId, redact, log } from "@/platform/http/observability";
 import { readArr, setJSON } from "@/platform/db/store";
 import { readCol } from "@/platform/db/sections";
 import { S } from "@/platform/db/keys";
@@ -1698,7 +1698,7 @@ console.log("== the answer a person who asked to join never got");
 {
   const joins = await import("@/lib/data/joinRequests");
   const { requestJoinByCode, approveJoinRequest, declineJoinRequest } = await import("@/lib/studios");
-  const notifications = await import("@/lib/data/notifications");
+  const notifications = await import("@/platform/notify/notifications");
 
   // ---- approved: told inside the studio, because they are now in it --------
   const joiner = (await createUser({ email: `g-joiner-${rand()}@test.invalid`, passwordHash: "x" })).user;
@@ -1752,8 +1752,8 @@ console.log("== the console's second factor");
 // list, and a password was the whole of it. TOTP rather than an emailed code,
 // because the console must keep working when email does not.
 {
-  const mfa = await import("@/lib/superMfa");
-  const sup = await import("@/lib/superAuth");
+  const mfa = await import("@/platform/auth/superMfa");
+  const sup = await import("@/platform/auth/superAuth");
   const OTPAuth = await import("otpauth");
 
   const email = `g-mfa-${rand()}@test.invalid`;
@@ -1864,8 +1864,8 @@ console.log("== a switched-off account is told so, and the price of saying it");
 // the code without the reason would move this line below the password check,
 // and every existing test would still pass.
 {
-  const identity = await import("@/lib/identity");
-  const { hashPassword } = await import("@/lib/passwords");
+  const identity = await import("@/platform/auth/identity");
+  const { hashPassword } = await import("@/platform/auth/passwords");
 
   const email = `g-susp-${rand()}@test.invalid`;
   const made = await createUser({ email, passwordHash: await hashPassword("right-password-1234") });
@@ -1904,8 +1904,8 @@ console.log("== the console can see where it is signed in");
 // read them. A list of sessions that is not the sessions is worse than none:
 // the reason to open the screen is to look for a row you do not recognise.
 {
-  const sup = await import("@/lib/superAuth");
-  const { hashToken } = await import("@/lib/passwords");
+  const sup = await import("@/platform/auth/superAuth");
+  const { hashToken } = await import("@/platform/auth/passwords");
 
   const email = `g-sess-${rand()}@test.invalid`;
   await sup.seedSuperAdmin({ email, password: "console-pw-12345" });
@@ -1974,7 +1974,7 @@ console.log("== the console can see where it is signed in");
   // the failure this block exists for: a security screen reporting something
   // other than the truth is worse than one reporting nothing, because the
   // reason to open it is to find out whether anything is wrong.
-  const mfaLib = await import("@/lib/superMfa");
+  const mfaLib = await import("@/platform/auth/superMfa");
 
   const before = await sup.superSecuritySummary(admin.id);
   ok("the summary says two-factor is off when it is off",
@@ -2009,8 +2009,8 @@ console.log("== an OAuth sign-in is a device too");
 // sign-in they do not recognise, and for every OAuth account it rendered as
 // though nothing had ever signed in, while the account had live sessions.
 {
-  const identity = await import("@/lib/identity");
-  const devices = await import("@/lib/data/otp");
+  const identity = await import("@/platform/auth/identity");
+  const devices = await import("@/platform/auth/otp");
 
   const email = `g-oauth-${rand()}@test.invalid`;
   const fingerprint = { label: "Chrome on Windows", deviceType: "Computer", location: "Riyadh, SA", ipHash: "abc123" };
@@ -2041,8 +2041,8 @@ console.log("== credentials at rest");
 // H-1 and H-9. Both are about what a COPY of the database is worth — a backup, a
 // support export, or the second application sharing this Redis Cloud instance.
 {
-  const users = await import("@/lib/data/users");
-  const { hashToken } = await import("@/lib/passwords");
+  const users = await import("@/platform/auth/users");
+  const { hashToken } = await import("@/platform/auth/passwords");
   const { KEY_PREFIX } = await import("@/platform/db/keys");
   const store = await import("@/platform/db/store");
 
@@ -2076,7 +2076,7 @@ console.log("== credentials at rest");
   await signIn(owner.id);
 
   // ---- H-9: encryption fails closed ---------------------------------------
-  const { encryptField, decryptField } = await import("@/lib/fieldCrypto");
+  const { encryptField, decryptField } = await import("@/platform/auth/fieldCrypto");
   const round = decryptField(encryptField("1098765432"));
   ok("a field round-trips with a key present", round === "1098765432", round);
 
@@ -2103,7 +2103,7 @@ console.log("== the audit log: who did what");
 // of it left a record, and S.activityLog had been declared for exactly this and
 // then removed, having never had a reader or a writer.
 {
-  const audit = await import("@/lib/data/audit");
+  const audit = await import("@/platform/http/audit");
   const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.js");
   const P = ctx({ slug });
   await signIn(owner.id);
@@ -2269,7 +2269,7 @@ console.log("== one row, by the id a live event named");
   // server and stays that way until somebody reloads — the exact failure this
   // feature exists to prevent, so the branching is worth pinning individually.
   {
-    const { decide } = await import("@/lib/livePatch");
+    const { decide } = await import("@/platform/realtime/livePatch");
     const into = { salesTickets: "tickets", salesClients: "clients" };
     const ev = (over) => ({ type: "row.updated", collection: "salesTickets", rowId: "sal_1", ...over });
 
@@ -2612,7 +2612,7 @@ console.log("== status codes: what each refusal claims to be");
 // a NEW one fails, and the list prints itself as more goldens land — nobody has
 // to remember to re-derive it.
 {
-  // THE TABLE IS NOT COPIED HERE. It lives in src/lib/httpStatus.js, which is
+  // THE TABLE IS NOT COPIED HERE. It lives in src/platform/http/httpStatus.js, which is
   // what the route wrapper will map through, so the scanner and the product
   // cannot drift into two opinions about what a refusal is worth. A local copy
   // is how this check would quietly stop meaning anything.
@@ -2635,7 +2635,7 @@ console.log("== status codes: what each refusal claims to be");
   // KNOWN, AND ONLY THESE — BY NAME, NOT BY COUNT.
   //
   // This was a number (3) until the scanner started reading the real table in
-  // src/lib/httpStatus.js instead of a twelve-entry copy, which found two more.
+  // src/platform/http/httpStatus.js instead of a twelve-entry copy, which found two more.
   // That exposed the flaw in counting: the honest response to "5 where 3 were
   // expected" is indistinguishable from the dishonest one, because both are
   // spelled `KNOWN = 5`, and nobody reviewing the diff can tell whether a route

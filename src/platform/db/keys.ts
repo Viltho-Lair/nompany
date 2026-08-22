@@ -14,7 +14,7 @@
 //  • Nothing outside src/platform/db builds these keys by hand.
 //  • User-scoped data lives ONLY under u:<UserID>:* — never on a studio.
 //  • Studio-scoped data lives ONLY under s:<StudioID>:* — never on a user.
-//  • Deletion happens ONLY through src/platform/db/cascade.js.
+//  • Deletion happens ONLY through src/platform/db/cascade.ts.
 
 // ---- key namespace ---------------------------------------------------------
 // EVERY key this module builds starts with P, which is empty in normal use.
@@ -229,7 +229,7 @@ export const RL = {
   // Three counters rather than one, and the SPREAD between them is the design:
   // a single per-email limit would hand anybody a way to lock a named person
   // out of their own account just by typing that address wrong on purpose. See
-  // lib/data/attempts.js for which limit catches which attack.
+  // platform/auth/attempts.js for which limit catches which attack.
   attemptPair: (ip: string, email: string) => `${P}rl:cred:p:${String(ip || "unknown")}:${normEmail(email)}`,
   attemptIp: (ip: string) => `${P}rl:cred:i:${String(ip || "unknown")}`,
   attemptEmail: (email: string) => `${P}rl:cred:e:${normEmail(email)}`,
@@ -293,7 +293,7 @@ export const IX = {
   session: (token: string) => `${P}ix:session:${token}`,            // → UserID (EX = real expiry)
   // → SuperAdminID (EX = real expiry). Takes the DIGEST, not the token: this
   // module is imported by a client component, so it must not pull node:crypto
-  // into the browser bundle. lib/superAuth.js hashes before calling.
+  // into the browser bundle. platform/auth/superAuth.js hashes before calling.
   superSession: (tokenHash: string) => `${P}ix:supersession:${tokenHash}`,
   collab: (userId: string) => `${P}ix:collab:${userId}`,            // SET of StudioIDs the user collaborates in
 };

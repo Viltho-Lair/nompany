@@ -19,7 +19,7 @@ import { repo } from "@/platform/db/repo";
 import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
-import { listCollaborators } from "@/lib/data/collaborators";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { nextReference } from "@/lib/references";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "@/lib/operationsCalendar";
 

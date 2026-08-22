@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { getStudioById, updateStudio } from "@/lib/data/studios";
 import { listCatalog } from "@/lib/data/catalog";
 

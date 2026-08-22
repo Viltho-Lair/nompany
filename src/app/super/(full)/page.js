@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { currentSuperAdmin } from "@/lib/superAuth";
+import { currentSuperAdmin } from "@/platform/auth/superAuth";
 import SignIn from "../_components/SignIn";
 import { BASE } from "../_components/nav";
 

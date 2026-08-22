@@ -2,7 +2,7 @@ import { requirePermission } from "@/platform/access";
 import { renameStudio } from "@/lib/data/studios";
 import { isKnownCurrency, crossRate } from "@/shared/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { updateStudio } from "@/lib/data/studios";
 

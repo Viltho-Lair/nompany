@@ -1,8 +1,8 @@
 import { requirePermission, cleanAssignment, escalates } from "@/platform/access";
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { studioContext, listCollaborators, updateCollaborator } from "@/lib/studios";
 import { cascadeDeleteCollaborator } from "@/platform/db/cascade";
-import { getProfile } from "@/lib/data/users";
+import { getProfile } from "@/platform/auth/users";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

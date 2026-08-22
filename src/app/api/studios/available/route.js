@@ -1,4 +1,4 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { slugAvailability } from "@/lib/studios";
 
 export const runtime = "nodejs";

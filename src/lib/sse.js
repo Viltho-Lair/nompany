@@ -1,4 +1,4 @@
-import { log } from "@/lib/observability";
+import { log } from "@/platform/http/observability";
 // SERVER-SENT EVENTS — the transport, with none of the app in it.
 //
 // One long-lived HTTP response per connected tab, over which the server writes

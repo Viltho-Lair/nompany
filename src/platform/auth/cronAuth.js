@@ -1,4 +1,4 @@
-import { log } from "@/lib/observability";
+import { log } from "@/platform/http/observability";
 // WHO MAY RUN A SCHEDULED JOB.
 //
 // The three cron routes each carried their own copy of this check, and each

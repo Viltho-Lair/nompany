@@ -13,7 +13,7 @@
 // a UserID and the session is the credential. That also means a reload resumes
 // the conversation with nothing kept in the browser.
 
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { getRoom } from "@/lib/data/chat";
 
 // The person who opened the room, and nobody else — not their studio's admins,

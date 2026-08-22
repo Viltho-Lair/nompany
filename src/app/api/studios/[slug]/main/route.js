@@ -1,4 +1,4 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { mainContext, headlines, recent } from "@/lib/main";
 
 export const runtime = "nodejs";

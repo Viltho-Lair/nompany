@@ -1,6 +1,6 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
-import { listForCollaborator, markRead } from "@/lib/data/notifications";
+import { listForCollaborator, markRead } from "@/platform/notify/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

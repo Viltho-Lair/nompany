@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { isKind, listCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem } from "@/lib/data/catalog";
 
 export const runtime = "nodejs";

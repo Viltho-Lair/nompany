@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { currentSuperAdmin } from "@/lib/superAuth";
+import { currentSuperAdmin } from "@/platform/auth/superAuth";
 import QuestionnaireList from "@/components/super/QuestionnaireList";
 
 export const dynamic = "force-dynamic";

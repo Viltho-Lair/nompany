@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { financeContext, setCommercials } from "@/lib/finance";
 
 export const runtime = "nodejs";

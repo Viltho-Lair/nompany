@@ -1,5 +1,5 @@
 // Client-safe auth constants. Kept in their own module so the edge proxy can
-// name the console's cookie without importing lib/superAuth.js (bcrypt + Redis).
+// name the console's cookie without importing platform/auth/superAuth.js (bcrypt + Redis).
 //
 // WHAT USED TO BE HERE: a whole parallel authorisation model built on
 // `user.tags` — ADMIN_TAG, LEADER_TAG, TECHNICAL_TAG, SALES_TAG, PRESALES_TAG,
@@ -13,6 +13,6 @@
 // The platform owner's session for /super. A SEPARATE identity from the studio
 // session above — an owner is not a subscriber — so it gets its own cookie and
 // never grants (or is granted by) anything in the studio world. It lives here
-// rather than in lib/superAuth.js because the edge proxy needs the name to gate
+// rather than in platform/auth/superAuth.js because the edge proxy needs the name to gate
 // /super/* and cannot import that module (bcrypt + Redis).
 export const SUPER_COOKIE = "nc_super";

@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { currentSuperAdmin } from "@/lib/superAuth";
+import { currentSuperAdmin } from "@/platform/auth/superAuth";
 import { getQuestionnaireById } from "@/lib/data/questionnaires";
 import QuestionnaireBuilder from "@/components/super/QuestionnaireBuilder";
 

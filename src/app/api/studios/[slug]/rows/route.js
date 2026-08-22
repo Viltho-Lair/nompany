@@ -1,6 +1,6 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { repo } from "@/platform/db/repo";
-import { NODES } from "@/lib/relations";
+import { NODES } from "@/platform/relations";
 import { can } from "@/platform/access";
 import { salesContext, ticketById } from "@/lib/sales";
 

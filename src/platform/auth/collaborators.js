@@ -15,7 +15,7 @@
 
 import { S, IX, ID } from "@/platform/db/keys";
 import { readArr, editArr, sAdd } from "@/platform/db/store";
-import { emit, SCOPE, TYPE } from "@/lib/data/events";
+import { emit, SCOPE, TYPE } from "@/platform/realtime/events";
 
 // HR fields carried on the merged row (studio-scoped, admin/HR-editable).
 //

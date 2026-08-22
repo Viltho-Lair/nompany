@@ -14,7 +14,7 @@ import { repo } from "@/platform/db/repo";
 import { listSections } from "@/platform/db/sections";
 import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
 import { sectionViewable } from "@/platform/access";
-import { listCollaborators } from "@/lib/data/collaborators";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { enrichTask, readTaskAssignees } from "@/lib/taskRouting";
 // The sections' OWN definitions of "below reorder level" and "expiring", so the
 // front door cannot quietly disagree with the screen it is summarising.

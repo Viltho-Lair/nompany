@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { decide } from "@/lib/livePatch";
+import { decide } from "@/platform/realtime/livePatch";
 
 // PATCH ONE ROW INSTEAD OF REFETCHING THE BOARD.
 //

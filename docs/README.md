@@ -33,7 +33,7 @@ A full-system audit and forward plan. Every claim is verified against the source
 
 ## The one thing to fix today
 
-`sweepOrphans()` (`src/platform/db/cascade.js:196`) repairs keys through the prefixed builders and reaps them through bare string literals. Run once with `NOMPANY_KEY_PREFIX` set — which `tests/integration.test.mjs:19` sets unconditionally — it reads empty registries, classifies every real user and studio subtree as orphaned, and prefix-deletes the production database. It is on a weekly cron. The fix is ten lines.
+`sweepOrphans()` (`src/platform/db/cascade.ts:196`) repairs keys through the prefixed builders and reaps them through bare string literals. Run once with `NOMPANY_KEY_PREFIX` set — which `tests/integration.test.mjs:19` sets unconditionally — it reads empty registries, classifies every real user and studio subtree as orphaned, and prefix-deletes the production database. It is on a weekly cron. The fix is ten lines.
 
 Detail: [recommendations.md § C-1](./recommendations.md).
 

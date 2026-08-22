@@ -17,7 +17,7 @@ import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
-import { listCollaborators } from "@/lib/data/collaborators";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "@/lib/rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/lib/tickets";
 import { quotationApproved } from "@/lib/taskRouting";

@@ -236,7 +236,7 @@ Stored on the collaborator row (studio-local, which is right — a person may wa
 
 ### 7.4 Email and digest — nothing exists
 
-`lib/email.js` and `lib/emailTemplates.js` exist and are used only for OTP and password reset. Add: a single-notification email for high-urgency types (approval awaiting you, document needs your signature, SLA breached), and a digest that batches the rest. Both routed through the outbox from `recommendations.md` gap #3, so delivery is retriable and observable rather than fire-and-forget.
+`platform/notify/email.js` and `platform/notify/emailTemplates.js` exist and are used only for OTP and password reset. Add: a single-notification email for high-urgency types (approval awaiting you, document needs your signature, SLA breached), and a digest that batches the rest. Both routed through the outbox from `recommendations.md` gap #3, so delivery is retriable and observable rather than fire-and-forget.
 
 ### 7.5 Smaller UI pieces
 

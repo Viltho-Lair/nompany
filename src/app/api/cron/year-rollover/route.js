@@ -1,10 +1,10 @@
-import { cronDenied } from "@/lib/cronAuth";
-import { sendEmail } from "@/lib/email";
+import { cronDenied } from "@/platform/auth/cronAuth";
+import { sendEmail } from "@/platform/notify/email";
 import { readDays, readPages, daysOfYear, recordActiveUsers } from "@/lib/data/siteStats";
-import { listUsersForConsole } from "@/lib/data/users";
-import { listSuperAdminEmails } from "@/lib/superAuth";
+import { listUsersForConsole } from "@/platform/auth/users";
+import { listSuperAdminEmails } from "@/platform/auth/superAuth";
 import { statusOf, STATUS } from "@/lib/platformRoles";
-import { log, withRequest } from "@/lib/observability";
+import { log, withRequest } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export async function GET(request) {
 }
 
 async function rollover(request) {
-  // Fails closed when CRON_SECRET is unset — see lib/cronAuth.js.
+  // Fails closed when CRON_SECRET is unset — see platform/auth/cronAuth.js.
   const denied = cronDenied(request);
   if (denied) return denied;
 

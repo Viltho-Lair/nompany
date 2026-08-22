@@ -111,7 +111,7 @@ const CONFLICT = [
   // means something is wrong with one of them and a person should decide which.
   "overpayment",
   // A retry arrived while the original is still running. Not a replay, because
-  // there is no recorded answer yet — see lib/idempotency.js.
+  // there is no recorded answer yet — see platform/http/idempotency.js.
   "in-progress",
   // Inventory state, all three the world disagreeing rather than the caller
   // being wrong: the stock would go negative, the delivery exceeds what is still

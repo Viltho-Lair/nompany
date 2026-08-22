@@ -5,7 +5,7 @@
 // exposes them in plaintext. The full value is shown to authorized viewers —
 // this is confidentiality at rest, not masking.
 import crypto from "crypto";
-import { log } from "@/lib/observability";
+import { log } from "@/platform/http/observability";
 
 const PREFIX = "enc:v1:";
 

@@ -1,7 +1,7 @@
 import { getRedisClient } from "@/platform/db/redis";
 import { REG } from "@/platform/db/keys";
-import { emitPlatform, PLATFORM } from "@/lib/data/events";
-import { notifySuper, NOTIFY } from "@/lib/data/notifications";
+import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
+import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 
 // How people rate nompany, out of five.
 //

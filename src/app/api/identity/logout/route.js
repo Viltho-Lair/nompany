@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { logout, clearedSessionCookie, SESSION_COOKIE } from "@/lib/identity";
+import { logout, clearedSessionCookie, SESSION_COOKIE } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 

@@ -231,7 +231,7 @@ CREATE INDEX IX_SalesTicket_Status ON dbo.SalesTicket(StudioId, Status) WHERE De
 
 ### 2.4 The relation graph becomes foreign keys
 
-`src/lib/relations.js` already declares the whole edge set. Every `forward` edge is a foreign key, one for one:
+`src/platform/relations.js` already declares the whole edge set. Every `forward` edge is a foreign key, one for one:
 
 | Edge (`relations.js`) | Foreign key |
 |---|---|

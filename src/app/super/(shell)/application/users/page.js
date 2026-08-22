@@ -1,8 +1,8 @@
 import { PageHeader, Row, Col, StatCard } from "../../../_components/ui";
 import { BASE } from "../../../_components/nav";
 import UsersTable from "./UsersTable";
-import { listUsersForConsole } from "@/lib/data/users";
-import { listSuperAdminEmails } from "@/lib/superAuth";
+import { listUsersForConsole } from "@/platform/auth/users";
+import { listSuperAdminEmails } from "@/platform/auth/superAuth";
 import {
   statusOf, compareUsers, lastAround, STATUS, SUPER_ROLE, MEMBER_ROLE, ACTIVE_WINDOW_DAYS,
 } from "@/lib/platformRoles";

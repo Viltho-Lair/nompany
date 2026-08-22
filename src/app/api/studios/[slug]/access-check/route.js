@@ -1,7 +1,7 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { requirePermission, explain, AREAS } from "@/platform/access";
-import { listCollaborators } from "@/lib/data/collaborators";
+import { listCollaborators } from "@/platform/auth/collaborators";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

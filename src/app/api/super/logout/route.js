@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
-import { route } from "@/lib/route";
-import { logoutSuper, clearedSuperCookie, SUPER_COOKIE } from "@/lib/superAuth";
+import { route } from "@/platform/http/route";
+import { logoutSuper, clearedSuperCookie, SUPER_COOKIE } from "@/platform/auth/superAuth";
 
 export const runtime = "nodejs";
 

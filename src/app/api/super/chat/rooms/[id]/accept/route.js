@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { acceptRoom } from "@/lib/data/chat";
 import { forNompany } from "@/lib/chatConstants";
 

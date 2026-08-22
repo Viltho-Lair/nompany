@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Shell from "../_components/Shell";
-import { currentSuperAdmin, publicSuperAdmin } from "@/lib/superAuth";
+import { currentSuperAdmin, publicSuperAdmin } from "@/platform/auth/superAuth";
 
 // THE gate for the console. Every page under (shell) renders inside the sidebar
 // + header chrome, and none of them render at all without a valid `nc_super`

@@ -26,7 +26,7 @@ The `/super` branch checks only that the console cookie *exists*, as a convenien
 ## 2. Identity — three separate systems
 
 ### 2.1 User (subscribers)
-`src/lib/identity.js` over `src/lib/data/users.js`.
+`src/platform/auth/identity.js` over `src/platform/auth/users.js`.
 
 - One `User` per email. `ix:email:<email>` is a `SET NX` uniqueness claim made **before** the registry row, so two concurrent signups cannot share an address; the claim is released if the write throws.
 - Satellites, all 1:1, all under `u:<UserID>:`: `profile`, `verification`, `questionnaire`, `sessions`, `devices`, `studioVisits`.
@@ -38,14 +38,14 @@ The `/super` branch checks only that the console cookie *exists*, as a convenien
 - OAuth (`/api/auth/oauth/<provider>/start` → `/api/auth/callback/<provider>`) skips OTP: the provider already proved the address. A new user is created with a random password they never see and `provider` recorded so the account page can explain why they have no password.
 
 ### 2.2 Collaborator (identity *inside* a studio)
-`src/lib/data/collaborators.js`. A row in `s:<StudioID>:collaborators` carrying `{ id, userId, alias, role, roleIds[], overrides, …HR fields }`.
+`src/platform/auth/collaborators.js`. A row in `s:<StudioID>:collaborators` carrying `{ id, userId, alias, role, roleIds[], overrides, …HR fields }`.
 
 The **CollaboratorID, not the UserID, is the identity used everywhere inside a studio** — notifications, signatures, assignments, audit fields. This is what makes a person's studio-local name, role and employment record separable from their account.
 
 `role` means ownership only: `"owner"` or `"member"`. What someone may *do* is entirely in `roleIds` + `overrides`.
 
 ### 2.3 SuperAdmin (nompany's owners)
-`src/lib/superAuth.js`. A standalone identity in `g:superAdmins`, deliberately outside every cascade — it outlives every user and studio. 12-hour session, never "remembered". *(Audit: expiry is cookie-only — C-5.)*
+`src/platform/auth/superAuth.js`. A standalone identity in `g:superAdmins`, deliberately outside every cascade — it outlives every user and studio. 12-hour session, never "remembered". *(Audit: expiry is cookie-only — C-5.)*
 
 **Why three and not one:** a nompany owner holds a console session *and* a user session in the same browser. Sharing a namespace would mean guessing which identity a request meant, and guessing wrong exactly when it matters — posting their studio-side chat replies as nompany. The chat routes are split by namespace (`/api/chat/*` vs `/api/super/chat/*`) for precisely this reason.
 
@@ -80,7 +80,7 @@ Each department then adds one guard of its own (`hrGuard`, `financeGuard`, `inve
 
 ## 4. Stored data — the complete key catalogue
 
-The ownership tree **is** the key tree, which is what makes cascading deletion equal to prefix deletion. Every key is built in `src/platform/db/keys.js` and nowhere else.
+The ownership tree **is** the key tree, which is what makes cascading deletion equal to prefix deletion. Every key is built in `src/platform/db/keys.ts` and nowhere else.
 
 ### 4.1 Global registries — `g:*`
 | Key | Shape | Holds |
@@ -142,7 +142,7 @@ The **employee record is the collaborator row** — there is no `employees` coll
 
 ## 5. The write layer
 
-`src/platform/db/store.js` is the only module that speaks Redis. Everything above it goes through these primitives.
+`src/platform/db/store.ts` is the only module that speaks Redis. Everything above it goes through these primitives.
 
 **Compare-and-set is the core idea.** A collection lives in one key holding the whole array, so a naive read-modify-write loses data whenever two overlap — two people ticking different checklist items is enough. `editArr`/`editJSON` close the window with a Lua script that compares a **SHA-1 of the stored string** and only writes if it still matches:
 
@@ -255,7 +255,7 @@ The controlled-document register. Opens **full screen**, outside `StudioFrame`, 
 
 ## 8. The cross-department relation graph
 
-`src/lib/relations.js` declares the joins once, as data. Before it, walking the chain was retyped wherever anyone needed it — seven separate `.filter(x => x.parentId === id)` expressions — which meant a missing edge was invisible, each business rule lived alone, and permission was decided separately or forgotten.
+`src/platform/relations.js` declares the joins once, as data. Before it, walking the chain was retyped wherever anyone needed it — seven separate `.filter(x => x.parentId === id)` expressions — which meant a missing edge was invisible, each business rule lived alone, and permission was decided separately or forgotten.
 
 **Nodes** (13): `salesTicket`, `client`, `rfq`, `quotation`, `project`, `projectSheet`, `materialOrder`, `invoice`, `expense`, `delivery`, `overtime`, `awbShipment`, `task`. Each names its section, its collection and the permission that guards it — so a node absent from the registry cannot be traversed at all.
 
@@ -290,7 +290,7 @@ Three cooperating pieces, and the division of labour is the design.
 
 **The event log — truth.** One Redis **Stream** per studio at `s:<StudioID>:events`, capped with `MAXLEN ~ 500`. Entry ids are assigned by Redis, monotonic, and *are* the cursor — "everything after X" is one `XRANGE`, not a scan-and-filter. Appending is O(1) and contention-free, so the log adds no contention to the writes it records. An event carries **only enough to decide what to refetch**: `{ type, scope, sectionId, collection, rowId, at }`. No row contents, no names, no values — so the log stays cheap, cannot become a second copy of the data that drifts, and a leaked event discloses only that *something* in a section changed.
 
-**The bus — the doorbell.** `src/lib/data/bus.js`, Redis pub/sub on `ev:s:<StudioID>`, `nt:u:<UserID>`, `ev:super`.
+**The bus — the doorbell.** `src/platform/realtime/bus.js`, Redis pub/sub on `ev:s:<StudioID>`, `nt:u:<UserID>`, `ev:super`.
 
 > **Exactly one subscriber connection per Node process.** Under RESP2 a subscribed connection cannot run commands, so pub/sub needs its own. The obvious reading — `duplicate()` per listener — would open one Redis connection per browser tab, and **connection count is this deployment's hard ceiling** (Redis Cloud Essentials caps it and it cannot be raised). So the module keeps one connection, refcounts channels by handler set, and fans out in memory where it is free. A thousand tabs on one instance still cost one connection.
 
@@ -320,7 +320,7 @@ An event and a notification are different things and the code says so: **the eve
 
 ## 11. Deletion and integrity
 
-`src/platform/db/cascade.js` is the **only** legal deletion path for users, studios, sections, collaborators and roles. Redis has no `ON DELETE CASCADE`, so the guarantees come from three properties:
+`src/platform/db/cascade.ts` is the **only** legal deletion path for users, studios, sections, collaborators and roles. Redis has no `ON DELETE CASCADE`, so the guarantees come from three properties:
 
 1. the ownership tree is the key tree, so cascade = prefix deletion;
 2. deletion is **children-first, registry-last**, so a re-run after a crash finds the root again and finishes — every cascade is idempotent;
@@ -334,7 +334,7 @@ Deleting a **role** strips the `roleIds` reference from every holder and then re
 
 ## 12. Background work
 
-Two Vercel crons, both gated by `cronDenied()` (`src/lib/cronAuth.js`), which **fails closed**: a missing `CRON_SECRET` refuses to run rather than deleting the check. The three routes previously each carried `if (secret && auth !== bearer)` — written that way, an unset variable does not tighten the check, it removes it, and these jobs mail out a year of traffic and then delete keys.
+Two Vercel crons, both gated by `cronDenied()` (`src/platform/auth/cronAuth.js`), which **fails closed**: a missing `CRON_SECRET` refuses to run rather than deleting the check. The three routes previously each carried `if (secret && auth !== bearer)` — written that way, an unset variable does not tighten the check, it removes it, and these jobs mail out a year of traffic and then delete keys.
 
 - `0 4 * * 1` → `/api/cron/sweep-orphans`
 - `5 0 * * *` → `/api/cron/year-rollover`

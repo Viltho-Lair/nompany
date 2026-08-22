@@ -1,6 +1,6 @@
-import { route } from "@/lib/route";
-import { savePersonalInfo } from "@/lib/identity";
-import { getProfile } from "@/lib/data/users";
+import { route } from "@/platform/http/route";
+import { savePersonalInfo } from "@/platform/auth/identity";
+import { getProfile } from "@/platform/auth/users";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

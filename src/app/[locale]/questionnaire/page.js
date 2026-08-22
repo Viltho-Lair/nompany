@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { currentUser } from "@/lib/identity";
-import { getQuestionnaire } from "@/lib/data/users";
+import { currentUser } from "@/platform/auth/identity";
+import { getQuestionnaire } from "@/platform/auth/users";
 import { isPackageKey, QUESTION_PAGES, REGISTRATION_NAME, REGISTRATION_ROUTE } from "@/lib/questionnaire";
 import { ensureQuestionnaireForRoute } from "@/lib/data/questionnaires";
 import QuestionnaireFlow from "@/components/public/QuestionnaireFlow";

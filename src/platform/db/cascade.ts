@@ -23,9 +23,9 @@
 
 import { REG, U, S, SEC, IX, KEY_PREFIX } from "./keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "./store";
-import { emitPlatform, PLATFORM } from "@/lib/data/events";
-import { hashToken } from "@/lib/passwords";
-import { log } from "@/lib/observability";
+import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
+import { hashToken } from "@/platform/auth/passwords";
+import { log } from "@/platform/http/observability";
 
 // ---- what a cascade needs to know about the rows it reaps ------------------
 // NARROW ON PURPOSE. A cascade does not care what a collaborator or a studio IS

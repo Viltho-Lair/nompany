@@ -3,7 +3,7 @@
 // the server that feeds it agree by construction instead of by copy-paste.
 //
 // A platform role is NOT a studio role. Studio membership is a Collaborator row
-// with its own tags (src/lib/authConstants.js), scoped to one studio; this is
+// with its own tags (src/platform/auth/authConstants.js), scoped to one studio; this is
 // the platform-wide label the owner puts on a person, stored as `platformRole`
 // on the user's registry row. Everyone starts a Member.
 

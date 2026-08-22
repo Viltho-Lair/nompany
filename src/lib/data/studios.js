@@ -9,10 +9,10 @@
 
 import { REG, U, S, IX, ID, SECTION_DEFS, isValidSlug } from "@/platform/db/keys";
 import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, sMembers, hIncrBy, hGetAll, hDel } from "@/platform/db/store";
-import { addCollaborator } from "@/lib/data/collaborators";
+import { addCollaborator } from "@/platform/auth/collaborators";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
-import { emitPlatform, PLATFORM } from "@/lib/data/events";
-import { notifySuper, NOTIFY } from "@/lib/data/notifications";
+import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
+import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 
 export async function createStudio({ ownerUserId, name, slug, ownerAlias = "" }) {
   const cleanName = String(name || "").trim();

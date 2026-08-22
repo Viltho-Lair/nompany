@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { hrContext, requestVacation, decideVacation, removeVacation } from "@/lib/hr";
 
 export const runtime = "nodejs";

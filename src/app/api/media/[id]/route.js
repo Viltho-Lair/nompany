@@ -1,6 +1,6 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { getStudioById } from "@/lib/data/studios";
-import { getCollaboratorByUser } from "@/lib/data/collaborators";
+import { getCollaboratorByUser } from "@/platform/auth/collaborators";
 import { getMedia } from "@/lib/media";
 
 export const runtime = "nodejs";

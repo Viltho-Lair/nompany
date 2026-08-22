@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getDict } from "@/shared/i18n";
-import { currentUser } from "@/lib/identity";
-import { enabledProviders } from "@/lib/oauth";
+import { currentUser } from "@/platform/auth/identity";
+import { enabledProviders } from "@/platform/auth/oauth";
 import SignupForm from "@/components/public/SignupForm";
 import AuthShell from "@/components/landing/AuthShell";
 

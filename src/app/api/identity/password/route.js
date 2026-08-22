@@ -1,5 +1,5 @@
-import { route } from "@/lib/route";
-import { changePassword, clearedSessionCookie } from "@/lib/identity";
+import { route } from "@/platform/http/route";
+import { changePassword, clearedSessionCookie } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 

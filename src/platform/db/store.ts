@@ -23,7 +23,7 @@
 import { createHash } from "node:crypto";
 import { cachedRead, invalidate } from "./requestCache";
 import { getRedisClient } from "./redis";
-import { log } from "@/lib/observability";
+import { log } from "@/platform/http/observability";
 
 const r = () => getRedisClient();
 

@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import {
   operationsContext, listLocations, listPermits, listShifts, operationsProjects,
   schedulablePeople, weekWindow, summarise, listPositions,

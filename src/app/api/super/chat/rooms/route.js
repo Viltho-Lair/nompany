@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { listRooms } from "@/lib/data/chat";
 import { summarize, WAITING, ACTIVE } from "@/lib/chatConstants";
 

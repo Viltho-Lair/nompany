@@ -1,13 +1,13 @@
-import { currentUser } from "@/lib/identity";
+import { currentUser } from "@/platform/auth/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { effectivePermissions, sectionViewable } from "@/platform/access";
 import { listRoles } from "@/lib/data/roles";
 import { listSections } from "@/platform/db/sections";
-import { readSince, latestId, isCursor, SCOPE, TYPE } from "@/lib/data/events";
-import { subscribe, CH } from "@/lib/data/bus";
-import { listForCollaborator } from "@/lib/data/notifications";
+import { readSince, latestId, isCursor, SCOPE, TYPE } from "@/platform/realtime/events";
+import { subscribe, CH } from "@/platform/realtime/bus";
+import { listForCollaborator } from "@/platform/notify/notifications";
 import { sseResponse, resumeCursor } from "@/lib/sse";
-import { log } from "@/lib/observability";
+import { log } from "@/platform/http/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export const maxDuration = 300;
 // This replaces the cursor-polling endpoint that used to answer the same
 // question on a 30s timer. The question and the answer are unchanged — still
 // "which sections moved", still no record data, still filtered per caller —
-// only the timing is different: the studio's doorbell (src/lib/data/bus.js)
+// only the timing is different: the studio's doorbell (src/platform/realtime/bus.js)
 // wakes this connection instead of the client asking again and again.
 //
 // THE LOG IS STILL THE TRUTH. Pub/sub can drop a message; a stream cannot. So

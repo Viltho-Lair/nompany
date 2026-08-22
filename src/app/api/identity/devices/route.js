@@ -1,5 +1,5 @@
-import { currentUser } from "@/lib/identity";
-import { listDevices, revokeDevice, revokeAllDevices } from "@/lib/data/otp";
+import { currentUser } from "@/platform/auth/identity";
+import { listDevices, revokeDevice, revokeAllDevices } from "@/platform/auth/otp";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

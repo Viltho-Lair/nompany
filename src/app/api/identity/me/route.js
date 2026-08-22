@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

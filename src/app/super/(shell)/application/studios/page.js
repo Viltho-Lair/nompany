@@ -2,8 +2,8 @@ import { PageHeader, Card, CardHead, Row, Col, Table } from "../../../_component
 import { BASE } from "../../../_components/nav";
 import { readArr } from "@/platform/db/store";
 import { REG } from "@/platform/db/keys";
-import { listCollaborators } from "@/lib/data/collaborators";
-import { getUserById, getProfile } from "@/lib/data/users";
+import { listCollaborators } from "@/platform/auth/collaborators";
+import { getUserById, getProfile } from "@/platform/auth/users";
 import { loadCatalogues, planOf } from "@/lib/plans";
 import StudiosTable from "@/components/super/StudiosTable";
 

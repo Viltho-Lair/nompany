@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { salesContext, sendTicketForApproval } from "@/lib/sales";
 
 export const runtime = "nodejs";

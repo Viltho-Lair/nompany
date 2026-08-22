@@ -24,8 +24,8 @@ import {
 // The vocabulary is shared with the client — a status string means the same
 // thing in the widget as it does here, so there is exactly one definition of it.
 import { WAITING, ACTIVE, ENDED, STUDIO, NOMPANY } from "@/lib/chatConstants";
-import { emitPlatform, PLATFORM } from "@/lib/data/events";
-import { notifySuper, NOTIFY } from "@/lib/data/notifications";
+import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
+import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 
 // Idle life of a running room. Every message re-arms it (see touchTTL below),
 // so this is "nobody has said anything for two hours", not "two hours total".

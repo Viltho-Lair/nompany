@@ -12,7 +12,7 @@
 
 import { createClient } from "redis";
 import { countingClient } from "./commandCount";
-import { log } from "@/lib/observability";
+import { log } from "@/platform/http/observability";
 
 // DERIVED FROM THE CALL, never asserted. `ReturnType<typeof createClient>` is
 // the wrong type: createClient is generic over modules, functions, scripts and

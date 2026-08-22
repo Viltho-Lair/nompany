@@ -20,8 +20,8 @@ import { repo } from "@/platform/db/repo";
 import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
-import { listCollaborators } from "@/lib/data/collaborators";
-import { traverseIn } from "@/lib/relations";
+import { listCollaborators } from "@/platform/auth/collaborators";
+import { traverseIn } from "@/platform/relations";
 import { nextReference } from "@/lib/references";
 
 const INVOICES = "invoices";
@@ -378,7 +378,7 @@ export async function profitability(ctx, { invoices, expenses }) {
   return projects.map((p) => {
     // Each of these is an edge, and the RULE each carries — that cancelled
     // invoices and cancelled orders do not count — is declared on the edge in
-    // lib/relations.js rather than repeated here. Expenses have no such rule,
+    // platform/relations.js rather than repeated here. Expenses have no such rule,
     // which is now visible in the declaration instead of being an absence
     // somebody has to notice in a filter.
     const of = (node, rows) => traverseIn("project", p, node, { rows: { [node]: rows } }).records;

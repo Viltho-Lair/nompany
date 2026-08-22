@@ -11,7 +11,7 @@
 // context first, which is what makes the studio a tenant boundary rather than a
 // label.
 
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { qualityContext } from "@/lib/quality";
 import {
   listDocs, getDoc, createDoc, renameDoc, saveContent, savePageSetup, removeDoc,

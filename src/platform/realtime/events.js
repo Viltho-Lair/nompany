@@ -25,8 +25,8 @@
 
 import { S, REG } from "@/platform/db/keys";
 import { xAdd, xAfter, xLastId } from "@/platform/db/store";
-import { publish, CH } from "@/lib/data/bus";
-import { log } from "@/lib/observability";
+import { publish, CH } from "./bus";
+import { log } from "@/platform/http/observability";
 
 // Roughly the last few hundred changes per studio. A client that has been away
 // longer than this gets told to reload from scratch rather than replay.

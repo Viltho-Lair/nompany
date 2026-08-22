@@ -26,7 +26,7 @@
 
 import { FX } from "@/platform/db/keys";
 import { getJSON, setJSON, claim, release } from "@/platform/db/store";
-import { log } from "@/lib/observability";
+import { log } from "@/platform/http/observability";
 
 const BASE = "USD";
 const ENDPOINT = (key) => `https://v6.exchangerate-api.com/v6/${key}/latest/${BASE}`;

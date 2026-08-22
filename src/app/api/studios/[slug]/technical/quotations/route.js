@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { technicalContext, convertRfq, createQuotation, updateQuotation, removeQuotation } from "@/lib/technical";
 
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 // answer that tells a client to stop asking rather than to ask someone for
 // access.
 //
-// All three now map through src/lib/httpStatus.js, so `forbidden` is 403,
+// All three now map through src/platform/http/httpStatus.js, so `forbidden` is 403,
 // `locked` is 409 and `notfound` is 404 here exactly as everywhere else.
 const spec = { auth: "studio", context: technicalContext, body: true, name: "technical/quotations" };
 

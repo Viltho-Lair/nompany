@@ -283,7 +283,7 @@ immediately. Never copy an assignee onto a row.
 - Scope (`own` / `department` / `all`) is enforced only where an area declares
   `scoped: true` — today that is `hr.employees` and `hr.vacations`. If you add a
   scoped area, enforce it in the read, not just the UI.
-- Every key is built in `src/platform/db/keys.js`. Never a literal.
+- Every key is built in `src/platform/db/keys.ts`. Never a literal.
 
 ### Notifications you should be emitting
 

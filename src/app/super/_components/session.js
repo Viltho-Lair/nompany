@@ -1,6 +1,6 @@
 // The /super console's identity, as design data.
 //
-// AUTH IS REAL: `src/lib/superAuth.js` owns the super-admin record (registry key
+// AUTH IS REAL: `src/platform/auth/superAuth.js` owns the super-admin record (registry key
 // `g:superAdmins`), (shell)/layout.js gates every console page on it, and the
 // header's identity comes from that session — not from `CURRENT_USER` below.
 //

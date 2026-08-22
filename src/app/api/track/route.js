@@ -2,7 +2,7 @@ import { STAT, RL } from "@/platform/db/keys";
 import { hIncrBounded, pfAdd, incrWithTTL } from "@/platform/db/store";
 import { continentOf, CONTINENT_KEYS } from "@/lib/continents";
 import { deviceOf, DEVICE_KEYS } from "@/lib/devices";
-import { isCrossSite } from "@/lib/origin";
+import { isCrossSite } from "@/platform/http/origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

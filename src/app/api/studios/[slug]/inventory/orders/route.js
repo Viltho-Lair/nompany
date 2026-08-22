@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { inventoryContext, createOrder, editOrder, receiveOrder, removeOrder } from "@/lib/inventory";
 
 export const runtime = "nodejs";

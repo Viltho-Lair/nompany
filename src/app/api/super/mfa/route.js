@@ -1,7 +1,7 @@
 import QRCode from "qrcode";
-import { route } from "@/lib/route";
-import { patchAdmin } from "@/lib/superAuth";
-import { beginEnrolment, verifyCode, makeRecoveryCodes, sealSecret, openSecret, mfaEnabled } from "@/lib/superMfa";
+import { route } from "@/platform/http/route";
+import { patchAdmin } from "@/platform/auth/superAuth";
+import { beginEnrolment, verifyCode, makeRecoveryCodes, sealSecret, openSecret, mfaEnabled } from "@/platform/auth/superMfa";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

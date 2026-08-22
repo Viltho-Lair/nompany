@@ -1,7 +1,7 @@
 import {
   isProvider, providerConfigured, authorizeUrl, makeState, stateCookie,
-} from "@/lib/oauth";
-import { requestIsHttps } from "@/lib/identity";
+} from "@/platform/auth/oauth";
+import { requestIsHttps } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

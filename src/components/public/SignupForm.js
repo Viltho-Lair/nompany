@@ -5,7 +5,7 @@ import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
 import PasswordInput from "@/components/public/PasswordInput";
-import { PASSWORD_RULES, checkPassword, describeFailures } from "@/lib/passwordPolicy";
+import { PASSWORD_RULES, checkPassword, describeFailures } from "@/platform/auth/passwordPolicy";
 
 const input = "landing-field";
 const label = "landing-label";

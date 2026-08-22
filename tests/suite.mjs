@@ -13,18 +13,18 @@
 
 import { KEY_PREFIX, IX } from "@/platform/db/keys";
 import { SWEEP_SCOPES, sweepRefusal } from "@/platform/db/cascade";
-import { hashPassword, verifyPassword, needsRehash } from "@/lib/passwords";
+import { hashPassword, verifyPassword, needsRehash } from "@/platform/auth/passwords";
 import bcrypt from "bcryptjs";
 import {
   checkCredentialAttempts, recordCredentialFailure, clearCredentialFailures, __limits as LIMITS,
-} from "@/lib/data/attempts";
+} from "@/platform/auth/attempts";
 import { delPrefix, getIndex } from "@/platform/db/store";
 import { getRedisClient } from "@/platform/db/redis";
-import { createUser, mintSession } from "@/lib/data/users";
+import { createUser, mintSession } from "@/platform/auth/users";
 import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/lib/data/studios";
-import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/lib/data/collaborators";
+import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/platform/auth/collaborators";
 import { listRoles } from "@/lib/data/roles";
-import { SESSION_COOKIE, login as identityLogin } from "@/lib/identity";
+import { SESSION_COOKIE, login as identityLogin } from "@/platform/auth/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS } from "@/platform/access";
 import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/lib/tasks";
@@ -39,7 +39,7 @@ import { rfqInfo } from "@/lib/salesAnalytics";
 import { landedUnitCost, crossRate } from "@/shared/currencies";
 import { qualityContext, watermarkFor } from "@/lib/quality";
 import { getJSON } from "@/platform/db/store";
-import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/lib/relations";
+import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/platform/relations";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/platform/db/keys";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/lib/qualityFields";
@@ -62,17 +62,17 @@ import {
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
   listEmployees, saveEmployment,
 } from "@/lib/hr";
-import { updateProfile } from "@/lib/data/users";
+import { updateProfile } from "@/platform/auth/users";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
-} from "@/lib/superAuth";
+} from "@/platform/auth/superAuth";
 import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll, memoryPolicy } from "@/platform/db/store";
 import * as KEYS from "@/platform/db/keys";
 import { STAT } from "@/platform/db/keys";
 import { putMedia } from "@/lib/media";
-import { hashToken } from "@/lib/passwords";
+import { hashToken } from "@/platform/auth/passwords";
 
 const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/route.js")).PUT;
 const TASKS_ROUTE = await import("@/app/api/studios/[slug]/tasks/route.js");

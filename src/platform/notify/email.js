@@ -1,4 +1,4 @@
-import { log } from "@/lib/observability";
+import { log } from "@/platform/http/observability";
 // Generic, reusable Resend email integration.
 //
 // This module is the ONLY place that talks to Resend. Everything else calls

@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { operationsContext, createShift, editShift, removeShift } from "@/lib/operations";
 
 export const runtime = "nodejs";

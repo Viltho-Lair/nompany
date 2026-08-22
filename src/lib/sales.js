@@ -17,11 +17,11 @@ import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "@/lib/modules/context";
 
-import { listCollaborators } from "@/lib/data/collaborators";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "@/lib/tickets";
 import { normaliseClientName, normaliseContactName, clientSlug } from "@/lib/salesClients";
 import { nextUniqueRef } from "@/lib/references";
-import { traverseIn } from "@/lib/relations";
+import { traverseIn } from "@/platform/relations";
 import { requestRfq } from "@/lib/technical";
 import { pendingRfq, rfqsForTicket } from "@/lib/rfqs";
 import { isFinishedQuotation } from "@/lib/quotations";
@@ -428,7 +428,7 @@ function poFor(quotation, tasks, taskAssignees) {
 // A TICKET'S QUOTATIONS, newest first, so `[0]` is always "the quotation this
 // ticket is worth".
 //
-// The rule now lives on the edge in lib/relations.js rather than three times in
+// The rule now lives on the edge in platform/relations.js rather than three times in
 // this file. Same order, same answer — but the Print button on the Quotation
 // Viewer resolves through the same declaration, so the button and the ticket's
 // own Quotations box cannot come to different conclusions about which quotation

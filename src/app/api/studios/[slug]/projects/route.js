@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import {
   projectsContext, listProjects, approvedQuotations, projectPeople,
   listSlas, listOvertimes, overtimeDirectory, readProjectsSettings, saveProjectsSettings,

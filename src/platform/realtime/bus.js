@@ -28,7 +28,7 @@
 // cursor — never correctness. Nothing here is allowed to fail a write.
 
 import { getRedisClient } from "@/platform/db/redis";
-import { log } from "@/lib/observability";
+import { log } from "@/platform/http/observability";
 
 // ---- channels --------------------------------------------------------------
 // Namespaced away from the key space (`s:` `u:` `g:` …) on purpose: channels are

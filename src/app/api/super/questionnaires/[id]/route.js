@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import {
   getQuestionnaireById, updateQuestionnaireDef, deleteQuestionnaireDef,
 } from "@/lib/data/questionnaires";

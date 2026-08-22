@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { inventoryContext, createDelivery, issueDelivery, removeDelivery } from "@/lib/inventory";
 
 export const runtime = "nodejs";

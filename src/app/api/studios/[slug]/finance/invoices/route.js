@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { financeContext, createInvoice, editInvoice, recordPayment, removeInvoice } from "@/lib/finance";
 
 export const runtime = "nodejs";

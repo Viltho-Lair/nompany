@@ -39,7 +39,7 @@ Branch `wave-0-security-hardening`. Suite green, `tsc --noEmit` clean, productio
 | Bundle budget | **done** — 1091 KB gz against a 1200 KB ceiling |
 | Per-route permission enforcement | **done for every module** — each pins its own refusal shapes, and M-15 records where a granted right cannot be exercised at all |
 | ESLint config | **done** — flat config, 0 errors, a 201-warning backlog gated by `scripts/lint-budget.mjs` so it can only shrink |
-| Observability (request ids, structured logs) | **done** — `src/lib/observability.js`; every line carries a request id, every request reports its Redis hop count |
+| Observability (request ids, structured logs) | **done** — `src/platform/http/observability.js`; every line carries a request id, every request reports its Redis hop count |
 
 **Opened while working, not yet decided:** `login()` checks `status === "suspended"` *before* verifying the password, so a suspended account is distinguishable from a non-existent one with no password at all — an enumeration oracle. Moving the check below `verifyPassword` closes it and costs one line, but it changes what a suspended person sees when they mistype their password. Decide before Wave 1 records golden responses.
 
@@ -85,13 +85,13 @@ Eight changes. All small, all local, all independently deployable. Ship them in 
 
 | # | Fix | Finding | Files | Effort |
 |---|---|---|---|---|
-| 0.1 | **Prefix-guard `sweepOrphans`** + refuse to delete when the registry is empty | C-1 | `platform/db/cascade.js` | 30 min |
-| 0.2 | **Rate-limit before `verifyPassword`**, keyed on email + IP, escalating lockout; same on `/forgot` and `/reset` | C-4 | `lib/identity.js`, `platform/db/keys.js` | 2 h |
-| 0.3 | **Server-side console session expiry** — `ix:supersession:<sha256>` with `EX`; `timingSafeEqual` | C-5 | `lib/superAuth.js` | 3 h |
-| 0.4 | **Rate-limit + Origin check on `/api/track`**; HyperLogLog for the visitor set; TTL restored | C-3 | `api/track/route.js`, `platform/db/keys.js` | 3 h |
+| 0.1 | **Prefix-guard `sweepOrphans`** + refuse to delete when the registry is empty | C-1 | `platform/db/cascade.ts` | 30 min |
+| 0.2 | **Rate-limit before `verifyPassword`**, keyed on email + IP, escalating lockout; same on `/forgot` and `/reset` | C-4 | `platform/auth/identity.js`, `platform/db/keys.ts` | 2 h |
+| 0.3 | **Server-side console session expiry** — `ix:supersession:<sha256>` with `EX`; `timingSafeEqual` | C-5 | `platform/auth/superAuth.js` | 3 h |
+| 0.4 | **Rate-limit + Origin check on `/api/track`**; HyperLogLog for the visitor set; TTL restored | C-3 | `api/track/route.js`, `platform/db/keys.ts` | 3 h |
 | 0.5 | **Security headers** — CSP (report-only first), HSTS, `X-Frame-Options`, `Referrer-Policy`, `X-Content-Type-Options`, `poweredByHeader: false` | H-10 | `next.config.mjs` | 2 h |
 | 0.6 | **Ownership check on private media** — compare `owner`, and require studio membership for studio-scoped blobs | C-2 | `api/media/[id]/route.js` | 2 h |
-| 0.7 | **Bcrypt 10 → 12** | L-1 | `lib/passwords.js` | 5 min |
+| 0.7 | **Bcrypt 10 → 12** | L-1 | `platform/auth/passwords.js` | 5 min |
 | 0.8 | **Verify and pin Redis `maxmemory-policy noeviction`**; add a memory-headroom alert | M-14 | infrastructure | 1 h |
 
 **0.1 in full, because it is the one that cannot wait:**

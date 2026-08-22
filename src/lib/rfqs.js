@@ -1,9 +1,9 @@
 // RFQ shared constants + auth. Client-safe (no server-only imports).
 
 import { isFinishedQuotation } from "@/lib/quotations";
-// Client-safe, like this file: lib/relations.js declares the edges and
+// Client-safe, like this file: platform/relations.js declares the edges and
 // imports nothing, taking its rows from the caller.
-import { traverseIn } from "@/lib/relations";
+import { traverseIn } from "@/platform/relations";
 // Also client-safe, and for the same reason this file is — see its header.
 import { quotationApproved } from "@/lib/taskRouting";
 

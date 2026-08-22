@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { PASSWORD_RULES, checkPassword, describeFailures } from "@/lib/passwordPolicy";
+import { PASSWORD_RULES, checkPassword, describeFailures } from "@/platform/auth/passwordPolicy";
 
 // Password recovery in two stages on one page: ask for the address, then enter
 // the emailed code with a new password. Stage 2 keeps the email editable so the

@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import {
   verifyOtp, sessionCookie, clearedOtpCookie, deviceCookie, deviceFingerprint,
   requestIsHttps, publicUser, OTP_COOKIE, DEVICE_COOKIE,
-} from "@/lib/identity";
+} from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 

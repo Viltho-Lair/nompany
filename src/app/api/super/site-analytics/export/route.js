@@ -1,4 +1,4 @@
-import { route } from "@/lib/route";
+import { route } from "@/platform/http/route";
 import { readDays, readPages, readContinents, readDevices, daysOfYear, daysBack } from "@/lib/data/siteStats";
 
 export const runtime = "nodejs";
