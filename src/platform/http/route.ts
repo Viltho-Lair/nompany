@@ -48,15 +48,35 @@ import { digestFor, beginIdempotent, finishIdempotent, abandonIdempotent } from 
  * only means something on a write, `context` only on a studio route, and
  * `status` only where a service's own refusal name needs a local override.
  */
-export type RouteSpec = {
-  auth?: "public" | "user" | "identity" | "studio" | "super";
+export type AuthMode = "public" | "user" | "identity" | "studio" | "super";
+
+/**
+ * WHAT A ROUTE SPEC SAYS. `auth` is a string rather than the union because a
+ * spec is almost always declared as a `const` above the handlers and shared
+ * between them, which widens the literal — and refusing that would mean every
+ * route repeating `as const` to describe something the wrapper validates at
+ * runtime anyway.
+ */
+export type RouteSpec<A = RouteArgs> = {
+  auth?: AuthMode | string;
   body?: boolean;
   name?: string;
   status?: Record<string, number>;
-  context?: (user: unknown, slug: string) => Promise<Record<string, unknown>>;
+  /**
+   * THE CONTEXT BUILDER IS WHAT TYPES THE HANDLER. A studio route names its
+   * department's builder here, and `route` infers the handler's argument from
+   * whatever that builder returns — so `salesContext` gives the handler a
+   * SalesContext without the route restating it.
+   */
+  context?: (user: unknown, slug: string) => Promise<A | { error: string }>;
 };
 
-/** What the wrapper hands a handler: the request, the params, and whoever it resolved. */
+/**
+ * WHAT THE WRAPPER HANDS A HANDLER when no context builder narrows it: the
+ * request, the params, the parsed body, and whichever identity the auth mode
+ * resolved. Open because those four differ per mode, and the handler is the
+ * thing that knows which mode it asked for.
+ */
 export type RouteArgs = Record<string, any>;
 
 const isResponse = (v: unknown): v is Response => v instanceof Response;
@@ -81,7 +101,7 @@ async function readBody(request: Request): Promise<unknown> {
  * @param out   handler's return value
  * @param spec  the route spec, for local status overrides
  */
-function finish(out: unknown, spec: RouteSpec): Response {
+function finish(out: unknown, spec: RouteSpec<unknown>): Response {
   if (isResponse(out)) return stamp(out);
 
   if (isErrorShape(out)) {
@@ -150,7 +170,7 @@ const refuse = (error: string, status: number) => stamp(Response.json({ error },
  * a reason to fail it.
  */
 async function audit(
-  res: Response, spec: RouteSpec, request: Request, args: RouteArgs, identity: string,
+  res: Response, spec: RouteSpec<unknown>, request: Request, args: RouteArgs, identity: string,
 ): Promise<void> {
   const actorType = args.admin ? ACTOR.SUPER
     : args.collaborator ? ACTOR.COLLABORATOR
@@ -190,7 +210,7 @@ async function audit(
  * adding something to it later does not touch every call site:
  *   { request, params, user, identity, studio, collaborator, access, sections, body }
  */
-export function route(spec: RouteSpec, handler: (args: RouteArgs) => unknown) {
+export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & RouteArgs) => unknown) {
   const auth = spec.auth || "user";
 
   // WHO IS ASKING, and what the handler gets. Split out of the request path so
@@ -270,7 +290,12 @@ export function route(spec: RouteSpec, handler: (args: RouteArgs) => unknown) {
     // the builder already resolves the studio itself, and asking twice is the
     // duplicate this seam exists to remove rather than reproduce.
     const build = spec.context || studioContext;
-    const context = await build(user, params.slug);
+    // EVERY BUILDER ANSWERS `{ error }` OR THE CONTEXT, which is the shape that
+    // lets the wrapper refuse through the status table without knowing which
+    // module it is looking at. `A` is whatever the builder returns on success,
+    // so the refusal half is read structurally.
+    const context = (await build(user as { id?: unknown }, params.slug)) as
+      A & { error?: string };
     if (context.error) {
       const name = String(context.error);
       return { refusal: refuse(name, statusFor(name)) };
@@ -313,7 +338,7 @@ export function route(spec: RouteSpec, handler: (args: RouteArgs) => unknown) {
       // once without altering a single existing caller.
       const key = request.headers.get("idempotency-key");
       if (!key || !MUTATING.has(request.method)) {
-        const out = finish(await handler(args), spec);
+        const out = finish(await handler(args as A & RouteArgs), spec);
         if (auditing) await audit(out, spec, request, args, identity);
         return out;
       }
@@ -339,7 +364,7 @@ export function route(spec: RouteSpec, handler: (args: RouteArgs) => unknown) {
 
       let res;
       try {
-        res = finish(await handler(args), spec);
+        res = finish(await handler(args as A & RouteArgs), spec);
       } catch (error) {
         // A CRASH IS NOT A RESULT. Freezing a 500 into the record would make a
         // transient failure permanent for this key for a day — the retry that

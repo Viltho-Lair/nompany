@@ -109,11 +109,38 @@ Every service module reads and writes through `repo()`. `readCol`, `addRow`,
 
 ## Waves 3–5 ⬜
 
-**W3** TypeScript + departmental modules — 🟡 in progress.
-`shared/` ✅ currencies, countries, i18n, slug · `platform/access` ✅ catalogue and
-resolver behind one door, typed, with the `PermissionKey` union · `platform/db`
-next, then one department per step. `tsconfig.strict.json` gains a folder per
-step and never loses one.
+**W3** TypeScript + departmental modules — 🟡 the server side is done.
+
+| Step | State |
+|---|---|
+| `shared/` | ✅ TypeScript |
+| `platform/access` | ✅ typed, `PermissionKey` union |
+| `platform/db` | ✅ 8 files, reads generic over `unknown` |
+| `platform/{http,realtime,notify,relations}` | ✅ typed |
+| `platform/auth` | ✅ 13 files, 9 record types named |
+| Twelve departments | ✅ moved to `src/modules/<name>/`, typed, Zod schema each |
+| What was left of `src/lib` | ✅ typed |
+| `src/app/api/**/route.js` | ⬜ 99 files — see below |
+| `src/components`, `src/app` pages | ⬜ W4's slice, deferred deliberately |
+| `checkJs` repo-wide, `allowJs` deleted | ⬜ blocked on the two rows above |
+
+`npx tsc --noEmit` is clean over every file the server runs: 171 TypeScript
+files against 309 JavaScript, and every one of the 309 is a browser file.
+
+**The API routes are their own step, not a rename.** Converting the 99 route
+files produced 994 type errors, and most of them were one seam: the wrapper
+handed every handler `RouteArgs`, so a route naming `salesContext` got no
+SalesContext. `route()` is generic over its context builder now — the builder
+types the handler — which took it to 671. The rest are service return shapes
+that the routes read positionally, and they are better done alongside the plan's
+own step 20 (`app/` reduced to re-exports) than as a rename with 671 casts.
+
+**The strictness ratchet** holds shared, all of platform, `modules/context.ts`
+and `modules/people`. 614 `noImplicitAny` findings remain across the other ten
+departments — unannotated internal helpers, not a regression: the base config
+grades none of them.
+
+
 **W4** UI/UX system — independent, can run alongside. Two requirements added
 22/08/2026 and detailed in `execution-plan.md`: **no placeholder data in any
 field** (a sweep of everything left over from the old-system migration), and
