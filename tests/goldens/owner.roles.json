@@ -448,6 +448,24 @@
         ]
       },
       {
+        "key": "finance.ledger",
+        "group": "Finance",
+        "label": "Ledger",
+        "verbs": [
+          "view"
+        ],
+        "extra": [
+          {
+            "key": "post",
+            "label": "Post journal entries"
+          },
+          {
+            "key": "reverse",
+            "label": "Reverse entries"
+          }
+        ]
+      },
+      {
         "key": "finance.settings",
         "group": "Finance",
         "label": "Settings",

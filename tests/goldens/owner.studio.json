@@ -171,6 +171,12 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "finance-ledger",
+        "name": "Ledger",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "finance-settings",
         "name": "Settings",
         "enabled": true

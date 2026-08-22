@@ -36,6 +36,7 @@
       "hr-employees": true,
       "finance": true,
       "finance-cash": true,
+      "finance-ledger": true,
       "finance-settings": true,
       "operations": true,
       "operations-tracking": true,
@@ -174,6 +175,11 @@
       {
         "key": "finance-cash",
         "name": "Cash",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "finance-ledger",
+        "name": "Ledger",
         "parentId": "<sec_ID>"
       },
       {
