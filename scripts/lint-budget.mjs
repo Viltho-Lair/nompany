@@ -28,7 +28,10 @@ import { execFileSync } from "node:child_process";
 // which bind nothing and exist to tell a reader what the callback receives. The
 // rule is off for .ts files now, so the count is 33 lower and the ceiling comes
 // down with it — leaving it at 205 would bank the false positives as headroom.
-const MAX_WARNINGS = 170;
+// 170 → 161 on 22/08/2026, with the 99 route files. Same reason again: nine of
+// those warnings were the .js rules firing at TypeScript, and the ceiling comes
+// down with the count rather than banking the difference as headroom.
+const MAX_WARNINGS = 161;
 
 let report;
 try {
