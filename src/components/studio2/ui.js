@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/studio2/icons";
+import { fmtDate as fmtDateCanonical, fmtDateTime as fmtDateTimeCanonical, fmtWeekday } from "@/lib/format";
 
 // SHARED STUDIO CHROME. The modules each own their own screens, but a dialog, a
 // toolbar, an empty state and a bar chart have to look the same in Sales as in
@@ -48,11 +49,17 @@ export const URGENCY_DOT = {
 
 // ---- formatting ------------------------------------------------------------
 export const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
-export const fmtDate = (v) => (v ? String(v).slice(0, 10) : "—");
-export function fmtDateTime(v) {
-  if (!v) return "—";
-  try { return new Date(v).toLocaleString("en-GB"); } catch { return String(v); }
-}
+
+// DATES GO THROUGH THE ONE FORMATTER, not a second copy that drifts. These used
+// to be a `slice(0, 10)` (which rendered yyyy-mm-dd, not the dd/mm/yyyy this
+// product uses everywhere else) and a `toLocaleString("en-GB")` (which ignored
+// the tenant's configured locale). Both are re-exports now so the ~10 studio
+// screens importing `fmtDate`/`fmtDateTime` from here get the tenant's locale
+// and dd/mm/yyyy without one import line changing. `fmtWeekday` is passed
+// straight through for the couple of screens that label a day.
+export const fmtDate = fmtDateCanonical;
+export const fmtDateTime = fmtDateTimeCanonical;
+export { fmtWeekday };
 
 // ---- personal preferences --------------------------------------------------
 // Column and filter choices are a PERSONAL working preference, not studio data:

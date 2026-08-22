@@ -8,7 +8,7 @@
 // the neutral DEFAULTS — no cross-tenant/config bleed between concurrent server
 // requests. A single browser = one tenant, so setting it once client-side is safe.
 
-import { COMPANY_DEFAULTS, formatMoney, formatMoneyParts, formatDate, formatDateTime } from "@/modules/main/companySettings";
+import { COMPANY_DEFAULTS, formatMoney, formatMoneyParts, formatDate, formatDateTime, formatWeekday, formatTime } from "@/modules/main/companySettings";
 
 type CompanyConfig = typeof COMPANY_DEFAULTS;
 
@@ -22,6 +22,11 @@ const active = () => _active || COMPANY_DEFAULTS;
 
 export function fmtDate(v: unknown) { return formatDate(v, active()); }
 export function fmtDateTime(v: unknown) { return formatDateTime(v, active()); }
+// A weekday LABEL ("Mon", or "الإثنين" for an Arabic tenant). The one date
+// output that localises fully — see formatWeekday. `long` gives "Monday".
+export function fmtWeekday(v: unknown, long = false) { return formatWeekday(v, active(), long); }
+// A clock time ("14:30"), tenant hour convention. For live-view "last polled".
+export function fmtTime(v: unknown) { return formatTime(v, active()); }
 
 // Currency-aware money. `fmtSAR` is kept as a back-compat alias (now honours the
 // tenant's currency, not literally SAR) so existing imports keep working.

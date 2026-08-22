@@ -8,6 +8,7 @@ import { COUNTRIES } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
 import { locales } from "@/shared/locale";
+import { fmtDate } from "@/lib/format";
 
 // EACH NAMED IN ITSELF. A picker that says "Arabic" to somebody looking for
 // العربية is a picker they have to already read English to use.
@@ -511,7 +512,7 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
 
       {base && fx?.updatedAt > 0 && (
         <p className="mt-3 text-xs text-slate-400">
-          Rates as of {new Date(fx.updatedAt * 1000).toLocaleDateString()}
+          Rates as of {fmtDate(fx.updatedAt * 1000)}
           {fx.stale ? " — today's refresh hasn't landed yet." : "."}
         </p>
       )}

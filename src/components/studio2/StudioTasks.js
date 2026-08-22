@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RecordLink from "@/components/studio2/RecordLink";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { linkToProject, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
+import { fmtDate, fmtDateTime } from "@/lib/format";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -26,7 +27,7 @@ const PRIORITY_TONE = {
   High: "text-amber-600 dark:text-amber-400",
 };
 
-const fmt = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB") : "");
+const fmt = (iso) => (iso ? fmtDate(iso) : "");
 
 // TASKS. Managers run the board; everyone else gets on with their own work —
 // moving a task assigned to them and ticking its checklist.
@@ -257,7 +258,7 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
                         ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
                         : "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300"}`}
                     title={a.approved
-                      ? `Approved by ${a.byAlias || "someone"}${a.at ? ` on ${new Date(a.at).toLocaleString("en-GB")}` : ""}`
+                      ? `Approved by ${a.byAlias || "someone"}${a.at ? ` on ${fmtDateTime(a.at)}` : ""}`
                       : a.orphaned
                         ? "Nobody is appointed to this authority yet"
                         : `Waiting on ${a.holders.join(", ") || "nobody"}`}>

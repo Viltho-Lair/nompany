@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
+import { fmtTime } from "@/lib/format";
 
 // How often the table pulls a fresh copy while someone is watching it. This
 // screen is the one people leave up on a wall, so unlike the rest of the studio
@@ -76,7 +77,7 @@ export default function StudioSalesLive({ studio }) {
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
               {studio.name} · {data ? `${data.tickets.length} ticket${data.tickets.length === 1 ? "" : "s"}` : "loading"}
               {" · "}refreshes every {REFRESH_MS / 1000}s
-              {lastFetched && ` · last ${lastFetched.toLocaleTimeString("en-GB")}`}
+              {lastFetched && ` · last ${fmtTime(lastFetched)}`}
             </p>
           </div>
           <div className="ms-auto flex items-center gap-2">

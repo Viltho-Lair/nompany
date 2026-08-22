@@ -521,6 +521,53 @@ console.log("== the architecture, asserted rather than remembered");
     // pass that proves nothing — the same failure the write-scan had.
     ok("...and the scan is reading real files", offenders.length > 0, String(offenders.length));
   }
+
+  // ---- 6. dates render through the one formatter -------------------------
+  //
+  // dd/mm/yyyy EVERYWHERE, and the tenant's configured locale, is a product
+  // rule — and the way it breaks is a call site quietly reaching for
+  // `toLocaleDateString` instead of `fmtDate`. One already did: an FX "rates
+  // as of" line called it with NO locale, so it rendered mm/dd/yyyy in a US
+  // browser and dd/mm/yyyy in a Saudi one — the same screen, two dates.
+  //
+  // The studio is where this matters, because the studio honours a per-tenant
+  // locale that a raw call cannot see. The formatters live in `format.ts` and
+  // `companySettings.ts`; nothing else in `src/components/studio2` may format a
+  // date itself. `/super` is deliberately NOT scanned — it is English-only and
+  // its template pages format dates inline on purpose, and they go with the
+  // placeholder sweep.
+  {
+    // A single backslash held in a variable, so the RegExp strings below carry
+    // no escapes of their own — the same reason the RTL block does it this way.
+    const BS = String.fromCharCode(92);
+    const RAW = new RegExp("toLocale" + "(?:Date|Time)?String" + BS + "s*" + BS + "(", "g");
+    const offenders = [];
+    for (const f of sources) {
+      if (!f.path.includes("src/components/studio2/")) continue;
+      for (const line of f.text.split(String.fromCharCode(10))) {
+        // A mention in a COMMENT is not a call — the consolidation left a note
+        // in ui.js describing the old code, and a note is not a regression.
+        // NO `$` ANCHOR: `sources` split on "\n" leaves a trailing "\r",
+        // and `.` does not cross it, so `.*$` without the `m` flag silently
+        // matches nothing and the comment strip becomes a no-op — which is how a
+        // comment mentioning toLocale gets reported as a real call.
+        const code = line.replace(new RegExp(BS + "s*//.*"), "");
+        if (RAW.test(code)) offenders.push(`${f.path.split("/").pop()}: ${line.trim().slice(0, 60)}`);
+        RAW.lastIndex = 0;
+      }
+    }
+    ok("the studio formats every date through fmtDate, not a raw locale call",
+      offenders.length === 0, offenders.join(" | "));
+    // And the formatter it delegates to actually produces dd/mm/yyyy — the
+    // whole point, and a one-line proof that a future edit to the default
+    // locale cannot silently flip the order.
+    const { formatDate } = await import("@/modules/main/companySettings");
+    const shown = formatDate("2019-04-07");
+    ok("...and that formatter renders dd/mm/yyyy", shown === "07/04/2019", shown);
+    // A date-only string is LOCAL midnight, not UTC — or a due date lands on
+    // the day before in every Western timezone. Proven by the day surviving.
+    ok("...and a date-only value does not drift a day", formatDate("2019-04-07").startsWith("07/"), formatDate("2019-04-07"));
+  }
 }
 
 // ============================================================================

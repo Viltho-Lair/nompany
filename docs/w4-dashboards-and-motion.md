@@ -522,25 +522,48 @@ address bar.
 Small piece of work, but it should ship with the login redesign (§8.5) since both
 live in the same chrome.
 
-### 8.4 Dates — the number is smaller than the memory of it
+### 8.4 Dates — done, and the number was bigger than the survey
 
-Surveyed rather than assumed: **17** raw `toLocaleDateString` calls outside
-`lib/format.js`. Of those, **15 hard-code `"en-GB"`** — so they already render
-dd/mm/yyyy and are wrong only in that they bypass the studio's configured locale.
+The survey counted 17 raw `toLocaleDateString` calls and one genuine bug. Doing it
+turned up a second, worse thing the survey missed: **a duplicate formatter**.
 
-**One is genuinely broken**: `StudioSettings.js:489` calls `toLocaleDateString()`
-with no locale at all, so the FX "rates as of" line renders mm/dd/yyyy in a US
-browser. That one is a bug, not a style drift.
+`components/studio2/ui.js` carried its own `fmtDate` — `(v) => String(v).slice(0, 10)`
+— which rendered **yyyy-mm-dd, not the dd/mm/yyyy the product uses everywhere else**,
+and a `fmtDateTime` hard-coded to `en-GB`. Ten studio screens imported them. So the
+studio was not bypassing the tenant locale in seventeen scattered places; it was doing
+it through one shared helper that had quietly forked from the real one. Both now
+re-export `@/lib/format`, and the ten screens are correct without an import line
+changing.
 
-The rest are `toLocaleString` and `toLocaleTimeString` — timestamps and numbers,
-mostly in `/super`'s template pages, which the placeholder sweep removes anyway.
+**The genuine bug** (moved to `StudioSettings.js:514` since the survey): the FX "rates
+as of" line called `toLocaleDateString()` with no locale, so it rendered mm/dd/yyyy in
+a US browser. Routed through `fmtDate`.
 
-The rule stands and should be lint-enforced: **every date renders through `fmtDate`
-/ `fmtDateTime`**, which resolve the studio's locale and default to `en-GB` →
-dd/mm/yyyy. Arabic adds a wrinkle worth deciding now: Arabic locales default to
-Arabic-Indic digits (٢٢/٠٨/٢٠٢٦). For an ERP, Western digits in Arabic text are
-usually the right call — `ar-SA-u-nu-latn` — and `fmtDate` is the one place to make
-that decision.
+**What the one formatter now guarantees**, all in `companySettings.ts` so there is one
+place to change any of it:
+
+- **dd/mm/yyyy** by default (`en-GB`), and the tenant's configured locale when set.
+- **A date-only string is LOCAL midnight**, not UTC — `new Date("2026-08-22")` parses
+  as UTC and lands on the 21st in every Western timezone. The `T00:00:00` guard the
+  call sites used to repeat moved into `toDate()`.
+- **Western digits even in Arabic.** `toLocaleDateString("ar-SA")` returns
+  Arabic-Indic digits *and* the Hijri calendar — both wrong for an invoice that
+  reconciles against a Gregorian bank statement. `digitSafe()` pins
+  `-ca-gregory-nu-latn` onto any `ar` locale. This is the one place a future per-user
+  "show me Arabic-Indic digits" account setting (the decision to make digits a user
+  preference) overrides.
+- **A weekday is the exception**: `formatWeekday` localises fully, because "الإثنين"
+  is what an Arabic tenant wants, not "Mon" — words localise, numbers do not.
+- **Clock times** (`fmtTime`) for the live views' "last polled at", same digit rule.
+
+**The rule is enforced**, not just stated: Gate A block 6 fails the build if anything
+in `src/components/studio2` formats a date with a raw `toLocale*` call. `/super` is
+deliberately exempt — English-only, and its template pages go with the placeholder
+sweep.
+
+Two `/super` and one `/account` cluster still call `toLocaleDateString("en-GB")`
+directly. They render dd/mm/yyyy already and the console has no tenant locale to
+honour, so they are correct today; they convert with step 10's rewire, not here.
 
 ### 8.5 The login page
 
@@ -850,7 +873,7 @@ Thirteen steps. Each one is shippable and each one ends green.
 | 6 | **Finance 1a** — AR, aging, P&L, project margin | Real value with no schema change |
 | 7 | The remaining eight department dashboards | Repetition of a settled pattern |
 | 8 | Techniques 1–5, 7, 9 across the shells | Motion after the layout it moves |
-| 9 | **Dates**: fix `StudioSettings.js:489`, route the other 16 through `fmtDate`, add the lint rule, settle Arabic digits (§8.4) | Cheap, and it wants doing after the screens have stopped moving |
+| 9 | ✅ **Dates**: fixed the mm/dd/yyyy bug, consolidated the studio's duplicate formatter, added Western-digit Arabic + a Gate-A rule (§8.4) | **Done — see §8.4** |
 | 10 | `/super` and `/account` rewire; **placeholder sweep** | The mock data goes when there is real data to replace it |
 | 11 | **The ERP documentation** (§8.6), generated where it can be | Written against screens that have stopped changing, or it is wrong on arrival — and it is Nova's corpus |
 | 11a | **Notification producers** across all twelve departments | The transport is finished; the producers are not. Nothing else in this plan works without them |

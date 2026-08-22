@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
-import { microLabel, Dialog } from "@/components/studio2/ui";
+import { microLabel, Dialog, fmtDate, fmtWeekday } from "@/components/studio2/ui";
 import {
   DAYS, normalizeSchedule, normalizeLegend, visibleWindow, startOfWeekSunday, addDays as addCalendarDays,
   dayKey, barGeometry, dayRoster,
@@ -28,8 +28,9 @@ const PERMIT_TONE = {
   "Not yet valid": "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
 };
 
-const fmt = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB") : "—");
-const dayName = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short" }) : "");
+const fmt = fmtDate;
+// A weekday LABEL localises fully — Arabic wants the Arabic day name, not "Sat".
+const dayName = (iso) => fmtWeekday(iso);
 
 // OPERATIONS — where the work happens, who is on site when, and the paperwork
 // that says they may be there. Discrete work items live in Tasks; this is about

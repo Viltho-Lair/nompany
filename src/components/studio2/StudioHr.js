@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import {
   panel, h2, sub, input, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
-  Dialog, Toolbar, Empty, StatTile,
+  Dialog, Toolbar, Empty, StatTile, fmtDate,
 } from "@/components/studio2/ui";
 import { initialsOf } from "@/lib/initials";
 
@@ -19,7 +19,7 @@ const LEAVE_TONE = {
 };
 
 // Dates are dd/mm/yyyy everywhere in this product.
-const fmt = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB") : "—");
+const fmt = fmtDate;
 
 // HUMAN RESOURCES. The employee record IS the collaborator row, so this screen
 // edits the person who is already in the studio rather than creating a parallel

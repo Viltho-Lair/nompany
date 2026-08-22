@@ -5,7 +5,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import {
-  inputRO, stripeOn, stripeOff, Dialog, ColumnPicker, prefKey, loadPref, savePref,
+  inputRO, stripeOn, stripeOff, Dialog, ColumnPicker, prefKey, loadPref, savePref, fmtDate,
 } from "@/components/studio2/ui";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
@@ -25,7 +25,10 @@ const INV_TONE = {
   Cancelled: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
 };
 
-const fmt = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB") : "—");
+// The tenant's locale and dd/mm/yyyy, via the one formatter. `fmtDate` already
+// treats a date-only string as local midnight, so the `T00:00:00` guard moved
+// into it — see companySettings.
+const fmt = fmtDate;
 const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
 
 // FINANCE. Every number here is derived — invoice totals from their lines, the

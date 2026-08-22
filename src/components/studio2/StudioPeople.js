@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { ADMIN_ROLE_ID } from "@/platform/access";
+import { fmtDate } from "@/lib/format";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -169,7 +170,7 @@ function RequestRow({ request, busy, onDecide }) {
           <p className="font-600 text-slate-900 dark:text-white">{request.fullName || "Someone"}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">{request.email}</p>
         </div>
-        <span className="text-xs text-slate-400">asked {new Date(request.createdAt).toLocaleDateString("en-GB")}</span>
+        <span className="text-xs text-slate-400">asked {fmtDate(request.createdAt)}</span>
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <div className="min-w-[180px] flex-1">
@@ -257,7 +258,7 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
                 +{person.overrideCount} exception{person.overrideCount === 1 ? "" : "s"}
               </span>
             )}
-            {" · joined "}{new Date(person.createdAt).toLocaleDateString("en-GB")}
+            {" · joined "}{fmtDate(person.createdAt)}
           </p>
         </div>
       </div>

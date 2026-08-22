@@ -62,7 +62,7 @@ export default function StudioMain({ slug }) {
             <p className={sub}>What&apos;s happening across {studio.name} today.</p>
           </div>
           <span className="text-sm font-500 text-slate-400 dark:text-slate-500">
-            {new Date().toLocaleDateString("en-GB")}
+            {fmtDate(new Date())}
           </span>
         </div>
 
