@@ -418,7 +418,7 @@ data.
 | 5 | `Magnetic` on primary actions; `FloatingField` across forms; `CountUp` in every KPI |
 | 6 | `Pinned` on Finance deep-dives — the aging chart holds while the invoice list scrolls, and highlights the bucket in view |
 | 7 | `DrawIcon` in the sidebar and empty states; `draw.ts` animates every line and area chart on first paint |
-| 8 | `Nova` in the studio top bar, breathing loop, opening an "AI Insights" panel — **the panel is a later phase and must not ship a fake insight** |
+| 8 | `Nova` in the studio top bar, breathing loop, opening the assistant panel — **see §8A; the head ships before the assistant does, and neither ships a fake insight** |
 | 9 | `RouteTransition` in the shell layouts — cross-fade between departments, slide within one |
 
 **Three rules for all of it.** Every technique honours `prefers-reduced-motion`;
@@ -576,6 +576,188 @@ access suite already derives its matrix.
 
 ---
 
+## 8A. Nova — the second chat, and what it is allowed to do
+
+Added 22/08/2026. **Two chat surfaces, deliberately not one.**
+
+### 8A.1 The two are different products
+
+| | **Support chat** (exists) | **Nova** (new) |
+|---|---|---|
+| Who is on the other end | A person at nompany, in `/super` | The system itself |
+| What it is for | "Something is wrong with the product" | "Help me get my work done in here" |
+| Scope | The platform | This studio, this person, their rights |
+| Lifetime | A room with a TTL; nothing is kept | A thread scoped to the collaborator |
+| Trigger | The existing chat bubble | **A Nova-head button** |
+
+They must not merge. Support is nompany's queue and its transcript is a support
+record; Nova is a tenant's assistant and everything it touches is that tenant's
+data. Merging them would put a studio's operational requests into nompany's
+support queue and a support conversation inside a tenant's boundary. The two
+buttons sit apart in the chrome for the same reason.
+
+The existing widget already carries an allowance (`chatUsage`), which is another
+reason to keep them separate: a question for Nova must not spend a support chat.
+
+### 8A.2 What Nova does
+
+Three capabilities, in increasing order of how much can go wrong:
+
+**1. Answers questions about the product.** "How do I raise an RFQ?" "What does
+*Sent for approval* mean?" This is a reader over the operator documentation of
+§8.6 — which is the second reason that documentation earns its place: it is
+Nova's corpus. No writes, no risk, and it works the day the docs exist.
+
+**2. Answers questions about this studio's data.** "How many invoices are
+overdue?" "Which projects am I on?" Every answer comes from the same services
+the screens call, **through the same permission check**, and Nova says where it
+looked. It never reaches past `effectivePermissions` — see §8A.4.
+
+**3. Raises things, and routes them.** The example given: somebody in Sales asks
+for leave; the request goes to whoever approves leave; the asker is told what
+happened to it. This is the one that writes, and it is designed below.
+
+### 8A.3 Routing a request — and why almost none of this is new
+
+The mechanism already exists and is already load-bearing. `modules/tasks/taskRouting.ts`
+declares seven typed tasks, each routed to one or more **authorities**
+(`mng`, `fin`, `sales`, `log`, `hr`, `permit`), with Task settings recording who
+currently holds each — resolved on every read, so appointing somebody hands them
+the open items immediately. A typed task is a decision waiting on an authority,
+and it already carries approvals, a reviewer/approver split (invariant 7) and a
+withdrawal cooldown.
+
+So Nova does not invent a workflow. **Nova is a front door onto the one that
+exists.** The leave example, end to end:
+
+```
+Nova: "I'd like to take the 3rd to the 7th off."
+  → recognises the intent
+  → checks the asker holds hr.vacations.create in this studio
+  → shows the request it is about to raise, in full, and asks for confirmation
+  → the person confirms
+  → createVacation(ctx, …)                     the same service the HR screen calls
+  → a typed task, routed to the `hr` authority   the same table the board reads
+  → notifyCollaborators(studio, holders, …)      the same producer the bell reads
+  ← the approver sees it on their board, and in their bell
+  → they approve or decline on the board — NOT inside Nova
+  ← notifyCollaborators(studio, [asker], …)
+  ← the bell tells the asker, and Nova's thread updates in place
+```
+
+Two things are deliberately absent from that chain. **Nova never approves** — it
+raises and it reports, and the decision stays on the screen that owns it, behind
+the right that guards it. And **Nova never writes without a confirmation step**
+that shows the exact record it is about to create.
+
+**What it needs that does not exist yet:** the leave example needs a `vacation`
+task type added to `TASK_TYPE_AUTHORITIES` and a producer calling
+`notifyCollaborators` — HR raises no notifications today (§8A.6). That is a small
+addition to a table, not a new subsystem.
+
+### 8A.4 The rules Nova operates under
+
+Non-negotiable, and every one of them is an existing invariant rather than a new
+policy:
+
+1. **Nova holds no rights of its own.** Every read and every write runs as the
+   person talking to it, through `effectivePermissions`. There is no service
+   account. A studio's data cannot leave through a chat window that a screen
+   would have refused.
+2. **It never approves, signs, or decides.** Invariant 7 exists because reviewer
+   and approver must be two people; an assistant that could sign would be a third
+   way around it.
+3. **It confirms before it writes.** The proposed record is shown in full first.
+4. **It says where it looked.** An answer names the screen and the filter, so it
+   can be checked. An assistant that produces a number nobody can trace is worse
+   than no assistant.
+5. **It refuses rather than guesses.** "I don't have that" is a valid answer.
+   Every invented number in `/super` is being deleted this wave; Nova must not
+   become a new source of them.
+6. **It is bounded to one studio.** The thread is scoped to a collaborator in a
+   studio — CollaboratorID, not UserID (invariant 6) — so somebody in two studios
+   has two threads and neither can see the other.
+
+### 8A.5 The button
+
+The Nova head from `components/landing/mascot/AiAssistant.js`, promoted to
+`components/motion/Nova.tsx` — technique 8, the breathing loop, unchanged.
+
+- **Studio top bar**, beside the notification bell.
+- The head **reacts to state**: idle breathing; attentive when there is an
+  unread reply; a badge when a request it raised has been decided.
+- Clicking opens a side panel, not a modal — the point is to keep working while
+  it is open.
+- **The support bubble stays where it is** and keeps its own icon.
+- Reduced motion stops the breathing; the head stays.
+
+### 8A.6 What has to exist first
+
+In order:
+
+1. **The operator documentation (§8.6)** — capability 1 has no corpus without it.
+2. **Notification producers across the departments** (see the note below §9): the
+   transport is finished and the producers are almost entirely missing, so today
+   Nova could raise a request and nothing would tell the approver.
+3. **A model decision.** Capability 1 is answerable by retrieval over the docs
+   with no model at all. Capabilities 2 and 3 need intent recognition. Which
+   provider, hosted where, and what leaves the tenant boundary is a decision on
+   its own — nothing about a studio's data should reach a third party without an
+   explicit yes. It belongs in the researcher's ledger, not in this document.
+
+Until 3 is settled, Nova ships as **the head, the panel, and capability 1** —
+which is genuinely useful and risks nothing.
+
+---
+
+## 8B. Notifications — the transport is finished, the producers are not
+
+Surveyed 22/08/2026, because §8A depends on it and because it was worth checking
+rather than remembering.
+
+**Delivery is live and needs no refresh.** The chain is complete:
+
+```
+notifyCollaborators()  writes the row to S.notifications
+      ↓                publishes ONLY { kind, id, studioId, recipientId }
+publish(CH.user(id))   — the doorbell carries no message, finding L-7
+      ↓
+/api/studios/<slug>/stream  subscribes per user, re-reads the body from Redis
+      ↓                     on a connection it has already authenticated
+LiveProvider           one EventSource per tab, "notif" frames into state
+      ↓
+NotificationBell       merges streamed arrivals with what it fetched, dedup by id
+```
+
+It survives the things that usually break this: a hidden tab drops the connection
+after a minute and replays from its cursor on return; a reconnect refetches
+because a reconnect is exactly when something may have been missed; and a grants
+or membership change closes the connection rather than patching it.
+
+**The weakness is upstream.** Ten of the twelve departments raise no notification
+at all. Three producers exist in the whole studio — join requested, join decided,
+and a quality revision needing you. `NOTIFY.taskAssigned` and `NOTIFY.mention` are
+declared and never fired; `NOTIFY.peopleChanged` likewise.
+
+So today: a task assigned to you, an invoice going overdue, a quotation approved,
+a permit expiring, an RFQ landing in your queue — none of them tell anybody. The
+bell works perfectly and there is nothing to put in it.
+
+**Three gaps beyond the producers**, each a decision rather than a bug:
+
+- **Delivery needs the studio open.** `LiveProvider` mounts in the studio shell, so
+  a notification for studio A does not reach somebody sitting in studio B or on
+  `/account`. `/super` has its own stream on `CH.super`.
+- **Nothing is delivered outside the tab.** No web push, no service worker, and a
+  notification does not email — `platform/notify/email.ts` exists but is wired to
+  OTP and password flows, not to this.
+- **There is no digest.** Somebody away for a day comes back to a list, not a
+  summary.
+
+**Step 11a of §9 is the producers**, and §10 decision 12 is how far they go.
+
+---
+
 ## 9. Sequence
 
 Thirteen steps. Each one is shippable and each one ends green.
@@ -593,8 +775,11 @@ Thirteen steps. Each one is shippable and each one ends green.
 | 8 | Techniques 1–5, 7, 9 across the shells | Motion after the layout it moves |
 | 9 | **Dates**: fix `StudioSettings.js:489`, route the other 16 through `fmtDate`, add the lint rule, settle Arabic digits (§8.4) | Cheap, and it wants doing after the screens have stopped moving |
 | 10 | `/super` and `/account` rewire; **placeholder sweep** | The mock data goes when there is real data to replace it |
-| 11 | **The ERP documentation** (§8.6), generated where it can be | Written against screens that have stopped changing, or it is wrong on arrival |
+| 11 | **The ERP documentation** (§8.6), generated where it can be | Written against screens that have stopped changing, or it is wrong on arrival — and it is Nova's corpus |
+| 11a | **Notification producers** across all twelve departments | The transport is finished; the producers are not. Nothing else in this plan works without them |
+| 11b | **Nova** — head, panel, and answering from the documentation (§8A) | Useful, and risks nothing. Capabilities 2 and 3 wait on the model decision |
 | 12 | **Finance 1b** — AP, GL, FA — *if approved* | Backend work; last, and separately |
+| 13 | **Nova capabilities 2 and 3** — reads its studio, raises and routes requests | Writes. Last, behind a confirmation step and a model decision |
 
 Technique 6 (scrollytelling) lands with step 6, since Finance is the first
 deep-dive. Technique 8 (Nova) lands with step 8 as chrome only.
@@ -665,6 +850,18 @@ test with a worked example. No step lands red.
     pass, but domain Arabic — "الذمم المدينة" for accounts receivable, not a
     transliteration — should be reviewed by somebody who works in it. Do you want to
     review the ~200-term glossary before the bulk extraction, or after?
+
+11. **Nova's model, and what leaves the tenant.** Capability 1 needs no model —
+    retrieval over the documentation answers it. Capabilities 2 and 3 need intent
+    recognition, which means a provider, and a studio's data reaching a third party
+    is a decision that is yours and not mine. Which provider, and does anything
+    beyond the user's own sentence leave the boundary?
+
+12. **Notification producers — how far?** Ten of twelve departments raise none
+    today. Every workflow *could* notify; not every workflow *should*, or the bell
+    becomes noise nobody reads. My proposal is that a notification is owed when
+    somebody is **waiting on you** or when **something you raised was decided** —
+    and nothing else. Agreed, or is there a wider list?
 
 ---
 
