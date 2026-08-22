@@ -1,7 +1,7 @@
 import { currentUser } from "@/platform/auth/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { effectivePermissions, sectionViewable } from "@/platform/access";
-import { listRoles } from "@/lib/data/roles";
+import { listRoles } from "@/modules/people/roles";
 import { listSections } from "@/platform/db/sections";
 import { readSince, latestId, isCursor, SCOPE, TYPE } from "@/platform/realtime/events";
 import { subscribe, CH } from "@/platform/realtime/bus";

@@ -10,13 +10,13 @@ import {
   effectivePermissions, requirePermission, scopeFor, sectionViewable, sectionManageable,
   escalates, ADMIN_ROLE_ID,
 } from "@/platform/access";
-import { listRoles } from "@/lib/data/roles";
+import { listRoles } from "@/modules/people/roles";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import {
   createStudio, getStudioById, getStudioBySlug, getOwnedStudio,
   listUserCollaborations, changeStudioSlug,
   recordStudioVisit, studioVisitCounts, pruneStudioVisits,
-} from "@/lib/data/studios";
+} from "@/modules/main/studios";
 import {
   addCollaborator, listCollaborators, getCollaboratorByUser, updateCollaborator,
 } from "@/platform/auth/collaborators";
@@ -24,7 +24,7 @@ import { listSections } from "@/platform/db/sections";
 import {
   createJoinRequest, listPendingForStudio, getJoinRequest, decideJoinRequest,
   APPROVED, DECLINED,
-} from "@/lib/data/joinRequests";
+} from "@/modules/people/joinRequests";
 import { getIndex } from "@/platform/db/store";
 import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/platform/db/keys";
 import { getVerification, getProfile } from "@/platform/auth/users";

@@ -18,7 +18,7 @@
 //
 // Run it over everything, or over the files you just touched:
 //   node scripts/check-scopes.mjs
-//   node scripts/check-scopes.mjs src/lib/sales.js src/lib/inventory.js
+//   node scripts/check-scopes.mjs src/modules/sales/sales.js src/modules/inventory/inventory.js
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";

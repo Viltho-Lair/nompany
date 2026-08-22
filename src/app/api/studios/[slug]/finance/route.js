@@ -2,7 +2,7 @@ import { route } from "@/platform/http/route";
 import {
   financeContext, listInvoices, listExpenses, profitability, billableProjects, summarise,
   INVOICE_STATUSES, EXPENSE_CATEGORIES, PAYMENT_METHODS, DEFAULT_VAT_RATE,
-} from "@/lib/finance";
+} from "@/modules/finance/finance";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

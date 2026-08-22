@@ -4,7 +4,7 @@ import {
   schedulablePeople, weekWindow, summarise, listPositions,
   readOperationsSettings, saveOperationsSettings,
   LOCATION_KINDS, PERMIT_TYPES, EXPIRY_WINDOW_DAYS,
-} from "@/lib/operations";
+} from "@/modules/operations/operations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

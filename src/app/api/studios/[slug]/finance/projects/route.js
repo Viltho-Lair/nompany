@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { financeContext, setCommercials } from "@/lib/finance";
+import { financeContext, setCommercials } from "@/modules/finance/finance";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

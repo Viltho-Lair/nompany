@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { operationsContext, createPermit, editPermit, removePermit } from "@/lib/operations";
+import { operationsContext, createPermit, editPermit, removePermit } from "@/modules/operations/operations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

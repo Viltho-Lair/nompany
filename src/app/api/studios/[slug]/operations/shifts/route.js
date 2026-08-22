@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { operationsContext, createShift, editShift, removeShift } from "@/lib/operations";
+import { operationsContext, createShift, editShift, removeShift } from "@/modules/operations/operations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

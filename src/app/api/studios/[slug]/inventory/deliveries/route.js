@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { inventoryContext, createDelivery, issueDelivery, removeDelivery } from "@/lib/inventory";
+import { inventoryContext, createDelivery, issueDelivery, removeDelivery } from "@/modules/inventory/inventory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -7,8 +7,8 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, input, btn, btnGhost, money, fmtDate, Dialog } from "@/components/studio2/ui";
 import { TicketForm } from "@/components/studio2/StudioSales";
 import { Money } from "@/components/Currency";
-import { canRequestRfqStatus } from "@/lib/tickets";
-import { rfqInfo } from "@/lib/salesAnalytics";
+import { canRequestRfqStatus } from "@/modules/sales/tickets";
+import { rfqInfo } from "@/modules/sales/salesAnalytics";
 
 // ONE TICKET, on its own page — the layout in the brief: the ticket's own
 // information on the left with the client and the timeline down the right, and

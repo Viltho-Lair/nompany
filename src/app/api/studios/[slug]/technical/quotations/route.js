@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { technicalContext, convertRfq, createQuotation, updateQuotation, removeQuotation } from "@/lib/technical";
+import { technicalContext, convertRfq, createQuotation, updateQuotation, removeQuotation } from "@/modules/technical/technical";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

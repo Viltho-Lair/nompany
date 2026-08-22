@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { hrContext, createHrRole, editHrRole, removeHrRole } from "@/lib/hr";
+import { hrContext, createHrRole, editHrRole, removeHrRole } from "@/modules/hr/hr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

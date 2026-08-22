@@ -16,9 +16,9 @@
 import * as KEYS from "@/platform/db/keys";
 import { KEY_PREFIX } from "@/platform/db/keys";
 import { createUser, updateUser, mintSession } from "@/platform/auth/users";
-import { createStudio } from "@/lib/data/studios";
+import { createStudio } from "@/modules/main/studios";
 import { addCollaborator, getCollaboratorByUser, updateCollaborator } from "@/platform/auth/collaborators";
-import { listRoles, createRole } from "@/lib/data/roles";
+import { listRoles, createRole } from "@/modules/people/roles";
 import { ALL_PERMISSIONS, AREAS, ADMIN_ROLE_ID, effectivePermissions } from "@/platform/access";
 import { STATUS } from "@/platform/http/httpStatus";
 import { studioContext } from "@/lib/studios";
@@ -1696,7 +1696,7 @@ console.log("== the answer a person who asked to join never got");
 // told whether they were approved or declined. They re-opened the studio address
 // and guessed from whether it let them in.
 {
-  const joins = await import("@/lib/data/joinRequests");
+  const joins = await import("@/modules/people/joinRequests");
   const { requestJoinByCode, approveJoinRequest, declineJoinRequest } = await import("@/lib/studios");
   const notifications = await import("@/platform/notify/notifications");
 
@@ -2197,7 +2197,7 @@ console.log("== one row, by the id a live event named");
     .then(() => capture(ROWS.GET, req(`/api/studios/${slug}/rows?${q}`), P));
 
   await signIn(owner.id);
-  const tickets = await import("@/lib/sales");
+  const tickets = await import("@/modules/sales/sales");
   const sc = await tickets.salesContext(owner, slug);
   const someTicket = (await tickets.listTickets(sc))[0];
   ok("there is a ticket to fetch", Boolean(someTicket?.id), String(someTicket?.id));
@@ -2312,7 +2312,7 @@ console.log("== the repository: a query somebody else could answer");
 // what it should do IS what the call sites already did.
 {
   const { repo, orderBy } = await import("@/platform/db/repo");
-  const sales = await import("@/lib/sales");
+  const sales = await import("@/modules/sales/sales");
   await signIn(owner.id);
 
   const context = await sales.salesContext(owner, slug);
@@ -2461,7 +2461,7 @@ console.log("== idempotency: a retry does not bill twice");
 // row. Which is the actual risk: a timeout on the endpoint that books money.
 {
   const EXPENSES = await import("@/app/api/studios/[slug]/finance/expenses/route.js");
-  const finance = await import("@/lib/finance");
+  const finance = await import("@/modules/finance/finance");
   await signIn(owner.id);
 
   const P = ctx({ slug });

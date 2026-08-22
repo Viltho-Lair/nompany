@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { getStudioById, updateStudio } from "@/lib/data/studios";
+import { getStudioById, updateStudio } from "@/modules/main/studios";
 import { listCatalog } from "@/lib/data/catalog";
 
 export const runtime = "nodejs";

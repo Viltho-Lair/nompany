@@ -7,7 +7,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { panel, h2, sub, btnGhost, fmtDate, Empty } from "@/components/studio2/ui";
 import { Money } from "@/components/Currency";
-import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/lib/studioLinks";
+import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
 
 // ONE PROJECT, on its own page — the same shape the sales ticket has, and for
 // the same reason: a project is the end of a chain, and a dialog over a list

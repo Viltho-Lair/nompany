@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { btn, btnGhost, input, label, money } from "@/components/studio2/ui";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
-import { MAX_TABLES, MAX_TABLE_ROWS, netUnitPrice } from "@/lib/quotations";
+import { MAX_TABLES, MAX_TABLE_ROWS, netUnitPrice } from "@/modules/technical/quotations";
 import { fmtRate } from "@/shared/currencies";
 
 // The Quotation Builder: the full screen where a quotation is actually built.

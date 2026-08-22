@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { financeContext, createInvoice, editInvoice, recordPayment, removeInvoice } from "@/lib/finance";
+import { financeContext, createInvoice, editInvoice, recordPayment, removeInvoice } from "@/modules/finance/finance";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

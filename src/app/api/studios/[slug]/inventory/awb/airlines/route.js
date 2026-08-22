@@ -1,6 +1,6 @@
 import { route } from "@/platform/http/route";
-import { inventoryContext } from "@/lib/inventory";
-import { createAirline, editAirline, removeAirline } from "@/lib/awbTracking";
+import { inventoryContext } from "@/modules/inventory/inventory";
+import { createAirline, editAirline, removeAirline } from "@/modules/inventory/awbTracking";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

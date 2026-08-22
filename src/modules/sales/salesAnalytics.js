@@ -3,7 +3,7 @@
 // summary and derived value included — and returns plain data the widgets draw.
 // No fetching and no formatting happen here.
 
-import { daysUntil } from "@/lib/sla";
+import { daysUntil } from "@/modules/projects/sla";
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 

@@ -21,12 +21,12 @@ import { requirePermission } from "@/platform/access";
 import { isKnownCurrency } from "@/shared/currencies";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey, addRow, updateRow, deleteRow } from "@/platform/db/sections";
-import { moduleContext } from "@/lib/modules/context";
+import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { nextReference } from "@/lib/references";
+import { nextReference } from "@/modules/main/references";
 // What each department adds to a quotation row, and who owns which column.
-import { SHEET_OWNERS, cleanSheetLine } from "@/lib/sheetColumns";
+import { SHEET_OWNERS, cleanSheetLine } from "./sheetColumns";
 
 const VENDORS = "inventoryVendors";
 const ITEMS = "inventoryItems";
@@ -802,7 +802,7 @@ export async function createOrder(ctx, body) {
   const orders = await Orders.find({ studio, section: sheetsSection });
   const order = await addRow(studio.id, sheetsSection.id, ORDERS, {
     // A purchase order number goes to a vendor, so it cannot be reused after a
-    // draft is deleted — derived, not counted. See lib/references.js.
+    // draft is deleted — derived, not counted. See modules/main/references.js.
     reference: await nextReference(studio.id, { rows: orders, field: "reference", prefix: "PO" }),
     vendorId, projectId,
     lines,

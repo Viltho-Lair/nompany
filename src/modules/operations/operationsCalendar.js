@@ -1,8 +1,8 @@
 // Operations calendar helpers — client-safe, so the screens can import them
 // without pulling the Redis-backed section store in with them. Same split
-// lib/tickets.js makes for Sales and lib/quotations.js for Technical.
+// modules/sales/tickets.js makes for Sales and modules/technical/quotations.js for Technical.
 
-import { hhmmToHours } from "@/lib/projectSchedule";
+import { hhmmToHours } from "@/modules/projects/projectSchedule";
 
 export { hhmmToHours };
 

@@ -10,12 +10,12 @@ import {
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty, StatTile,
   WidgetTitle, FunnelChart, BarBreakdown, Leaderboard, TimelineChart, ScatterChart,
 } from "@/components/studio2/ui";
-import { isUnfinished } from "@/lib/quotations";
+import { isUnfinished } from "@/modules/technical/quotations";
 import QuotationBuilder from "@/components/studio2/QuotationBuilder";
 import {
   quotationStats, rfqFunnel, urgencyBreakdown, handlerLeaderboard,
   quotationTimeline, completionScatter, averageTurnaround, quotationValue, isUnworked,
-} from "@/lib/technicalAnalytics";
+} from "@/modules/technical/technicalAnalytics";
 
 // Technical: RFQs raised by Sales, and the quotations they become.
 // Two different grants are in play — raising an RFQ needs Sales:manage, working

@@ -15,7 +15,8 @@
 // conversions.
 
 import { register } from "node:module";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = pathToFileURL(`${process.cwd()}/`).href;
@@ -242,29 +243,80 @@ console.log("\n== enforcement coverage");
 // These two checks are structural on purpose. They need no Redis and no server,
 // they run in milliseconds, and they fail the moment somebody adds a module and
 // forgets the one line that arms it.
+// WHERE THE SERVICE CODE IS, and it stopped being one directory.
+//
+// These two checks read `src/lib` and nothing else. Wave 3 moved the twelve
+// departments into `src/modules/<name>/`, and the scan went on passing — over
+// an almost empty list: 12 context builders became 1, and 82 guarded writes
+// became 0, with no failure. That is the failure mode a source-scanning test
+// has. It cannot tell "nothing is wrong" from "nothing was read", and the
+// version that reads nothing never fails again.
+//
+// So: both trees, both extensions, and a FLOOR under the counts — the two
+// assertions at the end of this block are the load-bearing half. A number that
+// can only be checked by a human reading the output is not checked.
+const SERVICE_FILES = (function collect(dirs) {
+  const out = [];
+  for (const dir of dirs) {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry).split("\\").join("/");
+      if (statSync(path).isDirectory()) { out.push(...collect([path])); continue; }
+      if (/\.(js|ts)$/.test(path)) out.push({ path, text: readFileSync(path, "utf8") });
+    }
+  }
+  return out;
+})(["src/lib", "src/modules"]);
+
 console.log("\n== wiring");
 {
   // 1. EVERY CONTEXT CARRIES `access`.
-  // A service module resolves it once, in its *Context builder, and every guard
-  // downstream reads it off that object. A builder that resolves it and does
-  // not return it disarms the whole module silently.
-  const builders = readdirSync("src/lib")
-    .filter((f) => f.endsWith(".js"))
-    .flatMap((f) => {
-      const src = readFileSync(`src/lib/${f}`, "utf8");
-      return [...src.matchAll(/export async function (\w*[Cc]ontext)\s*\([^)]*\)\s*\{([\s\S]*?)\n\}/g)]
-        .map((m) => ({ file: f, name: m[1], body: m[2] }));
-    })
-    // mainContext is the one that legitimately does not: it hands out a `seen`
-    // predicate with access captured inside it, and holds no guarded writes.
-    .filter((b) => b.name !== "mainContext");
+  //
+  // THIS CHECK WAS NEARLY DEAD AND NOBODY NOTICED. It matched
+  // `export async function xxxContext(...)` and asserted that the body returned
+  // `access`. Seam C replaced nine of those hand-written builders with
+  // `moduleContext({...})` factory calls, so the pattern stopped matching them —
+  // twelve builders became two, the block went on passing, and the assertion it
+  // was making no longer covered any module context in the product.
+  //
+  // Rewritten against what the code IS. There is one factory now, so the
+  // property is asserted once, on it — and the second half is the one that
+  // matters more: every module context must COME FROM the factory, because a
+  // department that hand-rolls its own is a department this check cannot see.
+  const factory = SERVICE_FILES.find((f) => f.path.endsWith("modules/context.js")
+    || f.path.endsWith("modules/context.ts"));
+  ok("  the module-context factory is where it is expected", Boolean(factory));
 
-  console.log(`  ${builders.length} context builders`);
-  for (const b of builders) {
+  if (factory) {
     // It has to appear in the RETURNED object, not merely be destructured.
-    const returned = /return\s*\{[\s\S]*?\baccess\b[\s\S]*?\}/.test(b.body);
-    ok(`  ${b.file} ${b.name} returns access`, returned);
+    ok("  moduleContext returns access to every department it builds",
+      /const out = \{[^}]*\baccess\b[^}]*\}/.test(factory.text));
+    // studioContext is the one it is built on, and it must carry it too.
+    const studios = SERVICE_FILES.find((f) => /\/studios\.(js|ts)$/.test(f.path));
+    ok("  studioContext returns access",
+      Boolean(studios) && /return\s*\{[\s\S]{0,400}?\baccess\b/.test(studios.text));
   }
+
+  // EVERY MODULE CONTEXT COMES FROM THE FACTORY. mainContext is the one
+  // exception and it is a real one: it hands out a `seen` predicate with access
+  // captured inside it, and holds no guarded writes of its own.
+  const HAND_ROLLED_OK = new Set(["mainContext", "studioContext"]);
+  const handRolled = SERVICE_FILES.flatMap(({ path, text }) =>
+    [...text.matchAll(/export async function (\w+Context)\s*\(/g)]
+      .map((m) => ({ path, name: m[1] })))
+    .filter((c) => !HAND_ROLLED_OK.has(c.name));
+  ok("  no department hand-rolls its own context",
+    handRolled.length === 0, handRolled.map((c) => `${c.path}:${c.name}`).join(", "));
+
+  const fromFactory = SERVICE_FILES.flatMap(({ text }) =>
+    [...text.matchAll(/export const (\w+Context) = moduleContext\(/g)].map((m) => m[1]));
+  console.log(`  ${fromFactory.length} module contexts, all from the factory`);
+  // THE FLOOR. Twelve departments, and the ones without a moduleContext call are
+  // main (hand-rolled, exempt above) and people (no section of its own). A count
+  // that drops below this means files stopped being read, which is exactly how
+  // this check died the first time.
+  ok("  every department that has a context still has one", fromFactory.length >= 9,
+    String(fromFactory.length));
+
 
   // 2. EVERY WRITE ASKS FOR ITS RIGHT.
   // Anything that creates, changes or removes a record names the permission it
@@ -285,10 +337,9 @@ console.log("\n== wiring");
   const WRITES = /^export async function ((?:create|edit|update|remove|delete|save|adjust|track|issue|receive|open|convert|request|send|decide)\w*)\s*\(\s*ctx\b/;
 
   let checked = 0;
-  for (const f of readdirSync("src/lib").filter((x) => x.endsWith(".js"))) {
-    const src = readFileSync(`src/lib/${f}`, "utf8");
+  for (const { path: f, text } of SERVICE_FILES) {
     // Split on top-level exports so each function's body is its own slice.
-    const parts = src.split(/\n(?=export )/);
+    const parts = text.split(/\n(?=export )/);
     for (const part of parts) {
       const m = part.match(WRITES);
       if (!m) continue;
@@ -299,6 +350,18 @@ console.log("\n== wiring");
     }
   }
   console.log(`  ${checked} guarded writes checked, ${Object.keys(EXEMPT).length} documented exceptions`);
+
+  // THE FLOOR, and it is the assertion this block was missing. Both scans above
+  // read the filesystem, and a filesystem scan that finds nothing reports
+  // success — which is precisely what happened when the departments moved to
+  // src/modules and this went from 82 writes to 0 without failing.
+  //
+  // 70 rather than 82 so ordinary work does not trip it: a write can legitimately
+  // be removed, and the number only has to be far enough above zero that "the
+  // scan found nothing" cannot hide underneath it.
+  ok("  the write scan is reading real files", checked >= 70, String(checked));
+  ok("  ...and so is the file collector", SERVICE_FILES.length >= 40, String(SERVICE_FILES.length));
+
 }
 
 console.log(fails ? `\n${fails} FAILURES\n` : "\nall passed\n");

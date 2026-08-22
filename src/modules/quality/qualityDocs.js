@@ -26,7 +26,7 @@ import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { bumpCounter } from "@/platform/db/store";
 import { SEC } from "@/platform/db/keys";
-import { formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision, isOpen } from "@/lib/qualityDocuments";
+import { formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision, isOpen } from "./qualityDocuments";
 
 // A NEW COLLECTION, not the old one reused. The old rows carry `sections` and
 // no `content`; letting them surface in the new register would show a list of

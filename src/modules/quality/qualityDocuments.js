@@ -1,9 +1,9 @@
 // CONTROLLED DOCUMENTS — the vocabulary, and the rules that are pure functions.
 //
-// Client-safe on purpose, exactly like lib/taskRouting.js is for tasks: the
+// Client-safe on purpose, exactly like modules/tasks/taskRouting.js is for tasks: the
 // register and the setup screen need the statuses, the starter pack and the
 // shape of a document code, and none of them should drag the Redis-backed store
-// into the browser bundle to get them. lib/quality.js owns everything that
+// into the browser bundle to get them. modules/quality/quality.js owns everything that
 // touches storage and re-exports this, so a server-side caller keeps one import.
 
 // ---- the lifecycle ---------------------------------------------------------
@@ -25,7 +25,7 @@ export const STATUS_LABELS = {
 
 // A document is a published, controlled thing from `effective` onwards. Before
 // that it is somebody's work in progress, which is what decides whether it may
-// still be deleted — see removeDocument in lib/quality.js.
+// still be deleted — see removeDocument in modules/quality/quality.js.
 export const isControlled = (status) => status === "effective" || status === "obsolete";
 
 // ---- languages -------------------------------------------------------------

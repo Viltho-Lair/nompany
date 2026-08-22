@@ -6,7 +6,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, input, btn, btnGhost, th } from "@/components/studio2/ui";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import { SHEET_COLUMNS, SHEET_OWNERS, rowStatus } from "@/lib/sheetColumns";
+import { SHEET_COLUMNS, SHEET_OWNERS, rowStatus } from "@/modules/inventory/sheetColumns";
 
 // THE QUOTATION VIEWER, WITHOUT PRICES — in two perspectives.
 //

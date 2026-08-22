@@ -9,9 +9,9 @@ import {
   panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
   money, fmtDate, fmtDateTime, Dialog, Toolbar, Empty, StatTile,
 } from "@/components/studio2/ui";
-import { linkToProject, linkIf } from "@/lib/studioLinks";
-import { parseAwb, formatAwb } from "@/lib/awb";
-import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/lib/awbStatus";
+import { linkToProject, linkIf } from "@/modules/main/studioLinks";
+import { parseAwb, formatAwb } from "@/modules/inventory/awb";
+import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/modules/inventory/awbStatus";
 
 // INVENTORY — what the studio buys, holds, and issues to its projects.
 // On-hand is summed from the movement ledger, so every number here can be traced

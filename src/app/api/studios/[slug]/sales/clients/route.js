@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { salesContext, createClient, editClient, removeClient } from "@/lib/sales";
+import { salesContext, createClient, editClient, removeClient } from "@/modules/sales/sales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

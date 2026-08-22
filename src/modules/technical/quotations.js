@@ -1,6 +1,6 @@
-// Quotation + RFQ shared constants. Kept out of lib/technical.js so client
+// Quotation + RFQ shared constants. Kept out of modules/technical/technical.js so client
 // components can import them without pulling the Redis-backed section store in
-// with them — the same split lib/tickets.js makes for Sales.
+// with them — the same split modules/sales/tickets.js makes for Sales.
 
 // A quotation's status is READ OFF WHAT PEOPLE DO TO IT rather than chosen from
 // a menu. It arrives New, turns into a Draft the moment somebody opens the

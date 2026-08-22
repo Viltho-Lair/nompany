@@ -17,11 +17,11 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
-import { moduleContext } from "@/lib/modules/context";
+import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { nextReference } from "@/lib/references";
-import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "@/lib/operationsCalendar";
+import { nextReference } from "@/modules/main/references";
+import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "./operationsCalendar";
 
 const LOCATIONS = "locations";
 const PERMITS = "permits";
@@ -307,7 +307,7 @@ export async function createPermit(ctx, body) {
   const permits = await Permits.find({ studio, section });
   const permit = await addRow(studio.id, section.id, PERMITS, {
     // Derived from the highest already issued, so removing a permit cannot hand
-    // its reference to the next one. See lib/references.js.
+    // its reference to the next one. See modules/main/references.js.
     reference: await nextReference(studio.id, { rows: permits, field: "reference", prefix: "PMT" }),
     title,
     type: PERMIT_TYPES.includes(body?.type) ? body.type : PERMIT_TYPES[0],

@@ -15,7 +15,7 @@
 // exist, and the final loop steps past anything that still collides, including
 // a reference typed in by hand.
 //
-// This lived in lib/sales.js, which meant Technical imported its numbering from
+// This lived in modules/sales/sales.js, which meant Technical imported its numbering from
 // Sales. It belongs to neither.
 
 import { S } from "@/platform/db/keys";

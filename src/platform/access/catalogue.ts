@@ -158,7 +158,7 @@ const OWN_AREAS = [
   // A sheet now carries INVENTORY'S OWN COLUMNS against each quotation row —
   // serials, material status, quantity ordered — which are written on the sheet
   // and move no stock. That is a real write with no existing right behind it,
-  // so it gets one. See lib/sheetColumns.js for which columns this covers;
+  // so it gets one. See modules/inventory/sheetColumns.js for which columns this covers;
   // Projects' columns on the same row answer to projects.list.edit.
   { key: "inventory.sheets", group: "Inventory", label: "Project sheets", verbs: ["view", "edit"] },
   { key: "inventory.awb", group: "Inventory", label: "AWB tracking", verbs: ["view", "create", "edit", "delete"] },

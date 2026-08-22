@@ -1,7 +1,7 @@
 // REVISIONS OF A DOCUMENT WHOSE BODY IS ONE STRING.
 //
 // The ladder is unchanged — author → reviewer → approver → issued — and it runs
-// on the same state machine as before, in lib/signables.js. What changed is
+// on the same state machine as before, in modules/technical/signables.js. What changed is
 // WHERE THE TEXT LIVES, and it changes when a revision is written.
 //
 // The old builder kept the text ON the open revision: opening a document minted
@@ -22,10 +22,10 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { addRow, updateRow } from "@/platform/db/sections";
-import { moveSignable, availableMoves } from "@/lib/signables";
+import { moveSignable, availableMoves } from "@/modules/technical/signables";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
-import { TRANSITIONS, REV_LABELS, isOpen, documentState } from "@/lib/qualityDocuments";
-import { DOCS, REVISIONS } from "@/lib/qualityDocs";
+import { TRANSITIONS, REV_LABELS, isOpen, documentState } from "./qualityDocuments";
+import { DOCS, REVISIONS } from "./qualityDocs";
 
 const AUDIT = "qualityAudit";
 

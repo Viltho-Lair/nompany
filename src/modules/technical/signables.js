@@ -1,6 +1,6 @@
 // A SIGNABLE — anything two named people put their names to before it is issued.
 //
-// This started life inside lib/quality.js, moving a controlled document's
+// This started life inside modules/quality/quality.js, moving a controlled document's
 // revision along author → reviewer → approver. It comes out here because a
 // generated document — a quotation, a delivery note, a training record — goes
 // through exactly the same ladder, and those live in their own module rather

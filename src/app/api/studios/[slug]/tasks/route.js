@@ -4,7 +4,7 @@ import {
   taskProjects, assignablePeople, summarise,
   TASK_STATUSES, TASK_PRIORITIES,
   TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES, TASK_TYPE_LABELS,
-} from "@/lib/tasks";
+} from "@/modules/tasks/tasks";
 import { can } from "@/platform/access";
 
 export const runtime = "nodejs";

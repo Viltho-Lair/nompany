@@ -1,5 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
-import { technicalContext, requestRfq, updateRfq } from "@/lib/technical";
+import { technicalContext, requestRfq, updateRfq } from "@/modules/technical/technical";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,10 +1,10 @@
 import { requirePermission } from "@/platform/access";
-import { renameStudio } from "@/lib/data/studios";
+import { renameStudio } from "@/modules/main/studios";
 import { isKnownCurrency, crossRate } from "@/shared/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
-import { updateStudio } from "@/lib/data/studios";
+import { updateStudio } from "@/modules/main/studios";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

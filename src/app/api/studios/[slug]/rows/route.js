@@ -2,7 +2,7 @@ import { route } from "@/platform/http/route";
 import { repo } from "@/platform/db/repo";
 import { NODES } from "@/platform/relations";
 import { can } from "@/platform/access";
-import { salesContext, ticketById } from "@/lib/sales";
+import { salesContext, ticketById } from "@/modules/sales/sales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

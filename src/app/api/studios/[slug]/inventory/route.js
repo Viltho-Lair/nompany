@@ -2,9 +2,9 @@ import { route } from "@/platform/http/route";
 import {
   inventoryContext, listVendors, listItems, listMovements, listOrders, listDeliveries,
   openProjects, stockValue, listProjectSheets, ORDER_STATUSES, DELIVERY_STATUSES, UNITS,
-} from "@/lib/inventory";
-import { listShipments, listAirlines } from "@/lib/awbTracking";
-import { AWB_STATUS } from "@/lib/awbStatus";
+} from "@/modules/inventory/inventory";
+import { listShipments, listAirlines } from "@/modules/inventory/awbTracking";
+import { AWB_STATUS } from "@/modules/inventory/awbStatus";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -19,17 +19,17 @@
 import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
-import { moduleContext } from "@/lib/modules/context";
+import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
 // Issuing the project number is a CONSEQUENCE of Finance signing the PO, so it
 // is called from decideTask rather than from a screen — see the note there.
-import { issueProjectNumber } from "@/lib/projects";
+import { issueProjectNumber } from "@/modules/projects/projects";
 import {
   TASK_AUTHORITIES, TASK_TYPE_AUTHORITIES, TASK_TYPES, TASK_TYPE_LABELS,
   APPROVAL_COOLDOWN_MS, isApprovalTask, readTaskAssignees, resolveTaskAssignees,
   enrichTask, canSeeTask, progressOf, summarise,
-} from "@/lib/taskRouting";
+} from "./taskRouting";
 
 const TASKS = "tasks";
 const PROJECTS = "projects";
@@ -61,7 +61,7 @@ export const tasksContext = moduleContext({
 });
 
 // ---- task routing -----------------------------------------------------------
-// Lives in lib/taskRouting.js so the board can import it without pulling this
+// Lives in modules/tasks/taskRouting.js so the board can import it without pulling this
 // module's Redis-backed store in with it. Re-exported here so every server-side
 // caller keeps one import.
 export {

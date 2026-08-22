@@ -2,8 +2,8 @@
 // the already-fetched lists /api/studios/<slug>/technical returns and gives back
 // plain data the widgets draw. No fetching and no formatting happen here.
 
-import { RFQ_STATUSES } from "@/lib/rfqs";
-import { QUOTATION_STATUSES } from "@/lib/quotations";
+import { RFQ_STATUSES } from "./rfqs";
+import { QUOTATION_STATUSES } from "./quotations";
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 

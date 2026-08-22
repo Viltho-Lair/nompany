@@ -86,11 +86,11 @@ export function cleanLiveColumns(value) {
 // three read `user.tags`, which no longer exists, so all three answered false
 // for everybody — while reading, to anyone skimming, as though urgency were
 // still Leader-gated. Every one of those questions is a sales.tickets.* key
-// now, checked in lib/sales.js.
+// now, checked in modules/sales/sales.js.
 //
 // nextTicketRef went too. It numbered <Client>-<Year>-<NN> off a `ticketRef`
 // field nothing writes, and it counted rather than derived. References come
-// from lib/references.js.
+// from modules/main/references.js.
 
 // Coerce a value to a clamped integer in [0, 100]; returns fallback when
 // input is invalid.

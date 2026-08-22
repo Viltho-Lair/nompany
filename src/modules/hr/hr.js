@@ -31,10 +31,10 @@ import { requirePermission, scopeFor, can, escalates, cleanAssignment } from "@/
 import { repo } from "@/platform/db/repo";
 
 import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
-import { moduleContext } from "@/lib/modules/context";
+import { moduleContext } from "../context";
 
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/platform/auth/collaborators";
-import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/lib/data/roles";
+import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
 import { departmentsFromSections } from "@/lib/departments";
 import { getProfile } from "@/platform/auth/users";
 import { encryptField, decryptField } from "@/platform/auth/fieldCrypto";

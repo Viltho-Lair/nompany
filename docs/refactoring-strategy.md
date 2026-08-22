@@ -115,7 +115,7 @@ The Redis implementation reads the collection and applies `where`/`order`/`limit
 **Refactor.** One factory:
 
 ```js
-// src/lib/modules/context.js
+// src/modules/context.js
 export const moduleContext = (spec) => async (user, slug) => {
   const base = await studioContext(user, slug);           // sections come from HERE — no re-read
   if (base.error) return base;

@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
-import { linkToProject, linkIf } from "@/lib/studioLinks";
+import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { microLabel, Dialog } from "@/components/studio2/ui";
 import {
   DAYS, normalizeSchedule, normalizeLegend, visibleWindow, startOfWeekSunday, addDays as addCalendarDays,
   dayKey, barGeometry, dayRoster,
-} from "@/lib/operationsCalendar";
+} from "@/modules/operations/operationsCalendar";
 import { loadGoogleMaps, defaultMapOptions, googleMapsKey } from "@/lib/googleMaps";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Dialog, btn, btnGhost, input, label, microLabel } from "@/components/studio2/ui";
-import { REV_LABELS } from "@/lib/qualityDocuments";
+import { REV_LABELS } from "@/modules/quality/qualityDocuments";
 
 // THE CONTROL PANEL — where a revision moves along the ladder.
 //

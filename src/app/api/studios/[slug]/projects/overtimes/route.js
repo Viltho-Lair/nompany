@@ -1,5 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
-import { projectsContext, createOvertime, updateOvertime, removeOvertime } from "@/lib/projects";
+import { projectsContext, createOvertime, updateOvertime, removeOvertime } from "@/modules/projects/projects";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

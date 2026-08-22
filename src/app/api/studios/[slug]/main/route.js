@@ -1,5 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
-import { mainContext, headlines, recent } from "@/lib/main";
+import { mainContext, headlines, recent } from "@/modules/main/main";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

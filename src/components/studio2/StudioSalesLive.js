@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { rfqInfo } from "@/lib/salesAnalytics";
+import { rfqInfo } from "@/modules/sales/salesAnalytics";
 
 // How often the table pulls a fresh copy while someone is watching it. This
 // screen is the one people leave up on a wall, so unlike the rest of the studio

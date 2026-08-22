@@ -2,7 +2,7 @@
 //
 // An AWB number is 11 digits: a 3-digit airline prefix, a 7-digit serial and a
 // mod-7 check digit. So the number itself says which carrier is flying it, and
-// a typo is catchable arithmetic rather than a failed lookup — see lib/awb.js.
+// a typo is catchable arithmetic rather than a failed lookup — see modules/inventory/awb.js.
 //
 // Rows live under the inventory-awb sub-section:
 //   s:<StudioID>:sec:<SectionID>:c:awbShipments
@@ -16,8 +16,8 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
-import { parseAwb } from "@/lib/awb";
-import { AWB_STATUS_BY_CODE, summarizeMovements } from "@/lib/awbStatus";
+import { parseAwb } from "./awb";
+import { AWB_STATUS_BY_CODE, summarizeMovements } from "./awbStatus";
 
 const SHIPMENTS = "awbShipments";
 const AIRLINES = "awbAirlines";

@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { tasksContext, saveTasksSettings } from "@/lib/tasks";
+import { tasksContext, saveTasksSettings } from "@/modules/tasks/tasks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

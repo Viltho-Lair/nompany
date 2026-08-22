@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { hrContext, createCertification, editCertification, removeCertification } from "@/lib/hr";
+import { hrContext, createCertification, editCertification, removeCertification } from "@/modules/hr/hr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

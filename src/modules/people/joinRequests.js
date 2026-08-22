@@ -15,7 +15,7 @@ import { REG, ID } from "@/platform/db/keys";
 import { readArr, editArr } from "@/platform/db/store";
 import { emit, emitPlatform, SCOPE, TYPE, PLATFORM } from "@/platform/realtime/events";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { listRoles } from "@/lib/data/roles";
+import { listRoles } from "./roles";
 import { effectivePermissions, can } from "@/platform/access";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 

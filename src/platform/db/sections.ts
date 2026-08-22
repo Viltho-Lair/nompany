@@ -243,5 +243,5 @@ export async function deleteRow(
 // that changed no decision and listGrants was a Redis round-trip on every ERP
 // page load whose result was threaded through three functions and dropped.
 //
-// What replaced them: lib/data/roles.js for the definitions, `roleIds` on the
+// What replaced them: modules/people/roles.js for the definitions, `roleIds` on the
 // collaborator row for the assignment, and platform/access/resolve.ts for the answer.

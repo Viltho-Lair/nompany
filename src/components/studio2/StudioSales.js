@@ -13,12 +13,12 @@ import {
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty, StatTile,
   WidgetTitle, FunnelChart, BarBreakdown,
 } from "@/components/studio2/ui";
-import { linkToClient } from "@/lib/studioLinks";
+import { linkToClient } from "@/modules/main/studioLinks";
 import { COUNTRIES } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
-import { salesFunnel, probabilityBuckets, atRiskTickets, rfqInfo, isUnresolved } from "@/lib/salesAnalytics";
-import { daysUntil } from "@/lib/sla";
+import { salesFunnel, probabilityBuckets, atRiskTickets, rfqInfo, isUnresolved } from "@/modules/sales/salesAnalytics";
+import { daysUntil } from "@/modules/projects/sla";
 
 // Sales: clients and the tickets raised against them. Read access shows
 // everything; the Manage grant is what reveals the create/edit controls — and

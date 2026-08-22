@@ -20,8 +20,8 @@ import {
 } from "./users";
 import type { User, Questionnaire } from "./users";
 import type { DeviceFacts } from "./otp";
-import { getOwnedStudio, listUserCollaborations } from "@/lib/data/studios";
-import { listForUser as listJoinRequestsForUser } from "@/lib/data/joinRequests";
+import { getOwnedStudio, listUserCollaborations } from "@/modules/main/studios";
+import { listForUser as listJoinRequestsForUser } from "@/modules/people/joinRequests";
 import {
   createChallenge, verifyChallenge, resendChallenge, checkSendLimits,
   recordDevice, isTrustedDevice, revokeAllDevices,

@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { operationsContext, createLocation, editLocation, removeLocation } from "@/lib/operations";
+import { operationsContext, createLocation, editLocation, removeLocation } from "@/modules/operations/operations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

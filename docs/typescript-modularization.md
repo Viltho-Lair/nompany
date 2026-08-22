@@ -33,7 +33,7 @@ TypeScript already exists as **one island**: the Quality document application (`
 
 ## 2. The target structure — departments, not layers
 
-Today the tree is organised by **kind** (`lib/`, `components/`, `app/api/`), so one department is scattered across three trees: `lib/sales.js`, `components/studio2/StudioSales.js`, `app/api/studios/[slug]/sales/`. A change to Sales touches all three and nothing declares that they belong together.
+Today the tree is organised by **kind** (`lib/`, `components/`, `app/api/`), so one department is scattered across three trees: `modules/sales/sales.js`, `components/studio2/StudioSales.js`, `app/api/studios/[slug]/sales/`. A change to Sales touches all three and nothing declares that they belong together.
 
 The target inverts it: **the module is the unit, the layers live inside it.**
 

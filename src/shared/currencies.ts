@@ -308,7 +308,7 @@ export function landedUnitCost(
   const from = String(item?.currency || "").trim().toUpperCase();
   const to = String(studioCurrency || "").trim().toUpperCase();
   const cost = n(item?.unitCost);
-  // Held blank rather than zero on a domestic item — see lib/inventory.js — and
+  // Held blank rather than zero on a domestic item — see modules/inventory/inventory.js — and
   // blank adds nothing either way.
   const shipping = n(item?.shippingCharges);
   const customs = n(item?.customsCharges);

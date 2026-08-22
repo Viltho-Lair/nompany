@@ -12,22 +12,22 @@
 //   • working/converting it is a TECHNICAL act        -> needs Technical:manage
 
 import { sectionManageable, requirePermission } from "@/platform/access";
-import { nextUniqueRef } from "@/lib/references";
+import { nextUniqueRef } from "@/modules/main/references";
 import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
-import { moduleContext } from "@/lib/modules/context";
+import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "@/lib/rfqs";
-import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/lib/tickets";
-import { quotationApproved } from "@/lib/taskRouting";
+import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "./rfqs";
+import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/modules/sales/tickets";
+import { quotationApproved } from "@/modules/tasks/taskRouting";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { landedUnitCost } from "@/shared/currencies";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
   cleanQuotationTables, itemsFromTables, isFinishedQuotation,
-} from "@/lib/quotations";
+} from "./quotations";
 
 export { RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns };

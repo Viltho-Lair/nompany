@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RecordLink from "@/components/studio2/RecordLink";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { linkToProject, linkToQuotation, linkIf } from "@/lib/studioLinks";
+import { linkToProject, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";

@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { salesContext, ticketQuotation } from "@/lib/sales";
+import { salesContext, ticketQuotation } from "@/modules/sales/sales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

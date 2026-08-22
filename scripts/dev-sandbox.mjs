@@ -59,7 +59,7 @@ register(new URL("../tests/loader.mjs", import.meta.url), { data: { root } });
 
 const { seedSuperAdmin } = await import("@/platform/auth/superAuth");
 const { createUser } = await import("@/platform/auth/users");
-const { createStudio } = await import("@/lib/data/studios");
+const { createStudio } = await import("@/modules/main/studios");
 const { hashPassword } = await import("@/platform/auth/passwords");
 
 const EMAIL = "sandbox@nompany.test";

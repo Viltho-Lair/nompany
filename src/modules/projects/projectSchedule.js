@@ -1,7 +1,7 @@
 // Projects constants and time arithmetic, client-safe — kept out of
-// lib/projects.js so the screens can import them without pulling the
-// Redis-backed section store in with them. Same split lib/tickets.js makes for
-// Sales and lib/quotations.js for Technical.
+// modules/projects/projects.js so the screens can import them without pulling the
+// Redis-backed section store in with them. Same split modules/sales/tickets.js makes for
+// Sales and modules/technical/quotations.js for Technical.
 
 // How a project's completion percentage is split across the requirements it
 // carries. Only the requirements a project actually has are counted, and their

@@ -12,10 +12,10 @@
 // label.
 
 import { route } from "@/platform/http/route";
-import { qualityContext } from "@/lib/quality";
+import { qualityContext } from "@/modules/quality/quality";
 import {
   listDocs, getDoc, createDoc, renameDoc, saveContent, savePageSetup, removeDoc,
-} from "@/lib/qualityDocs";
+} from "@/modules/quality/qualityDocs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

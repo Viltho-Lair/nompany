@@ -1,5 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
-import { projectsContext, createSla, updateSla, removeSla } from "@/lib/projects";
+import { projectsContext, createSla, updateSla, removeSla } from "@/modules/projects/projects";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

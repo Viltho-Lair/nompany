@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
-import { linkToProject, linkIf } from "@/lib/studioLinks";
+import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import {
   inputRO, stripeOn, stripeOff, Dialog, ColumnPicker, prefKey, loadPref, savePref,
 } from "@/components/studio2/ui";

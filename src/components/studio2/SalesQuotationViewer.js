@@ -6,7 +6,7 @@ import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
 import { panel, h2, sub, btn, btnGhost, money, fmtDate } from "@/components/studio2/ui";
-import { netUnitPrice } from "@/lib/quotations";
+import { netUnitPrice } from "@/modules/technical/quotations";
 
 // THE QUOTATION, AS SALES READS IT.
 //

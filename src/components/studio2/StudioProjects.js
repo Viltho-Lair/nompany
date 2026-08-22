@@ -10,12 +10,12 @@ import {
   panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
   money, fmtDate, Dialog, Toolbar, Empty, StatTile,
 } from "@/components/studio2/ui";
-import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/lib/studioLinks";
+import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
 import {
   slaVisits, emergencyVisits, allVisits, nextVisit, contractEndDate, supportStatus,
   fmtDate as slaDate, daysUntil,
-} from "@/lib/sla";
-import { REQUIREMENT_WEIGHTS, hoursBetween } from "@/lib/projectSchedule";
+} from "@/modules/projects/sla";
+import { REQUIREMENT_WEIGHTS, hoursBetween } from "@/modules/projects/projectSchedule";
 
 // Projects: delivery work opened from an approved quotation, the support
 // contracts that follow it, and the overtime logged against it. Progress comes

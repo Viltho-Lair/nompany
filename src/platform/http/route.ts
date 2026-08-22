@@ -35,7 +35,7 @@ type Shaped = { status: number; body: unknown; headers?: Record<string, unknown>
 import { cookies } from "next/headers";
 import { currentUser, currentIdentity, SESSION_COOKIE } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
-import { getStudioBySlug } from "@/lib/data/studios";
+import { getStudioBySlug } from "@/modules/main/studios";
 import { currentSuperAdmin } from "@/platform/auth/superAuth";
 import { statusFor } from "./httpStatus";
 import { isCrossSite, MUTATING } from "./origin";

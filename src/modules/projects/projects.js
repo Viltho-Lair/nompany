@@ -11,16 +11,16 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
-import { moduleContext } from "@/lib/modules/context";
+import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "@/lib/projectSchedule";
-import { nextReference } from "@/lib/references";
-import { ticketFacts } from "@/lib/technical";
+import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "./projectSchedule";
+import { nextReference } from "@/modules/main/references";
+import { ticketFacts } from "@/modules/technical/technical";
 import { departmentsFromSections } from "@/lib/departments";
 // Whether a quotation is approved is answered by its APPROVAL, not by a copy of
 // one — see the note on quotationApproved.
-import { quotationApproved } from "@/lib/taskRouting";
+import { quotationApproved } from "@/modules/tasks/taskRouting";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 export const DEFAULT_STAGE = "Received";
@@ -249,7 +249,7 @@ export async function openProject(ctx, body) {
   // rows without prices and add columns of their own. What a sheet stores is
   // only that addition — its own data, keyed by the quotation row it belongs to
   // — and the rows themselves are read back through quotationId every time. See
-  // sheetLines in lib/inventory.js, which is where the two are put together.
+  // sheetLines in modules/inventory/inventory.js, which is where the two are put together.
   //
   // MAIN and BULK are the same rows asked two ways: Main keeps the quotation's
   // own divisions, Bulk sums each item across the whole project and splits the
@@ -299,7 +299,7 @@ export async function issueProjectNumber({ studio, listSection }, quotationId) {
   if (project.number) return { issued: project.number, project };
 
   // Derived from the highest already issued, never from how many exist, so a
-  // deleted project cannot have its number reused. See lib/references.js.
+  // deleted project cannot have its number reused. See modules/main/references.js.
   const number = await nextReference(studio.id, { rows, field: "number", prefix: "PRJ" });
   const updated = await updateRow(studio.id, listSection.id, PROJECTS, project.id, { number });
   return { issued: number, project: updated };
@@ -364,7 +364,7 @@ export async function projectPeople({ studio }) {
 // ---- SLA contracts ----------------------------------------------------------
 // A support contract against a delivered project: signed on a date, running for
 // a duration, with a number of planned visits and an allowance of emergency
-// ones. The SCHEDULE ITSELF IS NOT STORED — lib/sla.js derives the visit dates
+// ones. The SCHEDULE ITSELF IS NOT STORED — modules/projects/sla.js derives the visit dates
 // from the start, duration and count, so changing the contract reschedules
 // everything instead of leaving stale dates behind. Only what cannot be derived
 // is kept: which visits were completed, and the emergency visits actually used.

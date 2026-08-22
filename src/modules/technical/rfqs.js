@@ -1,16 +1,16 @@
 // RFQ shared constants + auth. Client-safe (no server-only imports).
 
-import { isFinishedQuotation } from "@/lib/quotations";
+import { isFinishedQuotation } from "./quotations";
 // Client-safe, like this file: platform/relations.js declares the edges and
 // imports nothing, taking its rows from the caller.
 import { traverseIn } from "@/platform/relations";
 // Also client-safe, and for the same reason this file is — see its header.
-import { quotationApproved } from "@/lib/taskRouting";
+import { quotationApproved } from "@/modules/tasks/taskRouting";
 
 export const RFQ_STATUSES = ["New", "In-review", "Converted", "Rejected"];
 
 // canEditRfq went with the tag model. Who may work an RFQ is technical.rfq.edit,
-// asked of the permission set in updateRfq — see lib/technical.js.
+// asked of the permission set in updateRfq — see modules/technical/technical.js.
 
 // Every RFQ ever raised on one ticket, NEWEST FIRST. A ticket can be sent over
 // more than once — a second RFQ when Sales wants the last quotation revised —

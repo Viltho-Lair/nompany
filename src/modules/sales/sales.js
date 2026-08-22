@@ -15,17 +15,17 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
-import { moduleContext } from "@/lib/modules/context";
+import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "@/lib/tickets";
-import { normaliseClientName, normaliseContactName, clientSlug } from "@/lib/salesClients";
-import { nextUniqueRef } from "@/lib/references";
+import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "./tickets";
+import { normaliseClientName, normaliseContactName, clientSlug } from "./salesClients";
+import { nextUniqueRef } from "@/modules/main/references";
 import { traverseIn } from "@/platform/relations";
-import { requestRfq } from "@/lib/technical";
-import { pendingRfq, rfqsForTicket } from "@/lib/rfqs";
-import { isFinishedQuotation } from "@/lib/quotations";
-import { readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES, quotationApproved } from "@/lib/taskRouting";
+import { requestRfq } from "@/modules/technical/technical";
+import { pendingRfq, rfqsForTicket } from "@/modules/technical/rfqs";
+import { isFinishedQuotation } from "@/modules/technical/quotations";
+import { readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES, quotationApproved } from "@/modules/tasks/taskRouting";
 
 export { TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, DEFAULT_STATUS, DEFAULT_URGENCY,
   TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS };
@@ -59,7 +59,7 @@ const Tickets = repo(TICKETS);
 // there is one approval queue in the studio and not two.
 const APPROVAL_TYPE = "approval";
 // The client's purchase order, sent to Finance. Same routing table as every
-// other typed task — see lib/taskRouting.js.
+// other typed task — see modules/tasks/taskRouting.js.
 const PO_TYPE = "po";
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 const now = () => new Date().toISOString();
@@ -363,7 +363,7 @@ function cleanLocations(list) {
   })).filter((l) => l.name || l.city);
 }
 
-// nextUniqueRef has moved to lib/references.js — Technical was importing its
+// nextUniqueRef has moved to modules/main/references.js — Technical was importing its
 // quotation numbering from Sales, and reference generation belongs to neither.
 // Re-exported here so nothing that already asked Sales for it has to change.
 export { nextUniqueRef };
@@ -395,7 +395,7 @@ const quotationRow = (q) => ({
   total: Number(q.total) || 0,
   handledBy: q.handledByCollaboratorId || q.handledBy || "",
   // Who put their name to the finished document, which is not always who it was
-  // handed to — see the note on `submittedByCollaboratorId` in lib/technical.js.
+  // handed to — see the note on `submittedByCollaboratorId` in modules/technical/technical.js.
   submittedBy: q.submittedByCollaboratorId || "",
   createdAt: q.createdAt || "",
   submittedAt: q.submittedAt || "",
@@ -689,7 +689,7 @@ export async function ticketQuotation({ studio, ticketsSection, clientsSection, 
       ...quotation,
       // The client is the CLIENT RECORD'S, reached through the ticket — two hops
       // down the same kind of key, exactly as ticketFacts does it in
-      // lib/technical.js. Rename a client and this renames with it.
+      // modules/technical/technical.js. Rename a client and this renames with it.
       clientName: clients.find((c) => c.id === ticket.clientId)?.name || "",
       // What the document READS AS; `storedStatus` is what is on file, for
       // anything that still needs to tell the two apart.

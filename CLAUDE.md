@@ -108,7 +108,8 @@ TypeScript as it lands. What has moved has moved for good:
 | `src/platform/realtime/**` | The event stream, the pub/sub bus, live patches | JavaScript |
 | `src/platform/notify/**` | Notifications and email | JavaScript |
 | `src/platform/http/**` | The route wrapper, the status table, idempotency, audit, observability | JavaScript |
-| `src/lib/**` | The twelve departments and what is left of the data layer | JavaScript |
+| `src/modules/<name>/**` | The twelve departments, one folder each | JavaScript |
+| `src/lib/**` | What has not been assigned yet — chat, media, the catalogue, presentation helpers | JavaScript |
 
 Two rules that came out of doing it:
 

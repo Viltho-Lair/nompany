@@ -18,11 +18,11 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
-import { moduleContext } from "@/lib/modules/context";
+import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { traverseIn } from "@/platform/relations";
-import { nextReference } from "@/lib/references";
+import { nextReference } from "@/modules/main/references";
 
 const INVOICES = "invoices";
 const EXPENSES = "expenses";
@@ -165,7 +165,7 @@ export async function createInvoice(ctx, body) {
   const invoice = await addRow(studio.id, cashSection.id, INVOICES, {
     // Derived from the highest INV already issued, never from how many exist:
     // deleting a draft must not hand its number to the next invoice, and two
-    // raised at once must not both be INV-0004. See lib/references.js.
+    // raised at once must not both be INV-0004. See modules/main/references.js.
     reference: await nextReference(studio.id, { rows: invoices, field: "reference", prefix: "INV" }),
     projectId, clientName,
     lines,

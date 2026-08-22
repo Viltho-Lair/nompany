@@ -8,7 +8,7 @@
 // the neutral DEFAULTS — no cross-tenant/config bleed between concurrent server
 // requests. A single browser = one tenant, so setting it once client-side is safe.
 
-import { COMPANY_DEFAULTS, formatMoney, formatMoneyParts, formatDate, formatDateTime } from "@/lib/companySettings";
+import { COMPANY_DEFAULTS, formatMoney, formatMoneyParts, formatDate, formatDateTime } from "@/modules/main/companySettings";
 
 let _active = null;
 

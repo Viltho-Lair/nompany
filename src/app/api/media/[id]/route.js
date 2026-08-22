@@ -1,5 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
-import { getStudioById } from "@/lib/data/studios";
+import { getStudioById } from "@/modules/main/studios";
 import { getCollaboratorByUser } from "@/platform/auth/collaborators";
 import { getMedia } from "@/lib/media";
 

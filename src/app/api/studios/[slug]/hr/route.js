@@ -3,7 +3,7 @@ import {
   hrContext, listDepartments, listHrRoles, listCertifications, listEmployees,
   listVacations, expiringDocuments, headcount,
   LEAVE_TYPES, LEAVE_STATUSES, EXPIRY_WINDOW_DAYS,
-} from "@/lib/hr";
+} from "@/modules/hr/hr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

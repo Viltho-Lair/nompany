@@ -21,47 +21,47 @@ import {
 import { delPrefix, getIndex } from "@/platform/db/store";
 import { getRedisClient } from "@/platform/db/redis";
 import { createUser, mintSession } from "@/platform/auth/users";
-import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/lib/data/studios";
+import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/modules/main/studios";
 import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/platform/auth/collaborators";
-import { listRoles } from "@/lib/data/roles";
+import { listRoles } from "@/modules/people/roles";
 import { SESSION_COOKIE, login as identityLogin } from "@/platform/auth/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS } from "@/platform/access";
-import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/lib/tasks";
-import { TASK_TYPE_AUTHORITIES } from "@/lib/taskRouting";
+import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/modules/tasks/tasks";
+import { TASK_TYPE_AUTHORITIES } from "@/modules/tasks/taskRouting";
 import {
   salesContext, createService, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
   submitTicketPo,
-} from "@/lib/sales";
-import { projectsContext, openProject, listProjects } from "@/lib/projects";
-import { technicalContext, requestRfq, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/lib/technical";
-import { rfqInfo } from "@/lib/salesAnalytics";
+} from "@/modules/sales/sales";
+import { projectsContext, openProject, listProjects } from "@/modules/projects/projects";
+import { technicalContext, requestRfq, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/modules/technical/technical";
+import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { landedUnitCost, crossRate } from "@/shared/currencies";
-import { qualityContext, watermarkFor } from "@/lib/quality";
+import { qualityContext, watermarkFor } from "@/modules/quality/quality";
 import { getJSON } from "@/platform/db/store";
 import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/platform/relations";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/platform/db/keys";
-import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/lib/quality";
-import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/lib/qualityFields";
+import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/modules/quality/quality";
+import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/modules/quality/qualityFields";
 import {
   createDoc, getDoc, listDocs, saveContent, savePageSetup, removeDoc,
-} from "@/lib/qualityDocs";
+} from "@/modules/quality/qualityDocs";
 import {
   moveRevision as moveDocRevision, startRevision as startDocRevision,
   workflowFor, listRevisions as listDocRevisions,
-} from "@/lib/qualityDocRevisions";
-import { resolveBlocks, blocksFor } from "@/lib/quality";
-import { documentState, pendingRevision } from "@/lib/qualityDocuments";
+} from "@/modules/quality/qualityDocRevisions";
+import { resolveBlocks, blocksFor } from "@/modules/quality/quality";
+import { documentState, pendingRevision } from "@/modules/quality/qualityDocuments";
 import { listSections, updateRow } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
-import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/lib/finance";
-import { inventoryContext, createItem, adjustStock, listProjectSheets, saveSheetLine } from "@/lib/inventory";
+import { financeContext, createInvoice, removeInvoice, listInvoices } from "@/modules/finance/finance";
+import { inventoryContext, createItem, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation,
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
   listEmployees, saveEmployment,
-} from "@/lib/hr";
+} from "@/modules/hr/hr";
 import { updateProfile } from "@/platform/auth/users";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 

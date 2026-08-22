@@ -15,11 +15,11 @@ import { listSections } from "@/platform/db/sections";
 import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
 import { sectionViewable } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { enrichTask, readTaskAssignees } from "@/lib/taskRouting";
+import { enrichTask, readTaskAssignees } from "@/modules/tasks/taskRouting";
 // The sections' OWN definitions of "below reorder level" and "expiring", so the
 // front door cannot quietly disagree with the screen it is summarising.
-import { balances } from "@/lib/inventory";
-import { permitState } from "@/lib/operations";
+import { balances } from "@/modules/inventory/inventory";
+import { permitState } from "@/modules/operations/operations";
 
 export async function mainContext(user, slug) {
   const context = await studioContext(user, slug);

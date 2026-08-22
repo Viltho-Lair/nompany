@@ -3,9 +3,9 @@ import {
   projectsContext, listProjects, approvedQuotations, projectPeople,
   listSlas, listOvertimes, overtimeDirectory, readProjectsSettings, saveProjectsSettings,
   openProject, updateProject, removeProject, PROJECT_STAGES,
-} from "@/lib/projects";
-import { REQUIREMENT_WEIGHTS } from "@/lib/projectSchedule";
-import { listProjectSheets } from "@/lib/inventory";
+} from "@/modules/projects/projects";
+import { REQUIREMENT_WEIGHTS } from "@/modules/projects/projectSchedule";
+import { listProjectSheets } from "@/modules/inventory/inventory";
 import { can } from "@/platform/access";
 
 export const runtime = "nodejs";

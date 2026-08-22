@@ -98,7 +98,7 @@ were dropped. MUI stays installed and available (see
 [Styling stack](#styling-stack)); it is simply not what this page is built from.
 
 **There is no "access token".** Studio access tokens were
-[removed by design](src/lib/data/studios.js) on 2026-08-11 — joining is
+[removed by design](src/modules/main/studios.js) on 2026-08-11 — joining is
 company-code → request → owner approval, and a shareable token would be a
 second, weaker way in. The code chip on this page shows the company code, which
 is not a secret.

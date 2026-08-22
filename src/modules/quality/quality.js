@@ -4,7 +4,7 @@
 // draft and its lock, revisions and their ladder, distribution, share links,
 // the letterhead, the templates and the generation that filled them. All of it
 // is gone, replaced by the editor at /quality-documents and by
-// lib/qualityDocs.js and lib/qualityDocRevisions.js.
+// modules/quality/qualityDocs.js and modules/quality/qualityDocRevisions.js.
 //
 // THREE THINGS SURVIVED, because they were never really about the old builder:
 //
@@ -28,15 +28,15 @@
 import { can, requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { updateRow } from "@/platform/db/sections";
-import { DOCS } from "@/lib/qualityDocs";
-import { moduleContext } from "@/lib/modules/context";
+import { DOCS } from "./qualityDocs";
+import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { departmentsFromSections } from "@/lib/departments";
 import { NODES, traverse } from "@/platform/relations";
 import {
   STATIC_FIELDS, BLOCK_SOURCES, availableFields, availableBlocks, groupFields,
   legalKeyFor, subjectById, SUBJECTS, reachOf,
-} from "@/lib/qualityFields";
+} from "./qualityFields";
 
 const str = (v, max = 300) => String(v ?? "").trim().slice(0, max);
 
@@ -237,7 +237,7 @@ export function blocksFor(ctx, document) {
 
 // What the Insert field menu should offer, grouped by department. Filtered by
 // what the document is bound to AND by what this author holds — see the note in
-// lib/qualityFields.js about why both filters are needed.
+// modules/quality/qualityFields.js about why both filters are needed.
 export function fieldsFor(ctx, document) {
   const holds = (permission) => can(ctx.access, permission);
   const fields = availableFields({

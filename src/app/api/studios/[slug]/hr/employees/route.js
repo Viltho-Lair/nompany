@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { hrContext, saveEmployment } from "@/lib/hr";
+import { hrContext, saveEmployment } from "@/modules/hr/hr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

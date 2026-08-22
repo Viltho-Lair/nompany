@@ -1,6 +1,6 @@
 import { route } from "@/platform/http/route";
-import { inventoryContext } from "@/lib/inventory";
-import { trackShipment, updateShipment, removeShipment } from "@/lib/awbTracking";
+import { inventoryContext } from "@/modules/inventory/inventory";
+import { trackShipment, updateShipment, removeShipment } from "@/modules/inventory/awbTracking";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

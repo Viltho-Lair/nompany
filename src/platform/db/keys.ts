@@ -43,7 +43,7 @@ export const ID = {
   collaborator: () => makeId("col"),
   section: () => makeId("sec"),
   subsection: () => makeId("sub"),
-  // A named bundle of permissions, per studio. See lib/data/roles.js.
+  // A named bundle of permissions, per studio. See modules/people/roles.js.
   role: () => makeId("rol"),
   media: () => makeId("med"),
   questionnaire: () => makeId("qst"),

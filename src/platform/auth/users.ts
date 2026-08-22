@@ -11,7 +11,7 @@
 import { REG, U, IX, ID, normEmail } from "@/platform/db/keys";
 import { readArr, editArr, editJSON, getJSON, setJSON, claim, getIndex, release } from "@/platform/db/store";
 import { newSessionToken, hashToken } from "./passwords";
-import { listStudios, ownedStudioId, collaborationStudioIds } from "@/lib/data/studios";
+import { listStudios, ownedStudioId, collaborationStudioIds } from "@/modules/main/studios";
 import { isAssignableRole } from "@/lib/platformRoles";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 

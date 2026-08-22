@@ -153,8 +153,8 @@ At 10,000 users × ~250 B that is a 2.5 MB fetch-and-parse per request and a 2.5
 ### H-3 · Whole-collection-per-key is the storage model
 `SEC.col(studioId, sectionId, name)` holds an entire collection as one JSON array. Consequences, all present in the code:
 
-- `ticketQuotation` reads **all** quotations to find one by id (`src/lib/sales.js:637`).
-- `listTickets` reads **six** whole collections — tickets, clients, rfqs, quotations, tasks, projects — and joins them in JavaScript (`src/lib/sales.js:599`).
+- `ticketQuotation` reads **all** quotations to find one by id (`src/modules/sales/sales.js:637`).
+- `listTickets` reads **six** whole collections — tickets, clients, rfqs, quotations, tasks, projects — and joins them in JavaScript (`src/modules/sales/sales.js:599`).
 - Any single-row update rewrites and re-serialises the whole array.
 - Write throughput on a hot collection is one winner per CAS round; `MAX_ATTEMPTS = 64` then `ConflictError`.
 - There is no index, no `WHERE`, no `ORDER BY`, no pagination anywhere in the product. Every filter and every sort happens after transferring everything.
@@ -175,7 +175,7 @@ A user opening Sales pays both: **~2.95 s of Redis latency before the screen has
 The absolute numbers scale with RTT — in-region on Vercel they would be ~10-40 ms — but the *hop count is the defect*, and it is what a co-location change cannot fix. Full breakdown and the fix plan in `performance-audit.md`.
 
 ### H-5 · `listSections` runs twice per module request, and reconciles on every read
-`studioContext` reads sections (`src/lib/studios.js:123`), then every module context reads them again (`salesContext` at `src/lib/sales.js:111`, and identically in `hr.js`, `finance.js`, `inventory.js`, `operations.js`, `projects.js`, `tasks.js`, `technical.js`, `quality.js`, `main.js`). `src/app/api/studios/[slug]/route.js:19` does it a third time after `studioContext` already returned `sections`.
+`studioContext` reads sections (`src/lib/studios.js:123`), then every module context reads them again (`salesContext` at `src/modules/sales/sales.js:111`, and identically in `hr.js`, `finance.js`, `inventory.js`, `operations.js`, `projects.js`, `tasks.js`, `technical.js`, `quality.js`, `main.js`). `src/app/api/studios/[slug]/route.js:19` does it a third time after `studioContext` already returned `sections`.
 
 `listSections` additionally runs `plantMissingSections` — a full reconciliation against `SECTION_DEFS` — on every read, on the hot path, for a write that happens at most once per studio ever.
 
@@ -186,7 +186,7 @@ The absolute numbers scale with RTT — in-region on Vercel they would be ~10-40
 `store.js` raises `ConflictError` after 64 contended attempts; no route maps it. A client sees an opaque 500 and cannot distinguish "retry, someone else was writing" from "the server is broken". Known and open in the project's own notes; the fix is a shared `handle()` wrapper, not 57 edits.
 
 ### H-8 · N+1 reads in list endpoints
-`listEmployees` issues one `getProfile` per employee (`src/lib/hr.js:338`); `listUsersForConsole` issues three reads per user (`src/platform/auth/users.js:121`). Parallel, so one RTT — but N commands, and N JSON parses, per page view.
+`listEmployees` issues one `getProfile` per employee (`src/modules/hr/hr.js:338`); `listUsersForConsole` issues three reads per user (`src/platform/auth/users.js:121`). Parallel, so one RTT — but N commands, and N JSON parses, per page view.
 
 ### H-9 · Field encryption fails open and fails silent
 `encryptField` returns plaintext when `FIELD_ENCRYPTION_KEY` is unset (`src/platform/auth/fieldCrypto.js:35`); `decryptField` returns `""` on any failure. A deploy with the key missing writes ID and passport numbers in the clear with no signal; a key rotation blanks every existing value with no error. The same key also derives the device IP HMAC (`identity.js:hashIp`), which returns `""` when unset — so device history silently stops working too.
@@ -234,7 +234,7 @@ Three families of pre-pivot keys (a 10.8 KB `db` string, a `settings` hash, and 
 `hrGuard(params, { write: true })` tests `sectionManageable` — "any write on any area of this module". Someone holding `hr.employees.edit` but not `hr.vacations.create` passes the gate and is then correctly refused by `requirePermission` inside the service. The behaviour is safe (defence in depth works), but the client receives `read-only` from the gate in some paths and `forbidden` from the service in others for the same class of refusal.
 
 ### M-9 · Write rights and read rights diverge on encrypted PII
-`saveEmployment` requires `hr.employees.edit` to write `idNumber`/`passportNumber`, but `hr.employees.salary` to *read* them (`src/lib/hr.js:370`, `:318`). Someone who cannot see an ID number can overwrite it.
+`saveEmployment` requires `hr.employees.edit` to write `idNumber`/`passportNumber`, but `hr.employees.salary` to *read* them (`src/modules/hr/hr.js:370`, `:318`). Someone who cannot see an ID number can overwrite it.
 
 ### M-10 · `sweepOrphans` will time out before the data outgrows it
 It is O(users + studios + indexes) *sequential* Redis commands. At 5,000 users that is >15,000 dependent round trips — past Vercel's function ceiling long before the dataset is large.
@@ -249,7 +249,7 @@ No `.github/`. No `.eslintrc*` or `eslint.config.*` although `package.json` decl
 Next ignores `jsconfig.json` when `tsconfig.json` exists. It is dead configuration that will silently diverge.
 
 ### M-15 · The coarse write gate makes five declared rights unusable alone
-`src/lib/quality.js:79`, `src/platform/access/resolve.ts:sectionManageable`
+`src/modules/quality/quality.js:79`, `src/platform/access/resolve.ts:sectionManageable`
 
 Quality's workflow routes are gated `{ write: true }`, which tests `canManage` —
 and `canManage` is `sectionManageable`, which only ever looks at the **create,
@@ -297,7 +297,7 @@ The whole product depends on Redis never evicting. Nothing in the repo asserts `
 - **L-7** `CH.user(userId)` publishes notification bodies over Redis pub/sub; anyone with `SUBSCRIBE` on the shared instance reads them. Publish only `{ kind, id }` and let the client fetch.
 - **L-8** `RESERVED_SLUGS` does not include `q`'s siblings for future platform routes (`assets`, `cdn`, `status`, `health`, `webhooks`) — a studio can claim them today.
 - **L-9** Error responses leak internal vocabulary (`no-section`, `same-signer`, `escalation`) to unauthenticated-adjacent callers. Fine for debugging, worth mapping to stable public codes.
-- **L-10** **An unreachable guard in `requestVacation`.** `src/lib/hr.js:487` refuses booking leave for somebody else with `if (target !== me && !canManage)`. That branch cannot fire: `canManage` is `sectionManageable` over HR's areas, and `SECTION_AREAS` maps `hr-employees` to **both** `hr.employees` and `hr.vacations` — so holding `hr.vacations.create`, which the line above already required, makes `canManage` true by construction. Anyone who reaches the check has already passed it. Not a hole (the permission does the work the branch was meant to do) but a guard nobody can exercise, which is the same dead-capability shape the permission catalogue forbids. Found by writing a test that asserted a refusal and got a 201. Pinned by `hr.vacation.forothers.bymanager`.
+- **L-10** **An unreachable guard in `requestVacation`.** `src/modules/hr/hr.js:487` refuses booking leave for somebody else with `if (target !== me && !canManage)`. That branch cannot fire: `canManage` is `sectionManageable` over HR's areas, and `SECTION_AREAS` maps `hr-employees` to **both** `hr.employees` and `hr.vacations` — so holding `hr.vacations.create`, which the line above already required, makes `canManage` true by construction. Anyone who reaches the check has already passed it. Not a hole (the permission does the work the branch was meant to do) but a guard nobody can exercise, which is the same dead-capability shape the permission catalogue forbids. Found by writing a test that asserted a refusal and got a 201. Pinned by `hr.vacation.forothers.bymanager`.
 
 ---
 
@@ -344,7 +344,7 @@ These are structural necessities absent from the product, ordered by how much la
 | H-5 | High | `listSections` duplicated + reconciles on read | `lib/studios.js:123` |
 | H-6 | High | Live updates refetch whole payloads | `studio2/useLiveUpdates.js` |
 | H-7 | High | `ConflictError` returns 500 not 409 | `platform/db/store.ts` |
-| H-8 | High | N+1 profile reads in list endpoints | `lib/hr.js:338` |
+| H-8 | High | N+1 profile reads in list endpoints | `modules/hr/hr.js:338` |
 | H-9 | High | Field encryption fails open and silent | `platform/auth/fieldCrypto.js:35` |
 | H-10 | High | No CSRF defence, no security headers | `next.config.mjs` |
 | H-11 | High | No audit trail for privileged actions | `keys.js:181` |
@@ -355,14 +355,14 @@ These are structural necessities absent from the product, ordered by how much la
 | M-5 | Medium | Four disjoint token systems | `globals.css`, `tailwind.config.js` |
 | M-6 | Medium | `components.json` contradicts repository | `components.json` |
 | M-7 | Medium | Legacy pre-pivot keys in production | live Redis |
-| M-8 | Medium | Coarse write gate misleads | `lib/hr.js:98` |
-| M-9 | Medium | Write/read rights diverge on encrypted PII | `lib/hr.js:370` |
+| M-8 | Medium | Coarse write gate misleads | `modules/hr/hr.js:98` |
+| M-9 | Medium | Write/read rights diverge on encrypted PII | `modules/hr/hr.js:370` |
 | M-10 | Medium | Sweep will time out before data outgrows it | `platform/db/cascade.ts:196` |
 | M-11 | Medium | No function region pinned | `vercel.json` |
 | M-12 | Medium | No CI, no lint config, no test runner | repo root |
 | M-13 | Medium | Duplicate `jsconfig.json` | repo root |
 | M-14 | Medium | Redis eviction policy unverified | infrastructure |
-| M-15 | Medium | Coarse write gate makes 5 declared rights unusable alone | `lib/quality.js:79` |
+| M-15 | Medium | Coarse write gate makes 5 declared rights unusable alone | `modules/quality/quality.js:79` |
 | L-1 – L-10 | Low | See §4 | — |
 
 ---

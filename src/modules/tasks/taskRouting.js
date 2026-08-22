@@ -1,7 +1,7 @@
 // TASK ROUTING — who a task belongs to, and who may decide it. Client-safe, so
 // the board can import it without pulling the Redis-backed section store in with
-// it. Same split lib/tickets.js makes for Sales, lib/quotations.js for Technical
-// and lib/operationsCalendar.js for Operations.
+// it. Same split modules/sales/tickets.js makes for Sales, modules/technical/quotations.js for Technical
+// and modules/operations/operationsCalendar.js for Operations.
 //
 // The Old System routes each TYPE of task to one or more AUTHORITIES, and Task
 // settings records who currently holds each one. Appointing somebody there hands
