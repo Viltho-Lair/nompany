@@ -109,7 +109,11 @@ Every service module reads and writes through `repo()`. `readCol`, `addRow`,
 
 ## Waves 3–5 ⬜
 
-**W3** TypeScript + departmental modules — needs Gate B.
+**W3** TypeScript + departmental modules — 🟡 in progress.
+`shared/` ✅ currencies, countries, i18n, slug · `platform/access` ✅ catalogue and
+resolver behind one door, typed, with the `PermissionKey` union · `platform/db`
+next, then one department per step. `tsconfig.strict.json` gains a folder per
+step and never loses one.
 **W4** UI/UX system — independent, can run alongside.
 **W5** SQL Server — needs the repository seam *adopted*, not just built.
 
@@ -121,11 +125,26 @@ Things waiting on a person, not on work.
 
 | Decision | Why it is open |
 |---|---|
-| `login()` checking `suspended` before or after the password | It is an enumeration oracle today. Fixing it changes a response somebody may rely on |
 | The palette for W4 | The marketing site is dark-first indigo/Sora; the ERP is light-first blue/Saira. One of them has to move |
 
-**Recently closed:** invariant 2 was overstated and the code was right (existence
-is public by design); `quality.documents.setup` deleted rather than built.
+**Recently closed.**
+
+- **`login()` checks `suspended` before the password** — kept, deliberately. It
+  is an enumeration oracle: anybody who can guess an address learns whether it
+  belongs to a suspended account. Bought with it is a suspended person being told
+  why, without first having to remember a password they were switched off from
+  using months ago — and a switched-off account never spending a bcrypt-12
+  verify. The oracle is exactly one bit wide and stays that way: a wrong password
+  and an unregistered address both still return `invalid`. Four Gate A assertions
+  pin the order so it cannot be quietly reversed.
+- **Invariant 2 was overstated** and the code was right — existence is public by
+  design; what a non-member learns nothing about is the contents.
+- **`quality.documents.setup`** deleted rather than built.
+- **The console's fabricated screens** — the profile page now reads the record
+  for sessions, two-factor state, recovery codes, password age and the
+  super-admin list. The API keys card was deleted rather than made real: there
+  is no API key feature, and a screen offering to revoke credentials that were
+  never issued is the dead capability the catalogue's own rule forbids.
 
 ---
 

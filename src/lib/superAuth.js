@@ -189,6 +189,37 @@ export async function loginSuper(email, password, { code = "", device = null } =
   return { ...admin, sessionTokens: updated?.sessionTokens || [], token };
 }
 
+// THE SECURITY FACTS ABOUT THIS ACCOUNT, and only the facts.
+//
+// Every number here is real and none of them is a credential: how many recovery
+// codes remain, not which; when the password was last set, not what it is. The
+// screen that reads this used to invent all three ("Enabled", "8 remaining",
+// "Changed 42 days ago", hardcoded), and an invented "Enabled" is the worst of
+// the three — it is a claim that a second factor is protecting an account that,
+// until the MFA work landed, had none at all.
+//
+// A function rather than an endpoint: the page is a server component, so it can
+// read this directly and render it in the same pass. An API for it would be one
+// more door onto the same data for a screen that never needed to ask twice.
+export async function superSecuritySummary(adminId) {
+  const admin = (await readArr(REG.superAdmins)).find((a) => a.id === adminId);
+  if (!admin) return null;
+
+  const now = Date.now();
+  const live = (Array.isArray(admin.sessionTokens) ? admin.sessionTokens : [])
+    .filter((t) => t && t.expiresAt > now);
+
+  return {
+    mfaEnabled: Boolean(admin.mfa?.secret && admin.mfa?.enabledAt),
+    mfaEnabledAt: admin.mfa?.enabledAt || "",
+    // A COUNT OF HASHES, which is all this may ever be. The codes themselves
+    // were shown once at enrolment and are stored the way passwords are.
+    recoveryCodesLeft: Array.isArray(admin.mfa?.recoveryCodes) ? admin.mfa.recoveryCodes.length : 0,
+    passwordSetAt: admin.passwordSetAt || admin.createdAt || "",
+    sessionCount: live.length,
+  };
+}
+
 // EVERY LIVE SESSION, newest first — for the console's own Security screen.
 //
 // Expired rows are filtered rather than trusted: the list is a DISPLAY of what

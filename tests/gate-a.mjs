@@ -1959,6 +1959,37 @@ console.log("== the console can see where it is signed in");
   // A STRANGER'S LIST IS THEIR OWN, for the same reason. Reading is the half
   // that would turn the digest into something worth stealing.
   ok("...nor see it", (await sup.listSuperSessions(stranger.id)).length === 0, "");
+
+  // ---- the summary the settings page renders ------------------------------
+  // IT USED TO BE THREE HARDCODED ROWS, and one of them said "Two-factor
+  // authentication · Enabled" on an account that had no second factor. That is
+  // the failure this block exists for: a security screen reporting something
+  // other than the truth is worse than one reporting nothing, because the
+  // reason to open it is to find out whether anything is wrong.
+  const mfaLib = await import("@/lib/superMfa");
+
+  const before = await sup.superSecuritySummary(admin.id);
+  ok("the summary says two-factor is off when it is off",
+    before?.mfaEnabled === false && before.recoveryCodesLeft === 0, JSON.stringify(before?.mfaEnabled));
+  ok("...and counts the live sessions", before.sessionCount === 1, String(before.sessionCount));
+  ok("...and knows when the password was set", Boolean(Date.parse(before.passwordSetAt || "")), before.passwordSetAt);
+
+  const { secret } = mfaLib.beginEnrolment(other);
+  const codes = mfaLib.makeRecoveryCodes();
+  await sup.patchAdmin(admin.id, () => ({
+    mfa: { secret: mfaLib.sealSecret(secret), recoveryCodes: codes.hashes, enabledAt: new Date().toISOString() },
+  }));
+
+  const after = await sup.superSecuritySummary(admin.id);
+  ok("...and says it is on once it is", after.mfaEnabled === true, "");
+  ok("...counting the codes that are left", after.recoveryCodesLeft === 10, String(after.recoveryCodesLeft));
+
+  // THE SUMMARY IS FACTS, NOT CREDENTIALS. It is rendered into a page, so
+  // anything secret in it would be secret in the HTML.
+  const rendered = JSON.stringify(after);
+  ok("...and carries neither the secret nor a single code",
+    !rendered.includes(secret) && !codes.plain.some((c) => rendered.includes(c))
+      && !codes.hashes.some((h) => rendered.includes(h)), "");
 }
 
 console.log("== an OAuth sign-in is a device too");
