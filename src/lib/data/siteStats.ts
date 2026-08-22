@@ -32,9 +32,9 @@ export function isoDay(date) {
   return new Date(date).toISOString().slice(0, 10);
 }
 
-export function daysBack(count, from = new Date()) {
+export function daysBack(count: number, from: Date = new Date()): string[] {
   const end = new Date(isoDay(from));
-  const out = [];
+  const out: string[] = [];
   for (let i = count - 1; i >= 0; i -= 1) {
     const d = new Date(end);
     d.setUTCDate(d.getUTCDate() - i);
@@ -45,8 +45,8 @@ export function daysBack(count, from = new Date()) {
 
 // Every day of a calendar year — the span the dashboard's "1 year" covers and
 // the span the new-year rollover clears.
-export function daysOfYear(year) {
-  const out = [];
+export function daysOfYear(year: number): string[] {
+  const out: string[] = [];
   const d = new Date(Date.UTC(year, 0, 1));
   while (d.getUTCFullYear() === year) {
     out.push(isoDay(d));
@@ -58,7 +58,7 @@ export function daysOfYear(year) {
 // One row per day: { day, sessions, pageViews }. Days with no traffic come back
 // as zeroes rather than being skipped, so a chart's x-axis stays evenly spaced
 // and a quiet Sunday reads as quiet instead of vanishing.
-export async function readDays(days) {
+export async function readDays(days: string[]) {
   if (!days.length) return [];
   const client = await getRedisClient();
   // node-redis pipelines concurrent commands on one connection, so this is a
@@ -71,11 +71,11 @@ export async function readDays(days) {
 }
 
 // Per-page totals across a span, biggest first — the table's rows.
-export async function readPages(days) {
+export async function readPages(days: string[]) {
   if (!days.length) return [];
   const client = await getRedisClient();
   const hashes = await Promise.all(days.map((day) => client.hGetAll(key(day)).catch(() => ({}))));
-  const totals = {};
+  const totals: Record<string, number> = {};
   for (const h of hashes) {
     for (const [field, value] of Object.entries(h || {})) {
       // Only page counters. The same hash also holds section and chat events,
@@ -93,7 +93,7 @@ export async function readPages(days) {
 // Visits per continent across a span, in the dashboard's column order. Every
 // continent is present even at zero, so the bars do not reshuffle as traffic
 // arrives from somewhere new.
-export async function readContinents(days) {
+export async function readContinents(days: string[]) {
   const client = await getRedisClient();
   const hashes = days.length
     ? await Promise.all(days.map((day) => client.hGetAll(key(day)).catch(() => ({}))))
@@ -118,7 +118,7 @@ export async function readContinents(days) {
 // Visits per device across a span, as a SHARE of the three. Percentages rather
 // than counts, because the card asks which kind of machine people use, not how
 // many of them there were.
-export async function readDevices(days) {
+export async function readDevices(days: string[]) {
   const client = await getRedisClient();
   const hashes = days.length
     ? await Promise.all(days.map((day) => client.hGetAll(key(day)).catch(() => ({}))))

@@ -19,7 +19,7 @@ import { getRoom } from "@/lib/data/chat";
 // The person who opened the room, and nobody else — not their studio's admins,
 // not the studio's owner. A support conversation belongs to the two people
 // having it.
-export async function studioSide(roomId) {
+export async function studioSide(roomId: string) {
   const user = await currentUser();
   if (!user) return { status: 401, error: "unauthorized" };
   const room = await getRoom(roomId);
@@ -36,7 +36,7 @@ export async function studioSide(roomId) {
 // once for the route's gate and once again here. The route wrapper already
 // holds it, so this is now only what its name should always have meant: find
 // the room, or say it is not there.
-export async function nompanyRoom(roomId) {
+export async function nompanyRoom(roomId: string) {
   const room = await getRoom(roomId);
   if (!room) return { error: "not-found" };
   return { room };

@@ -40,7 +40,7 @@ export function currentVatRate() { return active().vatRate ?? COMPANY_DEFAULTS.v
 //
 // Falls back to an absolute date once something is a week old, at which point
 // "9d ago" has stopped being more useful than the date itself.
-const RELATIVE_STEPS = [
+const RELATIVE_STEPS: [number, number, string][] = [
   [60, 1, "s"],
   [3600, 60, "m"],
   [86400, 3600, "h"],
@@ -52,6 +52,9 @@ export function ago(value) {
   if (!Number.isFinite(then)) return "";
   const secs = Math.max(0, (Date.now() - then) / 1000);
   if (secs < 45) return "just now";
+  // The tuple type is named where it is declared, not inferred here: a mixed
+  // array of numbers and a string widens to `string | number` and the two
+  // arithmetic uses below stop being arithmetic.
   for (const [limit, div, unit] of RELATIVE_STEPS) {
     if (secs < limit) return `${Math.floor(secs / div)}${unit} ago`;
   }

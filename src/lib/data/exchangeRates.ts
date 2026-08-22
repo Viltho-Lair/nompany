@@ -73,7 +73,10 @@ async function fetchSnapshot() {
 // something is cached, the cache is returned marked stale; only a first-ever
 // fetch failure with nothing cached surfaces an error.
 export async function getExchangeSnapshot() {
-  const cached = await getJSON(FX.snapshot);
+  // WHAT ONE DAY'S TABLE LOOKS LIKE: every pair against USD, plus the API's own
+  // next-update stamp so freshness is the provider's answer rather than ours.
+  type Snapshot = { rates?: Record<string, number>; nextUpdateAt?: number; fetchedAt?: number };
+  const cached = await getJSON<Snapshot>(FX.snapshot);
   if (isFresh(cached)) return { ...cached, stale: false };
 
   // Someone else is already refetching (or a recent attempt failed and is still
@@ -91,11 +94,11 @@ export async function getExchangeSnapshot() {
     await release(FX.lock); // success frees the lock; failure leaves it to back off
     return { ...snap, stale: false };
   } catch (err) {
-    log.error("Exchange rate refresh failed:", err.message);
+    log.error("Exchange rate refresh failed:", { error: (err as Error).message });
     // Shorten nothing — the lock's remaining FAIL_BACKOFF_SEC is the backoff.
     return cached
-      ? { ...cached, stale: true, error: err.message }
-      : { base: BASE, rates: null, stale: true, error: err.message };
+      ? { ...cached, stale: true, error: (err as Error).message }
+      : { base: BASE, rates: null, stale: true, error: (err as Error).message };
   }
 }
 

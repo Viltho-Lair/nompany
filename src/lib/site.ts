@@ -12,8 +12,9 @@ export const CONTACT = {
   phone: "+966 53 068 8184",
   address: { en: "Riyadh, KSA", ar: "الرياض، المملكة العربية السعودية" },
   city: { en: "Riyadh", ar: "الرياض" },
-  // No public social links yet.
-  socials: [],
+  // No public social links yet. The element type is named anyway, so the SEO
+  // helper that maps over it does not have to guess at an empty array.
+  socials: [] as { href: string; label?: string }[],
 };
 
 // Short description used for structured data (JSON-LD).

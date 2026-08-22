@@ -58,7 +58,7 @@ function cleanLines(v) {
 export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0 };
 
 export async function getCatalogSettings() {
-  const stored = (await getJSON(REG.catalogSettings)) || {};
+  const stored = (await getJSON<{ yearlyDiscountPct?: unknown }>(REG.catalogSettings)) || {};
   return { ...DEFAULT_CATALOG_SETTINGS, ...stored, yearlyDiscountPct: pct(stored.yearlyDiscountPct) };
 }
 
@@ -173,7 +173,7 @@ export async function createCatalogItem(kind, body) {
   return row;
 }
 
-export async function updateCatalogItem(kind, id, body) {
+export async function updateCatalogItem(kind, id: string, body) {
   const spec = KINDS[kind];
   return editArr(spec.key, (rows) => {
     let updated = null;
@@ -187,7 +187,7 @@ export async function updateCatalogItem(kind, id, body) {
   });
 }
 
-export async function deleteCatalogItem(kind, id) {
+export async function deleteCatalogItem(kind, id: string) {
   const spec = KINDS[kind];
   const gone = await editArr(spec.key, (rows) => {
     const next = rows.filter((r) => r.id !== id);
@@ -196,8 +196,8 @@ export async function deleteCatalogItem(kind, id) {
   // A deleted service must not linger as a dangling id inside a tier.
   if (gone && kind === "services") {
     await editArr(REG.tiers, (rows) => ({
-      next: rows.map((t) => (t.serviceIds?.includes(id)
-        ? { ...t, serviceIds: t.serviceIds.filter((s) => s !== id), updatedAt: now() }
+      next: rows.map((t) => ((t.serviceIds as string[] | undefined)?.includes(id)
+        ? { ...t, serviceIds: (t.serviceIds as string[]).filter((s) => s !== id), updatedAt: now() }
         : t)),
     }));
   }

@@ -41,7 +41,7 @@ export async function putMedia({ buffer, contentType, filename, visibility = "pu
   return { id, url: `/api/media/${id}`, size: record.size };
 }
 
-export async function getMedia(id) {
+export async function getMedia(id: string) {
   if (!id || !/^[a-f0-9]{32}$/i.test(String(id))) return null;
   const client = await getRedisClient();
   const raw = await client.get(key(id));
@@ -50,13 +50,13 @@ export async function getMedia(id) {
   return { ...record, buffer: Buffer.from(record.data, "base64") };
 }
 
-export async function deleteMedia(id) {
+export async function deleteMedia(id: string) {
   const client = await getRedisClient();
   return (await client.del(key(id))) === 1;
 }
 
 // Time-limit a blob (used for short-lived exports/attachments).
-export async function expireMedia(id, seconds) {
+export async function expireMedia(id: string, seconds) {
   const client = await getRedisClient();
   return client.expire(key(id), seconds);
 }

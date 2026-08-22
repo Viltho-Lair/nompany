@@ -12,13 +12,13 @@ export function isPackageKey(k) { return PACKAGE_KEYS.includes(String(k || ""));
 export function planKeyOf(key) { return String(key || "").split("-")[0]; }
 
 // Only Micro is free; every other package requires payment.
-export function isFreePackage(key) {
+export function isFreePackage(key: string) {
   const plan = PLANS.find((p) => p.key === planKeyOf(key));
   return Boolean(plan?.free);
 }
 
 // Human label for a package key, e.g. "Small · 10–25" (with the band range).
-export function packageLabel(key, locale = "en") {
+export function packageLabel(key: string, locale = "en") {
   const [base, bandStr] = String(key || "").split("-");
   const plan = PLANS.find((p) => p.key === base);
   if (!plan) return "";

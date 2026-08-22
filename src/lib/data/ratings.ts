@@ -22,7 +22,7 @@ const clampStars = (v) => {
   return Number.isFinite(n) && n >= 1 && n <= 5 ? n : null;
 };
 
-export async function setRating(userId, stars) {
+export async function setRating(userId: string, stars) {
   const value = clampStars(stars);
   if (!userId || value === null) return { error: "stars" };
   const client = await getRedisClient();
@@ -50,7 +50,7 @@ export async function setRating(userId, stars) {
 
 // Closing the window without answering. Recorded so the prompt stops, but kept
 // distinct from a score so it cannot be mistaken for one.
-export async function declineRating(userId) {
+export async function declineRating(userId: string) {
   if (!userId) return { error: "user" };
   const client = await getRedisClient();
   await client.hSetNX(REG.ratings, String(userId), String(DECLINED));
@@ -59,7 +59,7 @@ export async function declineRating(userId) {
 
 // What this user has already said, or null if they have never been asked.
 // 0 means they declined — answered in the sense that matters here.
-export async function getRating(userId) {
+export async function getRating(userId: string) {
   if (!userId) return null;
   const client = await getRedisClient();
   const v = await client.hGet(REG.ratings, String(userId));

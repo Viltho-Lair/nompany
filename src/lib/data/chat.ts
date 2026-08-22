@@ -46,8 +46,39 @@ const MAX_MESSAGES = 1000;
 const now = () => new Date().toISOString();
 const trim = (v, max) => String(v ?? "").trim().slice(0, max);
 
-export async function getRoom(roomId) {
-  return roomId ? getJSON(CHAT.room(roomId)) : null;
+/**
+ * ONE MESSAGE IN A LIVE CHAT. `from` says which side sent it, and the room is
+ * the only place either is stored — a conversation is never kept.
+ */
+export type ChatMessage = { from: string; text: string; at: string };
+
+/**
+ * A LIVE CHAT ROOM, and it is deliberately owned by nobody: not studio data,
+ * not user data, never kept. It lives outside every ownership prefix so no
+ * cascade has to know about it and Redis' own TTL is the whole retention
+ * policy. Ending a chat leaves a short grace window so both sides can download
+ * the transcript, and then it is gone.
+ *
+ * `adminId` is claimed with SET NX, which is what makes "accept" first-wins:
+ * two people at nompany clicking at once, one gets the room.
+ */
+export type ChatRoom = {
+  id: string;
+  studioId: string;
+  studioName: string;
+  studioSlug: string;
+  userId: string;
+  userName: string;
+  status: string;
+  adminId: string;
+  adminLabel: string;
+  messages: ChatMessage[];
+  createdAt: string;
+  lastAt: string;
+};
+
+export async function getRoom(roomId: string) {
+  return roomId ? getJSON<ChatRoom>(CHAT.room(roomId)) : null;
 }
 
 // Open a room, or hand back the one this person already has open in this studio.
@@ -59,7 +90,7 @@ export async function openRoom({ studio, userId, userName }) {
   if (existing) return existing;
 
   const at = now();
-  const room = {
+  const room: ChatRoom = {
     id: ID.chatRoom(),
     studioId: studio.id,
     studioName: trim(studio.name, 160),
@@ -100,11 +131,11 @@ export async function openRoom({ studio, userId, userName }) {
 
 // Append a line. Atomic, and keepTTL so the countdown is not reset to "no
 // expiry" by the write itself — the deliberate re-arm follows it.
-export async function addMessage(roomId, from, text) {
+export async function addMessage(roomId: string, from, text) {
   const body = trim(text, MAX_TEXT);
   if (!body) return getRoom(roomId);
 
-  const updated = await editJSON(CHAT.room(roomId), (cur) => {
+  const updated = await editJSON<ChatRoom, ChatRoom | null>(CHAT.room(roomId), (cur) => {
     if (!cur || cur.status === ENDED) return { result: cur || null };
     const at = now();
     const messages = [...(cur.messages || []), { from: from === NOMPANY ? NOMPANY : STUDIO, text: body, at }]
@@ -133,7 +164,7 @@ export async function acceptRoom(roomId, { adminId, adminLabel }) {
     return { taken: true, room: current };
   }
 
-  const updated = await editJSON(CHAT.room(roomId), (cur) => {
+  const updated = await editJSON<ChatRoom, ChatRoom | null>(CHAT.room(roomId), (cur) => {
     if (!cur) return { result: null };
     const next = { ...cur, status: ACTIVE, adminId, adminLabel: trim(adminLabel, 160), lastAt: now() };
     return { next, result: next };
@@ -148,8 +179,8 @@ export async function acceptRoom(roomId, { adminId, adminLabel }) {
 // the grace window, so the transcript is still downloadable for a few minutes
 // and then expires on its own. It leaves the live set immediately, so neither
 // the console queue nor a stale poll shows a finished conversation.
-export async function endRoom(roomId) {
-  const updated = await editJSON(CHAT.room(roomId), (cur) => {
+export async function endRoom(roomId: string) {
+  const updated = await editJSON<ChatRoom, ChatRoom | null>(CHAT.room(roomId), (cur) => {
     if (!cur) return { result: null };
     if (cur.status === ENDED) return { result: cur };
     const next = { ...cur, status: ENDED, lastAt: now() };
@@ -167,7 +198,7 @@ export async function endRoom(roomId) {
 // index, and Redis' TTL, not this function, is what retires a room.
 export async function listRooms() {
   const ids = await sMembers(CHAT.live);
-  const rooms = [];
+  const rooms: ChatRoom[] = [];
   for (const id of ids) {
     const room = await getRoom(id);
     if (!room || room.status === ENDED) {
@@ -182,7 +213,7 @@ export async function listRooms() {
 // The room this person already has open in this studio, if any. Scoped to BOTH
 // ids: two people in one studio each get their own conversation, and one person
 // in two studios does too — the console has to be able to tell them apart.
-export async function findLiveRoom(studioId, userId) {
+export async function findLiveRoom(studioId: string, userId: string) {
   const rooms = await listRooms();
   return rooms.find((r) => r.studioId === studioId && r.userId === userId) || null;
 }

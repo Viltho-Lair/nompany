@@ -70,7 +70,7 @@ export const isStructure = (type) => byType(type)?.group === "Structure";
 export const hasOptions = (type) => Array.isArray(byType(type)?.defaults?.options);
 
 // A fresh element, ready to drop onto a page.
-export function newQuestion(type, id) {
+export function newQuestion(type, id: string) {
   const def = byType(type);
   if (!def) return null;
   return {

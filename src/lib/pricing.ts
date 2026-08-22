@@ -132,15 +132,18 @@ export function mostPopularPlanKey(companies) {
     if (!c || c.status === "canceled") continue;
     if (c.packageKey) counts[c.packageKey] = (counts[c.packageKey] || 0) + 1;
   }
-  let best = null, bestN = 0;
-  for (const [k, n] of Object.entries(counts)) if (n > bestN) { best = k; bestN = n; }
+  let best: string | null = null;
+  let bestN = 0;
+  for (const [k, n] of Object.entries(counts)) {
+    if (Number(n) > bestN) { best = k; bestN = Number(n); }
+  }
   return best;
 }
 
 // Compute the monthly plan total: (Core + selected departments) × tier multiplier.
 // `moduleKeys` are department keys (Core is always included). Returns SAR amounts
 // plus USD. Pure + client-safe, so the picker can show a live total.
-export function computePlan(moduleKeys = [], tierMult = 1) {
+export function computePlan(moduleKeys: string[] = [], tierMult: number = 1) {
   const keys = Array.isArray(moduleKeys) ? moduleKeys : [];
   const selected = DEPARTMENTS.filter((d) => keys.includes(d.key));
   const subtotal = CORE.sar + selected.reduce((sum, d) => sum + d.sar, 0);
@@ -221,7 +224,7 @@ export const PLANS = [
 ];
 
 // The per-employee SAR rate for a headcount (steps up across the plan's bands).
-export function rateForCount(plan, count) {
+export function rateForCount(plan, count: number) {
   if (!Array.isArray(plan.bands) || !plan.bands.length) return 0;
   const b = plan.bands.find((x) => count <= x.upTo) || plan.bands[plan.bands.length - 1];
   return b.rate;
@@ -229,7 +232,7 @@ export function rateForCount(plan, count) {
 
 // TOTAL monthly price (SAR) for a headcount in the chosen billing period
 // (yearly = 15% off) = count × per-employee rate.
-export function planTotal(plan, count, yearly) {
+export function planTotal(plan, count: number, yearly) {
   const total = rateForCount(plan, count) * count;
   return yearly ? total * (1 - YEARLY_DISCOUNT) : total;
 }

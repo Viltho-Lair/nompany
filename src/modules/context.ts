@@ -103,7 +103,7 @@ export function moduleContext(spec: ModuleSpec) {
   const { root, sub = {}, foreign = {}, flags = [], extend } = spec;
 
   return async function resolve(user: unknown, slug: string): Promise<ModuleContext | { error: string }> {
-    const context = await studioContext(user, slug);
+    const context = await studioContext(user as { id?: unknown }, slug);
     if (context.error) return context as { error: string };
 
     // `access` is resolved once, in studioContext. Forwarding it is what lets

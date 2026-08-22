@@ -71,7 +71,7 @@ export async function slugAvailability(rawSlug) {
 // actually matter to them rather than an arbitrary slice. Ties fall back to
 // alphabetical, which keeps the order stable for someone who has visited
 // nothing yet instead of letting it drift between requests.
-export async function studiosForUser(userId) {
+export async function studiosForUser(userId: string) {
   const [owned, collaborations, visits] = await Promise.all([
     getOwnedStudio(userId),
     listUserCollaborations(userId),
@@ -94,7 +94,7 @@ export async function studiosForUser(userId) {
 
   // We already hold the live set, so drop tallies for studios this person can no
   // longer reach. Fire-and-forget, and it only writes when something is stale.
-  const live = [...(owned ? [owned.id] : []), ...joined.map((s) => s.id)];
+  const live = [...(owned ? [String(owned.id)] : []), ...joined.map((s) => String(s.id))];
   if (Object.keys(visits).some((id) => !live.includes(id))) {
     pruneStudioVisits(userId, live).catch(() => {});
   }
@@ -109,7 +109,7 @@ export async function studiosForUser(userId) {
 // The address names the tenant; MEMBERSHIP authorises it. Returns
 // { studio, collaborator } only when this user actually belongs to that studio,
 // so a slug someone guessed reveals nothing.
-export async function studioContext(user, slug) {
+export async function studioContext(user: { id?: unknown } | null | undefined, slug: string) {
   if (!user) return { error: "unauthorized" };
   const studio = await getStudioBySlug(slug);
   if (!studio) return { error: "notfound" };
@@ -122,9 +122,9 @@ export async function studioContext(user, slug) {
   // a non-member gets the same answer, one wave sooner, and learns nothing extra
   // because nothing is returned to them either way.
   const [collaborator, roles, sections] = await Promise.all([
-    getCollaboratorByUser(studio.id, user.id),
-    listRoles(studio.id),
-    listSections(studio.id),
+    getCollaboratorByUser(String(studio.id), String(user.id)),
+    listRoles(String(studio.id)),
+    listSections(String(studio.id)),
   ]);
   if (!collaborator) return { error: "forbidden" };
 
@@ -203,15 +203,15 @@ export async function requestJoinByCode(user, code) {
   if (!studio) return { error: "notfound" };
   if (studio.ownerUserId === user.id) return { error: "own-studio" };
 
-  const existing = await getCollaboratorByUser(studio.id, user.id);
+  const existing = await getCollaboratorByUser(String(studio.id), String(user.id));
   if (existing) return { error: "already-member", studio: { name: studio.name, slug: studio.slug } };
 
-  const created = await createJoinRequest({ studioId: studio.id, userId: user.id });
+  const created = await createJoinRequest({ studioId: String(studio.id), userId: String(user.id) });
   if (created.error) return { error: created.error, studio: { name: studio.name, slug: studio.slug } };
   return { request: created.request, studio: { name: studio.name, slug: studio.slug } };
 }
 
-export async function listJoinRequests(studioId) {
+export async function listJoinRequests(studioId: string) {
   return listPendingForStudio(studioId);
 }
 
@@ -272,7 +272,7 @@ export async function approveJoinRequest({ studio, actingCollaborator, actorAcce
   // without confirming to a stranger that the studio exists.
   await notifyCollaborators(
     studio.id,
-    [added.collaborator.id],
+    [String(added.collaborator?.id || "")],
     {
       type: NOTIFY.joinDecided,
       title: `You are in ${studio.name}`,

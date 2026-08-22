@@ -34,6 +34,6 @@ export function departmentsFromSections(sections) {
 // a section that has since been switched off keeps the value on their row —
 // deleting it would be this module deciding to lose data — but the screens read
 // it back through here and say "not placed" rather than printing a bare key.
-export function departmentName(departments, id) {
+export function departmentName(departments, id: string) {
   return (departments || []).find((d) => d.id === id)?.name || "";
 }

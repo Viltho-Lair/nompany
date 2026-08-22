@@ -69,13 +69,16 @@ const PREAMBLE = `:${" ".repeat(2048)}\n\n`;
  * }) => (void | (() => void) | Promise<void | (() => void)>)} start
  */
 export function sseResponse(request, start) {
-  let controller = null;
   let closed = false;
-  let cleanup = null;
-  let heartbeat = null;
-  let lifetime = null;
+  // THE CONTROLLER ARRIVES LATER — ReadableStream hands it to `start`, which
+  // runs after this closure is built. Everything here has to be declared before
+  // it exists, which is why each is nullable rather than inferred.
+  let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
+  let cleanup: (() => void) | null = null;
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let lifetime: ReturnType<typeof setTimeout> | null = null;
 
-  const write = (chunk) => {
+  const write = (chunk: string) => {
     if (closed || !controller) return;
     try {
       controller.enqueue(ENCODER.encode(chunk));
@@ -89,8 +92,8 @@ export function sseResponse(request, start) {
   function shutdown() {
     if (closed) return;
     closed = true;
-    clearInterval(heartbeat);
-    clearTimeout(lifetime);
+    if (heartbeat) clearInterval(heartbeat);
+    if (lifetime) clearTimeout(lifetime);
     try {
       // Cleanup is typically async (releasing a bus subscription). We do not
       // wait for it — the response is over either way — but an ignored
@@ -99,7 +102,7 @@ export function sseResponse(request, start) {
         log.error(`[sse] cleanup failed: ${e.message}`),
       );
     } catch (e) {
-      log.error(`[sse] cleanup failed: ${e.message}`);
+      log.error(`[sse] cleanup failed: ${(e as Error).message}`);
     }
     try {
       controller?.close();
@@ -113,7 +116,7 @@ export function sseResponse(request, start) {
     // becomes the client's Last-Event-ID, which is what lets a reconnect resume
     // exactly where it left off — so it must be the real log cursor, never a
     // made-up counter.
-    send(event, data, id) {
+    send(event: string, data: unknown, id?: string) {
       let frame = "";
       if (id) frame += `id: ${id}\n`;
       if (event) frame += `event: ${event}\n`;

@@ -21,13 +21,15 @@ export async function listQuestionnaires() {
   return readArr(REG.questionnaires);
 }
 
-export async function getQuestionnaireById(id) {
+export async function getQuestionnaireById(id: string) {
   return (await readArr(REG.questionnaires)).find((q) => q.id === id) || null;
 }
 
 // `route` is the path this questionnaire is asked for at — the link between a
 // definition here and the screen that renders it. Blank until it is wired up.
-export async function createQuestionnaireDef({ name, route = "", createdBy = "" } = {}) {
+export async function createQuestionnaireDef(
+  { name, route = "", createdBy = "" }: { name?: string; route?: string; createdBy?: string } = {},
+) {
   const row = {
     id: ID.questionnaire(),
     name: str(name, 120) || "New questionnaire",
@@ -47,21 +49,21 @@ export async function createQuestionnaireDef({ name, route = "", createdBy = "" 
 // Only these may be written from a request; id, counters and createdAt are ours.
 const WRITABLE = ["name", "route", "status", "pages"];
 
-export async function updateQuestionnaireDef(id, patch) {
+export async function updateQuestionnaireDef(id: string, patch) {
   return editArr(REG.questionnaires, (rows) => {
-    let updated = null;
+    let updated: Record<string, unknown> | null = null;
     const next = rows.map((q) => {
       if (q.id !== id) return q;
-      const safe = {};
+      const safe: Record<string, unknown> = {};
       for (const k of WRITABLE) if (k in (patch || {})) safe[k] = patch[k];
-      updated = { ...q, ...safe, id: q.id, createdAt: q.createdAt, updatedAt: now() };
+      updated = { ...q, ...safe, id: q.id, createdAt: q.createdAt, updatedAt: now() } as Record<string, unknown>;
       return updated;
     });
     return updated ? { next, result: updated } : { result: null };
   });
 }
 
-export async function deleteQuestionnaireDef(id) {
+export async function deleteQuestionnaireDef(id: string) {
   return editArr(REG.questionnaires, (rows) => {
     const next = rows.filter((q) => q.id !== id);
     return { next, result: next.length !== rows.length };
@@ -70,7 +72,7 @@ export async function deleteQuestionnaireDef(id) {
 
 // Copying a form is how most second forms get made, so it is a first-class
 // operation rather than something to rebuild by hand.
-export async function duplicateQuestionnaireDef(id, createdBy = "") {
+export async function duplicateQuestionnaireDef(id: string, createdBy = "") {
   const source = await getQuestionnaireById(id);
   if (!source) return null;
   const copy = {

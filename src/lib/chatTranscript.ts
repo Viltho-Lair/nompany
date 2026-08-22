@@ -15,8 +15,10 @@
 import { NOMPANY, SUPPORT_LABEL } from "@/lib/chatConstants";
 
 const MARGIN = 40;
-const INK = [24, 30, 44];
-const BRAND = [70, 128, 255];
+// TUPLES, not arrays: jsPDF's setTextColor takes three numbers, and only a
+// tuple type carries the length through a spread.
+const INK: [number, number, number] = [24, 30, 44];
+const BRAND: [number, number, number] = [70, 128, 255];
 
 // The mark, as a data URI. Optional in every sense: a transcript without a logo
 // is still a transcript, so every failure path here just returns null.
@@ -69,7 +71,7 @@ export async function downloadTranscript(chat) {
 
   const logo = await logoDataUrl();
   if (logo) {
-    try { doc.addImage(logo, "PNG", MARGIN, y - 26, 120, 34); } catch { /* header just goes without it */ }
+    try { doc.addImage(String(logo), "PNG", MARGIN, y - 26, 120, 34); } catch { /* header just goes without it */ }
   }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
