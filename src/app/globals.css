@@ -371,23 +371,73 @@
   .skel::after { display: none; }
 }
 
-/* Studio "Control Panel" surface tokens (Geex design system), scoped to the
-   Studio only via the studio-chrome class so the public site is untouched.
-   Light = airy lavender-white; Dark = neutral charcoal (not navy). Components
-   reference these via bg-[var(--geex-*)] so both themes are defined once. */
+/* ==========================================================================
+   THE STUDIO TOKEN ARCHITECTURE — two layers, one direction.
+
+   PRIMITIVES are the raw palette: the design's atoms, named by what they ARE
+   (a slate, a charcoal), theme-agnostic, referenced by nothing but the
+   semantics below. SEMANTICS are roles, named by what they DO (a surface, a
+   line, ink), referenced by every component. A component reads ONLY a semantic
+   (`bg-[var(--geex-surface)]`, `text-[var(--geex-ink)]`); it never reaches past
+   it to a primitive or a bare hex.
+
+   To retheme, remap a SEMANTIC to a different primitive — never edit a
+   primitive, and never point a component at one. That single rule is the whole
+   reason the layer exists: dark mode is just the semantics choosing different
+   atoms (see the `.dark` block), so a new theme is a new semantics block and
+   the primitives and the components both stay put.
+   ========================================================================== */
+
+/* PRIMITIVES — theme-agnostic atoms. Nothing above this line is a bare hex a
+   component reads; nothing below it is referenced outside the semantics. */
+:root {
+  --p-white: #ffffff;
+  --p-slate-50: #f8fafc;
+  --p-slate-100: #f1f5f9;
+  --p-slate-200: #e2e8f0;
+  --p-slate-300: #cbd5e1;
+  --p-slate-400: #94a3b8;
+  --p-slate-500: #64748b;
+  --p-slate-600: #475569;
+  --p-slate-700: #334155;
+  --p-slate-900: #0f172a;
+  --p-lavender: #f4f5fa;      /* the light app page */
+  --p-mist: #eef0f7;          /* a light secondary surface */
+  --p-charcoal: #20202c;      /* dark card */
+  --p-charcoal-2: #191921;    /* dark inset / panel */
+  --p-charcoal-3: #141420;    /* dark page */
+  --p-hairline-light: rgba(20, 30, 72, 0.08);
+  --p-hairline-dark: rgba(255, 255, 255, 0.07);
+}
+
+/* SEMANTICS — the studio's roles, scoped to `.studio-chrome` so the public site
+   keeps its own. Light defaults here; the `.dark` block remaps each role to a
+   different primitive. The surface/line tokens are the ones components already
+   use; the ink/muted/faint text roles are new and map the studio's dominant
+   text colours, so a screen can move off `text-slate-900 dark:text-white` onto
+   one name that carries both themes. */
 html.studio-chrome {
-  --geex-page: #f4f5fa;
-  --geex-surface: #ffffff;
-  --geex-surface-2: #eef0f7;
-  --geex-inset: #f8fafc;
-  --geex-border: rgba(20, 30, 72, 0.08);
+  /* surfaces */
+  --geex-page: var(--p-lavender);
+  --geex-surface: var(--p-white);
+  --geex-surface-2: var(--p-mist);
+  --geex-inset: var(--p-slate-50);
+  /* lines */
+  --geex-border: var(--p-hairline-light);
+  /* text */
+  --geex-ink: var(--p-slate-900);
+  --geex-muted: var(--p-slate-600);
+  --geex-faint: var(--p-slate-400);
 }
 html.studio-chrome.dark {
-  --geex-page: #141420;
-  --geex-surface: #20202c;
-  --geex-surface-2: #191921;
-  --geex-inset: #191921;
-  --geex-border: rgba(255, 255, 255, 0.07);
+  --geex-page: var(--p-charcoal-3);
+  --geex-surface: var(--p-charcoal);
+  --geex-surface-2: var(--p-charcoal-2);
+  --geex-inset: var(--p-charcoal-2);
+  --geex-border: var(--p-hairline-dark);
+  --geex-ink: var(--p-white);
+  --geex-muted: var(--p-slate-300);
+  --geex-faint: var(--p-slate-500);
 }
 
 /* Studio typeface (see DESIGN.md): Cabin for all Latin/English Studio text,
