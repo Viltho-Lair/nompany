@@ -1,16 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import useLiveRows from "@/components/studio2/useLiveRows";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
+import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import Combo from "@/components/studio2/Combo";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
-  panel, h2, sub, input, microLabel, label, btn, btnGhost, btnAmber, th, stripeOn, stripeOff,
+  panel, h2, sub, input, microLabel, label, btn, btnGhost, btnAmber, th,
   URGENCY_BADGE, URGENCY_TONE, money, fmtDate, prefKey, loadPref, savePref,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
@@ -52,6 +54,17 @@ const COUNTRY_NAMES = COUNTRIES.map((c) => c.name);
 const codeOfCountry = (name) => COUNTRIES.find((c) => c.name === name)?.code || "";
 
 const DEFAULT_TICKET_COLUMNS = ["ref", "title", "client", "status", "owner", "deadline", "rfq"];
+
+// The tickets list is a Data Grid now — the toggleable column SET is still the
+// user's (built into the grid's `columns` from the same TICKET_COLUMNS keys and
+// the same saved preference), but sorting and client-side paging come from the
+// grid. Loaded in its own async chunk (never folded into Sales' initial bundle)
+// — see StudioDataGrid's header. The skeleton reserves the box for the default
+// column count plus the always-drawn Open action while that chunk arrives.
+const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioDataGrid"), {
+  ssr: false,
+  loading: () => <StudioDataGridSkeleton columns={8} pageSize={10} ariaLabel="Loading tickets" />,
+});
 const EMPTY_FILTERS = {
   client: "", status: "", urgency: "",
   probMin: "", probMax: "",
@@ -69,7 +82,9 @@ const EMPTY_FILTERS = {
 // sales-live renders full-screen outside the studio frame (see StudioSalesLive).
 export default function StudioSales({ slug, view = "sales" }) {
   const [data, setData] = useState(null);
-  const focusTicket = useFocusedRecord("ticket");
+  // The tickets list is a paginated Data Grid now, which can't scroll to a row
+  // that may sit on another page — so the ticket deep-link's scroll-and-ring
+  // (useFocusedRecord("ticket")) is gone. Clients still use theirs.
   const focusClient = useFocusedRecord("client");
   const level = useAnalyticsLevel();
   const [error, setError] = useState("");
@@ -210,7 +225,7 @@ export default function StudioSales({ slug, view = "sales" }) {
               onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
           </Dialog>
         )}
-        <Tickets tickets={tickets} people={people} canManage={canManageTickets} slug={slug} nav={nav} focus={focusTicket}
+        <Tickets tickets={tickets} people={people} canManage={canManageTickets} slug={slug} nav={nav}
           hasTechnical={hasTechnical} statuses={vocabulary.statuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setEditing({ kind: "ticket", row: null })}
           onEdit={(row) => setEditing({ kind: "ticket", row })}
@@ -319,7 +334,7 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
 // Submit PO — happens on the ticket's own page, where the three sit together
 // in the order they happen, rather than one of them being smuggled into a
 // column of a table whose rows are links.
-function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, statuses, urgencies, onAdd, onEdit }) {
+function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses, urgencies, onAdd, onEdit }) {
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -378,6 +393,85 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
       return true;
     });
   }, [tickets, query, filters]);
+
+  // Augment each row with the values the grid sorts and renders on: the owner's
+  // ALIAS (so the Owner column sorts by name, not by CollaboratorID), the RFQ
+  // status object rfqInfo derives, and whether the ticket is still unresolved —
+  // the amber start-edge stripe. Computed once here rather than per cell.
+  const gridRows = useMemo(() => filtered.map((t) => ({
+    ...t,
+    ownerName: aliasOf[t.assignedToCollaboratorId] || "Unassigned",
+    _rfq: rfqInfo(t, aliasOf),
+    _unresolved: hasTechnical && isUnresolved(t),
+  })), [filtered, aliasOf, hasTechnical]);
+
+  // One column def per TICKET_COLUMNS key. The grid shows only the keys the
+  // user has turned on (via `col`), in the fixed TICKET_COLUMNS order, then the
+  // always-drawn Open action — which is what carries KEYBOARD navigation to the
+  // ticket's own page now that the row is no longer a semantic link. `value` and
+  // `probability` keep number-typed sorting but their original left alignment.
+  const openTicket = (id) => window.location.assign(`/${slug}/sales-tickets/${id}`);
+  const colDefs = useMemo(() => ({
+    createdAt: { field: "createdAt", headerName: "Created", minWidth: 120, flex: 0.8,
+      renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.createdAt)}</span> },
+    ref: { field: "ref", headerName: "Ref", minWidth: 110, flex: 0.7,
+      renderCell: ({ row }) => <span className="num text-xs text-slate-500 dark:text-slate-400">{row.ref}</span> },
+    title: { field: "title", headerName: "Title", minWidth: 180, flex: 1.4,
+      renderCell: ({ row }) => (
+        <span className="min-w-0">
+          <span className="font-600 text-slate-900 dark:text-white">{row.title}</span>
+          {row.urgency && row.urgency !== "Normal" && (
+            <span className={`ms-2 text-xs font-600 ${URGENCY_TONE[row.urgency] || "text-slate-400"}`}>{row.urgency}</span>
+          )}
+        </span>
+      ) },
+    client: { field: "clientName", headerName: "Client", minWidth: 140, flex: 1,
+      renderCell: ({ row }) => (row.clientName
+        ? <RecordLink href={linkToClient(slug, row.clientId)} mono={false} title={`Open ${row.clientName}`}>{row.clientName}</RecordLink>
+        : <span className="text-slate-400">—</span>) },
+    owner: { field: "ownerName", headerName: "Owner", minWidth: 120, flex: 0.9,
+      renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.ownerName}</span> },
+    value: { field: "value", headerName: "Value Quoted", type: "number", minWidth: 130, flex: 0.9,
+      align: "left", headerAlign: "left",
+      renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.value)}</span> },
+    deadline: { field: "deadline", headerName: "Deadline", minWidth: 120, flex: 0.8,
+      renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{fmtDate(row.deadline)}</span> },
+    status: { field: "status", headerName: "Status", minWidth: 120, flex: 0.7,
+      renderCell: ({ row }) => <StatusPill kind="sales" status={row.status} /> },
+    urgency: { field: "urgency", headerName: "Urgency", minWidth: 110, flex: 0.7,
+      renderCell: ({ row }) => <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[row.urgency] || URGENCY_BADGE.Normal}`}>{row.urgency || "Normal"}</span> },
+    // WHERE THE TICKET STANDS, and only that — Request RFQ lives on the ticket's
+    // own page, not smuggled into a column of a row that is itself a link. Sort
+    // is off: it reports a derived status, not a value worth ordering by.
+    rfq: { field: "rfq", headerName: "RFQ", minWidth: 140, flex: 1, sortable: false,
+      renderCell: ({ row }) => (
+        <span className="min-w-0">
+          {row._rfq.requested
+            ? <span className={`block text-xs font-600 ${row._rfq.tone}`}>{row._rfq.text}</span>
+            : <span className="text-slate-400">—</span>}
+          {row.rfqCount > 1 && <span className="block text-[11px] text-slate-400">{row.rfqCount} raised</span>}
+        </span>
+      ) },
+    probability: { field: "probability", headerName: "Prob.", type: "number", minWidth: 90, flex: 0.5,
+      align: "left", headerAlign: "left",
+      renderCell: ({ row }) => <span className="num font-600 text-slate-700 dark:text-slate-200">{Number(row.probability ?? 0)}%</span> },
+    updatedAt: { field: "updatedAt", headerName: "Updated", minWidth: 120, flex: 0.8,
+      renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.updatedAt || row.createdAt)}</span> },
+  }), [slug]);
+
+  const gridColumns = useMemo(() => [
+    ...TICKET_COLUMNS.filter((c) => col(c.key)).map((c) => colDefs[c.key]),
+    {
+      field: "_open", headerName: "", minWidth: 80, flex: 0.4, sortable: false,
+      align: "right", headerAlign: "right",
+      renderCell: ({ row }) => (
+        <button type="button" className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"
+          onClick={(e) => { e.stopPropagation(); openTicket(row.id); }}>
+          Open
+        </button>
+      ),
+    },
+  ], [colDefs, columns, hasTechnical]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // No "add a client first" gate: naming an unknown client on the ticket form
   // creates it, exactly as the Old System does.
@@ -459,97 +553,35 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
       <p className="text-sm text-slate-500 dark:text-slate-400">{filtered.length} of {tickets.length} ticket{tickets.length === 1 ? "" : "s"}.</p>
 
       <section className={panel}>
-        {filtered.length === 0 ? (
-          <p className="py-10 text-center text-sm text-slate-400">No tickets match those filters.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-start dark:border-white/10">
-                  {/* ps-2 matches the body cells, which are pushed in by the
-                      4px status stripe down the start edge of every row. */}
-                  {TICKET_COLUMNS.filter((c) => col(c.key)).map((c) => (
-                    <th key={c.key} className={`${th} ps-2 text-start`}>{c.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((t) => {
-                  const rfq = rfqInfo(t, aliasOf);
-                  // The SAME rule the ticket's own page and the endpoint obey:
-                  // one outstanding RFQ at a time, and only while the ticket is
-                  // still pre-approval. A ticket whose quotation came back may
-                  // be sent over again from right here.
-                  // A ticket still waiting to be handed to Technical gets an
-                  // amber stripe down its start edge, so what needs doing is
-                  // visible without reading the RFQ column on every row.
-                  const unresolved = hasTechnical && isUnresolved(t);
-                  return (
-                    <tr key={t.id} {...focus.focusProps(t.id)}
-                      onClick={() => { window.location.assign(`/${slug}/sales-tickets/${t.id}`); }}
-                      tabIndex={0}
-                      role="link"
-                      aria-label={`Open ${t.ref}`}
-                      onKeyDown={(e) => { if (e.key === "Enter") window.location.assign(`/${slug}/sales-tickets/${t.id}`); }}
-                      className={`cursor-pointer border-s-4 border-b border-slate-100 last:border-b-0 dark:border-white/5 ${
-                        unresolved ? stripeOn : stripeOff
-                      } ${focus.focusProps(t.id).className || ""}`}>
-                      {col("createdAt") && <td className="py-3 pe-3 ps-2 text-slate-500 dark:text-slate-400">{fmtDate(t.createdAt)}</td>}
-                      {col("ref") && <td className="py-3 pe-3 ps-2 font-mono text-xs text-slate-500 dark:text-slate-400">{t.ref}</td>}
-                      {col("title") && (
-                        <td className="py-3 pe-3 ps-2">
-                          <span className="font-600 text-slate-900 dark:text-white">{t.title}</span>
-                          {t.urgency && t.urgency !== "Normal" && (
-                            <span className={`ms-2 text-xs font-600 ${URGENCY_TONE[t.urgency] || "text-slate-400"}`}>{t.urgency}</span>
-                          )}
-                        </td>
-                      )}
-                      {col("client") && (
-                        <td className="py-3 pe-3 ps-2">
-                          {t.clientName
-                            ? <RecordLink href={linkToClient(slug, t.clientId)} mono={false} title={`Open ${t.clientName}`}>{t.clientName}</RecordLink>
-                            : <span className="text-slate-400">—</span>}
-                        </td>
-                      )}
-                      {col("owner") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{aliasOf[t.assignedToCollaboratorId] || "Unassigned"}</td>}
-                      {col("value") && <td className="py-3 pe-3 ps-2 tabular-nums text-slate-600 dark:text-slate-300">{money(t.value)}</td>}
-                      {col("deadline") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{fmtDate(t.deadline)}</td>}
-                      {col("status") && (
-                        <td className="py-3 pe-3 ps-2">
-                          <StatusPill kind="sales" status={t.status} />
-                        </td>
-                      )}
-                      {col("urgency") && (
-                        <td className="py-3 pe-3 ps-2">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[t.urgency] || URGENCY_BADGE.Normal}`}>{t.urgency || "Normal"}</span>
-                        </td>
-                      )}
-                      {col("rfq") && (
-                        <td className="py-3 pe-3 ps-2">
-                          {/* WHERE THE TICKET STANDS, and only that. Request
-                              RFQ used to sit here too, which made a COLUMN into
-                              a control: a button inside a row that is itself a
-                              link, needing stopPropagation to stop the page
-                              navigating away mid-request. The ticket's own page
-                              is where the ticket is acted on — Request RFQ,
-                              Send for Approval and Submit PO are all there,
-                              together, in the order they happen. This column
-                              reports. */}
-                          {rfq.requested
-                            ? <div className={`text-xs font-600 ${rfq.tone}`}>{rfq.text}</div>
-                            : <span className="text-slate-400">—</span>}
-                          {t.rfqCount > 1 && <div className="text-[11px] text-slate-400">{t.rfqCount} raised</div>}
-                        </td>
-                      )}
-                      {col("probability") && <td className="py-3 pe-3 ps-2 font-600 tabular-nums text-slate-700 dark:text-slate-200">{Number(t.probability ?? 0)}%</td>}
-                      {col("updatedAt") && <td className="py-3 pe-3 ps-2 text-slate-500 dark:text-slate-400">{fmtDate(t.updatedAt || t.createdAt)}</td>}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* A Data Grid now — sortable columns, client-side paging, the same
+            user-chosen column SET as before (built from TICKET_COLUMNS and the
+            saved preference via `col`). Every cell reproduces the hand-rolled
+            table it replaced: the mono ref, the title with its inline urgency
+            tone, the client RecordLink, the owner alias, the value tabular via
+            `.num`, deadlines through fmtDate, the shared StatusPill, the urgency
+            badge, the RFQ status, probability, and the always-drawn Open action
+            that navigates to the ticket's own page. A ticket still waiting to be
+            handed to Technical keeps its amber start-edge stripe — an inset
+            box-shadow (no layout cost) reading --sg-flag so it flips in dark
+            mode. The whole row still opens the ticket (onRowClick). The list only
+            REPORTS: acting on a ticket happens on its page, not in a column.
+            The deep-link focus scroll-and-ring is the one thing not carried over
+            — client paging can't scroll to a row that may sit on another page. */}
+        <StudioDataGrid
+          rows={gridRows}
+          columns={gridColumns}
+          getRowId={(r) => r.id}
+          ariaLabel="Tickets"
+          emptyLabel="No tickets match those filters."
+          emptyIcon="ticket"
+          className="[--sg-flag:251_191_36] dark:[--sg-flag:245_158_11]"
+          onRowClick={(params) => openTicket(params.id)}
+          getRowClassName={({ row }) => (row._unresolved ? "sg-flag" : "")}
+          sx={{
+            "& .MuiDataGrid-row": { cursor: "pointer" },
+            "& .MuiDataGrid-row.sg-flag": { boxShadow: "inset 4px 0 0 rgb(var(--sg-flag))" },
+          }}
+        />
       </section>
     </>
   );

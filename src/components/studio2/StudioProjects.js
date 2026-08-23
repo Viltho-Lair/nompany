@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
-import { Icon } from "@/components/studio2/icons";
+import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import ProjectsDashboard from "@/components/studio2/ProjectsDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
@@ -37,18 +38,15 @@ function SupportTag({ project }) {
   return <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-600 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">Support ended</span>;
 }
 
-function SortHeader({ col, sort, onSort }) {
-  const active = sort.key === col.key;
-  return (
-    <th className={`${th} ps-2 text-start`}>
-      <button type="button" onClick={() => onSort(col.key)}
-        className={`inline-flex items-center gap-1 transition-colors hover:text-brand-700 dark:hover:text-brand-300 ${active ? "text-brand-700 dark:text-brand-300" : ""}`}>
-        {col.label}
-        <Icon name={active && sort.dir === "asc" ? "chevronUp" : "chevronDown"} className={`h-3 w-3 ${active ? "" : "opacity-30"}`} />
-      </button>
-    </th>
-  );
-}
+// The project list is a Data Grid now — sortable columns and client-side paging
+// come from the grid itself, so the hand-rolled SortHeader it replaced is gone.
+// Loaded in its own async chunk (never folded into Projects' initial bundle) —
+// see StudioDataGrid's header. The skeleton reserves the exact box for nine
+// columns while that chunk arrives.
+const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioDataGrid"), {
+  ssr: false,
+  loading: () => <StudioDataGridSkeleton columns={9} pageSize={10} ariaLabel="Loading projects" />,
+});
 
 // `view` is the ACTIVE SUB-SECTION key, so each sub-section is its own screen:
 //   projects            -> the dashboard: the board, the counts, the next visits
@@ -174,23 +172,12 @@ export default function StudioProjects({ slug, view = "projects" }) {
 }
 
 // ---- project list ----------------------------------------------------------
-const LIST_COLUMNS = [
-  { key: "number", label: "Number" },
-  { key: "title", label: "Title" },
-  { key: "clientName", label: "Client" },
-  { key: "location", label: "Location" },
-  { key: "stage", label: "Stage" },
-  { key: "value", label: "Value" },
-  { key: "progress", label: "Progress" },
-  { key: "endDate", label: "Target end" },
-];
 
 function ProjectList({ projects, approvedQuotations, people, stages, canManage, slug, nav, focus, onOpen, onSave, onDelete }) {
   const router = useRouter();
   const [opening, setOpening] = useState(false);
   const [detail, setDetail] = useState(null);
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState({ key: "", dir: "asc" });
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
   const closeOpen = useCallback(() => setOpening(false), []);
   const closeDetail = useCallback(() => setDetail(null), []);
@@ -206,23 +193,16 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
     setDetail((cur) => (cur ? projects.find((p) => p.id === cur.id) || null : null));
   }, [projects]);
 
-  const toggleSort = (key) => setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
-
+  // Search only — sorting is the Data Grid's now, so the hand-rolled comparator
+  // this useMemo used to carry (numeric for value/progress, string otherwise) is
+  // gone: the grid sorts each column by its `field`, with `type: "number"` on the
+  // two figures so they sort by magnitude rather than lexically.
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const found = q
+    return q
       ? projects.filter((p) => `${p.title || ""} ${p.number || ""} ${p.clientName || ""} ${p.location || ""}`.toLowerCase().includes(q))
       : projects;
-    if (!sort.key) return found;
-    const factor = sort.dir === "asc" ? 1 : -1;
-    const val = (r) => (sort.key === "value" || sort.key === "progress" ? Number(r[sort.key]) || 0 : String(r[sort.key] || "").toLowerCase());
-    return [...found].sort((a, b) => {
-      const av = val(a), bv = val(b);
-      if (av < bv) return -factor;
-      if (av > bv) return factor;
-      return 0;
-    });
-  }, [projects, query, sort]);
+  }, [projects, query]);
 
   return (
     <>
@@ -262,64 +242,88 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
         <>
           <p className="text-sm text-slate-500 dark:text-slate-400">{rows.length} of {projects.length} project{projects.length === 1 ? "" : "s"}.</p>
           <section className={panel}>
-            {rows.length === 0 ? (
-              <p className="py-10 text-center text-sm text-slate-400">No projects match that search.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[820px] border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-white/10">
-                      {LIST_COLUMNS.map((c) => (<SortHeader key={c.key} col={c} sort={sort} onSort={toggleSort} />))}
-                      <th className={`${th} text-end`} />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((p) => {
-                      // A project sitting at Received is one nobody has started.
-                      const unstarted = (p.stage || "Received") === "Received";
-                      return (
-                        <tr key={p.id} {...focus.focusProps(p.id)}
-                          className={`cursor-pointer border-s-4 border-b border-slate-100 last:border-b-0 hover:bg-brand-500/5 dark:border-white/5 ${
-                            unstarted ? stripeOn : stripeOff
-                          } ${focus.focusProps(p.id).className || ""}`}
-                          role="button" tabIndex={0}
-                          /* THE ROW OPENS THE PROJECT'S OWN PAGE, the way a
-                             ticket row does. It used to open a dialog, which is
-                             the wrong shape for a record that has a lineage, a
-                             quotation, sheets and a team hanging off it — none
-                             of that fits in a panel over the list. */
-                          onClick={() => router.push(`/${slug}/projects-list/${p.id}`)}
-                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/${slug}/projects-list/${p.id}`); } }}>
-                          <td className="py-3 pe-3 ps-2 font-mono text-xs text-slate-500 dark:text-slate-400">
-                            {/* Blank until Finance issues one against the PO. */}
-                            {p.number || <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">no number yet</span>}
-                          </td>
-                          <td className="py-3 pe-3 ps-2 font-600 text-slate-900 dark:text-white">{p.title}</td>
-                          <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{p.clientName || "—"}</td>
-                          <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{p.location || "—"}</td>
-                          <td className="py-3 pe-3 ps-2">
-                            <StatusPill kind="project" status={p.stage} />
-                          </td>
-                          <td className="py-3 pe-3 ps-2 tabular-nums text-slate-600 dark:text-slate-300">{money(p.value)}</td>
-                          <td className="py-3 pe-3 ps-2">
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-                                <div className="h-full rounded-full bg-brand-600" style={{ width: `${p.progress}%` }} />
-                              </div>
-                              <span className="tabular-nums text-xs text-slate-500 dark:text-slate-400">{p.progress}%</span>
-                            </div>
-                          </td>
-                          <td className="py-3 pe-3 ps-2 text-slate-500 dark:text-slate-400">{fmtDate(p.endDate)}</td>
-                          <td className="py-3 text-end">
-                            <span className="text-xs font-600 text-brand-700 dark:text-brand-300">Open</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {/* A Data Grid now — sortable columns, client-side paging — reproducing
+                the list column for column: the mono number (or the amber "no
+                number yet" badge until Finance issues one), title, client,
+                location, the shared StatusPill for the stage, value tabular via
+                tabular-nums, the same progress bar, the target-end date through
+                fmtDate, and an Open action that pushes the project's own page.
+                The whole row still opens that page too (onRowClick), the way it
+                did before. A project nobody has started (stage Received) keeps its
+                amber start-edge stripe — drawn as an inset box-shadow via
+                getRowClassName so it costs no layout, reading the --sg-flag colour
+                set on the wrapper so it flips in dark mode. The deep-link focus
+                still opens the detail dialog (the useEffect above); only the row's
+                brief scroll-and-ring, which client paging can't target across
+                pages, is not carried over. No column and no behaviour else is. */}
+            <StudioDataGrid
+              rows={rows}
+              getRowId={(r) => r.id}
+              ariaLabel="Projects"
+              emptyLabel="No projects match that search."
+              emptyIcon="briefcase"
+              className="[--sg-flag:251_191_36] dark:[--sg-flag:245_158_11]"
+              onRowClick={(params) => router.push(`/${slug}/projects-list/${params.id}`)}
+              getRowClassName={({ row }) => ((row.stage || "Received") === "Received" ? "sg-flag" : "")}
+              sx={{
+                "& .MuiDataGrid-row": { cursor: "pointer" },
+                "& .MuiDataGrid-row.sg-flag": { boxShadow: "inset 4px 0 0 rgb(var(--sg-flag))" },
+              }}
+              columns={[
+                {
+                  field: "number", headerName: "Number", minWidth: 120, flex: 0.7,
+                  renderCell: ({ row }) => (row.number
+                    ? <span className="num text-xs text-slate-500 dark:text-slate-400">{row.number}</span>
+                    : <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">no number yet</span>),
+                },
+                {
+                  field: "title", headerName: "Title", minWidth: 180, flex: 1.3,
+                  renderCell: ({ row }) => <span className="font-600 text-slate-900 dark:text-white">{row.title}</span>,
+                },
+                {
+                  field: "clientName", headerName: "Client", minWidth: 140, flex: 1,
+                  renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.clientName || "—"}</span>,
+                },
+                {
+                  field: "location", headerName: "Location", minWidth: 120, flex: 0.8,
+                  renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.location || "—"}</span>,
+                },
+                {
+                  field: "stage", headerName: "Stage", minWidth: 120, flex: 0.7,
+                  renderCell: ({ row }) => <StatusPill kind="project" status={row.stage} />,
+                },
+                {
+                  field: "value", headerName: "Value", type: "number", minWidth: 110, flex: 0.7,
+                  align: "right", headerAlign: "right",
+                  renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.value)}</span>,
+                },
+                {
+                  field: "progress", headerName: "Progress", type: "number", minWidth: 140, flex: 0.8,
+                  renderCell: ({ row }) => (
+                    <span className="flex items-center gap-2">
+                      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+                        <span className="block h-full rounded-full bg-brand-600" style={{ width: `${row.progress}%` }} />
+                      </span>
+                      <span className="num text-xs text-slate-500 dark:text-slate-400">{row.progress}%</span>
+                    </span>
+                  ),
+                },
+                {
+                  field: "endDate", headerName: "Target end", minWidth: 130, flex: 0.8,
+                  renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.endDate)}</span>,
+                },
+                {
+                  field: "actions", headerName: "", minWidth: 90, flex: 0.5, sortable: false,
+                  align: "right", headerAlign: "right",
+                  renderCell: ({ row }) => (
+                    <button type="button" className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"
+                      onClick={(e) => { e.stopPropagation(); router.push(`/${slug}/projects-list/${row.id}`); }}>
+                      Open
+                    </button>
+                  ),
+                },
+              ]}
+            />
           </section>
         </>
       )}
