@@ -1164,6 +1164,22 @@ console.log("\n== Nova's toolset is enabled ∩ mapped ∩ permitted — never m
   const defaultOff = buildToolset({ enabled: {} }, canCreate);
   // (log-expense is an action, default-off, and not yet mapped — so absent either way.)
   ok("a default-off capability is not offered by default", !defaultOff.tools.some((t) => t.name.includes("log__expense")), "default-off");
+
+  // ACTIONS ARE PREPARE-ONLY. A default-on action the user is permitted for is
+  // offered; calling it validates and records a proposal but writes NOTHING —
+  // the write waits on the person's confirm at /nova/act.
+  const canLeave = new Set(["hr.vacations.create", "hr.vacations.view"]);
+  const leaveTs = buildToolset({ enabled: {} }, canLeave);
+  ok("a permitted, enabled action is offered as a tool", leaveTs.tools.some((t) => t.name === "action__hr__request-leave"), leaveTs.tools.map((t) => t.name).join(", "));
+  const incomplete = await leaveTs.execute("u", "s", "action__hr__request-leave", {});
+  ok("...preparing without the required field asks for it, doesn't act", incomplete.prepared === false && incomplete.need.includes("from"), JSON.stringify(incomplete));
+  const readyPrep = await leaveTs.execute("u", "s", "action__hr__request-leave", { from: "2026-09-01", type: "Annual" });
+  ok("...with the field it prepares a proposal", readyPrep.prepared === true && typeof readyPrep.preview === "string", JSON.stringify(readyPrep));
+  const proposal = leaveTs.takePrepared();
+  ok("...recorded for the user to confirm, not submitted", proposal?.capKey === "action.hr.request-leave" && proposal?.fields?.from === "2026-09-01", JSON.stringify(proposal));
+  // An action the user is NOT permitted for is never offered.
+  const noLeave = buildToolset({ enabled: {} }, new Set(["hr.vacations.view"]));
+  ok("an action the user cannot perform is withheld", !noLeave.tools.some((t) => t.name === "action__hr__request-leave"), "leaked action");
 }
 
 // ============================================================================

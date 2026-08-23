@@ -26,6 +26,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [attention, setAttention] = useState(0);
+  const [pending, setPending] = useState(null);   // an action awaiting the user's Confirm
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -64,7 +65,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
     if (!q || busy) return;
     const prior = messages;
     setMessages([...prior, { role: "user", content: q }]);
-    setInput(""); setBusy(true); setNote("");
+    setInput(""); setBusy(true); setNote(""); setPending(null);
     try {
       const res = await fetch(`/api/studios/${slug}/nova`, {
         method: "POST",
@@ -79,8 +80,29 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
       if (res.status === 403) { setNote("Nova isn't part of this studio's plan."); setBusy(false); return; }
       const data = res.ok ? await res.json().catch(() => null) : null;
       setMessages((m) => [...m, { role: "assistant", content: data?.answer || "Something went wrong — try again." }]);
+      if (data?.pendingAction) setPending(data.pendingAction);
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "I couldn't reach the server. Try again." }]);
+    }
+    setBusy(false);
+  }
+
+  // The Confirm click — the ONLY thing that writes. Runs the prepared action
+  // through its own permission-checked service; the model never reaches here.
+  async function confirmAction() {
+    if (!pending || busy) return;
+    const action = pending;
+    setPending(null); setBusy(true);
+    try {
+      const res = await fetch(`/api/studios/${slug}/nova/act`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capKey: action.capKey, fields: action.fields }),
+      });
+      const data = await res.json().catch(() => null);
+      const ok = res.ok && data?.ok;
+      setMessages((m) => [...m, { role: "assistant", content: ok ? `Done — ${action.label.toLowerCase()}.` : `That didn't go through${data?.error ? ` (${data.error})` : ""}. Nothing was changed.` }]);
+    } catch {
+      setMessages((m) => [...m, { role: "assistant", content: "I couldn't reach the server, so nothing was changed." }]);
     }
     setBusy(false);
   }
@@ -152,6 +174,18 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
                   </div>
                 </div>
               ))}
+              {pending && !busy && (
+                <div className="rounded-2xl border border-brand-200 bg-brand-50 p-3 dark:border-brand-500/30 dark:bg-brand-500/10">
+                  <p className="text-xs font-600 uppercase tracking-wide text-brand-600 dark:text-brand-300">Confirm</p>
+                  <p className="mt-1 text-sm text-slate-800 dark:text-slate-100">{pending.preview}</p>
+                  <div className="mt-2.5 flex gap-2">
+                    <button type="button" onClick={confirmAction}
+                      className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-500 text-white">Confirm</button>
+                    <button type="button" onClick={() => setPending(null)}
+                      className="rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5">Cancel</button>
+                  </div>
+                </div>
+              )}
               {busy && <div className="flex justify-start"><div className="rounded-2xl bg-slate-100 px-3.5 py-2 text-sm text-slate-400 dark:bg-white/5">Nova is thinking…</div></div>}
               {note && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{note}</p>}
             </div>

@@ -16,7 +16,8 @@
 import type { NeutralTool } from "@/platform/nova/client";
 import { requirePermission, can } from "@/platform/access";
 import type { PermissionSet, PermissionKey } from "@/platform/access";
-import { enabledCapabilities, type NovaConfig, type NovaCapability } from "@/lib/nova/capabilities";
+import { enabledCapabilities, type NovaConfig } from "@/lib/nova/capabilities";
+import { ACTION_IMPLS, MAPPED_ACTION_KEYS, type PreparedAction } from "@/platform/nova/actions";
 import { studioContext } from "@/lib/studios";
 
 import { financeContext, listInvoices, listExpenses, summarise } from "@/modules/finance/finance";
@@ -316,33 +317,69 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
 // A capability key is dotted; a tool name must match ^[a-zA-Z0-9_-]{1,64}$.
 const toolName = (capKey: string) => capKey.replace(/\./g, "__");
 
+type ToolEntry = { kind: "read" | "action"; capKey: string };
+
 /**
  * Build the toolset for this user: ENABLED ∩ MAPPED ∩ PERMITTED. Returns the
- * Anthropic tool definitions the model may call and an executor that runs one by
+ * neutral tool definitions the model may call and an executor that runs one by
  * name in the user's context. A capability the user cannot exercise is never put
  * in front of the model, so it cannot be asked for.
+ *
+ * READ tools answer directly. ACTION tools only ever PREPARE — they validate the
+ * fields and record a proposal (never write); `takePrepared()` hands the endpoint
+ * the last proposal so the person can confirm it. The write happens elsewhere,
+ * on their click.
  */
 export function buildToolset(config: NovaConfig | null | undefined, access: PermissionSet) {
   const tools: NeutralTool[] = [];
-  const byName = new Map<string, NovaCapability>();
+  const byName = new Map<string, ToolEntry>();
+  const prepared: PreparedAction[] = [];
 
   for (const cap of enabledCapabilities(config)) {
-    const impl = TOOL_IMPLS[cap.key];
-    if (!impl) continue;                                  // not mapped yet
     if (cap.permissionKey && !can(access, cap.permissionKey as PermissionKey)) continue;  // not permitted
-    const name = toolName(cap.key);
-    tools.push({ name, description: impl.description, parameters: impl.inputSchema });
-    byName.set(name, cap);
+    if (cap.kind === "read") {
+      const impl = TOOL_IMPLS[cap.key];
+      if (!impl) continue;                                // not mapped yet
+      const name = toolName(cap.key);
+      tools.push({ name, description: impl.description, parameters: impl.inputSchema });
+      byName.set(name, { kind: "read", capKey: cap.key });
+    } else {
+      const impl = ACTION_IMPLS[cap.key];
+      if (!impl) continue;                                // not mapped yet
+      const name = toolName(cap.key);
+      tools.push({ name, description: impl.description, parameters: impl.fields });
+      byName.set(name, { kind: "action", capKey: cap.key });
+    }
   }
 
-  async function execute(user: unknown, slug: string, name: string): Promise<unknown> {
-    const cap = byName.get(name);
-    if (!cap) return { error: "unknown-tool" };
-    return TOOL_IMPLS[cap.key].run(user, slug);
+  async function execute(user: unknown, slug: string, name: string, input?: unknown): Promise<unknown> {
+    const entry = byName.get(name);
+    if (!entry) return { error: "unknown-tool" };
+    if (entry.kind === "read") return TOOL_IMPLS[entry.capKey].run(user, slug);
+
+    // ACTION: prepare only. Ask for missing fields, else record the proposal and
+    // tell the model to seek the user's confirmation — NOT to claim it is done.
+    const impl = ACTION_IMPLS[entry.capKey];
+    const fields = (input && typeof input === "object") ? (input as Record<string, unknown>) : {};
+    const missing = impl.required.filter((r) => fields[r] === undefined || fields[r] === "");
+    if (missing.length) return { prepared: false, need: missing, message: `Still needed before I can prepare this: ${missing.join(", ")}` };
+    const preview = impl.summarise(fields);
+    prepared.push({ capKey: entry.capKey, label: impl.label, preview, fields });
+    return { prepared: true, preview, message: "Prepared. Ask the user to confirm it below — do not say it is done until they have." };
   }
 
-  return { tools, execute, count: tools.length };
+  return {
+    tools,
+    execute,
+    count: tools.length,
+    // The last action the model prepared this turn, for the person to confirm.
+    takePrepared: (): PreparedAction | null => (prepared.length ? prepared[prepared.length - 1] : null),
+  };
 }
 
-// Exported for the Gate A scan: which capability keys have an implementation.
-export const MAPPED_CAPABILITY_KEYS: ReadonlySet<string> = new Set(Object.keys(TOOL_IMPLS));
+// Exported for the Gate A scan: which capability keys have an implementation
+// (reads and actions together — every one must be a real capability).
+export const MAPPED_CAPABILITY_KEYS: ReadonlySet<string> = new Set([
+  ...Object.keys(TOOL_IMPLS),
+  ...MAPPED_ACTION_KEYS,
+]);

@@ -48,7 +48,7 @@ export const POST = route(spec, async (g) => {
   // ENABLED ∩ MAPPED ∩ PERMITTED — the model is only ever shown tools this user
   // may actually use, so it cannot ask for anything they are not allowed.
   const config = await getNovaConfig();
-  const { tools, execute, count } = buildToolset(config, access);
+  const toolset = buildToolset(config, access);
 
   const messages: NeutralMessage[] = [...history];
   if (message.trim()) messages.push({ role: "user", content: message });
@@ -57,13 +57,15 @@ export const POST = route(spec, async (g) => {
   const result = await runNova({
     provider,
     apiKey,
-    system: novaSystem(String(studio.name || "this studio"), String(collaborator.alias || "there"), count),
+    system: novaSystem(String(studio.name || "this studio"), String(collaborator.alias || "there"), toolset.count),
     messages,
-    tools,
-    execute: (name) => execute(user, slug, name),
+    tools: toolset.tools,
+    execute: (name, input) => toolset.execute(user, slug, name, input),
   });
 
-  return { answer: result.text, usedTools: result.usedTools };
+  // If the model prepared an action, hand the person the proposal to confirm.
+  // Nothing has been written; the write waits on their click (see /nova/act).
+  return { answer: result.text, usedTools: result.usedTools, pendingAction: toolset.takePrepared() };
 });
 
 // The session transcript is client-held and therefore untrusted: keep only clean
@@ -93,5 +95,6 @@ function novaSystem(studioName: string, alias: string, toolCount: number): strin
     "- The tools already return only what this person is allowed to see. Do not ask them to widen access or mention other studios.",
     "- Be concise and specific. Money is in SAR; write dates as dd/mm/yyyy. Prefer a short answer with the key numbers to a long one.",
     "- When you name a record, include its reference so they can find it.",
+    "- Some tools DO things (request leave, add a comment). They only PREPARE the action — gather the fields, then a confirm card appears for the user. Never say an action is done; say you've prepared it and ask them to confirm.",
   ].join("\n");
 }
