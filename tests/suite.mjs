@@ -68,7 +68,7 @@ import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices } from "@/modules/finance/finance";
 import { listAccounts, postEntry, reverseEntry, listJournal, trialBalance, postInvoice, postExpense, postPayment, postBill, postBillPayment } from "@/modules/finance/ledger";
-import { arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix } from "@/modules/finance/analytics";
+import { arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix, apAging, topVendors, assetRegister } from "@/modules/finance/analytics";
 import { listBills, createBill, editBill, approveBill, recordBillPayment, removeBill } from "@/modules/finance/payables";
 import { depreciationOf, listAssets, createAsset, editAsset, disposeAsset } from "@/modules/finance/assets";
 import { analyticsLevelOf, analyticsAllows } from "@/lib/analytics";
@@ -1236,7 +1236,45 @@ console.log("\n== Finance 1b: the fixed-asset register");
   ok("...nor edited once disposed", editGone.error === "disposed", JSON.stringify(editGone));
 
   const listed = await listAssets(fin);
-  ok("the register lists assets with derived depreciation", (listed.assets || []).some((a) => a.id === asset.asset.id && typeof a.bookValue === "number"), "not listed");
+  ok("the register lists assets with derived depreciation", (listed.assets || []).some((a) => a.id === asset.asset.id && typeof a.bookValue === "number"), `${(listed.assets || []).length} listed`);
+}
+
+// ============================================================================
+console.log("\n== Finance 1b: the payables and register dashboard arithmetic");
+// The AP mirror of the AR reports, plus the asset roll-up — pure, so provable to
+// the cent. AP aging shares its engine with AR aging (same buckets), and a bill
+// that is a draft or cancelled is not yet a payable, exactly as a draft invoice
+// is not a receivable.
+{
+  const bl = (o) => ({ status: "Received", outstanding: 0, dueDate: "", vendorName: "", ...o });
+  const asOf = "2026-08-22";
+  const bills = [
+    bl({ vendorName: "Steel", outstanding: 100, dueDate: "2026-08-20" }),   // 2d late -> 1-30
+    bl({ vendorName: "Steel", outstanding: 150, dueDate: "2026-06-01" }),   // ~82d -> 61-90
+    bl({ vendorName: "Glass", outstanding: 0, dueDate: "2026-08-01", status: "Paid" }),  // settled — nothing outstanding, so out of the aging
+    bl({ vendorName: "Wood", outstanding: 90, dueDate: "2026-09-30" }),     // future -> current
+    bl({ vendorName: "Draft", outstanding: 999, status: "Draft" }),         // excluded
+  ];
+  const aging = apAging(bills, asOf);
+  ok("AP aging sums only live outstanding", aging.total === 340, String(aging.total));
+  const bucket = (k) => aging.buckets.find((x) => x.key === k);
+  ok("...buckets AP by days past due like AR", bucket("current").amount === 90 && bucket("d1_30").amount === 100 && bucket("d61_90").amount === 150, JSON.stringify(aging.buckets));
+  ok("...and a draft bill is not yet a payable", aging.buckets.every((x) => x.amount !== 999), "draft leaked");
+
+  const vendors = topVendors(bills, 3);
+  ok("top vendors rank by amount owed", vendors[0].vendorName === "Steel" && vendors[0].owed === 250, JSON.stringify(vendors[0]));
+  ok("...carrying the oldest unpaid due date", vendors[0].oldestDue === "2026-06-01", vendors[0].oldestDue);
+
+  // The register counts only assets STILL HELD; a disposed one leaves the totals.
+  const reg = assetRegister([
+    { category: "Vehicles", method: "straight-line", cost: 60000, accumulated: 10000, bookValue: 50000, disposed: false },
+    { category: "Vehicles", method: "straight-line", cost: 40000, accumulated: 40000, bookValue: 0, disposed: false },
+    { category: "IT", method: "reducing-balance", cost: 5000, accumulated: 2000, bookValue: 3000, disposed: false },
+    { category: "IT", method: "reducing-balance", cost: 9999, accumulated: 9999, bookValue: 0, disposed: true },   // disposed -> excluded
+  ]);
+  ok("the register totals only assets still held", reg.count === 3 && reg.disposedCount === 1, JSON.stringify({ c: reg.count, d: reg.disposedCount }));
+  ok("...cost, accumulated and net book value roll up", reg.totalCost === 105000 && reg.totalAccumulated === 52000 && reg.netBookValue === 53000, JSON.stringify(reg));
+  ok("...and it breaks down by category, largest first", reg.byCategory[0].label === "Vehicles" && reg.byCategory[0].cost === 100000, JSON.stringify(reg.byCategory));
 }
 
 // ============================================================================

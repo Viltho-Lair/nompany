@@ -44,6 +44,13 @@ export type FinanceContext = ModuleContext & {
   sheetsSection: Section | null;
   canViewCash: boolean;
   canManageCash: boolean;
+  // Payables and assets each carry their own view/manage flag off the same
+  // `flags` list in finance.ts — named here (unlike ledger, still unnamed)
+  // because the bills and assets routes gate their reads on them.
+  canViewPayables: boolean;
+  canManagePayables: boolean;
+  canViewAssets: boolean;
+  canManageAssets: boolean;
   canViewSettings: boolean;
   canManageSettings: boolean;
   cashCategories: string[];

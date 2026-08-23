@@ -10,14 +10,21 @@
 // and divide. A day is compared as an ISO "yyyy-mm-dd" string, which sorts
 // correctly and needs no Date to reason about "past due".
 
-import type { InvoiceView, Expense } from "./types";
+import type { InvoiceView, Expense, Bill } from "./types";
 
 const round = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
-// Only invoices that are a live claim on somebody: issued, not cancelled, not a
-// draft. The same set `summarise` counts, named once here.
-const live = (invoices: InvoiceView[]) =>
-  invoices.filter((i) => i.status !== "Cancelled" && i.status !== "Draft");
+// The minimal shape the aging and "owed by" reports read. An invoice VIEW and a
+// bill VIEW both satisfy it — same fields, same meaning — which is the whole
+// reason AR and AP share this arithmetic rather than each carrying a copy.
+type Owing = { status: string; outstanding?: number; dueDate?: string };
+
+// Only rows that are a live claim: issued/received, not cancelled, not a draft.
+// A draft invoice is not yet a receivable and a draft bill is not yet a payable,
+// so the same predicate serves both. Generic so it hands the caller back its own
+// row type (a debtor lookup still sees `clientName`).
+const live = <T extends { status: string }>(rows: T[]): T[] =>
+  rows.filter((r) => r.status !== "Cancelled" && r.status !== "Draft");
 
 // Whole days from `from` to `to`, both ISO dates. Positive when `to` is later.
 function daysBetween(from: string, to: string): number {
@@ -35,10 +42,23 @@ export type AgingBucket = { key: string; label: string; amount: number; count: n
  * date). This is the report a finance team reads first: what is owed, and how
  * stale it is.
  */
-export function arAging(invoices: InvoiceView[], asOf = new Date().toISOString().slice(0, 10)): {
-  buckets: AgingBucket[];
-  total: number;
-} {
+export function arAging(invoices: InvoiceView[], asOf = new Date().toISOString().slice(0, 10)) {
+  return agingOf(invoices, asOf);
+}
+
+/**
+ * AP AGING — the payables mirror of {@link arAging}: money WE owe bucketed by how
+ * long each bill has been past its due date. Same buckets, same arithmetic, same
+ * function underneath — a bill view is an {@link Owing} just as an invoice view
+ * is — so the two reports can never drift apart. FINANCE 1b, moderate rung.
+ */
+export function apAging(bills: Bill[], asOf = new Date().toISOString().slice(0, 10)) {
+  return agingOf(bills, asOf);
+}
+
+// The shared aging engine both reports run. Kept private: callers reach it
+// through the AR/AP wrappers so the intent reads at the call site.
+function agingOf(rows: Owing[], asOf: string): { buckets: AgingBucket[]; total: number } {
   const defs: [string, string, (d: number) => boolean][] = [
     ["current", "Current", (d) => d <= 0],
     ["d1_30", "1–30", (d) => d >= 1 && d <= 30],
@@ -48,38 +68,53 @@ export function arAging(invoices: InvoiceView[], asOf = new Date().toISOString()
   ];
   const buckets: AgingBucket[] = defs.map(([key, label]) => ({ key, label, amount: 0, count: 0 }));
   let total = 0;
-  for (const inv of live(invoices)) {
-    if (inv.outstanding <= 0) continue;
+  for (const row of live(rows)) {
+    const outstanding = row.outstanding ?? 0;
+    if (outstanding <= 0) continue;
     // No due date is not yet overdue — it sits in Current, not in the 90+ tail.
-    const past = inv.dueDate ? daysBetween(inv.dueDate, asOf) : 0;
+    const past = row.dueDate ? daysBetween(row.dueDate, asOf) : 0;
     const idx = defs.findIndex(([, , test]) => test(past));
     const b = buckets[idx < 0 ? 0 : idx];
-    b.amount = round(b.amount + inv.outstanding);
+    b.amount = round(b.amount + outstanding);
     b.count += 1;
-    total = round(total + inv.outstanding);
+    total = round(total + outstanding);
   }
   return { buckets, total };
 }
 
 export type Debtor = { clientName: string; owed: number; count: number; oldestDue: string };
+export type Vendor = { vendorName: string; owed: number; count: number; oldestDue: string };
+type Owed = { owed: number; count: number; oldestDue: string };
 
-/**
- * TOP DEBTORS — who owes the most, largest first, with the oldest unpaid due
- * date so a chaser knows where to start. Grouped by the client NAME the invoice
- * snapshotted, so it reads even if the client record changed later.
- */
-export function topDebtors(invoices: InvoiceView[], limit = 5): Debtor[] {
-  const by = new Map<string, Debtor>();
-  for (const inv of live(invoices)) {
-    if (inv.outstanding <= 0) continue;
-    const name = inv.clientName || "—";
-    const d = by.get(name) || { clientName: name, owed: 0, count: 0, oldestDue: "" };
-    d.owed = round(d.owed + inv.outstanding);
+// GROUP WHAT IS OWED by a name, largest first, with the oldest unpaid due date so
+// a chaser knows where to start. The one engine behind top-debtors (by client)
+// and top-vendors (by vendor) — grouped by the NAME the record snapshotted, so it
+// reads even if the client or vendor record changed later.
+function owedByName<T extends Owing>(rows: T[], nameOf: (r: T) => string, limit: number): (Owed & { name: string })[] {
+  const by = new Map<string, Owed & { name: string }>();
+  for (const row of live(rows)) {
+    const outstanding = row.outstanding ?? 0;
+    if (outstanding <= 0) continue;
+    const name = nameOf(row) || "—";
+    const d = by.get(name) || { name, owed: 0, count: 0, oldestDue: "" };
+    d.owed = round(d.owed + outstanding);
     d.count += 1;
-    if (inv.dueDate && (!d.oldestDue || inv.dueDate < d.oldestDue)) d.oldestDue = inv.dueDate;
+    if (row.dueDate && (!d.oldestDue || row.dueDate < d.oldestDue)) d.oldestDue = row.dueDate;
     by.set(name, d);
   }
   return [...by.values()].sort((a, b) => b.owed - a.owed).slice(0, limit);
+}
+
+/** TOP DEBTORS — who owes US the most (receivables), largest first. */
+export function topDebtors(invoices: InvoiceView[], limit = 5): Debtor[] {
+  return owedByName(invoices, (i) => i.clientName, limit)
+    .map(({ name, owed, count, oldestDue }) => ({ clientName: name, owed, count, oldestDue }));
+}
+
+/** TOP VENDORS — who WE owe the most (payables), largest first. FINANCE 1b. */
+export function topVendors(bills: Bill[], limit = 5): Vendor[] {
+  return owedByName(bills, (b) => b.vendorName, limit)
+    .map(({ name, owed, count, oldestDue }) => ({ vendorName: name, owed, count, oldestDue }));
 }
 
 /**
@@ -165,4 +200,81 @@ export function expenseMix(expenses: Expense[]): MixSlice[] {
     by.set(c, round((by.get(c) || 0) + (Number(e.amount) || 0)));
   }
   return [...by.entries()].map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount);
+}
+
+// ---- fixed assets (FINANCE 1b) --------------------------------------------
+//
+// The register summary is a pure roll-up of the asset VIEWS the assets route
+// hands out (each already carries its derived `bookValue` and `accumulated` from
+// depreciationOf). It reads only what it needs, so it neither imports the
+// depreciation engine nor recomputes it.
+
+type AssetRow = {
+  category?: string;
+  method?: string;
+  cost?: number;
+  accumulated?: number;
+  bookValue?: number;
+  disposed?: boolean;
+};
+
+export type AssetGroup = { label: string; cost: number; bookValue: number; count: number };
+export type AssetRegister = {
+  count: number;          // assets still on the books (not disposed)
+  disposedCount: number;
+  totalCost: number;
+  totalAccumulated: number;
+  netBookValue: number;
+  byCategory: AssetGroup[];
+  byMethod: AssetGroup[];
+};
+
+const METHOD_LABEL: Record<string, string> = {
+  "straight-line": "Straight line",
+  "reducing-balance": "Reducing balance",
+};
+
+/**
+ * FIXED-ASSET REGISTER SUMMARY — total cost, total depreciation written off, and
+ * net book value across the assets STILL HELD, with a cost/NBV breakdown by
+ * category and by method. A disposed asset has left the balance sheet, so it is
+ * counted separately and kept out of the totals — a register shows what you own,
+ * not what you once owned.
+ */
+export function assetRegister(assets: AssetRow[]): AssetRegister {
+  const held = assets.filter((a) => !a.disposed);
+  const cats = new Map<string, AssetGroup>();
+  const methods = new Map<string, AssetGroup>();
+  let totalCost = 0;
+  let totalAccumulated = 0;
+  let netBookValue = 0;
+
+  const add = (map: Map<string, AssetGroup>, label: string, cost: number, bookValue: number) => {
+    const g = map.get(label) || { label, cost: 0, bookValue: 0, count: 0 };
+    g.cost = round(g.cost + cost);
+    g.bookValue = round(g.bookValue + bookValue);
+    g.count += 1;
+    map.set(label, g);
+  };
+
+  for (const a of held) {
+    const cost = Number(a.cost) || 0;
+    const book = Number(a.bookValue) || 0;
+    totalCost = round(totalCost + cost);
+    totalAccumulated = round(totalAccumulated + (Number(a.accumulated) || 0));
+    netBookValue = round(netBookValue + book);
+    add(cats, a.category || "Uncategorised", cost, book);
+    add(methods, METHOD_LABEL[a.method || ""] || a.method || "—", cost, book);
+  }
+
+  const bySize = (a: AssetGroup, b: AssetGroup) => b.cost - a.cost;
+  return {
+    count: held.length,
+    disposedCount: assets.length - held.length,
+    totalCost,
+    totalAccumulated,
+    netBookValue,
+    byCategory: [...cats.values()].sort(bySize),
+    byMethod: [...methods.values()].sort(bySize),
+  };
 }
