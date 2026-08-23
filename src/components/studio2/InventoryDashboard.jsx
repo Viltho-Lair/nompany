@@ -18,6 +18,7 @@ import { BarList, Donut } from "@/components/charts";
 import { CurrencySymbol } from "@/components/Currency";
 import { Icon } from "@/components/studio2/icons";
 import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
+import { StatusPill } from "@/components/studio2/StatusPill";
 
 // Quantities are counts, not money — three decimals at most, no forced pair.
 const qty = (n) => new Intl.NumberFormat("en", { maximumFractionDigits: 3 }).format(Number(n) || 0);
@@ -33,11 +34,8 @@ const PO_STATUS_COLOR = {
 };
 const PO_STATUS_ORDER = ["Draft", "Ordered", "Partly received", "Received", "Cancelled"];
 
-const MOVE_TONE = {
-  in: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  out: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  adjust: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-};
+// Stock-move kind colours now come from the shared StatusPill map (kind
+// "movement"), the same one StudioInventory's ledger uses.
 
 // PURE DERIVATION — no React, so what each widget shows can be read in one place
 // and reasoned about without the component around it. Everything is summed from
@@ -211,7 +209,7 @@ export default function InventoryDashboard({
             <ul className="divide-y divide-slate-100 dark:divide-white/5">
               {recent.map((m) => (
                 <li key={m.id} className="flex items-center gap-3 py-2 text-sm">
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-600 ${MOVE_TONE[m.kind] || MOVE_TONE.adjust}`}>{m.kind}</span>
+                  <StatusPill kind="movement" status={m.kind} base="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-600" />
                   <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{m.itemLabel}</span>
                   <span className="num shrink-0 font-600 text-slate-900 dark:text-white">
                     {m.kind === "out" ? "−" : m.kind === "adjust" && m.qty < 0 ? "" : "+"}{qty(Math.abs(m.qty))}

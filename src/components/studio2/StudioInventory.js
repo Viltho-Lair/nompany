@@ -15,6 +15,7 @@ import {
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { parseAwb, formatAwb } from "@/modules/inventory/awb";
 import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/modules/inventory/awbStatus";
+import { StatusPill } from "@/components/studio2/StatusPill";
 
 // INVENTORY — what the studio buys, holds, and issues to its projects.
 // On-hand is summed from the movement ledger, so every number here can be traced
@@ -26,23 +27,9 @@ import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/modules/inventor
 //   inventory-sheets   -> per project: what was ordered for it and issued to it
 //   inventory-awb      -> air freight, followed by its waybill
 
-const ORDER_TONE = {
-  Draft: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  Ordered: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  "Partly received": "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  Received: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  Cancelled: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-};
-const DN_TONE = {
-  Draft: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  Issued: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  Cancelled: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-};
-const MOVE_TONE = {
-  in: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  out: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  adjust: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-};
+// Order (kind "order"), delivery-note (kind "delivery") and stock-move (kind
+// "movement") colours now live in the shared StatusPill map. Order and delivery
+// have no render site here today; the ledger's move-kind badge is below.
 
 const td = "py-3 pe-3 align-middle";
 const num = (n) => new Intl.NumberFormat("en", { maximumFractionDigits: 3 }).format(Number(n) || 0);
@@ -639,7 +626,7 @@ function Movements({ rows }) {
               <tr key={m.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
                 <td className={`${td} text-slate-500 dark:text-slate-400`}>{fmtDate(m.at)}</td>
                 <td className={`${td} text-slate-900 dark:text-white`}>{m.itemLabel}</td>
-                <td className={td}><span className={`rounded-full px-2.5 py-1 text-xs font-600 ${MOVE_TONE[m.kind]}`}>{m.kind}</span></td>
+                <td className={td}><StatusPill kind="movement" status={m.kind} /></td>
                 <td className={`${td} text-end font-600 tabular-nums text-slate-900 dark:text-white`}>
                   {m.kind === "out" ? "−" : m.kind === "adjust" && m.qty < 0 ? "" : "+"}{num(Math.abs(m.qty))}
                 </td>
@@ -778,13 +765,11 @@ function VendorForm({ row, busy, onSave, onCancel }) {
 // it. Grouped by project rather than listed flat, because the question this
 // screen answers is always "where is this project's material?".
 function StatusBadge({ code, delivered }) {
-  if (!code) return <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">Not moved yet</span>;
-  const tone = delivered
-    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-    : isException(code)
-      ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
-      : "bg-brand-500/10 text-brand-700 dark:text-brand-300";
-  return <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${tone}`} title={AWB_STATUS_BY_CODE[code]?.desc || ""}>{statusLabel(code)}</span>;
+  // Waybill tone is chosen by the delivered/exception flags, not by the raw code,
+  // so we hand StatusPill a synthesised token (kind "awb") and the code's label.
+  if (!code) return <StatusPill kind="awb" status="notmoved" label="Not moved yet" />;
+  const status = delivered ? "delivered" : isException(code) ? "exception" : "intransit";
+  return <StatusPill kind="awb" status={status} label={statusLabel(code)} title={AWB_STATUS_BY_CODE[code]?.desc || ""} />;
 }
 
 function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, busy, send }) {

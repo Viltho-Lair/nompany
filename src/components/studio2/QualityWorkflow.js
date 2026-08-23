@@ -5,6 +5,7 @@ import { Dialog, btn, btnGhost, label, microLabel } from "@/components/studio2/u
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { REV_LABELS } from "@/modules/quality/qualityDocuments";
+import { StatusPill } from "@/components/studio2/StatusPill";
 
 // THE CONTROL PANEL — where a revision moves along the ladder.
 //
@@ -17,15 +18,9 @@ import { REV_LABELS } from "@/modules/quality/qualityDocuments";
 // The consequence worth noticing: a button here can always be pressed. Nothing
 // is offered and then refused.
 
-const STATE_TONE = {
-  draft: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  rejected: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  review: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  approval: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  approved: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  effective: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  superseded: "bg-slate-100 text-slate-500 line-through dark:bg-white/5",
-};
+// Revision-state colours now live in the shared StatusPill map (kind "quality").
+// Note "approved" is the brand accent here (sent for effect), not the emerald a
+// bill or leave "Approved" gets — see StatusPill.jsx.
 
 // Signing and sending back both want a note; publishing wants dates. Anything
 // else is a plain confirm.
@@ -136,9 +131,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
             <>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm font-700 text-slate-900 dark:text-white">Rev {current.rev}</span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STATE_TONE[current.state] || STATE_TONE.draft}`}>
-                  {REV_LABELS[current.state] || current.state}
-                </span>
+                <StatusPill kind="quality" status={current.state} label={REV_LABELS[current.state] || current.state} />
               </div>
               {current.rejection?.byAlias && (
                 <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">
@@ -213,9 +206,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
           {revisions.map((r) => (
             <li key={r.id} className="flex items-center gap-2 rounded-lg border border-slate-200/70 bg-white px-3 py-2 text-xs dark:border-white/10 dark:bg-[#20202c]">
               <span className="font-mono font-700 text-slate-700 dark:text-slate-200">Rev {r.rev}</span>
-              <span className={`rounded-full px-2 py-0.5 font-600 ${STATE_TONE[r.state] || STATE_TONE.draft}`}>
-                {REV_LABELS[r.state] || r.state}
-              </span>
+              <StatusPill kind="quality" status={r.state} label={REV_LABELS[r.state] || r.state} base="rounded-full px-2 py-0.5 font-600" />
               {r.effectiveDate && <span className="ms-auto text-slate-400">{r.effectiveDate}</span>}
             </li>
           ))}

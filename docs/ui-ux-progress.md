@@ -36,7 +36,7 @@ everywhere, and the component split** — the substance — are still ahead.
 |---|---|---|---|
 | **0** | Foundations + CI gates | 🟡 partial | ✅ `stylis-plugin-rtl` installed & asserted · ✅ bundle budget in CI · ❌ contrast test in CI · ❓ `components.json` / `jsconfig.json` unverified |
 | **1** | Token layer (primitives + semantics + spacing/elevation/radius/type) | ⬜ not started | Tokens still live in `globals.css :root` as `--doc-*` / `--geex-*` / `--chart-*`; no `primitives`/`semantics` layer, hex literals remain (`dark:bg-[#20202c]` etc. across the studio) |
-| **2** | `src/ui` primitives + **form controls** + overlays | 🟢 **mostly done** | ✅ shared floating **`Field`** (`components/fields`) · ✅ **MUI date picker** (`StudioDate`, dd/MM/yyyy, dynamic-imported) · ✅ rolled across **all 12 studio departments** · ✅ **71 placeholders removed** · `Combo` is already MUI Autocomplete · ❌ StatusPill still to unify |
+| **2** | `src/ui` primitives + **form controls** + overlays | ✅ **done** | ✅ shared floating **`Field`** (`components/fields`) · ✅ **MUI date picker** (`StudioDate`, dd/MM/yyyy, dynamic-imported) · ✅ rolled across **all 12 studio departments** · ✅ **71 placeholders removed** · `Combo` is already MUI Autocomplete · ✅ **`StatusPill`** unifies every status badge (`components/studio2/StatusPill.jsx`) — one component behind 68 verified-identical (kind, status) pairs across 11 screens, tones as data |
 | **3** | Skeletons everywhere + `loading.tsx` + Suspense | 🟡 partial | ✅ `ScreenSkeleton`, `ChartSkeleton`, shared `.skel` · ✅ studio departments code-split · only **3** `loading.*` files; not per-segment, not "everywhere" |
 | **4** | Component split per module (Sales first) + toast | 🟡 partial | ✅ studio departments are `nextDynamic()` (chunk split) · ❌ the 1,000-line `Studio*.js` screens not decomposed into `src/ui` + module parts · ❌ toast layer |
 | **5** | MUI Data Grid on the 5 dense grids + pagination contract | ⬜ not started | `x-data-grid` installed; only `/super`'s `SuperDataGrid` uses it — the 5 studio grids do not |
@@ -52,7 +52,7 @@ everywhere, and the component split** — the substance — are still ahead.
 - [ ] 8px spacing scale enforced; both density modes working and persisted — density modes not built
 - [ ] z-index map defined once, honoured by Tailwind and MUI — no
 - [~] Radii sm/md/lg applied universally — `rounded-geex` used; not a formal scale
-- [~] All five taxonomy groups in `src/ui/` — many primitives exist in `components/ui`; **no Field wrapper, no StatusPill**
+- [~] All five taxonomy groups in `src/ui/` — many primitives exist in `components/ui`; **`Field` wrapper and `StatusPill` now shipped**; the rest still to formalise
 - [~] Every async surface has a shape-matched skeleton; no spinners; no layout shift — started (`ScreenSkeleton`, `ChartSkeleton`); not everywhere
 - [ ] All action + validation states defined once per component — needs the Field wrapper (§3.2)
 - [~] `transition duration-200 ease-in-out` standard; reduced-motion respected — reduced-motion respected; transitions not standardised

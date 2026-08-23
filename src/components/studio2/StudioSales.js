@@ -21,6 +21,7 @@ import { CurrencySymbol } from "@/components/Currency";
 import { rfqInfo, isUnresolved } from "@/modules/sales/salesAnalytics";
 import SalesDashboard from "@/components/studio2/SalesDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
+import { StatusPill } from "@/components/studio2/StatusPill";
 
 // Sales: clients and the tickets raised against them. Read access shows
 // everything; the Manage grant is what reveals the create/edit controls — and
@@ -28,16 +29,7 @@ import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 // The chrome — dialogs, toolbars, charts — comes from studio2/ui so this screen
 // and Technical's are the same product rather than two lookalikes.
 
-const STATUS_TONE = {
-  "Lead": "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  "Opportunity": "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  "Commit": "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  "Closed Won": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  "Closed Lost": "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  "Cancelled by Client": "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  "On-Hold": "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  "Dropped": "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-};
+// Ticket-stage colours now live in the shared StatusPill map (kind "sales").
 // Columns the tickets table can show. Every one is toggleable; the Actions
 // column is not on the list because it is always drawn.
 const TICKET_COLUMNS = [
@@ -307,7 +299,7 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
                       <td className="py-3 pe-3 tabular-nums text-slate-600 dark:text-slate-300">{money(t.value)}</td>
                       <td className={`py-3 pe-3 text-xs font-600 ${rfq.tone}`}>{rfq.text}</td>
                       <td className="py-3 pe-3">
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STATUS_TONE[t.status] || STATUS_TONE.Lead}`}>{t.status}</span>
+                        <StatusPill kind="sales" status={t.status} />
                       </td>
                       <td className="py-3 text-slate-500 dark:text-slate-400">{fmtDate(t.updatedAt || t.createdAt)}</td>
                     </tr>
@@ -524,7 +516,7 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
                       {col("deadline") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{fmtDate(t.deadline)}</td>}
                       {col("status") && (
                         <td className="py-3 pe-3 ps-2">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STATUS_TONE[t.status] || STATUS_TONE.Lead}`}>{t.status}</span>
+                          <StatusPill kind="sales" status={t.status} />
                         </td>
                       )}
                       {col("urgency") && (

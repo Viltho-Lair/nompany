@@ -15,26 +15,15 @@ import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import TechnicalDashboard from "@/components/studio2/TechnicalDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
+import { StatusPill } from "@/components/studio2/StatusPill";
 
 // Technical: RFQs raised by Sales, and the quotations they become.
 // Two different grants are in play — raising an RFQ needs Sales:manage, working
 // it needs Technical:manage — so the buttons appear independently. The chrome
 // comes from studio2/ui, so this section reads as the same product as Sales.
 
-const RFQ_TONE = {
-  New: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  "In-review": "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  Converted: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  Rejected: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-};
-const Q_TONE = {
-  New: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  Draft: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  Completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  Sent: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  Approved: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  Rejected: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-};
+// RFQ (kind "rfq") and quotation (kind "quotation") colours now live in the
+// shared StatusPill map.
 
 // Columns the quotations table can show. Actions is always drawn, so it is not
 // on the list.
@@ -598,7 +587,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
                               builder, Draft while it is being built, Completed
                               when they submit. Offering it as a dropdown here
                               invited people to contradict the record. */}
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${Q_TONE[q.status] || Q_TONE.Draft}`}>{q.status}</span>
+                          <StatusPill kind="quotation" status={q.status} />
                         </td>
                       )}
                       <td className="py-3 text-end">

@@ -6,6 +6,7 @@ import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { panel, h2, sub, btnGhost, fmtDate, Empty } from "@/components/studio2/ui";
+import { StatusPill } from "@/components/studio2/StatusPill";
 import { Money } from "@/components/Currency";
 import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
 
@@ -24,12 +25,7 @@ import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/modules/main
 
 const card = `${panel} min-h-0`;
 
-const STAGE_TONE = {
-  Received: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  "In Progress": "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  "On Hold": "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  Completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-};
+// Project-stage colours now live in the shared StatusPill map (kind "project").
 
 export default function StudioProjectProfile({ slug, projectId }) {
   const [data, setData] = useState(null);
@@ -87,7 +83,7 @@ export default function StudioProjectProfile({ slug, projectId }) {
                   as an empty cell — a project without a number is a normal
                   state here, not a missing value. */}
               <Field label="Number" value={project.number || <span className="text-amber-700 dark:text-amber-300">Not issued yet</span>} mono />
-              <Field label="Stage" value={<span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STAGE_TONE[project.stage] || ""}`}>{project.stage}</span>} />
+              <Field label="Stage" value={<StatusPill kind="project" status={project.stage} />} />
               <Field label="Handler" value={people[project.managerCollaboratorId] || "Unassigned"} />
               <Field label="Value" value={project.value ? <Money amount={project.value} currency={currency} /> : ""} />
               <Field label="Received" value={fmtDate(project.receivedDate)} />

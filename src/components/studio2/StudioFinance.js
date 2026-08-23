@@ -12,6 +12,7 @@ import { assetRegister } from "@/modules/finance/analytics";
 import {
   stripeOn, stripeOff, Dialog, ColumnPicker, prefKey, loadPref, savePref, fmtDate,
 } from "@/components/studio2/ui";
+import { StatusPill } from "@/components/studio2/StatusPill";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -21,28 +22,10 @@ const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display te
 const th = "pb-3 text-start text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 const td = "py-3 pe-3 align-middle";
 
-const INV_TONE = {
-  Draft: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  Sent: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  Paid: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  Cancelled: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-};
-
-// A bill's own status ladder (Draft|Received|Approved|Paid|Cancelled|Disputed).
-// Approved wears the accent to read as "authorised"; Disputed is a warning, not a
-// failure, so it borrows amber rather than the rose of Cancelled.
-const BILL_TONE = {
-  Draft: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  Received: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  Approved: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  Paid: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  Cancelled: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  Disputed: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-};
-const ASSET_STATUS_TONE = {
-  service: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  disposed: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-};
+// Invoice / bill / asset status colours now live in the shared StatusPill map
+// (kinds "invoice", "bill", "asset"). A bill's Approved wears the brand accent to
+// read as "authorised"; Disputed is amber, a warning rather than the rose of
+// Cancelled — see StatusPill.jsx.
 
 // The tenant's locale and dd/mm/yyyy, via the one formatter. `fmtDate` already
 // treats a date-only string as local midnight, so the `T00:00:00` guard moved
@@ -266,7 +249,7 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
                       </td>
                       <td className={`${td} text-end font-600 text-slate-900 dark:text-white`}>{money(inv.total)}</td>
                       <td className={`${td} text-end text-slate-600 dark:text-slate-300`}>{money(inv.paid)}</td>
-                      <td className={td}><span className={`rounded-full px-2.5 py-1 text-xs font-600 ${INV_TONE[inv.status]}`}>{inv.status}</span></td>
+                      <td className={td}><StatusPill kind="invoice" status={inv.status} /></td>
                       <td className={`${td} text-end`}>
                         {canManage && (
                           <span className="flex flex-wrap justify-end gap-2">
@@ -747,7 +730,7 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
                         </td>
                         <td className={`${td} text-end font-600 tabular-nums text-slate-900 dark:text-white`}>{money(b.total)}</td>
                         <td className={`${td} text-end tabular-nums text-slate-600 dark:text-slate-300`}>{money(b.outstanding)}</td>
-                        <td className={td}><span className={`rounded-full px-2.5 py-1 text-xs font-600 ${BILL_TONE[b.status] || BILL_TONE.Received}`}>{b.status}</span></td>
+                        <td className={td}><StatusPill kind="bill" status={b.status} /></td>
                         <td className={`${td} text-end`}>
                           {canManage && (
                             <span className="flex flex-wrap justify-end gap-2">
@@ -1011,9 +994,8 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
                       <td className={`${td} text-end tabular-nums text-slate-600 dark:text-slate-300`}>{money(a.bookValue)}</td>
                       <td className={`${td} text-end tabular-nums text-slate-500 dark:text-slate-400`}>{a.disposed ? "—" : money(a.monthlyDepreciation)}</td>
                       <td className={td}>
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${a.disposed ? ASSET_STATUS_TONE.disposed : ASSET_STATUS_TONE.service}`}>
-                          {a.disposed ? "Disposed" : a.fullyDepreciated ? "Fully depreciated" : "In service"}
-                        </span>
+                        <StatusPill kind="asset" status={a.disposed ? "disposed" : "service"}
+                          label={a.disposed ? "Disposed" : a.fullyDepreciated ? "Fully depreciated" : "In service"} />
                       </td>
                       <td className={`${td} text-end`}>
                         {canManage && (

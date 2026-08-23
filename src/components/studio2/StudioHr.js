@@ -11,16 +11,13 @@ import StudioDate from "@/components/fields/StudioDate";
 import { initialsOf } from "@/lib/initials";
 import HrDashboard from "@/components/studio2/HrDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
+import { StatusPill } from "@/components/studio2/StatusPill";
 
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
 const td = "py-3 pe-3 align-middle";
 
-const LEAVE_TONE = {
-  Pending: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  Approved: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  Declined: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  Cancelled: "bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400",
-};
+// Leave-request colours now live in the shared StatusPill map (kind "leave").
+// Cancelled is the dimmer `muted` slate, kept distinct from the neutral default.
 
 // Dates are dd/mm/yyyy everywhere in this product.
 const fmt = fmtDate;
@@ -700,7 +697,7 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
                     <td className={`${td} ps-2 text-slate-600 dark:text-slate-300`}>{fmt(v.to)}</td>
                     <td className={`${td} ps-2 tabular-nums text-slate-600 dark:text-slate-300`}>{v.days}</td>
                     <td className={`${td} ps-2`}>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${LEAVE_TONE[v.status]}`}>{v.status}</span>
+                      <StatusPill kind="leave" status={v.status} />
                     </td>
                     <td className={`${td} text-end`}>
                       {v.status === "Pending" && (

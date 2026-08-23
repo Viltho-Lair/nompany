@@ -8,6 +8,7 @@ import { Icon } from "@/components/studio2/icons";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import ProjectsDashboard from "@/components/studio2/ProjectsDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
+import { StatusPill } from "@/components/studio2/StatusPill";
 import {
   panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
   money, fmtDate, Dialog, Toolbar, Empty,
@@ -26,12 +27,7 @@ import { REQUIREMENT_WEIGHTS, hoursBetween } from "@/modules/projects/projectSch
 // from the milestone checklist, so the bar and the stage can never disagree with
 // what has actually been ticked off. The chrome comes from studio2/ui.
 
-const STAGE_TONE = {
-  Received: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
-  "In Progress": "bg-brand-500/10 text-brand-700 dark:text-brand-300",
-  "On Hold": "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  Completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-};
+// Project-stage colours now live in the shared StatusPill map (kind "project").
 const rnd = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 function SupportTag({ project }) {
@@ -302,7 +298,7 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
                           <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{p.clientName || "—"}</td>
                           <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{p.location || "—"}</td>
                           <td className="py-3 pe-3 ps-2">
-                            <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STAGE_TONE[p.stage] || STAGE_TONE.Received}`}>{p.stage}</span>
+                            <StatusPill kind="project" status={p.stage} />
                           </td>
                           <td className="py-3 pe-3 ps-2 tabular-nums text-slate-600 dark:text-slate-300">{money(p.value)}</td>
                           <td className="py-3 pe-3 ps-2">
@@ -1106,7 +1102,7 @@ function ProjectsSettings({ settings, departments, stages, canManage, onSave }) 
         <p className={sub}>The stages a project moves through. These are fixed for now — the board and the list both read them.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {stages.map((s) => (
-            <span key={s} className={`rounded-full px-2.5 py-1 text-xs font-600 ${STAGE_TONE[s] || STAGE_TONE.Received}`}>{s}</span>
+            <StatusPill key={s} kind="project" status={s} />
           ))}
         </div>
       </section>
