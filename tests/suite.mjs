@@ -75,6 +75,8 @@ import { analyticsLevelOf, analyticsAllows } from "@/lib/analytics";
 import { enabledWidgets, widgetsForRung, WIDGET_KEYS, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
 import { planOf } from "@/lib/plans";
 import { createCatalogItem, deleteCatalogItem, listCatalog } from "@/lib/data/catalog";
+import { overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices, OVERDUE_MILESTONES, EXPIRING_MILESTONES } from "@/modules/main/timeNotices";
+import { resolveHolders } from "@/lib/studios";
 import { inventoryContext, createItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation,
@@ -1317,6 +1319,51 @@ console.log("\n== Finance 1b: the payables and register dashboard arithmetic");
   ok("the register totals only assets still held", reg.count === 3 && reg.disposedCount === 1, JSON.stringify({ c: reg.count, d: reg.disposedCount }));
   ok("...cost, accumulated and net book value roll up", reg.totalCost === 105000 && reg.totalAccumulated === 52000 && reg.netBookValue === 53000, JSON.stringify(reg));
   ok("...and it breaks down by category, largest first", reg.byCategory[0].label === "Vehicles" && reg.byCategory[0].cost === 100000, JSON.stringify(reg.byCategory));
+}
+
+// ============================================================================
+console.log("\n== time-driven notices fire once per milestone, and reach the right people");
+// The daily cron announces overdue and expiring records — but only on fixed day
+// milestones, so a record is told once as each threshold passes rather than every
+// morning. Pure, so provable without the cron or a studio.
+{
+  const today = "2026-08-23";
+  const inv = (o) => ({ id: "i1", reference: "INV-1", status: "Sent", clientName: "Acme", lines: [{ description: "x", qty: 1, unitPrice: 100 }], vatRate: 0, payments: [], ...o });
+
+  // 7 days is a milestone; 2 days is not.
+  ok("an invoice fires on an overdue milestone", overdueInvoiceNotices([inv({ dueDate: "2026-08-16" })], today).length === 1, "day 7 silent");
+  ok("...and stays silent between milestones", overdueInvoiceNotices([inv({ dueDate: "2026-08-21" })], today).length === 0, "day 2 fired");
+  ok("...carrying how overdue and how much is outstanding", (() => { const n = overdueInvoiceNotices([inv({ dueDate: "2026-08-16" })], today)[0]; return n.daysOverdue === 7 && n.outstanding === 100 && n.name === "Acme"; })(), "detail");
+  // A paid or draft claim is not overdue.
+  ok("a paid invoice never fires", overdueInvoiceNotices([inv({ dueDate: "2026-08-16", payments: [{ amount: 100 }] })], today).length === 0, "paid fired");
+  ok("a draft invoice never fires", overdueInvoiceNotices([inv({ dueDate: "2026-08-16", status: "Draft" })], today).length === 0, "draft fired");
+  ok("the overdue milestones are the agreed set", JSON.stringify(OVERDUE_MILESTONES) === JSON.stringify([1, 7, 14, 30, 60, 90]), JSON.stringify(OVERDUE_MILESTONES));
+
+  // Bills mirror invoices, on vendorName.
+  const bill = { id: "b1", reference: "BILL-1", status: "Received", vendorName: "Steel", lines: [{ description: "x", qty: 1, unitPrice: 200 }], vatRate: 0, payments: [], dueDate: "2026-08-22" };
+  ok("a bill fires the day it becomes overdue", overdueBillNotices([bill], today).length === 1 && overdueBillNotices([bill], today)[0].name === "Steel", "bill day 1");
+
+  // Documents (ID/passport on the collaborator row) fire on expiry milestones.
+  const emp = (o) => ({ id: "c1", alias: "Sara", ...o });
+  ok("a document fires 7 days before it expires", expiringDocumentNotices([emp({ idExpiry: "2026-08-30" })], new Date(`${today}T00:00:00`)).length === 1, "doc day-7 silent");
+  ok("...and not on an off-milestone day", expiringDocumentNotices([emp({ idExpiry: "2026-08-28" })], new Date(`${today}T00:00:00`)).length === 0, "doc day-5 fired");
+  ok("the expiring milestones are the agreed set", JSON.stringify(EXPIRING_MILESTONES) === JSON.stringify([30, 14, 7, 3, 1, 0]), JSON.stringify(EXPIRING_MILESTONES));
+
+  // Permits fire on validTo milestones.
+  const permit = { id: "p1", reference: "PMT-1", type: "Hot work", validTo: "2026-08-24" };  // 1 day left
+  ok("a permit fires the day before it lapses", expiringPermitNotices([permit], today).length === 1 && expiringPermitNotices([permit], today)[0].kind === "Hot work", "permit day-1");
+  ok("...and a permit with no expiry never fires", expiringPermitNotices([{ id: "p2", type: "Other" }], today).length === 0, "no-validTo fired");
+
+  // RECIPIENTS by permission: a role holder and the owner hear it; a bystander does not.
+  const roles = [{ id: "r1", permissions: ["finance.cash.view"] }];
+  const collaborators = [
+    { id: "c1", userId: "u1", roleIds: ["r1"] },       // holds the right
+    { id: "c2", userId: "u2", roleIds: [] },            // holds nothing
+    { id: "owner", userId: "uo", role: "owner" },       // holds everything
+  ];
+  const { recipientIds, userIdOf } = resolveHolders(collaborators, roles, "finance.cash.view");
+  ok("the notice reaches the holders and the owner, not a bystander", recipientIds.includes("c1") && recipientIds.includes("owner") && !recipientIds.includes("c2"), JSON.stringify(recipientIds));
+  ok("...and maps each recipient to their user for the doorbell", userIdOf("c1") === "u1" && userIdOf("owner") === "uo", "userIdOf");
 }
 
 // ============================================================================

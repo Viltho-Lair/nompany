@@ -54,6 +54,11 @@ export const NOTIFY = {
   rfqRaised: "rfq.raised",
   mention: "mention",
   system: "system",
+  // Time-driven (produced by the daily-notices cron, not by a request).
+  invoiceOverdue: "invoice.overdue",
+  billOverdue: "bill.overdue",
+  documentExpiring: "document.expiring",
+  permitExpiring: "permit.expiring",
 };
 
 /** One stored notification, as this module writes it. */

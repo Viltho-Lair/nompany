@@ -8,8 +8,9 @@
 
 import {
   effectivePermissions, requirePermission, scopeFor, sectionViewable, sectionManageable,
-  escalates, ADMIN_ROLE_ID,
+  escalates, ADMIN_ROLE_ID, can,
 } from "@/platform/access";
+import type { PermissionKey } from "@/platform/access";
 import { listRoles } from "@/modules/people/roles";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import {
@@ -226,6 +227,38 @@ export function sectionNav(studio: Row | null | undefined, collaborator: unknown
 // standing in for all of them.
 export function manageMap(studio: Row | null | undefined, collaborator: unknown, sections: Section[], access: PermissionSet) {
   return Object.fromEntries((sections || []).map((s) => [s.key, sectionManageable(access, s.key, (sections || []).map((x) => x.key))]));
+}
+
+// WHO IN A STUDIO HOLDS A GIVEN RIGHT — the recipients for a notice addressed by
+// permission rather than by name. "Tell whoever can chase invoices" resolves to
+// the collaborators who hold finance.cash.view, and the owner is always among
+// them (their role resolves to everything). Returns CollaboratorIDs (invariant
+// 6) plus the CollaboratorID→UserID map notifyCollaborators needs to ring the
+// right per-person channel.
+export type Recipients = { recipientIds: string[]; userIdOf: (collaboratorId: string) => string | undefined };
+
+// The PURE half: given the collaborators and roles already in hand, who holds
+// the key. Split out so a caller scanning one studio for SEVERAL notice types
+// (the daily cron) resolves every audience from one read of each list, rather
+// than re-reading both per permission.
+export function resolveHolders(
+  collaborators: readonly { id?: unknown; userId?: unknown }[],
+  roles: readonly Role[],
+  permissionKey: PermissionKey,
+): Recipients {
+  const holders = collaborators.filter((c) =>
+    can(effectivePermissions({ collaborator: c as Record<string, unknown>, roles }), permissionKey));
+  const userById = new Map(collaborators.map((c) => [String(c.id), c.userId as string | undefined]));
+  return {
+    recipientIds: holders.map((c) => String(c.id)),
+    userIdOf: (id) => userById.get(id),
+  };
+}
+
+// The loading half, for a one-off caller that holds neither list.
+export async function collaboratorsHolding(studioId: string, permissionKey: PermissionKey): Promise<Recipients> {
+  const [collaborators, roles] = await Promise.all([listCollaborators(studioId), listRoles(studioId)]);
+  return resolveHolders(collaborators, roles as Role[], permissionKey);
 }
 
 // Re-exported so a service module can guard a mutation without importing two
