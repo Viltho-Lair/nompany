@@ -63,6 +63,11 @@ const FIELDS = [
     zeroLabel: "Unlimited", showWhen: { field: "chatEnabled", equals: true },
     hint: "0 means unlimited. Each chat started spends one; the button goes flat at zero.",
   },
+  // Nova, the in-app assistant, is sold on the PACKAGE axis (dashboards are the
+  // tier axis). Off hides Nova entirely for studios on this package; on gives
+  // them the assistant. Which capabilities Nova then offers is set once,
+  // platform-wide, in /super → Application → Nova.
+  { key: "novaHeadEnabled", label: "Nova assistant", type: "switch", hint: "Gives studios on this package the Nova assistant. Capabilities are chosen in Application → Nova." },
 
   { key: "includes", label: "Includes", type: "lines", placeholder: "Full platform — every department\nUp to 9 employees\nEnglish & Arabic, RTL-ready" },
   { key: "includesAr", label: "Includes (Arabic)", type: "lines" },

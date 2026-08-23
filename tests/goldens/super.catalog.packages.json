@@ -24,6 +24,7 @@
         "color": "#10b981",
         "supportTicketsPerMonth": 0,
         "chatEnabled": false,
+        "novaHeadEnabled": false,
         "createdAt": "<timestamp>",
         "updatedAt": "<timestamp>"
       }

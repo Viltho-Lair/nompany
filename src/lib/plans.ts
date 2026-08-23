@@ -43,6 +43,9 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     // 0 allowed means unlimited, the same convention every other cap here uses.
     chatEnabled: Boolean(pkg?.chatEnabled),
     chatPerMonth: Number(pkg?.supportTicketsPerMonth || 0),
+    // Nova, the in-app assistant — availability rides on the package (the /super
+    // Nova switchboard decides which capabilities, platform-wide).
+    novaEnabled: Boolean(pkg?.novaHeadEnabled),
     tierId: tier?.id || "",
     tierName: tier?.name || DEFAULT_TIER,
     tierColor: tier?.color || "",

@@ -1081,6 +1081,11 @@ console.log("\n== a tier's analytics rung: explicit wins, else the name, else th
     { id: "t_both", name: "Advanced", analyticsLevel: "simple" },
     { id: "t_unknown", name: "Platinum" },
   ];
+  // Nova availability rides on the PACKAGE (the other gate axis), resolved by planOf.
+  ok("a package's Nova switch resolves through planOf",
+    planOf({ packageId: "p1" }, [{ id: "p1", novaHeadEnabled: true }], []).novaEnabled === true
+    && planOf({ packageId: "p2" }, [{ id: "p2" }], []).novaEnabled === false, "novaEnabled");
+
   const lvl = (tierId) => planOf({ tierId }, [], tiers).analyticsLevel;
   ok("a tier named after a rung grants that rung", lvl("t_named") === "advanced", lvl("t_named"));
   ok("...an explicit field wins over the name", lvl("t_both") === "simple", lvl("t_both"));

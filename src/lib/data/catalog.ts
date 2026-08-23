@@ -147,6 +147,10 @@ const KINDS: Record<string, CatalogKind> = {
         // it was "Free" — which quietly turned renaming a package into a
         // billing change.
         chatEnabled: Boolean(b.chatEnabled),
+        // Whether studios on this package get Nova, the in-app assistant. The
+        // package axis of the two gates — availability. Which capabilities Nova
+        // then offers is a platform-wide choice in /super → Application → Nova.
+        novaHeadEnabled: Boolean(b.novaHeadEnabled),
       };
     },
   },
