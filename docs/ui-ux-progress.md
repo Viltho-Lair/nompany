@@ -113,3 +113,46 @@ The slice in flight, and the decisions that set it (yours, 23/08/2026):
 **Reuse, don't recreate:** shadcn primitives already in `components/ui` (input, label,
 select, dialog, popover, …) are the building blocks; the `Field` composes them, it does
 not reinvent them.
+
+---
+
+## Check when you're signed in
+
+Objective checks (build · both typecheck configs · full suite · Gate A · bundle) are
+green throughout. These are the things that need a human eye, gathered as they came
+up so nothing is lost. None blocks the build; each is a judgement call or a visual
+confirmation.
+
+**Visual passes (need the studio on screen):**
+- The floating `Field` across every form — resting label centred, lifting on focus,
+  the iris focus ring, in **both light and dark** and in **Arabic (RTL)**.
+- The **MUI date picker** (`StudioDate`) — that dd/MM/yyyy reads right, the calendar
+  opens cleanly inside a modal, and it sits at the correct height in the field box.
+- The **Finance dashboard** (and the other department dashboards) — that the widgets
+  read well and the **locked teasers** look right below a studio's tier.
+- The **login** floating fields + entrance (the "elevate" pass).
+
+**Deliberate small losses (confirm acceptable, else I restore):**
+- Dropped **select empty-option wording** ("Unassigned", "— none —", "Me", "Anyone",
+  "No role", …) — the floating label now carries the field name; the words are gone.
+- A few **example placeholders** with nowhere to go were dropped rather than made hints
+  (e.g. "e.g. Sara").
+- Some **textareas** grew from 2–3 rows to the Field default of 4.
+- A handful of **enum selects** gained a visible `*` (required) to suppress a blank option.
+- **Search boxes** became floating Fields (label = former placeholder) rather than plain
+  inputs.
+
+**Left for a follow-up pass (not converted to Field, still functional):**
+- `StudioProjects` **ProjectDetail edit grid** — uncontrolled `onBlur` fields (converting
+  would change save-on-blur to save-on-keystroke); left intact.
+- `StudioSheetViewer` **inline sheet-cell editors** — Field's box can't live in a table cell.
+- `StudioSettings` **EditRow**-based settings rows (they already render their own label).
+- Native controls Field doesn't model: identity-number lock inputs, file uploads,
+  checkboxes/toggles, `type="time"` and `type="datetime-local"` inputs, one leftover
+  `StudioSales` description textarea (line ~1095).
+- **Tiers have no `analyticsLevel` editor** in `/super` yet — every tier resolves to the
+  `basic` floor until that UI lands, so paid-rung locking is inert until then.
+
+**Local dev note:** `RESEND_API_KEY` isn't in `.env.local`, so `localhost:3000` can't
+email OTPs/notifications — sign-in codes have to be read from Redis. Add the key to send
+locally.
