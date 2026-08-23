@@ -6,6 +6,8 @@ import useLiveRows from "@/components/studio2/useLiveRows";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
+import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
   panel, h2, sub, input, microLabel, label, btn, btnGhost, btnAmber, th, stripeOn, stripeOff,
@@ -991,60 +993,33 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2"><label className={label}>Title *</label><input className={input} value={f.title} onChange={set("title")} placeholder="Site survey for new branch" /></div>
+        <Field label="Title" required value={f.title} onChange={set("title")} className="sm:col-span-2" />
 
-        <div>
-          <label className={label}>Client *</label>
-          {/* Free text with suggestions: an unknown name creates the client. */}
-          {/* freeSolo matters here: typing a name that is not on the list is how
-              a new client gets created, which the datalist also allowed. */}
+        <Field label="Client" required filled={!!f.clientName}
+          hint={!row ? (matched ? `Existing client — ${(matched.contacts || []).length} contact${(matched.contacts || []).length === 1 ? "" : "s"} on file.` : "A name that isn't on the list creates a new client.") : undefined}>
           <Combo value={f.clientName} onChange={(v) => setF((p) => ({ ...p, clientName: v }))}
-            options={clients.map((c) => c.name)} placeholder="Acme Trading" disabled={!!row} />
-          {!row && (
-            <p className="mt-1 text-[11px] text-slate-400">
-              {matched ? `Existing client — ${(matched.contacts || []).length} contact${(matched.contacts || []).length === 1 ? "" : "s"} on file.` : "A name that isn't on the list creates a new client."}
-            </p>
-          )}
-        </div>
-        <div>
-          <label className={label}>Deadline *</label>
-          <input className={input} type="date" value={f.deadline} onChange={set("deadline")} />
-        </div>
-        <div>
-          <label className={label}>Type of industry *</label>
+            options={clients.map((c) => c.name)} inputClassName={BARE_CONTROL} disabled={!!row} />
+        </Field>
+
+        <Field label="Deadline" required filled={!!f.deadline}>
+          <StudioDate value={f.deadline} onChange={(iso) => setF((p) => ({ ...p, deadline: iso }))} />
+        </Field>
+
+        <Field label="Type of industry" required filled={!!f.industry}>
           <Combo value={f.industry} onChange={(v) => setF((p) => ({ ...p, industry: v }))}
-            options={vocabulary.industries || []} placeholder="Retail" />
-        </div>
-        <div>
-          <label className={label}>Client budget</label>
-          {/* The studio's currency sits IN the field rather than beside the
-              label, so the number is read together with what it is in. */}
-          <div className="relative">
-            {studioDefaults.currency && (
-              <span className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-sm text-slate-400">
-                <CurrencySymbol code={studioDefaults.currency} />
-              </span>
-            )}
-            <input className={`${input} ${studioDefaults.currency ? "ps-10" : ""}`} type="number" min="0"
-              value={f.clientBudget} onChange={set("clientBudget")} placeholder="Optional reference figure" />
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">The ticket&apos;s <span className="font-600">Value Quoted</span> is set automatically from its most recent quotation.</p>
-        </div>
+            options={vocabulary.industries || []} inputClassName={BARE_CONTROL} />
+        </Field>
+
+        {/* The studio's currency sits IN the field, so the number is read together
+            with what it is in. Value Quoted is derived, hence only a hint here. */}
+        <Field label="Client budget" type="number" min="0" value={f.clientBudget} onChange={set("clientBudget")}
+          prefix={studioDefaults.currency ? <CurrencySymbol code={studioDefaults.currency} /> : null}
+          hint={<>The ticket&apos;s <span className="font-600">Value Quoted</span> is set automatically from its most recent quotation.</>} />
 
         {row && (
           <>
-            <div>
-              <label className={label}>Status</label>
-              <select className={input} value={f.status} onChange={set("status")}>
-                {(vocabulary.statuses || []).map((s) => (<option key={s} value={s}>{s}</option>))}
-              </select>
-            </div>
-            <div>
-              <label className={label}>Urgency</label>
-              <select className={input} value={f.urgency} onChange={set("urgency")}>
-                {(vocabulary.urgencies || []).map((u) => (<option key={u} value={u}>{u}</option>))}
-              </select>
-            </div>
+            <Field label="Status" as="select" required value={f.status} onChange={set("status")} options={vocabulary.statuses || []} />
+            <Field label="Urgency" as="select" required value={f.urgency} onChange={set("urgency")} options={vocabulary.urgencies || []} />
           </>
         )}
 
@@ -1062,52 +1037,42 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
 
       <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">Contact</p>
       <div className="mt-2 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className={label}>Name</label>
+        <Field label="Name" filled={!!f.contactName}>
           {knownContacts.length > 0
-            ? <Combo value={f.contactName} onChange={pickContact} options={knownContacts.map((c) => c.name)} placeholder="Search existing contacts or type a new name" />
-            : <input className={input} value={f.contactName} onChange={set("contactName")} />}
-        </div>
-        <div>
-          <label className={label}>Position</label>
+            ? <Combo value={f.contactName} onChange={pickContact} options={knownContacts.map((c) => c.name)} inputClassName={BARE_CONTROL} />
+            : <input className={BARE_CONTROL} value={f.contactName} onChange={set("contactName")} />}
+        </Field>
+        <Field label="Position" filled={!!f.contactPosition}>
           <Combo value={f.contactPosition} onChange={(v) => setF((p) => ({ ...p, contactPosition: v }))}
-            options={positions} placeholder="Procurement Manager" />
-        </div>
-        <div><label className={label}>Email</label><input className={input} type="email" value={f.contactEmail} onChange={set("contactEmail")} /></div>
-        <div><label className={label}>Phone</label><input className={input} value={f.contactPhone} onChange={set("contactPhone")} /></div>
+            options={positions} inputClassName={BARE_CONTROL} />
+        </Field>
+        <Field label="Email" type="email" value={f.contactEmail} onChange={set("contactEmail")} />
+        <Field label="Phone" value={f.contactPhone} onChange={set("contactPhone")} />
       </div>
 
       <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">Location</p>
       <div className="mt-2 grid gap-4 sm:grid-cols-3">
-        <div>
-          <label className={label}>Site name</label>
-          {/* Behaves like Contact name: search the sites this client already
-              has, or type a new one. Choosing a saved site fills the rest of
-              this block from what was stored with it. */}
-          <Combo
-            value={f.locationName}
+        <Field label="Site name" filled={!!f.locationName}>
+          {/* Choosing a saved site fills the rest of this block from what was
+              stored with it. */}
+          <Combo value={f.locationName}
             onChange={(v) => setF((p) => {
               const saved = clientLocations.find((l) => String(l.name || "").trim().toLowerCase() === v.trim().toLowerCase());
               return saved
                 ? { ...p, locationName: v, locationCountry: saved.country || p.locationCountry, locationCity: saved.city || "", locationUrl: saved.url || "" }
                 : { ...p, locationName: v };
             })}
-            options={clientLocations.map((l) => l.name).filter(Boolean)}
-            placeholder="Head office"
-          />
-        </div>
-        <div>
-          <label className={label}>Country</label>
+            options={clientLocations.map((l) => l.name).filter(Boolean)} inputClassName={BARE_CONTROL} />
+        </Field>
+        <Field label="Country" filled={!!f.locationCountry}>
           <Combo value={f.locationCountry} onChange={(v) => setF((p) => ({ ...p, locationCountry: v, locationCity: "" }))}
-            options={COUNTRY_NAMES} placeholder={studioDefaults.country || "Saudi Arabia"} />
-        </div>
-        <div>
-          <label className={label}>City</label>
+            options={COUNTRY_NAMES} inputClassName={BARE_CONTROL} />
+        </Field>
+        <Field label="City" filled={!!f.locationCity}>
           <Combo value={f.locationCity} onChange={(v) => setF((p) => ({ ...p, locationCity: v }))}
-            options={f.locationCountry ? citiesFor(codeOfCountry(f.locationCountry)) : cities}
-            placeholder={studioDefaults.city || "Riyadh"} />
-        </div>
-        <div><label className={label}>Map link</label><input className={input} value={f.locationUrl} onChange={set("locationUrl")} /></div>
+            options={f.locationCountry ? citiesFor(codeOfCountry(f.locationCountry)) : cities} inputClassName={BARE_CONTROL} />
+        </Field>
+        <Field label="Map link" value={f.locationUrl} onChange={set("locationUrl")} />
       </div>
 
       <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">Type of services *</p>
