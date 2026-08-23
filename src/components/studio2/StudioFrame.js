@@ -445,7 +445,7 @@ export default function StudioFrame({
           </div>
         </header>
         <main className="mx-auto max-w-[1400px] px-5 pb-8 sm:px-8"><AnalyticsLevelProvider analytics={analytics}>{children}</AnalyticsLevelProvider></main>
-        <NovaLauncher slug={studio.slug} enabled={novaEnabled} />
+        <NovaLauncher slug={studio.slug} enabled={novaEnabled} besideChat={Boolean(chat?.enabled)} />
       </div>
 
       {/* Live chat with nompany. It lives on the SHELL rather than on a page, so

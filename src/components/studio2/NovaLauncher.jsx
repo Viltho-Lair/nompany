@@ -27,7 +27,7 @@ function NovaMark({ className = "h-5 w-5" }) {
   );
 }
 
-export default function NovaLauncher({ slug, enabled = false }) {
+export default function NovaLauncher({ slug, enabled = false, besideChat = false }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);   // { role: "user"|"assistant", content }
   const [input, setInput] = useState("");
@@ -72,7 +72,11 @@ export default function NovaLauncher({ slug, enabled = false }) {
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Close Nova" : "Ask Nova"}
         aria-expanded={open}
-        className="fixed bottom-5 end-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50"
+        // Nova sits in the bottom-end corner. When the live-chat launcher is also
+        // there (same corner), Nova steps to its left so the two sit side by side
+        // rather than stacked — and when chat is absent, Nova takes the corner
+        // itself. `end-24` clears the ~48px chat button plus a gap.
+        className={`fixed bottom-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-[transform,inset] hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${besideChat ? "end-24" : "end-5"}`}
       >
         <NovaMark className="h-6 w-6" />
       </button>
