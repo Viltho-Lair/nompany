@@ -16,6 +16,20 @@ export { toneOf } from "@/lib/planColors";
 // Resolve one studio's plan against the catalogue. Falls back to the default
 // NAMES rather than to nothing, so a studio whose package was deleted still
 // reads as something a person can act on instead of a blank.
+// The rung a tier grants: an explicit `analyticsLevel` field wins (for when the
+// console gains an editor for it); otherwise the tier's NAME is read as the rung,
+// so a studio on a tier named "Advanced" sees the advanced widgets today without
+// any migration. Anything unrecognised is the free floor.
+const ANALYTICS_RUNGS = ["basic", "simple", "moderate", "advanced"];
+function analyticsLevelFromTier(tier: Row | null | undefined): string {
+  const explicit = typeof tier?.analyticsLevel === "string" ? tier.analyticsLevel.trim().toLowerCase() : "";
+  if (ANALYTICS_RUNGS.includes(explicit)) return explicit;
+  const name = String(tier?.name || "").trim().toLowerCase();
+  // Longest first so "advanced"/"moderate" win before any shorter substring.
+  const byName = [...ANALYTICS_RUNGS].sort((a, b) => b.length - a.length).find((r) => name.includes(r));
+  return byName || "basic";
+}
+
 export function planOf(studio: Row | null | undefined, packages: Row[], tiers: Row[]) {
   const pkg = packages.find((p: Row) => p.id === studio?.packageId) || null;
   const tier = tiers.find((t: Row) => t.id === studio?.tierId) || null;
@@ -34,9 +48,11 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     tierColor: tier?.color || "",
     // WHICH ANALYTICS RUNG THIS TIER BUYS. Analytics is sold, so a dashboard
     // widget above the studio's rung shows as a locked teaser rather than the
-    // number. Explicit on the tier; "basic" is the floor a tier without one
-    // resolves to, so an un-migrated tier still gets the free widgets.
-    analyticsLevel: (typeof tier?.analyticsLevel === "string" && tier.analyticsLevel) || "basic",
+    // number. Resolved from the tier's explicit `analyticsLevel` when set (a
+    // future /super field), ELSE from the tier's NAME — a tier called
+    // "Advanced" IS the advanced rung — else the free "basic" floor. See
+    // analyticsLevelFromTier below.
+    analyticsLevel: analyticsLevelFromTier(tier),
   };
 }
 

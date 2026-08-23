@@ -150,8 +150,12 @@ confirmation.
 - Native controls Field doesn't model: identity-number lock inputs, file uploads,
   checkboxes/toggles, `type="time"` and `type="datetime-local"` inputs, one leftover
   `StudioSales` description textarea (line ~1095).
-- **Tiers have no `analyticsLevel` editor** in `/super` yet — every tier resolves to the
-  `basic` floor until that UI lands, so paid-rung locking is inert until then.
+- **Tiers now carry an analytics rung** — `/super` → Tiers has a "Dashboard analytics"
+  select (basic/simple/moderate/advanced), stored on the tier and read first by
+  `planOf`. As a bridge for tiers saved before the editor existed, `planOf` also
+  resolves the rung from the tier's NAME (a tier named "Advanced" grants the advanced
+  rung), so paid-rung locking is live now, not inert. **Check:** set a tier's rung in
+  the console and confirm a studio on it sees the matching widgets vs locked teasers.
 
 **Local dev note:** `RESEND_API_KEY` isn't in `.env.local`, so `localhost:3000` can't
 email OTPs/notifications — sign-in codes have to be read from Redis. Add the key to send

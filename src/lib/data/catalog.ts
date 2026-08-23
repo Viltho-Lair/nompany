@@ -9,6 +9,7 @@
 import { readArr, editArr, getJSON, setJSON } from "@/platform/db/store";
 import { ID, REG } from "@/platform/db/keys";
 import { normalizeColor, hexForName, DEFAULT_HEX } from "@/lib/planColors";
+import { ANALYTICS_LEVELS } from "@/lib/analytics";
 import type { Row } from "@/platform/db/store";
 
 const now = () => new Date().toISOString();
@@ -159,6 +160,11 @@ const KINDS: Record<string, CatalogKind> = {
       cost: num(b.cost),
       durationMonths: num(b.durationMonths),   // 0 = endless, as above
       isPublic: Boolean(b.isPublic),
+      // WHICH DASHBOARD RUNG THIS TIER BUYS. Analytics is sold per tier, and
+      // this is where a console user sets it — the explicit field planOf reads
+      // first. Whitelisted to the four rungs so a bad body can never store a
+      // level that unlocks everything; anything else is the free floor.
+      analyticsLevel: (ANALYTICS_LEVELS as readonly string[]).includes(String(b.analyticsLevel)) ? String(b.analyticsLevel) : "basic",
       // Same picker as a package's, so a tier is as recognisable at a glance.
       // No name-based default here: tier names are the studio's own invention,
       // not a fixed four, so an unpicked colour is simply grey.
