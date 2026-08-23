@@ -116,6 +116,27 @@ not reinvent them.
 
 ---
 
+## Time-driven notifications (shipped, live)
+
+A daily cron (`/api/cron/daily-notices`, 06:00 UTC) tells the people who can act
+about **overdue invoices/bills** and **expiring ID/passport documents and permits**.
+Fires once per record on fixed day-milestones (overdue 1/7/14/30/60/90; expiring
+30/14/7/3/1/0), so no daily spam and no stored "already sent" state. Addressed by
+permission (`finance.cash.view`, `finance.payables.view`, `hr.employees.view`,
+`operations.tracking.view`; owner always). Pure producers in
+`src/modules/main/timeNotices.ts`, recipient resolution `resolveHolders` in
+`src/lib/studios.ts`, cron fails closed on missing `CRON_SECRET`.
+
+**Check on live:**
+- `CRON_SECRET` must be set in the Vercel env for the cron to run (it already is, if
+  sweep-orphans/year-rollover run). To test now rather than wait for 06:00 UTC, hit
+  the endpoint with the secret header, or create an invoice with a due date exactly
+  1 day ago and run it.
+- The bell links use studio-relative paths `finance/cash`, `finance/payables`,
+  `hr/employees`, `operations/tracking` — confirm each opens the right screen.
+- HR **certifications** expiry is not yet a notice (only ID/passport are) — a small
+  follow-up if wanted.
+
 ## Check when you're signed in
 
 Objective checks (build · both typecheck configs · full suite · Gate A · bundle) are
