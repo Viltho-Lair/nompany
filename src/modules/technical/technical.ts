@@ -14,7 +14,7 @@
 import { sectionManageable, requirePermission, effectivePermissions, can } from "@/platform/access";
 import { nextUniqueRef } from "@/modules/main/references";
 import { repo } from "@/platform/db/repo";
-import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
+import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -277,7 +277,7 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   // approvedQuotationFor for why an approved quotation ends the asking.
   if (approvedQuotationFor(ticketId, quotations, tasks)) return { error: "approved" };
 
-  const rfq = await addRow(studio.id, rfqSection.id, RFQS, {
+  const rfq = await Rfqs.create({ studio, section: rfqSection }, {
     // One ticket can be sent over more than once — a second RFQ after the first
     // was rejected — so the ticket's own ref is a STARTING POINT, not the
     // answer. Suffixed until it is nobody else's.
@@ -318,7 +318,7 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   // strand work Technical still has open.
   const superseded = latestTicketQuotation(ticketId, quotations);
   if (superseded && isFinishedQuotation(superseded) && !superseded.locked) {
-    await updateRow(studio.id, quotationsSection.id, QUOTATIONS, String(superseded.id), {
+    await Quotations.update({ studio, section: quotationsSection }, String(superseded.id), {
       locked: true,
       supersededByRfqId: rfq.id,
       lockedAt: new Date().toISOString(),
@@ -331,7 +331,7 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   // RFQ" — move the ticket identically. A ticket already past Lead is left
   // alone: a second RFQ must not drag it backwards.
   if (ticket.status === DEFAULT_STATUS) {
-    await updateRow(studio.id, salesTicketsSection.id, TICKETS, ticketId, {
+    await Tickets.update({ studio, section: salesTicketsSection }, ticketId, {
       status: "Opportunity", updatedAt: new Date().toISOString(),
     });
   }
@@ -381,7 +381,7 @@ export async function updateRfq(ctx: TechnicalContext, id: string, body: Record<
   if (body?.handledByCollaboratorId !== undefined) patch.handledByCollaboratorId = str(body.handledByCollaboratorId, 60);
   if (body?.description !== undefined) patch.description = str(body.description, 4000);
 
-  const rfq = await updateRow(studio.id, rfqSection.id, RFQS, id, patch);
+  const rfq = await Rfqs.update({ studio, section: rfqSection }, id, patch);
   if (!rfq) return { error: "notfound" };
 
   // TURNING AN RFQ DOWN CLOSES THE TICKET BEHIND IT. Nothing is coming back to
@@ -396,7 +396,7 @@ export async function updateRfq(ctx: TechnicalContext, id: string, body: Record<
     const tickets = await Tickets.find({ studio, section: salesTicketsSection });
     const ticket = tickets.find((t) => t.id === rfq.ticketId);
     if (ticket && (ticket.status === DEFAULT_STATUS || ticket.status === "Opportunity")) {
-      await updateRow(studio.id, salesTicketsSection.id, TICKETS, String(rfq.ticketId || ""), {
+      await Tickets.update({ studio, section: salesTicketsSection }, String(rfq.ticketId || ""), {
         status: RFQ_REJECTED_TICKET_STATUS, updatedAt: new Date().toISOString(),
       });
     }
@@ -530,7 +530,7 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
   // and then left out of the row entirely. Stored under both names, so an
   // internal quotation names its handler wherever a converted one does.
   const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60) || handledBy;
-  const quotation = await addRow(studio.id, quotationsSection.id, QUOTATIONS, {
+  const quotation = await Quotations.create({ studio, section: quotationsSection }, {
     number,
     revision: 1,
     description,
@@ -594,7 +594,7 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   // description, which Technical then edits. Everything else the ticket owns is
   // read back through `ticketId` whenever the quotation is shown.
   const t = (await ticketFacts(ctx))(rfq.ticketId);
-  const quotation = await addRow(studio.id, quotationsSection.id, QUOTATIONS, {
+  const quotation = await Quotations.create({ studio, section: quotationsSection }, {
     number,
     revision: prior ? (Number(prior.revision) || 1) + 1 : 1,
     revisionOf: prior?.id || "",
@@ -629,7 +629,7 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   // The RFQ records who took it, not just that it went. The queue shows that
   // name on the converted row, and reading it back off the quotation every time
   // would make the list depend on a second collection to render one tag.
-  await updateRow(studio.id, rfqSection.id, RFQS, rfqId, {
+  await Rfqs.update({ studio, section: rfqSection }, rfqId, {
     status: "Converted", quotationId: quotation.id, handledByCollaboratorId,
   });
   return { quotation };
@@ -662,7 +662,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
     if (body?.locked !== false || asks.length !== 1) return { error: "locked" };
     const noUnlock = requirePermission(ctx.access, "technical.quotations.unlock");
     if (noUnlock) return noUnlock;
-    const reopened = await updateRow(studio.id, quotationsSection.id, QUOTATIONS, id, {
+    const reopened = await Quotations.update({ studio, section: quotationsSection }, id, {
       locked: false,
       unlockedByCollaboratorId: collaborator.id,
       unlockedAt: new Date().toISOString(),
@@ -752,7 +752,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
     patch.locked = true;
   }
 
-  const quotation = await updateRow(studio.id, quotationsSection.id, QUOTATIONS, id, patch);
+  const quotation = await Quotations.update({ studio, section: quotationsSection }, id, patch);
   return { quotation };
 }
 
@@ -761,7 +761,7 @@ export async function removeQuotation(ctx: TechnicalContext, id: string) {
   const denied = requirePermission(ctx.access, "technical.quotations.delete");
   if (denied) return denied;
 
-  const removed = await deleteRow(ctx.studio.id, ctx.quotationsSection.id, QUOTATIONS, id);
+  const removed = await Quotations.remove({ studio: ctx.studio, section: ctx.quotationsSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 

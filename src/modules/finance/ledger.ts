@@ -22,7 +22,6 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { addRow, updateRow } from "@/platform/db/sections";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals } from "./finance";
 import type { Account, JournalEntry, JournalLine, Invoice, Expense, FinanceContext } from "./types";
@@ -94,7 +93,7 @@ export async function ledgerAccounts(ctx: FinanceContext): Promise<Account[]> {
 
   const seeded: Account[] = [];
   for (const a of missing) {
-    seeded.push(await addRow<Account>(studio.id, ledgerSection.id, ACCOUNTS, {
+    seeded.push(await Accounts.create({ studio, section: ledgerSection }, {
       code: a.code, name: a.name, type: a.type, active: true,
       createdAt: new Date().toISOString(),
     }));
@@ -179,7 +178,7 @@ export async function postEntry(
   const entries = await Entries.find({ studio, section: ledgerSection });
   const reference = await nextReference(studio.id, { rows: entries as Row[], field: "reference", prefix: "JE" });
 
-  const entry = await addRow<JournalEntry>(studio.id, ledgerSection.id, ENTRIES, {
+  const entry = await Entries.create({ studio, section: ledgerSection }, {
     reference,
     date: day(body?.date) || new Date().toISOString().slice(0, 10),
     memo: str(body?.memo, 500),
@@ -218,7 +217,7 @@ export async function reverseEntry(ctx: FinanceContext, id: string, reason?: unk
     ...(l.memo ? { memo: l.memo } : {}),
   }));
 
-  const reversal = await addRow<JournalEntry>(studio.id, ledgerSection.id, ENTRIES, {
+  const reversal = await Entries.create({ studio, section: ledgerSection }, {
     reference,
     date: new Date().toISOString().slice(0, 10),
     memo: str(reason, 500) || `Reversal of ${original.reference}`,
@@ -231,7 +230,7 @@ export async function reverseEntry(ctx: FinanceContext, id: string, reason?: unk
 
   // Stamp the original so it cannot be reversed again. A function patch, so
   // "mark this reversed" stays a flip under contention (invariant 8).
-  await updateRow(studio.id, ledgerSection.id, ENTRIES, original.id, () => ({ reversedByEntryId: reversal.id }));
+  await Entries.update({ studio, section: ledgerSection }, original.id, () => ({ reversedByEntryId: reversal.id }));
 
   return { reversal };
 }

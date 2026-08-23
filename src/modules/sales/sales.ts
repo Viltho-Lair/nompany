@@ -14,7 +14,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
+import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -226,7 +226,7 @@ export async function createService(ctx: SalesContext, body: Record<string, unkn
     return { error: "duplicate" };
   }
   // addRow mints the id — this is the serviceId a ticket stores.
-  const service = await addRow(studio.id, settingsSection.id, SERVICES, {
+  const service = await Services.create({ studio, section: settingsSection }, {
     name,
     description: str(body?.description, 2000),
     createdByCollaboratorId: collaborator.id,
@@ -254,7 +254,7 @@ export async function editService(ctx: SalesContext, id: string, body: Record<st
     patch.name = name;
   }
   if (body?.description !== undefined) patch.description = str(body.description, 2000);
-  const service = await updateRow(studio.id, settingsSection.id, SERVICES, id, patch);
+  const service = await Services.update({ studio, section: settingsSection }, id, patch);
   return service ? { service } : { error: "notfound" };
 }
 
@@ -271,7 +271,7 @@ export async function removeService(ctx: SalesContext, id: string) {
   const tickets = await Tickets.find({ studio, section: ticketsSection });
   const used = tickets.filter((t) => (t.serviceIds || []).includes(id)).length;
   if (used > 0) return { error: "in-use", tickets: used };
-  const removed = await deleteRow(studio.id, settingsSection.id, SERVICES, id);
+  const removed = await Services.remove({ studio, section: settingsSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -298,7 +298,7 @@ export async function createClient(ctx: SalesContext, body: Record<string, unkno
     return { error: "duplicate" };
   }
 
-  const client = await addRow(studio.id, clientsSection.id, CLIENTS, {
+  const client = await Clients.create({ studio, section: clientsSection }, {
     name,
     code: clientSlug(name),
     industry: str(body?.industry, 80),
@@ -339,7 +339,7 @@ export async function editClient(ctx: SalesContext, id: string, body: Record<str
   if (body?.contacts !== undefined) patch.contacts = cleanContacts(body.contacts);
   if (body?.locations !== undefined) patch.locations = cleanLocations(body.locations);
 
-  const client = await updateRow(studio.id, clientsSection.id, CLIENTS, id, patch);
+  const client = await Clients.update({ studio, section: clientsSection }, id, patch);
   return client ? { client } : { error: "notfound" };
 }
 
@@ -355,7 +355,7 @@ export async function removeClient(ctx: SalesContext, id: string) {
   const tickets = await Tickets.find({ studio, section: ticketsSection });
   const used = tickets.filter((t) => t.clientId === id).length;
   if (used > 0) return { error: "in-use", tickets: used };
-  const removed = await deleteRow(studio.id, clientsSection.id, CLIENTS, id);
+  const removed = await Clients.remove({ studio, section: clientsSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -817,7 +817,7 @@ export async function sendTicketForApproval(ctx: SalesContext, body: Record<stri
 
   const revision = Number(quotation.revision) || 1;
   const name = `${quotation.number || "Quotation"}${revision > 1 ? ` Rev ${revision}` : ""}`;
-  const task = await addRow<Task>(studio.id, tasksSection.id, TASKS, {
+  const task = await Tasks.create({ studio, section: tasksSection }, {
     type: APPROVAL_TYPE,
     title: `Approve quotation ${name} · ${ticket.clientName || ticket.ref || ""}`.trim(),
     description: [ticket.title, ticket.ref].filter(Boolean).join(" · "),
@@ -923,7 +923,7 @@ export async function submitTicketPo(ctx: SalesContext, body: Record<string, unk
   // Finance twice — the same rule the approval obeys.
   if (tasks.some((k) => k.type === PO_TYPE && k.quotationId === quotation.id)) return { error: "already" };
 
-  const task = await addRow<Task>(studio.id, tasksSection.id, TASKS, {
+  const task = await Tasks.create({ studio, section: tasksSection }, {
     type: PO_TYPE,
     title: `Approve PO for ${quotation.number || "quotation"} · ${ticket.clientName || ticket.ref || ""}`.trim(),
     description: [ticket.title, ticket.ref].filter(Boolean).join(" · "),
@@ -1045,7 +1045,7 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   if (!client && clientId) client = clients.find((c) => c.id === clientId);
   if (!client) {
     if (!clientName) return { error: "client" };
-    client = await addRow<Client>(studio.id, clientsSection.id, CLIENTS, {
+    client = await Clients.create({ studio, section: clientsSection }, {
       name: clientName, code: clientSlug(clientName), industry, website: "", notes: "",
       contacts: [], locations: [],
       createdByCollaboratorId: collaborator.id, createdAt: new Date().toISOString(),
@@ -1056,7 +1056,7 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   const nextContacts = upsertContact(client.contacts, contact);
   const nextLocations = upsertLocation(client.locations, location);
   if (nextContacts !== client.contacts || nextLocations !== client.locations) {
-    await updateRow(studio.id, clientsSection.id, CLIENTS, client.id, {
+    await Clients.update({ studio, section: clientsSection }, client.id, {
       contacts: nextContacts, locations: nextLocations,
     });
   }
@@ -1071,7 +1071,7 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   const base = String(client.code || clientSlug(client.name)).toUpperCase();
   const ref = nextUniqueRef(tickets, "ref", base, 3);
 
-  const ticket = await addRow(studio.id, ticketsSection.id, TICKETS, {
+  const ticket = await Tickets.create({ studio, section: ticketsSection }, {
     ref,
     title,
     clientId: client.id,
@@ -1129,7 +1129,7 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
       text: str(body.addComment, 2000),
       at: new Date().toISOString(),
     };
-    const ticket = await updateRow(studio.id, ticketsSection.id, TICKETS, id, {
+    const ticket = await Tickets.update({ studio, section: ticketsSection }, id, {
       comments: [...(Array.isArray(existing.comments) ? existing.comments : []), comment].slice(-200),
     });
     return ticket ? { ticket } : { error: "notfound" };
@@ -1184,7 +1184,7 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
   // assignedToCollaboratorId in the payload is ignored rather than honoured.
   patch.updatedAt = now();
 
-  const ticket = await updateRow(studio.id, ticketsSection.id, TICKETS, id, patch);
+  const ticket = await Tickets.update({ studio, section: ticketsSection }, id, patch);
   if (!ticket) return { error: "notfound" };
 
   // AND FOLD THE SITE BACK INTO THE CLIENT, the same way creating a ticket
@@ -1210,7 +1210,7 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
       if (client) {
         const nextLocations = upsertLocation(client.locations, patchedSite);
         if (nextLocations !== client.locations) {
-          await updateRow(studio.id, clientsSection.id, CLIENTS, client.id, { locations: nextLocations });
+          await Clients.update({ studio, section: clientsSection }, client.id, { locations: nextLocations });
         }
       }
     }

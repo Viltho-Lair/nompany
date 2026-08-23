@@ -16,7 +16,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
+import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -166,8 +166,8 @@ export async function reportPosition(ctx: OperationsContext, body: Record<string
   const rows = await Positions.find({ studio, section: trackingSection });
   const mine = rows.find((r) => r.collaboratorId === collaborator.id);
   const position = mine
-    ? await updateRow(studio.id, trackingSection.id, POSITIONS, mine.id, row)
-    : await addRow(studio.id, trackingSection.id, POSITIONS, row);
+    ? await Positions.update({ studio, section: trackingSection }, mine.id, row)
+    : await Positions.create({ studio, section: trackingSection }, row);
   return { position };
 }
 
@@ -181,7 +181,7 @@ export async function clearPosition(ctx: OperationsContext, collaboratorId: stri
   const rows = await Positions.find({ studio, section: trackingSection });
   const mine = rows.find((r) => r.collaboratorId === target);
   if (!mine) return { ok: true };
-  const removed = await deleteRow(studio.id, trackingSection.id, POSITIONS, mine.id);
+  const removed = await Positions.remove({ studio, section: trackingSection }, mine.id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -203,7 +203,7 @@ export async function createLocation(ctx: OperationsContext, body: Record<string
   const rows = await Locations.find({ studio, section });
   if (rows.some((l) => l.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
 
-  const location = await addRow(studio.id, section.id, LOCATIONS, {
+  const location = await Locations.create({ studio, section }, {
     name,
     kind: LOCATION_KINDS.includes(String(body?.kind)) ? String(body?.kind) : LOCATION_KINDS[0],
     address: str(body?.address, 300),
@@ -234,7 +234,7 @@ export async function editLocation(ctx: OperationsContext, id: string, body: Rec
   if (body?.city !== undefined) patch.city = str(body.city, 80);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
 
-  const location = await updateRow(studio.id, section.id, LOCATIONS, id, patch);
+  const location = await Locations.update({ studio, section }, id, patch);
   return location ? { location } : { error: "notfound" };
 }
 
@@ -254,7 +254,7 @@ export async function removeLocation(ctx: OperationsContext, id: string) {
   const s = shifts.filter((x) => x.locationId === id).length;
   if (p || s) return { error: "in-use", permits: p, shifts: s };
 
-  const removed = await deleteRow(studio.id, section.id, LOCATIONS, id);
+  const removed = await Locations.remove({ studio, section }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -320,7 +320,7 @@ export async function createPermit(ctx: OperationsContext, body: Record<string, 
   if (validFrom && validTo && validTo < validFrom) return { error: "range" };
 
   const permits = await Permits.find({ studio, section });
-  const permit = await addRow(studio.id, section.id, PERMITS, {
+  const permit = await Permits.create({ studio, section }, {
     // Derived from the highest already issued, so removing a permit cannot hand
     // its reference to the next one. See modules/main/references.js.
     reference: await nextReference(studio.id, { rows: permits, field: "reference", prefix: "PMT" }),
@@ -373,7 +373,7 @@ export async function editPermit(ctx: OperationsContext, id: string, body: Recor
     patch.validTo = validTo;
   }
 
-  const permit = await updateRow(studio.id, section.id, PERMITS, id, patch);
+  const permit = await Permits.update({ studio, section }, id, patch);
   return permit ? { permit } : { error: "notfound" };
 }
 
@@ -382,7 +382,7 @@ export async function removePermit(ctx: OperationsContext, id: string) {
   const denied = requirePermission(ctx.access, "operations.tracking.delete");
   if (denied) return denied;
 
-  const removed = await deleteRow(ctx.studio.id, ctx.section.id, PERMITS, id);
+  const removed = await Permits.remove({ studio: ctx.studio, section: ctx.section }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -460,7 +460,7 @@ export async function createShift(ctx: OperationsContext, body: Record<string, u
   const onLeave = await approvedLeaveOn(ctx, collaboratorId, date);
   if (onLeave) return { error: "on-leave", from: onLeave.from, to: onLeave.to, type: onLeave.type };
 
-  const shift = await addRow<Shift>(studio.id, section.id, SHIFTS, {
+  const shift = await Shifts.create({ studio, section }, {
     date, collaboratorId, locationId, startTime, endTime,
     role: str(body?.role, 120),
     notes: str(body?.notes, 500),
@@ -501,7 +501,7 @@ export async function editShift(ctx: OperationsContext, id: string, body: Record
     patch.locationId = locationId;
   }
 
-  const shift = await updateRow<Shift>(studio.id, section.id, SHIFTS, id, patch);
+  const shift = await Shifts.update({ studio, section }, id, patch);
   return shift ? { shift: { ...shift, hours: shiftHours(shift) } } : { error: "notfound" };
 }
 
@@ -510,7 +510,7 @@ export async function removeShift(ctx: OperationsContext, id: string) {
   const denied = requirePermission(ctx.access, "operations.tracking.delete");
   if (denied) return denied;
 
-  const removed = await deleteRow(ctx.studio.id, ctx.section.id, SHIFTS, id);
+  const removed = await Shifts.remove({ studio: ctx.studio, section: ctx.section }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 

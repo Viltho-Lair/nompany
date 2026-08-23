@@ -27,7 +27,6 @@
 
 import { can, requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { updateRow } from "@/platform/db/sections";
 import { DOCS } from "./qualityDocs";
 import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -43,6 +42,11 @@ import { netUnitPrice, discountPct } from "@/modules/technical/quotations";
 import type { PermissionKey } from "@/platform/access";
 
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
+
+// The documents collection this module writes the subject binding on. Reads of
+// the various subject collections stay inline (`repo(subject.collection)`) since
+// their name is only known per request.
+const Docs = repo<QualityDocument>(DOCS);
 
 // THREE REFERENCE ERRORS THAT HAD NEVER BEEN CALLED.
 //
@@ -358,7 +362,7 @@ export async function bindSubject(ctx: QualityContext, documentId: string, body:
   //
   // The preview record now travels with the request instead. See `preview` in
   // mergeValuesFor and the content route.
-  const updated = await updateRow(ctx.studio.id, ctx.section.id, DOCS, documentId, {
+  const updated = await Docs.update({ studio: ctx.studio, section: ctx.section }, documentId, {
     subjectType: subjectType || "", subjectId: "",
     updatedAt: new Date().toISOString(),
   });

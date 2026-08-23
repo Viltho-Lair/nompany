@@ -20,7 +20,7 @@
 import { requirePermission } from "@/platform/access";
 import { isKnownCurrency } from "@/shared/currencies";
 import { repo } from "@/platform/db/repo";
-import { getSectionByKey, addRow, updateRow, deleteRow } from "@/platform/db/sections";
+import { getSectionByKey } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -170,7 +170,7 @@ export async function createVendor(ctx: InventoryContext, body: Record<string, u
   const rows = await Vendors.find({ studio, section: vendorsSection });
   if (rows.some((v) => v.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
 
-  const vendor = await addRow(studio.id, vendorsSection.id, VENDORS, {
+  const vendor = await Vendors.create({ studio, section: vendorsSection }, {
     name,
     contactName: str(body?.contactName, 120),
     email: str(body?.email, 160).toLowerCase(),
@@ -201,7 +201,7 @@ export async function editVendor(ctx: InventoryContext, id: string, body: Record
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.itemTypes !== undefined) patch.itemTypes = cleanItemTypes(body.itemTypes);
 
-  const vendor = await updateRow(studio.id, vendorsSection.id, VENDORS, id, patch);
+  const vendor = await Vendors.update({ studio, section: vendorsSection }, id, patch);
   return vendor ? { vendor } : { error: "notfound" };
 }
 
@@ -219,7 +219,7 @@ export async function removeVendor(ctx: InventoryContext, id: string) {
   const ordered = orders.filter((o) => o.vendorId === id).length;
   if (used || ordered) return { error: "in-use", items: used, orders: ordered };
 
-  const removed = await deleteRow(studio.id, vendorsSection.id, VENDORS, id);
+  const removed = await Vendors.remove({ studio, section: vendorsSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -303,7 +303,7 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
   const sku = str(body?.sku, 40).toUpperCase() || nextSku(rows);
   if (rows.some((i) => i.sku.toUpperCase() === sku)) return { error: "duplicate-sku" };
 
-  const item = await addRow(studio.id, itemsSection.id, ITEMS, {
+  const item = await Items.create({ studio, section: itemsSection }, {
     sku, name,
     // The vendor's own part number, which is what a purchase order quotes and
     // what somebody searches for when the name is ambiguous.
@@ -396,7 +396,7 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
   // "" is a real value — it is how a picture is removed.
   if (body?.image !== undefined) patch.image = img(body.image);
 
-  const item = await updateRow(studio.id, itemsSection.id, ITEMS, id, patch);
+  const item = await Items.update({ studio, section: itemsSection }, id, patch);
   return item ? { item } : { error: "notfound" };
 }
 
@@ -418,7 +418,7 @@ export async function removeItem(ctx: InventoryContext, id: string) {
   const onDn = deliveries.filter((d) => (d.lines || []).some((l) => l.itemId === id)).length;
   if (moved || onOrder || onDn) return { error: "in-use", movements: moved, orders: onOrder, deliveries: onDn };
 
-  const removed = await deleteRow(studio.id, itemsSection.id, ITEMS, id);
+  const removed = await Items.remove({ studio, section: itemsSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -480,7 +480,7 @@ async function record(
   },
 ) {
   const { studio, stockSection, collaborator } = ctx;
-  return addRow(studio.id, stockSection.id, STOCK, {
+  return Stock.create({ studio, section: stockSection }, {
     itemId,
     kind: MOVEMENT_KINDS.includes(kind) ? kind : "adjust",
     qty: quantity,
@@ -652,7 +652,7 @@ async function ensureSheetsExist(
     // carry a `lines` map keyed by quotation line id now. A sheet that has a
     // kind and no `rows` has already been migrated, and this loop skips it.
     if (old.kind && (old as { rows?: unknown }).rows === undefined) continue;
-    await updateRow(studio.id, sheetsSection.id, SHEETS, old.id, {
+    await Sheets.update({ studio, section: sheetsSection }, old.id, {
       kind: old.kind || "main",
       rows: undefined,
       lines: old.lines && typeof old.lines === "object" ? old.lines : {},
@@ -664,7 +664,7 @@ async function ensureSheetsExist(
     if (!p.quotationId) continue;             // nothing to read rows back from
     for (const kind of ["main", "bulk"]) {
       if (have.has(`${p.id}:${kind}`)) continue;
-      await addRow(studio.id, sheetsSection.id, SHEETS, {
+      await Sheets.create({ studio, section: sheetsSection }, {
         projectId: p.id,
         quotationId: p.quotationId, rfqId: p.rfqId || "", ticketId: p.ticketId || "",
         kind,
@@ -711,7 +711,7 @@ export async function saveSheetLine(ctx: InventoryContext, body: Record<string, 
   // Applied to the live row inside the write lock: Inventory setting a serial
   // and Projects marking installation done at the same moment must not
   // overwrite each other, and they write different keys of the same record.
-  const updated = await updateRow<Sheet>(studio.id, sheetsSection.id, SHEETS, sheetId, (row) => {
+  const updated = await Sheets.update({ studio, section: sheetsSection }, sheetId, (row) => {
     const lines = (row.lines && typeof row.lines === "object"
       ? row.lines
       : {}) as Record<string, Record<string, unknown> | undefined>;
@@ -865,7 +865,7 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   if (!lines.length) return { error: "lines" };
 
   const orders = await Orders.find({ studio, section: sheetsSection });
-  const order = await addRow(studio.id, sheetsSection.id, ORDERS, {
+  const order = await Orders.create({ studio, section: sheetsSection }, {
     // A purchase order number goes to a vendor, so it cannot be reused after a
     // draft is deleted — derived, not counted. See modules/main/references.js.
     reference: await nextReference(studio.id, { rows: orders, field: "reference", prefix: "PO" }),
@@ -914,7 +914,7 @@ export async function editOrder(ctx: InventoryContext, id: string, body: Record<
     patch.projectId = projectId;
   }
 
-  const updated = await updateRow(studio.id, sheetsSection.id, ORDERS, id, patch);
+  const updated = await Orders.update({ studio, section: sheetsSection }, id, patch);
   return updated ? { order: updated } : { error: "notfound" };
 }
 
@@ -964,7 +964,7 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
   }
 
   const complete = lines.every((l) => Number(l.received || 0) >= (l.qty || 0));
-  const updated = await updateRow(studio.id, sheetsSection.id, ORDERS, id, {
+  const updated = await Orders.update({ studio, section: sheetsSection }, id, {
     lines,
     status: complete ? "Received" : "Partly received",
     receivedAt: complete ? new Date().toISOString() : order.receivedAt || "",
@@ -1008,7 +1008,7 @@ export async function removeOrder(ctx: InventoryContext, id: string) {
   if (!order) return { error: "notfound" };
   if ((order.lines || []).some((l) => Number(l.received || 0) > 0)) return { error: "received-already" };
 
-  const removed = await deleteRow(studio.id, sheetsSection.id, ORDERS, id);
+  const removed = await Orders.remove({ studio, section: sheetsSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -1050,7 +1050,7 @@ export async function createDelivery(ctx: InventoryContext, body: Record<string,
   if (!lines.length) return { error: "lines" };
 
   const deliveries = await Deliveries.find({ studio, section: deliveriesSection });
-  const delivery = await addRow(studio.id, deliveriesSection.id, DELIVERIES, {
+  const delivery = await Deliveries.create({ studio, section: deliveriesSection }, {
     reference: await nextReference(studio.id, { rows: deliveries, field: "reference", prefix: "DN" }),
     projectId, lines,
     status: "Draft",
@@ -1094,7 +1094,7 @@ export async function issueDelivery(ctx: InventoryContext, id: string) {
     });
   }
 
-  const updated = await updateRow(studio.id, deliveriesSection.id, DELIVERIES, id, {
+  const updated = await Deliveries.update({ studio, section: deliveriesSection }, id, {
     status: "Issued",
     issuedAt: new Date().toISOString(),
     issuedByCollaboratorId: ctx.collaborator.id,
@@ -1113,7 +1113,7 @@ export async function removeDelivery(ctx: InventoryContext, id: string) {
   if (!delivery) return { error: "notfound" };
   if (delivery.status === "Issued") return { error: "already-issued" };
 
-  const removed = await deleteRow(studio.id, deliveriesSection.id, DELIVERIES, id);
+  const removed = await Deliveries.remove({ studio, section: deliveriesSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 

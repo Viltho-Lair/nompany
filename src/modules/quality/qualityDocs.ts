@@ -23,7 +23,6 @@
 import { randomUUID } from "node:crypto";
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { bumpCounter } from "@/platform/db/store";
 import { SEC } from "@/platform/db/keys";
 import { formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision, isOpen } from "./qualityDocuments";
@@ -204,7 +203,7 @@ export async function createDoc(ctx: QualityContext, body: Record<string, unknow
   const code = await mintCode(ctx, { prefix, dept, docs });
   const now = new Date().toISOString();
 
-  const row = await addRow<QualityDocument>(ctx.studio.id, ctx.section.id, DOCS, {
+  const row = await Docs.create(ctx, {
     id: randomUUID(),
     code,
     title,
@@ -227,7 +226,7 @@ export async function renameDoc(ctx: QualityContext, id: string, body: Record<st
   const denied = requirePermission(ctx.access, "quality.documents.edit");
   if (denied) return denied;
   const title = str(body?.title, MAX_TITLE) || "Untitled document";
-  const row = await updateRow(ctx.studio.id, ctx.section.id, DOCS, id, {
+  const row = await Docs.update(ctx, id, {
     title, updatedAt: new Date().toISOString(),
   });
   return row ? { document: row } : { error: "notfound" };
@@ -256,7 +255,7 @@ export async function saveContent(ctx: QualityContext, id: string, body: Record<
   }
   if (content.length > 2_000_000) return { error: "too-large" };
 
-  const row = await updateRow(ctx.studio.id, ctx.section.id, DOCS, id, {
+  const row = await Docs.update(ctx, id, {
     content, updatedAt: new Date().toISOString(),
   });
   return row ? { ok: true } : { error: "notfound" };
@@ -272,7 +271,7 @@ export async function savePageSetup(ctx: QualityContext, id: string, body: Recor
   const patch = cleanSetup(body);
   if (!Object.keys(patch).length) return { error: "empty" };
 
-  const row = await updateRow(ctx.studio.id, ctx.section.id, DOCS, id, {
+  const row = await Docs.update(ctx, id, {
     ...patch, updatedAt: new Date().toISOString(),
   });
   return row ? { document: row } : { error: "notfound" };
@@ -291,7 +290,7 @@ export async function removeDoc(ctx: QualityContext, id: string) {
   // record of what they were told to do outlives whoever wants it gone.
   if (documentState(doc, revisions) === "effective") return { error: "controlled" };
 
-  await Promise.all(mine.map((r) => deleteRow(ctx.studio.id, ctx.section.id, REVISIONS, r.id)));
-  const gone = await deleteRow(ctx.studio.id, ctx.section.id, DOCS, id);
+  await Promise.all(mine.map((r) => Revisions.remove(ctx, r.id)));
+  const gone = await Docs.remove(ctx, id);
   return gone ? { ok: true } : { error: "notfound" };
 }

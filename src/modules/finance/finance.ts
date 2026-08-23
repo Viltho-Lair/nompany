@@ -17,7 +17,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { getSectionByKey, addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
+import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -175,7 +175,7 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
 
   const invoices = await Invoices.find({ studio, section: cashSection });
   const today = new Date().toISOString().slice(0, 10);
-  const invoice = await addRow<Invoice>(studio.id, cashSection.id, INVOICES, {
+  const invoice = await Invoices.create({ studio, section: cashSection }, {
     // Derived from the highest INV already issued, never from how many exist:
     // deleting a draft must not hand its number to the next invoice, and two
     // raised at once must not both be INV-0004. See modules/main/references.js.
@@ -240,7 +240,7 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
   if (body?.issueDate !== undefined) patch.issueDate = day(body.issueDate);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);
 
-  const updated = await updateRow<Invoice>(studio.id, cashSection.id, INVOICES, id, patch);
+  const updated = await Invoices.update({ studio, section: cashSection }, id, patch);
   return updated ? { invoice: { ...updated, ...invoiceTotals(updated) } } : { error: "notfound" };
 }
 
@@ -275,7 +275,7 @@ export async function recordPayment(ctx: FinanceContext, id: string, body: Recor
     byCollaboratorId: collaborator.id,
   }];
 
-  const updated = await updateRow<Invoice>(studio.id, cashSection.id, INVOICES, id, { payments });
+  const updated = await Invoices.update({ studio, section: cashSection }, id, { payments });
   // The invoice was read before the write, so it can be gone by the time the
   // compare-and-set lands. Every other writer here answers "notfound" for that;
   // this one used to spread a null and then read `.status` off it.
@@ -296,7 +296,7 @@ export async function removeInvoice(ctx: FinanceContext, id: string) {
   if (!invoice) return { error: "notfound" };
   if (invoice.status !== "Draft") return { error: "issued" };
 
-  const removed = await deleteRow(studio.id, cashSection.id, INVOICES, id);
+  const removed = await Invoices.remove({ studio, section: cashSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -335,7 +335,7 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
   }
 
   const expenses = await Expenses.find({ studio, section: cashSection });
-  const expense = await addRow<Expense>(studio.id, cashSection.id, EXPENSES, {
+  const expense = await Expenses.create({ studio, section: cashSection }, {
     reference: await nextReference(studio.id, { rows: expenses, field: "reference", prefix: "EXP" }),
     description: str(body?.description, 300),
     category: EXPENSE_CATEGORIES.includes(String(body?.category)) ? String(body?.category) : "Other",
@@ -372,7 +372,7 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
     patch.projectId = projectId;
   }
 
-  const expense = await updateRow<Expense>(studio.id, cashSection.id, EXPENSES, id, patch);
+  const expense = await Expenses.update({ studio, section: cashSection }, id, patch);
   return expense ? { expense } : { error: "notfound" };
 }
 
@@ -381,7 +381,7 @@ export async function removeExpense(ctx: FinanceContext, id: string) {
   const denied = requirePermission(ctx.access, "finance.cash.delete");
   if (denied) return denied;
 
-  const removed = await deleteRow(ctx.studio.id, ctx.cashSection.id, EXPENSES, id);
+  const removed = await Expenses.remove({ studio: ctx.studio, section: ctx.cashSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -520,7 +520,7 @@ export async function setCommercials(ctx: FinanceContext, id: string, body: Reco
   }
   if (Object.keys(patch).length === 0) return { error: "nothing" };
 
-  const project = await updateRow(studio.id, owner.id, PROJECTS, id, patch);
+  const project = await Projects.update({ studio, section: owner }, id, patch);
   return project ? { project } : { error: "notfound" };
 }
 

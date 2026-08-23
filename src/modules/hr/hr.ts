@@ -30,7 +30,6 @@
 import { requirePermission, scopeFor, can, escalates, cleanAssignment, effectivePermissions } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 
-import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/platform/auth/collaborators";
@@ -224,7 +223,7 @@ export async function createCertification(ctx: HrContext, body: Record<string, u
   const rows = await Certifications.find({ studio, section: employeesSection });
   if (rows.some((c) => c.name.toLowerCase() === name.toLowerCase())) return { error: "duplicate" };
 
-  const certification = await addRow(studio.id, employeesSection.id, CERTIFICATIONS, {
+  const certification = await Certifications.create({ studio, section: employeesSection }, {
     name,
     issuer: str(body?.issuer, 140),
     validityMonths: Number(body?.validityMonths) > 0 ? Math.floor(Number(body.validityMonths)) : 0,
@@ -252,7 +251,7 @@ export async function editCertification(ctx: HrContext, id: string, body: Record
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.validityMonths !== undefined) patch.validityMonths = Number(body.validityMonths) > 0 ? Math.floor(Number(body.validityMonths)) : 0;
 
-  const certification = await updateRow(studio.id, employeesSection.id, CERTIFICATIONS, id, patch);
+  const certification = await Certifications.update({ studio, section: employeesSection }, id, patch);
   return certification ? { certification } : { error: "notfound" };
 }
 
@@ -266,7 +265,7 @@ export async function removeCertification(ctx: HrContext, id: string) {
   const held = people.filter((c) => ((c.certificationIds || []) as string[]).includes(id)).length;
   if (held) return { error: "in-use", people: held };
 
-  const removed = await deleteRow(studio.id, employeesSection.id, CERTIFICATIONS, id);
+  const removed = await Certifications.remove({ studio, section: employeesSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -486,7 +485,7 @@ export async function requestVacation(ctx: HrContext, body: Record<string, unkno
     && (v.from || "") <= to && (v.to || "") >= from);
   if (clash) return { error: "overlap", from: clash.from, to: clash.to };
 
-  const vacation = await addRow(studio.id, section.id, VACATIONS, {
+  const vacation = await Vacations.create({ studio, section }, {
     collaboratorId: target,
     type: LEAVE_TYPES.includes(String(body?.type)) ? String(body?.type) : DEFAULT_LEAVE_TYPE,
     from, to, days,
@@ -545,7 +544,7 @@ export async function decideVacation(ctx: HrContext, id: string, decision: unkno
   if (!LEAVE_STATUSES.includes(String(decision))) return { error: "status" };
   if (row.status !== "Pending") return { error: "already-decided", status: row.status };
 
-  const vacation = await updateRow(studio.id, section.id, VACATIONS, id, {
+  const vacation = await Vacations.update({ studio, section }, id, {
     status: decision,
     decidedByCollaboratorId: collaborator.id,
     decidedAt: new Date().toISOString(),
@@ -582,7 +581,7 @@ export async function removeVacation(ctx: HrContext, id: string) {
   const denied = requirePermission(ctx.access, "hr.vacations.edit");
   if (denied) return denied;
 
-  const removed = await deleteRow(ctx.studio.id, ctx.section.id, VACATIONS, id);
+  const removed = await Vacations.remove({ studio: ctx.studio, section: ctx.section }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 

@@ -9,7 +9,6 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { nextReference } from "@/modules/main/references";
 import { str, day, cash } from "./finance";
 import type { FixedAsset, FinanceContext } from "./types";
@@ -151,7 +150,7 @@ export async function createAsset(ctx: FinanceContext, body: Record<string, unkn
   const method = ASSET_METHODS.includes(String(body?.method)) ? String(body?.method) : "straight-line";
 
   const assets = await Assets.find({ studio, section: assetsSection });
-  const asset = await addRow<FixedAsset>(studio.id, assetsSection.id, ASSETS, {
+  const asset = await Assets.create({ studio, section: assetsSection }, {
     reference: await nextReference(studio.id, { rows: assets, field: "reference", prefix: "FA" }),
     name,
     category: str(body?.category, 120),
@@ -201,7 +200,7 @@ export async function editAsset(ctx: FinanceContext, id: string, body: Record<st
   const nextSalvage = patch.salvageValue !== undefined ? Number(patch.salvageValue) : (current.salvageValue || 0);
   if (nextSalvage > nextCost) patch.salvageValue = nextCost;
 
-  const asset = await updateRow<FixedAsset>(studio.id, assetsSection.id, ASSETS, id, patch);
+  const asset = await Assets.update({ studio, section: assetsSection }, id, patch);
   return asset ? { asset: withDepreciation(asset) } : { error: "notfound" };
 }
 
@@ -224,7 +223,7 @@ export async function disposeAsset(ctx: FinanceContext, id: string, body: Record
   // Cannot dispose before it was acquired.
   if (current.acquiredOn && disposedOn < current.acquiredOn) return { error: "before-acquired" };
 
-  const asset = await updateRow<FixedAsset>(studio.id, assetsSection.id, ASSETS, id, () => ({
+  const asset = await Assets.update({ studio, section: assetsSection }, id, () => ({
     disposedOn,
     disposalProceeds: cash(body?.disposalProceeds),
     disposedByCollaboratorId: collaborator.id,
@@ -241,6 +240,6 @@ export async function removeAsset(ctx: FinanceContext, id: string) {
   if (!current) return { error: "notfound" };
   // A disposed asset is part of the record — it stays.
   if (current.disposedOn) return { error: "disposed" };
-  const removed = await deleteRow(studio.id, assetsSection.id, ASSETS, id);
+  const removed = await Assets.remove({ studio, section: assetsSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }

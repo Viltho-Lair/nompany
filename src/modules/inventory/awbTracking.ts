@@ -15,7 +15,6 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { parseAwb } from "./awb";
 import { AWB_STATUS_BY_CODE, summarizeMovements } from "./awbStatus";
 import type { InventoryContext, Airline, Shipment } from "./types";
@@ -57,7 +56,7 @@ export async function createAirline(ctx: InventoryContext, body: Record<string, 
   // would resolve to whichever row happened to be found first.
   if (rows.some((a) => a.prefix === prefix)) return { error: "duplicate" };
 
-  const airline = await addRow(studio.id, awbSection.id, AIRLINES, {
+  const airline = await Airlines.create({ studio, section: awbSection }, {
     prefix,
     name,
     iata: str(body?.iata, 3).toUpperCase(),
@@ -85,7 +84,7 @@ export async function editAirline(ctx: InventoryContext, id: string, body: Recor
   if (body?.iata !== undefined) patch.iata = str(body.iata, 3).toUpperCase();
   if (body?.trackUrlTemplate !== undefined) patch.trackUrlTemplate = str(body.trackUrlTemplate, 500);
 
-  const airline = await updateRow(studio.id, awbSection.id, AIRLINES, id, patch);
+  const airline = await Airlines.update({ studio, section: awbSection }, id, patch);
   return airline ? { airline } : { error: "notfound" };
 }
 
@@ -106,7 +105,7 @@ export async function removeAirline(ctx: InventoryContext, id: string) {
   const used = shipments.filter((s) => s.prefix === airline.prefix).length;
   if (used) return { error: "in-use", shipments: used };
 
-  const removed = await deleteRow(studio.id, awbSection.id, AIRLINES, id);
+  const removed = await Airlines.remove({ studio, section: awbSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -162,7 +161,7 @@ export async function trackShipment(ctx: InventoryContext, body: Record<string, 
   const rows = await Shipments.find({ studio, section: awbSection });
   if (rows.some((s) => s.digits === parsed.digits)) return { error: "duplicate" };
 
-  const shipment = await addRow(studio.id, awbSection.id, SHIPMENTS, {
+  const shipment = await Shipments.create({ studio, section: awbSection }, {
     awbNumber: parsed.formatted,
     digits: parsed.digits,
     prefix: parsed.prefix,
@@ -219,7 +218,7 @@ export async function updateShipment(ctx: InventoryContext, id: string, body: Re
     ];
   }
 
-  const shipment = await updateRow<Shipment>(studio.id, awbSection.id, SHIPMENTS, id, patch);
+  const shipment = await Shipments.update({ studio, section: awbSection }, id, patch);
   return shipment ? { shipment: { ...shipment, ...summarizeMovements(shipment.movements) } } : { error: "notfound" };
 }
 
@@ -228,6 +227,6 @@ export async function removeShipment(ctx: InventoryContext, id: string) {
   const denied = requirePermission(ctx.access, "inventory.awb.delete");
   if (denied) return denied;
 
-  const removed = await deleteRow(ctx.studio.id, ctx.awbSection.id, SHIPMENTS, id);
+  const removed = await Shipments.remove({ studio: ctx.studio, section: ctx.awbSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }

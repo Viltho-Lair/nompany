@@ -21,7 +21,6 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { addRow, updateRow } from "@/platform/db/sections";
 import { moveSignable, availableMoves } from "@/modules/technical/signables";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { TRANSITIONS, REV_LABELS, isOpen, documentState } from "./qualityDocuments";
@@ -60,7 +59,7 @@ async function audit(
     detail?: string;
   },
 ) {
-  return addRow(ctx.studio.id, ctx.section.id, AUDIT, {
+  return Audit.create(ctx, {
     documentId, revisionId, action, detail,
     byCollaboratorId: ctx.collaborator.id,
     byAlias: ctx.collaborator.alias || "",
@@ -70,6 +69,7 @@ async function audit(
 
 const Docs = repo<QualityDocument>(DOCS);
 const Revisions = repo<QualityRevision>(REVISIONS);
+const Audit = repo(AUDIT);
 
 export async function listRevisions(ctx: QualityContext, documentId: string) {
   const rows = await Revisions.find(ctx);
@@ -161,7 +161,7 @@ export async function startRevision(ctx: QualityContext, documentId: string) {
   if (!effective) return { error: "not-issued" };
 
   const highest = mine.reduce((n, r) => Math.max(n, Number(r.rev) || 0), 0);
-  const revision = await addRow(ctx.studio.id, ctx.section.id, REVISIONS, {
+  const revision = await Revisions.create(ctx, {
     documentId,
     rev: highest + 1,
     state: "draft",
@@ -174,7 +174,7 @@ export async function startRevision(ctx: QualityContext, documentId: string) {
 
   // The working copy becomes the new revision's draft, seeded from what is
   // issued so the author edits the current text rather than a stale one.
-  await updateRow(ctx.studio.id, ctx.section.id, DOCS, documentId, {
+  await Docs.update(ctx, documentId, {
     ...snapshotOf(effective), updatedAt: new Date().toISOString(),
   });
 
@@ -228,12 +228,12 @@ export async function moveRevision(
       // read a line ago and the branch exists because it was there, so keeping
       // the old value is the honest fallback rather than dropping to null and
       // making every use below optional.
-      current = (await updateRow<QualityRevision>(ctx.studio.id, ctx.section.id, REVISIONS, current.id, {
+      current = (await Revisions.update(ctx, current.id, {
         ...snapshot, updatedAt: new Date().toISOString(),
       })) || current;
     } else {
       const highest = mine.reduce((n, r) => Math.max(n, Number(r.rev) || 0), 0);
-      current = await addRow<QualityRevision>(ctx.studio.id, ctx.section.id, REVISIONS, {
+      current = await Revisions.create(ctx, {
         documentId,
         rev: highest + 1,
         state: "draft",
@@ -259,7 +259,7 @@ export async function moveRevision(
     auditPrefix: "revision",
 
     apply: (patch: Record<string, unknown>) =>
-      updateRow(ctx.studio.id, ctx.section.id, REVISIONS, revision.id, patch),
+      Revisions.update(ctx, revision.id, patch),
 
     // WHAT THE MOVE MEANS — the half that is not generic.
     after: async (moved, patch, now) => {
@@ -270,12 +270,12 @@ export async function moveRevision(
         // answer "what did the procedure say in March".
         for (const r of mine) {
           if (r.state === "effective" && r.id !== revision.id) {
-            await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, r.id, {
+            await Revisions.update(ctx, r.id, {
               state: "superseded", supersededAt: now,
             });
           }
         }
-        await updateRow(ctx.studio.id, ctx.section.id, DOCS, documentId, {
+        await Docs.update(ctx, documentId, {
           revision: revision.rev,
           effectiveRevisionId: revision.id,
           effectiveDate,
@@ -283,11 +283,11 @@ export async function moveRevision(
             || (document as Record<string, unknown>).nextReviewDate || "",
           updatedAt: now,
         });
-        await updateRow(ctx.studio.id, ctx.section.id, REVISIONS, revision.id, { effectiveDate });
+        await Revisions.update(ctx, revision.id, { effectiveDate });
       }
 
       if (moved === "withdraw") {
-        await updateRow(ctx.studio.id, ctx.section.id, DOCS, documentId, {
+        await Docs.update(ctx, documentId, {
           obsoletedAt: now, obsoletedByCollaboratorId: ctx.collaborator.id, updatedAt: now,
         });
       }

@@ -10,7 +10,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { addRow, updateRow, deleteRow, updateSection } from "@/platform/db/sections";
+import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -24,6 +24,7 @@ import { departmentsFromSections } from "@/lib/departments";
 import { quotationApproved } from "@/modules/tasks/taskRouting";
 import type { ProjectsContext, Project, Sla, Overtime } from "./types";
 import type { Section } from "@/platform/db/sections";
+import type { Row } from "@/platform/db/store";
 import type { Task } from "@/modules/tasks/types";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
@@ -50,6 +51,9 @@ const TASKS = "tasks";
 const Overtimes = repo<Overtime>(OVERTIMES);
 const Projects = repo<Project>(PROJECTS);
 const Quotations = repo(QUOTATIONS);
+// Projects writes the project sheet under Inventory's section when a project is
+// opened and never reads it back, so this binds the collection without a type.
+const Sheets = repo(SHEETS);
 const Slas = repo<Sla>(SLAS);
 const Tasks = repo<Task>(TASKS);
 // A department is a top-level SECTION, so the overtime picker's filter is
@@ -245,7 +249,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   // first. Next pass — see the note on ticketFacts.
   const t = (await ticketFacts(ctx))(String(quote.ticketId || ""));
   const now = new Date().toISOString();
-  const project = await addRow(studio.id, listSection.id, PROJECTS, {
+  const project = await Projects.create({ studio, section: listSection }, {
     // BLANK UNTIL FINANCE ISSUES IT. The project number is quoted on invoices,
     // purchase orders and delivery notes — it is the studio's commitment to
     // bill this work — and issuing it is Finance's act, taken when they
@@ -297,10 +301,10 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   // totals by the vendor each is bought from. Neither is a second copy — they
   // are two readings of one list, which is why both can exist without either
   // being able to disagree with the quotation.
-  const sheets = [];
+  const sheets: Row[] = [];
   if (sheetsSection) {
     for (const kind of SHEET_KINDS) {
-      sheets.push(await addRow(studio.id, sheetsSection.id, SHEETS, {
+      sheets.push(await Sheets.create({ studio, section: sheetsSection }, {
         // THE KEYS, and nothing else about the job. The project number, the
         // client, the quotation's lines and its numbers are all read back.
         projectId: project.id,
@@ -346,7 +350,7 @@ export async function issueProjectNumber(
   // Derived from the highest already issued, never from how many exist, so a
   // deleted project cannot have its number reused. See modules/main/references.js.
   const number = await nextReference(studio.id, { rows, field: "number", prefix: "PRJ" });
-  const updated = await updateRow(studio.id, listSection.id, PROJECTS, project.id, { number });
+  const updated = await Projects.update({ studio, section: listSection }, project.id, { number });
   return { issued: number, project: updated };
 }
 
@@ -388,7 +392,7 @@ export async function updateProject(ctx: ProjectsContext, id: string, body: Reco
     if (done < 100 && stage === "Completed") patch.stage = "In Progress";
   }
 
-  const project = await updateRow(studio.id, listSection.id, PROJECTS, id, patch);
+  const project = await Projects.update({ studio, section: listSection }, id, patch);
   if (!project) return { error: "notfound" };
   await announceProjectManager(ctx, project, current.managerCollaboratorId || "");
   return { project: { ...project, progress: progressOf(project.milestones) } };
@@ -399,7 +403,7 @@ export async function removeProject(ctx: ProjectsContext, id: string) {
   const denied = requirePermission(ctx.access, "projects.list.delete");
   if (denied) return denied;
 
-  const removed = await deleteRow(ctx.studio.id, ctx.listSection.id, PROJECTS, id);
+  const removed = await Projects.remove({ studio: ctx.studio, section: ctx.listSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -443,7 +447,7 @@ export async function createSla(ctx: ProjectsContext, body: Record<string, unkno
   if (!fields.title) return { error: "title" };
   if (!fields.startDate) return { error: "startDate" };
 
-  const sla = await addRow(studio.id, slaSection.id, SLAS, {
+  const sla = await Slas.create({ studio, section: slaSection }, {
     ...fields,
     completedVisits: [],
     emergencyVisitsList: [],
@@ -498,7 +502,7 @@ export async function updateSla(ctx: ProjectsContext, id: string, body: Record<s
     patch.emergencyVisitsList = list;
   }
 
-  const sla = await updateRow(studio.id, slaSection.id, SLAS, id, patch);
+  const sla = await Slas.update({ studio, section: slaSection }, id, patch);
   return { sla };
 }
 
@@ -507,7 +511,7 @@ export async function removeSla(ctx: ProjectsContext, id: string) {
   const denied = requirePermission(ctx.access, "projects.sla.delete");
   if (denied) return denied;
 
-  const removed = await deleteRow(ctx.studio.id, ctx.slaSection.id, SLAS, id);
+  const removed = await Slas.remove({ studio: ctx.studio, section: ctx.slaSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 
@@ -578,9 +582,9 @@ export async function createOvertime(ctx: ProjectsContext, body: Record<string, 
 
   // Names are SNAPSHOT alongside the ids: an overtime record is a timesheet
   // line, and it has to still read correctly after somebody leaves the studio.
-  const created = [];
+  const created: Overtime[] = [];
   for (const id of known) {
-    created.push(await addRow(studio.id, overtimesSection.id, OVERTIMES, {
+    created.push(await Overtimes.create({ studio, section: overtimesSection }, {
       projectId,
       projectName: project.title || project.number || "",
       collaboratorId: id,
@@ -633,7 +637,7 @@ export async function updateOvertime(ctx: ProjectsContext, id: string, body: Rec
     Object.assign(patch, { from, to, hours });
   }
 
-  const overtime = await updateRow(studio.id, overtimesSection.id, OVERTIMES, id, patch);
+  const overtime = await Overtimes.update({ studio, section: overtimesSection }, id, patch);
   return { overtime };
 }
 
@@ -642,6 +646,6 @@ export async function removeOvertime(ctx: ProjectsContext, id: string) {
   const denied = requirePermission(ctx.access, "projects.overtimes.delete");
   if (denied) return denied;
 
-  const removed = await deleteRow(ctx.studio.id, ctx.overtimesSection.id, OVERTIMES, id);
+  const removed = await Overtimes.remove({ studio: ctx.studio, section: ctx.overtimesSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }

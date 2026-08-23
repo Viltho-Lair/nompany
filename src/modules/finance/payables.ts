@@ -9,7 +9,6 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { addRow, updateRow, deleteRow } from "@/platform/db/sections";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals, cleanLines, str, day, cash } from "./finance";
 import type { Bill, FinanceContext } from "./types";
@@ -60,7 +59,7 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
 
   const bills = await Bills.find({ studio, section: payablesSection });
   const billDate = day(body?.billDate) || new Date().toISOString().slice(0, 10);
-  const bill = await addRow<Bill>(studio.id, payablesSection.id, BILLS, {
+  const bill = await Bills.create({ studio, section: payablesSection }, {
     reference: await nextReference(studio.id, { rows: bills, field: "reference", prefix: "BILL" }),
     vendorId: str(body?.vendorId, 60),
     vendorName,
@@ -112,7 +111,7 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
     patch.status = s;
   }
 
-  const bill = await updateRow<Bill>(studio.id, payablesSection.id, BILLS, id, patch);
+  const bill = await Bills.update({ studio, section: payablesSection }, id, patch);
   return bill ? { bill: { ...bill, ...billTotals(bill) } } : { error: "notfound" };
 }
 
@@ -132,7 +131,7 @@ export async function approveBill(ctx: FinanceContext, id: string) {
   if (current.status === "Approved" || current.status === "Paid") return { error: "already", status: current.status };
   if (current.status === "Cancelled") return { error: "cancelled" };
 
-  const bill = await updateRow<Bill>(studio.id, payablesSection.id, BILLS, id, () => ({
+  const bill = await Bills.update({ studio, section: payablesSection }, id, () => ({
     status: "Approved",
     approvedByCollaboratorId: collaborator.id,
     approvedAt: new Date().toISOString(),
@@ -164,7 +163,7 @@ export async function recordBillPayment(ctx: FinanceContext, id: string, body: R
     recordedByCollaboratorId: collaborator.id,
     recordedAt: new Date().toISOString(),
   }];
-  const bill = await updateRow<Bill>(studio.id, payablesSection.id, BILLS, id, { payments });
+  const bill = await Bills.update({ studio, section: payablesSection }, id, { payments });
   if (!bill) return { error: "notfound" };
   const after = billTotals(bill);
   return { bill: { ...bill, ...after, status: statusFor(bill, after) } };
@@ -181,6 +180,6 @@ export async function removeBill(ctx: FinanceContext, id: string) {
   if ((current.payments || []).length || current.status === "Approved" || current.status === "Paid") {
     return { error: "has-history" };
   }
-  const removed = await deleteRow(studio.id, payablesSection.id, BILLS, id);
+  const removed = await Bills.remove({ studio, section: payablesSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
