@@ -1,6 +1,7 @@
 "use client";
 
 import { AnalyticsLevelProvider } from "@/components/studio2/analyticsLevel";
+import NovaLauncher from "@/components/studio2/NovaLauncher";
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -122,7 +123,7 @@ function PlanTag({ color, label, children }) {
 }
 
 export default function StudioFrame({
-  studio, me, sections, activeKey, chat = null, locale = "en", analytics = null, children,
+  studio, me, sections, activeKey, chat = null, locale = "en", analytics = null, novaEnabled = false, children,
 }) {
   const [open, setOpen] = useState(false);
   // The header avatar is the ACCOUNT, not the studio membership: `me` carries a
@@ -444,6 +445,7 @@ export default function StudioFrame({
           </div>
         </header>
         <main className="mx-auto max-w-[1400px] px-5 pb-8 sm:px-8"><AnalyticsLevelProvider analytics={analytics}>{children}</AnalyticsLevelProvider></main>
+        <NovaLauncher slug={studio.slug} enabled={novaEnabled} />
       </div>
 
       {/* Live chat with nompany. It lives on the SHELL rather than on a page, so

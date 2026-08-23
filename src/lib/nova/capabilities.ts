@@ -73,6 +73,7 @@ export const NOVA_CAPABILITIES: NovaCapability[] = [
   // ---- Finance ----
   { key: "read.finance.invoices", label: "Invoices", department: "Finance", kind: "read", permissionKey: "finance.cash.view", defaultOn: true, scope: "all" },
   { key: "read.finance.expenses", label: "Expenses", department: "Finance", kind: "read", permissionKey: "finance.cash.view", defaultOn: true, scope: "all" },
+  { key: "read.finance.summary", label: "Finance summary", department: "Finance", kind: "read", permissionKey: "finance.cash.view", defaultOn: true, scope: "all" },
   { key: "read.finance.bills", label: "Bills / payables", department: "Finance", kind: "read", permissionKey: "finance.payables.view", defaultOn: true, scope: "all" },
   { key: "read.finance.assets", label: "Fixed assets", department: "Finance", kind: "read", permissionKey: "finance.assets.view", defaultOn: true, scope: "all" },
   { key: "action.finance.log-expense", label: "Log an expense", department: "Finance", kind: "action", permissionKey: "finance.cash.create", defaultOn: false, writes: true },

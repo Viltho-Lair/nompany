@@ -320,6 +320,10 @@ export default async function StudioPage({ params }) {
       dashboardWidgets: plan.dashboardWidgets,
       analyticsLevel: plan.analyticsLevel,
     },
+    // Whether this studio's package includes Nova — the shell shows the assistant
+    // launcher only when it does. The endpoint re-checks this, so the flag is a
+    // convenience for the UI, not the gate.
+    novaEnabled: plan.novaEnabled,
   };
 
   return (

@@ -671,6 +671,13 @@ console.log("== the architecture, asserted rather than remembered");
     // the coarse-gate mistake in reverse.
     const misgated = NOVA_CAPABILITIES.filter((c) => c.kind === "read" && c.permissionKey && !c.permissionKey.endsWith(".view"));
     ok("...and every keyed read gates on a .view right", misgated.length === 0, misgated.map((c) => c.key).join(", "));
+    // Every implemented tool maps to a real capability — a mapping keyed to a
+    // capability that no longer exists would be an orphan the switchboard can
+    // never reach.
+    const { MAPPED_CAPABILITY_KEYS } = await import("@/platform/nova/tools");
+    const registryKeys = new Set(keys);
+    const strayMapped = [...MAPPED_CAPABILITY_KEYS].filter((k) => !registryKeys.has(k));
+    ok("every implemented Nova tool is a real capability", strayMapped.length === 0, strayMapped.join(", "));
   }
 }
 

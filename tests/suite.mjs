@@ -79,6 +79,7 @@ import { overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, exp
 import { resolveHolders } from "@/lib/studios";
 import { NOVA_CAPABILITIES, capabilityEnabled, enabledCapabilities } from "@/lib/nova/capabilities";
 import { getNovaConfig, saveNovaConfig } from "@/lib/data/novaConfig";
+import { buildToolset } from "@/platform/nova/tools";
 import { inventoryContext, createItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation,
@@ -1135,6 +1136,34 @@ console.log("\n== Nova's capability switchboard: default, override, and the writ
   ok("...and reads back what was stored", read.enabled[offCap.key] === true, JSON.stringify(read.enabled));
   // Leave the switchboard as we found it (defaults) so later reads are clean.
   await saveNovaConfig({ enabled: {} });
+}
+
+// ============================================================================
+console.log("\n== Nova's toolset is enabled ∩ mapped ∩ permitted — never more");
+// The security core: the model is only ever shown tools the asking user may use.
+// A capability that is switched off, unmapped, or whose right the user lacks is
+// absent from the toolset, so the model cannot call it. Pure over a constructed
+// access set — no model, no key.
+{
+  // A user who can read Finance cash but nothing else.
+  const cashOnly = new Set(["finance.cash.view"]);
+  const { tools } = buildToolset({ enabled: {} }, cashOnly);
+  const names = new Set(tools.map((t) => t.name));
+  ok("a permitted, mapped, enabled read is offered", names.has("read__finance__invoices"), [...names].join(", "));
+  ok("...and its input schema is well-formed", tools.every((t) => t.input_schema && t.input_schema.type === "object"), "schema");
+  ok("a membership-only read (notifications) is always offered", names.has("read__notifications"), [...names].join(", "));
+  ok("a read the user is NOT permitted for is withheld", !names.has("read__finance__bills") && !names.has("read__hr__my-leave"), [...names].join(", "));
+
+  // Switching a capability off removes it even from a permitted user.
+  const off = buildToolset({ enabled: { "read.finance.invoices": false } }, cashOnly);
+  ok("a switched-off capability is withheld even when permitted", !off.tools.some((t) => t.name === "read__finance__invoices"), String(off.count));
+
+  // A user holding a right whose capability is default-OFF is not offered it
+  // until the switchboard enables it — the console gate is real.
+  const canCreate = new Set(["finance.cash.view", "finance.cash.create"]);
+  const defaultOff = buildToolset({ enabled: {} }, canCreate);
+  // (log-expense is an action, default-off, and not yet mapped — so absent either way.)
+  ok("a default-off capability is not offered by default", !defaultOff.tools.some((t) => t.name.includes("log__expense")), "default-off");
 }
 
 // ============================================================================

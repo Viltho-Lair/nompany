@@ -96,6 +96,13 @@ export async function studioHasLiveChat(studio: Row | null | undefined) {
   return hasLiveChat(planOf(studio, packages, tiers));
 }
 
+// DOES THIS STUDIO GET NOVA — the availability gate the assistant hangs on,
+// asked from a studio row. Its package's Nova switch, resolved once.
+export async function studioHasNova(studio: Row | null | undefined) {
+  const { packages, tiers } = await loadCatalogues();
+  return Boolean(planOf(studio, packages, tiers).novaEnabled);
+}
+
 // THE LIMIT THAT BITES. Returns null when the package sets no ceiling.
 export async function memberLimitOf(studio: Row | null | undefined) {
   const { packages, tiers } = await loadCatalogues();
