@@ -5,6 +5,8 @@ import RecordLink from "@/components/studio2/RecordLink";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { linkToProject, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
 import { fmtDate, fmtDateTime } from "@/lib/format";
+import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -367,7 +369,6 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
   });
   const [checklist, setChecklist] = useState(task?.checklist || []);
   const [item, setItem] = useState("");
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   // NOT `ck${length + 1}`. Removing an item shortens the list, so the next one
   // added reuses an id that is still in use — and ticking one of the pair ticks
   // both, because the server flips by id.
@@ -378,10 +379,8 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{task ? "Edit task" : "New task"}</h3>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="sm:col-span-2 lg:col-span-3">
-          <label className={label}>Title <span className="text-rose-500">*</span></label>
-          <input className={input} value={form.title} onChange={set("title")} />
-        </div>
+        <Field label="Title" required value={form.title}
+          onChange={(v) => setForm((f) => ({ ...f, title: v }))} className="sm:col-span-2 lg:col-span-3" />
         <div className="sm:col-span-2 lg:col-span-3">
           <label className={label}>Kind</label>
           {/* An ordinary task is assigned to a person. A typed one is routed to
@@ -405,35 +404,20 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
           )}
         </div>
         {!form.type && (
-        <div>
-          <label className={label}>Assign to</label>
-          <select className={input} value={form.assigneeCollaboratorId} onChange={set("assigneeCollaboratorId")}>
-            <option value="">Unassigned</option>
-            {people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
-          </select>
-        </div>
+        <Field label="Assign to" as="select" value={form.assigneeCollaboratorId}
+          onChange={(v) => setForm((f) => ({ ...f, assigneeCollaboratorId: v }))}
+          options={people.map((p) => ({ value: p.id, label: p.alias }))} />
         )}
-        <div>
-          <label className={label}>Project</label>
-          <select className={input} value={form.projectId} onChange={set("projectId")}>
-            <option value="">— none —</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.number}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Priority</label>
-          <select className={input} value={form.priority} onChange={set("priority")}>
-            {vocab.priorities.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Due date</label>
-          <input type="date" className={input} value={form.dueDate} onChange={set("dueDate")} />
-        </div>
-        <div className="sm:col-span-2 lg:col-span-3">
-          <label className={label}>Description</label>
-          <textarea rows={3} className={input} value={form.description} onChange={set("description")} />
-        </div>
+        <Field label="Project" as="select" value={form.projectId}
+          onChange={(v) => setForm((f) => ({ ...f, projectId: v }))}
+          options={projects.map((p) => ({ value: p.id, label: p.number }))} />
+        <Field label="Priority" as="select" required value={form.priority}
+          onChange={(v) => setForm((f) => ({ ...f, priority: v }))} options={vocab.priorities} />
+        <Field label="Due date" filled={!!form.dueDate}>
+          <StudioDate value={form.dueDate} onChange={(iso) => setForm((f) => ({ ...f, dueDate: iso }))} />
+        </Field>
+        <Field label="Description" as="textarea" value={form.description}
+          onChange={(v) => setForm((f) => ({ ...f, description: v }))} className="sm:col-span-2 lg:col-span-3" />
       </div>
 
       <div className="mt-5">
@@ -450,7 +434,7 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
           </ul>
         )}
         <div className="flex flex-wrap gap-2">
-          <input className={`${input} flex-1`} value={item} placeholder="Add a step…"
+          <input className={`${input} flex-1`} value={item}
             onChange={(e) => setItem(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && item.trim()) {

@@ -3,13 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { ADMIN_ROLE_ID } from "@/platform/access";
+import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import { fmtDate } from "@/lib/format";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
 const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
-const input =
-  "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 const btn = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
 const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
@@ -173,17 +172,9 @@ function RequestRow({ request, busy, onDecide }) {
         <span className="text-xs text-slate-400">asked {fmtDate(request.createdAt)}</span>
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        <div className="min-w-[180px] flex-1">
-          <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Name in this studio</label>
-          <input className={input} value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="e.g. Sara" />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Role</label>
-          <select className={input} value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
+        <Field label="Name in this studio" value={alias} onChange={(v) => setAlias(v)} className="min-w-[180px] flex-1" />
+        <Field label="Role" as="select" required value={role} onChange={(v) => setRole(v)}
+          options={[{ value: "member", label: "Member" }, { value: "admin", label: "Admin" }]} />
         <button className={btn} disabled={busy} onClick={() => onDecide(request, "approve", alias, role)}>
           {busy ? "Working…" : "Approve"}
         </button>
@@ -210,22 +201,14 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
   if (editing) {
     return (
       <li className="flex flex-wrap items-end gap-3 rounded-xl border border-brand-500/40 p-4">
-        <div className="min-w-[180px] flex-1">
-          <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Name in this studio</label>
-          <input className={input} value={alias} onChange={(e) => setAlias(e.target.value)} />
-        </div>
+        <Field label="Name in this studio" value={alias} onChange={(v) => setAlias(v)} className="min-w-[180px] flex-1" />
         {/* THE ASSIGNMENT. A dropdown, because this is the frequent half of the
             job: naming what somebody does should take five seconds and never
             show a permission key. What the role MEANS is edited once, on the
             access screen. */}
         {roles.length > 0 && !isOwner && (
-          <div className="min-w-[180px]">
-            <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Role</label>
-            <select className={input} value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-              <option value="">No role — no access</option>
-              {roles.map((r) => (<option key={r.id} value={r.id}>{r.name}</option>))}
-            </select>
-          </div>
+          <Field label="Role" as="select" required value={roleId} onChange={(v) => setRoleId(v)} className="min-w-[180px]"
+            options={[{ value: "", label: "No role — no access" }, ...roles.map((r) => ({ value: r.id, label: r.name }))]} />
         )}
         <button className={btn} disabled={busy}
           onClick={() => { onSave(person, { alias, roleIds: roleId ? [roleId] : [] }); setEditing(false); }}>Save</button>

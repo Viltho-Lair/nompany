@@ -3,6 +3,7 @@
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import { Field } from "@/components/fields/Field";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
 import {
@@ -228,8 +229,8 @@ function Items({ items, vendors, units, studioCurrency, canManage, busy, send })
     <>
       <Toolbar canManage={canManage} label="Add item" onAdd={() => setForm({ row: null })}>
         {items.length > 0 && (
-          <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search name, SKU, model or vendor…"
-            value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Field label="Search" type="search" hint="Name, SKU, model or vendor"
+            value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
         )}
       </Toolbar>
 
@@ -367,7 +368,6 @@ function ItemForm({ row, vendors, units, studioCurrency = "", busy, onSave, onCa
     currency: row?.currency || "", image: row?.image || "",
     shippingCharges: row?.shippingCharges ?? "", customsCharges: row?.customsCharges ?? "",
   });
-  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const vendor = vendors.find((v) => v.id === f.vendorId);
   const types = Array.isArray(vendor?.itemTypes) ? vendor.itemTypes : [];
 
@@ -387,23 +387,13 @@ function ItemForm({ row, vendors, units, studioCurrency = "", busy, onSave, onCa
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div><label className={label}>Name *</label><input className={input} value={f.name} onChange={set("name")} /></div>
-        <div><label className={label}>Model number</label><input className={input} value={f.modelNumber} onChange={set("modelNumber")} placeholder="The vendor's part number" /></div>
-        <div><label className={label}>SKU</label><input className={input} value={f.sku} onChange={set("sku")} placeholder="auto" /></div>
-        <div>
-          <label className={label}>Unit</label>
-          <select className={input} value={f.unit} onChange={set("unit")}>
-            {units.map((u) => <option key={u} value={u}>{u}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Vendor</label>
-          <select className={input} value={f.vendorId}
-            onChange={(e) => setF((s) => ({ ...s, vendorId: e.target.value, itemType: "", deliveryWeeks: "" }))}>
-            <option value="">—</option>
-            {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </select>
-        </div>
+        <Field label="Name" required value={f.name} onChange={(v) => setF((s) => ({ ...s, name: v }))} />
+        <Field label="Model number" value={f.modelNumber} onChange={(v) => setF((s) => ({ ...s, modelNumber: v }))} hint="The vendor's part number" />
+        <Field label="SKU" value={f.sku} onChange={(v) => setF((s) => ({ ...s, sku: v }))} hint="Assigned automatically if left blank" />
+        <Field label="Unit" as="select" required value={f.unit} onChange={(v) => setF((s) => ({ ...s, unit: v }))} options={units} />
+        <Field label="Vendor" as="select" value={f.vendorId}
+          onChange={(v) => setF((s) => ({ ...s, vendorId: v, itemType: "", deliveryWeeks: "" }))}
+          options={vendors.map((v) => ({ value: v.id, label: v.name }))} />
         <div>
           <label className={label}>
             Type of item
@@ -425,31 +415,22 @@ function ItemForm({ row, vendors, units, studioCurrency = "", busy, onSave, onCa
           )}
         </div>
         <div className="grid grid-cols-[1fr,7.5rem] gap-3">
-          <div><label className={label}>Unit cost</label><input type="number" min="0" step="0.01" className={input} value={f.unitCost} onChange={set("unitCost")} /></div>
+          <Field label="Unit cost" type="number" min="0" value={f.unitCost} onChange={(v) => setF((s) => ({ ...s, unitCost: v }))} inputProps={{ step: "0.01" }} />
           {/* What that cost is IN. Blank means the studio's own currency, so an
               item priced in the studio's money needs nothing said about it. */}
-          <div>
-            <label className={label}>Currency</label>
-            <select className={input} value={f.currency} onChange={set("currency")}>
-              <option value="">Studio</option>
-              {CURRENCIES_FROM_EXCHANGE_API.map((c) => (<option key={c.code} value={c.code}>{c.code}</option>))}
-            </select>
-          </div>
+          <Field label="Currency" as="select" required value={f.currency} onChange={(v) => setF((s) => ({ ...s, currency: v }))}
+            options={[{ value: "", label: "Studio" }, ...CURRENCIES_FROM_EXCHANGE_API.map((c) => ({ value: c.code, label: c.code }))]} />
         </div>
-        <div><label className={label}>Reorder level</label><input type="number" min="0" className={input} value={f.reorderLevel} onChange={set("reorderLevel")} /></div>
+        <Field label="Reorder level" type="number" min="0" value={f.reorderLevel} onChange={(v) => setF((s) => ({ ...s, reorderLevel: v }))} />
         {/* Only for an item priced in somebody else's money — and then both are
             asked for, because "we didn't say" and "it was nothing" are
             different answers and only one of them is worth storing. */}
         {foreign && (
           <>
-            <div>
-              <label className={label}>Shipping charges * <span className="font-400 normal-case text-slate-400">({f.currency})</span></label>
-              <input type="number" min="0" step="0.01" className={input} value={f.shippingCharges} onChange={set("shippingCharges")} />
-            </div>
-            <div>
-              <label className={label}>Customs charges * <span className="font-400 normal-case text-slate-400">({f.currency})</span></label>
-              <input type="number" min="0" step="0.01" className={input} value={f.customsCharges} onChange={set("customsCharges")} />
-            </div>
+            <Field label={<>Shipping charges <span className="font-400 normal-case text-slate-400">({f.currency})</span></>}
+              required type="number" min="0" value={f.shippingCharges} onChange={(v) => setF((s) => ({ ...s, shippingCharges: v }))} inputProps={{ step: "0.01" }} />
+            <Field label={<>Customs charges <span className="font-400 normal-case text-slate-400">({f.currency})</span></>}
+              required type="number" min="0" value={f.customsCharges} onChange={(v) => setF((s) => ({ ...s, customsCharges: v }))} inputProps={{ step: "0.01" }} />
           </>
         )}
         <ItemImage value={f.image} onChange={(v) => setF((st) => ({ ...st, image: v }))} />
@@ -467,7 +448,7 @@ function ItemForm({ row, vendors, units, studioCurrency = "", busy, onSave, onCa
         </div>
       </div>
 
-      <div className="mt-4"><label className={label}>Notes</label><textarea rows={2} className={input} value={f.notes} onChange={set("notes")} /></div>
+      <div className="mt-4"><Field label="Notes" as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !f.name.trim() || missingCharges} onClick={() => onSave(f)}>{busy ? "Saving…" : "Save item"}</button>
@@ -509,8 +490,8 @@ function Stock({ items, movements, canManage, busy, send }) {
           ))}
         </div>
         {tab === "onhand" && items.length > 0 && (
-          <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search item, vendor or serial…"
-            value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Field label="Search" type="search" hint="Item, vendor or serial"
+            value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
         )}
         {!canManage && <span className="ms-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
       </div>
@@ -607,8 +588,8 @@ function AdjustForm({ item, busy, onSave, onCancel }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div><label className={label}>Quantity *</label><input type="number" className={input} value={qty} onChange={(e) => setQty(e.target.value)} /></div>
-        <div><label className={label}>Reason</label><input className={input} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. stock-take correction" /></div>
+        <Field label="Quantity" required type="number" value={qty} onChange={(v) => setQty(v)} />
+        <Field label="Reason" value={reason} onChange={(v) => setReason(v)} hint="e.g. stock-take correction" />
       </div>
       {qty !== "" && (
         <p className={`mt-3 text-sm ${after < 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
@@ -652,9 +633,9 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
 
       {canManage && (
         <div className="mt-4 flex gap-2">
-          <input className={input} placeholder="Enter serial(s), comma or newline separated" value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
+          <Field label="Serial(s)" hint="Comma or newline separated" value={draft} className="flex-1"
+            onChange={(v) => setDraft(v)}
+            inputProps={{ onKeyDown: (e) => { if (e.key === "Enter") { e.preventDefault(); add(); } } }} />
           <button type="button" className={btnGhost} onClick={add}>Add</button>
         </div>
       )}
@@ -801,16 +782,15 @@ function VendorForm({ row, busy, onSave, onCancel }) {
     phone: row?.phone || "", notes: row?.notes || "",
   });
   const [types, setTypes] = useState(row?.itemTypes || []);
-  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const setType = (i, k, v) => setTypes((cur) => cur.map((t, n) => (n === i ? { ...t, [k]: v } : t)));
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div><label className={label}>Name *</label><input className={input} value={f.name} onChange={set("name")} /></div>
-        <div><label className={label}>Contact</label><input className={input} value={f.contactName} onChange={set("contactName")} /></div>
-        <div><label className={label}>Email</label><input type="email" className={input} value={f.email} onChange={set("email")} /></div>
-        <div><label className={label}>Phone</label><input className={input} value={f.phone} onChange={set("phone")} /></div>
+        <Field label="Name" required value={f.name} onChange={(v) => setF((s) => ({ ...s, name: v }))} />
+        <Field label="Contact" value={f.contactName} onChange={(v) => setF((s) => ({ ...s, contactName: v }))} />
+        <Field label="Email" type="email" value={f.email} onChange={(v) => setF((s) => ({ ...s, email: v }))} />
+        <Field label="Phone" value={f.phone} onChange={(v) => setF((s) => ({ ...s, phone: v }))} />
       </div>
 
       <div className="mt-5">
@@ -827,8 +807,8 @@ function VendorForm({ row, busy, onSave, onCancel }) {
           <div className="mt-2 space-y-2">
             {types.map((t, i) => (
               <div key={i} className="flex items-end gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/15 dark:bg-[#191921]">
-                <div className="flex-1"><label className={microLabel}>Type</label><input className={input} value={t.type} onChange={(e) => setType(i, "type", e.target.value)} placeholder="Cameras" /></div>
-                <div className="w-32"><label className={microLabel}>Weeks</label><input type="number" min="0" className={input} value={t.weeks} onChange={(e) => setType(i, "weeks", e.target.value)} /></div>
+                <Field label="Type" value={t.type} onChange={(v) => setType(i, "type", v)} hint="e.g. Cameras" className="flex-1" />
+                <Field label="Weeks" type="number" min="0" value={t.weeks} onChange={(v) => setType(i, "weeks", v)} className="w-32" />
                 <button type="button" aria-label="Remove" title="Remove"
                   className="mb-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-white/5"
                   onClick={() => setTypes((cur) => cur.filter((_, n) => n !== i))}>
@@ -840,7 +820,7 @@ function VendorForm({ row, busy, onSave, onCancel }) {
         )}
       </div>
 
-      <div className="mt-4"><label className={label}>Notes</label><textarea rows={2} className={input} value={f.notes} onChange={set("notes")} /></div>
+      <div className="mt-4"><Field label="Notes" as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !f.name.trim()} onClick={() => onSave({ ...f, itemTypes: types })}>{busy ? "Saving…" : "Save vendor"}</button>
@@ -902,11 +882,10 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
 
         {canManage && (
           <div className="mt-4">
-            <label className={label}>AWB number</label>
             <div className="flex flex-wrap gap-2">
-              <input className={`${input} sm:max-w-xs`} placeholder="e.g. 176-12345675" value={raw}
-                onChange={(e) => setRaw(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && parsed?.valid) { e.preventDefault(); track(); } }} />
+              <Field label="AWB number" hint="e.g. 176-12345675" value={raw} className="sm:max-w-xs"
+                onChange={(v) => setRaw(v)}
+                inputProps={{ onKeyDown: (e) => { if (e.key === "Enter" && parsed?.valid) { e.preventDefault(); track(); } } }} />
               <button className={btn} disabled={busy || !parsed?.valid} onClick={track}>{busy ? "Adding…" : "Track"}</button>
             </div>
             {parsed && (
@@ -1037,16 +1016,12 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
         <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
           <p className={microLabel}>Record a milestone</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className={label}>Status</label>
-              <select className={input} value={code} onChange={(e) => setCode(e.target.value)}>
-                {statuses.map((st) => <option key={st.code} value={st.code}>{st.code} — {st.label}</option>)}
-              </select>
-            </div>
-            <div><label className={label}>When <span className="font-400 normal-case text-slate-400">(now if blank)</span></label><input type="datetime-local" className={input} value={at} onChange={(e) => setAt(e.target.value)} /></div>
-            <div><label className={label}>Station</label><input className={input} value={station} onChange={(e) => setStation(e.target.value.toUpperCase())} placeholder="RUH" /></div>
-            <div><label className={label}>Flight</label><input className={input} value={flightNo} onChange={(e) => setFlightNo(e.target.value.toUpperCase())} placeholder="EK802" /></div>
-            <div className="sm:col-span-2"><label className={label}>Note</label><input className={input} value={note} onChange={(e) => setNote(e.target.value)} /></div>
+            <Field label="Status" as="select" required value={code} onChange={(v) => setCode(v)}
+              options={statuses.map((st) => ({ value: st.code, label: `${st.code} — ${st.label}` }))} />
+            <Field label={<>When <span className="font-400 normal-case text-slate-400">(now if blank)</span></>} type="datetime-local" value={at} onChange={(v) => setAt(v)} />
+            <Field label="Station" value={station} onChange={(v) => setStation(v.toUpperCase())} hint="e.g. RUH" />
+            <Field label="Flight" value={flightNo} onChange={(v) => setFlightNo(v.toUpperCase())} hint="e.g. EK802" />
+            <Field label="Note" value={note} onChange={(v) => setNote(v)} className="sm:col-span-2" />
           </div>
           <p className="mt-2 text-xs text-slate-400">{AWB_STATUS_BY_CODE[code]?.desc}</p>
           <div className="mt-3">
@@ -1080,24 +1055,22 @@ function Airlines({ rows, busy, onSave, onCancel }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search prefix, name or IATA…" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Field label="Search" type="search" hint="Prefix, name or IATA" value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
         <button className={btn} onClick={() => setForm({ prefix: "", name: "", iata: "", trackUrlTemplate: "" })}>Add airline</button>
       </div>
 
       {form && (
         <div className="mt-4 rounded-xl border border-brand-500/40 bg-slate-50 p-4 dark:bg-[#191921]">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div><label className={label}>Prefix (3 digits)</label><input className={input} value={form.prefix}
-              onChange={(e) => setForm((s) => ({ ...s, prefix: e.target.value.replace(/\D/g, "").slice(0, 3) }))} placeholder="176" /></div>
-            <div><label className={label}>IATA code</label><input className={input} value={form.iata}
-              onChange={(e) => setForm((s) => ({ ...s, iata: e.target.value.toUpperCase().slice(0, 3) }))} placeholder="EK" /></div>
-            <div className="sm:col-span-2"><label className={label}>Airline name</label><input className={input} value={form.name}
-              onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} /></div>
-            <div className="sm:col-span-2">
-              <label className={label}>Tracking URL template <span className="font-400 normal-case text-slate-400">(tokens {"{AWB} {PREFIX} {SERIAL}"})</span></label>
-              <input className={input} value={form.trackUrlTemplate}
-                onChange={(e) => setForm((s) => ({ ...s, trackUrlTemplate: e.target.value }))} placeholder="https://airline.com/track?awb={SERIAL}" />
-            </div>
+            <Field label="Prefix (3 digits)" value={form.prefix} hint="e.g. 176"
+              onChange={(v) => setForm((s) => ({ ...s, prefix: v.replace(/\D/g, "").slice(0, 3) }))} />
+            <Field label="IATA code" value={form.iata} hint="e.g. EK"
+              onChange={(v) => setForm((s) => ({ ...s, iata: v.toUpperCase().slice(0, 3) }))} />
+            <Field label="Airline name" value={form.name} className="sm:col-span-2"
+              onChange={(v) => setForm((s) => ({ ...s, name: v }))} />
+            <Field className="sm:col-span-2" value={form.trackUrlTemplate} hint="https://airline.com/track?awb={SERIAL}"
+              label={<>Tracking URL template <span className="font-400 normal-case text-slate-400">(tokens {"{AWB} {PREFIX} {SERIAL}"})</span></>}
+              onChange={(v) => setForm((s) => ({ ...s, trackUrlTemplate: v }))} />
           </div>
           <div className="mt-4 flex gap-3">
             <button className={btn} disabled={busy || form.prefix.length !== 3 || !form.name.trim()}

@@ -4,13 +4,15 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
+import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
+import FinanceDashboard from "@/components/studio2/FinanceDashboard";
+import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import {
-  inputRO, stripeOn, stripeOff, Dialog, ColumnPicker, prefKey, loadPref, savePref, fmtDate,
+  stripeOn, stripeOff, Dialog, ColumnPicker, prefKey, loadPref, savePref, fmtDate,
 } from "@/components/studio2/ui";
 
 const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
-const input =
-  "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 const btn = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
 const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
@@ -42,6 +44,7 @@ export default function StudioFinance({ slug, view = "finance" }) {
   useEffect(() => { if (view === "finance-cash") setTab("invoices"); }, [view]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const level = useAnalyticsLevel();
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/finance`, { cache: "no-store" });
@@ -88,7 +91,7 @@ export default function StudioFinance({ slug, view = "finance" }) {
             dashboard right of its own. */}
         {data.canViewDashboard === false ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." /> : (
           <>
-            <Summary summary={summary} />
+            <FinanceDashboard invoices={invoices} expenses={expenses} level={level} />
             <FinanceProjects rows={profitability} slug={slug} nav={nav} canManage={canManage} busy={busy}
               onSave={(payload) => send("projects", "PUT", payload)} />
           </>
@@ -297,42 +300,28 @@ function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">New invoice</h3>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <label className={label}>Project</label>
-          <select className={input} value={head.projectId} onChange={(e) => setHead((h) => ({ ...h, projectId: e.target.value }))}>
-            <option value="">— none —</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.number} · {p.clientName}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Client</label>
-          <input className={input} value={head.clientName} placeholder={project?.clientName || "Client name"}
-            onChange={(e) => setHead((h) => ({ ...h, clientName: e.target.value }))} />
-        </div>
-        <div>
-          <label className={label}>VAT %</label>
-          <input type="number" className={input} value={head.vatRate} onChange={(e) => setHead((h) => ({ ...h, vatRate: e.target.value }))} />
-        </div>
-        <div>
-          <label className={label}>Due date</label>
-          <input type="date" className={input} value={head.dueDate} onChange={(e) => setHead((h) => ({ ...h, dueDate: e.target.value }))} />
-        </div>
+        <Field label="Project" as="select" value={head.projectId}
+          onChange={(v) => setHead((h) => ({ ...h, projectId: v }))}
+          options={projects.map((p) => ({ value: p.id, label: `${p.number} · ${p.clientName}` }))} />
+        <Field label="Client" value={head.clientName} hint={project?.clientName || undefined}
+          onChange={(v) => setHead((h) => ({ ...h, clientName: v }))} />
+        <Field label="VAT %" type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />
+        <Field label="Due date" filled={!!head.dueDate}>
+          <StudioDate value={head.dueDate} onChange={(iso) => setHead((h) => ({ ...h, dueDate: iso }))} />
+        </Field>
       </div>
 
       <div className="mt-5 space-y-3">
         {lines.map((l, i) => (
           <div key={i} className="flex flex-wrap items-end gap-3">
             <div className="min-w-[220px] flex-1">
-              <label className={label}>Description</label>
-              <input className={input} value={l.description} onChange={(e) => setLine(i, "description", e.target.value)} />
+              <Field label="Description" value={l.description} onChange={(v) => setLine(i, "description", v)} />
             </div>
             <div className="w-24">
-              <label className={label}>Qty</label>
-              <input type="number" className={input} value={l.qty} onChange={(e) => setLine(i, "qty", e.target.value)} />
+              <Field label="Qty" type="number" value={l.qty} onChange={(v) => setLine(i, "qty", v)} />
             </div>
             <div className="w-32">
-              <label className={label}>Unit price</label>
-              <input type="number" className={input} value={l.unitPrice} onChange={(e) => setLine(i, "unitPrice", e.target.value)} />
+              <Field label="Unit price" type="number" value={l.unitPrice} onChange={(v) => setLine(i, "unitPrice", v)} />
             </div>
             {lines.length > 1 && <button className={btnGhost} onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}>Remove</button>}
           </div>
@@ -358,31 +347,18 @@ function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
 
 function PaymentForm({ invoice, methods, busy, onCancel, onSave }) {
   const [form, setForm] = useState({ amount: String(invoice.outstanding), date: "", method: methods[0], reference: "" });
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {invoice.reference}</h3>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(invoice.outstanding)} outstanding of {money(invoice.total)}.</p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <label className={label}>Amount</label>
-          <input type="number" className={input} value={form.amount} onChange={set("amount")} />
-        </div>
-        <div>
-          <label className={label}>Date</label>
-          <input type="date" className={input} value={form.date} onChange={set("date")} />
-        </div>
-        <div>
-          <label className={label}>Method</label>
-          <select className={input} value={form.method} onChange={set("method")}>
-            {methods.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Reference</label>
-          <input className={input} value={form.reference} onChange={set("reference")} />
-        </div>
+        <Field label="Amount" type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
+        <Field label="Date" filled={!!form.date}>
+          <StudioDate value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
+        </Field>
+        <Field label="Method" as="select" value={form.method} onChange={(v) => setForm((f) => ({ ...f, method: v }))} options={methods} />
+        <Field label="Reference" value={form.reference} onChange={(v) => setForm((f) => ({ ...f, reference: v }))} />
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
@@ -520,16 +496,20 @@ function SimpleForm({ title, fields, busy, onCancel, onSave }) {
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {fields.map((f) => (
           <div key={f.key} className={f.area ? "sm:col-span-2" : ""}>
-            <label className={label}>{f.label}{f.required && <span className="text-rose-500"> *</span>}</label>
             {f.options ? (
-              <select className={input} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}>
-                {f.options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
-              </select>
+              <Field label={f.label} required={f.required} as="select" value={values[f.key]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))}
+                options={f.options.filter((o) => o.value !== "").map((o) => ({ value: o.value, label: o.text }))} />
             ) : f.area ? (
-              <textarea rows={2} className={input} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} />
+              <Field label={f.label} required={f.required} as="textarea" value={values[f.key]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
+            ) : f.type === "date" ? (
+              <Field label={f.label} required={f.required} filled={!!values[f.key]}>
+                <StudioDate value={values[f.key]} onChange={(iso) => setValues((s) => ({ ...s, [f.key]: iso }))} />
+              </Field>
             ) : (
-              <input type={f.type || "text"} className={input} value={values[f.key]}
-                onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} />
+              <Field label={f.label} required={f.required} type={f.type || "text"} value={values[f.key]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
             )}
           </div>
         ))}
@@ -627,8 +607,8 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search project, client, PO or quotation…"
-          value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Field label="Search project, client, PO or quotation" type="search" className="w-full sm:max-w-xs"
+          value={query} onChange={setQuery} />
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
           {[["all", "All"], ["issued", "PO issued"], ["awaiting", "Awaiting PO"]].map(([k, text]) => (
             <button key={k} type="button" onClick={() => setPoFilter(k)}
@@ -705,16 +685,12 @@ function Commercials({ row, busy, canManage, onSave, onCancel }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div><label className={label}>Quotation</label><input className={inputRO} readOnly value={row.quotationNumber || "—"} /></div>
-        <div><label className={label}>Manager</label><input className={inputRO} readOnly value={row.managerAlias || "—"} /></div>
-        <div>
-          <label className={label}>PO number</label>
-          <input className={input} value={poNumber} disabled={!canManage} onChange={(e) => setPoNumber(e.target.value)} placeholder="Issued on approval" />
-        </div>
-        <div>
-          <label className={label}>Project number</label>
-          <input className={input} value={projectNumber} disabled={!canManage} onChange={(e) => setProjectNumber(e.target.value)} placeholder="Entered by Finance" />
-        </div>
+        <Field label="Quotation" value={row.quotationNumber || "—"} disabled inputProps={{ readOnly: true }} />
+        <Field label="Manager" value={row.managerAlias || "—"} disabled inputProps={{ readOnly: true }} />
+        <Field label="PO number" value={poNumber} disabled={!canManage} hint="Issued on approval"
+          onChange={(v) => setPoNumber(v)} />
+        <Field label="Project number" value={projectNumber} disabled={!canManage} hint="Entered by Finance"
+          onChange={(v) => setProjectNumber(v)} />
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-4">

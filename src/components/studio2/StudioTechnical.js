@@ -12,6 +12,8 @@ import {
 } from "@/components/studio2/ui";
 import { isUnfinished } from "@/modules/technical/quotations";
 import QuotationBuilder from "@/components/studio2/QuotationBuilder";
+import { Field } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 import {
   quotationStats, rfqFunnel, urgencyBreakdown, handlerLeaderboard,
   quotationTimeline, completionScatter, averageTurnaround, quotationValue, isUnworked,
@@ -430,7 +432,6 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
           className={`${input} max-w-sm`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search"
           aria-label="Search RFQs"
         />
         <p className="text-sm text-slate-500 dark:text-slate-400">{shown.length} of {rfqs.length}</p>
@@ -508,24 +509,18 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
               </dl>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={label}>Status</label>
-                  {/* Converted is never chosen by hand — it is what Convert does.
-                      Who handles it is asked once, at conversion, rather than
-                      being a second place to answer the same question. */}
-                  <select className={input} value={draft.status} disabled={!canManage || converted}
-                    onChange={(e) => set({ status: e.target.value })}>
-                    {statuses.filter((s) => s !== "Converted" || converted)
-                      .map((s) => (<option key={s} value={s}>{s}</option>))}
-                  </select>
-                </div>
+                {/* Converted is never chosen by hand — it is what Convert does.
+                    Who handles it is asked once, at conversion, rather than
+                    being a second place to answer the same question. */}
+                <Field label="Status" as="select" required value={draft.status}
+                  disabled={!canManage || converted}
+                  onChange={(v) => set({ status: v })}
+                  options={statuses.filter((s) => s !== "Converted" || converted)} />
               </div>
 
-              <div className="mt-4">
-                <label className={label}>Description</label>
-                <textarea rows={5} className={input} value={draft.description} disabled={!canManage || converted}
-                  onChange={(e) => set({ description: e.target.value })} />
-              </div>
+              <Field className="mt-4" label="Description" as="textarea" value={draft.description}
+                disabled={!canManage || converted}
+                onChange={(v) => set({ description: v })} />
 
               {canManage && !converted && (
                 <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
@@ -616,7 +611,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
   return (
     <>
       <Toolbar canManage={canManage} label="New quotation" onAdd={onAdd}>
-        <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search number, title, client or description…"
+        <input type="search" className={`${input} sm:max-w-xs`} aria-label="Search number, title, client or description"
           value={query} onChange={(e) => setQuery(e.target.value)} />
         <FilterButton active={activeFilters} open={showFilters} onClick={() => setShowFilters((v) => !v)} />
         <button type="button" className={btnGhost} onClick={() => setShowColumns(true)}>Columns</button>
@@ -624,39 +619,20 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
 
       {showFilters && (
         <FilterPanel onClear={clearFilters}>
-          <div>
-            <label className={microLabel}>Handled by</label>
-            <select className={input} value={filters.handledBy} onChange={(e) => setFilter({ handledBy: e.target.value })}>
-              <option value="">Anyone</option>
-              {people.map((p) => (<option key={p.id} value={p.id}>{p.alias}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className={microLabel}>Client</label>
-            <input className={input} placeholder="Client contains…" value={filters.client} onChange={(e) => setFilter({ client: e.target.value })} />
-          </div>
-          <div>
-            <label className={microLabel}>Status</label>
-            <select className={input} value={filters.status} onChange={(e) => setFilter({ status: e.target.value })}>
-              <option value="">Any status</option>
-              {statuses.map((s) => (<option key={s} value={s}>{s}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className={microLabel}>Urgency</label>
-            <select className={input} value={filters.urgency} onChange={(e) => setFilter({ urgency: e.target.value })}>
-              <option value="">Any urgency</option>
-              {urgencies.map((u) => (<option key={u} value={u}>{u}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className={microLabel}>Created from</label>
-            <input type="date" className={input} value={filters.createdFrom} onChange={(e) => setFilter({ createdFrom: e.target.value })} />
-          </div>
-          <div>
-            <label className={microLabel}>Created to</label>
-            <input type="date" className={input} value={filters.createdTo} onChange={(e) => setFilter({ createdTo: e.target.value })} />
-          </div>
+          <Field label="Handled by" as="select" value={filters.handledBy}
+            onChange={(v) => setFilter({ handledBy: v })}
+            options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+          <Field label="Client" value={filters.client} onChange={(v) => setFilter({ client: v })} />
+          <Field label="Status" as="select" value={filters.status}
+            onChange={(v) => setFilter({ status: v })} options={statuses} />
+          <Field label="Urgency" as="select" value={filters.urgency}
+            onChange={(v) => setFilter({ urgency: v })} options={urgencies} />
+          <Field label="Created from" filled={!!filters.createdFrom}>
+            <StudioDate value={filters.createdFrom} onChange={(iso) => setFilter({ createdFrom: iso })} />
+          </Field>
+          <Field label="Created to" filled={!!filters.createdTo}>
+            <StudioDate value={filters.createdTo} onChange={(iso) => setFilter({ createdTo: iso })} />
+          </Field>
         </FilterPanel>
       )}
 
@@ -788,13 +764,9 @@ function RaiseRfq({ tickets, onSave, onCancel }) {
   return (
     <>
       <div className="grid gap-4">
-        <div>
-          <label className={label}>Ticket</label>
-          <select className={input} value={ticketId} onChange={(e) => setTicketId(e.target.value)}>
-            {tickets.map((t) => <option key={t.id} value={t.id}>{t.ref} — {t.title}</option>)}
-          </select>
-        </div>
-        <div><label className={label}>What&apos;s needed</label><textarea rows={3} className={input} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+        <Field label="Ticket" as="select" required value={ticketId} onChange={(v) => setTicketId(v)}
+          options={tickets.map((t) => ({ value: t.id, label: `${t.ref} — ${t.title}` }))} />
+        <Field label="What's needed" as="textarea" value={description} onChange={(v) => setDescription(v)} />
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ticketId} onClick={async () => { setBusy(true); await onSave({ ticketId, description }); setBusy(false); }}>
@@ -836,13 +808,9 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
       {/* One question, because converting only decides WHO takes it. The
           description comes across from the RFQ; retyping it here would give the
           same sentence two homes. */}
-      <div className="mt-4 sm:max-w-xs">
-        <label className={label}>Handled by</label>
-        <select className={input} value={handledBy} onChange={(e) => setHandledBy(e.target.value)}>
-          <option value="">— nobody yet —</option>
-          {people.map((p) => (<option key={p.id} value={p.id}>{p.alias}</option>))}
-        </select>
-      </div>
+      <Field className="mt-4 sm:max-w-xs" label="Handled by" as="select" value={handledBy}
+        onChange={(v) => setHandledBy(v)}
+        options={people.map((p) => ({ value: p.id, label: p.alias }))} />
 
       <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
         The quotation is numbered automatically and its lead is set to <span className="font-600">{rfq.ticketRef || rfq.reference}</span>.
@@ -862,20 +830,15 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
 function NewQuotation({ people, onSave, onCancel }) {
   const [f, setF] = useState({ number: "", description: "", handledBy: "" });
   const [busy, setBusy] = useState(false);
-  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const ready = f.number.trim() && f.description.trim() && f.handledBy.trim();
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div><label className={label}>Number *</label><input className={input} value={f.number} onChange={set("number")} placeholder="Q-0001" /></div>
-        <div>
-          <label className={label}>Handled by *</label>
-          <select className={input} value={f.handledBy} onChange={set("handledBy")}>
-            <option value="">— select —</option>
-            {people.map((p) => (<option key={p.id} value={p.id}>{p.alias}</option>))}
-          </select>
-        </div>
-        <div className="sm:col-span-2"><label className={label}>Description *</label><textarea rows={3} className={input} value={f.description} onChange={set("description")} /></div>
+        <Field label="Number" required value={f.number} onChange={(v) => setF((s) => ({ ...s, number: v }))} />
+        <Field label="Handled by" as="select" value={f.handledBy} onChange={(v) => setF((s) => ({ ...s, handledBy: v }))}
+          options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+        <Field className="sm:col-span-2" label="Description" required as="textarea" value={f.description}
+          onChange={(v) => setF((s) => ({ ...s, description: v }))} />
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={async () => { setBusy(true); await onSave(f); setBusy(false); }}>
@@ -905,9 +868,12 @@ function TechnicalSettings({ options, selected, cover, canManage, onSave }) {
         <h2 className={h2}>Cover copy</h2>
         <p className={sub}>The standing text that heads a quotation document.</p>
         <div className="mt-4 grid gap-4">
-          <div><label className={label}>Title</label><input className={input} value={c.title} disabled={!canManage} onChange={(e) => setC((v) => ({ ...v, title: e.target.value }))} /></div>
-          <div><label className={label}>Introduction</label><textarea rows={3} className={input} value={c.intro} disabled={!canManage} onChange={(e) => setC((v) => ({ ...v, intro: e.target.value }))} /></div>
-          <div><label className={label}>Terms</label><textarea rows={3} className={input} value={c.terms} disabled={!canManage} onChange={(e) => setC((v) => ({ ...v, terms: e.target.value }))} /></div>
+          <Field label="Title" value={c.title} disabled={!canManage}
+            onChange={(v) => setC((prev) => ({ ...prev, title: v }))} />
+          <Field label="Introduction" as="textarea" value={c.intro} disabled={!canManage}
+            onChange={(v) => setC((prev) => ({ ...prev, intro: v }))} />
+          <Field label="Terms" as="textarea" value={c.terms} disabled={!canManage}
+            onChange={(v) => setC((prev) => ({ ...prev, terms: v }))} />
         </div>
         {canManage && (
           <div className="mt-5">

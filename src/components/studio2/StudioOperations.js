@@ -5,6 +5,8 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { microLabel, Dialog, fmtDate, fmtWeekday } from "@/components/studio2/ui";
+import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 import {
   DAYS, normalizeSchedule, normalizeLegend, visibleWindow, startOfWeekSunday, addDays as addCalendarDays,
   dayKey, barGeometry, dayRoster,
@@ -425,41 +427,26 @@ function ShiftForm({ people, locations, busy, onCancel, onSave }) {
     collaboratorId: people[0]?.id || "", date: "", startTime: "08:00", endTime: "17:00",
     locationId: "", role: "", notes: "",
   });
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Schedule a shift</h3>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <label className={label}>Who <span className="text-rose-500">*</span></label>
-          <select className={input} value={form.collaboratorId} onChange={set("collaboratorId")}>
-            {people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Date <span className="text-rose-500">*</span></label>
-          <input type="date" className={input} value={form.date} onChange={set("date")} />
-        </div>
-        <div>
-          <label className={label}>Location</label>
-          <select className={input} value={form.locationId} onChange={set("locationId")}>
-            <option value="">—</option>
-            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Start</label>
-          <input type="time" className={input} value={form.startTime} onChange={set("startTime")} />
-        </div>
-        <div>
-          <label className={label}>End</label>
-          <input type="time" className={input} value={form.endTime} onChange={set("endTime")} />
-        </div>
-        <div>
-          <label className={label}>Role</label>
-          <input className={input} value={form.role} onChange={set("role")} placeholder="e.g. Lead technician" />
-        </div>
+        <Field label="Who" as="select" required value={form.collaboratorId}
+          onChange={(v) => setForm((f) => ({ ...f, collaboratorId: v }))}
+          options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+        <Field label="Date" required filled={!!form.date}>
+          <StudioDate value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
+        </Field>
+        <Field label="Location" as="select" value={form.locationId}
+          onChange={(v) => setForm((f) => ({ ...f, locationId: v }))}
+          options={locations.map((l) => ({ value: l.id, label: l.name }))} />
+        <Field label="Start" type="time" value={form.startTime}
+          onChange={(v) => setForm((f) => ({ ...f, startTime: v }))} />
+        <Field label="End" type="time" value={form.endTime}
+          onChange={(v) => setForm((f) => ({ ...f, endTime: v }))} />
+        <Field label="Role" value={form.role}
+          onChange={(v) => setForm((f) => ({ ...f, role: v }))} hint="e.g. Lead technician" />
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !form.date || !form.collaboratorId} onClick={() => onSave(form)}>
@@ -553,52 +540,31 @@ function PermitForm({ permit, locations, people, projects, types, busy, onCancel
     validFrom: permit?.validFrom || "", validTo: permit?.validTo || "", notes: permit?.notes || "",
   });
   const [holders, setHolders] = useState(permit?.holderCollaboratorIds || []);
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{permit ? "Edit permit" : "New permit"}</h3>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="sm:col-span-2">
-          <label className={label}>Title <span className="text-rose-500">*</span></label>
-          <input className={input} value={form.title} onChange={set("title")} />
-        </div>
-        <div>
-          <label className={label}>Type</label>
-          <select className={input} value={form.type} onChange={set("type")}>
-            {types.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Permit number</label>
-          <input className={input} value={form.number} onChange={set("number")} />
-        </div>
-        <div>
-          <label className={label}>Issued by</label>
-          <input className={input} value={form.issuer} onChange={set("issuer")} />
-        </div>
-        <div>
-          <label className={label}>Location</label>
-          <select className={input} value={form.locationId} onChange={set("locationId")}>
-            <option value="">—</option>
-            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Project</label>
-          <select className={input} value={form.projectId} onChange={set("projectId")}>
-            <option value="">—</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.number}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Valid from</label>
-          <input type="date" className={input} value={form.validFrom} onChange={set("validFrom")} />
-        </div>
-        <div>
-          <label className={label}>Valid to</label>
-          <input type="date" className={input} value={form.validTo} onChange={set("validTo")} />
-        </div>
+        <Field label="Title" required value={form.title}
+          onChange={(v) => setForm((f) => ({ ...f, title: v }))} className="sm:col-span-2" />
+        <Field label="Type" as="select" required value={form.type}
+          onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={types} />
+        <Field label="Permit number" value={form.number}
+          onChange={(v) => setForm((f) => ({ ...f, number: v }))} />
+        <Field label="Issued by" value={form.issuer}
+          onChange={(v) => setForm((f) => ({ ...f, issuer: v }))} />
+        <Field label="Location" as="select" value={form.locationId}
+          onChange={(v) => setForm((f) => ({ ...f, locationId: v }))}
+          options={locations.map((l) => ({ value: l.id, label: l.name }))} />
+        <Field label="Project" as="select" value={form.projectId}
+          onChange={(v) => setForm((f) => ({ ...f, projectId: v }))}
+          options={projects.map((p) => ({ value: p.id, label: p.number }))} />
+        <Field label="Valid from" filled={!!form.validFrom}>
+          <StudioDate value={form.validFrom} onChange={(iso) => setForm((f) => ({ ...f, validFrom: iso }))} />
+        </Field>
+        <Field label="Valid to" filled={!!form.validTo}>
+          <StudioDate value={form.validTo} onChange={(iso) => setForm((f) => ({ ...f, validTo: iso }))} />
+        </Field>
       </div>
 
       {people.length > 0 && (
@@ -703,18 +669,21 @@ function SimpleForm({ title, fields, busy, onCancel, onSave }) {
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {fields.map((f) => (
-          <div key={f.key} className={f.area ? "sm:col-span-2" : ""}>
-            <label className={label}>{f.label}{f.required && <span className="text-rose-500"> *</span>}</label>
-            {f.options ? (
-              <select className={input} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}>
-                {f.options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
-              </select>
-            ) : f.area ? (
-              <textarea rows={2} className={input} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} />
-            ) : (
-              <input className={input} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} />
-            )}
-          </div>
+          f.options ? (
+            <Field key={f.key} label={f.label} as="select" required={f.required}
+              value={values[f.key]}
+              onChange={(v) => setValues((vv) => ({ ...vv, [f.key]: v }))}
+              options={f.options.map((o) => ({ value: o.value, label: o.text }))} />
+          ) : f.area ? (
+            <Field key={f.key} label={f.label} as="textarea" required={f.required}
+              value={values[f.key]}
+              onChange={(v) => setValues((vv) => ({ ...vv, [f.key]: v }))}
+              className="sm:col-span-2" />
+          ) : (
+            <Field key={f.key} label={f.label} required={f.required}
+              value={values[f.key]}
+              onChange={(v) => setValues((vv) => ({ ...vv, [f.key]: v }))} />
+          )
         ))}
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
@@ -998,8 +967,7 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
         <h2 className={h2}>Day roster prefix</h2>
         <p className={sub}>Optional text added above the copied roster for a day — a greeting, or a standing note.</p>
         <textarea rows={3} className={`${input} mt-4`} value={rosterPrefix} disabled={!canManage}
-          onChange={(e) => { setRosterPrefix(e.target.value); dirty(); }}
-          placeholder="e.g. Good morning team, here is today's schedule:" />
+          onChange={(e) => { setRosterPrefix(e.target.value); dirty(); }} />
       </section>
 
       {canManage ? (

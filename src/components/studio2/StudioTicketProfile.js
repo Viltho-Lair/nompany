@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, input, btn, btnGhost, money, fmtDate, Dialog } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, money, fmtDate, Dialog } from "@/components/studio2/ui";
 import { TicketForm } from "@/components/studio2/StudioSales";
+import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import { Money } from "@/components/Currency";
 import { canRequestRfqStatus } from "@/modules/sales/tickets";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
@@ -247,20 +248,20 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               )}
             </div>
             <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-              <Field label="Reference" value={ticket.ref} mono />
-              <Field label="Status" value={ticket.status} />
-              <Field label="Urgency" value={ticket.urgency} />
-              <Field label="Deadline" value={fmtDate(ticket.deadline)} />
-              <Field label="Industry" value={ticket.industry} />
-              <Field label="Owner" value={aliasOf[ticket.assignedToCollaboratorId] || "Unassigned"} />
+              <DetailField label="Reference" value={ticket.ref} mono />
+              <DetailField label="Status" value={ticket.status} />
+              <DetailField label="Urgency" value={ticket.urgency} />
+              <DetailField label="Deadline" value={fmtDate(ticket.deadline)} />
+              <DetailField label="Industry" value={ticket.industry} />
+              <DetailField label="Owner" value={aliasOf[ticket.assignedToCollaboratorId] || "Unassigned"} />
               {/* VALUE QUOTED: the latest quotation's total, never typed. */}
-              <Field label="Value Quoted" value={ticket.value ? <Money amount={ticket.value} currency={currency} /> : ""} />
-              <Field label="Client budget" value={ticket.clientBudget ? <Money amount={ticket.clientBudget} currency={currency} /> : ""} />
-              <Field label="Site" value={ticket.location?.name} />
-              <Field label="Country" value={ticket.location?.country} />
-              <Field label="City" value={ticket.location?.city} />
+              <DetailField label="Value Quoted" value={ticket.value ? <Money amount={ticket.value} currency={currency} /> : ""} />
+              <DetailField label="Client budget" value={ticket.clientBudget ? <Money amount={ticket.clientBudget} currency={currency} /> : ""} />
+              <DetailField label="Site" value={ticket.location?.name} />
+              <DetailField label="Country" value={ticket.location?.country} />
+              <DetailField label="City" value={ticket.location?.city} />
               {ticket.location?.url && (
-                <Field label="Map" value={<a href={ticket.location.url} target="_blank" rel="noopener noreferrer" className="text-brand-700 underline dark:text-brand-300">Open map</a>} />
+                <DetailField label="Map" value={<a href={ticket.location.url} target="_blank" rel="noopener noreferrer" className="text-brand-700 underline dark:text-brand-300">Open map</a>} />
               )}
             </dl>
             {ticket.description && (
@@ -327,12 +328,12 @@ export default function StudioTicketProfile({ slug, ticketId }) {
             )}
             {data.canManage && (
               <div className="mt-4 flex gap-3">
-                <input
-                  className={input}
+                <Field
+                  label="Add a comment"
                   value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") addComment(); }}
-                  placeholder="Add a comment"
+                  onChange={(v) => setComment(v)}
+                  className="flex-1"
+                  inputProps={{ onKeyDown: (e) => { if (e.key === "Enter") addComment(); } }}
                 />
                 <button className={btn} onClick={addComment} disabled={busy || !comment.trim()}>
                   {busy ? "Saving…" : "Post"}
@@ -433,9 +434,9 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               <p className="mt-2 font-600 text-slate-900 dark:text-white">{ticket.clientName}</p>
             </div>
             <dl className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
-              <Field label="Contact person" value={contact.name} stacked />
-              <Field label="Number" value={contact.phone} stacked />
-              <Field label="Email" value={contact.email} stacked />
+              <DetailField label="Contact person" value={contact.name} stacked />
+              <DetailField label="Number" value={contact.phone} stacked />
+              <DetailField label="Email" value={contact.email} stacked />
             </dl>
           </section>
 
@@ -509,7 +510,7 @@ function Back({ slug, title, ref_, clientName }) {
   );
 }
 
-function Field({ label, value, mono, stacked }) {
+function DetailField({ label, value, mono, stacked }) {
   return (
     <div className={stacked ? "" : "min-w-0"}>
       <dt className="text-xs font-600 uppercase tracking-wide text-slate-400">{label}</dt>
@@ -541,11 +542,8 @@ function PoForm({ busy, onCancel, onSave }) {
       </div>
 
       <div className="mt-4">
-        <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Description
-        </label>
-        <textarea rows={3} className={input} value={description} placeholder="PO number, value, anything Finance needs to authorise it"
-          onChange={(e) => setDescription(e.target.value)} />
+        <Field label="Description" as="textarea" hint="PO number, value, anything Finance needs to authorise it"
+          value={description} onChange={(v) => setDescription(v)} />
       </div>
 
       <p className={`mt-3 text-xs ${ready ? "text-slate-500 dark:text-slate-400" : "text-amber-700 dark:text-amber-300"}`}>

@@ -496,62 +496,47 @@ function Tickets({ tickets, people, canManage, slug, nav, focus, hasTechnical, s
 
       {showFilters && (
         <FilterPanel onClear={clearFilters}>
-          <div>
-            <label className={microLabel}>Client</label>
-            <input className={input} placeholder="Client contains…" value={filters.client} onChange={(e) => setFilter({ client: e.target.value })} />
-          </div>
-          <div>
-            <label className={microLabel}>Status</label>
-            <select className={input} value={filters.status} onChange={(e) => setFilter({ status: e.target.value })}>
-              <option value="">Any status</option>
-              {statuses.map((s) => (<option key={s} value={s}>{s}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className={microLabel}>Urgency</label>
-            <select className={input} value={filters.urgency} onChange={(e) => setFilter({ urgency: e.target.value })}>
-              <option value="">Any urgency</option>
-              {urgencies.map((u) => (<option key={u} value={u}>{u}</option>))}
-            </select>
-          </div>
+          <Field label="Client" value={filters.client} onChange={(v) => setFilter({ client: v })} />
+          <Field label="Status" as="select" value={filters.status} onChange={(v) => setFilter({ status: v })} options={statuses} />
+          <Field label="Urgency" as="select" value={filters.urgency} onChange={(v) => setFilter({ urgency: v })} options={urgencies} />
           <div>
             <label className={microLabel}>Probability (%)</label>
             <div className="flex items-center gap-2">
-              <input type="number" min="0" max="100" placeholder="min" className={input} value={filters.probMin} onChange={(e) => setFilter({ probMin: e.target.value })} />
+              <Field label="Min" type="number" min="0" max="100" value={filters.probMin} onChange={(v) => setFilter({ probMin: v })} className="flex-1" />
               <span className="text-slate-400">–</span>
-              <input type="number" min="0" max="100" placeholder="max" className={input} value={filters.probMax} onChange={(e) => setFilter({ probMax: e.target.value })} />
+              <Field label="Max" type="number" min="0" max="100" value={filters.probMax} onChange={(v) => setFilter({ probMax: v })} className="flex-1" />
             </div>
           </div>
           <div>
             <label className={microLabel}>Value Quoted</label>
             <div className="flex items-center gap-2">
-              <input type="number" min="0" placeholder="min" className={input} value={filters.valueMin} onChange={(e) => setFilter({ valueMin: e.target.value })} />
+              <Field label="Min" type="number" min="0" value={filters.valueMin} onChange={(v) => setFilter({ valueMin: v })} className="flex-1" />
               <span className="text-slate-400">–</span>
-              <input type="number" min="0" placeholder="max" className={input} value={filters.valueMax} onChange={(e) => setFilter({ valueMax: e.target.value })} />
+              <Field label="Max" type="number" min="0" value={filters.valueMax} onChange={(v) => setFilter({ valueMax: v })} className="flex-1" />
             </div>
           </div>
           <div>
             <label className={microLabel}>Created</label>
             <div className="flex items-center gap-2">
-              <input type="date" className={input} value={filters.createdFrom} onChange={(e) => setFilter({ createdFrom: e.target.value })} />
+              <Field label="From" filled={!!filters.createdFrom} className="flex-1"><StudioDate value={filters.createdFrom} onChange={(iso) => setFilter({ createdFrom: iso })} /></Field>
               <span className="text-slate-400">–</span>
-              <input type="date" className={input} value={filters.createdTo} onChange={(e) => setFilter({ createdTo: e.target.value })} />
+              <Field label="To" filled={!!filters.createdTo} className="flex-1"><StudioDate value={filters.createdTo} onChange={(iso) => setFilter({ createdTo: iso })} /></Field>
             </div>
           </div>
           <div>
             <label className={microLabel}>Deadline</label>
             <div className="flex items-center gap-2">
-              <input type="date" className={input} value={filters.deadlineFrom} onChange={(e) => setFilter({ deadlineFrom: e.target.value })} />
+              <Field label="From" filled={!!filters.deadlineFrom} className="flex-1"><StudioDate value={filters.deadlineFrom} onChange={(iso) => setFilter({ deadlineFrom: iso })} /></Field>
               <span className="text-slate-400">–</span>
-              <input type="date" className={input} value={filters.deadlineTo} onChange={(e) => setFilter({ deadlineTo: e.target.value })} />
+              <Field label="To" filled={!!filters.deadlineTo} className="flex-1"><StudioDate value={filters.deadlineTo} onChange={(iso) => setFilter({ deadlineTo: iso })} /></Field>
             </div>
           </div>
           <div>
             <label className={microLabel}>Updated</label>
             <div className="flex items-center gap-2">
-              <input type="date" className={input} value={filters.updatedFrom} onChange={(e) => setFilter({ updatedFrom: e.target.value })} />
+              <Field label="From" filled={!!filters.updatedFrom} className="flex-1"><StudioDate value={filters.updatedFrom} onChange={(iso) => setFilter({ updatedFrom: iso })} /></Field>
               <span className="text-slate-400">–</span>
-              <input type="date" className={input} value={filters.updatedTo} onChange={(e) => setFilter({ updatedTo: e.target.value })} />
+              <Field label="To" filled={!!filters.updatedTo} className="flex-1"><StudioDate value={filters.updatedTo} onChange={(iso) => setFilter({ updatedTo: iso })} /></Field>
             </div>
           </div>
         </FilterPanel>
@@ -882,14 +867,13 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
   const [contacts, setContacts] = useState(row?.contacts || []);
   const [locations, setLocations] = useState(row?.locations || []);
   const [busy, setBusy] = useState(false);
-  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div><label className={label}>Company name *</label><input className={input} value={f.name} onChange={set("name")} placeholder="Acme Trading Co." /></div>
-        <div><label className={label}>Industry</label><input className={input} value={f.industry} onChange={set("industry")} /></div>
-        <div><label className={label}>Website</label><input className={input} value={f.website} onChange={set("website")} placeholder="acme.com" /></div>
+        <Field label="Company name" required value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} />
+        <Field label="Industry" value={f.industry} onChange={(v) => setF((p) => ({ ...p, industry: v }))} />
+        <Field label="Website" value={f.website} onChange={(v) => setF((p) => ({ ...p, website: v }))} />
         <ClientLogoField value={f.logo} onChange={(logo) => setF((p) => ({ ...p, logo }))} />
       </div>
 
@@ -915,7 +899,7 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
         ]}
       />
 
-      <div className="mt-5"><label className={label}>Notes</label><textarea rows={3} className={input} value={f.notes} onChange={set("notes")} /></div>
+      <Field label="Notes" as="textarea" value={f.notes} onChange={(v) => setF((p) => ({ ...p, notes: v }))} className="mt-5" />
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !f.name.trim()} onClick={async () => {
@@ -993,7 +977,7 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Title" required value={f.title} onChange={set("title")} className="sm:col-span-2" />
+        <Field label="Title" required value={f.title} onChange={(v) => setF((p) => ({ ...p, title: v }))} className="sm:col-span-2" />
 
         <Field label="Client" required filled={!!f.clientName}
           hint={!row ? (matched ? `Existing client — ${(matched.contacts || []).length} contact${(matched.contacts || []).length === 1 ? "" : "s"} on file.` : "A name that isn't on the list creates a new client.") : undefined}>
@@ -1012,14 +996,14 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
 
         {/* The studio's currency sits IN the field, so the number is read together
             with what it is in. Value Quoted is derived, hence only a hint here. */}
-        <Field label="Client budget" type="number" min="0" value={f.clientBudget} onChange={set("clientBudget")}
+        <Field label="Client budget" type="number" min="0" value={f.clientBudget} onChange={(v) => setF((p) => ({ ...p, clientBudget: v }))}
           prefix={studioDefaults.currency ? <CurrencySymbol code={studioDefaults.currency} /> : null}
           hint={<>The ticket&apos;s <span className="font-600">Value Quoted</span> is set automatically from its most recent quotation.</>} />
 
         {row && (
           <>
-            <Field label="Status" as="select" required value={f.status} onChange={set("status")} options={vocabulary.statuses || []} />
-            <Field label="Urgency" as="select" required value={f.urgency} onChange={set("urgency")} options={vocabulary.urgencies || []} />
+            <Field label="Status" as="select" required value={f.status} onChange={(v) => setF((p) => ({ ...p, status: v }))} options={vocabulary.statuses || []} />
+            <Field label="Urgency" as="select" required value={f.urgency} onChange={(v) => setF((p) => ({ ...p, urgency: v }))} options={vocabulary.urgencies || []} />
           </>
         )}
 
@@ -1046,8 +1030,8 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
           <Combo value={f.contactPosition} onChange={(v) => setF((p) => ({ ...p, contactPosition: v }))}
             options={positions} inputClassName={BARE_CONTROL} />
         </Field>
-        <Field label="Email" type="email" value={f.contactEmail} onChange={set("contactEmail")} />
-        <Field label="Phone" value={f.contactPhone} onChange={set("contactPhone")} />
+        <Field label="Email" type="email" value={f.contactEmail} onChange={(v) => setF((p) => ({ ...p, contactEmail: v }))} />
+        <Field label="Phone" value={f.contactPhone} onChange={(v) => setF((p) => ({ ...p, contactPhone: v }))} />
       </div>
 
       <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">Location</p>
@@ -1072,7 +1056,7 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
           <Combo value={f.locationCity} onChange={(v) => setF((p) => ({ ...p, locationCity: v }))}
             options={f.locationCountry ? citiesFor(codeOfCountry(f.locationCountry)) : cities} inputClassName={BARE_CONTROL} />
         </Field>
-        <Field label="Map link" value={f.locationUrl} onChange={set("locationUrl")} />
+        <Field label="Map link" value={f.locationUrl} onChange={(v) => setF((p) => ({ ...p, locationUrl: v }))} />
       </div>
 
       <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">Type of services *</p>

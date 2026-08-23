@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { panel, h2, sub, input, label, btn, btnGhost, Empty } from "@/components/studio2/ui";
+import { Field } from "@/components/fields/Field";
 import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platform/access";
 
 // THE ACCESS EDITOR.
@@ -233,9 +234,8 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
           That is deliberate, and it is why its list cannot be edited — only its description.
         </p>
         <div className="mt-4">
-          <label className={label}>Description</label>
-          <input className={input} value={draft.description || ""}
-            onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} />
+          <Field label="Description" value={draft.description || ""}
+            onChange={(v) => setDraft((d) => ({ ...d, description: v }))} />
         </div>
         <div className="mt-5 flex gap-3">
           <button className={btn} disabled={busy} onClick={() => onSave(draft)}>Save</button>
@@ -265,9 +265,8 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
             </p>
           </div>
           <div>
-            <label className={label}>Description</label>
-            <input className={input} value={draft.description || ""} placeholder="Raises and works tickets."
-              onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} />
+            <Field label="Description" value={draft.description || ""} hint="Raises and works tickets."
+              onChange={(v) => setDraft((d) => ({ ...d, description: v }))} />
           </div>
         </div>
 
@@ -417,7 +416,7 @@ function RolePicker({ roles, value, onPick }) {
 
       {open && (
         <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/15 dark:bg-[#20202c]">
-          <input autoFocus className={`${input} mb-1`} placeholder="Search roles…"
+          <input autoFocus className={`${input} mb-1`} aria-label="Search roles"
             value={query} onChange={(e) => setQuery(e.target.value)} />
           <ul role="listbox" className="max-h-60 overflow-auto">
             {shown.length === 0 && (

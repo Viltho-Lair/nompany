@@ -145,7 +145,7 @@ export default function StudioSettings({ slug }) {
           icon="locations" label="Country" value={studio.country} canManage={canManage}
           onSave={(v) => save({ country: v, ...(v !== studio.country ? { city: "" } : {}) })}
           render={(draft, set) => (
-            <Combo value={draft} onChange={set} options={COUNTRIES.map((c) => c.name)} placeholder="Saudi Arabia" inputClassName={INPUT} />
+            <Combo value={draft} onChange={set} options={COUNTRIES.map((c) => c.name)} inputClassName={INPUT} />
           )}
         />
         <EditRow
@@ -153,14 +153,14 @@ export default function StudioSettings({ slug }) {
           hint={studio.country ? "" : "Choose a country first."}
           onSave={(v) => save({ city: v })}
           render={(draft, set) => (
-            <Combo value={draft} onChange={set} options={citiesFor(codeOf(studio.country))} placeholder="Riyadh" inputClassName={INPUT} />
+            <Combo value={draft} onChange={set} options={citiesFor(codeOf(studio.country))} inputClassName={INPUT} />
           )}
         />
         <EditRow
           icon="location" label="Location" value={studio.location} canManage={canManage}
           onSave={(v) => save({ location: v })}
           render={(draft, set) => (
-            <input className={INPUT} value={draft} onChange={(e) => set(e.target.value)} placeholder="Address, or a map link" />
+            <input className={INPUT} value={draft} onChange={(e) => set(e.target.value)} />
           )}
         />
 
@@ -407,7 +407,6 @@ function LegalInfo({ rows, canManage, onSave }) {
               className={`${INPUT} sm:w-56`}
               value={row.key}
               disabled={!canManage}
-              placeholder="CR number"
               aria-label={`Legal information label ${i + 1}`}
               onChange={(e) => set(i, { key: e.target.value })}
             />
@@ -415,7 +414,6 @@ function LegalInfo({ rows, canManage, onSave }) {
               className={INPUT}
               value={row.value}
               disabled={!canManage}
-              placeholder="1010XXXXXX"
               aria-label={`Legal information value ${i + 1}`}
               onChange={(e) => set(i, { value: e.target.value })}
             />
@@ -537,7 +535,7 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
             <div className="px-6 pt-3">
               {/* Code, name OR country — somebody looking for the riyal may know
                   any of the three. */}
-              <input className={INPUT} value={query} autoFocus placeholder="Search code, name or country"
+              <input className={INPUT} value={query} autoFocus
                 aria-label="Search currencies" onChange={(e) => setQuery(e.target.value)} />
               <p className="mt-2 text-xs text-slate-400">
                 {picked.length} chosen · {CURRENCIES_FROM_EXCHANGE_API.length} available

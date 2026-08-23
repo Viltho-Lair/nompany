@@ -11,6 +11,8 @@ import {
   money, fmtDate, Dialog, Toolbar, Empty, StatTile,
 } from "@/components/studio2/ui";
 import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
+import { Field } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 import {
   slaVisits, emergencyVisits, allVisits, nextVisit, contractEndDate, supportStatus,
   fmtDate as slaDate, daysUntil,
@@ -305,7 +307,7 @@ function ProjectsDashboard({ slug, projects, slas, overtimes, nav }) {
       <section className={panel}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <p className={microLabel}>Projects</p>
-          <input type="search" placeholder="Search projects…" value={query} onChange={(e) => setQuery(e.target.value)}
+          <input type="search" aria-label="Search projects" value={query} onChange={(e) => setQuery(e.target.value)}
             className={`${input} w-full sm:max-w-xs`} />
         </div>
         {filtered.length === 0 ? (
@@ -386,7 +388,7 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
     <>
       <Toolbar canManage={canManage} label="Open project" onAdd={() => setOpening(true)}>
         {projects.length > 0 && (
-          <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search title, number, client or location…"
+          <input type="search" className={`${input} sm:max-w-xs`} aria-label="Search title, number, client or location"
             value={query} onChange={(e) => setQuery(e.target.value)} />
         )}
       </Toolbar>
@@ -506,24 +508,14 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <label className={label}>Approved quotation</label>
-          <select className={input} value={quotationId} onChange={(e) => setQuotationId(e.target.value)}>
-            {quotations.map((q) => <option key={q.id} value={q.id}>{q.number} — {q.title}</option>)}
-          </select>
-          {chosen && <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{chosen.clientName} · {money(chosen.total)}</p>}
-        </div>
-        <div>
-          <label className={label}>Project manager</label>
-          <select className={input} value={managerCollaboratorId} onChange={(e) => setManager(e.target.value)}>
-            <option value="">Unassigned</option>
-            {people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Location</label>
-          <input className={input} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Site or city" />
-        </div>
+        <Field className="sm:col-span-2" label="Approved quotation" as="select" required
+          value={quotationId} onChange={(v) => setQuotationId(v)}
+          options={quotations.map((q) => ({ value: q.id, label: `${q.number} — ${q.title}` }))}
+          hint={chosen ? `${chosen.clientName} · ${money(chosen.total)}` : undefined} />
+        <Field label="Project manager" as="select" value={managerCollaboratorId}
+          onChange={(v) => setManager(v)}
+          options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+        <Field label="Location" value={location} onChange={(v) => setLocation(v)} hint="Site or city" />
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !quotationId} onClick={async () => {
@@ -771,7 +763,6 @@ function SlaForm({ row, projects, onSave, onCancel }) {
     notes: row?.notes || "",
   });
   const [busy, setBusy] = useState(false);
-  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const ready = f.title.trim() && f.startDate;
   // The same maths the contract will use, previewed before it is saved.
   const preview = useMemo(() => slaVisits({ ...f, completedVisits: [] }), [f]);
@@ -779,21 +770,20 @@ function SlaForm({ row, projects, onSave, onCancel }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div><label className={label}>Contract name *</label><input className={input} value={f.title} onChange={set("title")} placeholder="Annual support — Acme HQ" /></div>
-        <div>
-          <label className={label}>Project</label>
-          <select className={input} value={f.projectId} onChange={set("projectId")}>
-            <option value="">— not linked —</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.number} — {p.title}</option>)}
-          </select>
-        </div>
-        <div><label className={label}>Signed</label><input type="date" className={input} value={f.signingDate} onChange={set("signingDate")} /></div>
-        <div><label className={label}>Starts *</label><input type="date" className={input} value={f.startDate} onChange={set("startDate")} /></div>
-        <div><label className={label}>Duration (days)</label><input type="number" min="1" className={input} value={f.durationDays} onChange={set("durationDays")} /></div>
-        <div><label className={label}>Planned visits</label><input type="number" min="1" className={input} value={f.visits} onChange={set("visits")} /></div>
-        <div><label className={label}>Emergency allowance</label><input type="number" min="0" className={input} value={f.emergencyVisits} onChange={set("emergencyVisits")} /></div>
+        <Field label="Contract name" required value={f.title} onChange={(v) => setF((s) => ({ ...s, title: v }))} />
+        <Field label="Project" as="select" value={f.projectId} onChange={(v) => setF((s) => ({ ...s, projectId: v }))}
+          options={projects.map((p) => ({ value: p.id, label: `${p.number} — ${p.title}` }))} />
+        <Field label="Signed" filled={!!f.signingDate}>
+          <StudioDate value={f.signingDate} onChange={(iso) => setF((s) => ({ ...s, signingDate: iso }))} />
+        </Field>
+        <Field label="Starts" required filled={!!f.startDate}>
+          <StudioDate value={f.startDate} onChange={(iso) => setF((s) => ({ ...s, startDate: iso }))} />
+        </Field>
+        <Field label="Duration (days)" type="number" min="1" value={f.durationDays} onChange={(v) => setF((s) => ({ ...s, durationDays: v }))} />
+        <Field label="Planned visits" type="number" min="1" value={f.visits} onChange={(v) => setF((s) => ({ ...s, visits: v }))} />
+        <Field label="Emergency allowance" type="number" min="0" value={f.emergencyVisits} onChange={(v) => setF((s) => ({ ...s, emergencyVisits: v }))} />
       </div>
-      <div className="mt-4"><label className={label}>Notes</label><textarea rows={2} className={input} value={f.notes} onChange={set("notes")} /></div>
+      <Field className="mt-4" label="Notes" as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} />
 
       {preview.length > 0 && (
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 dark:border-white/15 dark:bg-[#191921]">
@@ -1095,16 +1085,14 @@ function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCance
   return (
     <>
       <div className="grid gap-4">
-        <div>
-          <label className={label}>Project</label>
-          <select className={input} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.number} — {p.title}</option>)}
-          </select>
-        </div>
+        <Field label="Project" as="select" required value={projectId} onChange={(v) => setProjectId(v)}
+          options={projects.map((p) => ({ value: p.id, label: `${p.number} — ${p.title}` }))} />
         <div className="grid gap-4 sm:grid-cols-3">
-          <div><label className={label}>Date</label><input type="date" className={input} value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div><label className={label}>From</label><input type="time" className={input} value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-          <div><label className={label}>To</label><input type="time" className={input} value={to} onChange={(e) => setTo(e.target.value)} /></div>
+          <Field label="Date" filled={!!date}>
+            <StudioDate value={date} onChange={(iso) => setDate(iso)} />
+          </Field>
+          <Field label="From" type="time" value={from} onChange={(v) => setFrom(v)} />
+          <Field label="To" type="time" value={to} onChange={(v) => setTo(v)} />
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {hours > 0
@@ -1158,33 +1146,28 @@ function EditOvertime({ record, projects, directory, onSave, onDelete, onCancel 
     to: record.to || "20:00",
   });
   const [busy, setBusy] = useState(false);
-  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const hours = hoursBetween(f.from, f.to);
 
   return (
     <>
       <div className="grid gap-4">
-        <div>
-          <label className={label}>Project</label>
-          <select className={input} value={f.projectId} onChange={set("projectId")}>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.number} — {p.title}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Person</label>
-          <select className={input} value={f.collaboratorId} onChange={set("collaboratorId")}>
-            {directory.people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
-            {/* Somebody who has since left the studio still has to render, or
-                saving would silently move their hours to whoever is first. */}
-            {f.collaboratorId && !directory.people.some((p) => p.id === f.collaboratorId) && (
-              <option value={f.collaboratorId}>{record.personName} (no longer a member)</option>
-            )}
-          </select>
-        </div>
+        <Field label="Project" as="select" required value={f.projectId} onChange={(v) => setF((s) => ({ ...s, projectId: v }))}
+          options={projects.map((p) => ({ value: p.id, label: `${p.number} — ${p.title}` }))} />
+        {/* Somebody who has since left the studio still has to render, or saving
+            would silently move their hours to whoever is first. */}
+        <Field label="Person" as="select" required value={f.collaboratorId} onChange={(v) => setF((s) => ({ ...s, collaboratorId: v }))}
+          options={[
+            ...directory.people.map((p) => ({ value: p.id, label: p.alias })),
+            ...(f.collaboratorId && !directory.people.some((p) => p.id === f.collaboratorId)
+              ? [{ value: f.collaboratorId, label: `${record.personName} (no longer a member)` }]
+              : []),
+          ]} />
         <div className="grid gap-4 sm:grid-cols-3">
-          <div><label className={label}>Date</label><input type="date" className={input} value={f.date} onChange={set("date")} /></div>
-          <div><label className={label}>From</label><input type="time" className={input} value={f.from} onChange={set("from")} /></div>
-          <div><label className={label}>To</label><input type="time" className={input} value={f.to} onChange={set("to")} /></div>
+          <Field label="Date" filled={!!f.date}>
+            <StudioDate value={f.date} onChange={(iso) => setF((s) => ({ ...s, date: iso }))} />
+          </Field>
+          <Field label="From" type="time" value={f.from} onChange={(v) => setF((s) => ({ ...s, from: v }))} />
+          <Field label="To" type="time" value={f.to} onChange={(v) => setF((s) => ({ ...s, to: v }))} />
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {hours > 0 ? <>That is <span className="font-600">{hours}</span> hour{hours === 1 ? "" : "s"}.</> : "The end time has to be after the start time."}
@@ -1238,11 +1221,9 @@ function ProjectsSettings({ settings, departments, stages, canManage, onSave }) 
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-4">
           {REQUIREMENT_WEIGHTS.map((w) => (
-            <div key={w.key}>
-              <label className={label}>{w.label} %</label>
-              <input type="number" min="0" className={input} value={weights[w.key] ?? ""} disabled={!canManage}
-                onChange={(e) => set(w.key, e.target.value)} />
-            </div>
+            <Field key={w.key} label={`${w.label} %`} type="number" min="0"
+              value={weights[w.key] ?? ""} disabled={!canManage}
+              onChange={(v) => set(w.key, v)} />
           ))}
         </div>
         <p className="mt-2 text-xs text-slate-400">
@@ -1254,9 +1235,8 @@ function ProjectsSettings({ settings, departments, stages, canManage, onSave }) 
         <h2 className={h2}>Support</h2>
         <p className={sub}>How long a project stays in support after its end date. A new project starts with this, and can be changed on its own.</p>
         <div className="mt-4 max-w-xs">
-          <label className={label}>Default support period (days)</label>
-          <input type="number" min="0" className={input} value={supportDays} disabled={!canManage}
-            onChange={(e) => { setSaved(false); setSupportDays(e.target.value); }} />
+          <Field label="Default support period (days)" type="number" min="0" value={supportDays} disabled={!canManage}
+            onChange={(v) => { setSaved(false); setSupportDays(v); }} />
         </div>
       </section>
 
@@ -1264,14 +1244,15 @@ function ProjectsSettings({ settings, departments, stages, canManage, onSave }) 
         <h2 className={h2}>Overtime</h2>
         <p className={sub}>The department pre-selected in <span className="font-600">Add overtime</span>, so the people list opens filtered to it.</p>
         <div className="mt-4 max-w-xs">
-          <label className={label}>Default department</label>
           {departments.length === 0 ? (
-            <p className="text-xs text-slate-400">No departments — a department is a section, and this studio has none switched on.</p>
+            <>
+              <label className={label}>Default department</label>
+              <p className="text-xs text-slate-400">No departments — a department is a section, and this studio has none switched on.</p>
+            </>
           ) : (
-            <select className={input} value={otDept} disabled={!canManage} onChange={(e) => { setSaved(false); setOtDept(e.target.value); }}>
-              <option value="">— none —</option>
-              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
+            <Field label="Default department" as="select" value={otDept} disabled={!canManage}
+              onChange={(v) => { setSaved(false); setOtDept(v); }}
+              options={departments.map((d) => ({ value: d.id, label: d.name }))} />
           )}
         </div>
       </section>

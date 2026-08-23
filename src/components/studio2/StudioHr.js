@@ -6,6 +6,8 @@ import {
   panel, h2, sub, input, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
   Dialog, Toolbar, Empty, StatTile, fmtDate,
 } from "@/components/studio2/ui";
+import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 import { initialsOf } from "@/lib/initials";
 
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
@@ -329,8 +331,8 @@ function People({ employees, departments, roles, certifications, canManage, canA
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <input type="search" className={`${input} sm:max-w-xs`} placeholder="Search name, code, department or role…"
-          value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Field label="Search name, code, department or role" type="search" className="w-full sm:max-w-xs"
+          value={query} onChange={setQuery} />
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {filtered.length} of {employees.length}. Identity numbers are encrypted at rest.
         </p>
@@ -462,29 +464,18 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          {/* THE STUDIO'S SECTIONS ARE ITS DEPARTMENTS. Nothing to maintain,
-              and no way for this list to disagree with the nav. */}
-          <label className={label}>Department</label>
-          <select className={input} value={form.departmentId}
-            onChange={(e) => setForm((f) => ({ ...f, departmentId: e.target.value }))}>
-            <option value="">Unassigned</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-          <p className="mt-1 text-[11px] text-slate-400">The studio&apos;s sections, so this is where they work.</p>
-        </div>
-        <div>
-          <label className={label}>Employee code</label>
-          <input className={input} value={form.employeeCode} onChange={set("employeeCode")} placeholder="e.g. EMP-014" />
-        </div>
-        <div>
-          <label className={label}>Date of joining</label>
-          <input type="date" className={input} value={form.dateOfJoin} onChange={set("dateOfJoin")} />
-        </div>
-        <div>
-          <label className={label}>Mobile</label>
-          <input className={input} value={form.mobile} onChange={set("mobile")} />
-        </div>
+        {/* THE STUDIO'S SECTIONS ARE ITS DEPARTMENTS. Nothing to maintain,
+            and no way for this list to disagree with the nav. */}
+        <Field label="Department" as="select" value={form.departmentId}
+          onChange={(v) => setForm((f) => ({ ...f, departmentId: v }))}
+          options={departments.map((d) => ({ value: d.id, label: d.name }))}
+          hint="The studio's sections, so this is where they work." />
+        <Field label="Employee code" value={form.employeeCode} hint="e.g. EMP-014"
+          onChange={(v) => setForm((f) => ({ ...f, employeeCode: v }))} />
+        <Field label="Date of joining" filled={!!form.dateOfJoin}>
+          <StudioDate value={form.dateOfJoin} onChange={(iso) => setForm((f) => ({ ...f, dateOfJoin: iso }))} />
+        </Field>
+        <Field label="Mobile" value={form.mobile} onChange={(v) => setForm((f) => ({ ...f, mobile: v }))} />
       </div>
 
       {/* ROLE, which is what "position" used to be — except this one decides
@@ -543,8 +534,9 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
               </button>
             </div>
             <input className={`${input} disabled:cursor-not-allowed disabled:opacity-60`} value={form.idNumber} disabled={!editId} onChange={set("idNumber")} />
-            <label className={`${microLabel} mt-2`}>ID expiry</label>
-            <input type="date" className={input} value={form.idExpiry} onChange={set("idExpiry")} />
+            <Field label="ID expiry" filled={!!form.idExpiry} className="mt-2">
+              <StudioDate value={form.idExpiry} onChange={(iso) => setForm((f) => ({ ...f, idExpiry: iso }))} />
+            </Field>
           </div>
           <div>
             <div className="mb-1.5 flex items-center gap-2">
@@ -555,8 +547,9 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
               </button>
             </div>
             <input className={`${input} disabled:cursor-not-allowed disabled:opacity-60`} value={form.passportNumber} disabled={!editPassport} onChange={set("passportNumber")} />
-            <label className={`${microLabel} mt-2`}>Passport expiry</label>
-            <input type="date" className={input} value={form.passportExpiry} onChange={set("passportExpiry")} />
+            <Field label="Passport expiry" filled={!!form.passportExpiry} className="mt-2">
+              <StudioDate value={form.passportExpiry} onChange={(iso) => setForm((f) => ({ ...f, passportExpiry: iso }))} />
+            </Field>
           </div>
         </div>
       </div>
@@ -822,7 +815,6 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
 
 function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }) {
   const [form, setForm] = useState({ collaboratorId: "", type: types[0], from: "", to: "", reason: "" });
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   // Inclusive of both ends, which is how leave is counted.
   const days = form.from && form.to
     ? Math.max(0, Math.round((new Date(form.to) - new Date(form.from)) / 86400000) + 1)
@@ -833,24 +825,19 @@ function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         {canManage && (
-          <div>
-            <label className={label}>Person</label>
-            <select className={input} value={form.collaboratorId} onChange={set("collaboratorId")}>
-              <option value="">Me</option>
-              {employees.filter((e) => e.id !== meId).map((e) => <option key={e.id} value={e.id}>{e.alias}</option>)}
-            </select>
-          </div>
+          <Field label="Person" as="select" value={form.collaboratorId}
+            onChange={(v) => setForm((f) => ({ ...f, collaboratorId: v }))}
+            options={employees.filter((e) => e.id !== meId).map((e) => ({ value: e.id, label: e.alias }))} />
         )}
-        <div>
-          <label className={label}>Type</label>
-          <select className={input} value={form.type} onChange={set("type")}>
-            {types.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <div><label className={label}>From</label><input type="date" className={input} value={form.from} onChange={set("from")} /></div>
-        <div><label className={label}>To</label><input type="date" className={input} value={form.to} onChange={set("to")} /></div>
+        <Field label="Type" as="select" value={form.type} onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={types} />
+        <Field label="From" filled={!!form.from}>
+          <StudioDate value={form.from} onChange={(iso) => setForm((f) => ({ ...f, from: iso }))} />
+        </Field>
+        <Field label="To" filled={!!form.to}>
+          <StudioDate value={form.to} onChange={(iso) => setForm((f) => ({ ...f, to: iso }))} />
+        </Field>
       </div>
-      <div className="mt-4"><label className={label}>Reason</label><textarea rows={2} className={input} value={form.reason} onChange={set("reason")} /></div>
+      <Field label="Reason" as="textarea" className="mt-4" value={form.reason} onChange={(v) => setForm((f) => ({ ...f, reason: v }))} />
 
       <p className={`mt-3 text-xs ${backwards ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
         {backwards ? "The end date is before the start date." : days > 0 ? `That is ${days} day${days === 1 ? "" : "s"}.` : "Pick a start date."}
@@ -876,16 +863,20 @@ function SimpleForm({ fields, busy, onCancel, onSave }) {
       <div className="grid gap-4 sm:grid-cols-2">
         {fields.map((f) => (
           <div key={f.key} className={f.area ? "sm:col-span-2" : ""}>
-            <label className={label}>{f.label}{f.required && <span className="text-rose-500"> *</span>}</label>
             {f.options ? (
-              <select className={input} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}>
-                {f.options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
-              </select>
+              <Field label={f.label} required={f.required} as="select" value={values[f.key]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))}
+                options={f.options.filter((o) => o.value !== "").map((o) => ({ value: o.value, label: o.text }))} />
             ) : f.area ? (
-              <textarea rows={2} className={input} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} />
+              <Field label={f.label} required={f.required} as="textarea" value={values[f.key]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
+            ) : f.type === "date" ? (
+              <Field label={f.label} required={f.required} filled={!!values[f.key]}>
+                <StudioDate value={values[f.key]} onChange={(iso) => setValues((s) => ({ ...s, [f.key]: iso }))} />
+              </Field>
             ) : (
-              <input type={f.type || "text"} className={input} placeholder={f.placeholder || ""} value={values[f.key]}
-                onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} />
+              <Field label={f.label} required={f.required} type={f.type || "text"} hint={f.placeholder || undefined}
+                value={values[f.key]} onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
             )}
           </div>
         ))}

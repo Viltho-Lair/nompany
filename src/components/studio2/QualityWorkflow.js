@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Dialog, btn, btnGhost, input, label, microLabel } from "@/components/studio2/ui";
+import { Dialog, btn, btnGhost, label, microLabel } from "@/components/studio2/ui";
+import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 import { REV_LABELS } from "@/modules/quality/qualityDocuments";
 
 // THE CONTROL PANEL — where a revision moves along the ladder.
@@ -194,14 +196,9 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
         <p className={microLabel}>Reviewer and approver</p>
         <div className="mt-2 space-y-2 rounded-geex border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#20202c]">
           {[["reviewerCollaboratorId", "Reviewer"], ["approverCollaboratorId", "Approver"]].map(([key, name]) => (
-            <div key={key}>
-              <label className={label} htmlFor={`sig-${key}`}>{name}</label>
-              <select id={`sig-${key}`} className={input} value={signers[key]}
-                onChange={(e) => setSigners((s) => ({ ...s, [key]: e.target.value }))}>
-                <option value="">Nobody yet</option>
-                {(data?.people || []).map((x) => <option key={x.id} value={x.id}>{x.alias}</option>)}
-              </select>
-            </div>
+            <Field key={key} label={name} as="select" required value={signers[key]}
+              onChange={(v) => setSigners((s) => ({ ...s, [key]: v }))}
+              options={[{ value: "", label: "Nobody yet" }, ...(data?.people || []).map((x) => ({ value: x.id, label: x.alias }))]} />
           ))}
           <button type="button" className={btnGhost} disabled={busy}
             onClick={() => send({ action: "signers", ...signers })}>
@@ -248,16 +245,12 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
         <Dialog title={prompt.label} onClose={() => setPrompt(null)} width="max-w-[520px]">
           {prompt.action === "publish" && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={label} htmlFor="w-eff">Effective from</label>
-                <input id="w-eff" type="date" className={input} value={effectiveDate}
-                  onChange={(e) => setEffectiveDate(e.target.value)} />
-              </div>
-              <div>
-                <label className={label} htmlFor="w-rev">Next review</label>
-                <input id="w-rev" type="date" className={input} value={nextReviewDate}
-                  onChange={(e) => setNextReviewDate(e.target.value)} />
-              </div>
+              <Field label="Effective from" filled={!!effectiveDate}>
+                <StudioDate value={effectiveDate} onChange={(iso) => setEffectiveDate(iso)} />
+              </Field>
+              <Field label="Next review" filled={!!nextReviewDate}>
+                <StudioDate value={nextReviewDate} onChange={(iso) => setNextReviewDate(iso)} />
+              </Field>
               <p className="sm:col-span-2 text-xs text-slate-500 dark:text-slate-400">
                 Issuing this revision supersedes the one before it. The old one is kept and stays readable — that is
                 what makes it possible to say what the procedure used to require.
@@ -267,10 +260,8 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
 
           {NEEDS_NOTE.has(prompt.action) && (
             <div className={prompt.action === "publish" ? "mt-4" : ""}>
-              <label className={label} htmlFor="w-note">
-                {prompt.action === "reject" ? "What needs changing?" : "Note (optional)"}
-              </label>
-              <textarea id="w-note" rows={3} className={input} value={note} onChange={(e) => setNote(e.target.value)} />
+              <Field label={prompt.action === "reject" ? "What needs changing?" : "Note (optional)"} as="textarea"
+                value={note} onChange={(v) => setNote(v)} />
             </div>
           )}
 
