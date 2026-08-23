@@ -18,25 +18,23 @@ export const NOVA_MODEL = process.env.NOVA_MODEL || "claude-sonnet-5";
 export const NOVA_MAX_TURNS = Math.max(1, Number(process.env.NOVA_MAX_TURNS || 6));
 const MAX_TOKENS = 1024;
 
-export function novaConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
-}
-
 export type NovaToolResult = { text: string; usedTools: string[] };
 
 /**
- * Run the assistant loop. `execute(name, input)` runs one tool in the user's
- * context and returns a JSON-able result; a throw becomes a tool error the model
- * can read and recover from, never a crash. Bounded by NOVA_MAX_TURNS so a model
- * that keeps calling tools cannot loop forever.
+ * Run the assistant loop with THIS USER's key. Nova reads each person's own AI
+ * key from their account settings, so `apiKey` is theirs and the model call is
+ * billed to their subscription — there is no global key. `execute(name, input)`
+ * runs one tool in the user's context; a throw becomes a tool error the model
+ * can read, never a crash. Bounded by NOVA_MAX_TURNS.
  */
 export async function runNova(opts: {
+  apiKey: string;
   system: string;
   messages: Anthropic.MessageParam[];
   tools: Anthropic.Tool[];
   execute: (name: string, input: unknown) => Promise<unknown>;
 }): Promise<NovaToolResult> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({ apiKey: opts.apiKey });
   const convo: Anthropic.MessageParam[] = [...opts.messages];
   const usedTools: string[] = [];
 

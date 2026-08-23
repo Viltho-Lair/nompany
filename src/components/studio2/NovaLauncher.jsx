@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import NovaHead from "@/components/studio2/NovaHead";
 
 // NOVA, in the studio. A floating launcher and a slide-over chat, shown only
 // when the studio's package includes the assistant. Memory is session-only: the
@@ -18,28 +19,43 @@ const EXAMPLES = [
   "What's on my task board?",
 ];
 
-function NovaMark({ className = "h-5 w-5" }) {
-  // A four-point star — a nova. currentColor so it takes the button's ink.
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
-      <path d="M12 2c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6z" />
-    </svg>
-  );
-}
-
 export default function NovaLauncher({ slug, enabled = false, besideChat = false }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);   // { role: "user"|"assistant", content }
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+  const [attention, setAttention] = useState(0);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+
+  // FEEDBACK BY DEFAULT. Even with the chat shut, Nova wears a badge for what is
+  // waiting on this person — their unread notifications, the same ones the bell
+  // holds — so the head is a live nudge, not just a launcher. Refreshed on open
+  // and every couple of minutes while the shell is up.
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let live = true;
+    const load = () => fetch(`/api/studios/${slug}/notifications`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (live && d) setAttention((d.notifications || []).filter((n) => !n.readAt).length); })
+      .catch(() => {});
+    load();
+    const t = setInterval(load, 120000);
+    return () => { live = false; clearInterval(t); };
+  }, [enabled, slug, open]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, busy]);
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+  // Escape closes the panel — a chat you opened is always one key from closed.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   if (!enabled) return null;
 
@@ -55,7 +71,11 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: prior, message: q }),
       });
-      if (res.status === 503) { setNote("Nova isn't switched on yet — it still needs setting up."); setBusy(false); return; }
+      if (res.status === 503) {
+        const d = await res.json().catch(() => null);
+        setNote(d?.help || "Nova isn't set up yet.");
+        setBusy(false); return;
+      }
       if (res.status === 403) { setNote("Nova isn't part of this studio's plan."); setBusy(false); return; }
       const data = res.ok ? await res.json().catch(() => null) : null;
       setMessages((m) => [...m, { role: "assistant", content: data?.answer || "Something went wrong — try again." }]);
@@ -67,19 +87,24 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label={open ? "Close Nova" : "Ask Nova"}
-        aria-expanded={open}
-        // Nova sits in the bottom-end corner. When the live-chat launcher is also
-        // there (same corner), Nova steps to its left so the two sit side by side
-        // rather than stacked — and when chat is absent, Nova takes the corner
-        // itself. `end-24` clears the ~48px chat button plus a gap.
-        className={`fixed bottom-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-[transform,inset] hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${besideChat ? "end-24" : "end-5"}`}
-      >
-        <NovaMark className="h-6 w-6" />
-      </button>
+      {/* The launcher IS Nova — her head, on a soft halo, larger than the chat
+          bubble so the two never read as the same control. When live chat shares
+          the corner, Nova steps to its left (end-24 clears the ~48px bubble). */}
+      {!open && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Ask Nova"
+          className={`group fixed bottom-4 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 shadow-xl ring-1 ring-white/40 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${besideChat ? "end-24" : "end-5"}`}
+        >
+          <NovaHead className="h-12 w-12 drop-shadow" idle />
+          {attention > 0 && (
+            <span className="absolute -end-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-700 text-white ring-2 ring-white">
+              {attention > 9 ? "9+" : attention}
+            </span>
+          )}
+        </button>
+      )}
 
       {/* Backdrop + panel. Rendered only when open so it costs nothing closed. */}
       {open && (
@@ -87,7 +112,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
           <button type="button" aria-label="Close" className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
           <div className="absolute inset-y-0 end-0 flex w-full max-w-[420px] flex-col bg-white shadow-2xl dark:bg-[#14141b]">
             <header className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-white/10">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-white"><NovaMark /></span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400"><NovaHead className="h-7 w-7" /></span>
               <div className="min-w-0">
                 <p className="text-sm font-600 text-slate-900 dark:text-white">Nova</p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Your studio assistant</p>
@@ -100,6 +125,12 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
             <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
               {messages.length === 0 && (
                 <div className="space-y-3">
+                  {attention > 0 && (
+                    <button type="button" onClick={() => send("What needs my attention?")}
+                      className="w-full rounded-xl bg-brand-50 px-3 py-2 text-start text-sm text-brand-700 transition-colors hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-200">
+                      You have {attention} notification{attention === 1 ? "" : "s"} waiting — ask me what needs your attention.
+                    </button>
+                  )}
                   <p className="text-sm text-slate-500 dark:text-slate-400">Ask about your studio&apos;s data. Nova only sees what you can.</p>
                   <div className="flex flex-wrap gap-2">
                     {EXAMPLES.map((e) => (

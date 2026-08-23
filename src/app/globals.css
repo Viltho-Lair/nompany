@@ -344,11 +344,26 @@
   to { opacity: 1; transform: none; }
 }
 
+/* NOVA IS ALIVE. A gentle bob on her head and a pulse on the antenna light, so
+   the launcher reads as a character waiting to help rather than a static icon.
+   CSS only — the studio chunk is fenced from the landing's motion library. */
+.nova-bob { animation: nova-bob 5.5s ease-in-out infinite; transform-origin: center; }
+@keyframes nova-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.nova-antenna { animation: nova-antenna 2.2s ease-in-out infinite; transform-origin: 120px 38px; }
+@keyframes nova-antenna {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .animate-pulseRing,
   .animate-fadeUp,
   .auth-panel { animation: none !important; }
+  .nova-bob, .nova-antenna { animation: none !important; }
   .dash-stagger > * { animation: none !important; }
   /* The skeleton keeps its box and its tone and simply stops sweeping — a still
      placeholder is the point; the shimmer was only ever a hint that the wait is

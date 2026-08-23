@@ -6,9 +6,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // The user's isolated, editable personal information (u:<UserID>:profile).
+// The Nova/AI key is a stored CREDENTIAL: its ciphertext never leaves the server,
+// so it is stripped here and replaced with a plain "is one set?" flag the account
+// screen can show.
 export const GET = route(
   { auth: "user", name: "identity/profile" },
-  async ({ user }) => (await getProfile(user.id)) || {},
+  async ({ user }) => {
+    const profile = (await getProfile(user.id)) || {};
+    const { novaKey, ...safe } = profile as Record<string, unknown>;
+    return { ...safe, novaKeySet: Boolean(novaKey) };
+  },
 );
 
 export const PUT = route(

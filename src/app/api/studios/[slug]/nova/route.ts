@@ -1,9 +1,16 @@
 import { route } from "@/platform/http/route";
 import { studioHasNova } from "@/lib/plans";
 import { getNovaConfig } from "@/lib/data/novaConfig";
-import { novaConfigured, runNova } from "@/platform/nova/client";
+import { runNova } from "@/platform/nova/client";
 import { buildToolset } from "@/platform/nova/tools";
+import { getProfile } from "@/platform/auth/users";
+import { decryptField } from "@/platform/auth/fieldCrypto";
 import type Anthropic from "@anthropic-ai/sdk";
+
+// How a person gets a key, shown when they have not set one. Kept here so the
+// message and the account field speak of the same thing.
+const KEY_HELP =
+  "Nova uses your own AI key. Create one at console.anthropic.com → API Keys, then paste it into your account settings under “Nova / AI key”.";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,8 +28,13 @@ export const POST = route(spec, async (g) => {
 
   // Availability: the studio's package must include Nova at all.
   if (!(await studioHasNova(studio))) return { status: 403, body: { error: "nova-off" } };
-  // Provider: no ANTHROPIC_API_KEY means no assistant — cleanly, never a crash.
-  if (!novaConfigured()) return { status: 503, body: { error: "not-configured" } };
+
+  // THE KEY IS THE USER'S OWN, read from their account settings (encrypted at
+  // rest) and decrypted here to call the provider as them. No global key: if
+  // they have not set one, say how to get one rather than failing blankly.
+  const profile = ((await getProfile(user.id)) || {}) as Record<string, unknown>;
+  const apiKey = decryptField(profile.novaKey) || String(process.env.ANTHROPIC_API_KEY || "");
+  if (!apiKey) return { status: 503, body: { error: "no-key", help: KEY_HELP } };
 
   const message = typeof body?.message === "string" ? body.message.slice(0, 4000) : "";
   const history = sanitiseHistory(body?.messages);
@@ -38,6 +50,7 @@ export const POST = route(spec, async (g) => {
 
   const slug = String(params.slug);
   const result = await runNova({
+    apiKey,
     system: novaSystem(String(studio.name || "this studio"), String(collaborator.alias || "there"), count),
     messages,
     tools,

@@ -645,6 +645,23 @@ function PersonalInfo({ identity, onSaved }) {
   const [saved, setSaved] = useState(false);
   const [phoneError, setPhoneError] = useState("");
 
+  // The Nova / AI key. A credential, so the field never shows what is stored —
+  // only whether one is set — and saving it sends only the key, never the rest
+  // of the form. The server encrypts it; Nova decrypts it to answer as this user.
+  const keySet = Boolean(profile.novaKeySet);
+  const [novaKey, setNovaKey] = useState("");
+  const [keyBusy, setKeyBusy] = useState(false);
+  const [keyMsg, setKeyMsg] = useState("");
+  async function saveKey(value) {
+    setKeyBusy(true); setKeyMsg("");
+    const res = await fetch("/api/identity/profile", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ novaKey: value }),
+    });
+    setKeyBusy(false);
+    if (res.ok) { setNovaKey(""); setKeyMsg(value ? "Key saved." : "Key removed."); onSaved(); }
+    else setKeyMsg("That didn't save.");
+  }
+
   async function save() {
     // The phone is optional, so an empty field saves fine — but a number that
     // is present and too short to dial is a typo, not a choice, and PhoneInput
@@ -682,6 +699,43 @@ function PersonalInfo({ identity, onSaved }) {
       </p>
 
       {saved && <p className={cn(BANNER_GOOD, "mt-4")}>Profile updated.</p>}
+
+      {/* Nova / AI key — your own AI subscription, used by the assistant inside
+          your studios. Stored encrypted; shown only as set / not set. */}
+      <div className="mt-4 rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-600 text-slate-900 dark:text-white">Nova / AI key</p>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              {keySet ? "A key is set. Nova uses it to answer inside your studios." : "Not set — Nova needs your own AI key to work."}
+            </p>
+          </div>
+          {keySet && (
+            <button type="button" onClick={() => saveKey("")} disabled={keyBusy}
+              className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-500 text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-500/10">
+              Remove
+            </button>
+          )}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <input
+            type="password"
+            value={novaKey}
+            onChange={(e) => { setNovaKey(e.target.value); setKeyMsg(""); }}
+            placeholder={keySet ? "Paste a new key to replace it" : "sk-ant-…"}
+            autoComplete="off"
+            className={cn(INPUT, "flex-1 font-mono text-xs")}
+          />
+          <button type="button" onClick={() => saveKey(novaKey.trim())} disabled={keyBusy || !novaKey.trim()}
+            className="shrink-0 rounded-lg bg-brand-600 px-3 py-2 text-sm font-500 text-white disabled:opacity-50">
+            {keyBusy ? "Saving…" : "Save"}
+          </button>
+        </div>
+        {keyMsg && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{keyMsg}</p>}
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+          Get a key at console.anthropic.com → API Keys. It&apos;s stored encrypted and never shown again.
+        </p>
+      </div>
 
       <div className={cn(STACK, "mt-4")}>
         {/* Profile picture: camera icon on the left, the picture itself as a

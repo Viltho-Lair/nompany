@@ -28,6 +28,7 @@ import {
   CODE_TTL_SEC, DEVICE_TTL_MS, MAX_ATTEMPTS,
 } from "./otp";
 import { hashPassword, verifyPassword, generatePassword, needsRehash } from "./passwords";
+import { encryptField } from "./fieldCrypto";
 import {
   checkCredentialAttempts, recordCredentialFailure, clearCredentialFailures,
 } from "./attempts";
@@ -553,6 +554,14 @@ export async function savePersonalInfo(userId: string, patch: Record<string, unk
     clean[f] = f === "photo" ? String(patch[f] || "").slice(0, 1_500_000) : String(patch[f] || "").trim().slice(0, 300);
   }
   if (clean.language && !["en", "ar"].includes(clean.language)) clean.language = "en";
+  // The Nova/AI key is a CREDENTIAL, not an ordinary profile field: it is stored
+  // ENCRYPTED at rest (like an HR identity number), never truncated, and never
+  // read back in the clear. Handled here so `getProfile` can strip it and the
+  // Nova endpoint can decrypt it to call the provider as this user.
+  if (patch.novaKey !== undefined) {
+    const k = String(patch.novaKey || "").trim();
+    clean.novaKey = k ? encryptField(k) : "";   // "" clears it
+  }
   if (!Object.keys(clean).length) return { error: "missing" };
   return { profile: await updateProfile(userId, clean) };
 }
