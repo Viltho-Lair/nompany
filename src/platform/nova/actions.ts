@@ -8,7 +8,7 @@
 // The model cannot submit; only the human's click can. So a hallucinated field
 // becomes a preview the person can reject, never a silent write.
 
-import { hrContext, requestVacation } from "@/modules/hr/hr";
+import { hrContext, requestVacation, decideVacation } from "@/modules/hr/hr";
 import { tasksContext, updateTask } from "@/modules/tasks/tasks";
 import { salesContext, editTicket } from "@/modules/sales/sales";
 import { studioContext } from "@/lib/studios";
@@ -48,6 +48,23 @@ export const ACTION_IMPLS: Record<string, ActionImpl> = {
       const ctx = await hrContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
       return requestVacation(ctx, f);
+    },
+  },
+
+  "action.hr.cancel-leave": {
+    label: "Cancel my leave request",
+    description: "Withdraw one of the user's OWN pending leave requests. Needs the request's id (look it up with the leave read tool first). Only their own, still-pending requests can be cancelled.",
+    fields: {
+      type: "object",
+      properties: { id: { type: "string", description: "The leave request's id" } },
+      required: ["id"],
+    },
+    required: ["id"],
+    summarise: (f) => `Cancel your pending leave request ${str(f.id)}`,
+    submit: async (user, slug, f) => {
+      const ctx = await hrContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      return decideVacation(ctx, str(f.id), "Cancelled");
     },
   },
 

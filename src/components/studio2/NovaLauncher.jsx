@@ -60,6 +60,26 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
 
   if (!enabled) return null;
 
+  // Reveal an answer as it "writes" — a typewriter, not true token streaming
+  // (the answer is already whole), but the same reading rhythm. Instant under
+  // reduced-motion. Appends one assistant message and grows its text.
+  function typeOut(text) {
+    return new Promise((resolve) => {
+      const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (reduced || !text) { setMessages((m) => [...m, { role: "assistant", content: text }]); resolve(); return; }
+      setMessages((m) => [...m, { role: "assistant", content: "" }]);
+      let i = 0;
+      const chunk = Math.max(2, Math.round(text.length / 80));
+      const tick = () => {
+        i = Math.min(text.length, i + chunk);
+        const slice = text.slice(0, i);
+        setMessages((m) => { const c = m.slice(); c[c.length - 1] = { role: "assistant", content: slice }; return c; });
+        if (i < text.length) setTimeout(tick, 16); else resolve();
+      };
+      tick();
+    });
+  }
+
   async function send(text) {
     const q = (text ?? input).trim();
     if (!q || busy) return;
@@ -79,8 +99,10 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
       }
       if (res.status === 403) { setNote("Nova isn't part of this studio's plan."); setBusy(false); return; }
       const data = res.ok ? await res.json().catch(() => null) : null;
-      setMessages((m) => [...m, { role: "assistant", content: data?.answer || "Something went wrong — try again." }]);
+      setBusy(false);
+      await typeOut(data?.answer || "Something went wrong — try again.");
       if (data?.pendingAction) setPending(data.pendingAction);
+      return;
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "I couldn't reach the server. Try again." }]);
     }
@@ -100,7 +122,9 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
       });
       const data = await res.json().catch(() => null);
       const ok = res.ok && data?.ok;
-      setMessages((m) => [...m, { role: "assistant", content: ok ? `Done — ${action.label.toLowerCase()}.` : `That didn't go through${data?.error ? ` (${data.error})` : ""}. Nothing was changed.` }]);
+      setBusy(false);
+      await typeOut(ok ? `Done — ${action.label.toLowerCase()}.` : `That didn't go through${data?.error ? ` (${data.error})` : ""}. Nothing was changed.`);
+      return;
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "I couldn't reach the server, so nothing was changed." }]);
     }
