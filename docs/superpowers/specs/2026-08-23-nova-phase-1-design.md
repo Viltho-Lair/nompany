@@ -178,10 +178,25 @@ static or CSS-driven avatar, not the landing animation, to honour Gate A block 5
 
 ## 11. Build order (each increment verified + pushed to live)
 
-1. **Package Nova Head switch** — SHIPPED.
-2. **Capability registry + `novaConfig`** (data + resolution + tests + keys).
-3. **`/super → Application → Nova` switchboard** (console UI + config route).
+1. **Package Nova Head switch** — ✅ SHIPPED.
+2. **Capability registry + `novaConfig`** — ✅ SHIPPED.
+3. **`/super → Application → Nova` switchboard** — ✅ SHIPPED.
 4. **Provider client + `/api/.../nova` endpoint + tool-calling loop + toolset
-   builder** (gated behind the key; read tools first).
-5. **Action framework** (prepare/confirm/submit) + the default-on action tools.
-6. **Chat UX** (the studio Nova panel, streaming, action-confirm cards).
+   builder** — ✅ SHIPPED. Went beyond the spec: **multi-provider BYOK** (the user
+   brings their own Claude / ChatGPT / Gemini key, set in account settings,
+   stored encrypted; the endpoint decrypts theirs and calls their provider). Read
+   tools cover all twelve departments.
+5. **Action framework** (prepare → confirm → submit) — ✅ SHIPPED, seeded with
+   request-leave, mark-read, comment-ticket, advance-my-task. The model only
+   prepares; the Confirm click posts to `/nova/act`, which re-gates and runs the
+   service under the user.
+6. **Chat UX** — ✅ SHIPPED. The Nova-head launcher (static mascot, bigger than
+   chat, side-by-side with it), a proactive attention badge, Escape-to-close,
+   and action-confirm cards. **Streaming deferred** — answers return whole; a
+   streaming pass is a later refinement.
+
+**Phase 1 is functionally complete.** The one live blocker was the API key, now
+solved per-user (BYOK): a person sets their key in account settings and Nova
+works. Deferred within Phase 1: response streaming, and the remaining action
+plugins (report-position needs device geolocation; cancel-leave). Phases 2
+(guided help) and 3 (proactive insights) remain out of scope here.
