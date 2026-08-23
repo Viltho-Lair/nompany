@@ -21,7 +21,7 @@ sibling of [`progress.md`](progress.md), which tracks the wave plan.
 | **Plan** | `ui-ux-overhaul.md` — 7 phases (§9), 15 definition-of-done lines (§10) |
 | **Genuinely done** | None end-to-end. Pieces of phases 0, 3 and 4 landed with Wave 4 work |
 | **In progress** | **Phase 2 — form controls** (the field system), starting now |
-| **Not started** | Phases 1 (token layer), 5 (Data Grid), 6 (a11y), most of 2 and 3 |
+| **Not started** | Phases 1 (token layer), 6 (a11y), the motion techniques |
 
 The honest headline: the visible frontend has **not** been overhauled yet. Wave 4
 delivered some pieces the plan also needs (RTL, skeletons, the code-split, the shared
@@ -39,7 +39,7 @@ everywhere, and the component split** — the substance — are still ahead.
 | **2** | `src/ui` primitives + **form controls** + overlays | ✅ **done** | ✅ shared floating **`Field`** (`components/fields`) · ✅ **MUI date picker** (`StudioDate`, dd/MM/yyyy, dynamic-imported) · ✅ rolled across **all 12 studio departments** · ✅ **71 placeholders removed** · `Combo` is already MUI Autocomplete · ✅ **`StatusPill`** unifies every status badge (`components/studio2/StatusPill.jsx`) — one component behind 68 verified-identical (kind, status) pairs across 11 screens, tones as data |
 | **3** | Skeletons everywhere + `loading.tsx` + Suspense | 🟡 partial | ✅ `ScreenSkeleton`, `ChartSkeleton`, shared `.skel` · ✅ studio departments code-split · only **3** `loading.*` files; not per-segment, not "everywhere" |
 | **4** | Component split per module (Sales first) + toast | 🟡 partial | ✅ studio departments are `nextDynamic()` (chunk split) · ❌ the 1,000-line `Studio*.js` screens not decomposed into `src/ui` + module parts · ❌ toast layer |
-| **5** | MUI Data Grid on the 5 dense grids + pagination contract | ⬜ not started | `x-data-grid` installed; only `/super`'s `SuperDataGrid` uses it — the 5 studio grids do not |
+| **5** | MUI Data Grid on the dense grids + pagination contract | ✅ **done** | `StudioDataGrid` (dynamic-imported, studio-tokened, RTL-safe, modelled on `SuperDataGrid`) now backs **Finance invoices, Inventory items, Sales tickets, Projects** — native sort, paginated footer, columns/formats/actions preserved, `StatusPill` reused. HR **People** deliberately left as its profile-card layout (avatars, cert pills, inline documents — not a dense table). Budget unmoved: largest chunk **197 KB** (Data Grid vendor code was already shared via `/super`). |
 | **6** | Accessibility pass (keyboard, ARIA, RTL, 4.1–4.3) | 🟡 partial | ✅ RTL shell + MUI mirror + logical props in auth · ❌ keyboard audit, ARIA sweep, contrast |
 | **7** | Additions (§8) | 🟡 ongoing | Nova, notification producers etc. tracked in `w4-dashboards-and-motion.md` |
 
