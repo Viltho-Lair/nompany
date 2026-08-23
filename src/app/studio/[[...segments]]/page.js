@@ -65,8 +65,12 @@ const StudioTicketProfile = nextDynamic(
   () => import("@/components/studio2/StudioTicketProfile"),
   { loading: () => <ScreenSkeleton /> },
 );
-const StudioProjectProfile = nextDynamic(
-  () => import("@/components/studio2/StudioProjectProfile"),
+// THE PROJECT PROFILE IS THE KANBAN BOARD NOW. Full-screen, so it renders
+// outside StudioFrame like the manual and the live views (see the early-return
+// below). dnd-kit and the board store ride this chunk, fetched only when a
+// project is opened.
+const StudioProjectBoard = nextDynamic(
+  () => import("@/components/studio2/StudioProjectBoard"),
   { loading: () => <ScreenSkeleton /> },
 );
 const StudioSheetViewer = nextDynamic(
@@ -243,6 +247,28 @@ export default async function StudioPage({ params }) {
     );
   }
 
+  // THE PROJECT PROFILE IS THE KANBAN BOARD, and the board is full-screen — so,
+  // like the manual and the live views, it renders OUTSIDE StudioFrame and
+  // returns before the shell is built. /<slug>/projects-list/<id> is one
+  // project's board; the /quotation sub-route is left to the in-frame viewer
+  // below, so this deliberately does not catch it.
+  //
+  // It rides the projects-list grant: the section must be visible to this person
+  // (its /board API re-checks server-side, and the write re-checks the edit
+  // right). It carries its OWN LiveProvider, because it renders outside the shell
+  // that usually supplies one and the sidebar's live updates need it. A refusal
+  // falls THROUGH to the shell below, which already answers "not granted".
+  if (
+    requested === "projects-list" && segments[1] && segments[2] !== "quotation" &&
+    sections.some((s) => s.key === "projects-list")
+  ) {
+    return (
+      <LiveProvider slug={studio.slug}>
+        <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />
+      </LiveProvider>
+    );
+  }
+
   // A second segment on a sales-tickets URL names ONE ticket: /<slug>/
   // sales-tickets/<id> is that ticket's own page. It still resolves through
   // the sales-tickets section, so the same grant governs it.
@@ -342,7 +368,6 @@ export default async function StudioPage({ params }) {
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
         : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
         : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
-        : projectId ? <StudioProjectProfile slug={studio.slug} projectId={projectId} />
         : screenKey === "sales" ? <StudioSales slug={studio.slug} view={active?.key} />
         : screenKey === "technical" ? <StudioTechnical slug={studio.slug} view={active?.key} />
         : screenKey === "projects" ? <StudioProjects slug={studio.slug} view={active?.key} />

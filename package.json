@@ -54,7 +54,8 @@
     "stylis": "^4.4.0",
     "stylis-plugin-rtl": "^2.1.1",
     "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",

@@ -8,8 +8,10 @@
 // A project may only be opened from an APPROVED quotation — that approval is the
 // commercial gate, and it lives in Technical/Sales, not here.
 
-import { requirePermission } from "@/platform/access";
+import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
+import { getJSON, editJSON, delKeys } from "@/platform/db/store";
+import { PROJECT } from "@/platform/db/keys";
 import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
@@ -404,12 +406,96 @@ export async function removeProject(ctx: ProjectsContext, id: string) {
   if (denied) return denied;
 
   const removed = await Projects.remove({ studio: ctx.studio, section: ctx.listSection }, id);
-  return removed ? { ok: true } : { error: "notfound" };
+  if (!removed) return { error: "notfound" };
+  // Children-first is already satisfied — the project row is what everything
+  // else hangs off — but the board is a document of its OWN, keyed by the
+  // project rather than living in a section collection, so nothing sweeps it for
+  // us. Delete it here so a removed project leaves no board behind.
+  await delKeys(PROJECT.board(ctx.studio.id, id));
+  return { ok: true };
 }
 
 export async function projectPeople({ studio }: Pick<ProjectsContext, "studio">) {
   const rows = await listCollaborators(studio.id);
   return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" }));
+}
+
+// ---- the project's Kanban board ---------------------------------------------
+// THE BOARD IS THE PROJECT PROFILE NOW. One JSON document per project, read and
+// written whole (see PROJECT.board): the board screen is a single client store
+// whose entire state moves as a unit, so a document keyed by the project matches
+// it exactly and keeps every write to one compare-and-set. The server hands the
+// document back, gates the write, and bounds the size — the board mechanics live
+// on the client. Members are the studio's collaborators in the shape the board
+// draws avatars from; the ids are CollaboratorIDs, the identity inside a studio.
+
+type BoardMember = { id: string; name: string; initials: string; from: string; to: string };
+
+// Avatar gradients chosen deterministically by id, so a person keeps the same
+// colours between sessions without any per-person choice being stored.
+const BOARD_AVATAR_GRADIENTS: ReadonlyArray<readonly [string, string]> = [
+  ["#8b5cf6", "#ec4899"], ["#0ea5e9", "#22d3ee"], ["#10b981", "#84cc16"],
+  ["#f59e0b", "#f43f5e"], ["#6366f1", "#a855f7"], ["#14b8a6", "#3b82f6"],
+];
+
+function boardInitials(name: string): string {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  const letters = parts.length === 1 ? parts[0].slice(0, 2) : parts[0][0] + parts[parts.length - 1][0];
+  return letters.toUpperCase();
+}
+
+function idHash(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+async function boardMembers(studioId: string): Promise<BoardMember[]> {
+  const rows = await listCollaborators(studioId);
+  return rows.map((c) => {
+    const id = String(c.id || "");
+    const name = String(c.alias || "") || "Unnamed";
+    const [from, to] = BOARD_AVATAR_GRADIENTS[idHash(id) % BOARD_AVATAR_GRADIENTS.length];
+    return { id, name, initials: boardInitials(name), from, to };
+  });
+}
+
+export async function readProjectBoard(ctx: ProjectsContext, projectId: string) {
+  // Seeing the board is seeing the project: holding projectsContext at all means
+  // the projects-list grant was given, which is the view gate — the same way
+  // listProjects is section-gated rather than permission-gated. Editing is a
+  // separate right, reported so the client renders read-only when it is absent.
+  const { studio, listSection, access } = ctx;
+  const project = (await Projects.find({ studio, section: listSection })).find((p) => p.id === projectId);
+  if (!project) return { error: "notfound" };
+  const board = await getJSON<Record<string, unknown>>(PROJECT.board(studio.id, projectId));
+  return {
+    // Null until the first save — the client then seeds the empty four-column
+    // board rather than the server writing a document nobody has opened.
+    board: board || null,
+    canEdit: can(access, "projects.list.edit"),
+    members: await boardMembers(studio.id),
+    project: { id: project.id, title: project.title },
+  };
+}
+
+// A project board that outgrows this is not a board — the cap keeps one key from
+// becoming a hot spot the whole studio pays for.
+const BOARD_MAX_BYTES = 1_000_000;
+
+export async function saveProjectBoard(ctx: ProjectsContext, projectId: string, board: unknown) {
+  const denied = requirePermission(ctx.access, "projects.list.edit");
+  if (denied) return denied;
+  const { studio, listSection } = ctx;
+  const project = (await Projects.find({ studio, section: listSection })).find((p) => p.id === projectId);
+  if (!project) return { error: "notfound" };
+  if (!board || typeof board !== "object" || Array.isArray(board)) return { error: "board" };
+  // The client holds authoritative state, so this is a whole-document set, not a
+  // field patch — but still a compare-and-set through editJSON, and bounded.
+  if (JSON.stringify(board).length > BOARD_MAX_BYTES) return { error: "too-large" };
+  await editJSON(PROJECT.board(studio.id, projectId), () => ({ next: board }));
+  return { ok: true };
 }
 
 // ---- SLA contracts ----------------------------------------------------------

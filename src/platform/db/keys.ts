@@ -300,6 +300,17 @@ export const SEC = {
   col: (studioId: string, sectionId: string, name: string) => `${P}s:${studioId}:sec:${sectionId}:c:${name}`,
 };
 
+// ---- per-project documents -------------------------------------------------
+// A project's Kanban board is ONE JSON document, not a row collection: the
+// board screen is a single zustand store whose whole state is read and written
+// as a unit, so a document keyed by the project matches the client exactly and
+// keeps every board write to one compare-and-set. Under the studio prefix, so
+// it dies with the studio for free; removeProject also deletes it explicitly so
+// a deleted project leaves no board behind (deletion is children-first).
+export const PROJECT = {
+  board: (studioId: string, projectId: string) => `${P}s:${studioId}:project:${projectId}:board`,
+};
+
 // ---- indexes (uniqueness claims + O(1) lookups) ----------------------------
 const normEmail = (e: unknown) => String(e || "").trim().toLowerCase();
 export const IX = {

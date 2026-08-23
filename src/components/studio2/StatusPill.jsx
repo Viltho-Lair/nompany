@@ -68,7 +68,7 @@ export const STATUS_TONES = {
   order:     { Draft: "neutral", Ordered: "info", "Partly received": "warning", Received: "success", Cancelled: "danger" },
   // StudioInventory — delivery-note status (DN_TONE). Likewise not yet rendered.
   delivery:  { Draft: "neutral", Issued: "success", Cancelled: "danger" },
-  // StudioProjects + StudioProjectProfile — project stage (STAGE_TONE).
+  // StudioProjects + StudioProjectInfo / StudioProjectBoard — project stage (STAGE_TONE).
   project:   { Received: "neutral", "In Progress": "progress", "On Hold": "warning", Completed: "success" },
   // StudioTechnical — RFQ status (RFQ_TONE). Currently no render site.
   rfq:       { New: "info", "In-review": "warning", Converted: "success", Rejected: "danger" },

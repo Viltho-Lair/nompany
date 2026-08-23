@@ -1,0 +1,355 @@
+/*
+  SCOPED KANBAN DESIGN SYSTEM.
+
+  Every rule here is confined to `.kanban-root` (and `.dark .kanban-root` for the
+  dark values) so the board's tokens and utilities are self-contained and cannot
+  collide with nompany's `--geex-*` / `--p-*` / `--doc-*` systems. The board is
+  rendered inside `<div className="kanban-root">`.
+
+  Three things this file does:
+
+  1. Defines the kanban palette twice. Once under the LITERAL shadcn names
+     (`--primary`, `--foreground`, `--border`, `--glass-*`, `--radius`, …) that
+     the `.glass*` utilities and the components' arbitrary `hsl(var(--x))` values
+     read; and once by RE-POINTING nompany's `--doc-*` channel triples, because
+     nompany's tailwind.config already maps the shadcn utility classes
+     (`bg-primary`, `text-muted-foreground`, `border-border`, and every opacity
+     variant) to `rgb(var(--doc-*) / <alpha>)`. Setting `--doc-*` on the board
+     element makes those utilities render kanban colours — opacity variants
+     included — without touching nompany's config. Custom properties inherit, so
+     the value set on `.kanban-root` wins over the `:root` value for everything
+     inside the board.
+
+  2. Reproduces, as real scoped CSS, every utility the kanban relies on that
+     nompany's tailwind.config does not provide: the `--radius` scale, the
+     shadow-glow, shadow-lift and shadow-card shadows (and their
+     hover/group-hover/data-state variants), animate-float, `--kb-accent`
+     (nompany has no shadcn `accent` token), and the glass primitives.
+
+  3. Applies the drag stutter fix: suspends backdrop-filter on glass surfaces
+     while a drag is in progress (the board toggles `body.dragging-none`), so the
+     per-frame column blur resample that `MeasuringStrategy.Always` forces during
+     a drag simply pauses. Zero change at rest.
+*/
+
+/* -------------------------------------------------------------------------- */
+/*                                   tokens                                    */
+/* -------------------------------------------------------------------------- */
+
+.kanban-root {
+  /* shadcn HSL triples — read by the `.glass*` utilities and arbitrary values */
+  --background: 220 33% 97%;
+  --foreground: 224 38% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 38% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 38% 12%;
+  --primary: 258 88% 62%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 26% 94%;
+  --secondary-foreground: 224 30% 20%;
+  --muted: 220 24% 94%;
+  --muted-foreground: 222 12% 45%;
+  --destructive: 0 78% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 222 22% 88%;
+  --input: 222 22% 88%;
+  --ring: 258 88% 62%;
+  --radius: 0.85rem;
+
+  /* nompany has no shadcn `accent` token — the board's subtle hover surfaces
+     read these instead (via arbitrary `hsl(var(--kb-accent)/…)` values). */
+  --kb-accent: 258 90% 96%;
+  --kb-accent-foreground: 258 70% 38%;
+
+  /* Glass surface tuning */
+  --glass-bg: 0 0% 100%;
+  --glass-alpha: 0.66;
+  --glass-border-alpha: 0.7;
+
+  /* Re-point nompany's shadcn utility classes to the kanban palette. */
+  --doc-background: 245 247 250;
+  --doc-foreground: 19 25 42;
+  --doc-card: 255 255 255;
+  --doc-card-foreground: 19 25 42;
+  --doc-popover: 255 255 255;
+  --doc-popover-foreground: 19 25 42;
+  --doc-primary: 124 73 243;
+  --doc-primary-foreground: 255 255 255;
+  --doc-secondary: 236 238 244;
+  --doc-secondary-foreground: 36 44 66;
+  --doc-muted: 236 238 243;
+  --doc-muted-foreground: 101 109 129;
+  --doc-destructive: 231 64 64;
+  --doc-destructive-foreground: 255 255 255;
+  --doc-border: 218 222 231;
+  --doc-input: 218 222 231;
+  --doc-ring: 124 73 243;
+
+  font-family: var(--font-body), system-ui, sans-serif;
+  color: hsl(var(--foreground));
+}
+
+.dark .kanban-root {
+  --background: 231 34% 6%;
+  --foreground: 220 30% 96%;
+  --card: 230 26% 11%;
+  --card-foreground: 220 30% 96%;
+  --popover: 230 28% 9%;
+  --popover-foreground: 220 30% 96%;
+  --primary: 258 92% 70%;
+  --primary-foreground: 240 40% 8%;
+  --secondary: 230 20% 17%;
+  --secondary-foreground: 220 25% 92%;
+  --muted: 230 18% 18%;
+  --muted-foreground: 222 14% 64%;
+  --destructive: 0 72% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 230 18% 22%;
+  --input: 230 18% 24%;
+  --ring: 258 92% 70%;
+
+  --kb-accent: 258 40% 22%;
+  --kb-accent-foreground: 258 90% 88%;
+
+  --glass-bg: 230 30% 14%;
+  --glass-alpha: 0.55;
+  --glass-border-alpha: 0.14;
+
+  --doc-background: 10 12 21;
+  --doc-foreground: 242 244 248;
+  --doc-card: 21 23 35;
+  --doc-card-foreground: 242 244 248;
+  --doc-popover: 17 19 29;
+  --doc-popover-foreground: 242 244 248;
+  --doc-primary: 150 108 249;
+  --doc-primary-foreground: 12 12 29;
+  --doc-secondary: 35 38 52;
+  --doc-secondary-foreground: 230 233 240;
+  --doc-muted: 38 40 54;
+  --doc-muted-foreground: 150 158 176;
+  --doc-destructive: 226 80 80;
+  --doc-destructive-foreground: 255 255 255;
+  --doc-border: 46 49 66;
+  --doc-input: 50 54 72;
+  --doc-ring: 150 108 249;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              radius scale                                   */
+/* -------------------------------------------------------------------------- */
+/* nompany uses Tailwind's default radii; the kanban scales off `--radius`. */
+
+.kanban-root .rounded-sm {
+  border-radius: calc(var(--radius) - 4px);
+}
+.kanban-root .rounded-md {
+  border-radius: calc(var(--radius) - 2px);
+}
+.kanban-root .rounded-lg {
+  border-radius: var(--radius);
+}
+.kanban-root .rounded-xl {
+  border-radius: calc(var(--radius) + 4px);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                  shadows                                    */
+/* -------------------------------------------------------------------------- */
+/* Reproduced because nompany's tailwind.config does not register these. */
+
+.kanban-root .shadow-glow-sm,
+.kanban-root .hover\:shadow-glow-sm:hover,
+.kanban-root .group:hover .group-hover\:shadow-glow-sm,
+.kanban-root .data-\[state\=checked\]\:shadow-glow-sm[data-state="checked"] {
+  box-shadow:
+    0 0 0 1px hsl(var(--primary) / 0.2),
+    0 4px 16px -6px hsl(var(--primary) / 0.35);
+}
+
+.kanban-root .shadow-glow,
+.kanban-root .hover\:shadow-glow:hover {
+  box-shadow:
+    0 0 0 1px hsl(var(--primary) / 0.25),
+    0 8px 30px -8px hsl(var(--primary) / 0.45);
+}
+
+.kanban-root .shadow-lift {
+  box-shadow:
+    0 24px 60px -18px rgba(2, 6, 23, 0.6),
+    0 8px 20px -12px rgba(2, 6, 23, 0.5);
+}
+
+.kanban-root .shadow-card {
+  box-shadow:
+    0 1px 2px rgba(2, 6, 23, 0.18),
+    0 8px 24px -16px rgba(2, 6, 23, 0.5);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 animation                                  */
+/* -------------------------------------------------------------------------- */
+/* Translate-only drift so the compositor owns every frame (see the original
+   note in ambient-background). */
+
+@keyframes kb-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  33% {
+    transform: translate3d(14px, -20px, 0);
+  }
+  66% {
+    transform: translate3d(-12px, -8px, 0);
+  }
+}
+
+.kanban-root .animate-float {
+  animation: kb-float 14s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kanban-root .animate-float {
+    animation: none;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            glass primitives                                */
+/* -------------------------------------------------------------------------- */
+
+.kanban-root .glass {
+  background: hsl(var(--glass-bg) / var(--glass-alpha));
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid hsl(var(--border) / var(--glass-border-alpha));
+}
+
+.kanban-root .glass-strong {
+  background: hsl(var(--glass-bg) / calc(var(--glass-alpha) + 0.22));
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid hsl(var(--border) / calc(var(--glass-border-alpha) + 0.1));
+}
+
+/*
+  Same fill and border as `.glass`, but no backdrop sampling. Used for task cards
+  and the drag overlay — a card sits on top of a column that has already blurred
+  the background, so what a card's own backdrop-filter would blur is an
+  almost-uniform surface. The fill alpha is raised to make up for the opacity the
+  blur used to contribute.
+*/
+.kanban-root .glass-flat {
+  background: hsl(var(--glass-bg) / calc(var(--glass-alpha) + 0.17));
+  border: 1px solid hsl(var(--border) / var(--glass-border-alpha));
+}
+
+/* A hairline top highlight — the thing that makes glass read as glass. */
+.kanban-root .glass-sheen {
+  position: relative;
+}
+.kanban-root .glass-sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    160deg,
+    hsl(0 0% 100% / 0.22),
+    hsl(0 0% 100% / 0.02) 32%,
+    transparent 60%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.kanban-root .ring-glow {
+  box-shadow:
+    0 0 0 1px hsl(var(--primary) / 0.35),
+    0 0 24px -6px hsl(var(--primary) / 0.5);
+}
+
+.kanban-root .text-gradient {
+  background: linear-gradient(
+    100deg,
+    hsl(var(--foreground)),
+    hsl(var(--primary) / 0.95) 55%,
+    hsl(190 90% 60%)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Fades the top/bottom of a scroll region so cards dissolve instead of clipping. */
+.kanban-root .scroll-fade {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 12px,
+    #000 calc(100% - 16px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 12px,
+    #000 calc(100% - 16px),
+    transparent 100%
+  );
+}
+
+.kanban-root .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.kanban-root .no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Slim scrollbars inside the board. */
+.kanban-root *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.kanban-root *::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kanban-root *::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.25);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.kanban-root *::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.45);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              drag behaviour                                */
+/* -------------------------------------------------------------------------- */
+
+/* dnd-kit toggles this on <body> for the duration of a drag. */
+body.dragging-none {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/*
+  STUTTER FIX. `MeasuringStrategy.Always` re-measures the `.glass` column
+  droppables every frame of a drag, forcing the compositor to resample a
+  full-column backdrop blur each time. Suspending the blur for the ~½-second of a
+  drag removes that cost — the fill and border already read as glass, so the
+  surface barely changes. Zero effect at rest.
+*/
+body.dragging-none .kanban-root .glass,
+body.dragging-none .kanban-root .glass-strong {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
