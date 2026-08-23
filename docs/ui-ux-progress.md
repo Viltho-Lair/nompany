@@ -67,6 +67,31 @@ Legend: `[x]` done · `[~]` partial · `[ ]` not started.
 
 ---
 
+## Dashboards & motion (`w4-dashboards-and-motion.md`)
+
+The dashboards are the other half of the redesign and live in their own plan, not
+in `ui-ux-overhaul.md`'s phases — so they were missing here. Tracked now, against
+that document's §2.4 (every Finance data-point), §9 (the build steps) and the
+thirteen motion techniques.
+
+| Piece | State | Evidence / what's left |
+|---|---|---|
+| **Chart kit** (`components/charts`) | ✅ done | Promoted to shared TS, `--chart-*` ramp on `:root`, direction-aware, server-rendered, no library |
+| **Motion primitives** (`components/motion`) | ✅ done | `Reveal`, `CountUp`, house curves — library-free, fenced from `motion/react` |
+| **`dashboard/` primitives** (Widget, StatTile, locked card) | ⬜ not started | The card/grid/rung components every screen composes |
+| **`registry.ts` + `analyticsLevelOf`** | ⬜ not started | Which widgets a tier's analytics rung entitles it to (analytics is paid) |
+| **Per-department dashboards** (12) | ⬜ not started | Today every section shows the empty `SectionDashboard` placeholder ("Nothing is reported here yet") |
+| **Technical & Sales dashboards** (their analytics already exist, unused) | ⬜ not started | The fastest proof — step 5 |
+| **Finance 1a dashboard** (AR aging, DSO, P&L, margin) | ⬜ not started | Backend calc landed with the ledger; the dashboard that shows it has not |
+| **Motion techniques 1–5, 7, 9** across the shells | ⬜ not started | Step 8 |
+
+So: the **drawing foundation is done** (charts + motion), and **not one department
+dashboard exists yet** — every section is still the empty placeholder. This is the
+single largest remaining piece of the visible redesign, and it needs the browser
+pane for sign-off the same way the login does.
+
+---
+
 ## Now — Phase 2, the field system
 
 The slice in flight, and the decisions that set it (yours, 23/08/2026):
