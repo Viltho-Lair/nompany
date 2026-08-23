@@ -13,16 +13,16 @@ import { fmtDate as fmtDateCanonical, fmtDateTime as fmtDateTimeCanonical, fmtWe
 
 // ---- style tokens ----------------------------------------------------------
 export const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
-export const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
+export const h2 = "font-display text-lg font-800 text-[var(--geex-ink)]";
 export const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 export const input =
-  "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
+  "w-full rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm text-[var(--geex-ink)] focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15";
 export const inputRO =
   "w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-500 dark:border-white/10 dark:bg-[#14141c] dark:text-slate-400";
 export const microLabel = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 export const label = "mb-1.5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 export const btn = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
-export const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
+export const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/5";
 export const btnAmber = "rounded-full bg-amber-600 px-3 py-1.5 text-xs font-600 text-white transition-colors hover:bg-amber-700 disabled:opacity-60";
 export const th = "pb-3 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 
@@ -125,7 +125,7 @@ export function Dialog({ title, description, onClose, children, width = "max-w-[
       <div ref={panelRef} className={`relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex ${width}`}>
         <div className="flex items-start gap-3 border-b border-slate-200/70 px-6 py-4 dark:border-white/10">
           <div className="min-w-0">
-            <h3 id={titleId} className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
+            <h3 id={titleId} className="font-display text-lg font-800 text-[var(--geex-ink)]">{title}</h3>
             {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
           </div>
           <button type="button" onClick={onClose} aria-label="Close"
@@ -161,7 +161,7 @@ export function FilterButton({ active, open, onClick }) {
     <button type="button" onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-600 transition-colors ${active
         ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:border-brand-400 dark:text-brand-300"
-        : "border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"}`}>
+        : "border-slate-200 text-[var(--geex-muted)] hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"}`}>
       Filters{active ? ` (${active})` : ""}
       <Icon name={open ? "chevronUp" : "chevronDown"} className="h-3.5 w-3.5" />
     </button>
@@ -190,7 +190,7 @@ export function ColumnPicker({ columns, selected, onToggle, onReset, onClose, ti
           return (
             <label key={c.key} className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm transition-colors ${on
               ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:border-brand-400 dark:bg-brand-500/15 dark:text-brand-300"
-              : "border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"}`}>
+              : "border-slate-200 text-[var(--geex-muted)] hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"}`}>
               <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={on} onChange={() => onToggle(c.key)} />
               {c.label}
             </label>
@@ -208,7 +208,7 @@ export function ColumnPicker({ columns, selected, onToggle, onReset, onClose, ti
 export function Empty({ title, body }) {
   return (
     <div className="rounded-geex border border-dashed border-slate-200 p-10 text-center dark:border-white/10">
-      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{title}</h3>
+      <h3 className="font-display text-base font-700 text-[var(--geex-ink)]">{title}</h3>
       <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">{body}</p>
     </div>
   );
@@ -220,7 +220,7 @@ export function StatTile({ label: tileLabel, value, href, tone = "" }) {
   const body = (
     <>
       <p className={microLabel}>{tileLabel}</p>
-      <p className={`font-display text-lg font-800 ${tone || "text-slate-900 dark:text-white"}`}>{value}</p>
+      <p className={`font-display text-lg font-800 ${tone || "text-[var(--geex-ink)]"}`}>{value}</p>
     </>
   );
   const cls = "rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-4 dark:border-white/15";
@@ -234,7 +234,7 @@ export function WidgetTitle({ children, hint }) {
   return (
     <div className="mb-3">
       <p className={microLabel}>{children}</p>
-      {hint && <p className="text-xs text-slate-400 dark:text-slate-500">{hint}</p>}
+      {hint && <p className="text-xs text-[var(--geex-faint)]">{hint}</p>}
     </div>
   );
 }
@@ -291,12 +291,12 @@ export function Leaderboard({ rows, valueKey = "total", subtitle }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
               <span className="truncate text-sm font-600 text-slate-700 dark:text-slate-200">{r.name}</span>
-              <span className="shrink-0 text-sm font-700 text-slate-900 dark:text-white">{r[valueKey]}</span>
+              <span className="shrink-0 text-sm font-700 text-[var(--geex-ink)]">{r[valueKey]}</span>
             </div>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
               <div className="h-full rounded-full bg-brand-500/70" style={{ width: `${((Number(r[valueKey]) || 0) / max) * 100}%` }} />
             </div>
-            {subtitle && <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">{subtitle(r)}</p>}
+            {subtitle && <p className="mt-0.5 text-[11px] text-[var(--geex-faint)]">{subtitle(r)}</p>}
           </div>
         </li>
       ))}

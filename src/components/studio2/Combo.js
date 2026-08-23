@@ -23,7 +23,7 @@ import Autocomplete from "@mui/material/Autocomplete";
 // impossible. Typing a value that is not on the list stays allowed, exactly as
 // the datalist allowed it.
 const INPUT =
-  "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pe-9 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60 dark:border-white/15 dark:bg-[#191921] dark:text-white";
+  "w-full rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 pe-9 text-sm text-[var(--geex-ink)] focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60 dark:border-white/15";
 
 export default function Combo({ value, onChange, options = [], placeholder = "", disabled = false, id, inputClassName = INPUT, paperClassName = "" }) {
   return (

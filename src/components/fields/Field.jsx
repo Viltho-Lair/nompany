@@ -22,7 +22,7 @@ import { useId, useState } from "react";
 // so it mirrors in Arabic without a second code path.
 
 const BOX_BASE =
-  "relative rounded-xl border bg-slate-50 transition-colors dark:bg-[#191921]";
+  "relative rounded-xl border bg-[var(--geex-inset)] transition-colors";
 const BOX_STATE = (focused, error, disabled) =>
   error
     ? "border-rose-400 dark:border-rose-500/60"
@@ -32,12 +32,12 @@ const BOX_STATE = (focused, error, disabled) =>
 
 // The control sits with room at the top for the floated label: pt-5 pb-1.5.
 const CONTROL =
-  "peer w-full bg-transparent px-3.5 pt-5 pb-1.5 text-sm text-slate-900 outline-none dark:text-white disabled:cursor-not-allowed";
+  "peer w-full bg-transparent px-3.5 pt-5 pb-1.5 text-sm text-[var(--geex-ink)] outline-none disabled:cursor-not-allowed";
 
 // Passed to a wrapped Combo so its own border/background fall away and it wears
 // this field's box instead — flush with every plain control on the form.
 export const BARE_CONTROL =
-  "w-full bg-transparent px-3.5 pt-5 pb-1.5 pe-9 text-sm text-slate-900 outline-none dark:text-white";
+  "w-full bg-transparent px-3.5 pt-5 pb-1.5 pe-9 text-sm text-[var(--geex-ink)] outline-none";
 
 function labelClass(floated, focused, error) {
   const base =
@@ -197,7 +197,7 @@ export function Field({
         <p
           id={error ? `${id}-err` : `${id}-hint`}
           className={`mt-1 ps-1 text-[11px] ${
-            error ? "text-rose-500 dark:text-rose-300" : "text-slate-400 dark:text-slate-500"
+            error ? "text-rose-500 dark:text-rose-300" : "text-[var(--geex-faint)]"
           }`}
         >
           {error || hint}
