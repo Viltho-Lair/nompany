@@ -80,10 +80,10 @@ thirteen motion techniques.
 | **Motion primitives** (`components/motion`) | ✅ done | `Reveal`, `CountUp`, house curves — library-free, fenced from `motion/react` |
 | **`dashboard/` primitives** (Widget, StatRow, DashGrid, locked teaser) | ✅ done | `components/dashboard`, composing the existing StatTile/WidgetTitle + charts |
 | **analytics gating** (`analyticsLevelOf`, `analyticsAllows`) | ✅ done | `lib/analytics`, rungs basic/simple/moderate/advanced; tier carries `analyticsLevel` via planOf |
-| **Per-department dashboards** (12) | ⬜ not started | Today every section shows the empty `SectionDashboard` placeholder ("Nothing is reported here yet") |
-| **Technical & Sales dashboards** (their analytics already exist, unused) | ⬜ not started | The fastest proof — step 5 |
+| **Per-department dashboards** | 🟢 done for 7 | Finance, Sales, Technical, Projects, Inventory, HR, Operations — each a data-dense `<Dept>Dashboard` on real data with paid-rung locking. Tasks keeps its stats header; Main/custom sections still the placeholder |
+| **Technical & Sales dashboards** | ✅ done | Built on the existing `salesAnalytics`/`technicalAnalytics`, unused no more |
 | **Finance 1a dashboard** (AR aging, DSO, collection, income/expense, mix) | ✅ done | `FinanceDashboard`, wired into StudioFinance, on the Finance 1a analytics, with paid-rung locking via a shell context (no extra hops) |
-| **Motion techniques 1–5, 7, 9** across the shells | ⬜ not started | Step 8 |
+| **Motion techniques 1–5, 7, 9** across the shells | ⬜ not started | Step 8 — after the dashboards settle |
 
 So: the **drawing foundation is done** (charts + motion), and **not one department
 dashboard exists yet** — every section is still the empty placeholder. This is the

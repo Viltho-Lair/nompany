@@ -6,15 +6,17 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
+import ProjectsDashboard from "@/components/studio2/ProjectsDashboard";
+import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import {
   panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
-  money, fmtDate, Dialog, Toolbar, Empty, StatTile,
+  money, fmtDate, Dialog, Toolbar, Empty,
 } from "@/components/studio2/ui";
 import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import {
-  slaVisits, emergencyVisits, allVisits, nextVisit, contractEndDate, supportStatus,
+  slaVisits, emergencyVisits, nextVisit, contractEndDate, supportStatus,
   fmtDate as slaDate, daysUntil,
 } from "@/modules/projects/sla";
 import { REQUIREMENT_WEIGHTS, hoursBetween } from "@/modules/projects/projectSchedule";
@@ -30,22 +32,7 @@ const STAGE_TONE = {
   "On Hold": "bg-amber-500/15 text-amber-700 dark:text-amber-300",
   Completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
 };
-const STAGE_ACCENT = {
-  Received: "text-slate-500 dark:text-slate-400",
-  "In Progress": "text-brand-600 dark:text-brand-300",
-  "On Hold": "text-amber-600 dark:text-amber-400",
-  Completed: "text-emerald-600 dark:text-emerald-400",
-};
-
 const rnd = (n) => Math.round((Number(n) || 0) * 100) / 100;
-
-// A date range that doesn't stutter into "— → —" when a project has no dates.
-function dateRange(start, end) {
-  if (!start && !end) return "Not scheduled";
-  if (start && !end) return `Starts ${slaDate(start)}`;
-  if (!start && end) return `Ends ${slaDate(end)}`;
-  return `${slaDate(start)} → ${slaDate(end)}`;
-}
 
 function SupportTag({ project }) {
   const s = supportStatus(project);
@@ -77,6 +64,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const focus = useFocusedRecord("project");
+  const level = useAnalyticsLevel();
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/projects`, { cache: "no-store" });
@@ -184,152 +172,8 @@ export default function StudioProjects({ slug, view = "projects" }) {
       {banner}
       {data.canViewDashboard === false
         ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
-        : <ProjectsDashboard slug={slug} projects={projects} slas={slas} overtimes={overtimes} nav={nav} />}
+        : <ProjectsDashboard projects={projects} slas={slas} overtimes={overtimes} people={people} level={level} slug={slug} nav={nav} />}
     </div>
-  );
-}
-
-// ---- dashboard -------------------------------------------------------------
-// The board first, because a project's stage is the thing people come here to
-// read; then the counts, then what is due next.
-function ProjectsDashboard({ slug, projects, slas, overtimes, nav }) {
-  const [query, setQuery] = useState("");
-  const projectsById = useMemo(() => Object.fromEntries(projects.map((p) => [p.id, p])), [projects]);
-  const listHref = nav?.["projects-list"] ? `/${slug}/projects-list` : "";
-
-  const latest = useMemo(
-    () => (projects.length ? [...projects].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] : null),
-    [projects],
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return projects;
-    return projects.filter((p) => `${p.title || ""} ${p.number || ""} ${p.clientName || ""} ${p.location || ""}`.toLowerCase().includes(q));
-  }, [projects, query]);
-
-  // The nearest five visits still ahead of us, planned and emergency together —
-  // an emergency call-out is no less due than a scheduled one.
-  const upcoming = useMemo(() => {
-    const out = [];
-    for (const sla of slas) {
-      const project = projectsById[sla.projectId];
-      for (const v of allVisits(sla)) {
-        if (v.completed || v.daysRemaining < 0) continue;
-        out.push({
-          key: `${sla.id}-${v.emergency ? `e${v.id}` : v.index}`,
-          name: sla.title || project?.title || "SLA",
-          visit: v,
-        });
-      }
-    }
-    return out.sort((a, b) => a.visit.daysRemaining - b.visit.daysRemaining).slice(0, 5);
-  }, [slas, projectsById]);
-
-  const otHours = useMemo(() => rnd(overtimes.reduce((a, o) => a + (Number(o.hours) || 0), 0)), [overtimes]);
-  const stages = ["Received", "In Progress", "On Hold", "Completed"];
-
-  return (
-    <>
-      <section className={panel}>
-        <h2 className={h2}>Projects</h2>
-        <p className={sub}>Registered projects, their support contracts and the hours going into them.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatTile label="Projects registered" value={projects.length} href={listHref} />
-          <StatTile label="In progress" value={projects.filter((p) => p.stage === "In Progress").length} href={listHref} />
-          <StatTile label="SLA contracts" value={slas.length} href={nav?.["projects-sla"] ? `/${slug}/projects-sla` : ""} />
-          <StatTile label="Overtime hours" value={otHours} href={nav?.["projects-overtimes"] ? `/${slug}/projects-overtimes` : ""} />
-        </div>
-      </section>
-
-      {/* The board — projects by stage. */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {stages.map((stage) => {
-          const column = projects.filter((p) => (p.stage || "Received") === stage);
-          return (
-            <div key={stage} className="rounded-geex border border-slate-200/70 bg-slate-50 p-3 dark:border-white/10 dark:bg-[#191921]">
-              <div className="mb-2 flex items-center justify-between px-1">
-                <span className={`text-xs font-700 uppercase tracking-wide ${STAGE_ACCENT[stage] || ""}`}>{stage}</span>
-                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-600 text-slate-500 dark:bg-white/10 dark:text-slate-400">{column.length}</span>
-              </div>
-              <div className="space-y-2">
-                {column.length === 0 ? (
-                  <p className="px-1 py-6 text-center text-xs text-slate-400">No projects</p>
-                ) : column.map((p) => (
-                  <a key={p.id} href={listHref ? `${listHref}?project=${p.id}` : undefined}
-                    className="block rounded-xl border border-slate-200 bg-white p-3 transition-colors hover:border-brand-400 hover:bg-brand-500/5 dark:border-white/10 dark:bg-[#20202c] dark:hover:border-brand-400/50">
-                    <p className="truncate font-600 text-slate-900 dark:text-white">{p.title}</p>
-                    <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">{p.number} · {p.progress}%</p>
-                  </a>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className={panel}>
-          <p className={microLabel}>Latest project registered</p>
-          {latest ? (
-            <div className="mt-1">
-              <p className="font-display text-lg font-700 text-slate-900 dark:text-white">{latest.title}</p>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{dateRange(latest.startDate, latest.endDate)}</p>
-              <div className="mt-2"><SupportTag project={latest} /></div>
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-slate-400">No projects yet.</p>
-          )}
-        </section>
-
-        <section className={panel}>
-          <p className={microLabel}>Closest SLA visits</p>
-          {upcoming.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">No upcoming visits.</p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {upcoming.map((u) => (
-                <li key={u.key} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="flex min-w-0 items-center gap-2 truncate text-slate-700 dark:text-slate-200">
-                    <span className="truncate">{u.name} · {u.visit.emergency ? "emergency" : `visit ${u.visit.index}`}</span>
-                    {u.visit.emergency && (
-                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-700 uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">SOS</span>
-                    )}
-                  </span>
-                  <span className="shrink-0 font-600 text-brand-700 dark:text-brand-300">{u.visit.daysRemaining}d</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
-
-      <section className={panel}>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <p className={microLabel}>Projects</p>
-          <input type="search" aria-label="Search projects" value={query} onChange={(e) => setQuery(e.target.value)}
-            className={`${input} w-full sm:max-w-xs`} />
-        </div>
-        {filtered.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">{projects.length === 0 ? "No projects yet." : "No projects match."}</p>
-        ) : (
-          <ul className="divide-y divide-slate-100 dark:divide-white/5">
-            {filtered.map((p) => (
-              <li key={p.id}>
-                <a href={listHref ? `${listHref}?project=${p.id}` : undefined}
-                  className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-3 transition-colors hover:bg-brand-500/5">
-                  <div className="min-w-0">
-                    <p className="truncate font-600 text-slate-900 dark:text-white">{p.title}</p>
-                    <p className="truncate text-xs text-slate-400 dark:text-slate-500">{dateRange(p.startDate, p.endDate)}</p>
-                  </div>
-                  <SupportTag project={p} />
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </>
   );
 }
 

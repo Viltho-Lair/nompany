@@ -7,17 +7,14 @@ import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
   panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
   URGENCY_BADGE, money, fmtDate, fmtDateTime, prefKey, loadPref, savePref,
-  Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty, StatTile,
-  WidgetTitle, FunnelChart, BarBreakdown, Leaderboard, TimelineChart, ScatterChart,
+  Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
 import { isUnfinished } from "@/modules/technical/quotations";
 import QuotationBuilder from "@/components/studio2/QuotationBuilder";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
-import {
-  quotationStats, rfqFunnel, urgencyBreakdown, handlerLeaderboard,
-  quotationTimeline, completionScatter, averageTurnaround, quotationValue, isUnworked,
-} from "@/modules/technical/technicalAnalytics";
+import TechnicalDashboard from "@/components/studio2/TechnicalDashboard";
+import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 
 // Technical: RFQs raised by Sales, and the quotations they become.
 // Two different grants are in play — raising an RFQ needs Sales:manage, working
@@ -71,6 +68,7 @@ const latestComment = (row) => {
 // technical-live renders full-screen outside the studio frame.
 export default function StudioTechnical({ slug, view = "technical" }) {
   const [data, setData] = useState(null);
+  const level = useAnalyticsLevel();
   const focusQuote = useFocusedRecord("quotation");
   const [error, setError] = useState("");
   const [creatingQuote, setCreatingQuote] = useState(false);
@@ -232,127 +230,8 @@ export default function StudioTechnical({ slug, view = "technical" }) {
       {banner}
       {data.canViewDashboard === false
         ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
-        : <TechnicalDashboard slug={slug} rfqs={rfqs} quotations={quotations} nav={nav} handlerName={handlerName} />}
+        : <TechnicalDashboard rfqs={rfqs} quotations={quotations} handlerName={handlerName} level={level} currency={data.currency || ""} />}
     </div>
-  );
-}
-
-// ---- dashboard -------------------------------------------------------------
-// An overview of quotations and how fast they turn around, then the RFQ side
-// underneath — the two halves of what Technical is actually doing.
-function TechnicalDashboard({ slug, rfqs, quotations, nav, handlerName }) {
-  const stats = useMemo(() => quotationStats(quotations), [quotations]);
-  const timeline = useMemo(() => quotationTimeline(quotations, 30), [quotations]);
-  const scatter = useMemo(() => completionScatter(quotations), [quotations]);
-  const turnaround = useMemo(() => averageTurnaround(quotations), [quotations]);
-  const value = useMemo(() => quotationValue(quotations), [quotations]);
-  const funnel = useMemo(() => rfqFunnel(rfqs), [rfqs]);
-  const urgency = useMemo(() => urgencyBreakdown(quotations), [quotations]);
-  const leaders = useMemo(() => handlerLeaderboard(quotations, handlerName), [quotations, handlerName]);
-  const openRfqs = rfqs.filter((r) => r.status !== "Converted" && r.status !== "Rejected").length;
-
-  const recent = useMemo(
-    () => [...quotations].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).slice(0, 5),
-    [quotations],
-  );
-
-  const quotationsHref = nav?.["technical-quotations"] ? `/${slug}/technical-quotations` : "";
-  const rfqHref = nav?.["technical-rfq"] ? `/${slug}/technical-rfq` : "";
-
-  return (
-    <>
-      <section className={panel}>
-        <h2 className={h2}>Technical</h2>
-        <p className={sub}>Quotations, the RFQs behind them, and how long the work is taking.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <StatTile label="Quotations" value={stats.total} href={quotationsHref} />
-          {(["Draft", "Sent", "Approved", "Rejected"]).map((s) => (
-            <StatTile key={s} label={s} value={
-              <span className="flex items-baseline gap-2">
-                {stats[s]}
-                <span className={`rounded-full px-2 py-0.5 text-xs font-600 ${Q_TONE[s]}`}>
-                  {stats.total ? Math.round((stats[s] / stats.total) * 100) : 0}%
-                </span>
-              </span>
-            } href={quotationsHref} />
-          ))}
-          <StatTile label="Open RFQs" value={openRfqs} href={rfqHref} />
-        </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <StatTile label="Pipeline value" value={money(value.all)} />
-          <StatTile label="Approved value" value={money(value.approved)} tone="text-emerald-700 dark:text-emerald-300" />
-          <StatTile label="Average turnaround" value={turnaround === null ? "—" : `${turnaround} day${turnaround === 1 ? "" : "s"}`} />
-        </div>
-      </section>
-
-      {nav?.["technical-live"] && (
-        <section className={`${panel} flex flex-wrap items-center justify-between gap-3`}>
-          <div className="min-w-0">
-            <p className={microLabel}>Live view</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              A full-screen quotations table that refreshes on its own. Columns are configured in{" "}
-              {nav?.["technical-settings"]
-                ? <a href={`/${slug}/technical-settings`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">Technical → Settings</a>
-                : <span className="font-600">Technical → Settings</span>}.
-            </p>
-          </div>
-          <a href={`/${slug}/technical-live`} className={btn}>Open live view →</a>
-        </section>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className={panel}>
-          <WidgetTitle hint="New quotations, last 30 days">Volume</WidgetTitle>
-          <div className="text-brand-500 dark:text-brand-300"><TimelineChart data={timeline} ariaLabel="New quotations over the last 30 days" /></div>
-        </section>
-        <section className={panel}>
-          <WidgetTitle hint="Days from creation to approval, oldest to newest">Turnaround</WidgetTitle>
-          <div className="text-emerald-500 dark:text-emerald-300">
-            <ScatterChart points={scatter} ariaLabel="Days to approval per quotation" emptyLabel="No quotation has been approved yet." />
-          </div>
-        </section>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className={panel}>
-          <WidgetTitle hint="RFQs by workflow status">RFQ funnel</WidgetTitle>
-          <FunnelChart data={funnel} />
-        </section>
-        <section className={panel}>
-          <WidgetTitle hint="Quotations by the urgency carried from the ticket">Urgency breakdown</WidgetTitle>
-          <BarBreakdown data={urgency.map((d) => ({ ...d, color: { Critical: "bg-rose-500", High: "bg-amber-500", Normal: "bg-brand-500", Low: "bg-slate-400" }[d.label] }))} />
-        </section>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className={panel}>
-          <WidgetTitle hint="Quotations handled, ranked">Handler leaderboard</WidgetTitle>
-          <Leaderboard rows={leaders} valueKey="total" subtitle={(r) => `${r.approved} approved · ${r.open} open`} />
-        </section>
-
-        <section className={panel}>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className={microLabel}>Recent</p>
-            {quotationsHref && <a href={quotationsHref} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">See all →</a>}
-          </div>
-          {recent.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">No quotations yet.</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-white/5">
-              {recent.map((q) => (
-                <li key={q.id} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-600 text-slate-900 dark:text-white">{q.number}</p>
-                    <p className="truncate text-xs text-slate-400 dark:text-slate-500">{q.title || q.description || "—"}</p>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-600 ${Q_TONE[q.status] || Q_TONE.Draft}`}>{q.status}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
-    </>
   );
 }
 

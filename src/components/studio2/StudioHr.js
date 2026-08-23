@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import {
-  panel, h2, sub, input, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
-  Dialog, Toolbar, Empty, StatTile, fmtDate,
+  panel, input, label, btn, btnGhost, th, stripeOn, stripeOff,
+  Dialog, Toolbar, Empty, fmtDate,
 } from "@/components/studio2/ui";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { initialsOf } from "@/lib/initials";
+import HrDashboard from "@/components/studio2/HrDashboard";
+import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
 const td = "py-3 pe-3 align-middle";
@@ -48,6 +50,7 @@ export default function StudioHr({ slug, view = "hr" }) {
   const [tab, setTab] = useState("people");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const level = useAnalyticsLevel();
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/hr`, { cache: "no-store" });
@@ -106,9 +109,9 @@ export default function StudioHr({ slug, view = "hr" }) {
             answers to hr.dashboard.view rather than to the Employees grant. */}
         {data.canViewDashboard === false
           ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
-          : <HrDashboard slug={slug} nav={nav} employees={employees} departments={departments} roles={roles}
-              certifications={certifications} headcount={headcount} expiring={expiring} pendingLeave={pendingLeave}
-              windowDays={vocabulary.expiryWindowDays} />}
+          : <HrDashboard slug={slug} nav={nav} departments={departments}
+              headcount={headcount} expiring={expiring} vacations={vacations}
+              windowDays={vocabulary.expiryWindowDays} level={level} />}
       </div>
     );
   }
@@ -170,94 +173,6 @@ function roleForbiddenMessage(out) {
   return n > 0
     ? `${n} ${n === 1 ? "person holds" : "people hold"} that role, so deleting it would take their access away — that's set on the access screen.`
     : "Putting somebody in a role is an access change, and that's set on the access screen.";
-}
-
-// ---- dashboard -------------------------------------------------------------
-function HrDashboard({ slug, nav, employees, departments, roles, certifications, headcount, expiring, pendingLeave, windowDays }) {
-  const to = nav?.["hr-employees"] ? `/${slug}/hr-employees` : "";
-  // Whose documents have already lapsed, rather than merely approaching — that
-  // is the difference between a reminder and a problem.
-  const lapsed = expiring.filter((e) => e.daysLeft < 0).length;
-
-  return (
-    <>
-      <section className={panel}>
-        <h2 className={h2}>Human Resources</h2>
-        <p className={sub}>Who is here, what they do, and what needs renewing.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <StatTile label="People" value={headcount.total} href={to} />
-          <StatTile label="Departments" value={departments.length} href={to} />
-          <StatTile label="Roles" value={roles.length} href={to} />
-          <StatTile label="Certifications" value={certifications.length} href={to} />
-          <StatTile label="Unassigned" value={headcount.unassigned}
-            tone={headcount.unassigned > 0 ? "text-amber-700 dark:text-amber-300" : ""} href={to} />
-          <StatTile label="Leave pending" value={pendingLeave}
-            tone={pendingLeave > 0 ? "text-amber-700 dark:text-amber-300" : ""} href={to} />
-        </div>
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className={panel}>
-          <p className={microLabel}>People by department</p>
-          {departments.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">This studio has no sections switched on, so there is nowhere to place anyone.</p>
-          ) : (
-            <ul className="mt-2 space-y-2">
-              {departments.map((d) => {
-                const n = headcount.byDepartment[d.id] || 0;
-                const share = headcount.total ? Math.round((n / headcount.total) * 100) : 0;
-                return (
-                  <li key={d.id} className="flex items-center gap-3 text-sm">
-                    <span className="w-32 shrink-0 truncate text-slate-600 dark:text-slate-300" title={d.name}>{d.name}</span>
-                    <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-                      <span className="block h-full rounded-full bg-brand-500" style={{ width: `${share}%` }} />
-                    </span>
-                    <span className="w-8 shrink-0 text-end font-600 tabular-nums text-slate-700 dark:text-slate-200">{n}</span>
-                  </li>
-                );
-              })}
-              {headcount.unassigned > 0 && (
-                <li className="flex items-center gap-3 text-sm">
-                  <span className="w-32 shrink-0 truncate text-amber-700 dark:text-amber-300">Unassigned</span>
-                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-                    <span className="block h-full rounded-full bg-amber-500"
-                      style={{ width: `${headcount.total ? Math.round((headcount.unassigned / headcount.total) * 100) : 0}%` }} />
-                  </span>
-                  <span className="w-8 shrink-0 text-end font-600 tabular-nums text-amber-700 dark:text-amber-300">{headcount.unassigned}</span>
-                </li>
-              )}
-            </ul>
-          )}
-        </section>
-
-        <section className={panel}>
-          <p className={microLabel}>Documents</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Expiring within {windowDays} days, or already lapsed.</p>
-          {expiring.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-400">Nothing expiring — all clear.</p>
-          ) : (
-            <>
-              {lapsed > 0 && (
-                <p className="mt-3 text-sm font-600 text-rose-600 dark:text-rose-400">
-                  {lapsed} already expired.
-                </p>
-              )}
-              <ul className="mt-2 divide-y divide-slate-100 dark:divide-white/5">
-                {expiring.slice(0, 8).map((e) => (
-                  <li key={`${e.collaboratorId}-${e.kind}`} className="flex items-center justify-between gap-3 py-2 text-sm">
-                    <span className="min-w-0 truncate text-slate-700 dark:text-slate-200">{e.alias} <span className="text-slate-400">· {e.kind}</span></span>
-                    <span className={`shrink-0 text-xs font-600 ${e.daysLeft < 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300"}`}>
-                      {e.daysLeft < 0 ? `${Math.abs(e.daysLeft)}d overdue` : `${e.daysLeft}d`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
-      </div>
-    </>
-  );
 }
 
 // ---- overview --------------------------------------------------------------

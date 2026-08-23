@@ -5,6 +5,8 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { microLabel, Dialog, fmtDate, fmtWeekday } from "@/components/studio2/ui";
+import OperationsDashboard from "@/components/studio2/OperationsDashboard";
+import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import {
@@ -48,6 +50,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
   const [tab, setTab] = useState("schedule");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const level = useAnalyticsLevel();
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/operations`, { cache: "no-store" });
@@ -134,6 +137,13 @@ export default function StudioOperations({ slug, view = "operations" }) {
   return (
     <div className="space-y-6">
       {banner}
+
+      {/* The Operations dashboard — locations, permits and shifts summarised —
+          sits above the working screen the way Finance's does. It answers to the
+          same right that gated this screen (operations.dashboard.view), so if we
+          are here it is ours to see. */}
+      <OperationsDashboard locations={locations} permits={permits} shifts={shifts}
+        window={window} summary={summary} windowDays={vocabulary.expiryWindowDays} level={level} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">

@@ -6,9 +6,11 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Field } from "@/components/fields/Field";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
+import InventoryDashboard from "@/components/studio2/InventoryDashboard";
+import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import {
   panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
-  money, fmtDate, fmtDateTime, Dialog, Toolbar, Empty, StatTile,
+  money, fmtDate, fmtDateTime, Dialog, Toolbar, Empty,
 } from "@/components/studio2/ui";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { parseAwb, formatAwb } from "@/modules/inventory/awb";
@@ -49,6 +51,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const level = useAnalyticsLevel();
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/inventory`, { cache: "no-store" });
@@ -77,7 +80,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   const {
     canManage: canManageParent,
     canManageStock, canManageVendors, canManageItems, canManageSheets, canManageAwb,
-    vendors, items, movements, orders, deliveries, projects, shipments, airlines, summary, vocabulary, nav,
+    vendors, items, movements, orders, projects, shipments, airlines, summary, vocabulary, nav,
     currency: studioCurrency = "",
   } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN — here by the canManageX flag
@@ -113,8 +116,9 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   // redirect into whichever sub-section came first — and, being a place of its
   // own, a right of its own.
   if (data.canViewDashboard === false) return wrap(<Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />);
-  return wrap(<InventoryDashboard slug={slug} summary={summary} vendors={vendors} items={items}
-    orders={orders} deliveries={deliveries} shipments={shipments} nav={nav} />);
+  return wrap(<InventoryDashboard slug={slug} summary={summary} items={items}
+    orders={orders} movements={movements} nav={nav}
+    level={level} currency={studioCurrency} />);
 }
 
 function message(out) {
@@ -150,67 +154,6 @@ function message(out) {
   if (out.error === "project") return "Pick a project.";
   if (out.error === "nothing") return "Enter what actually arrived.";
   return "That didn't save.";
-}
-
-// ---- dashboard -------------------------------------------------------------
-function InventoryDashboard({ slug, summary, vendors, items, orders, deliveries, shipments, nav }) {
-  const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
-  const sections = [
-    { key: "inventory-items", label: "Registered Items", desc: "The catalogue, by vendor", icon: "services" },
-    { key: "inventory-stock", label: "Stock Management", desc: "What is held, and the ledger behind it", icon: "blueprint" },
-    { key: "inventory-vendors", label: "Vendors", desc: "Who you buy from, and what they supply", icon: "vendors" },
-    { key: "inventory-sheets", label: "Project Sheets", desc: "Ordered for and issued to each project", icon: "report" },
-    { key: "inventory-awb", label: "AWB Tracking", desc: "Air freight, by waybill", icon: "external" },
-  ];
-
-  return (
-    <>
-      <section className={panel}>
-        <h2 className={h2}>Inventory</h2>
-        <p className={sub}>Vendors, the catalogue, what is on the shelf, and what is still in the air.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatTile label="Vendors" value={vendors.length} href={href("inventory-vendors")} />
-          <StatTile label="Registered items" value={items.length} href={href("inventory-items")} />
-          <StatTile label="Units in stock" value={num(summary.units)} href={href("inventory-stock")} />
-          <StatTile label="Stock value" value={money(summary.value)} href={href("inventory-stock")} />
-        </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <StatTile label="Below reorder" value={num(summary.low)}
-            tone={summary.low > 0 ? "text-amber-700 dark:text-amber-300" : ""} href={href("inventory-stock")} />
-          <StatTile label="Orders awaiting" value={num(summary.awaiting)} href={href("inventory-sheets")} />
-          <StatTile label="In transit" value={num(summary.inTransit)} href={href("inventory-awb")} />
-        </div>
-      </section>
-
-      <section className={panel}>
-        <p className={microLabel}>Sections</p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {sections.map((s) => {
-            const to = href(s.key);
-            const body = (
-              <>
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
-                  <Icon name={s.icon} className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-display text-sm font-700 text-slate-900 dark:text-white">{s.label}</span>
-                  <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{s.desc}</span>
-                </span>
-              </>
-            );
-            const cls = "flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]";
-            return to ? (
-              <a key={s.key} href={to} className={`${cls} transition-colors hover:border-brand-500 dark:hover:border-brand-500/40`}>{body}</a>
-            ) : (
-              // No grant for that sub-section — the card still says what exists,
-              // it just doesn't pretend to be a way in.
-              <div key={s.key} className={`${cls} opacity-60`}>{body}</div>
-            );
-          })}
-        </div>
-      </section>
-    </>
-  );
 }
 
 // ---- registered items (the catalogue) --------------------------------------

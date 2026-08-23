@@ -11,16 +11,16 @@ import StudioDate from "@/components/fields/StudioDate";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
   panel, h2, sub, input, microLabel, label, btn, btnGhost, btnAmber, th, stripeOn, stripeOff,
-  URGENCY_BADGE, URGENCY_TONE, URGENCY_DOT, money, fmtDate, prefKey, loadPref, savePref,
-  Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty, StatTile,
-  WidgetTitle, FunnelChart, BarBreakdown,
+  URGENCY_BADGE, URGENCY_TONE, money, fmtDate, prefKey, loadPref, savePref,
+  Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
 import { linkToClient } from "@/modules/main/studioLinks";
 import { COUNTRIES } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
-import { salesFunnel, probabilityBuckets, atRiskTickets, rfqInfo, isUnresolved } from "@/modules/sales/salesAnalytics";
-import { daysUntil } from "@/modules/projects/sla";
+import { rfqInfo, isUnresolved } from "@/modules/sales/salesAnalytics";
+import SalesDashboard from "@/components/studio2/SalesDashboard";
+import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 
 // Sales: clients and the tickets raised against them. Read access shows
 // everything; the Manage grant is what reveals the create/edit controls — and
@@ -79,6 +79,7 @@ export default function StudioSales({ slug, view = "sales" }) {
   const [data, setData] = useState(null);
   const focusTicket = useFocusedRecord("ticket");
   const focusClient = useFocusedRecord("client");
+  const level = useAnalyticsLevel();
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(null); // {kind:'client'|'ticket', row}
   // Stable, so the dialog's key/scroll-lock effect binds once instead of on
@@ -234,32 +235,18 @@ export default function StudioSales({ slug, view = "sales" }) {
       {banner}
       {data.canViewDashboard === false
         ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
-        : <SalesDashboard slug={slug} tickets={tickets} clients={clients} people={people} nav={nav} />}
+        : <SalesOverview slug={slug} tickets={tickets} clients={clients} people={people} nav={nav} level={level} />}
     </div>
   );
 }
 
 // ---- dashboard -------------------------------------------------------------
-// Opportunities, leads and tickets across the sales team: the aggregates first,
-// then the whole list, then the pipeline analytics underneath.
-function SalesDashboard({ slug, tickets, clients, people, nav }) {
+// The department overview: the header, then the analytics dashboard (KPIs and
+// widgets, in SalesDashboard), then the live view and the full ticket list.
+// The dashboard itself is presentational and paid-rung-gated; this wrapper only
+// supplies it the ticket list the screen already holds and the studio's rung.
+function SalesOverview({ slug, tickets, clients, people, nav, level }) {
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
-
-  const stats = useMemo(() => ({
-    leads: tickets.filter((t) => t.status === "Lead").length,
-    opportunities: tickets.filter((t) => t.status === "Opportunity").length,
-    // Every "+ another RFQ" counts, not one per ticket — this is how much work
-    // Sales has actually handed over.
-    rfqRequested: tickets.reduce((a, t) => a + (t.rfqCount || 0), 0),
-    pipelineValue: tickets.reduce((a, t) => a + (Number(t.value) || 0), 0),
-  }), [tickets]);
-
-  const tiles = [
-    { label: "Leads", value: stats.leads, key: "sales-tickets" },
-    { label: "Opportunities", value: stats.opportunities, key: "sales-tickets" },
-    { label: "RFQ requested", value: stats.rfqRequested, key: "sales-tickets" },
-    { label: "Pipeline value", value: money(stats.pipelineValue), key: "sales-tickets" },
-  ];
 
   const recent = useMemo(
     () => [...tickets].sort((a, b) => (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || "")),
@@ -271,12 +258,9 @@ function SalesDashboard({ slug, tickets, clients, people, nav }) {
       <section className={panel}>
         <h2 className={h2}>Sales</h2>
         <p className={sub}>Opportunities, leads and tickets across the sales team. {clients.length} client{clients.length === 1 ? "" : "s"} on file.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {tiles.map((t) => (
-            <StatTile key={t.label} label={t.label} value={t.value} href={nav?.[t.key] ? `/${slug}/${t.key}` : ""} />
-          ))}
-        </div>
       </section>
+
+      <SalesDashboard tickets={tickets} level={level} slug={slug} nav={nav} />
 
       {/* Live view — a full-screen, auto-refreshing tickets table. Its columns
           are a shared setting configured in Sales → Settings. */}
@@ -331,77 +315,6 @@ function SalesDashboard({ slug, tickets, clients, people, nav }) {
                 })}
               </tbody>
             </table>
-          </div>
-        )}
-      </section>
-
-      <SalesAnalytics slug={slug} tickets={tickets} nav={nav} />
-    </>
-  );
-}
-
-// Pipeline analytics: the funnel, a probability-weighted forecast, and what is
-// about to go wrong.
-function SalesAnalytics({ slug, tickets, nav }) {
-  const funnel = useMemo(() => salesFunnel(tickets), [tickets]);
-  const buckets = useMemo(() => probabilityBuckets(tickets), [tickets]);
-  const atRisk = useMemo(() => atRiskTickets(tickets, 14), [tickets]);
-  const forecast = useMemo(() => buckets.reduce((a, b) => a + b.weighted, 0), [buckets]);
-
-  return (
-    <>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className={panel}>
-          <WidgetTitle hint="Distinct tickets that reached each stage">Sales funnel</WidgetTitle>
-          <FunnelChart data={funnel} />
-        </section>
-
-        <section className={panel}>
-          <WidgetTitle hint={`Weighted forecast (value × probability): ${money(forecast)}`}>Probability forecast</WidgetTitle>
-          <BarBreakdown data={buckets.map((b) => ({ label: b.label, value: b.count }))} />
-          <div className="mt-3 space-y-1 border-t border-slate-100 pt-3 dark:border-white/10">
-            {buckets.map((b) => (
-              <div key={b.label} className="flex items-center justify-between gap-3 text-xs">
-                <span className="text-slate-500 dark:text-slate-400">{b.label}</span>
-                <span className="text-slate-400 dark:text-slate-500">
-                  <span className="font-600 tabular-nums text-slate-600 dark:text-slate-300">{money(b.value)}</span> pipeline ·{" "}
-                  <span className="font-600 tabular-nums text-emerald-600 dark:text-emerald-400">{money(b.weighted)}</span> weighted
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <section className={panel}>
-        <WidgetTitle hint="Open tickets due within 14 days or flagged High/Critical">At-risk tickets</WidgetTitle>
-        {atRisk.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">Nothing at risk — all clear.</p>
-        ) : (
-          <ul className="divide-y divide-slate-100 dark:divide-white/5">
-            {atRisk.slice(0, 8).map((t) => {
-              const d = t.deadline ? daysUntil(t.deadline) : null;
-              const overdue = d !== null && d < 0;
-              return (
-                <li key={t.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${URGENCY_DOT[t.urgency] || URGENCY_DOT.Normal}`} title={t.urgency || "Normal"} />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-600 text-slate-900 dark:text-white">{t.title}</p>
-                      <p className="truncate text-xs text-slate-400 dark:text-slate-500">{t.clientName || "—"} · {t.status}</p>
-                    </div>
-                  </div>
-                  <span className={`shrink-0 text-xs font-600 ${overdue ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
-                    {d === null ? "No date" : overdue ? `${Math.abs(d)}d overdue` : `${d}d left`}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {nav?.["sales-tickets"] && (
-          <div className="mt-3 text-end">
-            <a href={`/${slug}/sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">Open tickets →</a>
           </div>
         )}
       </section>
