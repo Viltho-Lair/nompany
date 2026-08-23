@@ -307,6 +307,28 @@
   transform: translate(-50%, -50%);
 }
 
+/* THE DASHBOARD ENTRANCE. A data-dense dashboard reads better when its cards
+   ARRIVE in order rather than snapping in all at once — the same "everything
+   into one ordered surface" the product is about. Library-free (the studio's
+   chunk is fenced from motion/react): a CSS rise with a per-child delay, so it
+   works on the server-rendered widgets and needs no JS. A rise, not a slide, so
+   it means the same in Arabic. Reduced motion turns it off below. */
+.dash-stagger > * {
+  animation: dash-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.dash-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.dash-stagger > *:nth-child(2) { animation-delay: 55ms; }
+.dash-stagger > *:nth-child(3) { animation-delay: 110ms; }
+.dash-stagger > *:nth-child(4) { animation-delay: 165ms; }
+.dash-stagger > *:nth-child(5) { animation-delay: 220ms; }
+.dash-stagger > *:nth-child(6) { animation-delay: 275ms; }
+.dash-stagger > *:nth-child(7) { animation-delay: 330ms; }
+.dash-stagger > *:nth-child(n+8) { animation-delay: 385ms; }
+@keyframes dash-rise {
+  from { opacity: 0; transform: translateY(0.75rem); }
+  to { opacity: 1; transform: none; }
+}
+
 /* THE AUTH STEP TRANSITION. The credentials panel and the one-time-code panel
    are the same card showing two steps; keying each with its stage and playing
    this on mount makes the second factor read as stepping FORWARD rather than the
@@ -327,6 +349,7 @@
   .animate-pulseRing,
   .animate-fadeUp,
   .auth-panel { animation: none !important; }
+  .dash-stagger > * { animation: none !important; }
   /* The skeleton keeps its box and its tone and simply stops sweeping — a still
      placeholder is the point; the shimmer was only ever a hint that the wait is
      still going. */

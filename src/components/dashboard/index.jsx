@@ -14,7 +14,7 @@ export { StatTile, WidgetTitle };
 // lays the tracks.
 export function DashGrid({ children, className = "" }) {
   return (
-    <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${className}`}>
+    <div className={`dash-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${className}`}>
       {children}
     </div>
   );
@@ -24,7 +24,7 @@ export function DashGrid({ children, className = "" }) {
 // detail, which is how a dashboard is read.
 export function StatRow({ children, className = "" }) {
   return (
-    <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-4 ${className}`}>
+    <div className={`dash-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4 ${className}`}>
       {children}
     </div>
   );
