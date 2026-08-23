@@ -25,6 +25,12 @@ import { listAssets } from "@/modules/finance/assets";
 import { hrContext, listVacations, listEmployees } from "@/modules/hr/hr";
 import { tasksContext, listTasks } from "@/modules/tasks/tasks";
 import { salesContext, listTickets, listClients } from "@/modules/sales/sales";
+import { technicalContext, listRfqs, listQuotations } from "@/modules/technical/technical";
+import { projectsContext, listProjects, listSlas, listOvertimes } from "@/modules/projects/projects";
+import { inventoryContext, listItems, listVendors, listOrders } from "@/modules/inventory/inventory";
+import { listShipments } from "@/modules/inventory/awbTracking";
+import { operationsContext, listPermits, listShifts } from "@/modules/operations/operations";
+import { mainContext, headlines } from "@/modules/main/main";
 import { listForCollaborator } from "@/platform/notify/notifications";
 
 // A tool result should be small enough to reason over, not a data dump. Lists
@@ -164,6 +170,136 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
       const denied = requirePermission(ctx.access, "sales.clients.view");
       if (refusal(denied)) return denied;
       return capped(await listClients(ctx));
+    },
+  },
+  "read.technical.rfqs": {
+    description: "List RFQs (requests for quotation) with status and the ticket they belong to.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await technicalContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "technical.rfq.view");
+      if (refusal(denied)) return denied;
+      return capped(await listRfqs(ctx));
+    },
+  },
+  "read.technical.quotations": {
+    description: "List internal quotations with number, status, value and who handles each.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await technicalContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "technical.quotations.view");
+      if (refusal(denied)) return denied;
+      return capped(await listQuotations(ctx));
+    },
+  },
+  "read.projects.list": {
+    description: "List projects with stage, progress, manager and the ticket they came from.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await projectsContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "projects.list.view");
+      if (refusal(denied)) return denied;
+      return capped(await listProjects(ctx));
+    },
+  },
+  "read.projects.slas": {
+    description: "List SLA support contracts with their visits and duration.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await projectsContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "projects.sla.view");
+      if (refusal(denied)) return denied;
+      return capped(await listSlas(ctx));
+    },
+  },
+  "read.projects.overtimes": {
+    description: "List logged overtime with date, hours and the people on it.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await projectsContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "projects.overtimes.view");
+      if (refusal(denied)) return denied;
+      return capped(await listOvertimes(ctx));
+    },
+  },
+  "read.inventory.items": {
+    description: "List registered stock items with on-hand quantity and whether each is below its reorder level.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await inventoryContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "inventory.items.view");
+      if (refusal(denied)) return denied;
+      return capped(await listItems(ctx));
+    },
+  },
+  "read.inventory.vendors": {
+    description: "List suppliers with their contact details.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await inventoryContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "inventory.vendors.view");
+      if (refusal(denied)) return denied;
+      return capped(await listVendors(ctx));
+    },
+  },
+  "read.inventory.orders": {
+    description: "List purchase / material orders with vendor, status and what is outstanding.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await inventoryContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "inventory.stock.view");
+      if (refusal(denied)) return denied;
+      return capped(await listOrders(ctx));
+    },
+  },
+  "read.inventory.awb": {
+    description: "List air-waybill shipments with carrier, status and tracking.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await inventoryContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "inventory.awb.view");
+      if (refusal(denied)) return denied;
+      return capped(await listShipments(ctx));
+    },
+  },
+  "read.operations.permits": {
+    description: "List permits with type, validity state and days until each expires.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await operationsContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "operations.tracking.view");
+      if (refusal(denied)) return denied;
+      return capped(await listPermits(ctx));
+    },
+  },
+  "read.operations.shifts": {
+    description: "List scheduled shifts with date, location and who is on each.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await operationsContext(user, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      const denied = requirePermission(ctx.access, "operations.tracking.view");
+      if (refusal(denied)) return denied;
+      return capped(await listShifts(ctx));
+    },
+  },
+  "read.main.home": {
+    description: "The studio home headlines — open tickets, low stock, permits expiring, headcount, outstanding money, tasks awaiting the user. Each figure is only present if the user may see that department.",
+    inputSchema: NO_INPUT,
+    run: async (user, slug) => {
+      const ctx = await mainContext(user as { id?: unknown }, slug);
+      if ("error" in ctx) return { error: ctx.error };
+      return headlines(ctx);   // self-gates per figure; no leaf key
     },
   },
   "read.notifications": {
