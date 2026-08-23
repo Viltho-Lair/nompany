@@ -9,6 +9,7 @@ import { parsePhone } from "@/shared/countries";
 import LangMenu from "@/components/LangMenu";
 import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
+import { NOVA_PROVIDERS, providerMeta } from "@/lib/nova/providers";
 
 // The account hub, laid out like the Google Account console:
 //   • brand mark top-left, ABOVE the fixed sidebar
@@ -649,13 +650,14 @@ function PersonalInfo({ identity, onSaved }) {
   // only whether one is set — and saving it sends only the key, never the rest
   // of the form. The server encrypts it; Nova decrypts it to answer as this user.
   const keySet = Boolean(profile.novaKeySet);
+  const [provider, setProvider] = useState(profile.novaProvider || "anthropic");
   const [novaKey, setNovaKey] = useState("");
   const [keyBusy, setKeyBusy] = useState(false);
   const [keyMsg, setKeyMsg] = useState("");
   async function saveKey(value) {
     setKeyBusy(true); setKeyMsg("");
     const res = await fetch("/api/identity/profile", {
-      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ novaKey: value }),
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ novaProvider: provider, novaKey: value }),
     });
     setKeyBusy(false);
     if (res.ok) { setNovaKey(""); setKeyMsg(value ? "Key saved." : "Key removed."); onSaved(); }
@@ -717,14 +719,23 @@ function PersonalInfo({ identity, onSaved }) {
             </button>
           )}
         </div>
-        <div className="mt-3 flex gap-2">
+        {/* Which AI you subscribe to, then the key for it. Nova talks to whichever
+            you pick — Claude, ChatGPT or Gemini. */}
+        <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,11rem)_1fr_auto]">
+          <select
+            value={provider}
+            onChange={(e) => { setProvider(e.target.value); setKeyMsg(""); }}
+            className={cn(INPUT, "text-sm")}
+          >
+            {NOVA_PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
           <input
             type="password"
             value={novaKey}
             onChange={(e) => { setNovaKey(e.target.value); setKeyMsg(""); }}
-            placeholder={keySet ? "Paste a new key to replace it" : "sk-ant-…"}
+            placeholder={keySet ? "Paste a new key to replace it" : providerMeta(provider).keyHint}
             autoComplete="off"
-            className={cn(INPUT, "flex-1 font-mono text-xs")}
+            className={cn(INPUT, "font-mono text-xs")}
           />
           <button type="button" onClick={() => saveKey(novaKey.trim())} disabled={keyBusy || !novaKey.trim()}
             className="shrink-0 rounded-lg bg-brand-600 px-3 py-2 text-sm font-500 text-white disabled:opacity-50">
@@ -733,7 +744,7 @@ function PersonalInfo({ identity, onSaved }) {
         </div>
         {keyMsg && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{keyMsg}</p>}
         <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          Get a key at console.anthropic.com → API Keys. It&apos;s stored encrypted and never shown again.
+          Get a key at {providerMeta(provider).docs}. It&apos;s stored encrypted and never shown again.
         </p>
       </div>
 

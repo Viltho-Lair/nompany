@@ -1,76 +1,68 @@
-// THE PROVIDER, AND THE TOOL LOOP. Nova is Claude with a set of tools; this is
-// the thin layer over @anthropic-ai/sdk that runs the loop — call the model,
-// run any tool it asks for, feed the result back, repeat until it answers or the
-// turn cap is hit.
+// THE TOOL LOOP, PROVIDER-NEUTRAL. Nova runs on whichever AI the person brought
+// a key for — Claude, ChatGPT or Gemini — so the loop is described once in a
+// neutral shape and each provider has a small adapter that speaks its own
+// dialect. The dialects differ (Anthropic's tool_use blocks, OpenAI's
+// tool_calls, Gemini's functionCall), but the shape is the same: call the model,
+// run any tool it asks for in THIS user's context, feed the result back, repeat
+// until it answers or the turn cap is hit.
 //
-// CONFIGURED-OR-NOT is a first-class state. With no ANTHROPIC_API_KEY the app
-// still builds and runs; `novaConfigured()` is false and the endpoint says so
-// cleanly rather than throwing. Live activation is the one env var — nothing
-// here fails a build or a test that has no key.
-//
-// Every tool runs in the ASKING user's context (the executor is supplied by the
-// caller), so this file never touches studio data itself; it only shuttles tool
-// calls and results between the model and that executor.
+// The chosen adapter is dynamic-imported, so a request only ever loads the one
+// SDK it needs rather than all three.
 
-import Anthropic from "@anthropic-ai/sdk";
+import { providerMeta } from "@/lib/nova/providers";
 
-export const NOVA_MODEL = process.env.NOVA_MODEL || "claude-sonnet-5";
 export const NOVA_MAX_TURNS = Math.max(1, Number(process.env.NOVA_MAX_TURNS || 6));
-const MAX_TOKENS = 1024;
+
+// The neutral tool a capability becomes: a name, a description, and a JSON-schema
+// for its input. Every provider accepts JSON schema for tool parameters, so this
+// crosses all three unchanged.
+export type NeutralTool = { name: string; description: string; parameters: Record<string, unknown> };
+export type NeutralMessage = { role: "user" | "assistant"; content: string };
+
+export type RunArgs = {
+  apiKey: string;
+  model: string;
+  system: string;
+  messages: NeutralMessage[];
+  tools: NeutralTool[];
+  execute: (name: string, input: unknown) => Promise<unknown>;
+  maxTurns: number;
+};
 
 export type NovaToolResult = { text: string; usedTools: string[] };
+export type ProviderRunner = (args: RunArgs) => Promise<NovaToolResult>;
 
 /**
- * Run the assistant loop with THIS USER's key. Nova reads each person's own AI
- * key from their account settings, so `apiKey` is theirs and the model call is
- * billed to their subscription — there is no global key. `execute(name, input)`
- * runs one tool in the user's context; a throw becomes a tool error the model
- * can read, never a crash. Bounded by NOVA_MAX_TURNS.
+ * Run Nova with a person's own provider and key. `model` defaults to the
+ * provider's default when not given. `execute(name, input)` runs one tool in the
+ * user's context; a throw inside a tool becomes an error the model can read,
+ * never a crash.
  */
 export async function runNova(opts: {
+  provider: string;
   apiKey: string;
+  model?: string;
   system: string;
-  messages: Anthropic.MessageParam[];
-  tools: Anthropic.Tool[];
+  messages: NeutralMessage[];
+  tools: NeutralTool[];
   execute: (name: string, input: unknown) => Promise<unknown>;
 }): Promise<NovaToolResult> {
-  const client = new Anthropic({ apiKey: opts.apiKey });
-  const convo: Anthropic.MessageParam[] = [...opts.messages];
-  const usedTools: string[] = [];
+  const meta = providerMeta(opts.provider);
+  const args: RunArgs = {
+    apiKey: opts.apiKey,
+    model: opts.model || meta.defaultModel,
+    system: opts.system,
+    messages: opts.messages,
+    tools: opts.tools,
+    execute: opts.execute,
+    maxTurns: NOVA_MAX_TURNS,
+  };
 
-  for (let turn = 0; turn < NOVA_MAX_TURNS; turn++) {
-    const res = await client.messages.create({
-      model: NOVA_MODEL,
-      max_tokens: MAX_TOKENS,
-      system: opts.system,
-      tools: opts.tools,
-      messages: convo,
-    });
+  // Only the chosen provider's SDK is loaded.
+  let run: ProviderRunner;
+  if (meta.id === "openai") run = (await import("./providers/openai")).run;
+  else if (meta.id === "google") run = (await import("./providers/google")).run;
+  else run = (await import("./providers/anthropic")).run;
 
-    const toolUses = res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
-    if (!toolUses.length) {
-      const text = res.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("");
-      return { text, usedTools };
-    }
-
-    // Record the model's turn, then answer every tool it asked for.
-    convo.push({ role: "assistant", content: res.content });
-    const results: Anthropic.ToolResultBlockParam[] = [];
-    for (const tu of toolUses) {
-      usedTools.push(tu.name);
-      let content: string;
-      try {
-        content = JSON.stringify(await opts.execute(tu.name, tu.input)) || "null";
-      } catch (e) {
-        content = JSON.stringify({ error: e instanceof Error ? e.message : "tool failed" });
-      }
-      results.push({ type: "tool_result", tool_use_id: tu.id, content });
-    }
-    convo.push({ role: "user", content: results });
-  }
-
-  return { text: "I couldn't finish that within a few steps — try narrowing the question.", usedTools };
+  return run(args);
 }

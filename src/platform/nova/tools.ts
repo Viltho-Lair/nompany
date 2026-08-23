@@ -13,7 +13,7 @@
 // the three is simply absent from the toolset, so the model cannot call it —
 // enforcement is structural, not a matter of prompt.
 
-import type Anthropic from "@anthropic-ai/sdk";
+import type { NeutralTool } from "@/platform/nova/client";
 import { requirePermission, can } from "@/platform/access";
 import type { PermissionSet, PermissionKey } from "@/platform/access";
 import { enabledCapabilities, type NovaConfig, type NovaCapability } from "@/lib/nova/capabilities";
@@ -35,11 +35,13 @@ function capped<T>(rows: T[], limit = 50): { count: number; shown: number; items
   return { count: rows.length, shown: items.length, items };
 }
 
-const NO_INPUT: Anthropic.Tool.InputSchema = { type: "object", properties: {} };
+// JSON schema, which every provider accepts for a tool's input. An empty object
+// schema is "no arguments".
+const NO_INPUT: Record<string, unknown> = { type: "object", properties: {} };
 
 type ToolImpl = {
   description: string;
-  inputSchema: Anthropic.Tool.InputSchema;
+  inputSchema: Record<string, unknown>;
   run: (user: unknown, slug: string) => Promise<unknown>;
 };
 
@@ -185,7 +187,7 @@ const toolName = (capKey: string) => capKey.replace(/\./g, "__");
  * in front of the model, so it cannot be asked for.
  */
 export function buildToolset(config: NovaConfig | null | undefined, access: PermissionSet) {
-  const tools: Anthropic.Tool[] = [];
+  const tools: NeutralTool[] = [];
   const byName = new Map<string, NovaCapability>();
 
   for (const cap of enabledCapabilities(config)) {
@@ -193,7 +195,7 @@ export function buildToolset(config: NovaConfig | null | undefined, access: Perm
     if (!impl) continue;                                  // not mapped yet
     if (cap.permissionKey && !can(access, cap.permissionKey as PermissionKey)) continue;  // not permitted
     const name = toolName(cap.key);
-    tools.push({ name, description: impl.description, input_schema: impl.inputSchema });
+    tools.push({ name, description: impl.description, parameters: impl.inputSchema });
     byName.set(name, cap);
   }
 

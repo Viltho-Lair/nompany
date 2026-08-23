@@ -29,6 +29,7 @@ import {
 } from "./otp";
 import { hashPassword, verifyPassword, generatePassword, needsRehash } from "./passwords";
 import { encryptField } from "./fieldCrypto";
+import { cleanProvider } from "@/lib/nova/providers";
 import {
   checkCredentialAttempts, recordCredentialFailure, clearCredentialFailures,
 } from "./attempts";
@@ -562,6 +563,9 @@ export async function savePersonalInfo(userId: string, patch: Record<string, unk
     const k = String(patch.novaKey || "").trim();
     clean.novaKey = k ? encryptField(k) : "";   // "" clears it
   }
+  // Which AI the key is for — Claude, ChatGPT, Gemini. Plain (not a secret),
+  // validated to a real provider so a bad body cannot point Nova at nothing.
+  if (patch.novaProvider !== undefined) clean.novaProvider = cleanProvider(patch.novaProvider);
   if (!Object.keys(clean).length) return { error: "missing" };
   return { profile: await updateProfile(userId, clean) };
 }

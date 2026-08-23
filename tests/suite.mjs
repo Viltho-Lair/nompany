@@ -1150,7 +1150,7 @@ console.log("\n== Nova's toolset is enabled ∩ mapped ∩ permitted — never m
   const { tools } = buildToolset({ enabled: {} }, cashOnly);
   const names = new Set(tools.map((t) => t.name));
   ok("a permitted, mapped, enabled read is offered", names.has("read__finance__invoices"), [...names].join(", "));
-  ok("...and its input schema is well-formed", tools.every((t) => t.input_schema && t.input_schema.type === "object"), "schema");
+  ok("...and its input schema is well-formed", tools.every((t) => t.parameters && t.parameters.type === "object"), "schema");
   ok("a membership-only read (notifications) is always offered", names.has("read__notifications"), [...names].join(", "));
   ok("a read the user is NOT permitted for is withheld", !names.has("read__finance__bills") && !names.has("read__hr__my-leave"), [...names].join(", "));
 
