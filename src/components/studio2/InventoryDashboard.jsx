@@ -7,17 +7,17 @@
 // and nothing is invented: a widget with no data behind it says so rather than
 // drawing an empty frame.
 //
-// ANALYTICS IS PAID, so each widget names the rung it belongs to and a studio
-// below that rung sees the locked teaser instead of the number — the gate lives
-// in `analyticsAllows`, the tiers in the catalogue. The free floor gets the KPI
-// row; the breakdowns are simple, the value-weighted views moderate.
+// ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
+// `useWidgetVisible()` answers whether this studio's tier includes a given widget
+// key, and a widget it does not sees the locked teaser instead of the number. The
+// free floor gets the KPI row; each gated widget carries its registry key.
 
 import { money, StatTile, h2, sub, microLabel, fmtDate } from "@/components/studio2/ui";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { BarList, Donut } from "@/components/charts";
 import { CurrencySymbol } from "@/components/Currency";
 import { Icon } from "@/components/studio2/icons";
-import { analyticsAllows } from "@/lib/analytics";
+import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 // Quantities are counts, not money — three decimals at most, no forced pair.
 const qty = (n) => new Intl.NumberFormat("en", { maximumFractionDigits: 3 }).format(Number(n) || 0);
@@ -107,10 +107,10 @@ function derive({ items, orders }) {
 
 export default function InventoryDashboard({
   slug, summary, items = [], orders = [], movements = [], nav,
-  level = "basic", currency = "",
+  currency = "",
 }) {
   const d = derive({ items, orders });
-  const can = (rung) => analyticsAllows(level, rung);
+  const visible = useWidgetVisible();
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
   const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;
 
@@ -143,7 +143,7 @@ export default function InventoryDashboard({
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Below reorder level" hint="On hand against the level it should sit at" locked={!can("simple")} lockedWhat="Below-reorder items">
+        <Widget title="Below reorder level" hint="On hand against the level it should sit at" locked={!visible("inventory.below-reorder")} lockedWhat="Below-reorder items">
           {d.below.length ? (
             <BarList items={d.below.slice(0, 8).map((b) => ({
               label: b.name,
@@ -154,7 +154,7 @@ export default function InventoryDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">Nothing below reorder level.</p>}
         </Widget>
 
-        <Widget title="Purchase orders by status" hint="Where every order stands" locked={!can("simple")} lockedWhat="Order status breakdown">
+        <Widget title="Purchase orders by status" hint="Where every order stands" locked={!visible("inventory.orders-by-status")} lockedWhat="Order status breakdown">
           {d.poTotal ? (
             <div className="flex flex-wrap items-center justify-center gap-5 py-2">
               <Donut size={168} data={d.statusSlices.map((s) => ({ label: s.label, value: s.value, color: s.color }))}
@@ -172,7 +172,7 @@ export default function InventoryDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">No purchase orders yet.</p>}
         </Widget>
 
-        <Widget title="Spend by vendor" hint="Committed on ordered, partly-received and received POs" locked={!can("simple")} lockedWhat="Spend by vendor">
+        <Widget title="Spend by vendor" hint="Committed on ordered, partly-received and received POs" locked={!visible("inventory.spend-by-vendor")} lockedWhat="Spend by vendor">
           {d.spend.length ? (
             <BarList items={d.spend.slice(0, 8).map((v) => ({
               label: v.name,
@@ -183,7 +183,7 @@ export default function InventoryDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Stock value by vendor" hint="On-hand quantity valued at unit cost" locked={!can("moderate")} lockedWhat="Stock value by vendor">
+        <Widget title="Stock value by vendor" hint="On-hand quantity valued at unit cost" locked={!visible("inventory.stock-value-by-vendor")} lockedWhat="Stock value by vendor">
           {d.stockVendor.length ? (
             <BarList items={d.stockVendor.slice(0, 8).map((v) => ({
               label: v.name,
@@ -193,7 +193,7 @@ export default function InventoryDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">No stock value yet.</p>}
         </Widget>
 
-        <Widget title="Outstanding on order" hint="Value still expected to arrive, by order" locked={!can("moderate")} lockedWhat="Outstanding order value">
+        <Widget title="Outstanding on order" hint="Value still expected to arrive, by order" locked={!visible("inventory.outstanding-on-order")} lockedWhat="Outstanding order value">
           {d.outstandingByOrder.length ? (
             <>
               <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">{amt(d.outstandingValue)} outstanding across {d.outstandingByOrder.length} order{d.outstandingByOrder.length === 1 ? "" : "s"}.</p>
@@ -206,7 +206,7 @@ export default function InventoryDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">Nothing outstanding on order.</p>}
         </Widget>
 
-        <Widget title="Recent stock movements" hint="The latest of the ledger" locked={!can("moderate")} lockedWhat="Recent movements">
+        <Widget title="Recent stock movements" hint="The latest of the ledger" locked={!visible("inventory.recent-movements")} lockedWhat="Recent movements">
           {recent.length ? (
             <ul className="divide-y divide-slate-100 dark:divide-white/5">
               {recent.map((m) => (

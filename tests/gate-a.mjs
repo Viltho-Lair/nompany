@@ -624,6 +624,31 @@ console.log("== the architecture, asserted rather than remembered");
     const unmapped = ALL_SECTION_KEYS.filter((k) => !SECTION_AREAS[k] && !HEADINGS.has(k));
     ok("every section key is gated by an area mapping (bar the home)", unmapped.length === 0, unmapped.join(", "));
   }
+
+  // ---- 9. the dashboard widget registry and the dashboards agree ----------
+  //
+  // A tier sells dashboards by SELECTION, and the selection is a set of widget
+  // KEYS (lib/dashboardWidgets). The editor offers those keys and the dashboards
+  // gate on them — but the key is a bare string in both places, so a rename on
+  // one side and not the other silently unlists a widget (it can never be sold)
+  // or strands a sold key (nothing draws it). Neither shows as a test failure
+  // anywhere else, because the fault is a string that matches nothing. This ties
+  // the two sides together: every key a dashboard gates on exists in the
+  // registry, and every registry key is gated by some dashboard.
+  {
+    const { DASHBOARD_WIDGETS, WIDGET_KEYS } = await import("@/lib/dashboardWidgets");
+    const dashDir = "src/components/studio2";
+    const referenced = new Set();
+    for (const f of readdirSync(dashDir).filter((n) => /Dashboard\.jsx$/.test(n))) {
+      const text = readFileSync(join(dashDir, f), "utf8");
+      for (const m of text.matchAll(/visible\(\s*["'`]([a-z0-9.\-]+)["'`]\s*\)/gi)) referenced.add(m[1]);
+    }
+    ok("the dashboards gate on widget keys", referenced.size > 0, String(referenced.size));
+    const unknown = [...referenced].filter((k) => !WIDGET_KEYS.has(k));
+    ok("every key a dashboard gates on is in the registry", unknown.length === 0, unknown.join(", "));
+    const unused = DASHBOARD_WIDGETS.map((w) => w.key).filter((k) => !referenced.has(k));
+    ok("every registry widget is gated by a dashboard", unused.length === 0, unused.join(", "));
+  }
 }
 
 // ============================================================================

@@ -72,6 +72,7 @@ import { arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix, 
 import { listBills, createBill, editBill, approveBill, recordBillPayment, removeBill } from "@/modules/finance/payables";
 import { depreciationOf, listAssets, createAsset, editAsset, disposeAsset } from "@/modules/finance/assets";
 import { analyticsLevelOf, analyticsAllows } from "@/lib/analytics";
+import { enabledWidgets, widgetsForRung, WIDGET_KEYS, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
 import { planOf } from "@/lib/plans";
 import { createCatalogItem, deleteCatalogItem, listCatalog } from "@/lib/data/catalog";
 import { inventoryContext, createItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
@@ -1094,6 +1095,47 @@ console.log("\n== a tier's analytics rung: explicit wins, else the name, else th
   ok("...and a bad rung falls to the floor, never an unlock", b?.analyticsLevel === "basic", JSON.stringify(b?.analyticsLevel));
   await deleteCatalogItem("tiers", good.id);
   await deleteCatalogItem("tiers", bad.id);
+}
+
+// ============================================================================
+console.log("\n== a tier selects dashboard components: switch + list, else the rung");
+// The model the console actually uses: a master switch and a per-component
+// selection. enabledWidgets resolves what a studio sees from the fields planOf
+// hands the client.
+{
+  const someKey = DASHBOARD_WIDGETS[0].key;
+  const anotherKey = DASHBOARD_WIDGETS.find((w) => w.section === "finance").key;
+
+  // Master switch off → nothing, whatever else is set.
+  ok("the switch off shows no analytics", enabledWidgets({ analyticsEnabled: false, dashboardWidgets: [someKey], analyticsLevel: "advanced" }).size === 0, "switch leaked");
+
+  // An explicit selection is exactly that set, and filters unknown keys.
+  const sel = enabledWidgets({ analyticsEnabled: true, dashboardWidgets: [someKey, anotherKey, "finance.not-a-widget"] });
+  ok("an explicit selection is exactly its valid keys", sel.size === 2 && sel.has(someKey) && sel.has(anotherKey) && !sel.has("finance.not-a-widget"), JSON.stringify([...sel]));
+
+  // An explicit EMPTY array is a real answer — on, nothing ticked → nothing.
+  ok("an explicit empty selection shows nothing", enabledWidgets({ analyticsEnabled: true, dashboardWidgets: [] }).size === 0, "empty leaked");
+
+  // No selection ever made → the rung fallback, so pre-selection tiers still light up.
+  const byRung = enabledWidgets({ analyticsEnabled: true, dashboardWidgets: null, analyticsLevel: "moderate" });
+  const expected = new Set(widgetsForRung("moderate"));
+  ok("no selection falls back to the rung's set", byRung.size === expected.size && [...byRung].every((k) => expected.has(k)), JSON.stringify({ got: byRung.size, want: expected.size }));
+  ok("...and the rung fallback is only registry keys", [...byRung].every((k) => WIDGET_KEYS.has(k)), "stray key");
+
+  // An undefined switch (an un-migrated tier) is treated as ON, so it keeps its rung set.
+  ok("an absent switch is on by default", enabledWidgets({ dashboardWidgets: null, analyticsLevel: "simple" }).size === widgetsForRung("simple").length, "default off");
+
+  // THE WRITE BOUNDARY stores the switch and whitelists the selection.
+  const t = await createCatalogItem("tiers", { name: "ZZ Test Selection Tier", analyticsEnabled: false, dashboardWidgets: [someKey, "bogus.key"] });
+  const stored = (await listCatalog("tiers")).find((x) => x.id === t.id);
+  ok("the tier stores the master switch", stored?.analyticsEnabled === false, JSON.stringify(stored?.analyticsEnabled));
+  ok("...and only real widget keys", Array.isArray(stored?.dashboardWidgets) && stored.dashboardWidgets.length === 1 && stored.dashboardWidgets[0] === someKey, JSON.stringify(stored?.dashboardWidgets));
+  // A tier with no selection stores no array, so it stays on the rung fallback.
+  const t2 = await createCatalogItem("tiers", { name: "ZZ Test No Selection Tier", analyticsLevel: "simple" });
+  const stored2 = (await listCatalog("tiers")).find((x) => x.id === t2.id);
+  ok("no selection is stored as absent, not empty", stored2?.dashboardWidgets === undefined, JSON.stringify(stored2?.dashboardWidgets));
+  await deleteCatalogItem("tiers", t.id);
+  await deleteCatalogItem("tiers", t2.id);
 }
 
 // ============================================================================

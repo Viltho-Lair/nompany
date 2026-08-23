@@ -46,12 +46,16 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     tierId: tier?.id || "",
     tierName: tier?.name || DEFAULT_TIER,
     tierColor: tier?.color || "",
-    // WHICH ANALYTICS RUNG THIS TIER BUYS. Analytics is sold, so a dashboard
-    // widget above the studio's rung shows as a locked teaser rather than the
-    // number. Resolved from the tier's explicit `analyticsLevel` when set (a
-    // future /super field), ELSE from the tier's NAME — a tier called
-    // "Advanced" IS the advanced rung — else the free "basic" floor. See
-    // analyticsLevelFromTier below.
+    // WHAT DASHBOARD ANALYTICS THIS TIER SELLS. A tier gates the dashboards by
+    // an explicit per-component SELECTION (see lib/dashboardWidgets), not just a
+    // rung. The client resolves the visible set from these three fields:
+    //   analyticsEnabled — the master switch; off means no analytics at all.
+    //   dashboardWidgets — the explicit selection, or null when none was made.
+    //   analyticsLevel   — the fallback rung a tier with no selection derives
+    //                      from (name-resolved here, so an "Advanced" tier still
+    //                      lights up without a migration).
+    analyticsEnabled: tier?.analyticsEnabled === undefined ? true : Boolean(tier.analyticsEnabled),
+    dashboardWidgets: Array.isArray(tier?.dashboardWidgets) ? (tier.dashboardWidgets as string[]) : null,
     analyticsLevel: analyticsLevelFromTier(tier),
   };
 }

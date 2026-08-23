@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardHead, CardBody, Table, Button, Badge, Icon } from "@/app/super/_components/ui";
 import { toneOf, normalizeColor, PRESETS, DEFAULT_HEX } from "@/lib/planColors";
+import { widgetsBySection, widgetsForRung } from "@/lib/dashboardWidgets";
+import { ANALYTICS_LEVELS } from "@/lib/analytics";
 
 // Packages and Tiers are the same screen with different fields, so they are one
 // component driven by a field list rather than two that drift apart. A row is
@@ -47,8 +49,28 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
     return true;
   }
 
+  // A field may declare its own `default` — the tiers' analytics switch defaults
+  // ON, unlike the generic switch which defaults off. Arrays stay type-derived so
+  // each blank gets a fresh one rather than a shared reference.
   const blank = Object.fromEntries(fields.map((f) => [f.key,
-    f.type === "switch" ? false : f.type === "services" ? [] : f.type === "color" ? DEFAULT_HEX : ""]));
+    f.type === "services" || f.type === "dashboard-widgets" ? []
+      : f.default !== undefined ? f.default
+      : f.type === "switch" ? false
+      : f.type === "color" ? DEFAULT_HEX : ""]));
+
+  // Opening an existing record for edit. For an older tier that never had an
+  // explicit component selection, seed the checklist from its stored rung
+  // (widgetsForRung) so the ticks show its current effective set and a plain
+  // "Save" doesn't silently wipe it to nothing. New records use `blank` directly.
+  function openEdit(it) {
+    const d = { ...blank, ...it };
+    for (const f of fields) {
+      if (f.type === "dashboard-widgets" && !Array.isArray(it[f.key])) {
+        d[f.key] = widgetsForRung(it.analyticsLevel || "basic");
+      }
+    }
+    return d;
+  }
 
   async function save() {
     const ok = draft.id ? await send("PUT", draft) : await send("POST", draft);
@@ -89,7 +111,7 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
                 <tr key={it.id}>
                   {listFields.map((f) => <td key={f.key}>{render(f, it, services)}</td>)}
                   <td className="text-end whitespace-nowrap">
-                    <Button variant="ghost" size="sm" onClick={() => setDraft({ ...blank, ...it })}>Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setDraft(openEdit(it))}>Edit</Button>
                     <Button variant="ghost" size="sm" onClick={() => send("DELETE", { id: it.id })} disabled={busy}>Delete</Button>
                   </td>
                 </tr>
@@ -105,7 +127,7 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
           <CardBody>
             <div className="grid gap-5 sm:grid-cols-2">
               {fields.filter((f) => visible(f, draft)).map((f) => (
-                <div key={f.key} className={["services", "lines", "categories"].includes(f.type) ? "sm:col-span-2" : ""}>
+                <div key={f.key} className={["services", "lines", "categories", "dashboard-widgets"].includes(f.type) ? "sm:col-span-2" : ""}>
                   <label className={label} htmlFor={`f-${f.key}`}>{f.label}</label>
                   {f.type === "switch" ? (
                     // A switch, not a checkbox: this is the one field that
@@ -128,6 +150,11 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
                       services={services || []}
                       picked={draft[f.key] || []}
                       onChange={(serviceIds) => setDraft((d) => ({ ...d, [f.key]: serviceIds }))}
+                    />
+                  ) : f.type === "dashboard-widgets" ? (
+                    <DashboardWidgetPicker
+                      picked={draft[f.key] || []}
+                      onChange={(keys) => setDraft((d) => ({ ...d, [f.key]: keys }))}
                     />
                   ) : f.type === "select" ? (
                     <select id={`f-${f.key}`} className={input}
@@ -224,6 +251,16 @@ function render(f, it, services) {
     if (!rows.length) return <span className="text-[var(--ad-muted-foreground)]">—</span>;
     return <span className="text-[var(--ad-muted-foreground)]">{rows.map((c) => c.label || `${c.minEmployees}-${c.maxEmployees}`).join(", ")}</span>;
   }
+  // Shown as a count, like lines/services — the raw key array is for the editor,
+  // not the scan. Absent (older tier) reads as its rung fallback rather than 0.
+  if (f.type === "dashboard-widgets") {
+    if (!Array.isArray(it[f.key])) {
+      const n = widgetsForRung(it.analyticsLevel || "basic").length;
+      return <span className="text-[var(--ad-muted-foreground)]">{n} components (by rung)</span>;
+    }
+    const n = it[f.key].length;
+    return <span className="text-[var(--ad-muted-foreground)]">{n} component{n === 1 ? "" : "s"}</span>;
+  }
   // A computed column reads the stored value like any other — the sum was done
   // when the record was saved, so the list is not recalculating anything.
   if (f.type === "computed") {
@@ -232,7 +269,10 @@ function render(f, it, services) {
   }
   const v = it[f.key];
   if (f.type === "switch") {
-    return <Badge tone={v ? "success" : "secondary"}>{v ? "Public" : "Hidden"}</Badge>;
+    // Labels default to Public/Hidden — the switch's original job — but a second
+    // switch on the same record (a tier's analytics toggle) reads wrong under
+    // that wording, so a field may name its own.
+    return <Badge tone={v ? "success" : "secondary"}>{v ? (f.onLabel || "Public") : (f.offLabel || "Hidden")}</Badge>;
   }
   if (f.type === "services") {
     const names = (v || []).map((id) => services?.find((s) => s.id === id)?.name).filter(Boolean);
@@ -332,6 +372,93 @@ function ServicePicker({ services, picked, onChange }) {
           >
             {s.name}
           </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// WHICH DASHBOARD COMPONENTS A TIER SELLS — the same pill toggles as the service
+// picker, but grouped by section and with two affordances the flat list needs:
+// per-section select-all/clear, and a "tick everything up to a rung" preset that
+// fills the checklist from widgetsForRung. The value is a flat array of widget
+// keys, which is exactly what the store whitelists.
+const RUNG_LABELS = { basic: "Basic", simple: "Simple", moderate: "Moderate", advanced: "Advanced" };
+
+function DashboardWidgetPicker({ picked, onChange }) {
+  const groups = widgetsBySection();
+  const set = new Set(picked);
+
+  const toggle = (key) => {
+    const next = new Set(picked);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    onChange([...next]);
+  };
+  const keysOf = (g) => g.widgets.map((w) => w.key);
+  const allOn = (g) => keysOf(g).every((k) => set.has(k));
+  const setSection = (g, on) => {
+    const next = new Set(picked);
+    for (const k of keysOf(g)) { if (on) next.add(k); else next.delete(k); }
+    onChange([...next]);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Preset row: fill the whole checklist from a rung, or empty it. A quick
+          way to say "everything a moderate tier used to get" without hunting. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="me-1 text-xs text-[var(--ad-muted-foreground)]">Tick up to a rung:</span>
+        {ANALYTICS_LEVELS.map((lvl) => (
+          <button
+            key={lvl} type="button" onClick={() => onChange(widgetsForRung(lvl))}
+            className="rounded-full border px-2.5 py-1 text-xs transition-colors"
+            style={{ borderColor: "var(--ad-border)" }}
+          >
+            {RUNG_LABELS[lvl] || lvl}
+          </button>
+        ))}
+        <button
+          type="button" onClick={() => onChange([])}
+          className="rounded-full border px-2.5 py-1 text-xs text-[var(--ad-muted-foreground)] transition-colors"
+          style={{ borderColor: "var(--ad-border)" }}
+        >
+          Clear all
+        </button>
+        <span className="ms-auto text-xs text-[var(--ad-muted-foreground)]">{set.size} selected</span>
+      </div>
+
+      {groups.map((g) => {
+        const on = allOn(g);
+        return (
+          <div key={g.section} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-600">{g.label}</h4>
+              <button
+                type="button" onClick={() => setSection(g, !on)}
+                className="text-xs text-[var(--ad-primary)] hover:underline"
+              >
+                {on ? "Clear" : "Select all"}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {g.widgets.map((w) => {
+                const picked1 = set.has(w.key);
+                return (
+                  <button
+                    key={w.key} type="button" aria-pressed={picked1}
+                    onClick={() => toggle(w.key)}
+                    className="rounded-full border px-3 py-1.5 text-sm transition-colors"
+                    style={{
+                      borderColor: picked1 ? "var(--ad-primary)" : "var(--ad-border)",
+                      backgroundColor: picked1 ? "color-mix(in oklab, var(--ad-primary) 12%, transparent)" : "transparent",
+                    }}
+                  >
+                    {w.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         );
       })}
     </div>

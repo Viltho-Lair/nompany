@@ -79,7 +79,7 @@ thirteen motion techniques.
 | **Chart kit** (`components/charts`) | ✅ done | Promoted to shared TS, `--chart-*` ramp on `:root`, direction-aware, server-rendered, no library |
 | **Motion primitives** (`components/motion`) | ✅ done | `Reveal`, `CountUp`, house curves — library-free, fenced from `motion/react` |
 | **`dashboard/` primitives** (Widget, StatRow, DashGrid, locked teaser) | ✅ done | `components/dashboard`, composing the existing StatTile/WidgetTitle + charts |
-| **analytics gating** (`analyticsLevelOf`, `analyticsAllows`) | ✅ done | `lib/analytics`, rungs basic/simple/moderate/advanced; tier carries `analyticsLevel` via planOf |
+| **analytics gating** (per-component selection) | ✅ done | A tier sells dashboards by SELECTION: a master switch (`analyticsEnabled`) + a per-section list of components (`dashboardWidgets`), authored in `/super → Tiers`. One shared registry (`lib/dashboardWidgets`, `DASHBOARD_WIDGETS`) is the source both the editor and every dashboard read; the gate is set-membership via `useWidgetVisible()`. The four rungs (`lib/analytics`) survive only as the fallback a tier with no explicit selection derives from (`enabledWidgets`), incl. the tier-NAME bridge in `planOf`. Gate A block 9 ties the registry to the dashboards. |
 | **Per-department dashboards** | 🟢 done for 7 | Finance, Sales, Technical, Projects, Inventory, HR, Operations — each a data-dense `<Dept>Dashboard` on real data with paid-rung locking. Tasks keeps its stats header; Main/custom sections still the placeholder |
 | **Technical & Sales dashboards** | ✅ done | Built on the existing `salesAnalytics`/`technicalAnalytics`, unused no more |
 | **Finance 1a dashboard** (AR aging, DSO, collection, income/expense, mix) | ✅ done | `FinanceDashboard`, wired into StudioFinance, on the Finance 1a analytics, with paid-rung locking via a shell context (no extra hops) |
@@ -150,12 +150,23 @@ confirmation.
 - Native controls Field doesn't model: identity-number lock inputs, file uploads,
   checkboxes/toggles, `type="time"` and `type="datetime-local"` inputs, one leftover
   `StudioSales` description textarea (line ~1095).
-- **Tiers now carry an analytics rung** — `/super` → Tiers has a "Dashboard analytics"
-  select (basic/simple/moderate/advanced), stored on the tier and read first by
-  `planOf`. As a bridge for tiers saved before the editor existed, `planOf` also
-  resolves the rung from the tier's NAME (a tier named "Advanced" grants the advanced
-  rung), so paid-rung locking is live now, not inert. **Check:** set a tier's rung in
-  the console and confirm a studio on it sees the matching widgets vs locked teasers.
+- **Tiers select dashboard components** — `/super` → Tiers has a master **"Dashboard
+  analytics" switch** plus, when it's on, a **per-section checklist of components**
+  (Sales, Technical, … Finance, Operations) with select-all/clear per section and a
+  "tick up to a rung" preset. A studio sees a component iff the switch is on and the
+  component is ticked; otherwise a locked teaser. Tiers saved before the checklist
+  pre-fill from their rung (or tier name) so nothing regresses. **Check:** with a tier
+  switched on and a few components ticked, confirm a studio on it shows exactly those
+  widgets and locked teasers for the rest; toggle the switch off and confirm all paid
+  widgets lock while the free KPI row stays.
+- **Editor judgement calls (confirm acceptable):** a NEW tier defaults switch-**on**
+  with an **empty** checklist (sells nothing until you tick — "basic" has no paid
+  widgets anyway); toggling the switch off then on **remembers** the prior selection;
+  section order is Sales→Operations (registry order), not the studio nav order; the
+  rung-preset row is the only place the old rung vocabulary still shows.
+- **Dead prop, follow-up chip open:** the 7 `Studio*` wrappers still pass a now-ignored
+  `level={level}` into their dashboards (harmless; `useAnalyticsLevel` is the migration
+  bridge). A spawned task removes it carefully (StudioSales also feeds SalesOverview).
 
 **Local dev note:** `RESEND_API_KEY` isn't in `.env.local`, so `localhost:3000` can't
 email OTPs/notifications — sign-in codes have to be read from Redis. Add the key to send

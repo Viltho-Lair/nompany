@@ -14,15 +14,15 @@
 // import the module. Everything the leave widgets need IS derived inline here,
 // from the vacations the screen already has.
 //
-// ANALYTICS IS PAID, so each widget names the rung it belongs to and a studio
-// below that rung sees the locked teaser instead of the number — the gate lives
-// in `analyticsAllows`, the tiers in the catalogue. The top StatRow is the free
-// floor everyone gets.
+// ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
+// `useWidgetVisible()` answers whether this studio's tier includes a given widget
+// key, and a widget it does not sees the locked teaser instead of the number. The
+// top StatRow is the free floor everyone gets.
 
 import { StatTile, fmtDate } from "@/components/studio2/ui";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { BarList, Donut } from "@/components/charts";
-import { analyticsAllows } from "@/lib/analytics";
+import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 // The leave palette maps a status to a slice colour once, so the donut and any
 // future legend cannot disagree about which hue "Pending" is.
@@ -54,11 +54,10 @@ export default function HrDashboard({
   expiring = [],
   vacations = [],
   windowDays = 60,
-  level = "basic",
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const to = nav?.["hr-employees"] ? `/${slug}/hr-employees` : "";
-  const can = (rung) => analyticsAllows(level, rung);
+  const visible = useWidgetVisible();
 
   // Currently away: an approved leave whose span brackets today. ISO date
   // strings compare correctly, so no Date object is needed to reason about it.
@@ -111,7 +110,7 @@ export default function HrDashboard({
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Headcount by department" hint="Where people sit" locked={!can("simple")} lockedWhat="Headcount by department">
+        <Widget title="Headcount by department" hint="Where people sit" locked={!visible("hr.headcount-by-dept")} lockedWhat="Headcount by department">
           {deptSlices.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={deptSlices}
@@ -120,7 +119,7 @@ export default function HrDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">Nobody placed in a department yet.</p>}
         </Widget>
 
-        <Widget title="Leave by type" hint="Requests by kind of leave" locked={!can("simple")} lockedWhat="Leave by type">
+        <Widget title="Leave by type" hint="Requests by kind of leave" locked={!visible("hr.leave-by-type")} lockedWhat="Leave by type">
           {byType.length ? (
             <BarList items={byType.map(([type, n]) => ({
               label: type,
@@ -130,7 +129,7 @@ export default function HrDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">No leave booked yet.</p>}
         </Widget>
 
-        <Widget title="Leave by status" hint="Where requests stand" locked={!can("simple")} lockedWhat="Leave by status">
+        <Widget title="Leave by status" hint="Where requests stand" locked={!visible("hr.leave-by-status")} lockedWhat="Leave by status">
           {statusSlices.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={statusSlices}
@@ -139,7 +138,7 @@ export default function HrDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">No leave booked yet.</p>}
         </Widget>
 
-        <Widget title="Expiring documents" hint={`ID and passport within ${windowDays} days, or lapsed`} span={2} locked={!can("simple")} lockedWhat="Expiring documents">
+        <Widget title="Expiring documents" hint={`ID and passport within ${windowDays} days, or lapsed`} span={2} locked={!visible("hr.expiring-documents")} lockedWhat="Expiring documents">
           {expiring.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">Nothing expiring — all clear.</p>
           ) : (
@@ -167,7 +166,7 @@ export default function HrDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Upcoming leave" hint="Approved and not yet started" locked={!can("moderate")} lockedWhat="Upcoming leave">
+        <Widget title="Upcoming leave" hint="Approved and not yet started" locked={!visible("hr.upcoming-leave")} lockedWhat="Upcoming leave">
           {upcoming.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">Nobody is booked to be away.</p>
           ) : (

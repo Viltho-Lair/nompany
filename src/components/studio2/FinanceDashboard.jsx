@@ -7,13 +7,12 @@
 // separate routes and the dashboard is the one place that wants both at once.
 // Everything drawn is DERIVED by the pure functions in modules/finance/analytics.
 //
-// ANALYTICS IS GATED, and the gating model is deliberately behind ONE SEAM. Every
-// widget declares a STABLE KEY (the WIDGETS registry) and asks a single
-// `visible(key)` helper whether to render or show the locked teaser. Today that
-// helper compares the studio's ordinal rung to the widget's rung; if gating moves
-// to per-widget SET MEMBERSHIP (a tier picking exactly which widgets it grants),
-// only `makeGate` changes — no widget is touched, because each already asks by
-// its own id. The registry doubles as the rung→widget-set source of truth.
+// ANALYTICS IS GATED by the per-component SELECTION model. Every widget declares a
+// STABLE KEY (matching the shared registry in lib/dashboardWidgets) and asks the
+// single `useWidgetVisible()` gate whether to render or show the locked teaser.
+// The gate resolves a tier's enabled-widget set once and answers by key, so no
+// widget reasons about rungs — the entitlement rule lives entirely in
+// `enabledWidgets`, never here.
 
 import { useEffect, useState } from "react";
 import { money, StatTile } from "@/components/studio2/ui";
@@ -24,35 +23,11 @@ import {
   arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix,
   apAging, topVendors, assetRegister,
 } from "@/modules/finance/analytics";
-import { analyticsAllows } from "@/lib/analytics";
-
-// ---- widget registry: stable id → rung ------------------------------------
-// The keys are the contract the gate is keyed on; nothing here is an inline
-// ad-hoc string at a call site. A rung→widget-set map is `Object.entries` of this.
-export const FINANCE_WIDGETS = {
-  "finance.ar-aging": { rung: "simple" },
-  "finance.top-debtors": { rung: "simple" },
-  "finance.collection-rate": { rung: "simple" },
-  "finance.income-vs-expense": { rung: "simple" },
-  "finance.expense-mix": { rung: "simple" },
-  "finance.dso": { rung: "moderate" },
-  "finance.ap-aging": { rung: "moderate" },
-  "finance.top-vendors": { rung: "simple" },
-  "finance.asset-register": { rung: "simple" },
-  "finance.asset-breakdown": { rung: "moderate" },
-};
-
-export const rungOf = (widgetKey) => FINANCE_WIDGETS[widgetKey]?.rung;
-
-// THE ONE GATE. Swap the body here (ordinal rung → set membership) and every
-// widget follows, because each calls this with its stable key and nothing else.
-function makeGate(level) {
-  return (widgetKey) => analyticsAllows(level, rungOf(widgetKey));
-}
+import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 const monthKey = (d) => String(d).slice(0, 7);
 
-export default function FinanceDashboard({ invoices = [], expenses = [], level = "basic", currency = "", slug = "" }) {
+export default function FinanceDashboard({ invoices = [], expenses = [], currency = "", slug = "" }) {
   // AP + FA land from their own routes. A route that is missing or forbidden
   // degrades to empty widgets rather than breaking the AR dashboard beside them.
   const [payables, setPayables] = useState([]);
@@ -103,7 +78,7 @@ export default function FinanceDashboard({ invoices = [], expenses = [], level =
   const catNbv = register.byCategory.filter((g) => g.bookValue > 0).slice(0, 6);
 
   const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;
-  const visible = makeGate(level);
+  const visible = useWidgetVisible();
 
   return (
     <div className="space-y-5">

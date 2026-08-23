@@ -310,10 +310,16 @@ export default async function StudioPage({ params }) {
     // address is its slug, so there is nowhere in it to put a locale. See
     // studioLocale in shared/i18n for why it is one setting per company.
     locale: studioLocale(studio),
-    // The studio's analytics rung, resolved once here (the shell already reads
-    // the plan for the package/tier tags), so dashboards can gate paid widgets
-    // without a per-request read that would add a Redis hop.
-    analyticsLevel: plan.analyticsLevel,
+    // The studio's dashboard entitlement, resolved once here (the shell already
+    // reads the plan for the package/tier tags), so dashboards can gate paid
+    // components without a per-request read that would add a Redis hop. The tier
+    // sells dashboards by selection — a master switch and a per-component list —
+    // so the three fields ride down and the client resolves the visible set.
+    analytics: {
+      analyticsEnabled: plan.analyticsEnabled,
+      dashboardWidgets: plan.dashboardWidgets,
+      analyticsLevel: plan.analyticsLevel,
+    },
   };
 
   return (

@@ -5,17 +5,17 @@
 // Sales screen already holds and the pure functions in modules/sales/analytics.
 // Drop it into StudioSales with one line.
 //
-// ANALYTICS IS PAID, so each widget names the rung it belongs to and a studio
-// below that rung sees the locked teaser instead of the chart — the gate is
-// `analyticsAllows`, the tiers the catalogue. The StatRow is the free floor
-// everyone gets; the DashGrid widgets sit at "simple" and "moderate".
+// ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
+// `useWidgetVisible()` answers whether this studio's tier includes a given widget
+// key. The StatRow is the free floor everyone gets; the DashGrid widgets are each
+// gated by their registry key (see lib/dashboardWidgets).
 
 import { money, StatTile, URGENCY_DOT, FunnelChart } from "@/components/studio2/ui";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { BarChart, ChartFrame, Donut, PALETTE } from "@/components/charts";
 import { salesFunnel, probabilityBuckets, atRiskTickets, isClosed } from "@/modules/sales/salesAnalytics";
 import { daysUntil } from "@/modules/projects/sla";
-import { analyticsAllows } from "@/lib/analytics";
+import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 // The stages a ticket can sit in, in the order the mix reads. Everything a
 // ticket can BE is here, so the donut never drops a status onto no slice.
@@ -24,8 +24,8 @@ const STAGE_ORDER = [
   "Closed Lost", "Cancelled by Client", "On-Hold", "Dropped",
 ];
 
-export default function SalesDashboard({ tickets = [], level = "basic", slug = "", nav = null }) {
-  const can = (rung) => analyticsAllows(level, rung);
+export default function SalesDashboard({ tickets = [], slug = "", nav = null }) {
+  const visible = useWidgetVisible();
 
   const funnel = salesFunnel(tickets);
   const buckets = probabilityBuckets(tickets);
@@ -61,11 +61,11 @@ export default function SalesDashboard({ tickets = [], level = "basic", slug = "
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Sales funnel" hint="Distinct tickets that reached each stage" locked={!can("simple")} lockedWhat="Sales funnel">
+        <Widget title="Sales funnel" hint="Distinct tickets that reached each stage" locked={!visible("sales.funnel")} lockedWhat="Sales funnel">
           <FunnelChart data={funnel} />
         </Widget>
 
-        <Widget title="Probability forecast" hint={`Weighted forecast: ${money(weightedPipeline)}`} span={2} locked={!can("simple")} lockedWhat="Probability forecast">
+        <Widget title="Probability forecast" hint={`Weighted forecast: ${money(weightedPipeline)}`} span={2} locked={!visible("sales.probability-forecast")} lockedWhat="Probability forecast">
           {hasForecast ? (
             <>
               <ChartFrame
@@ -95,7 +95,7 @@ export default function SalesDashboard({ tickets = [], level = "basic", slug = "
           ) : <p className="py-8 text-center text-sm text-slate-400">No open pipeline yet.</p>}
         </Widget>
 
-        <Widget title="Stage mix" hint="Where every ticket sits" locked={!can("simple")} lockedWhat="Stage mix">
+        <Widget title="Stage mix" hint="Where every ticket sits" locked={!visible("sales.stage-mix")} lockedWhat="Stage mix">
           {mixTotal > 0 ? (
             <div className="flex flex-col items-center gap-4 py-2">
               <Donut size={168} data={mix.map((s, i) => ({ label: s.label, value: s.value, color: PALETTE[i % PALETTE.length] }))}
@@ -116,7 +116,7 @@ export default function SalesDashboard({ tickets = [], level = "basic", slug = "
         </Widget>
 
         {/* Moderate */}
-        <Widget title="At-risk tickets" hint="Open, due within 14 days or flagged High/Critical" span={2} locked={!can("moderate")} lockedWhat="At-risk tickets">
+        <Widget title="At-risk tickets" hint="Open, due within 14 days or flagged High/Critical" span={2} locked={!visible("sales.at-risk")} lockedWhat="At-risk tickets">
           {atRisk.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">Nothing at risk — all clear.</p>
           ) : (

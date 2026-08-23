@@ -122,7 +122,7 @@ function PlanTag({ color, label, children }) {
 }
 
 export default function StudioFrame({
-  studio, me, sections, activeKey, chat = null, locale = "en", analyticsLevel = "basic", children,
+  studio, me, sections, activeKey, chat = null, locale = "en", analytics = null, children,
 }) {
   const [open, setOpen] = useState(false);
   // The header avatar is the ACCOUNT, not the studio membership: `me` carries a
@@ -443,7 +443,7 @@ export default function StudioFrame({
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-[1400px] px-5 pb-8 sm:px-8"><AnalyticsLevelProvider level={analyticsLevel}>{children}</AnalyticsLevelProvider></main>
+        <main className="mx-auto max-w-[1400px] px-5 pb-8 sm:px-8"><AnalyticsLevelProvider analytics={analytics}>{children}</AnalyticsLevelProvider></main>
       </div>
 
       {/* Live chat with nompany. It lives on the SHELL rather than on a page, so

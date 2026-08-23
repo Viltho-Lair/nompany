@@ -7,10 +7,11 @@
 // here recomputes what the module already knows; it composes the shared chart
 // kit and dashboard primitives over the existing aggregates.
 //
-// ANALYTICS IS PAID, so each widget in the grid names the rung it belongs to and
-// a studio below that rung sees the locked teaser (which names what it would
-// show) instead of the number. The KPI row is the free floor everyone gets; the
-// gate lives in `analyticsAllows`, the tiers in the catalogue.
+// ANALYTICS IS PAID, so each widget in the grid is gated by the per-component
+// SELECTION model: `useWidgetVisible()` answers whether this studio's tier
+// includes a given widget key, and a widget it does not sees the locked teaser
+// (which names what it would show) instead of the number. The KPI row is the free
+// floor everyone gets; the gated widgets carry their registry keys.
 
 import { money, StatTile } from "@/components/studio2/ui";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
@@ -20,7 +21,7 @@ import {
   quotationStats, rfqFunnel, urgencyBreakdown, handlerLeaderboard,
   quotationTimeline, completionScatter, averageTurnaround, quotationValue,
 } from "@/modules/technical/technicalAnalytics";
-import { analyticsAllows } from "@/lib/analytics";
+import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 const NoData = ({ text = "No data yet." }) => (
   <p className="py-8 text-center text-sm text-slate-400">{text}</p>
@@ -39,9 +40,9 @@ export default function TechnicalDashboard({
   // resolver from the screen shows whichever resolves. Identity here is the
   // resolver's business, never this component's.
   handlerName = (v) => v || "—",
-  level = "basic",
   currency = "",
 }) {
+  const visible = useWidgetVisible();
   const stats = quotationStats(quotations);
   const value = quotationValue(quotations);
   const turnaround = averageTurnaround(quotations);
@@ -62,7 +63,6 @@ export default function TechnicalDashboard({
   const approvedPct = value.all > 0 ? Math.round((value.approved / value.all) * 100) : 0;
 
   const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;
-  const can = (rung) => analyticsAllows(level, rung);
 
   return (
     <div className="space-y-5">
@@ -79,7 +79,7 @@ export default function TechnicalDashboard({
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Quotation volume" hint="New quotations, last 30 days" span={2} locked={!can("simple")} lockedWhat="Quotation volume">
+        <Widget title="Quotation volume" hint="New quotations, last 30 days" span={2} locked={!visible("technical.quotation-volume")} lockedWhat="Quotation volume">
           {stats.total ? (
             <ChartFrame
               // 30 labels would overprint; show one every fifth day and blank the
@@ -96,7 +96,7 @@ export default function TechnicalDashboard({
           ) : <NoData text="No quotations yet." />}
         </Widget>
 
-        <Widget title="RFQ funnel" hint="RFQs by workflow status" locked={!can("simple")} lockedWhat="RFQ funnel">
+        <Widget title="RFQ funnel" hint="RFQs by workflow status" locked={!visible("technical.rfq-funnel")} lockedWhat="RFQ funnel">
           {rfqs.length ? (
             <BarList items={funnel.map((f) => ({
               label: f.label,
@@ -106,7 +106,7 @@ export default function TechnicalDashboard({
           ) : <NoData text="No RFQs yet." />}
         </Widget>
 
-        <Widget title="Urgency breakdown" hint="Quotations by the urgency carried from the ticket" locked={!can("simple")} lockedWhat="Urgency breakdown">
+        <Widget title="Urgency breakdown" hint="Quotations by the urgency carried from the ticket" locked={!visible("technical.urgency-breakdown")} lockedWhat="Urgency breakdown">
           {urgencyTotal ? (
             <div className="flex items-center justify-center py-2">
               <Donut
@@ -123,7 +123,7 @@ export default function TechnicalDashboard({
           ) : <NoData text="No quotations yet." />}
         </Widget>
 
-        <Widget title="Approved share" hint="Approved value as a portion of the whole pipeline" locked={!can("simple")} lockedWhat="Approved share">
+        <Widget title="Approved share" hint="Approved value as a portion of the whole pipeline" locked={!visible("technical.approved-share")} lockedWhat="Approved share">
           {value.all > 0 ? (
             <div className="flex flex-col items-center gap-2 py-2">
               <Radial value={approvedPct} label={`${approvedPct}%`} sub="of pipeline value" color="rgb(var(--chart-2))" />
@@ -133,7 +133,7 @@ export default function TechnicalDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Handler leaderboard" hint="Quotations handled, ranked" locked={!can("moderate")} lockedWhat="Handler leaderboard">
+        <Widget title="Handler leaderboard" hint="Quotations handled, ranked" locked={!visible("technical.handler-leaderboard")} lockedWhat="Handler leaderboard">
           {leaders.length ? (
             <BarList items={leaders.slice(0, 6).map((l) => ({
               label: l.name,
@@ -144,7 +144,7 @@ export default function TechnicalDashboard({
           ) : <NoData text="No quotations yet." />}
         </Widget>
 
-        <Widget title="Turnaround" hint="Days from creation to approval" locked={!can("moderate")} lockedWhat="Turnaround">
+        <Widget title="Turnaround" hint="Days from creation to approval" locked={!visible("technical.turnaround")} lockedWhat="Turnaround">
           {turnaround === null ? (
             <NoData text="No quotation has been approved yet." />
           ) : (

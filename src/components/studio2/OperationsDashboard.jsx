@@ -12,14 +12,15 @@
 // once per read, so the dashboard and the permit list can never disagree about
 // whether a permit is expiring.
 //
-// ANALYTICS IS PAID, so each widget names the rung it belongs to and a studio
-// below that rung sees the locked teaser instead of the number. The top StatRow
-// is the free floor everyone gets.
+// ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
+// `useWidgetVisible()` answers whether this studio's tier includes a given widget
+// key, and a widget it does not sees the locked teaser instead of the number. The
+// top StatRow is the free floor everyone gets.
 
 import { StatTile, fmtDate, fmtWeekday } from "@/components/studio2/ui";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { BarChart, BarList, Donut, ChartFrame } from "@/components/charts";
-import { analyticsAllows } from "@/lib/analytics";
+import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 // A permit state maps to a slice colour once, so the donut, the timeline pills
 // and any future legend cannot disagree about which hue "Expired" is.
@@ -55,9 +56,8 @@ export default function OperationsDashboard({
   window = { from: "", to: "" },
   summary = { shiftsThisWeek: 0 },
   windowDays = 60,
-  level = "basic",
 }) {
-  const can = (rung) => analyticsAllows(level, rung);
+  const visible = useWidgetVisible();
 
   const active = permits.filter((p) => p.state === "Valid").length;
   const expiringSoon = permits.filter((p) => p.state === "Expiring").length;
@@ -115,7 +115,7 @@ export default function OperationsDashboard({
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Permits by status" hint="Valid, expiring, expired" locked={!can("simple")} lockedWhat="Permits by status">
+        <Widget title="Permits by status" hint="Valid, expiring, expired" locked={!visible("operations.permits-by-status")} lockedWhat="Permits by status">
           {stateSlices.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={stateSlices}
@@ -124,7 +124,7 @@ export default function OperationsDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">No permits recorded yet.</p>}
         </Widget>
 
-        <Widget title="Shifts by location" hint="Across every scheduled shift" locked={!can("simple")} lockedWhat="Shifts by location">
+        <Widget title="Shifts by location" hint="Across every scheduled shift" locked={!visible("operations.shifts-by-location")} lockedWhat="Shifts by location">
           {byLocation.length ? (
             <BarList items={byLocation.map(([name, n]) => ({
               label: name,
@@ -134,7 +134,7 @@ export default function OperationsDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">Nothing scheduled yet.</p>}
         </Widget>
 
-        <Widget title="Shifts this week" hint="Coverage across the rota window" span={2} locked={!can("simple")} lockedWhat="Shifts this week">
+        <Widget title="Shifts this week" hint="Coverage across the rota window" span={2} locked={!visible("operations.shifts-this-week")} lockedWhat="Shifts this week">
           {anyShiftsThisWeek ? (
             <ChartFrame labels={days.map((d) => fmtWeekday(d.iso))} height={200}>
               <BarChart height={200}
@@ -149,7 +149,7 @@ export default function OperationsDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Validity timeline" hint={`Soonest to lapse first · window ${windowDays}d`} locked={!can("moderate")} lockedWhat="Validity timeline">
+        <Widget title="Validity timeline" hint={`Soonest to lapse first · window ${windowDays}d`} locked={!visible("operations.validity-timeline")} lockedWhat="Validity timeline">
           {timeline.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">No permits carry an end date.</p>
           ) : (
@@ -169,7 +169,7 @@ export default function OperationsDashboard({
           )}
         </Widget>
 
-        <Widget title="Permits by type" hint="What kind of authorisation" locked={!can("moderate")} lockedWhat="Permits by type">
+        <Widget title="Permits by type" hint="What kind of authorisation" locked={!visible("operations.permits-by-type")} lockedWhat="Permits by type">
           {byType.length ? (
             <BarList items={byType.map(([type, n]) => ({
               label: type,

@@ -10,6 +10,7 @@ import { readArr, editArr, getJSON, setJSON } from "@/platform/db/store";
 import { ID, REG } from "@/platform/db/keys";
 import { normalizeColor, hexForName, DEFAULT_HEX } from "@/lib/planColors";
 import { ANALYTICS_LEVELS } from "@/lib/analytics";
+import { WIDGET_KEYS } from "@/lib/dashboardWidgets";
 import type { Row } from "@/platform/db/store";
 
 const now = () => new Date().toISOString();
@@ -160,10 +161,20 @@ const KINDS: Record<string, CatalogKind> = {
       cost: num(b.cost),
       durationMonths: num(b.durationMonths),   // 0 = endless, as above
       isPublic: Boolean(b.isPublic),
-      // WHICH DASHBOARD RUNG THIS TIER BUYS. Analytics is sold per tier, and
-      // this is where a console user sets it — the explicit field planOf reads
-      // first. Whitelisted to the four rungs so a bad body can never store a
-      // level that unlocks everything; anything else is the free floor.
+      // WHAT DASHBOARD ANALYTICS THIS TIER SELLS. Set in the console per tier.
+      //   analyticsEnabled — the master "activate content" switch; default ON so
+      //     an un-edited tier keeps showing its rung's widgets. An explicit false
+      //     sells a tier with no dashboard analytics at all.
+      //   dashboardWidgets — the explicit per-component selection, whitelisted to
+      //     real widget keys so a bad body can never enable something that does
+      //     not exist. Left ABSENT (undefined, dropped from JSON) when the body
+      //     carries no array, so a tier that has never had a selection made falls
+      //     back to its rung rather than resolving to "nothing ticked".
+      //   analyticsLevel — the fallback rung, still whitelisted to the four names.
+      analyticsEnabled: b.analyticsEnabled === undefined ? true : Boolean(b.analyticsEnabled),
+      dashboardWidgets: Array.isArray(b.dashboardWidgets)
+        ? [...new Set(b.dashboardWidgets.map((k) => String(k)))].filter((k) => WIDGET_KEYS.has(k)).slice(0, 200)
+        : undefined,
       analyticsLevel: (ANALYTICS_LEVELS as readonly string[]).includes(String(b.analyticsLevel)) ? String(b.analyticsLevel) : "basic",
       // Same picker as a package's, so a tier is as recognisable at a glance.
       // No name-based default here: tier names are the studio's own invention,

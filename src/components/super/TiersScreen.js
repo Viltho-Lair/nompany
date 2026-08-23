@@ -26,20 +26,22 @@ export default function TiersScreen() {
     { key: "serviceIds", label: "ERP services", type: "services" },
     { key: "cost", label: "Cost", type: "number", prefix: "SAR " },
     { key: "durationMonths", label: "Duration (months)", type: "number", suffix: " mo", zeroLabel: "Endless", hint: "0 means endless — the tier never expires." },
-    // WHICH DASHBOARD ANALYTICS A STUDIO ON THIS TIER SEES. Analytics is sold by
-    // rung: each dashboard widget belongs to a level, and a studio sees its rung
-    // and everything below, with a locked teaser above. This is the control the
-    // pricing model needs — set it per tier, and it takes effect on every studio
-    // on the tier at once.
+    // WHAT DASHBOARD ANALYTICS A STUDIO ON THIS TIER SELLS. Two controls, not one:
+    // a master switch that turns the content on, and — only when it is on — a
+    // per-section checklist of exactly which components the tier includes. Set per
+    // tier, taking effect on every studio on the tier at once.
+    //
+    // `analyticsLevel` (the old select) is no longer editable here. It survives in
+    // the store as the FALLBACK rung a pre-selection tier derives its set from
+    // (see dashboardWidgets.enabledWidgets); the editor pre-fills the checklist
+    // from that rung when an older tier is opened, so it is never rendered raw.
+    { key: "analyticsEnabled", label: "Dashboard analytics", type: "switch", default: true,
+      onLabel: "On", offLabel: "Off",
+      hint: "On sells dashboard analytics to studios on this tier; off sells none." },
     {
-      key: "analyticsLevel", label: "Dashboard analytics", type: "select",
-      options: [
-        { value: "basic", label: "Basic — headline totals only" },
-        { value: "simple", label: "Simple — + trends and breakdowns" },
-        { value: "moderate", label: "Moderate — + aging, mix, comparisons" },
-        { value: "advanced", label: "Advanced — everything" },
-      ],
-      hint: "The rung of dashboard widgets studios on this tier can see. Higher rungs include every rung below.",
+      key: "dashboardWidgets", label: "Included components", type: "dashboard-widgets",
+      showWhen: { field: "analyticsEnabled", equals: true, fallback: true },
+      hint: "The exact dashboard components a studio on this tier sees, grouped by section.",
     },
     { key: "color", label: "Colour", type: "color", hint: "Shown wherever the tier is named." },
     { key: "isPublic", label: "Public", type: "switch" },

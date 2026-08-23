@@ -6,16 +6,17 @@
 // screen already holds: the projects list, the SLA contracts and the overtime
 // entries. Nothing is invented; each widget only summarises what exists.
 //
-// ANALYTICS IS PAID, so each widget names the rung it belongs to and a studio
-// below that rung sees the locked teaser instead of the number — the gate lives
-// in `analyticsAllows`, the tiers in the catalogue. The KPI row is the free
-// floor everyone gets; the breakdowns and the timeline sit above it.
+// ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
+// `useWidgetVisible()` answers whether this studio's tier includes a given widget
+// key, and a widget it does not sees the locked teaser instead of the number. The
+// KPI row is the free floor everyone gets; the breakdowns and the timeline carry
+// their registry keys.
 
 import { money, StatTile } from "@/components/studio2/ui";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { BarChart, BarList, Donut, Radial, ChartFrame } from "@/components/charts";
 import { allVisits } from "@/modules/projects/sla";
-import { analyticsAllows } from "@/lib/analytics";
+import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
 const STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 // State colour is separate from brand accent: each stage takes a fixed slot on
@@ -38,9 +39,9 @@ function monthKey(d) {
 }
 
 export default function ProjectsDashboard({
-  projects = [], slas = [], overtimes = [], people = [], level = "basic", slug = "", nav = {},
+  projects = [], slas = [], overtimes = [], people = [], slug = "", nav = {},
 }) {
-  const can = (rung) => analyticsAllows(level, rung);
+  const visible = useWidgetVisible();
   const num = (n) => <span className="num">{n}</span>;
   const amt = (n) => <span className="num">{money(n)}</span>;
 
@@ -150,7 +151,7 @@ export default function ProjectsDashboard({
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Projects by stage" hint="Where the work sits" locked={!can("simple")} lockedWhat="Projects by stage">
+        <Widget title="Projects by stage" hint="Where the work sits" locked={!visible("projects.by-stage")} lockedWhat="Projects by stage">
           <div className="flex items-center gap-5">
             <Donut size={148} data={donut}
               center={<div className="text-center"><p className="num text-lg font-800 text-slate-900 dark:text-white">{projects.length}</p><p className="text-[11px] text-slate-400">projects</p></div>} />
@@ -166,7 +167,7 @@ export default function ProjectsDashboard({
           </div>
         </Widget>
 
-        <Widget title="Value by stage" hint="Registered project value" locked={!can("simple")} lockedWhat="Value by stage">
+        <Widget title="Value by stage" hint="Registered project value" locked={!visible("projects.value-by-stage")} lockedWhat="Value by stage">
           {totalValue > 0 ? (
             <BarList items={byStage.filter((s) => s.value > 0).map((s) => ({
               label: s.stage,
@@ -177,7 +178,7 @@ export default function ProjectsDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">No project values yet.</p>}
         </Widget>
 
-        <Widget title="Milestone completion" hint="Ticked across all projects" locked={!can("simple")} lockedWhat="Milestone completion">
+        <Widget title="Milestone completion" hint="Ticked across all projects" locked={!visible("projects.milestone-completion")} lockedWhat="Milestone completion">
           {msTotal > 0 ? (
             <div className="flex justify-center py-2">
               <Radial value={msPct} label={`${msPct}%`} sub={`${msDone} of ${msTotal} done`} color="rgb(var(--chart-2))" />
@@ -186,13 +187,13 @@ export default function ProjectsDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Workload by manager" hint="Open projects per manager" locked={!can("moderate")} lockedWhat="Workload by manager">
+        <Widget title="Workload by manager" hint="Open projects per manager" locked={!visible("projects.workload-by-manager")} lockedWhat="Workload by manager">
           {managers.length ? (
             <BarList items={managers.map((m) => ({ label: m.name, value: Math.round((m.count / maxManager) * 100), display: num(m.count) }))} />
           ) : <p className="py-8 text-center text-sm text-slate-400">No open projects.</p>}
         </Widget>
 
-        <Widget title="Support visits" hint="Across every SLA contract" locked={!can("moderate")} lockedWhat="Support visits">
+        <Widget title="Support visits" hint="Across every SLA contract" locked={!visible("projects.support-visits")} lockedWhat="Support visits">
           {slas.length ? (
             <div className="grid grid-cols-3 gap-3 py-2 text-center">
               <div>
@@ -214,7 +215,7 @@ export default function ProjectsDashboard({
           )}
         </Widget>
 
-        <Widget title="Project timeline" hint="Started and ended by month" span={2} locked={!can("moderate")} lockedWhat="Project timeline">
+        <Widget title="Project timeline" hint="Started and ended by month" span={2} locked={!visible("projects.timeline")} lockedWhat="Project timeline">
           {months.length ? (
             <ChartFrame
               labels={months.map((m) => m.slice(5))}
