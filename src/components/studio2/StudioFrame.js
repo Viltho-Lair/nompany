@@ -285,7 +285,7 @@ export default function StudioFrame({
         </span>
       </Link>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
+      <nav aria-label="Departments" className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
         {tree.map((node) => navGroup(node))}
 
         {admin.length > 0 && (
@@ -347,6 +347,18 @@ export default function StudioFrame({
       dir={dirFor(locale)}
       className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300"
     >
+    {/* SKIP TO CONTENT. First focusable thing in the shell, hidden until it
+        takes focus, so a keyboard user can jump the whole sidebar and land on
+        the page rather than Tabbing through every nav row first. Targets the
+        <main> below, which carries a matching id and tabIndex so focus settles
+        there. Uses logical `start` so it sits at the leading edge in both
+        directions. */}
+    <a
+      href="#studio-main"
+      className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-brand-700 focus:px-4 focus:py-2 focus:font-display focus:text-sm focus:font-600 focus:text-white focus:shadow-geex focus-visible:ring-2 focus-visible:ring-brand-500/50"
+    >
+      Skip to content
+    </a>
     {/* MUI DOES NOT FOLLOW `dir`, so it gets its own cache when the tenant is
         Arabic — see MuiRtlProvider. Everything hand-written above mirrors from
         the attribute alone, because logical properties are the browser's job;
@@ -362,8 +374,8 @@ export default function StudioFrame({
 
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 start-0 w-64 bg-[var(--geex-surface)] shadow-xl">{sidebar}</aside>
+          <button type="button" aria-label="Close menu" className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
+          <aside aria-label="Menu" className="absolute inset-y-0 start-0 w-64 bg-[var(--geex-surface)] shadow-xl">{sidebar}</aside>
         </div>
       )}
 
@@ -372,7 +384,7 @@ export default function StudioFrame({
           <div className="flex min-w-0 items-center gap-3">
             <button
               onClick={() => setOpen(true)}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm dark:text-slate-300 lg:hidden"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-300 lg:hidden"
               aria-label="Open menu"
             >
               <Icon name="menu" />
@@ -406,7 +418,7 @@ export default function StudioFrame({
                 onClick={() => setAccountOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={accountOpen}
-                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-950 font-display text-sm font-700 text-white shadow-geex-sm transition-shadow hover:ring-2 hover:ring-brand-500/40 dark:bg-brand-500/20 dark:text-brand-300"
+                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-950 font-display text-sm font-700 text-white shadow-geex-sm transition-shadow hover:ring-2 hover:ring-brand-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:bg-brand-500/20 dark:text-brand-300"
                 title={me.alias ? `${me.alias} — my account` : "My account"}
               >
                 {account?.photo
@@ -444,7 +456,7 @@ export default function StudioFrame({
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-[1400px] px-5 pb-8 sm:px-8"><AnalyticsLevelProvider analytics={analytics}>{children}</AnalyticsLevelProvider></main>
+        <main id="studio-main" tabIndex={-1} className="mx-auto max-w-[1400px] px-5 pb-8 outline-none sm:px-8"><AnalyticsLevelProvider analytics={analytics}>{children}</AnalyticsLevelProvider></main>
         <NovaLauncher slug={studio.slug} enabled={novaEnabled} besideChat={Boolean(chat?.enabled)} />
       </div>
 

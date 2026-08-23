@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/studio2/icons";
+import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 import { fmtDate as fmtDateCanonical, fmtDateTime as fmtDateTimeCanonical, fmtWeekday } from "@/lib/format";
 
 // SHARED STUDIO CHROME. The modules each own their own screens, but a dialog, a
@@ -97,6 +98,12 @@ export function Dialog({ title, description, onClose, children, width = "max-w-[
   // somewhere else.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const panelRef = useRef(null);
+  const titleId = useId();
+  // Trap Tab inside the dialog and return focus to the trigger on close — see
+  // useFocusTrap. Gated on `mounted` so the trap arms only once the portal has
+  // a live DOM node to search.
+  useFocusTrap(panelRef, mounted);
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
@@ -109,20 +116,20 @@ export function Dialog({ title, description, onClose, children, width = "max-w-[
   if (!mounted) return null; // no document to portal into until the client runs
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       {/* Light touch on purpose: a heavy tint flattened the whole studio —
           sidebar, header and the list behind it — into grey while the form was
           open. The blur separates the dialog from what is behind it, so the
           studio stays legible instead of being blanked out. */}
       <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm dark:bg-slate-950/30" onClick={onClose} />
-      <div className={`relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c] ${width}`}>
+      <div ref={panelRef} className={`relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c] ${width}`}>
         <div className="flex items-start gap-3 border-b border-slate-200/70 px-6 py-4 dark:border-white/10">
           <div className="min-w-0">
-            <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
+            <h3 id={titleId} className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
             {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
           </div>
           <button type="button" onClick={onClose} aria-label="Close"
-            className="ms-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5">
+            className="ms-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-400 dark:hover:bg-white/5">
             <Icon name="close" className="h-[18px] w-[18px]" />
           </button>
         </div>

@@ -139,7 +139,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
     <div className="fixed inset-0 z-[70] flex flex-col bg-slate-50 dark:bg-[#0b1020]">
       {/* ---------------------------------------------------------- header */}
       <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-5 py-3 dark:border-white/10 dark:bg-white/5">
-        <button className="rounded-geex p-1.5 text-slate-500 transition-colors hover:bg-slate-100 dark:hover:bg-white/10"
+        <button className="rounded-geex p-1.5 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/10"
           onClick={onClose} aria-label="Close the builder">
           <Icon name="close" className="h-5 w-5" />
         </button>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import NovaHead from "@/components/studio2/NovaHead";
+import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 
 // NOVA, in the studio. A floating launcher and a slide-over chat, shown only
 // when the studio's package includes the assistant. Memory is session-only: the
@@ -27,8 +28,12 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
   const [note, setNote] = useState("");
   const [attention, setAttention] = useState(0);
   const [pending, setPending] = useState(null);   // an action awaiting the user's Confirm
+  const [announce, setAnnounce] = useState("");    // the settled answer, announced once to screen readers
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  const panelRef = useRef(null);
+  const launcherRef = useRef(null);
+  const titleId = useId();
 
   // FEEDBACK BY DEFAULT. Even with the chat shut, Nova wears a badge for what is
   // waiting on this person — their unread notifications, the same ones the bell
@@ -56,6 +61,19 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
     const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  // Trap Tab within the panel while it is open. The panel focuses its own input
+  // above, so the trap leaves that alone and only confines Tab.
+  useFocusTrap(panelRef, open);
+  // RETURN FOCUS BY HAND, not through the trap. The launcher UNMOUNTS while the
+  // panel is open ({!open && <button>}), so the node the trap captured as the
+  // opener is detached by close time and focusing it is a no-op — the re-mounted
+  // launcher is a different element. Send focus there on the open→closed edge.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) launcherRef.current?.focus();
+    wasOpen.current = open;
   }, [open]);
 
   if (!enabled) return null;
@@ -99,8 +117,10 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
       }
       if (res.status === 403) { setNote("Nova isn't part of this studio's plan."); setBusy(false); return; }
       const data = res.ok ? await res.json().catch(() => null) : null;
+      const answer = data?.answer || "Something went wrong — try again.";
       setBusy(false);
-      await typeOut(data?.answer || "Something went wrong — try again.");
+      await typeOut(answer);
+      setAnnounce(answer);   // announce the settled answer once
       if (data?.pendingAction) setPending(data.pendingAction);
       return;
     } catch {
@@ -122,8 +142,10 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
       });
       const data = await res.json().catch(() => null);
       const ok = res.ok && data?.ok;
+      const msg = ok ? `Done — ${action.label.toLowerCase()}.` : `That didn't go through${data?.error ? ` (${data.error})` : ""}. Nothing was changed.`;
       setBusy(false);
-      await typeOut(ok ? `Done — ${action.label.toLowerCase()}.` : `That didn't go through${data?.error ? ` (${data.error})` : ""}. Nothing was changed.`);
+      await typeOut(msg);
+      setAnnounce(msg);
       return;
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "I couldn't reach the server, so nothing was changed." }]);
@@ -138,6 +160,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
           the corner, Nova steps to its left (end-24 clears the ~48px bubble). */}
       {!open && (
         <button
+          ref={launcherRef}
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Ask Nova"
@@ -154,20 +177,27 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
 
       {/* Backdrop + panel. Rendered only when open so it costs nothing closed. */}
       {open && (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Nova">
-          <button type="button" aria-label="Close" className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
-          <div className="absolute inset-y-0 end-0 flex w-full max-w-[420px] flex-col bg-white shadow-2xl dark:bg-[#14141b]">
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+          <button type="button" aria-label="Close Nova" className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
+          <div ref={panelRef} className="absolute inset-y-0 end-0 flex w-full max-w-[420px] flex-col bg-white shadow-2xl dark:bg-[#14141b]">
             <header className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-white/10">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400"><NovaHead className="h-7 w-7" /></span>
               <div className="min-w-0">
-                <p className="text-sm font-600 text-slate-900 dark:text-white">Nova</p>
+                <p id={titleId} className="text-sm font-600 text-slate-900 dark:text-white">Nova</p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Your studio assistant</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="ms-auto rounded-md p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5">
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="ms-auto rounded-md p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/5">
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
             </header>
 
+            {/* Announces the SETTLED answer once — see the transcript note below. */}
+            <div aria-live="polite" aria-atomic="true" className="sr-only">{announce}</div>
+
+            {/* The transcript is NOT a live region: the typewriter grows the
+                text character by character, and a live region here would make a
+                screen reader stutter through every partial state. The settled
+                answer is announced once, above, via `announce`. */}
             <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
               {messages.length === 0 && (
                 <div className="space-y-3">

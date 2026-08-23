@@ -118,7 +118,7 @@ export default function NotificationBell({ slug }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
-        className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-shadow hover:ring-2 hover:ring-brand-500/40 dark:text-slate-300"
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-shadow hover:ring-2 hover:ring-brand-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-300"
       >
         <Icon name="bell" className="h-[18px] w-[18px]" />
         {unread > 0 && (
