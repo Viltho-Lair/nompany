@@ -508,7 +508,7 @@ function SerialCell({ row, chosen, pool, changed, onEdit }) {
 
       {at && (
         <div style={{ left: at.left, top: at.top }}
-          className="fixed z-40 w-60 overflow-hidden rounded-geex border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]">
+          className="fixed z-40 w-60 overflow-hidden rounded-geex border border-slate-200 bg-[var(--geex-surface)] shadow-geex dark:border-white/15">
           <p className="border-b border-slate-100 px-3 py-2 text-[11px] font-700 uppercase tracking-wide text-slate-400 dark:border-white/10">
             {chosen.length} of {row.qty} allocated
           </p>
@@ -789,7 +789,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
             </button>
 
             {menu === "menu" && (
-              <div role="menu" className="absolute bottom-full end-0 mb-2 w-44 overflow-hidden rounded-geex border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]">
+              <div role="menu" className="absolute bottom-full end-0 mb-2 w-44 overflow-hidden rounded-geex border border-slate-200 bg-[var(--geex-surface)] shadow-geex dark:border-white/15">
                 <button type="button" role="menuitem" onClick={() => { setFind(""); setMenu("unhide"); }}
                   className="flex w-full items-center justify-between px-3 py-2.5 text-start text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
                   Unhide
@@ -799,7 +799,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
             )}
 
             {menu === "unhide" && (
-              <div className="absolute bottom-full end-0 mb-2 w-64 overflow-hidden rounded-geex border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]">
+              <div className="absolute bottom-full end-0 mb-2 w-64 overflow-hidden rounded-geex border border-slate-200 bg-[var(--geex-surface)] shadow-geex dark:border-white/15">
                 <p className="border-b border-slate-100 px-3 py-2 text-[11px] font-700 uppercase tracking-wide text-slate-400 dark:border-white/10">
                   Hidden projects
                 </p>

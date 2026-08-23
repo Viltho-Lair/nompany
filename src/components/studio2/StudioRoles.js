@@ -407,7 +407,7 @@ function RolePicker({ roles, value, onPick }) {
     <div ref={box} className="relative">
       <button type="button" aria-haspopup="listbox" aria-expanded={open}
         onClick={() => { setOpen((v) => !v); setQuery(""); }}
-        className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-start text-sm text-slate-900 transition-colors hover:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white">
+        className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2 text-start text-sm text-slate-900 transition-colors hover:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:text-white">
         <span className="truncate">{chosen?.name || "Pick a role…"}</span>
         <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="m6 9 6 6 6-6" />
@@ -415,7 +415,7 @@ function RolePicker({ roles, value, onPick }) {
       </button>
 
       {open && (
-        <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/15 dark:bg-[#20202c]">
+        <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-[var(--geex-surface)] p-1 shadow-lg dark:border-white/15">
           <input autoFocus className={`${input} mb-1`} aria-label="Search roles"
             value={query} onChange={(e) => setQuery(e.target.value)} />
           <ul role="listbox" className="max-h-60 overflow-auto">

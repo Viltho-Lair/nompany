@@ -757,7 +757,7 @@ function TechnicalSettings({ options, selected, cover, canManage, onSave }) {
         <p className={sub}>Choose the quotation columns the Live view shows. This is a shared setting — it applies to everyone. At least one is kept.</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {options.map((o) => (
-            <label key={o.key} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm dark:border-white/15 dark:bg-[#191921]">
+            <label key={o.key} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm dark:border-white/15">
               <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={cols.includes(o.key)} disabled={!canManage} onChange={() => toggle(o.key)} />
               <span className="text-slate-900 dark:text-white">{o.label}</span>
             </label>

@@ -240,7 +240,7 @@ export default function InventoryDashboard({
                 </span>
               </>
             );
-            const cls = "flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]";
+            const cls = "flex items-center gap-4 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-4 dark:border-white/15";
             return to ? (
               <a key={s.key} href={to} className={`${cls} transition-colors hover:border-brand-500 dark:hover:border-brand-500/40`}>{body}</a>
             ) : (

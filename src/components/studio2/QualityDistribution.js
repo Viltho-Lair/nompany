@@ -97,7 +97,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
           )}
         </div>
 
-        <div className="mt-2 rounded-geex border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#20202c]">
+        <div className="mt-2 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10">
           {dist?.rev == null ? (
             <p className="text-xs text-slate-400 dark:text-slate-500">
               Nothing is distributed until a revision is issued.
@@ -148,7 +148,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
           </div>
           <ul className="mt-2 space-y-1.5">
             {(data.links || []).map((l) => (
-              <li key={l.id} className="rounded-lg border border-slate-200/70 bg-white px-3 py-2 text-xs dark:border-white/10 dark:bg-[#20202c]">
+              <li key={l.id} className="rounded-lg border border-slate-200/70 bg-[var(--geex-surface)] px-3 py-2 text-xs dark:border-white/10">
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-700 text-slate-700 dark:text-slate-200">Rev {l.rev}</span>
                   {l.revokedAt ? <span className="text-rose-600 dark:text-rose-400">Revoked</span>

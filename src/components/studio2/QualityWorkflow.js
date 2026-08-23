@@ -126,7 +126,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
 
       <div>
         <p className={microLabel}>Where it stands</p>
-        <div className="mt-2 rounded-geex border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#20202c]">
+        <div className="mt-2 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10">
           {current ? (
             <>
               <div className="flex items-center gap-2">
@@ -187,7 +187,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
           nobody whose desk this is sitting on. */}
       <div>
         <p className={microLabel}>Reviewer and approver</p>
-        <div className="mt-2 space-y-2 rounded-geex border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#20202c]">
+        <div className="mt-2 space-y-2 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10">
           {[["reviewerCollaboratorId", "Reviewer"], ["approverCollaboratorId", "Approver"]].map(([key, name]) => (
             <Field key={key} label={name} as="select" required value={signers[key]}
               onChange={(v) => setSigners((s) => ({ ...s, [key]: v }))}
@@ -204,7 +204,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
         <p className={microLabel}>Revisions</p>
         <ul className="mt-2 space-y-1.5">
           {revisions.map((r) => (
-            <li key={r.id} className="flex items-center gap-2 rounded-lg border border-slate-200/70 bg-white px-3 py-2 text-xs dark:border-white/10 dark:bg-[#20202c]">
+            <li key={r.id} className="flex items-center gap-2 rounded-lg border border-slate-200/70 bg-[var(--geex-surface)] px-3 py-2 text-xs dark:border-white/10">
               <span className="font-mono font-700 text-slate-700 dark:text-slate-200">Rev {r.rev}</span>
               <StatusPill kind="quality" status={r.state} label={REV_LABELS[r.state] || r.state} base="rounded-full px-2 py-0.5 font-600" />
               {r.effectiveDate && <span className="ms-auto text-slate-400">{r.effectiveDate}</span>}

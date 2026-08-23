@@ -27,7 +27,7 @@ const LANGUAGE_NAMES = { en: "English", ar: "العربية" };
 // between rows, 56px min-height.
 const STACK = "flex flex-col gap-[2px]";
 const ROW =
-  "flex min-h-[56px] w-full items-center gap-3 rounded-[4px] bg-white px-4 py-3 text-start dark:bg-[#20202c] first:rounded-t-[20px] last:rounded-b-[20px]";
+  "flex min-h-[56px] w-full items-center gap-3 rounded-[4px] bg-[var(--geex-surface)] px-4 py-3 text-start first:rounded-t-[20px] last:rounded-b-[20px]";
 const ROW_TAP = "transition-colors hover:bg-slate-50 dark:hover:bg-white/5";
 const ROW_LABEL = "text-base font-500 leading-normal text-slate-900 dark:text-white";
 const ROW_VALUE = "truncate text-sm leading-[1.4286] text-slate-500 dark:text-slate-400";
@@ -341,7 +341,7 @@ function ConfirmDelete({ name, onClose, onConfirm }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label="Delete studio">
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div ref={panelRef} className="relative w-full max-w-[480px] overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]">
+      <div ref={panelRef} className="relative w-full max-w-[480px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
         <div className="px-6 pt-6">
           <h3 className="font-display text-lg font-700 text-rose-700 dark:text-rose-300">Delete {name}?</h3>
           <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
@@ -529,7 +529,7 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Favourite currencies">
           <div className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
-          <div ref={panelRef} className="relative flex max-h-[80vh] w-full max-w-[520px] flex-col overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]">
+          <div ref={panelRef} className="relative flex max-h-[80vh] w-full max-w-[520px] flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
             <div className="flex items-center gap-3 px-6 pt-5">
               <h4 className="font-display text-lg font-700 text-slate-900 dark:text-white">Favourite currencies</h4>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close"
@@ -654,7 +654,7 @@ function HoursDialog({ slug, hours, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Working hours">
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div ref={panelRef} className="relative w-full max-w-[520px] overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]">
+      <div ref={panelRef} className="relative w-full max-w-[520px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
         <div className="flex items-center gap-3 px-6 pt-5">
           <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Working hours</h3>
           <button type="button" onClick={onClose} aria-label="Close"
@@ -762,7 +762,7 @@ function LogoDialog({ slug, logo, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Studio logo">
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div ref={panelRef} className="relative w-full max-w-[512px] overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]">
+      <div ref={panelRef} className="relative w-full max-w-[512px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
         <div className="flex items-center gap-3 px-6 pt-5">
           <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Studio logo</h3>
           <button type="button" onClick={onClose} aria-label="Close"

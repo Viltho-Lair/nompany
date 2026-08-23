@@ -58,7 +58,7 @@ export default function Combo({ value, onChange, options = [], placeholder = "",
       }}
       slotProps={{
         paper: {
-          className: paperClassName || "mt-1 rounded-xl border border-slate-200 bg-white shadow-geex dark:border-white/15 dark:bg-[#20202c]",
+          className: paperClassName || "mt-1 rounded-xl border border-slate-200 bg-[var(--geex-surface)] shadow-geex dark:border-white/15",
         },
         listbox: { className: "max-h-[240px] py-1 text-sm" },
       }}

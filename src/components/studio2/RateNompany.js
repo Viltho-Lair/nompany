@@ -50,7 +50,7 @@ export default function RateNompany() {
   return (
     <div className="pointer-events-none fixed inset-x-0 top-3 z-[80] flex justify-center px-4">
       <div role="dialog" aria-label="Rate nompany"
-        className="pointer-events-auto flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2.5 shadow-geex dark:border-white/10 dark:bg-[#20202c]">
+        className="pointer-events-auto flex items-center gap-3 rounded-full border border-slate-200 bg-[var(--geex-surface)] px-4 py-2.5 shadow-geex dark:border-white/10">
         {done ? (
           <p className="text-sm font-600 text-slate-700 dark:text-slate-200">Thank you — noted.</p>
         ) : (

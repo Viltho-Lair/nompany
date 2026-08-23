@@ -379,12 +379,14 @@ html.studio-chrome {
   --geex-page: #f4f5fa;
   --geex-surface: #ffffff;
   --geex-surface-2: #eef0f7;
+  --geex-inset: #f8fafc;
   --geex-border: rgba(20, 30, 72, 0.08);
 }
 html.studio-chrome.dark {
   --geex-page: #141420;
   --geex-surface: #20202c;
   --geex-surface-2: #191921;
+  --geex-inset: #191921;
   --geex-border: rgba(255, 255, 255, 0.07);
 }
 

@@ -12,7 +12,7 @@ import { fmtDate as fmtDateCanonical, fmtDateTime as fmtDateTimeCanonical, fmtWe
 // is one of each rather than one per module drifting apart.
 
 // ---- style tokens ----------------------------------------------------------
-export const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
+export const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 export const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
 export const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 export const input =
@@ -122,7 +122,7 @@ export function Dialog({ title, description, onClose, children, width = "max-w-[
           open. The blur separates the dialog from what is behind it, so the
           studio stays legible instead of being blanked out. */}
       <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm dark:bg-slate-950/30" onClick={onClose} />
-      <div ref={panelRef} className={`relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c] ${width}`}>
+      <div ref={panelRef} className={`relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex ${width}`}>
         <div className="flex items-start gap-3 border-b border-slate-200/70 px-6 py-4 dark:border-white/10">
           <div className="min-w-0">
             <h3 id={titleId} className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
@@ -170,7 +170,7 @@ export function FilterButton({ active, open, onClick }) {
 
 export function FilterPanel({ children, onClear }) {
   return (
-    <div className="grid gap-3 rounded-geex border border-slate-200/70 bg-slate-50 p-4 dark:border-white/10 dark:bg-[#191921] sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 rounded-geex border border-slate-200/70 bg-[var(--geex-inset)] p-4 dark:border-white/10 sm:grid-cols-2 lg:grid-cols-3">
       {children}
       <div className="flex items-end justify-end sm:col-span-2 lg:col-span-3">
         <button type="button" onClick={onClear} className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">Clear all filters</button>
@@ -223,7 +223,7 @@ export function StatTile({ label: tileLabel, value, href, tone = "" }) {
       <p className={`font-display text-lg font-800 ${tone || "text-slate-900 dark:text-white"}`}>{value}</p>
     </>
   );
-  const cls = "rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]";
+  const cls = "rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-4 dark:border-white/15";
   return href
     ? <a href={href} className={`${cls} block transition-colors hover:border-brand-500 dark:hover:border-brand-500/40`}>{body}</a>
     : <div className={cls}>{body}</div>;

@@ -630,7 +630,7 @@ function SlaForm({ row, projects, onSave, onCancel }) {
       <Field className="mt-4" label="Notes" as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} />
 
       {preview.length > 0 && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 dark:border-white/15 dark:bg-[#191921]">
+        <div className="mt-4 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3.5 dark:border-white/15">
           <p className={microLabel}>Schedule</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Visits fall on {preview.slice(0, 3).map((v) => slaDate(v.date)).join(", ")}
@@ -948,7 +948,7 @@ function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCance
           <div className="mb-1.5 flex items-center justify-between gap-3">
             <label className={`${label} mb-0`}>People {collaboratorIds.length ? `(${collaboratorIds.length})` : ""}</label>
             {directory.departments.length > 0 && (
-              <select className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs dark:border-white/15 dark:bg-[#191921] dark:text-white"
+              <select className="rounded-lg border border-slate-200 bg-[var(--geex-inset)] px-2 py-1 text-xs dark:border-white/15 dark:text-white"
                 value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
                 <option value="">All departments</option>
                 {directory.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}

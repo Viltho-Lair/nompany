@@ -286,7 +286,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   Start a chat with the nompany team about {studioName}.
                 </p>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs dark:border-white/10 dark:bg-[#191921]">
+                <div className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 text-xs dark:border-white/10">
                   <p className="text-slate-500 dark:text-slate-400">You&apos;ll be shown to us as</p>
                   <p className="mt-1 font-600 text-slate-800 dark:text-slate-100">{userName}</p>
                   <p className="text-slate-500 dark:text-slate-400">{studioName}</p>

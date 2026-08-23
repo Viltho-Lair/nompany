@@ -6,7 +6,7 @@ import { ADMIN_ROLE_ID } from "@/platform/access";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import { fmtDate } from "@/lib/format";
 
-const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
+const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
 const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const btn = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
@@ -104,7 +104,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
           <h2 className={h2}>Invite people</h2>
           <p className={sub}>Share your company code. They enter it on their account page and you approve the request — no links or tokens to pass around.</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <code className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 font-mono text-base font-700 text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white">{slug}</code>
+            <code className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-4 py-2.5 font-mono text-base font-700 text-slate-900 dark:border-white/15 dark:text-white">{slug}</code>
             <button
               type="button"
               className={btnGhost}

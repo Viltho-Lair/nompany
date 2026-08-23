@@ -16,7 +16,7 @@ import {
 import { loadGoogleMaps, defaultMapOptions, googleMapsKey } from "@/lib/googleMaps";
 import { StatusPill } from "@/components/studio2/StatusPill";
 
-const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
+const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
 const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const input =
@@ -145,7 +145,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
         <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
           {tabs.map(([k, text]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
-              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-white text-brand-950 shadow-sm dark:bg-[#20202c] dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
+              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-[var(--geex-surface)] text-brand-950 shadow-sm dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
               {text}
             </button>
           ))}

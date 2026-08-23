@@ -9,7 +9,7 @@ import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
 
-const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
+const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
 const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const input =
@@ -159,7 +159,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
         <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
           {filters.map(([k, text]) => (
             <button key={k} type="button" onClick={() => setFilter(k)}
-              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${filter === k ? "bg-white text-brand-950 shadow-sm dark:bg-[#20202c] dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
+              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${filter === k ? "bg-[var(--geex-surface)] text-brand-950 shadow-sm dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
               {text}
             </button>
           ))}
@@ -503,7 +503,7 @@ function AssigneePicker({ people, selected, disabled, onToggle }) {
         onClick={() => setOpen((v) => !v)}
         className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-2 text-start text-sm transition-colors disabled:opacity-60 ${names.length === 0
           ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
-          : "border-slate-200 bg-white text-slate-900 hover:border-brand-500 dark:border-white/15 dark:bg-[#20202c] dark:text-white"}`}>
+          : "border-slate-200 bg-[var(--geex-surface)] text-slate-900 hover:border-brand-500 dark:border-white/15 dark:text-white"}`}>
         <span className="truncate">{people.length === 0 ? "Nobody in this studio yet" : summary}</span>
         <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="m6 9 6 6 6-6" />
@@ -511,7 +511,7 @@ function AssigneePicker({ people, selected, disabled, onToggle }) {
       </button>
 
       {open && (
-        <div role="listbox" className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/15 dark:bg-[#20202c]">
+        <div role="listbox" className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-slate-200 bg-[var(--geex-surface)] p-1 shadow-lg dark:border-white/15">
           {people.map((p) => {
             const on = selected.includes(p.id);
             return (

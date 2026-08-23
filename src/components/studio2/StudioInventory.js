@@ -299,7 +299,7 @@ function ItemImage({ value, onChange }) {
     <div>
       <label className={label}>Image <span className="font-400 normal-case text-slate-400">(500 KB max)</span></label>
       <div className="flex items-center gap-3">
-        <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-white/15 dark:bg-[#191921]">
+        <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-[var(--geex-inset)] dark:border-white/15">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {value ? <img src={value} alt="" className="h-full w-full object-cover" />
                  : <Icon name="services" className="h-5 w-5 text-slate-300" />}
@@ -401,7 +401,7 @@ function ItemForm({ row, vendors, units, studioCurrency = "", busy, onSave, onCa
         <label className={label}>Scope <span className="font-400 normal-case text-slate-400">(does this need fitting or configuring once it lands?)</span></label>
         <div className="flex flex-wrap gap-3">
           {[["needsInstallation", "Installation"], ["needsProgramming", "Programming"]].map(([k, text]) => (
-            <label key={k} className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-600 text-slate-700 dark:border-white/15 dark:bg-[#191921] dark:text-slate-200">
+            <label key={k} className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm font-600 text-slate-700 dark:border-white/15 dark:text-slate-200">
               <input type="checkbox" checked={f[k]} onChange={(e) => setF((s) => ({ ...s, [k]: e.target.checked }))} className="h-4 w-4 accent-brand-600" />
               {text}
             </label>
@@ -602,7 +602,7 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
       )}
 
       {serials.length > 0 && (
-        <div className="mt-3 flex max-h-52 flex-wrap gap-1.5 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/15 dark:bg-[#191921]">
+        <div className="mt-3 flex max-h-52 flex-wrap gap-1.5 overflow-auto rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
           {/* RESERVED UNITS ARE STRUCK THROUGH. A serial allocated to a project
               sheet is still physically on the shelf, so it is still listed —
               but it is spoken for, and nobody should be shortlisting it for
@@ -767,7 +767,7 @@ function VendorForm({ row, busy, onSave, onCancel }) {
         ) : (
           <div className="mt-2 space-y-2">
             {types.map((t, i) => (
-              <div key={i} className="flex items-end gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/15 dark:bg-[#191921]">
+              <div key={i} className="flex items-end gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
                 <Field label="Type" value={t.type} onChange={(v) => setType(i, "type", v)} hint="e.g. Cameras" className="flex-1" />
                 <Field label="Weeks" type="number" min="0" value={t.weeks} onChange={(v) => setType(i, "weeks", v)} className="w-32" />
                 <button type="button" aria-label="Remove" title="Remove"
@@ -972,7 +972,7 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
       )}
 
       {canManage && (
-        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
+        <div className="mt-5 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-4 dark:border-white/15">
           <p className={microLabel}>Record a milestone</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Status" as="select" required value={code} onChange={(v) => setCode(v)}
@@ -1019,7 +1019,7 @@ function Airlines({ rows, busy, onSave, onCancel }) {
       </div>
 
       {form && (
-        <div className="mt-4 rounded-xl border border-brand-500/40 bg-slate-50 p-4 dark:bg-[#191921]">
+        <div className="mt-4 rounded-xl border border-brand-500/40 bg-[var(--geex-inset)] p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Prefix (3 digits)" value={form.prefix} hint="e.g. 176"
               onChange={(v) => setForm((s) => ({ ...s, prefix: v.replace(/\D/g, "").slice(0, 3) }))} />

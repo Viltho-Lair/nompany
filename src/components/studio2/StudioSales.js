@@ -725,7 +725,7 @@ function RowList({ title, help, rows, columns, onChange, addLabel }) {
       ) : (
         <div className="mt-2 space-y-2">
           {rows.map((r, i) => (
-            <div key={i} className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/15 dark:bg-[#191921]">
+            <div key={i} className="flex items-start gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
               <div className="grid flex-1 gap-2 sm:grid-cols-2">
                 {columns.map((c) => (
                   <div key={c.key}>
@@ -1006,7 +1006,7 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
           {services.map((sv) => {
             const on = serviceIds.includes(sv.id);
             return (
-              <div key={sv.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 dark:border-white/15 dark:bg-[#191921]">
+              <div key={sv.id} className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3.5 dark:border-white/15">
                 <label className="flex items-center gap-2.5 text-sm">
                   <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={on} onChange={() => toggleService(sv.id)} />
                   <span className="font-600 text-slate-900 dark:text-white">{sv.name}</span>
@@ -1104,7 +1104,7 @@ function SalesSettings({ options, selected, services, cities, positions, canMana
         <ul className="mt-4 space-y-2">
           {services.length === 0 && <li className="text-xs text-slate-400">No services yet — a ticket needs at least one, so add them here first.</li>}
           {services.map((sv) => (
-            <li key={sv.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
+            <li key={sv.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-4 dark:border-white/15">
               <div className="min-w-0">
                 <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{sv.name}</p>
                 {sv.description && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{sv.description}</p>}
@@ -1144,7 +1144,7 @@ function SalesSettings({ options, selected, services, cities, positions, canMana
         <p className={sub}>Choose the ticket columns the Live view shows. This is a shared setting — it applies to everyone. At least one is kept.</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {options.map((o) => (
-            <label key={o.key} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm dark:border-white/15 dark:bg-[#191921]">
+            <label key={o.key} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm dark:border-white/15">
               <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={cols.includes(o.key)} disabled={!canManage} onChange={() => toggle(o.key)} />
               <span className="text-slate-900 dark:text-white">{o.label}</span>
             </label>

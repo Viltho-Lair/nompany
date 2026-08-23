@@ -16,7 +16,7 @@ import {
 } from "@/components/studio2/ui";
 import { StatusPill } from "@/components/studio2/StatusPill";
 
-const panel = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
+const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 const btn = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
 const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
@@ -132,7 +132,7 @@ function FinanceCash({ slug, view = "finance" }) {
         <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
           {tabs.map(([k, text]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
-              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-white text-brand-950 shadow-sm dark:bg-[#20202c] dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
+              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-[var(--geex-surface)] text-brand-950 shadow-sm dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
               {text}
             </button>
           ))}
@@ -1331,7 +1331,7 @@ function Commercials({ row, busy, canManage, onSave, onCancel }) {
 
       <div className="mt-5 grid gap-3 sm:grid-cols-4">
         {[["Value", row.value], ["Invoiced", row.invoiced], ["Collected", row.collected], ["Margin", row.margin]].map(([name, v]) => (
-          <div key={name} className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/15 dark:bg-[#191921]">
+          <div key={name} className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
             <p className={label}>{name}</p>
             <p className="font-display text-base font-800 tabular-nums text-slate-900 dark:text-white">{money(v)}</p>
           </div>

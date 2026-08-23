@@ -103,13 +103,13 @@ export default function StudioTechnicalLive({ studio }) {
         {!data && !error && <p className="text-sm text-slate-500">Loading…</p>}
 
         {data && columns.length === 0 && (
-          <p className="rounded-geex border border-slate-200/70 bg-white p-8 text-center text-sm text-slate-500 dark:border-white/10 dark:bg-[#20202c] dark:text-slate-400">
+          <p className="rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-8 text-center text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
             No columns are selected. Choose them in Technical → Settings.
           </p>
         )}
 
         {data && columns.length > 0 && (
-          <div className="overflow-x-auto rounded-geex border border-slate-200/70 bg-white dark:border-white/10 dark:bg-[#20202c]">
+          <div className="overflow-x-auto rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] dark:border-white/10">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200/70 text-start dark:border-white/10">

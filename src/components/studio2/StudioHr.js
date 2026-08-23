@@ -130,7 +130,7 @@ export default function StudioHr({ slug, view = "hr" }) {
         <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
           {tabs.map(([k, text]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
-              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-white text-brand-950 shadow-sm dark:bg-[#20202c] dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
+              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-[var(--geex-surface)] text-brand-950 shadow-sm dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
               {text}
             </button>
           ))}
