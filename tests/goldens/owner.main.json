@@ -37,6 +37,8 @@
       "finance": true,
       "finance-cash": true,
       "finance-ledger": true,
+      "finance-payables": true,
+      "finance-assets": true,
       "finance-settings": true,
       "operations": true,
       "operations-tracking": true,
@@ -180,6 +182,16 @@
       {
         "key": "finance-ledger",
         "name": "Ledger",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "finance-payables",
+        "name": "Payables",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "finance-assets",
+        "name": "Assets",
         "parentId": "<sec_ID>"
       },
       {

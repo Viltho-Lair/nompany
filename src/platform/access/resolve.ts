@@ -93,6 +93,8 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // sectionViewable returns `!own` and shows it to everyone, flipping the whole
   // Finance parent visible for a no-role user. The goldens caught exactly that.
   "finance-ledger": ["finance.ledger"],
+  "finance-payables": ["finance.payables"],
+  "finance-assets": ["finance.assets"],
   "finance-settings": ["finance.settings"],
   "operations-tracking": ["operations.tracking"],
   "operations-settings": ["operations.settings"],

@@ -162,3 +162,78 @@ export const JournalEntrySchema = z.object({
 export type Account = z.infer<typeof AccountSchema>;
 export type JournalLine = z.infer<typeof JournalLineSchema>;
 export type JournalEntry = z.infer<typeof JournalEntrySchema>;
+
+// ============================================================================
+// FINANCE 1b — AP (Bill) and FA (FixedAsset). See docs/w4-dashboards-and-motion §2.2.
+// ============================================================================
+
+/**
+ * A BILL — what we owe a vendor, the AP counterpart of an invoice, and
+ * DELIBERATELY THE SAME SHAPE so the two aging reports share their arithmetic.
+ * `reference` comes from the counter (invariant 10). `vendorName` is a SNAPSHOT
+ * like an invoice's clientName. `approvedBy` ≠ the raiser (invariant 7),
+ * enforced at the transition, not here.
+ */
+export const BillSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  reference: z.string(),
+  vendorId: z.string().max(60),
+  vendorName: z.string().max(160),
+  orderId: z.string().max(60).optional(),   // → a material order, when the bill answers a PO
+  projectId: z.string().max(60).optional(),
+  lines: z.array(InvoiceLineSchema),        // same line shape as an invoice
+  vatRate: z.number().min(0).max(100),
+  status: z.string(),                        // Draft|Received|Approved|Paid|Cancelled|Disputed
+  billDate: z.string(),
+  dueDate: z.string(),
+  terms: z.string().optional(),              // net-0|net-15|net-30|net-60|on-receipt
+  payments: z.array(PaymentSchema).optional(),
+  notes: z.string().max(2000).optional(),
+  approvedByCollaboratorId: z.string().optional(),
+  approvedAt: z.string().optional(),
+  createdAt: z.string().optional(),
+  createdByCollaboratorId: z.string().optional(),
+
+  // ---- derived by billTotals, never stored --------------------------------
+  subtotal: z.number().optional(),
+  vat: z.number().optional(),
+  total: z.number().optional(),
+  paid: z.number().optional(),
+  outstanding: z.number().optional(),
+});
+
+/**
+ * A FIXED ASSET (PPE). Depreciation is DERIVED from these five fields, never
+ * stored — a schedule saved at acquisition goes stale the moment a useful life
+ * is corrected, and the whole schedule is a pure function of cost, salvage,
+ * life, method and the date. `disposedOn` closes it.
+ */
+export const FixedAssetSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  reference: z.string(),
+  name: z.string().max(160),
+  category: z.string().max(120),
+  acquiredOn: z.string(),
+  cost: z.number(),
+  salvageValue: z.number().optional(),
+  usefulLifeMonths: z.number(),
+  method: z.string(),                        // straight-line | reducing-balance
+  disposedOn: z.string().optional(),
+  disposalProceeds: z.number().optional(),
+  projectId: z.string().max(60).optional(),
+  custodianCollaboratorId: z.string().max(60).optional(),
+  createdAt: z.string().optional(),
+  createdByCollaboratorId: z.string().optional(),
+
+  // ---- derived by depreciationOf, never stored ----------------------------
+  bookValue: z.number().optional(),
+  accumulated: z.number().optional(),
+  monthlyDepreciation: z.number().optional(),
+});
+
+export type Bill = z.infer<typeof BillSchema>;
+export type FixedAsset = z.infer<typeof FixedAssetSchema>;

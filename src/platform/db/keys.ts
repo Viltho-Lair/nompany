@@ -361,6 +361,10 @@ export const SECTION_DEFS = [
     // existing invoice and expense carries its SectionID, and a rename orphans
     // them; the ledger is a NEW section beside it, not a reshaping of it.
     { key: "finance-ledger", name: "Ledger" },
+    // Wave 4 Finance 1b: what we owe (AP) and what we own (fixed assets), each a
+    // section beside cash and the ledger, each with its own permission.
+    { key: "finance-payables", name: "Payables" },
+    { key: "finance-assets", name: "Assets" },
     { key: "finance-settings", name: "Settings" },
   ] },
   { key: "operations", name: "Operations", children: [
@@ -437,6 +441,11 @@ export const SECTION_COLLECTIONS = {
   // posted — only reversed by a mirror entry — so there is no separate
   // "reversals" collection: a reversal is just another journalEntry.
   "finance-ledger": ["accounts", "journalEntries"],
+  // Payables: bills we owe vendors, with their own payment history. Assets: the
+  // fixed-asset register — depreciation is derived, never stored, so there is no
+  // schedule collection.
+  "finance-payables": ["bills"],
+  "finance-assets": ["fixedAssets"],
   // operations — Permits/Locations are tabs of the main screen, not sub-sections.
   operations: ["locations", "permits", "shifts"],
   // One last-known position per person, never a movement trail.

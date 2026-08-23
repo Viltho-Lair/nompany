@@ -466,6 +466,43 @@
         ]
       },
       {
+        "key": "finance.payables",
+        "group": "Finance",
+        "label": "Payables",
+        "verbs": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ],
+        "extra": [
+          {
+            "key": "approve",
+            "label": "Approve bills"
+          },
+          {
+            "key": "pay",
+            "label": "Record payments"
+          }
+        ]
+      },
+      {
+        "key": "finance.assets",
+        "group": "Finance",
+        "label": "Fixed assets",
+        "verbs": [
+          "view",
+          "create",
+          "edit"
+        ],
+        "extra": [
+          {
+            "key": "dispose",
+            "label": "Dispose of an asset"
+          }
+        ]
+      },
+      {
         "key": "finance.settings",
         "group": "Finance",
         "label": "Settings",

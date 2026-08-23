@@ -173,7 +173,7 @@ export async function postEntry(
     return { error: "unbalanced", debit: money(cleaned.debit), credit: money(cleaned.credit) };
   }
 
-  const kind = (["invoice", "bill", "expense", "payment", "manual"] as const)
+  const kind = (["invoice", "bill", "bill-payment", "expense", "payment", "manual"] as const)
     .find((k) => k === body?.source?.kind) || "manual";
 
   const entries = await Entries.find({ studio, section: ledgerSection });
@@ -327,6 +327,7 @@ const CATEGORY_ACCOUNT: Record<string, string> = {
   Salaries: "5100", Rent: "5200", Utilities: "5300",
 };
 const OTHER_EXPENSE = "5900";
+const COST_OF_SALES = "5000";  // where an uncategorised vendor bill lands
 
 // Resolve chart CODES to the account ids a posting line needs, seeding the chart
 // if it has to. Returns a lookup, or the codes it could not find (which would
@@ -411,6 +412,83 @@ export async function postExpense(ctx: FinanceContext, expenseId: string) {
     lines: [
       { accountId: byCode.get(expenseCode), debit: expense.amount },
       { accountId: byCode.get(BANK), credit: expense.amount },
+    ],
+  });
+}
+
+// AP is the mirror of AR: the accounts an invoice credits, a bill debits.
+const AP = "2000";       // Accounts Payable
+
+/**
+ * POST A BILL: the AP mirror of postInvoice. Debit the expense (the net we
+ * incurred) and the VAT we can reclaim, credit Accounts Payable for the whole
+ * we now owe the vendor. AP = expense + VAT is the bill's own arithmetic, and
+ * postEntry checks it anyway. Only an approved (or received) bill posts — a
+ * draft is not yet an obligation. The bill's category, if it names one, picks
+ * the expense account the same way an expense does; otherwise it is Cost of
+ * Sales, the ordinary home for a vendor bill.
+ */
+export async function postBill(ctx: FinanceContext, billId: string) {
+  const denied = requirePermission(ctx.access, "finance.ledger.post");
+  if (denied) return denied;
+
+  const bill = (await repo<Row>("bills").find({ studio: ctx.studio, section: ctx.payablesSection }))
+    .find((b) => b.id === billId) as (Row & { status?: string; category?: string; billDate?: string; reference?: string; vendorName?: string }) | undefined;
+  if (!bill) return { error: "notfound" };
+  if (bill.status === "Draft" || bill.status === "Cancelled") return { error: "not-postable", status: bill.status };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "bill", billId)) return { error: "already-posted" };
+
+  const totals = invoiceTotals(bill as { lines?: unknown; vatRate?: unknown; payments?: unknown });
+  const expenseCode = CATEGORY_ACCOUNT[bill.category || ""] || COST_OF_SALES;
+  const { byCode, missing } = await codesToIds(ctx, [expenseCode, VAT_PAYABLE, AP]);
+  if (missing.length) return { error: "chart", missing };
+
+  const lines: { accountId: string | undefined; debit?: number; credit?: number }[] = [
+    { accountId: byCode.get(expenseCode), debit: totals.subtotal },
+    { accountId: byCode.get(AP), credit: totals.total },
+  ];
+  // Input VAT is reclaimable — it sits on the same VAT Payable account, reducing
+  // what is owed to the authority, so a bill DEBITS it where an invoice credits.
+  if (totals.vat > 0) lines.push({ accountId: byCode.get(VAT_PAYABLE), debit: totals.vat });
+
+  return postEntry(ctx, {
+    date: bill.billDate,
+    memo: `Bill ${bill.reference}${bill.vendorName ? ` — ${bill.vendorName}` : ""}`,
+    source: { kind: "bill", id: billId },
+    lines,
+  });
+}
+
+/**
+ * POST A BILL PAYMENT: debit Accounts Payable to clear what we owed the vendor,
+ * credit the bank it left from. The mirror of postPayment. The payment lives
+ * inside its bill; its own id is the source, so each posts at most once.
+ */
+export async function postBillPayment(ctx: FinanceContext, billId: string, paymentId: string) {
+  const denied = requirePermission(ctx.access, "finance.ledger.post");
+  if (denied) return denied;
+
+  const bill = (await repo<Row>("bills").find({ studio: ctx.studio, section: ctx.payablesSection }))
+    .find((b) => b.id === billId) as (Row & { payments?: { id: string; amount: number; date?: string }[]; reference?: string }) | undefined;
+  if (!bill) return { error: "notfound" };
+  const payment = (bill.payments || []).find((p) => p.id === paymentId);
+  if (!payment) return { error: "notfound-payment" };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "bill-payment", paymentId)) return { error: "already-posted" };
+
+  const { byCode, missing } = await codesToIds(ctx, [AP, BANK]);
+  if (missing.length) return { error: "chart", missing };
+
+  return postEntry(ctx, {
+    date: payment.date,
+    memo: `Payment on ${bill.reference}`,
+    source: { kind: "bill-payment", id: paymentId },
+    lines: [
+      { accountId: byCode.get(AP), debit: payment.amount },
+      { accountId: byCode.get(BANK), credit: payment.amount },
     ],
   });
 }

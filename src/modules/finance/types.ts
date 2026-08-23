@@ -5,6 +5,7 @@ import type { Section } from "@/platform/db/sections";
 
 export type { Invoice, InvoiceLine, Payment, Expense } from "./schema";
 export type { Account, JournalLine, JournalEntry } from "./schema";
+export type { Bill, FixedAsset } from "./schema";
 
 import type { Invoice } from "./schema";
 
@@ -36,6 +37,8 @@ export type InvoiceView = Invoice & InvoiceTotals & {
 export type FinanceContext = ModuleContext & {
   cashSection: Section;
   ledgerSection: Section;
+  payablesSection: Section;
+  assetsSection: Section;
   settingsSection: Section;
   projectsListSection: Section | null;
   sheetsSection: Section | null;

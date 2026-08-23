@@ -48,9 +48,9 @@ export const EXPENSE_CATEGORIES = [
 export const PAYMENT_METHODS = ["Bank transfer", "Cash", "Card", "Cheque", "Other"];
 export const DEFAULT_VAT_RATE = 15;
 
-const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
-const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
-const cash = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
+export const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
+export const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+export const cash = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
 const round = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
 
 // THE COLLECTIONS THIS MODULE QUERIES, named once. Projects and Orders belong
@@ -58,12 +58,12 @@ const round = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
 // different function, and the scope still cannot cross a studio.
 export const financeContext = moduleContext<FinanceContext>({
   root: "finance",
-  sub: { cash: "finance-cash", ledger: "finance-ledger", settings: "finance-settings" },
+  sub: { cash: "finance-cash", ledger: "finance-ledger", payables: "finance-payables", assets: "finance-assets", settings: "finance-settings" },
   // Projects and Inventory sheets, when the studio has them. Read on the same
   // terms Sales reads Technical: what a project cost is part of the invoice's
   // own story, and a studio without those sections simply has no margin column.
   foreign: { projectsList: ["projects-list", "projects"], sheets: ["inventory-sheets", "inventory"] },
-  flags: ["cash", "ledger", "settings"],
+  flags: ["cash", "ledger", "payables", "assets", "settings"],
   extend: ({ settingsSection }) => ({
     cashCategories: readCashCategories(settingsSection as { settings?: Record<string, unknown> }),
   }),
@@ -103,7 +103,9 @@ export async function saveFinanceSettings(ctx: FinanceContext, body: Record<stri
 // ---- money -----------------------------------------------------------------
 // One place computes an invoice's numbers, so the list, the detail and the
 // totals can never disagree.
-export function invoiceTotals(invoice: Invoice | null | undefined) {
+// Takes the minimal shape it reads — lines, a VAT rate, payments — so both an
+// Invoice and a Bill (which share exactly those) total through the one function.
+export function invoiceTotals(invoice: { lines?: unknown; vatRate?: unknown; payments?: unknown } | null | undefined) {
   const lines = Array.isArray(invoice?.lines) ? invoice.lines : [];
   const subtotal = round(lines.reduce(
     (sum: number, l: Record<string, unknown>) => sum + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0),
@@ -442,7 +444,7 @@ export async function profitability(
 }
 
 // ---- shared ----------------------------------------------------------------
-function cleanLines(list: unknown): InvoiceLine[] {
+export function cleanLines(list: unknown): InvoiceLine[] {
   return (Array.isArray(list) ? list : [])
     .map((l) => ({
       description: str(l?.description, 300),

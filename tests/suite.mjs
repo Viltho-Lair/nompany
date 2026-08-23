@@ -67,9 +67,13 @@ import { listSections, updateRow } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices } from "@/modules/finance/finance";
-import { listAccounts, postEntry, reverseEntry, listJournal, trialBalance, postInvoice, postExpense, postPayment } from "@/modules/finance/ledger";
+import { listAccounts, postEntry, reverseEntry, listJournal, trialBalance, postInvoice, postExpense, postPayment, postBill, postBillPayment } from "@/modules/finance/ledger";
 import { arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix } from "@/modules/finance/analytics";
+import { listBills, createBill, editBill, approveBill, recordBillPayment, removeBill } from "@/modules/finance/payables";
+import { depreciationOf, listAssets, createAsset, editAsset, disposeAsset } from "@/modules/finance/assets";
 import { analyticsLevelOf, analyticsAllows } from "@/lib/analytics";
+import { planOf } from "@/lib/plans";
+import { createCatalogItem, deleteCatalogItem, listCatalog } from "@/lib/data/catalog";
 import { inventoryContext, createItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation,
@@ -1059,6 +1063,180 @@ console.log("\n== analytics is paid: a rung sees at or below itself");
   ok("...but not advanced", !analyticsAllows("moderate", "advanced"), "leaked advanced");
   ok("an unknown rung is the floor, never a free unlock", !analyticsAllows("typo", "simple") && analyticsAllows("basic", "typo"), "unknown");
   ok("a tier without a level resolves to basic", analyticsLevelOf({}) === "basic" && analyticsLevelOf({ analyticsLevel: "advanced" }) === "advanced", "levelOf");
+}
+
+// ============================================================================
+console.log("\n== a tier's analytics rung: explicit wins, else the name, else the floor");
+// The bug a studio actually hit: a tier NAMED "Advanced" showed only basic
+// widgets because no console field set its rung. planOf now reads the explicit
+// field first (the /super editor), then falls back to the tier's name, so a tier
+// called "Advanced" grants the advanced rung with no migration.
+{
+  const tiers = [
+    { id: "t_named", name: "Advanced" },
+    { id: "t_explicit", name: "Gold", analyticsLevel: "moderate" },
+    { id: "t_both", name: "Advanced", analyticsLevel: "simple" },
+    { id: "t_unknown", name: "Platinum" },
+  ];
+  const lvl = (tierId) => planOf({ tierId }, [], tiers).analyticsLevel;
+  ok("a tier named after a rung grants that rung", lvl("t_named") === "advanced", lvl("t_named"));
+  ok("...an explicit field wins over the name", lvl("t_both") === "simple", lvl("t_both"));
+  ok("...an explicit field with no rung-like name still resolves", lvl("t_explicit") === "moderate", lvl("t_explicit"));
+  ok("...and an unrecognised tier is the free floor", lvl("t_unknown") === "basic", lvl("t_unknown"));
+
+  // THE WRITE BOUNDARY: the console can store a rung, and only one of the four.
+  const good = await createCatalogItem("tiers", { name: "ZZ Test Advanced Tier", analyticsLevel: "advanced" });
+  const bad = await createCatalogItem("tiers", { name: "ZZ Test Wild Tier", analyticsLevel: "everything" });
+  const stored = await listCatalog("tiers");
+  const g = stored.find((t) => t.id === good.id);
+  const b = stored.find((t) => t.id === bad.id);
+  ok("the tiers editor stores a valid rung", g?.analyticsLevel === "advanced", JSON.stringify(g?.analyticsLevel));
+  ok("...and a bad rung falls to the floor, never an unlock", b?.analyticsLevel === "basic", JSON.stringify(b?.analyticsLevel));
+  await deleteCatalogItem("tiers", good.id);
+  await deleteCatalogItem("tiers", bad.id);
+}
+
+// ============================================================================
+console.log("\n== Finance 1b: accounts payable mirrors the invoice");
+// A bill is the AP counterpart of an invoice — same lines, same VAT, same aging
+// arithmetic — with one thing an invoice lacks: APPROVAL, and invariant 7 on it
+// (the raiser may not approve their own bill).
+{
+  const fin = await financeContext(owner, slug);
+
+  const bill = await createBill(fin, {
+    vendorName: "Steel Co",
+    lines: [{ description: "I-beams", qty: 2, unitPrice: 500 }],
+    dueDate: "2026-06-01",
+  });
+  ok("a bill is raised", !!bill.bill, JSON.stringify(bill.error ?? bill));
+  ok("...with a reference from the counter", /^BILL-\d+$/.test(bill.bill?.reference || ""), bill.bill?.reference);
+  ok("...totalling like an invoice (net + VAT)", bill.bill.subtotal === 1000 && bill.bill.total === 1150 && bill.bill.outstanding === 1150, JSON.stringify(bill.bill));
+
+  // INVARIANT 7: the owner raised it, so the owner cannot approve it.
+  const selfApprove = await approveBill(fin, bill.bill.id);
+  ok("the raiser cannot approve their own bill", selfApprove.error === "same-signer", JSON.stringify(selfApprove));
+
+  // A different collaborator (viewer is Admin here) can.
+  const viewerFin = await financeContext(viewer.user, slug);
+  const approved = await approveBill(viewerFin, bill.bill.id);
+  ok("a second person approves it", approved.bill?.status === "Approved", JSON.stringify(approved.error ?? approved));
+  ok("...and records who", !!approved.bill?.approvedByCollaboratorId, JSON.stringify(approved.bill?.approvedByCollaboratorId));
+
+  // An approved bill is locked to edits — dispute or cancel instead.
+  const editLocked = await editBill(fin, bill.bill.id, { vendorName: "Nope" });
+  ok("an approved bill cannot be edited", editLocked.error === "locked", JSON.stringify(editLocked));
+
+  // Pay it: partial then the rest, and overpayment is refused.
+  const over = await recordBillPayment(fin, bill.bill.id, { amount: 2000 });
+  ok("a bill cannot be overpaid", over.error === "overpayment", JSON.stringify(over));
+  const part = await recordBillPayment(fin, bill.bill.id, { amount: 150 });
+  ok("a partial payment leaves it outstanding", part.bill?.outstanding === 1000 && part.bill?.status === "Approved", JSON.stringify(part.bill));
+  const rest = await recordBillPayment(fin, bill.bill.id, { amount: 1000 });
+  ok("...and paying the rest marks it Paid", rest.bill?.status === "Paid" && rest.bill?.outstanding === 0, JSON.stringify(rest.bill));
+
+  // A paid bill is history — it cannot be deleted.
+  const del = await removeBill(fin, bill.bill.id);
+  ok("a bill with history cannot be deleted", del.error === "has-history", JSON.stringify(del));
+
+  // It shows in the list with its derived totals and overdue flag.
+  const listed = await listBills(fin);
+  const row = listed.find((b) => b.id === bill.bill.id);
+  ok("the bill lists with derived totals", row?.total === 1150 && row?.paid === 1150, JSON.stringify(row && { total: row.total, paid: row.paid }));
+}
+
+// ============================================================================
+console.log("\n== Finance 1b: a bill posts as the mirror of an invoice");
+// AP = expense + reclaimable VAT, credited to Accounts Payable. The double of
+// postInvoice, and the book still balances.
+{
+  const fin = await financeContext(owner, slug);
+  const chart = (await listAccounts(fin)).accounts;
+  const idOf = (code) => chart.find((a) => a.code === code)?.id;
+
+  const bill = await createBill(fin, { vendorName: "Cement Co", lines: [{ description: "Bags", qty: 1, unitPrice: 200 }] });
+  // A received bill is postable (only Draft/Cancelled are not).
+  const posted = await postBill(fin, bill.bill.id);
+  ok("a bill posts", !!posted.entry, JSON.stringify(posted.error ?? posted));
+  // Dr Cost of Sales 200 + Dr VAT 30 = Cr Accounts Payable 230.
+  ok("...debiting the expense for the net", posted.entry.lines.find((l) => l.accountId === idOf("5000"))?.debit === 200, JSON.stringify(posted.entry.lines));
+  ok("...debiting reclaimable VAT", posted.entry.lines.find((l) => l.accountId === idOf("2100"))?.debit === 30, JSON.stringify(posted.entry.lines));
+  ok("...crediting accounts payable for the whole", posted.entry.lines.find((l) => l.accountId === idOf("2000"))?.credit === 230, JSON.stringify(posted.entry.lines));
+  const twice = await postBill(fin, bill.bill.id);
+  ok("a bill cannot be posted twice", twice.error === "already-posted", JSON.stringify(twice));
+
+  // Pay it and post the payment: Dr AP, Cr Bank.
+  const paid = await recordBillPayment(fin, bill.bill.id, { amount: 230 });
+  const payId = paid.bill.payments[0].id;
+  const payPosted = await postBillPayment(fin, bill.bill.id, payId);
+  ok("the bill payment posts, clearing payable and crediting bank",
+    payPosted.entry?.lines.find((l) => l.accountId === idOf("2000"))?.debit === 230 &&
+    payPosted.entry?.lines.find((l) => l.accountId === idOf("1010"))?.credit === 230, JSON.stringify(payPosted.error ?? payPosted.entry?.lines));
+
+  const tb = await trialBalance(fin);
+  ok("the book balances after a bill and its payment", tb.balanced === true, JSON.stringify({ d: tb.totalDebit, c: tb.totalCredit }));
+}
+
+// ============================================================================
+console.log("\n== Finance 1b: depreciation is derived, to the cent");
+// The book value is a pure function of five fields and a date — never a stored
+// schedule that rots when a life is corrected. Proven without a studio.
+{
+  // Straight-line: 12000 cost, 2000 salvage, 40 months. Base 10000 / 40 = 250/mo.
+  const sl = { cost: 12000, salvageValue: 2000, usefulLifeMonths: 40, method: "straight-line", acquiredOn: "2026-01-01" };
+  const at10 = depreciationOf(sl, "2026-11-01");   // 10 whole months
+  ok("straight-line charges the base evenly", at10.monthlyDepreciation === 250 && at10.accumulated === 2500, JSON.stringify(at10));
+  ok("...and book value is cost less accumulated", at10.bookValue === 9500, String(at10.bookValue));
+  // Part months do not count: 2026-01-01 -> 2026-11-30 is still 10 months.
+  ok("a part month does not depreciate", depreciationOf(sl, "2026-11-15").accumulated === 2500, JSON.stringify(depreciationOf(sl, "2026-11-15")));
+  // Never below salvage, and fully depreciated at the end of life.
+  const done = depreciationOf(sl, "2035-01-01");
+  ok("...it never writes past salvage", done.accumulated === 10000 && done.bookValue === 2000 && done.fullyDepreciated, JSON.stringify(done));
+
+  // Reducing-balance: front-loaded, and it too stops at salvage.
+  const rb = { cost: 10000, salvageValue: 1000, usefulLifeMonths: 20, method: "reducing-balance", acquiredOn: "2026-01-01" };
+  const rbEarly = depreciationOf(rb, "2026-02-01");   // 1 month, rate 2/20 = 0.1
+  ok("reducing-balance is front-loaded", rbEarly.accumulated === 1000 && rbEarly.bookValue === 9000, JSON.stringify(rbEarly));
+  const rbEnd = depreciationOf(rb, "2035-01-01");
+  ok("...and never falls through salvage", rbEnd.bookValue >= 1000 && rbEnd.fullyDepreciated, JSON.stringify(rbEnd));
+
+  // Disposal stops the clock: depreciation runs only to the disposal date.
+  const disposed = depreciationOf({ ...sl, disposedOn: "2026-06-01" }, "2027-01-01");
+  ok("disposal stops the clock at the disposal date", disposed.accumulated === 1250 && disposed.disposed, JSON.stringify(disposed));
+}
+
+// ============================================================================
+console.log("\n== Finance 1b: the fixed-asset register");
+{
+  const fin = await financeContext(owner, slug);
+
+  const bad = await createAsset(fin, { name: "", cost: 100, usefulLifeMonths: 12 });
+  ok("an asset needs a name", bad.error === "name", JSON.stringify(bad));
+  const noLife = await createAsset(fin, { name: "Van", cost: 100, usefulLifeMonths: 0 });
+  ok("...and a useful life", noLife.error === "life", JSON.stringify(noLife));
+
+  const asset = await createAsset(fin, {
+    name: "Delivery van", category: "Vehicles", cost: 60000, salvageValue: 10000,
+    usefulLifeMonths: 60, method: "straight-line", acquiredOn: "2026-01-01",
+  });
+  ok("an asset is registered", !!asset.asset, JSON.stringify(asset.error ?? asset));
+  ok("...with a reference and a derived book value", /^FA-\d+$/.test(asset.asset?.reference || "") && asset.asset.bookValue <= 60000, JSON.stringify({ ref: asset.asset?.reference, bv: asset.asset?.bookValue }));
+
+  // Salvage cannot exceed cost.
+  const capped = await createAsset(fin, { name: "Laptop", cost: 5000, salvageValue: 9000, usefulLifeMonths: 24 });
+  ok("salvage is capped at cost", capped.asset?.salvageValue === 5000, JSON.stringify(capped.asset?.salvageValue));
+
+  // Dispose it, then it cannot be disposed again or edited.
+  const disp = await disposeAsset(fin, asset.asset.id, { disposedOn: "2027-01-01", disposalProceeds: 55000 });
+  ok("an asset is disposed", disp.asset?.disposedOn === "2027-01-01", JSON.stringify(disp.error ?? disp));
+  ok("...carrying the gain or loss against book value", typeof disp.asset?.gainOnDisposal === "number", JSON.stringify(disp.asset?.gainOnDisposal));
+  const again = await disposeAsset(fin, asset.asset.id, {});
+  ok("...and cannot be disposed twice", again.error === "already-disposed", JSON.stringify(again));
+  const editGone = await editAsset(fin, asset.asset.id, { name: "No" });
+  ok("...nor edited once disposed", editGone.error === "disposed", JSON.stringify(editGone));
+
+  const listed = await listAssets(fin);
+  ok("the register lists assets with derived depreciation", (listed.assets || []).some((a) => a.id === asset.asset.id && typeof a.bookValue === "number"), "not listed");
 }
 
 // ============================================================================

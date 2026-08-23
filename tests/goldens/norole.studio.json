@@ -177,6 +177,18 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "finance-payables",
+        "name": "Payables",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
+        "key": "finance-assets",
+        "name": "Assets",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "finance-settings",
         "name": "Settings",
         "enabled": true

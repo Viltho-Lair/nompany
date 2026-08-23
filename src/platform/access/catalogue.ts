@@ -178,6 +178,13 @@ const OWN_AREAS = [
   // other on purpose — reversing somebody's posting is not a bigger post.
   { key: "finance.ledger", group: "Finance", label: "Ledger", verbs: ["view"],
     extra: [{ key: "post", label: "Post journal entries" }, { key: "reverse", label: "Reverse entries" }] },
+  // Raising a bill and AUTHORISING it are two acts (invariant 7: raiser ≠
+  // approver), and paying is a third — so approve and pay are extra powers
+  // outside the view/create/edit/delete ladder.
+  { key: "finance.payables", group: "Finance", label: "Payables", verbs: ["view", "create", "edit", "delete"],
+    extra: [{ key: "approve", label: "Approve bills" }, { key: "pay", label: "Record payments" }] },
+  { key: "finance.assets", group: "Finance", label: "Fixed assets", verbs: ["view", "create", "edit"],
+    extra: [{ key: "dispose", label: "Dispose of an asset" }] },
   { key: "finance.settings", group: "Finance", label: "Settings", verbs: ["view", "edit"] },
 
   { key: "operations.tracking", group: "Operations", label: "Tracking", verbs: ["view", "create", "edit", "delete"] },
