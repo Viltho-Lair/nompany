@@ -1,8 +1,10 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
+import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
+import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
@@ -32,6 +34,14 @@ const td = "py-3 pe-3 align-middle";
 // into it — see companySettings.
 const fmt = fmtDate;
 const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
+
+// The dense-table grid, loaded in its own async chunk (never folded into this
+// department's initial bundle) — see StudioDataGrid's header. The skeleton
+// reserves the exact box for eight columns while that chunk arrives.
+const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioDataGrid"), {
+  ssr: false,
+  loading: () => <StudioDataGridSkeleton columns={8} pageSize={10} ariaLabel="Loading invoices" />,
+});
 
 // FINANCE — the department's shell dispatches to a screen per SUB-SECTION key.
 // A thin dispatcher on purpose: it calls no hooks itself, so switching between
@@ -219,92 +229,121 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
 
       {rows.length === 0 ? <Empty title="No invoices yet" body="An invoice bills a client for a project. Recording payments against it is what marks it paid." /> : (
         <section className={panel}>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-white/10">
-                  {["Invoice", "Client", "Project", "Due", "Total", "Paid", "Status", ""].map((h, i) => (
-                    <th key={h} className={`${th} ${i >= 4 && i <= 5 ? "text-end" : i === 7 ? "text-end" : ""}`}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((inv) => (
-                  <Fragment key={inv.id}>
-                    <tr className="border-b border-slate-100 last:border-0 dark:border-white/5">
-                      <td className={td}>
-                        <button type="button" className="font-mono text-xs text-brand-700 hover:underline dark:text-brand-300"
-                          onClick={() => setOpen(open === inv.id ? null : inv.id)}>
-                          {inv.reference}
-                        </button>
-                      </td>
-                      <td className={`${td} text-slate-900 dark:text-white`}>{inv.clientName}</td>
-                      <td className={td}>
-                        {inv.projectNumber
-                          ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, inv.projectId))} title="Open the project">{inv.projectNumber}</RecordLink>
-                          : <span className="text-slate-400">—</span>}
-                      </td>
-                      <td className={`${td} ${inv.overdue ? "font-600 text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-300"}`}>
-                        {fmt(inv.dueDate)}{inv.overdue && " · overdue"}
-                      </td>
-                      <td className={`${td} text-end font-600 text-slate-900 dark:text-white`}>{money(inv.total)}</td>
-                      <td className={`${td} text-end text-slate-600 dark:text-slate-300`}>{money(inv.paid)}</td>
-                      <td className={td}><StatusPill kind="invoice" status={inv.status} /></td>
-                      <td className={`${td} text-end`}>
-                        {canManage && (
-                          <span className="flex flex-wrap justify-end gap-2">
-                            {inv.status === "Draft" && <button className={btn} disabled={busy} onClick={() => send("invoices", "PUT", { id: inv.id, status: "Sent" })}>Send</button>}
-                            {inv.status === "Sent" && <button className={btn} onClick={() => setPaying(inv)}>Record payment</button>}
-                            {inv.status !== "Cancelled" && inv.status !== "Paid" && inv.paid === 0 && (
-                              <button className={btnGhost} disabled={busy} onClick={() => send("invoices", "PUT", { id: inv.id, status: "Cancelled" })}>Cancel</button>
-                            )}
-                            {inv.status === "Draft" && <button className={btnDanger} disabled={busy} onClick={() => send("invoices", "DELETE", { id: inv.id })}>Delete</button>}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                    {open === inv.id && (
-                      <tr className="border-b border-slate-100 dark:border-white/5">
-                        <td colSpan={8} className="py-4">
-                          <div className="rounded-xl bg-slate-50 p-4 dark:bg-white/5">
-                            <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
-                              {inv.lines.map((l, i) => (
-                                <li key={i} className="flex justify-between gap-4">
-                                  <span>{l.description} × {l.qty}</span>
-                                  <span className="font-mono">{money(l.qty * l.unitPrice)}</span>
-                                </li>
-                              ))}
-                            </ul>
-                            <div className="mt-3 space-y-0.5 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
-                              <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>Subtotal</span><span className="font-mono">{money(inv.subtotal)}</span></p>
-                              <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>VAT {inv.vatRate}%</span><span className="font-mono">{money(inv.vat)}</span></p>
-                              <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>Total</span><span className="font-mono">{money(inv.total)}</span></p>
-                              {inv.outstanding > 0 && inv.status !== "Draft" && (
-                                <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>Outstanding</span><span className="font-mono">{money(inv.outstanding)}</span></p>
-                              )}
-                            </div>
-                            {(inv.payments || []).length > 0 && (
-                              <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
-                                <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">Payments</p>
-                                <ul className="mt-1 space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
-                                  {inv.payments.map((p) => (
-                                    <li key={p.id} className="flex justify-between gap-4">
-                                      <span>{fmt(p.date)} · {p.method}{p.reference ? ` · ${p.reference}` : ""}</span>
-                                      <span className="font-mono">{money(p.amount)}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+          {/* The dense list is a Data Grid now — sortable columns, client-side
+              paging — but every cell reproduces the hand-rolled table it
+              replaced: the reference toggles the same detail panel (below the
+              grid, because the community Data Grid has no master-detail row),
+              money stays tabular via `.num`, dates go through `fmt`, the status
+              is the shared StatusPill, and the same four row actions gate on
+              `canManage`. No column and no action was dropped. */}
+          <StudioDataGrid
+            rows={rows}
+            getRowId={(r) => r.id}
+            ariaLabel="Invoices"
+            emptyLabel="No invoices match."
+            emptyIcon="invoice"
+            columns={[
+              {
+                field: "reference", headerName: "Invoice", minWidth: 130, flex: 0.9,
+                renderCell: ({ row }) => (
+                  <button type="button" className="num text-xs text-brand-700 hover:underline dark:text-brand-300"
+                    onClick={() => setOpen(open === row.id ? null : row.id)}>
+                    {row.reference}
+                  </button>
+                ),
+              },
+              {
+                field: "clientName", headerName: "Client", minWidth: 140, flex: 1,
+                renderCell: ({ row }) => <span className="text-slate-900 dark:text-white">{row.clientName}</span>,
+              },
+              {
+                field: "projectNumber", headerName: "Project", minWidth: 120, flex: 0.8,
+                renderCell: ({ row }) => (row.projectNumber
+                  ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, row.projectId))} title="Open the project">{row.projectNumber}</RecordLink>
+                  : <span className="text-slate-400">—</span>),
+              },
+              {
+                field: "dueDate", headerName: "Due", minWidth: 150, flex: 0.9,
+                renderCell: ({ row }) => (
+                  <span className={row.overdue ? "font-600 text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-300"}>
+                    {fmt(row.dueDate)}{row.overdue && " · overdue"}
+                  </span>
+                ),
+              },
+              {
+                field: "total", headerName: "Total", type: "number", minWidth: 120, flex: 0.7,
+                align: "right", headerAlign: "right",
+                renderCell: ({ row }) => <span className="num font-600 text-slate-900 dark:text-white">{money(row.total)}</span>,
+              },
+              {
+                field: "paid", headerName: "Paid", type: "number", minWidth: 110, flex: 0.7,
+                align: "right", headerAlign: "right",
+                renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.paid)}</span>,
+              },
+              {
+                field: "status", headerName: "Status", minWidth: 110, flex: 0.6,
+                renderCell: ({ row }) => <StatusPill kind="invoice" status={row.status} />,
+              },
+              {
+                field: "actions", headerName: "", minWidth: 280, flex: 1.2, sortable: false,
+                align: "right", headerAlign: "right",
+                renderCell: ({ row }) => (canManage ? (
+                  <span className="flex items-center justify-end gap-2">
+                    {row.status === "Draft" && <button className={btn} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Sent" })}>Send</button>}
+                    {row.status === "Sent" && <button className={btn} onClick={() => setPaying(row)}>Record payment</button>}
+                    {row.status !== "Cancelled" && row.status !== "Paid" && row.paid === 0 && (
+                      <button className={btnGhost} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Cancelled" })}>Cancel</button>
                     )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    {row.status === "Draft" && <button className={btnDanger} disabled={busy} onClick={() => send("invoices", "DELETE", { id: row.id })}>Delete</button>}
+                  </span>
+                ) : null),
+              },
+            ]}
+          />
+          {/* The invoice detail — line items, totals and payments — the reference
+              button expands. Rendered under the grid rather than as an inline
+              row, which the community Data Grid cannot do. */}
+          {open != null && (() => {
+            const inv = rows.find((r) => r.id === open);
+            if (!inv) return null;
+            return (
+              <div className="mt-4 rounded-xl bg-slate-50 p-4 dark:bg-white/5">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="num text-xs text-slate-500 dark:text-slate-400">{inv.reference}</p>
+                  <button type="button" className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300" onClick={() => setOpen(null)}>Close</button>
+                </div>
+                <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                  {inv.lines.map((l, i) => (
+                    <li key={i} className="flex justify-between gap-4">
+                      <span>{l.description} × {l.qty}</span>
+                      <span className="num">{money(l.qty * l.unitPrice)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-3 space-y-0.5 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
+                  <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>Subtotal</span><span className="num">{money(inv.subtotal)}</span></p>
+                  <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>VAT {inv.vatRate}%</span><span className="num">{money(inv.vat)}</span></p>
+                  <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>Total</span><span className="num">{money(inv.total)}</span></p>
+                  {inv.outstanding > 0 && inv.status !== "Draft" && (
+                    <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>Outstanding</span><span className="num">{money(inv.outstanding)}</span></p>
+                  )}
+                </div>
+                {(inv.payments || []).length > 0 && (
+                  <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
+                    <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">Payments</p>
+                    <ul className="mt-1 space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
+                      {inv.payments.map((p) => (
+                        <li key={p.id} className="flex justify-between gap-4">
+                          <span>{fmt(p.date)} · {p.method}{p.reference ? ` · ${p.reference}` : ""}</span>
+                          <span className="num">{money(p.amount)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </section>
       )}
     </>

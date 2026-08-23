@@ -2,7 +2,9 @@
 
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { Field } from "@/components/fields/Field";
 import RecordLink from "@/components/studio2/RecordLink";
 import { Icon } from "@/components/studio2/icons";
@@ -33,6 +35,14 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 
 const td = "py-3 pe-3 align-middle";
 const num = (n) => new Intl.NumberFormat("en", { maximumFractionDigits: 3 }).format(Number(n) || 0);
+
+// The dense-table grid, loaded in its own async chunk so @mui/x-data-grid never
+// folds into Inventory's initial bundle — see StudioDataGrid's header. The
+// skeleton reserves the seven-column box while that chunk arrives.
+const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioDataGrid"), {
+  ssr: false,
+  loading: () => <StudioDataGridSkeleton columns={7} pageSize={10} ariaLabel="Loading items" />,
+});
 
 export default function StudioInventory({ slug, view = "inventory" }) {
   const [data, setData] = useState(null);
@@ -179,59 +189,80 @@ function Items({ items, vendors, units, studioCurrency, canManage, busy, send })
         <>
           <p className="text-sm text-slate-500 dark:text-slate-400">{filtered.length} of {items.length} item{items.length === 1 ? "" : "s"}.</p>
           <section className={panel}>
-            {filtered.length === 0 ? (
-              <p className="py-10 text-center text-sm text-slate-400">No items match that search.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px] border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-white/10">
-                      {["Item", "Vendor", "Type", "Scope", "Unit cost", "On hand"].map((head, i) => (
-                        <th key={head} className={`${th} ${i >= 4 ? "text-end" : "text-start"}`}>{head}</th>
-                      ))}
-                      <th className={`${th} text-end`} />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((i) => (
-                      <tr key={i.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
-                        <td className={td}>
-                          <span className="font-mono text-xs text-slate-400">{i.sku}</span>
-                          <span className="ms-2 font-600 text-slate-900 dark:text-white">{i.name}</span>
-                          {i.modelNumber && <div className="text-xs text-slate-400">{i.modelNumber}</div>}
-                        </td>
-                        <td className={`${td} text-slate-600 dark:text-slate-300`}>{i.vendorName || "—"}</td>
-                        <td className={`${td} text-slate-600 dark:text-slate-300`}>
-                          {i.itemType || "—"}
-                          {i.deliveryWeeks !== "" && i.deliveryWeeks != null && (
-                            <span className="ms-1 text-xs text-slate-400">· {i.deliveryWeeks} wk</span>
-                          )}
-                        </td>
-                        <td className={td}>
-                          <span className="flex flex-wrap gap-1">
-                            {i.needsInstallation && <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">Installation</span>}
-                            {i.needsProgramming && <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">Programming</span>}
-                            {!i.needsInstallation && !i.needsProgramming && <span className="text-slate-400">—</span>}
-                          </span>
-                        </td>
-                        <td className={`${td} text-end tabular-nums text-slate-600 dark:text-slate-300`}>{i.unitCost > 0 ? money(i.unitCost) : "—"}</td>
-                        <td className={`${td} text-end font-600 text-slate-900 dark:text-white`}>
-                          {num(i.onHand)} <span className="text-xs font-400 text-slate-400">{i.unit}</span>
-                        </td>
-                        <td className={`${td} text-end`}>
-                          {canManage && (
-                            <span className="inline-flex gap-2">
-                              <button className={btnGhost} onClick={() => setForm({ row: i })}>Edit</button>
-                              <button className={btnGhost} disabled={busy} onClick={() => send("items", "DELETE", { id: i.id })}>Delete</button>
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {/* A Data Grid now — sortable, paged — reproducing the catalogue table
+                column for column: SKU + name + model, vendor, type (with the lead
+                time), the Installation/Programming scope badges, unit cost and
+                on-hand both tabular via `.num`, and the same Edit/Delete actions
+                gated on `canManage`. The "No items match that search" case is the
+                grid's own no-rows overlay. Nothing was dropped. */}
+            <StudioDataGrid
+              rows={filtered}
+              getRowId={(r) => r.id}
+              ariaLabel="Registered items"
+              emptyLabel="No items match that search."
+              emptyIcon="package"
+              columns={[
+                {
+                  field: "name", headerName: "Item", minWidth: 200, flex: 1.4,
+                  renderCell: ({ row }) => (
+                    <span className="min-w-0">
+                      <span className="num text-xs text-slate-400">{row.sku}</span>
+                      <span className="ms-2 font-600 text-slate-900 dark:text-white">{row.name}</span>
+                      {row.modelNumber && <span className="ms-2 text-xs text-slate-400">{row.modelNumber}</span>}
+                    </span>
+                  ),
+                },
+                {
+                  field: "vendorName", headerName: "Vendor", minWidth: 130, flex: 0.9,
+                  renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.vendorName || "—"}</span>,
+                },
+                {
+                  field: "itemType", headerName: "Type", minWidth: 120, flex: 0.8,
+                  renderCell: ({ row }) => (
+                    <span className="text-slate-600 dark:text-slate-300">
+                      {row.itemType || "—"}
+                      {row.deliveryWeeks !== "" && row.deliveryWeeks != null && (
+                        <span className="ms-1 text-xs text-slate-400">· {row.deliveryWeeks} wk</span>
+                      )}
+                    </span>
+                  ),
+                },
+                {
+                  field: "scope", headerName: "Scope", minWidth: 140, flex: 0.9, sortable: false,
+                  renderCell: ({ row }) => (
+                    <span className="flex flex-wrap gap-1">
+                      {row.needsInstallation && <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">Installation</span>}
+                      {row.needsProgramming && <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">Programming</span>}
+                      {!row.needsInstallation && !row.needsProgramming && <span className="text-slate-400">—</span>}
+                    </span>
+                  ),
+                },
+                {
+                  field: "unitCost", headerName: "Unit cost", type: "number", minWidth: 110, flex: 0.7,
+                  align: "right", headerAlign: "right",
+                  renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{row.unitCost > 0 ? money(row.unitCost) : "—"}</span>,
+                },
+                {
+                  field: "onHand", headerName: "On hand", type: "number", minWidth: 110, flex: 0.7,
+                  align: "right", headerAlign: "right",
+                  renderCell: ({ row }) => (
+                    <span className="font-600 text-slate-900 dark:text-white">
+                      <span className="num">{num(row.onHand)}</span> <span className="text-xs font-400 text-slate-400">{row.unit}</span>
+                    </span>
+                  ),
+                },
+                {
+                  field: "actions", headerName: "", minWidth: 160, flex: 0.8, sortable: false,
+                  align: "right", headerAlign: "right",
+                  renderCell: ({ row }) => (canManage ? (
+                    <span className="inline-flex items-center gap-2">
+                      <button className={btnGhost} onClick={() => setForm({ row })}>Edit</button>
+                      <button className={btnGhost} disabled={busy} onClick={() => send("items", "DELETE", { id: row.id })}>Delete</button>
+                    </span>
+                  ) : null),
+                },
+              ]}
+            />
           </section>
         </>
       )}
