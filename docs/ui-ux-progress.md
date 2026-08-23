@@ -36,7 +36,7 @@ everywhere, and the component split** — the substance — are still ahead.
 |---|---|---|---|
 | **0** | Foundations + CI gates | 🟡 partial | ✅ `stylis-plugin-rtl` installed & asserted · ✅ bundle budget in CI · ❌ contrast test in CI · ❓ `components.json` / `jsconfig.json` unverified |
 | **1** | Token layer (primitives + semantics + spacing/elevation/radius/type) | ⬜ not started | Tokens still live in `globals.css :root` as `--doc-*` / `--geex-*` / `--chart-*`; no `primitives`/`semantics` layer, hex literals remain (`dark:bg-[#20202c]` etc. across the studio) |
-| **2** | `src/ui` primitives + **form controls** + overlays | 🟡 **in progress** | ✅ 13 shadcn primitives in `components/ui` · ❌ **Field wrapper** · ❌ StatusPill · ❌ MUI date picker · ❌ MUI Autocomplete (still `Combo.js`) · **← the fields work is here** |
+| **2** | `src/ui` primitives + **form controls** + overlays | 🟢 **mostly done** | ✅ shared floating **`Field`** (`components/fields`) · ✅ **MUI date picker** (`StudioDate`, dd/MM/yyyy, dynamic-imported) · ✅ rolled across **all 12 studio departments** · ✅ **71 placeholders removed** · `Combo` is already MUI Autocomplete · ❌ StatusPill still to unify |
 | **3** | Skeletons everywhere + `loading.tsx` + Suspense | 🟡 partial | ✅ `ScreenSkeleton`, `ChartSkeleton`, shared `.skel` · ✅ studio departments code-split · only **3** `loading.*` files; not per-segment, not "everywhere" |
 | **4** | Component split per module (Sales first) + toast | 🟡 partial | ✅ studio departments are `nextDynamic()` (chunk split) · ❌ the 1,000-line `Studio*.js` screens not decomposed into `src/ui` + module parts · ❌ toast layer |
 | **5** | MUI Data Grid on the 5 dense grids + pagination contract | ⬜ not started | `x-data-grid` installed; only `/super`'s `SuperDataGrid` uses it — the 5 studio grids do not |
@@ -78,11 +78,11 @@ thirteen motion techniques.
 |---|---|---|
 | **Chart kit** (`components/charts`) | ✅ done | Promoted to shared TS, `--chart-*` ramp on `:root`, direction-aware, server-rendered, no library |
 | **Motion primitives** (`components/motion`) | ✅ done | `Reveal`, `CountUp`, house curves — library-free, fenced from `motion/react` |
-| **`dashboard/` primitives** (Widget, StatTile, locked card) | ⬜ not started | The card/grid/rung components every screen composes |
-| **`registry.ts` + `analyticsLevelOf`** | ⬜ not started | Which widgets a tier's analytics rung entitles it to (analytics is paid) |
+| **`dashboard/` primitives** (Widget, StatRow, DashGrid, locked teaser) | ✅ done | `components/dashboard`, composing the existing StatTile/WidgetTitle + charts |
+| **analytics gating** (`analyticsLevelOf`, `analyticsAllows`) | ✅ done | `lib/analytics`, rungs basic/simple/moderate/advanced; tier carries `analyticsLevel` via planOf |
 | **Per-department dashboards** (12) | ⬜ not started | Today every section shows the empty `SectionDashboard` placeholder ("Nothing is reported here yet") |
 | **Technical & Sales dashboards** (their analytics already exist, unused) | ⬜ not started | The fastest proof — step 5 |
-| **Finance 1a dashboard** (AR aging, DSO, P&L, margin) | ⬜ not started | Backend calc landed with the ledger; the dashboard that shows it has not |
+| **Finance 1a dashboard** (AR aging, DSO, collection, income/expense, mix) | ✅ done | `FinanceDashboard`, wired into StudioFinance, on the Finance 1a analytics, with paid-rung locking via a shell context (no extra hops) |
 | **Motion techniques 1–5, 7, 9** across the shells | ⬜ not started | Step 8 |
 
 So: the **drawing foundation is done** (charts + motion), and **not one department

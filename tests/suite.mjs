@@ -68,6 +68,8 @@ import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices } from "@/modules/finance/finance";
 import { listAccounts, postEntry, reverseEntry, listJournal, trialBalance, postInvoice, postExpense, postPayment } from "@/modules/finance/ledger";
+import { arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix } from "@/modules/finance/analytics";
+import { analyticsLevelOf, analyticsAllows } from "@/lib/analytics";
 import { inventoryContext, createItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation,
@@ -999,6 +1001,64 @@ console.log("\n== the ledger posts the documents that feed it");
   const tb = await trialBalance(fin);
   ok("the book balances after the documents post", tb.balanced === true,
     JSON.stringify({ d: tb.totalDebit, c: tb.totalCredit }));
+}
+
+// ============================================================================
+console.log("\n== Finance 1a: the dashboard's arithmetic, on data that exists");
+// Pure functions over the invoice/expense views, so they are provable to the
+// cent without a studio or a screen — which is the point of building the numbers
+// before the dashboard that shows them.
+{
+  const iv = (o) => ({ status: "Sent", total: 0, paid: 0, outstanding: 0, dueDate: "", clientName: "", payments: [], ...o });
+  const asOf = "2026-08-22";
+  const invoices = [
+    iv({ clientName: "Acme", total: 100, outstanding: 100, dueDate: "2026-08-20" }),                 // 2d late -> 1-30
+    iv({ clientName: "Acme", total: 200, paid: 50, outstanding: 150, dueDate: "2026-06-01" }),        // ~82d -> 61-90
+    iv({ clientName: "Bell", total: 300, paid: 300, outstanding: 0, dueDate: "2026-08-01", status: "Paid" }),
+    iv({ clientName: "Cyan", total: 90, outstanding: 90, dueDate: "2026-09-30" }),                    // future -> current
+    iv({ clientName: "Draft", total: 999, outstanding: 999, status: "Draft" }),                       // excluded
+  ];
+
+  const aging = arAging(invoices, asOf);
+  ok("AR aging sums only live outstanding", aging.total === 340, String(aging.total));
+  const bucket = (k) => aging.buckets.find((x) => x.key === k);
+  ok("...and buckets by days past due", bucket("current").amount === 90 && bucket("d1_30").amount === 100 && bucket("d61_90").amount === 150,
+    JSON.stringify(aging.buckets));
+  ok("...a draft is not a claim and is excluded", aging.buckets.every((x) => x.amount !== 999), "draft leaked");
+
+  const debtors = topDebtors(invoices, 3);
+  ok("top debtors rank by amount owed", debtors[0].clientName === "Acme" && debtors[0].owed === 250, JSON.stringify(debtors[0]));
+  ok("...carrying the oldest unpaid due date", debtors[0].oldestDue === "2026-06-01", debtors[0].oldestDue);
+  ok("...and a settled client drops off", !debtors.some((d) => d.clientName === "Bell"), "Bell still listed");
+
+  ok("collection rate is collected over invoiced in-window",
+    collectionRate([iv({ total: 100, paid: 100, dueDate: "2026-07-01" }), iv({ total: 100, paid: 40, dueDate: "2026-07-15" })], 90, asOf) === 0.7,
+    "rate");
+  ok("...and is 1 when nothing was due", collectionRate([iv({ total: 100, paid: 0, dueDate: "2020-01-01" })], 90, asOf) === 1, "empty window");
+
+  ok("DSO weights age by amount outstanding", dso(invoices, asOf) === 37, String(dso(invoices, asOf)));
+
+  const months = incomeVsExpense(
+    [iv({ payments: [{ amount: 300, date: "2026-08-05" }] })],
+    [{ category: "Rent", amount: 500, date: "2026-08-10" }, { category: "Rent", amount: 100, date: "2026-07-10" }, { category: "Fuel", amount: 50, date: "2026-08-11" }],
+    3, asOf);
+  const aug = months.find((m) => m.month === "2026-08");
+  ok("income is cash collected, not billed", aug.income === 300, JSON.stringify(aug));
+  ok("...expense is the month's spend, net is the difference", aug.expense === 550 && aug.net === -250, JSON.stringify(aug));
+
+  const mix = expenseMix([{ category: "Rent", amount: 500 }, { category: "Rent", amount: 100 }, { category: "Fuel", amount: 50 }]);
+  ok("expense mix groups by category, largest first", mix[0].category === "Rent" && mix[0].amount === 600, JSON.stringify(mix));
+}
+
+// ============================================================================
+console.log("\n== analytics is paid: a rung sees at or below itself");
+// The gate that makes analytics sellable: a widget above the studio's rung shows
+// as a locked teaser, not the number.
+{
+  ok("a moderate tier sees basic/simple/moderate", analyticsAllows("moderate", "basic") && analyticsAllows("moderate", "simple") && analyticsAllows("moderate", "moderate"), "moderate");
+  ok("...but not advanced", !analyticsAllows("moderate", "advanced"), "leaked advanced");
+  ok("an unknown rung is the floor, never a free unlock", !analyticsAllows("typo", "simple") && analyticsAllows("basic", "typo"), "unknown");
+  ok("a tier without a level resolves to basic", analyticsLevelOf({}) === "basic" && analyticsLevelOf({ analyticsLevel: "advanced" }) === "advanced", "levelOf");
 }
 
 // ============================================================================

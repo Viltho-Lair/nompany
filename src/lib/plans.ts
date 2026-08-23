@@ -32,6 +32,11 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     tierId: tier?.id || "",
     tierName: tier?.name || DEFAULT_TIER,
     tierColor: tier?.color || "",
+    // WHICH ANALYTICS RUNG THIS TIER BUYS. Analytics is sold, so a dashboard
+    // widget above the studio's rung shows as a locked teaser rather than the
+    // number. Explicit on the tier; "basic" is the floor a tier without one
+    // resolves to, so an un-migrated tier still gets the free widgets.
+    analyticsLevel: (typeof tier?.analyticsLevel === "string" && tier.analyticsLevel) || "basic",
   };
 }
 
