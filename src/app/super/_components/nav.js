@@ -40,6 +40,7 @@ export const NAV = [
       { label: "Studios", icon: "briefcase", href: `${BASE}/application/studios` },
       { label: "Packages", icon: "package", href: `${BASE}/application/packages` },
       { label: "Tiers", icon: "layers", href: `${BASE}/application/tiers` },
+      { label: "Nova", icon: "star", href: `${BASE}/application/nova` },
     ],
   },
   {

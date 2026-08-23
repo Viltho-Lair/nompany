@@ -77,6 +77,8 @@ import { planOf } from "@/lib/plans";
 import { createCatalogItem, deleteCatalogItem, listCatalog } from "@/lib/data/catalog";
 import { overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices, OVERDUE_MILESTONES, EXPIRING_MILESTONES } from "@/modules/main/timeNotices";
 import { resolveHolders } from "@/lib/studios";
+import { NOVA_CAPABILITIES, capabilityEnabled, enabledCapabilities } from "@/lib/nova/capabilities";
+import { getNovaConfig, saveNovaConfig } from "@/lib/data/novaConfig";
 import { inventoryContext, createItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation,
@@ -1102,6 +1104,37 @@ console.log("\n== a tier's analytics rung: explicit wins, else the name, else th
   ok("...and a bad rung falls to the floor, never an unlock", b?.analyticsLevel === "basic", JSON.stringify(b?.analyticsLevel));
   await deleteCatalogItem("tiers", good.id);
   await deleteCatalogItem("tiers", bad.id);
+}
+
+// ============================================================================
+console.log("\n== Nova's capability switchboard: default, override, and the write boundary");
+// A capability is offered only when switched on. The default is the built-in
+// one; the console can override it; and the store keeps only real keys.
+{
+  const readCap = NOVA_CAPABILITIES.find((c) => c.defaultOn);
+  const offCap = NOVA_CAPABILITIES.find((c) => !c.defaultOn);
+  ok("there are both default-on and default-off capabilities", !!readCap && !!offCap, "registry shape");
+
+  // Explicit config wins; absence falls back to the built-in default.
+  ok("an unset capability uses its built-in default",
+    capabilityEnabled({ enabled: {} }, readCap) === true && capabilityEnabled({ enabled: {} }, offCap) === false, "default");
+  ok("...and an explicit override wins either way",
+    capabilityEnabled({ enabled: { [readCap.key]: false } }, readCap) === false
+    && capabilityEnabled({ enabled: { [offCap.key]: true } }, offCap) === true, "override");
+
+  const defaults = enabledCapabilities({ enabled: {} }).map((c) => c.key);
+  ok("the default enabled set is exactly the default-on capabilities",
+    defaults.length === NOVA_CAPABILITIES.filter((c) => c.defaultOn).length, String(defaults.length));
+
+  // THE WRITE BOUNDARY: only real keys, only booleans, survive a save.
+  const saved = await saveNovaConfig({ enabled: { [offCap.key]: true, "nova.not-a-capability": true, [readCap.key]: "yes" } });
+  ok("the switchboard stores a real capability toggle", saved.enabled[offCap.key] === true, JSON.stringify(saved.enabled[offCap.key]));
+  ok("...drops a key that is not a capability", !("nova.not-a-capability" in saved.enabled), JSON.stringify(saved.enabled));
+  ok("...and drops a non-boolean value", !(readCap.key in saved.enabled), JSON.stringify(saved.enabled));
+  const read = await getNovaConfig();
+  ok("...and reads back what was stored", read.enabled[offCap.key] === true, JSON.stringify(read.enabled));
+  // Leave the switchboard as we found it (defaults) so later reads are clean.
+  await saveNovaConfig({ enabled: {} });
 }
 
 // ============================================================================

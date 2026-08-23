@@ -649,6 +649,29 @@ console.log("== the architecture, asserted rather than remembered");
     const unused = DASHBOARD_WIDGETS.map((w) => w.key).filter((k) => !referenced.has(k));
     ok("every registry widget is gated by a dashboard", unused.length === 0, unused.join(", "));
   }
+
+  // ---- 10. Nova's capability registry names real permissions --------------
+  //
+  // Nova offers a capability only if the asking user holds its permission, and
+  // that permission is a bare string in the registry (lib/nova/capabilities).
+  // A key that names nothing in the catalogue would be a right nobody can hold —
+  // the capability would be permanently un-offerable, or (worse, if the check
+  // were ever loosened) offered to everyone. So every non-null permissionKey
+  // must be a real permission, and every capability key must be unique. `null`
+  // is the deliberate "membership-only / self-gating" marker and is allowed.
+  {
+    const { NOVA_CAPABILITIES } = await import("@/lib/nova/capabilities");
+    const valid = new Set(ALL_PERMISSIONS);
+    const bad = NOVA_CAPABILITIES.filter((c) => c.permissionKey !== null && !valid.has(c.permissionKey));
+    ok("every Nova capability names a real permission (or null)", bad.length === 0, bad.map((c) => `${c.key}:${c.permissionKey}`).join(", "));
+    const keys = NOVA_CAPABILITIES.map((c) => c.key);
+    ok("...and every capability key is unique", new Set(keys).size === keys.length, String(keys.length));
+    // Read capabilities that gate on a permission must gate on a VIEW right, and
+    // writing actions on a non-view one — a read keyed to a create right would be
+    // the coarse-gate mistake in reverse.
+    const misgated = NOVA_CAPABILITIES.filter((c) => c.kind === "read" && c.permissionKey && !c.permissionKey.endsWith(".view"));
+    ok("...and every keyed read gates on a .view right", misgated.length === 0, misgated.map((c) => c.key).join(", "));
+  }
 }
 
 // ============================================================================

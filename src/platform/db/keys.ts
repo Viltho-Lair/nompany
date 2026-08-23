@@ -95,6 +95,10 @@ export const REG = {
   // s:<StudioID>:notifications, which cascades with its studio; this one does
   // not, for the same reason g:events does not.
   superNotifications: `${P}g:superNotifications`,
+  // WHICH NOVA CAPABILITIES ARE SWITCHED ON, platform-wide. One small object
+  // edited in /super → Application → Nova; qualifies every studio's Nova the way
+  // catalogSettings qualifies every package. Platform-level, no cascade.
+  novaConfig: `${P}g:novaConfig`,
 };
 
 // ---- per-user keys (1:1 / 1:N satellites; die with the user) ---------------
