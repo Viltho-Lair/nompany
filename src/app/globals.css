@@ -1079,3 +1079,17 @@ html.studio-chrome ::-webkit-scrollbar-corner {
   }
   body { background: #fff; }
 }
+
+/* ---- date field: no double placeholder --------------------------------- */
+/* The studio's <Field> draws its own floating label, so it renders the MUI date
+   picker label-less. That defeats MUI's built-in rule that fades the dd/mm/yyyy
+   format out of the way of a resting label (it keys on the field HAVING a label),
+   so the format would sit under our centred "Deadline"/"Due date"/… label and the
+   two overlap into an unreadable smear. Field flags the empty-and-blurred state
+   with `data-field-empty`; hide the format there, exactly as MUI would. It comes
+   back the instant the field is focused (the label floats clear) or filled (a real
+   value replaces the format). In tw-utilities so it outranks MUI's own opacity,
+   which lives in the `mui` layer below this one. */
+@layer tw-utilities {
+  [data-field-empty] .MuiPickersSectionList-root { opacity: 0; }
+}

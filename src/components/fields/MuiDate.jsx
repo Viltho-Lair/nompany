@@ -38,11 +38,21 @@ export default function MuiDate({ value, onChange, disabled, minDate, maxDate })
             variant: "standard",
             fullWidth: true,
             InputProps: { disableUnderline: true },
-            // Match the Field control's padding (pt-5 pb-1.5 px-3.5) so the date
-            // text sits exactly where every other field's value does.
+            // Match the Field control's box (text-sm, pt-5 pb-1.5 px-3.5) so the
+            // date sits exactly where every other field's value does and the
+            // field is the SAME HEIGHT as its neighbours.
+            //
+            // These target `.MuiPickersInputBase-*`, not `.MuiInputBase-*`. The
+            // x-date-pickers v9 field is a segmented control (a section list),
+            // whose classes carry the `Pickers` prefix — the old `MuiInputBase`
+            // selectors silently stopped matching at that upgrade, which is why
+            // the date field drifted to MUI's default 16px font and 4px padding
+            // and no longer lined up with the plain inputs.
             sx: {
-              "& .MuiInputBase-root": { fontSize: "0.875rem" },
-              "& .MuiInputBase-input": { padding: "1.25rem 0.875rem 0.375rem" },
+              "& .MuiPickersInputBase-root": { fontSize: "0.875rem", lineHeight: "1.25rem" },
+              "& .MuiPickersInputBase-sectionsContainer": { padding: "1.25rem 0.875rem 0.375rem", lineHeight: "1.25rem" },
+              // Keep the calendar button from making the row taller than the text.
+              "& .MuiIconButton-root": { padding: "0.25rem" },
             },
           },
           // The popover portals to <body>, so a scrollable modal never clips it.
