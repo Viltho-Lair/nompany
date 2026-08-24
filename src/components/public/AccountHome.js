@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import PhoneInput from "@/components/public/PhoneInput";
+import PasswordInput from "@/components/public/PasswordInput";
+import { PASSWORD_RULES, checkPassword } from "@/platform/auth/passwordPolicy";
 import { parsePhone } from "@/shared/countries";
 import LangMenu from "@/components/LangMenu";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -898,9 +900,149 @@ function PhotoDialog({ name, photoUrl, onClose, onSaved }) {
   );
 }
 
+// The set/change-password modal. Same policy and confirm-field pattern as the
+// sign-up form (PASSWORD_RULES + a live ✓/• checklist), so "set a password" here
+// looks and validates exactly like creating one there.
+//
+// `hasPassword` decides the shape: with one, the current password is required and
+// a change signs every device out (the server clears the cookie, so we land back
+// on /login); without one, this is a first set — no current password, session
+// kept. The server enforces the same split; this UI just matches it.
+function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const strength = checkPassword(next);
+  const mismatch = confirm.length > 0 && next !== confirm;
+  const canSubmit =
+    strength.ok && next === confirm && confirm.length > 0 && (!hasPassword || current.length > 0) && !busy;
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/identity/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: current, newPassword: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(
+          data.error === "invalid" ? "The current password is incorrect."
+            : data.error === "weak" ? "Your new password doesn't meet the requirements yet."
+              : "We couldn't update your password. Please try again.",
+        );
+        setBusy(false);
+        return;
+      }
+      // A change revoked every session, so the cookie is already cleared — go to
+      // sign-in. A first set kept the session, so just refresh the account.
+      if (data.signedOut) { window.location.assign(`/${locale}/login`); return; }
+      onSaved?.();
+      onClose();
+    } catch {
+      setError("Couldn't reach the server. Check your connection and try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      title={hasPassword ? "Change password" : "Set a password"}
+      onClose={onClose}
+      description={
+        hasPassword
+          ? "Enter your current password, then a new one. This signs you out on every device."
+          : "Create a password so you can sign in with your email as well."
+      }
+    >
+      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        {hasPassword && (
+          <PasswordInput
+            id="current-password"
+            labelText="Current password"
+            labelClassName={LABEL}
+            className={INPUT}
+            value={current}
+            onChange={(e) => { setCurrent(e.target.value); setError(""); }}
+            autoComplete="current-password"
+          />
+        )}
+
+        <PasswordInput
+          id="new-password"
+          labelText="New password"
+          labelClassName={LABEL}
+          className={INPUT}
+          value={next}
+          onChange={(e) => { setNext(e.target.value); setError(""); }}
+          autoComplete="new-password"
+        >
+          <ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+            {PASSWORD_RULES.map((rule) => {
+              const met = rule.test(next);
+              const idle = next.length === 0;
+              return (
+                <li
+                  key={rule.key}
+                  className={cn(
+                    "flex items-center gap-2 text-xs",
+                    idle ? "text-slate-400" : met ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400",
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-700",
+                      met ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : "bg-slate-100 text-slate-400 dark:bg-white/10",
+                    )}
+                  >
+                    {met ? "✓" : "•"}
+                  </span>
+                  {rule.label}
+                </li>
+              );
+            })}
+          </ul>
+        </PasswordInput>
+
+        <PasswordInput
+          id="confirm-password"
+          labelText="Confirm new password"
+          labelClassName={LABEL}
+          className={cn(INPUT, mismatch && "border-rose-400 focus:border-rose-400 focus:ring-rose-400/20")}
+          value={confirm}
+          onChange={(e) => { setConfirm(e.target.value); setError(""); }}
+          autoComplete="new-password"
+          ariaInvalid={mismatch}
+        >
+          {mismatch && <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">The two passwords don&apos;t match.</p>}
+        </PasswordInput>
+
+        {error && <p className={BANNER_BAD} role="alert">{error}</p>}
+
+        <div className="mt-1 flex justify-end gap-2">
+          <button type="button" className={BTN_GHOST} onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="submit" className={BTN} disabled={!canSubmit}>
+            {busy ? "Saving…" : hasPassword ? "Change password" : "Set password"}
+          </button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
 // ---- security ----------------------------------------------------------------
 function Security({ devices, onChanged, locale, user }) {
   const [busy, setBusy] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
   async function revokeOne(deviceId) {
     setBusy(true);
     await fetch("/api/identity/devices", {
@@ -910,6 +1052,7 @@ function Security({ devices, onChanged, locale, user }) {
   }
   const provider = user?.provider || "";
   const providerName = provider === "google" ? "Google" : provider === "microsoft" ? "Microsoft" : "";
+  const hasPassword = Boolean(user?.hasPassword);
   async function revokeAll() {
     setBusy(true);
     await fetch("/api/identity/devices", {
@@ -943,10 +1086,20 @@ function Security({ devices, onChanged, locale, user }) {
                 : "Changing it signs you out everywhere and forgets every trusted device."}
             </span>
           </div>
-          <a href={`/${locale}/forgot`} className="ms-auto shrink-0 rounded-full px-3 py-1.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
-            {providerName ? "Set a password" : "Reset"}
-          </a>
+          <button type="button" onClick={() => setPwOpen(true)}
+            className="ms-auto shrink-0 rounded-full px-3 py-1.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
+            {hasPassword ? "Change" : "Set a password"}
+          </button>
         </div>
+
+        {pwOpen && (
+          <SetPasswordDialog
+            hasPassword={hasPassword}
+            locale={locale}
+            onClose={() => setPwOpen(false)}
+            onSaved={onChanged}
+          />
+        )}
 
         {devices.length === 0 ? (
           <div className={ROW}>

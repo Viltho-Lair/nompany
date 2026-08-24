@@ -463,7 +463,12 @@ export async function currentIdentity() {
 // Never expose the password hash.
 export function publicUser(user: User | null | undefined) {
   if (!user) return null;
-  return { id: user.id, email: user.email, status: user.status, provider: user.provider || "", createdAt: user.createdAt };
+  // `hasPassword` — NOT the hash — so the account UI knows whether to ask for the
+  // current password before changing it. A social sign-in starts without one.
+  return {
+    id: user.id, email: user.email, status: user.status, provider: user.provider || "",
+    hasPassword: Boolean(user.passwordHash), createdAt: user.createdAt,
+  };
 }
 
 // ---- password: change / forgot / reset -------------------------------------
@@ -479,6 +484,23 @@ export async function changePassword(userId: string, currentPassword: unknown, n
   // trusted device, so the next sign-in anywhere must pass OTP again.
   await revokeAllSessions(userId);
   await revokeAllDevices(userId);
+  return { ok: true };
+}
+
+// SET A FIRST PASSWORD — for a social sign-in that has none yet. Distinct from
+// changePassword on two points that both follow from "there is nothing to
+// replace": there is no current password to verify (the live session is the
+// proof of identity), and setting one is not a credential CHANGE, so it does not
+// revoke sessions or forget devices. It REFUSES if a password already exists, so
+// it can never be the door that skips the current-password check.
+export async function setInitialPassword(userId: string, nextPassword: unknown) {
+  const user = await getUserById(userId);
+  if (!user) return { error: "notfound" };
+  if (user.passwordHash) return { error: "exists" };  // has one already → must use changePassword
+  const pass = String(nextPassword || "");
+  const strength = checkPassword(pass);
+  if (!strength.ok) return { error: "weak", failed: strength.failed };
+  await updateUser(userId, { passwordHash: await hashPassword(pass) });
   return { ok: true };
 }
 

@@ -1,10 +1,18 @@
 import { route } from "@/platform/http/route";
-import { changePassword, clearedSessionCookie } from "@/platform/auth/identity";
+import { changePassword, setInitialPassword, clearedSessionCookie } from "@/platform/auth/identity";
 
 export const runtime = "nodejs";
 
-// Change password while signed in. Every session is revoked afterwards (all
-// devices sign out), so this response also clears the caller's own cookie.
+// Set or change the signed-in user's password. TWO PATHS, chosen by whether one
+// exists — `user` here is the full record (currentUser), so `passwordHash` is in
+// hand and no extra read is needed:
+//
+//   • HAS a password  → changePassword: the current password is verified, and a
+//     successful change revokes every session and device, so this response also
+//     clears the caller's own cookie (signedOut: true).
+//   • has NONE (social sign-in) → setInitialPassword: no current password to
+//     verify, and setting a first one is not a credential change, so the session
+//     stays (signedOut: false).
 export const PUT = route(
   {
     auth: "user",
@@ -18,11 +26,17 @@ export const PUT = route(
     status: { invalid: 401 },
   },
   async ({ user, body }) => {
-    const result = await changePassword(user.id, body.currentPassword, body.newPassword);
-    if (result.error) return result;
+    if (user.passwordHash) {
+      const result = await changePassword(user.id, body.currentPassword, body.newPassword);
+      if (result.error) return result;
 
-    const res = Response.json({ ok: true, signedOut: true });
-    res.headers.append("Set-Cookie", clearedSessionCookie());
-    return res;
+      const res = Response.json({ ok: true, signedOut: true });
+      res.headers.append("Set-Cookie", clearedSessionCookie());
+      return res;
+    }
+
+    const result = await setInitialPassword(user.id, body.newPassword);
+    if (result.error) return result;
+    return { ok: true, signedOut: false };
   },
 );
