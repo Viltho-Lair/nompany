@@ -249,24 +249,7 @@
         "On Hold",
         "Completed"
       ],
-      "requirementWeights": [
-        {
-          "key": "delivery",
-          "label": "Delivery"
-        },
-        {
-          "key": "installation",
-          "label": "Installation"
-        },
-        {
-          "key": "programming",
-          "label": "Programming"
-        },
-        {
-          "key": "handover",
-          "label": "Handover"
-        }
-      ]
+      "serviceActions": []
     }
   }
 }

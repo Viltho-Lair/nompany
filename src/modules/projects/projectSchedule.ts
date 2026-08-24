@@ -4,16 +4,10 @@
 // Sales and modules/technical/quotations.js for Technical.
 
 // How a project's completion percentage is split across the requirements it
-// carries. Only the requirements a project actually has are counted, and their
-// shares are re-scaled to fill the whole bar — so a delivery-only project still
-// reaches 100%, rather than capping at its share of a four-way split.
-export const REQUIREMENT_WEIGHTS = [
-  { key: "delivery", label: "Delivery" },
-  { key: "installation", label: "Installation" },
-  { key: "programming", label: "Programming" },
-  { key: "handover", label: "Handover" },
-];
-export const DEFAULT_REQUIREMENT_WEIGHTS = { delivery: 25, installation: 25, programming: 25, handover: 25 };
+// carries. The requirements are the studio's own SERVICE ACTIONS (Delivery,
+// Installation, Programming, … — set in Studio Settings), not a fixed four-way
+// set: a studio weights the actions it actually performs. Weights are keyed by
+// action name and edited in Projects settings, where they must total 100%.
 
 // Every project carries a complementary support window that runs from its end
 // date. A year unless the studio says otherwise.
@@ -39,13 +33,15 @@ export function hoursBetween(from: unknown, to: unknown) {
 }
 
 // Re-scale the configured weights across only the requirements a project has,
-// so the shares always add up to 100. With none set, every requirement present
-// weighs the same.
+// so the shares always add up to 100. `present` is the action names the project
+// carries; `configured` is the studio's action→percent map. With none set, every
+// requirement present weighs the same. Key-agnostic now — it works over whatever
+// service actions the studio named, not a fixed four.
 export function scaledWeights(
   present: readonly string[],
-  configured: Record<string, unknown> = DEFAULT_REQUIREMENT_WEIGHTS,
+  configured: Record<string, unknown> = {},
 ) {
-  const keys = REQUIREMENT_WEIGHTS.map((w) => w.key).filter((k) => present.includes(k));
+  const keys = present.filter((k, i) => present.indexOf(k) === i);
   if (keys.length === 0) return {};
   const raw = keys.map((k) => {
     const n = Number(configured?.[k]);

@@ -90,8 +90,8 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   const wrap = (children) => <div className="space-y-6">{banner}{children}</div>;
 
   if (view === "inventory-items") {
-    return wrap(<Items items={items} vendors={vendors} units={vocabulary.units} studioCurrency={studioCurrency}
-      canManage={canManageItems} busy={busy} send={send} />);
+    return wrap(<Items items={items} vendors={vendors} units={vocabulary.units} serviceActions={vocabulary.serviceActions || []}
+      studioCurrency={studioCurrency} canManage={canManageItems} busy={busy} send={send} />);
   }
   if (view === "inventory-stock") {
     return wrap(<Stock items={items} movements={movements} canManage={canManageStock} busy={busy} send={send} />);
@@ -154,7 +154,7 @@ function message(out) {
 }
 
 // ---- registered items (the catalogue) --------------------------------------
-function Items({ items, vendors, units, studioCurrency, canManage, busy, send }) {
+function Items({ items, vendors, units, serviceActions, studioCurrency, canManage, busy, send }) {
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(null);
   const closeForm = useCallback(() => setForm(null), []);
@@ -178,7 +178,7 @@ function Items({ items, vendors, units, studioCurrency, canManage, busy, send })
         <Dialog title={form.row ? `Edit ${form.row.name}` : "Add item"}
           description="The catalogue entry — what this thing is and who supplies it. Quantities live in Stock Management."
           onClose={closeForm}>
-          <ItemForm row={form.row} vendors={vendors} units={units} studioCurrency={studioCurrency} busy={busy} onCancel={closeForm}
+          <ItemForm row={form.row} vendors={vendors} units={units} serviceActions={serviceActions} studioCurrency={studioCurrency} busy={busy} onCancel={closeForm}
             onSave={async (v) => { if (await send("items", form.row ? "PUT" : "POST", form.row ? { ...v, id: form.row.id } : v)) setForm(null); }} />
         </Dialog>
       )}
@@ -231,9 +231,9 @@ function Items({ items, vendors, units, studioCurrency, canManage, busy, send })
                   field: "scope", headerName: "Scope", minWidth: 140, flex: 0.9, sortable: false,
                   renderCell: ({ row }) => (
                     <span className="flex flex-wrap gap-1">
-                      {row.needsInstallation && <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">Installation</span>}
-                      {row.needsProgramming && <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">Programming</span>}
-                      {!row.needsInstallation && !row.needsProgramming && <span className="text-slate-400">—</span>}
+                      {(row.scope || []).length === 0 ? <span className="text-slate-400">—</span> : row.scope.map((action) => (
+                        <span key={action} className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">{action}</span>
+                      ))}
                     </span>
                   ),
                 },
@@ -326,12 +326,12 @@ function ItemImage({ value, onChange }) {
   );
 }
 
-function ItemForm({ row, vendors, units, studioCurrency = "", busy, onSave, onCancel }) {
+function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "", busy, onSave, onCancel }) {
   const [f, setF] = useState({
     name: row?.name || "", sku: row?.sku || "", modelNumber: row?.modelNumber || "",
     unit: row?.unit || units[0], vendorId: row?.vendorId || "",
     itemType: row?.itemType || "", deliveryWeeks: row?.deliveryWeeks ?? "",
-    needsInstallation: !!row?.needsInstallation, needsProgramming: !!row?.needsProgramming,
+    scope: Array.isArray(row?.scope) ? row.scope : [],
     reorderLevel: row?.reorderLevel || "", unitCost: row?.unitCost || "", notes: row?.notes || "",
     currency: row?.currency || "", image: row?.image || "",
     shippingCharges: row?.shippingCharges ?? "", customsCharges: row?.customsCharges ?? "",
@@ -396,15 +396,24 @@ function ItemForm({ row, vendors, units, studioCurrency = "", busy, onSave, onCa
       </div>
 
       <div className="mt-4">
-        <label className={label}>Scope <span className="font-400 normal-case text-slate-400">(does this need fitting or configuring once it lands?)</span></label>
-        <div className="flex flex-wrap gap-3">
-          {[["needsInstallation", "Installation"], ["needsProgramming", "Programming"]].map(([k, text]) => (
-            <label key={k} className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm font-600 text-slate-700 dark:border-white/15 dark:text-slate-200">
-              <input type="checkbox" checked={f[k]} onChange={(e) => setF((s) => ({ ...s, [k]: e.target.checked }))} className="h-4 w-4 accent-brand-600" />
-              {text}
-            </label>
-          ))}
-        </div>
+        <label className={label}>Scope <span className="font-400 normal-case text-slate-400">(which service actions does this need once it lands?)</span></label>
+        {serviceActions.length === 0 ? (
+          <p className="text-xs text-slate-400">No service actions yet — add them in Studio Settings.</p>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {serviceActions.map((action) => (
+              <label key={action} className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm font-600 text-slate-700 dark:border-white/15 dark:text-slate-200">
+                <input type="checkbox" checked={f.scope.includes(action)}
+                  onChange={(e) => setF((s) => ({
+                    ...s,
+                    scope: e.target.checked ? [...s.scope, action] : s.scope.filter((a) => a !== action),
+                  }))}
+                  className="h-4 w-4 accent-brand-600" />
+                {action}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-4"><Field label="Notes" as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>

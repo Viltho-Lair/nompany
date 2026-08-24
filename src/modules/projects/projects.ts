@@ -20,7 +20,7 @@ import { listCollaborators } from "@/platform/auth/collaborators";
 import { clientContacts } from "@/modules/sales/salesClients";
 import type { Client } from "@/modules/sales/types";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
-import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "./projectSchedule";
+import { DEFAULT_SUPPORT_DAYS, hoursBetween } from "./projectSchedule";
 import { nextReference } from "@/modules/main/references";
 import { ticketFacts } from "@/modules/technical/technical";
 import { departmentsFromSections } from "@/lib/departments";
@@ -108,15 +108,19 @@ export async function saveProjectsSettings(ctx: ProjectsContext, body: Record<st
     next.stages = (Array.isArray(body.stages) ? body.stages : [])
       .map((v) => String(v ?? "").trim().slice(0, 120)).filter(Boolean).slice(0, 40);
   }
-  // How a project's completion percentage divides across its requirements. A
-  // blank field means "not set" and is stored as such, so it can fall back to an
-  // even split rather than to a zero that would silently drop the requirement.
+  // How a project's completion percentage divides across its requirements. The
+  // requirements are the studio's own SERVICE ACTIONS, so the weights are keyed by
+  // action name — only actions the studio actually named are stored, and a value
+  // outside that set is dropped rather than kept as an orphan. A blank is "not
+  // set" and stored as such, so it falls back to an even split rather than a zero
+  // that would silently drop the requirement.
   if (body?.requirementWeights !== undefined) {
     const raw: Record<string, unknown> = body.requirementWeights && typeof body.requirementWeights === "object"
       ? body.requirementWeights as Record<string, unknown>
       : {};
+    const actions = Array.isArray(studio.serviceActions) ? (studio.serviceActions as string[]) : [];
     next.requirementWeights = Object.fromEntries(
-      REQUIREMENT_WEIGHTS.map((w) => [w.key, raw[w.key] === "" || raw[w.key] == null ? "" : nonNeg(raw[w.key], 0)]),
+      actions.map((a) => [a, raw[a] === "" || raw[a] == null ? "" : nonNeg(raw[a], 0)]),
     );
   }
   if (body?.overtimeDefaultDepartmentId !== undefined) {

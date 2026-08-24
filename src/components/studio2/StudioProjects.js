@@ -21,7 +21,7 @@ import {
   slaVisits, emergencyVisits, nextVisit, contractEndDate, supportStatus,
   fmtDate as slaDate, daysUntil,
 } from "@/modules/projects/sla";
-import { REQUIREMENT_WEIGHTS, hoursBetween } from "@/modules/projects/projectSchedule";
+import { hoursBetween } from "@/modules/projects/projectSchedule";
 
 // Projects: delivery work opened from an approved quotation, the support
 // contracts that follow it, and the overtime logged against it. Progress is the
@@ -142,6 +142,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
       <div className="space-y-6">
         {banner}
         <ProjectsSettings settings={settings} departments={directory.departments} stages={vocabulary.stages}
+          serviceActions={vocabulary.serviceActions || []}
           canManage={canManageSettings} onSave={(patch) => send("", "PATCH", patch)} />
       </div>
     );
@@ -1012,16 +1013,20 @@ function EditOvertime({ record, projects, directory, onSave, onDelete, onCancel 
 }
 
 // ---- settings --------------------------------------------------------------
-function ProjectsSettings({ settings, departments, stages, canManage, onSave }) {
+function ProjectsSettings({ settings, departments, stages, serviceActions, canManage, onSave }) {
   const [weights, setWeights] = useState(() =>
-    Object.fromEntries(REQUIREMENT_WEIGHTS.map((w) => [w.key, settings.requirementWeights?.[w.key] ?? ""])));
+    Object.fromEntries(serviceActions.map((a) => [a, settings.requirementWeights?.[a] ?? ""])));
   const [otDept, setOtDept] = useState(settings.overtimeDefaultDepartmentId || "");
   const [supportDays, setSupportDays] = useState(settings.supportPeriodDays ?? 365);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const set = (k, v) => { setSaved(false); setWeights((s) => ({ ...s, [k]: v })); };
-  const total = REQUIREMENT_WEIGHTS.reduce((a, w) => a + (Number(weights[w.key]) || 0), 0);
+  const total = serviceActions.reduce((a, act) => a + (Number(weights[act]) || 0), 0);
+  // Block the save while the percentages exist but don't add up — a project's
+  // completion split is only meaningful at exactly 100%. With no actions defined
+  // there is nothing to weight, so nothing to block.
+  const weightsOk = serviceActions.length === 0 || total === 100;
 
   async function save() {
     setBusy(true);
@@ -1039,20 +1044,30 @@ function ProjectsSettings({ settings, departments, stages, canManage, onSave }) 
       <section className={panel}>
         <h2 className={h2}>Requirement weights</h2>
         <p className={sub}>
-          How a project&apos;s completion percentage splits across its requirements. Only the requirements a project
-          actually carries are counted, and their shares are re-scaled to fill the bar — so a delivery-only project
-          still reaches 100%.
+          How a project&apos;s completion percentage splits across its requirements — your studio&apos;s
+          service actions. Give each a share; together they must total 100%. Only the actions a project
+          actually carries are counted, and their shares are re-scaled to fill the bar.
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-4">
-          {REQUIREMENT_WEIGHTS.map((w) => (
-            <Field key={w.key} label={`${w.label} %`} type="number" min="0"
-              value={weights[w.key] ?? ""} disabled={!canManage}
-              onChange={(v) => set(w.key, v)} />
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-slate-400">
-          {total === 0 ? "Nothing set — every requirement a project has weighs the same." : `They add up to ${total}%, and are re-scaled per project.`}
-        </p>
+        {serviceActions.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400 dark:border-white/10">
+            No service actions yet — add them in Studio Settings, then weight them here.
+          </p>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-4 sm:grid-cols-4">
+              {serviceActions.map((act) => (
+                <Field key={act} label={`${act} %`} type="number" min="0" max="100"
+                  value={weights[act] ?? ""} disabled={!canManage}
+                  onChange={(v) => set(act, v)} />
+              ))}
+            </div>
+            <p className={`mt-2 text-xs font-600 ${total === 100 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-300"}`}>
+              {total === 100
+                ? "They total 100%."
+                : `They total ${total}% — ${total > 100 ? "over" : "under"} by ${Math.abs(100 - total)}%. Adjust to 100% to save.`}
+            </p>
+          </>
+        )}
       </section>
 
       <section className={panel}>
@@ -1093,8 +1108,10 @@ function ProjectsSettings({ settings, departments, stages, canManage, onSave }) 
 
       {canManage ? (
         <div className="flex items-center gap-3">
-          <button className={btn} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save settings"}</button>
-          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+          <button className={btn} disabled={busy || !weightsOk} onClick={save}
+            title={weightsOk ? "" : "Requirement weights must total 100%."}>{busy ? "Saving…" : "Save settings"}</button>
+          {!weightsOk && <span className="text-sm text-rose-600 dark:text-rose-300">Weights must total 100%.</span>}
+          {saved && weightsOk && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
         </div>
       ) : (
         <p className="text-xs text-slate-500 dark:text-slate-400">You have view-only access to Projects settings.</p>

@@ -4,7 +4,6 @@ import {
   listSlas, listOvertimes, overtimeDirectory, readProjectsSettings, saveProjectsSettings,
   openProject, updateProject, removeProject, PROJECT_STAGES,
 } from "@/modules/projects/projects";
-import { REQUIREMENT_WEIGHTS } from "@/modules/projects/projectSchedule";
 import { listProjectSheets } from "@/modules/inventory/inventory";
 import { can } from "@/platform/access";
 
@@ -64,7 +63,9 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     overtimes,
     directory,
     settings: readProjectsSettings(c.settingsSection),
-    vocabulary: { stages: PROJECT_STAGES, requirementWeights: REQUIREMENT_WEIGHTS },
+    // Requirement weights are keyed by the studio's own service actions now, so
+    // the settings screen reads that list rather than a fixed set of keys.
+    vocabulary: { stages: PROJECT_STAGES, serviceActions: (c.studio.serviceActions as string[]) || [] },
   };
 });
 

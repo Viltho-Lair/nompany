@@ -24,8 +24,12 @@ export const VendorSchema = z.object({
  * is the movement ledger's answer, never a field here, which is why nothing on
  * this record can be edited into a stock level.
  *
- * `needsInstallation` and `needsProgramming` are what Sales' per-service opt-out
- * is checked against, so they belong to the item rather than to any one order.
+ * `scope` is which of the STUDIO's own service actions this item needs once it
+ * lands — chosen from `studio.serviceActions`, not a fixed pair. A studio with
+ * no service actions defined has no scope to choose from, and an item saved
+ * before this field existed simply reads as an empty scope until re-saved: it
+ * is not migrated, because there is nothing correct to migrate a bare boolean
+ * into once the vocabulary is studio-defined.
  */
 export const ItemSchema = z.object({
   id: z.string(),
@@ -38,8 +42,7 @@ export const ItemSchema = z.object({
   vendorId: z.string().max(60),
   itemType: z.string().max(80),
   deliveryWeeks: z.number(),
-  needsInstallation: z.boolean(),
-  needsProgramming: z.boolean(),
+  scope: z.array(z.string()).optional(),
   createdAt: z.string().optional(),
 
   // ---- added by an edit or a costing, never by the create ------------------

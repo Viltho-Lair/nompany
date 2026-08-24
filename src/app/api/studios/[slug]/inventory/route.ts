@@ -53,6 +53,9 @@ export const GET = route(
     vocabulary: {
       orderStatuses: ORDER_STATUSES, deliveryStatuses: DELIVERY_STATUSES, units: UNITS,
       awbStatuses: AWB_STATUS,
+      // The studio's own service actions, so the item form can offer a scope
+      // checkbox per action rather than the two that used to be hardcoded.
+      serviceActions: (g.studio.serviceActions as string[]) || [],
     },
   };
 });

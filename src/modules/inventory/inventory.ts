@@ -118,6 +118,20 @@ function cleanItemTypes(list: unknown) {
   });
 }
 
+// Which of the STUDIO's own service actions this item needs once it lands.
+// Kept only if it is one of theirs — a studio that renames or removes an
+// action does not leave a stray string sitting on an old item — de-duplicated
+// and order-preserved, the same shape as `cleanSerials`.
+function cleanScope(raw: unknown, studio: Record<string, unknown>) {
+  const known = new Set((Array.isArray(studio?.serviceActions) ? studio.serviceActions as unknown[] : []).map((a) => str(a, 80)));
+  const seen = new Set<string>();
+  return (Array.isArray(raw) ? raw : []).slice(0, 40).map((s) => str(s, 80)).filter((s) => {
+    if (!s || !known.has(s) || seen.has(s)) return false;
+    seen.add(s);
+    return true;
+  });
+}
+
 // Serial numbers held for an item. De-duplicated and trimmed; the ORDER is kept
 // because it is the order they were entered in, which is usually the order they
 // arrived in.
@@ -260,6 +274,11 @@ export async function listItems(ctx: InventoryContext) {
       return {
         ...i,
         serials,
+        // EMPTY BY DEFAULT: an item saved before `scope` existed carries no
+        // field at all, and it reads as an empty scope rather than any
+        // guess at what its old needsInstallation/needsProgramming meant —
+        // see the doc comment on ItemSchema.
+        scope: Array.isArray(i.scope) ? i.scope : [],
         // RESERVED: allocated to a project sheet, so still physically on the
         // shelf but no longer available to anybody else. It is not a state
         // stored on the item — it is derived from what the sheets have taken,
@@ -314,10 +333,9 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
     // with it rather than being typed again per item.
     itemType: str(body?.itemType, 80),
     deliveryWeeks: weeks(body?.deliveryWeeks),
-    // Scope: does this thing need fitting, or configuring, once it lands? The
-    // ticket's per-service "without installation/programming" opts out of it.
-    needsInstallation: !!body?.needsInstallation,
-    needsProgramming: !!body?.needsProgramming,
+    // Scope: which of the studio's own service actions does this thing need
+    // once it lands? Chosen from studio.serviceActions, not a fixed pair.
+    scope: cleanScope(body?.scope, studio),
     // Serials for a serial-tracked item. On-hand still comes from the LEDGER —
     // this records WHICH units are held, not how many.
     serials: cleanSerials(body?.serials),
@@ -366,8 +384,7 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
   if (body?.modelNumber !== undefined) patch.modelNumber = str(body.modelNumber, 80);
   if (body?.itemType !== undefined) patch.itemType = str(body.itemType, 80);
   if (body?.deliveryWeeks !== undefined) patch.deliveryWeeks = weeks(body.deliveryWeeks);
-  if (body?.needsInstallation !== undefined) patch.needsInstallation = !!body.needsInstallation;
-  if (body?.needsProgramming !== undefined) patch.needsProgramming = !!body.needsProgramming;
+  if (body?.scope !== undefined) patch.scope = cleanScope(body.scope, studio);
   if (body?.serials !== undefined) patch.serials = cleanSerials(body.serials);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.reorderLevel !== undefined) patch.reorderLevel = qty(body.reorderLevel) > 0 ? qty(body.reorderLevel) : 0;

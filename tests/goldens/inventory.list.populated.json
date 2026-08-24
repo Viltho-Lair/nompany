@@ -115,8 +115,7 @@
         "vendorId": "<inv_ID>",
         "itemType": "",
         "deliveryWeeks": "",
-        "needsInstallation": false,
-        "needsProgramming": false,
+        "scope": [],
         "serials": [],
         "reorderLevel": 0,
         "unitCost": 420,
@@ -330,7 +329,8 @@
           "desc": "Exception — pieces missing at scan.",
           "exception": true
         }
-      ]
+      ],
+      "serviceActions": []
     }
   }
 }
