@@ -1,4 +1,5 @@
 import { Card, CardHead, CardBody, Row, Col, Badge, Dot, Table, Icon } from "@/app/super/_components/ui";
+import MigrationExport from "@/components/super/MigrationExport";
 
 // The console's window onto the Redis → SQL Server cutover. READ-ONLY on purpose:
 // the design of record is docs/database-migration-mssql.md, the migration is a
@@ -112,7 +113,7 @@ function StageRow({ stage }) {
   );
 }
 
-export default function MigrationScreen() {
+export default function MigrationScreen({ studios = [] }) {
   return (
     <div className="flex flex-col gap-6">
       <Card>
@@ -122,10 +123,10 @@ export default function MigrationScreen() {
         />
         <CardBody className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <Badge tone="warning">Not started</Badge>
+            <Badge tone="warning">Plan not started</Badge>
             <span className="text-[var(--ad-muted-foreground)]">
-              Gated behind Gate A — nothing here runs until the golden harness and permission matrix are green. This
-              screen is a view of the plan, not a control for it.
+              The staged cutover below is gated behind Gate A. The export panel is live now — it reads the current data
+              and produces the .sql the backfill would load.
             </span>
           </div>
           <p className="text-sm text-[var(--ad-muted-foreground)]">
@@ -134,6 +135,8 @@ export default function MigrationScreen() {
           </p>
         </CardBody>
       </Card>
+
+      <MigrationExport studios={studios} />
 
       <Row>
         <Col span={7}>

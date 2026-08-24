@@ -1,4 +1,4 @@
-# `scripts/migrate` — Redis → SQL Server backfill
+# `scripts/migrate` — Redis → SQL Server backfill (CLI)
 
 Stage 1 of [`docs/database-migration-mssql.md`](../../docs/database-migration-mssql.md):
 extract every record from Redis, transform it to the relational schema, and load
@@ -6,6 +6,21 @@ it — into a downloadable `.sql` file by default, or into a live SQL Server beh
 an explicit flag. This is the **ETL that the design doc's Stage 1 describes**, made
 runnable; it is **not** the whole migration (dual-write, verify and cutover are
 Stages 2–5, and this is gated behind Gate A).
+
+## The ETL core lives in `src/platform/db/migrate`
+
+The extract / transform / emit logic is **not** in this folder — it is TypeScript
+in [`src/platform/db/migrate/`](../../src/platform/db/migrate), so that **two
+callers share one implementation and cannot drift**:
+
+- this **CLI** (`backfill.mjs`), and
+- the **console export route** `GET /api/super/migration/export[?studio=<id>]`,
+  which powers the "Export database" button in `/super → Application → Database
+  migration`. Same extract, same transform, same `.sql` emitter — super-admin
+  gated, streamed as a file download.
+
+`backfill.mjs` is a thin wrapper: argument parsing, the `.env` load, the safety
+guard, and the live-load (`mssql`) path. Everything else it imports from the core.
 
 ## Safety — read this first
 
@@ -26,8 +41,8 @@ Its only writes are the `.sql` export file (or, with `--load`, the target SQL Se
 # Safe trial against a sandbox namespace → writes scripts/migrate/out/nompany-export.sql
 NOMPANY_KEY_PREFIX=sandbox_ node scripts/migrate/backfill.mjs
 
-# First 5 studios only, custom output path
-NOMPANY_KEY_PREFIX=sandbox_ node scripts/migrate/backfill.mjs --limit 5 --out /tmp/sample.sql
+# One studio only, custom output path
+NOMPANY_KEY_PREFIX=sandbox_ node scripts/migrate/backfill.mjs --studio std_abc123 --out /tmp/sample.sql
 
 # Read live (read-only) and emit the full .sql export
 node scripts/migrate/backfill.mjs --allow-live-read --out nompany-export.sql
@@ -40,16 +55,19 @@ SQL_HOST=… SQL_USER=… SQL_PASS=… node scripts/migrate/backfill.mjs --load 
 install it (`npm i mssql`) only when you actually run the live-load path. The
 default `.sql`-file path needs no driver and no database.
 
-Load the **schema first** — the `CREATE TABLE …` DDL lives in the design doc §2 —
-then run the generated data file against it.
+The generated file is **self-contained**: guarded `IF OBJECT_ID(...) IS NULL
+CREATE TABLE` plus the `INSERT`s, so it restores into an empty SQL Server on its
+own. Table types are best-effort/inferred where the JSON model is loose; the
+authoritative DDL still lives in the design doc §2.
 
 ## How the `.sql` export / dump is produced
 
 Two routes to a downloadable `.sql`:
 
-- **This script (default path).** It renders the transformed rows as batched
-  `INSERT … VALUES` statements (500 rows per statement, one transaction per studio)
-  straight into the output file. No SQL Server required.
+- **This script / the console button (default path).** `emit.ts` renders the
+  transformed rows into inferred `CREATE TABLE` DDL + batched `INSERT … VALUES`
+  statements (500 rows per statement) straight into the output. No SQL Server
+  required.
 - **From a populated SQL Server** (after `--load`), use Microsoft's cross-platform
   [`mssql-scripter`](https://github.com/microsoft/mssql-scripter) — SQL Server has
   no `pg_dump`:
@@ -65,12 +83,21 @@ Two routes to a downloadable `.sql`:
 
 ## Files
 
+Core (`src/platform/db/migrate/`, TypeScript, shared with the console route):
+
 | File | Role |
 |---|---|
-| `backfill.mjs` | CLI: extract (SCAN), orchestrate per-studio, report counts/anomalies |
-| `mapping.mjs` | The Redis-collection → SQL-table map, transcribed from the design doc §2 |
-| `transform.mjs` | Coercion (ISO→datetime, `""`→NULL, amounts→decimal), ids verbatim, child-array promotion, anomaly log |
-| `sinks.mjs` | `SqlFileSink` (`.sql` file) and `MssqlSink` (live, batched, MERGE-on-PK, per-studio transaction, retry) |
+| `mapping.ts` | Redis-collection → SQL-table map, transcribed from the design doc §2 |
+| `transform.ts` | Coercion (ISO→datetime, `""`→NULL, amounts→decimal), ids verbatim, child-array promotion, anomaly log |
+| `extract.ts` | Scope-aware read from Redis (`all` \| one studio) via `scanPrefix`/`getJSON`/`hGetAll`; groups rows by table |
+| `emit.ts` | Renders grouped rows into a self-contained `.sql` (inferred `CREATE TABLE` + batched `INSERT`s), as a streaming generator |
+
+CLI (`scripts/migrate/`):
+
+| File | Role |
+|---|---|
+| `backfill.mjs` | Thin CLI over the core: args, `.env`, safety guard, `.sql`-file output, `--load` |
+| `sinks.mjs` | `MssqlSink` — the live loader (lazy `mssql`, batched, MERGE-on-PK, per-table transaction, retry) |
 
 ## Corrections from a generic ETL template
 
