@@ -137,7 +137,7 @@ export default function CatalogEditor({ kind, title, fields, services = null, on
                       onClick={() => setDraft((d) => ({ ...d, [f.key]: !d[f.key] }))}
                       className={`relative h-6 w-11 rounded-full transition-colors ${draft[f.key] ? "bg-[var(--ad-primary)]" : "bg-[var(--ad-muted)]"}`}
                     >
-                      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${draft[f.key] ? "left-[22px]" : "left-0.5"}`} />
+                      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${draft[f.key] ? "start-[22px]" : "start-0.5"}`} />
                     </button>
                   ) : f.type === "color" ? (
                     <ColorField

@@ -92,7 +92,7 @@ function StageRow({ stage }) {
       {/* The connecting rail. Absolute so the dot sits on it; hidden on the last
           row so the line does not dangle past the final stage. */}
       <span
-        className="absolute bottom-0 left-[7px] top-6 w-px bg-[var(--ad-border)] [li:last-child_&]:hidden"
+        className="absolute bottom-0 start-[7px] top-6 w-px bg-[var(--ad-border)] [li:last-child_&]:hidden"
         aria-hidden="true"
       />
       <span className="relative z-10 mt-1.5 shrink-0">
