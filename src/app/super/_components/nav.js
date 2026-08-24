@@ -41,6 +41,11 @@ export const NAV = [
       { label: "Packages", icon: "package", href: `${BASE}/application/packages` },
       { label: "Tiers", icon: "layers", href: `${BASE}/application/tiers` },
       { label: "Nova", icon: "star", href: `${BASE}/application/nova` },
+      // Read-only view of the Redis → SQL Server cutover plan (the design of
+      // record is docs/database-migration-mssql.md). It administers nothing yet:
+      // the migration is a Wave 2+ item gated behind Gate A, so this surfaces the
+      // staged plan in the console rather than running any of it.
+      { label: "Database migration", icon: "database", href: `${BASE}/application/migration` },
     ],
   },
   {
