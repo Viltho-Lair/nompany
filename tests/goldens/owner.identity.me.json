@@ -6,6 +6,7 @@
       "email": "<owner-email>",
       "status": "active",
       "provider": "",
+      "hasPassword": true,
       "createdAt": "<timestamp>"
     },
     "profile": {
