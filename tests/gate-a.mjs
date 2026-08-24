@@ -3112,6 +3112,25 @@ console.log("== migration extract: reads one studio, scoped and read-only");
   // Every operational row is tagged with the studio, which is what makes the SQL
   // schema's StudioId column (and its cross-tenant FK) fillable at all.
   ok("operational rows are studio-tagged", ticketRows.every((r) => r.StudioId === studio.id), "");
+
+  // REGRESSION: the full export 500'd with WRONGTYPE. u:<id>:studioVisits is a
+  // Redis HASH (hIncrBy'd), and extractUsers read every satellite with getJSON —
+  // a GET on a hash. Seed one visit and prove the FULL extract reads it (hGetAll)
+  // and produces a StudioVisit row instead of throwing. Writes go to the test
+  // namespace, swept with the rest.
+  const { hIncrBy } = await import("@/platform/db/store");
+  const { U } = await import("@/platform/db/keys");
+  await hIncrBy(U.studioVisits(owner.id), studio.id, 1);
+  let visitDetail = "", visitOk = false;
+  try {
+    const full = await extract({ kind: "all" });
+    const visits = full.tables.get("StudioVisit") || [];
+    visitOk = visits.some((v) => v.UserId === owner.id && v.StudioId === studio.id && Number(v.Visits) >= 1);
+    visitDetail = `${visits.length} StudioVisit rows`;
+  } catch (e) {
+    visitDetail = e.message; // WRONGTYPE before the fix
+  }
+  ok("the full export reads the studioVisits hash without WRONGTYPE", visitOk, visitDetail);
 }
 
 // ============================================================================

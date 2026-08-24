@@ -72,6 +72,20 @@ async function extractUsers(acc: Acc): Promise<void> {
     const uid = user?.id;
     if (!uid) continue;
     for (const sat of USER_SATELLITES) {
+      // A "map" satellite is a Redis HASH (studioVisits is hIncrBy'd, not a JSON
+      // string), so it is read with hGetAll — a GET on a hash is a WRONGTYPE
+      // error, and reading it with getJSON here is exactly what 500'd the full
+      // database export. Read it first, before the getJSON path below.
+      if (sat.shape === "map") {
+        const hash = await hGetAll(sat.via(uid));
+        if (Object.keys(hash).length) {
+          const { rows } = transformMap(hash, {
+            ownerField: sat.ownerField, ownerId: uid, keyName: sat.keyName || "Key", valueName: sat.valueName || "Value",
+          });
+          acc.add(sat.table, rows);
+        }
+        continue;
+      }
       const doc = await getJSON<unknown>(sat.via(uid));
       if (doc == null) continue;
       if (sat.shape === "object") {
@@ -84,11 +98,6 @@ async function extractUsers(acc: Acc): Promise<void> {
           acc.add(sat.table, [row]);
           acc.note(anomalies);
         }
-      } else if (sat.shape === "map") {
-        const { rows } = transformMap(doc, {
-          ownerField: sat.ownerField, ownerId: uid, keyName: sat.keyName || "Key", valueName: sat.valueName || "Value",
-        });
-        acc.add(sat.table, rows);
       }
     }
   }
