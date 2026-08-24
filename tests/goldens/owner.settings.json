@@ -15,7 +15,8 @@
       "deletionFinalisesAt": "",
       "workingHours": null,
       "legalInfo": [],
-      "favoriteCurrencies": []
+      "favoriteCurrencies": [],
+      "serviceActions": []
     },
     "fx": {
       "base": "",

@@ -234,6 +234,12 @@ export default function StudioSettings({ slug }) {
         onSave={save}
       />
 
+      <ServiceActions
+        actions={Array.isArray(studio.serviceActions) ? studio.serviceActions : []}
+        canManage={canManage}
+        onSave={save}
+      />
+
       {/* ENDING THE STUDIO. Kept apart from the settings above and framed in red,
           because it is not a setting — it is the end of the thing the settings
           describe. Owner only, and reversible for thirty days. */}
@@ -422,6 +428,67 @@ function LegalInfo({ rows, canManage, onSave }) {
             />
             {canManage && (
               <button type="button" aria-label={`Remove ${row.key || `row ${i + 1}`}`}
+                className="shrink-0 px-1.5 text-slate-400 transition-colors hover:text-rose-600"
+                onClick={() => remove(i)}>×</button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {canManage && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : saved ? "Saved" : "Save"}</button>
+          <button className={BTN_GHOST} onClick={add}>Add another</button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// SERVICE ACTIONS — the things this company DOES to finish a job (Delivery,
+// Installation, Programming, Building, Assembling, …), named by the studio rather
+// than assumed. This one list is the single source for two screens that used to
+// carry the same hard-coded set: an inventory item's Scope is chosen from it, and
+// a project's requirement weights are keyed to it. Empty until the studio fills it
+// in, so nothing presumes a particular kind of business.
+function ServiceActions({ actions, canManage, onSave }) {
+  const [draft, setDraft] = useState(actions.length ? actions : [""]);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const set = (i, v) => { setDraft((d) => d.map((r, j) => (j === i ? v : r))); setSaved(false); };
+  const add = () => { setDraft((d) => [...d, ""]); setSaved(false); };
+  const remove = (i) => { setDraft((d) => (d.length === 1 ? [""] : d.filter((_, j) => j !== i))); setSaved(false); };
+
+  async function save() {
+    setBusy(true);
+    // A blank row left at the bottom is somewhere to type, not an action to store.
+    const ok = await onSave({ serviceActions: draft.map((s) => s.trim()).filter(Boolean) });
+    setBusy(false);
+    setSaved(ok !== false);
+  }
+
+  return (
+    <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
+      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">Service actions</h3>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        The things this company does to finish a job — Delivery, Installation, Programming, Building,
+        Assembling, whatever you name. An item&apos;s Scope is chosen from this list, and a project&apos;s
+        requirement weights are set against it.
+      </p>
+
+      <div className="mt-4 space-y-2">
+        {draft.map((row, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              className={INPUT}
+              value={row}
+              disabled={!canManage}
+              aria-label={`Service action ${i + 1}`}
+              onChange={(e) => set(i, e.target.value)}
+            />
+            {canManage && (
+              <button type="button" aria-label={`Remove ${row || `row ${i + 1}`}`}
                 className="shrink-0 px-1.5 text-slate-400 transition-colors hover:text-rose-600"
                 onClick={() => remove(i)}>×</button>
             )}

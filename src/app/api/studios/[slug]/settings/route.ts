@@ -29,6 +29,12 @@ const FIELDS = [
   // rather than being a per-person preference.
   "language",
   "workingHours", "legalInfo", "favoriteCurrencies",
+  // The actions this company performs to complete its work — Delivery,
+  // Installation, Programming, Building, Assembling, whatever it names. A studio
+  // vocabulary, not a fixed set: an item's Scope is chosen from this list, and
+  // the project requirement weights are keyed to it. Empty until the studio fills
+  // it in, so nothing here presumes a particular kind of business.
+  "serviceActions",
 ];
 
 // Mon-first, which is how a working week is read here.
@@ -77,6 +83,21 @@ function cleanFavourites(v: unknown) {
   return [...seen];
 }
 
+// The studio's service actions — a plain list it names itself, trimmed, capped,
+// and de-duplicated case-insensitively so "Installation" and "installation " are
+// one action. Order is the caller's; a blank name is dropped.
+function cleanServiceActions(v: unknown) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of Array.isArray(v) ? v : []) {
+    const name = String(raw ?? "").trim().slice(0, 60);
+    const key = name.toLowerCase();
+    if (name && !seen.has(key)) { seen.add(key); out.push(name); }
+    if (out.length >= 40) break;
+  }
+  return out;
+}
+
 function cleanLegal(v: unknown) {
   return (Array.isArray(v) ? v : []).slice(0, 40).map((row) => ({
     key: String(row?.key ?? "").trim().slice(0, 80),
@@ -96,6 +117,7 @@ const clean = (studio: Record<string, unknown>) => ({
   workingHours: studio.workingHours || null,
   legalInfo: Array.isArray(studio.legalInfo) ? studio.legalInfo : [],
   favoriteCurrencies: Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : [],
+  serviceActions: Array.isArray(studio.serviceActions) ? studio.serviceActions : [],
 });
 
 // Rates from the studio's own currency out to each favourite. Anything the
@@ -197,6 +219,7 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
       : key === "language" ? (isLocale(body[key]) ? body[key] : defaultLocale)
       : key === "legalInfo" ? cleanLegal(body[key])
       : key === "favoriteCurrencies" ? cleanFavourites(body[key])
+      : key === "serviceActions" ? cleanServiceActions(body[key])
       : String(body[key] ?? "").slice(0, 500);
   }
   if (Object.keys(patch).length === 0) return Response.json({ error: "nothing" }, { status: 400 });
