@@ -110,6 +110,14 @@ export function PlannerShell() {
     return schedule.tasks.filter((t) => keep.has(t.id));
   }, [search, schedule, resources]);
 
+  // The people shown at the top are the ones actually put on a task, not the
+  // whole studio — the header answers "who is on this plan", so an unassigned
+  // colleague does not belong in it.
+  const assignedResources = React.useMemo(() => {
+    const ids = new Set(tasks.flatMap((t) => t.assigneeIds ?? []));
+    return resources.filter((r) => ids.has(r.id));
+  }, [tasks, resources]);
+
   const gridContentWidth = React.useMemo(
     () =>
       ALL_COLUMNS.filter((c) => visibleColumns.includes(c.key)).reduce(
@@ -285,7 +293,7 @@ export function PlannerShell() {
 
             <div className="flex-1" />
 
-            <AvatarStack resources={resources} size={26} max={4} />
+            <AvatarStack resources={assignedResources} size={26} max={4} />
 
             <Button variant="outline" size="sm">
               <Share2 className="h-3.5 w-3.5" />

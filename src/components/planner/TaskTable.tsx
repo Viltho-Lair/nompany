@@ -121,12 +121,15 @@ export function TaskTable({ rows, schedule, resources, width }: Props) {
 }
 
 function AddRowButton() {
-  const { addTaskBelow, tasks, select } = usePlannerStore();
+  const { addTaskBelow, select } = usePlannerStore();
   return (
     <button
       type="button"
       onClick={() => {
-        const id = addTaskBelow(tasks[tasks.length - 1]?.id ?? null);
+        // A MAJOR TASK — top-level, so it takes the next whole WBS number (1, 2,
+        // 3…). Passing null appends a task with no parent; sub-tasks (1.1, 1.2…)
+        // are added from a row's own menu instead.
+        const id = addTaskBelow(null);
         select(id);
       }}
       className="flex w-full items-center gap-1.5 px-3 text-[13px] text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
@@ -401,6 +404,11 @@ function RowMenu({ task }: { task: ComputedTask }) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          // Stop the press from reaching the row's onMouseDown select — that
+          // select re-renders the row mid-gesture and swallowed the menu's open,
+          // which is why the three-dots did nothing. stopPropagation here blocks
+          // the row handler without touching Radix's own trigger on this button.
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-700"
         >
