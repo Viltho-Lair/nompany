@@ -2966,6 +2966,96 @@ console.log("== CSRF: a write arriving from somebody else's page");
     String(readCross.status));
 }
 
+// ============================================================================
+console.log("== migration export: the .sql dump the console and CLI both emit");
+// THE ONE PLACE /super/application/migration DOES something rather than describes
+// the plan: GET /api/super/migration/export streams a self-contained SQL Server
+// dump, and scripts/migrate/backfill.mjs writes the same bytes to a file. Both go
+// through src/platform/db/migrate — transform (coercion) and emit (DDL inference +
+// batched INSERTs). This pins that shared contract.
+//
+// NO REDIS. The emitter is a pure function of in-memory rows plus a caller-supplied
+// clock, so the input is synthetic and fixed here — which is exactly why the golden
+// is stable. The ids are short on purpose so normalise() leaves them verbatim
+// ("ids preserved verbatim" is the property under test); a real export's long ids
+// would collapse to <tkt_ID> and hide row-to-row differences.
+{
+  const { transformCollection, transformFlat } = await import("@/platform/db/migrate/transform");
+  const { emitToString } = await import("@/platform/db/migrate/emit");
+  const { CHILD_ARRAYS } = await import("@/platform/db/migrate/mapping");
+
+  // Mirror extract.ts' accumulation: rows grouped by table, insertion order kept.
+  const tables = new Map();
+  const add = (t, rows) => { if (rows.length) tables.set(t, [...(tables.get(t) || []), ...rows]); };
+
+  // A platform registry row (g:* document) → one flat table row.
+  add("Studio", [transformFlat("Studio", {
+    id: "std_demo", name: "Demo Studio", slug: "demo", createdAt: "2026-01-01T00:00:00.000Z",
+  }).row]);
+
+  // Two tickets, deliberately with DIFFERENT field subsets, to exercise the column
+  // union and every type the emitter infers: money→DECIMAL, date→DATETIME2,
+  // bool→BIT, int→BIGINT, id→VARCHAR, ""→NULL, a nested object→Extra JSON.
+  const tickets = transformCollection("salesTickets", "SalesTicket", [
+    {
+      id: "tkt_r1", studioId: "std_demo", sectionId: "sec_sales", ref: "ST-1", title: "Boardroom refit",
+      status: "Lead", value: "12500.50", probability: 40, won: false,
+      createdAt: "2026-01-15T09:30:00.000Z", closedAt: "", meta: { source: "web", tags: ["a", "b"] },
+    },
+    {
+      id: "tkt_r2", studioId: "std_demo", sectionId: "sec_sales", ref: "ST-2", title: "Lobby AV",
+      status: "Opportunity", value: 999, probability: 10, won: true, createdAt: "2026-02-01T12:00:00.000Z",
+    },
+  ], { studioId: "std_demo", sectionId: null, childArrays: CHILD_ARRAYS });
+  for (const [t, rows] of Object.entries(tickets.rows)) add(t, rows);
+
+  // A quotation with a promoted `lines` array → QuotationLine child rows (no lone
+  // Id, so the child table loads without a PK — correct for a dump).
+  const quotes = transformCollection("quotations", "Quotation", [
+    {
+      id: "quo_q1", studioId: "std_demo", sectionId: "sec_tech", ref: "Q-1", total: "5000",
+      createdAt: "2026-01-20T00:00:00.000Z",
+      lines: [
+        { desc: "Speakers", qty: 4, unitPrice: "250.00" },
+        { desc: "Install", qty: 1, unitPrice: 1000 },
+      ],
+    },
+  ], { studioId: "std_demo", sectionId: null, childArrays: CHILD_ARRAYS });
+  for (const [t, rows] of Object.entries(quotes.rows)) add(t, rows);
+
+  // A caller-supplied clock (scripts have none of their own) keeps the header line
+  // constant; it is ISO so normalise() maps it to <timestamp> either way.
+  const sql = emitToString(tables, { scope: "studio demo", generatedAt: "2026-01-01T00:00:00.000Z" });
+
+  // The whole dump, pinned line by line. A renamed column, a dropped guard, a
+  // changed literal form, or a lost child row fails here.
+  const dump = golden("migration.export.dump", { sql: sql.split("\n") });
+  if (!dump.recorded) ok("migration.export.dump matches its golden", dump.ok, dump.detail);
+
+  // Legible assertions on the contract points, so a failure reads without diffing
+  // the golden. Each is a rule the emitter/transform must not quietly drop.
+  ok("the DDL is re-runnable (guarded CREATE TABLE)",
+    sql.includes("IF OBJECT_ID(N'dbo.[SalesTicket]', N'U') IS NULL"));
+  ok("a single verbatim Id becomes the primary key",
+    sql.includes("CONSTRAINT [PK_SalesTicket] PRIMARY KEY ([Id])"));
+  ok("a promoted child array has NO primary key",
+    sql.includes("dbo.[QuotationLine]") && !sql.includes("PK_QuotationLine"));
+  ok("a money field infers DECIMAL(18,2)", sql.includes("[Value] DECIMAL(18,2)"));
+  ok("a whole-number field infers BIGINT", sql.includes("[Probability] BIGINT"));
+  ok("a boolean field infers BIT", sql.includes("[Won] BIT"));
+  ok("a date field infers DATETIME2(3)", sql.includes("[CreatedAt] DATETIME2(3)"));
+  ok("an id-shaped column is a short VARCHAR key", sql.includes("[Id] VARCHAR(64)"));
+  ok("a date renders as a SQL-Server literal, no T/Z", sql.includes("'2026-01-15 09:30:00.000'"));
+  ok("an empty string became NULL, not a quoted ''",
+    sql.includes("'2026-01-15 09:30:00.000', NULL,"));
+  ok("an unmapped nested object rode along in Extra JSON",
+    sql.includes("[Extra] NVARCHAR(MAX)") && sql.includes('"meta":{"source":"web"'));
+  ok("both quotation lines were promoted to child rows",
+    (sql.match(/INSERT INTO dbo\.\[QuotationLine\]/g) || []).length === 1
+      && sql.includes("-- ── QuotationLine (2 rows) ──"));
+}
+
+// ============================================================================
 console.log("== no golden is left behind");
 // A golden file that no case produces is debris. It is almost always the old
 // name of a case that was renamed, and it is worse than an empty file: it sits
