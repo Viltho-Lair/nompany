@@ -59,6 +59,17 @@ when the code looks cleaner afterwards.
     `useLiveUpdates` has 21 call sites.
 15. **Cron fails closed.** A missing `CRON_SECRET` refuses; it never opens the door.
 16. **A right nothing can exercise is a bug.**
+17. **No database is destroyed without two confirmations.** Every store is live and
+    shared — Redis now, SQL Server next — so a delete, flush, drop or mass-overwrite
+    is unrecoverable and hits every tenant at once. A broad-scan delete
+    (`delPrefix("")` / `scanPrefix("")`) once wiped the whole instance. So any such
+    action waits on the user confirming it **twice in the same exchange**: the first
+    answer authorises the plan, the second — asked back with the exact scope spelled
+    out — authorises the run. `FLUSHDB`/`FLUSHALL`/`SCRIPT FLUSH`/`CONFIG SET`, an
+    empty-or-unbounded prefix, and `sweepOrphans()` from a test or script are never
+    run at all. When a twice-confirmed deletion does proceed: export first, delete by
+    an explicit key list, re-scan to prove it. Verification stays read-only by
+    default. (Directive 7 in every `.claude/agents/*.md` says the same.)
 
 ---
 
