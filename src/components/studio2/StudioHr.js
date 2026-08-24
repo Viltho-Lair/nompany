@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import {
-  panel, input, label, btn, btnGhost, th, stripeOn, stripeOff,
+  panel, label, btn, btnGhost, th, stripeOn, stripeOff,
   Dialog, Toolbar, Empty, fmtDate,
 } from "@/components/studio2/ui";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
@@ -365,7 +365,6 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
   // editing somebody's phone number can never fat-finger over their passport.
   const [editId, setEditId] = useState(false);
   const [editPassport, setEditPassport] = useState(false);
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   // Somebody may hold more than one, and any one of them is enough to act — so
   // this is a list, exactly as it is on the access screen.
   const toggleRole = (id) => setForm((f) => ({
@@ -438,27 +437,27 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <div className="mb-1.5 flex items-center gap-2">
-              <label className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">ID number</label>
+            <div className="flex items-start gap-2">
+              <Field label="ID number" className="flex-1" value={form.idNumber} disabled={!editId}
+                onChange={(val) => setForm((f) => ({ ...f, idNumber: val }))} />
               <button type="button" onClick={() => setEditId((v) => !v)}
-                className="rounded-md px-2 py-0.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
+                className="mt-3 rounded-md px-2 py-0.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
                 {editId ? "lock" : "edit"}
               </button>
             </div>
-            <input className={`${input} disabled:cursor-not-allowed disabled:opacity-60`} value={form.idNumber} disabled={!editId} onChange={set("idNumber")} />
             <Field label="ID expiry" filled={!!form.idExpiry} className="mt-2">
               <StudioDate value={form.idExpiry} onChange={(iso) => setForm((f) => ({ ...f, idExpiry: iso }))} />
             </Field>
           </div>
           <div>
-            <div className="mb-1.5 flex items-center gap-2">
-              <label className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Passport number</label>
+            <div className="flex items-start gap-2">
+              <Field label="Passport number" className="flex-1" value={form.passportNumber} disabled={!editPassport}
+                onChange={(val) => setForm((f) => ({ ...f, passportNumber: val }))} />
               <button type="button" onClick={() => setEditPassport((v) => !v)}
-                className="rounded-md px-2 py-0.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
+                className="mt-3 rounded-md px-2 py-0.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
                 {editPassport ? "lock" : "edit"}
               </button>
             </div>
-            <input className={`${input} disabled:cursor-not-allowed disabled:opacity-60`} value={form.passportNumber} disabled={!editPassport} onChange={set("passportNumber")} />
             <Field label="Passport expiry" filled={!!form.passportExpiry} className="mt-2">
               <StudioDate value={form.passportExpiry} onChange={(iso) => setForm((f) => ({ ...f, passportExpiry: iso }))} />
             </Field>

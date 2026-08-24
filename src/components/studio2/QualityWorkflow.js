@@ -258,9 +258,12 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
 
           {SIGNS.has(prompt.action) && (
             <div className="mt-4">
-              <label className={label} htmlFor="w-sig">Signature image (optional)</label>
-              <input id="w-sig" type="file" accept="image/*" className="block w-full text-xs text-slate-500"
-                onChange={(e) => uploadSignature(e.target.files?.[0])} />
+              <span className={`${label} block`}>Signature image (optional)</span>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5">
+                {uploading ? "Storing…" : signature ? "Change image" : "Choose image"}
+                <input id="w-sig" type="file" accept="image/*" className="hidden"
+                  onChange={(e) => uploadSignature(e.target.files?.[0])} />
+              </label>
               <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
                 {uploading ? "Storing…" : signature
                   ? "Attached — it will be stamped above your name."

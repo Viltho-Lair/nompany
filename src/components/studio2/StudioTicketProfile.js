@@ -533,11 +533,13 @@ function PoForm({ busy, onCancel, onSave }) {
   return (
     <>
       <div>
-        <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <span className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
           Attach the PO
+        </span>
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5">
+          {file ? "Change file" : "Choose file"}
+          <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
         </label>
-        <input type="file" className="block w-full text-sm text-slate-600 file:me-3 file:rounded-full file:border-0 file:bg-brand-500/10 file:px-4 file:py-2 file:font-display file:text-sm file:font-600 file:text-brand-700 dark:text-slate-300 dark:file:text-brand-300"
-          onChange={(e) => setFile(e.target.files?.[0] || null)} />
         {file && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{file.name}</p>}
       </div>
 

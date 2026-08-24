@@ -78,6 +78,11 @@ export function Field({
 
   const wrapping = children != null;
   const hasValue = wrapping ? !!filledProp : String(value ?? "").length > 0;
+  // A native date/time input paints its own format chrome (--:--, mm/dd/yyyy)
+  // even while empty — exactly like the wrapped MUI date field. Flag it so the
+  // resting label doesn't collide with that chrome; globals.css hides the chrome
+  // until the label floats clear on focus.
+  const nativeTemporal = !wrapping && (type === "time" || type === "date" || type === "datetime-local");
   // A <select> ALWAYS shows something — a chosen option, or a deliberate
   // empty-value one like "Studio" (meaning the studio's own currency). So its
   // label must always float clear of that text, never rest centred over it. A
@@ -131,9 +136,11 @@ export function Field({
         aria-describedby={describedBy}
         {...inputProps}
       >
-        {/* An empty first option so an unset select shows blank and the label
-            can rest centred, floating once a real value is chosen. */}
-        {!required && <option value="" />}
+        {/* An empty first option so an unset select shows blank — UNLESS the
+            caller already supplies its own empty-value option with a real label
+            ("Unassigned", "Studio"), in which case doubling it would add a stray
+            blank line above it. */}
+        {!required && !options.some((o) => (typeof o === "string" ? o : o.value) === "") && <option value="" />}
         {options.map((o) => {
           const v = typeof o === "string" ? o : o.value;
           const t = typeof o === "string" ? o : o.label;
@@ -175,13 +182,12 @@ export function Field({
         // at the box so the label floats for a Combo or the date field too.
         onFocusCapture={wrapping ? () => setFocused(true) : undefined}
         onBlurCapture={wrapping ? () => setFocused(false) : undefined}
-        // A wrapped control that draws its own resting placeholder — the MUI date
-        // field's dd/mm/yyyy — collides with this field's centred label, because
-        // rendered label-less it can't use MUI's own "hide the format behind a
-        // resting label" rule. Flag the empty-and-blurred state (label centred,
-        // nothing typed yet) so globals.css can hide that placeholder until the
-        // label floats clear on focus. Same condition MUI keys its rule on.
-        data-field-empty={wrapping && !floated ? "" : undefined}
+        // A control that draws its own resting placeholder — the MUI date field's
+        // dd/mm/yyyy, or a native date/time input's --:-- / mm/dd/yyyy — collides
+        // with this field's centred label. Flag the empty-and-blurred state (label
+        // centred, nothing entered yet) so globals.css can hide that chrome until
+        // the label floats clear on focus.
+        data-field-empty={(wrapping || nativeTemporal) && !floated ? "" : undefined}
       >
         {prefix && (
           <span className="pointer-events-none absolute inset-y-0 start-3 z-10 flex items-center pt-3 text-sm text-slate-400">

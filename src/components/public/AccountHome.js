@@ -560,7 +560,7 @@ function CreateStudio({ onDone, onClose }) {
           <label className={LABEL}>Studio address (company code)</label>
           <div className="flex items-center gap-2">
             <span className="shrink-0 font-mono text-xs text-slate-500 dark:text-slate-400">nompany.com/</span>
-            <input className={INPUT} value={touched ? slug : effectiveSlug} onChange={(e) => { setTouched(true); setSlug(e.target.value); }} placeholder="acme-trading" />
+            <input className={INPUT} value={touched ? slug : effectiveSlug} onChange={(e) => { setTouched(true); setSlug(e.target.value); }} placeholder="your-company" />
           </div>
           {effectiveSlug && status && (
             <p className={cn("mt-1 text-xs font-600", status.available ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-300")}>
@@ -619,7 +619,7 @@ function JoinStudio({ onChanged, onClose }) {
         <button className={BTN} onClick={onClose}>Done</button>
       ) : (
         <div className="grid gap-3">
-          <div><label className={LABEL}>Company code</label><input className={INPUT} value={code} onChange={(e) => setCode(e.target.value)} placeholder="acme-trading" /></div>
+          <div><label className={LABEL}>Company code</label><input className={INPUT} value={code} onChange={(e) => setCode(e.target.value)} placeholder="your-company" /></div>
           <div className="mt-1 flex gap-3">
             <button className={BTN} onClick={join} disabled={busy || !code.trim()}>{busy ? "Sending…" : "Request access"}</button>
             <button className={BTN_GHOST} onClick={onClose}>Cancel</button>

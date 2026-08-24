@@ -1092,4 +1092,10 @@ html.studio-chrome ::-webkit-scrollbar-corner {
    which lives in the `mui` layer below this one. */
 @layer tw-utilities {
   [data-field-empty] .MuiPickersSectionList-root { opacity: 0; }
+  /* Native <input type="time|date|datetime-local"> paints its format (--:--,
+     mm/dd/yyyy) as shadow-DOM chrome that would sit under the resting label.
+     Hide it while the field rests empty; it returns on focus, once the label has
+     floated clear. The calendar/clock picker button stays, so the control still
+     reads as a date/time field. */
+  [data-field-empty] input::-webkit-datetime-edit { opacity: 0; }
 }

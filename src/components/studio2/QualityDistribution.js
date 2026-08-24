@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Dialog, btn, btnGhost, input, label, microLabel } from "@/components/studio2/ui";
+import { Field } from "@/components/fields/Field";
 
 // DISTRIBUTION — who has to read this, who has, and who has not.
 //
@@ -222,11 +223,10 @@ export default function QualityDistribution({ slug, documentId, document }) {
                 Anybody with the link can read the issued revision without an account. It is stamped
                 {" "}<span className="font-600">UNCONTROLLED COPY</span>, bound to that one revision, and expires.
               </p>
-              <div className="mt-4">
-                <label className={label} htmlFor="share-days">Expires after</label>
-                <select id="share-days" className={input} value={days} onChange={(e) => setDays(Number(e.target.value))}>
-                  {[7, 30, 90, 180, 365].map((d) => <option key={d} value={d}>{d} days</option>)}
-                </select>
+              <div className="mt-4 max-w-xs">
+                <Field label="Expires after" as="select" value={String(days)}
+                  onChange={(v) => setDays(Number(v))}
+                  options={[7, 30, 90, 180, 365].map((d) => ({ value: String(d), label: `${d} days` }))} />
               </div>
               <div className="mt-6 flex items-center justify-end gap-2">
                 <button type="button" className={btnGhost} onClick={() => setSharing(false)}>Cancel</button>

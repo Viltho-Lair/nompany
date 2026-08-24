@@ -359,7 +359,7 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
           hint={chosen ? `${chosen.clientName} · ${money(chosen.total)}` : undefined} />
         <Field label="Project manager" as="select" value={managerCollaboratorId}
           onChange={(v) => setManager(v)}
-          options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+          options={[{ value: "", label: "Unassigned" }, ...people.map((p) => ({ value: p.id, label: p.alias }))]} />
         <Field label="Location" value={location} onChange={(v) => setLocation(v)} hint="Site or city" />
       </div>
       <div className="mt-5 flex gap-3">
@@ -376,6 +376,13 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
 
 function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, nav, onSave, onDelete, onClose }) {
   const support = supportStatus(p);
+  // Location and the support period commit on blur, dates on pick — the same
+  // save points the old uncontrolled inputs had. Field is controlled, so these
+  // hold the edit locally and hand it to onSave at the same moment as before.
+  const [loc, setLoc] = useState(p.location || "");
+  const [start, setStart] = useState(p.startDate || "");
+  const [end, setEnd] = useState(p.endDate || "");
+  const [sup, setSup] = useState(p.supportPeriodDays ?? 365);
 
   return (
     <>
@@ -417,35 +424,27 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
 
       {canManage && (
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          <div>
-            <label className={label}>Stage</label>
-            <select className={input} value={p.stage} onChange={(e) => onSave({ stage: e.target.value })}>
-              {stages.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+          <Field label="Stage" as="select" value={p.stage}
+            onChange={(val) => onSave({ stage: val })}
+            options={stages.map((s) => ({ value: s, label: s }))} />
+          <Field label="Manager" as="select" value={p.managerCollaboratorId || ""}
+            onChange={(val) => onSave({ managerCollaboratorId: val })}
+            options={[{ value: "", label: "Unassigned" }, ...people.map((x) => ({ value: x.id, label: x.alias }))]} />
+          {/* Wrapper onBlur keeps the save-on-blur point without overriding
+              Field's own input onBlur (which tracks the focus ring). */}
+          <div onBlur={() => onSave({ location: loc })}>
+            <Field label="Location" value={loc} onChange={(val) => setLoc(val)} />
           </div>
-          <div>
-            <label className={label}>Manager</label>
-            <select className={input} value={p.managerCollaboratorId || ""} onChange={(e) => onSave({ managerCollaboratorId: e.target.value })}>
-              <option value="">Unassigned</option>
-              {people.map((x) => <option key={x.id} value={x.id}>{x.alias}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={label}>Location</label>
-            <input className={input} defaultValue={p.location || ""} onBlur={(e) => onSave({ location: e.target.value })} />
-          </div>
-          <div>
-            <label className={label}>Start</label>
-            <input type="date" className={input} defaultValue={p.startDate || ""} onBlur={(e) => onSave({ startDate: e.target.value })} />
-          </div>
-          <div>
-            <label className={label}>Target end</label>
-            <input type="date" className={input} defaultValue={p.endDate || ""} onBlur={(e) => onSave({ endDate: e.target.value })} />
-          </div>
-          <div>
-            <label className={label}>Support period (days)</label>
-            <input type="number" min="0" className={input} defaultValue={p.supportPeriodDays ?? 365} onBlur={(e) => onSave({ supportPeriodDays: e.target.value })} />
-            {support.known && <p className="mt-1 text-[11px] text-slate-400">Runs to {slaDate(support.supportEnd)}.</p>}
+          <Field label="Start" filled={!!start}>
+            <StudioDate value={start} onChange={(iso) => { setStart(iso); onSave({ startDate: iso }); }} />
+          </Field>
+          <Field label="Target end" filled={!!end}>
+            <StudioDate value={end} onChange={(iso) => { setEnd(iso); onSave({ endDate: iso }); }} />
+          </Field>
+          <div onBlur={() => onSave({ supportPeriodDays: sup })}>
+            <Field label="Support period (days)" type="number" min="0" value={sup}
+              onChange={(val) => setSup(val)}
+              hint={support.known ? `Runs to ${slaDate(support.supportEnd)}.` : undefined} />
           </div>
         </div>
       )}
@@ -721,9 +720,11 @@ function SlaVisits({ sla, canManage, onSave, onClose }) {
             </ul>
             {canManage && emergency.length < cap && (
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <input type="date" className={`${input} sm:max-w-[200px]`} value={emergencyDate}
-                  min={sla.startDate || undefined} max={end ? end.toISOString().slice(0, 10) : undefined}
-                  onChange={(e) => setEmergencyDate(e.target.value)} />
+                <Field label="Date" filled={!!emergencyDate} className="sm:max-w-[200px]">
+                  <StudioDate value={emergencyDate}
+                    minDate={sla.startDate || undefined} maxDate={end ? end.toISOString().slice(0, 10) : undefined}
+                    onChange={(iso) => setEmergencyDate(iso)} />
+                </Field>
                 <button type="button" className="rounded-full bg-amber-600 px-4 py-2 text-sm font-600 text-white transition-colors hover:bg-amber-700" onClick={addEmergency}>
                   Register emergency visit
                 </button>

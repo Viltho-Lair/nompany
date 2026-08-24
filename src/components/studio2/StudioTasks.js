@@ -378,17 +378,14 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
         <Field label="Title" required value={form.title}
           onChange={(v) => setForm((f) => ({ ...f, title: v }))} className="sm:col-span-2 lg:col-span-3" />
         <div className="sm:col-span-2 lg:col-span-3">
-          <label className={label}>Kind</label>
           {/* An ordinary task is assigned to a person. A typed one is routed to
               whoever holds its authorities in Task settings, so the assignee
-              picker below stops applying. */}
-          <select className={input} value={form.type} disabled={!!task}
-            onChange={(e) => setForm((f) => ({ ...f, type: e.target.value, assigneeCollaboratorId: "" }))}>
-            <option value="">Ordinary task — assigned to a person</option>
-            {Object.entries(vocab.typeLabels || {}).map(([code, meta]) => (
-              <option key={code} value={code}>{meta.label}</option>
-            ))}
-          </select>
+              picker below stops applying. The empty (blank) choice is the
+              ordinary task; the hint line below spells that out. */}
+          <Field label="Kind" as="select" value={form.type} disabled={!!task}
+            hint={!form.type && !task ? "Blank is an ordinary task — assigned to a person." : undefined}
+            onChange={(v) => setForm((f) => ({ ...f, type: v, assigneeCollaboratorId: "" }))}
+            options={Object.entries(vocab.typeLabels || {}).map(([code, meta]) => ({ value: code, label: meta.label }))} />
           {form.type ? (
             <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
               {vocab.typeLabels?.[form.type]?.hint} Routed to:{" "}
@@ -417,7 +414,6 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
       </div>
 
       <div className="mt-5">
-        <label className={label}>Checklist</label>
         {checklist.length > 0 && (
           <ul className="mb-3 space-y-1.5">
             {checklist.map((c, i) => (
@@ -429,15 +425,17 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
             ))}
           </ul>
         )}
-        <div className="flex flex-wrap gap-2">
-          <input className={`${input} flex-1`} value={item}
-            onChange={(e) => setItem(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && item.trim()) {
-                e.preventDefault();
-                setChecklist((l) => [...l, newItem(item.trim())]);
-                setItem("");
-              }
+        <div className="flex flex-wrap items-start gap-2">
+          <Field label="Checklist" className="flex-1" value={item}
+            onChange={(val) => setItem(val)}
+            inputProps={{
+              onKeyDown: (e) => {
+                if (e.key === "Enter" && item.trim()) {
+                  e.preventDefault();
+                  setChecklist((l) => [...l, newItem(item.trim())]);
+                  setItem("");
+                }
+              },
             }} />
           <button className={btnGhost} disabled={!item.trim()}
             onClick={() => { setChecklist((l) => [...l, newItem(item.trim())]); setItem(""); }}>
