@@ -42,7 +42,7 @@ function hourOf(t, fallback) {
   const n = parseInt(String(t || "").split(":")[0], 10);
   return Number.isFinite(n) ? n : fallback;
 }
-function calendarFromWorkWeek(workWeek) {
+export function calendarFromWorkWeek(workWeek) {
   const open = Object.entries(workWeek || {}).filter(([, v]) => v?.on);
   if (!open.length) return null; // nothing configured — keep the store default
   const workingWeekdays = open
@@ -59,7 +59,7 @@ function calendarFromWorkWeek(workWeek) {
 // The studio's collaborators, shaped into the planner's Resource. A task stores
 // only the collaborator id in assigneeIds; everything else here is presentation
 // rebuilt each load, so renaming a person in the studio updates the plan.
-function peopleToResources(people) {
+export function peopleToResources(people) {
   return (Array.isArray(people) ? people : []).map((p) => ({
     id: p.id,
     name: p.name || "Unnamed",
@@ -89,7 +89,7 @@ function peopleToResources(people) {
 
 const DEBOUNCE_MS = 600;
 
-export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }) {
+export default function StudioPlanner({ slug, planApiBase, backHref, backLabel, printHref }) {
   const hydratePlan = usePlannerStore((s) => s.hydratePlan);
   const setResources = usePlannerStore((s) => s.setResources);
   const setCalendar = usePlannerStore((s) => s.setCalendar);
@@ -210,7 +210,7 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
             </div>
           ) : (
             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
-              <PlannerShell />
+              <PlannerShell printHref={printHref} />
             </LocalizationProvider>
           )}
         </div>

@@ -34,7 +34,7 @@ const PROJECT_STATUS = {
   on_hold: { label: 'On Hold', dot: '#9CA3AF' },
 } as const;
 
-export function PlannerShell() {
+export function PlannerShell({ printHref }: { printHref?: string } = {}) {
   const {
     meta,
     tasks,
@@ -243,14 +243,12 @@ export function PlannerShell() {
   const showChart = view !== 'grid';
   const statusMeta = PROJECT_STATUS[meta.status];
 
-  // PRINT — a WBS-and-waterfall sheet, like the document print (window.print()
-  // over an @media-print stylesheet in globals.css). Force the split view and
-  // close the inspector so the printed page is exactly the two panes, then let
-  // the layout settle for a frame before printing.
+  // PRINT — opens the plan's own printable page (WBS table beside the waterfall),
+  // which fires the print itself. A new tab, so the plan stays open behind it.
+  // Falls back to printing the current view if no print route was supplied.
   const handlePrint = () => {
-    setView('split');
-    setInspectorOpen(false);
-    setTimeout(() => window.print(), 150);
+    if (printHref) window.open(printHref, '_blank');
+    else window.print();
   };
 
   // The store starts empty and is hydrated on the client, so the server and the

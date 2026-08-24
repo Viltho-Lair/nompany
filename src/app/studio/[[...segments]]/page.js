@@ -80,6 +80,10 @@ const StudioPlanner = nextDynamic(
   () => import("@/components/studio2/StudioPlanner"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioPlannerPrint = nextDynamic(
+  () => import("@/components/studio2/StudioPlannerPrint"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioPlannerList = nextDynamic(
   () => import("@/components/studio2/StudioPlannerList"),
   { loading: () => <ScreenSkeleton /> },
@@ -290,13 +294,24 @@ export default async function StudioPage({ params }) {
     requested === "projects-list" && segments[1] && segments[2] === "plans" && segments[3] &&
     sections.some((s) => s.key === "projects-list")
   ) {
+    const planApiBase = `/api/studios/${studio.slug}/projects/${segments[1]}/plans/${segments[3]}`;
+    const planHref = `/${studio.slug}/projects-list/${segments[1]}/plans/${segments[3]}`;
+    // /…/plans/<planId>/print is the printable page of that same plan.
+    if (segments[4] === "print") {
+      return (
+        <LiveProvider slug={studio.slug}>
+          <StudioPlannerPrint slug={studio.slug} planApiBase={planApiBase} backHref={planHref} />
+        </LiveProvider>
+      );
+    }
     return (
       <LiveProvider slug={studio.slug}>
         <StudioPlanner
           slug={studio.slug}
-          planApiBase={`/api/studios/${studio.slug}/projects/${segments[1]}/plans/${segments[3]}`}
+          planApiBase={planApiBase}
           backHref={`/${studio.slug}/projects-list/${segments[1]}`}
           backLabel="Project"
+          printHref={`${planHref}/print`}
         />
       </LiveProvider>
     );
@@ -309,14 +324,25 @@ export default async function StudioPage({ params }) {
   // re-check. A refusal falls through to the shell's "nothing granted" below.
   if (requested === "operations-planner" && sections.some((s) => s.key === "operations-planner")) {
     const planId = segments[1] || "";
+    const planApiBase = `/api/studios/${studio.slug}/operations/planner/${planId}`;
+    const planHref = `/${studio.slug}/operations-planner/${planId}`;
+    // /operations-planner/<planId>/print is the printable page of that plan.
+    if (planId && segments[2] === "print") {
+      return (
+        <LiveProvider slug={studio.slug}>
+          <StudioPlannerPrint slug={studio.slug} planApiBase={planApiBase} backHref={planHref} />
+        </LiveProvider>
+      );
+    }
     return (
       <LiveProvider slug={studio.slug}>
         {planId
           ? <StudioPlanner
               slug={studio.slug}
-              planApiBase={`/api/studios/${studio.slug}/operations/planner/${planId}`}
+              planApiBase={planApiBase}
               backHref={`/${studio.slug}/operations-planner`}
               backLabel="Planner"
+              printHref={`${planHref}/print`}
             />
           : <StudioPlannerList slug={studio.slug} />}
       </LiveProvider>

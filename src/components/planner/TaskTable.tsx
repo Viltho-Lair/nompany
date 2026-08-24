@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertTriangle,
   ChevronDown,
@@ -25,14 +26,7 @@ import {
 } from '@/components/planner/lib/store/plannerStore';
 import { ROW_HEIGHT } from '@/components/planner/lib/timeline';
 import { cn } from '@/components/planner/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Tooltip,
-} from '@/components/planner/ui/primitives';
+import { Tooltip } from '@/components/planner/ui/primitives';
 import {
   AssigneeCell,
   DateCell,
@@ -387,6 +381,12 @@ const Row = React.memo(function Row({
   }
 });
 
+// HAND-ROLLED, not Radix. The Radix DropdownMenu opened but its items would not
+// fire inside the planner's scoped, scrolling root — the select gesture was
+// interrupted, so "Add sub-task" and the rest did nothing on a real click. This
+// is a plain controlled menu: a button that toggles it, and item buttons whose
+// onClick runs the action directly. It portals to <body> with fixed positioning
+// so the row's overflow can never clip it, and closes on outside-press or Escape.
 function RowMenu({ task }: { task: ComputedTask }) {
   const {
     addTaskBelow,
@@ -400,69 +400,143 @@ function RowMenu({ task }: { task: ComputedTask }) {
     select,
   } = usePlannerStore();
 
+  const [open, setOpen] = React.useState(false);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+  const [pos, setPos] = React.useState({ top: 0, right: 0 });
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+    setOpen(true);
+  };
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, [open]);
+
+  const run = (fn: () => void) => {
+    fn();
+    setOpen(false);
+  };
+
   return (
-    // NON-MODAL, deliberately. Radix's default modal menu locks pointer-events on
-    // <body> while open; inside the planner's own scroll panes and scoped
-    // `.planner-root`, that lock swallowed the item clicks, so the menu opened
-    // but "Add sub-task", "Delete" and the rest did nothing. modal={false} makes
-    // it a plain popover — the items fire. Trigger still stops the press from
-    // reaching the row's onMouseDown select so opening it never re-selects.
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-          className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-        >
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => select(addTaskBelow(task.id))}>
-          <Plus className="h-3.5 w-3.5" /> Add task below
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => select(addSubtask(task.id))}>
-          <CornerDownRight className="h-3.5 w-3.5" /> Add sub-task
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => select(addMilestone(task.id))}>
-          <Flag className="h-3.5 w-3.5" /> Add milestone
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => indent(task.id)}>
-          <IndentIncrease className="h-3.5 w-3.5" /> Indent
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => outdent(task.id)}>
-          <IndentDecrease className="h-3.5 w-3.5" /> Outdent
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => duplicateTask(task.id)}>
-          <Copy className="h-3.5 w-3.5" /> Duplicate
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={() =>
-            updateTask(task.id, {
-              scheduleMode: task.scheduleMode === 'auto' ? 'manual' : 'auto',
-            })
-          }
-        >
-          <Pin className="h-3.5 w-3.5" />
-          {task.scheduleMode === 'auto' ? 'Pin start date' : 'Auto-schedule'}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() =>
-            updateTask(task.id, { milestone: !task.milestone })
-          }
-        >
-          <Diamond className="h-3.5 w-3.5" />
-          {task.milestone ? 'Convert to task' : 'Convert to milestone'}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem destructive onSelect={() => deleteTask(task.id)}>
-          <Trash2 className="h-3.5 w-3.5" /> Delete
-          {task.isSummary ? ' with sub-tasks' : ''}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        // Keep the press off the row's onMouseDown select, and toggle on click.
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (open) setOpen(false);
+          else openMenu();
+        }}
+        className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </button>
+
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 70 }}
+            className="min-w-[200px] overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
+          >
+            <RowMenuItem icon={Plus} onClick={() => run(() => select(addTaskBelow(task.id)))}>
+              Add task below
+            </RowMenuItem>
+            <RowMenuItem icon={CornerDownRight} onClick={() => run(() => select(addSubtask(task.id)))}>
+              Add sub-task
+            </RowMenuItem>
+            <RowMenuItem icon={Flag} onClick={() => run(() => select(addMilestone(task.id)))}>
+              Add milestone
+            </RowMenuItem>
+            <RowMenuSep />
+            <RowMenuItem icon={IndentIncrease} onClick={() => run(() => indent(task.id))}>
+              Indent
+            </RowMenuItem>
+            <RowMenuItem icon={IndentDecrease} onClick={() => run(() => outdent(task.id))}>
+              Outdent
+            </RowMenuItem>
+            <RowMenuItem icon={Copy} onClick={() => run(() => duplicateTask(task.id))}>
+              Duplicate
+            </RowMenuItem>
+            <RowMenuSep />
+            <RowMenuItem
+              icon={Pin}
+              onClick={() =>
+                run(() =>
+                  updateTask(task.id, {
+                    scheduleMode: task.scheduleMode === 'auto' ? 'manual' : 'auto',
+                  }),
+                )
+              }
+            >
+              {task.scheduleMode === 'auto' ? 'Pin start date' : 'Auto-schedule'}
+            </RowMenuItem>
+            <RowMenuItem
+              icon={Diamond}
+              onClick={() => run(() => updateTask(task.id, { milestone: !task.milestone }))}
+            >
+              {task.milestone ? 'Convert to task' : 'Convert to milestone'}
+            </RowMenuItem>
+            <RowMenuSep />
+            <RowMenuItem icon={Trash2} destructive onClick={() => run(() => deleteTask(task.id))}>
+              Delete{task.isSummary ? ' with sub-tasks' : ''}
+            </RowMenuItem>
+          </div>,
+          document.body,
+        )}
+    </>
   );
+}
+
+function RowMenuItem({
+  icon: Icon,
+  children,
+  onClick,
+  destructive,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  onClick: () => void;
+  destructive?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className={cn(
+        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-[13px] transition-colors',
+        destructive ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-700 hover:bg-slate-100',
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {children}
+    </button>
+  );
+}
+
+function RowMenuSep() {
+  return <div className="my-1 h-px bg-slate-100" />;
 }

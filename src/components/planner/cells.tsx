@@ -51,6 +51,12 @@ export function TextCell({
       value={draft}
       placeholder={placeholder}
       onFocus={onFocus}
+      // Clicking the text edits it, at once. The row's onMouseDown selects the
+      // row and re-renders it, which was stealing the focus the click should
+      // have put in this input — so keep the press off the row and the native
+      // focus lands here. onClick re-focuses as a belt-and-braces.
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.currentTarget.focus()}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => draft !== value && onCommit(draft)}
       onKeyDown={(e) => {
