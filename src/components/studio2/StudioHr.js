@@ -12,6 +12,7 @@ import { initialsOf } from "@/lib/initials";
 import HrDashboard from "@/components/studio2/HrDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { PanelBar, usePanelParam } from "@/components/studio2/PanelBar";
 
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
 const td = "py-3 pe-3 align-middle";
@@ -44,7 +45,9 @@ const fmt = fmtDate;
 // anything.
 export default function StudioHr({ slug, view = "hr" }) {
   const [data, setData] = useState(null);
-  const [tab, setTab] = useState("people");
+  // The active panel is remembered in ?tab= so a refresh or a deep link reopens
+  // the same one; the switch itself is an in-place flip via the bottom PanelBar.
+  const [tab, setTab] = usePanelParam("tab", "people", ["people", "roles", "certifications", "leave"]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const level = useAnalyticsLevel();
@@ -113,30 +116,28 @@ export default function StudioHr({ slug, view = "hr" }) {
     );
   }
 
-  const tabs = [
-    ["people", `People (${employees.length})`],
-    ["roles", `Roles (${roles.length})`],
-    ["certifications", `Certifications (${certifications.length})`],
-    ["leave", `Leave${pendingLeave ? ` (${pendingLeave})` : ""}`],
+  const panelItems = [
+    { key: "people", label: `People (${employees.length})` },
+    { key: "roles", label: `Roles (${roles.length})` },
+    { key: "certifications", label: `Certifications (${certifications.length})` },
+    { key: "leave", label: `Leave${pendingLeave ? ` (${pendingLeave})` : ""}` },
   ];
 
+  // pb-20 keeps the last rows clear of the fixed PanelBar, the way StudioOperations
+  // spaces its own bottom bar.
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {banner}
 
-      <Overview headcount={headcount} departments={departments} expiring={expiring} windowDays={vocabulary.expiryWindowDays} />
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
-          {tabs.map(([k, text]) => (
-            <button key={k} type="button" onClick={() => setTab(k)}
-              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-[var(--geex-surface)] text-brand-950 shadow-sm dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
-              {text}
-            </button>
-          ))}
+      {/* The old top pill-tab strip moved to the shared bottom PanelBar; the
+          view-only badge stays up top-right where the header used to hold it. */}
+      {!canManage && (
+        <div className="flex justify-end">
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>
         </div>
-        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
-      </div>
+      )}
+
+      <Overview headcount={headcount} departments={departments} expiring={expiring} windowDays={vocabulary.expiryWindowDays} />
 
       {tab === "people" && (
         <People employees={employees} departments={departments} roles={roles}
@@ -154,6 +155,8 @@ export default function StudioHr({ slug, view = "hr" }) {
         <Leave rows={vacations} employees={employees} types={vocabulary.leaveTypes}
           canManage={canManage} meId={me.collaboratorId} busy={busy} send={send} />
       )}
+
+      <PanelBar items={panelItems} active={tab} onSelect={setTab} />
     </div>
   );
 }
