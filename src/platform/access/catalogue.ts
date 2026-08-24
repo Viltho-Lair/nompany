@@ -189,6 +189,11 @@ const OWN_AREAS = [
 
   { key: "operations.tracking", group: "Operations", label: "Tracking", verbs: ["view", "create", "edit", "delete"] },
   { key: "operations.settings", group: "Operations", label: "Settings", verbs: ["view", "edit"] },
+  // The project planner is a sub-section of its own, so it carries its own right:
+  // view opens the app and its plans, edit creates and changes them. A project's
+  // OWN plan is reached through the projects-list grant instead (the "Project
+  // plan" button), so this gates the cross-project app, not a project's schedule.
+  { key: "operations.planner", group: "Operations", label: "Planner", verbs: ["view", "edit"] },
 
   // The controlled-document register.
   //

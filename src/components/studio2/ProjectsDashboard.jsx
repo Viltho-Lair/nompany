@@ -70,14 +70,13 @@ export default function ProjectsDashboard({
   const donut = byStage.filter((s) => s.count > 0).map((s) => ({ label: s.stage, value: s.count, color: STAGE_COLOR[s.stage] }));
   const maxStageValue = Math.max(1, ...byStage.map((s) => s.value));
 
-  // ---- milestone completion (simple) --------------------------------------
-  let msDone = 0, msTotal = 0;
-  for (const p of projects) {
-    const ms = Array.isArray(p.milestones) ? p.milestones : [];
-    msTotal += ms.length;
-    msDone += ms.filter((m) => m.done).length;
-  }
-  const msPct = msTotal ? Math.round((msDone / msTotal) * 100) : 0;
+  // ---- plan progress (simple) ---------------------------------------------
+  // Each project's progress is its plan's overall completion; this averages it
+  // across the studio's projects (the milestone checklist that used to feed it
+  // is gone).
+  const avgProgress = projects.length
+    ? Math.round(projects.reduce((s, p) => s + (Number(p.progress) || 0), 0) / projects.length)
+    : 0;
 
   // ---- workload by manager (moderate) -------------------------------------
   const aliasOf = Object.fromEntries(people.map((p) => [p.id, p.alias]));
@@ -133,7 +132,7 @@ export default function ProjectsDashboard({
       <div className="rounded-geex border border-dashed border-slate-200 p-10 text-center dark:border-white/10">
         <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">No data yet</h3>
         <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">
-          Projects open from an approved quotation. Once one is registered, its stages, value and milestones are summarised here.
+          Projects open from an approved quotation. Once one is registered, its stages, value and progress are summarised here.
         </p>
       </div>
     );
@@ -178,12 +177,12 @@ export default function ProjectsDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">No project values yet.</p>}
         </Widget>
 
-        <Widget title="Milestone completion" hint="Ticked across all projects" locked={!visible("projects.milestone-completion")} lockedWhat="Milestone completion">
-          {msTotal > 0 ? (
-            <div className="flex justify-center py-2">
-              <Radial value={msPct} label={`${msPct}%`} sub={`${msDone} of ${msTotal} done`} color="rgb(var(--chart-2))" />
-            </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No milestones yet.</p>}
+        <Widget title="Project progress" hint="Average plan completion" locked={!visible("projects.plan-progress")} lockedWhat="Project progress">
+          <div className="flex justify-center py-2">
+            <Radial value={avgProgress} label={`${avgProgress}%`}
+              sub={`across ${projects.length} ${projects.length === 1 ? "project" : "projects"}`}
+              color="rgb(var(--chart-2))" />
+          </div>
         </Widget>
 
         {/* Moderate */}

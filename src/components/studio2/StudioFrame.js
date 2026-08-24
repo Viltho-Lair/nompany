@@ -75,6 +75,7 @@ const SECTION_ICONS = {
   "hr-employees": "teamwork",
   "finance-cash": "cash",
   "operations-tracking": "locations",
+  "operations-planner": "calendar",
   // Every module's Settings wears the same gear. They are the same KIND of
   // screen in five different places, so giving each its own mark would imply a
   // difference that is not there.

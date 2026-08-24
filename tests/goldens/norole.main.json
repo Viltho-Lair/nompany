@@ -42,6 +42,7 @@
       "finance-settings": false,
       "operations": false,
       "operations-tracking": false,
+      "operations-planner": false,
       "operations-settings": false,
       "quality": false,
       "quality-documents": false,

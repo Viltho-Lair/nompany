@@ -82,6 +82,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "projects-sla": ["projects.sla"],
   "projects-overtimes": ["projects.overtimes"],
   "projects-settings": ["projects.settings"],
+  "operations-planner": ["operations.planner"],
   "inventory-stock": ["inventory.stock"],
   "inventory-vendors": ["inventory.vendors"],
   "inventory-items": ["inventory.items"],

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { fmtDate } from "@/lib/format";
 
 // THE /operations-planner APP LANDING. A full-screen list of the studio's plans,
@@ -19,7 +20,33 @@ const PLAN_STATUS = {
 };
 
 export default function StudioPlannerList({ slug }) {
+  const router = useRouter();
   const [state, setState] = useState({ loading: true, error: false, plans: [], canEdit: false });
+  const [creating, setCreating] = useState(false);
+
+  // EXTERNAL PLANS ARE BORN HERE. A project's plan comes from the project; this
+  // is the other origin — the planner app starting a schedule of its own. POST
+  // mints an empty plan and we go straight into it, the way opening a project's
+  // plan does.
+  async function createPlan() {
+    if (creating || !state.canEdit) return;
+    setCreating(true);
+    try {
+      const res = await fetch(`/api/studios/${slug}/operations/planner`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      const payload = res.ok ? await res.json() : null;
+      if (payload?.planId) {
+        router.push(`/${slug}/operations-planner/${payload.planId}`);
+        return;
+      }
+    } catch {
+      /* fall through to re-enable the button */
+    }
+    setCreating(false);
+  }
 
   useEffect(() => {
     let alive = true;
@@ -72,6 +99,18 @@ export default function StudioPlannerList({ slug }) {
             Project schedules across this studio
           </p>
         </div>
+
+        {state.canEdit && (
+          <button
+            type="button"
+            onClick={createPlan}
+            disabled={creating}
+            className="ms-auto inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-brand-700 px-4 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span aria-hidden="true" className="text-base leading-none">+</span>
+            {creating ? "Creating…" : "New plan"}
+          </button>
+        )}
       </header>
 
       {/* ---- body ---- */}
@@ -146,8 +185,10 @@ function EmptyState() {
           No plans yet
         </h2>
         <p className="mt-1 text-[13px] text-[var(--geex-muted)]">
-          Open a project and use its <span className="font-600">Project plan</span>{" "}
-          action to schedule it. Plans created that way appear here.
+          Use <span className="font-600">New plan</span> to start an external
+          schedule, or open a project and use its{" "}
+          <span className="font-600">Project plan</span> action. Plans from either
+          appear here.
         </p>
       </div>
     </div>

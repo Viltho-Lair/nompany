@@ -55,7 +55,7 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   // Projects
   { key: "projects.by-stage", label: "Projects by stage", section: "projects", rung: "simple" },
   { key: "projects.value-by-stage", label: "Value by stage", section: "projects", rung: "simple" },
-  { key: "projects.milestone-completion", label: "Milestone completion", section: "projects", rung: "simple" },
+  { key: "projects.plan-progress", label: "Project progress", section: "projects", rung: "simple" },
   { key: "projects.workload-by-manager", label: "Workload by manager", section: "projects", rung: "moderate" },
   { key: "projects.support-visits", label: "Support visits", section: "projects", rung: "moderate" },
   { key: "projects.timeline", label: "Project timeline", section: "projects", rung: "moderate" },

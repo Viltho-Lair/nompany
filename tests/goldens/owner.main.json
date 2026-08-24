@@ -42,6 +42,7 @@
       "finance-settings": true,
       "operations": true,
       "operations-tracking": true,
+      "operations-planner": true,
       "operations-settings": true,
       "quality": true,
       "quality-documents": true,
@@ -207,6 +208,11 @@
       {
         "key": "operations-tracking",
         "name": "Tracking",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "operations-planner",
+        "name": "Planner",
         "parentId": "<sec_ID>"
       },
       {

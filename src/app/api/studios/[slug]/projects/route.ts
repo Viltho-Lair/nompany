@@ -1,6 +1,6 @@
 import { route, refused } from "@/platform/http/route";
 import {
-  projectsContext, listProjects, approvedQuotations, projectPeople,
+  projectsContext, listProjects, approvedQuotations, projectPeople, listProjectClients,
   listSlas, listOvertimes, overtimeDirectory, readProjectsSettings, saveProjectsSettings,
   openProject, updateProject, removeProject, PROJECT_STAGES,
 } from "@/modules/projects/projects";
@@ -25,8 +25,8 @@ const manageable = (c: { canManage: boolean }) => (c.canManage ? null : { error:
 // One read for the whole Projects screen — the list, its SLA contracts, the
 // overtime logged against it, and the directory the pickers need.
 export const GET = route({ ...spec, body: false }, async (c) => {
-  const [projects, quotations, people, slas, overtimes, directory, sheets] = await Promise.all([
-    listProjects(c), approvedQuotations(c), projectPeople(c),
+  const [projects, quotations, people, clients, slas, overtimes, directory, sheets] = await Promise.all([
+    listProjects(c), approvedQuotations(c), projectPeople(c), listProjectClients(c),
     listSlas(c), listOvertimes(c), overtimeDirectory(c),
     // THE SHEETS, composed by the module that owns them. Projects reads them —
     // a project's sheets are part of its own story — and never writes them from
@@ -57,6 +57,9 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     // Only approved, not-yet-delivering quotations can open a project.
     approvedQuotations: quotations,
     people,
+    // Clients read from Sales, so a project's profile can draw its client box —
+    // logo and contacts — the same way the Sales ticket does.
+    clients,
     slas,
     overtimes,
     directory,

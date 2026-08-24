@@ -207,6 +207,12 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "operations-planner",
+        "name": "Planner",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "operations-settings",
         "name": "Settings",
         "enabled": true

@@ -401,6 +401,12 @@ export const SECTION_DEFS = [
   ] },
   { key: "operations", name: "Operations", children: [
     { key: "operations-tracking", name: "Tracking" },
+    // The project planner — a full-screen app of its own (see the studio router),
+    // grantable on its own operations.planner right. It owns no section
+    // collection: plans live at the studio level so a project can reach its own
+    // without this grant, and the new-plan presets live on this section's own
+    // `settings` object, the way operations-settings does.
+    { key: "operations-planner", name: "Planner" },
     { key: "operations-settings", name: "Settings" },
   ] },
   // Quality owns the studio's controlled documents. Documents is a sub-section

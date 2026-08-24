@@ -20,38 +20,6 @@
       "receivedDate": "<today>",
       "startDate": "",
       "endDate": "",
-      "milestones": [
-        {
-          "id": "ms1",
-          "name": "Kick-off",
-          "done": false,
-          "doneAt": ""
-        },
-        {
-          "id": "ms2",
-          "name": "Procurement",
-          "done": false,
-          "doneAt": ""
-        },
-        {
-          "id": "ms3",
-          "name": "Execution",
-          "done": false,
-          "doneAt": ""
-        },
-        {
-          "id": "ms4",
-          "name": "Testing",
-          "done": false,
-          "doneAt": ""
-        },
-        {
-          "id": "ms5",
-          "name": "Handover",
-          "done": false,
-          "doneAt": ""
-        }
-      ],
       "notes": "",
       "openedByCollaboratorId": "<col_ID>",
       "createdAt": "<timestamp>",

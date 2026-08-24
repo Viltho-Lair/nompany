@@ -4,11 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import RecordLink from "@/components/studio2/RecordLink";
 import { panel, h2, sub, fmtDate } from "@/components/studio2/ui";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { Money } from "@/components/Currency";
-import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
 
 // ONE PROJECT'S INFORMATION, in one place. This used to live inline in
 // StudioProjectProfile.js; it was lifted out so the full-screen project board
@@ -56,8 +54,10 @@ export function deriveProject(data, projectId) {
   const mine = (data?.sheets || []).filter((s) => s.projectId === projectId);
   const hasSheet = mine.length > 0;
   const lineCount = (mine.find((s) => s.kind === "main") || mine[0])?.lineCount || 0;
-  const done = (project?.milestones || []).filter((m) => m.done).length;
-  return { project, people, currency, nav, mine, hasSheet, lineCount, done };
+  // The project's client, read from Sales (the projects payload joins it), so the
+  // client box can draw the same logo and contacts the Sales ticket shows.
+  const client = (data?.clients || []).find((c) => c.id === project?.clientId) || null;
+  return { project, people, currency, nav, mine, hasSheet, lineCount, client };
 }
 
 // ---- sections --------------------------------------------------------------
@@ -110,68 +110,40 @@ export function WhatWasSoldSection({ slug, projectId, hasSheet, lineCount }) {
   );
 }
 
-export function MilestonesSection({ project, done }) {
+// THE CLIENT BOX — the company this project is for, drawn the same way the Sales
+// ticket profile draws it: logo (initials when there is none), name, and the
+// primary contact. The client is read from Sales through the projects payload,
+// so this is one reading of that record, not a second copy. Falls back to the
+// project's own clientName when the viewer has no Sales grant to read the rest.
+export function ClientSection({ client, clientName }) {
+  const name = client?.name || clientName || "";
+  const contact = (client?.contacts || [])[0] || {};
+  const hasContact = contact.name || contact.phone || contact.email;
   return (
     <section className={card}>
-      <h2 className={h2}>Milestones</h2>
-      {(project.milestones || []).length === 0 ? (
-        <p className={sub}>None set.</p>
-      ) : (
-        <>
-          <p className={sub}>{done} of {project.milestones.length} done · {project.progress}%</p>
-          <ul className="mt-3 space-y-1.5">
-            {project.milestones.map((m) => (
-              <li key={m.id} className="flex items-center gap-2 text-sm">
-                <span aria-hidden="true" className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-700 ${
-                  m.done ? "bg-emerald-500 text-white" : "border border-slate-300 dark:border-white/25"}`}>
-                  {m.done ? "✓" : ""}
-                </span>
-                <span className={m.done ? "text-slate-400 line-through" : "text-slate-700 dark:text-slate-200"}>{m.name}</span>
-                {m.doneAt && <span className="text-xs text-slate-400">{fmtDate(m.doneAt.slice(0, 10))}</span>}
-              </li>
-            ))}
-          </ul>
-        </>
+      <div className="flex flex-col items-center text-center">
+        <span className="inline-flex h-24 w-32 items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white p-2 dark:border-white/10 dark:bg-white/5">
+          {client?.logo
+            /* eslint-disable-next-line @next/next/no-img-element */
+            ? <img src={client.logo} alt="" className="h-full w-full object-contain" />
+            : <span className="font-display text-2xl font-800 text-brand-700 dark:text-brand-300">
+                {(name || "?").slice(0, 2).toUpperCase()}
+              </span>}
+        </span>
+        <p className="mt-2 font-600 text-slate-900 dark:text-white">{name || "—"}</p>
+      </div>
+      {hasContact && (
+        <dl className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
+          <Field label="Contact person" value={contact.name} />
+          <Field label="Number" value={contact.phone} />
+          <Field label="Email" value={contact.email} />
+        </dl>
       )}
     </section>
   );
 }
 
-export function LineageSection({ slug, project, nav = {} }) {
-  return (
-    <section className={card}>
-      <h2 className={h2}>Where it came from</h2>
-      <p className={sub}>
-        Each of these is a key on this project, not a copy — every name and number below is read
-        back through it.
-      </p>
-      <dl className="mt-4 space-y-3">
-        <Lineage label="Sales ticket" value={project.ticketRef || project.ticketId}
-          href={linkIf(nav.sales, linkToTicket(slug, project.ticketId))} />
-        <Lineage label="RFQ" value={project.rfqId ? "Raised" : ""}
-          href={linkIf(nav.technical, linkToRfq(slug, project.rfqId))} />
-        <Lineage label="Quotation" value={project.quotationNumber}
-          href={linkIf(nav.technical, linkToQuotation(slug, project.quotationId))} />
-        <Lineage label="Client" value={project.clientName} />
-      </dl>
-    </section>
-  );
-}
-
 // ---- helpers ---------------------------------------------------------------
-
-export function Lineage({ label, value, href }) {
-  return (
-    <div>
-      <dt className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</dt>
-      <dd className="mt-0.5 text-sm">
-        {!value ? <span className="text-slate-400">—</span>
-          : href ? <RecordLink href={href} title={`Open the ${label.toLowerCase()}`}>{value}</RecordLink>
-          : <span className="text-slate-700 dark:text-slate-200">{value}</span>}
-      </dd>
-    </div>
-  );
-}
 
 export function Field({ label, value, mono }) {
   return (

@@ -12,11 +12,13 @@ import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getJSON, editJSON, delKeys } from "@/platform/db/store";
 import { PROJECT } from "@/platform/db/keys";
-import { removeProjectPlans } from "@/modules/operations/planner";
+import { removeProjectPlans, progressByProject } from "@/modules/operations/planner";
 import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { clientContacts } from "@/modules/sales/salesClients";
+import type { Client } from "@/modules/sales/types";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { REQUIREMENT_WEIGHTS, DEFAULT_SUPPORT_DAYS, hoursBetween } from "./projectSchedule";
 import { nextReference } from "@/modules/main/references";
@@ -32,8 +34,6 @@ import type { Task } from "@/modules/tasks/types";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 export const DEFAULT_STAGE = "Received";
-// A sensible starting checklist; every project can edit its own.
-export const DEFAULT_MILESTONES = ["Kick-off", "Procurement", "Execution", "Testing", "Handover"];
 
 const PROJECTS = "projects";
 const QUOTATIONS = "quotations";
@@ -42,6 +42,8 @@ const OVERTIMES = "overtimes";
 // Project Sheets live under INVENTORY in this product, matching the Old System.
 // Projects writes one when a project is opened and never reads it again.
 const SHEETS = "projectSheets";
+// Sales' clients collection, read (never written) for a project's client box.
+const CLIENTS = "salesClients";
 // Two sheets per project, and they are two READINGS of the quotation's rows
 // rather than two copies of them — see openProject.
 export const SHEET_KINDS = ["main", "bulk"];
@@ -54,6 +56,8 @@ const TASKS = "tasks";
 const Overtimes = repo<Overtime>(OVERTIMES);
 const Projects = repo<Project>(PROJECTS);
 const Quotations = repo(QUOTATIONS);
+// Sales owns clients; Projects only reads them (see listProjectClients).
+const Clients = repo<Client>(CLIENTS);
 // Projects writes the project sheet under Inventory's section when a project is
 // opened and never reads it back, so this binds the collection without a type.
 const Sheets = repo(SHEETS);
@@ -136,19 +140,15 @@ export function readProjectsSettings(
   };
 }
 
-// Progress is DERIVED from the milestone checklist — never stored independently,
-// so it can't drift out of step with the work.
-export function progressOf(milestones: unknown) {
-  const list = Array.isArray(milestones) ? milestones : [];
-  if (!list.length) return 0;
-  return Math.round((list.filter((m) => m.done).length / list.length) * 100);
-}
-
 export async function listProjects(ctx: ProjectsContext) {
   const { studio, listSection } = ctx;
-  const [rows, factsFor] = await Promise.all([
+  // Progress is the project PLAN's overall completion, read back through the
+  // studio-level plans index (one key), never stored on the project — so it
+  // can't drift from the schedule it summarises. A project with no plan reads 0.
+  const [rows, factsFor, progressFor] = await Promise.all([
     Projects.find({ studio, section: listSection }),
     ticketFacts(ctx),
+    progressByProject(studio.id),
   ]);
   return [...rows]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
@@ -157,7 +157,7 @@ export async function listProjects(ctx: ProjectsContext) {
       // carries — so the profile can name where the work came from without the
       // project holding a second copy of it.
       const t = factsFor(p.ticketId);
-      return { ...p, ticketRef: t.ticketRef, progress: progressOf(p.milestones) };
+      return { ...p, ticketRef: t.ticketRef, progress: progressFor.get(p.id) ?? 0 };
     });
 }
 
@@ -279,7 +279,6 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     receivedDate: now.slice(0, 10),
     startDate: str(body?.startDate, 10),
     endDate: str(body?.endDate, 10),
-    milestones: DEFAULT_MILESTONES.map((name, i) => ({ id: `ms${i + 1}`, name, done: false, doneAt: "" })),
     notes: "",
     openedByCollaboratorId: collaborator.id,
     createdAt: now,
@@ -379,26 +378,13 @@ export async function updateProject(ctx: ProjectsContext, id: string, body: Reco
   if (body?.supportPeriodDays !== undefined) patch.supportPeriodDays = nonNeg(body.supportPeriodDays, DEFAULT_SUPPORT_DAYS);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 4000);
 
-  if (body?.milestones !== undefined) {
-    patch.milestones = (Array.isArray(body.milestones) ? body.milestones : []).slice(0, 40).map((m, i) => ({
-      id: str(m?.id, 20) || `ms${i + 1}`,
-      name: str(m?.name, 120),
-      done: Boolean(m?.done),
-      doneAt: m?.done ? (str(m?.doneAt, 30) || new Date().toISOString()) : "",
-    })).filter((m) => m.name);
-
-    // Finishing every milestone completes the project; reopening one takes it
-    // back to In Progress, so the stage can never contradict the checklist.
-    const done = progressOf(patch.milestones);
-    const stage = patch.stage ?? current.stage;
-    if (done === 100 && stage !== "Completed") patch.stage = "Completed";
-    if (done < 100 && stage === "Completed") patch.stage = "In Progress";
-  }
-
   const project = await Projects.update({ studio, section: listSection }, id, patch);
   if (!project) return { error: "notfound" };
   await announceProjectManager(ctx, project, current.managerCollaboratorId || "");
-  return { project: { ...project, progress: progressOf(project.milestones) } };
+  // Progress rides the project's plan, not this row, so it is read back from the
+  // plans index rather than recomputed here.
+  const progress = (await progressByProject(studio.id)).get(id) ?? 0;
+  return { project: { ...project, progress } };
 }
 
 export async function removeProject(ctx: ProjectsContext, id: string) {
@@ -421,6 +407,24 @@ export async function removeProject(ctx: ProjectsContext, id: string) {
 export async function projectPeople({ studio }: Pick<ProjectsContext, "studio">) {
   const rows = await listCollaborators(studio.id);
   return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" }));
+}
+
+// THE CLIENTS A PROJECT'S PROFILE NAMES — read from Sales, where clients live,
+// so the project's client box shows the same logo and contacts the Sales ticket
+// does rather than a second copy that drifts. Trimmed to what the box draws
+// (logo + the normalised contact list), and empty when this viewer has no Sales
+// grant, in which case the box falls back to the project's own clientName.
+export async function listProjectClients(
+  { studio, salesClientsSection }: Pick<ProjectsContext, "studio" | "salesClientsSection">,
+) {
+  if (!salesClientsSection) return [];
+  const rows = await Clients.find({ studio, section: salesClientsSection });
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name || "",
+    logo: c.logo || "",
+    contacts: clientContacts(c),
+  }));
 }
 
 // ---- the project's Kanban board ---------------------------------------------

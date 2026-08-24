@@ -45,3 +45,9 @@ export type OperationsContext = ModuleContext & {
   canManageSettings: boolean;
   settings: Record<string, unknown>;
 };
+
+// The planner resolves on its own sub-section key, so its context is the bare
+// module context plus the new-plan presets kept on that section's `settings`.
+export type PlannerContext = ModuleContext & {
+  presets: Record<string, unknown>;
+};

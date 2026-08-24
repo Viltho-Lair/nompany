@@ -304,9 +304,10 @@ export default async function StudioPage({ params }) {
 
   // THE PLANNER APP — /<slug>/operations-planner is the full-screen list of every
   // plan; /<slug>/operations-planner/<planId> is one plan, editable by anyone who
-  // can manage Operations. Both need the Operations grant (its own APIs re-check);
-  // a refusal falls through to the shell's "nothing granted" below.
-  if (requested === "operations-planner" && sections.some((s) => s.key === "operations")) {
+  // holds the planner's edit right. It is a grantable sub-section of its own, so
+  // the gate is that section's visibility (operations.planner.view); its own APIs
+  // re-check. A refusal falls through to the shell's "nothing granted" below.
+  if (requested === "operations-planner" && sections.some((s) => s.key === "operations-planner")) {
     const planId = segments[1] || "";
     return (
       <LiveProvider slug={studio.slug}>

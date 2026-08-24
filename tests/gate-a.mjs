@@ -136,8 +136,9 @@ console.log("== the permission matrix: one key grants exactly itself");
   // same way, for the same reason, found by the same check; 105 when Finance 1b
   // added finance.ledger's view, post and reverse; 115 when Finance 1b added
   // finance.payables (view/create/edit/delete + approve/pay) and finance.assets
-  // (view/create/edit + dispose).
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 115, String(ALL_PERMISSIONS.length));
+  // (view/create/edit + dispose); 117 when the planner became a grantable
+  // sub-section of Operations (operations.planner view/edit).
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 117, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];

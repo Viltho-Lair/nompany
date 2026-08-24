@@ -41,6 +41,7 @@
       "finance-settings": true,
       "operations": true,
       "operations-tracking": true,
+      "operations-planner": true,
       "operations-settings": true,
       "quality": true,
       "quality-documents": true,
@@ -80,6 +81,7 @@
       "finance-settings": true,
       "operations": true,
       "operations-tracking": true,
+      "operations-planner": true,
       "operations-settings": true,
       "quality": true,
       "quality-documents": true,
@@ -125,6 +127,20 @@
       {
         "id": "<col_ID>",
         "alias": "Owner"
+      }
+    ],
+    "clients": [
+      {
+        "id": "<sal_ID>",
+        "name": "Second Client",
+        "logo": "",
+        "contacts": []
+      },
+      {
+        "id": "<sal_ID>",
+        "name": "Acme Holdings",
+        "logo": "",
+        "contacts": []
       }
     ],
     "slas": [],

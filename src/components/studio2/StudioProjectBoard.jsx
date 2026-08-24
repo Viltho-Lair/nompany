@@ -9,10 +9,9 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 import {
   useProjectData,
   deriveProject,
+  ClientSection,
   ProjectSection,
   WhatWasSoldSection,
-  MilestonesSection,
-  LineageSection,
 } from "@/components/studio2/StudioProjectInfo";
 
 // THE KANBAN IS THE PROJECT PROFILE. This full-screen surface renders OUTSIDE
@@ -35,7 +34,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
   // Project facts for the rail + sidebar — one fetch of the /projects endpoint a
   // project is a row of, shared with the legacy profile via StudioProjectInfo.
   const { data, error: infoError } = useProjectData(slug);
-  const { project, people, currency, nav, hasSheet, lineCount, done } =
+  const { project, people, currency, hasSheet, lineCount, client } =
     deriveProject(data, projectId);
 
   // Board document lifecycle.
@@ -177,8 +176,10 @@ export default function StudioProjectBoard({ slug, projectId }) {
           )}
         </main>
 
-        {/* Right sidebar — the project's information (end side; RTL-aware). */}
-        <aside className="hidden w-[340px] shrink-0 flex-col gap-4 overflow-y-auto border-s border-slate-200/70 bg-[var(--geex-page)] p-4 dark:border-white/10 lg:flex">
+        {/* Right sidebar — the project's information (end side; RTL-aware). Wide
+            enough that the Project box's two-column fields and the client box are
+            not squeezed; on a narrow viewport it drops away entirely. */}
+        <aside className="hidden w-[380px] shrink-0 flex-col gap-4 overflow-y-auto border-s border-slate-200/70 bg-[var(--geex-page)] p-4 dark:border-white/10 lg:flex xl:w-[420px]">
           {infoError && !data ? (
             <p className="text-sm text-rose-600 dark:text-rose-300">{infoError}</p>
           ) : !data ? (
@@ -187,10 +188,9 @@ export default function StudioProjectBoard({ slug, projectId }) {
             <p className="text-sm text-slate-500">That project no longer exists.</p>
           ) : (
             <>
+              <ClientSection client={client} clientName={project.clientName} />
               <ProjectSection project={project} people={people} currency={currency} />
               <WhatWasSoldSection slug={slug} projectId={projectId} hasSheet={hasSheet} lineCount={lineCount} />
-              <MilestonesSection project={project} done={done} />
-              <LineageSection slug={slug} project={project} nav={nav} />
             </>
           )}
         </aside>

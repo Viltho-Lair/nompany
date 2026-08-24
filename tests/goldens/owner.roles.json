@@ -532,6 +532,15 @@
         ]
       },
       {
+        "key": "operations.planner",
+        "group": "Operations",
+        "label": "Planner",
+        "verbs": [
+          "view",
+          "edit"
+        ]
+      },
+      {
         "key": "quality.documents",
         "group": "Quality",
         "label": "Documents",

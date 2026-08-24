@@ -24,9 +24,10 @@ import {
 import { REQUIREMENT_WEIGHTS, hoursBetween } from "@/modules/projects/projectSchedule";
 
 // Projects: delivery work opened from an approved quotation, the support
-// contracts that follow it, and the overtime logged against it. Progress comes
-// from the milestone checklist, so the bar and the stage can never disagree with
-// what has actually been ticked off. The chrome comes from studio2/ui.
+// contracts that follow it, and the overtime logged against it. Progress is the
+// project plan's overall completion (read back through the plans index), read-
+// only on this screen — the schedule that moves it lives in the planner, opened
+// from the project board. The chrome comes from studio2/ui.
 
 // Project-stage colours now live in the shared StatusPill map (kind "project").
 const rnd = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -374,15 +375,7 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
 }
 
 function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, nav, onSave, onDelete, onClose }) {
-  const [milestones, setMilestones] = useState(p.milestones || []);
-  useEffect(() => { setMilestones(p.milestones || []); }, [p.milestones]);
   const support = supportStatus(p);
-
-  function toggleMilestone(id) {
-    const next = milestones.map((m) => (m.id === id ? { ...m, done: !m.done } : m));
-    setMilestones(next);
-    onSave({ milestones: next });
-  }
 
   return (
     <>
@@ -410,6 +403,8 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
         </div>
       </div>
 
+      {/* Progress is the project plan's overall completion — read-only here; the
+          schedule that moves it lives in the planner, opened from the board. */}
       <div className="mt-4">
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
           <span className="font-600 uppercase tracking-wide">Progress</span>
@@ -418,22 +413,6 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
         <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
           <div className="h-full rounded-full bg-brand-600 transition-all" style={{ width: `${p.progress}%` }} />
         </div>
-      </div>
-
-      <div className="mt-5">
-        <p className={microLabel}>Milestones</p>
-        <ul className="space-y-1.5">
-          {milestones.map((m) => (
-            <li key={m.id}>
-              <label className={`flex items-center gap-2.5 text-sm ${canManage ? "cursor-pointer" : ""} text-slate-700 dark:text-slate-200`}>
-                <input type="checkbox" checked={!!m.done} disabled={!canManage}
-                  onChange={() => toggleMilestone(m.id)} className="h-4 w-4 cursor-pointer accent-brand-600" />
-                <span className={m.done ? "line-through opacity-60" : ""}>{m.name}</span>
-              </label>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-2 text-xs text-slate-400">Ticking every milestone marks the project Completed.</p>
       </div>
 
       {canManage && (

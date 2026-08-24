@@ -24,7 +24,7 @@ import { nextReference } from "@/modules/main/references";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "./operationsCalendar";
 import type { WorkingWeek } from "./operationsCalendar";
 import type {
-  Location, Permit, Position, Shift, PermitView, ShiftView, OperationsContext,
+  Location, Permit, Position, Shift, PermitView, ShiftView, OperationsContext, PlannerContext,
 } from "./types";
 import type { Vacation } from "@/modules/hr/types";
 
@@ -69,6 +69,19 @@ export const operationsContext = moduleContext<OperationsContext>({
   flags: ["tracking", "settings"],
   extend: ({ settingsSection }) => ({
     settings: (settingsSection as { settings?: Record<string, unknown> })?.settings || {},
+  }),
+});
+
+// THE PLANNER RESOLVES ON ITS OWN KEY, not the operations root. It is a
+// sub-section with its own grant (operations.planner), and a person may hold it
+// without the rest of Operations — so gating it through operationsContext, which
+// refuses anyone the operations root is not granted to, would lock out exactly
+// the people it was granted to. Its section carries the new-plan presets on its
+// own `settings`, so extend surfaces them the way operationsContext does its own.
+export const plannerContext = moduleContext<PlannerContext>({
+  root: "operations-planner",
+  extend: ({ section }) => ({
+    presets: (section as { settings?: Record<string, unknown> })?.settings || {},
   }),
 });
 
