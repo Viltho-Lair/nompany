@@ -1,0 +1,189 @@
+/*
+  SCOPED PLANNER DESIGN SYSTEM.
+
+  Every rule here is confined to `.planner-root` so the planner's tokens and
+  utilities are self-contained and cannot collide with nompany's `--geex-*` /
+  `--p-*` / `--doc-*` systems. The whole planner renders inside
+  `<div className="planner-root">`.
+
+  This file does four things — the same technique the kanban port used:
+
+  1. Defines the planner palette twice. Once under the LITERAL shadcn names
+     (`--primary`, `--foreground`, `--border`, `--radius`, …) that a handful of
+     arbitrary `hsl(var(--x))` values could read; and once by RE-POINTING
+     nompany's `--doc-*` channel triples, because nompany's tailwind.config maps
+     the shadcn utility classes (`bg-primary`, `text-muted-foreground`,
+     `border-border`, and every opacity variant) to `rgb(var(--doc-*) /
+     <alpha>)`. Setting `--doc-*` on the planner element makes those utilities
+     render planner colours — opacity variants included — without touching
+     nompany's config. Custom properties inherit, so the value set on
+     `.planner-root` wins over the `:root` value for everything inside.
+
+  2. Reproduces the radius scale the planner keys off `--radius` (nompany uses
+     Tailwind's default radii), the two scroll utilities and the grid-cell MUI
+     input styling that lived in the source app's globals.css.
+
+  3. Pins the planner to its LIGHT design in BOTH themes. The source app is
+     light-only (no next-themes, no dark palette); a faithful port keeps that
+     exact look, so `.dark .planner-root` re-declares the same light values
+     rather than inventing a dark theme. The whole surface — including the back
+     bar StudioPlanner draws around it — reads as the planner's own light app.
+
+  4. Sets the planner's system font stack + 14px base, mirroring the source
+     app's `body` rule, so the type reads exactly as the original (not nompany's
+     Saira / IBM Plex display faces).
+
+  NOTE ON MUI: per the port rules the source app's MUI ThemeProvider/createTheme
+  is dropped (no second Emotion cache/theme), so the DatePicker / TextField
+  controls adopt nompany's MUI theme rather than the app's tuned one. Everything
+  Tailwind-drawn is preserved exactly.
+*/
+
+/* -------------------------------------------------------------------------- */
+/*                                   tokens                                    */
+/* -------------------------------------------------------------------------- */
+
+.planner-root {
+  /* shadcn HSL triples — read by any arbitrary `hsl(var(--x))` value */
+  --background: 0 0% 100%;
+  --foreground: 222 22% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 22% 16%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 22% 16%;
+  --primary: 220 62% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 222 22% 20%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 220 14% 95%;
+  --accent-foreground: 222 22% 20%;
+  --destructive: 0 79% 68%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 91%;
+  --input: 220 13% 88%;
+  --ring: 220 62% 55%;
+  --radius: 8px;
+
+  /* timeline surface tokens carried over from the source globals.css */
+  --grid-line: 220 13% 93%;
+  --grid-line-strong: 220 13% 86%;
+  --weekend: 220 14% 97.5%;
+  --today: 220 62% 55%;
+
+  /* Re-point nompany's shadcn utility classes to the planner palette (RGB
+     triples so `<alpha-value>` opacity modifiers keep compiling). */
+  --doc-background: 255 255 255;
+  --doc-foreground: 32 37 50;
+  --doc-card: 255 255 255;
+  --doc-card-foreground: 32 37 50;
+  --doc-popover: 255 255 255;
+  --doc-popover-foreground: 32 37 50;
+  --doc-primary: 69 115 210;
+  --doc-primary-foreground: 255 255 255;
+  --doc-secondary: 243 244 246;
+  --doc-secondary-foreground: 40 46 62;
+  --doc-muted: 243 244 246;
+  --doc-muted-foreground: 107 114 128;
+  --doc-destructive: 238 109 109;
+  --doc-destructive-foreground: 255 255 255;
+  --doc-border: 229 231 235;
+  --doc-input: 220 223 228;
+  --doc-ring: 69 115 210;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  color: hsl(var(--foreground));
+}
+
+/*
+  Light-only by design. The source planner has no dark theme; re-declaring the
+  same light values under `.dark` keeps the port design-identical inside
+  nompany's dark shell instead of inventing colours the original never had.
+*/
+.dark .planner-root {
+  --doc-background: 255 255 255;
+  --doc-foreground: 32 37 50;
+  --doc-card: 255 255 255;
+  --doc-card-foreground: 32 37 50;
+  --doc-popover: 255 255 255;
+  --doc-popover-foreground: 32 37 50;
+  --doc-primary: 69 115 210;
+  --doc-primary-foreground: 255 255 255;
+  --doc-secondary: 243 244 246;
+  --doc-secondary-foreground: 40 46 62;
+  --doc-muted: 243 244 246;
+  --doc-muted-foreground: 107 114 128;
+  --doc-destructive: 238 109 109;
+  --doc-destructive-foreground: 255 255 255;
+  --doc-border: 229 231 235;
+  --doc-input: 220 223 228;
+  --doc-ring: 69 115 210;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              radius scale                                   */
+/* -------------------------------------------------------------------------- */
+/* nompany uses Tailwind's default radii; the planner scales off `--radius`. */
+
+.planner-root .rounded-sm {
+  border-radius: calc(var(--radius) - 4px);
+}
+.planner-root .rounded-md {
+  border-radius: calc(var(--radius) - 2px);
+}
+.planner-root .rounded-lg {
+  border-radius: var(--radius);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              scroll surfaces                                */
+/* -------------------------------------------------------------------------- */
+/*
+  Both panes scroll as one body; a thin, width-stable scrollbar keeps their row
+  alignment from desynchronising. Carried over from the source globals.css.
+*/
+.planner-root .planner-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+.planner-root .planner-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.planner-root .planner-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.planner-root .planner-scroll::-webkit-scrollbar-thumb {
+  background-color: rgb(203 213 225);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.planner-root .planner-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(148 163 184);
+}
+.planner-root .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.planner-root .no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            grid-cell MUI input                             */
+/* -------------------------------------------------------------------------- */
+/* MUI date inputs inside grid cells read as plain text until focused. */
+.planner-root .grid-cell-input .MuiOutlinedInput-notchedOutline {
+  border-color: transparent;
+}
+.planner-root .grid-cell-input:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgb(226 232 240);
+}
+.planner-root .grid-cell-input.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: rgb(69 115 210);
+  border-width: 1px;
+}

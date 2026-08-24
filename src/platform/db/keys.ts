@@ -53,6 +53,10 @@ export const ID = {
   qpage: () => makeId("qpg"),
   question: () => makeId("qsn"),
   chatRoom: () => makeId("cht"),
+  // A project plan — the scheduler document opened from a project or the planner
+  // app. Server-minted (unlike the board's client-side ids) because a plan is a
+  // studio-level record that both doors list.
+  plan: () => makeId("pln"),
   row: (collection: string) => makeId(collection.slice(0, 3)),
 };
 
@@ -309,6 +313,19 @@ export const SEC = {
 // a deleted project leaves no board behind (deletion is children-first).
 export const PROJECT = {
   board: (studioId: string, projectId: string) => `${P}s:${studioId}:project:${projectId}:board`,
+};
+
+// ---- project plans (studio-level; die with the studio) ---------------------
+// A plan is created from a project but is NOT section-scoped: it must be
+// viewable from the project with no Operations grant, AND listed by the planner
+// app under Operations. So it lives at the studio level, not under either
+// section — `index` is one array of summaries the app and a project both read
+// (the project filters by projectId), and `doc` is the full scheduler document
+// per plan. Both die with the studio; removeProject also clears a project's
+// plans explicitly (children-first).
+export const PLAN = {
+  index: (studioId: string) => `${P}s:${studioId}:plans`,
+  doc: (studioId: string, planId: string) => `${P}s:${studioId}:plan:${planId}`,
 };
 
 // ---- indexes (uniqueness claims + O(1) lookups) ----------------------------

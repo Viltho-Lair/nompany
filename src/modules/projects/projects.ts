@@ -12,6 +12,7 @@ import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getJSON, editJSON, delKeys } from "@/platform/db/store";
 import { PROJECT } from "@/platform/db/keys";
+import { removeProjectPlans } from "@/modules/operations/planner";
 import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
@@ -408,10 +409,12 @@ export async function removeProject(ctx: ProjectsContext, id: string) {
   const removed = await Projects.remove({ studio: ctx.studio, section: ctx.listSection }, id);
   if (!removed) return { error: "notfound" };
   // Children-first is already satisfied — the project row is what everything
-  // else hangs off — but the board is a document of its OWN, keyed by the
-  // project rather than living in a section collection, so nothing sweeps it for
-  // us. Delete it here so a removed project leaves no board behind.
+  // else hangs off — but the board and the plans are documents of their OWN,
+  // keyed by the project rather than living in a section collection, so nothing
+  // sweeps them for us. Delete them here so a removed project leaves neither a
+  // board nor an orphan plan behind.
   await delKeys(PROJECT.board(ctx.studio.id, id));
+  await removeProjectPlans(ctx.studio.id, id);
   return { ok: true };
 }
 

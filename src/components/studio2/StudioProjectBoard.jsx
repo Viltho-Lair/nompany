@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useBoardStore, boardDoc } from "@/components/kanban/store/board-store";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { StatusPill } from "@/components/studio2/StatusPill";
@@ -132,19 +133,11 @@ export default function StudioProjectBoard({ slug, projectId }) {
             <p className="mb-1.5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Decisions
             </p>
-            {/* PHASE 2 PLACEHOLDER — the planner is a later phase. The button is
-                drawn so the affordance is visible, disabled with a reason. */}
-            <button
-              type="button"
-              disabled
-              title="Coming soon — the project plan opens in a later phase"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white opacity-60"
-            >
-              Project plan
-            </button>
-            <p className="mt-1.5 text-[11px] text-[var(--geex-faint)]">
-              Opens the schedule for this project. Coming soon.
-            </p>
+            {/* Clicking this creates the project's plan (carrying a copy of the
+                project's facts) the first time and opens it every time after —
+                the schedule opens full-screen in the planner, reachable without
+                an Operations grant because it rides the project's own. */}
+            <ProjectPlanButton slug={slug} projectId={projectId} canEdit={board.canEdit} />
           </div>
 
           {project && (
@@ -203,6 +196,69 @@ export default function StudioProjectBoard({ slug, projectId }) {
         </aside>
       </div>
     </div>
+  );
+}
+
+// THE "PROJECT PLAN" DECISION. A project's plan lives in the planner but is
+// reached through the project's own grant, so this button needs no Operations
+// access: it lists the project's plans, opens the one it has, or creates one on
+// the first click — the server carries a copy of the project's facts into the
+// new plan's header. Creating needs the same right that edits the project; anyone
+// who can see the project can open a plan it already has.
+function ProjectPlanButton({ slug, projectId, canEdit }) {
+  const router = useRouter();
+  const [plans, setPlans] = useState(null); // null = loading; [] = none; [...] = some
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setPlans(null);
+    fetch(`/api/studios/${slug}/projects/${projectId}/plans`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive) setPlans(Array.isArray(d?.plans) ? d.plans : []); })
+      .catch(() => { if (alive) setPlans([]); });
+    return () => { alive = false; };
+  }, [slug, projectId]);
+
+  const existing = Array.isArray(plans) && plans.length > 0 ? plans[0] : null;
+
+  async function onClick() {
+    if (existing) { router.push(`/${slug}/projects-list/${projectId}/plans/${existing.id}`); return; }
+    if (!canEdit || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/studios/${slug}/projects/${projectId}/plans`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      const d = res.ok ? await res.json() : null;
+      if (d?.planId) router.push(`/${slug}/projects-list/${projectId}/plans/${d.planId}`);
+      else setBusy(false);
+    } catch { setBusy(false); }
+  }
+
+  const label = plans === null ? "Project plan" : busy ? "Creating…" : existing ? "Open project plan" : "Create project plan";
+  const disabled = plans === null || busy || (!existing && !canEdit);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {label}
+      </button>
+      <p className="mt-1.5 text-[11px] text-[var(--geex-faint)]">
+        {existing
+          ? "Opens this project's schedule in the planner."
+          : canEdit
+            ? "Creates a schedule for this project, carrying its details across."
+            : "Only project editors can start a plan."}
+      </p>
+    </>
   );
 }
 

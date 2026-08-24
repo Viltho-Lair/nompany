@@ -73,6 +73,17 @@ const StudioProjectBoard = nextDynamic(
   () => import("@/components/studio2/StudioProjectBoard"),
   { loading: () => <ScreenSkeleton /> },
 );
+// The project planner — a full-screen app (the list) and one plan's schedule.
+// Reached through Operations (the whole app) and through a project (its own
+// plans), so both the studio route branches below hand it the plan's API base.
+const StudioPlanner = nextDynamic(
+  () => import("@/components/studio2/StudioPlanner"),
+  { loading: () => <ScreenSkeleton /> },
+);
+const StudioPlannerList = nextDynamic(
+  () => import("@/components/studio2/StudioPlannerList"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioSheetViewer = nextDynamic(
   () => import("@/components/studio2/StudioSheetViewer"),
   { loading: () => <ScreenSkeleton /> },
@@ -259,12 +270,54 @@ export default async function StudioPage({ params }) {
   // that usually supplies one and the sidebar's live updates need it. A refusal
   // falls THROUGH to the shell below, which already answers "not granted".
   if (
-    requested === "projects-list" && segments[1] && segments[2] !== "quotation" &&
+    requested === "projects-list" && segments[1] &&
+    segments[2] !== "quotation" && segments[2] !== "plans" &&
     sections.some((s) => s.key === "projects-list")
   ) {
     return (
       <LiveProvider slug={studio.slug}>
         <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />
+      </LiveProvider>
+    );
+  }
+
+  // A PROJECT'S PLAN — /<slug>/projects-list/<id>/plans/<planId>. The plan opens
+  // full-screen in the planner, reached through the PROJECT'S grant, so no
+  // Operations access is needed to see (or, for a project editor, work on) it.
+  // Its own LiveProvider, like every screen outside the shell. Back goes to the
+  // project's board.
+  if (
+    requested === "projects-list" && segments[1] && segments[2] === "plans" && segments[3] &&
+    sections.some((s) => s.key === "projects-list")
+  ) {
+    return (
+      <LiveProvider slug={studio.slug}>
+        <StudioPlanner
+          slug={studio.slug}
+          planApiBase={`/api/studios/${studio.slug}/projects/${segments[1]}/plans/${segments[3]}`}
+          backHref={`/${studio.slug}/projects-list/${segments[1]}`}
+          backLabel="Project"
+        />
+      </LiveProvider>
+    );
+  }
+
+  // THE PLANNER APP — /<slug>/operations-planner is the full-screen list of every
+  // plan; /<slug>/operations-planner/<planId> is one plan, editable by anyone who
+  // can manage Operations. Both need the Operations grant (its own APIs re-check);
+  // a refusal falls through to the shell's "nothing granted" below.
+  if (requested === "operations-planner" && sections.some((s) => s.key === "operations")) {
+    const planId = segments[1] || "";
+    return (
+      <LiveProvider slug={studio.slug}>
+        {planId
+          ? <StudioPlanner
+              slug={studio.slug}
+              planApiBase={`/api/studios/${studio.slug}/operations/planner/${planId}`}
+              backHref={`/${studio.slug}/operations-planner`}
+              backLabel="Planner"
+            />
+          : <StudioPlannerList slug={studio.slug} />}
       </LiveProvider>
     );
   }

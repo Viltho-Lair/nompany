@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
@@ -140,6 +141,21 @@ export default function StudioOperations({ slug, view = "operations" }) {
           are here it is ours to see. */}
       <OperationsDashboard locations={locations} permits={permits} shifts={shifts}
         window={window} summary={summary} windowDays={vocabulary.expiryWindowDays} level={level} />
+
+      {/* The project planner — a full-screen app of its own, listing every
+          project's schedule. Its home is here because it is a cross-project,
+          Operations-level view; a single project reaches its own plan from the
+          project board instead, without needing this grant. */}
+      <Link href={`/${slug}/operations-planner`}
+        className="flex items-center justify-between gap-3 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] px-5 py-4 transition-colors hover:border-brand-500 dark:border-white/10 dark:hover:border-brand-500/40">
+        <div className="min-w-0">
+          <p className="font-display text-sm font-700 text-slate-900 dark:text-white">Project planner</p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            Every project&apos;s schedule — Gantt, dependencies and the critical path.
+          </p>
+        </div>
+        <span aria-hidden="true" className="shrink-0 text-lg text-slate-300 rtl:-scale-x-100">→</span>
+      </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">

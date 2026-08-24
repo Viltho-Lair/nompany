@@ -1,0 +1,178 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { fmtDate } from "@/lib/format";
+
+// THE /operations-planner APP LANDING. A full-screen list of the studio's plans,
+// rendered outside StudioFrame (the studio route early-returns it). Each plan is
+// a card linking to `/${slug}/operations-planner/${plan.id}`, where StudioPlanner
+// opens the ported scheduler. This chrome is nompany's own — it wears the Geex
+// look (--geex-* tokens, font-display, rounded-geex), unlike the planner surface
+// itself which keeps the source app's light design.
+
+const PLAN_STATUS = {
+  on_track: { label: "On track", chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
+  at_risk: { label: "At risk", chip: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" },
+  off_track: { label: "Off track", chip: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" },
+  on_hold: { label: "On hold", chip: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300" },
+};
+
+export default function StudioPlannerList({ slug }) {
+  const [state, setState] = useState({ loading: true, error: false, plans: [], canEdit: false });
+
+  useEffect(() => {
+    let alive = true;
+    setState((s) => ({ ...s, loading: true, error: false }));
+    (async () => {
+      try {
+        const res = await fetch(`/api/studios/${slug}/operations/planner`, {
+          cache: "no-store",
+        });
+        if (!alive) return;
+        if (!res.ok) {
+          setState({ loading: false, error: true, plans: [], canEdit: false });
+          return;
+        }
+        const payload = await res.json();
+        setState({
+          loading: false,
+          error: false,
+          plans: Array.isArray(payload.plans) ? payload.plans : [],
+          canEdit: Boolean(payload.canEdit),
+        });
+      } catch {
+        if (alive) setState({ loading: false, error: true, plans: [], canEdit: false });
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
+
+  return (
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--geex-page)] text-[var(--geex-ink)]">
+      {/* ---- top bar ---- */}
+      <header className="flex shrink-0 items-center gap-3 border-b border-slate-200/70 bg-[var(--geex-surface)] px-4 py-3 dark:border-white/10">
+        <Link
+          href={`/${slug}/operations`}
+          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"
+        >
+          <span aria-hidden="true" className="rtl:-scale-x-100">
+            ←
+          </span>{" "}
+          Operations
+        </Link>
+
+        <div className="min-w-0">
+          <p className="truncate font-display text-base font-800 text-[var(--geex-ink)]">
+            Plans
+          </p>
+          <p className="truncate text-xs text-[var(--geex-muted)]">
+            Project schedules across this studio
+          </p>
+        </div>
+      </header>
+
+      {/* ---- body ---- */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        {state.loading ? (
+          <PlansSkeleton />
+        ) : state.error ? (
+          <div className="grid h-full place-items-center p-8">
+            <p className="max-w-sm text-center text-sm text-rose-600 dark:text-rose-300">
+              These plans could not be loaded — you may not have access to the
+              planner.
+            </p>
+          </div>
+        ) : state.plans.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <ul className="mx-auto grid max-w-content grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {state.plans.map((plan) => (
+              <li key={plan.id}>
+                <PlanCard slug={slug} plan={plan} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PlanCard({ slug, plan }) {
+  const status = PLAN_STATUS[plan.status] ?? PLAN_STATUS.on_track;
+  return (
+    <Link
+      href={`/${slug}/operations-planner/${plan.id}`}
+      className="flex h-full flex-col gap-3 rounded-geex border border-slate-200 bg-[var(--geex-surface)] p-4 shadow-geex-sm transition-colors hover:border-brand-300 dark:border-white/10 dark:hover:border-brand-500/40"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 truncate font-display text-[15px] font-700 text-[var(--geex-ink)]">
+          {plan.name || "Untitled plan"}
+        </p>
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-600 ${status.chip}`}
+        >
+          {status.label}
+        </span>
+      </div>
+
+      {plan.projectTitle && (
+        <p className="truncate text-xs text-[var(--geex-muted)]">
+          {plan.projectTitle}
+        </p>
+      )}
+
+      <div className="mt-auto flex items-center justify-between gap-2 text-[11px] text-[var(--geex-faint)]">
+        <span>Updated</span>
+        <span className="font-mono tabular-nums">{fmtDate(plan.updatedAt)}</span>
+      </div>
+    </Link>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-3 py-20 text-center">
+      <div className="grid h-12 w-12 place-items-center rounded-geex bg-[var(--geex-inset)] text-[var(--geex-faint)]">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M3 6h18M3 12h12M3 18h8" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div>
+        <h2 className="font-display text-[15px] font-700 text-[var(--geex-ink)]">
+          No plans yet
+        </h2>
+        <p className="mt-1 text-[13px] text-[var(--geex-muted)]">
+          Open a project and use its <span className="font-600">Project plan</span>{" "}
+          action to schedule it. Plans created that way appear here.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PlansSkeleton() {
+  return (
+    <ul
+      className="mx-auto grid max-w-content grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      aria-busy="true"
+    >
+      {Array.from({ length: 6 }).map((_, i) => (
+        <li
+          key={i}
+          className="flex h-[116px] flex-col gap-3 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200/70 dark:bg-white/10" />
+            <div className="h-4 w-14 animate-pulse rounded-full bg-slate-200/70 dark:bg-white/10" />
+          </div>
+          <div className="h-3 w-2/3 animate-pulse rounded bg-slate-200/50 dark:bg-white/5" />
+          <div className="mt-auto h-3 w-1/3 animate-pulse rounded bg-slate-200/50 dark:bg-white/5" />
+        </li>
+      ))}
+    </ul>
+  );
+}

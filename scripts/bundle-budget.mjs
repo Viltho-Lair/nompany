@@ -55,7 +55,14 @@ const MAX_CHUNK_GZIP_KB = 250;
 // Splitting one chunk into twenty adds twenty chunk headers and duplicates a
 // little shared glue; the total grows while every individual page gets lighter.
 // A commit that moves these two the same way is doing something else.
-const MAX_TOTAL_GZIP_KB = 1500;
+//
+// Raised 1500 → 1600 when the project planner landed. It is a whole scheduler
+// app — Gantt, a scheduling engine, MUI date pickers — behind its own
+// nextDynamic() split: it loads ONLY on /operations-planner and a project's
+// plan, and the largest-chunk number above (what every route pays) did not move.
+// So this is the deliberate-split case this ceiling is meant to wave through,
+// not sprawl. Lower it again as the older screens are rewritten and shed weight.
+const MAX_TOTAL_GZIP_KB = 1600;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {
