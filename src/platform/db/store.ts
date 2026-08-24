@@ -471,7 +471,29 @@ export async function memoryPolicy() {
 }
 
 // ---- prefix scan / delete (THE cascade primitive) --------------------------
+// AN EMPTY PREFIX MATCHES THE ENTIRE KEYSPACE. `${""}*` is `*`, so scanPrefix("")
+// enumerates every key and delPrefix("") deletes every key — in a single, shared,
+// live Redis, that is the whole database. It has happened: an ad-hoc script's
+// delPrefix("") emptied production once, the exact hazard invariant #1 in CLAUDE.md
+// is about.
+//
+// There is NO legitimate whole-keyspace scan in this product — every sweep is
+// scoped (SWEEP_SCOPES) and every cascade targets an id — so an empty prefix is
+// always a bug, never an intent. Refuse it BEFORE any client call, so a bad call
+// cannot even reach Redis. A non-empty prefix (a key builder, or a test's own
+// KEY_PREFIX like "test_") passes untouched: this guards the catastrophe, not the
+// legitimate namespaced teardown.
+function assertScopedPrefix(prefix: string, op: string): void {
+  if (!prefix || !prefix.trim()) {
+    throw new Error(
+      `store.${op}: refusing an empty prefix — "${String(prefix)}*" matches every key in the ` +
+        "shared database. Pass a scoped prefix built from keys.ts, never an empty string.",
+    );
+  }
+}
+
 export async function scanPrefix(prefix: string): Promise<string[]> {
+  assertScopedPrefix(prefix, "scanPrefix");
   const client = await r();
   const keys: string[] = [];
   for await (const batch of client.scanIterator({ MATCH: `${prefix}*`, COUNT: 500 })) {
@@ -480,6 +502,9 @@ export async function scanPrefix(prefix: string): Promise<string[]> {
   return keys;
 }
 export async function delPrefix(prefix: string): Promise<number> {
+  // Guarded here too — not only via scanPrefix — so the refusal names the delete
+  // and a future refactor of delPrefix cannot lose the check.
+  assertScopedPrefix(prefix, "delPrefix");
   const keys = await scanPrefix(prefix);
   return delKeys(keys);
 }
