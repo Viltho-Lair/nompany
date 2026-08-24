@@ -74,7 +74,6 @@ export function Toolbar({
     setZoom,
     setColorBy,
     setGranularity,
-    setCalendar,
     toggleColumn,
     setShowCriticalPath,
     setShowDependencies,
@@ -126,6 +125,11 @@ export function Toolbar({
             <ChevronDown className="h-3 w-3" />
           </Button>
         </PopoverTrigger>
+        {/* READ-ONLY. The working week and day window come from the STUDIO
+            (studio.workingHours, set in Studio settings), not the plan — one
+            answer for the whole studio, so a plan can never describe a different
+            week from the rota. Shown here so a scheduler can see what durations
+            convert against; changed in Studio settings. */}
         <PopoverContent className="w-80">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
             Working week
@@ -134,25 +138,15 @@ export function Toolbar({
             {WEEKDAYS.map((label, day) => {
               const on = calendar.workingWeekdays.includes(day);
               return (
-                <button
+                <span
                   key={label}
-                  type="button"
-                  onClick={() =>
-                    setCalendar({
-                      workingWeekdays: on
-                        ? calendar.workingWeekdays.filter((d) => d !== day)
-                        : [...calendar.workingWeekdays, day].sort(),
-                    })
-                  }
                   className={cn(
-                    'h-7 flex-1 rounded text-[11px] font-medium transition-colors',
-                    on
-                      ? 'bg-primary text-white'
-                      : 'bg-slate-100 text-slate-400 hover:bg-slate-200',
+                    'flex h-7 flex-1 items-center justify-center rounded text-[11px] font-medium',
+                    on ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400',
                   )}
                 >
                   {label[0]}
-                </button>
+                </span>
               );
             })}
           </div>
@@ -160,37 +154,15 @@ export function Toolbar({
           <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
             Day window
           </p>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            <NumberField
-              label="Start"
-              value={calendar.dayStartHour}
-              min={0}
-              max={23}
-              onChange={(v) =>
-                setCalendar({
-                  dayStartHour: Math.min(v, calendar.dayEndHour - 1),
-                })
-              }
-            />
-            <NumberField
-              label="End"
-              value={calendar.dayEndHour}
-              min={1}
-              max={24}
-              onChange={(v) =>
-                setCalendar({
-                  dayEndHour: Math.max(v, calendar.dayStartHour + 1),
-                })
-              }
-            />
-            <NumberField
-              label="Break (h)"
-              value={calendar.lunchHours}
-              min={0}
-              max={4}
-              step={0.5}
-              onChange={(lunchHours) => setCalendar({ lunchHours })}
-            />
+          <div className="mt-2 flex items-baseline gap-2 text-slate-700">
+            <span className="text-lg font-semibold tabular-nums">
+              {calendar.dayStartHour}:00–{calendar.dayEndHour}:00
+            </span>
+            {calendar.lunchHours > 0 && (
+              <span className="text-[12px] text-slate-400">
+                less {calendar.lunchHours}h break
+              </span>
+            )}
           </div>
           <p className="mt-2 text-[11px] text-slate-400">
             {Math.max(
@@ -198,6 +170,9 @@ export function Toolbar({
               calendar.dayEndHour - calendar.dayStartHour - calendar.lunchHours,
             )}
             h per working day. Durations in days convert at this rate.
+          </p>
+          <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-400">
+            From the studio&apos;s working hours — change them in Studio settings.
           </p>
         </PopoverContent>
       </Popover>
@@ -430,33 +405,3 @@ function DropdownMenuItemButton({
   );
 }
 
-function NumberField({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  step = 1,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  min: number;
-  max: number;
-  step?: number;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[11px] text-slate-400">{label}</span>
-      <input
-        type="number"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-7 w-full rounded-md border border-slate-200 px-2 text-[12px] tabular-nums outline-none focus:border-primary"
-      />
-    </label>
-  );
-}

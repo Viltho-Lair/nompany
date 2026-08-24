@@ -1,6 +1,6 @@
 import { route } from "@/platform/http/route";
 import { requirePermission } from "@/platform/access";
-import { plannerContext } from "@/modules/operations/operations";
+import { plannerContext, scheduleFromStudio } from "@/modules/operations/operations";
 import { readPlan, savePlan, planPeople } from "@/modules/operations/planner";
 
 export const runtime = "nodejs";
@@ -15,7 +15,9 @@ const spec = { auth: "studio", context: plannerContext, name: "operations-plan" 
 export const GET = route({ ...spec, body: false }, async (c) => {
   const plan = await readPlan(c.studio.id, c.params.planId);
   if (!plan) return { error: "notfound" };
-  return { plan, canEdit: c.canManage, people: await planPeople(c.studio.id) };
+  // The working week is the STUDIO's, not the plan's — the schedule is drawn
+  // against it (see StudioPlanner), never edited in the plan.
+  return { plan, canEdit: c.canManage, people: await planPeople(c.studio.id), workWeek: scheduleFromStudio(c.studio) };
 });
 
 export const PUT = route({ ...spec, body: true }, async (c) => {

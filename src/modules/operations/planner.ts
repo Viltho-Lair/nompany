@@ -47,11 +47,11 @@ function statusFromStage(stage: string): PlanStatus {
 // die with the section) — plannerContext already surfaces them as `presets`.
 // Only these four fields are the studio's to preset; everything else about a
 // plan is per-plan.
-// The resource pool is no longer a preset — a plan's people ARE the studio's
-// current collaborators, read live (see planPeople), never copied into the plan.
-// The calendar is still here for now; it moves to the Operations Schedule work-
-// week in a later step.
-const PRESET_FIELDS = ["calendar", "zoom", "colorBy"] as const;
+// Only the view defaults are the studio's to preset now. A plan's PEOPLE are the
+// studio's live collaborators (planPeople) and its WORKING WEEK is the studio's
+// (studio.workingHours) — both read fresh each load, neither copied into the
+// plan — so the resource pool and the calendar are no longer presets.
+const PRESET_FIELDS = ["zoom", "colorBy"] as const;
 const PRESETS_MAX_BYTES = 500_000;
 
 export async function readPlannerPresets(studioId: string): Promise<Record<string, unknown>> {

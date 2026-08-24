@@ -178,10 +178,11 @@ interface PlannerState {
 export interface PlanDoc {
   meta: ProjectMeta;
   tasks: Task[];
-  calendar: WorkCalendar;
-  // `resources` is deliberately NOT here: a plan's people are the studio's live
-  // collaborators (set via setResources from the plan door's payload), not data
-  // copied into the document — so they never travel to Redis and never go stale.
+  // Neither `calendar` nor `resources` is persisted here: the working week is the
+  // STUDIO's (studio.workingHours, applied via setCalendar) and the people are
+  // the studio's live collaborators (setResources) — both fed from the plan
+  // door's payload each load, never copied into the document, so they can never
+  // go stale or describe a different week from the studio's.
   zoom: ZoomLevel;
   colorBy: ColorBy;
   visibleColumns: GridColumn[];
@@ -209,7 +210,6 @@ function emptyMeta(): ProjectMeta {
  */
 function defaultPlan(): Omit<PlanDoc, 'meta' | 'tasks'> {
   return {
-    calendar: DEFAULT_CALENDAR,
     zoom: 'week',
     colorBy: 'phase',
     visibleColumns: DEFAULT_COLUMNS,
@@ -223,7 +223,6 @@ export function planDoc(state: PlannerState): PlanDoc {
   return {
     meta: state.meta,
     tasks: state.tasks,
-    calendar: state.calendar,
     zoom: state.zoom,
     colorBy: state.colorBy,
     visibleColumns: state.visibleColumns,

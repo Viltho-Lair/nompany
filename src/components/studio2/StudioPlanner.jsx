@@ -33,6 +33,29 @@ function initialsOf(name) {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+// The studio's working week (Sunday-first {on,from,to} per day) as the planner's
+// calendar: which weekdays are worked, and the earliest-to-latest hour window
+// across them. Fed from the studio, never edited in the plan, so a plan can
+// never describe a different week from the studio's rota.
+const DAY_INDEX = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
+function hourOf(t, fallback) {
+  const n = parseInt(String(t || "").split(":")[0], 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+function calendarFromWorkWeek(workWeek) {
+  const open = Object.entries(workWeek || {}).filter(([, v]) => v?.on);
+  if (!open.length) return null; // nothing configured — keep the store default
+  const workingWeekdays = open
+    .map(([name]) => DAY_INDEX[name])
+    .filter((n) => n !== undefined)
+    .sort((a, b) => a - b);
+  const starts = open.map(([, v]) => hourOf(v.from, 9));
+  const ends = open.map(([, v]) => hourOf(v.to, 17));
+  const dayStartHour = Math.min(...starts);
+  const dayEndHour = Math.max(Math.max(...ends), dayStartHour + 1);
+  return { workingWeekdays, dayStartHour, dayEndHour };
+}
+
 // The studio's collaborators, shaped into the planner's Resource. A task stores
 // only the collaborator id in assigneeIds; everything else here is presentation
 // rebuilt each load, so renaming a person in the studio updates the plan.
@@ -69,6 +92,7 @@ const DEBOUNCE_MS = 600;
 export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }) {
   const hydratePlan = usePlannerStore((s) => s.hydratePlan);
   const setResources = usePlannerStore((s) => s.setResources);
+  const setCalendar = usePlannerStore((s) => s.setCalendar);
   // Read the plan name straight from the store so the back bar title tracks
   // edits the user makes in the planner's own header.
   const planName = usePlannerStore((s) => s.meta.name);
@@ -98,6 +122,11 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
         // itself, this initial fill never triggers a PUT. They are outside
         // planDoc anyway, so they never save.
         setResources(peopleToResources(payload.people));
+        // The working week is the studio's, applied over the hydrated plan and
+        // before hydratedRef flips, so it never saves. A studio with no hours
+        // set keeps the planner's own default week.
+        const cal = calendarFromWorkWeek(payload.workWeek);
+        if (cal) setCalendar(cal);
         hydratedRef.current = true;
         setState({ loading: false, canEdit: Boolean(payload.canEdit), error: false });
       } catch {
@@ -120,7 +149,6 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
       const changed =
         s.meta !== prev.meta ||
         s.tasks !== prev.tasks ||
-        s.calendar !== prev.calendar ||
         s.zoom !== prev.zoom ||
         s.colorBy !== prev.colorBy ||
         s.visibleColumns !== prev.visibleColumns ||
