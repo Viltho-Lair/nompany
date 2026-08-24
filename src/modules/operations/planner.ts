@@ -9,6 +9,7 @@
 
 import { editJSON, editArr, getJSON, delKeys } from "@/platform/db/store";
 import { PLAN, ID } from "@/platform/db/keys";
+import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { listCollaborators } from "@/platform/auth/collaborators";
 
 export type PlanStatus = "on_track" | "at_risk" | "off_track" | "on_hold";
@@ -37,6 +38,48 @@ const PLAN_MAX_BYTES = 2_000_000;
 // best-effort seed the user adjusts. Only "On Hold" carries across cleanly.
 function statusFromStage(stage: string): PlanStatus {
   return stage === "On Hold" ? "on_hold" : "on_track";
+}
+
+// ---- new-plan presets -------------------------------------------------------
+// THE DEFAULTS A NEW PLAN STARTS FROM, set up once in /operations-planner:
+// working week/calendar, the resource pool, the default zoom and colour-by. They
+// live on the operations-planner section's own `settings` object (studio-level,
+// die with the section) — plannerContext already surfaces them as `presets`.
+// Only these four fields are the studio's to preset; everything else about a
+// plan is per-plan.
+const PRESET_FIELDS = ["calendar", "resources", "zoom", "colorBy"] as const;
+const PRESETS_MAX_BYTES = 500_000;
+
+export async function readPlannerPresets(studioId: string): Promise<Record<string, unknown>> {
+  const section = await getSectionByKey(studioId, "operations-planner");
+  return (section?.settings || {}) as Record<string, unknown>;
+}
+
+export async function savePlannerPresets(studioId: string, presets: unknown) {
+  if (!presets || typeof presets !== "object" || Array.isArray(presets)) return { error: "presets" };
+  // Store only the four preset fields, so a stray key on the body can never grow
+  // the section settings into something else.
+  const clean: Record<string, unknown> = {};
+  for (const f of PRESET_FIELDS) if ((presets as Record<string, unknown>)[f] !== undefined) clean[f] = (presets as Record<string, unknown>)[f];
+  if (JSON.stringify(clean).length > PRESETS_MAX_BYTES) return { error: "too-large" };
+  const section = await getSectionByKey(studioId, "operations-planner");
+  if (!section) return { error: "no-section" };
+  const updated = await updateSection(studioId, section.id, { settings: clean });
+  return updated ? { ok: true, presets: clean } : { error: "notfound" };
+}
+
+/**
+ * The document a new plan is seeded with: its meta and an empty task list, plus
+ * whichever new-plan defaults the studio has configured (calendar, resources,
+ * zoom, colorBy). Fields the presets do not set are filled client-side on
+ * hydrate from the store's own defaults, so an unconfigured studio still opens a
+ * sensible plan. Read once, before the write, so it never runs inside a retry.
+ */
+async function seedPlanDoc(studioId: string, meta: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const presets = await readPlannerPresets(studioId);
+  const doc: Record<string, unknown> = { meta, tasks: [] };
+  for (const f of PRESET_FIELDS) if (presets[f] !== undefined) doc[f] = presets[f];
+  return doc;
 }
 
 // THE PLAN'S OVERALL COMPLETION, computed from its leaf tasks the same way the
@@ -133,7 +176,8 @@ export async function createPlanFromProject(studioId: string, project: ProjectFo
     description: String(project.notes || ""),
   };
 
-  await editJSON(PLAN.doc(studioId, planId), () => ({ next: { meta, tasks: [] } }));
+  const doc = await seedPlanDoc(studioId, meta);
+  await editJSON(PLAN.doc(studioId, planId), () => ({ next: doc }));
 
   const summary: PlanSummary = {
     id: planId, projectId: project.id, projectTitle: title,
@@ -157,7 +201,8 @@ export async function createStandalonePlan(studioId: string, byCollaboratorId: s
   const name = (String(rawName || "").trim() || "Untitled plan").slice(0, 200);
   const meta = { name, status: "on_track", owner: "", startDate: now.slice(0, 10), description: "" };
 
-  await editJSON(PLAN.doc(studioId, planId), () => ({ next: { meta, tasks: [] } }));
+  const doc = await seedPlanDoc(studioId, meta);
+  await editJSON(PLAN.doc(studioId, planId), () => ({ next: doc }));
 
   const summary: PlanSummary = {
     id: planId, projectId: "", projectTitle: "",

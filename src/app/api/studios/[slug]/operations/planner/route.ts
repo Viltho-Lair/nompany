@@ -1,6 +1,6 @@
 import { route } from "@/platform/http/route";
 import { plannerContext } from "@/modules/operations/operations";
-import { listStudioPlans, createStandalonePlan } from "@/modules/operations/planner";
+import { listStudioPlans, createStandalonePlan, savePlannerPresets } from "@/modules/operations/planner";
 import { requirePermission } from "@/platform/access";
 
 export const runtime = "nodejs";
@@ -13,9 +13,12 @@ export const dynamic = "force-dynamic";
 // through the projects door, which needs no planner grant at all.
 const spec = { auth: "studio", context: plannerContext, name: "operations-planner" };
 
+// `presets` are the new-plan defaults (calendar, resources, zoom, colorBy) the
+// studio configures here — plannerContext reads them off the section's settings.
 export const GET = route({ ...spec, body: false }, async (c) => ({
   plans: await listStudioPlans(c.studio.id),
   canEdit: c.canManage,
+  presets: c.presets,
 }));
 
 // CREATE AN EXTERNAL PLAN — one that belongs to no project. A project's plan is
@@ -27,4 +30,13 @@ export const POST = route({ ...spec, body: true }, async (c) => {
   if (denied) return denied;
   const { planId } = await createStandalonePlan(c.studio.id, c.collaborator.id, c.body?.name);
   return { planId };
+});
+
+// SAVE THE NEW-PLAN PRESETS. Whole-object set of the four preset fields onto the
+// section's settings — the same edit right as creating a plan, so what sets the
+// defaults and what starts a plan from them stay one grant.
+export const PUT = route({ ...spec, body: true }, async (c) => {
+  const denied = requirePermission(c.access, "operations.planner.edit");
+  if (denied) return denied;
+  return savePlannerPresets(c.studio.id, c.body?.presets);
 });

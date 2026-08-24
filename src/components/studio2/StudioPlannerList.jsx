@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fmtDate } from "@/lib/format";
+import PlannerPresetsDialog from "@/components/studio2/PlannerPresetsDialog";
 
 // THE /operations-planner APP LANDING. A full-screen list of the studio's plans,
 // rendered outside StudioFrame (the studio route early-returns it). Each plan is
@@ -21,8 +22,9 @@ const PLAN_STATUS = {
 
 export default function StudioPlannerList({ slug }) {
   const router = useRouter();
-  const [state, setState] = useState({ loading: true, error: false, plans: [], canEdit: false });
+  const [state, setState] = useState({ loading: true, error: false, plans: [], canEdit: false, presets: {} });
   const [creating, setCreating] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
 
   // EXTERNAL PLANS ARE BORN HERE. A project's plan comes from the project; this
   // is the other origin — the planner app starting a schedule of its own. POST
@@ -58,7 +60,7 @@ export default function StudioPlannerList({ slug }) {
         });
         if (!alive) return;
         if (!res.ok) {
-          setState({ loading: false, error: true, plans: [], canEdit: false });
+          setState({ loading: false, error: true, plans: [], canEdit: false, presets: {} });
           return;
         }
         const payload = await res.json();
@@ -67,9 +69,13 @@ export default function StudioPlannerList({ slug }) {
           error: false,
           plans: Array.isArray(payload.plans) ? payload.plans : [],
           canEdit: Boolean(payload.canEdit),
+          // The new-plan defaults, seeded into every plan the studio creates.
+          // May be `{}` when the studio has never configured them; the editor
+          // falls back to the app defaults for any absent field.
+          presets: payload.presets && typeof payload.presets === "object" ? payload.presets : {},
         });
       } catch {
-        if (alive) setState({ loading: false, error: true, plans: [], canEdit: false });
+        if (alive) setState({ loading: false, error: true, plans: [], canEdit: false, presets: {} });
       }
     })();
     return () => {
@@ -101,15 +107,30 @@ export default function StudioPlannerList({ slug }) {
         </div>
 
         {state.canEdit && (
-          <button
-            type="button"
-            onClick={createPlan}
-            disabled={creating}
-            className="ms-auto inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-brand-700 px-4 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <span aria-hidden="true" className="text-base leading-none">+</span>
-            {creating ? "Creating…" : "New plan"}
-          </button>
+          <div className="ms-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPresetsOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M4 6h11M4 12h7M4 18h11" strokeLinecap="round" />
+                <circle cx="18" cy="6" r="2" />
+                <circle cx="14" cy="12" r="2" />
+                <circle cx="18" cy="18" r="2" />
+              </svg>
+              Defaults
+            </button>
+            <button
+              type="button"
+              onClick={createPlan}
+              disabled={creating}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-brand-700 px-4 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span aria-hidden="true" className="text-base leading-none">+</span>
+              {creating ? "Creating…" : "New plan"}
+            </button>
+          </div>
         )}
       </header>
 
@@ -136,6 +157,16 @@ export default function StudioPlannerList({ slug }) {
           </ul>
         )}
       </div>
+
+      {presetsOpen && state.canEdit && (
+        <PlannerPresetsDialog
+          slug={slug}
+          presets={state.presets}
+          canEdit={state.canEdit}
+          onClose={() => setPresetsOpen(false)}
+          onSaved={(next) => setState((s) => ({ ...s, presets: next }))}
+        />
+      )}
     </div>
   );
 }

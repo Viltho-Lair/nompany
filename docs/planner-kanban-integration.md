@@ -216,7 +216,35 @@ component serves both doors.
 - **RTL held at 41/41** — the planner's one dialog centring is an inline
   `transform`, not `left-1/2`, so it adds zero to the count.
 
-**Later (explicitly deferred by the brief):** plan milestones/progress fed from the
-project; real resources from collaborators; a dedicated `operations.planner.*`
-permission; the planner's own dark palette; "a great method to use everything
-together in a proper sequence."
+**Later (explicitly deferred by the brief):** real resources from collaborators;
+the planner's own dark palette; "a great method to use everything together in a
+proper sequence."
+
+## Phase 3 — refinements (post-review)
+
+Two concurrent sessions worked this area; commit `06b339e` folded both together.
+
+- ✅ **Planner is a grantable Operations sub-section.** `operations-planner` added
+  to `SECTION_DEFS` (auto-plants into existing studios via `listSections`
+  reconciliation) with its own `operations.planner` view/edit right in the
+  catalogue + `SECTION_AREAS`; the app resolves through `plannerContext`
+  (`moduleContext` on the sub-section's own key, so it works for someone granted
+  the planner without the rest of Operations). Nav shows it under Operations
+  (calendar icon); the Operations-dashboard redirect card was **removed**. Catalogue
+  count 115 → 117. *(This landed in `06b339e` alongside the concurrent session's
+  client-contacts panel, plan-progress-fed project bar, and standalone plans —
+  which is why milestones/progress-from-project is no longer "deferred": progress
+  now comes from the plan.)*
+- ✅ **New-plan presets** (this session's Part B) — the defaults a plan starts
+  from (`calendar`, `resources`, `zoom`, `colorBy`) live on the `operations-planner`
+  section's `settings` (surfaced by `plannerContext` as `presets`). Read/saved via
+  the planner route's GET/PUT (PUT gated on `operations.planner.edit`), edited in a
+  **Defaults** dialog in `/operations-planner`, and seeded into BOTH
+  `createPlanFromProject` and `createStandalonePlan` through one `seedPlanDoc`
+  helper (unset fields still fill client-side on hydrate). No new permission keys;
+  the `progress` field on `PlanSummary` is untouched.
+
+**Part B held for later:** the resource-colour input is a free hex picker (could
+constrain to the planner's 8-swatch `PHASE_COLORS`); client-side validation
+(`dayEndHour > dayStartHour`, dropping unnamed resources) is left to the backend
+for now; holidays are a bare date list with no per-day label.
