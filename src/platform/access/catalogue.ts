@@ -187,6 +187,11 @@ const OWN_AREAS = [
     extra: [{ key: "dispose", label: "Dispose of an asset" }] },
   { key: "finance.settings", group: "Finance", label: "Settings", verbs: ["view", "edit"] },
 
+  // The rota is a sub-section of its own: view opens the schedule screen, and
+  // create/edit/delete are the shifts on it. The working week it draws against
+  // is the STUDIO's (studio.workingHours), set in Studio settings — this grant
+  // governs the shifts, not the week.
+  { key: "operations.schedule", group: "Operations", label: "Schedule", verbs: ["view", "create", "edit", "delete"] },
   { key: "operations.tracking", group: "Operations", label: "Tracking", verbs: ["view", "create", "edit", "delete"] },
   { key: "operations.settings", group: "Operations", label: "Settings", verbs: ["view", "edit"] },
   // The project planner is a sub-section of its own, so it carries its own right:

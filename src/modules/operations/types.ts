@@ -51,3 +51,13 @@ export type OperationsContext = ModuleContext & {
 export type PlannerContext = ModuleContext & {
   presets: Record<string, unknown>;
 };
+
+// The Schedule sub-section resolves on its own grant (operations.schedule) but
+// owns no collection: the rota lives under the operations ROOT section, reached
+// here as the foreign `operationsMainSection`. HR is foreign for the leave check.
+export type ScheduleContext = ModuleContext & {
+  operationsMainSection: Section;
+  settingsSection: Section | null;
+  hrSection: Section | null;
+  projectsListSection: Section | null;
+};

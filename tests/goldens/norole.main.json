@@ -41,6 +41,7 @@
       "finance-assets": false,
       "finance-settings": false,
       "operations": false,
+      "operations-schedule": false,
       "operations-tracking": false,
       "operations-planner": false,
       "operations-settings": false,

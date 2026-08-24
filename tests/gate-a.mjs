@@ -137,8 +137,9 @@ console.log("== the permission matrix: one key grants exactly itself");
   // added finance.ledger's view, post and reverse; 115 when Finance 1b added
   // finance.payables (view/create/edit/delete + approve/pay) and finance.assets
   // (view/create/edit + dispose); 117 when the planner became a grantable
-  // sub-section of Operations (operations.planner view/edit).
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 117, String(ALL_PERMISSIONS.length));
+  // sub-section of Operations (operations.planner view/edit); 121 when the rota
+  // moved to its own operations.schedule sub-section (view/create/edit/delete).
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 121, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -1586,7 +1587,7 @@ console.log("== operations & tasks: a shift knows about leave, and finishing is 
 //   was asked of them.
 {
   const OPS = await import("@/app/api/studios/[slug]/operations/route.ts");
-  const SHIFTS = await import("@/app/api/studios/[slug]/operations/shifts/route.ts");
+  const SHIFTS = await import("@/app/api/studios/[slug]/operations/schedule/shifts/route.ts");
   const LOCATIONS = await import("@/app/api/studios/[slug]/operations/locations/route.ts");
   const TASKS = await import("@/app/api/studios/[slug]/tasks/route.ts");
 
@@ -1623,7 +1624,7 @@ console.log("== operations & tasks: a shift knows about leave, and finishing is 
 
   const onLeaveDay = leave?.from;
   const clash = await shot("operations.shift.refused.onleave", await capture(
-    SHIFTS.POST, req(`/api/studios/${slug}/operations/shifts`, { method: "POST", body: {
+    SHIFTS.POST, req(`/api/studios/${slug}/operations/schedule/shifts`, { method: "POST", body: {
       date: onLeaveDay, collaboratorId: leave?.collaboratorId, locationId,
       startTime: "08:00", endTime: "16:00",
     } }), P));
@@ -1635,7 +1636,7 @@ console.log("== operations & tasks: a shift knows about leave, and finishing is 
   // The same person, a day they are not on leave: the rule is about the
   // absence, not about the person.
   const fine = await shot("operations.shift.created", await capture(
-    SHIFTS.POST, req(`/api/studios/${slug}/operations/shifts`, { method: "POST", body: {
+    SHIFTS.POST, req(`/api/studios/${slug}/operations/schedule/shifts`, { method: "POST", body: {
       date: "2026-11-03", collaboratorId: leave?.collaboratorId, locationId,
       startTime: "08:00", endTime: "16:00",
     } }), P));

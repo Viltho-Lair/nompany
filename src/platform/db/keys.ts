@@ -400,6 +400,11 @@ export const SECTION_DEFS = [
     { key: "finance-settings", name: "Settings" },
   ] },
   { key: "operations", name: "Operations", children: [
+    // The rota and the working week — the shift calendar, "schedule a shift" and
+    // the studio's work-week shading — on its own grant. It owns no collection:
+    // shifts live under the operations root section (read through that door), so
+    // this gates the SCREEN and its writes, not a store of its own.
+    { key: "operations-schedule", name: "Schedule" },
     { key: "operations-tracking", name: "Tracking" },
     // The project planner — a full-screen app of its own (see the studio router),
     // grantable on its own operations.planner right. It owns no section

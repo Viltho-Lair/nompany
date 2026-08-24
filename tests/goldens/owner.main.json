@@ -41,6 +41,7 @@
       "finance-assets": true,
       "finance-settings": true,
       "operations": true,
+      "operations-schedule": true,
       "operations-tracking": true,
       "operations-planner": true,
       "operations-settings": true,
@@ -204,6 +205,11 @@
         "key": "operations",
         "name": "Operations",
         "parentId": null
+      },
+      {
+        "key": "operations-schedule",
+        "name": "Schedule",
+        "parentId": "<sec_ID>"
       },
       {
         "key": "operations-tracking",

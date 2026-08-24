@@ -2,7 +2,7 @@ import { route, refused } from "@/platform/http/route";
 import {
   operationsContext, listLocations, listPermits, listShifts, operationsProjects,
   schedulablePeople, weekWindow, summarise, listPositions,
-  readOperationsSettings, saveOperationsSettings,
+  readOperationsSettings, saveOperationsSettings, scheduleFromStudio,
   LOCATION_KINDS, PERMIT_TYPES, EXPIRY_WINDOW_DAYS,
 } from "@/modules/operations/operations";
 
@@ -10,27 +10,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // One read for the whole Operations screen. Permit validity and shift hours are
-// computed from their dates here, never stored.
-// mon/tue/… with open/from/to is how the studio stores its week; the calendar
-// wants Sunday-first full names with `on`. One translation, in one place.
-const STUDIO_DAY_KEYS = { Sunday: "sun", Monday: "mon", Tuesday: "tue", Wednesday: "wed", Thursday: "thu", Friday: "fri", Saturday: "sat" };
-function scheduleFromStudio(studio: Record<string, unknown>) {
-  // The stored shape is a map of day keys to `{ open, from, to }`, written by
-  // the settings route and read here into the calendar's own day names.
-  type Hours = Record<string, { open?: unknown; from?: string; to?: string } | undefined>;
-  const hours = (studio?.workingHours || null) as Hours | null;
-  const out: Record<string, { on: boolean; from: string; to: string }> = {};
-  for (const [name, key] of Object.entries(STUDIO_DAY_KEYS)) {
-    const row = hours?.[key];
-    out[name] = row
-      ? { on: Boolean(row.open), from: row.from || "09:00", to: row.to || "17:00" }
-      // No hours set yet: assume a working day rather than shading the whole
-      // grid, which would read as "this studio never works".
-      : { on: true, from: "09:00", to: "17:00" };
-  }
-  return out;
-}
-
+// computed from their dates here, never stored. The working week comes from the
+// studio (scheduleFromStudio) — the rota/schedule screen lives on its own
+// sub-section now, but the dashboard here still summarises shifts.
 const spec = { auth: "studio", context: operationsContext, name: "operations" };
 
 export const GET = route(spec, async (g) => {

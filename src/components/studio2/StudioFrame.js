@@ -74,6 +74,7 @@ const SECTION_ICONS = {
   "quality-documents": "book",
   "hr-employees": "teamwork",
   "finance-cash": "cash",
+  "operations-schedule": "calendar",
   "operations-tracking": "locations",
   "operations-planner": "calendar",
   // Every module's Settings wears the same gear. They are the same KIND of

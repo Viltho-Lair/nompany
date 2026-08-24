@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
@@ -43,16 +44,30 @@ export default function StudioOperations({ slug, view = "operations" }) {
   // sub-sections with screens of their own — previously they both fell through
   // to this tab state, which left /operations-tracking selecting a tab that
   // matched no case and rendering nothing at all under the tab bar.
-  const [tab, setTab] = useState("schedule");
+  // The main screen's two peers, Permits and Locations, are chosen from the
+  // bottom bar. Landing here from the Schedule screen carries the wanted one in
+  // the URL hash (#locations); within the screen the bar just flips this state.
+  const [tab, setTab] = useState("permits");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const level = useAnalyticsLevel();
 
+  useEffect(() => {
+    // `window` is shadowed in this component (the week window destructured from
+    // data), so reach the browser global through globalThis for the hash.
+    if (view === "operations" && globalThis.location?.hash === "#locations") {
+      setTab("locations");
+    }
+  }, [view]);
+
+  // The Schedule screen reads its own sub-section door (operations.schedule); the
+  // rest of Operations reads the root. One screen, two reads, chosen by view.
+  const endpoint = view === "operations-schedule" ? "operations/schedule" : "operations";
   const load = useCallback(async () => {
-    const res = await fetch(`/api/studios/${slug}/operations`, { cache: "no-store" });
+    const res = await fetch(`/api/studios/${slug}/${endpoint}`, { cache: "no-store" });
     if (!res.ok) { setError("You don't have access to Operations in this studio."); return; }
     setData(await res.json());
-  }, [slug]);
+  }, [slug, endpoint]);
   useEffect(() => { load(); }, [load]);
   // Shifts and permits change from more than one desk — stay current.
   useLiveUpdates(slug, "operations", load);
@@ -124,14 +139,21 @@ export default function StudioOperations({ slug, view = "operations" }) {
     );
   }
 
-  const tabs = [
-    ["schedule", `Schedule (${summary.shiftsThisWeek})`],
-    ["permits", `Permits (${permits.length})`],
-    ["locations", `Locations (${locations.length})`],
-  ];
+  // THE SCHEDULE SCREEN — the rota and the working week, on its own sub-section.
+  // A peer of Permits and Locations, reached (like them) from the bottom bar.
+  if (view === "operations-schedule") {
+    return (
+      <div className="space-y-6 pb-20">
+        {banner}
+        <Schedule shifts={shifts} people={people} locations={locations} window={window}
+          settings={settings} canManage={canManage} busy={busy} send={send} />
+        <OperationsBottomBar slug={slug} active="schedule" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {banner}
 
       {/* The Operations dashboard — locations, permits and shifts summarised —
@@ -141,29 +163,56 @@ export default function StudioOperations({ slug, view = "operations" }) {
       <OperationsDashboard locations={locations} permits={permits} shifts={shifts}
         window={window} summary={summary} windowDays={vocabulary.expiryWindowDays} level={level} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
-          {tabs.map(([k, text]) => (
-            <button key={k} type="button" onClick={() => setTab(k)}
-              className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-[var(--geex-surface)] text-brand-950 shadow-sm dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
-              {text}
-            </button>
-          ))}
+      {!canManage && (
+        <div className="flex justify-end">
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>
         </div>
-        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
-      </div>
-
-      {tab === "schedule" && (
-        <Schedule shifts={shifts} people={people} locations={locations} window={window}
-          settings={settings} canManage={canManage} busy={busy} send={send} />
       )}
-      {tab === "permits" && (
+
+      {tab === "permits" ? (
         <Permits rows={permits} locations={locations} people={people} projects={projects} types={vocabulary.permitTypes}
           windowDays={vocabulary.expiryWindowDays} slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
-      )}
-      {tab === "locations" && (
+      ) : (
         <Locations rows={locations} kinds={vocabulary.locationKinds} canManage={canManage} busy={busy} send={send} />
       )}
+
+      {/* Schedule / Permits / Locations are peers here — the bar is how you move
+          between them. Permits and Locations flip in place; Schedule is its own
+          sub-section, so it is a link. */}
+      <OperationsBottomBar slug={slug} active={tab} onTab={setTab} />
+    </div>
+  );
+}
+
+// THE OPERATIONS BOTTOM BAR — the same shape as Project Sheets': a strip along
+// the bottom of the working area (never over the sidebar), the way you move
+// between Schedule, Permits and Locations. On the main screen Permits/Locations
+// flip a tab in place (onTab); the Schedule peer is its own sub-section, so it is
+// always a link. From the Schedule screen there is no onTab, so all three are
+// links — Permits/Locations carry the wanted tab in the hash.
+function OperationsBottomBar({ slug, active, onTab }) {
+  const items = [
+    { key: "schedule", label: "Schedule", href: `/${slug}/operations-schedule` },
+    { key: "permits", label: "Permits", href: `/${slug}/operations#permits` },
+    { key: "locations", label: "Locations", href: `/${slug}/operations#locations` },
+  ];
+  return (
+    <div className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
+      <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
+        <div className="pointer-events-auto flex items-center gap-2 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 px-3 py-2 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
+          {items.map((i) => {
+            const on = i.key === active;
+            const cls = `rounded-full px-4 py-1.5 font-display text-sm font-600 transition-colors ${
+              on ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`;
+            if (on) return <span key={i.key} className={cls} aria-current="page">{i.label}</span>;
+            // Permits/Locations switch in place when a handler is given.
+            if (onTab && i.key !== "schedule") {
+              return <button key={i.key} type="button" className={cls} onClick={() => onTab(i.key)}>{i.label}</button>;
+            }
+            return <Link key={i.key} href={i.href} className={cls}>{i.label}</Link>;
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -231,7 +280,7 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
         <Dialog title="Schedule a shift" description="Who is working, when, and where." onClose={() => setAdding(false)}>
           <ShiftForm people={people} locations={locations} busy={busy}
             onCancel={() => setAdding(false)}
-            onSave={async (v) => { if (await send("shifts", "POST", v)) setAdding(false); }} />
+            onSave={async (v) => { if (await send("schedule/shifts", "POST", v)) setAdding(false); }} />
         </Dialog>
       )}
 
@@ -263,7 +312,7 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
                         </span>
                         {canManage && (
                           <button className="text-xs text-rose-600 hover:underline dark:text-rose-400"
-                            disabled={busy} onClick={() => send("shifts", "DELETE", { id: s.id })}>remove</button>
+                            disabled={busy} onClick={() => send("schedule/shifts", "DELETE", { id: s.id })}>remove</button>
                         )}
                       </li>
                     ))}
@@ -308,7 +357,9 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
     const iso = dayKey(date);
     return {
       iso, date,
+      // Full name for the copied roster text; short (Sun/Mon…) for the column.
       dayName: DAYS[date.getDay()],
+      dayShort: fmtWeekday(iso),
       working: schedule[DAYS[date.getDay()]]?.on,
       today: iso === dayKey(new Date()),
       shifts: shifts.filter((s) => s.date === iso),
@@ -376,7 +427,7 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
             <div key={c.iso} className="grid grid-cols-[7rem_minmax(0,1fr)] border-t border-slate-100 dark:border-white/5">
               <div className={`flex items-center gap-2 py-2 pe-3 ${c.today ? "text-brand-700 dark:text-brand-300" : "text-slate-600 dark:text-slate-300"}`}>
                 <span className="min-w-0">
-                  <span className="block truncate text-xs font-700 uppercase tracking-wide">{c.dayName}</span>
+                  <span className="block truncate text-xs font-700 uppercase tracking-wide">{c.dayShort}</span>
                   <span className="block text-[11px] text-slate-400">{fmt(c.iso).slice(0, 5)}</span>
                 </span>
                 {c.shifts.length > 0 && (

@@ -97,6 +97,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "finance-payables": ["finance.payables"],
   "finance-assets": ["finance.assets"],
   "finance-settings": ["finance.settings"],
+  "operations-schedule": ["operations.schedule"],
   "operations-tracking": ["operations.tracking"],
   "operations-settings": ["operations.settings"],
   "quality-documents": ["quality.documents"],

@@ -24,7 +24,7 @@ import { nextReference } from "@/modules/main/references";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "./operationsCalendar";
 import type { WorkingWeek } from "./operationsCalendar";
 import type {
-  Location, Permit, Position, Shift, PermitView, ShiftView, OperationsContext, PlannerContext,
+  Location, Permit, Position, Shift, PermitView, ShiftView, OperationsContext, PlannerContext, ScheduleContext,
 } from "./types";
 import type { Vacation } from "@/modules/hr/types";
 
@@ -84,6 +84,65 @@ export const plannerContext = moduleContext<PlannerContext>({
     presets: (section as { settings?: Record<string, unknown> })?.settings || {},
   }),
 });
+
+// THE SCHEDULE SCREEN RESOLVES ON ITS OWN GRANT (operations.schedule), the same
+// reasoning as the planner: a person may hold the rota without the rest of
+// Operations, so gating it through operationsContext — which refuses anyone the
+// operations root is not granted to — would lock out exactly the people it was
+// granted to. It owns no collection; the shifts and locations it reads and
+// writes live under the operations ROOT section, surfaced here as the foreign
+// `operationsMainSection`, and the leave check needs HR.
+export const scheduleContext = moduleContext<ScheduleContext>({
+  root: "operations-schedule",
+  foreign: {
+    operationsMain: "operations", settings: "operations-settings",
+    hr: "hr", projectsList: ["projects-list", "projects"],
+  },
+});
+
+// mon/tue/… with open/from/to is how the STUDIO stores its week (studio.working
+// Hours, set in Studio settings); the calendar wants Sunday-first full names
+// with `on`. One translation, in one place, shared by the operations screen and
+// the schedule screen so a studio can never describe two different weeks.
+const STUDIO_DAY_KEYS = { Sunday: "sun", Monday: "mon", Tuesday: "tue", Wednesday: "wed", Thursday: "thu", Friday: "fri", Saturday: "sat" } as const;
+export function scheduleFromStudio(studio: Record<string, unknown>) {
+  type Hours = Record<string, { open?: unknown; from?: string; to?: string } | undefined>;
+  const hours = (studio?.workingHours || null) as Hours | null;
+  const out: Record<string, { on: boolean; from: string; to: string }> = {};
+  for (const [name, key] of Object.entries(STUDIO_DAY_KEYS)) {
+    const row = hours?.[key];
+    // No hours set yet: assume a working day rather than shading the whole grid.
+    out[name] = row
+      ? { on: Boolean(row.open), from: row.from || "09:00", to: row.to || "17:00" }
+      : { on: true, from: "09:00", to: "17:00" };
+  }
+  return out;
+}
+
+// THE SCHEDULE SCREEN'S ONE READ — the rota, the places it points at, the people
+// it can name, the week it plans over, and the studio's working week the grid is
+// drawn against. Reads the shifts and locations from the operations ROOT section
+// (this sub-section owns no collection) and the legend from operations-settings.
+export async function scheduleView(ctx: ScheduleContext) {
+  const window = weekWindow();
+  const section = ctx.operationsMainSection;
+  const [shifts, locations, people] = await Promise.all([
+    listShifts({ studio: ctx.studio, section }),
+    listLocations({ studio: ctx.studio, section }),
+    schedulablePeople(ctx),
+  ]);
+  return {
+    canManage: ctx.canManage,
+    nav: ctx.nav,
+    me: { collaboratorId: ctx.collaborator.id },
+    shifts, locations, people, window,
+    settings: {
+      ...readOperationsSettings(ctx.settingsSection),
+      workSchedule: scheduleFromStudio(ctx.studio),
+    },
+    vocabulary: { locationKinds: LOCATION_KINDS, permitTypes: PERMIT_TYPES, expiryWindowDays: EXPIRY_WINDOW_DAYS },
+  };
+}
 
 // Operations Settings live on the operations-settings sub-section's own
 // `settings` object, so they need no key of their own and die with it.
@@ -438,12 +497,13 @@ export async function listShifts(
     }));
 }
 
-export async function createShift(ctx: OperationsContext, body: Record<string, unknown>) {
+export async function createShift(ctx: ScheduleContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.tracking.create");
+  const denied = requirePermission(ctx.access, "operations.schedule.create");
   if (denied) return denied;
 
-  const { studio, section, collaborator } = ctx;
+  // The rota lives under the operations ROOT section, not the schedule section.
+  const { studio, operationsMainSection: section, collaborator } = ctx;
   const date = day(body?.date);
   if (!date) return { error: "date" };
 
@@ -483,12 +543,12 @@ export async function createShift(ctx: OperationsContext, body: Record<string, u
   return { shift: { ...shift, hours: shiftHours(shift) } };
 }
 
-export async function editShift(ctx: OperationsContext, id: string, body: Record<string, unknown>) {
+export async function editShift(ctx: ScheduleContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.tracking.edit");
+  const denied = requirePermission(ctx.access, "operations.schedule.edit");
   if (denied) return denied;
 
-  const { studio, section } = ctx;
+  const { studio, operationsMainSection: section } = ctx;
   const rows = await Shifts.find({ studio, section });
   const current = rows.find((s) => s.id === id);
   if (!current) return { error: "notfound" };
@@ -518,12 +578,12 @@ export async function editShift(ctx: OperationsContext, id: string, body: Record
   return shift ? { shift: { ...shift, hours: shiftHours(shift) } } : { error: "notfound" };
 }
 
-export async function removeShift(ctx: OperationsContext, id: string) {
+export async function removeShift(ctx: ScheduleContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.tracking.delete");
+  const denied = requirePermission(ctx.access, "operations.schedule.delete");
   if (denied) return denied;
 
-  const removed = await Shifts.remove({ studio: ctx.studio, section: ctx.section }, id);
+  const removed = await Shifts.remove({ studio: ctx.studio, section: ctx.operationsMainSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 

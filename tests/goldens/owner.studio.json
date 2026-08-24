@@ -201,6 +201,12 @@
       },
       {
         "id": "<sub_ID>",
+        "key": "operations-schedule",
+        "name": "Schedule",
+        "enabled": true
+      },
+      {
+        "id": "<sub_ID>",
         "key": "operations-tracking",
         "name": "Tracking",
         "enabled": true
