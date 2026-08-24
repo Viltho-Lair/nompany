@@ -20,7 +20,6 @@ import {
   wouldCreateCycle,
 } from '@/components/planner/lib/schedule/tree';
 import {
-  RESOURCE_POOL,
   TEMPLATES,
   blankTask,
   instantiateTemplate,
@@ -114,6 +113,9 @@ interface PlannerState {
 
   /* nompany seam */
   hydratePlan: (doc: PlanDoc | null) => void;
+  // The plan's people, set from the studio's live collaborators by the screen
+  // after it hydrates. Not part of PlanDoc, so it never saves and never undoes.
+  setResources: (resources: Resource[]) => void;
 
   /* project-level */
   setMeta: (patch: Partial<ProjectMeta>) => void;
@@ -177,7 +179,9 @@ export interface PlanDoc {
   meta: ProjectMeta;
   tasks: Task[];
   calendar: WorkCalendar;
-  resources: Resource[];
+  // `resources` is deliberately NOT here: a plan's people are the studio's live
+  // collaborators (set via setResources from the plan door's payload), not data
+  // copied into the document — so they never travel to Redis and never go stale.
   zoom: ZoomLevel;
   colorBy: ColorBy;
   visibleColumns: GridColumn[];
@@ -206,7 +210,6 @@ function emptyMeta(): ProjectMeta {
 function defaultPlan(): Omit<PlanDoc, 'meta' | 'tasks'> {
   return {
     calendar: DEFAULT_CALENDAR,
-    resources: RESOURCE_POOL,
     zoom: 'week',
     colorBy: 'phase',
     visibleColumns: DEFAULT_COLUMNS,
@@ -221,7 +224,6 @@ export function planDoc(state: PlannerState): PlanDoc {
     meta: state.meta,
     tasks: state.tasks,
     calendar: state.calendar,
-    resources: state.resources,
     zoom: state.zoom,
     colorBy: state.colorBy,
     visibleColumns: state.visibleColumns,
@@ -255,7 +257,9 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
   meta: emptyMeta(),
   tasks: [],
   calendar: DEFAULT_CALENDAR,
-  resources: RESOURCE_POOL,
+  // Filled from the studio's collaborators on hydrate (setResources); empty
+  // until then so an unhydrated plan shows no phantom people.
+  resources: [],
 
   zoom: 'week',
   colorBy: 'phase',
@@ -287,6 +291,8 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
         future: [],
       };
     }),
+
+  setResources: (resources) => set({ resources }),
 
   setMeta: (patch) => set((s) => ({ meta: { ...s.meta, ...patch } })),
 

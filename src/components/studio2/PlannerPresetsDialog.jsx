@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { Dialog, input, label, btn, btnGhost } from "@/components/studio2/ui";
 import { DEFAULT_CALENDAR } from "@/components/planner/lib/schedule/calendar";
-import { RESOURCE_POOL } from "@/components/planner/lib/templates";
 
 // THE NEW-PLAN PRESETS EDITOR. Part B of the planner integration: these four
 // groups are the DEFAULTS a fresh plan is seeded from — not the settings of any
@@ -29,24 +28,6 @@ const WEEKDAYS = [
 const ZOOM_LEVELS = ["hour", "day", "week", "month", "quarter"];
 const COLOR_BY = ["phase", "status", "assignee", "priority"];
 
-// Two capital letters from the name — first letter of the first two words, or
-// the first two letters of a single-word name. Kept in sync on every name edit
-// so the studio never hand-maintains an avatar chip.
-function deriveInitials(name) {
-  const words = String(name).trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
-
-function mintResourceId() {
-  const rand =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `r-${rand}`;
-}
-
 function seedCalendar(presetCal) {
   const c = presetCal && typeof presetCal === "object" ? presetCal : {};
   return {
@@ -67,24 +48,8 @@ function seedCalendar(presetCal) {
   };
 }
 
-function seedResources(presetResources) {
-  const source = Array.isArray(presetResources) && presetResources.length
-    ? presetResources
-    : RESOURCE_POOL;
-  return source.map((r) => ({
-    id: r.id || mintResourceId(),
-    name: r.name || "",
-    initials: r.initials || deriveInitials(r.name || ""),
-    role: r.role || "",
-    color: r.color || "#4573D2",
-    rate: Number.isFinite(r.rate) ? r.rate : 0,
-    capacity: Number.isFinite(r.capacity) ? r.capacity : 100,
-  }));
-}
-
 export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, onSaved }) {
   const [calendar, setCalendar] = useState(() => seedCalendar(presets?.calendar));
-  const [resources, setResources] = useState(() => seedResources(presets?.resources));
   const [zoom, setZoom] = useState(() =>
     ZOOM_LEVELS.includes(presets?.zoom) ? presets.zoom : "week",
   );
@@ -129,42 +94,8 @@ export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, 
     setCalendar((c) => ({ ...c, holidays: c.holidays.filter((h) => h !== iso) }));
   }
 
-  function addResource() {
-    setResources((rs) => [
-      ...rs,
-      {
-        id: mintResourceId(),
-        name: "",
-        initials: "?",
-        role: "",
-        color: "#4573D2",
-        rate: 0,
-        capacity: 100,
-      },
-    ]);
-  }
-
-  function updateResource(id, patch) {
-    setResources((rs) =>
-      rs.map((r) => {
-        if (r.id !== id) return r;
-        const next = { ...r, ...patch };
-        // initials are derived, never stored independently — re-mint on rename
-        if (Object.prototype.hasOwnProperty.call(patch, "name")) {
-          next.initials = deriveInitials(next.name);
-        }
-        return next;
-      }),
-    );
-  }
-
-  function removeResource(id) {
-    setResources((rs) => rs.filter((r) => r.id !== id));
-  }
-
   function resetToDefaults() {
     setCalendar(seedCalendar(undefined));
-    setResources(seedResources(undefined));
     setZoom("week");
     setColorBy("phase");
     setNewHoliday("");
@@ -185,15 +116,6 @@ export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, 
           lunchHours: calendar.lunchHours,
           holidays: calendar.holidays,
         },
-        resources: resources.map((r) => ({
-          id: r.id,
-          name: r.name,
-          initials: r.initials,
-          role: r.role,
-          color: r.color,
-          rate: Number(r.rate) || 0,
-          capacity: Number(r.capacity) || 0,
-        })),
         zoom,
         colorBy,
       },
@@ -341,90 +263,8 @@ export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, 
           </div>
         </Section>
 
-        {/* ---- resource pool ---- */}
-        <Section
-          heading="Resource pool"
-          hint="The default team a new plan can assign work to."
-        >
-          <ul className="flex flex-col gap-2">
-            {resources.map((r) => (
-              <li
-                key={r.id}
-                className="grid grid-cols-[auto_1fr_1fr_auto_auto_auto] items-end gap-2 rounded-geex border border-slate-200/70 bg-[var(--geex-inset)] p-2.5 dark:border-white/10"
-              >
-                <div>
-                  <span className={label}>Colour</span>
-                  <input
-                    type="color"
-                    aria-label={`Colour for ${r.name || "resource"}`}
-                    className="h-9 w-10 cursor-pointer rounded-xl border border-slate-200 bg-transparent p-0.5 dark:border-white/15"
-                    value={r.color}
-                    onChange={(e) => updateResource(r.id, { color: e.target.value })}
-                  />
-                </div>
-                <Field label="Name">
-                  <input
-                    className={input}
-                    placeholder="Full name"
-                    value={r.name}
-                    onChange={(e) => updateResource(r.id, { name: e.target.value })}
-                  />
-                </Field>
-                <Field label="Role">
-                  <input
-                    className={input}
-                    placeholder="Role"
-                    value={r.role}
-                    onChange={(e) => updateResource(r.id, { role: e.target.value })}
-                  />
-                </Field>
-                <Field label="Rate/hr">
-                  <input
-                    type="number"
-                    min={0}
-                    className={`${input} w-24 text-end tabular-nums`}
-                    value={r.rate}
-                    onChange={(e) =>
-                      updateResource(r.id, { rate: e.target.value === "" ? 0 : Number(e.target.value) })
-                    }
-                  />
-                </Field>
-                <Field label="Capacity %">
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    className={`${input} w-24 text-end tabular-nums`}
-                    value={r.capacity}
-                    onChange={(e) =>
-                      updateResource(r.id, { capacity: e.target.value === "" ? 0 : Number(e.target.value) })
-                    }
-                  />
-                </Field>
-                <button
-                  type="button"
-                  aria-label={`Remove ${r.name || "resource"}`}
-                  onClick={() => removeResource(r.id)}
-                  className="grid h-9 w-9 place-items-center self-end rounded-full text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
-                >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {resources.length === 0 && (
-            <p className="text-sm text-[var(--geex-muted)]">
-              No resources — a new plan will start with an empty pool.
-            </p>
-          )}
-          <div>
-            <button type="button" className={btnGhost} onClick={addResource}>
-              + Add resource
-            </button>
-          </div>
-        </Section>
+        {/* The resource pool is gone: a plan's people are the studio's own
+            collaborators now, assigned per task in the planner, not preset here. */}
 
         {/* ---- view defaults ---- */}
         <Section

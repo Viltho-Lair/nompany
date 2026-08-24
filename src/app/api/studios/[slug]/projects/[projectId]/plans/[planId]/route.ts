@@ -1,6 +1,6 @@
 import { route } from "@/platform/http/route";
 import { projectsContext } from "@/modules/projects/projects";
-import { listProjectPlans, readPlan, savePlan } from "@/modules/operations/planner";
+import { listProjectPlans, readPlan, savePlan, planPeople } from "@/modules/operations/planner";
 import { requirePermission, can } from "@/platform/access";
 
 export const runtime = "nodejs";
@@ -23,7 +23,7 @@ export const GET = route({ ...spec, body: false }, async (c) => {
   if (!(await ownsPlan(c.studio.id, c.params.projectId, c.params.planId))) return { error: "notfound" };
   const plan = await readPlan(c.studio.id, c.params.planId);
   if (!plan) return { error: "notfound" };
-  return { plan, canEdit: can(c.access, "projects.list.edit") };
+  return { plan, canEdit: can(c.access, "projects.list.edit"), people: await planPeople(c.studio.id) };
 });
 
 export const PUT = route({ ...spec, body: true }, async (c) => {

@@ -125,6 +125,7 @@ function AddRowButton() {
   return (
     <button
       type="button"
+      data-planner-chrome
       onClick={() => {
         // A MAJOR TASK — top-level, so it takes the next whole WBS number (1, 2,
         // 3…). Passing null appends a task with no parent; sub-tasks (1.1, 1.2…)
@@ -400,14 +401,16 @@ function RowMenu({ task }: { task: ComputedTask }) {
   } = usePlannerStore();
 
   return (
-    <DropdownMenu>
+    // NON-MODAL, deliberately. Radix's default modal menu locks pointer-events on
+    // <body> while open; inside the planner's own scroll panes and scoped
+    // `.planner-root`, that lock swallowed the item clicks, so the menu opened
+    // but "Add sub-task", "Delete" and the rest did nothing. modal={false} makes
+    // it a plain popover — the items fire. Trigger still stops the press from
+    // reaching the row's onMouseDown select so opening it never re-selects.
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          // Stop the press from reaching the row's onMouseDown select — that
-          // select re-renders the row mid-gesture and swallowed the menu's open,
-          // which is why the three-dots did nothing. stopPropagation here blocks
-          // the row handler without touching Radix's own trigger on this button.
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-700"

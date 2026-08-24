@@ -12,6 +12,42 @@ import {
   planDoc,
 } from "@/components/planner/lib/store/plannerStore";
 
+// A palette for the assignee chips — a person keeps the same colour every visit
+// because it is picked by a stable hash of their collaborator id, not their
+// position in the list.
+const AVATAR_COLORS = [
+  "#4573D2", "#5DA283", "#E8A33D", "#CD5B45", "#8B5CF6",
+  "#0EA5E9", "#DB2777", "#65A30D", "#0D9488", "#F59E0B",
+];
+
+function hashInt(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function initialsOf(name) {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+// The studio's collaborators, shaped into the planner's Resource. A task stores
+// only the collaborator id in assigneeIds; everything else here is presentation
+// rebuilt each load, so renaming a person in the studio updates the plan.
+function peopleToResources(people) {
+  return (Array.isArray(people) ? people : []).map((p) => ({
+    id: p.id,
+    name: p.name || "Unnamed",
+    initials: initialsOf(p.name || ""),
+    role: p.role || "member",
+    color: AVATAR_COLORS[hashInt(String(p.id)) % AVATAR_COLORS.length],
+    rate: 0,
+    capacity: 100,
+  }));
+}
+
 // THE FULL-SCREEN PLANNER. One component serves both doors: the Operations
 // `/operations-planner` app and a plan opened from a project. It renders OUTSIDE
 // StudioFrame (the studio route early-returns it, like the project board). The
@@ -32,6 +68,7 @@ const DEBOUNCE_MS = 600;
 
 export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }) {
   const hydratePlan = usePlannerStore((s) => s.hydratePlan);
+  const setResources = usePlannerStore((s) => s.setResources);
   // Read the plan name straight from the store so the back bar title tracks
   // edits the user makes in the planner's own header.
   const planName = usePlannerStore((s) => s.meta.name);
@@ -56,6 +93,11 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
         // hydratePlan() notifies subscribers synchronously; hydratedRef is still
         // false at that instant, so the initial hydrate never triggers a PUT.
         hydratePlan(payload.plan ?? null);
+        // The plan's people are the studio's live collaborators, set right after
+        // the document and BEFORE hydratedRef flips — so, like the hydrate
+        // itself, this initial fill never triggers a PUT. They are outside
+        // planDoc anyway, so they never save.
+        setResources(peopleToResources(payload.people));
         hydratedRef.current = true;
         setState({ loading: false, canEdit: Boolean(payload.canEdit), error: false });
       } catch {
@@ -79,7 +121,6 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
         s.meta !== prev.meta ||
         s.tasks !== prev.tasks ||
         s.calendar !== prev.calendar ||
-        s.resources !== prev.resources ||
         s.zoom !== prev.zoom ||
         s.colorBy !== prev.colorBy ||
         s.visibleColumns !== prev.visibleColumns ||
@@ -102,9 +143,9 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
   }, [state.loading, state.canEdit, planApiBase]);
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-white">
+    <div data-planner-print-root className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-white">
       {/* ---- back bar: nompany chrome around the ported app ---- */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
+      <header data-planner-chrome className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
         <Link
           href={backHref}
           className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"

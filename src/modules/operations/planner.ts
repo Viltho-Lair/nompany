@@ -47,7 +47,11 @@ function statusFromStage(stage: string): PlanStatus {
 // die with the section) — plannerContext already surfaces them as `presets`.
 // Only these four fields are the studio's to preset; everything else about a
 // plan is per-plan.
-const PRESET_FIELDS = ["calendar", "resources", "zoom", "colorBy"] as const;
+// The resource pool is no longer a preset — a plan's people ARE the studio's
+// current collaborators, read live (see planPeople), never copied into the plan.
+// The calendar is still here for now; it moves to the Operations Schedule work-
+// week in a later step.
+const PRESET_FIELDS = ["calendar", "zoom", "colorBy"] as const;
 const PRESETS_MAX_BYTES = 500_000;
 
 export async function readPlannerPresets(studioId: string): Promise<Record<string, unknown>> {
@@ -139,6 +143,22 @@ export async function progressByProject(studioId: string): Promise<Map<string, n
 
 export async function readPlan(studioId: string, planId: string) {
   return (await getJSON<Record<string, unknown>>(PLAN.doc(studioId, planId))) || null;
+}
+
+// THE PEOPLE A PLAN CAN ASSIGN WORK TO — the studio's current collaborators,
+// read live so a plan always names who is actually in the studio now rather than
+// a pool copied into it once. Returned to both plan doors (the app and a
+// project's) so the planner's assignee dropdown and its avatar stack are the
+// studio's own users. The planner's Resource shape is finished client-side
+// (colour, initials) from these basics; here we return only what identifies a
+// person, which is all that is stored on a task (the collaborator id).
+export async function planPeople(studioId: string): Promise<{ id: string; name: string; role: string }[]> {
+  const rows = await listCollaborators(studioId);
+  return rows.map((c) => ({
+    id: String((c as { id?: unknown }).id ?? ""),
+    name: String((c as { alias?: unknown }).alias ?? "") || "Unnamed",
+    role: String((c as { role?: unknown }).role ?? "") || "member",
+  })).filter((p) => p.id);
 }
 
 type ProjectForPlan = {

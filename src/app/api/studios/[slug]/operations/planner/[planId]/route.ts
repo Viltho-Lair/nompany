@@ -1,7 +1,7 @@
 import { route } from "@/platform/http/route";
 import { requirePermission } from "@/platform/access";
 import { plannerContext } from "@/modules/operations/operations";
-import { readPlan, savePlan } from "@/modules/operations/planner";
+import { readPlan, savePlan, planPeople } from "@/modules/operations/planner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ const spec = { auth: "studio", context: plannerContext, name: "operations-plan" 
 export const GET = route({ ...spec, body: false }, async (c) => {
   const plan = await readPlan(c.studio.id, c.params.planId);
   if (!plan) return { error: "notfound" };
-  return { plan, canEdit: c.canManage };
+  return { plan, canEdit: c.canManage, people: await planPeople(c.studio.id) };
 });
 
 export const PUT = route({ ...spec, body: true }, async (c) => {

@@ -17,3 +17,6 @@ tsconfig.tsbuildinfo
 # and once in a directory literally named `undefined`.
 *.cpuprofile
 /undefined/
+
+# Local-only dev login portal (never committed, never deployed)
+src/app/api/dev-login/

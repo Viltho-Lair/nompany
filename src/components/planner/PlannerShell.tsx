@@ -7,8 +7,8 @@ import {
   Columns2,
   LayoutTemplate,
   PanelRightOpen,
+  Printer,
   Rows3,
-  Share2,
   Star,
 } from 'lucide-react';
 import type { ComputedTask } from '@/components/planner/lib/types';
@@ -243,6 +243,16 @@ export function PlannerShell() {
   const showChart = view !== 'grid';
   const statusMeta = PROJECT_STATUS[meta.status];
 
+  // PRINT — a WBS-and-waterfall sheet, like the document print (window.print()
+  // over an @media-print stylesheet in globals.css). Force the split view and
+  // close the inspector so the printed page is exactly the two panes, then let
+  // the layout settle for a frame before printing.
+  const handlePrint = () => {
+    setView('split');
+    setInspectorOpen(false);
+    setTimeout(() => window.print(), 150);
+  };
+
   // The store starts empty and is hydrated on the client, so the server and the
   // first client pass can never agree on the first paint. Rendering a skeleton
   // until mount is the honest fix - it removes the mismatch instead of
@@ -251,9 +261,9 @@ export function PlannerShell() {
 
   return (
     <TooltipProvider delayDuration={350}>
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F9FAFB]">
+      <div data-planner-print-root className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F9FAFB]">
         {/* ============================ top bar ============================ */}
-        <header className="shrink-0 border-b border-slate-200 bg-white px-4 pt-2.5">
+        <header data-planner-chrome className="shrink-0 border-b border-slate-200 bg-white px-4 pt-2.5">
           <div className="flex items-center gap-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-white">
               <BarChart3 className="h-4 w-4" />
@@ -295,9 +305,9 @@ export function PlannerShell() {
 
             <AvatarStack resources={assignedResources} size={26} max={4} />
 
-            <Button variant="outline" size="sm">
-              <Share2 className="h-3.5 w-3.5" />
-              Share
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="h-3.5 w-3.5" />
+              Print
             </Button>
 
             <Button variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>
@@ -341,12 +351,14 @@ export function PlannerShell() {
         </header>
 
         {/* =========================== toolbar =========================== */}
-        <Toolbar
-          onToday={scrollToToday}
-          onOpenTemplates={() => setTemplatesOpen(true)}
-          search={search}
-          onSearch={setSearch}
-        />
+        <div data-planner-chrome className="contents">
+          <Toolbar
+            onToday={scrollToToday}
+            onOpenTemplates={() => setTemplatesOpen(true)}
+            search={search}
+            onSearch={setSearch}
+          />
+        </div>
 
         {/* ============================ panes ============================ */}
         <div className="flex min-h-0 flex-1">
@@ -371,6 +383,7 @@ export function PlannerShell() {
                     <div
                       ref={gridBodyRef}
                       onScroll={onGridScroll}
+                      data-planner-pane
                       className={cn(
                         'min-h-0 flex-1 overflow-auto',
                         view === 'grid' ? 'planner-scroll' : 'no-scrollbar',
@@ -390,6 +403,7 @@ export function PlannerShell() {
                 {view === 'split' && (
                   <div
                     onPointerDown={startResize}
+                    data-planner-chrome
                     className="group relative w-px shrink-0 cursor-col-resize bg-slate-200"
                   >
                     <div className="absolute inset-y-0 -inset-x-1 group-hover:bg-primary/20" />
@@ -409,6 +423,7 @@ export function PlannerShell() {
                     <div
                       ref={chartBodyRef}
                       onScroll={onChartScroll}
+                      data-planner-pane
                       className="planner-scroll min-h-0 flex-1 overflow-auto"
                     >
                       <GanttBody
@@ -423,7 +438,9 @@ export function PlannerShell() {
               </div>
             )}
 
-            <StatusBar schedule={schedule} />
+            <div data-planner-chrome className="contents">
+              <StatusBar schedule={schedule} />
+            </div>
           </main>
 
           {inspectorOpen && (
