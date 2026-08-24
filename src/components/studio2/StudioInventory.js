@@ -1,7 +1,7 @@
 "use client";
 
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
@@ -278,6 +278,7 @@ const MAX_ITEM_IMAGE = 500 * 1024;
 function ItemImage({ value, onChange }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const fileRef = useRef(null);
 
   async function pick(file) {
     if (!file) return;
@@ -295,27 +296,33 @@ function ItemImage({ value, onChange }) {
     finally { setBusy(false); }
   }
 
+  // Same styled, hidden-input upload as the client logo — never the browser's
+  // raw "Choose File / No file chosen", which reads differently in every browser
+  // and never matched the field beside it. Wrapped in <Field> so its box lines
+  // up with the other controls in the grid.
   return (
-    <div>
-      <label className={label}>Image <span className="font-400 normal-case text-slate-400">(500 KB max)</span></label>
-      <div className="flex items-center gap-3">
-        <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-[var(--geex-inset)] dark:border-white/15">
+    <Field label={<>Image <span className="font-400 normal-case text-slate-400">(500 KB max)</span></>} filled error={err || undefined}>
+      <div className="flex items-center gap-3 px-3.5 pb-1.5 pt-5">
+        <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-md border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {value ? <img src={value} alt="" className="h-full w-full object-cover" />
-                 : <Icon name="services" className="h-5 w-5 text-slate-300" />}
+                 : <Icon name="services" className="h-3.5 w-3.5 text-slate-300" />}
         </span>
-        <div className="min-w-0">
-          <input type="file" accept="image/*" disabled={busy}
-            className="block w-full text-xs text-slate-500 file:me-3 file:rounded-full file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-600 file:text-slate-700 dark:file:bg-white/10 dark:file:text-slate-200"
-            onChange={(e) => pick(e.target.files?.[0])} />
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+        <div className="ms-auto flex items-center gap-1.5">
+          <button type="button" disabled={busy} onClick={() => fileRef.current?.click()}
+            className="rounded-full border border-slate-200 px-3 py-1 text-xs font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/5">
+            {busy ? "Uploading…" : value ? "Change" : "Upload"}
+          </button>
           {value && !busy && (
-            <button type="button" className="mt-1 text-xs text-slate-400 hover:text-rose-600" onClick={() => onChange("")}>Remove</button>
+            <button type="button" onClick={() => onChange("")}
+              className="rounded-full px-2 py-1 text-xs font-600 text-slate-400 transition-colors hover:text-rose-600 dark:hover:text-rose-300">
+              Remove
+            </button>
           )}
-          {busy && <p className="mt-1 text-xs text-slate-400">Uploading…</p>}
-          {err && <p className="mt-1 text-xs text-rose-600">{err}</p>}
         </div>
       </div>
-    </div>
+    </Field>
   );
 }
 
@@ -355,26 +362,17 @@ function ItemForm({ row, vendors, units, studioCurrency = "", busy, onSave, onCa
         <Field label="Vendor" as="select" value={f.vendorId}
           onChange={(v) => setF((s) => ({ ...s, vendorId: v, itemType: "", deliveryWeeks: "" }))}
           options={vendors.map((v) => ({ value: v.id, label: v.name }))} />
-        <div>
-          <label className={label}>
-            Type of item
+        {/* A real <Field as="select"> so it shares the box, height and floating
+            label of the Vendor/Unit selects beside it — the guidance that used to
+            be free-floating text now rides in the field's own hint line. */}
+        <Field label={<>Type of item
             {f.itemType && f.deliveryWeeks !== "" && (
               <span className="font-500 normal-case text-slate-400"> · est. {f.deliveryWeeks} week{Number(f.deliveryWeeks) === 1 ? "" : "s"}</span>
-            )}
-          </label>
-          {!f.vendorId ? (
-            <p className="pt-2 text-sm text-slate-400">Pick a vendor first.</p>
-          ) : types.length === 0 ? (
-            <p className="pt-2 text-sm text-slate-400">This vendor has no item types yet — add them on the vendor.</p>
-          ) : (
-            <select className={input} value={f.itemType} onChange={(e) => pickType(e.target.value)}>
-              <option value="">— select type —</option>
-              {types.map((t) => (
-                <option key={t.type} value={t.type}>{t.type}{t.weeks !== "" && t.weeks != null ? ` (${t.weeks} wk)` : ""}</option>
-              ))}
-            </select>
-          )}
-        </div>
+            )}</>}
+          as="select" value={f.itemType} onChange={pickType}
+          disabled={!f.vendorId || types.length === 0}
+          options={types.map((t) => ({ value: t.type, label: `${t.type}${t.weeks !== "" && t.weeks != null ? ` (${t.weeks} wk)` : ""}` }))}
+          hint={!f.vendorId ? "Pick a vendor first." : types.length === 0 ? "This vendor has no item types yet — add them on the vendor." : undefined} />
         <div className="grid grid-cols-[1fr,7.5rem] gap-3">
           <Field label="Unit cost" type="number" min="0" value={f.unitCost} onChange={(v) => setF((s) => ({ ...s, unitCost: v }))} inputProps={{ step: "0.01" }} />
           {/* What that cost is IN. Blank means the studio's own currency, so an
@@ -767,11 +765,11 @@ function VendorForm({ row, busy, onSave, onCancel }) {
         ) : (
           <div className="mt-2 space-y-2">
             {types.map((t, i) => (
-              <div key={i} className="flex items-end gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
-                <Field label="Type" value={t.type} onChange={(v) => setType(i, "type", v)} hint="e.g. Cameras" className="flex-1" />
+              <div key={i} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
+                <Field label="Type" value={t.type} onChange={(v) => setType(i, "type", v)} className="flex-1" />
                 <Field label="Weeks" type="number" min="0" value={t.weeks} onChange={(v) => setType(i, "weeks", v)} className="w-32" />
                 <button type="button" aria-label="Remove" title="Remove"
-                  className="mb-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-white/5"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-white/5"
                   onClick={() => setTypes((cur) => cur.filter((_, n) => n !== i))}>
                   <Icon name="close" className="h-4 w-4" />
                 </button>
@@ -842,7 +840,7 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
         {canManage && (
           <div className="mt-4">
             <div className="flex flex-wrap gap-2">
-              <Field label="AWB number" hint="e.g. 176-12345675" value={raw} className="sm:max-w-xs"
+              <Field label="AWB number" hint="Prefix + 8 digits" value={raw} className="sm:max-w-xs"
                 onChange={(v) => setRaw(v)}
                 inputProps={{ onKeyDown: (e) => { if (e.key === "Enter" && parsed?.valid) { e.preventDefault(); track(); } } }} />
               <button className={btn} disabled={busy || !parsed?.valid} onClick={track}>{busy ? "Adding…" : "Track"}</button>
@@ -978,8 +976,8 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
             <Field label="Status" as="select" required value={code} onChange={(v) => setCode(v)}
               options={statuses.map((st) => ({ value: st.code, label: `${st.code} — ${st.label}` }))} />
             <Field label={<>When <span className="font-400 normal-case text-slate-400">(now if blank)</span></>} type="datetime-local" value={at} onChange={(v) => setAt(v)} />
-            <Field label="Station" value={station} onChange={(v) => setStation(v.toUpperCase())} hint="e.g. RUH" />
-            <Field label="Flight" value={flightNo} onChange={(v) => setFlightNo(v.toUpperCase())} hint="e.g. EK802" />
+            <Field label="Station" value={station} onChange={(v) => setStation(v.toUpperCase())} hint="3-letter airport code" />
+            <Field label="Flight" value={flightNo} onChange={(v) => setFlightNo(v.toUpperCase())} hint="Airline code + number" />
             <Field label="Note" value={note} onChange={(v) => setNote(v)} className="sm:col-span-2" />
           </div>
           <p className="mt-2 text-xs text-slate-400">{AWB_STATUS_BY_CODE[code]?.desc}</p>
@@ -1021,9 +1019,9 @@ function Airlines({ rows, busy, onSave, onCancel }) {
       {form && (
         <div className="mt-4 rounded-xl border border-brand-500/40 bg-[var(--geex-inset)] p-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Prefix (3 digits)" value={form.prefix} hint="e.g. 176"
+            <Field label="Prefix (3 digits)" value={form.prefix} hint="The airline's 3-digit prefix"
               onChange={(v) => setForm((s) => ({ ...s, prefix: v.replace(/\D/g, "").slice(0, 3) }))} />
-            <Field label="IATA code" value={form.iata} hint="e.g. EK"
+            <Field label="IATA code" value={form.iata} hint="2-letter airline code"
               onChange={(v) => setForm((s) => ({ ...s, iata: v.toUpperCase().slice(0, 3) }))} />
             <Field label="Airline name" value={form.name} className="sm:col-span-2"
               onChange={(v) => setForm((s) => ({ ...s, name: v }))} />

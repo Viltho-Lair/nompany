@@ -532,7 +532,7 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
           onClose={closeForm} width="max-w-[560px]">
           <SimpleForm busy={busy} onCancel={closeForm}
             fields={[
-              { key: "name", label: "Name", required: true, value: form.row?.name || "", placeholder: "Sales Engineer" },
+              { key: "name", label: "Name", required: true, value: form.row?.name || "", placeholder: "Job title" },
               { key: "description", label: "Description", area: true, value: form.row?.description || "" },
             ]}
             onSave={async (values) => {

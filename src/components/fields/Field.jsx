@@ -78,7 +78,11 @@ export function Field({
 
   const wrapping = children != null;
   const hasValue = wrapping ? !!filledProp : String(value ?? "").length > 0;
-  const floated = focused || hasValue;
+  // A <select> ALWAYS shows something — a chosen option, or a deliberate
+  // empty-value one like "Studio" (meaning the studio's own currency). So its
+  // label must always float clear of that text, never rest centred over it. A
+  // value of "" is a real selection for a select, not an empty field.
+  const floated = focused || hasValue || as === "select";
   const describedBy = error ? `${id}-err` : hint ? `${id}-hint` : undefined;
 
   // The label text carries the required mark; the visible star stays.

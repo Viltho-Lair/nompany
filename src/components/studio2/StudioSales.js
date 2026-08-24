@@ -773,24 +773,35 @@ function ClientLogoField({ value, onChange }) {
     finally { setBusy(false); }
   }
 
+  // Wrapped in the SAME <Field> box as Company name / Website beside it, so its
+  // top edge lines up with theirs across the grid row and the preview and button
+  // sit centred on one baseline — rather than a bare label-above control that
+  // floated at a different height. `filled` keeps the label up, since the control
+  // always shows something (a thumbnail, or "None").
   return (
-    <div>
-      <label className={label}>Logo</label>
-      <div className="flex items-center gap-3">
-        <span className="inline-flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1 dark:border-white/10 dark:bg-white/5">
+    <Field label="Logo" filled error={err || undefined}>
+      <div className="flex items-center gap-3 px-3.5 pb-1.5 pt-5">
+        <span className="inline-flex h-6 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5">
           {value
             /* eslint-disable-next-line @next/next/no-img-element */
             ? <img src={value} alt="" className="h-full w-full object-contain" />
-            : <span className="text-[10px] text-slate-400">None</span>}
+            : <span className="text-[9px] font-600 uppercase tracking-wide text-slate-400">None</span>}
         </span>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
-        <button type="button" className={btnGhost} disabled={busy} onClick={() => fileRef.current?.click()}>
-          {busy ? "Uploading…" : value ? "Change" : "Upload"}
-        </button>
-        {value && <button type="button" className={btnGhost} onClick={() => onChange("")}>Remove</button>}
+        <div className="ms-auto flex items-center gap-1.5">
+          <button type="button" disabled={busy} onClick={() => fileRef.current?.click()}
+            className="rounded-full border border-slate-200 px-3 py-1 text-xs font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/5">
+            {busy ? "Uploading…" : value ? "Change" : "Upload"}
+          </button>
+          {value && (
+            <button type="button" onClick={() => onChange("")}
+              className="rounded-full px-2 py-1 text-xs font-600 text-slate-400 transition-colors hover:text-rose-600 dark:hover:text-rose-300">
+              Remove
+            </button>
+          )}
+        </div>
       </div>
-      {err && <p className="mt-1.5 text-xs text-rose-600 dark:text-rose-300">{err}</p>}
-    </div>
+    </Field>
   );
 }
 
@@ -819,7 +830,7 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
         rows={contacts} onChange={setContacts} addLabel="Add contact"
         columns={[
           { key: "name", label: "Name" },
-          { key: "position", label: "Position", options: positions, placeholder: "Procurement Manager" },
+          { key: "position", label: "Position", options: positions },
           { key: "email", label: "Email", type: "email" },
           { key: "phone", label: "Phone" },
         ]}
@@ -830,8 +841,8 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
         rows={locations} onChange={setLocations} addLabel="Add location"
         columns={[
           { key: "name", label: "Site name" },
-          { key: "country", label: "Country", options: COUNTRY_NAMES, placeholder: "Saudi Arabia" },
-          { key: "city", label: "City", options: cities, placeholder: "Riyadh" },
+          { key: "country", label: "Country", options: COUNTRY_NAMES },
+          { key: "city", label: "City", options: cities },
           { key: "url", label: "Map link" },
         ]}
       />
@@ -1118,7 +1129,7 @@ function SalesSettings({ options, selected, services, cities, positions, canMana
         </ul>
         {canManage && (
           <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-            <div><label className={label}>Name</label><input className={input} value={svc.name} onChange={(e) => setSvc((v) => ({ ...v, name: e.target.value }))} placeholder="Audio-visual" /></div>
+            <div><label className={label}>Name</label><input className={input} value={svc.name} onChange={(e) => setSvc((v) => ({ ...v, name: e.target.value }))} placeholder="Service name" /></div>
             <div><label className={label}>Description</label><input className={input} value={svc.description} onChange={(e) => setSvc((v) => ({ ...v, description: e.target.value }))} /></div>
             <div className="flex items-end">
               <button type="button" className={btn} disabled={!svc.name.trim()}

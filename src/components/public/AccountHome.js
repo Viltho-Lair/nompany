@@ -555,7 +555,7 @@ function CreateStudio({ onDone, onClose }) {
       description="A studio is your company's workspace, at its own address on nompany.com.">
       {error && <p className={cn(BANNER_BAD, "mb-4")}>{error}</p>}
       <div className="grid gap-3">
-        <div><label className={LABEL}>Company name</label><input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Trading Co." /></div>
+        <div><label className={LABEL}>Company name</label><input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your company's name" /></div>
         <div>
           <label className={LABEL}>Studio address (company code)</label>
           <div className="flex items-center gap-2">

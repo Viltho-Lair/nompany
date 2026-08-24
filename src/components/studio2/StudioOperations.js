@@ -503,7 +503,7 @@ function ShiftForm({ people, locations, busy, onCancel, onSave }) {
         <Field label="End" type="time" value={form.endTime}
           onChange={(v) => setForm((f) => ({ ...f, endTime: v }))} />
         <Field label="Role" value={form.role}
-          onChange={(v) => setForm((f) => ({ ...f, role: v }))} hint="e.g. Lead technician" />
+          onChange={(v) => setForm((f) => ({ ...f, role: v }))} hint="The role on this shift" />
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !form.date || !form.collaboratorId} onClick={() => onSave(form)}>
