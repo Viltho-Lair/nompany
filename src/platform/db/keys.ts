@@ -328,6 +328,15 @@ export const PLAN = {
   doc: (studioId: string, planId: string) => `${P}s:${studioId}:plan:${planId}`,
 };
 
+// A studio's editable WBS TEMPLATES — the presets a new plan starts from. Seeded
+// once from the built-in set, then owned and edited by the studio in the planner
+// like a plan. Same studio-level shape as PLAN: one index of summaries, one doc
+// (the plan-shaped { meta, tasks }) per template. Die with the studio.
+export const PLAN_TEMPLATE = {
+  index: (studioId: string) => `${P}s:${studioId}:plan-templates`,
+  doc: (studioId: string, templateId: string) => `${P}s:${studioId}:plan-template:${templateId}`,
+};
+
 // ---- indexes (uniqueness claims + O(1) lookups) ----------------------------
 const normEmail = (e: unknown) => String(e || "").trim().toLowerCase();
 export const IX = {

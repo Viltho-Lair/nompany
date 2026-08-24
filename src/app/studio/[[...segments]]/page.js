@@ -323,6 +323,20 @@ export default async function StudioPage({ params }) {
   // the gate is that section's visibility (operations.planner.view); its own APIs
   // re-check. A refusal falls through to the shell's "nothing granted" below.
   if (requested === "operations-planner" && sections.some((s) => s.key === "operations-planner")) {
+    // A WBS TEMPLATE, edited in the planner — /operations-planner/templates/<id>.
+    // It IS the planner, pointed at the template document instead of a plan.
+    if (segments[1] === "templates" && segments[2]) {
+      return (
+        <LiveProvider slug={studio.slug}>
+          <StudioPlanner
+            slug={studio.slug}
+            planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
+            backHref={`/${studio.slug}/operations-planner`}
+            backLabel="Planner"
+          />
+        </LiveProvider>
+      );
+    }
     const planId = segments[1] || "";
     const planApiBase = `/api/studios/${studio.slug}/operations/planner/${planId}`;
     const planHref = `/${studio.slug}/operations-planner/${planId}`;

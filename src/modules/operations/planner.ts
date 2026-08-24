@@ -8,9 +8,10 @@
 // lives in the two route trees; this module does storage and the create seam.
 
 import { editJSON, editArr, getJSON, delKeys } from "@/platform/db/store";
-import { PLAN, ID } from "@/platform/db/keys";
+import { PLAN, PLAN_TEMPLATE, ID } from "@/platform/db/keys";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { TEMPLATES, instantiateTemplate } from "@/components/planner/lib/templates";
 
 export type PlanStatus = "on_track" | "at_risk" | "off_track" | "on_hold";
 
@@ -269,4 +270,115 @@ export async function removeProjectPlans(studioId: string, projectId: string) {
   if (!mine.length) return;
   await delKeys(mine.map((p) => PLAN.doc(studioId, p.id)));
   await editArr<PlanSummary>(PLAN.index(studioId), (all) => ({ next: all.filter((p) => p.projectId !== projectId) }));
+}
+
+// ---- editable WBS templates -------------------------------------------------
+// The presets a new plan starts from, OWNED BY THE STUDIO. Stored plan-shaped
+// ({ meta, tasks }) so the very same planner edits a template as edits a plan,
+// and seeded once from the built-in set the first time they are listed — after
+// that the studio's list is the whole truth (it can add, edit and remove).
+
+export type TemplateSummary = {
+  id: string;
+  name: string;
+  description: string;
+  accent: string;
+  updatedAt: string;
+};
+
+const TEMPLATE_ACCENTS = ["#4573D2", "#5DA283", "#E8A33D", "#CD5B45", "#8B5CF6", "#0EA5E9"];
+
+// Seed the studio's templates from the built-in presets — instantiated into real
+// tasks so each opens in the planner exactly as the old dialog produced it. The
+// index is claimed atomically: a concurrent first-load reads the winner's list
+// and this one's would-be docs are simply never written.
+async function seedTemplates(studioId: string): Promise<TemplateSummary[]> {
+  const now = new Date().toISOString();
+  const built = TEMPLATES.map((t) => ({
+    id: ID.plan(),
+    doc: {
+      meta: { name: t.name, status: "on_track", owner: "", startDate: now.slice(0, 10), description: t.description },
+      tasks: instantiateTemplate(t, new Date()),
+    },
+    summary: { name: t.name, description: t.description, accent: t.accent, updatedAt: now },
+  }));
+
+  let winner: TemplateSummary[] = [];
+  await editArr<TemplateSummary>(PLAN_TEMPLATE.index(studioId), (current) => {
+    if (current.length) { winner = current; return { next: current }; }
+    winner = built.map((b) => ({ id: b.id, ...b.summary }));
+    return { next: winner };
+  });
+
+  // Only the seeder that actually claimed the index writes the documents.
+  if (winner.length && winner[0].id === built[0].id) {
+    for (const b of built) await editJSON(PLAN_TEMPLATE.doc(studioId, b.id), () => ({ next: b.doc }));
+  }
+  return winner;
+}
+
+export async function listTemplates(studioId: string): Promise<TemplateSummary[]> {
+  const rows = await getJSON<TemplateSummary[]>(PLAN_TEMPLATE.index(studioId));
+  if (Array.isArray(rows) && rows.length) return rows;
+  return seedTemplates(studioId);
+}
+
+// The template document, plan-shaped, so StudioPlanner can edit it unchanged.
+export async function readTemplate(studioId: string, templateId: string) {
+  return (await getJSON<Record<string, unknown>>(PLAN_TEMPLATE.doc(studioId, templateId))) || null;
+}
+
+export async function saveTemplateDoc(studioId: string, templateId: string, plan: unknown) {
+  if (!plan || typeof plan !== "object") return { error: "plan" };
+  if (JSON.stringify(plan).length > PLAN_MAX_BYTES) return { error: "too-large" };
+  const doc = await getJSON(PLAN_TEMPLATE.doc(studioId, templateId));
+  if (!doc) return { error: "notfound" };
+
+  const meta = (plan as { meta?: Record<string, unknown> }).meta || {};
+  const tasks = (plan as { tasks?: unknown }).tasks;
+  await editJSON(PLAN_TEMPLATE.doc(studioId, templateId), () => ({
+    next: { meta, tasks: Array.isArray(tasks) ? tasks : [] },
+  }));
+
+  const name = String(meta.name || "").slice(0, 200);
+  const description = String(meta.description || "").slice(0, 500);
+  const now = new Date().toISOString();
+  await editArr<TemplateSummary>(PLAN_TEMPLATE.index(studioId), (rows) => ({
+    next: rows.map((r) => (r.id === templateId ? { ...r, name: name || r.name, description, updatedAt: now } : r)),
+  }));
+  return { ok: true };
+}
+
+export async function createTemplate(studioId: string, rawName?: unknown) {
+  const id = ID.plan();
+  const now = new Date().toISOString();
+  const name = (String(rawName || "").trim() || "New template").slice(0, 200);
+  await editJSON(PLAN_TEMPLATE.doc(studioId, id), () => ({
+    next: { meta: { name, status: "on_track", owner: "", startDate: now.slice(0, 10), description: "" }, tasks: [] },
+  }));
+  await editArr<TemplateSummary>(PLAN_TEMPLATE.index(studioId), (rows) => ({
+    next: [...rows, { id, name, description: "", accent: TEMPLATE_ACCENTS[rows.length % TEMPLATE_ACCENTS.length], updatedAt: now }],
+  }));
+  return { templateId: id };
+}
+
+export async function removeTemplate(studioId: string, templateId: string) {
+  await editArr<TemplateSummary>(PLAN_TEMPLATE.index(studioId), (rows) => ({ next: rows.filter((r) => r.id !== templateId) }));
+  await delKeys([PLAN_TEMPLATE.doc(studioId, templateId)]);
+  return { ok: true };
+}
+
+// One template's tasks, cloned with fresh ids (parent links and dependencies
+// remapped) so "use this template" drops a clean copy into the current plan
+// without two plans ever sharing a task id.
+export function cloneTemplateTasks(tasks: unknown): unknown[] {
+  const list = (Array.isArray(tasks) ? tasks : []) as { id?: string; parentId?: string | null; dependencies?: { predecessorId?: string }[] }[];
+  const idMap = new Map<string, string>();
+  for (const t of list) if (t?.id) idMap.set(t.id, ID.plan());
+  return list.map((t) => ({
+    ...t,
+    id: idMap.get(String(t.id)) ?? ID.plan(),
+    parentId: t.parentId ? idMap.get(t.parentId) ?? null : null,
+    dependencies: (t.dependencies || []).map((d) => ({ ...d, predecessorId: idMap.get(String(d.predecessorId)) ?? d.predecessorId })),
+  }));
 }
