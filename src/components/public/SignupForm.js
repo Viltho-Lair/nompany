@@ -40,7 +40,8 @@ export default function SignupForm({ locale, dict, providers = [] }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(
-          data.error === "exists" ? "That email already has an account."
+          data.error === "closed" ? "Registration is temporarily closed. Please check back later."
+          : data.error === "exists" ? "That email already has an account."
           : data.error === "weak" ? describeFailures(data.failed)
           : data.error === "email" ? "That email address doesn't look right."
           : data.error === "rate-email" || data.error === "rate-ip" ? "Too many attempts. Try again later."
