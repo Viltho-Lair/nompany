@@ -503,23 +503,27 @@ console.log("== the architecture, asserted rather than remembered");
       }
     }
 
-    // MEASURED 22/08/2026, and it is worth reading before assuming a big sweep
-    // is needed. 41, and the studio holds ONE of them:
+    // RE-MEASURED 24/08/2026 after a /super sweep. 37, and it breaks down as:
     //
-    //   20  the landing — decorative blobs in viewport space, plus real ones
+    //   17  the landing — decorative blobs in viewport space, plus marketing
+    //       chrome (TopNav, the hero dashboard mockups) that is English-only
     //   16  shadcn primitives (dropdown-menu 8, select 5, dialog 2, avatar 1),
     //       vendored source we own and can make logical
-    //    2  /super's CatalogEditor
     //    2  Quality, outside the editor — both `ml-auto`
-    //    1  the studio: `left-1/2` paired with `-translate-x-1/2`, which is
-    //       centring and is CORRECT — `start-1/2` would break it, because
-    //       translate-x stays physical
+    //    1  the kanban dialog (vendored) — `left-1/2` with `-translate-x-1/2`,
+    //       centring, CORRECT — `start-1/2` would break it, translate-x is physical
+    //    1  the studio: the same centring `left-1/2` in StudioTicketProfile
     //
-    // The studio's only real one was a toggle knob pinned to `left-`, so in
-    // Arabic the switch read inverted. Fixed in the commit that added this.
+    // WENT FROM 41 TO 37 in the commit that lowered this line: three /super
+    // controls that genuinely mirror were made logical — the toggle knobs in
+    // NovaSwitchboard and CatalogEditor (`left-[22px]`/`left-0.5` → `start-…`,
+    // the exact "knob pinned to left- reads inverted in Arabic" bug once fixed in
+    // the studio) and the MigrationScreen timeline rail (`left-[7px]` → `start-`).
+    // Identical in English, correct in Arabic. Tailwind 3.4 emits `start-*`/`end-*`
+    // as inset-inline utilities, so this is the inset analogue of ps-/pe-/ms-/me-.
     //
     // Lower it as each area is swept; never raise it.
-    const CEILING = 41;
+    const CEILING = 37;
     ok("physical CSS utilities stay inside their ceiling",
       offenders.length <= CEILING, `${offenders.length} of ${CEILING} — ${offenders.slice(0, 6).join(", ")}`);
     // And the counter itself has to be able to see them, or the line above is a
@@ -3053,6 +3057,61 @@ console.log("== migration export: the .sql dump the console and CLI both emit");
   ok("both quotation lines were promoted to child rows",
     (sql.match(/INSERT INTO dbo\.\[QuotationLine\]/g) || []).length === 1
       && sql.includes("-- ── QuotationLine (2 rows) ──"));
+}
+
+// ============================================================================
+console.log("== migration extract: reads one studio, scoped and read-only");
+// The golden above pins transform + emit on synthetic input. This pins the E in
+// ETL against REAL Redis — the fixture studio, seeded through the routes by every
+// section above — because extract is where the two properties that matter live:
+// it must READ ONLY (CLAUDE.md: REDIS_URL is live and shared), and it must never
+// pull a key belonging to another tenant (invariant 2). Scoped to the test
+// namespace, so it exercises the same scanPrefix/getJSON path a live export uses.
+{
+  const { extract } = await import("@/platform/db/migrate/extract");
+  const { scanPrefix } = await import("@/platform/db/store");
+
+  // READ-ONLY, proven rather than asserted: the studio's key count cannot move
+  // across an extract. extract calls getJSON/hGetAll/scanPrefix and nothing that
+  // writes; this is the observable form of that.
+  const base = S.prefix(studio.id);
+  const before = (await scanPrefix(base)).length;
+  const ext = await extract({ kind: "studio", studioId: studio.id });
+  const after = (await scanPrefix(base)).length;
+  ok("extract wrote nothing (key count unchanged)", before === after, `${before} → ${after}`);
+
+  // It grouped rows by table — the shape emit.ts consumes.
+  ok("extract returns a non-empty table map", ext.tables instanceof Map && ext.tables.size > 0, String(ext.tables?.size));
+
+  // The studio's own registry row rides along, with its id VERBATIM — the whole
+  // point of the migration ("ids preserved verbatim").
+  const studioRows = ext.tables.get("Studio") || [];
+  ok("the studio's own row is included, id verbatim",
+    studioRows.length === 1 && studioRows[0].Id === studio.id, JSON.stringify(studioRows[0]?.Id));
+
+  // Sales seeded tickets through the real routes above, so the section-scoped
+  // operational collections (sec:<id>:c:salesTickets) must have surfaced under
+  // their SQL table name — proving the section-key classification in extract works
+  // against real keys, not just the synthetic fixture.
+  const ticketRows = ext.tables.get("SalesTicket") || [];
+  ok("section-scoped SalesTicket rows were extracted", ticketRows.length > 0, String(ticketRows.length));
+
+  // TENANCY: every row that carries a StudioId carries THIS studio's — extract of
+  // one studio cannot reach another's keys. Proven across every table at once, so
+  // a new collection is covered without naming it.
+  const foreign = [];
+  for (const [table, rows] of ext.tables) {
+    for (const row of rows) {
+      if ("StudioId" in row && row.StudioId != null && row.StudioId !== studio.id) {
+        foreign.push(`${table}:${row.StudioId}`);
+      }
+    }
+  }
+  ok("no extracted row belongs to another tenant", foreign.length === 0, foreign.slice(0, 5).join(", "));
+
+  // Every operational row is tagged with the studio, which is what makes the SQL
+  // schema's StudioId column (and its cross-tenant FK) fillable at all.
+  ok("operational rows are studio-tagged", ticketRows.every((r) => r.StudioId === studio.id), "");
 }
 
 // ============================================================================
