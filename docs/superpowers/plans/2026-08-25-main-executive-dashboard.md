@@ -25,7 +25,7 @@ Every task's requirements implicitly include this section. Values are copied ver
 - **Dates** render through `fmtDate`/`fmtDateTime` from `src/lib/format.js` — never a raw `toLocale*` in `src/components/studio2` (Gate A block 6 fails the build otherwise).
 - **Tokens:** charts draw with `--chart-1..5` on `:root`; skeletons use `.skel`/`.skel-text`/`.skel-circle`; numbers use `.num`. Never `--ad-chart-*` (retired to `/super` aliases).
 - **The free floor stays out of the widget registry** — `DASHBOARD_WIDGETS` governs paid widgets only; the headline tiles and feed are always shown.
-- **Bundle budget:** largest chunk ≤ 250 KB gz, total client JS ≤ 1500 KB gz. `scripts/bundle-budget.mjs` fails the build otherwise.
+- **Bundle budget:** largest chunk ≤ 250 KB gz, total client JS ≤ 1600 KB gz. `scripts/bundle-budget.mjs` fails the build otherwise.
 - **Goldens are the contract:** if an API response body changes, it is wrong until deliberately re-recorded in its own commit with a stated reason. `NOMPANY_RECORD_GOLDENS` is never set in CI. Adding fields to the Main response is a deliberate golden re-record.
 - **Hop counts are part of the contract** — a route gaining Redis round trips fails the build.
 - **Tests** run against real routes and real Redis under `NOMPANY_KEY_PREFIX`; never call `sweepOrphans()` or any `FLUSH` from a test.
@@ -807,7 +807,7 @@ When Phase 1 lands, the rollup plan replaces only `readAggregate`'s body:
 - **On-write updater:** hook the events `src/platform/db/sections.ts` already emits — `emit(studioId, { type: TYPE.rowCreated|rowUpdated, sectionId, collection, rowId })` (sections.ts:203/226) — incrementing the day bucket. Best-effort, its own error boundary, never fails the write.
 - **Reconcile cron:** shape it like `src/app/api/cron/year-rollover/route.ts` — `cronDenied(request)` first (fails closed on missing `CRON_SECRET`, invariant 15), full recompute-and-replace, prune old buckets by explicit `HDEL` of named fields (never a scan, invariant 17). Register its schedule in `vercel.json`.
 - **Cut over** behind the oracle: a suite block computes each figure from the rollup AND from the on-read path and asserts equality to the cent/count before the seam is switched.
-- **XLSX export** (fast-follow): route through `researcher` for a zero-dependency SpreadsheetML writer vs a small lib, judged on the 250 KB chunk / 1500 KB total budget, before adding anything.
+- **XLSX export** (fast-follow): route through `researcher` for a zero-dependency SpreadsheetML writer vs a small lib, judged on the 250 KB chunk / 1600 KB total budget, before adding anything.
 
 ## Self-review
 

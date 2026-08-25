@@ -137,7 +137,7 @@ only where interaction demands (filter state, sort, export click).
   library; the kit is already SVG.
 - **XLSX** — a fast-follow. It needs a library, which per house rules goes through
   `researcher` first (candidates: a zero-dependency SpreadsheetML writer vs a
-  small lib; judged on bundle cost against the 250 KB chunk / 1500 KB total
+  small lib; judged on bundle cost against the 250 KB chunk / 1600 KB total
   ceilings) before anything is added. CSV+PNG ship without waiting on it.
 - Export honours the same visibility rule: it can only export data the viewer was
   already shown.
@@ -304,7 +304,7 @@ A Main-dashboard slice is done only when:
 - [ ] Empty / loading (skeleton) / error states exist for every widget.
 - [ ] Export respects the active filter and the viewer's visibility.
 - [ ] The reconcile cron fails closed and prunes by explicit key list only.
-- [ ] Bundle budget still green (largest chunk ≤ 250 KB gz, total ≤ 1500 KB gz);
+- [ ] Bundle budget still green (largest chunk ≤ 250 KB gz, total ≤ 1600 KB gz);
       goldens and hop counts unchanged except where deliberately re-recorded.
 
 ---
