@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { enGB } from "date-fns/locale/en-GB";
@@ -89,13 +88,10 @@ export function peopleToResources(people) {
 
 const DEBOUNCE_MS = 600;
 
-export default function StudioPlanner({ slug, planApiBase, backHref, backLabel, printHref }) {
+export default function StudioPlanner({ slug, planApiBase }) {
   const hydratePlan = usePlannerStore((s) => s.hydratePlan);
   const setResources = usePlannerStore((s) => s.setResources);
   const setCalendar = usePlannerStore((s) => s.setCalendar);
-  // Read the plan name straight from the store so the back bar title tracks
-  // edits the user makes in the planner's own header.
-  const planName = usePlannerStore((s) => s.meta.name);
 
   const [state, setState] = useState({ loading: true, canEdit: false, error: false });
   const hydratedRef = useRef(false);
@@ -172,32 +168,10 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel, 
 
   return (
     <div data-planner-print-root className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-white">
-      {/* ---- back bar: nompany chrome around the ported app ---- */}
-      <header data-planner-chrome className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
-        <Link
-          href={backHref}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-        >
-          <span aria-hidden="true" className="rtl:-scale-x-100">
-            ←
-          </span>
-          {backLabel}
-        </Link>
-
-        <div className="min-w-0">
-          <p className="truncate text-[15px] font-semibold text-slate-900">
-            {planName || "Untitled plan"}
-          </p>
-        </div>
-
-        {!state.loading && !state.canEdit && (
-          <span className="ms-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">
-            View only
-          </span>
-        )}
-      </header>
-
-      {/* ---- the ported planner, inside its scoped design-system root ---- */}
+      {/* The planner is just the WBS grid and the waterfall now — no back bar,
+          plan-name or print chrome. Ctrl+P prints the HTML directly, and the
+          @media print rules in globals.css hide the toolbar so the printed page
+          is the two panes alone. */}
       <div className="min-h-0 flex-1">
         <div className="planner-root h-full">
           {state.loading ? (
@@ -210,7 +184,7 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel, 
             </div>
           ) : (
             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
-              <PlannerShell printHref={printHref} />
+              <PlannerShell />
             </LocalizationProvider>
           )}
         </div>

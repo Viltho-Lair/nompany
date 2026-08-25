@@ -1,42 +1,22 @@
 'use client';
 
 import * as React from 'react';
-import {
-  AlertTriangle,
-  BarChart3,
-  Columns2,
-  LayoutTemplate,
-  PanelRightOpen,
-  Printer,
-  Rows3,
-  Star,
-} from 'lucide-react';
+import { AlertTriangle, BarChart3, LayoutTemplate } from 'lucide-react';
 import type { ComputedTask } from '@/components/planner/lib/types';
 import { computeSchedule } from '@/components/planner/lib/schedule/engine';
 import { buildTimeline, ROW_HEIGHT } from '@/components/planner/lib/timeline';
 import { usePlannerStore, ALL_COLUMNS } from '@/components/planner/lib/store/plannerStore';
 import { TooltipProvider } from '@/components/planner/ui/primitives';
 import { Button } from '@/components/planner/ui/button';
-import { AvatarStack } from './Avatar';
 import { GanttBody, GanttHeader } from './GanttChart';
 import { Inspector } from './Inspector';
 import { TaskTable, TaskTableHeader } from './TaskTable';
 import { TemplateDialog } from './TemplateDialog';
 import { Toolbar } from './Toolbar';
-import { cn, formatCurrency, formatMediumDate } from '@/components/planner/lib/utils';
+import { formatCurrency, formatMediumDate } from '@/components/planner/lib/utils';
 
-type ViewMode = 'split' | 'grid' | 'timeline';
-
-const PROJECT_STATUS = {
-  on_track: { label: 'On Track', dot: '#5DA283' },
-  at_risk: { label: 'At Risk', dot: '#F1BD6C' },
-  off_track: { label: 'Off Track', dot: '#F06A6A' },
-  on_hold: { label: 'On Hold', dot: '#9CA3AF' },
-} as const;
-
-export function PlannerShell({ printHref }: { printHref?: string } = {}) {
+export function PlannerShell() {
   const {
-    meta,
     tasks,
     calendar,
     resources,
@@ -45,8 +25,6 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
     inspectorOpen,
     selectedId,
     trimTimeline,
-    setMeta,
-    setInspectorOpen,
     select,
     undo,
     redo,
@@ -57,7 +35,6 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
   } = usePlannerStore();
 
   const [mounted, setMounted] = React.useState(false);
-  const [view, setView] = React.useState<ViewMode>('split');
   const [templatesOpen, setTemplatesOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [gridWidth, setGridWidth] = React.useState(560);
@@ -124,14 +101,6 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
     }
     return schedule.tasks.filter((t) => keep.has(t.id));
   }, [search, schedule, resources]);
-
-  // The people shown at the top are the ones actually put on a task, not the
-  // whole studio — the header answers "who is on this plan", so an unassigned
-  // colleague does not belong in it.
-  const assignedResources = React.useMemo(() => {
-    const ids = new Set(tasks.flatMap((t) => t.assigneeIds ?? []));
-    return resources.filter((r) => ids.has(r.id));
-  }, [tasks, resources]);
 
   const gridContentWidth = React.useMemo(
     () =>
@@ -254,17 +223,10 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
     window.addEventListener('pointerup', onUp);
   };
 
-  const showGrid = view !== 'timeline';
-  const showChart = view !== 'grid';
-  const statusMeta = PROJECT_STATUS[meta.status];
-
-  // PRINT — opens the plan's own printable page (WBS table beside the waterfall),
-  // which fires the print itself. A new tab, so the plan stays open behind it.
-  // Falls back to printing the current view if no print route was supplied.
-  const handlePrint = () => {
-    if (printHref) window.open(printHref, '_blank');
-    else window.print();
-  };
+  // The WBS grid beside the waterfall, always. The view tabs went with the rest
+  // of the planner's chrome — the screen is those two panes and the toolbar.
+  const showGrid = true;
+  const showChart = true;
 
   // The store starts empty and is hydrated on the client, so the server and the
   // first client pass can never agree on the first paint. Rendering a skeleton
@@ -275,94 +237,6 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
   return (
     <TooltipProvider delayDuration={350}>
       <div data-planner-print-root className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F9FAFB]">
-        {/* ============================ top bar ============================ */}
-        <header data-planner-chrome className="shrink-0 border-b border-slate-200 bg-white px-4 pt-2.5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-white">
-              <BarChart3 className="h-4 w-4" />
-            </div>
-
-            <input
-              value={meta.name}
-              onChange={(e) => setMeta({ name: e.target.value })}
-              placeholder="Untitled plan"
-              className="min-w-0 max-w-md flex-1 rounded border border-transparent px-1 text-[17px] font-semibold text-slate-900 outline-none hover:border-slate-200 focus:border-primary"
-            />
-
-            <Star className="h-4 w-4 shrink-0 fill-amber-400 text-amber-400" />
-
-            <button
-              type="button"
-              onClick={() =>
-                setMeta({
-                  status:
-                    meta.status === 'on_track'
-                      ? 'at_risk'
-                      : meta.status === 'at_risk'
-                        ? 'off_track'
-                        : meta.status === 'off_track'
-                          ? 'on_hold'
-                          : 'on_track',
-                })
-              }
-              className="flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] text-slate-600 hover:bg-slate-100"
-            >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: statusMeta.dot }}
-              />
-              {statusMeta.label}
-            </button>
-
-            <div className="flex-1" />
-
-            <AvatarStack resources={assignedResources} size={26} max={4} />
-
-            <Button variant="outline" size="sm" onClick={handlePrint}>
-              <Printer className="h-3.5 w-3.5" />
-              Print
-            </Button>
-
-            <Button variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>
-              <LayoutTemplate className="h-3.5 w-3.5" />
-              Presets
-            </Button>
-
-            <Button
-              variant={inspectorOpen ? 'secondary' : 'outline'}
-              size="icon-sm"
-              onClick={() => setInspectorOpen(!inspectorOpen)}
-            >
-              <PanelRightOpen className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-
-          {/* view tabs */}
-          <div className="mt-1.5 flex items-center gap-1">
-            <ViewTab
-              active={view === 'split'}
-              onClick={() => setView('split')}
-              icon={<Columns2 className="h-3.5 w-3.5" />}
-            >
-              Split
-            </ViewTab>
-            <ViewTab
-              active={view === 'grid'}
-              onClick={() => setView('grid')}
-              icon={<Rows3 className="h-3.5 w-3.5" />}
-            >
-              Information table
-            </ViewTab>
-            <ViewTab
-              active={view === 'timeline'}
-              onClick={() => setView('timeline')}
-              icon={<BarChart3 className="h-3.5 w-3.5" />}
-            >
-              Waterfall
-            </ViewTab>
-          </div>
-        </header>
-
         {/* =========================== toolbar =========================== */}
         <div data-planner-chrome className="contents">
           <Toolbar
@@ -384,7 +258,7 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
                 {showGrid && (
                   <div
                     className="flex min-w-0 shrink-0 flex-col"
-                    style={{ width: view === 'grid' ? '100%' : gridWidth }}
+                    style={{ width: gridWidth }}
                   >
                     <div
                       ref={gridHeadRef}
@@ -397,10 +271,7 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
                       ref={gridBodyRef}
                       onScroll={onGridScroll}
                       data-planner-pane
-                      className={cn(
-                        'min-h-0 flex-1 overflow-auto',
-                        view === 'grid' ? 'planner-scroll' : 'no-scrollbar',
-                      )}
+                      className="no-scrollbar min-h-0 flex-1 overflow-auto"
                     >
                       <TaskTable
                         rows={rows}
@@ -413,15 +284,13 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
                 )}
 
                 {/* ------------------- splitter ------------------- */}
-                {view === 'split' && (
-                  <div
-                    onPointerDown={startResize}
-                    data-planner-chrome
-                    className="group relative w-px shrink-0 cursor-col-resize bg-slate-200"
-                  >
-                    <div className="absolute inset-y-0 -inset-x-1 group-hover:bg-primary/20" />
-                  </div>
-                )}
+                <div
+                  onPointerDown={startResize}
+                  data-planner-chrome
+                  className="group relative w-px shrink-0 cursor-col-resize bg-slate-200"
+                >
+                  <div className="absolute inset-y-0 -inset-x-1 group-hover:bg-primary/20" />
+                </div>
 
                 {/* ------------------ waterfall chart ------------------ */}
                 {showChart && (
@@ -498,35 +367,6 @@ function PlannerSkeleton() {
       </div>
       <div className="h-8 shrink-0 border-t border-slate-200 bg-white" />
     </div>
-  );
-}
-
-function ViewTab({
-  active,
-  onClick,
-  icon,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'relative flex items-center gap-1.5 px-2.5 pb-2 pt-1 text-[13px] font-medium transition-colors',
-        'after:absolute after:inset-x-1 after:bottom-0 after:h-[2px] after:rounded-full',
-        active
-          ? 'text-primary after:bg-primary'
-          : 'text-slate-500 after:bg-transparent hover:text-slate-800',
-      )}
-    >
-      {icon}
-      {children}
-    </button>
   );
 }
 
