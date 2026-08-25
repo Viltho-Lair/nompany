@@ -945,6 +945,7 @@ console.log("== technical: converting, locking, and the rights that are not bigg
   const RFQS = await import("@/app/api/studios/[slug]/technical/rfqs/route.ts");
   const QUOTES = await import("@/app/api/studios/[slug]/technical/quotations/route.ts");
   const TECH = await import("@/app/api/studios/[slug]/technical/route.ts");
+  const APPROVAL = await import("@/app/api/studios/[slug]/technical/quotations/approval/route.ts");
 
   const P = ctx({ slug });
   const shot = async (name, payload) => {
@@ -979,6 +980,18 @@ console.log("== technical: converting, locking, and the rights that are not bigg
     QUOTES.POST, req(`/api/studios/${slug}/technical/quotations`, { method: "POST", body: { rfqId } }), P));
   const quotationId = converted.body?.quotation?.id;
   ok("the RFQ converted to a quotation", Boolean(quotationId), JSON.stringify(converted.body).slice(0, 120));
+
+  // THE APPROVAL DOOR ASKS FOR ITS OWN RIGHT, not "any Technical write". Reusing
+  // `editor` here rather than minting a new collaborator: a new named person in
+  // this shared studio shows up in every later golden that lists collaborators
+  // (Projects, HR, Operations all did, and each one broke on the first attempt
+  // at this test) — `editor` already exists and is already baked into every
+  // golden recorded after this point, so asking one more question of them adds
+  // no new row anywhere.
+  await signIn(editor.id);
+  await shot("technical.approval.refused.forbidden", await capture(
+    APPROVAL.POST, req(`/api/studios/${slug}/technical/quotations/approval`, { method: "POST", body: { quotationId } }), P));
+  await signIn(owner.id);
 
   // THE ONE RECIPROCAL EDGE IN THE WHOLE GRAPH. Every other link is held by the
   // child alone; converting writes the quotation's id back onto the RFQ, so
@@ -1060,6 +1073,222 @@ console.log("== technical: converting, locking, and the rights that are not bigg
 }
 
 // ============================================================================
+console.log("== technical: sequences numbered independently, and the approval door");
+// SEQUENCES REPLACED THE SINGLE {mode,prefix,start}: a studio now numbers as
+// many kinds of quotation as it names, each running its own counter off its
+// own prefix — nextUniqueRef only ever counts a row starting with `${prefix}-`,
+// so two sequences share the quotations collection without either filtering
+// it, and the regression this guards is a shared counter handing sequence A's
+// second quotation the number sequence B's first one just took.
+//
+// AND sendQuotationForApproval is new: the ticket-less twin of Sales' own
+// Send-for-Approval button, for a quotation that never touched a ticket.
+{
+  const TECH = await import("@/app/api/studios/[slug]/technical/route.ts");
+  const APPROVAL = await import("@/app/api/studios/[slug]/technical/quotations/approval/route.ts");
+  const SERVICES = await import("@/app/api/studios/[slug]/sales/services/route.ts");
+  const TICKETS = await import("@/app/api/studios/[slug]/sales/tickets/route.ts");
+  const RFQROUTE = await import("@/app/api/studios/[slug]/sales/tickets/rfq/route.ts");
+  const {
+    technicalContext, saveTechnicalSettings, createQuotation, convertRfq, updateQuotation,
+    sendQuotationForApproval, listQuotations,
+  } = await import("@/modules/technical/technical");
+  const { repo } = await import("@/platform/db/repo");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  // NO new collaborator is minted anywhere in this block — see the note beside
+  // the approval-forbidden case below for why.
+  const techCtx = () => technicalContext(owner, slug);
+
+  await signIn(owner.id);
+
+  // ---- settings: sequences are validated on the way in ---------------------
+  const badEmpty = await saveTechnicalSettings(await techCtx(), { sequences: [{ prefix: "", label: "Nothing" }] });
+  ok("a sequence with no prefix is refused before it saves", badEmpty.error === "prefix", JSON.stringify(badEmpty));
+
+  const badDup = await saveTechnicalSettings(await techCtx(), {
+    sequences: [{ prefix: "SQA", label: "A" }, { prefix: "sqa", label: "A again" }],
+  });
+  ok("a case-insensitive duplicate prefix is refused", badDup.error === "prefix-duplicate", JSON.stringify(badDup));
+
+  const saved = await saveTechnicalSettings(await techCtx(), {
+    sequences: [
+      { id: "seqA", label: "Internal", prefix: "SQA", start: 1 },
+      { id: "seqB", label: "Client work", prefix: "SQB", start: 1 },
+    ],
+    defaultSequenceId: "seqB",
+  });
+  ok("two sequences with distinct prefixes save cleanly",
+    Array.isArray(saved.sequences) && saved.sequences.length === 2, JSON.stringify(saved));
+  ok("...and the default sequence is recorded", saved.defaultSequenceId === "seqB", saved.defaultSequenceId);
+
+  const afterSave = await capture(TECH.GET, req(`/api/studios/${slug}/technical`), P);
+  ok("the GET route carries both sequences and drops the old single field",
+    (afterSave.body?.sequences || []).map((s) => s.prefix).sort().join(",") === "SQA,SQB"
+    && afterSave.body?.nextQuotationNumber === undefined,
+    JSON.stringify(afterSave.body?.sequences));
+
+  // ---- per-sequence continuation: A, then B, then A again -------------------
+  const need = (over) => ({
+    sequenceId: "seqA", clientId: "", clientName: "Continuation Client",
+    title: "Continuation check", industry: "Commercial", deadline: "2026-12-20",
+    description: "seq test", ...over,
+  });
+
+  const a1 = await createQuotation(await techCtx(), need({}));
+  ok("sequence A issues its first number", a1.quotation?.number === "SQA-0001",
+    JSON.stringify(a1.error || a1.quotation?.number));
+
+  const b1 = await createQuotation(await techCtx(), need({ sequenceId: "seqB" }));
+  ok("sequence B starts its own run at 1, unaffected by A's",
+    b1.quotation?.number === "SQB-0001", JSON.stringify(b1.error || b1.quotation?.number));
+
+  const a2 = await createQuotation(await techCtx(), need({}));
+  ok("sequence A continues from its OWN last number, not B's",
+    a2.quotation?.number === "SQA-0002", JSON.stringify(a2.error || a2.quotation?.number));
+
+  // ---- convertRfq numbers from the DEFAULT sequence -------------------------
+  // AN EXISTING SALES CLIENT IS REUSED, not created: "Acme Holdings" and
+  // "Second Client" were both raised in the Sales block above, and creating a
+  // THIRD one here showed up — by name — in projects.empty and
+  // projects.list.populated, whose goldens pin the studio's whole salesClients
+  // list embedded in the Projects response. A new client anywhere in this
+  // shared studio is exactly as visible there as a new collaborator is in a
+  // people list (see the note beside the approval-forbidden case above).
+  const techForClients = await techCtx();
+  const existingClient = (await repo("salesClients").find(
+    { studio: techForClients.studio, section: techForClients.salesClientsSection },
+  ))[0];
+  ok("fixture: the studio already has a Sales client to reuse", Boolean(existingClient?.id), JSON.stringify(existingClient));
+
+  const svc = await capture(SERVICES.POST, req(`/api/studios/${slug}/sales/services`, { method: "POST", body: { name: "Sequence Test Service" } }), P);
+  const tkt = await capture(TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: {
+    title: "Default sequence check", clientId: existingClient?.id, industry: "Commercial", deadline: "2026-12-22",
+    serviceIds: [svc.body?.service?.id],
+  } }), P);
+  const rfqAsk = await capture(RFQROUTE.POST, req(`/api/studios/${slug}/sales/tickets/rfq`, { method: "POST", body: { ticketId: tkt.body?.ticket?.id } }), P);
+
+  const conv2 = await convertRfq(await techCtx(), { rfqId: rfqAsk.body?.rfq?.id });
+  ok("converting an RFQ numbers under the studio's DEFAULT sequence, not sequence A",
+    conv2.quotation?.number === "SQB-0002", JSON.stringify(conv2.error || conv2.quotation?.number));
+
+  // ---- createQuotation: one required-field error per missing field ---------
+  const noSeq = await createQuotation(await techCtx(), need({ sequenceId: "" }));
+  ok("no sequence named is refused as 'sequence'", noSeq.error === "sequence", JSON.stringify(noSeq));
+
+  const noClient = await createQuotation(await techCtx(), need({ clientId: "", clientName: "" }));
+  ok("no client named is refused as 'client'", noClient.error === "client", JSON.stringify(noClient));
+
+  const badClientId = await createQuotation(await techCtx(), need({ clientId: "sal_doesnotexist000", clientName: "" }));
+  ok("a clientId that is not a real Sales client is refused as 'client'",
+    badClientId.error === "client", JSON.stringify(badClientId));
+
+  const realClient = await createQuotation(await techCtx(), need({ clientId: existingClient?.id, clientName: "" }));
+  ok("a real Sales client id is accepted", Boolean(realClient.quotation), JSON.stringify(realClient.error));
+  ok("...and typing a name never creates a Sales client — the id and the free text are never both stored",
+    realClient.quotation?.clientId === existingClient?.id && realClient.quotation?.clientName === "",
+    JSON.stringify({ clientId: realClient.quotation?.clientId, clientName: realClient.quotation?.clientName }));
+
+  const noTitle = await createQuotation(await techCtx(), need({ title: "" }));
+  ok("no title is refused as 'title'", noTitle.error === "title", JSON.stringify(noTitle));
+
+  const noIndustry = await createQuotation(await techCtx(), need({ industry: "" }));
+  ok("no industry is refused as 'industry'", noIndustry.error === "industry", JSON.stringify(noIndustry));
+
+  const noDeadline = await createQuotation(await techCtx(), need({ deadline: "" }));
+  ok("no deadline is refused as 'deadline'", noDeadline.error === "deadline", JSON.stringify(noDeadline));
+
+  const noDescription = await createQuotation(await techCtx(), need({ description: "" }));
+  ok("no description is refused as 'description'", noDescription.error === "description", JSON.stringify(noDescription));
+
+  // NO 'duplicate' CASE HERE: the number is always server-issued through
+  // nextNumberForSequence, which self-seeds past the highest number already on
+  // file (invariant 10) — a caller cannot submit one that collides, so that
+  // branch is unreachable through this API. Advancement past an existing
+  // number is already covered above ("sequence A continues from its OWN last
+  // number, not B's").
+
+  // ---- listQuotations: fromSales, and an internal row's own fields ---------
+  const rows = await listQuotations(await techCtx());
+  const convertedRow = rows.find((q) => q.id === conv2.quotation?.id);
+  ok("a converted quotation reads fromSales: true", convertedRow?.fromSales === true, JSON.stringify(convertedRow?.fromSales));
+  const internalRow = rows.find((q) => q.id === a1.quotation?.id);
+  ok("an internal quotation reads fromSales: false", internalRow?.fromSales === false, JSON.stringify(internalRow?.fromSales));
+  ok("...and carries its own client, industry and deadline",
+    internalRow?.clientName === "Continuation Client" && internalRow?.industry === "Commercial"
+    && internalRow?.deadline === "2026-12-20",
+    JSON.stringify({ clientName: internalRow?.clientName, industry: internalRow?.industry, deadline: internalRow?.deadline }));
+
+  // ---- sendQuotationForApproval: every guard, then the raise ---------------
+  await shot("technical.approval.refused.hasticket", await capture(
+    APPROVAL.POST, req(`/api/studios/${slug}/technical/quotations/approval`, { method: "POST", body: { quotationId: conv2.quotation?.id } }), P));
+
+  const stillNew = await sendQuotationForApproval(await techCtx(), { quotationId: a1.quotation?.id });
+  ok("an unfinished quotation is refused as 'not-completed'", stillNew.error === "not-completed", JSON.stringify(stillNew));
+
+  await updateQuotation(await techCtx(), a1.quotation?.id, { status: "Completed" });
+  const approvedDirect = await updateQuotation(await techCtx(), b1.quotation?.id, { status: "Approved" });
+  ok("fixture: a quotation can be marked Approved by hand", approvedDirect.quotation?.status === "Approved",
+    JSON.stringify(approvedDirect.error));
+  const alreadyApproved = await sendQuotationForApproval(await techCtx(), { quotationId: b1.quotation?.id });
+  ok("an already-approved quotation is refused as 'approved'", alreadyApproved.error === "approved", JSON.stringify(alreadyApproved));
+
+  // REVERTED RATHER THAN LEFT APPROVED: the projects block below finds "the"
+  // approved quotation in this same studio by `status === "Approved"` and
+  // opens a project from it — listQuotations sorts newest first, so leaving
+  // this fixture Approved would make it win that search ahead of the
+  // ticket-backed quotation the projects block actually means, and a project
+  // opened from a ticketless one fails "the project names its ticket" for a
+  // reason that has nothing to do with what that block tests.
+  await updateQuotation(await techCtx(), b1.quotation?.id, { status: "Completed" });
+
+  // Default-deny on this door — permission checked before any state on the
+  // record — is pinned once already, in the block above, by reusing `editor`
+  // (who already exists in this studio) rather than minting a second named
+  // collaborator here: that is exactly what broke projects.empty,
+  // projects.list.populated, hr.list.* and operations.board on the first
+  // attempt at this test — a NEW alias in this shared studio shows up in every
+  // later golden that lists collaborators, however unrelated to Technical.
+
+  const raised = await shot("technical.approval.raised", await capture(
+    APPROVAL.POST, req(`/api/studios/${slug}/technical/quotations/approval`, { method: "POST", body: { quotationId: a1.quotation?.id } }), P));
+  ok("a finished internal quotation raises an approval task", raised.status === 201 && raised.body?.task?.type === "approval",
+    JSON.stringify(raised.body).slice(0, 140));
+  ok("...tied to the quotation, and carrying no ticketId — the field every reader uses to route the OTHER door",
+    raised.body?.task?.quotationId === a1.quotation?.id && !raised.body?.task?.ticketId,
+    JSON.stringify({ q: raised.body?.task?.quotationId, t: raised.body?.task?.ticketId }));
+
+  await shot("technical.approval.refused.already", await capture(
+    APPROVAL.POST, req(`/api/studios/${slug}/technical/quotations/approval`, { method: "POST", body: { quotationId: a1.quotation?.id } }), P));
+
+  // ---- and the tenant wall: another studio's clients never show here -------
+  // A DIRECT REPO WRITE UNDER A FOREIGN studioId/sectionId, deliberately NOT a
+  // full createStudio(): that call announces itself with a platform-wide "New
+  // studio registered" notification (see super/notifications), and a second
+  // real studio here would become the newest one and silently rewrite the
+  // super.notifications golden with a studio this test invented. The isolation
+  // this proves is the key scoping in repo.ts (scopeOf: studioId+sectionId
+  // compose the Redis key) — the exact mechanism technicalClients relies on —
+  // and that mechanism does not care whether the foreign studioId came from a
+  // real createStudio() or not, so a synthetic one exercises it identically
+  // without the side effect.
+  const foreignScope = { studioId: `std_foreign${rand()}`, sectionId: `sec_foreign${rand()}` };
+  await repo("salesClients").create(foreignScope, { name: "Studio B Confidential Client" });
+  const bleedCheck = await capture(TECH.GET, req(`/api/studios/${slug}/technical`), P);
+  const clientNames = (bleedCheck.body?.vocabulary?.clients || []).map((c) => c.name);
+  ok("Studio A's vocabulary.clients does not carry Studio B's client — no tenant bleed",
+    !clientNames.includes("Studio B Confidential Client"), JSON.stringify(clientNames));
+  ok("...while Studio A's own clients are present", clientNames.includes(existingClient?.name), JSON.stringify(clientNames));
+
+  __signOut();
+}
+
+// ============================================================================
 console.log("== projects: opened from an approved quotation, and only once");
 // The far end of the order-to-cash spine, and the place three rules meet:
 //
@@ -1110,9 +1339,22 @@ console.log("== projects: opened from an approved quotation, and only once");
   // Technical block, because the only approved quotation in the studio is the
   // one that legitimately opens a project below.
   const QUOTES = await import("@/app/api/studios/[slug]/technical/quotations/route.ts");
+  // THE NEW CONTRACT: no client-sent `number` — the sequence names WHICH run
+  // this counts against and the server issues the number itself (see
+  // createQuotation's own comment on why a client-sent number is exactly the
+  // field-tampering item 8 of the security checklist closes off). `tech` was
+  // just read above, so its own `sequences` list names a real sequenceId
+  // rather than the retired single-default one.
   const internal = await capture(QUOTES.POST, req(`/api/studios/${slug}/technical/quotations`, {
     method: "POST",
-    body: { number: "Q-INTERNAL-1", description: "Site survey, not yet approved", handledBy: "Owner" },
+    body: {
+      sequenceId: tech.body?.sequences?.[0]?.id,
+      clientName: "Site Survey Co",
+      title: "Site survey, not yet approved",
+      industry: "Commercial",
+      deadline: "2026-12-15",
+      description: "Site survey, not yet approved",
+    },
   }), P);
   const draftId = internal.body?.quotation?.id;
   ok("an internal quotation can be raised without an RFQ", Boolean(draftId),
@@ -3263,6 +3505,7 @@ console.log("== hop counts: how many round trips a screen costs");
 {
   const SALES = (await import("@/app/api/studios/[slug]/sales/route.ts"));
   const STUDIO = (await import("@/app/api/studios/[slug]/route.ts"));
+  const TECHHOP = (await import("@/app/api/studios/[slug]/technical/route.ts"));
 
   await signIn(owner.id);
 
@@ -3316,6 +3559,18 @@ console.log("== hop counts: how many round trips a screen costs");
 
   const sectionReads = salesCall.names.filter((n) => n === "get").length;
   ok("the sales route's read count is recorded", sectionReads > 0, `${sectionReads} GETs`);
+
+  // TECHNICAL GREW A SIXTH LIST — vocabulary.clients, for the internal-
+  // quotation picker — and the route's own comment says it was folded into
+  // the existing Promise.all rather than read after. Measured at 5 waves: the
+  // ceiling sits one above that, same convention as the two routes above, so
+  // an accidental extra round trip (clients read AFTER the rest rather than
+  // inside the same Promise.all) fails the build instead of shipping quietly.
+  const techCall = await withCommandCount(() => capture(TECHHOP.GET, req(`/api/studios/${slug}/technical`), ctx({ slug })));
+  console.log(`       GET /api/studios/<slug>/technical  ${techCall.commands} commands, ${techCall.waves} waves`);
+  ok("the technical route is measured at all", techCall.commands > 0);
+  ok("the technical route stays under its ceiling — vocabulary.clients joined the existing Promise.all rather than adding one",
+    techCall.waves <= 6, `${techCall.waves} waves: ${techCall.names.join(",")}`);
 
   __signOut();
 }

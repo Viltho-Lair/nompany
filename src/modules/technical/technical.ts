@@ -22,7 +22,9 @@ import { listRoles } from "@/modules/people/roles";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "./rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/modules/sales/tickets";
-import { quotationApproved } from "@/modules/tasks/taskRouting";
+import {
+  quotationApproved, readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES,
+} from "@/modules/tasks/taskRouting";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { landedUnitCost } from "@/shared/currencies";
 import {
@@ -30,7 +32,7 @@ import {
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
   cleanQuotationTables, itemsFromTables, isFinishedQuotation,
 } from "./quotations";
-import type { TechnicalContext, Rfq, Quotation, QuotationItem } from "./types";
+import type { TechnicalContext, Rfq, Quotation, QuotationItem, QuotationSequence } from "./types";
 import type { SalesTicket } from "@/modules/sales/types";
 import type { Section } from "@/platform/db/sections";
 import type { Task } from "@/modules/tasks/types";
@@ -69,6 +71,14 @@ export const technicalContext = moduleContext<TechnicalContext>({
   // quotation line can name one; Tasks because sending one for approval raises
   // one. All read-only and none gated on that department's grant — this is the
   // state of Technical's own record, not a window into somebody else's queue.
+  //
+  // NOT tasksSettings. Task-routing (who holds each approval authority) is
+  // needed by exactly one function — sendQuotationForApproval — and resolving
+  // it here would put it on EVERY technicalContext build, including the
+  // list/GET route that never sends anything for approval. It used to live
+  // here and cost that route an extra wave for a value it never read; see the
+  // note on sendQuotationForApproval for where it moved and why that costs
+  // nothing (ctx.sections already holds the section it looks up).
   foreign: {
     sales: "sales",
     salesTickets: ["sales-tickets", "sales"],
@@ -92,6 +102,7 @@ export const technicalContext = moduleContext<TechnicalContext>({
 // technical-settings sub-section's own `settings` object — no key of their own.
 export function readTechnicalSettings(settingsSection: { settings?: Record<string, unknown> } | null | undefined) {
   const s = settingsSection?.settings || {};
+  const sequences = readSequences(s);
   return {
     liveColumns: cleanQuotationLiveColumns(s.liveColumns),
     // The Old System's "Cover copy settings": the standing text that heads a
@@ -99,9 +110,11 @@ export function readTechnicalSettings(settingsSection: { settings?: Record<strin
     coverTitle: str(s.coverTitle, 200),
     coverIntro: str(s.coverIntro, 4000),
     coverTerms: str(s.coverTerms, 4000),
-    // Where quotation numbers start. Read through readNumbering so a settings
-    // row saved before this existed still answers with the defaults.
-    numbering: readNumbering(s),
+    // EVERY "TYPE OF QUOTATION" the studio numbers separately, and which one a
+    // Sales-ticket conversion falls back to. See readSequences for the
+    // back-compat seed and resolveDefaultSequence for the fallback.
+    sequences,
+    defaultSequenceId: resolveDefaultSequence(sequences, s.defaultSequenceId).id,
   };
 }
 
@@ -116,9 +129,19 @@ export async function saveTechnicalSettings(ctx: TechnicalContext, body: Record<
   if (body?.coverTitle !== undefined) next.coverTitle = str(body.coverTitle, 200);
   if (body?.coverIntro !== undefined) next.coverIntro = str(body.coverIntro, 4000);
   if (body?.coverTerms !== undefined) next.coverTerms = str(body.coverTerms, 4000);
-  // Cleaned on the way in, so a mode or a start typed by hand cannot put the
-  // generator into a state it has to defend against later.
-  if (body?.numbering !== undefined) next.numbering = readNumbering({ numbering: body.numbering });
+  // Cleaned and validated on the way in — see cleanSequencesForSave — so a
+  // stray or a colliding prefix cannot land and put nextNumberForSequence in a
+  // state where two sequences silently share one counter.
+  if (body?.sequences !== undefined) {
+    const cleaned = cleanSequencesForSave(body.sequences);
+    if ("error" in cleaned) return cleaned;
+    next.sequences = cleaned;
+  }
+  // NOT VALIDATED AGAINST THE LIST HERE: resolveDefaultSequence falls back to
+  // the first sequence on every read, so a defaultSequenceId naming a sequence
+  // that was just removed self-heals the moment it is read rather than having
+  // to be caught on the way in.
+  if (body?.defaultSequenceId !== undefined) next.defaultSequenceId = str(body.defaultSequenceId, 60);
 
   const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
   return updated ? readTechnicalSettings({ settings: next }) : { error: "notfound" };
@@ -165,8 +188,13 @@ const NO_TICKET = {
   industry: "", serviceIds: [], deadline: "", ticketDescription: "",
 };
 
+// Returns the per-ticket resolver AND the raw clientsById map, so a caller that
+// also needs the client name off an INTERNAL quotation (no ticket behind it —
+// see createQuotation) reuses this one read rather than fetching Sales clients
+// a second time. listQuotations is that caller; folding it in here rather than
+// reading Clients again is what keeps its hop count from regressing.
 export async function ticketFacts({ studio, salesTicketsSection, salesClientsSection }: Pick<TechnicalContext, "studio" | "salesTicketsSection" | "salesClientsSection">) {
-  if (!salesTicketsSection) return () => NO_TICKET;
+  if (!salesTicketsSection) return { factsFor: () => NO_TICKET, clientsById: new Map<string, string>() };
   const [tickets, clients] = await Promise.all([
     Tickets.find({ studio, section: salesTicketsSection }),
     salesClientsSection ? Clients.find({ studio, section: salesClientsSection }) : [],
@@ -175,7 +203,7 @@ export async function ticketFacts({ studio, salesTicketsSection, salesClientsSec
   // down the same kind of key, and for the same reason.
   const nameById = new Map(clients.map((c) => [c.id, c.name] as [string, string]));
   const byId = new Map(tickets.map((t) => [t.id, t] as [string, SalesTicket]));
-  return (ticketId: string | null | undefined) => {
+  const factsFor = (ticketId: string | null | undefined) => {
     const t = ticketId ? byId.get(ticketId) : null;
     if (!t) return NO_TICKET;
     return {
@@ -191,10 +219,11 @@ export async function ticketFacts({ studio, salesTicketsSection, salesClientsSec
       ticketDescription: t.description || "",
     };
   };
+  return { factsFor, clientsById: nameById };
 }
 
 export async function listRfqs(ctx: TechnicalContext) {
-  const [rows, factsFor] = await Promise.all([
+  const [rows, { factsFor }] = await Promise.all([
     Rfqs.find({ studio: ctx.studio, section: ctx.rfqSection }),
     ticketFacts(ctx),
   ]);
@@ -405,27 +434,115 @@ export async function updateRfq(ctx: TechnicalContext, id: string, body: Record<
 }
 
 // ---- numbering ---------------------------------------------------------------
-// The studio chooses where quotation numbers start: fresh from 1, or continuing
-// a run that began in whatever system it used before. The prefix is fixed by the
-// studio and never changes on its own; only the number moves.
-export const DEFAULT_NUMBERING = { mode: "fresh", prefix: "Q", start: 1 };
+//
+// A STUDIO NUMBERS MORE THAN ONE KIND OF QUOTATION. What used to be a single
+// {mode, prefix, start} became a LIST of named sequences — "Internal", "RFQ",
+// whatever the studio calls its own runs — each with its own prefix and
+// starting point, plus which one converting an RFQ falls back to.
+//
+// The old single config chose where a run started: fresh from 1, or continuing
+// one that began in whatever system the studio used before. That distinction
+// is folded into `start` below rather than kept as its own `mode` field — a
+// sequence just starts wherever it starts, and "fresh" was always start:1 in
+// disguise. See readSequences for how an old studio's one config becomes one
+// sequence with nothing to migrate.
+const DEFAULT_NUMBERING = { prefix: "Q", start: 1 };
 
-export function readNumbering(settings: Record<string, unknown> | null | undefined) {
-  const n = (settings?.numbering || {}) as Record<string, unknown>;
-  const prefix = String(n.prefix || DEFAULT_NUMBERING.prefix).trim().slice(0, 12) || DEFAULT_NUMBERING.prefix;
-  const start = Number.isFinite(Number(n.start)) && Number(n.start) > 0 ? Math.floor(Number(n.start)) : 1;
-  return { mode: n.mode === "from" ? "from" : "fresh", prefix, start };
+const genSequenceId = () => `seq${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+// ONE SEQUENCE, CLEANED. Used both when READING (lenient: an empty prefix is
+// dropped rather than refused, because a row already on file passed this once
+// and a defensive read must not 500 on it) and, via cleanSequencesForSave,
+// when WRITING (strict: an empty prefix is refused before anything saves).
+function cleanSequence(raw: unknown): QuotationSequence | null {
+  const s = (raw || {}) as Record<string, unknown>;
+  const prefix = String(s.prefix ?? "").trim().slice(0, 12);
+  if (!prefix) return null;
+  const start = Number.isFinite(Number(s.start)) && Number(s.start) > 0 ? Math.floor(Number(s.start)) : 1;
+  // Generated when a new sequence arrives without one — the create-time id
+  // this sequence keeps forever, so createQuotation's `sequenceId` and this
+  // sequence's own counter (keyed off `prefix`, not `id` — see
+  // nextNumberForSequence) both stay meaningful after a rename.
+  const id = String(s.id ?? "").trim().slice(0, 60) || genSequenceId();
+  const label = String(s.label ?? "").trim().slice(0, 120) || prefix;
+  return { id, label, prefix, start };
 }
 
-// Fresh starts at 1; "from" starts at the number the studio gave. Either way the
-// next one is past the highest already issued, so switching the setting later
-// can never reach back and reuse a number.
+// settings.sequences, cleaned — or, for a studio saved before this existed, ONE
+// sequence seeded from the legacy settings.numbering so nothing has to migrate
+// and an old studio's numbering keeps running exactly where it left off.
+// Guarantees at least one sequence, always: the default-sequence resolution and
+// every create path assume there is one to fall back to.
+export function readSequences(settings: Record<string, unknown> | null | undefined): QuotationSequence[] {
+  const raw = settings?.sequences;
+  const cleaned = Array.isArray(raw)
+    ? raw.map(cleanSequence).filter((s): s is QuotationSequence => Boolean(s))
+    : [];
+  if (cleaned.length) return cleaned;
+
+  const n = (settings?.numbering || {}) as Record<string, unknown>;
+  const prefix = String(n.prefix || DEFAULT_NUMBERING.prefix).trim().slice(0, 12) || DEFAULT_NUMBERING.prefix;
+  // The legacy `mode` field decided whether `start` applied at all — "fresh"
+  // ignored it and always meant 1. Folded in here, once, so nothing downstream
+  // has to know the old shape existed.
+  const start = n.mode === "from" && Number.isFinite(Number(n.start)) && Number(n.start) > 0
+    ? Math.floor(Number(n.start)) : 1;
+  return [{ id: "default", label: "Default", prefix, start }];
+}
+
+// STRICT cousin of cleanSequence, for the write path: a save with an empty or
+// a colliding prefix is refused whole rather than silently dropping the bad
+// entry, because a caller who typed a duplicate prefix meant something by it
+// and deserves to be told rather than have it disappear.
+function cleanSequencesForSave(value: unknown): QuotationSequence[] | { error: string } {
+  const list = Array.isArray(value) ? value : [];
+  const cleaned: QuotationSequence[] = [];
+  const seenPrefix = new Set<string>();
+  for (const raw of list) {
+    const s = cleanSequence(raw);
+    if (!s) return { error: "prefix" };
+    const key = s.prefix.toUpperCase();
+    if (seenPrefix.has(key)) return { error: "prefix-duplicate" };
+    seenPrefix.add(key);
+    cleaned.push(s);
+  }
+  if (!cleaned.length) return { error: "prefix" };
+  return cleaned;
+}
+
+// settings.defaultSequenceId when it names a sequence that still exists, else
+// the first one — the same "falls back rather than refuses" rule every
+// sub-section id in this codebase follows, so removing the sequence a studio
+// had marked default cannot strand convertRfq with nothing to number from.
+export function resolveDefaultSequence(
+  sequences: QuotationSequence[],
+  defaultSequenceId: unknown,
+): QuotationSequence {
+  const id = String(defaultSequenceId ?? "");
+  return sequences.find((s) => s.id === id) || sequences[0];
+}
+
+// SERIAL CONTINUATION, PER SEQUENCE (invariant 10: reference numbers only move
+// forward). nextUniqueRef already scopes by prefix — its loop only counts a row
+// whose value starts with `${prefix}-` (see modules/main/references.ts) — so
+// two sequences with distinct prefixes run two independent, self-seeding
+// counters over the SAME quotations collection without either filtering the
+// rows itself. Verified by reading nextUniqueRef before writing this, per the
+// brief: nothing here had to change to make per-sequence numbering correct.
+export function nextNumberForSequence(quotations: Quotation[], seq: Pick<QuotationSequence, "prefix" | "start">) {
+  return nextUniqueRef(quotations, "number", seq.prefix, 4, seq.start);
+}
+
+// The DEFAULT sequence's next number — what convertRfq uses, because a
+// Sales-ticket conversion always numbers under whichever sequence the studio
+// marked default rather than asking which one.
 export function nextQuotationNumber(
   quotations: Quotation[],
   settings: Record<string, unknown> | null | undefined,
 ) {
-  const { mode, prefix, start } = readNumbering(settings);
-  return nextUniqueRef(quotations, "number", prefix, 4, mode === "from" ? start : 1);
+  const sequences = readSequences(settings);
+  const seq = resolveDefaultSequence(sequences, (settings as Record<string, unknown> | null | undefined)?.defaultSequenceId);
+  return nextNumberForSequence(quotations, seq);
 }
 
 // ---- quotations ------------------------------------------------------------
@@ -446,10 +563,14 @@ const quotationHandler = (q: Quotation | null | undefined, rfq: Rfq | null | und
   String(rfq?.handledByCollaboratorId || q?.handledByCollaboratorId || q?.handledBy || "");
 
 export async function listQuotations(ctx: TechnicalContext) {
-  const [rows, rfqRows, tasks, factsFor] = await Promise.all([
+  const [rows, rfqRows, tasks, { factsFor, clientsById }] = await Promise.all([
     Quotations.find({ studio: ctx.studio, section: ctx.quotationsSection }),
     ctx.rfqSection ? Rfqs.find({ studio: ctx.studio, section: ctx.rfqSection }) : [],
     ctx.tasksSection ? Tasks.find({ studio: ctx.studio, section: ctx.tasksSection }) : [],
+    // clientsById is the SAME read ticketFacts already does for a converted
+    // quotation's client — reused here rather than a second Clients.find, which
+    // is what keeps an INTERNAL quotation's clientId resolution from adding a
+    // hop to this route.
     ticketFacts(ctx),
   ]);
   const rfqById = new Map(rfqRows.map((r) => [r.id, r] as [string, Rfq]));
@@ -473,10 +594,26 @@ export async function listQuotations(ctx: TechnicalContext) {
       const decidedAt = q.completedAt
         || tasks.find((t) => t.type === "approval" && t.quotationId === q.id && t.status === "Done")?.completedAt
         || "";
+      // WHETHER THIS CAME OFF A SALES TICKET, spelled out rather than left for
+      // the frontend to infer from ticketId's presence — the same fact, but a
+      // caller reading for "did Sales raise this" should not have to know that
+      // ticketId is how a converted quotation is told from an internal one.
+      const fromSales = Boolean(q.ticketId);
       // AN INTERNAL QUOTATION HAS NO TICKET, so there is nothing to carry and
       // what it holds IS its own — somebody typed that title into the Quotations
       // screen. Converted ones read the ticket.
-      if (!q.ticketId) return { ...q, handledBy, handledByCollaboratorId: handledBy, approved, storedStatus: q.status, status: shown, completedAt: decidedAt, leadLabel: LEAD_INTERNAL };
+      if (!q.ticketId) {
+        // THE CLIENT, resolved the same way a ticket's is: an id names a real
+        // Sales client and the NAME is read back live off that record (never
+        // copied onto the row, so a client rename shows up here too); free text
+        // is what stays when nobody has typed one into Sales.
+        const clientName = q.clientId ? (clientsById.get(q.clientId) || "") : String(q.clientName || "");
+        return {
+          ...q, handledBy, handledByCollaboratorId: handledBy, approved, storedStatus: q.status,
+          status: shown, completedAt: decidedAt, leadLabel: LEAD_INTERNAL, fromSales,
+          clientName, industry: String(q.industry || ""), deadline: String(q.deadline || ""),
+        };
+      }
       const t = factsFor(q.ticketId);
       return {
         ...q,
@@ -486,7 +623,7 @@ export async function listQuotations(ctx: TechnicalContext) {
         // one and the RFQ screen the other, and a row where they disagree is a
         // row that shows two handlers for one document.
         handledBy, handledByCollaboratorId: handledBy,
-        approved, storedStatus: q.status, status: shown, completedAt: decidedAt,
+        approved, storedStatus: q.status, status: shown, completedAt: decidedAt, fromSales,
         // What the lead column reads: the ticket's reference, from the ticket.
         leadLabel: t.ticketRef || LEAD_INTERNAL,
         // NOT description — the wording on a quotation is the document's own.
@@ -496,24 +633,61 @@ export async function listQuotations(ctx: TechnicalContext) {
 
 // Created straight from the Quotations screen, with no RFQ behind it.
 //
-// MANDATORY, per the Old System: number, description, handledBy. The number is
-// UNIQUE case-insensitively so search stays predictable, and such a quotation
-// is marked Internal — `lead` is what an RFQ conversion overwrites with the
-// source ticket.
+// THE NUMBER IS NEVER TAKEN FROM THE BODY. A client-sent number is exactly the
+// field-tampering item 8 of the security checklist exists to close off — the
+// document's own reference has to be something only the server can issue, or
+// two people racing this screen could hand a client the same number. Instead
+// the caller names WHICH SEQUENCE this quotation counts against —
+// `sequenceId`, one of the studio's own settings.sequences — and the number is
+// generated here through nextNumberForSequence.
+//
+// MANDATORY: a sequence, a client, a title, an industry, a deadline and a
+// description — six distinct errors, one per field, because a form with six
+// required fields and one error name cannot say which one is empty. Such a
+// quotation is marked Internal — `lead` is what an RFQ conversion overwrites
+// with the source ticket.
 export async function createQuotation(ctx: TechnicalContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "technical.quotations.create");
   if (denied) return denied;
 
-  const { studio, quotationsSection, collaborator } = ctx;
-  const number = str(body?.number, 60);
-  const description = str(body?.description, 2000);
-  const handledBy = str(body?.handledBy, 120);
-  if (!number) return { error: "number" };
-  if (!description) return { error: "description" };
-  if (!handledBy) return { error: "handledBy" };
+  const { studio, quotationsSection, salesClientsSection, collaborator } = ctx;
 
-  const quotations = await Quotations.find({ studio, section: quotationsSection });
+  const sequenceId = str(body?.sequenceId, 60);
+  const sequence = (ctx.sequences || []).find((s) => s.id === sequenceId);
+  if (!sequence) return { error: "sequence" };
+
+  // A CLIENT: either a real Sales client's id, or a name nobody has typed into
+  // Sales yet. Read further down, once the sections are known to exist, but
+  // the ABSENCE of either is checked here with the rest of the required
+  // fields — cheap, and it means one refusal names everything missing at once
+  // rather than one round trip per field.
+  const clientId = str(body?.clientId, 60);
+  const typedClientName = str(body?.clientName, 200);
+  if (!clientId && !typedClientName) return { error: "client" };
+
+  const title = str(body?.title, 200);
+  const industry = str(body?.industry, 120);
+  const deadline = str(body?.deadline, 60);
+  const description = str(body?.description, 2000);
+  if (!title) return { error: "title" };
+  if (!industry) return { error: "industry" };
+  if (!deadline) return { error: "deadline" };
+  if (!description) return { error: "description" };
+
+  // ONE WAVE: the quotations this sequence numbers against, and — only when a
+  // clientId was actually named — the Sales clients it has to be real against.
+  // TYPING A NEW NAME MUST NOT CREATE A SALES CLIENT: this reads that
+  // collection to validate an id, and never writes it.
+  const [quotations, clients] = await Promise.all([
+    Quotations.find({ studio, section: quotationsSection }),
+    clientId && salesClientsSection ? Clients.find({ studio, section: salesClientsSection }) : Promise.resolve([]),
+  ]);
+  if (clientId && !clients.some((c) => c.id === clientId)) return { error: "client" };
+
+  const number = nextNumberForSequence(quotations, sequence);
+  // Safety net against a hand-typed row from before sequences existed, or a
+  // race with another create landing between the read above and this write.
   if (quotations.some((q) => String(q.number || "").toLowerCase() === number.toLowerCase())) {
     return { error: "duplicate" };
   }
@@ -524,19 +698,27 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
   // work badly.
   const items: QuotationItem[] = [];
   const vatRate = DEFAULT_VAT_RATE;
-  // The screen's "Handled by" is a PERSON PICKER, so what arrives in `handledBy`
-  // is already a CollaboratorID. It was stored only under that name while every
-  // reader looked for `handledByCollaboratorId`, and the value was computed here
-  // and then left out of the row entirely. Stored under both names, so an
-  // internal quotation names its handler wherever a converted one does.
-  const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60) || handledBy;
+  // handledBy IS NOW OPTIONAL — defaults to whoever is creating it, so nothing
+  // downstream (the Handled-by column, the Live view) reads a blank. The
+  // screen's "Handled by" is a PERSON PICKER, so what arrives is already a
+  // CollaboratorID; stored under both names, so an internal quotation names
+  // its handler wherever a converted one does.
+  const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60) || collaborator.id;
+  const handledBy = str(body?.handledBy, 120) || handledByCollaboratorId;
   const quotation = await Quotations.create({ studio, section: quotationsSection }, {
     number,
     revision: 1,
     description,
     handledBy,
     handledByCollaboratorId,
-    title: str(body?.title, 200) || description.slice(0, 200),
+    title,
+    // THE CLIENT — never both. A stored id makes the free-text name
+    // meaningless (see listQuotations, which reads the id's name live rather
+    // than trusting whatever was typed here at create time).
+    clientId: clientId || "",
+    clientName: clientId ? "" : typedClientName,
+    industry,
+    deadline,
     status: DEFAULT_QUOTATION_STATUS,
     tables: [],
     items,
@@ -593,7 +775,8 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   // The ticket, for the ONE thing the document authors out of it: its opening
   // description, which Technical then edits. Everything else the ticket owns is
   // read back through `ticketId` whenever the quotation is shown.
-  const t = (await ticketFacts(ctx))(rfq.ticketId);
+  const { factsFor } = await ticketFacts(ctx);
+  const t = factsFor(rfq.ticketId);
   const quotation = await Quotations.create({ studio, section: quotationsSection }, {
     number,
     revision: prior ? (Number(prior.revision) || 1) + 1 : 1,
@@ -765,6 +948,99 @@ export async function removeQuotation(ctx: TechnicalContext, id: string) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
+// SEND AN INTERNAL QUOTATION'S FINISHED DOCUMENT UP FOR APPROVAL — the
+// ticket-less twin of Sales' sendTicketForApproval (modules/sales/sales.ts).
+// There is no ticket here to ask "is a revision pending" of, and no ticket
+// status to move; everything else about the decision is identical, which is
+// why this raises the SAME task type rather than one of its own — one
+// approval queue in the studio, not two.
+//
+// A TECHNICAL ACT ON A TECHNICAL RECORD: the document was built here and never
+// touched a Sales ticket, so the right asked for is technical.quotations.edit
+// — not sales.tickets.edit, which is what the converted twin asks because
+// THAT decision belongs to the ticket it is sending up.
+export async function sendQuotationForApproval(ctx: TechnicalContext, body: Record<string, unknown>) {
+  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN.
+  const denied = requirePermission(ctx.access, "technical.quotations.edit");
+  if (denied) return denied;
+
+  const { studio, sections, quotationsSection, tasksSection, salesClientsSection, collaborator } = ctx;
+  if (!tasksSection) return { error: "no-tasks" };
+
+  // WHO HOLDS EACH APPROVAL AUTHORITY — resolved HERE rather than carried on
+  // every TechnicalContext, and it costs nothing extra: `sections` is the same
+  // array studioContext already read once for this whole request, so this is
+  // an in-memory lookup, not a Redis read — the same fallback moduleContext's
+  // `foreign` would have used had this stayed there. It stayed off the shared
+  // context specifically so the list/GET route, which never sends anything for
+  // approval, does not pay a wave for a value it never reads.
+  const tasksSettingsSection = sections.find((s) => s.key === "tasks-settings")
+    || sections.find((s) => s.key === "tasks") || null;
+  const taskAssignees = readTaskAssignees(tasksSettingsSection);
+
+  const quotationId = str(body?.quotationId, 60);
+  const [quotations, tasks, clients] = await Promise.all([
+    Quotations.find({ studio, section: quotationsSection }),
+    Tasks.find({ studio, section: tasksSection }),
+    salesClientsSection ? Clients.find({ studio, section: salesClientsSection }) : [],
+  ]);
+  const quotation = quotations.find((q) => q.id === quotationId);
+  if (!quotation) return { error: "notfound" };
+  // A CONVERTED QUOTATION GOES UP THROUGH ITS TICKET, not here — Sales' own
+  // button asks the identical question of the identical task type, and a
+  // second door onto the same document would let it be sent twice under two
+  // different guards.
+  if (quotation.ticketId) return { error: "has-ticket" };
+  if (!isFinishedQuotation(quotation) || quotation.status === "Rejected") return { error: "not-completed" };
+  if (quotationApproved(quotation, tasks)) return { error: "approved" };
+  // Sent once per quotation — same rule as the converted twin: a second press
+  // must not put the same document in front of the approvers twice.
+  if (tasks.some((t) => t.type === "approval" && t.quotationId === quotation.id)) return { error: "already" };
+
+  // THE CLIENT, resolved the same way listQuotations resolves one: an id names
+  // a real Sales client and the name is read back live off that record; free
+  // text is what stays when nobody has typed one into Sales.
+  const nameById = new Map(clients.map((c) => [c.id, c.name] as [string, string]));
+  const clientName = quotation.clientId ? (nameById.get(quotation.clientId) || "") : String(quotation.clientName || "");
+
+  const revision = Number(quotation.revision) || 1;
+  const name = `${quotation.number || "Quotation"}${revision > 1 ? ` Rev ${revision}` : ""}`;
+  const task = await Tasks.create({ studio, section: tasksSection }, {
+    type: "approval",
+    title: `Approve quotation ${name}${clientName ? ` · ${clientName}` : ""}`.trim(),
+    description: quotation.title || "",
+    // ROUTED, NOT ASSIGNED. Who decides comes from Task settings on every read,
+    // so appointing somebody there hands them this the moment they are named.
+    assigneeCollaboratorId: "",
+    approvals: {},
+    approvalWithdrawnAt: "",
+    status: "Open",
+    priority: "Normal",
+    // NO ticketId — the field every reader already uses to tell a converted
+    // quotation's approval from this one. quotationId is still the tie every
+    // reader (quotationApproved, the ticket's own approval box) asks with.
+    quotationId: quotation.id,
+    quotationNumber: quotation.number || "",
+    quotationRevision: revision,
+    quotationTotal: Number(quotation.total) || 0,
+    clientName,
+    createdByCollaboratorId: collaborator.id,
+    createdAt: new Date().toISOString(),
+    completedAt: "",
+  });
+
+  const { authorities } = resolveTaskAssignees(task, taskAssignees);
+  return {
+    task,
+    // Reported rather than refused: an authority nobody has been appointed to
+    // can never sign off, and the screen should say so instead of leaving the
+    // request to sit there looking sent — same as sendTicketForApproval.
+    unrouted: authorities
+      .filter((c) => (taskAssignees?.[c] || []).length === 0)
+      .map((c) => TASK_AUTHORITIES.find((a) => a.code === c)?.label || c),
+  };
+}
+
 // Sales tickets with nothing outstanding — what "raise an RFQ" can pick. Same
 // rule the Sales button obeys, so the two doors offer exactly the same tickets.
 export async function openTickets({
@@ -847,4 +1123,16 @@ export async function catalogueItems({ studio, inventoryItemsSection }: Pick<Tec
 export async function technicalPeople({ studio }: Pick<TechnicalContext, "studio">) {
   const rows = await listCollaborators(studio.id);
   return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" }));
+}
+
+// The Sales clients, as the INTERNAL-QUOTATION picker needs them: an id and a
+// name, nothing else. A studio with no Sales section simply has none to offer
+// — same as openTickets does for the RFQ picker — rather than a picker that
+// could only ever fail.
+export async function technicalClients({ studio, salesClientsSection }: Pick<TechnicalContext, "studio" | "salesClientsSection">) {
+  if (!salesClientsSection) return [];
+  const rows = await Clients.find({ studio, section: salesClientsSection });
+  return rows
+    .map((c) => ({ id: String(c.id), name: String(c.name || "") }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

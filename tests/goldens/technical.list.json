@@ -154,7 +154,15 @@
     ],
     "catalogue": [],
     "currency": "",
-    "nextQuotationNumber": "Q-0001",
+    "sequences": [
+      {
+        "id": "default",
+        "label": "Default",
+        "prefix": "Q",
+        "nextNumber": "Q-0001"
+      }
+    ],
+    "defaultSequenceId": "default",
     "vocabulary": {
       "rfqStatuses": [
         "New",
@@ -176,6 +184,52 @@
         "Normal",
         "High",
         "Critical"
+      ],
+      "industries": [
+        "Residential",
+        "Commercial",
+        "Banking",
+        "Governmental",
+        "Education",
+        "Technology",
+        "Construction",
+        "Healthcare",
+        "Energy",
+        "Consulting",
+        "Engineering",
+        "Manufacturing",
+        "Logistics",
+        "Hospitality",
+        "Finance",
+        "Agriculture",
+        "Transportation",
+        "Automotive",
+        "Aerospace",
+        "Telecommunications",
+        "Media",
+        "Security",
+        "Architecture",
+        "Real-Estate",
+        "Pharmaceuticals",
+        "Chemicals",
+        "Mining",
+        "Retail",
+        "Wholesale",
+        "Legal",
+        "Insurance",
+        "Entertainment",
+        "Defense",
+        "Utilities"
+      ],
+      "clients": [
+        {
+          "id": "<sal_ID>",
+          "name": "Acme Holdings"
+        },
+        {
+          "id": "<sal_ID>",
+          "name": "Second Client"
+        }
       ],
       "liveColumnOptions": [
         {

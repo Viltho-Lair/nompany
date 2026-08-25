@@ -1,0 +1,31 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "task": {
+      "id": "<tas_ID>",
+      "type": "approval",
+      "title": "Approve quotation SQA-0001 · Continuation Client",
+      "description": "Continuation check",
+      "assigneeCollaboratorId": "",
+      "approvals": {},
+      "approvalWithdrawnAt": "",
+      "status": "Open",
+      "priority": "Normal",
+      "quotationId": "<quo_ID>",
+      "quotationNumber": "SQA-0001",
+      "quotationRevision": 1,
+      "quotationTotal": 0,
+      "clientName": "Continuation Client",
+      "createdByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "completedAt": "",
+      "studioId": "<std_ID>",
+      "sectionId": "<sec_ID>"
+    },
+    "unrouted": [
+      "Sales",
+      "Management"
+    ]
+  }
+}

@@ -149,7 +149,7 @@ export async function listProjects(ctx: ProjectsContext) {
   // Progress is the project PLAN's overall completion, read back through the
   // studio-level plans index (one key), never stored on the project — so it
   // can't drift from the schedule it summarises. A project with no plan reads 0.
-  const [rows, factsFor, progressFor] = await Promise.all([
+  const [rows, { factsFor }, progressFor] = await Promise.all([
     Projects.find({ studio, section: listSection }),
     ticketFacts(ctx),
     progressByProject(studio.id),
@@ -170,7 +170,7 @@ export async function listProjects(ctx: ProjectsContext) {
 export async function approvedQuotations(ctx: ProjectsContext) {
   const { studio, listSection, quotationsSection, tasksSection } = ctx;
   if (!quotationsSection) return [];
-  const [quotes, projects, tasks, factsFor] = await Promise.all([
+  const [quotes, projects, tasks, { factsFor }] = await Promise.all([
     Quotations.find({ studio, section: quotationsSection }),
     Projects.find({ studio, section: listSection }),
     tasksSection ? Tasks.find({ studio, section: tasksSection }) : [],
@@ -254,7 +254,8 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   // because the project's title and client are read straight off the raw rows by
   // the Projects screens and by Finance's cash sheet, and those have to resolve
   // first. Next pass — see the note on ticketFacts.
-  const t = (await ticketFacts(ctx))(String(quote.ticketId || ""));
+  const { factsFor } = await ticketFacts(ctx);
+  const t = factsFor(String(quote.ticketId || ""));
   const now = new Date().toISOString();
   const project = await Projects.create({ studio, section: listSection }, {
     // BLANK UNTIL FINANCE ISSUES IT. The project number is quoted on invoices,

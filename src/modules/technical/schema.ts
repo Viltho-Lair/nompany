@@ -115,6 +115,17 @@ export const QuotationSchema = z.looseObject({
   rfqId: z.string().optional(),
   ticketId: z.string().optional(),
 
+  // ---- INTERNAL quotations only — no ticketId behind them -------------------
+  // The client either NAMES a real Sales client (clientId, resolved live off
+  // that record the way ticketFacts resolves a ticket's) or is FREE TEXT
+  // nobody has typed into Sales yet (clientName). Never both — a stored id
+  // makes the free-text field meaningless, so createQuotation writes one or
+  // the other, never one and then the other later.
+  clientId: z.string().optional(),
+  clientName: z.string().optional(),
+  industry: z.string().optional(),
+  deadline: z.string().optional(),
+
   // ---- computed by the pricer, stored so the document is stable ------------
   // A quotation a client holds must not change its own totals because a cost
   // moved underneath it, so these are written rather than derived on read.

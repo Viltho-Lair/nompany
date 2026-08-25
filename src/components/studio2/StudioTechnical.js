@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
@@ -11,7 +11,8 @@ import {
 } from "@/components/studio2/ui";
 import { isUnfinished } from "@/modules/technical/quotations";
 import QuotationBuilder from "@/components/studio2/QuotationBuilder";
-import { Field } from "@/components/fields/Field";
+import { Field, BARE_CONTROL } from "@/components/fields/Field";
+import Combo from "@/components/studio2/Combo";
 import StudioDate from "@/components/fields/StudioDate";
 import TechnicalDashboard from "@/components/studio2/TechnicalDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
@@ -60,6 +61,9 @@ export default function StudioTechnical({ slug, view = "technical" }) {
   const level = useAnalyticsLevel();
   const focusQuote = useFocusedRecord("quotation");
   const [error, setError] = useState("");
+  // A non-error notice — an action that succeeded but left something for the
+  // studio to finish (an approval task with no approver to route to).
+  const [notice, setNotice] = useState("");
   const [creatingQuote, setCreatingQuote] = useState(false);
   const [raising, setRaising] = useState(false);
   const [converting, setConverting] = useState(null);
@@ -89,6 +93,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
   // spread across every caller.
   async function send(kind, method, payload, keepOpen = false) {
     setError("");
+    setNotice("");
     const url = kind ? `/api/studios/${slug}/technical/${kind}` : `/api/studios/${slug}/technical`;
     const res = await fetch(url, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -110,19 +115,38 @@ export default function StudioTechnical({ slug, view = "technical" }) {
         : out.error === "number" ? "Give it a number."
         : out.error === "description" ? "Describe what is being quoted."
         : out.error === "handledBy" ? "Say who is handling it."
+        // New quotation contract: the server validates every field again, in
+        // this order, so a client-side gate that lets one slip through still
+        // reads back a sentence.
+        : out.error === "sequence" ? "Pick a numbering sequence."
+        : out.error === "client" ? "Name the client."
+        : out.error === "title" ? "Give it a title."
+        : out.error === "industry" ? "Type of industry is required."
+        : out.error === "deadline" ? "Give it a deadline."
+        // Quotation numbering settings.
+        : out.error === "prefix" ? "Give every sequence a prefix."
+        : out.error === "prefix-duplicate" ? "Two sequences share a prefix — make each one unique."
+        // Internal approval routing.
+        : out.error === "no-tasks" ? "This studio has no Tasks board to route approvals to."
+        : out.error === "has-ticket" ? "That quotation is linked to a Sales ticket — approve it from Sales."
+        : out.error === "not-completed" ? "Complete the quotation before sending it for approval."
+        : out.error === "notfound" ? "That quotation no longer exists."
         : "That didn't save."
       );
       return false;
     }
     if (!keepOpen) { setRaising(false); setConverting(null); setEditingQuote(null); setCreatingQuote(false); }
     await load();
-    return true;
+    // The parsed body is returned (a truthy object), not a bare true, so a
+    // caller can read what the action reported — e.g. an approval's `unrouted`
+    // — while every `if (ok)` / `!ok` check still reads it as success.
+    return out;
   }
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading Technical…</p>;
 
-  const { canManage: canManageParent, canManageRfq, canManageQuotations, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, nav, nextQuotationNumber } = data;
+  const { canManage: canManageParent, canManageRfq, canManageQuotations, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, nav, sequences = [], defaultSequenceId } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
   // the map is keyed the same way, so a sub-section grant answers for its own
   // screen and the parent's answer no longer stands in for all of them.
@@ -134,6 +158,8 @@ export default function StudioTechnical({ slug, view = "technical" }) {
   const handlerName = (v) => (v ? aliasOf[v] || v : "—");
 
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
+  // Amber, not rose: the action worked, but there is a follow-up to do.
+  const noticeBanner = notice && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{notice}</p>;
 
   if (view === "technical-settings") {
     return (
@@ -143,6 +169,8 @@ export default function StudioTechnical({ slug, view = "technical" }) {
           options={vocabulary.liveColumnOptions || []}
           selected={data.liveColumns || []}
           cover={data.cover || {}}
+          sequences={sequences}
+          defaultSequenceId={defaultSequenceId}
           canManage={data.canManageSettings}
           onSave={(patch) => send("", "PUT", patch)}
         />
@@ -161,7 +189,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
         )}
         {converting && (
           <Dialog title={`Quote ${converting.reference}`} description={`${converting.title} · ${converting.clientName || "—"}`} onClose={closeConvert}>
-            <ConvertRfq rfq={converting} nextNumber={nextQuotationNumber} people={people}
+            <ConvertRfq rfq={converting} nextNumber={sequences.find((s) => s.id === defaultSequenceId)?.nextNumber} people={people}
               onCancel={closeConvert} onSave={(p) => send("quotations", "POST", { ...p, rfqId: converting.id })} />
           </Dialog>
         )}
@@ -184,9 +212,12 @@ export default function StudioTechnical({ slug, view = "technical" }) {
     return (
       <div className="space-y-6">
         {banner}
+        {noticeBanner}
         {creatingQuote && (
           <Dialog title="New quotation" description="Created without an RFQ, so it is marked Internal. Fields marked * are required." onClose={closeCreate} width="max-w-[560px]">
-            <NewQuotation people={people} onCancel={closeCreate} onSave={(p) => send("quotations", "POST", p)} />
+            <NewQuotation people={people} sequences={sequences} defaultSequenceId={defaultSequenceId}
+              clients={vocabulary.clients || []} industries={vocabulary.industries || []}
+              onCancel={closeCreate} onSave={(p) => send("quotations", "POST", p)} />
           </Dialog>
         )}
         {editingQuote && (
@@ -204,6 +235,16 @@ export default function StudioTechnical({ slug, view = "technical" }) {
           onAdd={() => setCreatingQuote(true)}
           onOpen={(q) => setEditingQuote(q)}
           canUnlock={data.canUnlockQuotations}
+          // An internal quotation has no Sales ticket to carry it into approval,
+          // so Technical sends it for approval itself. `send` builds the URL as
+          // /api/studios/<slug>/technical/quotations/approval — the endpoint the
+          // backend exposes — and reloads, so the row's approved flag reflects
+          // the result. `unrouted` means the task was created but Tasks settings
+          // name no approver to receive it, so the studio is told to appoint one.
+          onRequestApproval={async (q) => {
+            const out = await send("quotations/approval", "POST", { quotationId: q.id });
+            if (out && out.unrouted) setNotice("Sent for approval, but no approver is set up to receive it — appoint approvers in Tasks settings.");
+          }}
           onLock={(q) => send("quotations", "PUT", { id: q.id, locked: true })}
           // ONLY the unlock, nothing beside it — the server refuses a request
           // that unlocks and edits in the same write.
@@ -422,7 +463,27 @@ function RfqInfo({ label: text, value, mono }) {
   );
 }
 
-function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock }) {
+// The tag beside a quotation's title saying where it came from. A Sales-origin
+// quotation wears the same mark the Sales section wears in the sidebar (icon
+// name "sales", from SECTION_ICONS), so the two screens read as one product; an
+// internal one — raised straight from this screen — wears a quiet neutral tag.
+function OriginTag({ fromSales }) {
+  if (fromSales) {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-700 text-brand-700 dark:text-brand-300">
+        <Icon name="sales" className="h-3 w-3" />
+        Sales
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
+      Internal
+    </span>
+  );
+}
+
+function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval }) {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
@@ -564,7 +625,10 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
                           not severed. */}
                       {col("title") && (
                         <td className="py-3 pe-3 ps-2">
-                          <span className="font-600 text-slate-900 dark:text-white">{q.title || "—"}</span>
+                          <span className="flex items-center gap-2">
+                            <span className="font-600 text-slate-900 dark:text-white">{q.title || "—"}</span>
+                            <OriginTag fromSales={q.fromSales} />
+                          </span>
                         </td>
                       )}
                       {col("clientName") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{q.clientName || "—"}</td>}
@@ -592,6 +656,15 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
                       )}
                       <td className="py-3 text-end">
                         <span className="inline-flex gap-2">
+                          {/* Only an internal, completed, not-yet-approved
+                              quotation can be sent for approval from here — a
+                              Sales-origin one is approved from its ticket, and
+                              the server refuses this door for it ("has-ticket").
+                              stopPropagation so the button does not also open the
+                              builder the row click owns. */}
+                          {canManage && !q.fromSales && q.status === "Completed" && !q.approved && (
+                            <button className={btnGhost} title="Send this quotation for internal approval" onClick={(e) => { e.stopPropagation(); onRequestApproval(q); }}>Request approval</button>
+                          )}
                           {canManage && q.status === "Approved" && !q.locked && (
                             <button className={btnGhost} title="Lock — it becomes view-only" onClick={(e) => { e.stopPropagation(); onLock(q); }}>Lock</button>
                           )}
@@ -694,22 +767,105 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
 }
 
 // A quotation raised straight from the Quotations screen, with no RFQ behind
-// it. Number, description and handled-by are all required, per the Old System.
-function NewQuotation({ people, onSave, onCancel }) {
-  const [f, setF] = useState({ number: "", description: "", handledBy: "" });
+// it — so it is Internal. It now captures what an RFQ-born one already carries:
+// client, industry and deadline, on top of a title and description, so an
+// internal quotation is not a poorer record than a converted one.
+//
+// The NUMBER is not typed. It is issued by the chosen sequence server-side (a
+// number a person picks by hand is a number they can pick twice, invariant 10),
+// so the form only shows the sequence's advisory `nextNumber` as helper text.
+//
+// Client and Industry reuse the Sales ticket's exact pattern — a `Combo` (MUI
+// Autocomplete, freeSolo) wrapped in a Field, whose options come from the API
+// payload (never hardcoded vocabulary) and which lets a name that is not on the
+// list through. On save, a typed client name that matches an existing client is
+// sent as `clientId`; anything else is sent as a new `clientName`.
+function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [], industries = [], onSave, onCancel }) {
+  const [f, setF] = useState({
+    sequenceId: sequences.some((s) => s.id === defaultSequenceId) ? defaultSequenceId : (sequences[0]?.id || ""),
+    clientName: "", title: "", industry: "", deadline: "", description: "", handledBy: "",
+  });
   const [busy, setBusy] = useState(false);
-  const ready = f.number.trim() && f.description.trim() && f.handledBy.trim();
+  const set = (patch) => setF((s) => ({ ...s, ...patch }));
+
+  const seq = sequences.find((s) => s.id === f.sequenceId) || null;
+  // The client the typed name resolves to, if any — same case-insensitive,
+  // whitespace-collapsed match the Sales ticket uses so "Acme  Co" and "acme co"
+  // are one client, not two.
+  const norm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const matched = clients.find((c) => norm(c.name) === norm(f.clientName)) || null;
+
+  const ready = f.sequenceId && f.clientName.trim() && f.title.trim()
+    && f.industry.trim() && f.deadline && f.description.trim();
+
+  async function save() {
+    setBusy(true);
+    await onSave({
+      sequenceId: f.sequenceId,
+      // Existing client → its id; a name off the list → a new client by name.
+      ...(matched ? { clientId: matched.id } : { clientName: f.clientName.trim() }),
+      title: f.title.trim(),
+      industry: f.industry.trim(),
+      deadline: f.deadline,
+      description: f.description.trim(),
+      ...(f.handledBy ? { handledBy: f.handledBy } : {}),
+    });
+    setBusy(false);
+  }
+
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Number" required value={f.number} onChange={(v) => setF((s) => ({ ...s, number: v }))} />
-        <Field label="Handled by" as="select" value={f.handledBy} onChange={(v) => setF((s) => ({ ...s, handledBy: v }))}
-          options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+        {/* The number rides on the sequence; the helper shows the one the next
+            quotation on it will carry, noted as assigned on save. */}
+        <Field label="Sequence" as="select" required value={f.sequenceId}
+          onChange={(v) => set({ sequenceId: v })}
+          hint={seq ? `Number ${seq.nextNumber} — assigned on save` : "Numbered automatically on save"}
+          options={sequences.map((s) => ({ value: s.id, label: s.prefix ? `${s.label} (${s.prefix})` : s.label }))} />
+
+        <Field label="Client" required filled={!!f.clientName}
+          hint={matched ? "Existing client." : (f.clientName.trim() ? "A name that isn't on the list creates a new client." : undefined)}>
+          <Combo value={f.clientName} onChange={(v) => set({ clientName: v })}
+            options={clients.map((c) => c.name)} inputClassName={BARE_CONTROL} />
+        </Field>
+
+        <Field className="sm:col-span-2" label="Title" required value={f.title}
+          onChange={(v) => set({ title: v })} />
+
+        <Field label="Type of industry" required filled={!!f.industry}>
+          <Combo value={f.industry} onChange={(v) => set({ industry: v })}
+            options={industries} inputClassName={BARE_CONTROL} />
+        </Field>
+
+        <Field label="Deadline" required filled={!!f.deadline}>
+          <StudioDate value={f.deadline} onChange={(iso) => set({ deadline: iso })} />
+        </Field>
+
         <Field className="sm:col-span-2" label="Description" required as="textarea" value={f.description}
-          onChange={(v) => setF((s) => ({ ...s, description: v }))} />
+          onChange={(v) => set({ description: v })} />
+
+        {/* Handled by is now OPTIONAL — an internal quotation can be created
+            before anyone is assigned it. */}
+        <Field label="Handled by" as="select" value={f.handledBy}
+          onChange={(v) => set({ handledBy: v })}
+          options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+
+        {/* Stamped by the server, shown read-only so the record's authorship is
+            visible while it is being written. "You" and now stand in because the
+            payload does not name the current collaborator. */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={label}>Created by</label>
+            <input className={inputRO} value="You" readOnly />
+          </div>
+          <div>
+            <label className={label}>Created at</label>
+            <input className={inputRO} value={fmtDate(new Date().toISOString())} readOnly />
+          </div>
+        </div>
       </div>
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !ready} onClick={async () => { setBusy(true); await onSave(f); setBusy(false); }}>
+        <button className={btn} disabled={busy || !ready} onClick={save}>
           {busy ? "Saving…" : "Create quotation"}
         </button>
         <button className={btnGhost} onClick={onCancel}>Cancel</button>
@@ -720,9 +876,124 @@ function NewQuotation({ people, onSave, onCancel }) {
 
 
 // ---- settings --------------------------------------------------------------
+// Quotation numbering: the studio's list of sequences, each with a label, a
+// prefix and a starting number, and which one Sales tickets default to.
+//
+// The number a quotation carries is issued from a sequence's counter, and a
+// counter only moves forward (invariant 10) — so `start` is a floor, and an
+// existing sequence's editable start is seeded from its advisory `nextNumber`
+// rather than from 1, which would ask the server to reissue numbers a client
+// already holds. The validation here mirrors the server's contract exactly
+// (a prefix on every row, no two prefixes equal case-insensitively) so the
+// error shows against the control before the round trip; the server checks
+// again and `send` reads its "prefix"/"prefix-duplicate" back as a fallback.
+//
+// A new row can be the Sales default in the SAME save: it is minted with a
+// stable client-side id (`seq-local-…`, which cannot collide with a server id)
+// at add-time, and readSequences keeps whatever id the client sends. So every
+// row — new or persisted — carries a real id that `defaultSequenceId` can point
+// at, and adding a sequence and marking it default is one Save, not two.
+function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave }) {
+  // The id IS the row's React key and identity; existing rows already have a
+  // server id, new ones are given a local id the moment they are added.
+  const seed = () => sequences.map((s) => ({
+    id: s.id, label: s.label || "", prefix: s.prefix || "",
+    start: String(s.nextNumber ?? 1),
+  }));
+  const [rows, setRows] = useState(seed);
+  const [defId, setDefId] = useState(defaultSequenceId || "");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  // A monotonic counter behind the local ids minted for new rows.
+  const localSeq = useRef(0);
+
+  const setRow = (id, patch) => { setSaved(false); setErr(""); setRows((rs) => rs.map((r) => r.id === id ? { ...r, ...patch } : r)); };
+  const addRow = () => {
+    setSaved(false); setErr("");
+    const id = `seq-local-${localSeq.current++}-${Math.random().toString(36).slice(2, 8)}`;
+    setRows((rs) => [...rs, { id, label: "", prefix: "", start: "1" }]);
+  };
+  const removeRow = (id) => {
+    setSaved(false); setErr("");
+    if (id === defId) setDefId("");
+    setRows((rs) => rs.filter((r) => r.id !== id));
+  };
+
+  async function save() {
+    // Mirror the server contract so the error lands against the control.
+    if (rows.length === 0) { setErr("Add at least one sequence."); return; }
+    if (rows.some((r) => !r.prefix.trim())) { setErr("Give every sequence a prefix."); return; }
+    const lower = rows.map((r) => r.prefix.trim().toLowerCase());
+    if (new Set(lower).size !== lower.length) { setErr("Two sequences share a prefix — make each one unique."); return; }
+    setErr("");
+    setBusy(true);
+    const ok = await onSave({
+      // Every row's id is sent, including a freshly-minted local one, so the
+      // default below can reference a row created in this very save.
+      sequences: rows.map((r) => ({
+        id: r.id, label: r.label.trim(), prefix: r.prefix.trim(), start: Number(r.start) || 1,
+      })),
+      // If the chosen default was removed, fall back to the server's own choice.
+      defaultSequenceId: rows.some((r) => r.id === defId) ? defId : "",
+    });
+    setBusy(false);
+    setSaved(!!ok);
+  }
+
+  return (
+    <section className={panel}>
+      <h2 className={h2}>Quotation numbering</h2>
+      <p className={sub}>The sequences a quotation's number is drawn from. Each has a label, a prefix and a starting number; one is the default for quotations raised from Sales tickets.</p>
+
+      <div className="mt-4 space-y-3">
+        {rows.length === 0 && <p className="text-sm text-slate-400">No sequences yet — add one below.</p>}
+        {rows.map((r) => (
+          <div key={r.id} className="rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_120px_auto]">
+              <Field label="Label" value={r.label} disabled={!canManage}
+                onChange={(v) => setRow(r.id, { label: v })} />
+              <Field label="Prefix" value={r.prefix} disabled={!canManage}
+                onChange={(v) => setRow(r.id, { prefix: v })} />
+              <Field label="Start" type="number" min="1" value={r.start} disabled={!canManage}
+                onChange={(v) => setRow(r.id, { start: v })} />
+              {canManage && (
+                <div className="flex items-center">
+                  <button type="button" className={btnGhost} onClick={() => removeRow(r.id)}
+                    disabled={rows.length === 1} title={rows.length === 1 ? "At least one sequence is kept" : "Remove this sequence"}>
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+            <label className="mt-3 flex items-center gap-2.5 text-sm">
+              <input type="radio" name="tech-default-sequence" className="h-4 w-4 accent-brand-600"
+                checked={r.id === defId} disabled={!canManage}
+                onChange={() => { setSaved(false); setDefId(r.id); }} />
+              <span className="text-slate-700 dark:text-slate-200">Default for Sales tickets</span>
+            </label>
+          </div>
+        ))}
+      </div>
+
+      {err && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{err}</p>}
+
+      {canManage ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button type="button" className={btnGhost} onClick={addRow}>Add sequence</button>
+          <button type="button" className={btn} disabled={busy} onClick={save}>{busy ? "Saving..." : "Save numbering"}</button>
+          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+        </div>
+      ) : (
+        <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">You have view-only access to Technical settings.</p>
+      )}
+    </section>
+  );
+}
+
 // Technical Settings: the Live view's columns, and the standing cover copy that
 // heads a quotation document (the Old System's "Cover copy settings").
-function TechnicalSettings({ options, selected, cover, canManage, onSave }) {
+function TechnicalSettings({ options, selected, cover, sequences = [], defaultSequenceId, canManage, onSave }) {
   const [cols, setCols] = useState(selected);
   const [c, setC] = useState({ title: cover.title || "", intro: cover.intro || "", terms: cover.terms || "" });
   const [busy, setBusy] = useState(false);
@@ -732,6 +1003,8 @@ function TechnicalSettings({ options, selected, cover, canManage, onSave }) {
 
   return (
     <div className="space-y-6">
+      <QuotationNumbering sequences={sequences} defaultSequenceId={defaultSequenceId} canManage={canManage} onSave={onSave} />
+
       <section className={panel}>
         <h2 className={h2}>Cover copy</h2>
         <p className={sub}>The standing text that heads a quotation document.</p>

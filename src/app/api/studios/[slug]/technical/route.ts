@@ -1,11 +1,11 @@
 import { refused } from "@/platform/http/route";
-import { nextQuotationNumber } from "@/modules/technical/technical";
+import { nextNumberForSequence } from "@/modules/technical/technical";
 import { currentUser } from "@/platform/auth/identity";
 import {
-  technicalContext, listRfqs, listQuotations, openTickets, technicalPeople, catalogueItems,
+  technicalContext, listRfqs, listQuotations, openTickets, technicalPeople, technicalClients, catalogueItems,
   RFQ_STATUSES, QUOTATION_STATUSES, DEFAULT_VAT_RATE, QUOTATION_LIVE_COLUMNS, saveTechnicalSettings,
 } from "@/modules/technical/technical";
-import { TICKET_URGENCIES } from "@/modules/sales/tickets";
+import { TICKET_URGENCIES, TICKET_INDUSTRIES } from "@/modules/sales/tickets";
 
 import { can } from "@/platform/access";
 
@@ -24,8 +24,12 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     return Response.json({ error: tech.error }, { status });
   }
 
-  const [rfqs, quotations, tickets, people, catalogue] = await Promise.all([
+  const [rfqs, quotations, tickets, people, catalogue, clients] = await Promise.all([
     listRfqs(tech), listQuotations(tech), openTickets(tech), technicalPeople(tech), catalogueItems(tech),
+    // The Sales clients, for the internal-quotation picker — folded into this
+    // same wave rather than read after, so the screen still costs one round of
+    // waiting regardless of how many lists it now shows.
+    technicalClients(tech),
   ]);
   return Response.json({
     // One flag per sub-section: RFQ and Quotations are separately granted, so
@@ -54,14 +58,30 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // What this studio prices in. The builder shows it beside every figure, so
     // nobody has to remember which money a number is in.
     currency: tech.studio?.currency || "",
-    // The number the NEXT quotation will carry, so Convert can show it instead
-    // of asking for one. Advisory: the number is issued again on save, because
-    // another conversion may land between this page loading and that click.
-    nextQuotationNumber: nextQuotationNumber(quotations, tech.settingsSection?.settings),
+    // EVERY SEQUENCE THE STUDIO NUMBERS QUOTATIONS UNDER, each with the number
+    // the NEXT quotation raised against it will carry — so a create screen can
+    // show one instead of asking for one. Advisory only: the number is issued
+    // again on save, because another create may land between this page loading
+    // and that click. Replaces the single `nextQuotationNumber` field now that
+    // a studio can number more than one kind of quotation.
+    sequences: tech.sequences.map((seq) => ({
+      id: seq.id, label: seq.label, prefix: seq.prefix,
+      nextNumber: nextNumberForSequence(quotations, seq),
+    })),
+    // Which sequence a Sales-ticket conversion numbers against by default.
+    defaultSequenceId: tech.defaultSequenceId,
     vocabulary: { rfqStatuses: RFQ_STATUSES, quotationStatuses: QUOTATION_STATUSES, defaultVatRate: DEFAULT_VAT_RATE,
       // Urgency is Sales' field, carried here read-only — the Technical screens
       // filter by it, so they need the same list Sales uses.
       urgencies: TICKET_URGENCIES,
+      // Same reuse for the internal-quotation form's Industry field: Sales
+      // already owns this vocabulary for its tickets, and a ticket's industry
+      // is carried onto Technical's rows read-only, so the create form has to
+      // offer exactly the values a converted quotation could ever show.
+      industries: TICKET_INDUSTRIES,
+      // The Sales clients this studio has, for the same form's client picker —
+      // an id and a name, nothing else. See technicalClients.
+      clients,
       liveColumnOptions: QUOTATION_LIVE_COLUMNS },
   });
 }
