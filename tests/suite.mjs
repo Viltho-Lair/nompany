@@ -79,6 +79,7 @@ import { planOf } from "@/lib/plans";
 import { createCatalogItem, deleteCatalogItem, listCatalog } from "@/lib/data/catalog";
 import { drillHref } from "@/components/dashboard/drill";
 import { presetRange } from "@/components/dashboard/dateRange";
+import { toCSV } from "@/components/dashboard/exportTable";
 import { overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices, OVERDUE_MILESTONES, EXPIRING_MILESTONES } from "@/modules/main/timeNotices";
 import { resolveHolders } from "@/lib/studios";
 import { NOVA_CAPABILITIES, capabilityEnabled, enabledCapabilities } from "@/lib/nova/capabilities";
@@ -2809,6 +2810,16 @@ console.log("\n== Shared shell: fiscal-aware preset ranges");
   ok("calendar year starts in January", y.start === "2026-01-01", y.start);
   const fy = presetRange("year", "2026-08-25", 4); // fiscal year starts April
   ok("a fiscal year starting in April rolls back to this April", fy.start === "2026-04-01", fy.start);
+}
+
+// ============================================================================
+console.log("\n== Shared shell: CSV export escapes honestly");
+{
+  const rows = [{ name: "Acme, Inc", owed: 250 }, { name: 'He said "hi"', owed: 90 }];
+  const csv = toCSV(rows, [{ key: "name", header: "Client" }, { key: "owed", header: "Owed" }]);
+  ok("header row first", csv.split("\n")[0] === "Client,Owed", csv.split("\n")[0]);
+  ok("a comma forces quoting", csv.includes('"Acme, Inc"'), csv);
+  ok("an inner quote is doubled", csv.includes('"He said ""hi"""'), csv);
 }
 
 // ============================================================================
