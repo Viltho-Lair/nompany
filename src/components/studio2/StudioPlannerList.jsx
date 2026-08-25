@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fmtDate } from "@/lib/format";
 import PlannerPresetsDialog from "@/components/studio2/PlannerPresetsDialog";
+import PlannerTemplatesPanel from "@/components/studio2/PlannerTemplatesPanel";
 
 // THE /operations-planner APP LANDING. A full-screen list of the studio's plans,
 // rendered outside StudioFrame (the studio route early-returns it). Each plan is
@@ -134,28 +135,34 @@ export default function StudioPlannerList({ slug }) {
         )}
       </header>
 
-      {/* ---- body ---- */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-        {state.loading ? (
-          <PlansSkeleton />
-        ) : state.error ? (
-          <div className="grid h-full place-items-center p-8">
-            <p className="max-w-sm text-center text-sm text-rose-600 dark:text-rose-300">
-              These plans could not be loaded — you may not have access to the
-              planner.
-            </p>
+      {/* ---- body: plans, with the template editor as a right-hand column ---- */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex min-h-full flex-col lg:flex-row">
+          <div className="min-w-0 flex-1 p-4 sm:p-6">
+            {state.loading ? (
+              <PlansSkeleton />
+            ) : state.error ? (
+              <div className="grid h-full place-items-center p-8">
+                <p className="max-w-sm text-center text-sm text-rose-600 dark:text-rose-300">
+                  These plans could not be loaded — you may not have access to the
+                  planner.
+                </p>
+              </div>
+            ) : state.plans.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {state.plans.map((plan) => (
+                  <li key={plan.id}>
+                    <PlanCard slug={slug} plan={plan} />
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        ) : state.plans.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <ul className="mx-auto grid max-w-content grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {state.plans.map((plan) => (
-              <li key={plan.id}>
-                <PlanCard slug={slug} plan={plan} />
-              </li>
-            ))}
-          </ul>
-        )}
+
+          {state.canEdit && !state.error && <PlannerTemplatesPanel slug={slug} />}
+        </div>
       </div>
 
       {presetsOpen && state.canEdit && (

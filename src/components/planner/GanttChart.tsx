@@ -30,6 +30,14 @@ export function GanttHeader({ timeline }: { timeline: Timeline }) {
       className="relative select-none bg-white"
       style={{ width: timeline.width, height: 32 }}
     >
+      {/* today column, carried up through the header so the date reads as today */}
+      {timeline.todayColumn && (
+        <div
+          className="pointer-events-none absolute top-0 h-full bg-primary/10"
+          style={{ left: timeline.todayColumn.x, width: timeline.todayColumn.width }}
+        />
+      )}
+
       {/* upper band: month / quarter / week-of */}
       <div className="relative h-4 border-b border-slate-100">
         {timeline.upper.map((tick) => (
@@ -205,6 +213,15 @@ export function GanttBody({ rows, schedule, timeline, resources }: BodyProps) {
           ) : null,
         )}
       </div>
+
+      {/* today column — a shaded full-height band, not just the hairline below, so
+          "Today" lands somewhere the eye actually catches */}
+      {timeline.todayColumn && (
+        <div
+          className="pointer-events-none absolute top-0 h-full bg-primary/10"
+          style={{ left: timeline.todayColumn.x, width: timeline.todayColumn.width }}
+        />
+      )}
 
       {/* vertical grid lines */}
       <div className="pointer-events-none absolute inset-0">

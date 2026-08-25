@@ -95,8 +95,8 @@ export function PlannerShell({ printHref, readOnly = false }: { printHref?: stri
   }, [trimTimeline, schedule]);
 
   const timeline = React.useMemo(
-    () => buildTimeline(rangeStart, rangeEnd, zoom, calendar),
-    [rangeStart, rangeEnd, zoom, calendar],
+    () => buildTimeline(rangeStart, rangeEnd, zoom, calendar, trimTimeline),
+    [rangeStart, rangeEnd, zoom, calendar, trimTimeline],
   );
 
   /* A search keeps the ancestors of every match so the hierarchy still reads. */

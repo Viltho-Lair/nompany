@@ -70,6 +70,8 @@ export interface Timeline {
   dayCells: DayCell[];
   /** x position of "now", or null when it falls outside the window */
   todayX: number | null;
+  /** the full calendar-day column that contains "now", for column highlight */
+  todayColumn: { x: number; width: number } | null;
   preset: ZoomPreset;
   x: (date: Date) => number;
   dateAt: (x: number) => Date;
@@ -112,14 +114,23 @@ export function buildTimeline(
   projectEnd: Date,
   zoom: ZoomLevel,
   cal: WorkCalendar,
+  fit = false,
 ): Timeline {
   const preset = zoomPreset(zoom);
-  const pad = padDays(preset);
+  // "Fit to tasks" means EXACTLY the window the caller asked for — one day either
+  // side of the work. The three comforts below (breathing-room padding, aligning
+  // the origin to a week/month boundary, and a minimum screenful) each widen the
+  // window, so together they were quietly re-adding the days the trim removed.
+  // In fit mode all three are off and the caller's range is honoured to the day.
+  const pad = fit ? 0 : padDays(preset);
 
-  const origin = alignOrigin(addCalendarDays(projectStart, -pad), preset);
-  const rawEnd = addCalendarDays(projectEnd, pad);
-  // Always render at least a couple of screens worth of timeline.
-  const minDays = Math.ceil(1400 / preset.pxPerDay);
+  const origin = fit
+    ? startOfDay(projectStart)
+    : alignOrigin(addCalendarDays(projectStart, -pad), preset);
+  const rawEnd = fit ? startOfDay(projectEnd) : addCalendarDays(projectEnd, pad);
+  // Always render at least a couple of screens worth of timeline — except in fit
+  // mode, where a short plan is meant to look short.
+  const minDays = fit ? 1 : Math.ceil(1400 / preset.pxPerDay);
   const spanDays = Math.max(
     minDays,
     Math.ceil(calendarDaysBetween(origin, rawEnd)) + 1,
@@ -264,6 +275,13 @@ export function buildTimeline(
 
   const now = new Date();
   const todayX = now >= origin && now <= end ? x(now) : null;
+  // The whole day-cell that "now" sits in, so the chart can shade a column rather
+  // than draw a hairline the eye slides off. Null when today is out of window.
+  const todayStart = startOfDay(now);
+  const todayColumn =
+    todayStart >= origin && todayStart < end
+      ? { x: x(todayStart), width: preset.pxPerDay }
+      : null;
 
   return {
     origin,
@@ -274,6 +292,7 @@ export function buildTimeline(
     lower,
     dayCells,
     todayX,
+    todayColumn,
     preset,
     x,
     dateAt,

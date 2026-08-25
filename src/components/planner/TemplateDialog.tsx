@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
-import { LayoutTemplate, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { LayoutTemplate, Sparkles } from 'lucide-react';
 import { usePlannerStore } from '@/components/planner/lib/store/plannerStore';
 import { Button } from '@/components/planner/ui/button';
 import {
@@ -12,11 +11,13 @@ import {
   DialogTitle,
 } from '@/components/planner/ui/primitives';
 
-// THE STUDIO'S TEMPLATES. This was a picker over hardcoded presets; now it lists
-// the studio's OWN templates (seeded once from those presets) and lets a plan
-// start from one — or edit any of them in the planner, or add a new one. The
-// slug comes from the URL because this ported dialog has no nompany context; the
-// templates are studio-level, so the same base works from either plan door.
+// SELECTION ONLY. This used to be the one place templates were both chosen and
+// edited, and editing a template from inside a live plan proved unreliable — the
+// plan you were standing in and the template you were changing shared a surface.
+// So editing moved out to the planner landing (a column of its own), and inside a
+// plan this dialog does exactly one thing: drop a template's tasks into the plan.
+// The slug comes from the URL because this ported dialog has no nompany context;
+// the templates are studio-level, so the same base works from either plan door.
 function studioSlug(): string {
   if (typeof window === 'undefined') return '';
   return window.location.pathname.split('/').filter(Boolean)[0] || '';
@@ -36,31 +37,22 @@ export function TemplateDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const router = useRouter();
   const importTasks = usePlannerStore((s) => s.importTasks);
   const setMeta = usePlannerStore((s) => s.setMeta);
   const slug = React.useMemo(studioSlug, []);
   const base = `/api/studios/${slug}/operations/planner/templates`;
 
   const [templates, setTemplates] = React.useState<TemplateRow[] | null>(null);
-  const [canEdit, setCanEdit] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
-
-  const load = React.useCallback(() => {
-    fetch(base, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        setTemplates(Array.isArray(d?.templates) ? d.templates : []);
-        setCanEdit(Boolean(d?.canEdit));
-      })
-      .catch(() => setTemplates([]));
-  }, [base]);
 
   React.useEffect(() => {
     if (!open) return;
     setTemplates(null);
-    load();
-  }, [open, load]);
+    fetch(base, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setTemplates(Array.isArray(d?.templates) ? d.templates : []))
+      .catch(() => setTemplates([]));
+  }, [open, base]);
 
   // Use — drop this template's tasks into the current plan and name it.
   const use = async (t: TemplateRow) => {
@@ -79,53 +71,17 @@ export function TemplateDialog({
     }
   };
 
-  // Edit — open the template in the planner itself.
-  const edit = (t: TemplateRow) => {
-    onOpenChange(false);
-    router.push(`/${slug}/operations-planner/templates/${t.id}`);
-  };
-
-  const create = async () => {
-    setBusy(true);
-    try {
-      const r = await fetch(base, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: '{}',
-      });
-      const d = r.ok ? await r.json() : null;
-      if (d?.templateId) {
-        onOpenChange(false);
-        router.push(`/${slug}/operations-planner/templates/${d.templateId}`);
-      } else {
-        setBusy(false);
-      }
-    } catch {
-      setBusy(false);
-    }
-  };
-
-  const remove = async (t: TemplateRow) => {
-    setBusy(true);
-    try {
-      await fetch(`${base}/${t.id}`, { method: 'DELETE' });
-      load();
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogTitle className="flex items-center gap-2">
           <LayoutTemplate className="h-4 w-4 text-primary" />
-          Templates
+          Start from a template
         </DialogTitle>
         <DialogDescription>
-          Start this plan from a template, or edit the studio&apos;s templates in the
-          planner. A template carries its own dependency links, so a plan started
-          from one lays its timeline out on its own.
+          Pick a template to lay this plan out from. A template carries its own
+          dependency links, so the plan lays its timeline out on its own. Templates
+          are created and edited on the planner landing, not here.
         </DialogDescription>
 
         <div className="mt-4 grid max-h-[46vh] grid-cols-2 gap-2 overflow-y-auto pe-1">
@@ -147,36 +103,13 @@ export function TemplateDialog({
                   <Button size="sm" onClick={() => use(t)} disabled={busy}>
                     <Sparkles className="h-3.5 w-3.5" /> Use
                   </Button>
-                  {canEdit && (
-                    <Button size="sm" variant="outline" onClick={() => edit(t)} disabled={busy}>
-                      <Pencil className="h-3.5 w-3.5" /> Edit
-                    </Button>
-                  )}
-                  {canEdit && (
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      onClick={() => remove(t)}
-                      disabled={busy}
-                      aria-label={`Delete ${t.name}`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
                 </div>
               </div>
             ))
           )}
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-200 pt-4">
-          {canEdit ? (
-            <Button variant="outline" onClick={create} disabled={busy}>
-              <Plus className="h-3.5 w-3.5" /> New template
-            </Button>
-          ) : (
-            <span />
-          )}
+        <div className="mt-4 flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
