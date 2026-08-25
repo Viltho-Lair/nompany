@@ -355,6 +355,24 @@ which is the one source of truth for the slice.
 
 ## 11. Follow-ons (out of scope here, enabled by this)
 
+**Deferred out of Main v1 during implementation (25/08/2026), with reasons:**
+
+- **The FilterBar, wired functionally into Main.** `FilterBar.jsx` and `dateRange.ts`
+  are built and unit-tested, but Main does not mount a working one yet. A working
+  date filter must thread the selected range through the route into
+  `readAggregate` / `activityByDay` / `periodDelta` — the *same* derivation path
+  Phase 2's rollup reworks — and invariant 16 forbids shipping a control that does
+  nothing. So the FilterBar lands with the Phase 2 rollup slice. Main v1 shows
+  correct fixed windows (30-day activity/ribbon, this-month-vs-last trends).
+- **PNG and XLSX export.** CSV export of the two tabular widgets ships in v1
+  (`exportTable.toCSV`/`downloadCSV`). PNG (canvas-serialise the SVG kit) and XLSX
+  (researcher-gated library) are the export fast-follows.
+- **A partial-visibility golden.** Tenant isolation is proven for the all-sections-
+  absent case (`norole.main.json` — empty `executive.widgets`) and the entitlement
+  split is proven at the `enabledWidgets` level. A golden for an *entitled member who
+  can see some sections but not others* (only their sections appear) is a follow-on
+  test needing a partial-access + entitled fixture.
+
 Once the Main slice proves the shell + rollup pattern, the back half of w4 §3
 becomes repetition of a settled pattern:
 
