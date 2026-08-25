@@ -66,7 +66,7 @@ import {
 } from "@/modules/quality/qualityDocRevisions";
 import { resolveBlocks, blocksFor } from "@/modules/quality/quality";
 import { documentState, pendingRevision } from "@/modules/quality/qualityDocuments";
-import { listSections, updateRow } from "@/platform/db/sections";
+import { listSections, updateRow, getSectionByKey, addRow } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices } from "@/modules/finance/finance";
@@ -2815,6 +2815,40 @@ console.log("\n== Main rollup: key builder and source list");
   ok("sources carry the tracked collections", MAIN_AGG_SOURCES.map((s) => s.collection).includes("salesTickets"));
   ok("utcDay is a YYYY-MM-DD string", /^\d{4}-\d{2}-\d{2}$/.test(utcDay("2026-08-25T09:00:00Z")) && utcDay("2026-08-25T23:59:59Z") === "2026-08-25");
   ok("aggField composes id and day", aggField("sec_1", "2026-08-25") === "sec_1:day:2026-08-25");
+}
+
+// ============================================================================
+console.log("\n== Main rollup: the write path increments the rollup");
+{
+  // The fixture studio is shared across the whole suite, so earlier blocks
+  // (createTicket etc.) have already bumped this section's field today —
+  // assert the DELTA this block causes, not an absolute value.
+  const sec = await getSectionByKey(studio.id, "sales-tickets");
+  const today = utcDay();
+  const field = aggField(sec.id, today);
+  const before = await hGetAll(S.mainAgg(studio.id));
+  const baseline = Number(before[field] || 0);
+
+  await addRow(studio.id, sec.id, "salesTickets", { title: "A", createdAt: `${today}T09:00:00Z` });
+  await addRow(studio.id, sec.id, "salesTickets", { title: "B", createdAt: `${today}T10:00:00Z` });
+  await addRow(studio.id, sec.id, "notes", { body: "untracked" }); // not a tracked collection
+
+  // addRow's own call is `void`-ed (fire-and-forget, §3) so it must not join the
+  // write's latency or failure path — but that means it can race this assertion.
+  // Settle by polling hGetAll briefly rather than awaiting a second bump, which
+  // would double-count instead of observing the same one.
+  let hash = before;
+  for (let i = 0; i < 20; i++) {
+    hash = await hGetAll(S.mainAgg(studio.id));
+    if (Number(hash[field] || 0) === baseline + 2) break;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  ok("two tracked creates count as +2 on today's field", Number(hash[field] || 0) === baseline + 2, JSON.stringify({ before: baseline, after: hash[field] }));
+  ok(
+    "an untracked collection writes no rollup field (no third bump)",
+    Number(hash[field] || 0) !== baseline + 3,
+    JSON.stringify({ before: baseline, after: hash[field] }),
+  );
 }
 
 // ============================================================================

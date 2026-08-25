@@ -14,6 +14,7 @@
 import { S, SEC, ID, SECTION_COLLECTIONS, SECTION_DEFS, ALL_SECTION_KEYS } from "./keys";
 import { readArr, editArr } from "./store";
 import { emit, TYPE } from "@/platform/realtime/events";
+import { bumpMainAgg } from "./mainAgg";
 import type { Row } from "./store";
 
 // ---- what a section is -----------------------------------------------------
@@ -201,6 +202,7 @@ export async function addRow<T extends Row = Row>(
     return { next: [created, ...rows], result: created };
   });
   await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name, rowId: row.id as string });
+  void bumpMainAgg(studioId, sectionId, name); // best-effort rollup, never awaited (§3)
   return row;
 }
 
