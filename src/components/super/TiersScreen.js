@@ -22,7 +22,7 @@ export default function TiersScreen() {
     { key: "description", label: "Description", type: "text" },
   ];
   const TIER_FIELDS = [
-    { key: "name", label: "Name", type: "text", placeholder: "Standard" },
+    { key: "name", label: "Name", type: "text", placeholder: "Basic" },
     { key: "serviceIds", label: "ERP services", type: "services" },
     { key: "cost", label: "Cost", type: "number", prefix: "SAR " },
     { key: "durationMonths", label: "Duration (months)", type: "number", suffix: " mo", zeroLabel: "Endless", hint: "0 means endless — the tier never expires." },

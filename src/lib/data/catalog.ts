@@ -250,7 +250,7 @@ export async function deleteCatalogItem(kind: string, id: string) {
 // limit is a commercial decision and belongs in the console; until it is set,
 // nothing is enforced, which is the safe direction to be wrong in.
 export const DEFAULT_PACKAGE = "Free";
-export const DEFAULT_TIER = "Standard";
+export const DEFAULT_TIER = "Basic";
 
 const byName = (rows: Row[], name: string) =>
   rows.find((r: Row) => String(r.name || "").trim().toLowerCase() === name.toLowerCase()) || null;
