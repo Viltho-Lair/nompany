@@ -104,6 +104,7 @@ import * as KEYS from "@/platform/db/keys";
 import { STAT } from "@/platform/db/keys";
 import { putMedia } from "@/lib/media";
 import { hashToken } from "@/platform/auth/passwords";
+import { SERVICE_ACTIONS, FIELDS_OF_WORK, FIELD_ACTION_MATRIX, actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 
 const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/route.ts")).PUT;
 const TASKS_ROUTE = await import("@/app/api/studios/[slug]/tasks/route.ts");
@@ -3005,6 +3006,25 @@ console.log("\n== Shared shell: CSV export escapes honestly");
   ok("header row first", csv.split("\n")[0] === "Client,Owed", csv.split("\n")[0]);
   ok("a comma forces quoting", csv.includes('"Acme, Inc"'), csv);
   ok("an inner quote is doubled", csv.includes('"He said ""hi"""'), csv);
+}
+
+// ============================================================================
+console.log("== fields of work: the matrix cannot drift from its actions");
+{
+  ok("there are 20 standard service actions", SERVICE_ACTIONS.length === 20, String(SERVICE_ACTIONS.length));
+  ok("there are 25 fields of work", FIELDS_OF_WORK.length === 25, String(FIELDS_OF_WORK.length));
+
+  const actionSet = new Set(SERVICE_ACTIONS);
+  const strayValues = Object.entries(FIELD_ACTION_MATRIX)
+    .flatMap(([f, acts]) => acts.filter((a) => !actionSet.has(a)).map((a) => `${f}:${a}`));
+  ok("every matrix value is one of the 20 actions", strayValues.length === 0, strayValues.join(", "));
+
+  const missingRows = FIELDS_OF_WORK.filter((f) => !Array.isArray(FIELD_ACTION_MATRIX[f]));
+  ok("every field has a matrix row", missingRows.length === 0, missingRows.join(", "));
+
+  ok("actionsForField returns a field's row", actionsForField("Manufacturing").includes("Fabrication / Manufacturing"));
+  ok("actionsForField('Other') seeds nothing", actionsForField(OTHER_FIELD).length === 0);
+  ok("actionsForField(unknown) seeds nothing", actionsForField("Nope").length === 0);
 }
 
 // ============================================================================
