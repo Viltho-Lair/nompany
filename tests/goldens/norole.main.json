@@ -68,6 +68,15 @@
       "permitsExpiring": null,
       "headcount": null
     },
-    "recent": []
+    "recent": [],
+    "executive": {
+      "widgets": {},
+      "locked": [
+        "main.activity",
+        "main.headline-trend",
+        "main.event-ribbon",
+        "main.awaiting-you"
+      ]
+    }
   }
 }
