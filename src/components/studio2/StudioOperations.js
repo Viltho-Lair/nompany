@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
@@ -40,25 +39,36 @@ const dayName = (iso) => fmtWeekday(iso);
 // sub-section selects its screen. The remaining tabs are tabs of one screen.
 export default function StudioOperations({ slug, view = "operations" }) {
   const [data, setData] = useState(null);
-  // Tabs belong to the MAIN screen only. Tracking and Settings are real
-  // sub-sections with screens of their own — previously they both fell through
-  // to this tab state, which left /operations-tracking selecting a tab that
-  // matched no case and rendering nothing at all under the tab bar.
-  // The main screen's two peers, Permits and Locations, are chosen from the
-  // bottom bar. Landing here from the Schedule screen carries the wanted one in
-  // the URL hash (#locations); within the screen the bar just flips this state.
-  const [tab, setTab] = useState("permits");
+  // THE SCHEDULE SCREEN'S THREE PANELS — the rota, Permits and Locations. Permits
+  // and Locations moved here off the Operations landing (the landing is now just
+  // the dashboard), so all three are peers reached from the bottom bar and flip
+  // in place. Which one is showing is remembered in the URL hash, so a refresh or
+  // a shared link lands back on it. `window` is shadowed in this component (the
+  // week window destructured from data), so the browser global is reached through
+  // globalThis.
+  const [sub, setSub] = useState("schedule");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const level = useAnalyticsLevel();
 
   useEffect(() => {
-    // `window` is shadowed in this component (the week window destructured from
-    // data), so reach the browser global through globalThis for the hash.
-    if (view === "operations" && globalThis.location?.hash === "#locations") {
-      setTab("locations");
-    }
+    if (view !== "operations-schedule") return;
+    const h = (globalThis.location?.hash || "").replace("#", "");
+    if (h === "permits" || h === "locations" || h === "schedule") setSub(h);
   }, [view]);
+
+  const selectSub = useCallback((next) => {
+    setSub(next);
+    if (globalThis.location) {
+      // Schedule is the default, so it clears the hash rather than writing
+      // `#schedule`; the other two name themselves. replaceState keeps the Back
+      // button pointing out of the planner, not around these three panels.
+      const url = next === "schedule"
+        ? globalThis.location.pathname + globalThis.location.search
+        : `#${next}`;
+      globalThis.history.replaceState(null, "", url);
+    }
+  }, []);
 
   // The Schedule screen reads its own sub-section door (operations.schedule); the
   // rest of Operations reads the root. One screen, two reads, chosen by view.
@@ -90,7 +100,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
   if (!data) return <p className="text-sm text-slate-500">Loading Operations…</p>;
 
   const {
-    canManage: canManageParent, canManageTracking, canManageSettings,
+    canManage: canManageParent, canManageTracking, canManageSettings, canManagePlaces,
     locations, permits, shifts, projects, people, window, positions, settings, summary, vocabulary, nav, me,
   } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
@@ -139,77 +149,58 @@ export default function StudioOperations({ slug, view = "operations" }) {
     );
   }
 
-  // THE SCHEDULE SCREEN — the rota and the working week, on its own sub-section.
-  // A peer of Permits and Locations, reached (like them) from the bottom bar.
+  // THE SCHEDULE SCREEN — the rota, and now Permits and Locations too, which moved
+  // here off the Operations landing. All three are peers, reached from the bottom
+  // bar and flipping in place. The rota answers to the schedule grant; Permits and
+  // Locations to whether the caller may manage the operations root, which their
+  // write routes enforce — `canManagePlaces`, computed on the server so the button
+  // and the route can never disagree.
   if (view === "operations-schedule") {
     return (
       <div className="space-y-6 pb-20">
         {banner}
-        <Schedule shifts={shifts} people={people} locations={locations} window={window}
-          settings={settings} canManage={canManage} busy={busy} send={send} />
-        <OperationsBottomBar slug={slug} active="schedule" />
+        {sub === "schedule" ? (
+          <Schedule shifts={shifts} people={people} locations={locations} window={window}
+            settings={settings} canManage={canManage} busy={busy} send={send} />
+        ) : sub === "permits" ? (
+          <Permits rows={permits} locations={locations} people={people} projects={projects} types={vocabulary.permitTypes}
+            windowDays={vocabulary.expiryWindowDays} slug={slug} nav={nav} canManage={canManagePlaces} busy={busy} send={send} />
+        ) : (
+          <Locations rows={locations} kinds={vocabulary.locationKinds} canManage={canManagePlaces} busy={busy} send={send} />
+        )}
+        <OperationsBottomBar active={sub} onTab={selectSub} />
       </div>
     );
   }
 
+  // THE OPERATIONS LANDING — now just the dashboard. Locations, permits and the
+  // rota live under Schedule; the summary of them stays here the way every other
+  // department's dashboard is its landing.
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6">
       {banner}
-
-      {/* The Operations dashboard — locations, permits and shifts summarised —
-          sits above the working screen the way Finance's does. It answers to the
-          same right that gated this screen (operations.dashboard.view), so if we
-          are here it is ours to see. */}
       <OperationsDashboard locations={locations} permits={permits} shifts={shifts}
         window={window} summary={summary} windowDays={vocabulary.expiryWindowDays} level={level} />
-
-      {!canManage && (
-        <div className="flex justify-end">
-          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>
-        </div>
-      )}
-
-      {tab === "permits" ? (
-        <Permits rows={permits} locations={locations} people={people} projects={projects} types={vocabulary.permitTypes}
-          windowDays={vocabulary.expiryWindowDays} slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
-      ) : (
-        <Locations rows={locations} kinds={vocabulary.locationKinds} canManage={canManage} busy={busy} send={send} />
-      )}
-
-      {/* Schedule / Permits / Locations are peers here — the bar is how you move
-          between them. Permits and Locations flip in place; Schedule is its own
-          sub-section, so it is a link. */}
-      <OperationsBottomBar slug={slug} active={tab} onTab={setTab} />
     </div>
   );
 }
 
-// THE OPERATIONS BOTTOM BAR — the same shape as Project Sheets': a strip along
-// the bottom of the working area (never over the sidebar), the way you move
-// between Schedule, Permits and Locations. On the main screen Permits/Locations
-// flip a tab in place (onTab); the Schedule peer is its own sub-section, so it is
-// always a link. From the Schedule screen there is no onTab, so all three are
-// links — Permits/Locations carry the wanted tab in the hash.
-function OperationsBottomBar({ slug, active, onTab }) {
-  const items = [
-    { key: "schedule", label: "Schedule", href: `/${slug}/operations-schedule` },
-    { key: "permits", label: "Permits", href: `/${slug}/operations#permits` },
-    { key: "locations", label: "Locations", href: `/${slug}/operations#locations` },
-  ];
+// THE OPERATIONS BOTTOM BAR — a strip along the bottom of the working area (never
+// over the sidebar), the way you move between Schedule, Permits and Locations. All
+// three now live on the one Schedule screen, so all three flip in place; none is a
+// link any more.
+function OperationsBottomBar({ active, onTab }) {
+  const items = [["schedule", "Schedule"], ["permits", "Permits"], ["locations", "Locations"]];
   return (
     <div className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
       <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
         <div className="pointer-events-auto flex items-center gap-2 rounded-t-geex border border-b-0 border-slate-200 bg-white/95 px-3 py-2 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95">
-          {items.map((i) => {
-            const on = i.key === active;
+          {items.map(([key, label]) => {
+            const on = key === active;
             const cls = `rounded-full px-4 py-1.5 font-display text-sm font-600 transition-colors ${
               on ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`;
-            if (on) return <span key={i.key} className={cls} aria-current="page">{i.label}</span>;
-            // Permits/Locations switch in place when a handler is given.
-            if (onTab && i.key !== "schedule") {
-              return <button key={i.key} type="button" className={cls} onClick={() => onTab(i.key)}>{i.label}</button>;
-            }
-            return <Link key={i.key} href={i.href} className={cls}>{i.label}</Link>;
+            if (on) return <span key={key} className={cls} aria-current="page">{label}</span>;
+            return <button key={key} type="button" className={cls} onClick={() => onTab(key)}>{label}</button>;
           })}
         </div>
       </div>

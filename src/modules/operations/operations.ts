@@ -14,7 +14,7 @@
 // Permit validity and shift hours are DERIVED from their dates, never stored,
 // so neither can quietly go stale.
 
-import { requirePermission } from "@/platform/access";
+import { requirePermission, sectionManageable } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
@@ -126,16 +126,31 @@ export function scheduleFromStudio(studio: Record<string, unknown>) {
 export async function scheduleView(ctx: ScheduleContext) {
   const window = weekWindow();
   const section = ctx.operationsMainSection;
-  const [shifts, locations, people] = await Promise.all([
+  // Permits and Locations are read HERE now — they moved off the Operations
+  // landing to sit under Schedule with the rota, all three read through this one
+  // door. Like the shifts, their rows live under the operations ROOT section, so
+  // they are read from `section` (the foreign operationsMainSection), not a
+  // collection of the schedule sub-section's own.
+  const [shifts, locations, permits, people, projects] = await Promise.all([
     listShifts({ studio: ctx.studio, section }),
     listLocations({ studio: ctx.studio, section }),
+    listPermits({ studio: ctx.studio, section }),
     schedulablePeople(ctx),
+    operationsProjects({ studio: ctx.studio }),
   ]);
+  // WHO MAY MANAGE the permits and locations shown here. Their write routes still
+  // answer to the operations ROOT section (that is where the rows live and where
+  // the guard sits), so the button-gating must ask the SAME question those routes
+  // do — may this caller manage the operations root — rather than the schedule
+  // grant that gates the rota. `ctx.canManage` is the schedule answer; this is the
+  // places answer, and the two can differ.
+  const canManagePlaces = sectionManageable(ctx.access, "operations", ctx.sections.map((s) => s.key));
   return {
     canManage: ctx.canManage,
+    canManagePlaces,
     nav: ctx.nav,
     me: { collaboratorId: ctx.collaborator.id },
-    shifts, locations, people, window,
+    shifts, locations, permits, people, projects, window,
     settings: {
       ...readOperationsSettings(ctx.settingsSection),
       workSchedule: scheduleFromStudio(ctx.studio),
@@ -624,7 +639,7 @@ async function projectRows({ studio }: Pick<OperationsContext, "studio">) {
   return Projects.find({ studio, section: owner });
 }
 
-export async function operationsProjects(ctx: OperationsContext) {
+export async function operationsProjects(ctx: Pick<OperationsContext, "studio">) {
   const rows = await projectRows(ctx);
   return rows.filter((p) => p.stage !== "Completed").map((p) => ({ id: p.id, number: p.number }));
 }
