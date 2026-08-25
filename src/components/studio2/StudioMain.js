@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
 import { panel, h2, sub, microLabel, money, fmtDate, StatTile, Empty } from "@/components/studio2/ui";
+import MainDashboard from "@/components/studio2/MainDashboard";
 
 // MAIN — the studio's front door: what is happening across the whole place, for
 // the person looking at it.
@@ -33,7 +34,7 @@ export default function StudioMain({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">Loading…</p>;
 
-  const { studio, me, headlines, recent, sections, nav } = data;
+  const { studio, me, headlines, recent, sections, nav, executive } = data;
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
 
   // Only the figures this person is entitled to. `null` means the section was
@@ -123,6 +124,8 @@ export default function StudioMain({ slug }) {
           )}
         </section>
       </div>
+
+      {executive && <MainDashboard slug={slug} executive={executive} />}
     </div>
   );
 }
