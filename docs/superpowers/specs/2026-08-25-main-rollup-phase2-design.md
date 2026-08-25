@@ -57,16 +57,22 @@ So Phase 2 is Main-only, and within Main it serves activity, trends and the ribb
   `S.mainAgg(studioId) → \`${P}s:${studioId}:mainagg\``. A single Redis **hash** per
   studio.
 - **Fields are per section, per day** so counting is atomic and visibility survives
-  aggregation:
-  - `\`${sectionKey}:day:${YYYYMMDD}\`` → an integer **create-count** for that
-    section on that day. One field per (section, day).
+  aggregation. **Keyed by `sectionId`, not section key** — because `addRow` (the
+  write site, §3) holds the opaque `sectionId` but *not* the section key, and making
+  the hot write path do a key lookup on every create is the cost this avoids. The
+  read and the reconcile both already hold the section objects (with `id` *and*
+  `key`), so they map `sectionId`→section for free:
+  - `\`${sectionId}:day:${YYYYMMDD}\`` → an integer **create-count** for that
+    section on that day. One field per (sectionId, day).
   - `meta:refreshedAt` → ISO timestamp of the last reconcile, for Phase 1's §3.4
     "Data as of …" stamp.
-- The tracked sections are exactly Phase 1's `ACTIVITY_SOURCES` keys
-  (`sales-tickets`, `technical-quotations`, `technical-rfq`, `projects-list`,
-  `inventory-items`, `tasks`). Retention is **90 days** of daily fields per section
-  — enough for the 30-day activity window and the month-over-month trend with
-  margin.
+- The tracked collections are exactly Phase 1's `ACTIVITY_SOURCES` collections
+  (`salesTickets`, `quotations`, `rfqs`, `projects`, `inventoryItems`, `tasks`) —
+  whose sections are `sales-tickets`, `technical-quotations`, `technical-rfq`,
+  `projects-list`, `inventory-items`, `tasks`. The updater decides "tracked" by the
+  **collection name** (each of the six lives in one section), so it never needs the
+  key. Retention is **90 days** of daily fields per section — enough for the 30-day
+  activity window and the month-over-month trend with margin.
 - **Why per-day integer fields, not a JSON array:** an integer field is incremented
   with an atomic `HINCRBY`, so the updater needs no read-modify-write and no
   compare-and-set (invariant 8 is about blind whole-collection writes; this is a
@@ -83,9 +89,14 @@ count for a section is still information about that section, which is why the
 ## 3. The inline best-effort updater (backend-db)
 
 - Hooks `addRow` in `src/platform/db/sections.ts` — the one place a row is created,
-  which already emits `row.created`. After the row is written, if its
-  (section, collection) is one of the six tracked pairs, fire:
-  `HINCRBY S.mainAgg(studioId) \`${sectionKey}:day:${todayUTC}\` 1`.
+  which already emits `row.created` and has `studioId`, `sectionId` and the
+  collection `name` in scope. After the row is written, if the collection `name` is
+  one of the six tracked collections, fire (fire-and-forget):
+  `hIncrBy(S.mainAgg(studioId), \`${sectionId}:day:${todayUTC}\`, 1)`. No key lookup —
+  the write site has everything it needs. The updater lives in its own
+  `src/platform/db/mainAgg.ts` (platform, not `modules/main`, so the write path
+  keeps a platform-only dependency); `addRow` gains one fire-and-forget line, the
+  way it already calls `emit`.
 - **Best-effort, exactly like the notification producers:** its own try/catch, no
   await that could fail the write, no ordering dependency. The row is already
   committed; a lost increment is not a data loss, only a temporary drift the nightly
