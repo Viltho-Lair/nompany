@@ -9,6 +9,10 @@ import { enabledWidgets } from "@/lib/dashboardWidgets";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Same order the gate() calls below fill widgets/locked in, so the all-locked
+// shortcut below produces byte-identical output to the gated path.
+const MAIN_WIDGET_KEYS = ["main.activity", "main.headline-trend", "main.event-ribbon", "main.awaiting-you"];
+
 // The studio's front door. Everything here is assembled from the sections this
 // person can actually see — a section they have no grant for is not read at all,
 // so no figure on this page can describe something the sidebar hides from them.
@@ -23,9 +27,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     return Response.json({ error: main.error }, { status });
   }
 
-  const [figures, feed, agg, queue] = await Promise.all([
-    headlines(main), recent(main), readAggregate(main), awaitingQueue(main),
-  ]);
+  const [figures, feed] = await Promise.all([headlines(main), recent(main)]);
 
   // WHICH EXECUTIVE WIDGETS THIS STUDIO'S TIER BOUGHT — resolved server-side,
   // the same way the studio page resolves it (page.js ~line 175), because
@@ -38,14 +40,24 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   const entitled = enabledWidgets(plan);
   const widgets: Record<string, unknown> = {};
   const locked: string[] = [];
-  const gate = (key: string, value: unknown) => {
-    if (entitled.has(key)) widgets[key] = value;
-    else locked.push(key);
-  };
-  gate("main.activity", agg.activity);
-  gate("main.headline-trend", agg.trends);
-  gate("main.event-ribbon", agg.ribbon);
-  gate("main.awaiting-you", queue);
+
+  // A basic-tier studio (the majority) is entitled to none of the four keys
+  // below, so readAggregate/awaitingQueue would be computed only to be thrown
+  // away — each reads several collections. Skip the reads entirely when
+  // nothing is entitled; the response is identical either way.
+  if (MAIN_WIDGET_KEYS.some((key) => entitled.has(key))) {
+    const [agg, queue] = await Promise.all([readAggregate(main), awaitingQueue(main)]);
+    const gate = (key: string, value: unknown) => {
+      if (entitled.has(key)) widgets[key] = value;
+      else locked.push(key);
+    };
+    gate("main.activity", agg.activity);
+    gate("main.headline-trend", agg.trends);
+    gate("main.event-ribbon", agg.ribbon);
+    gate("main.awaiting-you", queue);
+  } else {
+    locked.push(...MAIN_WIDGET_KEYS);
+  }
 
   return Response.json({
     studio: { name: main.studio.name, slug: main.studio.slug },

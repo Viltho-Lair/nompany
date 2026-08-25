@@ -15,6 +15,10 @@ import { drillHref } from "@/components/dashboard/drill";
 import { fmtDate } from "@/lib/format";
 import { toCSV, downloadCSV } from "@/components/dashboard/exportTable";
 
+const NoData = ({ text = "No data yet." }) => (
+  <p className="py-8 text-center text-sm text-slate-400">{text}</p>
+);
+
 export default function MainDashboard({ slug, executive }) {
   const visible = useWidgetVisible();
   const w = executive?.widgets || {};
@@ -32,7 +36,7 @@ export default function MainDashboard({ slug, executive }) {
             <a href={drillHref(slug, d.section)} className="text-sm text-muted-foreground">{d.section}</a>
             <Sparkline data={(d.series || []).map((s) => s.value)} />
           </div>
-        )) : <p className="text-sm text-muted-foreground">No sections you can see yet.</p>}
+        )) : <NoData text="No sections you can see yet." />}
       </Widget>
 
       <Widget title="Awaiting you" hint="Waiting on your action"
@@ -56,7 +60,7 @@ export default function MainDashboard({ slug, executive }) {
               Export CSV
             </button>
           </>
-        ) : <p className="text-sm text-muted-foreground">Nothing is waiting on you.</p>}
+        ) : <NoData text="Nothing is waiting on you." />}
       </Widget>
 
       <Widget title="Activity ribbon" hint="All departments, last 30 days" span={2}
@@ -66,7 +70,7 @@ export default function MainDashboard({ slug, executive }) {
             <AreaChart height={120} labels={ribbon.map((d) => d.label)}
               series={[{ name: "Events", data: ribbon.map((d) => d.value), color: "rgb(var(--chart-1))" }]} />
           </ChartFrame>
-        ) : <p className="text-sm text-muted-foreground">No recent activity.</p>}
+        ) : <NoData text="No recent activity." />}
       </Widget>
 
       <Widget title="Headline trends" hint="This month vs last"
@@ -89,7 +93,7 @@ export default function MainDashboard({ slug, executive }) {
               Export CSV
             </button>
           </>
-        ) : <p className="text-sm text-muted-foreground">No trend data yet.</p>}
+        ) : <NoData text="No trend data yet." />}
       </Widget>
     </DashGrid>
   );
