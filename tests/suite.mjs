@@ -66,7 +66,7 @@ import {
 } from "@/modules/quality/qualityDocRevisions";
 import { resolveBlocks, blocksFor } from "@/modules/quality/quality";
 import { documentState, pendingRevision } from "@/modules/quality/qualityDocuments";
-import { listSections, updateRow, getSectionByKey, addRow } from "@/platform/db/sections";
+import { listSections, updateRow, getSectionByKey, addRow, readCol } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices } from "@/modules/finance/finance";
@@ -98,7 +98,7 @@ import { __signIn, __signOut } from "./nextHeaders.mjs";
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
 } from "@/platform/auth/superAuth";
-import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll, memoryPolicy } from "@/platform/db/store";
+import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll, hSet, memoryPolicy } from "@/platform/db/store";
 import * as KEYS from "@/platform/db/keys";
 import { STAT } from "@/platform/db/keys";
 import { putMedia } from "@/lib/media";
@@ -108,6 +108,7 @@ const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/
 const TASKS_ROUTE = await import("@/app/api/studios/[slug]/tasks/route.ts");
 const EXPORT_CSV = (await import("@/app/api/super/site-analytics/export/route.ts")).GET;
 const YEAR_ROLLOVER = (await import("@/app/api/cron/year-rollover/route.ts")).GET;
+const MAIN_ROLLUP = (await import("@/app/api/cron/main-rollup/route.ts")).GET;
 const TRACK = (await import("@/app/api/track/route.ts")).POST;
 const MEDIA_GET = (await import("@/app/api/media/[id]/route.ts")).GET;
 
@@ -2849,6 +2850,48 @@ console.log("\n== Main rollup: the write path increments the rollup");
     Number(hash[field] || 0) !== baseline + 3,
     JSON.stringify({ before: baseline, after: hash[field] }),
   );
+}
+
+// ============================================================================
+console.log("\n== Main rollup: the reconcile rebuilds from live rows and fails closed");
+{
+  const prevSecret = process.env.CRON_SECRET;
+  process.env.CRON_SECRET = "test-secret";
+  const sec = await getSectionByKey(studio.id, "sales-tickets");
+  const today = utcDay();
+  // Seed three creates today, one far outside the 90-day horizon.
+  await addRow(studio.id, sec.id, "salesTickets", { title: "1", createdAt: `${today}T01:00:00Z` });
+  await addRow(studio.id, sec.id, "salesTickets", { title: "2", createdAt: `${today}T02:00:00Z` });
+  await addRow(studio.id, sec.id, "salesTickets", { title: "3", createdAt: `${today}T03:00:00Z` });
+  await addRow(studio.id, sec.id, "salesTickets", { title: "old", createdAt: "2020-01-01T00:00:00Z" });
+  // Plant a stale field the reconcile must prune, by name.
+  await hSet(S.mainAgg(studio.id), aggField(sec.id, "2019-01-01"), 99);
+
+  // The shared `studio` fixture is bumped by every earlier block in this
+  // suite, so today's field is not "3" — it is whatever the live rows add up
+  // to. The reconcile is a rebuild-and-replace, not a delta, so the only
+  // correct assertion is equality against the true live count, counted
+  // independently from the same collection the route itself reads.
+  const liveToday = (await readCol(studio.id, sec.id, "salesTickets"))
+    .filter((r) => String(r.createdAt || "").slice(0, 10) === today).length;
+
+  const authed = new Request("http://x/api/cron/main-rollup", { headers: { authorization: "Bearer test-secret" } });
+  const res = await MAIN_ROLLUP(authed);
+  ok("reconcile returns ok", res.status === 200, String(res.status));
+
+  const hash = await hGetAll(S.mainAgg(studio.id));
+  ok(
+    "today's field equals the true live-row count, not a delta",
+    hash[aggField(sec.id, today)] === String(liveToday),
+    JSON.stringify({ field: hash[aggField(sec.id, today)], liveToday }),
+  );
+  ok("the out-of-horizon create is not in the rollup", !(aggField(sec.id, "2020-01-01") in hash), JSON.stringify(hash));
+  ok("the planted stale field was pruned by name", !(aggField(sec.id, "2019-01-01") in hash), JSON.stringify(hash));
+  ok("a refreshedAt stamp is set", typeof hash["meta:refreshedAt"] === "string" && hash["meta:refreshedAt"].length > 0);
+
+  const denied = await MAIN_ROLLUP(new Request("http://x/api/cron/main-rollup")); // no auth
+  ok("reconcile refuses an unauthenticated request", denied.status === 401 || denied.status === 503, String(denied.status));
+  process.env.CRON_SECRET = prevSecret;
 }
 
 // ============================================================================

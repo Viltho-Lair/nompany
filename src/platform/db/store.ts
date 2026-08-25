@@ -398,6 +398,12 @@ export async function hDel(key: string, ...fields: string[]): Promise<number> {
   if (!fields.length) return 0;
   return (await r()).hDel(key, fields.map(String));
 }
+// A PLAIN SET, next to `hIncrBy`/`hGetAll`/`hDel` above. The nightly rollup
+// reconcile (api/cron/main-rollup) writes a computed total rather than a
+// delta, so HINCRBY is the wrong primitive for it — this is HSET.
+export async function hSet(key: string, field: string, value: string | number): Promise<number> {
+  return (await r()).hSet(key, field, String(value));
+}
 
 // ---- streams (the append-only event log) -----------------------------------
 // A Stream is the one Redis type that is ordered, durable and addressable by
