@@ -262,11 +262,6 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
 
   return (
     <>
-      <section className={panel}>
-        <h2 className={h2}>Sales</h2>
-        <p className={sub}>Opportunities, leads and tickets across the sales team. {clients.length} client{clients.length === 1 ? "" : "s"} on file.</p>
-      </section>
-
       <SalesDashboard tickets={tickets} level={level} slug={slug} nav={nav} />
 
       {/* Live view — a full-screen, auto-refreshing tickets table. Its columns

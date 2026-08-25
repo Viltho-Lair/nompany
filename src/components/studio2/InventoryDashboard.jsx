@@ -12,7 +12,7 @@
 // key, and a widget it does not sees the locked teaser instead of the number. The
 // free floor gets the KPI row; each gated widget carries its registry key.
 
-import { money, StatTile, h2, sub, microLabel, fmtDate } from "@/components/studio2/ui";
+import { money, StatTile, microLabel, fmtDate } from "@/components/studio2/ui";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { BarList, Donut } from "@/components/charts";
 import { CurrencySymbol } from "@/components/Currency";
@@ -125,11 +125,6 @@ export default function InventoryDashboard({
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className={h2}>Inventory</h2>
-        <p className={sub}>Vendors, the catalogue, what is on the shelf, and what is still in the air.</p>
-      </div>
-
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
         <StatTile label="Registered items" value={qty(summary?.items ?? items.length)} href={href("inventory-items")} />

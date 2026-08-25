@@ -6,9 +6,17 @@
 // Server-renderable (no hooks, no "use client"): a dashboard of these can render
 // on the server and stream, and a client screen can use them just the same.
 
+import { Children, cloneElement, isValidElement } from "react";
 import { panel, StatTile, WidgetTitle } from "@/components/studio2/ui";
 
 export { StatTile, WidgetTitle };
+
+// The chart ramp, walked across a KPI row so each tile takes the next hue — the
+// one thing that turns four identical grey boxes into a set.
+const STAT_ACCENTS = [
+  "rgb(var(--chart-1))", "rgb(var(--chart-2))", "rgb(var(--chart-3))",
+  "rgb(var(--chart-4))", "rgb(var(--chart-5))",
+];
 
 // A responsive grid for widgets. Widgets set their own column span; this just
 // lays the tracks.
@@ -23,9 +31,17 @@ export function DashGrid({ children, className = "" }) {
 // A row of KPI tiles across the top of a dashboard — the summary before the
 // detail, which is how a dashboard is read.
 export function StatRow({ children, className = "" }) {
+  // Each tile takes the next colour in the ramp unless it named its own, so a
+  // dashboard gets a coloured KPI row for free — no per-dashboard change.
+  let i = 0;
+  const tinted = Children.map(children, (child) =>
+    isValidElement(child)
+      ? cloneElement(child, { accent: child.props.accent ?? STAT_ACCENTS[i++ % STAT_ACCENTS.length] })
+      : child,
+  );
   return (
     <div className={`dash-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4 ${className}`}>
-      {children}
+      {tinted}
     </div>
   );
 }

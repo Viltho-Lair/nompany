@@ -214,16 +214,31 @@ export function Empty({ title, body }) {
   );
 }
 
-// A linked number on a dashboard. `href` is optional — a tile for a section the
+// A linked figure on a dashboard. `href` is optional — a tile for a section the
 // viewer cannot open still shows its figure, just without going anywhere.
-export function StatTile({ label: tileLabel, value, href, tone = "" }) {
+//
+// The tile carries the dashboard's one spot of COLOUR: a full-height accent rail
+// in a chart-ramp hue, injected by StatRow so a KPI row reads as a set instead of
+// four identical grey boxes (which is the "basic and ugly" the plain label+number
+// used to be). `accent` overrides the injected hue; `icon` and `sub` are optional
+// adornments a dashboard can pass, and the figure itself is large and tabular so a
+// row of them scans as numbers rather than as text.
+export function StatTile({ label: tileLabel, value, href, tone = "", accent, sub, icon }) {
+  const rail = accent || "rgb(var(--chart-1))";
   const body = (
-    <>
-      <p className={microLabel}>{tileLabel}</p>
-      <p className={`font-display text-lg font-800 ${tone || "text-[var(--geex-ink)]"}`}>{value}</p>
-    </>
+    <div className="flex items-stretch gap-3">
+      <span aria-hidden="true" className="w-1 shrink-0 rounded-full" style={{ backgroundColor: rail }} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          {icon ? <span className="shrink-0 text-[var(--geex-faint)]">{icon}</span> : null}
+          <p className={`${microLabel} truncate`}>{tileLabel}</p>
+        </div>
+        <p className={`num mt-2 font-display text-2xl font-800 leading-none tracking-tight ${tone || "text-[var(--geex-ink)]"}`}>{value}</p>
+        {sub ? <p className="mt-1.5 truncate text-[11px] text-[var(--geex-faint)]">{sub}</p> : null}
+      </div>
+    </div>
   );
-  const cls = "rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-4 dark:border-white/15";
+  const cls = "rounded-geex border border-slate-200/80 bg-[var(--geex-surface)] p-4 shadow-geex-sm dark:border-white/10";
   return href
     ? <a href={href} className={`${cls} block transition-colors hover:border-brand-500 dark:hover:border-brand-500/40`}>{body}</a>
     : <div className={cls}>{body}</div>;

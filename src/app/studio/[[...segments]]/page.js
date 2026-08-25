@@ -463,19 +463,7 @@ export default async function StudioPage({ params }) {
 function SectionDashboard({ section, studio, subsections = [], canManage }) {
   return (
     <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{section.name}</h2>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${canManage
-          ? "bg-brand-500/10 text-brand-700 dark:text-brand-300"
-          : "bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400"}`}>
-          {canManage ? "You can manage this" : "View only"}
-        </span>
-      </div>
-      <p className="mt-2 max-w-prose text-sm text-slate-500 dark:text-slate-400">
-        An overview of this section. Nothing is reported here yet — it has its own SectionID
-        (<code className="font-mono text-xs">{section.id}</code>) and its records are stored under it,
-        scoped to {studio.name}.
-      </p>
+      <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{section.name}</h2>
 
       {subsections.length > 0 && (
         <div className="mt-5 grid gap-3 sm:grid-cols-3">

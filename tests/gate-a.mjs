@@ -3115,22 +3115,44 @@ console.log("== migration extract: reads one studio, scoped and read-only");
 
   // REGRESSION: the full export 500'd with WRONGTYPE. u:<id>:studioVisits is a
   // Redis HASH (hIncrBy'd), and extractUsers read every satellite with getJSON —
-  // a GET on a hash. Seed one visit and prove the FULL extract reads it (hGetAll)
-  // and produces a StudioVisit row instead of throwing. Writes go to the test
-  // namespace, swept with the rest.
+  // a GET on a hash. But the full export ALSO reads every PLATFORM registry with
+  // getJSON, and only a full export touches them — so a hash-typed registry would
+  // be the same 500 the studioVisits fix just closed. Seed each registry through
+  // its REAL writer (so it is stored exactly as production stores it) plus the
+  // hash satellite, then prove one extract({kind:"all"}) reads them all without a
+  // type error. A future registry or satellite stored as a hash fails HERE, by
+  // name, rather than in production. Writes go to the test namespace, swept after.
   const { hIncrBy } = await import("@/platform/db/store");
   const { U } = await import("@/platform/db/keys");
-  await hIncrBy(U.studioVisits(owner.id), studio.id, 1);
-  let visitDetail = "", visitOk = false;
+  const { createCatalogItem } = await import("@/lib/data/catalog");
+  const { createQuestionnaireDef } = await import("@/lib/data/questionnaires");
+  const { createJoinRequest } = await import("@/modules/people/joinRequests");
+
+  await hIncrBy(U.studioVisits(owner.id), studio.id, 1);            // u:<id>:studioVisits (hash)
+  await createCatalogItem("packages", { name: "Probe package" });  // g:packages → Package
+  await createCatalogItem("tiers", { name: "Probe tier" });        // g:tiers → Tier
+  await createCatalogItem("services", { name: "Probe ERP" });      // g:erpServices → ErpService
+  await createQuestionnaireDef({ name: "Probe questionnaire" });   // g:questionnaires → Questionnaire
+  // A join request needs an existing studio and a non-member; the outsider is one.
+  // Its own validation is not what this guards, so a refusal must not fail it.
+  try { await createJoinRequest({ studioId: studio.id, userId: outsider.id }); } catch { /* not the subject */ }
+
+  // users, studios and superAdmins are already seeded by the fixture above, so one
+  // full extract now touches every registry the export reads plus the hash satellite.
+  let fullOk = false, fullDetail = "";
   try {
     const full = await extract({ kind: "all" });
+    const has = (t) => (full.tables.get(t) || []).length > 0;
     const visits = full.tables.get("StudioVisit") || [];
-    visitOk = visits.some((v) => v.UserId === owner.id && v.StudioId === studio.id && Number(v.Visits) >= 1);
-    visitDetail = `${visits.length} StudioVisit rows`;
+    const visitOk = visits.some((v) => v.UserId === owner.id && v.StudioId === studio.id && Number(v.Visits) >= 1);
+    const need = ["User", "Studio", "Package", "Tier", "ErpService", "Questionnaire"];
+    const missing = need.filter((t) => !has(t));
+    fullOk = visitOk && missing.length === 0;
+    fullDetail = `visits:${visitOk}${missing.length ? ` missing:${missing.join(",")}` : " registries:all"}`;
   } catch (e) {
-    visitDetail = e.message; // WRONGTYPE before the fix
+    fullDetail = e.message; // a WRONGTYPE from any registry or satellite lands here
   }
-  ok("the full export reads the studioVisits hash without WRONGTYPE", visitOk, visitDetail);
+  ok("the full export reads every registry and the studioVisits hash without WRONGTYPE", fullOk, fullDetail);
 }
 
 // ============================================================================
