@@ -52,8 +52,9 @@ import { qualityContext, watermarkFor } from "@/modules/quality/quality";
 import { getJSON } from "@/platform/db/store";
 import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/platform/relations";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/platform/db/keys";
-import { activityByDay, periodDelta } from "@/modules/main/executive";
+import { activityByDay, periodDelta, activitySeriesFromCounts, trendFromCounts, readAggregate } from "@/modules/main/executive";
 import { MAIN_AGG_SOURCES, utcDay, aggField } from "@/platform/db/mainAgg";
+import { mainContext } from "@/modules/main/main";
 import { rankQueue } from "@/modules/main/awaiting";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/modules/quality/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/modules/quality/qualityFields";
@@ -2891,6 +2892,55 @@ console.log("\n== Main rollup: the reconcile rebuilds from live rows and fails c
 
   const denied = await MAIN_ROLLUP(new Request("http://x/api/cron/main-rollup")); // no auth
   ok("reconcile refuses an unauthenticated request", denied.status === 401 || denied.status === 503, String(denied.status));
+  process.env.CRON_SECRET = prevSecret;
+}
+
+// ============================================================================
+console.log("\n== Main rollup: count→series helpers match the row-based derivation");
+{
+  const counts = { "2026-08-25": 2, "2026-08-24": 1, "2026-07-15": 5 };
+  const s = activitySeriesFromCounts(counts, 30, "2026-08-25");
+  ok("series is one entry per day", s.length === 30, String(s.length));
+  ok("today reads its count", s[29].value === 2, JSON.stringify(s[29]));
+  ok("a day outside the window is excluded", s.reduce((a, x) => a + x.value, 0) === 3, "leaked");
+  const t = trendFromCounts(counts, { start: "2026-07-01", mid: "2026-08-01", end: "2026-09-01" });
+  ok("current window sums August", t.current === 3, String(t.current));
+  ok("prior window sums July", t.previous === 5, String(t.previous));
+  ok("delta is a real percentage", t.deltaPct === -40, String(t.deltaPct));
+}
+
+// ============================================================================
+console.log("\n== Main rollup: the oracle — rollup equals on-read, to the unit");
+{
+  const prevSecret = process.env.CRON_SECRET;
+  const prevFlag = process.env.MAIN_ROLLUP_READ;
+  process.env.CRON_SECRET = "test-secret";
+  const sec = await getSectionByKey(studio.id, "sales-tickets");
+  const today = utcDay();
+  await addRow(studio.id, sec.id, "salesTickets", { title: "x", createdAt: `${today}T04:00:00Z` });
+  const reconciled = await MAIN_ROLLUP(
+    new Request("http://x/api/cron/main-rollup", { headers: { authorization: "Bearer test-secret" } }),
+  );
+  ok("reconcile ran before the oracle compares", reconciled.status === 200, String(reconciled.status));
+
+  const ctx = await mainContext(owner, slug);
+  ok("mainContext resolved for the owner", !ctx.error, JSON.stringify(ctx.error || null));
+
+  process.env.MAIN_ROLLUP_READ = "";
+  const onread = await readAggregate(ctx, today);
+  process.env.MAIN_ROLLUP_READ = "true";
+  const rolled = await readAggregate(ctx, today);
+  process.env.MAIN_ROLLUP_READ = prevFlag ?? "";
+
+  ok("rollup activity equals on-read activity", JSON.stringify(rolled.activity) === JSON.stringify(onread.activity), "activity mismatch");
+  ok("rollup trends equal on-read trends", JSON.stringify(rolled.trends) === JSON.stringify(onread.trends), "trends mismatch");
+  ok("rollup ribbon equals on-read ribbon", JSON.stringify(rolled.ribbon) === JSON.stringify(onread.ribbon), "ribbon mismatch");
+  console.log("DEBUG trends onread ", JSON.stringify(onread.trends));
+  console.log("DEBUG trends rolled ", JSON.stringify(rolled.trends));
+  console.log("DEBUG ribbon onread nonzero", JSON.stringify(onread.ribbon.filter((d) => d.value !== 0)));
+  console.log("DEBUG ribbon rolled nonzero", JSON.stringify(rolled.ribbon.filter((d) => d.value !== 0)));
+  console.log("DEBUG activity onread", JSON.stringify(onread.activity.map((a) => ({ section: a.section, nonzero: a.series.filter((d) => d.value !== 0) }))));
+  console.log("DEBUG activity rolled", JSON.stringify(rolled.activity.map((a) => ({ section: a.section, nonzero: a.series.filter((d) => d.value !== 0) }))));
   process.env.CRON_SECRET = prevSecret;
 }
 

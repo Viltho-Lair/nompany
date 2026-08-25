@@ -8,6 +8,8 @@ import type { Row } from "@/platform/db/store";
 import { readIfVisible } from "./main";
 import type { MainContext } from "./main";
 import { MAIN_AGG_SOURCES } from "@/platform/db/mainAgg";
+import { hGetAll } from "@/platform/db/store";
+import { S } from "@/platform/db/keys";
 
 type Dated = Row & { createdAt?: string; updatedAt?: string };
 
@@ -68,16 +70,74 @@ export type ExecutiveAggregate = {
   trends: { key: string; current: number; previous: number; deltaPct: number | null }[];
 };
 
+/** A 30-day (or `days`) series from a day→count map, UTC, zero-filled. */
+export function activitySeriesFromCounts(
+  counts: Record<string, number>, days: number, asOf: string,
+): { label: string; value: number }[] {
+  const end = new Date(`${asOf}T00:00:00Z`);
+  const out: { label: string; value: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(end);
+    d.setUTCDate(end.getUTCDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    out.push({ label: key, value: counts[key] || 0 });
+  }
+  return out;
+}
+
+/** This-window vs prior-window sums of a day→count map; deltaPct null on a zero base. */
+export function trendFromCounts(
+  counts: Record<string, number>, period: { start: string; mid: string; end: string },
+): { current: number; previous: number; deltaPct: number | null } {
+  let current = 0, previous = 0;
+  for (const [day, n] of Object.entries(counts)) {
+    if (day >= period.mid && day < period.end) current += n;
+    else if (day >= period.start && day < period.mid) previous += n;
+  }
+  const deltaPct = previous === 0 ? null : Math.round(((current - previous) / previous) * 100);
+  return { current, previous, deltaPct };
+}
+
 /**
  * THE SEAM. deriveExecutive reads through here; Phase 2 swaps this body for one
  * HGETALL of the rollup with no widget change (spec §4.0). Every source is read
  * through readIfVisible, so an unreadable section yields null and contributes
  * nothing to activity, ribbon or trends.
+ *
+ * Behind `MAIN_ROLLUP_READ` (default off, so CI and every golden are
+ * unaffected): read the rollup hash instead of the live collections. The
+ * visibility gate is identical either way — `ctx.seen` decides what
+ * contributes, never the presence of a rollup field — so a viewer without a
+ * section still gets nothing from the rollup (invariant 2).
  */
 export async function readAggregate(
   ctx: MainContext,
   asOf: string = new Date().toISOString().slice(0, 10),
 ): Promise<ExecutiveAggregate> {
+  const useRollup = String(process.env.MAIN_ROLLUP_READ || "").trim().toLowerCase() === "true";
+  if (useRollup) {
+    const hash = await hGetAll(S.mainAgg(ctx.studio.id));
+    const bySection: Record<string, Record<string, number>> = {};
+    for (const [field, val] of Object.entries(hash)) {
+      const m = field.match(/^(.+):day:(\d{4}-\d{2}-\d{2})$/);
+      if (!m) continue;
+      (bySection[m[1]] ||= {})[m[2]] = Number(val) || 0;
+    }
+    const activity: ExecutiveAggregate["activity"] = [];
+    const trends: ExecutiveAggregate["trends"] = [];
+    const combined: Record<string, number> = {};
+    const period = trailingTwoMonths(asOf);
+    for (const src of MAIN_AGG_SOURCES) {
+      const sec = ctx.seen(src.section, src.fallback); // visibility gate (invariant 2)
+      if (!sec) continue;
+      const counts = bySection[sec.id] || {};
+      activity.push({ section: src.section, series: activitySeriesFromCounts(counts, 30, asOf) });
+      trends.push({ key: src.section, ...trendFromCounts(counts, period) });
+      for (const [d, n] of Object.entries(counts)) combined[d] = (combined[d] || 0) + n;
+    }
+    return { activity, ribbon: activitySeriesFromCounts(combined, 30, asOf), trends };
+  }
+
   const lists = await Promise.all(
     MAIN_AGG_SOURCES.map((s) => readIfVisible(ctx, s.section, s.fallback, s.collection)),
   );
