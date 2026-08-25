@@ -432,18 +432,25 @@ function RowMenu({ task }: { task: ComputedTask }) {
 
   React.useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+    // Close on an outside CLICK, not mousedown. Closing on mousedown killed the
+    // menu on the press, before the item's click could fire — so the click fell
+    // through to whatever was behind the (portaled) menu, which on the waterfall
+    // side merely selected the task. That read as "delete highlights the bar but
+    // doesn't delete". `composedPath` detects clicks inside the button or the
+    // portaled menu reliably, even across the portal boundary.
+    const onOutside = (e: MouseEvent) => {
+      const path = e.composedPath();
+      if (btnRef.current && path.includes(btnRef.current)) return;
+      if (menuRef.current && path.includes(menuRef.current)) return;
       setOpen(false);
     };
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('click', onOutside);
     document.addEventListener('keydown', onEsc);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('click', onOutside);
       document.removeEventListener('keydown', onEsc);
     };
   }, [open]);
