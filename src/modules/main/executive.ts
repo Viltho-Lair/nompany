@@ -5,6 +5,8 @@
 // the viewer cannot see contributes nothing — not a zero, nothing (invariant 2).
 
 import type { Row } from "@/platform/db/store";
+import { readIfVisible } from "./main";
+import type { MainContext } from "./main";
 
 type Dated = Row & { createdAt?: string; updatedAt?: string };
 
@@ -57,4 +59,67 @@ export function periodDelta(
   }
   const deltaPct = previous === 0 ? null : Math.round(((current - previous) / previous) * 100);
   return { current, previous, deltaPct };
+}
+
+// The sections Main tracks, and the collection each activity series counts.
+const ACTIVITY_SOURCES: { section: string; fallback: string | null; collection: string }[] = [
+  { section: "sales-tickets", fallback: "sales", collection: "salesTickets" },
+  { section: "technical-quotations", fallback: "technical", collection: "quotations" },
+  { section: "technical-rfq", fallback: "technical", collection: "rfqs" },
+  { section: "projects-list", fallback: "projects", collection: "projects" },
+  { section: "inventory-items", fallback: "inventory", collection: "inventoryItems" },
+  { section: "tasks", fallback: null, collection: "tasks" },
+];
+
+export type ExecutiveAggregate = {
+  activity: { section: string; series: { label: string; value: number }[] }[];
+  ribbon: { label: string; value: number }[];
+  trends: { key: string; current: number; previous: number; deltaPct: number | null }[];
+};
+
+/**
+ * THE SEAM. deriveExecutive reads through here; Phase 2 swaps this body for one
+ * HGETALL of the rollup with no widget change (spec §4.0). Every source is read
+ * through readIfVisible, so an unreadable section yields null and contributes
+ * nothing to activity, ribbon or trends.
+ */
+export async function readAggregate(
+  ctx: MainContext,
+  asOf: string = new Date().toISOString().slice(0, 10),
+): Promise<ExecutiveAggregate> {
+  const lists = await Promise.all(
+    ACTIVITY_SOURCES.map((s) => readIfVisible(ctx, s.section, s.fallback, s.collection)),
+  );
+  const activity: ExecutiveAggregate["activity"] = [];
+  const combined: (Row & { createdAt?: string })[] = [];
+  const trends: ExecutiveAggregate["trends"] = [];
+  const period = trailingTwoMonths(asOf);
+  lists.forEach((rows, i) => {
+    if (!rows) return; // not visible — nothing, not a zero
+    const src = ACTIVITY_SOURCES[i];
+    activity.push({ section: src.section, series: activityByDay(rows as Dated[], 30, asOf) });
+    trends.push({ key: src.section, ...periodDelta(rows as Dated[], "createdAt", period) });
+    combined.push(...(rows as (Row & { createdAt?: string })[]));
+  });
+  return { activity, ribbon: activityByDay(combined as Dated[], 30, asOf), trends };
+}
+
+/**
+ * Two calendar months ending at asOf: [start, mid) prior, [mid, end) current.
+ * UTC throughout — activityByDay and periodDelta above already do their date
+ * math in UTC (fixed after a timezone bug), so mixing in local-time
+ * `new Date(y, m, 1)` here while still comparing against `.toISOString()`
+ * slices would reintroduce the same class of bug this file was already fixed
+ * for: a studio west of UTC would see its month boundary shift by a day.
+ */
+function trailingTwoMonths(asOf: string): { start: string; mid: string; end: string } {
+  const end = new Date(`${asOf}T00:00:00Z`);
+  const y = end.getUTCFullYear();
+  const m = end.getUTCMonth();
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const mid = new Date(Date.UTC(y, m, 1));
+  const start = new Date(Date.UTC(y, m - 1, 1));
+  const endExclusive = new Date(end);
+  endExclusive.setUTCDate(end.getUTCDate() + 1);
+  return { start: iso(start), mid: iso(mid), end: iso(endExclusive) };
 }

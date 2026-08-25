@@ -88,7 +88,7 @@ export async function mainContext(user: { id?: unknown } | null | undefined, slu
 
 // Read a collection only when its section is visible; otherwise answer with
 // nothing at all, so a caller cannot accidentally count what it may not see.
-async function readIfVisible<T extends Row = Row>(
+export async function readIfVisible<T extends Row = Row>(
   ctx: MainContext,
   key: string,
   fallbackKey: string | null,
