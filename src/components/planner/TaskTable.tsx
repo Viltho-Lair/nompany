@@ -407,7 +407,18 @@ function RowMenu({ task }: { task: ComputedTask }) {
 
   const openMenu = () => {
     const r = btnRef.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+    if (r) {
+      // Flip the menu ABOVE the button when a row near the bottom would push it
+      // off the foot of the viewport — where it rendered under the footer and
+      // its items could not be clicked at all. Estimated height is enough to
+      // decide the direction; the menu is a fixed set of rows.
+      const MENU_H = 360;
+      const openUp = r.bottom + MENU_H + 8 > window.innerHeight;
+      setPos({
+        top: openUp ? Math.max(8, r.top - MENU_H - 4) : r.bottom + 4,
+        right: Math.max(8, window.innerWidth - r.right),
+      });
+    }
     setOpen(true);
   };
 

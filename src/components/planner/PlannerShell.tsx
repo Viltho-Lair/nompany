@@ -44,6 +44,7 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
     visibleColumns,
     inspectorOpen,
     selectedId,
+    trimTimeline,
     setMeta,
     setInspectorOpen,
     select,
@@ -72,15 +73,29 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
     [tasks, calendar, resources],
   );
 
+  // "Fit to tasks": trim the waterfall to one day either side of the actual work
+  // — the earliest task start minus a day, the latest end plus a day — instead of
+  // the padded project window. Off by default, so the full window still shows.
+  const [rangeStart, rangeEnd] = React.useMemo<[Date, Date]>(() => {
+    if (!trimTimeline || schedule.tasks.length === 0) {
+      return [schedule.projectStart, schedule.projectEnd];
+    }
+    const DAY = 86_400_000;
+    let min = Infinity;
+    let max = -Infinity;
+    for (const t of schedule.tasks) {
+      min = Math.min(min, t.startDate.getTime());
+      max = Math.max(max, t.endDate.getTime());
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return [schedule.projectStart, schedule.projectEnd];
+    }
+    return [new Date(min - DAY), new Date(max + DAY)];
+  }, [trimTimeline, schedule]);
+
   const timeline = React.useMemo(
-    () =>
-      buildTimeline(
-        schedule.projectStart,
-        schedule.projectEnd,
-        zoom,
-        calendar,
-      ),
-    [schedule.projectStart, schedule.projectEnd, zoom, calendar],
+    () => buildTimeline(rangeStart, rangeEnd, zoom, calendar),
+    [rangeStart, rangeEnd, zoom, calendar],
   );
 
   /* A search keeps the ancestors of every match so the hierarchy still reads. */

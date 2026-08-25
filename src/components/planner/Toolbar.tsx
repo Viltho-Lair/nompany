@@ -3,6 +3,7 @@
 import * as React from 'react';
 import {
   CalendarClock,
+  CalendarRange,
   ChevronDown,
   Clock,
   Columns3,
@@ -69,6 +70,7 @@ export function Toolbar({
     visibleColumns,
     showCriticalPath,
     showDependencies,
+    trimTimeline,
     past,
     future,
     setZoom,
@@ -76,6 +78,7 @@ export function Toolbar({
     setGranularity,
     toggleColumn,
     setShowCriticalPath,
+    setTrimTimeline,
     setShowDependencies,
     setAllCollapsed,
     undo,
@@ -272,6 +275,15 @@ export function Toolbar({
         checked={showCriticalPath}
         onCheckedChange={setShowCriticalPath}
         tone="rose"
+      />
+
+      <ToggleChip
+        label="Fit to tasks"
+        tooltip="Trim the waterfall to one day either side of the work"
+        icon={<CalendarRange className="h-3.5 w-3.5" />}
+        checked={trimTimeline}
+        onCheckedChange={setTrimTimeline}
+        tone="blue"
       />
 
       <div className="flex-1" />

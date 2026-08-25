@@ -107,6 +107,10 @@ interface PlannerState {
   showCriticalPath: boolean;
   showDependencies: boolean;
   inspectorOpen: boolean;
+  // Trim the waterfall's timeline to the work itself — one day before the first
+  // task starts to one day after the last task ends — instead of the padded
+  // project window. A view filter, so it is transient (never persisted).
+  trimTimeline: boolean;
 
   past: HistoryEntry[];
   future: HistoryEntry[];
@@ -164,6 +168,7 @@ interface PlannerState {
   toggleColumn: (c: GridColumn) => void;
   select: (id: string | null) => void;
   setShowCriticalPath: (v: boolean) => void;
+  setTrimTimeline: (v: boolean) => void;
   setShowDependencies: (v: boolean) => void;
   setInspectorOpen: (v: boolean) => void;
 
@@ -267,6 +272,7 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
   showCriticalPath: false,
   showDependencies: true,
   inspectorOpen: false,
+  trimTimeline: false,
 
   past: [],
   future: [],
@@ -643,6 +649,7 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
     })),
   select: (selectedId) => set({ selectedId }),
   setShowCriticalPath: (showCriticalPath) => set({ showCriticalPath }),
+  setTrimTimeline: (trimTimeline) => set({ trimTimeline }),
   setShowDependencies: (showDependencies) => set({ showDependencies }),
   setInspectorOpen: (inspectorOpen) => set({ inspectorOpen }),
 
