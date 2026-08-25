@@ -488,6 +488,14 @@ function RowMenu({ task }: { task: ComputedTask }) {
           <div
             ref={menuRef}
             role="menu"
+            // The menu is portaled, but React still routes its events up the
+            // COMPONENT tree — so a press on an item reached the row's onMouseDown
+            // and selected the task, and the item taking focus fired a focusout
+            // that closed the menu before the click could land. preventDefault
+            // stops the focus-steal (menu stays put, click completes); stopProp-
+            // agation keeps the press off the row's select. This is THE fix for
+            // "delete highlights the bar but doesn't delete".
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
             style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 70 }}
             className="min-w-[200px] overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
           >
@@ -555,7 +563,13 @@ function RowMenuItem({
     <button
       type="button"
       role="menuitem"
-      onClick={onClick}
+      // Act on POINTERDOWN, not click. A portaled menu item's click is fragile:
+      // the press can move focus and close the menu, or its pointerup can land on
+      // the row behind (which then only selected the task — the "delete just
+      // highlights the bar" bug). Pointerdown runs the command at the earliest,
+      // most reliable moment; preventDefault/stopPropagation keep the press off
+      // focus and off the row's select.
+      onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
       className={cn(
         'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-[13px] transition-colors',
         destructive ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-700 hover:bg-slate-100',
