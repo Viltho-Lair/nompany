@@ -53,6 +53,7 @@ import { getJSON } from "@/platform/db/store";
 import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/platform/relations";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/platform/db/keys";
 import { activityByDay, periodDelta } from "@/modules/main/executive";
+import { MAIN_AGG_SOURCES, utcDay, aggField } from "@/platform/db/mainAgg";
 import { rankQueue } from "@/modules/main/awaiting";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/modules/quality/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/modules/quality/qualityFields";
@@ -2804,6 +2805,16 @@ console.log("\n== Main executive: pure derivations");
   ok("period delta counts the current window", p.current === 3, String(p.current));
   ok("nothing in the prior window", p.previous === 0, String(p.previous));
   ok("a percentage on a zero base is null, not +100%", p.deltaPct === null, String(p.deltaPct));
+}
+
+// ============================================================================
+console.log("\n== Main rollup: key builder and source list");
+{
+  ok("S.mainAgg is namespaced under the studio", S.mainAgg("stud_1").endsWith("s:stud_1:mainagg"), S.mainAgg("stud_1"));
+  ok("six tracked sources", MAIN_AGG_SOURCES.length === 6, String(MAIN_AGG_SOURCES.length));
+  ok("sources carry the tracked collections", MAIN_AGG_SOURCES.map((s) => s.collection).includes("salesTickets"));
+  ok("utcDay is a YYYY-MM-DD string", /^\d{4}-\d{2}-\d{2}$/.test(utcDay("2026-08-25T09:00:00Z")) && utcDay("2026-08-25T23:59:59Z") === "2026-08-25");
+  ok("aggField composes id and day", aggField("sec_1", "2026-08-25") === "sec_1:day:2026-08-25");
 }
 
 // ============================================================================

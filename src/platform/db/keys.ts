@@ -296,6 +296,11 @@ export const S = {
   // and addressable by cursor — it is what "what changed since I last looked?"
   // reads. Under the studio prefix, so it cascades with the studio for free.
   events: (studioId: string) => `${P}s:${studioId}:events`,
+  // THE MAIN ROLLUP — a hash of per-section, per-day counts (see
+  // platform/db/mainAgg.ts), so the executive Overview reads one HGETALL
+  // instead of re-reading every tracked collection. Under the studio prefix,
+  // so it cascades with the studio for free.
+  mainAgg: (studioId: string) => `${P}s:${studioId}:mainagg`,
 };
 
 // ---- per-section keys (die with the section) -------------------------------

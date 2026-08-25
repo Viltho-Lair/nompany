@@ -7,6 +7,7 @@
 import type { Row } from "@/platform/db/store";
 import { readIfVisible } from "./main";
 import type { MainContext } from "./main";
+import { MAIN_AGG_SOURCES } from "@/platform/db/mainAgg";
 
 type Dated = Row & { createdAt?: string; updatedAt?: string };
 
@@ -61,16 +62,6 @@ export function periodDelta(
   return { current, previous, deltaPct };
 }
 
-// The sections Main tracks, and the collection each activity series counts.
-const ACTIVITY_SOURCES: { section: string; fallback: string | null; collection: string }[] = [
-  { section: "sales-tickets", fallback: "sales", collection: "salesTickets" },
-  { section: "technical-quotations", fallback: "technical", collection: "quotations" },
-  { section: "technical-rfq", fallback: "technical", collection: "rfqs" },
-  { section: "projects-list", fallback: "projects", collection: "projects" },
-  { section: "inventory-items", fallback: "inventory", collection: "inventoryItems" },
-  { section: "tasks", fallback: null, collection: "tasks" },
-];
-
 export type ExecutiveAggregate = {
   activity: { section: string; series: { label: string; value: number }[] }[];
   ribbon: { label: string; value: number }[];
@@ -88,7 +79,7 @@ export async function readAggregate(
   asOf: string = new Date().toISOString().slice(0, 10),
 ): Promise<ExecutiveAggregate> {
   const lists = await Promise.all(
-    ACTIVITY_SOURCES.map((s) => readIfVisible(ctx, s.section, s.fallback, s.collection)),
+    MAIN_AGG_SOURCES.map((s) => readIfVisible(ctx, s.section, s.fallback, s.collection)),
   );
   const activity: ExecutiveAggregate["activity"] = [];
   const combined: (Row & { createdAt?: string })[] = [];
@@ -96,7 +87,7 @@ export async function readAggregate(
   const period = trailingTwoMonths(asOf);
   lists.forEach((rows, i) => {
     if (!rows) return; // not visible — nothing, not a zero
-    const src = ACTIVITY_SOURCES[i];
+    const src = MAIN_AGG_SOURCES[i];
     activity.push({ section: src.section, series: activityByDay(rows as Dated[], 30, asOf) });
     trends.push({ key: src.section, ...periodDelta(rows as Dated[], "createdAt", period) });
     combined.push(...(rows as (Row & { createdAt?: string })[]));
