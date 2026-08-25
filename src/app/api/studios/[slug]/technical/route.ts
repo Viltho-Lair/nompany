@@ -45,7 +45,6 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     canUnlockQuotations: can(tech.access, "technical.quotations.unlock"),
     canManageSettings: tech.canManageSettings,
     liveColumns: tech.liveColumns,
-    cover: { title: tech.coverTitle, intro: tech.coverIntro, terms: tech.coverTerms },
     // Raising an RFQ is a Sales action, so the button depends on a different grant.
     canRequestRfq: tech.canManageSales,
     nav: tech.nav,
@@ -86,7 +85,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   });
 }
 
-// Technical Settings — Live view columns and the quotation cover copy.
+// Technical Settings — Live view columns and the quotation numbering sequences.
 export async function PUT(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const user = await currentUser();
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });

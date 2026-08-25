@@ -60,7 +60,7 @@ _Turn Sales RFQs into priced quotations, build them in the full-screen builder, 
 - **Creating & editing the quotation record** `technical-quotation-record` — _Technical → Quotations → + Create quotation / pencil_  ·  slots: `technical-create-quotation`
 - **The quotation builder** `technical-builder` — _Technical → Quotations → Open_  ·  slots: `technical-builder`, `technical-builder-costbox`
 - **Quotation status, revisions & approval** `technical-status-lifecycle` — _Technical_
-- **Cover copy settings** `technical-settings` — _Technical → Settings_  ·  slots: `technical-settings`
+- **Technical settings** `technical-settings` — _Technical → Settings_  ·  slots: `technical-settings`
 - **Live view** `technical-live` — _Technical → Live view_  ·  slots: `technical-live`
 
 ### Tasks & Approvals `(tasks)`

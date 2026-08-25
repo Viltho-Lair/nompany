@@ -98,18 +98,13 @@ export const technicalContext = moduleContext<TechnicalContext>({
 });
 
 // ---- technical settings -----------------------------------------------------
-// Live-view columns and the quotation cover copy, both on the
+// Live-view columns and the quotation numbering sequences, both on the
 // technical-settings sub-section's own `settings` object — no key of their own.
 export function readTechnicalSettings(settingsSection: { settings?: Record<string, unknown> } | null | undefined) {
   const s = settingsSection?.settings || {};
   const sequences = readSequences(s);
   return {
     liveColumns: cleanQuotationLiveColumns(s.liveColumns),
-    // The Old System's "Cover copy settings": the standing text that heads a
-    // quotation document.
-    coverTitle: str(s.coverTitle, 200),
-    coverIntro: str(s.coverIntro, 4000),
-    coverTerms: str(s.coverTerms, 4000),
     // EVERY "TYPE OF QUOTATION" the studio numbers separately, and which one a
     // Sales-ticket conversion falls back to. See readSequences for the
     // back-compat seed and resolveDefaultSequence for the fallback.
@@ -126,9 +121,6 @@ export async function saveTechnicalSettings(ctx: TechnicalContext, body: Record<
   const { studio, settingsSection } = ctx;
   const next = { ...(settingsSection.settings || {}) };
   if (body?.liveColumns !== undefined) next.liveColumns = cleanQuotationLiveColumns(body.liveColumns);
-  if (body?.coverTitle !== undefined) next.coverTitle = str(body.coverTitle, 200);
-  if (body?.coverIntro !== undefined) next.coverIntro = str(body.coverIntro, 4000);
-  if (body?.coverTerms !== undefined) next.coverTerms = str(body.coverTerms, 4000);
   // Cleaned and validated on the way in — see cleanSequencesForSave — so a
   // stray or a colliding prefix cannot land and put nextNumberForSequence in a
   // state where two sequences silently share one counter.

@@ -54,7 +54,7 @@ const latestComment = (row) => {
 //   technical            -> the dashboard: quotation aggregates and analytics
 //   technical-quotations -> the quotations list, editor and direct creation
 //   technical-rfq        -> the RFQ queue and conversion
-//   technical-settings   -> Live view columns + quotation cover copy
+//   technical-settings   -> quotation numbering + Live view columns
 // technical-live renders full-screen outside the studio frame.
 export default function StudioTechnical({ slug, view = "technical" }) {
   const [data, setData] = useState(null);
@@ -167,7 +167,6 @@ export default function StudioTechnical({ slug, view = "technical" }) {
         <TechnicalSettings
           options={vocabulary.liveColumnOptions || []}
           selected={data.liveColumns || []}
-          cover={data.cover || {}}
           sequences={sequences}
           defaultSequenceId={defaultSequenceId}
           canManage={data.canManageSettings}
@@ -987,11 +986,9 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
   );
 }
 
-// Technical Settings: the Live view's columns, and the standing cover copy that
-// heads a quotation document (the Old System's "Cover copy settings").
-function TechnicalSettings({ options, selected, cover, sequences = [], defaultSequenceId, canManage, onSave }) {
+// Technical Settings: the quotation numbering sequences and the Live view's columns.
+function TechnicalSettings({ options, selected, sequences = [], defaultSequenceId, canManage, onSave }) {
   const [cols, setCols] = useState(selected);
-  const [c, setC] = useState({ title: cover.title || "", intro: cover.intro || "", terms: cover.terms || "" });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const toggle = (k) => { setSaved(false); setCols((v) => v.includes(k) ? v.filter((x) => x !== k) : [...v, k]); };
@@ -1000,26 +997,6 @@ function TechnicalSettings({ options, selected, cover, sequences = [], defaultSe
   return (
     <div className="space-y-6">
       <QuotationNumbering sequences={sequences} defaultSequenceId={defaultSequenceId} canManage={canManage} onSave={onSave} />
-
-      <section className={panel}>
-        <h2 className={h2}>Cover copy</h2>
-        <p className={sub}>The standing text that heads a quotation document.</p>
-        <div className="mt-4 grid gap-4">
-          <Field label="Title" value={c.title} disabled={!canManage}
-            onChange={(v) => setC((prev) => ({ ...prev, title: v }))} />
-          <Field label="Introduction" as="textarea" value={c.intro} disabled={!canManage}
-            onChange={(v) => setC((prev) => ({ ...prev, intro: v }))} />
-          <Field label="Terms" as="textarea" value={c.terms} disabled={!canManage}
-            onChange={(v) => setC((prev) => ({ ...prev, terms: v }))} />
-        </div>
-        {canManage && (
-          <div className="mt-5">
-            <button className={btn} disabled={busy} onClick={() => save({ coverTitle: c.title, coverIntro: c.intro, coverTerms: c.terms })}>
-              {busy ? "Saving..." : "Save cover copy"}
-            </button>
-          </div>
-        )}
-      </section>
 
       <section className={panel}>
         <h2 className={h2}>Live view</h2>

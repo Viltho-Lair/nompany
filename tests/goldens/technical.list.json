@@ -14,11 +14,6 @@
       "status",
       "total"
     ],
-    "cover": {
-      "title": "",
-      "intro": "",
-      "terms": ""
-    },
     "canRequestRfq": true,
     "nav": {
       "main": true,
