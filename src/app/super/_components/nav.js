@@ -14,20 +14,12 @@ export const NAV = [
   {
     caption: "Navigation",
     items: [
-      {
-        label: "Dashboard",
-        icon: "dashboard",
-        children: [
-          { label: "Analytics", href: `${BASE}/dashboard/analytics` },
-          { label: "CRM", href: `${BASE}/dashboard/crm` },
-          { label: "eCommerce", href: `${BASE}/dashboard/ecommerce` },
-          { label: "Finance", href: `${BASE}/dashboard/finance` },
-          { label: "Project", href: `${BASE}/dashboard/project` },
-          { label: "SaaS", href: `${BASE}/dashboard/saas` },
-          { label: "HR", href: `${BASE}/dashboard/hr` },
-          { label: "Marketing", href: `${BASE}/dashboard/marketing` },
-        ],
-      },
+      // Analytics IS the dashboard — the one screen here drawing real data
+      // (active users, exchange rates, satisfaction). It is no longer one leaf
+      // in a tree of template demos; it is the Dashboard. The seven demo
+      // dashboards that shared this tree moved to "To be worked" below, where
+      // the rest of the not-yet-real template screens live.
+      { label: "Dashboard", icon: "dashboard", href: `${BASE}/dashboard/analytics` },
     ],
   },
   {
@@ -59,6 +51,22 @@ export const NAV = [
   {
     caption: "To be worked",
     items: [
+      // The template dashboards. Real screens will replace them per department;
+      // until then they are demos, grouped here rather than sitting beside the
+      // one dashboard (Analytics) that carries live data.
+      {
+        label: "Dashboards",
+        icon: "dashboard",
+        children: [
+          { label: "CRM", href: `${BASE}/dashboard/crm` },
+          { label: "eCommerce", href: `${BASE}/dashboard/ecommerce` },
+          { label: "Finance", href: `${BASE}/dashboard/finance` },
+          { label: "Project", href: `${BASE}/dashboard/project` },
+          { label: "SaaS", href: `${BASE}/dashboard/saas` },
+          { label: "HR", href: `${BASE}/dashboard/hr` },
+          { label: "Marketing", href: `${BASE}/dashboard/marketing` },
+        ],
+      },
       { label: "Calendar", icon: "calendar", href: `${BASE}/application/calendar` },
       { label: "Task Board", icon: "kanban", href: `${BASE}/application/task-board` },
       { label: "Notifications", icon: "bell", href: `${BASE}/application/notifications` },
