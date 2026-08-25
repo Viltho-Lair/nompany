@@ -98,6 +98,10 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
   const planName = usePlannerStore((s) => s.meta.name);
 
   const [state, setState] = useState({ loading: true, canEdit: false, error: false });
+  // A save that the server refused (or the network dropped). Surfaced rather than
+  // swallowed, so an edit that will not persist is not silently lost — the old
+  // fire-and-forget PUT reverted such edits on reload with no word to anyone.
+  const [saveFailed, setSaveFailed] = useState(false);
   const hydratedRef = useRef(false);
 
   // Hydrate from Redis on mount / when the plan changes.
@@ -156,12 +160,20 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
         s.showDependencies !== prev.showDependencies;
       if (!changed) return;
       clearTimeout(timer);
-      timer = setTimeout(() => {
-        fetch(planApiBase, {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ plan: planDoc(usePlannerStore.getState()) }),
-        }).catch(() => {});
+      timer = setTimeout(async () => {
+        try {
+          const res = await fetch(planApiBase, {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ plan: planDoc(usePlannerStore.getState()) }),
+          });
+          // A refusal comes back as a 4xx OR a 200 with an { error } body; both
+          // mean the change did not save, so both raise the flag.
+          const body = await res.json().catch(() => ({}));
+          setSaveFailed(!res.ok || Boolean(body?.error));
+        } catch {
+          setSaveFailed(true);
+        }
       }, DEBOUNCE_MS);
     });
     return () => {
@@ -197,6 +209,20 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
         )}
       </header>
 
+      {/* A plain reason the plan is not saving. Read-only comes first — an edit a
+          viewer makes would apply on screen and then vanish on reload, so it is
+          better to say up front that nothing here is being kept. */}
+      {!state.loading && !state.error && !state.canEdit && (
+        <div data-planner-chrome className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-800">
+          You have view-only access to this plan — changes you make here are not saved.
+        </div>
+      )}
+      {!state.loading && state.canEdit && saveFailed && (
+        <div data-planner-chrome className="shrink-0 border-b border-rose-200 bg-rose-50 px-4 py-2 text-center text-xs font-semibold text-rose-700">
+          Your last change couldn’t be saved. Check your connection or access, then edit again.
+        </div>
+      )}
+
       {/* ---- the ported planner, inside its scoped design-system root ---- */}
       <div className="min-h-0 flex-1">
         <div className="planner-root h-full">
@@ -210,7 +236,7 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
             </div>
           ) : (
             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
-              <PlannerShell />
+              <PlannerShell readOnly={!state.canEdit} />
             </LocalizationProvider>
           )}
         </div>

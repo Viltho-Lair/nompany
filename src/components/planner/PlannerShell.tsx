@@ -23,6 +23,7 @@ import { Inspector } from './Inspector';
 import { TaskTable, TaskTableHeader } from './TaskTable';
 import { TemplateDialog } from './TemplateDialog';
 import { Toolbar } from './Toolbar';
+import { PlannerReadOnlyContext } from './ReadOnlyContext';
 import { cn, formatCurrency, formatMediumDate } from '@/components/planner/lib/utils';
 
 type ViewMode = 'split' | 'grid' | 'timeline';
@@ -34,7 +35,7 @@ const PROJECT_STATUS = {
   on_hold: { label: 'On Hold', dot: '#9CA3AF' },
 } as const;
 
-export function PlannerShell({ printHref }: { printHref?: string } = {}) {
+export function PlannerShell({ printHref, readOnly = false }: { printHref?: string; readOnly?: boolean } = {}) {
   const {
     meta,
     tasks,
@@ -209,11 +210,15 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
 
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 'z') {
+        if (readOnly) return;
         e.preventDefault();
         e.shiftKey ? redo() : undo();
         return;
       }
       if (typing) return;
+      // A read-only plan takes no structural keystrokes — they would apply on
+      // screen and then be lost, since nothing here is saved.
+      if (readOnly) return;
       if (!selectedId) return;
 
       if (e.key === 'Tab') {
@@ -231,7 +236,7 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, undo, redo, indent, outdent, addTaskBelow, deleteTask, select]);
+  }, [selectedId, undo, redo, indent, outdent, addTaskBelow, deleteTask, select, readOnly]);
 
   /* --------------------------- splitter --------------------------- */
   const startResize = (e: React.PointerEvent) => {
@@ -273,6 +278,7 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
   if (!mounted) return <PlannerSkeleton />;
 
   return (
+    <PlannerReadOnlyContext.Provider value={readOnly}>
     <TooltipProvider delayDuration={350}>
       <div data-planner-print-root className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F9FAFB]">
         {/* ============================ top bar ============================ */}
@@ -464,6 +470,7 @@ export function PlannerShell({ printHref }: { printHref?: string } = {}) {
         <TemplateDialog open={templatesOpen} onOpenChange={setTemplatesOpen} />
       </div>
     </TooltipProvider>
+    </PlannerReadOnlyContext.Provider>
   );
 }
 

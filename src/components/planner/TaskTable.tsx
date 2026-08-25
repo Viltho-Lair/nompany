@@ -25,6 +25,7 @@ import {
   usePlannerStore,
 } from '@/components/planner/lib/store/plannerStore';
 import { ROW_HEIGHT } from '@/components/planner/lib/timeline';
+import { usePlannerReadOnly } from './ReadOnlyContext';
 import { cn } from '@/components/planner/lib/utils';
 import { Tooltip } from '@/components/planner/ui/primitives';
 import {
@@ -400,6 +401,7 @@ function RowMenu({ task }: { task: ComputedTask }) {
     select,
   } = usePlannerStore();
 
+  const readOnly = usePlannerReadOnly();
   const [open, setOpen] = React.useState(false);
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -450,6 +452,10 @@ function RowMenu({ task }: { task: ComputedTask }) {
     fn();
     setOpen(false);
   };
+
+  // No editing on a read-only plan — the three-dot menu is where delete / add /
+  // indent live, and offering them would apply a change that is never saved.
+  if (readOnly) return null;
 
   return (
     <>
