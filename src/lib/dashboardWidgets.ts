@@ -28,6 +28,7 @@ export type WidgetDef = {
 // section's free KPI/StatRow floor is NOT here — the switch governs the paid
 // widgets, the basic floor is always shown.
 export const WIDGET_SECTIONS: { key: string; label: string }[] = [
+  { key: "main", label: "Overview" },
   { key: "sales", label: "Sales" },
   { key: "technical", label: "Technical" },
   { key: "projects", label: "Projects" },
@@ -40,6 +41,12 @@ export const WIDGET_SECTIONS: { key: string; label: string }[] = [
 // Every gated widget across the eight department dashboards. Keys are frozen —
 // a tier stores these strings, so renaming one is a migration, not an edit.
 export const DASHBOARD_WIDGETS: WidgetDef[] = [
+  // Main (the executive overview — the free headline tiles & feed are NOT here;
+  // the registry governs paid widgets, the floor is always shown)
+  { key: "main.activity", label: "Department activity", section: "main", rung: "simple" },
+  { key: "main.awaiting-you", label: "Awaiting you", section: "main", rung: "simple" },
+  { key: "main.headline-trend", label: "Headline trends", section: "main", rung: "simple" },
+  { key: "main.event-ribbon", label: "Activity ribbon", section: "main", rung: "moderate" },
   // Sales
   { key: "sales.funnel", label: "Sales funnel", section: "sales", rung: "simple" },
   { key: "sales.probability-forecast", label: "Probability forecast", section: "sales", rung: "simple" },

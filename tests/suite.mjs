@@ -72,7 +72,7 @@ import { arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix, 
 import { listBills, createBill, editBill, approveBill, recordBillPayment, removeBill } from "@/modules/finance/payables";
 import { depreciationOf, listAssets, createAsset, editAsset, disposeAsset } from "@/modules/finance/assets";
 import { analyticsLevelOf, analyticsAllows } from "@/lib/analytics";
-import { enabledWidgets, widgetsForRung, WIDGET_KEYS, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
+import { enabledWidgets, widgetsForRung, WIDGET_KEYS, WIDGET_SECTIONS, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
 import { planOf } from "@/lib/plans";
 import { createCatalogItem, deleteCatalogItem, listCatalog } from "@/lib/data/catalog";
 import { overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices, OVERDUE_MILESTONES, EXPIRING_MILESTONES } from "@/modules/main/timeNotices";
@@ -1181,6 +1181,15 @@ console.log("\n== Nova's toolset is enabled ∩ mapped ∩ permitted — never m
   const noLeave = buildToolset({ enabled: {} }, new Set(["hr.vacations.view"]));
   ok("an action the user cannot perform is withheld", !noLeave.tools.some((t) => t.name === "action__hr__request-leave"), "leaked action");
 }
+
+// ============================================================================
+console.log("\n== Main executive widgets join the registry");
+ok("Overview is a section the tier editor lists", WIDGET_SECTIONS.some((s) => s.key === "main"));
+ok("main.activity is a simple-rung widget", widgetsForRung("simple").includes("main.activity"));
+ok("main.awaiting-you is simple too", widgetsForRung("simple").includes("main.awaiting-you"));
+ok("main.event-ribbon needs moderate",
+  !widgetsForRung("simple").includes("main.event-ribbon") && widgetsForRung("moderate").includes("main.event-ribbon"));
+ok("the free headline tiles are NOT gated widgets", !WIDGET_KEYS.has("main.openTickets"));
 
 // ============================================================================
 console.log("\n== a tier selects dashboard components: switch + list, else the rung");
