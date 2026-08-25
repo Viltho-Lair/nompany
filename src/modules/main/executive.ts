@@ -18,12 +18,12 @@ export function activityByDay(
   days = 30,
   asOf: string = new Date().toISOString().slice(0, 10),
 ): { label: string; value: number }[] {
-  const end = new Date(`${asOf}T00:00:00`);
+  const end = new Date(`${asOf}T00:00:00Z`);
   const series: { label: string; value: number }[] = [];
   const index = new Map<string, number>();
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(end);
-    d.setDate(end.getDate() - i);
+    d.setUTCDate(end.getUTCDate() - i);
     const key = d.toISOString().slice(0, 10);
     index.set(key, series.length);
     series.push({ label: key, value: 0 });
