@@ -53,6 +53,7 @@ import { getJSON } from "@/platform/db/store";
 import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/platform/relations";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/platform/db/keys";
 import { activityByDay, periodDelta } from "@/modules/main/executive";
+import { rankQueue } from "@/modules/main/awaiting";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/modules/quality/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/modules/quality/qualityFields";
 import {
@@ -2775,6 +2776,20 @@ console.log("\n== Main executive: pure derivations");
   ok("period delta counts the current window", p.current === 3, String(p.current));
   ok("nothing in the prior window", p.previous === 0, String(p.previous));
   ok("a percentage on a zero base is null, not +100%", p.deltaPct === null, String(p.deltaPct));
+}
+
+// ============================================================================
+console.log("\n== Main executive: the awaiting-you queue orders by age");
+{
+  const items = [
+    { kind: "task", section: "tasks", id: "t2", label: "Approve PO", at: "2026-08-20T00:00:00" },
+    { kind: "quotation", section: "technical-quotations", id: "q1", label: "Q-1001", at: "2026-08-24T00:00:00" },
+    { kind: "task", section: "tasks", id: "t1", label: "Review RFQ", at: "2026-08-10T00:00:00" },
+  ];
+  const ranked = rankQueue(items);
+  ok("oldest waiting item is first", ranked[0].id === "t1", ranked[0].id);
+  ok("newest waiting item is last", ranked[2].id === "q1", ranked[2].id);
+  ok("nothing is dropped", ranked.length === 3, String(ranked.length));
 }
 
 // ============================================================================
