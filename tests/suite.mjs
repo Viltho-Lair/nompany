@@ -78,6 +78,7 @@ import { enabledWidgets, widgetsForRung, WIDGET_KEYS, WIDGET_SECTIONS, DASHBOARD
 import { planOf } from "@/lib/plans";
 import { createCatalogItem, deleteCatalogItem, listCatalog } from "@/lib/data/catalog";
 import { drillHref } from "@/components/dashboard/drill";
+import { presetRange } from "@/components/dashboard/dateRange";
 import { overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices, OVERDUE_MILESTONES, EXPIRING_MILESTONES } from "@/modules/main/timeNotices";
 import { resolveHolders } from "@/lib/studios";
 import { NOVA_CAPABILITIES, capabilityEnabled, enabledCapabilities } from "@/lib/nova/capabilities";
@@ -2797,6 +2798,18 @@ console.log("\n== Main executive: the awaiting-you queue orders by age");
 console.log("\n== Shared shell: drill-down deep-links into the department screen");
 ok("bare link is the section screen", drillHref("acme", "sales-tickets") === "/acme/sales-tickets", drillHref("acme", "sales-tickets"));
 ok("a filter rides as a query", drillHref("acme", "sales-tickets", { status: "open" }) === "/acme/sales-tickets?status=open");
+
+// ============================================================================
+console.log("\n== Shared shell: fiscal-aware preset ranges");
+{
+  const m = presetRange("month", "2026-08-25", 1);
+  ok("this month starts on the 1st", m.start === "2026-08-01", m.start);
+  ok("this month ends at next month's 1st (exclusive)", m.end === "2026-09-01", m.end);
+  const y = presetRange("year", "2026-08-25", 1);
+  ok("calendar year starts in January", y.start === "2026-01-01", y.start);
+  const fy = presetRange("year", "2026-08-25", 4); // fiscal year starts April
+  ok("a fiscal year starting in April rolls back to this April", fy.start === "2026-04-01", fy.start);
+}
 
 // ============================================================================
 // Everything this suite wrote lives under the namespace, so cleanup is one
