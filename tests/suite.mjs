@@ -2935,12 +2935,34 @@ console.log("\n== Main rollup: the oracle — rollup equals on-read, to the unit
   ok("rollup activity equals on-read activity", JSON.stringify(rolled.activity) === JSON.stringify(onread.activity), "activity mismatch");
   ok("rollup trends equal on-read trends", JSON.stringify(rolled.trends) === JSON.stringify(onread.trends), "trends mismatch");
   ok("rollup ribbon equals on-read ribbon", JSON.stringify(rolled.ribbon) === JSON.stringify(onread.ribbon), "ribbon mismatch");
-  console.log("DEBUG trends onread ", JSON.stringify(onread.trends));
-  console.log("DEBUG trends rolled ", JSON.stringify(rolled.trends));
-  console.log("DEBUG ribbon onread nonzero", JSON.stringify(onread.ribbon.filter((d) => d.value !== 0)));
-  console.log("DEBUG ribbon rolled nonzero", JSON.stringify(rolled.ribbon.filter((d) => d.value !== 0)));
-  console.log("DEBUG activity onread", JSON.stringify(onread.activity.map((a) => ({ section: a.section, nonzero: a.series.filter((d) => d.value !== 0) }))));
-  console.log("DEBUG activity rolled", JSON.stringify(rolled.activity.map((a) => ({ section: a.section, nonzero: a.series.filter((d) => d.value !== 0) }))));
+  process.env.CRON_SECRET = prevSecret;
+}
+
+// ============================================================================
+console.log("\n== Main rollup: visibility survives aggregation");
+{
+  // Seed a create in a tracked section, populate the rollup via reconcile, then
+  // read as a collaborator who holds no role at all — no section grants, so no
+  // rollup figure for it either (invariant 2: a section the viewer cannot see
+  // is never read, not read and hidden).
+  const prevSecret = process.env.CRON_SECRET;
+  const prevFlag = process.env.MAIN_ROLLUP_READ;
+  process.env.CRON_SECRET = "test-secret";
+  const sec = await getSectionByKey(studio.id, "sales-tickets");
+  await addRow(studio.id, sec.id, "salesTickets", { title: "secret", createdAt: `${utcDay()}T05:00:00Z` });
+  const reconciled = await MAIN_ROLLUP(
+    new Request("http://x/api/cron/main-rollup", { headers: { authorization: "Bearer test-secret" } }),
+  );
+  ok("reconcile ran before the visibility read", reconciled.status === 200, String(reconciled.status));
+
+  const noRoleCtx = await mainContext(nobody.user, slug);
+  ok("mainContext resolved for a member with no role", !noRoleCtx.error, JSON.stringify(noRoleCtx.error || null));
+
+  process.env.MAIN_ROLLUP_READ = "true";
+  const agg = await readAggregate(noRoleCtx, utcDay());
+  process.env.MAIN_ROLLUP_READ = prevFlag ?? "";
+  ok("a member without the section gets no rollup activity for it",
+    !agg.activity.some((a) => a.section === "sales-tickets"), JSON.stringify(agg.activity));
   process.env.CRON_SECRET = prevSecret;
 }
 
