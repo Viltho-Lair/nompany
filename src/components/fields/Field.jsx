@@ -18,6 +18,13 @@ import { useId, useState } from "react";
 // whether a wrapped control is `filled` so the label knows to float. One field,
 // every control, one look.
 //
+// `readOnly` is that same look for a value nobody types — a stamp (Created by,
+// Created at, an issued number). It wears the box and the metrics of an editable
+// field so it lines up flush beside one, but its text is muted and it never
+// takes focus. The alternative — a label stacked over a grey `inputRO` box — is
+// a second field shape on the same form, and every time it sat next to a real
+// field the two did not line up.
+//
 // Logical insets throughout (`start-`, `ps-`, an inline-start transform origin),
 // so it mirrors in Arabic without a second code path.
 
@@ -33,6 +40,15 @@ const BOX_STATE = (focused, error, disabled) =>
 // The control sits with room at the top for the floated label: pt-5 pb-1.5.
 const CONTROL =
   "peer w-full bg-transparent px-3.5 pt-5 pb-1.5 text-sm text-[var(--geex-ink)] outline-none disabled:cursor-not-allowed";
+
+// A read-only stamp (Created by, Created at, an assigned number) wears the SAME
+// box and the same metrics as an editable control — that is the whole point, so
+// it lines up flush with the field beside it — but its text is muted to read as
+// non-editable and it stays out of the tab order. Its own colour, not a class
+// appended after CONTROL's, because two text-colour utilities race on source
+// order, not on the order they sit in the string.
+const CONTROL_RO =
+  "w-full bg-transparent px-3.5 pt-5 pb-1.5 text-sm text-slate-500 dark:text-slate-400 outline-none cursor-default";
 
 // Passed to a wrapped Combo so its own border/background fall away and it wears
 // this field's box instead — flush with every plain control on the form.
@@ -64,6 +80,7 @@ export function Field({
   error,
   required = false,
   disabled = false,
+  readOnly = false,   // a stamped, non-editable value shown in the field's box
   prefix,             // e.g. a currency glyph, rendered at the inline-start
   filled: filledProp, // for wrapped children (Combo/date): does it have a value?
   children,           // a control to wrap (Combo, StudioDate); label floats over it
@@ -87,7 +104,9 @@ export function Field({
   // empty-value one like "Studio" (meaning the studio's own currency). So its
   // label must always float clear of that text, never rest centred over it. A
   // value of "" is a real selection for a select, not an empty field.
-  const floated = focused || hasValue || as === "select";
+  // A read-only stamp always floats its label clear of the value it displays,
+  // exactly as a select does — there is no empty resting state to rest over.
+  const floated = focused || hasValue || as === "select" || readOnly;
   const describedBy = error ? `${id}-err` : hint ? `${id}-hint` : undefined;
 
   // The label text carries the required mark; the visible star stays.
@@ -100,7 +119,22 @@ export function Field({
   );
 
   let control;
-  if (wrapping) {
+  if (readOnly && !wrapping) {
+    // A stamped value: same box, same metrics as an input so it lines up flush,
+    // but inert — never editable, never in the tab order, never lit on focus.
+    control = (
+      <input
+        id={id}
+        className={CONTROL_RO}
+        value={value ?? ""}
+        readOnly
+        tabIndex={-1}
+        aria-readonly="true"
+        aria-describedby={describedBy}
+        {...inputProps}
+      />
+    );
+  } else if (wrapping) {
     // The child (a Combo, the date field) is rendered as-is; the box below
     // tracks focus for it and the caller reports its value through `filled`.
     control = children;

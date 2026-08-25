@@ -851,16 +851,13 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
 
         {/* Stamped by the server, shown read-only so the record's authorship is
             visible while it is being written. "You" and now stand in because the
-            payload does not name the current collaborator. */}
+            payload does not name the current collaborator. Routed through Field's
+            read-only mode so they line up flush with Handled by beside them —
+            same box, same height — instead of a stacked-label grey box that did
+            not. */}
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={label}>Created by</label>
-            <input className={inputRO} value="You" readOnly />
-          </div>
-          <div>
-            <label className={label}>Created at</label>
-            <input className={inputRO} value={fmtDate(new Date().toISOString())} readOnly />
-          </div>
+          <Field label="Created by" readOnly value="You" />
+          <Field label="Created at" readOnly value={fmtDate(new Date().toISOString())} />
         </div>
       </div>
       <div className="mt-5 flex gap-3">
