@@ -685,12 +685,13 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
   ]);
   if (clientId && !clients.some((c) => c.id === clientId)) return { error: "client" };
 
+  // Server-issued, never client-submitted: nextNumberForSequence self-seeds
+  // past the highest number this sequence already carries (invariant 10), so
+  // the result cannot collide with a row in `quotations` — there is no
+  // duplicate case to guard, and no concurrency one either (two creators read
+  // the same snapshot and would both pass any such check anyway; real safety is
+  // an atomic counter, not this read). See the gate-a note on the absent case.
   const number = nextNumberForSequence(quotations, sequence);
-  // Safety net against a hand-typed row from before sequences existed, or a
-  // race with another create landing between the read above and this write.
-  if (quotations.some((q) => String(q.number || "").toLowerCase() === number.toLowerCase())) {
-    return { error: "duplicate" };
-  }
 
   // NO LINES AND NO VAT HERE. Converting decides that a quotation exists, who
   // owns it and what number it carries; what is ON it is the builder's job.

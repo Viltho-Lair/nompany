@@ -111,7 +111,6 @@ export default function StudioTechnical({ slug, view = "technical" }) {
         : out.error === "ticket" ? "Pick a ticket."
         : out.error === "locked" ? "That quotation is locked — it can't be changed. Unlock it first, on its own."
         : out.error === "not-approved" ? "Only an approved quotation can be locked."
-        : out.error === "duplicate" ? "A quotation with that number already exists."
         : out.error === "number" ? "Give it a number."
         : out.error === "description" ? "Describe what is being quoted."
         : out.error === "handledBy" ? "Say who is handling it."
