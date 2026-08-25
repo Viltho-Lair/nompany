@@ -1238,6 +1238,31 @@ console.log("\n== a tier selects dashboard components: switch + list, else the r
 }
 
 // ============================================================================
+console.log("\n== Main executive: the entitled/locked split the route gates on");
+{
+  const basic = enabledWidgets({ analyticsEnabled: true, analyticsLevel: "basic" });
+  ok("a basic tier unlocks NONE of the main.* executive widgets",
+    !["main.activity","main.awaiting-you","main.headline-trend","main.event-ribbon"].some((k) => basic.has(k)),
+    [...basic].filter((k)=>k.startsWith("main.")).join(","));
+
+  const simple = enabledWidgets({ analyticsEnabled: true, analyticsLevel: "simple" });
+  ok("a simple tier unlocks the three simple main widgets",
+    simple.has("main.activity") && simple.has("main.awaiting-you") && simple.has("main.headline-trend"), "");
+  ok("...but NOT the moderate ribbon", !simple.has("main.event-ribbon"), "");
+
+  const moderate = enabledWidgets({ analyticsEnabled: true, analyticsLevel: "moderate" });
+  ok("a moderate tier unlocks all four main widgets",
+    ["main.activity","main.awaiting-you","main.headline-trend","main.event-ribbon"].every((k) => moderate.has(k)), "");
+
+  const picked = enabledWidgets({ analyticsEnabled: true, dashboardWidgets: ["main.activity"] });
+  ok("an explicit selection unlocks exactly what was ticked", picked.has("main.activity") && !picked.has("main.event-ribbon"), "");
+
+  const off = enabledWidgets({ analyticsEnabled: false, analyticsLevel: "moderate" });
+  ok("master switch off locks every main widget regardless of rung",
+    !["main.activity","main.awaiting-you","main.headline-trend","main.event-ribbon"].some((k) => off.has(k)), "");
+}
+
+// ============================================================================
 console.log("\n== Finance 1b: accounts payable mirrors the invoice");
 // A bill is the AP counterpart of an invoice — same lines, same VAT, same aging
 // arithmetic — with one thing an invoice lacks: APPROVAL, and invariant 7 on it
