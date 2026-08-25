@@ -13,6 +13,7 @@ import { AreaChart, Sparkline, ChartFrame } from "@/components/charts";
 import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 import { drillHref } from "@/components/dashboard/drill";
 import { fmtDate } from "@/lib/format";
+import { toCSV, downloadCSV } from "@/components/dashboard/exportTable";
 
 export default function MainDashboard({ slug, executive }) {
   const visible = useWidgetVisible();
@@ -37,13 +38,24 @@ export default function MainDashboard({ slug, executive }) {
       <Widget title="Awaiting you" hint="Waiting on your action"
         locked={!visible("main.awaiting-you")} lockedWhat="Awaiting you">
         {queue.length ? (
-          <ul>{queue.map((q) => (
-            <li key={q.id}>
-              <a href={drillHref(slug, q.section, { id: q.id })} className="flex justify-between text-sm">
-                <span>{q.label}</span><span className="num text-muted-foreground">{fmtDate(q.at)}</span>
-              </a>
-            </li>
-          ))}</ul>
+          <>
+            <ul>{queue.map((q) => (
+              <li key={q.id}>
+                <a href={drillHref(slug, q.section, { id: q.id })} className="flex justify-between text-sm">
+                  <span>{q.label}</span><span className="num text-muted-foreground">{fmtDate(q.at)}</span>
+                </a>
+              </li>
+            ))}</ul>
+            <button type="button" className="mt-2 text-xs text-muted-foreground hover:underline"
+              onClick={() => downloadCSV("awaiting-you.csv", toCSV(queue, [
+                { key: "label", header: "Item" },
+                { key: "section", header: "Section" },
+                { key: "kind", header: "Kind" },
+                { key: "at", header: "Date" },
+              ]))}>
+              Export CSV
+            </button>
+          </>
         ) : <p className="text-sm text-muted-foreground">Nothing is waiting on you.</p>}
       </Widget>
 
@@ -60,12 +72,23 @@ export default function MainDashboard({ slug, executive }) {
       <Widget title="Headline trends" hint="This month vs last"
         locked={!visible("main.headline-trend")} lockedWhat="Headline trends">
         {trends.length ? (
-          <ul>{trends.map((t) => (
-            <li key={t.key} className="flex justify-between text-sm">
-              <a href={drillHref(slug, t.key)}>{t.key}</a>
-              <span className="num">{t.current}{t.deltaPct === null ? "" : ` (${t.deltaPct >= 0 ? "+" : ""}${t.deltaPct}%)`}</span>
-            </li>
-          ))}</ul>
+          <>
+            <ul>{trends.map((t) => (
+              <li key={t.key} className="flex justify-between text-sm">
+                <a href={drillHref(slug, t.key)}>{t.key}</a>
+                <span className="num">{t.current}{t.deltaPct === null ? "" : ` (${t.deltaPct >= 0 ? "+" : ""}${t.deltaPct}%)`}</span>
+              </li>
+            ))}</ul>
+            <button type="button" className="mt-2 text-xs text-muted-foreground hover:underline"
+              onClick={() => downloadCSV("headline-trends.csv", toCSV(trends, [
+                { key: "key", header: "Section" },
+                { key: "current", header: "This period" },
+                { key: "previous", header: "Prior period" },
+                { key: "deltaPct", header: "Change %" },
+              ]))}>
+              Export CSV
+            </button>
+          </>
         ) : <p className="text-sm text-muted-foreground">No trend data yet.</p>}
       </Widget>
     </DashGrid>
