@@ -262,10 +262,10 @@ export function RegisterScreen({ variant = "v1" }) {
         <div className="flex flex-col gap-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="First name">
-              <input className="ad-input" placeholder="Abdullah" />
+              <input className="ad-input" placeholder="First name" />
             </Field>
             <Field label="Last name">
-              <input className="ad-input" placeholder="Abu Hammed" />
+              <input className="ad-input" placeholder="Last name" />
             </Field>
           </div>
           <Field label="Email">

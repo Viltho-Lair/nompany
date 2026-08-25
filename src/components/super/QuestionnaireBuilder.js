@@ -37,7 +37,11 @@ const SOURCE_LISTS = {
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-600 transition-colors";
 const dark = `${btn} bg-[var(--ad-foreground)] text-white hover:bg-[rgb(var(--ad-foreground-rgb)/0.75)] disabled:opacity-60`;
 const ghost = `${btn} text-[var(--ad-foreground)] hover:bg-[var(--ad-muted)]`;
-const field = "w-full rounded-lg border border-[var(--ad-border)] px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--ad-muted-foreground)]";
+// The console's own input style, so the builder's fields match every other form
+// in /super. It used to carry a private, lighter-weight look — transparent, a
+// tighter box, a grey focus instead of the primary ring — which left this one
+// screen's fields visibly out of step with the rest of the console.
+const field = "ad-input";
 
 export default function QuestionnaireBuilder({ id }) {
   const [doc, setDoc] = useState(null);
@@ -385,7 +389,7 @@ function Settings({ q, onPatch, onRemove }) {
           <h3 className="text-xs font-700 uppercase tracking-wide text-[var(--ad-muted-foreground)]">Choices from</h3>
           {/* Some lists are far too long to type and two of them depend on
               another answer, so they are bound rather than authored. */}
-          <select value={q.source || ""} onChange={(e) => onPatch({ source: e.target.value })} className={`${field} mt-2`}>
+          <select value={q.source || ""} onChange={(e) => onPatch({ source: e.target.value })} className="ad-select mt-2">
             <option value="">Choices below</option>
             <option value="industries">Industries</option>
             <option value="countries">Countries</option>
