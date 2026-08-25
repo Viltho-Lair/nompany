@@ -350,3 +350,4 @@ cross-cutting goes to `orchestrator` instead (directive 5).
 | Date | Constraint | Why | Raised by |
 |---|---|---|---|
 | 20/08/2026 | Do not take on CI/CD, deployment or environment plumbing in this role | Owning both the record departments and the pipeline made this agent two-headed, which was not intended. `devops` owns the pipeline; this role owns the records and what an external payload means to them. | user |
+| 25/08/2026 | Keep the 20-point security checklist in mind on every change. The items that are yours because external payloads enter here: **14 Validate all input** — a carrier/FX/webhook payload is untrusted until validated before it touches a shipment, invoice or cost — and **16 Restrict file uploads** for the documents these modules ingest. The full list and owners live in `qa-security.md`. | An external response is attacker-influenced data; the meaning this role assigns it must not trust its shape. | user |

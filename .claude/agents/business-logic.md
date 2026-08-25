@@ -361,3 +361,4 @@ cross-cutting goes to `orchestrator` instead (directive 5).
 | Date | Constraint | Why | Raised by |
 |---|---|---|---|
 | 20/08/2026 | Do not add a cross-department read that is not already a stated principle | Sales reading the ticket's own outcome is deliberate; widening it turns a narrow allowance into an accidental permission model. | codebase, `sales.js` |
+| 25/08/2026 | Keep the 20-point security checklist in mind on every change. The items that are yours because they live in route rules, approvals and signables: **6 Enforce server-side auth** (entitlement, not "signed in"), **8 Block field tampering** (a client cannot set a field it may not), **14 Validate all input** at the server boundary, and **17 Trim API responses** to the shape the caller needs. The full list and owners live in `qa-security.md`. | The gap between what the UI shows and what a handcrafted request can do is exactly this layer; server-side enforcement is the only enforcement. | user |

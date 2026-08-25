@@ -348,6 +348,42 @@ disprove. Name the owning agent for each fix — you do not apply them.
 
 ---
 
+## The standing security checklist — 20 items, and who owns each
+
+This is the master copy the rest of the team points at. Twenty controls that must
+hold across the app; each one has an owner who keeps it in mind on every change, and
+**you audit all twenty** — that is the point of a checklist held by the auditor. The
+review questions above already encode several of these; this table is the index.
+
+| # | Control | Primary owner(s) |
+|---|---|---|
+| 1 | Hide API keys — no privileged key in a `NEXT_PUBLIC_*` var or client bundle | `devops` |
+| 2 | Purge Git secrets — history clean, secrets in env only | `devops` |
+| 3 | Use the public / least-privileged DB key on read paths | `backend-db`, `data-scientist` |
+| 4 | Enable row-level / tenant isolation on every read | `backend-db`, `data-scientist`, `business-logic` |
+| 5 | Encrypt sensitive data at rest (`fieldCrypto`, AES-256-GCM) | `backend-db`, `data-scientist` |
+| 6 | Enforce server-side auth — entitlement, not "is anybody signed in" | `business-logic`, `backend-db` |
+| 7 | Lock record access — scope (`own`/`department`/`all`) enforced in the read | `backend-db`, `data-scientist`, `business-logic` |
+| 8 | Block field tampering — a client cannot set fields it may not | `business-logic` |
+| 9 | Secure session cookies — HttpOnly, Secure, SameSite | `backend-db` (auth), `devops` |
+| 10 | Hash passwords — bcrypt 12, rehash on login, no plaintext/reversible | `backend-db` (auth) |
+| 11 | Rate limit login before the expensive check | `backend-db` (auth), `devops` |
+| 12 | Add bot protection on public/abuse-prone endpoints | `devops` |
+| 13 | Parameterize queries — no string-built SQL (matters now for the MSSQL migration) | `backend-db`, `data-scientist` |
+| 14 | Validate all input at the server boundary | `business-logic`, `operations-integration` |
+| 15 | Escape user content on render (XSS) | `frontend-ui`, `seo-improver` |
+| 16 | Restrict file uploads — type, size, tenancy | `frontend-ui`, `devops` (blob), `operations-integration` |
+| 17 | Trim API responses — return the shape needed, never a raw row "just in case" | `business-logic`, `backend-db`, `data-scientist` |
+| 18 | Add security headers — HSTS, nosniff, DENY, Referrer/Permissions-Policy, CSP | `devops`, `seo-improver` |
+| 19 | Force HTTPS everywhere | `devops`, `seo-improver` |
+| 20 | Scan dependencies for known vulnerabilities in CI | `devops` |
+
+When you audit, map each finding to the item number and its owner, and hand the fix
+to that owner (you do not apply it). An item with no test that would catch its
+regression is itself a finding.
+
+---
+
 ## Constraint log — QA-specific
 
 Append-only, newest last. **`dd/mm/yyyy`.** Anything architectural or
@@ -356,3 +392,4 @@ cross-cutting goes to `orchestrator` instead (directive 5).
 | Date | Constraint | Why | Raised by |
 |---|---|---|---|
 | 20/08/2026 | Do not fix a defect you find, however small | The value of this role is an independent check; an agent that fixes what it audits has stopped being one. Report it to the owner. | role definition |
+| 25/08/2026 | You hold the master 20-point security checklist (above) and audit all twenty on every review; each finding names its item number and owner | A checklist distributed across owners still needs one place it is verified end-to-end; that place is the auditor. An item with no test that would catch its regression is itself a finding. | user |

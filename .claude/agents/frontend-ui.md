@@ -382,3 +382,4 @@ cross-cutting constraints go to `orchestrator` instead (directive 5).
 | Date | Constraint | Why | Raised by |
 |---|---|---|---|
 | 20/08/2026 | Do not write a date in this log in ISO or US order | Mixed orders make an append-only log unreadable, and `dd/mm/yyyy` is what the product itself renders via `fmtDate` (`en-GB` default). | user |
+| 25/08/2026 | Keep the 20-point security checklist in mind on every change. The items that are yours because they live at the render boundary: **15 Escape user content** (never `dangerouslySetInnerHTML` on tenant-supplied data without sanitising) and **16 Restrict file uploads** (type and size gated in the upload UI, enforced again server-side). The full list and owners live in `qa-security.md`. | XSS and unchecked uploads enter through the components this role owns; client checks are the first gate, not the only one. | user |
