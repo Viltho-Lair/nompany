@@ -293,7 +293,12 @@ export default async function StudioPage({ params }) {
     const planApiBase = `/api/studios/${studio.slug}/projects/${segments[1]}/plans/${segments[3]}`;
     return (
       <LiveProvider slug={studio.slug}>
-        <StudioPlanner slug={studio.slug} planApiBase={planApiBase} />
+        <StudioPlanner
+          slug={studio.slug}
+          planApiBase={planApiBase}
+          backHref={`/${studio.slug}/projects-list/${segments[1]}`}
+          backLabel="Project"
+        />
       </LiveProvider>
     );
   }
@@ -312,6 +317,8 @@ export default async function StudioPage({ params }) {
           <StudioPlanner
             slug={studio.slug}
             planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
+            backHref={`/${studio.slug}/operations-planner`}
+            backLabel="Planner"
           />
         </LiveProvider>
       );
@@ -321,7 +328,12 @@ export default async function StudioPage({ params }) {
     return (
       <LiveProvider slug={studio.slug}>
         {planId
-          ? <StudioPlanner slug={studio.slug} planApiBase={planApiBase} />
+          ? <StudioPlanner
+              slug={studio.slug}
+              planApiBase={planApiBase}
+              backHref={`/${studio.slug}/operations-planner`}
+              backLabel="Planner"
+            />
           : <StudioPlannerList slug={studio.slug} />}
       </LiveProvider>
     );
