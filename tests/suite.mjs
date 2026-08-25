@@ -105,6 +105,7 @@ import { STAT } from "@/platform/db/keys";
 import { putMedia } from "@/lib/media";
 import { hashToken } from "@/platform/auth/passwords";
 import { SERVICE_ACTIONS, FIELDS_OF_WORK, FIELD_ACTION_MATRIX, actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
+import { nextPool, cleanNextActive } from "@/modules/studioServiceActions";
 
 const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/route.ts")).PUT;
 const TASKS_ROUTE = await import("@/app/api/studios/[slug]/tasks/route.ts");
@@ -3025,6 +3026,44 @@ console.log("== fields of work: the matrix cannot drift from its actions");
   ok("actionsForField returns a field's row", actionsForField("Manufacturing").includes("Fabrication / Manufacturing"));
   ok("actionsForField('Other') seeds nothing", actionsForField(OTHER_FIELD).length === 0);
   ok("actionsForField(unknown) seeds nothing", actionsForField("Nope").length === 0);
+}
+
+// ============================================================================
+console.log("== service-action pool: remove is retire, not delete");
+{
+  // Removing a referenced action carries it into retired, not out of existence.
+  const a = nextPool({
+    prevActive: ["Installation", "Training"], prevRetired: [],
+    nextActive: ["Installation"], referenced: new Set(["Training"]),
+  });
+  ok("a referenced removed action is retired", a.retiredServiceActions.includes("Training"));
+  ok("...and leaves the active pool", !a.serviceActions.includes("Training"));
+
+  // Removing an UNreferenced action just drops it — nothing carries it.
+  const b = nextPool({
+    prevActive: ["Installation", "Training"], prevRetired: [],
+    nextActive: ["Installation"], referenced: new Set(),
+  });
+  ok("an unreferenced removed action is dropped", !b.retiredServiceActions.includes("Training"));
+
+  // Re-adding a retired action un-retires it.
+  const c = nextPool({
+    prevActive: ["Installation"], prevRetired: ["Training"],
+    nextActive: ["Installation", "Training"], referenced: new Set(["Training"]),
+  });
+  ok("re-adding un-retires", c.serviceActions.includes("Training") && !c.retiredServiceActions.includes("Training"));
+
+  // A retired action whose last item is gone is pruned on the next write.
+  const d = nextPool({
+    prevActive: ["Installation"], prevRetired: ["Training"],
+    nextActive: ["Installation"], referenced: new Set(),
+  });
+  ok("a retired action nothing references is pruned", d.retiredServiceActions.length === 0);
+
+  // Edited pool is limited to the standard 20 plus surviving legacy names.
+  ok("a non-standard new action is rejected", !cleanNextActive(["Made Up"], ["Installation"]).includes("Made Up"));
+  ok("a legacy name in prevActive survives", cleanNextActive(["Legacy Thing"], ["Legacy Thing"]).includes("Legacy Thing"));
+  ok("a standard action is accepted", cleanNextActive(["Commissioning"], []).includes("Commissioning"));
 }
 
 // ============================================================================
