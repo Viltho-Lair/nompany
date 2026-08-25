@@ -1077,6 +1077,14 @@ html.studio-chrome ::-webkit-scrollbar-corner {
     max-height: none !important;
     overflow: visible !important;
   }
+  /* The waterfall bars are background-coloured divs, and a browser drops
+     backgrounds when it prints — which left the printed waterfall blank. Force
+     the colours through so the bars actually appear on paper. */
+  [data-planner-print-root],
+  [data-planner-print-root] * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   body { background: #fff; }
 }
 

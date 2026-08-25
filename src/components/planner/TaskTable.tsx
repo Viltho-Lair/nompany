@@ -407,20 +407,26 @@ function RowMenu({ task }: { task: ComputedTask }) {
 
   const openMenu = () => {
     const r = btnRef.current?.getBoundingClientRect();
-    if (r) {
-      // Flip the menu ABOVE the button when a row near the bottom would push it
-      // off the foot of the viewport — where it rendered under the footer and
-      // its items could not be clicked at all. Estimated height is enough to
-      // decide the direction; the menu is a fixed set of rows.
-      const MENU_H = 360;
-      const openUp = r.bottom + MENU_H + 8 > window.innerHeight;
-      setPos({
-        top: openUp ? Math.max(8, r.top - MENU_H - 4) : r.bottom + 4,
-        right: Math.max(8, window.innerWidth - r.right),
-      });
-    }
+    if (r) setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
     setOpen(true);
   };
+
+  // Keep the whole menu on screen. Once it has a real measured height, flip it
+  // above the button (and clamp) if opening downward would run it off the foot of
+  // the viewport — where it used to render under the footer and its items could
+  // not be clicked at all, which read as "the menu does nothing". Runs before
+  // paint, so there is no visible jump.
+  React.useLayoutEffect(() => {
+    if (!open || !menuRef.current || !btnRef.current) return;
+    const h = menuRef.current.getBoundingClientRect().height;
+    const b = btnRef.current.getBoundingClientRect();
+    let top = b.bottom + 4;
+    if (top + h + 8 > window.innerHeight) {
+      top = Math.max(8, Math.min(b.top - h - 4, window.innerHeight - h - 8));
+    }
+    setPos((p) => (p.top === top ? p : { ...p, top }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   React.useEffect(() => {
     if (!open) return;
