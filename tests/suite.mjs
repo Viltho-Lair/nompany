@@ -52,6 +52,7 @@ import { qualityContext, watermarkFor } from "@/modules/quality/quality";
 import { getJSON } from "@/platform/db/store";
 import { NODES, EDGES, pathBetween, reachableFrom, traverse } from "@/platform/relations";
 import { SECTION_COLLECTIONS, ALL_SECTION_KEYS } from "@/platform/db/keys";
+import { activityByDay, periodDelta } from "@/modules/main/executive";
 import { mergeValuesFor, fieldsFor, bindSubject, subjectOptions } from "@/modules/quality/quality";
 import { isFieldKey, legalKeyFor, availableFields, isBlockSource, blockByKey, reachOf } from "@/modules/quality/qualityFields";
 import {
@@ -2753,6 +2754,27 @@ console.log("== the orphan sweep cannot reach outside its namespace");
   // With NO namespace an empty registry is a genuinely empty database: there is
   // nothing to lose and nothing to reap, so it is allowed through.
   ok("an empty registry with no prefix is allowed through", sweepRefusal("", [], []) === null);
+}
+
+// ============================================================================
+console.log("\n== Main executive: pure derivations");
+{
+  const rows = [
+    { id: "a", createdAt: "2026-08-25T09:00:00" },
+    { id: "b", createdAt: "2026-08-25T18:00:00" },
+    { id: "c", createdAt: "2026-08-24T10:00:00" },
+    { id: "old", createdAt: "2026-01-01T00:00:00" },
+  ];
+  const series = activityByDay(rows, 30, "2026-08-25");
+  ok("activity is one entry per day", series.length === 30, String(series.length));
+  ok("today counts both of today's rows", series[29].value === 2, JSON.stringify(series[29]));
+  ok("yesterday counts one", series[28].value === 1, JSON.stringify(series[28]));
+  ok("a row outside the window is excluded", series.reduce((s, x) => s + x.value, 0) === 3, "old row leaked");
+
+  const p = periodDelta(rows, "createdAt", { start: "2026-07-01", mid: "2026-08-01", end: "2026-09-01" });
+  ok("period delta counts the current window", p.current === 3, String(p.current));
+  ok("nothing in the prior window", p.previous === 0, String(p.previous));
+  ok("a percentage on a zero base is null, not +100%", p.deltaPct === null, String(p.deltaPct));
 }
 
 // ============================================================================
