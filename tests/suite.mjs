@@ -77,6 +77,7 @@ import { analyticsLevelOf, analyticsAllows } from "@/lib/analytics";
 import { enabledWidgets, widgetsForRung, WIDGET_KEYS, WIDGET_SECTIONS, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
 import { planOf } from "@/lib/plans";
 import { createCatalogItem, deleteCatalogItem, listCatalog } from "@/lib/data/catalog";
+import { drillHref } from "@/components/dashboard/drill";
 import { overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices, OVERDUE_MILESTONES, EXPIRING_MILESTONES } from "@/modules/main/timeNotices";
 import { resolveHolders } from "@/lib/studios";
 import { NOVA_CAPABILITIES, capabilityEnabled, enabledCapabilities } from "@/lib/nova/capabilities";
@@ -2791,6 +2792,11 @@ console.log("\n== Main executive: the awaiting-you queue orders by age");
   ok("newest waiting item is last", ranked[2].id === "q1", ranked[2].id);
   ok("nothing is dropped", ranked.length === 3, String(ranked.length));
 }
+
+// ============================================================================
+console.log("\n== Shared shell: drill-down deep-links into the department screen");
+ok("bare link is the section screen", drillHref("acme", "sales-tickets") === "/acme/sales-tickets", drillHref("acme", "sales-tickets"));
+ok("a filter rides as a query", drillHref("acme", "sales-tickets", { status: "open" }) === "/acme/sales-tickets?status=open");
 
 // ============================================================================
 // Everything this suite wrote lives under the namespace, so cleanup is one
