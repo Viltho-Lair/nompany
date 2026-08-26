@@ -95,6 +95,16 @@ import {
 } from "@/modules/hr/hr";
 import { updateProfile } from "@/platform/auth/users";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
+// ENGAGEMENT FOUNDATIONS (Phase 0). tests/engagement.mjs carries its own
+// standalone runner guarded on `import.meta.url === pathToFileURL(argv[1])`,
+// which does not fire on a plain import — so importing it here only pulls in
+// the seven exported test functions, called explicitly further down. They use
+// node:assert (throw on failure) rather than this file's `ok()` harness, so
+// each is run inside the try/catch block below that adapts one into the other.
+import {
+  testZsetHelpers, testEngagementKeys, testRegistry, testCreateRead,
+  testAttach, testDetachAndRefs, testUnassigned,
+} from "./engagement.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -3228,6 +3238,25 @@ console.log("== service-actions: settings.edit without inventory view must never
   const resaved = await editItem(ic2, scoped.item.id, { name: scoped.item.name, unit: "pcs", scope: ["Training"] });
   ok("the item's scope still carries Training after the permission gap",
     (resaved.item?.scope || []).includes("Training"), JSON.stringify(resaved));
+}
+
+// ============================================================================
+console.log("\n== engagement foundations (Phase 0)");
+// Each function throws (node:assert) on its first failed check rather than
+// reporting a boolean, so it is adapted to this file's ok() harness one test
+// at a time: a thrown assertion still counts as ONE failed block instead of
+// aborting the whole suite, which is what letting it propagate would do —
+// and every subsequent block, including the final sweep, would never run.
+{
+  for (const t of [testZsetHelpers, testEngagementKeys, testRegistry, testCreateRead,
+                   testAttach, testDetachAndRefs, testUnassigned]) {
+    try {
+      await t();
+      ok(t.name, true);
+    } catch (e) {
+      ok(t.name, false, e.message);
+    }
+  }
 }
 
 // ============================================================================
