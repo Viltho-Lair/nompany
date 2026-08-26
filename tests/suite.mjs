@@ -114,6 +114,7 @@ const YEAR_ROLLOVER = (await import("@/app/api/cron/year-rollover/route.ts")).GE
 const MAIN_ROLLUP = (await import("@/app/api/cron/main-rollup/route.ts")).GET;
 const TRACK = (await import("@/app/api/track/route.ts")).POST;
 const MEDIA_GET = (await import("@/app/api/media/[id]/route.ts")).GET;
+const SVC_ACTIONS = await import("@/app/api/studios/[slug]/settings/service-actions/route.ts");
 
 // ---- harness ---------------------------------------------------------------
 let fails = 0;
@@ -3084,6 +3085,42 @@ console.log("== inventory scope carries a retired action, it does not drop it");
   const ic3 = await inventoryContext(owner, slug);
   const filtered = await editItem(ic3, item.item.id, { name: item.item.name, unit: "pcs", scope: ["Installation", "Nonsense"] });
   ok("an unknown action is still dropped", !(filtered.item?.scope || []).includes("Nonsense"), JSON.stringify(filtered));
+}
+
+// ============================================================================
+console.log("== service-actions endpoint: a field seeds the pool, removal retires");
+{
+  await signInAs(owner.id);
+
+  // Choosing a field seeds serviceActions from the matrix row.
+  const seed = await SVC_ACTIONS.PUT(jsonReq({ fieldOfWork: "Manufacturing" }), { params: params(slug) });
+  ok("setting a field of work is accepted", seed.status === 200, String(seed.status));
+  const afterSeed = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
+  ok("the pool is the field's matrix row", afterSeed.serviceActions.includes("Fabrication / Manufacturing"));
+  ok("the chosen field is echoed back", afterSeed.fieldOfWork === "Manufacturing");
+  ok("the endpoint offers all 25 fields", afterSeed.options.fields.length === 25);
+
+  // An item scoped to one action; removing that action retires it (carry).
+  const ic = await inventoryContext(owner, slug);
+  await createItem(ic, { name: `Ep ${rand()}`, unit: "pcs", scope: ["Installation"] });
+  const withoutInstall = afterSeed.serviceActions.filter((a) => a !== "Installation");
+  const edit = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: withoutInstall }), { params: params(slug) });
+  ok("editing the pool is accepted", edit.status === 200, String(edit.status));
+  const afterEdit = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
+  ok("the removed-but-used action is retired", afterEdit.retiredServiceActions.includes("Installation"));
+  ok("...and usage reports the item count", afterEdit.usage["Installation"] >= 1, JSON.stringify(afterEdit.usage));
+
+  // "Other" seeds nothing.
+  await SVC_ACTIONS.PUT(jsonReq({ fieldOfWork: "Other", fieldOfWorkOther: "Bespoke" }), { params: params(slug) });
+  const other = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
+  ok("Other seeds an empty pool", other.serviceActions.length === 0, JSON.stringify(other.serviceActions));
+  ok("Other keeps its typed label", other.fieldOfWorkOther === "Bespoke");
+
+  // A non-member cannot edit.
+  await signInAs(nobody.user.id);
+  const denied = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: [] }), { params: params(slug) });
+  ok("someone without settings.edit is refused", denied.status === 403, String(denied.status));
+  await signInAs(owner.id);
 }
 
 // ============================================================================
