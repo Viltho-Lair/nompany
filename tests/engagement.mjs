@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { zAdd, zRange, zRem, sCard, sAdd } from "../src/platform/db/store.ts";
 import { ENG, UNASSIGNED_ENG, ID, KEY_PREFIX } from "../src/platform/db/keys.ts";
+import { STAGE_REGISTRY, stageOf, isSingleton, isUnassignable } from "../src/platform/engagement/registry.ts";
 
 // The harness runs with NOMPANY_KEY_PREFIX set; refuse to run unprefixed.
 assert.ok(KEY_PREFIX, "engagement tests must run under a key prefix");
@@ -35,6 +36,20 @@ export function testEngagementKeys() {
   for (const k of [ENG.root("s","e"), ENG.members("s","e","t"), ENG.rec("s","t","r"),
                    ENG.dept("s","t"), ENG.hasStage("s","t"), ENG.ref("s","t","r"), ENG.refBy("s","t","r")]) {
     assert.ok(k.startsWith(`${P}s:`), `namespaced: ${k}`);
+  }
+}
+
+export function testRegistry() {
+  assert.equal(isSingleton("ticket"), true, "ticket is one-per-engagement");
+  assert.equal(isSingleton("project"), true);
+  assert.equal(isSingleton("invoice"), false, "invoices are many");
+  assert.equal(isUnassignable("expense"), true, "an expense can exist with no deal");
+  assert.equal(isUnassignable("ticket"), false, "a ticket always belongs to a deal");
+  assert.equal(stageOf("nope"), null, "unknown type resolves null, not throws");
+  // Every entry carries a section key and a permission (drives access + ownership).
+  for (const e of Object.values(STAGE_REGISTRY)) {
+    assert.ok(e.sectionKey && e.permission, `${e.type} declares section + permission`);
+    assert.ok(e.cardinality === "one" || e.cardinality === "many");
   }
 }
 
