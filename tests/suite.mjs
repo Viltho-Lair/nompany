@@ -2738,7 +2738,7 @@ console.log("== every key the product builds is inside its namespace");
     if (/day|visitors/i.test(name)) return "2026-08-20";
     return "sample_id";
   };
-  const groups = ["REG", "U", "S", "SEC", "IX", "OTP", "CHAT", "FX", "RL", "STAT", "MEDIA"];
+  const groups = ["REG", "U", "S", "SEC", "IX", "OTP", "CHAT", "FX", "RL", "STAT", "MEDIA", "ENG"];
   const offenders = [];
   let checked = 0;
 

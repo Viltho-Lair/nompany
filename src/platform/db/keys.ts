@@ -58,6 +58,9 @@ export const ID = {
   // studio-level record that both doors list.
   plan: () => makeId("pln"),
   row: (collection: string) => makeId(collection.slice(0, 3)),
+  // An engagement — the umbrella a Tier-B record (project, job, …) opens over
+  // the Tier-A records it draws in. See the approved engagement storage spec.
+  engagement: () => makeId("eng"),
 };
 
 // ---- global registries -----------------------------------------------------
@@ -341,6 +344,21 @@ export const PLAN_TEMPLATE = {
   index: (studioId: string) => `${P}s:${studioId}:plan-templates`,
   doc: (studioId: string, templateId: string) => `${P}s:${studioId}:plan-template:${templateId}`,
 };
+
+// ---- engagement model (see the approved engagement storage spec) -----------
+// One key per record, membership in sets, indexes maintained on write. The
+// ownership prefix is unchanged (s:<StudioID>:*), so cascade and tenancy hold.
+export const ENG = {
+  root:     (studioId: string, engId: string) => `${P}s:${studioId}:eng:${engId}`,
+  members:  (studioId: string, engId: string, type: string) => `${P}s:${studioId}:eng:${engId}:members:${type}`,
+  rec:      (studioId: string, type: string, recId: string) => `${P}s:${studioId}:rec:${type}:${recId}`,
+  dept:     (studioId: string, type: string) => `${P}s:${studioId}:dept:${type}`,
+  hasStage: (studioId: string, type: string) => `${P}s:${studioId}:eng-ix:has:${type}`,
+  ref:      (studioId: string, type: string, refId: string) => `${P}s:${studioId}:ref:${type}:${refId}`,
+  refBy:    (studioId: string, type: string, refId: string) => `${P}s:${studioId}:ref-by:${type}:${refId}`,
+};
+// The per-studio bucket loose Tier-A records attach to instead of minting an engagement.
+export const UNASSIGNED_ENG = "__unassigned";
 
 // ---- indexes (uniqueness claims + O(1) lookups) ----------------------------
 const normEmail = (e: unknown) => String(e || "").trim().toLowerCase();
