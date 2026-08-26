@@ -9,7 +9,7 @@
 // Deletion goes through cascade.js (cascadeDeleteUser), never this file.
 
 import { REG, U, IX, ID, normEmail } from "@/platform/db/keys";
-import { readArr, editArr, editJSON, getJSON, setJSON, claim, getIndex, release } from "@/platform/db/store";
+import { readArr, editArr, editJSON, getJSON, getJSONMany, setJSON, claim, getIndex, release } from "@/platform/db/store";
 import { newSessionToken, hashToken } from "./passwords";
 import { listStudios, ownedStudioId, collaborationStudioIds } from "@/modules/main/studios";
 import { isAssignableRole } from "@/lib/platformRoles";
@@ -223,6 +223,13 @@ export type Profile = {
 
 export const getProfile = (userId: string) => getJSON<Profile>(U.profile(userId));
 export const updateProfile = patchDoc<Profile>(U.profile);
+// MANY PROFILES IN ONE HOP — for a screen that lists people (HR's employee roll),
+// where reading each person's profile one row at a time is the getProfile N+1 the
+// audit named (R9). Aligned to `userIds`, null where a profile is absent, exactly
+// as getProfile would answer per id — just in a single MGET. Keys still come from
+// U.profile, so nothing is built outside keys.ts.
+export const getProfilesByIds = (userIds: string[]) =>
+  getJSONMany<Profile>(userIds.map((id) => U.profile(id)));
 /**
  * The 1:1 ACTIVITY document — when this person last signed in and was last seen.
  *

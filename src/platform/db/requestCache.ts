@@ -74,6 +74,42 @@ export function cachedRead<T>(key: string, load: () => Promise<T>): Promise<T> {
   return pending;
 }
 
+/**
+ * Read MANY keys, sharing the request cache and collapsing the misses into ONE
+ * flight.
+ *
+ * This is what turns an N+1 into a single hop. `cachedRead` already dedupes a key
+ * read twice, but a list of DISTINCT keys — every employee's profile — is still N
+ * separate commands. Here the keys already cached are served from their in-flight
+ * promises, and the ones that are NOT are handed to `loadMissing` as one batch (an
+ * MGET in the store), whose result is then sliced back into a per-key promise each
+ * — so a later single-key `cachedRead` of one of them joins this flight instead of
+ * issuing its own command.
+ *
+ * `loadMissing` MUST return one value per key it was given, in the same order.
+ * Outside a request scope there is nothing to cache, so the whole set is loaded.
+ */
+export function cachedReadMany<T>(
+  keys: string[],
+  loadMissing: (missing: string[]) => Promise<T[]>,
+): Promise<T[]> {
+  const map = storage.getStore();
+  if (!map) return loadMissing(keys);
+
+  const missing = keys.filter((k) => !map.has(k));
+  if (missing.length) {
+    // ONE flight for every miss. Stored before the await, like cachedRead, so a
+    // concurrent reader of any of these keys joins it rather than starting another.
+    const batch = loadMissing(missing).catch((error) => {
+      // A failed batch must not be remembered as an answer for any of its keys.
+      for (const k of missing) map.delete(k);
+      throw error;
+    });
+    missing.forEach((k, i) => map.set(k, batch.then((values) => values[i])));
+  }
+  return Promise.all(keys.map((k) => map.get(k) as Promise<T>));
+}
+
 /** Forget these keys. Called by every write path in store.js. */
 export function invalidate(...keys: (string | string[] | null | undefined)[]): void {
   const map = storage.getStore();

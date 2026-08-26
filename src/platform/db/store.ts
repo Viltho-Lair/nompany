@@ -21,7 +21,7 @@
 //    batches — safe on any DB size.
 
 import { createHash } from "node:crypto";
-import { cachedRead, invalidate } from "./requestCache";
+import { cachedRead, cachedReadMany, invalidate } from "./requestCache";
 import { getRedisClient } from "./redis";
 import { log } from "@/platform/http/observability";
 
@@ -37,6 +37,21 @@ export async function getJSON<T = unknown>(key: string): Promise<T | null> {
   return cachedRead<T | null>(key, async () => {
     const raw = await (await r()).get(key);
     return raw == null ? null : (JSON.parse(raw) as T);
+  });
+}
+// BATCHED JSON READ — one MGET for many keys, so a list of distinct documents
+// costs one round trip instead of one per key (R9: the getProfile-per-employee
+// N+1). Routed through the request cache like getJSON: keys already in flight are
+// reused, and only the genuine misses go on the wire, in a single command.
+//
+// Each value is parsed on its own so one document cannot poison the batch — a rule
+// that matters precisely because this reads MANY at once. Absent keys read as null,
+// exactly as getJSON returns null for a missing key.
+export async function getJSONMany<T = unknown>(keys: string[]): Promise<(T | null)[]> {
+  if (!keys.length) return [];
+  return cachedReadMany<T | null>(keys, async (missing) => {
+    const raws = (await (await r()).mGet(missing)) as (string | null)[];
+    return raws.map((raw) => (raw == null ? null : (JSON.parse(raw) as T)));
   });
 }
 export async function setJSON(key: string, value: unknown): Promise<void> {
