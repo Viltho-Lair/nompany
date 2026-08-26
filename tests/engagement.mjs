@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { zAdd, zRange, zRem, sCard, sAdd } from "../src/platform/db/store.ts";
 import { ENG, UNASSIGNED_ENG, ID, KEY_PREFIX } from "../src/platform/db/keys.ts";
 import { STAGE_REGISTRY, stageOf, isSingleton, isUnassignable } from "../src/platform/engagement/registry.ts";
+import { createEngagement, readEngagement } from "../src/platform/db/engagement.ts";
 
 // The harness runs with NOMPANY_KEY_PREFIX set; refuse to run unprefixed.
 assert.ok(KEY_PREFIX, "engagement tests must run under a key prefix");
@@ -51,6 +52,17 @@ export function testRegistry() {
     assert.ok(e.sectionKey && e.permission, `${e.type} declares section + permission`);
     assert.ok(e.cardinality === "one" || e.cardinality === "many");
   }
+}
+
+export async function testCreateRead() {
+  const sid = `s_${Date.now().toString(36)}`;
+  const eng = await createEngagement(sid, { ref: "ACME-001", context: { clientName: "Acme" } });
+  assert.match(eng.id, /^eng_/);
+  assert.equal(eng.context.clientName, "Acme");
+  assert.deepEqual(eng.singletons, { ticket: null, approvedQuotation: null, project: null });
+  const read = await readEngagement(sid, eng.id);
+  assert.equal(read.id, eng.id, "reads back the same engagement");
+  assert.equal(await readEngagement(sid, "eng_missing"), null, "absent engagement is null");
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) testZsetHelpers().then(() => console.log("ok")).catch(e => { console.error(e); process.exit(1); });
