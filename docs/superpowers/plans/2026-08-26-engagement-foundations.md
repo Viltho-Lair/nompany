@@ -226,8 +226,8 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   overtime:  { type: "overtime",  cardinality: "many", sectionKey: "projects-overtimes",    permission: "projects.overtimes.view",  unassignable: false },
   invoice:   { type: "invoice",   cardinality: "many", sectionKey: "finance-cash",          permission: "finance.cash.view",        unassignable: false },
   expense:   { type: "expense",   cardinality: "many", sectionKey: "finance-cash",          permission: "finance.cash.view",        unassignable: true  },
-  bill:      { type: "bill",      cardinality: "many", sectionKey: "finance-payables",      permission: "finance.cash.view",        unassignable: true  },
-  asset:     { type: "asset",     cardinality: "many", sectionKey: "finance-assets",        permission: "finance.cash.view",        unassignable: true  },
+  bill:      { type: "bill",      cardinality: "many", sectionKey: "finance-payables",      permission: "finance.payables.view",    unassignable: true  },
+  asset:     { type: "asset",     cardinality: "many", sectionKey: "finance-assets",        permission: "finance.assets.view",      unassignable: true  },
   // sla: HELD — its slot is reserved; added when its rules land (spec §7 Held).
 };
 
