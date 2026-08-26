@@ -259,19 +259,45 @@ prefix and therefore *is* production. Sweep with `npm run dev:sandbox:clean`.
 
 ## Current state
 
-Wave 0 of `docs/execution-plan.md` is complete — the orphan-sweep guard, credential
-rate limiting, console session expiry, traffic-ingest bounds, media tenancy, security
-headers, bcrypt 12 with rehash-on-login, and the dead capabilities in M-1 deleted.
+*(Refreshed 26/08/2026 against `docs/progress.md`, dated 21/08/2026. The previous text
+here still said "Gate A in progress"; it has been green for weeks — a stale status is
+worse than none.)*
 
-**Gate A is in progress.** Done: the golden harness, the permission matrix over 102
-keys, hop counting, six architectural assertions, CI, the bundle budget. Remaining:
-goldens for Finance, Operations, Tasks, Quality and `/super` (88 recorded so far),
-per-route permission enforcement beyond Sales, an ESLint config, and observability.
-Nothing in Wave 2+ starts until Gate A is green.
+**Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
+credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
+security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
+139 golden responses over every surface, the 102-key permission matrix, hop counting, six
+architectural assertions, **per-route permission enforcement in every module**, **ESLint**
+(flat config + shrink-only warning budget), **observability** (request ids, per-request hop
+counts), and CI enforcing all of it.
 
-Two decisions still open: whether `login()` should check `suspended` before or after
-verifying the password (it is an enumeration oracle today), and whether the dead
-share-link capability is built or deleted.
+**Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
+service code ✅, goldens unchanged at 139 ✅, hops ≤2 for the studio route and 3 for sales
+(the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
+interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
+killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
+audit log, security round 2 (session digests at rest, console MFA), notification producers.
+**Open Wave 2 remnants:** W7 speed refactors **R2** (`plantMissingSections` off the read
+path), **R6** (`lastSeenAt`/`lastLoginAt` off `g:users` — the hottest CAS contention), **R9**
+(`getProfile` N+1 batch); the `sweepOrphans` rewrite (M-10); the gap items — soft-delete
+tombstones, the email/fan-out outbox, `schemaVersion` on stored documents; and **media→Vercel
+Blob**, coded and tested but blocked on the Blob store being created.
+
+**Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, all
+twelve departments in `src/modules/<name>/` with a Zod schema each, all 99 route files
+converted. What remains is `checkJs` over the 212 browser `.js` files and the `app/`
+restructure, deferred into Wave 4. **Wave 4 (UI/UX)** and **Wave 5 (SQL)** are not started;
+W4 is a proposal in `w4-dashboards-and-motion.md` awaiting approval.
+
+**New initiative — the engagement storage model** is specified in
+`docs/superpowers/specs/2026-08-26-engagement-storage-model-design.md` (stored engagement
+root, one key per record, live-context / frozen-documents). Its build is **held behind
+Gate B** as the repository-seam endgame ahead of the SQL migration.
+
+**Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
+indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index
+to take the sales route from 3 hops to 2. The earlier `login()` suspended-check and
+share-link questions are **closed** (kept deliberately; deleted, respectively).
 
 ---
 
