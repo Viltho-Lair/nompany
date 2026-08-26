@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { zAdd, zRange, zRem, sCard, sAdd, sMembers } from "../src/platform/db/store.ts";
 import { ENG, UNASSIGNED_ENG, ID, KEY_PREFIX } from "../src/platform/db/keys.ts";
 import { STAGE_REGISTRY, stageOf, isSingleton, isUnassignable } from "../src/platform/engagement/registry.ts";
-import { createEngagement, readEngagement, attachRecord, listMembers } from "../src/platform/db/engagement.ts";
+import { createEngagement, readEngagement, attachRecord, listMembers, detachRecord, addRef, removeRef, refCount } from "../src/platform/db/engagement.ts";
 
 // The harness runs with NOMPANY_KEY_PREFIX set; refuse to run unprefixed.
 assert.ok(KEY_PREFIX, "engagement tests must run under a key prefix");
@@ -83,6 +83,23 @@ export async function testAttach() {
   // not a SET — sCard is SCARD and throws WRONGTYPE against a sorted set, so the
   // dept index is read back with zRange, the primitive that actually wrote it.
   assert.deepEqual(await zRange(ENG.dept(sid, "invoice"), 0, -1), ["i1", "i2"], "dept index populated");
+}
+
+export async function testDetachAndRefs() {
+  const sid = `s_${Date.now().toString(36)}`;
+  const eng = await createEngagement(sid, {});
+  await attachRecord(sid, eng.id, "invoice", "i1", "2026-01-01T00:00:00Z");
+  await detachRecord(sid, eng.id, "invoice", "i1");
+  assert.deepEqual(await listMembers(sid, eng.id, "invoice"), [], "detach removes the member");
+  await attachRecord(sid, eng.id, "project", "p1");
+  await detachRecord(sid, eng.id, "project", "p1");
+  assert.equal((await readEngagement(sid, eng.id)).singletons.project, null, "detach clears the singleton");
+  // reference integrity: a live reference blocks deletion; count reflects it.
+  await addRef(sid, "client", "c1", "i1");
+  await addRef(sid, "client", "c1", "i2");
+  assert.equal(await refCount(sid, "client", "c1"), 2, "two live referrers");
+  await removeRef(sid, "client", "c1", "i1");
+  assert.equal(await refCount(sid, "client", "c1"), 1);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) testZsetHelpers().then(() => console.log("ok")).catch(e => { console.error(e); process.exit(1); });

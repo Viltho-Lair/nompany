@@ -75,3 +75,37 @@ export async function listMembers(
   const stop = limit && limit > 0 ? limit - 1 : -1;
   return zRange(ENG.members(studioId, engId, type), 0, stop, { rev });
 }
+
+// Detach the inverse of attachRecord: a singleton clear is a compare-and-set on
+// the root (only if the slot still holds THIS record — a detach racing a later
+// re-claim must never clobber the newer claim), a member removal is a plain
+// zRem. The department index is always cleared; has-stage is left as-is, since
+// the reconcile job prunes an engagement with no remaining record of a type
+// (over-reporting presence briefly is cheap; a stray sAdd write here is not).
+export async function detachRecord(studioId: string, engId: string, type: string, recId: string): Promise<void> {
+  if (isSingleton(type)) {
+    await editJSON<Engagement, void>(ENG.root(studioId, engId), (eng) => {
+      if (!eng) return { result: undefined };
+      if (eng.singletons[type] !== recId) return { result: undefined };
+      return { next: { ...eng, singletons: { ...eng.singletons, [type]: null }, updatedAt: nowISO() } };
+    });
+  } else {
+    await zRem(ENG.members(studioId, engId, type), recId);
+  }
+  await zRem(ENG.dept(studioId, type), recId);
+}
+
+// Reverse index for Tier-B reference integrity (spec §3.9): a referrer registers
+// itself against the record it points to, so a delete can refuse while the set
+// is non-empty. ONLY a live reference calls addRef — a frozen-snapshot
+// traceability pointer must not (pressure-test #5) — but that policy belongs to
+// the caller in Phase 1; these are just the primitives.
+export async function addRef(studioId: string, type: string, refId: string, referrerId: string): Promise<void> {
+  await sAdd(ENG.refBy(studioId, type, refId), referrerId);
+}
+export async function removeRef(studioId: string, type: string, refId: string, referrerId: string): Promise<void> {
+  await sRem(ENG.refBy(studioId, type, refId), referrerId);
+}
+export async function refCount(studioId: string, type: string, refId: string): Promise<number> {
+  return sCard(ENG.refBy(studioId, type, refId));
+}
