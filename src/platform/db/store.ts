@@ -298,6 +298,26 @@ export async function sMembers(key: string): Promise<string[]> {
   return (await r()).sMembers(key);
 }
 
+// ---- sorted sets & set cardinality (index primitives) ----------------------
+// Native atomic ops, the one allowed non-CAS write: each add/remove is atomic
+// per element, so concurrent index writers never clobber a whole value.
+export async function zAdd(key: string, score: number, member: string): Promise<void> {
+  await (await r()).zAdd(key, [{ score, value: member }]);
+  invalidate(key);
+}
+export async function zRange(
+  key: string, start: number, stop: number, opts: { rev?: boolean } = {},
+): Promise<string[]> {
+  return (await r()).zRange(key, start, stop, opts.rev ? { REV: true } : undefined);
+}
+export async function zRem(key: string, member: string): Promise<void> {
+  await (await r()).zRem(key, member);
+  invalidate(key);
+}
+export async function sCard(key: string): Promise<number> {
+  return (await r()).sCard(key);
+}
+
 // ---- counters ---------------------------------------------------------------
 // A hash of tallies. HINCRBY is atomic server-side, so two tabs bumping the same
 // counter cannot lose a write the way a read-modify-write on JSON would.
