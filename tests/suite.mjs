@@ -87,7 +87,7 @@ import { resolveHolders } from "@/lib/studios";
 import { NOVA_CAPABILITIES, capabilityEnabled, enabledCapabilities } from "@/lib/nova/capabilities";
 import { getNovaConfig, saveNovaConfig } from "@/lib/data/novaConfig";
 import { buildToolset } from "@/platform/nova/tools";
-import { inventoryContext, createItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
+import { inventoryContext, createItem, editItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation,
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
@@ -3064,6 +3064,26 @@ console.log("== service-action pool: remove is retire, not delete");
   ok("a non-standard new action is rejected", !cleanNextActive(["Made Up"], ["Installation"]).includes("Made Up"));
   ok("a legacy name in prevActive survives", cleanNextActive(["Legacy Thing"], ["Legacy Thing"]).includes("Legacy Thing"));
   ok("a standard action is accepted", cleanNextActive(["Commissioning"], []).includes("Commissioning"));
+}
+
+// ============================================================================
+console.log("== inventory scope carries a retired action, it does not drop it");
+{
+  await updateStudio(studio.id, { serviceActions: ["Installation", "Training"], retiredServiceActions: [] });
+  const ic = await inventoryContext(owner, slug);
+  const item = await createItem(ic, { name: `Scoped ${rand()}`, unit: "pcs", scope: ["Installation", "Training"] });
+  ok("an item scopes to two live actions", (item.item?.scope || []).length === 2, JSON.stringify(item));
+
+  // Training is removed from the pool but retired because this item still uses it.
+  await updateStudio(studio.id, { serviceActions: ["Installation"], retiredServiceActions: ["Training"] });
+  const ic2 = await inventoryContext(owner, slug);
+  const again = await editItem(ic2, item.item.id, { name: item.item.name, unit: "pcs", scope: ["Installation", "Training"] });
+  ok("re-saving keeps the retired action in scope", (again.item?.scope || []).includes("Training"), JSON.stringify(again));
+
+  // A truly unknown action (neither active nor retired) is still filtered out.
+  const ic3 = await inventoryContext(owner, slug);
+  const filtered = await editItem(ic3, item.item.id, { name: item.item.name, unit: "pcs", scope: ["Installation", "Nonsense"] });
+  ok("an unknown action is still dropped", !(filtered.item?.scope || []).includes("Nonsense"), JSON.stringify(filtered));
 }
 
 // ============================================================================

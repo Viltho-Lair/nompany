@@ -123,7 +123,13 @@ function cleanItemTypes(list: unknown) {
 // action does not leave a stray string sitting on an old item — de-duplicated
 // and order-preserved, the same shape as `cleanSerials`.
 function cleanScope(raw: unknown, studio: Record<string, unknown>) {
-  const known = new Set((Array.isArray(studio?.serviceActions) ? studio.serviceActions as unknown[] : []).map((a) => str(a, 80)));
+  // Active AND retired: a retired action is one removed from the pool but still
+  // in use here, so a stored scope that names it is carried, never filtered away.
+  // Only an action that is neither — truly unknown — is dropped.
+  const known = new Set([
+    ...(Array.isArray(studio?.serviceActions) ? studio.serviceActions as unknown[] : []),
+    ...(Array.isArray(studio?.retiredServiceActions) ? studio.retiredServiceActions as unknown[] : []),
+  ].map((a) => str(a, 80)));
   const seen = new Set<string>();
   return (Array.isArray(raw) ? raw : []).slice(0, 40).map((s) => str(s, 80)).filter((s) => {
     if (!s || !known.has(s) || seen.has(s)) return false;
