@@ -16,7 +16,10 @@
       "workingHours": null,
       "legalInfo": [],
       "favoriteCurrencies": [],
-      "serviceActions": []
+      "serviceActions": [],
+      "fieldOfWork": "",
+      "fieldOfWorkOther": "",
+      "retiredServiceActions": []
     },
     "fx": {
       "base": "",

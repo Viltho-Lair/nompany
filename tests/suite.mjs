@@ -2645,6 +2645,34 @@ console.log("== a studio's language is the tenant's, and it is a real setting");
 }
 
 // ============================================================================
+console.log("== the settings payload displays the field of work, but does not write it");
+// settings/service-actions/route.ts is the SOLE writer of fieldOfWork,
+// fieldOfWorkOther, serviceActions and retiredServiceActions — choosing a field
+// re-seeds the pool from the matrix and a removed-but-used action is retired,
+// not deleted, and that guarantee only holds if there is exactly one door onto
+// it. This route only DISPLAYS the four fields; asserted here so a future
+// convenience write through the general allowlist would fail loudly rather
+// than silently reintroducing the second write path.
+{
+  await signInAs(owner.id);
+  const s = await (await SETTINGS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
+  ok("settings carries the field of work", "fieldOfWork" in s.studio, JSON.stringify(Object.keys(s.studio)));
+  ok("settings carries the retired actions", Array.isArray(s.studio.retiredServiceActions));
+
+  // A direct write of serviceActions through the general route is a no-op: the
+  // key is not in FIELDS, so it is silently dropped from the patch rather than
+  // stored — the dedicated route's tests cover the actual write path.
+  const before = await getStudioBySlug(slug);
+  const attempt = await SETTINGS.PUT(jsonReq({ serviceActions: ["Nope"] }), { params: params(slug) });
+  ok("a bare serviceActions write through /settings is refused as an empty patch",
+    attempt.status === 400, String(attempt.status));
+  const after = await getStudioBySlug(slug);
+  ok("...and the studio's pool is unchanged",
+    JSON.stringify(after.serviceActions || []) === JSON.stringify(before.serviceActions || []),
+    JSON.stringify({ before: before.serviceActions, after: after.serviceActions }));
+}
+
+// ============================================================================
 console.log("== MUI mirrors, because a plugin rewrites its CSS as it is serialised");
 // EVERYTHING ELSE IN THE STUDIO MIRRORS FROM ONE ATTRIBUTE. `dir="rtl"` on the
 // shell flips ps-/pe-, ms-/me- and border-s-, because those are logical
@@ -3116,10 +3144,24 @@ console.log("== service-actions endpoint: a field seeds the pool, removal retire
   ok("Other seeds an empty pool", other.serviceActions.length === 0, JSON.stringify(other.serviceActions));
   ok("Other keeps its typed label", other.fieldOfWorkOther === "Bespoke");
 
-  // A non-member cannot edit.
+  // A member with no role (not a non-member — nobody has a collaborator row,
+  // just no roleId, so no grant reaches studio.settings.edit) cannot edit.
   await signInAs(nobody.user.id);
   const denied = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: [] }), { params: params(slug) });
   ok("someone without settings.edit is refused", denied.status === 403, String(denied.status));
+
+  // A TRUE non-member — no collaborator row in this studio at all — learns
+  // nothing about the contents, on both verbs. studioContext returns
+  // "forbidden" before either handler runs, same door as every other route.
+  const svcOutsider = (await createUser({ email: `svc-outsider-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  await signInAs(svcOutsider.id);
+  const outsiderGet = await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) });
+  ok("a non-member's GET of service-actions is refused, not answered",
+    outsiderGet.status === 403 || outsiderGet.status === 404, String(outsiderGet.status));
+  const outsiderPut = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: [] }), { params: params(slug) });
+  ok("...and so is its PUT",
+    outsiderPut.status === 403 || outsiderPut.status === 404, String(outsiderPut.status));
+
   await signInAs(owner.id);
 }
 
