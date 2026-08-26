@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { zAdd, zRange, zRem, sCard, sAdd } from "../src/platform/db/store.ts";
+import { zAdd, zRange, zRem, sCard, sAdd, sMembers } from "../src/platform/db/store.ts";
 import { ENG, UNASSIGNED_ENG, ID, KEY_PREFIX } from "../src/platform/db/keys.ts";
 import { STAGE_REGISTRY, stageOf, isSingleton, isUnassignable } from "../src/platform/engagement/registry.ts";
-import { createEngagement, readEngagement } from "../src/platform/db/engagement.ts";
+import { createEngagement, readEngagement, attachRecord, listMembers } from "../src/platform/db/engagement.ts";
 
 // The harness runs with NOMPANY_KEY_PREFIX set; refuse to run unprefixed.
 assert.ok(KEY_PREFIX, "engagement tests must run under a key prefix");
@@ -63,6 +63,26 @@ export async function testCreateRead() {
   const read = await readEngagement(sid, eng.id);
   assert.equal(read.id, eng.id, "reads back the same engagement");
   assert.equal(await readEngagement(sid, "eng_missing"), null, "absent engagement is null");
+}
+
+export async function testAttach() {
+  const sid = `s_${Date.now().toString(36)}`;
+  const eng = await createEngagement(sid, {});
+  // singleton
+  await attachRecord(sid, eng.id, "project", "p1");
+  assert.equal((await readEngagement(sid, eng.id)).singletons.project, "p1");
+  await assert.rejects(() => attachRecord(sid, eng.id, "project", "p2"), /cardinality/, "second project refused");
+  // member
+  await attachRecord(sid, eng.id, "invoice", "i1", "2026-01-01T00:00:00Z");
+  await attachRecord(sid, eng.id, "invoice", "i2", "2026-02-01T00:00:00Z");
+  assert.deepEqual(await listMembers(sid, eng.id, "invoice"), ["i1", "i2"], "members oldest-first");
+  assert.deepEqual(await listMembers(sid, eng.id, "invoice", { rev: true, limit: 1 }), ["i2"], "newest page");
+  // indexes populated
+  assert.ok((await sMembers(ENG.hasStage(sid, "project"))).includes(eng.id), "eng-ix records the stage");
+  // ENG.dept is a ZSET (attachRecord writes it with zAdd, ordered by createdAt),
+  // not a SET — sCard is SCARD and throws WRONGTYPE against a sorted set, so the
+  // dept index is read back with zRange, the primitive that actually wrote it.
+  assert.deepEqual(await zRange(ENG.dept(sid, "invoice"), 0, -1), ["i1", "i2"], "dept index populated");
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) testZsetHelpers().then(() => console.log("ok")).catch(e => { console.error(e); process.exit(1); });
