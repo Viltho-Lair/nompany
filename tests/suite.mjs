@@ -33,7 +33,7 @@ import * as rtlModule from "stylis-plugin-rtl";
 const rtlPlugin = rtlModule.default?.default ?? rtlModule.default ?? rtlModule;
 import * as SETTINGS from "@/app/api/studios/[slug]/settings/route.ts";
 import { addCollaborator, updateCollaborator, getCollaboratorByUser } from "@/platform/auth/collaborators";
-import { listRoles } from "@/modules/people/roles";
+import { listRoles, createRole } from "@/modules/people/roles";
 import { SESSION_COOKIE, login as identityLogin } from "@/platform/auth/identity";
 import { studioContext, canAdminister } from "@/lib/studios";
 import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS } from "@/platform/access";
@@ -3163,6 +3163,64 @@ console.log("== service-actions endpoint: a field seeds the pool, removal retire
     outsiderPut.status === 403 || outsiderPut.status === 404, String(outsiderPut.status));
 
   await signInAs(owner.id);
+}
+
+// ============================================================================
+console.log("== service-actions: settings.edit without inventory view must never drop a referenced action");
+{
+  // FINDING B (final-review). serviceActionUsage used to read inventory through
+  // inventoryContext(user, slug), which is gated on the CALLER's
+  // inventory.items.view — but the route that decides retire-vs-drop gates only
+  // on studio.settings.edit, and a role can hold that WITHOUT any inventory
+  // right. Under that combination the usage read came back `{}` (forbidden),
+  // "referenced" was empty, and a still-referenced action was DROPPED instead
+  // of retired — landing in neither serviceActions nor retiredServiceActions,
+  // so inventory's cleanScope no longer recognised it and the next item edit
+  // silently stripped it from scope. This proves the carry now holds even when
+  // the acting collaborator cannot see Inventory at all.
+  await signInAs(owner.id);
+  await updateStudio(studio.id, { serviceActions: ["Installation", "Training"], retiredServiceActions: [] });
+  const ic = await inventoryContext(owner, slug);
+  const scoped = await createItem(ic, { name: `Gap ${rand()}`, unit: "pcs", scope: ["Training"] });
+  ok("an item scopes to Training before the gap is exercised",
+    (scoped.item?.scope || []).includes("Training"), JSON.stringify(scoped));
+
+  // A role holding ONLY studio.settings.edit — no inventory.* permission at all,
+  // so inventoryContext(user, slug) for this person resolves { error: "forbidden" }.
+  const settingsOnly = await createRole(studio.id, {
+    name: `SettingsOnly ${rand()}`, permissions: ["studio.settings.edit"],
+  });
+  const gap = await person("GapAdmin", null);
+  await updateCollaborator(studio.id, gap.collaborator.id, { roleIds: [settingsOnly.id] });
+  const gapCtx = await studioContext(gap.user, slug);
+  ok("the fixture role really does hold settings.edit but not inventory view",
+    gapCtx.access.has("studio.settings.edit") && !gapCtx.access.has("inventory.items.view"),
+    JSON.stringify([...gapCtx.access]));
+
+  await signInAs(gap.user.id);
+  const before = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
+  // THE FIX, asserted directly: `usage` is complete for this caller even though
+  // they hold no inventory.* right at all — serviceActionUsage no longer routes
+  // through the caller's own inventory grant, so there is nothing left to be
+  // incomplete about. Before the fix this came back `{}` (inventoryContext's
+  // own forbidden refusal), which is the exact hole the removal below exploited.
+  ok("this caller's usage read is COMPLETE despite holding no inventory permission",
+    before.usage?.Training === 1, JSON.stringify(before.usage));
+
+  const withoutTraining = (before.serviceActions || []).filter((a) => a !== "Training");
+  const put = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: withoutTraining }), { params: params(slug) });
+  ok("the settings-only admin's removal is accepted", put.status === 200, String(put.status));
+  const after = await put.json();
+  ok("Training is RETIRED, not dropped, though this caller cannot see inventory",
+    (after.retiredServiceActions || []).includes("Training"), JSON.stringify(after));
+  ok("...and it left the active pool", !(after.serviceActions || []).includes("Training"), JSON.stringify(after));
+
+  // The carry actually protected the row: the item keeps its scope on a later edit.
+  await signInAs(owner.id);
+  const ic2 = await inventoryContext(owner, slug);
+  const resaved = await editItem(ic2, scoped.item.id, { name: scoped.item.name, unit: "pcs", scope: ["Training"] });
+  ok("the item's scope still carries Training after the permission gap",
+    (resaved.item?.scope || []).includes("Training"), JSON.stringify(resaved));
 }
 
 // ============================================================================

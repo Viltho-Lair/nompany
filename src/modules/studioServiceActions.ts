@@ -3,7 +3,13 @@
 // and so this logic is unit-testable without a request.
 
 import { SERVICE_ACTIONS } from "@/shared/fieldsOfWork";
-import { inventoryContext, listItems } from "@/modules/inventory/inventory";
+import { itemScopesForStudio } from "@/modules/inventory/inventory";
+// Membership only — NOT inventoryContext. See serviceActionUsage below: the
+// caller here already proved studio.settings.edit at its own route, and that
+// right does not imply inventory.items.view, so gating this read on the
+// caller's inventory grant would make the retire-vs-drop decision only as
+// complete as whatever permissions happened to be missing.
+import { studioContext } from "@/lib/studios";
 // Same import the rest of the codebase uses for this shape (see
 // src/lib/chatAccess.ts) — there is no `@/platform/auth/types`, and
 // moduleContext's own `resolve` types its `user` parameter `unknown`, so this
@@ -51,12 +57,23 @@ export function nextPool(input: {
 
 // How many registered items list each action in their scope. One inventory read;
 // lives on the dedicated endpoint, never on the settings route's wave.
+//
+// DELIBERATELY NOT `inventoryContext`. That resolver gates on the CALLER's
+// inventory-view permission, but this function feeds a retire-vs-drop decision
+// guarded upstream by studio.settings.edit — a role can hold that without
+// holding any inventory.* right at all. Gating this read the same way meant an
+// admin with exactly that combination could remove a still-referenced action
+// and have it silently DROPPED (neither active nor retired) rather than
+// retired, because the "referenced" set came back empty on a forbidden read.
+// `itemScopesForStudio` reads by studio id alone — membership + settings
+// authority is already proven by the caller's own route guard, and this needs
+// no second permission to be complete.
 export async function serviceActionUsage(user: User, slug: string): Promise<Record<string, number>> {
-  const ctx = await inventoryContext(user, slug);
-  if (ctx.error) return {};
-  const items = await listItems(ctx);
+  const context = await studioContext(user, slug);
+  if (context.error) return {};
+  const scopes = await itemScopesForStudio(context.studio.id);
   const counts: Record<string, number> = {};
-  for (const item of items) for (const a of item.scope) {
+  for (const scope of scopes) for (const a of scope) {
     counts[a] = (counts[a] ?? 0) + 1;
   }
   return counts;

@@ -261,6 +261,28 @@ async function reservedSerials({ studio, sheetsSection }: Pick<InventoryContext,
   return out;
 }
 
+// Every registered item's scope, for one studio, with NO permission gate of its
+// own — see the caller in studioServiceActions.ts for why. The service-action
+// pool transition runs behind studio.settings.edit, a right that says nothing
+// about inventory.items.view; reading through inventoryContext there would make
+// the retire-vs-drop decision only as complete as the CALLER's own inventory
+// grant, and an incomplete read used to be read as "nothing is referenced" and
+// silently DROP an in-use action instead of retiring it. The caller here has
+// already resolved membership + settings authority through its own route guard,
+// so this only needs the studio id — never a second identity to prove itself
+// with, and never a key this repo call could name outside that one studio.
+export async function itemScopesForStudio(studioId: string): Promise<string[][]> {
+  // Same child-falls-back-to-parent resolution `ownerOf` already does for
+  // cross-section reads below (see `projectRows`) — reused rather than
+  // restated, so the sub-section fallback rule lives in one place.
+  const itemsSection = await ownerOf(studioId, "inventory-items", "inventory");
+  if (!itemsSection) return [];
+  const items = await Items.find({ studio: { id: studioId }, section: itemsSection });
+  // Same default as listItems: an item saved before `scope` existed carries no
+  // field at all, and reads as an empty scope rather than a guess.
+  return items.map((i) => (Array.isArray(i.scope) ? i.scope : []));
+}
+
 export async function listItems(ctx: InventoryContext) {
   const { studio, itemsSection, vendorsSection, stockSection } = ctx;
   const [items, vendors, movements, reserved] = await Promise.all([
