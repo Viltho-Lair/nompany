@@ -23,6 +23,7 @@ async function payload(user: User, slug: string) {
   const context = await studioContext(user, slug);
   if (context.error) return { context, body: null };
   const { studio } = context;
+  const canManage = !requirePermission(context.access, "studio.settings.edit");
   return {
     context,
     body: {
@@ -30,11 +31,13 @@ async function payload(user: User, slug: string) {
       fieldOfWorkOther: String(studio.fieldOfWorkOther ?? ""),
       serviceActions: arr(studio.serviceActions),
       retiredServiceActions: arr(studio.retiredServiceActions),
-      // One inventory read (see serviceActionUsage) — never re-derived from a
-      // collection this route has already read.
-      usage: await serviceActionUsage(user, slug),
+      // usage is manager-only: it exists so the manage-side edit alerts can warn
+      // "N items use this action", and a view-only member never sees those alerts.
+      // Skipping the inventory read for them is also a hop saved on every GET a
+      // non-manager makes — the same read a manager pays for on both GET and PUT.
+      usage: canManage ? await serviceActionUsage(user, slug) : {},
       options: { fields: [...FIELDS_OF_WORK], actions: [...SERVICE_ACTIONS] },
-      canManage: !requirePermission(context.access, "studio.settings.edit"),
+      canManage,
     },
   };
 }

@@ -3147,6 +3147,13 @@ console.log("== service-actions endpoint: a field seeds the pool, removal retire
   // A member with no role (not a non-member — nobody has a collaborator row,
   // just no roleId, so no grant reaches studio.settings.edit) cannot edit.
   await signInAs(nobody.user.id);
+  // usage is manager-only: it exists to warn the manage-side edit alerts
+  // ("N items use this action"), which a view-only member never sees, so the
+  // route must not hand a viewer per-action inventory counts, and must not
+  // even do the inventory read to produce them.
+  const nobodyGet = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
+  ok("a member without settings.edit gets no usage counts",
+    Object.keys(nobodyGet.usage || {}).length === 0 && nobodyGet.canManage === false, JSON.stringify(nobodyGet));
   const denied = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: [] }), { params: params(slug) });
   ok("someone without settings.edit is refused", denied.status === 403, String(denied.status));
 
