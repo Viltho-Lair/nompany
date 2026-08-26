@@ -10,6 +10,8 @@ import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
 import { locales } from "@/shared/locale";
 import { fmtDate } from "@/lib/format";
+import { Field } from "@/components/fields/Field";
+import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 
 // EACH NAMED IN ITSELF. A picker that says "Arabic" to somebody looking for
 // العربية is a picker they have to already read English to use.
@@ -234,11 +236,10 @@ export default function StudioSettings({ slug }) {
         onSave={save}
       />
 
-      <ServiceActions
-        actions={Array.isArray(studio.serviceActions) ? studio.serviceActions : []}
-        canManage={canManage}
-        onSave={save}
-      />
+      {/* Its own fetch/save cycle against the dedicated service-actions route —
+          the general settings PUT above no longer accepts `serviceActions` at
+          all, so this section cannot share the parent's `save`. */}
+      <ServiceActions slug={slug} />
 
       {/* ENDING THE STUDIO. Kept apart from the settings above and framed in red,
           because it is not a setting — it is the end of the thing the settings
@@ -446,63 +447,299 @@ function LegalInfo({ rows, canManage, onSave }) {
 }
 
 // SERVICE ACTIONS — the things this company DOES to finish a job (Delivery,
-// Installation, Programming, Building, Assembling, …), named by the studio rather
-// than assumed. This one list is the single source for two screens that used to
-// carry the same hard-coded set: an inventory item's Scope is chosen from it, and
-// a project's requirement weights are keyed to it. Empty until the studio fills it
-// in, so nothing presumes a particular kind of business.
-function ServiceActions({ actions, canManage, onSave }) {
-  const [draft, setDraft] = useState(actions.length ? actions : [""]);
+// Installation, Programming, Building, Assembling, …). Seeded from the studio's
+// field of work against the market's fixed 25-field × 20-action matrix
+// (`@/shared/fieldsOfWork`), not freely typed: an inventory item's Scope is
+// chosen from the pool this section edits, and a project's requirement weights
+// are keyed to it. This section owns a fetch/save cycle onto the DEDICATED
+// `.../settings/service-actions` route — the general settings PUT stopped
+// accepting `serviceActions` once that route existed, so sharing the parent
+// `save` here would 400 on every change (see the route's own comment).
+function ServiceActions({ slug }) {
+  const [data, setData] = useState(null); // GET body: fieldOfWork, serviceActions, usage, options, canManage…
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
+  // The "Other" free-typed label, edited apart from `data` so typing does not
+  // get clobbered by the field-of-work refresh until it is explicitly saved.
+  const [otherDraft, setOtherDraft] = useState("");
+  const [confirmField, setConfirmField] = useState(null); // { next, added, leaving }
+  const [confirmRetire, setConfirmRetire] = useState(null); // { action, count }
 
-  const set = (i, v) => { setDraft((d) => d.map((r, j) => (j === i ? v : r))); setSaved(false); };
-  const add = () => { setDraft((d) => [...d, ""]); setSaved(false); };
-  const remove = (i) => { setDraft((d) => (d.length === 1 ? [""] : d.filter((_, j) => j !== i))); setSaved(false); };
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/settings/service-actions`, { cache: "no-store" });
+    if (res.ok) {
+      const d = await res.json();
+      setData(d);
+      setOtherDraft(d.fieldOfWorkOther || "");
+    }
+    setLoading(false);
+  }, [slug]);
 
-  async function save() {
-    setBusy(true);
-    // A blank row left at the bottom is somewhere to type, not an action to store.
-    const ok = await onSave({ serviceActions: draft.map((s) => s.trim()).filter(Boolean) });
+  useEffect(() => { load(); }, [load]);
+
+  // One writer for both kinds of edit, so a saved pool is always re-read from
+  // the server rather than assumed — `nextPool` decides retire-vs-drop, this
+  // component does not guess it.
+  async function put(patch) {
+    setBusy(true); setError("");
+    const res = await fetch(`/api/studios/${slug}/settings/service-actions`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
+    });
     setBusy(false);
-    setSaved(ok !== false);
+    if (!res.ok) { setError("That didn't save."); return false; }
+    const d = await res.json();
+    setData(d);
+    setOtherDraft(d.fieldOfWorkOther || "");
+    return true;
   }
+
+  // Nothing writes yet — the confirm dialog shows what would change first, using
+  // the matrix constant locally (no round trip needed to preview it) and `usage`
+  // already on hand from the GET.
+  function requestFieldChange(next) {
+    if (!data || !next || next === data.fieldOfWork) return;
+    const nextActive = actionsForField(next);
+    const added = nextActive.filter((a) => !data.serviceActions.includes(a));
+    const leaving = data.serviceActions
+      .filter((a) => !nextActive.includes(a))
+      .map((a) => ({ action: a, count: data.usage[a] || 0 }));
+    setConfirmField({ next, added, leaving });
+  }
+
+  async function confirmFieldChange(otherLabel) {
+    if (!confirmField) return;
+    const ok = await put({
+      fieldOfWork: confirmField.next,
+      fieldOfWorkOther: confirmField.next === OTHER_FIELD ? otherLabel : "",
+    });
+    if (ok) setConfirmField(null);
+  }
+
+  function toggleAction(action, checked, count) {
+    // Unticking something already relied on asks first — the pool drops it,
+    // but an item that already scoped it keeps working either way; the studio
+    // just stops being offered it for NEW work, and should know that going in.
+    if (checked && count > 0) { setConfirmRetire({ action, count }); return; }
+    const next = checked ? data.serviceActions.filter((a) => a !== action) : [...data.serviceActions, action];
+    put({ serviceActions: next });
+  }
+
+  async function confirmRetireAction() {
+    if (!confirmRetire) return;
+    const next = data.serviceActions.filter((a) => a !== confirmRetire.action);
+    const ok = await put({ serviceActions: next });
+    if (ok) setConfirmRetire(null);
+  }
+
+  if (loading) {
+    // Shaped like the settled section below it — a select-height bar, then a
+    // couple of checkbox rows — so the real content does not shift the page
+    // when it lands (§ progressive loading).
+    return (
+      <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10" aria-busy="true">
+        <div className="skel skel-text w-40" />
+        <div className="skel skel-text mt-3 w-full" />
+        <div className="skel skel-text mt-1 w-2/3" />
+        <div className="skel mt-5 h-[52px] w-full rounded-xl" />
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {Array.from({ length: 6 }).map((_, i) => <div key={i} className="skel skel-text w-full" />)}
+        </div>
+      </section>
+    );
+  }
+  if (!data) return <p className={`${BANNER_BAD} mt-8`}>We couldn&apos;t load service actions.</p>;
 
   return (
     <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
       <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">Service actions</h3>
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        The things this company does to finish a job — Delivery, Installation, Programming, Building,
-        Assembling, whatever you name. An item&apos;s Scope is chosen from this list, and a project&apos;s
-        requirement weights are set against it.
+        Seeded from the studio&apos;s field of work — the things this company does to finish a
+        job. An item&apos;s Scope is chosen from this list, and a project&apos;s requirement
+        weights are set against it.
+        {!data.canManage && " Only an admin can change this."}
       </p>
 
-      <div className="mt-4 space-y-2">
-        {draft.map((row, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <input
-              className={INPUT}
-              value={row}
-              disabled={!canManage}
-              aria-label={`Service action ${i + 1}`}
-              onChange={(e) => set(i, e.target.value)}
-            />
-            {canManage && (
-              <button type="button" aria-label={`Remove ${row || `row ${i + 1}`}`}
-                className="shrink-0 px-1.5 text-slate-400 transition-colors hover:text-rose-600"
-                onClick={() => remove(i)}>×</button>
-            )}
-          </div>
-        ))}
+      {error && <p className={`${BANNER_BAD} mt-3`}>{error}</p>}
+
+      <div className="mt-4">
+        <Field
+          as="select"
+          label="Type of industry"
+          value={data.fieldOfWork || ""}
+          onChange={requestFieldChange}
+          disabled={!data.canManage || busy}
+          options={[...data.options.fields, OTHER_FIELD]}
+        />
       </div>
 
-      {canManage && (
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : saved ? "Saved" : "Save"}</button>
-          <button className={BTN_GHOST} onClick={add}>Add another</button>
+      {data.fieldOfWork === OTHER_FIELD && (
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <Field
+            className="min-w-[220px] flex-1"
+            label="Field of work (your own label)"
+            value={otherDraft}
+            onChange={setOtherDraft}
+            disabled={!data.canManage || busy}
+          />
+          {data.canManage && otherDraft !== (data.fieldOfWorkOther || "") && (
+            <button className={BTN_GHOST} disabled={busy} onClick={() => put({ fieldOfWork: OTHER_FIELD, fieldOfWorkOther: otherDraft })}>
+              {busy ? "Saving…" : "Save label"}
+            </button>
+          )}
         </div>
       )}
+
+      <div className="mt-5">
+        <p className="text-[11px] font-600 uppercase tracking-wide text-slate-400">Standard actions</p>
+        <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+          {data.options.actions.map((action) => {
+            const checked = data.serviceActions.includes(action);
+            const count = data.usage[action] || 0;
+            return (
+              <label
+                key={action}
+                className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-slate-700 dark:text-slate-200 ${data.canManage ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5" : "cursor-default"}`}
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 shrink-0 accent-brand-600"
+                  checked={checked}
+                  disabled={!data.canManage || busy}
+                  onChange={() => toggleAction(action, checked, count)}
+                />
+                <span className="min-w-0 flex-1 truncate">{action}</span>
+                {count > 0 && (
+                  <span className="shrink-0 font-mono text-xs tabular-nums text-slate-400" title={`${count} item${count === 1 ? "" : "s"} reference this`}>
+                    {count}
+                  </span>
+                )}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {data.retiredServiceActions.length > 0 && (
+        <p className="mt-4 text-xs text-slate-400">
+          Retired, still valid on records that already use them: {data.retiredServiceActions.join(", ")}
+        </p>
+      )}
+
+      {confirmField && (
+        <ConfirmFieldChange
+          from={data.fieldOfWork}
+          to={confirmField.next}
+          added={confirmField.added}
+          leaving={confirmField.leaving}
+          busy={busy}
+          onClose={() => setConfirmField(null)}
+          onConfirm={confirmFieldChange}
+        />
+      )}
+
+      {confirmRetire && (
+        <ConfirmRetireAction
+          action={confirmRetire.action}
+          count={confirmRetire.count}
+          busy={busy}
+          onClose={() => setConfirmRetire(null)}
+          onConfirm={confirmRetireAction}
+        />
+      )}
     </section>
+  );
+}
+
+// Shown BEFORE a field-of-work change is sent — the pool reseeds from the new
+// field's matrix row, so whoever picks it should see what that means before it
+// happens rather than discover it afterwards.
+function ConfirmFieldChange({ to, added, leaving, busy, onClose, onConfirm }) {
+  const [otherLabel, setOtherLabel] = useState("");
+  const panelRef = useRef(null);
+  useFocusTrap(panelRef, true);
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label="Change field of work">
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div ref={panelRef} className="relative w-full max-w-[480px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
+        <div className="px-6 pt-6">
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Switch to {to}?</h3>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            This re-seeds the service-action pool from {to}&apos;s standard set.
+          </p>
+          {added.length > 0 && (
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+              <strong className="text-slate-900 dark:text-white">Adds:</strong> {added.join(", ")}
+            </p>
+          )}
+          {leaving.length > 0 && (
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+              <strong className="text-slate-900 dark:text-white">Leaves the pool:</strong>{" "}
+              {leaving.map(({ action, count }, i) => (
+                <span key={action}>
+                  {i > 0 && ", "}
+                  {action}
+                  {count > 0
+                    ? <span className="text-amber-700 dark:text-amber-300"> (retired — {count} item{count === 1 ? "" : "s"} still use it)</span>
+                    : <span className="text-slate-400"> (unused, removed)</span>}
+                </span>
+              ))}
+            </p>
+          )}
+          {to === OTHER_FIELD && (
+            <div className="mt-4">
+              <Field label="Field of work (your own label)" value={otherLabel} onChange={setOtherLabel} />
+            </div>
+          )}
+        </div>
+        <div className="flex gap-3 px-6 pb-6 pt-5">
+          <button className={BTN} disabled={busy} onClick={() => onConfirm(otherLabel)}>{busy ? "Saving…" : "Confirm"}</button>
+          <button className={BTN_GHOST} onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Shown before unticking an action still referenced by inventory items — the
+// pool edit itself is "soft": the action leaves what new work is offered, but
+// nothing already scoped to it changes (`nextPool` retires rather than drops).
+function ConfirmRetireAction({ action, count, busy, onClose, onConfirm }) {
+  const panelRef = useRef(null);
+  useFocusTrap(panelRef, true);
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label="Retire service action">
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div ref={panelRef} className="relative w-full max-w-[440px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
+        <div className="px-6 pt-6">
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Retire &ldquo;{action}&rdquo;?</h3>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            {count} item{count === 1 ? "" : "s"} still {count === 1 ? "references" : "reference"} it — they keep it,
+            it&apos;s just no longer offered for new work. Re-add any time.
+          </p>
+        </div>
+        <div className="flex gap-3 px-6 pb-6 pt-5">
+          <button className={BTN} disabled={busy} onClick={onConfirm}>{busy ? "Saving…" : "Retire"}</button>
+          <button className={BTN_GHOST} onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
