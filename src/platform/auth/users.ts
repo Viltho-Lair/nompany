@@ -22,8 +22,14 @@ import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
  * THE REGISTRY ROW, and only what lives ON it. The profile, the verification
  * state and the questionnaire are three separate 1:1 documents under the user's
  * own prefix — see the key map at the top — so they are deliberately absent
- * here. `platformRole`, `lastLoginAt` and `lastSeenAt` are written later by the
- * console and by sign-in, which is why they are optional rather than seeded.
+ * here. `platformRole` is written later by the console.
+ *
+ * `lastLoginAt`/`lastSeenAt` are LEGACY on this row: they used to be stamped here
+ * by sign-in and presence, but the presence write rewrote the whole shared
+ * registry every few minutes per user (R6), so both fields moved to the per-user
+ * u:<id>:activity document. They stay OPTIONAL and readable here only as the
+ * fallback for rows written before the move — nothing writes them onto the
+ * registry any more, and the console reads new-with-fallback-to-old.
  */
 export type User = {
   id: string;
@@ -106,13 +112,15 @@ export async function setPlatformRole(userId: string, role: unknown) {
   return updated ? { user: updated } : { error: "notfound" };
 }
 
-// Stamped on the registry row at every sign-in, because nothing else can answer
-// "active in the last 30 days": a session lasts 8 hours and a device row 30
-// days, so both are gone or stale long before the question stops mattering.
-// One field on a key the console already reads, rather than a per-user scan.
+// Stamped at every sign-in, because nothing else can answer "active in the last
+// 30 days": a session lasts 8 hours and a device row 30 days, so both are gone or
+// stale long before the question stops mattering.
+//
+// WRITTEN TO u:<id>:activity, NOT the g:users row (R6). A merge-patch, so it never
+// disturbs lastSeenAt sitting beside it.
 export async function touchLastLogin(userId: string) {
   if (!userId) return;
-  await updateUser(userId, { lastLoginAt: new Date().toISOString() });
+  await updateActivity(userId, { lastLoginAt: new Date().toISOString() });
 }
 
 // LAST SEEN, as distinct from last signed in.
@@ -121,19 +129,28 @@ export async function touchLastLogin(userId: string) {
 // question for "are they around": a remember-me session lasts 30 days, so
 // somebody using the product daily still looked a month stale.
 //
-// Called on every authenticated request, so it is THROTTLED: it only writes
-// when the stored stamp is older than the window below. That turns one write
-// per request into at most one per user per few minutes, which is the whole
-// reason this is affordable to do at all.
+// Called on every authenticated request, so it is THROTTLED: it only writes when
+// the stored stamp is older than the window below. That turns one write per
+// request into at most one per user per few minutes, which is the whole reason
+// this is affordable to do at all.
+//
+// R6: this used to read AND rewrite the WHOLE g:users registry — the hottest CAS
+// contention in the system, a multi-megabyte compare-and-set per user every few
+// minutes, all writers serialised on one key. It now touches the tiny per-user
+// u:<id>:activity document. The throttle is folded INTO the compare-and-set:
+// editJSON's one unconditional read hands us the current stamp, and a fresh-enough
+// one returns `{ result }` — no `next`, so no write command at all. Fresh path is
+// one small GET; the write happens at most once per window.
 export const SEEN_THROTTLE_MS = 3 * 60 * 1000;
 
 export async function touchLastSeen(userId: string) {
   if (!userId) return;
-  const user = await getUserById(userId);
-  if (!user) return;
-  const last = Date.parse(String(user.lastSeenAt || ""));
-  if (Number.isFinite(last) && Date.now() - last < SEEN_THROTTLE_MS) return;
-  await updateUser(userId, { lastSeenAt: new Date().toISOString() });
+  const now = Date.now();
+  await editJSON<UserActivity, void>(U.activity(userId), (cur) => {
+    const last = Date.parse(String(cur?.lastSeenAt || ""));
+    if (Number.isFinite(last) && now - last < SEEN_THROTTLE_MS) return { result: undefined };
+    return { next: { ...(cur || {}), lastSeenAt: new Date(now).toISOString() } };
+  });
 }
 
 // Every user with the fields the owner console lists. The studio registry is
@@ -149,8 +166,13 @@ export async function listUsersForConsole() {
 
   return Promise.all(
     rows.map(async (u) => {
-      const [profile, ownedId, collabIds] = await Promise.all([
+      const [profile, activity, ownedId, collabIds] = await Promise.all([
         getProfile(u.id),
+        // Activity moved off the registry row (R6). Read it here — where the
+        // profile is already fetched per person — and fall back to whatever the
+        // old g:users row still carries, so a user last seen before the move is
+        // not suddenly shown as never having been around.
+        getActivity(u.id),
         ownedStudioId(u.id),
         collaborationStudioIds(u.id),
       ]);
@@ -166,8 +188,8 @@ export async function listUsersForConsole() {
         status: u.status || "",
         platformRole: u.platformRole || "",
         createdAt: u.createdAt || "",
-        lastLoginAt: u.lastLoginAt || "",
-        lastSeenAt: u.lastSeenAt || "",
+        lastLoginAt: activity?.lastLoginAt || u.lastLoginAt || "",
+        lastSeenAt: activity?.lastSeenAt || u.lastSeenAt || "",
         fullName: profile?.fullName || "",
         studios: [...new Set(names)],
       };
@@ -201,6 +223,19 @@ export type Profile = {
 
 export const getProfile = (userId: string) => getJSON<Profile>(U.profile(userId));
 export const updateProfile = patchDoc<Profile>(U.profile);
+/**
+ * The 1:1 ACTIVITY document — when this person last signed in and was last seen.
+ *
+ * Its own key, NOT the profile: the profile is echoed to the account screen, so
+ * folding activity into it would leak presence into that response and change the
+ * golden. Kept here, next to the profile it lives beside, so both are patched the
+ * same way. See touchLastLogin/touchLastSeen and U.activity in keys.ts for why
+ * this is not on the g:users registry row (R6).
+ */
+export type UserActivity = { lastLoginAt?: string; lastSeenAt?: string };
+
+export const getActivity = (userId: string) => getJSON<UserActivity>(U.activity(userId));
+export const updateActivity = patchDoc<UserActivity>(U.activity);
 /** The 1:1 verification document: email confirmation and password reset state. */
 export type Verification = {
   emailCode?: string;
