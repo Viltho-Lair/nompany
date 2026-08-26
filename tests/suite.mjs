@@ -67,7 +67,7 @@ import {
 } from "@/modules/quality/qualityDocRevisions";
 import { resolveBlocks, blocksFor } from "@/modules/quality/quality";
 import { documentState, pendingRevision } from "@/modules/quality/qualityDocuments";
-import { listSections, updateRow, getSectionByKey, addRow, readCol } from "@/platform/db/sections";
+import { listSections, plantMissingSections, updateRow, getSectionByKey, addRow, readCol } from "@/platform/db/sections";
 import { readArr, writeArr } from "@/platform/db/store";
 import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices } from "@/modules/finance/finance";
@@ -1842,10 +1842,16 @@ console.log("\n== cron jobs check who is calling");
 // ============================================================================
 console.log("\n== a studio that predates a section still gets it");
 // Sections are seeded at studio creation and nothing appends one afterwards, so
-// every section added to SECTION_DEFS after a studio existed reached new
-// studios only. Quality was the first to land that way, and listSections
-// planting what is missing is the only reason the module is reachable at all in
-// a studio created before it.
+// every section added to SECTION_DEFS after a studio existed reached new studios
+// only. Quality was the first to land that way, and planting what is missing is
+// the only reason the module is reachable at all in a studio created before it.
+//
+// R2 MOVED THE PLANTING OFF THE READ PATH — listSections no longer reconciles on
+// every request (a pass on a list that changes approximately never). The defect
+// this guards is unchanged: a studio predating a section must still get it. It is
+// healed by the one-off backfill now — plantMissingSections, run from
+// scripts/migrate/plant-sections.mjs when SECTION_DEFS gains a key — so this
+// exercises that entry point, with every guarantee it used to make on read.
 {
   const key = S.sections(studio.id);
   const before = await readArr(key);
@@ -1854,8 +1860,12 @@ console.log("\n== a studio that predates a section still gets it");
   ok("the section is genuinely gone first",
     !(await readArr(key)).some((x) => x.key === "quality"));
 
-  const healed = await listSections(studio.id);
-  ok("reading the sections plants the parent", healed.some((x) => x.key === "quality"));
+  // A plain read no longer heals — it returns exactly what is stored (R2).
+  const unhealed = await listSections(studio.id);
+  ok("a plain read does NOT plant on the read path any more", !unhealed.some((x) => x.key === "quality"));
+
+  const healed = await plantMissingSections(studio.id);
+  ok("the backfill plants the parent", healed.some((x) => x.key === "quality"));
   ok("...and its sub-section", healed.some((x) => x.key === "quality-documents"));
   const parent = healed.find((x) => x.key === "quality");
   const child = healed.find((x) => x.key === "quality-documents");
@@ -1863,11 +1873,14 @@ console.log("\n== a studio that predates a section still gets it");
   ok("...and placed in the nav where it belongs, not at the end",
     healed.findIndex((x) => x.key === "quality") < healed.findIndex((x) => x.key === "tasks"));
 
-  // Planting must be idempotent, or every page load mints a new SectionID and
-  // the section's own data is orphaned behind it.
-  const again = await listSections(studio.id);
-  ok("reading again plants nothing new", again.length === healed.length);
+  // Planting must be idempotent, or every run mints a new SectionID and the
+  // section's own data is orphaned behind it.
+  const again = await plantMissingSections(studio.id);
+  ok("running the backfill again plants nothing new", again.length === healed.length);
   ok("...and keeps the same SectionID", again.find((x) => x.key === "quality").id === parent.id);
+  // And a subsequent plain read now sees the planted section, since it is stored.
+  const afterRead = await listSections(studio.id);
+  ok("a plain read sees the backfilled section", afterRead.some((x) => x.key === "quality"));
 }
 
 // ============================================================================

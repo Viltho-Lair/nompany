@@ -38,15 +38,24 @@ export type Section = {
 
 // ---- section rows ----------------------------------------------------------
 export async function listSections(studioId: string): Promise<Section[]> {
+  // A PLAIN READ NOW — reconciliation moved OFF the read path (R2).
+  //
+  // This used to call plantMissingSections on every request, at "the ONE funnel
+  // every reader passes through", so a section added to SECTION_DEFS would reach
+  // studios created before it. That put a reconciliation pass on every module
+  // load for a list that changes approximately never. A studio is instead seeded
+  // COMPLETE at creation (createStudio writes the full SECTION_DEFS), and a
+  // section added to the defs later reaches existing studios through the one-off
+  // idempotent backfill (scripts/migrate/plant-sections.mjs → plantMissingSections),
+  // run once when the defs change — not re-derived on every read.
   const rows = await readArr<Section>(S.sections(studioId));
-  // A studio only holds the sections that existed on the day it was created.
-  // Reconciling here — at the ONE funnel every reader passes through — is what
-  // stops a section added to SECTION_DEFS from reaching new studios only.
-  const planted = await plantMissingSections(studioId, rows);
-  return [...planted].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  return [...rows].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 }
 
-// SEEDED SECTIONS A STUDIO DOES NOT HAVE YET.
+// SEEDED SECTIONS A STUDIO DOES NOT HAVE YET — the one-off backfill (R2), no
+// longer the read path. Exported for scripts/migrate/plant-sections.mjs, which
+// walks every studio and calls this once after SECTION_DEFS gains a key. It reads
+// its own rows so a caller needs only the studio id.
 //
 // The seeded list is the whole truth about which sections a studio has: nothing
 // appends one (appendSection has no caller) and nothing deletes one (no route
@@ -59,9 +68,12 @@ export async function listSections(studioId: string): Promise<Section[]> {
 // record of which keys have ever been planted, or it will resurrect the section
 // somebody just deleted. It is the only thing this function assumes.
 //
-// The comparison is in memory and costs nothing; the write happens once, ever,
-// and inside editArr so two requests arriving together cannot plant twice.
-async function plantMissingSections(studioId: string, rows: Section[]): Promise<Section[]> {
+// IDEMPOTENT AND FORWARD-ONLY: it writes nothing when the studio already holds
+// every seeded key (the common case), and only PLANTS missing rows and re-derives
+// their running order otherwise — inside editArr, so two runs arriving together
+// cannot plant twice. Safe to re-run; it never deletes.
+export async function plantMissingSections(studioId: string): Promise<Section[]> {
+  const rows = await readArr<Section>(S.sections(studioId));
   const have = new Set(rows.map((s) => s.key));
   if (ALL_SECTION_KEYS.every((k) => have.has(k))) return rows;
 
