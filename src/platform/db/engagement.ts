@@ -109,3 +109,35 @@ export async function removeRef(studioId: string, type: string, refId: string, r
 export async function refCount(studioId: string, type: string, refId: string): Promise<number> {
   return sCard(ENG.refBy(studioId, type, refId));
 }
+
+// One well-known engagement per studio for loose records (spec §3.6.2).
+export async function unassignedEngagement(studioId: string): Promise<Engagement> {
+  const key = ENG.root(studioId, UNASSIGNED_ENG);
+  const existing = await getJSON<Engagement>(key);
+  if (existing) return existing;
+  const eng: Engagement = {
+    id: UNASSIGNED_ENG, studioId, ref: "",
+    context: {}, singletons: { ticket: null, approvedQuotation: null, project: null },
+    createdAt: nowISO(), updatedAt: nowISO(),
+  };
+  await setJSON(key, eng);
+  return eng;
+}
+
+// Promote a loose member into a real engagement: a SET move, no record rewrite.
+// (The caller updates the record's own engagementId field in Phase 1.)
+export async function promote(studioId: string, type: string, recId: string, toEngId: string): Promise<void> {
+  if (isSingleton(type)) throw new Error("promote-singleton");
+  const score = await scoreOf(studioId, UNASSIGNED_ENG, type, recId);
+  await zRem(ENG.members(studioId, UNASSIGNED_ENG, type), recId);
+  await zAdd(ENG.members(studioId, toEngId, type), score, recId);
+  await sAdd(ENG.hasStage(studioId, type), toEngId);
+}
+
+// Phase-0 simplification: both branches return Date.now(), because the record's
+// own createdAt is not read back here yet — Phase 1 stores it on the record and
+// reads it, preserving the member's original ordering across the move.
+async function scoreOf(studioId: string, engId: string, type: string, recId: string): Promise<number> {
+  const ids = await zRange(ENG.members(studioId, engId, type), 0, -1);
+  return ids.includes(recId) ? Date.now() : Date.now();
+}

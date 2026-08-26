@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { pathToFileURL } from "node:url";
 import { zAdd, zRange, zRem, sCard, sAdd, sMembers } from "../src/platform/db/store.ts";
 import { ENG, UNASSIGNED_ENG, ID, KEY_PREFIX } from "../src/platform/db/keys.ts";
 import { STAGE_REGISTRY, stageOf, isSingleton, isUnassignable } from "../src/platform/engagement/registry.ts";
-import { createEngagement, readEngagement, attachRecord, listMembers, detachRecord, addRef, removeRef, refCount } from "../src/platform/db/engagement.ts";
+import { createEngagement, readEngagement, attachRecord, listMembers, detachRecord, addRef, removeRef, refCount, unassignedEngagement, promote } from "../src/platform/db/engagement.ts";
 
 // The harness runs with NOMPANY_KEY_PREFIX set; refuse to run unprefixed.
 assert.ok(KEY_PREFIX, "engagement tests must run under a key prefix");
@@ -102,4 +103,28 @@ export async function testDetachAndRefs() {
   assert.equal(await refCount(sid, "client", "c1"), 1);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) testZsetHelpers().then(() => console.log("ok")).catch(e => { console.error(e); process.exit(1); });
+export async function testUnassigned() {
+  const sid = `s_${Date.now().toString(36)}`;
+  const bucket = await unassignedEngagement(sid);
+  assert.equal(bucket.id, "__unassigned");
+  const again = await unassignedEngagement(sid);
+  assert.equal(again.id, "__unassigned", "idempotent — one bucket per studio");
+  await attachRecord(sid, "__unassigned", "expense", "x1", "2026-01-01T00:00:00Z");
+  const real = await createEngagement(sid, {});
+  await promote(sid, "expense", "x1", real.id);
+  assert.deepEqual(await listMembers(sid, "__unassigned", "expense"), [], "left the bucket");
+  assert.deepEqual(await listMembers(sid, real.id, "expense"), ["x1"], "joined the deal");
+}
+
+// Runner — call every test in order. import.meta.url is a file:// URL on every
+// platform, but `file://${process.argv[1]}` is POSIX-only: on Windows argv[1] is
+// a backslashed path (e.g. C:\...), so the naive template never matches and the
+// runner silently no-ops. pathToFileURL(...).href normalises both sides.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  (async () => {
+    for (const t of [testZsetHelpers, testEngagementKeys, testRegistry, testCreateRead,
+                     testAttach, testDetachAndRefs, testUnassigned]) {
+      await t(); console.log(`ok ${t.name}`);
+    }
+  })().catch((e) => { console.error(e); process.exit(1); });
+}
