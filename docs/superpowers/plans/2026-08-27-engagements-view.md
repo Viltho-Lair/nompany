@@ -181,7 +181,8 @@ git commit -m "Seeing engagements is a right an owner can grant"
   - `listEngagements(ctx, opts?: { limit?: number; cursor?: number }): Promise<{ engagements: Row[]; nextCursor: number | null } | Refusal>`
   - `engagementBlock(ctx, engId): Promise<{ engagement: Block } | Refusal>`
 
-  where `Row = { id, ref, clientName, title, status, createdAt, stages: string[] }` and
+  where `Row = { id, ref, clientName, title, createdAt, stages: string[] }` (no `status` — a derived status
+  needs the per-stage reads the list deliberately avoids; only `Block` computes one) and
   `Block = { id, ref, context: { clientName, title, industry, deadline }, status, cards: StageCard[] }` with
   `StageCard = { type, label, present, count, ref?, summary?, href? }`.
 
@@ -443,7 +444,7 @@ git commit -m "Gate A records the engagement view's two responses"
 
 - [ ] **Step 2: Run to verify they fail** (the screen does not exist yet; the service assertions should already pass from Task 3 — if they do, that is the read layer proving itself, and only the screen work remains).
 
-- [ ] **Step 3: Build the screen** — `StudioEngagements.js`, a client component that fetches `/api/studios/<slug>/main/engagements`, renders the list (ref, client, title, derived status, a badge per visible stage), and on selecting a row fetches `…/engagements/<engId>` and renders the block: a context header plus one card per stage. **A card with `present: false` renders as an optional next step** ("No project yet"), never as "N/A" or an empty row. Follow the existing studio screens for table/skeleton idiom, use the shared `.skel` classes, and keep MUI to the three approved uses.
+- [ ] **Step 3: Build the screen** — `StudioEngagements.js`, a client component that fetches `/api/studios/<slug>/main/engagements`, renders the list (ref, client, title, a badge per visible stage — no status column, `listEngagements` does not return one), and on selecting a row fetches `…/engagements/<engId>` and renders the block: a context header plus one card per stage. **A card with `present: false` renders as an optional next step** ("No project yet"), never as "N/A" or an empty row. Follow the existing studio screens for table/skeleton idiom, use the shared `.skel` classes, and keep MUI to the three approved uses.
 
 - [ ] **Step 4: Wire the route** — in `page.js`, add the dynamic import beside the other screens:
 

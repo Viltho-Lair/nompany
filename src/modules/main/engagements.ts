@@ -148,7 +148,22 @@ export async function engagementBlock(
     engagement: {
       id: engId,
       ref: String(root.ref || ""),
-      context: root.context,
+      // PROJECTED, not passed through. root.context is built by buildEngagements
+      // (src/platform/engagement/backfill.ts) straight from the sales ticket, so
+      // it carries nine fields — including contact.name and the full site
+      // address — none of which the screen renders. A reader can reach this
+      // block holding engagements.view plus ANY stage right (Tasks, Finance,
+      // Projects…), not necessarily sales.tickets.view, so returning the whole
+      // object hands them the client's contact and site on a screen that shows
+      // neither. The spec's "a viewer who can see the ticket can already read
+      // its client on the ticket itself" only holds for a TICKET viewer — it
+      // does not generalise to every other stage right that opens this block.
+      // Minimum disclosure is the default on this boundary: return only what
+      // the screen actually renders.
+      context: {
+        clientName: root.context.clientName ?? "",
+        title: root.context.title ?? "",
+      },
       status: statusOf(cards),
       cards,
     },

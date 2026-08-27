@@ -347,9 +347,14 @@ console.log("\n== the handler is carried, never copied");
   ok("owner can open Sales", !sales.error, sales.error);
 
   const service = await createService(sales, { name: "Integration" });
+  // contactName/location are set here (the design fixture left them blank) so
+  // the C-1 leak test below has real values to assert are ABSENT from a
+  // non-Sales reader's engagementBlock payload — a blank field can't prove a
+  // projection actually strips anything.
   const made = await createTicket(sales, {
     title: "Carry the handler", clientName: "Acme", deadline: "2026-12-01",
     industry: "Technology", serviceIds: [service.service?.id],
+    contactName: "Priya Shenoy", location: { name: "Acme HQ", city: "Austin", country: "US", url: "https://acme.example/hq" },
   });
   ok("a ticket can be raised", !!made.ticket, JSON.stringify(made.error));
 
@@ -745,6 +750,40 @@ console.log("\n== the handler is carried, never copied");
   // step here too — withholding a whole type must not also break that.
   ok("...while a visible-but-absent stage still reads present:false",
     engagerCards.find((c) => c.type === "bill")?.present === false, JSON.stringify(engagerCards));
+
+  // ---- C-1: the block's `context` must not leak the ticket's private fields -
+  // A reader who holds engagements.view plus a Finance stage right (NOT
+  // sales.tickets.view, NOT any Sales right at all) still opens this block —
+  // it holds finance.cash.view, which is what makes the attached invoice
+  // present-and-visible above. Before the fix, engagementBlock returned
+  // root.context VERBATIM: nine ticket-sourced fields including contact.name
+  // and the full site address, none of which this screen renders and none of
+  // which a Finance-only reader could reach any other way. `made.ticket` was
+  // seeded above with a real contactName and location specifically so this
+  // assertion has something to catch — a blank field proves nothing.
+  const financeOnlyRole = await createRole(studio.id, {
+    name: `Finance-only ${rand()}`,
+    permissions: ["engagements.view", "finance.cash.view"],
+  });
+  const financeOnly = await person("FinanceOnly", null);
+  await updateCollaborator(studio.id, financeOnly.collaborator.id, { roleIds: [financeOnlyRole.id] });
+  const financeOnlyAccess = (await studioContext(financeOnly.user, slug)).access;
+  ok("the fixture role really does hold finance.cash.view but not sales.tickets.view",
+    financeOnlyAccess.has("finance.cash.view") && !financeOnlyAccess.has("sales.tickets.view"),
+    JSON.stringify([...financeOnlyAccess]));
+
+  const financeOnlyBlock = await engagementBlock({ studio, access: financeOnlyAccess }, engId);
+  ok("a Finance-only reader still opens the block — they hold a stage right on it (the invoice)",
+    !financeOnlyBlock.error, JSON.stringify(financeOnlyBlock.error));
+  const leakSerialised = JSON.stringify(financeOnlyBlock);
+  ok("...but the serialised payload names neither the ticket's contact",
+    !leakSerialised.includes("Priya Shenoy"), leakSerialised);
+  ok("...nor any field of its site",
+    !leakSerialised.includes("Acme HQ") && !leakSerialised.includes("Austin") && !leakSerialised.includes("acme.example"),
+    leakSerialised);
+  ok("...context is projected to just clientName + title, not passed through",
+    Object.keys(financeOnlyBlock.engagement?.context || {}).sort().join(",") === "clientName,title",
+    JSON.stringify(financeOnlyBlock.engagement?.context));
 
   // ---- refused outright: neither engagements.view nor any stage right --------
   const nobodyAccess = (await studioContext(nobody.user, slug)).access;

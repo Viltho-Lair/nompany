@@ -122,8 +122,10 @@ route — the `createTicket` precedent: routes get added and forgotten.
 
 - **`listEngagements(ctx, { limit, cursor })`** — `ZRANGE` the index newest-first, batch-read those roots
   with `getJSONMany`, drop any engagement the viewer can see no stage of, and return one row each:
-  engagement id, ref, client name, title, the stages that exist AND are visible to this viewer, a derived
-  status, and `createdAt`. Cost is O(page), not O(collection).
+  engagement id, ref, client name, title, the stages that exist AND are visible to this viewer, and
+  `createdAt`. **No status** — a derived status needs the per-stage reads the list deliberately avoids
+  (O(page), not O(collection)); only `engagementBlock`, which already reads every visible stage's record,
+  computes one.
 - **`engagementBlock(ctx, engId)`** — `readEngagementView` for the context and stage ids, then resolve a
   one-line summary for each **visible** stage from its own record: ticket ref and status, RFQ status,
   quotation number and status, project number and stage. Only the collections whose stages both exist and
@@ -148,9 +150,9 @@ Both are new routes, so they ADD golden cases. The existing 144 goldens must sta
 Loaded through `nextDynamic()` like every other department screen, so it lands in its own chunk and the
 largest-chunk budget (250 KB gz) is unaffected.
 
-- **List** — the studio's deals: ref, client, title, derived status, and a badge per stage showing which
-  exist. The badges are where "enter from any stage" becomes visible: a deal that began at a quotation
-  simply has no ticket badge.
+- **List** — the studio's deals: ref, client, title, and a badge per stage showing which exist. No status
+  column — `listEngagements` does not compute one (§6). The badges are where "enter from any stage" becomes
+  visible: a deal that began at a quotation simply has no ticket badge.
 - **Block** — a context header (client, title, ref, derived status) and one card per stage. A stage that
   exists shows its reference and one-line summary, linking to that record's own screen. A stage that does
   not exist renders as an **optional next step** ("No project yet"), never as "N/A" or an empty row. A
