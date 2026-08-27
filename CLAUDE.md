@@ -298,8 +298,10 @@ one key per record, live-context / frozen-documents). On `main`: **Phase 0** (fo
 `src/platform/db/engagement.ts`), **Phase 1a** (backfill read layer — `backfill.ts`, the guarded
 CLI `scripts/migrate/backfill-engagements.mjs`, `readEngagementView`; **applied to live**, 7
 engagements proven), and **Phase 1b-i** (`createTicket` dual-writes its engagement — same
-deterministic id/clustering the backfill uses, guarded, response byte-identical). **In progress:**
-Phase 1b-rest (RFQ/quotation/project attach on create). See `docs/progress.md` and the
+deterministic id/clustering the backfill uses, guarded, response byte-identical), and **Phase
+1b-rest** (RFQ/quotation/project creation each attach to their engagement — internal quotation
+mints its own, approved quotation recorded — so the whole spine now dual-writes on create). See
+`docs/progress.md` and the
 `docs/superpowers/plans/2026-08-2{6,7}-engagement-*.md` plans. The read/write paths are NOT
 wired to any route yet — the engagement layer is written alongside, reconciled by the backfill.
 
