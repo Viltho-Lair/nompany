@@ -4,6 +4,7 @@
 import { ENG, ID, UNASSIGNED_ENG } from "./keys";
 import { getJSON, setJSON, editJSON, zAdd, zRange, zRem, sAdd, sRem, sCard } from "./store";
 import { isSingleton, stageOf } from "../engagement/registry";
+import { buildEngagements } from "../engagement/backfill";
 import type { EngagementDescriptor } from "../engagement/backfill";
 
 export type Engagement = {
@@ -184,4 +185,19 @@ export async function readEngagementView(
     if (ids.length) members[type] = ids;
   }
   return { context: root.context, singletons: root.singletons, members };
+}
+
+// Dual-write helper: derive and persist the engagement for a just-created ticket,
+// reusing the SAME clustering the backfill uses so a live ticket and a backfilled
+// one are identical. Children (rfq/quotation/project) attach later as they're
+// created (Phase 1b-ii+). Returns the deterministic engId.
+export async function attachTicketEngagement(
+  studioId: string, ticket: Record<string, unknown>, client: Record<string, unknown> | null,
+): Promise<string> {
+  const [descriptor] = buildEngagements({
+    salesTickets: [ticket],
+    salesClients: client ? [client] : [],
+  });
+  await applyDescriptor(studioId, descriptor);
+  return descriptor.engId;
 }
