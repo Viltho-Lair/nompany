@@ -1956,7 +1956,7 @@ console.log("== main: the engagement view — two NEW routes, and the safety pro
 // operations & tasks — and several of their "populated" goldens are whole-
 // studio snapshots (open tickets, the people list, the invoice sequence). The
 // first draft seeded its fixture ticket/client/invoice/collaborators between
-// sales and technical and it moved SEVEN goldens that belong to other
+// sales and technical and it moved EIGHT goldens that belong to other
 // modules: an extra row in technical's openTickets/clients/people, an extra
 // employee in every hr.list.*, a shifted finance.invoice.raised reference
 // (INV-0001 -> INV-0002), and an extra row in operations.board and both
