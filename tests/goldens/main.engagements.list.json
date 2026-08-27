@@ -7,7 +7,7 @@
         "ref": "",
         "clientName": "Engagement View Client",
         "title": "Engagement view fixture",
-        "createdAt": "",
+        "createdAt": "<timestamp>",
         "stages": [
           "ticket"
         ]
@@ -17,7 +17,7 @@
         "ref": "",
         "clientName": "Second Client",
         "title": "Default sequence check",
-        "createdAt": "",
+        "createdAt": "<timestamp>",
         "stages": [
           "ticket"
         ]
@@ -27,7 +27,7 @@
         "ref": "",
         "clientName": "Acme Holdings",
         "title": "Cannot start won",
-        "createdAt": "",
+        "createdAt": "<timestamp>",
         "stages": [
           "ticket"
         ]
@@ -37,7 +37,7 @@
         "ref": "",
         "clientName": "Acme Holdings",
         "title": "Boardroom refit",
-        "createdAt": "",
+        "createdAt": "<timestamp>",
         "stages": [
           "ticket"
         ]

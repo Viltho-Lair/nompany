@@ -19,7 +19,8 @@
           "country": "",
           "city": "",
           "url": ""
-        }
+        },
+        "createdAt": "<timestamp>"
       },
       "status": "Lead",
       "cards": [
