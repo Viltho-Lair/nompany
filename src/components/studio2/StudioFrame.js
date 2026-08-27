@@ -51,6 +51,7 @@ const SECTION_ICONS = {
   hr: "team",
   people: "user",
   access: "lock",
+  engagements: "link",
   // Sales sub-sections carry their own icons rather than falling back to the
   // neutral dot, so the group reads as three destinations instead of a list.
   "sales-tickets": "ticket",
@@ -187,6 +188,10 @@ export default function StudioFrame({
   const toggleGroup = (key) => setOpenKey((k) => (k === key ? null : key));
 
   const admin = [
+    // Placed above People (design §3): engagements.view is a right on its own,
+    // held by any role — not an admin-only screen — so it sits with the other
+    // non-section destinations rather than gated behind canAdminister.
+    { href: `/${studio.slug}/engagements`, key: "engagements", label: "Engagements", show: me.canSeeEngagements },
     { href: `/${studio.slug}/people`, key: "people", label: me.canAdminister ? "People & requests" : "People", show: true },
     { href: `/${studio.slug}/access`, key: "access", label: "Access", show: me.canAdminister },
   ].filter((i) => i.show);

@@ -124,6 +124,10 @@ const StudioMain = nextDynamic(
   () => import("@/components/studio2/StudioMain"),
   { loading: () => <ScreenSkeleton /> },
 );
+const StudioEngagements = nextDynamic(
+  () => import("@/components/studio2/StudioEngagements"),
+  { loading: () => <ScreenSkeleton /> },
+);
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Studio", robots: { index: false, follow: false } };
@@ -218,6 +222,21 @@ export default async function StudioPage({ params }) {
     return (
       <LiveProvider slug={studio.slug}>
         <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />
+      </LiveProvider>
+    );
+  }
+
+  // ENGAGEMENTS IS NOT A SECTION, deliberately. Making it one would give Main a
+  // child, and sectionViewable's "a heading with neither areas nor children has
+  // nothing to protect" fallthrough is the only reason Main is visible to every
+  // member — a child would gate the parent and hide Main from everybody without
+  // the engagements right. So it rides its own key, checked here, the same way
+  // documentation and the two Live views do (design §3).
+  if (requested === "engagements") {
+    if (!can(access, "engagements.view")) notFound();
+    return (
+      <LiveProvider slug={studio.slug}>
+        <StudioEngagements slug={studio.slug} />
       </LiveProvider>
     );
   }
@@ -375,7 +394,12 @@ export default async function StudioPage({ params }) {
   const isSettings = requested === "studio-settings";
 
   // Admin-only screens.
-  if (isAccess && !admin) return <Denied studio={studio} sections={sections} me={collaborator} admin={admin} what="manage access" />;
+  if (isAccess && !admin) {
+    return (
+      <Denied studio={studio} sections={sections} me={collaborator} admin={admin}
+        canSeeEngagements={can(access, "engagements.view")} what="manage access" />
+    );
+  }
 
   const active = isPeople || isAccess || isSettings ? null : (sections.find((s) => s.key === requested) || sections[0] || null);
   // Asked for a real section they haven't been granted → say so rather than
@@ -397,7 +421,12 @@ export default async function StudioPage({ params }) {
       packageName: plan.packageName, packageColor: plan.packageColor,
       tierName: plan.tierName, tierColor: plan.tierColor,
     },
-    me: { alias: collaborator.alias || "", role: collaborator.role, canAdminister: admin },
+    me: {
+      alias: collaborator.alias || "", role: collaborator.role, canAdminister: admin,
+      // Resolved once, here, the same way `admin` is — StudioFrame draws the
+      // nav entry off this flag rather than re-deriving access itself.
+      canSeeEngagements: can(access, "engagements.view"),
+    },
     // parentId drives the expandable nav.
     sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),
     activeKey: isPeople ? "people" : isAccess ? "access" : isSettings ? "studio-settings" : (active?.key || ""),
@@ -506,11 +535,11 @@ function NothingGranted({ admin, slug }) {
   );
 }
 
-function Denied({ studio, sections, me, admin, what }) {
+function Denied({ studio, sections, me, admin, canSeeEngagements = false, what }) {
   return (
     <StudioFrame
       studio={{ name: studio.name, slug: studio.slug }}
-      me={{ alias: me.alias || "", role: me.role, canAdminister: admin }}
+      me={{ alias: me.alias || "", role: me.role, canAdminister: admin, canSeeEngagements }}
       sections={sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled }))}
       activeKey=""
     >

@@ -118,7 +118,12 @@ import {
 // PHASE 1b-i DUAL-WRITE: createTicket mints the engagement layer as a
 // best-effort side effect, reusing the backfill's own clustering.
 import { deterministicEngId } from "@/platform/db/keys";
-import { readEngagementView } from "@/platform/db/engagement";
+import { readEngagementView, attachToTicketEngagement } from "@/platform/db/engagement";
+// THE ENGAGEMENTS VIEW (Task 6): the read layer that assembles a deal from
+// the layer above, exercised end to end against a real seeded studio in the
+// spine block below — the pure permission filter (visibleStageTypes) already
+// has its own coverage in tests/engagement-view.mjs.
+import { listEngagements, engagementBlock } from "@/modules/main/engagements";
 // PHASE 1b-i ON-CREATE (Task 1). Same standalone-runner shape as engagement.mjs
 // and engagement-backfill.mjs above — importing it here pulls in only the one
 // exported test function, run explicitly further down through the same
@@ -637,6 +642,108 @@ console.log("\n== the handler is carried, never copied");
     JSON.stringify(forSearch?.quotationNumber));
   ok("...the PO", (forSearch?.poNumber || "").includes("PO-99"), JSON.stringify(forSearch?.poNumber));
   ok("...and the serials of the items on it", Array.isArray(forSearch?.serials), JSON.stringify(forSearch?.serials));
+
+  // --------------------------------------------------------------------------
+  // ENGAGEMENTS VIEW (Task 6): listEngagements / engagementBlock / the safety
+  // property. Reuses THIS chain rather than seeding a second one — it is
+  // already ticket -> rfq -> quotation -> project, with `engId` deterministic
+  // off the ticket, so nothing here re-runs the approval/PO ceremony above.
+  //
+  // An invoice, attached the way Phase 2's dual-write will once it exists
+  // (design's non-goals, spec §10) — attachToTicketEngagement is the shipped
+  // primitive it will call, so seeding through it proves the read layer
+  // against the exact shape that write will produce, not a hand-built one.
+  const fin = await financeContext(owner, slug);
+  const invoiceMade = await createInvoice(fin, {
+    clientName: "Acme", lines: [{ description: "Deposit", qty: 1, unitPrice: 500 }],
+  });
+  ok("an invoice can be raised against the chain", !!invoiceMade.invoice, JSON.stringify(invoiceMade.error));
+  await attachToTicketEngagement(studio.id, "invoice", invoiceMade.invoice.id, made.ticket.id);
+
+  const ownerAccess = (await studioContext(owner, slug)).access;
+
+  // ---- listEngagements ------------------------------------------------------
+  const list = await listEngagements({ studio, access: ownerAccess });
+  ok("listEngagements does not refuse the owner", !list.error, JSON.stringify(list.error));
+  const engRow = list.engagements?.find((e) => e.id === engId);
+  ok("the chain's engagement is listed", !!engRow, JSON.stringify(list.engagements?.map((e) => e.id)));
+  ok("...naming the client and title", engRow?.clientName === "Acme" && engRow?.title === "Carry the handler",
+    JSON.stringify(engRow));
+  ok("...with every stage this reader (the owner) may see",
+    ["ticket", "rfq", "quotation", "project", "invoice"].every((t) => (engRow?.stages || []).includes(t)),
+    JSON.stringify(engRow?.stages));
+
+  // A second, bare engagement — just a ticket, no chain behind it — created
+  // AFTER the one above, to prove the list actually orders by recency rather
+  // than by insertion into the index or by id.
+  const laterTicket = await createTicket(sales, {
+    title: "A later deal", clientName: "Later Co", deadline: "2026-12-01",
+    industry: "Technology", serviceIds: [service.service?.id],
+  });
+  const laterEngId = deterministicEngId("ticket", laterTicket.ticket.id);
+  const listAfter = await listEngagements({ studio, access: ownerAccess });
+  const idxLater = listAfter.engagements.findIndex((e) => e.id === laterEngId);
+  const idxEarlier = listAfter.engagements.findIndex((e) => e.id === engId);
+  ok("newest first: the just-created engagement sorts ahead of the older chain",
+    idxLater > -1 && idxEarlier > -1 && idxLater < idxEarlier, JSON.stringify({ idxLater, idxEarlier }));
+
+  // ---- engagementBlock -------------------------------------------------------
+  const block = await engagementBlock({ studio, access: ownerAccess }, engId);
+  ok("engagementBlock does not refuse the owner", !block.error, JSON.stringify(block.error));
+  const cardsByType = Object.fromEntries((block.engagement?.cards || []).map((c) => [c.type, c]));
+  ok("a present stage carries a ref and a summary", cardsByType.ticket?.present === true && !!cardsByType.ticket.ref,
+    JSON.stringify(cardsByType.ticket));
+  ok("...the invoice too, once attached", cardsByType.invoice?.present === true, JSON.stringify(cardsByType.invoice));
+  // bill/asset are stages this chain never had — the fixture never raised
+  // one — so they are the ones that prove "does not exist yet" reads as an
+  // optional next step (present:false) rather than as an error or a gap.
+  ok("a stage the chain never had reads present:false, not absent",
+    cardsByType.bill?.present === false && cardsByType.bill?.count === 0
+    && cardsByType.asset?.present === false && cardsByType.asset?.count === 0,
+    JSON.stringify({ bill: cardsByType.bill, asset: cardsByType.asset }));
+
+  // ---- the safety property ---------------------------------------------------
+  // A collaborator holding engagements.view and a Sales right, but explicitly
+  // NOT finance.cash.view: the invoice must not surface anywhere in the
+  // payload — not a card, not a ref, not a summary. The whole TYPE is
+  // withheld, never blanked (spec §4, "What each person sees inside").
+  const salesRole = await createRole(studio.id, {
+    name: `Engager ${rand()}`,
+    permissions: ["engagements.view", "sales.tickets.view", "finance.payables.view"],
+  });
+  const engager = await person("Engager", null);
+  await updateCollaborator(studio.id, engager.collaborator.id, { roleIds: [salesRole.id] });
+  const engagerAccess = (await studioContext(engager.user, slug)).access;
+  ok("the fixture role really does hold sales.tickets.view but not finance.cash.view",
+    engagerAccess.has("sales.tickets.view") && !engagerAccess.has("finance.cash.view"),
+    JSON.stringify([...engagerAccess]));
+
+  const engagerList = await listEngagements({ studio, access: engagerAccess });
+  const engagerRow = engagerList.engagements?.find((e) => e.id === engId);
+  ok("this reader still sees the engagement — they hold a stage right on it",
+    !!engagerRow, JSON.stringify(engagerRow));
+  ok("...but its visible stages name no invoice", !(engagerRow?.stages || []).includes("invoice"),
+    JSON.stringify(engagerRow?.stages));
+
+  const engagerBlock = await engagementBlock({ studio, access: engagerAccess }, engId);
+  const engagerCards = engagerBlock.engagement?.cards || [];
+  ok("no card of type invoice reaches this reader",
+    !engagerCards.some((c) => c.type === "invoice"), JSON.stringify(engagerCards.map((c) => c.type)));
+  const serialised = JSON.stringify(engagerBlock);
+  ok("...and the invoice's own reference is nowhere in the serialised body",
+    !serialised.includes(invoiceMade.invoice.reference), serialised);
+  // A visible-but-absent stage (bill) still renders as the optional next
+  // step here too — withholding a whole type must not also break that.
+  ok("...while a visible-but-absent stage still reads present:false",
+    engagerCards.find((c) => c.type === "bill")?.present === false, JSON.stringify(engagerCards));
+
+  // ---- refused outright: neither engagements.view nor any stage right --------
+  const nobodyAccess = (await studioContext(nobody.user, slug)).access;
+  const nobodyList = await listEngagements({ studio, access: nobodyAccess });
+  ok("no engagements.view and no stage right -> refused outright, not an empty list",
+    nobodyList.error === "forbidden", JSON.stringify(nobodyList));
+  const nobodyBlock = await engagementBlock({ studio, access: nobodyAccess }, engId);
+  ok("...the same refusal on the block route", nobodyBlock.error === "forbidden", JSON.stringify(nobodyBlock));
 }
 
 // ============================================================================
