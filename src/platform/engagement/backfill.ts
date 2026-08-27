@@ -58,6 +58,13 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
         industry: (t.industry as string) || "", urgency: (t.urgency as string) || "",
         title: (t.title as string) || "", deadline: (t.deadline as string) || "",
         contact: { name: (t.contactName as string) || "" }, site: t.location || {},
+        // The engagement is dated when the DEAL began (the ticket's own
+        // createdAt), not when this root happened to be written. applyDescriptor
+        // scores ENG.index off context.createdAt — drop this and every
+        // engagement sorts by backfill/write order instead of when it started,
+        // which silently breaks "newest first" and the time-range/funnel
+        // queries the index exists for.
+        createdAt: (t.createdAt as string) || "",
       },
       singletons: { ticket: t.id as string, approvedQuotation: approved ? (approved.id as string) : null,
                     project: project ? (project.id as string) : null },
@@ -73,7 +80,11 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
       engId, ref: (q.number as string) || "",
       context: { clientId: (q.clientId as string) || null, clientName: (q.clientName as string) || "",
                  industry: (q.industry as string) || "", title: (q.title as string) || "", deadline: (q.deadline as string) || "",
-                 contact: {}, site: {} },
+                 contact: {}, site: {},
+                 // Same reasoning as the ticket-headed branch above: the deal
+                 // began when this internal quotation was raised, not when its
+                 // engagement root was written.
+                 createdAt: (q.createdAt as string) || "" },
       singletons: { ticket: null, approvedQuotation: null, project: null },
       members: { quotation: [q.id as string] },
     });
