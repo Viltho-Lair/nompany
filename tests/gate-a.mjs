@@ -147,8 +147,9 @@ console.log("== the permission matrix: one key grants exactly itself");
   // finance.payables (view/create/edit/delete + approve/pay) and finance.assets
   // (view/create/edit + dispose); 117 when the planner became a grantable
   // sub-section of Operations (operations.planner view/edit); 121 when the rota
-  // moved to its own operations.schedule sub-section (view/create/edit/delete).
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 121, String(ALL_PERMISSIONS.length));
+  // moved to its own operations.schedule sub-section (view/create/edit/delete);
+  // 122 when the engagement view became grantable.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 122, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
