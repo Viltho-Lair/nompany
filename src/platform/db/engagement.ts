@@ -1,7 +1,7 @@
 // THE ENGAGEMENT STORE — create/read/attach/detach over the new key scheme.
 // The root holds context + the singleton pointers only; many-membership lives
 // in ZSETs (spec §3.3), so a busy engagement never contends on one document.
-import { ENG, ID, UNASSIGNED_ENG } from "./keys";
+import { ENG, ID, UNASSIGNED_ENG, deterministicEngId } from "./keys";
 import { getJSON, setJSON, editJSON, zAdd, zRange, zRem, sAdd, sRem, sCard } from "./store";
 import { isSingleton, stageOf } from "../engagement/registry";
 import { buildEngagements } from "../engagement/backfill";
@@ -200,4 +200,39 @@ export async function attachTicketEngagement(
   });
   await applyDescriptor(studioId, descriptor);
   return descriptor.engId;
+}
+
+// Attach a spine record (rfq, converted quotation, invoice, …) to the ticket
+// engagement it belongs to. The ticket's engId is deterministic (spec §3.4),
+// so a caller never has to look it up first — no extra hop.
+export async function attachToTicketEngagement(
+  studioId: string, type: string, recId: string, ticketId: string,
+): Promise<void> {
+  await attachRecord(studioId, deterministicEngId("ticket", ticketId), type, recId);
+}
+
+// An internal (ticket-less) quotation mints its OWN engagement — the backfill's
+// orphan-quotation path, reused so a live internal quotation and a backfilled
+// one match byte-for-byte.
+export async function attachQuotationEngagement(
+  studioId: string, quotation: Record<string, unknown>, client: Record<string, unknown> | null,
+): Promise<string> {
+  const [descriptor] = buildEngagements({
+    quotations: [quotation], salesClients: client ? [client] : [],
+  });
+  await applyDescriptor(studioId, descriptor);
+  return descriptor.engId;
+}
+
+// Record which quotation a ticket's engagement has approved. A compare-and-set
+// on the root (Inv. 8) — never a blind overwrite — and a no-op when the root is
+// absent, so a caller racing engagement creation loses nothing: the reconcile
+// job rebuilds the root from the record itself on its next pass.
+export async function setApprovedQuotation(
+  studioId: string, engId: string, quotationId: string,
+): Promise<void> {
+  await editJSON<Engagement, void>(ENG.root(studioId, engId), (eng) => {
+    if (!eng) return { result: undefined }; // root absent → reconcile will build it
+    return { next: { ...eng, singletons: { ...eng.singletons, approvedQuotation: quotationId }, updatedAt: nowISO() } };
+  });
 }
