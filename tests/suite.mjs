@@ -106,11 +106,12 @@ import {
   testAttach, testDetachAndRefs, testUnassigned,
 } from "./engagement.mjs";
 // ENGAGEMENT BACKFILL (Phase 1a). Same standalone-runner shape as
-// engagement.mjs above — importing it here pulls in only the five exported
+// engagement.mjs above — importing it here pulls in only the six exported
 // test functions, run explicitly further down through the same try/catch
 // adapter (node:assert throws are not this file's ok() shape).
 import {
   testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity,
+  testVocabularyParity,
 } from "./engagement-backfill.mjs";
 
 import {
@@ -3269,7 +3270,8 @@ console.log("\n== engagement foundations (Phase 0)");
 // ============================================================================
 console.log("\n== engagement backfill (Phase 1a)");
 {
-  for (const t of [testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity]) {
+  for (const t of [testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity,
+                    testVocabularyParity]) {
     try {
       await t();
       ok(t.name, true);

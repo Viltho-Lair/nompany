@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import { ENG, deterministicEngId, KEY_PREFIX } from "../src/platform/db/keys.ts";
 import { buildEngagements } from "../src/platform/engagement/backfill.ts";
 import { applyDescriptor, readEngagementView, engagementOf } from "../src/platform/db/engagement.ts";
+import { STAGE_REGISTRY } from "../src/platform/engagement/registry.ts";
 import { createUser } from "../src/platform/auth/users.ts";
 import { createStudio } from "../src/modules/main/studios.ts";
 import { getSectionByKey, addRow, readCol } from "../src/platform/db/sections.ts";
@@ -194,9 +195,115 @@ export async function testParity() {
   assert.deepEqual(orphanView.members.quotation, [orphanQuo.id], "the orphan engagement's only member is itself");
 }
 
+// Task 6 — VOCABULARY PARITY, the highest-value Minor from the Phase-1a final
+// review: the engagement member-type vocabulary is hand-maintained in THREE
+// places that must stay in sync with nothing binding them —
+//   • STAGE_REGISTRY (registry.ts)            — the canonical singular types.
+//   • buildEngagements' memberTypes + the explicit rfq/quotation (backfill.ts)
+//     — what the backfill WRITES to member ZSETs.
+//   • readEngagementView's type list (db/engagement.ts) — what the read view
+//     READS back.
+// Phase 1a already hit exactly this drift class once (plural collection name
+// vs singular registry type, see testApplyAndRead's comment). If a future
+// stage type is added to one list and not the others, its member set is
+// written-but-never-surfaced, or read-but-never-populated — SILENTLY, because
+// each list is internally consistent and the bug only exists once the three
+// are compared.
+//
+// PRIMARY GUARD — behavioral round-trip: neither memberTypes nor
+// readEngagementView's type array is exported (and none is added here —
+// src/** stays untouched; tests only), so the binding proof is seeding ONE
+// record of every member type the backfill is supposed to carry, running the
+// real backfill, and asserting readEngagementView surfaces every single one
+// under its expected key. A type dropped from either list makes its assertion
+// fail here, not silently in production.
+const ALL_MEMBER_TYPES = [
+  "rfq", "quotation",                          // ticket-scoped
+  "invoice", "expense", "order", "delivery",   // project-scoped
+  "shipment", "task", "overtime", "sheet",
+];
+
+export async function testVocabularyParity() {
+  const owner = (await createUser({ email: `voc-${Date.now().toString(36)}@test.invalid`, passwordHash: "x" })).user;
+  const slug = `voc-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const created = await createStudio({ ownerUserId: owner.id, name: "Vocabulary Studio", slug, ownerAlias: "Owner" });
+  assert.ok(!created.error, `fixture studio: ${created.error}`);
+  const sid = created.studio.id;
+
+  const ticketsSec = await getSectionByKey(sid, "sales-tickets");
+  const clientsSec = await getSectionByKey(sid, "sales-clients");
+  const rfqSec = await getSectionByKey(sid, "technical-rfq");
+  const quotationsSec = await getSectionByKey(sid, "technical-quotations");
+  const projectsSec = await getSectionByKey(sid, "projects-list");
+  const cashSec = await getSectionByKey(sid, "finance-cash");
+  const sheetsSec = await getSectionByKey(sid, "inventory-sheets");   // owns materialOrders + projectSheets
+  const inventorySec = await getSectionByKey(sid, "inventory");      // owns deliveries
+  const awbSec = await getSectionByKey(sid, "inventory-awb");
+  const tasksSec = await getSectionByKey(sid, "tasks");
+  const overtimesSec = await getSectionByKey(sid, "projects-overtimes");
+
+  const client = await addRow(sid, clientsSec.id, "salesClients", { name: "Vocab Co" });
+  const ticket = await addRow(sid, ticketsSec.id, "salesTickets",
+    { clientId: client.id, clientName: client.name, ref: "VOC-001", title: "Vocabulary" });
+  const project = await addRow(sid, projectsSec.id, "projects", { ticketId: ticket.id });
+
+  // Ticket-scoped member types: one of each.
+  const rfq = await addRow(sid, rfqSec.id, "rfqs", { ticketId: ticket.id });
+  const quotation = await addRow(sid, quotationsSec.id, "quotations", { ticketId: ticket.id, createdAt: "2026-01-01" });
+
+  // Project-scoped member types: one of each the backfill is supposed to carry
+  // (mirrors backfill.ts' memberTypes tuple list exactly, so a type silently
+  // dropped from that list has nothing seeded to expose it — which is why the
+  // registry-membership check below is the second, independent guard).
+  const invoice = await addRow(sid, cashSec.id, "invoices", { projectId: project.id });
+  const expense = await addRow(sid, cashSec.id, "expenses", { projectId: project.id });
+  const order = await addRow(sid, sheetsSec.id, "materialOrders", { projectId: project.id });
+  const sheet = await addRow(sid, sheetsSec.id, "projectSheets", { projectId: project.id });
+  const delivery = await addRow(sid, inventorySec.id, "deliveries", { projectId: project.id });
+  const shipment = await addRow(sid, awbSec.id, "awbShipments", { projectId: project.id });
+  const task = await addRow(sid, tasksSec.id, "tasks", { projectId: project.id });
+  const overtime = await addRow(sid, overtimesSec.id, "overtimes", { projectId: project.id });
+
+  await backfillStudio(sid, { apply: true });
+
+  const engId = deterministicEngId("ticket", ticket.id);
+  const view = await readEngagementView(sid, engId);
+  assert.ok(view, "engagement view resolves for the seeded chain");
+
+  const expected = {
+    rfq: rfq.id, quotation: quotation.id, invoice: invoice.id, expense: expense.id,
+    order: order.id, sheet: sheet.id, delivery: delivery.id, shipment: shipment.id,
+    task: task.id, overtime: overtime.id,
+  };
+  for (const [type, id] of Object.entries(expected)) {
+    // If buildEngagements writes this type to a ZSET readEngagementView's list
+    // doesn't name (or the reverse — the view names a type nothing ever
+    // writes), this member array comes back empty or missing the id. That IS
+    // the drift this test exists to catch.
+    assert.deepEqual(view.members[type], [id],
+      `"${type}" round-trips: written by buildEngagements, surfaced by readEngagementView`);
+  }
+
+  // SECOND, CHEAPER GUARD — direct list-vs-registry: every member type the
+  // write/read paths use must be a real STAGE_REGISTRY key, so a typo'd or
+  // non-registry type is caught even without a seeded record for it.
+  // `bill` and `asset` ARE STAGE_REGISTRY entries deliberately NOT in
+  // ALL_MEMBER_TYPES: they hang off finance-payables/finance-assets, which
+  // carry no ticketId/projectId to cluster a chain by, so the backfill (a
+  // pure ticket→project walk) has nothing to attach them to — their absence
+  // here is intentional non-project-scoping, not drift. `ticket`/`project`
+  // are the singleton slots (tracked via `singletons`, not `members`), so
+  // they are checked separately, not in this list.
+  for (const type of ALL_MEMBER_TYPES) {
+    assert.ok(STAGE_REGISTRY[type],
+      `"${type}" is a STAGE_REGISTRY key — the backfill/read-view vocabulary must stay inside the registry`);
+  }
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   (async () => {
-    for (const t of [testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity]) {
+    for (const t of [testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity,
+                      testVocabularyParity]) {
       await t();
       console.log(`ok ${t.name}`);
     }
