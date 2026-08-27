@@ -96,6 +96,15 @@ const EXTRA = {
   "Gate A Studio": "<studio-name>",
   [utcDay(0)]: "<today>",
   [utcDay(6)]: "<today+6>",   // the far end of the operations week window
+  // The vacation fixture below used to be the literal `2026-09-01`, which is
+  // `today+N` for some N that keeps changing as the calendar moves — and
+  // periodically N landed inside [0, 6] and got silently rewritten by the two
+  // placeholders above, failing the collision check for a reason that had
+  // nothing to do with the code. Clock-relative and pushed to today+30/34 —
+  // comfortably outside the week window this file also exercises — so it can
+  // never collide again, the same fix as the operations week window itself.
+  [utcDay(30)]: "<today+30>",
+  [utcDay(34)]: "<today+34>",
 };
 
 // THE SUBSTITUTION ABOVE IS A BLIND STRING REPLACE, which is fine until a
@@ -1668,7 +1677,7 @@ console.log("== hr: whose records, which numbers, and what is on disk");
   await signIn(asker.user.id);
   const asked = await shot("hr.vacation.requested", await capture(
     VACATIONS.POST, req(`/api/studios/${slug}/hr/vacations`, { method: "POST", body: {
-      from: "2026-09-01", to: "2026-09-05", reason: "Family",
+      from: utcDay(30), to: utcDay(34), reason: "Family",
     } }), P));
   const vacationId = asked.body?.vacation?.id;
   ok("somebody can ask for their own leave", Boolean(vacationId), JSON.stringify(asked.body).slice(0, 120));
