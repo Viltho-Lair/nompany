@@ -105,7 +105,11 @@ export async function listEngagements(
     if (!stages.length) continue;
     engagements.push({
       id: engId,
-      ref: String((view.context.ref as string) || ""),
+      // ref lives on the engagement ROOT, never inside context — readEngagementView
+      // returns it alongside context now (I-1: the `as string` cast on
+      // Record<string, unknown> was hiding "this key does not exist here" from
+      // tsc, so every row's Ref column read empty forever).
+      ref: String(view.ref || ""),
       clientName: String(view.context.clientName || ""),
       title: String(view.context.title || ""),
       createdAt: String(view.context.createdAt || ""),

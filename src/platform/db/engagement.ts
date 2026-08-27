@@ -177,7 +177,7 @@ export async function engagementOf(studioId: string, type: string, recId: string
 // bodies are resolved by the caller from their own collections — this returns ids.
 export async function readEngagementView(
   studioId: string, engId: string,
-): Promise<{ context: Record<string, unknown>; singletons: Record<string, string | null>; members: Record<string, string[]> } | null> {
+): Promise<{ ref: string; context: Record<string, unknown>; singletons: Record<string, string | null>; members: Record<string, string[]> } | null> {
   const root = await readEngagement(studioId, engId);
   if (!root) return null;
   const members: Record<string, string[]> = {};
@@ -199,7 +199,11 @@ export async function readEngagementView(
     const ids = await zRange(ENG.members(studioId, engId, type), 0, -1);
     if (ids.length) members[type] = ids;
   }
-  return { context: root.context, singletons: root.singletons, members };
+  // `ref` lives on the root, never inside `context` — returned alongside it
+  // (additive, existing fields unchanged) so a caller like listEngagements
+  // does not have to re-read the root just for the one field it already has
+  // in hand here.
+  return { ref: root.ref, context: root.context, singletons: root.singletons, members };
 }
 
 // Dual-write helper: derive and persist the engagement for a just-created ticket,
