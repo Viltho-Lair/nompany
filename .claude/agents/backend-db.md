@@ -378,6 +378,104 @@ must change, that is its own commit with a stated reason.
 
 ---
 
+### The engagement model — the structure, in one place
+
+**This section is the reference. Do not reconstruct it from memory and do not infer it from a
+screen: read it here, then read the code it names.** The spec is
+`docs/superpowers/specs/2026-08-26-engagement-storage-model-design.md`; the view's is
+`2026-08-27-engagements-view-design.md`. When the code and this section disagree, the code is
+right and this section is a bug — fix it here in the same commit.
+
+**What an engagement is.** One deal. It owns the client-facing facts once, and every record in
+the deal — ticket, RFQ, quotation, project, and the project's children — reads them from it
+rather than keeping a copy. You may enter the deal at any stage, in any order; no stage is a
+prerequisite for another; a missing stage is an invitation, never an error.
+
+**The keys** (all built in `src/platform/db/keys.ts`, `ENG` object — never a literal):
+
+```
+s:<sid>:eng:<engId>                    the root: context + singleton pointers
+s:<sid>:eng:<engId>:members:<type>     ZSET of recIds, scored by createdAt (many-cardinality)
+s:<sid>:eng-index                      ZSET of every engId in the studio, scored by createdAt
+s:<sid>:eng-ix:has:<type>              SET of engIds that have this stage (write-only today)
+s:<sid>:rec-eng:<type>:<recId>         reverse index: record -> its engId
+s:<sid>:rec:<type>:<recId>             per-record key (declared; records still live in the
+                                       section array collections — the move is a later phase)
+```
+
+**The root.** Small and rarely written:
+
+```
+{ id, studioId, ref,
+  context:    { clientId, clientName, industry, urgency, title, deadline, contact{}, site{}, createdAt },
+  singletons: { ticket, approvedQuotation, project },   // each recId | null
+  createdAt, updatedAt }
+```
+
+There is **no engagement `status`**, deliberately: a deal's status is its ticket's, its delivery
+status is its project's stage. A single label is derived on read, never stored.
+
+**Membership lives in ZSETs, not on the root** — a busy engagement must never contend on one
+document. Member keys use the **singular registry type** (`rfq`, `quotation`, `invoice`, …), the
+same identifier `attachRecord` uses, so a backfilled record and a live-created one land in the
+same set. Plural keys were a real bug once; do not reintroduce them.
+
+**The registry is the single source of what a stage is** —
+`src/platform/engagement/registry.ts`, pure (no imports, importable by a client component). One
+entry per type: `type`, `cardinality` (`one` | `many`), `sectionKey`, `permission`, `collection`,
+`label`, `unassignable`. Add a type here and the root shape, the attach procedure, the indexes
+and the read layer all follow. Do not hand-maintain a second copy of this vocabulary anywhere;
+`readEngagementView` derives its member list from it for exactly that reason.
+
+**Ids are deterministic** — `deterministicEngId(headType, headId)` (pure JS SHA-1 in
+`src/platform/db/engagementId.ts`, re-exported by `keys.ts`; it is NOT `node:crypto`, because
+`keys.ts` is reachable from a client component and importing crypto there costs ~130 KB gz). A
+ticket-headed deal is `deterministicEngId("ticket", ticketId)`; an internal quotation mints its
+own, `deterministicEngId("quotation", quotationId)`. Same chain, same id, every time — that is
+what makes the backfill idempotent.
+
+**The copy law.** Three rules, and confusing them is how data drifts:
+- **Context is LIVE, on the engagement.** Client, contact, site, industry, urgency, title. Read
+  through the engagement; never copied onto a record. Where `clientId` names a real Client row,
+  the name is resolved from that row at read time (the `composeTicket` pattern) — the stored
+  `clientName` is only the free-text fallback for a client with no record yet.
+- **Documents and money are LOCK-FROZEN, reversibly.** Quotation prices, invoice lines, PO
+  amounts are mutable while unlocked; locking snapshots them; unlocking (a separate right) makes
+  them mutable again and re-locking takes a fresh snapshot.
+- **Issue-context is ISSUE-FROZEN, one-way.** An invoice's `clientName` is live while it is a
+  Draft and snapshotted at issue — that is the record of who was billed, as named then, and it is
+  also what lets a Finance reader see it without holding a Sales right.
+
+**Creating anything (the one procedure).** Classify: (A) part of one engagement, (B) shared
+studio reference read live, (C) infrastructure. Only A continues: find or mint the engagement →
+write the record with its `engagementId` → attach (a `one` type CAS-claims the root slot and
+refuses a second; a `many` type is a ZSET add) → index → `XADD` before publish. Deletion is the
+reverse and is the "deleting this affects X, Y, Z" answer.
+
+**Reading it.** `readEngagementView(studioId, engId)` returns `{ ref, context, singletons,
+members }`. `src/modules/main/engagements.ts` turns that into the list and the block, filtering
+**every stage by the permission its registry entry declares** — so each department reads its own
+part of the same deal. The rule that governs that file:
+
+> The engagement view must never reveal a record the viewer could not already see on that
+> record's own department screen.
+
+A withheld stage is **absent from the payload**; a visible-but-absent stage is `present: false`.
+Those two must never look alike.
+
+**Backfill.** `scripts/migrate/backfill-engagements.mjs` derives engagements from the existing
+chains (`src/platform/engagement/backfill.ts`, pure). Dry-run by default, refuses the live
+namespace without `--allow-live`, writes only with `--apply`, additive and idempotent. It is the
+reconciler: a missed dual-write is healed by re-running it.
+
+**What is deliberately not done yet** (do not assume otherwise): records still live in their
+section array collections, not at `rec:` keys; `dept:<type>` and `hasStage` are written but never
+cleaned, so no reader may treat them as authoritative; the project's children do not attach on
+create; there is no reconcile job; a project born from an internal quotation does not yet attach
+to that quotation's engagement, and `openProject` still sources its client from the ticket alone.
+
+---
+
 ## Constraint log — data-layer-specific
 
 Append-only, newest last. **`dd/mm/yyyy`.** Anything architectural or
