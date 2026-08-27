@@ -69,15 +69,19 @@ when the code looks cleaner afterwards.
     empty-or-unbounded prefix, and `sweepOrphans()` from a test or script are never
     run at all. When a twice-confirmed deletion does proceed: export first, delete by
     an explicit key list, re-scan to prove it. Verification stays read-only by
-    default. (Directive 7 in every `.claude/agents/*.md` says the same.)
+    default. (Rule 7 in every `.claude/agents/*.md` says the same.)
 
 ---
 
 ## The agent team
 
-Eight agents in `.claude/agents/`. Each file carries the same **Global Directives**
-section — byte-identical in all eight, so edit it in all eight or not at all — and
-then its own **Domain Workflow** and **Constraint log**.
+Ten agents in `.claude/agents/`. Each file carries the same **Rules** section —
+byte-identical in all ten, so edit it in all ten or not at all — and then its own
+domain notes, a **Do not** list and a **Constraint log**. The files were rebuilt
+short on 28/08/2026 (3,641 lines → 1,525): the shared block went from 155 lines to
+34, and everything `CLAUDE.md` already says was cut from all ten rather than
+restated ten times. A brief that takes longer to read than the task takes to do is
+the thing that was wrong.
 
 | Agent | Owns |
 |---|---|
@@ -89,6 +93,8 @@ then its own **Domain Workflow** and **Constraint log**.
 | `operations-integration` | HR, Finance, Inventory, Operations, and what an external payload *means* to a record |
 | `devops` | CI, deploys, environments, secrets, crons, and the *wiring* of external services |
 | `qa-security` | Tests, permission matrix, tenant-bleed proofs, hop counts. Read-only over `src/**` |
+| `data-scientist` | KPIs, rollups, the numbers behind the charts — analytics is paid and tiered |
+| `seo-improver` | Public metadata, sitemaps, hreflang, structured data. Never the studio or `/super` |
 
 **`operations-integration` and `devops` were one agent, and it was two-headed by
 accident.** The record departments stayed whole; the pipeline moved out. The seam:
@@ -97,11 +103,13 @@ accident.** The record departments stayed whole; the pipeline moved out. The sea
 a cost. A carrier integration runs `researcher` → `devops` → `operations-integration`,
 in that order, never concurrently on one file.
 
-The directives that bind everyone: teach yourself from the codebase; consult
-`researcher` before adopting anything new; never duplicate, and trace every dependant
-before removing; summarise accepted work against the user's acceptance criteria; log
-constraints — major ones to `orchestrator`'s global list, minor ones to your own
-file; and end every message with real questions.
+The rules that bind everyone: **match effort to the task** — most requests are one file
+and one rule, and the full sweep is for work that crosses modules; find it in the code
+before asking; consult `researcher` before adopting anything new; never duplicate, and
+trace every dependant before removing; verify and report against the acceptance
+criteria; log constraints — major ones to `orchestrator`'s global list, minor ones to
+your own file; two confirmations before any destructive database action; and end with a
+question only when the answer changes what happens next.
 
 ---
 

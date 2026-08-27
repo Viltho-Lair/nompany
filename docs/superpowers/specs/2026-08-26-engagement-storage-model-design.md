@@ -389,7 +389,7 @@ The design breaches no invariant; the *plan to build it* must honour the followi
 6. **Updates through `editJSON` (Inv. 8).** A record update is a compare-and-set on its own key,
    not a blind `setJSON`. Singleton-slot claims are CAS (`null→id`). Index writes use native
    atomic `SADD`/`ZADD` (consistent with the no-blind-overwrite rule).
-7. **Researcher pass (Directive 2).** Before build, a short `researcher` validation of the
+7. **Researcher pass (rule 4 — consult `researcher` before adopting anything new).** Before build, a short `researcher` validation of the
    aggregate-root + Redis-secondary-index approach against alternatives — the pattern is grounded
    in `relations.ts`/the repo seam/the SQL-migration doc, not invented, but the directive asks.
 8. **Reconcile cron fails closed (Inv. 15).** The index/`mainAgg` reconcile job refuses without
