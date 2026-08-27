@@ -116,11 +116,16 @@ export const QuotationSchema = z.looseObject({
   ticketId: z.string().optional(),
 
   // ---- INTERNAL quotations only — no ticketId behind them -------------------
-  // The client either NAMES a real Sales client (clientId, resolved live off
-  // that record the way ticketFacts resolves a ticket's) or is FREE TEXT
-  // nobody has typed into Sales yet (clientName). Never both — a stored id
-  // makes the free-text field meaningless, so createQuotation writes one or
-  // the other, never one and then the other later.
+  // clientId NAMES a real Sales client, resolved live off that record the way
+  // ticketFacts resolves a ticket's — never copied here. createQuotation runs
+  // the whole client block (name/id, contact, site) through resolveClientFor
+  // (see salesClients.ts), the same find-or-create a ticket uses, so a client
+  // is ALWAYS a real row now: the free-text-only branch that used to write
+  // clientName instead of resolving an id is gone — that branch is exactly
+  // what left a project with no client at all (Project Home Invasion). New
+  // writes leave clientName blank; it survives only as a READ fallback in
+  // listQuotations for quotations created before this fix, which have a name
+  // and no id because nothing ever turned their text into a Client record.
   clientId: z.string().optional(),
   clientName: z.string().optional(),
   industry: z.string().optional(),

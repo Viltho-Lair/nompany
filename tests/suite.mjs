@@ -878,6 +878,56 @@ console.log("\n== one function finds a client and folds in what a deal knows abo
 }
 
 // ============================================================================
+console.log("\n== a quotation captures the client the way a ticket does (Task 2, client-belongs-to-the-engagement)");
+// createQuotation used to take clientId OR a typed clientName, mutually
+// exclusive, and the free-text branch never touched Sales at all — that is
+// what left "Project Home Invasion" with a blank client: its quotation had
+// only a name typed in, never a real Client record. The whole client block
+// now runs through resolveClientFor, exactly as createTicket's does, so an
+// internal quotation always resolves to a real Client row.
+{
+  const tech = await technicalContext(owner, slug);
+  const sequence = (tech.sequences || [])[0];
+  ok("a default sequence exists to create against", Boolean(sequence), JSON.stringify(tech.sequences));
+
+  const clientName = `Quote Client ${rand()}`;
+  const first = await createQuotation(tech, {
+    sequenceId: sequence?.id, clientName,
+    contactName: "Priya Shah", contactPosition: "Facilities Manager",
+    contactEmail: "priya@quoteclient.example", contactPhone: "555-0177",
+    location: { name: "Main Site", country: "US", city: "Austin", url: "https://quoteclient.example/site" },
+    title: "Full client block", industry: "Technology", deadline: "2026-12-01",
+    description: "Captured the way a ticket does.",
+  });
+  ok("the quotation comes back carrying a real clientId",
+    !!first.quotation?.clientId, JSON.stringify(first.error || first.quotation));
+
+  const clients = await readCol(studio.id, tech.salesClientsSection.id, "salesClients");
+  const client = clients.find((c) => c.id === first.quotation?.clientId);
+  ok("a Client record exists with that name", client?.name === clientName, JSON.stringify(client));
+  ok("...its contacts hold the contact",
+    client?.contacts?.some((c) => c.name === "Priya Shah" && c.email === "priya@quoteclient.example"),
+    JSON.stringify(client?.contacts));
+  ok("...and its locations hold the site",
+    client?.locations?.some((l) => l.name === "Main Site" && l.city === "Austin"),
+    JSON.stringify(client?.locations));
+
+  const second = await createQuotation(tech, {
+    sequenceId: sequence?.id, clientName,
+    title: "Second one, same client", industry: "Technology", deadline: "2026-12-15",
+    description: "Reuses the client rather than duplicating it.",
+  });
+  ok("a second internal quotation for the same client name reuses that client, not a new one",
+    !!second.quotation && second.quotation.clientId === first.quotation.clientId,
+    JSON.stringify(second.error || second.quotation));
+
+  const clientsAfter = await readCol(studio.id, tech.salesClientsSection.id, "salesClients");
+  ok("...so there is still exactly one client row for this name",
+    clientsAfter.filter((c) => c.name === clientName).length === 1,
+    JSON.stringify(clientsAfter.map((c) => c.name)));
+}
+
+// ============================================================================
 console.log("\n== engagement on-create (Phase 1b-ii, Task 3b): an internal quotation");
 // dual-write: a quotation raised straight from the Quotations screen — no
 // ticketId behind it — mints its OWN engagement, the backfill's orphan-

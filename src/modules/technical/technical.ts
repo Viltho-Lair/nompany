@@ -22,6 +22,7 @@ import { listRoles } from "@/modules/people/roles";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "./rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/modules/sales/tickets";
+import { resolveClientFor } from "@/modules/sales/salesClients";
 import {
   quotationApproved, readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES,
 } from "@/modules/tasks/taskRouting";
@@ -657,14 +658,30 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
   const sequence = (ctx.sequences || []).find((s) => s.id === sequenceId);
   if (!sequence) return { error: "sequence" };
 
-  // A CLIENT: either a real Sales client's id, or a name nobody has typed into
-  // Sales yet. Read further down, once the sections are known to exist, but
-  // the ABSENCE of either is checked here with the rest of the required
+  // THE FULL CLIENT BLOCK — the same one createTicket takes (sales.ts), coerced
+  // the same way: a real Sales client's id, or a name to find-or-create by, plus
+  // the contact and site this deal knows about them. Resolved further down
+  // through resolveClientFor, once the sections are known to exist, but the
+  // ABSENCE of both id and name is checked here with the rest of the required
   // fields — cheap, and it means one refusal names everything missing at once
   // rather than one round trip per field.
   const clientId = str(body?.clientId, 60);
   const typedClientName = str(body?.clientName, 200);
   if (!clientId && !typedClientName) return { error: "client" };
+
+  const contact = {
+    name: str(body?.contactName, 120),
+    email: str(body?.contactEmail, 200),
+    phone: str(body?.contactPhone, 60),
+    position: str(body?.contactPosition, 120),
+  };
+  const loc = (body?.location && typeof body.location === "object" ? body.location : {}) as Record<string, unknown>;
+  // Country joins city and map link on the site: a site is somewhere, same
+  // shape createTicket's location object takes.
+  const location = {
+    name: str(loc.name, 160), country: str(loc.country, 80),
+    city: str(loc.city, 120), url: str(loc.url, 500),
+  };
 
   const title = str(body?.title, 200);
   const industry = str(body?.industry, 120);
@@ -675,15 +692,23 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
   if (!deadline) return { error: "deadline" };
   if (!description) return { error: "description" };
 
-  // ONE WAVE: the quotations this sequence numbers against, and — only when a
-  // clientId was actually named — the Sales clients it has to be real against.
-  // TYPING A NEW NAME MUST NOT CREATE A SALES CLIENT: this reads that
-  // collection to validate an id, and never writes it.
-  const [quotations, clients] = await Promise.all([
+  // ONE WAVE: the quotations this sequence numbers against, and the client this
+  // deal resolves against. EVERY quotation resolves a real Client record now
+  // (see the schema note on clientId/clientName), so this runs unconditionally
+  // rather than only when an id was named — find-or-create, plus folding in the
+  // contact and site, is exactly what resolveClientFor does; see salesClients.ts.
+  // A studio with no Sales section has no Sales client model to resolve into,
+  // which refuses the same way a missing id/name does.
+  const [quotations, client] = await Promise.all([
     Quotations.find({ studio, section: quotationsSection }),
-    clientId && salesClientsSection ? Clients.find({ studio, section: salesClientsSection }) : Promise.resolve([]),
+    salesClientsSection
+      ? resolveClientFor(
+        { studio, section: salesClientsSection },
+        { clientId, clientName: typedClientName, industry, contact, site: location, collaboratorId: collaborator.id },
+      )
+      : Promise.resolve(null),
   ]);
-  if (clientId && !clients.some((c) => c.id === clientId)) return { error: "client" };
+  if (!client) return { error: "client" };
 
   // Server-issued, never client-submitted: nextNumberForSequence self-seeds
   // past the highest number this sequence already carries (invariant 10), so
@@ -713,11 +738,11 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
     handledBy,
     handledByCollaboratorId,
     title,
-    // THE CLIENT — never both. A stored id makes the free-text name
-    // meaningless (see listQuotations, which reads the id's name live rather
-    // than trusting whatever was typed here at create time).
-    clientId: clientId || "",
-    clientName: clientId ? "" : typedClientName,
+    // THE CLIENT — always a real Client record's id now (see the schema note).
+    // clientName stays blank on every new write; listQuotations reads the id's
+    // name live off the Client record rather than trusting anything stored here.
+    clientId: client.id,
+    clientName: "",
     industry,
     deadline,
     status: DEFAULT_QUOTATION_STATUS,
@@ -739,7 +764,6 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
   // engagement — the backfill's orphan-quotation path, reused so a live one and
   // a backfilled one land on the identical engId. Best-effort, never blocking.
   try {
-    const client = clientId ? clients.find((c) => c.id === clientId) || null : null;
     await attachQuotationEngagement(studio.id, quotation, client);
   } catch { /* best-effort: reconciled later */ }
 
