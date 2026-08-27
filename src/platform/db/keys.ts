@@ -138,6 +138,15 @@ export const U = {
   // It is a property of the person, not of any studio, so it belongs under the
   // user prefix and is reaped by the user cascade like everything else here.
   studioVisits: (userId: string) => `${P}u:${userId}:studioVisits`,
+  // LAST-SEEN / LAST-LOGIN, moved OFF the g:users registry row (R6). touchLastSeen
+  // fires on every authenticated request and used to READ and, every few minutes
+  // per user, REWRITE the whole shared registry through a compare-and-set — the
+  // hottest CAS contention in the system, since every presence stamp serialised
+  // behind every other writer to g:users. Two timestamps do not belong on a row
+  // shared by every user, so they live in this tiny per-user document instead. It
+  // dies with the user via the u:<id>:* prefix; like u:<id>:sessions it is not
+  // (yet) in the SQL export mapping.
+  activity: (userId: string) => `${P}u:${userId}:activity`,
 };
 
 // ---- OTP challenges (NOT user-scoped, deliberately) ------------------------

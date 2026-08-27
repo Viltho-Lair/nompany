@@ -35,7 +35,7 @@ import { moduleContext } from "../context";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/platform/auth/collaborators";
 import { listRoles, createRole, updateRole, deleteRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
 import { departmentsFromSections } from "@/lib/departments";
-import { getProfile } from "@/platform/auth/users";
+import { getProfilesByIds } from "@/platform/auth/users";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { encryptField, decryptField } from "@/platform/auth/fieldCrypto";
 import type { Certification, Vacation, ExpiringDocument, HrContext } from "./types";
@@ -303,20 +303,28 @@ export async function listEmployees(ctx: HrContext, meId = "") {
   // copied in on the day they joined. It is read off the profile now, on every
   // read, exactly as People has always done it.
   //
-  // In parallel, and forgiving: a profile that fails or has no picture yields
-  // "", which the screen already knows how to draw as initials. Nothing else
-  // crosses over from the account — the alias, the role and every HR field
-  // below are studio-local and stay that way.
+  // ONE MGET FOR THE WHOLE ROLL, not one GET per person (R9). This was a
+  // getProfile-per-employee N+1 — N distinct commands for a screen that lists
+  // everyone. getProfilesByIds fetches the visible people's profiles in a single
+  // hop; the request cache shares any that were already read.
+  //
+  // Still forgiving: a profile with no picture yields "", which the screen draws
+  // as initials, and a read that fails outright degrades the WHOLE roll to blank
+  // faces rather than breaking the list — the same "never let a photo break HR"
+  // guarantee the per-row `.catch` gave. Nothing else crosses over from the
+  // account: the alias, the role and every HR field below are studio-local.
   const visible = people.filter((c) => inScope(c as CollaboratorRef));
-  const photos = await Promise.all(
-    visible.map((c) => (c.userId ? getProfile(String(c.userId)).then((p) => p?.photo || "").catch(() => "") : "")),
-  );
+  const userIds = [...new Set(visible.map((c) => String(c.userId || "")).filter(Boolean))];
+  const photoByUserId = new Map<string, string>();
+  try {
+    (await getProfilesByIds(userIds)).forEach((p, i) => photoByUserId.set(userIds[i], p?.photo || ""));
+  } catch { /* blank faces, drawn as initials — never break the employee list */ }
 
-  return visible.map((c, i) => ({
+  return visible.map((c) => ({
     id: c.id,
     alias: c.alias || "Unnamed",
     role: c.role,
-    photo: photos[i] || "",
+    photo: c.userId ? (photoByUserId.get(String(c.userId)) || "") : "",
     departmentId: c.departmentId || "",
     departmentName: depName[String(c.departmentId || "")] || "",
     // WHAT THEY ARE, which is now the same answer as what they may do. Carried
