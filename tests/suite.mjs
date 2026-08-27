@@ -124,6 +124,12 @@ import { readEngagementView } from "@/platform/db/engagement";
 // exported test function, run explicitly further down through the same
 // try/catch adapter (node:assert throws are not this file's ok() shape).
 import { testAttachTicketEngagement } from "./engagement-oncreate.mjs";
+// PHASE 1b-ii SPINE (Task 5). Same standalone-runner shape as engagement.mjs,
+// engagement-backfill.mjs and engagement-oncreate.mjs above — importing it
+// here pulls in only the one exported test function, run explicitly further
+// down through the same try/catch adapter (node:assert throws are not this
+// file's ok() shape).
+import { testSpineHelpers } from "./engagement-spine.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -3363,6 +3369,19 @@ console.log("\n== engagement backfill (Phase 1a)");
 console.log("\n== engagement on-create (Phase 1b-i)");
 {
   for (const t of [testAttachTicketEngagement]) {
+    try {
+      await t();
+      ok(t.name, true);
+    } catch (e) {
+      ok(t.name, false, e.message);
+    }
+  }
+}
+
+// ============================================================================
+console.log("\n== engagement spine (Phase 1b-ii, Task 5)");
+{
+  for (const t of [testSpineHelpers]) {
     try {
       await t();
       ok(t.name, true);
