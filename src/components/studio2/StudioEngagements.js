@@ -150,9 +150,9 @@ export default function StudioEngagements({ slug }) {
 }
 
 // ---------------------------------------------------------------------------
-// THE LIST — ref, client, title, derived status, and a badge per stage that
-// exists. The badges are where "enter from any stage" becomes visible: a deal
-// that began at a quotation simply has no ticket badge (design §8).
+// THE LIST — ref, client, title, and a badge per stage that exists. The
+// badges are where "enter from any stage" becomes visible: a deal that began
+// at a quotation simply has no ticket badge (design §8).
 function EngagementList({ list, loading, error, loadingMore, onOpen, onLoadMore }) {
   if (error) {
     return (
@@ -165,8 +165,16 @@ function EngagementList({ list, loading, error, loadingMore, onOpen, onLoadMore 
   if (loading && !list) return <ListSkeleton />;
 
   const rows = list?.engagements || [];
+  const hasMore = list?.nextCursor != null;
 
-  if (rows.length === 0) {
+  // listEngagements takes 25 raw ids off the index and only THEN drops the
+  // ones the viewer can see no stage of, so a page can legitimately come
+  // back with zero visible rows while more pages remain — e.g. a
+  // Finance-only member whose newest 25 deals all happen to have no invoice
+  // yet. Zero rows only means "nothing more to fetch" when nextCursor is
+  // also null; otherwise it is a page-level result, and "Load more" is the
+  // only way to reach the deals that ARE visible further down the index.
+  if (rows.length === 0 && !hasMore) {
     return (
       <div className={`${panel} text-center`}>
         <p className="font-display text-base font-700 text-slate-900 dark:text-white">Nothing here yet</p>
@@ -174,6 +182,22 @@ function EngagementList({ list, loading, error, loadingMore, onOpen, onLoadMore 
           A deal appears here the moment it starts anywhere in the studio — a ticket, an RFQ, or a
           quotation raised on its own.
         </p>
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className={`${panel} text-center`}>
+        <p className="font-display text-base font-700 text-slate-900 dark:text-white">No engagements you can see on this page</p>
+        <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
+          More deals may be further down the list — this page just did not have any you have access to.
+        </p>
+        <div className="mt-4">
+          <button type="button" className={btnGhost} disabled={loadingMore} onClick={onLoadMore}>
+            {loadingMore ? "Loading…" : "Load more"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -219,7 +243,7 @@ function EngagementList({ list, loading, error, loadingMore, onOpen, onLoadMore 
         </tbody>
       </table>
 
-      {list?.nextCursor != null && (
+      {hasMore && (
         <div className="border-t border-slate-100 p-4 text-center dark:border-white/5">
           <button type="button" className={btnGhost} disabled={loadingMore} onClick={onLoadMore}>
             {loadingMore ? "Loading…" : "Load more"}
