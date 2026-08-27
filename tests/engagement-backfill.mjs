@@ -131,9 +131,72 @@ export async function testBackfillStudio() {
   assert.equal(await readEngagementView(sid, secondEngId), null, "dry run writes nothing");
 }
 
+// Task 5 — PARITY: the backfilled engagement layer must equal what today's
+// read paths return for a full chain, not just the single-quotation/
+// single-invoice shape testBackfillStudio already covers. Two quotations
+// (different createdAt) on one ticket, a project naming both ticket and
+// quotation, two invoices and a task on that project, PLUS one orphan
+// internal quotation (no ticketId) — closing the two gaps the earlier tests
+// left open: (1) which quotation becomes "approved" when there is more than
+// one (newest by createdAt), and (2) the orphan-quotation-as-its-own-
+// engagement path, which testCluster only proves at the pure-clustering
+// level and never round-trips through backfillStudio + readEngagementView.
+export async function testParity() {
+  const owner = (await createUser({ email: `par-${Date.now().toString(36)}@test.invalid`, passwordHash: "x" })).user;
+  const slug = `par-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const created = await createStudio({ ownerUserId: owner.id, name: "Parity Studio", slug, ownerAlias: "Owner" });
+  assert.ok(!created.error, `fixture studio: ${created.error}`);
+  const sid = created.studio.id;
+
+  const ticketsSec = await getSectionByKey(sid, "sales-tickets");
+  const clientsSec = await getSectionByKey(sid, "sales-clients");
+  const quotationsSec = await getSectionByKey(sid, "technical-quotations");
+  const projectsSec = await getSectionByKey(sid, "projects-list");
+  const cashSec = await getSectionByKey(sid, "finance-cash");
+  const tasksSec = await getSectionByKey(sid, "tasks");
+
+  const client = await addRow(sid, clientsSec.id, "salesClients", { name: "Acme Parity" });
+  const ticket = await addRow(sid, ticketsSec.id, "salesTickets",
+    { clientId: client.id, clientName: client.name, ref: "ACME-PAR-001", title: "Roof" });
+  const quo1 = await addRow(sid, quotationsSec.id, "quotations", { ticketId: ticket.id, createdAt: "2026-01-01" });
+  const quo2 = await addRow(sid, quotationsSec.id, "quotations", { ticketId: ticket.id, createdAt: "2026-03-01" });
+  const project = await addRow(sid, projectsSec.id, "projects", { ticketId: ticket.id, quotationId: quo2.id });
+  const inv1 = await addRow(sid, cashSec.id, "invoices", { projectId: project.id });
+  const inv2 = await addRow(sid, cashSec.id, "invoices", { projectId: project.id });
+  const task = await addRow(sid, tasksSec.id, "tasks", { projectId: project.id });
+
+  // Orphan internal quotation: no ticket, its own client name — clusters into
+  // its OWN engagement (buildEngagements' second loop), not the ticket's.
+  const orphanQuo = await addRow(sid, quotationsSec.id, "quotations", { clientName: "Loose Co" });
+
+  const result = await backfillStudio(sid, { apply: true });
+  assert.ok(result.engagements >= 2, "one engagement for the ticket chain, one for the orphan quotation");
+
+  const engId = deterministicEngId("ticket", ticket.id);
+  const view = await readEngagementView(sid, engId);
+  assert.ok(view, "engagement view resolves for the ticket chain");
+
+  // PARITY — the layer's resolved records must equal what the live rows say.
+  assert.equal(view.context.clientName, client.name, "context.clientName equals the live client's name");
+  assert.equal(view.singletons.ticket, ticket.id, "singletons.ticket equals the seeded ticket");
+  assert.equal(view.singletons.project, project.id, "singletons.project equals the seeded project");
+  // The coverage gap this closes: with two quotations, "approved" must be the
+  // newest by createdAt, not just whichever one happens to be seeded alone.
+  assert.equal(view.singletons.approvedQuotation, quo2.id, "approvedQuotation is the NEWEST quotation by createdAt");
+  assert.deepEqual([...view.members.quotation].sort(), [quo1.id, quo2.id].sort(), "both quotations are members");
+  assert.deepEqual([...view.members.invoice].sort(), [inv1.id, inv2.id].sort(), "both invoices are members");
+  assert.deepEqual(view.members.task, [task.id], "the task is a member");
+
+  // The orphan path — its own engagement, keyed off the quotation itself.
+  const orphanEngId = deterministicEngId("quotation", orphanQuo.id);
+  const orphanView = await readEngagementView(sid, orphanEngId);
+  assert.ok(orphanView, "the orphan quotation resolves its own engagement");
+  assert.deepEqual(orphanView.members.quotation, [orphanQuo.id], "the orphan engagement's only member is itself");
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   (async () => {
-    for (const t of [testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio]) {
+    for (const t of [testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity]) {
       await t();
       console.log(`ok ${t.name}`);
     }

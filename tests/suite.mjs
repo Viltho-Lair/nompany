@@ -105,6 +105,13 @@ import {
   testZsetHelpers, testEngagementKeys, testRegistry, testCreateRead,
   testAttach, testDetachAndRefs, testUnassigned,
 } from "./engagement.mjs";
+// ENGAGEMENT BACKFILL (Phase 1a). Same standalone-runner shape as
+// engagement.mjs above — importing it here pulls in only the five exported
+// test functions, run explicitly further down through the same try/catch
+// adapter (node:assert throws are not this file's ok() shape).
+import {
+  testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity,
+} from "./engagement-backfill.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -3250,6 +3257,19 @@ console.log("\n== engagement foundations (Phase 0)");
 {
   for (const t of [testZsetHelpers, testEngagementKeys, testRegistry, testCreateRead,
                    testAttach, testDetachAndRefs, testUnassigned]) {
+    try {
+      await t();
+      ok(t.name, true);
+    } catch (e) {
+      ok(t.name, false, e.message);
+    }
+  }
+}
+
+// ============================================================================
+console.log("\n== engagement backfill (Phase 1a)");
+{
+  for (const t of [testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity]) {
     try {
       await t();
       ok(t.name, true);
