@@ -27,6 +27,7 @@ import {
 } from "@/modules/tasks/taskRouting";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { landedUnitCost } from "@/shared/currencies";
+import { attachToTicketEngagement } from "@/platform/db/engagement";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
@@ -317,6 +318,13 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
     requestedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
+
+  // Dual-write the engagement layer: the RFQ joins the ticket's engagement, the
+  // SAME deterministic id the backfill would cluster it under. Best-effort — the
+  // RFQ is raised; failing to attach it must not fail that (see attachTicketEngagement).
+  try {
+    await attachToTicketEngagement(studio.id, "rfq", rfq.id, rfq.ticketId);
+  } catch { /* best-effort: reconciled later */ }
 
   // RAISING A REVISION CLOSES THE ONE BEING REVISED.
   //

@@ -341,6 +341,11 @@ console.log("\n== the handler is carried, never copied");
   const asked = await requestTicketRfq(sales, { ticketId: made.ticket?.id });
   ok("...and handed to Technical", !!asked.rfq, JSON.stringify(asked.error));
 
+  // dual-write (Task 2): requesting an RFQ attaches it to the ticket's engagement.
+  const rfqEngView = await readEngagementView(studio.id, engId);
+  ok("requestRfq attaches the rfq to the ticket's engagement",
+    !!rfqEngView?.members.rfq?.includes(asked.rfq?.id), JSON.stringify(rfqEngView?.members.rfq));
+
   // Converted to MEMBER, then reassigned to VIEWER. The second half is the one
   // that catches a copy: a copy keeps naming Member forever.
   const tech = await technicalContext(owner, slug);
