@@ -175,8 +175,11 @@ export async function readEngagementView(
   const root = await readEngagement(studioId, engId);
   if (!root) return null;
   const members: Record<string, string[]> = {};
-  for (const type of ["rfqs", "quotations", "invoices", "expenses", "orders",
-                      "deliveries", "shipments", "tasks", "overtimes", "sheets"]) {
+  // SINGULAR registry types (STAGE_REGISTRY) — the same vocabulary attachRecord
+  // and ENG.members use, so a Phase-1b attachRecord("invoice", …) lands in the
+  // ZSET this reads, not a second, plural, invisible one.
+  for (const type of ["rfq", "quotation", "invoice", "expense", "order",
+                      "delivery", "shipment", "task", "overtime", "sheet"]) {
     const ids = await zRange(ENG.members(studioId, engId, type), 0, -1);
     if (ids.length) members[type] = ids;
   }

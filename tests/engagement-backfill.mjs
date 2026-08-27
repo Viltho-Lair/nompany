@@ -32,8 +32,8 @@ export function testCluster() {
   const d = descs[0];
   assert.equal(d.singletons.ticket, "tk_1");
   assert.equal(d.singletons.project, "pro_1");
-  assert.deepEqual(d.members.quotations.sort(), ["quo_1", "quo_2"], "both quotations are members");
-  assert.deepEqual(d.members.invoices.sort(), ["inv_1", "inv_2"], "project's invoices attach to the engagement");
+  assert.deepEqual(d.members.quotation.sort(), ["quo_1", "quo_2"], "both quotations are members");
+  assert.deepEqual(d.members.invoice.sort(), ["inv_1", "inv_2"], "project's invoices attach to the engagement");
   assert.equal(d.context.clientId, "c1", "live client ref carried as context");
   assert.equal(d.ref, "ACME-001", "engagement takes the ticket ref");
 }
@@ -52,19 +52,17 @@ export async function testApplyAndRead() {
   assert.equal(view.context.clientName, "Acme");
   assert.equal(view.singletons.ticket, "tk_1");
   assert.equal(view.singletons.project, "pro_1");
-  assert.deepEqual(view.members.quotations, ["quo_1"]);
-  assert.deepEqual(view.members.invoices, ["inv_1"]);
-  // NOTE: d.members keys are plural ("invoices"), matching zAdd's type param and
-  // readEngagementView's iteration list — applyDescriptor writes recEng under
-  // that SAME string, so the lookup must use it too (not the STAGE_REGISTRY
-  // singular "invoice", which is a different vocabulary used only for singleton
-  // slots). Fixing a one-word mismatch in the brief's own test, not inventing a
-  // plural/singular mapping.
-  assert.equal(await engagementOf(sid, "invoices", "inv_1"), d.engId, "reverse index resolves");
+  assert.deepEqual(view.members.quotation, ["quo_1"]);
+  assert.deepEqual(view.members.invoice, ["inv_1"]);
+  // Member keys are the SINGULAR registry type (STAGE_REGISTRY / attachRecord's
+  // vocabulary) — the same ZSET a future Phase-1b attachRecord("invoice", …)
+  // would write to. If the descriptor used the plural collection name instead,
+  // the backfilled set and the live-write set would silently diverge.
+  assert.equal(await engagementOf(sid, "invoice", "inv_1"), d.engId, "reverse index resolves");
   // Idempotent: re-applying yields the same view (no duplicate members).
   await applyDescriptor(sid, d);
   const again = await readEngagementView(sid, d.engId);
-  assert.deepEqual(again.members.invoices, ["inv_1"], "re-apply does not duplicate");
+  assert.deepEqual(again.members.invoice, ["inv_1"], "re-apply does not duplicate");
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -19,11 +19,17 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
   const clientById = new Map(clients.map((x) => [x.id as string, x]));
   const out: EngagementDescriptor[] = [];
 
+  // Member keys are the SINGULAR registry type (STAGE_REGISTRY / attachRecord's
+  // vocabulary), not the plural collection name — a future Phase-1b
+  // attachRecord("invoice", …) must land in the SAME ZSET this backfill wrote,
+  // or the two paths silently split one record type into two sets and
+  // readEngagementView misses whichever one it isn't reading. The second tuple
+  // element is only the source array to read; it stays plural because that is
+  // the actual collection name in `c`.
   const memberTypes: [string, string][] = [
-    ["rfqs", "rfqs"], ["quotations", "quotations"],
-    ["invoices", "invoices"], ["expenses", "expenses"], ["orders", "materialOrders"],
-    ["deliveries", "deliveries"], ["shipments", "awbShipments"], ["tasks", "tasks"],
-    ["overtimes", "overtimes"], ["sheets", "projectSheets"],
+    ["invoice", "invoices"], ["expense", "expenses"], ["order", "materialOrders"],
+    ["delivery", "deliveries"], ["shipment", "awbShipments"], ["task", "tasks"],
+    ["overtime", "overtimes"], ["sheet", "projectSheets"],
   ];
 
   for (const t of tickets) {
@@ -35,11 +41,10 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
       String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0] || null;
 
     const members: Record<string, string[]> = {};
-    members.rfqs = byField(c.rfqs || [], "ticketId", t.id).map((r) => r.id as string);
-    members.quotations = quotations.map((q) => q.id as string);
+    members.rfq = byField(c.rfqs || [], "ticketId", t.id).map((r) => r.id as string);
+    members.quotation = quotations.map((q) => q.id as string);
     if (project) {
       for (const [slot, coll] of memberTypes) {
-        if (slot === "rfqs" || slot === "quotations") continue;
         members[slot] = byField(c[coll] || [], "projectId", project.id).map((r) => r.id as string);
       }
     }
@@ -70,7 +75,7 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
                  industry: (q.industry as string) || "", title: (q.title as string) || "", deadline: (q.deadline as string) || "",
                  contact: {}, site: {} },
       singletons: { ticket: null, approvedQuotation: null, project: null },
-      members: { quotations: [q.id as string] },
+      members: { quotation: [q.id as string] },
     });
   }
   return out;
