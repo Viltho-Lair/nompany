@@ -37,6 +37,22 @@ const P = KEY_PREFIX;
 export function makeId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
+// A stable engagement id for a chain, derived from its head record so re-running
+// the backfill maps the same chain to the same engagement (idempotent, spec §5.4).
+// No clock, no randomness — deliberately the opposite of makeId() above.
+//
+// The hash itself lives in ./engagementId, not here, and deliberately does NOT
+// use node:crypto — see that file for why. Short version: THIS module is
+// reachable from a "use client" component (Hero.js imports ENG/MEDIA/IX; see
+// the superSession comment below for the same constraint on that key), and
+// node:crypto has no browser shim. Two attempts to reach it from here — a lazy
+// `require("node:crypto")`, then a plain ESM re-export of a module that
+// imported it — BOTH measured +130 KB gz on the client bundle and broke the
+// budget ceiling, because webpack resolves a module's dependency graph before
+// any tree-shaking pass can prove an export unreached. ./engagementId's SHA-1
+// is dependency-free instead, verified to match crypto.createHash("sha1")
+// byte-for-byte on the same input.
+export { deterministicEngId } from "./engagementId";
 export const ID = {
   user: () => makeId("usr"),
   studio: () => makeId("std"),
@@ -356,6 +372,11 @@ export const ENG = {
   hasStage: (studioId: string, type: string) => `${P}s:${studioId}:eng-ix:has:${type}`,
   ref:      (studioId: string, type: string, refId: string) => `${P}s:${studioId}:ref:${type}:${refId}`,
   refBy:    (studioId: string, type: string, refId: string) => `${P}s:${studioId}:ref-by:${type}:${refId}`,
+  // Reverse index: one EXISTING record → the engagement id it belongs to.
+  // Value is the engId (from deterministicEngId), so the backfill can point a
+  // record at its engagement without touching the record itself (read-layer
+  // only — Phase 1a changes no existing record, route or response).
+  recEng:   (studioId: string, type: string, recId: string) => `${P}s:${studioId}:rec-eng:${type}:${recId}`,
 };
 // The per-studio bucket loose Tier-A records attach to instead of minting an engagement.
 export const UNASSIGNED_ENG = "__unassigned";
