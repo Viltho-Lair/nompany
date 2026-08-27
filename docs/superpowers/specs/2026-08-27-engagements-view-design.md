@@ -167,7 +167,7 @@ largest-chunk budget (250 KB gz) is unaffected.
 - **The safety property** — a collaborator holding `engagements.view` but not `finance.cash.view` gets a
   block with no invoice data anywhere in the payload. This is the permission proof the design rests on, and
   it belongs in the permission matrix.
-- **Contracts** — the permission matrix gains one key (102 to 103), picked up automatically. New routes ADD
+- **Contracts** — the catalogue grows by one key (121 to 122) and by one area (41 to 42). Both are pinned by deliberate tripwires: the size assertion in `tests/gate-a.mjs` must be bumped with its history comment, and the `owner.roles` golden must be re-recorded, because that response carries the whole catalogue so the Access screen can render the permission grid — a new grantable right that does not appear there could never be granted (invariant 16). Re-record it in its own commit with that reason. New routes ADD
   goldens; existing goldens must not change. `NOMPANY_RECORD_GOLDENS` is never set in CI.
 
 ## 10. Non-goals
