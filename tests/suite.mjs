@@ -44,6 +44,7 @@ import {
   salesContext, createService, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
   submitTicketPo,
 } from "@/modules/sales/sales";
+import { resolveClientFor, normaliseClientName, clientSlug } from "@/modules/sales/salesClients";
 import { projectsContext, openProject, listProjects } from "@/modules/projects/projects";
 import {
   technicalContext, requestRfq, convertRfq, createQuotation, updateRfq, updateQuotation, listQuotations,
@@ -792,6 +793,88 @@ console.log("\n== the handler is carried, never copied");
     nobodyList.error === "forbidden", JSON.stringify(nobodyList));
   const nobodyBlock = await engagementBlock({ studio, access: nobodyAccess }, engId);
   ok("...the same refusal on the block route", nobodyBlock.error === "forbidden", JSON.stringify(nobodyBlock));
+}
+
+// ============================================================================
+console.log("\n== one function finds a client and folds in what a deal knows about them");
+// resolveClientFor (src/modules/sales/salesClients.ts) is the find-or-create-
+// then-fold block that used to live inline in createTicket — extracted so the
+// quotation path (Task 2 of the client-belongs-to-the-engagement plan) can run
+// through the identical logic instead of a second copy. createTicket's own
+// coverage above already proves the wiring stayed intact; this proves the
+// helper's contract directly, against the helper.
+{
+  const sales = await salesContext(owner, slug);
+  ok("owner can open Sales", !sales.error, sales.error);
+  const scope = { studio: sales.studio, section: sales.clientsSection };
+  const name = `Helper Co ${rand()}`;
+
+  const created = await resolveClientFor(scope, {
+    clientName: name, industry: "Technology",
+    contact: { name: "Alex Rivera", email: "alex@helperco.example", phone: "555-0100", position: "Buyer" },
+    site: { name: "HQ", country: "US", city: "Reno", url: "https://helperco.example" },
+    collaboratorId: sales.collaborator.id,
+  });
+  ok("an unknown name creates a client whose code is the slug",
+    !!created && created.code === clientSlug(name), JSON.stringify(created));
+  ok("...with the contact folded in",
+    created?.contacts?.some((c) => c.name === "Alex Rivera" && c.email === "alex@helperco.example"),
+    JSON.stringify(created?.contacts));
+  ok("...and the site folded in",
+    created?.locations?.some((l) => l.name === "HQ" && l.city === "Reno"),
+    JSON.stringify(created?.locations));
+
+  const rowsAfterFirst = await readCol(studio.id, sales.clientsSection.id, "salesClients");
+  ok("exactly one client row exists for this name",
+    rowsAfterFirst.filter((c) => c.name === name).length === 1,
+    JSON.stringify(rowsAfterFirst.map((c) => c.name)));
+
+  // Same name, different case: matches the existing row (not a second one),
+  // and folding the SAME contact again does not duplicate it.
+  const again = await resolveClientFor(scope, {
+    clientName: name.toUpperCase(), industry: "Technology",
+    contact: { name: "Alex Rivera", email: "", phone: "", position: "" },
+    site: { name: "", country: "", city: "", url: "" },
+    collaboratorId: sales.collaborator.id,
+  });
+  ok("the same name in a different case matches the existing client, not a new one",
+    again?.id === created?.id, JSON.stringify({ again: again?.id, created: created?.id }));
+
+  const rowsAfterSecond = await readCol(studio.id, sales.clientsSection.id, "salesClients");
+  ok("...so the row count for this client is still exactly one",
+    rowsAfterSecond.filter((c) => normaliseClientName(c.name) === normaliseClientName(name)).length === 1,
+    JSON.stringify(rowsAfterSecond.map((c) => c.name)));
+  ok("folding the same contact again does not duplicate it",
+    again?.contacts?.filter((c) => c.name === "Alex Rivera").length === 1,
+    JSON.stringify(again?.contacts));
+
+  ok("no other field of the client row was disturbed by the second fold",
+    again?.industry === created?.industry && again?.code === created?.code
+    && again?.website === created?.website && again?.notes === created?.notes
+    && again?.createdByCollaboratorId === created?.createdByCollaboratorId
+    && again?.createdAt === created?.createdAt,
+    JSON.stringify({ again, created }));
+
+  // An explicit id with no name resolves to that row — the fall-back
+  // createTicket has always relied on when a form carries an id but the name
+  // field was left blank.
+  const byId = await resolveClientFor(scope, {
+    clientId: created.id, industry: "Technology",
+    contact: { name: "", email: "", phone: "", position: "" },
+    site: { name: "", country: "", city: "", url: "" },
+    collaboratorId: sales.collaborator.id,
+  });
+  ok("an explicit id with no name resolves the same client", byId?.id === created.id, JSON.stringify(byId));
+
+  // Neither a usable name nor a matching id: null — the condition createTicket
+  // turns into { error: "client" }.
+  const nothing = await resolveClientFor(scope, {
+    clientName: "", clientId: "", industry: "Technology",
+    contact: { name: "", email: "", phone: "", position: "" },
+    site: { name: "", country: "", city: "", url: "" },
+    collaboratorId: sales.collaborator.id,
+  });
+  ok("no usable name and no matching id resolves to null", nothing === null, JSON.stringify(nothing));
 }
 
 // ============================================================================

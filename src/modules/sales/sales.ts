@@ -20,7 +20,7 @@ import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "./tickets";
-import { normaliseClientName, normaliseContactName, clientSlug } from "./salesClients";
+import { normaliseClientName, clientSlug, resolveClientFor, upsertLocation } from "./salesClients";
 import { nextUniqueRef } from "@/modules/main/references";
 import { traverseIn } from "@/platform/relations";
 import { requestRfq } from "@/modules/technical/technical";
@@ -74,51 +74,11 @@ const PO_TYPE = "po";
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const now = () => new Date().toISOString();
 
-// Fold a contact into a client's list: match on name (case-insensitive) and
-// fill in blanks, else match a nameless duplicate on email/phone, else append.
-// Returns the ORIGINAL array when nothing changed, so callers can skip the write.
-function upsertContact(existing: Contact[] | undefined, { name, email, phone, position }: Contact) {
-  const contacts = Array.isArray(existing) ? [...existing] : [];
-  if (!name && !email && !phone) return existing ?? [];
-  if (name) {
-    const norm = normaliseContactName(name);
-    const i = contacts.findIndex((c) => normaliseContactName(c.name) === norm);
-    if (i >= 0) {
-      const cur = contacts[i];
-      const merged = { ...cur, name, email: email || cur.email || "", phone: phone || cur.phone || "", position: position || cur.position || "" };
-      if (merged.email === cur.email && merged.phone === cur.phone && merged.position === cur.position && merged.name === cur.name) return existing ?? [];
-      contacts[i] = merged;
-      return contacts;
-    }
-  } else {
-    const dup = contacts.find((c) => !c.name && ((email && c.email === email) || (phone && c.phone === phone)));
-    if (dup) return existing ?? [];
-  }
-  contacts.push({ name, email, phone, position });
-  return contacts;
-}
-
-// Same idea for a site/location. A location with no name is not worth storing.
-function upsertLocation(existing: Site[] | undefined, { name, country, city, url }: Site) {
-  const locations = Array.isArray(existing) ? [...existing] : [];
-  if (!name) return existing ?? [];
-  const norm = name.toLowerCase().replace(/\s+/g, " ");
-  const i = locations.findIndex((l) => String(l.name || "").trim().toLowerCase().replace(/\s+/g, " ") === norm);
-  if (i >= 0) {
-    const cur = locations[i];
-    const merged = {
-      ...cur, name,
-      country: country || cur.country || "",
-      city: city || cur.city || "",
-      url: url || cur.url || "",
-    };
-    if (merged.country === cur.country && merged.city === cur.city && merged.url === cur.url) return existing ?? [];
-    locations[i] = merged;
-    return locations;
-  }
-  locations.push({ name, country, city, url });
-  return locations;
-}
+// upsertContact/upsertLocation moved to salesClients.ts, beside the
+// resolveClientFor helper that owns folding a deal's contact and site into a
+// client — see there. upsertLocation is imported back here because editTicket
+// (below) folds a corrected site into the client on its own, without going
+// through resolveClientFor (it never creates or renames a client, only a ticket).
 
 // Resolve studio + membership + the sales section + this person's rights on it.
 // Every route starts here, so permission is checked once, in one place.
@@ -1038,29 +998,14 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   if (serviceIds.length === 0) return { error: "services" };
   if (clientBudget != null && (!Number.isFinite(clientBudget) || clientBudget < 0)) return { error: "budget" };
 
-  // Upsert the client by name (case-insensitive); fall back to an explicit id.
-  const clients = await Clients.find({ studio, section: clientsSection });
-  let client = clientName
-    ? clients.find((c) => normaliseClientName(c.name) === normaliseClientName(clientName))
-    : clients.find((c) => c.id === clientId);
-  if (!client && clientId) client = clients.find((c) => c.id === clientId);
-  if (!client) {
-    if (!clientName) return { error: "client" };
-    client = await Clients.create({ studio, section: clientsSection }, {
-      name: clientName, code: clientSlug(clientName), industry, website: "", notes: "",
-      contacts: [], locations: [],
-      createdByCollaboratorId: collaborator.id, createdAt: new Date().toISOString(),
-    });
-  }
-
-  // Fold this ticket's contact + location into the client, leaving the rest be.
-  const nextContacts = upsertContact(client.contacts, contact);
-  const nextLocations = upsertLocation(client.locations, location);
-  if (nextContacts !== client.contacts || nextLocations !== client.locations) {
-    await Clients.update({ studio, section: clientsSection }, client.id, {
-      contacts: nextContacts, locations: nextLocations,
-    });
-  }
+  // Find-or-create the client by name (case-insensitive), falling back to an
+  // explicit id, then fold this ticket's contact + location into it — the
+  // shared helper every deal-starting path uses; see salesClients.ts.
+  const client = await resolveClientFor(
+    { studio, section: clientsSection },
+    { clientId, clientName, industry, contact, site: location, collaboratorId: collaborator.id },
+  );
+  if (!client) return { error: "client" };
 
   // Reference is per-client and human-readable: ACME-001, ACME-002, …
   const tickets = await Tickets.find({ studio, section: ticketsSection });
