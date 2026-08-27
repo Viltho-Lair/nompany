@@ -512,6 +512,16 @@ console.log("\n== the handler is carried, never copied");
     && opened.project?.quotationId === conv.quotation?.id
     && opened.project?.rfqId === asked.rfq?.id,
     JSON.stringify({ t: opened.project?.ticketId, q: opened.project?.quotationId, r: opened.project?.rfqId }));
+
+  // dual-write (Task 4): opening a project attaches it to the ticket's
+  // engagement AND records the approved quotation on the root.
+  const afterProjectEngView = await readEngagementView(studio.id, engId);
+  ok("openProject attaches the project as the ticket engagement's singleton",
+    afterProjectEngView?.singletons.project === opened.project?.id, JSON.stringify(afterProjectEngView?.singletons));
+  ok("...and records the approved quotation",
+    afterProjectEngView?.singletons.approvedQuotation === opened.project?.quotationId,
+    JSON.stringify(afterProjectEngView?.singletons));
+
   // TWO SHEETS, AND NEITHER HOLDS A LINE. The quotation owns the rows; a sheet
   // stores only what its department adds to them, keyed by the row it belongs
   // to. I built these as a copy first, which is the mistake this product keeps

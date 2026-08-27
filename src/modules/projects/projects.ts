@@ -11,7 +11,8 @@
 import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getJSON, editJSON, delKeys } from "@/platform/db/store";
-import { PROJECT } from "@/platform/db/keys";
+import { PROJECT, deterministicEngId } from "@/platform/db/keys";
+import { attachToTicketEngagement, setApprovedQuotation } from "@/platform/db/engagement";
 import { removeProjectPlans, progressByProject } from "@/modules/operations/planner";
 import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
@@ -288,6 +289,19 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     openedByCollaboratorId: collaborator.id,
     createdAt: now,
   });
+
+  // Dual-write: the project joins its ticket's engagement as the PROJECT
+  // singleton, and the ticket's engagement records which quotation was
+  // approved into it. Guarded and best-effort — the module's OWN "one project
+  // per quotation" rule above (`existing.some(...)`) is what actually refuses a
+  // second project; this is a mirror of that outcome, not the source of it, so
+  // a re-attach the engagement layer would otherwise refuse on is simply
+  // swallowed rather than surfaced as an error the caller never asked for.
+  try {
+    const engId = deterministicEngId("ticket", String(project.ticketId || ""));
+    await attachToTicketEngagement(studio.id, "project", project.id, String(project.ticketId || ""));
+    await setApprovedQuotation(studio.id, engId, String(project.quotationId || ""));
+  } catch { /* best-effort: reconciled later */ }
 
   // THE PROJECT SHEETS. Two per project, and NEITHER HOLDS A LINE OF ITS OWN.
   //
