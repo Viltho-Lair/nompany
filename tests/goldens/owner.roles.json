@@ -617,6 +617,14 @@
           "view",
           "edit"
         ]
+      },
+      {
+        "key": "engagements",
+        "group": "Engagements",
+        "label": "Engagements",
+        "verbs": [
+          "view"
+        ]
       }
     ],
     "canEdit": true
