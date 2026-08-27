@@ -16,7 +16,7 @@
 - **Keys only in `src/platform/db/keys.ts`** (invariant 1). The new `ENG.index` builder included; no key literal at a call site.
 - **Access resolved once** in `effectivePermissions`; no route re-derives it (invariant 3). **Default deny** (invariant 4). Gate inside the service functions, not only at the route.
 - **Reads only.** The one write this plan adds is the `ZADD` maintaining the index, which is additive and reconcilable by the backfill. No existing record is edited.
-- **Goldens:** the existing 144 must stay **byte-identical**. The two new routes ADD goldens (144 → 146); recording them is deliberate, in its own commit, with the reason stated. `NOMPANY_RECORD_GOLDENS` is never set in CI.
+- **Goldens:** the existing 144 must stay **byte-identical**. The two new routes ADD goldens — FOUR cases as built (144 → 148): list, block, notfound and forbidden, the last two pinning `statusFor` and the safety property at the HTTP boundary. Recording them is deliberate, in its own commit, with the reason stated. `NOMPANY_RECORD_GOLDENS` is never set in CI.
 - **The catalogue grows by one key** (`engagements.view`): 121 → 122, and one area (41 → 42). Two deliberate tripwires fire and BOTH must be updated as visible acts, never silenced: the size assertion in `tests/gate-a.mjs` (bump it AND append to its history comment), and the `owner.roles` golden, which carries the whole catalogue so the Access screen can render the grid — a grantable right absent from it could never be granted (invariant 16). Re-record that ONE golden in its own commit, stating the reason; every other golden must stay byte-identical.
 - **Bundle:** the screen loads through `nextDynamic()` so it lands in its own chunk; the largest-chunk ceiling is 250 KB gz and the total 1600 KB.
 - **Verify per task:** `npx tsc --noEmit`, `npx tsc --noEmit -p tsconfig.strict.json`, plus the task's tests. Run the FULL `npm test` **alone** before the final commit (concurrent suites deadlock on the shared namespace — `tests/exclusive.mjs`).
@@ -417,7 +417,7 @@ git commit -m "The engagement list and one engagement are readable over HTTP"
 
 - [ ] **Step 3: Record the two goldens deliberately** — run the recorder once locally (`NOMPANY_RECORD_GOLDENS=1`) so the two new files are written, then confirm `git status` shows **only** the two new golden files and **no modification to any existing golden**. If an existing golden changed, STOP — that is a regression, not a recording.
 
-- [ ] **Step 4: Verify** — re-run Gate A with the recorder OFF: 146 cases, 146 files, 0 failures.
+- [ ] **Step 4: Verify** — re-run Gate A with the recorder OFF: 148 cases, 148 files, 0 failures.
 
 - [ ] **Step 5: Commit** — its own commit, with the reason in the body (the contract: goldens change only deliberately):
 
@@ -498,7 +498,7 @@ git commit -m "A studio can read its engagements at /engagements"
 
 - [ ] **Step 1:** Register the module's exports exactly as `tests/engagement.mjs`, `engagement-backfill.mjs`, `engagement-oncreate.mjs` and `engagement-spine.mjs` are registered — sibling import, a `console.log("== …")` header, the `ok()` try/catch adapter, inside the prefixed integration suite.
 
-- [ ] **Step 2: Run the FULL `npm test` alone** and confirm: the engagement-view tests execute and pass; **Gate A is 146/146 with 0 failures**; the permission matrix covers 122 keys; hop counts unregressed. Then `tsc` both configs and `npx next build`.
+- [ ] **Step 2: Run the FULL `npm test` alone** and confirm: the engagement-view tests execute and pass; **Gate A is 148/148 with 0 failures**; the permission matrix covers 122 keys; hop counts unregressed. Then `tsc` both configs and `npx next build`.
 
 - [ ] **Step 3: Commit**
 
