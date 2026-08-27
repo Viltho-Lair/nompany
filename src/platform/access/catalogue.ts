@@ -251,6 +251,12 @@ const OWN_AREAS = [
 
   { key: "people.members", group: "People", label: "People & access", verbs: ["view", "edit"] },
   { key: "studio.settings", group: "Studio", label: "Studio settings", verbs: ["view", "edit"] },
+
+  // THE ENGAGEMENT VIEW. One key, and deliberately unscoped: what a person sees
+  // inside an engagement is decided stage by stage by the permission each stage
+  // already declares in platform/engagement/registry.ts, so an own/department/all
+  // dimension here would be a second mechanism for the same thing.
+  { key: "engagements", group: "Engagements", label: "Engagements", verbs: ["view"] },
 ] as const;
 
 export const AREAS: readonly Area[] = [...DASHBOARD_AREAS, ...OWN_AREAS];

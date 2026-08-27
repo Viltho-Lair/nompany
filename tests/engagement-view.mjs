@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import { ENG, KEY_PREFIX, deterministicEngId } from "../src/platform/db/keys.ts";
 import { createEngagement, attachTicketEngagement } from "../src/platform/db/engagement.ts";
 import { zRange } from "../src/platform/db/store.ts";
+import { ALL_PERMISSIONS, AREAS } from "../src/platform/access/catalogue.ts";
 
 assert.ok(KEY_PREFIX, "engagement-view tests must run under a key prefix");
 
@@ -33,7 +34,15 @@ export async function testIndex() {
   assert.ok(all.includes(bare.id), "createEngagement indexes its root");
 }
 
+export function testPermissionKey() {
+  assert.ok(ALL_PERMISSIONS.includes("engagements.view"), "engagements.view is a real key");
+  const area = AREAS.find((a) => a.key === "engagements");
+  assert.ok(area, "the engagements area exists");
+  assert.deepEqual([...area.verbs], ["view"], "view only — v1 is read-only");
+  assert.ok(!area.scoped, "not scoped: the department lens does that job");
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  (async () => { for (const t of [testIndex]) { await t(); console.log(`ok ${t.name}`); } })()
+  (async () => { for (const t of [testIndex, testPermissionKey]) { await t(); console.log(`ok ${t.name}`); } })()
     .catch((e) => { console.error(e); process.exit(1); });
 }
