@@ -15,6 +15,7 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { updateSection } from "@/platform/db/sections";
+import { attachTicketEngagement } from "@/platform/db/engagement";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -1101,6 +1102,15 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
+
+  // Dual-write the engagement layer: reuse the SAME clustering the backfill
+  // uses so a live ticket and a backfilled one land on the identical engId.
+  // Best-effort — the ticket row is the authority; a miss here is healed by
+  // the reconcile job, so it must never fail the create it is riding on.
+  try {
+    await attachTicketEngagement(studio.id, ticket, client);
+  } catch { /* best-effort: the ticket is raised; failing to mint its engagement must not fail that */ }
+
   return { ticket };
 }
 

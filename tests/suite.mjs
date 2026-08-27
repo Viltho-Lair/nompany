@@ -113,6 +113,10 @@ import {
   testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity,
   testVocabularyParity,
 } from "./engagement-backfill.mjs";
+// PHASE 1b-i DUAL-WRITE: createTicket mints the engagement layer as a
+// best-effort side effect, reusing the backfill's own clustering.
+import { deterministicEngId } from "@/platform/db/keys";
+import { readEngagementView } from "@/platform/db/engagement";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -321,6 +325,13 @@ console.log("\n== the handler is carried, never copied");
     industry: "Technology", serviceIds: [service.service?.id],
   });
   ok("a ticket can be raised", !!made.ticket, JSON.stringify(made.error));
+
+  // dual-write: creating a ticket also mints its engagement (Phase 1b-i)
+  const engId = deterministicEngId("ticket", made.ticket.id);
+  const view = await readEngagementView(studio.id, engId);
+  ok("createTicket mints the ticket's engagement",
+    view && view.singletons.ticket === made.ticket.id && !!view.context.clientName,
+    JSON.stringify(view));
 
   const asked = await requestTicketRfq(sales, { ticketId: made.ticket?.id });
   ok("...and handed to Technical", !!asked.rfq, JSON.stringify(asked.error));
