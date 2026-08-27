@@ -3,7 +3,7 @@
 // in ZSETs (spec §3.3), so a busy engagement never contends on one document.
 import { ENG, ID, UNASSIGNED_ENG, deterministicEngId } from "./keys";
 import { getJSON, setJSON, editJSON, zAdd, zRange, zRem, sAdd, sRem, sCard } from "./store";
-import { isSingleton, stageOf } from "../engagement/registry";
+import { isSingleton, stageOf, STAGE_REGISTRY } from "../engagement/registry";
 import { buildEngagements } from "../engagement/backfill";
 import type { EngagementDescriptor } from "../engagement/backfill";
 
@@ -181,11 +181,21 @@ export async function readEngagementView(
   const root = await readEngagement(studioId, engId);
   if (!root) return null;
   const members: Record<string, string[]> = {};
-  // SINGULAR registry types (STAGE_REGISTRY) — the same vocabulary attachRecord
-  // and ENG.members use, so a Phase-1b attachRecord("invoice", …) lands in the
-  // ZSET this reads, not a second, plural, invisible one.
-  for (const type of ["rfq", "quotation", "invoice", "expense", "order",
-                      "delivery", "shipment", "task", "overtime", "sheet"]) {
+  // EVERY "many" stage the registry declares, DERIVED rather than listed. A
+  // hand-copied array here once silently dropped bill and asset — added to
+  // STAGE_REGISTRY but never to this list, so their member sets were read as
+  // permanently empty. That is a worse failure here than a typical missed
+  // case: the engagements view has no way to tell "this stage does not exist"
+  // apart from "this stage was withheld by permission" (spec's safety
+  // property) — both read as absent from the payload — so a stage the read
+  // layer simply forgot is indistinguishable from one correctly denied.
+  // Deriving from STAGE_REGISTRY means a thirteenth "many" type is covered
+  // the moment it is registered, the same way attachRecord and ENG.members
+  // already are.
+  const manyTypes = Object.values(STAGE_REGISTRY)
+    .filter((e) => e.cardinality === "many")
+    .map((e) => e.type);
+  for (const type of manyTypes) {
     const ids = await zRange(ENG.members(studioId, engId, type), 0, -1);
     if (ids.length) members[type] = ids;
   }
