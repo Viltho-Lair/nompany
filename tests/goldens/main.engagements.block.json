@@ -1,0 +1,37 @@
+{
+  "status": 200,
+  "body": {
+    "engagement": {
+      "id": "<eng_ID>",
+      "ref": "ENGAGEMENT-VIEW-CLIENT-001",
+      "context": {
+        "clientId": "<sal_ID>",
+        "clientName": "Engagement View Client",
+        "industry": "Commercial",
+        "urgency": "Normal",
+        "title": "Engagement view fixture",
+        "deadline": "2026-12-15",
+        "contact": {
+          "name": ""
+        },
+        "site": {
+          "name": "",
+          "country": "",
+          "city": "",
+          "url": ""
+        }
+      },
+      "status": "Lead",
+      "cards": [
+        {
+          "type": "ticket",
+          "label": "Sales ticket",
+          "present": true,
+          "count": 1,
+          "ref": "ENGAGEMENT-VIEW-CLIENT-001",
+          "summary": "Lead"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "status": 200,
+  "body": {
+    "engagements": [
+      {
+        "id": "<eng_ID>",
+        "ref": "",
+        "clientName": "Engagement View Client",
+        "title": "Engagement view fixture",
+        "createdAt": "",
+        "stages": [
+          "ticket"
+        ]
+      },
+      {
+        "id": "<eng_ID>",
+        "ref": "",
+        "clientName": "Second Client",
+        "title": "Default sequence check",
+        "createdAt": "",
+        "stages": [
+          "ticket"
+        ]
+      },
+      {
+        "id": "<eng_ID>",
+        "ref": "",
+        "clientName": "Acme Holdings",
+        "title": "Cannot start won",
+        "createdAt": "",
+        "stages": [
+          "ticket"
+        ]
+      },
+      {
+        "id": "<eng_ID>",
+        "ref": "",
+        "clientName": "Acme Holdings",
+        "title": "Boardroom refit",
+        "createdAt": "",
+        "stages": [
+          "ticket"
+        ]
+      }
+    ],
+    "nextCursor": null
+  }
+}

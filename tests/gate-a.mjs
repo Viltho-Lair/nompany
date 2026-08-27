@@ -1942,6 +1942,124 @@ console.log("== operations & tasks: a shift knows about leave, and finishing is 
 }
 
 // ============================================================================
+console.log("== main: the engagement view — two NEW routes, and the safety property at the wall");
+// docs/superpowers/specs/2026-08-27-engagements-view-design.md §4. These are
+// ADDITIONS — the existing 144 goldens must stay byte-identical, and they do
+// (checked below by re-running with the recorder off before anything is
+// committed). The first two cases are the happy path; the last two are the
+// point: `engagementBlock` refuses three ways (requirePermission's own ladder,
+// plus its own "notfound" and "forbidden"), and statusFor's mapping of those
+// two names to 404/403 is otherwise only typechecked, never exercised.
+//
+// PLACED LAST OF THE MODULE BLOCKS, DELIBERATELY. This studio is shared by
+// every section above — sales, technical, projects, inventory, hr, finance,
+// operations & tasks — and several of their "populated" goldens are whole-
+// studio snapshots (open tickets, the people list, the invoice sequence). The
+// first draft seeded its fixture ticket/client/invoice/collaborators between
+// sales and technical and it moved SEVEN goldens that belong to other
+// modules: an extra row in technical's openTickets/clients/people, an extra
+// employee in every hr.list.*, a shifted finance.invoice.raised reference
+// (INV-0001 -> INV-0002), and an extra row in operations.board and both
+// projects goldens. None of those routes changed — this file's fixture
+// order did. Quality and /super do not read a whole-studio ticket/people
+// snapshot, so running after every OTHER module's "populated" capture and
+// before them is the one position that adds four goldens and moves none.
+{
+  const LIST = await import("@/app/api/studios/[slug]/main/engagements/route.ts");
+  const BLOCK = await import("@/app/api/studios/[slug]/main/engagements/[engId]/route.ts");
+  const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.ts");
+  const SERVICES = await import("@/app/api/studios/[slug]/sales/services/route.ts");
+  const TICKETS = await import("@/app/api/studios/[slug]/sales/tickets/route.ts");
+  const INVOICES = await import("@/app/api/studios/[slug]/finance/invoices/route.ts");
+  // attachToTicketEngagement is the SAME primitive a future invoice dual-write
+  // would call (spec §9 non-goals: invoice attach is not shipped yet) — used
+  // directly here so the fixture is one real invoice sitting on the ticket's
+  // engagement exactly the way that dual-write would leave it, rather than a
+  // faked-up payload shaped like one.
+  const { attachToTicketEngagement } = await import("@/platform/db/engagement");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+  const personWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  await signIn(owner.id);
+
+  // ---- one engagement, two stages: a ticket (Sales) and an invoice
+  // (Finance) attached to the SAME engagement, so a viewer holding only the
+  // Sales right is a real test of what gets withheld rather than an empty one.
+  const service = await capture(SERVICES.POST, req(`/api/studios/${slug}/sales/services`,
+    { method: "POST", body: { name: "Engagement View Fixture Service" } }), P);
+  const client = await capture(CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`,
+    { method: "POST", body: { name: "Engagement View Client", country: "Saudi Arabia", city: "Riyadh" } }), P);
+  const ticket = await capture(TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: {
+    title: "Engagement view fixture", clientId: client.body?.client?.id, industry: "Commercial",
+    deadline: "2026-12-15", serviceIds: [service.body?.service?.id],
+  } }), P);
+  const ticketId = ticket.body?.ticket?.id;
+  ok("the fixture ticket was created", Boolean(ticketId), JSON.stringify(ticket.body).slice(0, 120));
+
+  // Deterministic, same as the dual-write mints (spec §5.4) — no extra read.
+  const engId = KEYS.deterministicEngId("ticket", ticketId);
+
+  const invoice = await capture(INVOICES.POST, req(`/api/studios/${slug}/finance/invoices`, { method: "POST", body: {
+    clientName: "Engagement View Client", lines: [{ description: "Fixture line", qty: 1, unitPrice: 1000 }],
+  } }), P);
+  const invoiceId = invoice.body?.invoice?.id;
+  ok("the fixture invoice was created", Boolean(invoiceId), JSON.stringify(invoice.body).slice(0, 120));
+  await attachToTicketEngagement(studio.id, "invoice", invoiceId, ticketId);
+
+  // A person who may see the screen and the Sales stage, nothing more.
+  const viewer = await personWith(["engagements.view", "sales.tickets.view"], "engviewer");
+  // A person who may see the screen and NO department stage at all.
+  const blind = await personWith(["engagements.view"], "engblind");
+
+  await signIn(viewer.id);
+
+  const list = await shot("main.engagements.list", await capture(
+    LIST.GET, req(`/api/studios/${slug}/main/engagements`), P));
+  const row = list.body?.engagements?.find((e) => e.id === engId);
+  ok("the fixture engagement lists for a Sales-only viewer", Boolean(row), JSON.stringify(list.body).slice(0, 300));
+  ok("...carrying the ticket stage and nothing Finance's",
+    Boolean(row?.stages?.includes("ticket")) && !row?.stages?.includes("invoice"),
+    JSON.stringify(row?.stages));
+
+  const block = await shot("main.engagements.block", await capture(
+    BLOCK.GET, req(`/api/studios/${slug}/main/engagements/${engId}`), ctx({ slug, engId })));
+  const cards = block.body?.engagement?.cards || [];
+  // THE SAFETY PROPERTY, pinned at the HTTP boundary (spec §9): this
+  // engagement HAS an invoice (attached above) and this reader holds no
+  // finance.cash.view. A withheld stage must be ABSENT — not present with an
+  // empty summary, not counted — so no card may carry type "invoice" and the
+  // string must not appear as a card type in the payload at all.
+  ok("no card in the block has type invoice", cards.every((c) => c.type !== "invoice"), JSON.stringify(cards));
+  ok("...and \"invoice\" never appears as a card type in the serialised payload",
+    !cards.map((c) => c.type).includes("invoice"), JSON.stringify(cards.map((c) => c.type)));
+  ok("...while the ticket card this viewer DOES hold a right to is present",
+    cards.some((c) => c.type === "ticket" && c.present), JSON.stringify(cards));
+
+  // ---- an engagement id that does not exist: statusFor's notfound -> 404 --
+  await shot("main.engagements.notfound", await capture(
+    BLOCK.GET, req(`/api/studios/${slug}/main/engagements/eng_doesnotexist0000`),
+    ctx({ slug, engId: "eng_doesnotexist0000" })));
+
+  // ---- a real engagement, but this reader may see NO stage of it at all ---
+  await signIn(blind.id);
+  await shot("main.engagements.forbidden", await capture(
+    BLOCK.GET, req(`/api/studios/${slug}/main/engagements/${engId}`), ctx({ slug, engId })));
+
+  __signOut();
+}
+
+// ============================================================================
 console.log("== quality: four signatures, four rights, and nobody signs twice");
 // The controlled-document register, and the strictest workflow in the product.
 //
