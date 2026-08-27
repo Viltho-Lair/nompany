@@ -135,6 +135,15 @@ import { testAttachTicketEngagement } from "./engagement-oncreate.mjs";
 // down through the same try/catch adapter (node:assert throws are not this
 // file's ok() shape).
 import { testSpineHelpers } from "./engagement-spine.mjs";
+// THE ENGAGEMENTS VIEW's own tests (Task 6/7). Same standalone-runner shape as
+// the four modules above — importing it here pulls in only the three exported
+// test functions, run explicitly further down through the same try/catch
+// adapter (node:assert throws are not this file's ok() shape). listEngagements
+// and engagementBlock themselves are already exercised end to end against a
+// real seeded studio in the block above ("the handler is carried, never
+// copied"); this module covers what needs no studio at all — the index key,
+// the permission catalogue entry, and the pure visibleStageTypes filter.
+import { testIndex, testPermissionKey, testVisibleStageTypes } from "./engagement-view.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -3489,6 +3498,19 @@ console.log("\n== engagement on-create (Phase 1b-i)");
 console.log("\n== engagement spine (Phase 1b-ii, Task 5)");
 {
   for (const t of [testSpineHelpers]) {
+    try {
+      await t();
+      ok(t.name, true);
+    } catch (e) {
+      ok(t.name, false, e.message);
+    }
+  }
+}
+
+// ============================================================================
+console.log("\n== engagement view (Task 7)");
+{
+  for (const t of [testIndex, testPermissionKey, testVisibleStageTypes]) {
     try {
       await t();
       ok(t.name, true);
