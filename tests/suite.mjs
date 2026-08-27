@@ -45,7 +45,9 @@ import {
   submitTicketPo,
 } from "@/modules/sales/sales";
 import { projectsContext, openProject, listProjects } from "@/modules/projects/projects";
-import { technicalContext, requestRfq, convertRfq, updateRfq, updateQuotation, listQuotations } from "@/modules/technical/technical";
+import {
+  technicalContext, requestRfq, convertRfq, createQuotation, updateRfq, updateQuotation, listQuotations,
+} from "@/modules/technical/technical";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { landedUnitCost, crossRate } from "@/shared/currencies";
 import { qualityContext, watermarkFor } from "@/modules/quality/quality";
@@ -352,6 +354,12 @@ console.log("\n== the handler is carried, never copied");
   const conv = await convertRfq(tech, { rfqId: asked.rfq?.id, handledByCollaboratorId: member.collaborator.id });
   ok("an RFQ converts to a quotation", !!conv.quotation, JSON.stringify(conv.error));
 
+  // dual-write (Task 3a): a CONVERTED quotation attaches to the ticket's
+  // engagement, not its own — the ticket's is where the whole chain lives.
+  const convQuoEngView = await readEngagementView(studio.id, engId);
+  ok("convertRfq attaches the quotation to the ticket's engagement",
+    !!convQuoEngView?.members.quotation?.includes(conv.quotation?.id), JSON.stringify(convQuoEngView?.members.quotation));
+
   const afterConvert = await listQuotations(tech);
   const row = afterConvert.find((q) => q.id === conv.quotation?.id);
   ok("the quotations list names its handler", row?.handledBy === member.collaborator.id,
@@ -613,6 +621,32 @@ console.log("\n== the handler is carried, never copied");
     JSON.stringify(forSearch?.quotationNumber));
   ok("...the PO", (forSearch?.poNumber || "").includes("PO-99"), JSON.stringify(forSearch?.poNumber));
   ok("...and the serials of the items on it", Array.isArray(forSearch?.serials), JSON.stringify(forSearch?.serials));
+}
+
+// ============================================================================
+console.log("\n== engagement on-create (Phase 1b-ii, Task 3b): an internal quotation");
+// dual-write: a quotation raised straight from the Quotations screen — no
+// ticketId behind it — mints its OWN engagement, the backfill's orphan-
+// quotation path reused so a live one and a backfilled one land on the same
+// deterministic id. It must NOT attach to any ticket engagement, because there
+// is no ticket behind it.
+{
+  const tech = await technicalContext(owner, slug);
+  const sequence = (tech.sequences || [])[0];
+  ok("a default sequence exists to create against", Boolean(sequence), JSON.stringify(tech.sequences));
+
+  const madeInternal = await createQuotation(tech, {
+    sequenceId: sequence?.id, clientName: "Internal Co",
+    title: "Straight from Quotations", industry: "Technology", deadline: "2026-12-01",
+    description: "No RFQ behind this one.",
+  });
+  ok("an internal quotation can be raised with no ticket behind it",
+    !!madeInternal.quotation, JSON.stringify(madeInternal.error));
+
+  const ownEngId = deterministicEngId("quotation", madeInternal.quotation?.id);
+  const ownView = await readEngagementView(studio.id, ownEngId);
+  ok("createQuotation mints the quotation's own engagement",
+    !!ownView?.members.quotation?.includes(madeInternal.quotation?.id), JSON.stringify(ownView));
 }
 
 // ============================================================================

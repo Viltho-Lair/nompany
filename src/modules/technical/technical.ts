@@ -27,7 +27,7 @@ import {
 } from "@/modules/tasks/taskRouting";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { landedUnitCost } from "@/shared/currencies";
-import { attachToTicketEngagement } from "@/platform/db/engagement";
+import { attachToTicketEngagement, attachQuotationEngagement } from "@/platform/db/engagement";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
@@ -734,6 +734,15 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
     preparedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
+
+  // Dual-write: an INTERNAL quotation (no ticket behind it) mints its OWN
+  // engagement — the backfill's orphan-quotation path, reused so a live one and
+  // a backfilled one land on the identical engId. Best-effort, never blocking.
+  try {
+    const client = clientId ? clients.find((c) => c.id === clientId) || null : null;
+    await attachQuotationEngagement(studio.id, quotation, client);
+  } catch { /* best-effort: reconciled later */ }
+
   return { quotation };
 }
 
@@ -816,6 +825,14 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   await Rfqs.update({ studio, section: rfqSection }, rfqId, {
     status: "Converted", quotationId: quotation.id, handledByCollaboratorId,
   });
+
+  // Dual-write: the converted quotation joins its TICKET'S engagement — not its
+  // own — the same deterministic id attachToTicketEngagement's ticket-child
+  // caller (requestRfq) writes into. Best-effort, never blocking.
+  try {
+    await attachToTicketEngagement(studio.id, "quotation", quotation.id, quotation.ticketId || "");
+  } catch { /* best-effort: reconciled later */ }
+
   return { quotation };
 }
 
