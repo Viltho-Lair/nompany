@@ -33,8 +33,11 @@ import type { Row } from "@/platform/db/store";
  * WHAT `seen` IS, and why main hands one out instead of a list of flags. It
  * answers "the section that owns this collection, if this person may see it" —
  * one question, asked a dozen times below, with `access` captured inside it.
- * That is why mainContext is the one context exempt from "every context returns
- * access": it returns something better.
+ * `access` itself travels on MainContext too now (below) — engagements needs
+ * the raw permission set to filter stages ACROSS sections, which `seen`
+ * cannot answer. `seen` stays for headlines/recent, which still ask the
+ * per-section question and would otherwise re-derive `sectionViewable` at
+ * every call site instead of once, here.
  */
 export type SeenFn = (key: string, fallbackKey?: string | null) => Section | null;
 
@@ -55,9 +58,11 @@ export type MainContext = {
   // Engagements reads ACROSS sections rather than through one, so it cannot be
   // asked through `seen` the way headlines/recent are — it needs the raw
   // permission set to filter stages itself (src/modules/main/engagements.ts).
-  // Forwarding it here is not "every context returns access" being broken:
-  // it is resolved once in studioContext, same as always, just no longer
-  // dropped on the way out.
+  // `access` used to be dropped on the way out deliberately, because nothing
+  // here needed it; that reason expired the day engagements.ts needed
+  // `ctx.access`, so it now travels on MainContext like it does on every
+  // other module context (src/modules/context.ts) — still resolved once, in
+  // studioContext, never twice.
   access: PermissionSet;
 };
 

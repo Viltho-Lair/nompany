@@ -31,9 +31,10 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
 
   // WHICH EXECUTIVE WIDGETS THIS STUDIO'S TIER BOUGHT — resolved server-side,
   // the same way the studio page resolves it (page.js ~line 175), because
-  // mainContext carries no plan of its own (it is the one context exempt from
-  // "every context returns access", see main.ts) and access is resolved once,
-  // never re-derived per route (invariant 3). A locked widget's KEY reaches an
+  // mainContext carries no plan of its own — access travels on it like on
+  // every other module context (main.ts), but the plan/tier lookup is not
+  // part of that, so it still happens here. Access is resolved once, never
+  // re-derived per route (invariant 3). A locked widget's KEY reaches an
   // unentitled tier; its NUMBERS never do.
   const { packages, tiers } = await loadCatalogues();
   const plan = planOf(main.studio, packages, tiers);
