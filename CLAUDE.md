@@ -277,11 +277,13 @@ service code ✅, goldens unchanged at 139 ✅, hops ≤2 for the studio route a
 interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,
 audit log, security round 2 (session digests at rest, console MFA), notification producers.
-**Open Wave 2 remnants:** W7 speed refactors **R2** (`plantMissingSections` off the read
-path), **R6** (`lastSeenAt`/`lastLoginAt` off `g:users` — the hottest CAS contention), **R9**
-(`getProfile` N+1 batch); the `sweepOrphans` rewrite (M-10); the gap items — soft-delete
-tombstones, the email/fan-out outbox, `schemaVersion` on stored documents; and **media→Vercel
-Blob**, coded and tested but blocked on the Blob store being created.
+**W7 speed refactors are done** (R2 `plantMissingSections` off the read path + a backfill CLI,
+R6 `lastSeenAt`/`lastLoginAt` off `g:users` onto `u:<id>:activity` — the hottest CAS contention
+gone, R9 `getProfile` N+1 → one `MGET`), all on `main`. The recurring Gate-A month-end
+**date-drift** is fixed (vacation fixtures are clock-relative now). **Open Wave 2 remnants:** the
+`sweepOrphans` rewrite (M-10); the gap items — soft-delete tombstones, the email/fan-out outbox,
+`schemaVersion` on stored documents; and **media→Vercel Blob**, coded and tested but blocked on
+the Blob store being created.
 
 **Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, all
 twelve departments in `src/modules/<name>/` with a Zod schema each, all 99 route files
@@ -289,10 +291,17 @@ converted. What remains is `checkJs` over the 212 browser `.js` files and the `a
 restructure, deferred into Wave 4. **Wave 4 (UI/UX)** and **Wave 5 (SQL)** are not started;
 W4 is a proposal in `w4-dashboards-and-motion.md` awaiting approval.
 
-**New initiative — the engagement storage model** is specified in
-`docs/superpowers/specs/2026-08-26-engagement-storage-model-design.md` (stored engagement
-root, one key per record, live-context / frozen-documents). Its build is **held behind
-Gate B** as the repository-seam endgame ahead of the SQL migration.
+**The engagement storage model is being built and shipped incrementally** (spec:
+`docs/superpowers/specs/2026-08-26-engagement-storage-model-design.md` — stored engagement root,
+one key per record, live-context / frozen-documents). On `main`: **Phase 0** (foundations — the
+`ENG.*` keys, the pure stage registry `src/platform/engagement/registry.ts`, the engagement store
+`src/platform/db/engagement.ts`), **Phase 1a** (backfill read layer — `backfill.ts`, the guarded
+CLI `scripts/migrate/backfill-engagements.mjs`, `readEngagementView`; **applied to live**, 7
+engagements proven), and **Phase 1b-i** (`createTicket` dual-writes its engagement — same
+deterministic id/clustering the backfill uses, guarded, response byte-identical). **In progress:**
+Phase 1b-rest (RFQ/quotation/project attach on create). See `docs/progress.md` and the
+`docs/superpowers/plans/2026-08-2{6,7}-engagement-*.md` plans. The read/write paths are NOT
+wired to any route yet — the engagement layer is written alongside, reconciled by the backfill.
 
 **Open decisions (waiting on a person):** the Wave 4 palette (marketing dark-first
 indigo/Sora vs the ERP's light-first blue/Saira); and whether to denormalise the slug index

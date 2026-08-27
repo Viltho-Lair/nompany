@@ -4,7 +4,7 @@
 this one is where we actually are. Updated when a wave item closes, not on a
 schedule.
 
-**Last updated:** 2026-08-21 · 49 commits since the audit baseline (`166300f`)
+**Last updated:** 2026-08-27 · engagement storage model Phase 0 + 1a + 1b-i on `main`
 
 ---
 
@@ -12,12 +12,28 @@ schedule.
 
 | | |
 |---|---|
-| **Done** | Wave 0, Gate A, and Wave 2's three seams (A, B, C) |
-| **In progress** | W9 onward. Gate B's criteria are met |
-| **Blocked on nothing** | CI green on every push |
-| **Next gate** | **Gate B**: zero `readCol` in services · ≤2 hops per module request |
+| **Done** | Wave 0, Gate A, Wave 2 seams (A, B, C), **W7 speed refactors R6/R2/R9**, and the **engagement storage model Phase 0 + 1a + 1b-i** (all on `main`, green) |
+| **In progress** | Engagement **Phase 1b-rest** (RFQ/quotation/project attach on create) on branch `engagement-phase-1b2` |
+| **Blocked on nothing** | CI green on every push; goldens now **144** |
+| **Next gate** | Gate B met in practice (sales at its 3-hop structural floor); the engagement model is the repository-seam endgame ahead of the SQL migration |
 
-The plan budgets Wave 2 at weeks 5–12. Three of its ten items are done.
+---
+
+## Engagement storage model — the current build
+
+The restructure specified in `docs/superpowers/specs/2026-08-26-engagement-storage-model-design.md`
+is being built and shipped incrementally. On `main`:
+
+| Increment | What it added | State |
+|---|---|---|
+| **Phase 0 — foundations** | ZSET store helpers, `ENG.*` key builders, the pure stage registry (`src/platform/engagement/registry.ts`), the engagement store (`src/platform/db/engagement.ts`: create/attach/detach/members/refs/unassigned/promote) | ✅ on `main` |
+| **Phase 1a — backfill read layer** | pure chain-clustering (`backfill.ts`), a guarded backfill CLI (`scripts/migrate/backfill-engagements.mjs`), `readEngagementView`, a `recEng` reverse index | ✅ on `main`, **applied to live** (7 engagements on the reference studio, proven read-only) |
+| **Phase 1b-i — ticket dual-write** | `createTicket` also mints its engagement, same deterministic id/clustering, guarded best-effort, response byte-identical | ✅ on `main` |
+| **Phase 1b-rest** | RFQ / quotation / project creation attach to their engagement; internal quotation mints its own; approved quotation recorded | 🟡 building (`engagement-phase-1b2`) |
+
+Plans: `docs/superpowers/plans/2026-08-2{6,7}-engagement-*.md`. Deferred (ledgered): the project's
+children attaching on create, score-members-by-`createdAt`, `dept`/`hasStage` on backfilled
+engagements, routing the best-effort miss through observability, and the reconcile job.
 
 ---
 
@@ -38,7 +54,7 @@ A gate is a promise the build keeps, not a milestone anybody declares.
 | `readCol` in service code | 0 | ✅ **0** |
 | Hops — `/api/studios/[slug]` | ≤2 | ✅ **2 waves** *(was 8)* |
 | Hops — `…/sales` | ≤2 | **3 waves** *(was 8)* — 3 is the structural floor |
-| Goldens unchanged | 139 | ✅ 139 |
+| Goldens unchanged | 144 | ✅ 144 (byte-identical through the engagement work) |
 
 The studio route meets the ≤2 target. Sales sits at 3, and 3 is the structural
 floor rather than a convenient stopping point: the section list cannot be fetched
@@ -89,7 +105,7 @@ because somebody looked at a screen and asked why it was empty.
 | **Seam A** — route wrapper | ✅ | All 96 routes. 7 dead guards removed. CSRF + idempotency + request ids |
 | **Seam B** — repository | ✅ built · 🟡 adopted | Interface + 25 assertions; 1 of 13 files migrated |
 | **Seam C** — module context | ✅ | 9 contexts → 1 factory. −448/+174 lines. **Killed hop 7 everywhere** |
-| W7 — speed refactors | 🟡 | R1 done (via Seam C). R2, R6, R9 open |
+| W7 — speed refactors | ✅ | R1 (via Seam C), **R2** (`plantMissingSections` off the read path + backfill CLI), **R6** (`lastSeenAt`/`lastLoginAt` off `g:users` onto `u:<id>:activity`), **R9** (`getProfile` N+1 → one `MGET`) — all on `main` |
 | W8 — cache + prefetch | ✅ | 8 waves → 2 (studio) and 3 (sales) |
 | W9 — targeted live updates | ✅ | The stream names the row; the doorbell stopped carrying the message |
 | W10 — media to Blob · audit log | 🟡 | Audit log ✅. Blob is written and tested, blocked on the store being created |
