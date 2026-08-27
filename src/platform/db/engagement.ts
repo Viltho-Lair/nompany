@@ -26,6 +26,7 @@ export async function createEngagement(
     createdAt: nowISO(), updatedAt: nowISO(),
   };
   await setJSON(ENG.root(studioId, id), eng);
+  await zAdd(ENG.index(studioId), Date.parse(eng.createdAt) || Date.now(), id);
   return eng;
 }
 
@@ -153,6 +154,10 @@ export async function applyDescriptor(studioId: string, d: EngagementDescriptor)
     id: d.engId, studioId, ref: d.ref, context: d.context,
     singletons: d.singletons, createdAt: nowISO(), updatedAt: nowISO(),
   });
+  // The one place a root becomes listable. Every create path funnels through
+  // applyDescriptor (ticket dual-write, internal quotation, the backfill), so
+  // this single line indexes them all; ZADD per id keeps a re-run idempotent.
+  await zAdd(ENG.index(studioId), Date.parse(String(d.context.createdAt || "")) || Date.now(), d.engId);
   for (const [type, ids] of Object.entries(d.members)) {
     for (const recId of ids) {
       await zAdd(ENG.members(studioId, d.engId, type), 0, recId);

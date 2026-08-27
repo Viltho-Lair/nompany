@@ -386,6 +386,12 @@ export const ENG = {
   // record at its engagement without touching the record itself (read-layer
   // only — Phase 1a changes no existing record, route or response).
   recEng:   (studioId: string, type: string, recId: string) => `${P}s:${studioId}:rec-eng:${type}:${recId}`,
+  // EVERY engagement this studio has, newest first, scored by createdAt — so
+  // listing a studio's deals is one ZRANGE instead of re-reading salesTickets
+  // and re-deriving the clustering the engagement layer already did. Scored by
+  // the timestamp rather than insertion order because that is what lets a later
+  // report ask for a date range (ZRANGEBYSCORE) without reading a collection.
+  index: (studioId: string) => `${P}s:${studioId}:eng-index`,
 };
 // The per-studio bucket loose Tier-A records attach to instead of minting an engagement.
 export const UNASSIGNED_ENG = "__unassigned";
