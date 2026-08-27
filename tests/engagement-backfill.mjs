@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import { ENG, deterministicEngId, KEY_PREFIX } from "../src/platform/db/keys.ts";
 import { buildEngagements } from "../src/platform/engagement/backfill.ts";
+import { applyDescriptor, readEngagementView, engagementOf } from "../src/platform/db/engagement.ts";
 
 assert.ok(KEY_PREFIX, "backfill tests must run under a key prefix");
 
@@ -37,7 +38,36 @@ export function testCluster() {
   assert.equal(d.ref, "ACME-001", "engagement takes the ticket ref");
 }
 
+export async function testApplyAndRead() {
+  const sid = `s_${Date.now().toString(36)}`;
+  const [d] = buildEngagements({
+    salesTickets: [{ id: "tk_1", clientId: "c1", clientName: "Acme", ref: "ACME-001", title: "Roof" }],
+    salesClients: [{ id: "c1", name: "Acme" }],
+    quotations: [{ id: "quo_1", ticketId: "tk_1", createdAt: "2026-01-01" }],
+    projects: [{ id: "pro_1", ticketId: "tk_1" }],
+    invoices: [{ id: "inv_1", projectId: "pro_1" }],
+  });
+  await applyDescriptor(sid, d);
+  const view = await readEngagementView(sid, d.engId);
+  assert.equal(view.context.clientName, "Acme");
+  assert.equal(view.singletons.ticket, "tk_1");
+  assert.equal(view.singletons.project, "pro_1");
+  assert.deepEqual(view.members.quotations, ["quo_1"]);
+  assert.deepEqual(view.members.invoices, ["inv_1"]);
+  // NOTE: d.members keys are plural ("invoices"), matching zAdd's type param and
+  // readEngagementView's iteration list — applyDescriptor writes recEng under
+  // that SAME string, so the lookup must use it too (not the STAGE_REGISTRY
+  // singular "invoice", which is a different vocabulary used only for singleton
+  // slots). Fixing a one-word mismatch in the brief's own test, not inventing a
+  // plural/singular mapping.
+  assert.equal(await engagementOf(sid, "invoices", "inv_1"), d.engId, "reverse index resolves");
+  // Idempotent: re-applying yields the same view (no duplicate members).
+  await applyDescriptor(sid, d);
+  const again = await readEngagementView(sid, d.engId);
+  assert.deepEqual(again.members.invoices, ["inv_1"], "re-apply does not duplicate");
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  (async () => { for (const t of [testKeysAndDetId, testCluster]) { await t(); console.log(`ok ${t.name}`); } })()
+  (async () => { for (const t of [testKeysAndDetId, testCluster, testApplyAndRead]) { await t(); console.log(`ok ${t.name}`); } })()
     .catch((e) => { console.error(e); process.exit(1); });
 }

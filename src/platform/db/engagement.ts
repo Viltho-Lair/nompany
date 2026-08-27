@@ -4,6 +4,7 @@
 import { ENG, ID, UNASSIGNED_ENG } from "./keys";
 import { getJSON, setJSON, editJSON, zAdd, zRange, zRem, sAdd, sRem, sCard } from "./store";
 import { isSingleton, stageOf } from "../engagement/registry";
+import type { EngagementDescriptor } from "../engagement/backfill";
 
 export type Engagement = {
   id: string; studioId: string; ref: string;
@@ -140,4 +141,44 @@ export async function promote(studioId: string, type: string, recId: string, toE
 async function scoreOf(studioId: string, engId: string, type: string, recId: string): Promise<number> {
   const ids = await zRange(ENG.members(studioId, engId, type), 0, -1);
   return ids.includes(recId) ? Date.now() : Date.now();
+}
+
+// Persist a backfill descriptor as the engagement layer. Idempotent: the root is
+// set (not appended), members are re-added to a set (ZADD is idempotent per id),
+// and the reverse index is re-pointed. Writes only ENG.* / recEng keys — never an
+// existing record (read-layer discipline, spec Phase 1a).
+export async function applyDescriptor(studioId: string, d: EngagementDescriptor): Promise<void> {
+  await setJSON(ENG.root(studioId, d.engId), {
+    id: d.engId, studioId, ref: d.ref, context: d.context,
+    singletons: d.singletons, createdAt: nowISO(), updatedAt: nowISO(),
+  });
+  for (const [type, ids] of Object.entries(d.members)) {
+    for (const recId of ids) {
+      await zAdd(ENG.members(studioId, d.engId, type), 0, recId);
+      await setJSON(ENG.recEng(studioId, type, recId), d.engId);
+    }
+  }
+  for (const [slot, recId] of Object.entries(d.singletons)) {
+    if (recId) await setJSON(ENG.recEng(studioId, slot, recId), d.engId);
+  }
+}
+
+export async function engagementOf(studioId: string, type: string, recId: string): Promise<string | null> {
+  return getJSON<string>(ENG.recEng(studioId, type, recId));
+}
+
+// Assemble the engagement from the layer (root + every member set). Record
+// bodies are resolved by the caller from their own collections — this returns ids.
+export async function readEngagementView(
+  studioId: string, engId: string,
+): Promise<{ context: Record<string, unknown>; singletons: Record<string, string | null>; members: Record<string, string[]> } | null> {
+  const root = await readEngagement(studioId, engId);
+  if (!root) return null;
+  const members: Record<string, string[]> = {};
+  for (const type of ["rfqs", "quotations", "invoices", "expenses", "orders",
+                      "deliveries", "shipments", "tasks", "overtimes", "sheets"]) {
+    const ids = await zRange(ENG.members(studioId, engId, type), 0, -1);
+    if (ids.length) members[type] = ids;
+  }
+  return { context: root.context, singletons: root.singletons, members };
 }
