@@ -52,6 +52,13 @@ export type MainContext = {
   seen: SeenFn;
   visible: ReturnType<typeof visibleSections>;
   nav: ReturnType<typeof sectionNav>;
+  // Engagements reads ACROSS sections rather than through one, so it cannot be
+  // asked through `seen` the way headlines/recent are — it needs the raw
+  // permission set to filter stages itself (src/modules/main/engagements.ts).
+  // Forwarding it here is not "every context returns access" being broken:
+  // it is resolved once in studioContext, same as always, just no longer
+  // dropped on the way out.
+  access: PermissionSet;
 };
 
 export async function mainContext(user: { id?: unknown } | null | undefined, slug: string) {
@@ -83,6 +90,7 @@ export async function mainContext(user: { id?: unknown } | null | undefined, slu
     studio, collaborator, sections, byKey, seen,
     visible: visibleSections(studio, collaborator, sections, access),
     nav: sectionNav(studio, collaborator, sections, access),
+    access,
   };
 }
 
