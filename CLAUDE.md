@@ -300,7 +300,12 @@ CLI `scripts/migrate/backfill-engagements.mjs`, `readEngagementView`; **applied 
 engagements proven), and **Phase 1b-i** (`createTicket` dual-writes its engagement — same
 deterministic id/clustering the backfill uses, guarded, response byte-identical), and **Phase
 1b-rest** (RFQ/quotation/project creation each attach to their engagement — internal quotation
-mints its own, approved quotation recorded — so the whole spine now dual-writes on create). See
+mints its own, approved quotation recorded — so the whole spine now dual-writes on create). **The
+engagements view** (`/<slug>/engagements`, branch `engagements-view`) is the first surface that READS
+the layer: a `createdAt`-scored engagement index, the grantable `engagements.view` key, a read layer
+that filters every stage by the permission its stage-registry entry declares, two GET routes, four new
+goldens, and a screen reached from a nav entry above People. It is deliberately NOT a section — giving
+Main a child would gate the parent and hide Main from every member without the right. See
 `docs/progress.md` and the
 `docs/superpowers/plans/2026-08-2{6,7}-engagement-*.md` plans. The read/write paths are NOT
 wired to any route yet — the engagement layer is written alongside, reconciled by the backfill.

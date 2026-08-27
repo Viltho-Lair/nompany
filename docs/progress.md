@@ -4,7 +4,7 @@
 this one is where we actually are. Updated when a wave item closes, not on a
 schedule.
 
-**Last updated:** 2026-08-27 · engagement storage model Phase 0 + 1a + 1b-i on `main`
+**Last updated:** 2026-08-27 · engagement storage model Phase 0 + 1a + 1b on `main`; the engagements view built
 
 ---
 
@@ -12,9 +12,9 @@ schedule.
 
 | | |
 |---|---|
-| **Done** | Wave 0, Gate A, Wave 2 seams (A, B, C), **W7 speed refactors R6/R2/R9**, and the **engagement storage model Phase 0 + 1a + 1b-i** (all on `main`, green) |
-| **In progress** | Engagement **Phase 1b-rest** (RFQ/quotation/project attach on create) on branch `engagement-phase-1b2` |
-| **Blocked on nothing** | CI green on every push; goldens now **144** |
+| **Done** | Wave 0, Gate A, Wave 2 seams (A, B, C), **W7 speed refactors R6/R2/R9**, and the **engagement storage model Phase 0 + 1a + 1b** (all on `main`, green) |
+| **In progress** | **The engagements view** (`/<slug>/engagements`) on branch `engagements-view` — the first surface that reads the layer |
+| **Blocked on nothing** | CI green on every push; goldens **148** (144 + the engagement view's four) |
 | **Next gate** | Gate B met in practice (sales at its 3-hop structural floor); the engagement model is the repository-seam endgame ahead of the SQL migration |
 
 ---
@@ -30,6 +30,7 @@ is being built and shipped incrementally. On `main`:
 | **Phase 1a — backfill read layer** | pure chain-clustering (`backfill.ts`), a guarded backfill CLI (`scripts/migrate/backfill-engagements.mjs`), `readEngagementView`, a `recEng` reverse index | ✅ on `main`, **applied to live** (7 engagements on the reference studio, proven read-only) |
 | **Phase 1b-i — ticket dual-write** | `createTicket` also mints its engagement, same deterministic id/clustering, guarded best-effort, response byte-identical | ✅ on `main` |
 | **Phase 1b-rest** | RFQ / quotation / project creation attach to their engagement; internal quotation mints its own; approved quotation recorded — the whole spine now dual-writes on create | ✅ on `main` |
+| **The engagements view** | `/<slug>/engagements` — the first surface that READS the layer: a `createdAt`-scored index, the grantable `engagements.view` key, a read layer filtering every stage by the permission its registry entry declares, two GET routes, four goldens, and a screen with a nav entry above People | ✅ built (`engagements-view`) |
 
 Plans: `docs/superpowers/plans/2026-08-2{6,7}-engagement-*.md`. Deferred (ledgered): the project's
 children attaching on create, score-members-by-`createdAt`, `dept`/`hasStage` on backfilled
@@ -54,7 +55,7 @@ A gate is a promise the build keeps, not a milestone anybody declares.
 | `readCol` in service code | 0 | ✅ **0** |
 | Hops — `/api/studios/[slug]` | ≤2 | ✅ **2 waves** *(was 8)* |
 | Hops — `…/sales` | ≤2 | **3 waves** *(was 8)* — 3 is the structural floor |
-| Goldens unchanged | 144 | ✅ 144 (byte-identical through the engagement work) |
+| Goldens unchanged | 148 | ✅ the original 144 byte-identical throughout; the engagement view ADDED four |
 
 The studio route meets the ≤2 target. Sales sits at 3, and 3 is the structural
 floor rather than a convenient stopping point: the section list cannot be fetched
