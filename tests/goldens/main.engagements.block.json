@@ -5,22 +5,8 @@
       "id": "<eng_ID>",
       "ref": "ENGAGEMENT-VIEW-CLIENT-001",
       "context": {
-        "clientId": "<sal_ID>",
         "clientName": "Engagement View Client",
-        "industry": "Commercial",
-        "urgency": "Normal",
-        "title": "Engagement view fixture",
-        "deadline": "2026-12-15",
-        "contact": {
-          "name": ""
-        },
-        "site": {
-          "name": "",
-          "country": "",
-          "city": "",
-          "url": ""
-        },
-        "createdAt": "<timestamp>"
+        "title": "Engagement view fixture"
       },
       "status": "Lead",
       "cards": [

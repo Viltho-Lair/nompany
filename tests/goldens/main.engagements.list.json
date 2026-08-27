@@ -4,7 +4,7 @@
     "engagements": [
       {
         "id": "<eng_ID>",
-        "ref": "",
+        "ref": "ENGAGEMENT-VIEW-CLIENT-001",
         "clientName": "Engagement View Client",
         "title": "Engagement view fixture",
         "createdAt": "<timestamp>",
@@ -14,7 +14,7 @@
       },
       {
         "id": "<eng_ID>",
-        "ref": "",
+        "ref": "SECOND-CLIENT-001",
         "clientName": "Second Client",
         "title": "Default sequence check",
         "createdAt": "<timestamp>",
@@ -24,7 +24,7 @@
       },
       {
         "id": "<eng_ID>",
-        "ref": "",
+        "ref": "ACME-HOLDINGS-002",
         "clientName": "Acme Holdings",
         "title": "Cannot start won",
         "createdAt": "<timestamp>",
@@ -34,7 +34,7 @@
       },
       {
         "id": "<eng_ID>",
-        "ref": "",
+        "ref": "ACME-HOLDINGS-001",
         "clientName": "Acme Holdings",
         "title": "Boardroom refit",
         "createdAt": "<timestamp>",
