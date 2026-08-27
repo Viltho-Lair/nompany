@@ -117,6 +117,11 @@ import {
 // best-effort side effect, reusing the backfill's own clustering.
 import { deterministicEngId } from "@/platform/db/keys";
 import { readEngagementView } from "@/platform/db/engagement";
+// PHASE 1b-i ON-CREATE (Task 1). Same standalone-runner shape as engagement.mjs
+// and engagement-backfill.mjs above — importing it here pulls in only the one
+// exported test function, run explicitly further down through the same
+// try/catch adapter (node:assert throws are not this file's ok() shape).
+import { testAttachTicketEngagement } from "./engagement-oncreate.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -3296,6 +3301,19 @@ console.log("\n== engagement backfill (Phase 1a)");
 {
   for (const t of [testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity,
                     testVocabularyParity]) {
+    try {
+      await t();
+      ok(t.name, true);
+    } catch (e) {
+      ok(t.name, false, e.message);
+    }
+  }
+}
+
+// ============================================================================
+console.log("\n== engagement on-create (Phase 1b-i)");
+{
+  for (const t of [testAttachTicketEngagement]) {
     try {
       await t();
       ok(t.name, true);
