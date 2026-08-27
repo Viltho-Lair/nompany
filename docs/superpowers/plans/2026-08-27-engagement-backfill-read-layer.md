@@ -60,17 +60,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
 - [ ] **Step 2: Run to verify it fails** — preload the repo loader via `--import` and run under `NOMPANY_KEY_PREFIX` (as Phase 0's tests do). Expected: FAIL — `ENG.recEng`/`deterministicEngId` not exported.
 
-- [ ] **Step 3: Write minimal implementation** — in `keys.ts`, add to the `ENG` object: `recEng: (studioId, type, recId) => \`${P}s:${studioId}:rec-eng:${type}:${recId}\`,`. Then add a deterministic id builder near `makeId` (it must NOT use `Date.now()`/`Math.random()` — it derives from the head so it is stable):
+- [ ] **Step 3: Write minimal implementation** — in `keys.ts`, add to the `ENG` object: `recEng: (studioId, type, recId) => \`${P}s:${studioId}:rec-eng:${type}:${recId}\`,`.
 
-```ts
-import { createHash } from "node:crypto";
-// A stable engagement id for a chain, derived from its head record so re-running
-// the backfill maps the same chain to the same engagement (idempotent, spec §5.4).
-export function deterministicEngId(headType: string, headId: string): string {
-  const h = createHash("sha1").update(`${headType}:${headId}`).digest("hex").slice(0, 12);
-  return `eng_${h}`;
-}
-```
+  **`deterministicEngId` must NOT live in `keys.ts` importing `node:crypto`.** `keys.ts` is reachable from a `"use client"` component (`Hero.js`), and webpack pulls a module's whole dependency graph before tree-shaking, so a `node:crypto` import there adds ~130 KB gz to the client bundle and breaks the budget (confirmed; the `IX.superSession` comment in keys.ts documents exactly this hazard). Put it in a NEW file `src/platform/db/engagementId.ts` using a **dependency-free pure-JS SHA-1** (verified byte-identical to `crypto.createHash("sha1")`), and have `keys.ts` re-export it. It must NOT use `Date.now()`/`Math.random()` — it derives from the head so the backfill is idempotent (spec §5.4). Every later task imports `deterministicEngId` from `engagementId.ts` (via the keys re-export) — never reintroduce `node:crypto` in `keys.ts`.
 
 - [ ] **Step 4: Run to verify it passes** — module prints `ok testKeysAndDetId`; both `tsc` clean; the builder-namespacing suite still green with the new `ENG.recEng`.
 
@@ -114,8 +106,9 @@ export function testCluster() {
   const d = descs[0];
   assert.equal(d.singletons.ticket, "tk_1");
   assert.equal(d.singletons.project, "pro_1");
-  assert.deepEqual(d.members.quotations.sort(), ["quo_1", "quo_2"], "both quotations are members");
-  assert.deepEqual(d.members.invoices.sort(), ["inv_1", "inv_2"], "project's invoices attach to the engagement");
+  assert.deepEqual(d.members.quotation.sort(), ["quo_1", "quo_2"], "both quotations are members");
+  assert.deepEqual(d.members.invoice.sort(), ["inv_1", "inv_2"], "project's invoices attach to the engagement");
+  assert.equal(d.singletons.approvedQuotation, "quo_2", "newest quotation is the approved one");
   assert.equal(d.context.clientId, "c1", "live client ref carried as context");
   assert.equal(d.ref, "ACME-001", "engagement takes the ticket ref");
 }
@@ -147,11 +140,13 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
   const clientById = new Map(clients.map((x) => [x.id as string, x]));
   const out: EngagementDescriptor[] = [];
 
+  // [SINGULAR registry type, source collection name]. The key is the registry
+  // type (matching Phase 0's STAGE_REGISTRY + attachRecord + ENG.members), so a
+  // backfilled record and a future attach-created record share one member set.
   const memberTypes: [string, string][] = [
-    ["rfqs", "rfqs"], ["quotations", "quotations"],
-    ["invoices", "invoices"], ["expenses", "expenses"], ["orders", "materialOrders"],
-    ["deliveries", "deliveries"], ["shipments", "awbShipments"], ["tasks", "tasks"],
-    ["overtimes", "overtimes"], ["sheets", "projectSheets"],
+    ["invoice", "invoices"], ["expense", "expenses"], ["order", "materialOrders"],
+    ["delivery", "deliveries"], ["shipment", "awbShipments"], ["task", "tasks"],
+    ["overtime", "overtimes"], ["sheet", "projectSheets"],
   ];
 
   for (const t of tickets) {
@@ -163,12 +158,11 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
       String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0] || null;
 
     const members: Record<string, string[]> = {};
-    members.rfqs = byField(c.rfqs || [], "ticketId", t.id).map((r) => r.id as string);
-    members.quotations = quotations.map((q) => q.id as string);
+    members.rfq = byField(c.rfqs || [], "ticketId", t.id).map((r) => r.id as string);
+    members.quotation = quotations.map((q) => q.id as string);
     if (project) {
-      for (const [slot, coll] of memberTypes) {
-        if (slot === "rfqs" || slot === "quotations") continue;
-        members[slot] = byField(c[coll] || [], "projectId", project.id).map((r) => r.id as string);
+      for (const [type, coll] of memberTypes) {
+        members[type] = byField(c[coll] || [], "projectId", project.id).map((r) => r.id as string);
       }
     }
 
@@ -198,7 +192,7 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
                  industry: (q.industry as string) || "", title: (q.title as string) || "", deadline: (q.deadline as string) || "",
                  contact: {}, site: {} },
       singletons: { ticket: null, approvedQuotation: null, project: null },
-      members: { quotations: [q.id as string] },
+      members: { quotation: [q.id as string] },
     });
   }
   return out;
@@ -245,13 +239,13 @@ export async function testApplyAndRead() {
   assert.equal(view.context.clientName, "Acme");
   assert.equal(view.singletons.ticket, "tk_1");
   assert.equal(view.singletons.project, "pro_1");
-  assert.deepEqual(view.members.quotations, ["quo_1"]);
-  assert.deepEqual(view.members.invoices, ["inv_1"]);
+  assert.deepEqual(view.members.quotation, ["quo_1"]);
+  assert.deepEqual(view.members.invoice, ["inv_1"]);
   assert.equal(await engagementOf(sid, "invoice", "inv_1"), d.engId, "reverse index resolves");
   // Idempotent: re-applying yields the same view (no duplicate members).
   await applyDescriptor(sid, d);
   const again = await readEngagementView(sid, d.engId);
-  assert.deepEqual(again.members.invoices, ["inv_1"], "re-apply does not duplicate");
+  assert.deepEqual(again.members.invoice, ["inv_1"], "re-apply does not duplicate");
 }
 ```
 
@@ -294,8 +288,9 @@ export async function readEngagementView(
   const root = await readEngagement(studioId, engId);
   if (!root) return null;
   const members: Record<string, string[]> = {};
-  for (const type of ["rfqs", "quotations", "invoices", "expenses", "orders",
-                      "deliveries", "shipments", "tasks", "overtimes", "sheets"]) {
+  // SINGULAR registry types — the same keys Phase 0's attachRecord/ENG.members use.
+  for (const type of ["rfq", "quotation", "invoice", "expense", "order",
+                      "delivery", "shipment", "task", "overtime", "sheet"]) {
     const ids = await zRange(ENG.members(studioId, engId, type), 0, -1);
     if (ids.length) members[type] = ids;
   }
