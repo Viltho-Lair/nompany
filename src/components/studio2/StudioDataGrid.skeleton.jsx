@@ -42,7 +42,10 @@ const cellWidth = (i) => `${45 + ((i * 23) % 40)}%`;
 // `StudioLocaleProvider`, so the context resolves in the server pass as well,
 // and `ariaLabel` stays as the override for anywhere that has no provider.
 export function StudioDataGridSkeleton({ columns = 6, pageSize = 10, rows = 6, ariaLabel }) {
-  const label = ariaLabel ?? commonDict(useStudioLocale()).loading;
+  // Not inside the `??` — that short-circuit made the hook conditional on a
+  // prop. See ScreenSkeleton, which had the same line.
+  const fallback = commonDict(useStudioLocale()).loading;
+  const label = ariaLabel ?? fallback;
   const shown = Math.min(rows, pageSize);
   return (
     <div

@@ -859,6 +859,16 @@ console.log("== the architecture, asserted rather than remembered");
 
     // THE THREE THAT ARE MEANT TO MATCH. Two OAuth providers and the studio's
     // own address prefix — all three are read aloud the same way in Arabic.
+    //
+    // A FOURTH SHAPE WILL EVENTUALLY LAND HERE, and this is the note for
+    // whoever meets it. A value is the normalised SOURCE of its entry, so a
+    // function is compared to a function as text — which is what makes the
+    // `chatUnread` proof above fail correctly, and equally means a formatter
+    // that is legitimately the same in both languages would be reported. None
+    // exists today or this would not be green. When one does, add it to this
+    // set. DO NOT narrow the matcher to exclude functions: that is precisely
+    // the hole this assertion shipped with, and 80 counted phrases went unread
+    // behind it.
     const DELIBERATE = new Set(["account.ts:google", "account.ts:microsoft", "account.ts:nompanyCom"]);
     const real = untranslated.filter((k) => !DELIBERATE.has(k));
 
