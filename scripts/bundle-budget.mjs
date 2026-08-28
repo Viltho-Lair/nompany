@@ -99,6 +99,23 @@ const files = walk(DIR).map((path) => {
   return { path, raw: raw.length, gzip: gzipSync(raw, { level: 6 }).length };
 }).sort((a, b) => b.gzip - a.gzip);
 
+// A GATE THAT MEASURED NOTHING MUST NOT REPORT "within budget". `.next/static`
+// existing is not proof a build succeeded: a failed or interrupted `next build`
+// leaves the directory behind with no chunks in it, and every ceiling below is
+// then trivially satisfied — 0 KB across 0 chunks, exit 0, a green line in CI
+// that means the opposite of what it says. The existsSync check above cannot
+// catch that, because the directory IS there.
+//
+// Reproduced, not theorised: `mkdir -p .next/static/chunks && node
+// scripts/bundle-budget.mjs` printed "within budget" and exited 0. It is also
+// how a worktree fails — Turbopack refuses a node_modules symlink pointing out
+// of the project root, so the build dies and this script would have blessed it.
+if (files.length === 0) {
+  console.error(`${DIR} holds no .js chunks — the build did not produce a bundle.`);
+  console.error("Run `next build` and check it SUCCEEDED; a failed build leaves this directory empty.");
+  process.exit(1);
+}
+
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];
 const biggestKb = (biggest?.gzip || 0) / 1024;
