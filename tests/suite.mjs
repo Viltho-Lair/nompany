@@ -45,7 +45,7 @@ import {
   submitTicketPo, editClient,
 } from "@/modules/sales/sales";
 import { resolveClientFor, normaliseClientName, clientSlug } from "@/modules/sales/salesClients";
-import { projectsContext, openProject, listProjects } from "@/modules/projects/projects";
+import { projectsContext, openProject, listProjects, approvedQuotations } from "@/modules/projects/projects";
 import {
   technicalContext, requestRfq, convertRfq, createQuotation, updateRfq, updateQuotation, listQuotations,
 } from "@/modules/technical/technical";
@@ -1107,6 +1107,72 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
     && openedFallback.project?.clientName === ticketFallback.ticket?.clientName,
     JSON.stringify({ clientId: openedFallback.project?.clientId, clientName: openedFallback.project?.clientName,
                      ticketClientId: ticketFallback.ticket?.clientId }));
+}
+
+// ============================================================================
+console.log("\n== the picker one screen before openProject names an internal quotation's client (F4, engagement-client-source)");
+// THE SURVIVING HALF OF THE SAME DEFECT: openProject reads the client
+// correctly once a quotation is CHOSEN (the block above), but approvedQuotations
+// is what the "open a project" picker lists BEFORE that — and it was still
+// mapping clientName off ticketFacts(q.ticketId), which is the NO_TICKET
+// sentinel (blank) for every internal quotation. A user picked an approved
+// internal quotation whose client column was empty and the project that
+// opened carried whatever the fallback happened to be. Fixed the same way
+// listQuotations resolves an internal quotation's name (technical.ts): LIVE
+// off Sales' own Client record via ticketFacts' clientsById, stored
+// clientName only as the free-text fallback.
+{
+  const tech = await technicalContext(owner, slug);
+  const sequence = (tech.sequences || [])[0];
+
+  const clientName = `Picker Client ${rand()}`;
+  const madePicker = await createQuotation(tech, {
+    sequenceId: sequence?.id, clientName,
+    title: "Picker names its client", industry: "Technology", deadline: "2026-12-01",
+    description: "An internal quotation, checked from the picker before it is opened.",
+  });
+  ok("an internal quotation can be raised for the picker check",
+    !!madePicker.quotation?.clientId, JSON.stringify(madePicker.error || madePicker.quotation));
+
+  await updateQuotation(tech, madePicker.quotation?.id, { status: "Approved" });
+
+  const proj = await projectsContext(owner, slug);
+  const picked = await approvedQuotations(proj);
+  const pickerRow = picked.find((q) => q.id === madePicker.quotation?.id);
+  ok("the picker lists the approved internal quotation with its client's real name, not blank",
+    pickerRow?.clientName === clientName, JSON.stringify(pickerRow));
+
+  // LIVE, NOT A COPY: rename the Client record with no write to the
+  // quotation in between — a stored-name read would still show the old
+  // name here and nothing would notice.
+  const salesForPicker = await salesContext(owner, slug);
+  const renamedPickerClient = await editClient(salesForPicker, madePicker.quotation?.clientId, { name: "Picker Client Renamed" });
+  ok("the picker client is renamed", renamedPickerClient.client?.name === "Picker Client Renamed",
+    JSON.stringify(renamedPickerClient.error || renamedPickerClient));
+
+  const pickedAfterRename = await approvedQuotations(proj);
+  const pickerRowAfterRename = pickedAfterRename.find((q) => q.id === madePicker.quotation?.id);
+  ok("...and the picker shows the renamed name — resolved live, not from a copy",
+    pickerRowAfterRename?.clientName === "Picker Client Renamed", JSON.stringify(pickerRowAfterRename));
+
+  // REGRESSION GUARD — a ticket-headed approved quotation still shows its
+  // client in the picker, exactly as before this fix (that path was never
+  // broken; only the internal-quotation branch above was).
+  const salesForPickerTicket = await salesContext(owner, slug);
+  const svcPickerTicket = await createService(salesForPickerTicket, { name: `Picker Ticket ${rand()}` });
+  const pickerTicket = await createTicket(salesForPickerTicket, {
+    title: "Ticket-headed picker row", clientName: `Picker Ticket Client ${rand()}`, deadline: "2026-12-01",
+    industry: "Technology", serviceIds: [svcPickerTicket.service?.id],
+  });
+  const pickerRfq = await requestTicketRfq(salesForPickerTicket, { ticketId: pickerTicket.ticket?.id });
+  const techForPickerTicket = await technicalContext(owner, slug);
+  const pickerConv = await convertRfq(techForPickerTicket, { rfqId: pickerRfq.rfq?.id });
+  await updateQuotation(techForPickerTicket, pickerConv.quotation?.id, { status: "Approved" });
+
+  const pickedTicketHeaded = await approvedQuotations(proj);
+  const pickerTicketRow = pickedTicketHeaded.find((q) => q.id === pickerConv.quotation?.id);
+  ok("...and a ticket-headed approved quotation still shows its client in the picker",
+    pickerTicketRow?.clientName === pickerTicket.ticket?.clientName, JSON.stringify(pickerTicketRow));
 }
 
 // ============================================================================

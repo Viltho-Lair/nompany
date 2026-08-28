@@ -171,7 +171,7 @@ export async function listProjects(ctx: ProjectsContext) {
 export async function approvedQuotations(ctx: ProjectsContext) {
   const { studio, listSection, quotationsSection, tasksSection } = ctx;
   if (!quotationsSection) return [];
-  const [quotes, projects, tasks, { factsFor }] = await Promise.all([
+  const [quotes, projects, tasks, { factsFor, clientsById }] = await Promise.all([
     Quotations.find({ studio, section: quotationsSection }),
     Projects.find({ studio, section: listSection }),
     tasksSection ? Tasks.find({ studio, section: tasksSection }) : [],
@@ -186,10 +186,25 @@ export async function approvedQuotations(ctx: ProjectsContext) {
     // ticketId. An Internal quotation has no ticket and titles itself.
     .map((q) => {
       const t = factsFor(String(q.ticketId || ""));
+      // AN INTERNAL QUOTATION'S CLIENT is resolved the same way listQuotations
+      // resolves it (technical.ts) — LIVE off Sales' own Client record via
+      // clientsById, never off the quotation's own stored clientName, which is
+      // free text left over from before this branch gave internal quotations a
+      // real clientId. Picking the picker offered "Abdullah Abu Hamad" for a
+      // client the row itself never named was this same defect one screen
+      // earlier: openProject already resolves the client correctly once a
+      // quotation is chosen, but this list is what choses it, and it was still
+      // reading the ticket-only path (blank for every internal quotation) even
+      // after that fix landed. The stored name is kept only as the fallback
+      // for a client that has no row yet.
+      const clientId = String(q.clientId || "");
+      const clientName = q.ticketId
+        ? t.clientName
+        : (clientId && clientsById.get(clientId)) || String(q.clientName || "") || "";
       return {
         id: q.id, number: q.number, total: q.total,
         title: q.ticketId ? t.title : (q.title || ""),
-        clientName: t.clientName,
+        clientName,
       };
     });
 }
@@ -226,7 +241,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   const denied = requirePermission(ctx.access, "projects.list.create");
   if (denied) return denied;
 
-  const { studio, listSection, technicalSection, collaborator, quotationsSection, sheetsSection, tasksSection, salesClientsSection } = ctx;
+  const { studio, listSection, technicalSection, collaborator, quotationsSection, sheetsSection, tasksSection, salesClientsSection, salesTicketsSection } = ctx;
   if (!technicalSection) return { error: "no-technical" };
 
   const quotationId = str(body?.quotationId, 60);
@@ -277,15 +292,32 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   const engContext = (engagement?.context || {}) as { clientId?: string; clientName?: string };
   let engClientId = String(engContext.clientId || "");
   let clientName = String(engContext.clientName || "");
-  if (engClientId && salesClientsSection) {
-    const clients = await Clients.find({ studio, section: salesClientsSection });
-    const client = clients.find((c) => c.id === engClientId);
-    if (client?.name) clientName = client.name;
+
+  // ONE READ OF SALES' CLIENTS COLLECTION, not two. ticketFacts already reads
+  // it — to build clientsById (an internal quotation's own client name, see
+  // approvedQuotations above and listQuotations in technical.ts) and factsFor
+  // (the title, below) — so the live client name comes off that same map
+  // instead of a second Clients.find sequenced after it; see the comment on
+  // ticketFacts for why folding a caller's own lookup in here is what keeps a
+  // route's hop count from regressing.
+  //
+  // GUARD: ticketFacts short-circuits to an empty clientsById the moment the
+  // studio has no Sales TICKETS section — a fact about tickets, not about
+  // clients — so a studio with a Sales clients section but no tickets section
+  // falls back to the direct read this replaces, rather than losing client
+  // resolution it has today.
+  const { factsFor, clientsById } = await ticketFacts(ctx);
+  if (engClientId) {
+    const liveName = salesTicketsSection
+      ? clientsById.get(engClientId)
+      : salesClientsSection
+        ? (await Clients.find({ studio, section: salesClientsSection })).find((c) => c.id === engClientId)?.name
+        : undefined;
+    if (liveName) clientName = liveName;
   }
 
   // The title still reads the ticket the way it always did — untouched by
   // this fix, which is about the client only.
-  const { factsFor } = await ticketFacts(ctx);
   const t = factsFor(String(quote.ticketId || ""));
 
   // FALLBACK, NOT A SECOND SOURCE. The engagement is still where the client
