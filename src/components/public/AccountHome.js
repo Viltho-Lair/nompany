@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAccountLocale } from "@/components/public/locale";
+import { accountDict } from "@/shared/account";
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
@@ -53,21 +55,22 @@ const ROW_VALUE = "truncate text-sm leading-[1.4286] text-slate-500 dark:text-sl
 
 // Every sidebar destination carries its own icon colour, so the rail reads as a
 // set of distinct places rather than a uniform list.
-const NAV = [
-  { key: "overview", label: "Overview", icon: "dashboard", tone: "text-brand-600 dark:text-brand-400", bg: "bg-brand-500/10" },
+const navFor = (tr) => [
+  { key: "overview", label: tr.overview, icon: "dashboard", tone: "text-brand-600 dark:text-brand-400", bg: "bg-brand-500/10" },
   // `accent` is the project's purple scale. Tailwind's default `violet` is
   // overridden in tailwind.config as a SINGLE token, so `violet-600` does not
   // exist and would silently fall through to inherited colour.
-  { key: "studios", label: "My Studios", icon: "building", tone: "text-accent-600 dark:text-accent-400", bg: "bg-accent-500/10" },
-  { key: "collabs", label: "My Collaborations", icon: "team", tone: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
-  { key: "personal", label: "Personal info", icon: "person", tone: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
-  { key: "security", label: "Security", icon: "shield", tone: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10" },
+  { key: "studios", label: tr.myStudios, icon: "building", tone: "text-accent-600 dark:text-accent-400", bg: "bg-accent-500/10" },
+  { key: "collabs", label: tr.myCollaborations, icon: "team", tone: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
+  { key: "personal", label: tr.personalInfo, icon: "person", tone: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
+  { key: "security", label: tr.security, icon: "shield", tone: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10" },
 ];
 
 const slugify = (s) => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
 export default function AccountHome({ locale, chrome }) {
+  const tr = accountDict(useAccountLocale());
   const [identity, setIdentity] = useState(null);
   const [studios, setStudios] = useState({ owned: null, collaborations: [] });
   const [devices, setDevices] = useState([]);
@@ -91,7 +94,7 @@ export default function AccountHome({ locale, chrome }) {
   useEffect(() => { load(); }, [load]);
 
   if (loading) {
-    return <div className={cn(PAGE, "flex items-center justify-center")}><p className="text-sm text-slate-500">Loading your account…</p></div>;
+    return <div className={cn(PAGE, "flex items-center justify-center")}><p className="text-sm text-slate-500">{tr.loadingAccount}</p></div>;
   }
 
   const name = identity?.profile?.fullName || identity?.user?.email || "there";
@@ -132,7 +135,7 @@ export default function AccountHome({ locale, chrome }) {
               type="button" onClick={() => setMenuOpen((o) => !o)}
               aria-haspopup="menu" aria-expanded={menuOpen}
               className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-sm font-700 text-white transition-shadow hover:ring-2 hover:ring-brand-500/40"
-              title={identity?.user?.email || "Account"}
+              title={identity?.user?.email || tr.account}
             >
               {identity?.profile?.photo
                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -149,7 +152,7 @@ export default function AccountHome({ locale, chrome }) {
                 )}
                 <button role="menuitem" type="button" onClick={signOut}
                   className="block w-full px-4 py-2.5 text-start text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10">
-                  Sign out
+                  {tr.signOut}
                 </button>
               </div>
             )}
@@ -162,7 +165,7 @@ export default function AccountHome({ locale, chrome }) {
         <nav className={cn(RAIL_W, "lg:flex lg:shrink-0 lg:flex-col")}>
           <div className="lg:flex-1">
             <ul className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-              {NAV.map((item) => {
+              {navFor(tr).map((item) => {
                 const on = view === item.key;
                 return (
                   <li key={item.key} className="shrink-0 lg:shrink">
@@ -196,8 +199,8 @@ export default function AccountHome({ locale, chrome }) {
             is the behaviour the clip was there to get. */}
         <main className="min-w-0 flex-1 overflow-y-auto">
           {view === "overview" && <Overview identity={identity} owned={owned} collabs={collabs} onGo={setView} onChanged={load} />}
-          {view === "studios" && <StudioList title="My Studios" note="Workspaces you own. Renaming one, or changing its link, takes effect at 12:00 am." studios={owned} empty="You don't own a studio yet." onChanged={load} />}
-          {view === "collabs" && <StudioGrid title="My Collaborations" note="Studios other people have given you access to. Your own studio is under My Studios." studios={collabs} empty="You're not collaborating in any studio yet." />}
+          {view === "studios" && <StudioList title={tr.myStudios} note={tr.workspacesYouOwn} studios={owned} empty={tr.dontOwnStudio} onChanged={load} />}
+          {view === "collabs" && <StudioGrid title={tr.myCollaborations} note={tr.studiosOthersGave} studios={collabs} empty={tr.notCollaborating} />}
           {view === "personal" && <PersonalInfo identity={identity} onSaved={load} />}
           {view === "security" && <Security devices={devices} onChanged={load} locale={locale} user={identity?.user} />}
 
@@ -209,14 +212,14 @@ export default function AccountHome({ locale, chrome }) {
           above AND share a baseline with the note beside them. */}
       <footer className="flex shrink-0 items-center gap-6 px-5 pb-4 pt-2 sm:px-8">
         <div className={cn(RAIL_W, "hidden shrink-0 flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 lg:flex")}>
-          <Link href={`/${locale}/terms`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Terms</Link>
-          <Link href={`/${locale}/contact`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Help</Link>
+          <Link href={`/${locale}/terms`} className="hover:text-slate-900 hover:underline dark:hover:text-white">{tr.terms}</Link>
+          <Link href={`/${locale}/contact`} className="hover:text-slate-900 hover:underline dark:hover:text-white">{tr.help}</Link>
           {owned[0]
-            ? <a href={`/${owned[0].slug}/documentation`} className="hover:text-slate-900 hover:underline dark:hover:text-white">Documentation</a>
-            : <span className="text-slate-400 dark:text-slate-500">Documentation</span>}
+            ? <a href={`/${owned[0].slug}/documentation`} className="hover:text-slate-900 hover:underline dark:hover:text-white">{tr.documentation}</a>
+            : <span className="text-slate-400 dark:text-slate-500">{tr.documentation}</span>}
         </div>
         <p className="min-w-0 flex-1 text-center text-xs text-slate-500 dark:text-slate-400">
-          These settings are yours alone. Studios you join keep their own profile for you and never see what&apos;s here.
+          {tr.settingsYoursAlone}
         </p>
         {/* Balances the links column so the note is centred in the window. */}
         <div className={cn(RAIL_W, "hidden shrink-0 lg:block")} aria-hidden="true" />
@@ -267,6 +270,7 @@ function ActionTile({ icon, label, onClick, compact = false }) {
 // four they use most — no choice to make, and no scrolling to find the one they
 // wanted. Past four, a View all tile takes over.
 function StudioStrip({ action, studios, onViewAll }) {
+  const tr = accountDict(useAccountLocale());
   const shown = studios.slice(0, 4);
   return (
     <div className="mt-2 flex items-start gap-3 overflow-x-auto">
@@ -275,8 +279,8 @@ function StudioStrip({ action, studios, onViewAll }) {
       {studios.length > 4 && (
         <button type="button" onClick={onViewAll} className="flex aspect-square w-[104px] shrink-0 flex-col items-center justify-center gap-1 rounded-geex border border-slate-200/70 bg-white text-xs font-600 text-brand-700 transition-colors hover:border-brand-500 dark:border-white/10 dark:bg-[#20202c] dark:text-brand-300">
           <Icon name="chevronRight" className="h-5 w-5 rtl:-scale-x-100" />
-          View all
-          <span className="text-[11px] font-500 text-slate-400">{studios.length} total</span>
+          {tr.viewAll}
+          <span className="text-[11px] font-500 text-slate-400">{studios.length} {tr.total}</span>
         </button>
       )}
     </div>
@@ -308,6 +312,7 @@ function StudioGrid({ title, note, studios, empty }) {
 // clickable picture beside them is a trap — you go to change the name, miss,
 // and land in the studio instead. Opening it is now its own labelled button.
 function StudioRow({ studio, onSaved }) {
+  const tr = accountDict(useAccountLocale());
   const [name, setName] = useState(studio.name || "");
   const [slug, setSlug] = useState(studio.slug || "");
   const [busy, setBusy] = useState(false);
@@ -326,21 +331,21 @@ function StudioRow({ studio, onSaved }) {
       });
       const out = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setErr(out.error === "slug-taken" ? "That address is already taken."
-          : out.error === "slug-invalid" ? "An address is 3–64 characters: lowercase letters, numbers and hyphens."
-          : out.error === "owner-only" ? "Only the owner can rename a studio."
-          : "That didn't save.");
+        setErr(out.error === "slug-taken" ? tr.addressAlreadyTaken
+          : out.error === "slug-invalid" ? tr.address364Characters
+          : out.error === "owner-only" ? tr.onlyOwnerCanRename
+          : tr.didnSave);
         return;
       }
       // It has already happened, so this says so rather than promising it. The
       // address warning is worth keeping: the old link stops working now, and
       // whoever has it bookmarked needs telling.
-      setMsg(!out.changed ? "Nothing to change."
-        : addressChanging ? "Renamed. The old link no longer works — share the new one."
-        : "Renamed.");
+      setMsg(!out.changed ? tr.nothingChange
+        : addressChanging ? tr.renamedOldLinkNo
+        : tr.renamed);
       onSaved?.();
     } catch {
-      setErr("That didn't save.");
+      setErr(tr.didnSave);
     } finally { setBusy(false); }
   }
 
@@ -357,21 +362,21 @@ function StudioRow({ studio, onSaved }) {
       <div className="min-w-0 flex-1">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Studio name</span>
+            <span className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.studioName}</span>
             <input className={INPUT} value={name} onChange={(e) => { setName(e.target.value); setMsg(""); setErr(""); }} />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Studio link</span>
+            <span className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.studioLink}</span>
             <span className="flex items-center gap-1">
-              <span className="shrink-0 font-mono text-xs text-slate-400">nompany.com/</span>
+              <span className="shrink-0 font-mono text-xs text-slate-400">{tr.nompanyCom}</span>
               <input className={INPUT} value={slug} onChange={(e) => { setSlug(e.target.value); setMsg(""); setErr(""); }} />
             </span>
           </label>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button className={BTN} onClick={save} disabled={busy || !dirty}>{busy ? "Saving…" : "Save"}</button>
-          <a href={`/${studio.slug}`} className={BTN_GHOST}>Open studio</a>
+          <button className={BTN} onClick={save} disabled={busy || !dirty}>{busy ? tr.saving : tr.save}</button>
+          <a href={`/${studio.slug}`} className={BTN_GHOST}>{tr.openStudio}</a>
         </div>
 
         {msg && <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{msg}</p>}
@@ -407,6 +412,7 @@ function StudioList({ title, note, studios, empty, onChanged }) {
 
 // ---- overview ----------------------------------------------------------------
 function Overview({ identity, owned, collabs, onGo, onChanged }) {
+  const tr = accountDict(useAccountLocale());
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const name = identity?.profile?.fullName || identity?.user?.email || "there";
@@ -434,13 +440,13 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
               // read, so the tick and the word "Verified" beside it were saying
               // the same thing three times. The label moves to the tooltip and
               // to assistive tech, which is where it is still needed.
-              <span className="inline-flex items-center text-sky-500" title="Email verified">
+              <span className="inline-flex items-center text-sky-500" title={tr.emailVerified}>
                 <Icon name="verified" className="h-4 w-4" />
-                <span className="sr-only">Email verified</span>
+                <span className="sr-only">{tr.emailVerified}</span>
               </span>
             ) : (
               <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-600 text-amber-700 dark:text-amber-300">
-                Requires verification
+                {tr.requiresVerification}
               </span>
             )}
           </p>
@@ -450,13 +456,13 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
       {/* Unboxed: the tiles are the objects here, so a panel behind them would
           just be a second frame around things that already have their own. */}
       <section>
-        <h3 className={H2}>Your studios</h3>
+        <h3 className={H2}>{tr.studios}</h3>
         <p className={SUB}>
-          A studio is your company&apos;s workspace, at its own address.
-          {owned.length > 4 && " Showing the four you open most."}
+          {tr.studioWorkspaceOwnAddress}
+          {owned.length > 4 && ` ${tr.showingFourMostOpened}`}
         </p>
         <StudioStrip
-          action={<ActionTile icon="plus" label="Create a studio" onClick={() => setCreating(true)} compact />}
+          action={<ActionTile icon="plus" label={tr.createStudio} onClick={() => setCreating(true)} compact />}
           studios={owned}
           onViewAll={() => onGo("studios")}
         />
@@ -464,13 +470,13 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
       </section>
 
       <section>
-        <h3 className={H2}>Your collaborations</h3>
+        <h3 className={H2}>{tr.collaborations}</h3>
         <p className={SUB}>
-          Studios other people have given you access to.
-          {collabs.length > 4 && " Showing the four you open most."}
+          {tr.studiosOthersGaveShort}
+          {collabs.length > 4 && ` ${tr.showingFourMostOpened}`}
         </p>
         <StudioStrip
-          action={<ActionTile icon="team" label="Join a studio" onClick={() => setJoining(true)} compact />}
+          action={<ActionTile icon="team" label={tr.joinStudio} onClick={() => setJoining(true)} compact />}
           studios={collabs}
           onViewAll={() => onGo("collabs")}
         />
@@ -485,6 +491,7 @@ function Overview({ identity, owned, collabs, onGo, onChanged }) {
 // and a titled header with a close button. Create, Join and the profile picture
 // all wear it, so they open, dismiss and read the same way.
 function Dialog({ title, description, onClose, children, width = "max-w-[512px]" }) {
+  const tr = accountDict(useAccountLocale());
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -499,7 +506,7 @@ function Dialog({ title, description, onClose, children, width = "max-w-[512px]"
       <div className={cn("relative w-full overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]", width)}>
         <div className="flex items-center gap-3 px-6 pt-5">
           <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{title}</h3>
-          <button type="button" onClick={onClose} aria-label="Close"
+          <button type="button" onClick={onClose} aria-label={tr.close}
             className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5">
             <Icon name="close" className="h-[18px] w-[18px]" />
           </button>
@@ -516,6 +523,7 @@ function Dialog({ title, description, onClose, children, width = "max-w-[512px]"
 // sized to fit the window and must never scroll, so growing the page by a form's
 // height is the one thing it cannot absorb.
 function CreateStudio({ onDone, onClose }) {
+  const tr = accountDict(useAccountLocale());
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [touched, setTouched] = useState(false);
@@ -543,26 +551,26 @@ function CreateStudio({ onDone, onClose }) {
     setBusy(false);
     if (res.ok) { onDone(); return; }
     setError(
-      data.error === "unverified" ? "Confirm your email address first."
-      : data.error === "already-owner" ? "You already own a studio."
-      : data.error === "slug-taken" ? "That code is taken — pick another."
-      : data.error === "slug-reserved" ? "That code is reserved — pick another."
-      : data.error === "slug-invalid" ? "Use 3+ letters, numbers or dashes."
-      : data.error === "name" ? "Give your studio a name."
-      : "We couldn't create your studio."
+      data.error === "unverified" ? tr.confirmEmailAddressFirst
+      : data.error === "already-owner" ? tr.alreadyOwnStudio
+      : data.error === "slug-taken" ? tr.codeTakenPickAnother
+      : data.error === "slug-reserved" ? tr.codeReservedPickAnother
+      : data.error === "slug-invalid" ? tr.use3LettersNumbers
+      : data.error === "name" ? tr.giveStudioName
+      : tr.couldnCreateStudio
     );
   }
 
   return (
-    <Dialog title="Create a studio" onClose={onClose}
-      description="A studio is your company's workspace, at its own address on nompany.com.">
+    <Dialog title={tr.createStudio} onClose={onClose}
+      description={tr.studioCompanyWorkspaceOwn}>
       {error && <p className={cn(BANNER_BAD, "mb-4")}>{error}</p>}
       <div className="grid gap-3">
-        <div><label className={LABEL}>Company name</label><input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your company's name" /></div>
+        <div><label className={LABEL}>{tr.companyName2}</label><input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} placeholder={tr.companyName} /></div>
         <div>
-          <label className={LABEL}>Studio address (company code)</label>
+          <label className={LABEL}>{tr.studioAddressCompanyCode}</label>
           <div className="flex items-center gap-2">
-            <span className="shrink-0 font-mono text-xs text-slate-500 dark:text-slate-400">nompany.com/</span>
+            <span className="shrink-0 font-mono text-xs text-slate-500 dark:text-slate-400">{tr.nompanyCom}</span>
             <input className={INPUT} value={touched ? slug : effectiveSlug} onChange={(e) => { setTouched(true); setSlug(e.target.value); }} placeholder="your-company" />
           </div>
           {effectiveSlug && status && (
@@ -570,13 +578,13 @@ function CreateStudio({ onDone, onClose }) {
               {status.available ? `“${status.slug}” is available`
                 : status.reason === "taken" ? `“${status.slug}” is already taken`
                 : status.reason === "reserved" ? `“${status.slug}” is reserved`
-                : "Use 3+ letters, numbers or dashes"}
+                : tr.use3LettersNumbers2}
             </p>
           )}
         </div>
         <div className="mt-1 flex gap-3">
-          <button className={BTN} onClick={create} disabled={busy || !name || !status?.available}>{busy ? "Creating…" : "Create studio"}</button>
-          <button className={BTN_GHOST} onClick={onClose}>Cancel</button>
+          <button className={BTN} onClick={create} disabled={busy || !name || !status?.available}>{busy ? tr.creating : tr.createStudioBtn}</button>
+          <button className={BTN_GHOST} onClick={onClose}>{tr.cancel}</button>
         </div>
       </div>
     </Dialog>
@@ -587,6 +595,7 @@ function CreateStudio({ onDone, onClose }) {
 // confirmation is the only feedback there is. The dialog therefore stays open on
 // success and the user dismisses it, rather than closing over its own message.
 function JoinStudio({ onChanged, onClose }) {
+  const tr = accountDict(useAccountLocale());
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -605,27 +614,27 @@ function JoinStudio({ onChanged, onClose }) {
       return;
     }
     setMsg({ tone: "bad", text:
-      data.error === "notfound" ? "No studio uses that code."
-      : data.error === "pending" ? "You've already asked to join — waiting on their approval."
-      : data.error === "already-member" ? "You're already in that studio."
-      : data.error === "own-studio" ? "That's your own studio."
-      : "We couldn't send that request." });
+      data.error === "notfound" ? tr.noStudioUsesCode
+      : data.error === "pending" ? tr.veAlreadyAskedJoin
+      : data.error === "already-member" ? tr.reAlreadyStudio
+      : data.error === "own-studio" ? tr.ownStudio
+      : tr.couldnSendRequest });
   }
 
   const sent = msg?.tone === "good";
 
   return (
-    <Dialog title="Join a studio" onClose={onClose}
-      description="Ask a studio for access using its company code. Someone there approves the request.">
+    <Dialog title={tr.joinStudio} onClose={onClose}
+      description={tr.askStudioAccessUsing}>
       {msg && <p className={cn(sent ? BANNER_GOOD : BANNER_BAD, "mb-4")}>{msg.text}</p>}
       {sent ? (
-        <button className={BTN} onClick={onClose}>Done</button>
+        <button className={BTN} onClick={onClose}>{tr.done}</button>
       ) : (
         <div className="grid gap-3">
-          <div><label className={LABEL}>Company code</label><input className={INPUT} value={code} onChange={(e) => setCode(e.target.value)} placeholder="your-company" /></div>
+          <div><label className={LABEL}>{tr.companyCode}</label><input className={INPUT} value={code} onChange={(e) => setCode(e.target.value)} placeholder="your-company" /></div>
           <div className="mt-1 flex gap-3">
-            <button className={BTN} onClick={join} disabled={busy || !code.trim()}>{busy ? "Sending…" : "Request access"}</button>
-            <button className={BTN_GHOST} onClick={onClose}>Cancel</button>
+            <button className={BTN} onClick={join} disabled={busy || !code.trim()}>{busy ? tr.sending : tr.requestAccess}</button>
+            <button className={BTN_GHOST} onClick={onClose}>{tr.cancel}</button>
           </div>
         </div>
       )}
@@ -640,6 +649,7 @@ function JoinStudio({ onChanged, onClose }) {
 // control — pressing anywhere on it opens that field — rather than a separate
 // Edit affordance.
 function PersonalInfo({ identity, onSaved }) {
+  const tr = accountDict(useAccountLocale());
   const profile = identity?.profile || {};
   const [editing, setEditing] = useState(null);
   const [photoOpen, setPhotoOpen] = useState(false);
@@ -665,8 +675,8 @@ function PersonalInfo({ identity, onSaved }) {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ novaProvider: provider, novaKey: value }),
     });
     setKeyBusy(false);
-    if (res.ok) { setNovaKey(""); setKeyMsg(value ? "Key saved." : "Key removed."); onSaved(); }
-    else setKeyMsg("That didn't save.");
+    if (res.ok) { setNovaKey(""); setKeyMsg(value ? tr.keySaved : tr.keyRemoved); onSaved(); }
+    else setKeyMsg(tr.didnSave);
   }
 
   async function save() {
@@ -678,7 +688,7 @@ function PersonalInfo({ identity, onSaved }) {
       // spacing the person typed, so "+31 576 908 413" would otherwise look
       // like a three-digit number.
       const digits = parsePhone(form.phone).number.replace(/\D/g, "");
-      if (digits.length < 4) { setPhoneError("Please enter a valid phone number"); return; }
+      if (digits.length < 4) { setPhoneError(tr.phoneInvalid); return; }
     }
     setBusy(true);
     const res = await fetch("/api/identity/profile", {
@@ -690,37 +700,37 @@ function PersonalInfo({ identity, onSaved }) {
 
   const name = form.fullName || identity?.user?.email || "?";
   const rows = [
-    { key: "fullName", icon: "person", label: "Name", value: form.fullName || "—" },
-    { key: "shortName", icon: "person", label: "Short name", value: form.shortName || "—" },
-    { key: "email", icon: "email", label: "Email", value: identity?.user?.email || "—", readOnly: true,
-      badge: identity?.emailVerified ? null : "Requires verification" },
-    { key: "phone", icon: "call", label: "Phone", value: form.phone || "—" },
-    { key: "workAddress", icon: "location", label: "Address", value: form.workAddress || "—" },
+    { key: "fullName", icon: "person", label: tr.name, value: form.fullName || "—" },
+    { key: "shortName", icon: "person", label: tr.shortName, value: form.shortName || "—" },
+    { key: "email", icon: "email", label: tr.email, value: identity?.user?.email || "—", readOnly: true,
+      badge: identity?.emailVerified ? null : tr.requiresVerification },
+    { key: "phone", icon: "call", label: tr.phone, value: form.phone || "—" },
+    { key: "workAddress", icon: "location", label: tr.address, value: form.workAddress || "—" },
   ];
 
   return (
     <div className="mx-auto w-full max-w-[640px] py-6">
-      <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">Personal info</h2>
+      <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">{tr.personalInfo}</h2>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-        Your profile information and how to reach you. Only you can see this.
+        {tr.profileInfoHowReach}
       </p>
 
-      {saved && <p className={cn(BANNER_GOOD, "mt-4")}>Profile updated.</p>}
+      {saved && <p className={cn(BANNER_GOOD, "mt-4")}>{tr.profileUpdated}</p>}
 
       {/* Nova / AI key — your own AI subscription, used by the assistant inside
           your studios. Stored encrypted; shown only as set / not set. */}
       <div className="mt-4 rounded-2xl border border-slate-200 p-4 dark:border-white/10">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-600 text-slate-900 dark:text-white">Nova / AI key</p>
+            <p className="text-sm font-600 text-slate-900 dark:text-white">{tr.novaAiKey}</p>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              {keySet ? "A key is set. Nova uses it to answer inside your studios." : "Not set — Nova needs your own AI key to work."}
+              {keySet ? tr.keySetNovaUses : tr.novaNotSet}
             </p>
           </div>
           {keySet && (
             <button type="button" onClick={() => saveKey("")} disabled={keyBusy}
               className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-500 text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-500/10">
-              Remove
+              {tr.remove}
             </button>
           )}
         </div>
@@ -738,13 +748,13 @@ function PersonalInfo({ identity, onSaved }) {
             type="password"
             value={novaKey}
             onChange={(e) => { setNovaKey(e.target.value); setKeyMsg(""); }}
-            placeholder={keySet ? "Paste a new key to replace it" : providerMeta(provider).keyHint}
+            placeholder={keySet ? tr.pasteNewKeyReplace : providerMeta(provider).keyHint}
             autoComplete="off"
             className={cn(INPUT, "font-mono text-xs")}
           />
           <button type="button" onClick={() => saveKey(novaKey.trim())} disabled={keyBusy || !novaKey.trim()}
             className="shrink-0 rounded-lg bg-brand-600 px-3 py-2 text-sm font-500 text-white disabled:opacity-50">
-            {keyBusy ? "Saving…" : "Save"}
+            {keyBusy ? tr.saving : tr.save}
           </button>
         </div>
         {keyMsg && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{keyMsg}</p>}
@@ -762,8 +772,8 @@ function PersonalInfo({ identity, onSaved }) {
             <Icon name="camera" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
           </span>
           <span className="flex min-w-0 flex-1 flex-col justify-center">
-            <span className={ROW_LABEL}>Profile picture</span>
-            <span className={ROW_VALUE}>A picture helps people recognise you</span>
+            <span className={ROW_LABEL}>{tr.profilePicture}</span>
+            <span className={ROW_VALUE}>{tr.pictureHelpsPeopleRecognise2}</span>
           </span>
           <span className="ms-auto inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-sm font-700 text-white">
             {profile.photo
@@ -797,8 +807,8 @@ function PersonalInfo({ identity, onSaved }) {
                       onChange={(e) => setForm((f) => ({ ...f, [r.key]: e.target.value }))} />
                   )}
                   <div className="mt-3 flex gap-3">
-                    <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
-                    <button className={BTN_GHOST} onClick={() => setEditing(null)}>Cancel</button>
+                    <button className={BTN} onClick={save} disabled={busy}>{busy ? tr.saving : tr.save}</button>
+                    <button className={BTN_GHOST} onClick={() => setEditing(null)}>{tr.cancel}</button>
                   </div>
                 </div>
               </div>
@@ -837,14 +847,15 @@ function PersonalInfo({ identity, onSaved }) {
 // dialog itself on click, so its markup was not in the file to copy. This mirrors
 // its shape and options, minus Google Photos as asked.
 function PhotoDialog({ name, photoUrl, onClose, onSaved }) {
+  const tr = accountDict(useAccountLocale());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const fileRef = useRef(null);
 
   async function upload(file) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) { setErr("Choose an image file."); return; }
-    if (file.size > 2 * 1024 * 1024) { setErr("Images must be 2 MB or smaller."); return; }
+    if (!file.type.startsWith("image/")) { setErr(tr.chooseImageFile); return; }
+    if (file.size > 2 * 1024 * 1024) { setErr(tr.imagesMust2Mb); return; }
     setBusy(true); setErr("");
     try {
       const form = new FormData();
@@ -858,7 +869,7 @@ function PhotoDialog({ name, photoUrl, onClose, onSaved }) {
       });
       if (!res.ok) throw new Error("save");
       onSaved(); onClose();
-    } catch { setErr("We couldn't upload that picture."); }
+    } catch { setErr(tr.couldnUploadPicture); }
     finally { setBusy(false); }
   }
 
@@ -868,12 +879,12 @@ function PhotoDialog({ name, photoUrl, onClose, onSaved }) {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ photo: "" }),
     });
     setBusy(false);
-    if (res.ok) { onSaved(); onClose(); } else setErr("We couldn't remove that picture.");
+    if (res.ok) { onSaved(); onClose(); } else setErr(tr.couldnRemovePicture);
   }
 
   return (
-    <Dialog title="Profile picture" onClose={onClose}
-      description="A picture helps people recognise you and shows when you're signed in.">
+    <Dialog title={tr.profilePicture} onClose={onClose}
+      description={tr.pictureHelpsPeopleRecognise}>
       <div className="flex justify-center pb-6 pt-2">
         <span className="inline-flex h-[136px] w-[136px] items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-4xl font-800 text-white">
           {photoUrl
@@ -890,15 +901,15 @@ function PhotoDialog({ name, photoUrl, onClose, onSaved }) {
           onChange={(e) => upload(e.target.files?.[0])} />
         <button type="button" className={BTN} disabled={busy} onClick={() => fileRef.current?.click()}>
           <span className="inline-flex items-center gap-1.5">
-            <Icon name="camera" className="h-4 w-4" /> {busy ? "Uploading…" : "Change"}
+            <Icon name="camera" className="h-4 w-4" /> {busy ? tr.uploading : "Change"}
           </span>
         </button>
         <button type="button" className={BTN_GHOST} disabled={busy || !photoUrl} onClick={remove}
-          title={photoUrl ? "" : "No picture to remove"}>
+          title={photoUrl ? "" : tr.noPictureRemove}>
           Remove
         </button>
       </div>
-      <p className="mt-4 text-center text-xs text-slate-400">JPG, PNG or WebP, up to 2 MB.</p>
+      <p className="mt-4 text-center text-xs text-slate-400">{tr.jpgPngWebpUp}</p>
     </Dialog>
   );
 }
@@ -912,6 +923,7 @@ function PhotoDialog({ name, photoUrl, onClose, onSaved }) {
 // on /login); without one, this is a first set — no current password, session
 // kept. The server enforces the same split; this UI just matches it.
 function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
+  const tr = accountDict(useAccountLocale());
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -937,9 +949,9 @@ function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(
-          data.error === "invalid" ? "The current password is incorrect."
-            : data.error === "weak" ? "Your new password doesn't meet the requirements yet."
-              : "We couldn't update your password. Please try again.",
+          data.error === "invalid" ? tr.currentPasswordIncorrect
+            : data.error === "weak" ? tr.newPasswordDoesnMeet
+              : tr.couldnUpdatePasswordPlease,
         );
         setBusy(false);
         return;
@@ -950,26 +962,26 @@ function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
       onSaved?.();
       onClose();
     } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+      setError(tr.couldnReachServerCheck);
       setBusy(false);
     }
   }
 
   return (
     <Dialog
-      title={hasPassword ? "Change password" : "Set a password"}
+      title={hasPassword ? tr.changePassword : tr.setPassword}
       onClose={onClose}
       description={
         hasPassword
-          ? "Enter your current password, then a new one. This signs you out on every device."
-          : "Create a password so you can sign in with your email as well."
+          ? tr.enterCurrentPasswordThen
+          : tr.createPasswordCanSign
       }
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         {hasPassword && (
           <PasswordInput
             id="current-password"
-            labelText="Current password"
+            labelText={tr.currentPassword}
             labelClassName={LABEL}
             className={INPUT}
             value={current}
@@ -1032,9 +1044,9 @@ function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
         {error && <p className={BANNER_BAD} role="alert">{error}</p>}
 
         <div className="mt-1 flex justify-end gap-2">
-          <button type="button" className={BTN_GHOST} onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="button" className={BTN_GHOST} onClick={onClose} disabled={busy}>{tr.cancel}</button>
           <button type="submit" className={BTN} disabled={!canSubmit}>
-            {busy ? "Saving…" : hasPassword ? "Change password" : "Set password"}
+            {busy ? tr.saving : hasPassword ? tr.changePassword : tr.setPasswordBtn}
           </button>
         </div>
       </form>
@@ -1044,6 +1056,7 @@ function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
 
 // ---- security ----------------------------------------------------------------
 function Security({ devices, onChanged, locale, user }) {
+  const tr = accountDict(useAccountLocale());
   const [busy, setBusy] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   async function revokeOne(deviceId) {
@@ -1054,7 +1067,7 @@ function Security({ devices, onChanged, locale, user }) {
     setBusy(false); onChanged();
   }
   const provider = user?.provider || "";
-  const providerName = provider === "google" ? "Google" : provider === "microsoft" ? "Microsoft" : "";
+  const providerName = provider === "google" ? tr.google : provider === "microsoft" ? tr.microsoft : "";
   const hasPassword = Boolean(user?.hasPassword);
   async function revokeAll() {
     setBusy(true);
@@ -1070,7 +1083,7 @@ function Security({ devices, onChanged, locale, user }) {
     // rows about one person, so reading them at two different widths made them
     // look like two different products.
     <div className="mx-auto w-full max-w-[640px] py-6">
-      <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">Security</h2>
+      <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">{tr.security}</h2>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
         How you sign in, and the browsers that stay trusted. A device that isn&apos;t on this list
         has to pass a one-time code before it can sign in. Removing one sends it back through that check.
@@ -1086,12 +1099,12 @@ function Security({ devices, onChanged, locale, user }) {
             <span className={ROW_VALUE}>
               {providerName
                 ? `You sign in with ${providerName}, which also verified your email.`
-                : "Changing it signs you out everywhere and forgets every trusted device."}
+                : tr.changingSignsOutEverywhere}
             </span>
           </div>
           <button type="button" onClick={() => setPwOpen(true)}
             className="ms-auto shrink-0 rounded-full px-3 py-1.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
-            {hasPassword ? "Change" : "Set a password"}
+            {hasPassword ? tr.change : tr.setPassword}
           </button>
         </div>
 
@@ -1110,8 +1123,8 @@ function Security({ devices, onChanged, locale, user }) {
               <Icon name="shield" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
             </span>
             <div className="flex min-w-0 flex-col justify-center">
-              <span className={ROW_LABEL}>Trusted devices</span>
-              <span className={ROW_VALUE}>No trusted devices.</span>
+              <span className={ROW_LABEL}>{tr.trustedDevices}</span>
+              <span className={ROW_VALUE}>{tr.noTrustedDevices}</span>
             </div>
           </div>
         ) : devices.map((d) => (
@@ -1127,26 +1140,26 @@ function Security({ devices, onChanged, locale, user }) {
                     trusted skip the emailed code. Saying which is which is the
                     point of the list. */}
                 {d.trusted ? (
-                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-600 text-emerald-700 dark:text-emerald-300">Trusted</span>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-600 text-emerald-700 dark:text-emerald-300">{tr.trusted}</span>
                 ) : (
-                  <span className="rounded-full bg-slate-500/10 px-2 py-0.5 text-[11px] font-600 text-slate-600 dark:text-slate-300">Asks for a code</span>
+                  <span className="rounded-full bg-slate-500/10 px-2 py-0.5 text-[11px] font-600 text-slate-600 dark:text-slate-300">{tr.asksCode}</span>
                 )}
               </span>
               <span className={ROW_VALUE}>
-                {[d.deviceType, d.location || "Location unknown",
+                {[d.deviceType, d.location || tr.locationUnknown,
                   `last used ${new Date(d.lastSeenAt).toLocaleDateString("en-GB")}`].filter(Boolean).join(" · ")}
               </span>
             </div>
             <button type="button" onClick={() => revokeOne(d.id)} disabled={busy}
               className="ms-auto shrink-0 rounded-full px-3 py-1.5 text-xs font-600 text-rose-600 hover:bg-rose-50 disabled:opacity-60 dark:text-rose-300 dark:hover:bg-rose-500/10">
-              Remove
+              {tr.remove}
             </button>
           </div>
         ))}
       </div>
 
       {devices.length > 0 && (
-        <button className={cn(BTN_GHOST, "mt-4")} onClick={revokeAll} disabled={busy}>{busy ? "Removing…" : "Remove all devices"}</button>
+        <button className={cn(BTN_GHOST, "mt-4")} onClick={revokeAll} disabled={busy}>{busy ? tr.removing : tr.removeAllDevices}</button>
       )}
     </div>
   );

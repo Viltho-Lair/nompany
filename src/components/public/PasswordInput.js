@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAccountLocale } from "@/components/public/locale";
+import { accountDict } from "@/shared/account";
 
 // A password field with a reveal toggle. The eye sits inside the field, so the
 // input reserves room for it on the trailing edge (`pe-11`, which flips under
@@ -18,6 +20,7 @@ export default function PasswordInput({
   ariaInvalid,
   children,
 }) {
+  const tr = accountDict(useAccountLocale());
   const [shown, setShown] = useState(false);
 
   return (
@@ -42,9 +45,9 @@ export default function PasswordInput({
           type="button"
           tabIndex={-1}
           onClick={() => setShown((s) => !s)}
-          aria-label={shown ? "Hide password" : "Show password"}
+          aria-label={shown ? tr.hidePassword : tr.showPassword}
           aria-pressed={shown}
-          title={shown ? "Hide password" : "Show password"}
+          title={shown ? tr.hidePassword : tr.showPassword}
           className="absolute inset-y-0 end-0 flex w-11 items-center justify-center text-fg-dim transition-colors hover:text-fg"
         >
           {shown ? (

@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
 /* ==================================================================
    TECHNIQUE 7b — Shape morphing
@@ -46,7 +48,7 @@ export function MorphShape({ size = 240 }) {
     const transition = { duration: 0.9, ease: EASE_OUT_EXPO };
     return (<div className="relative grid place-items-center" style={{ width: size, height: size }} onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)} 
     // Keyboard parity for the hover-only interaction
-    onFocus={() => setHovered(true)} onBlur={() => setHovered(false)} tabIndex={0} role="img" aria-label="Abstract data shape that reshapes on hover">
+    onFocus={() => setHovered(true)} onBlur={() => setHovered(false)} tabIndex={0} role="img" aria-label={landingDict(useLandingLocale()).morphAlt}>
       <motion.svg viewBox="0 0 200 200" width={size} height={size} fill="none" animate={{ rotate: hovered ? 18 : 0, scale: hovered ? 1.04 : 1 }} transition={transition}>
         <defs>
           <linearGradient id="morph-grad" x1="0" y1="0" x2="200" y2="200">

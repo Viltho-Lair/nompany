@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useAccountLocale } from "@/components/public/locale";
+import { accountDict } from "@/shared/account";
 
 // Six-box one-time-code entry. Handles paste, arrow keys, backspace, and
 // autofills from the OS (autocomplete="one-time-code" on the first box).
@@ -9,7 +11,11 @@ import { useEffect, useRef, useState } from "react";
 const box =
   "h-14 w-11 rounded-xl border border-line bg-ink-soft/60 text-center font-display text-2xl font-700 text-fg transition-colors focus:border-iris focus:outline-none focus:ring-2 focus:ring-iris/25 disabled:opacity-60";
 
-export default function OtpStep({ email, onVerified, onError, trustPrompt = true, submitLabel = "Verify" }) {
+// `submitLabel` has NO default any more: it used to be "Verify", which is the
+// one word on the screen that would have stayed English in an Arabic session.
+// Both callers pass their own.
+export default function OtpStep({ email, onVerified, onError, trustPrompt = true, submitLabel }) {
+  const tr = accountDict(useAccountLocale());
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [trust, setTrust] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -53,11 +59,11 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
   }
 
   const MESSAGES = {
-    invalid: "That code isn't right. Check it and try again.",
-    expired: "That code has expired. Send a new one.",
-    locked: "Too many attempts. Send a new code to continue.",
-    suspended: "This account is suspended.",
-    notfound: "This account no longer exists.",
+    invalid: tr.codeIsnRightCheck,
+    expired: tr.codeExpiredSendNew,
+    locked: tr.tooManyAttemptsSendNew,
+    suspended: tr.accountSuspended,
+    notfound: tr.accountNoLongerExists,
   };
 
   async function submit(value) {
@@ -71,7 +77,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const left = typeof data.attemptsLeft === "number" ? ` ${data.attemptsLeft} attempt${data.attemptsLeft === 1 ? "" : "s"} left.` : "";
-        setError((MESSAGES[data.error] || "We couldn't verify that code.") + (data.error === "invalid" ? left : ""));
+        setError((MESSAGES[data.error] || tr.couldnVerifyCode) + (data.error === "invalid" ? left : ""));
         setDigits(["", "", "", "", "", ""]);
         refs.current[0]?.focus();
         onError?.(data.error);
@@ -79,7 +85,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
       }
       onVerified?.(data);
     } catch {
-      setError("Something went wrong. Try again.");
+      setError(tr.somethingWentWrongTry);
     } finally { setBusy(false); }
   }
 
@@ -90,23 +96,23 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
       const data = await res.json().catch(() => ({}));
       if (res.status === 429 && data.error === "cooldown") {
         setCooldown(Math.ceil((data.retryInMs || 60000) / 1000));
-        setError("Please wait before requesting another code.");
+        setError(tr.pleaseWaitBeforeRequesting);
       } else if (!res.ok) {
-        setError(data.error === "expired" ? "This sign-in attempt expired. Start again." : "We couldn't send a new code.");
+        setError(data.error === "expired" ? tr.signAttemptExpiredStart : tr.couldnSendNewCode);
       } else {
         setDigits(["", "", "", "", "", ""]);
         refs.current[0]?.focus();
         setCooldown(60);
-        setNotice(data.emailSent === false ? "Code regenerated, but the email couldn't be sent." : "A new code is on its way.");
+        setNotice(data.emailSent === false ? tr.codeRegeneratedButEmail : tr.newCodeOnWay);
       }
-    } catch { setError("Something went wrong. Try again."); }
+    } catch { setError(tr.somethingWentWrongTry); }
     finally { setBusy(false); }
   }
 
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="font-display text-lg font-700 text-fg">Enter your code</h2>
+        <h2 className="font-display text-lg font-700 text-fg">{tr.enterCode}</h2>
         <p className="mt-1 text-sm text-fg-muted">
           We sent a 6-digit code to {email ? <span className="font-600 break-all">{email}</span> : "your email"}. It expires in 10 minutes.
         </p>
@@ -133,7 +139,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
       {trustPrompt && (
         <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
           <input type="checkbox" checked={trust} onChange={(e) => setTrust(e.target.checked)} className="h-4 w-4 cursor-pointer accent-iris" />
-          Trust this device for 30 days
+          {tr.trustDevice30}
         </label>
       )}
 
@@ -147,7 +153,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
           disabled={busy || code.length !== 6}
           className="landing-submit w-auto"
         >
-          {busy ? "Checking…" : submitLabel}
+          {busy ? tr.checking : submitLabel}
         </button>
         <button
           type="button"
@@ -155,7 +161,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
           disabled={busy || cooldown > 0}
           className="text-sm font-600 text-iris-bright hover:underline disabled:opacity-60 disabled:no-underline"
         >
-          {cooldown > 0 ? `Resend in ${cooldown}s` : "Send a new code"}
+          {cooldown > 0 ? `Resend in ${cooldown}s` : tr.sendNewCode}
         </button>
       </div>
     </div>

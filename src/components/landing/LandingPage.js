@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { dirFor } from "@/shared/locale";
+import { LandingLocaleProvider } from "@/components/landing/locale";
 import { AnimatePresence } from "motion/react";
 import { AmbientBackground } from "@/components/landing/AmbientBackground";
 import { Footer } from "@/components/landing/Footer";
@@ -68,7 +70,11 @@ export default function LandingPage({ locale = "en" }) {
   }, []);
 
   return (
-    <div dir="ltr" className="landing-page relative min-h-screen">
+    // DIRECTION FOLLOWS THE LOCALE. This was pinned to `ltr`, which overrode the
+    // `dir` the locale layout sets above it — so /ar drew the whole marketing
+    // page left-to-right and no amount of translation would have shown.
+    <div dir={dirFor(locale)} className="landing-page relative min-h-screen">
+      <LandingLocaleProvider locale={locale}>
       <PointerProvider>
         {/* Always-on ambient layer, mounted once and never unmounted, so tab
             changes don't restart the drift loops. */}
@@ -92,6 +98,7 @@ export default function LandingPage({ locale = "en" }) {
 
         <Footer onNavigate={navigate} locale={locale} />
       </PointerProvider>
+      </LandingLocaleProvider>
     </div>
   );
 }

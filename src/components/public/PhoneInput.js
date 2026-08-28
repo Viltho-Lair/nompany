@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useAccountLocale } from "@/components/public/locale";
+import { accountDict } from "@/shared/account";
 import { createPortal } from "react-dom";
 import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji, parsePhone } from "@/shared/countries";
 
@@ -17,6 +19,7 @@ import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji, parsePhone } from "@/shared/coun
 const POP_H = 300;
 
 export default function PhoneInput({ value, onChange, autoFocus = false, error = "" }) {
+  const tr = accountDict(useAccountLocale());
   const init = useMemo(() => parsePhone(value), []); // seed once from the stored value
   const [code, setCode] = useState(init.code);
   const [number, setNumber] = useState(init.number);
@@ -149,7 +152,7 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
                 ref={searchRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search for country"
+                placeholder={tr.searchCountry}
                 className="w-full border-0 bg-transparent py-2 text-sm text-brand-950 outline-none placeholder:text-steel-400 dark:text-white"
               />
             </div>

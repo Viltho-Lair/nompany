@@ -4,6 +4,9 @@ import { AnimatePresence, motion } from "motion/react";
 import { EASE_OUT_EXPO, fadeUp, stagger } from "@/components/landing/lib/motion";
 import { AnimatedHeadline } from "../text/AnimatedHeadline";
 import { Typewriter } from "../text/Typewriter";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
+import { sectionName } from "@/shared/studio/sections";
 import { DashboardAssembly } from "./DashboardAssembly";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 /* The hero stitches together techniques 1b, 3, 4 and 5. */
@@ -14,8 +17,10 @@ import { DashboardSkeleton } from "./DashboardSkeleton";
 // do.
 //
 // "Main" is dropped: it is the studio's home screen, not a department.
-const MODULES = SECTION_DEFS.filter((d) => d.key !== "main").map((d) => d.name);
+const modulesFor = (locale) => SECTION_DEFS.filter((d) => d.key !== "main").map((d) => sectionName(d.key, d.name, locale));
 export function Hero({ dataReady }) {
+  const locale = useLandingLocale();
+  const tr = landingDict(locale);
     return (<section className="relative mx-auto grid max-w-7xl items-center gap-14 px-6 pt-28 pb-20 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pt-36 lg:pb-28">
       {/* ---------------- Copy column ---------------- */}
       <div className="relative z-10 max-w-xl">
@@ -26,19 +31,18 @@ export function Hero({ dataReady }) {
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-mint opacity-75"/>
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-mint"/>
               </span>
-              Nompany 4.0 — now with agentic workflows
+              {tr.heroBadge}
             </span>
           </motion.div>
 
           {/* TECHNIQUE 3a: masked staggered character reveal */}
-          <AnimatedHeadline as="h1" lines={["The Operating System", "for Your Enterprise"]} highlight={{ 1: [1] }} delay={0.25} className="font-display text-4xl leading-[1.06] font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.65rem]"/>
+          <AnimatedHeadline as="h1" lines={[tr.heroLine1, tr.heroLine2]} highlight={{ 1: [1] }} delay={0.25} className="font-display text-4xl leading-[1.06] font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.65rem]"/>
 
           {/* TECHNIQUE 3b: cycling typewriter sub-headline */}
           <motion.p variants={fadeUp} className="text-lg text-fg-muted" style={{ minHeight: "3.5rem" }}>
-            Run every corner of your business on one live data model. Manage
-            your{" "}
+            {tr.heroLead}{" "}
             <span className="font-medium text-fg">
-              <Typewriter words={MODULES}/>
+              <Typewriter words={modulesFor(locale)}/>
             </span>
           </motion.p>
 
@@ -49,7 +53,7 @@ export function Hero({ dataReady }) {
                 has to be audited and awarded, and claiming one you do not hold
                 is the kind of line a buyer checks. */}
             <p className="text-xs text-fg-dim">
-              Free sign up · No card required
+              {tr.freeSignup}
             </p>
           </motion.div>
 

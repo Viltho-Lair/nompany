@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAccountLocale } from "@/components/public/locale";
+import { accountDict } from "@/shared/account";
 import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
@@ -13,6 +15,7 @@ const label = "landing-label";
 // Sign-up is OTP-first: the account is created, but no session exists until the
 // emailed code is entered — so an unproven address can never be signed in.
 export default function SignupForm({ locale, dict, providers = [] }) {
+  const tr = accountDict(useAccountLocale());
   const t = dict?.auth || {};
   const [form, setForm] = useState({ fullName: "", email: "", password: "", confirm: "" });
   const [stage, setStage] = useState("details"); // details | otp
@@ -28,8 +31,8 @@ export default function SignupForm({ locale, dict, providers = [] }) {
   async function onSubmit(e) {
     e.preventDefault();
     // The server enforces the same policy; this just avoids a pointless round-trip.
-    if (!strength.ok) { setError("Your password doesn't meet the requirements yet."); return; }
-    if (form.password !== form.confirm) { setError("The two passwords don't match."); return; }
+    if (!strength.ok) { setError(tr.passwordDoesnMeetRequirements); return; }
+    if (form.password !== form.confirm) { setError(tr.twoPasswordsMatch); return; }
     setError(""); setNotice(""); setLoading(true);
     try {
       const res = await fetch("/api/identity/signup", {
@@ -40,16 +43,16 @@ export default function SignupForm({ locale, dict, providers = [] }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(
-          data.error === "exists" ? "That email already has an account."
+          data.error === "exists" ? tr.emailAlreadyAccount
           : data.error === "weak" ? describeFailures(data.failed)
-          : data.error === "email" ? "That email address doesn't look right."
-          : data.error === "rate-email" || data.error === "rate-ip" ? "Too many attempts. Try again later."
-          : "We couldn't create your account. Try again."
+          : data.error === "email" ? tr.emailAddressDoesnLook
+          : data.error === "rate-email" || data.error === "rate-ip" ? tr.tooManyAttemptsTry
+          : tr.couldnCreateAccountTry
         );
         setLoading(false);
         return;
       }
-      if (data.emailSent === false) setNotice("We couldn't send the code by email — contact support if it doesn't arrive.");
+      if (data.emailSent === false) setNotice(tr.couldnSendCodeEmail);
       setStage("otp");
     } catch {
       setError(t.errGeneric || "Something went wrong. Try again.");
@@ -62,7 +65,7 @@ export default function SignupForm({ locale, dict, providers = [] }) {
         {notice && <p className="text-sm text-amber-600 dark:text-amber-400">{notice}</p>}
         <OtpStep
           email={form.email}
-          submitLabel="Confirm email"
+          submitLabel={tr.confirmEmail}
           onVerified={() => window.location.assign(`/${locale}/questionnaire`)}
         />
       </div>
@@ -80,7 +83,7 @@ export default function SignupForm({ locale, dict, providers = [] }) {
       <div>
         <label className={label} htmlFor="email">{t.emailLabel || "Email"}</label>
         <input id="email" type="email" className={input} value={form.email} onChange={set("email")} autoComplete="email" required />
-        <p className="mt-1 text-xs text-fg-muted">Capitals are fine — we store and match your address in lowercase.</p>
+        <p className="mt-1 text-xs text-fg-muted">{tr.capitalsFineStoreMatch}</p>
       </div>
       <PasswordInput
         id="password"
@@ -109,7 +112,7 @@ export default function SignupForm({ locale, dict, providers = [] }) {
       <div>
         <PasswordInput
           id="confirm"
-          labelText="Confirm password"
+          labelText={tr.confirmPassword}
           labelClassName={label}
           className={`${input} ${mismatch ? "border-danger focus:border-danger focus:ring-danger/20" : ""}`}
           value={form.confirm}
@@ -117,7 +120,7 @@ export default function SignupForm({ locale, dict, providers = [] }) {
           autoComplete="new-password"
           ariaInvalid={mismatch}
         />
-        {mismatch && <p className="mt-1 text-xs text-danger">The two passwords don't match.</p>}
+        {mismatch && <p className="mt-1 text-xs text-danger">{tr.twoPasswordsMatch}</p>}
       </div>
       {error && <p className="text-sm text-danger" role="alert">{error}</p>}
       <button
@@ -125,7 +128,7 @@ export default function SignupForm({ locale, dict, providers = [] }) {
         disabled={loading || !canSubmit}
         className="landing-submit"
       >
-        {loading ? "Creating…" : (t.signupCta || "Create account")}
+        {loading ? tr.creating : (t.signupCta || "Create account")}
       </button>
       <p className="pt-2 text-center text-sm text-fg-muted">
         {t.haveAccount || "Already have an account?"}{" "}

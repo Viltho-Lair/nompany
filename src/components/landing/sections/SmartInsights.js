@@ -1,34 +1,45 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { EASE_OUT_EXPO, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { AiAssistant } from "../mascot/AiAssistant";
 import { SectionHeading } from "../ui/SectionHeading";
 /* Home of TECHNIQUE 8. Nova sits beside a stack of insights that
    rotate on a timer — the copy changes, the character stays alive. */
-const INSIGHTS = [
+// `id` is the React key and the transition identity; `tag` is what is read.
+// They were the same string before, which meant the key changed with the
+// language and every card would have remounted on a language switch.
+const insightsFor = (tr) => [
     {
+        id: "cash",
         tone: "var(--color-gold)",
-        tag: "Cash flow",
-        text: "Receivables in the EU entity are trending 9 days late. Want me to trigger the dunning sequence?",
+        tag: tr.insCashFlow,
+        text: tr.insCashFlowBody,
     },
     {
+        id: "inventory",
         tone: "var(--color-cyan)",
-        tag: "Inventory",
-        text: "SKU-4471 will stock out in 11 days at current velocity. A reorder of 2,400 units keeps you covered.",
+        tag: tr.insInventory,
+        text: tr.insInventoryBody,
     },
     {
+        id: "workforce",
         tone: "var(--color-mint)",
-        tag: "Workforce",
-        text: "Overtime in Plant 2 is up 14%. Two shift swaps would bring it back under budget.",
+        tag: tr.insWorkforce,
+        text: tr.insWorkforceBody,
     },
     {
+        id: "procurement",
         tone: "var(--color-violet)",
-        tag: "Procurement",
-        text: "Three suppliers quote below your contracted rate for resin. Estimated saving: $184k / year.",
+        tag: tr.insProcurement,
+        text: tr.insProcurementBody,
     },
 ];
 export function SmartInsights() {
+  const tr = landingDict(useLandingLocale());
+  const INSIGHTS = insightsFor(tr);
     const reduceMotion = useReducedMotion();
     const [index, setIndex] = useState(0);
     useEffect(() => {
@@ -48,13 +59,13 @@ export function SmartInsights() {
           <motion.div initial={{ opacity: 0, scale: 0.92 }} whileInView={{ opacity: 1, scale: 1 }} viewport={VIEWPORT} transition={{ duration: 0.8, ease: EASE_OUT_EXPO }}>
             <AiAssistant size={300}/>
             <p className="mt-2 text-center text-xs tracking-[0.2em] text-fg-dim uppercase">
-              Nova · always on
+              {tr.novaAlwaysOn}
             </p>
           </motion.div>
 
           {/* ---- Copy + rotating insight ---- */}
           <motion.div variants={stagger(0.1)} initial="hidden" whileInView="show" viewport={VIEWPORT}>
-            <SectionHeading eyebrow="Smart insights" title="An assistant that reads the ledger before you do" description="Nova watches every event as it lands, spots the pattern, and brings you the decision — not another dashboard to interpret."/>
+            <SectionHeading eyebrow={tr.insEyebrow} title={tr.assistantReadsLedgerBefore} description={tr.novaWatchesEveryEvent}/>
 
             {/* Insight card swaps with a slide-and-fade */}
             <div className="relative mt-8 min-h-[9.5rem]">
@@ -79,10 +90,10 @@ export function SmartInsights() {
                   <p className="mt-3 text-fg">{insight.text}</p>
                   <div className="mt-4 flex gap-2">
                     <button className="rounded-full bg-iris/15 px-3.5 py-1.5 text-xs text-iris-bright transition-colors duration-200 hover:bg-iris/25">
-                      Approve
+                      {tr.approve}
                     </button>
                     <button className="rounded-full border border-line px-3.5 py-1.5 text-xs text-fg-muted transition-colors duration-200 hover:border-line/60 hover:text-fg">
-                      Show workings
+                      {tr.showWorkings}
                     </button>
                   </div>
                 </motion.div>
@@ -91,7 +102,7 @@ export function SmartInsights() {
 
             {/* Progress pips */}
             <div className="mt-5 flex gap-1.5">
-              {INSIGHTS.map((item, i) => (<button key={item.tag} onClick={() => setIndex(i)} aria-label={`Show ${item.tag} insight`} className="group py-2">
+              {insightsFor(tr).map((item, i) => (<button key={item.id} onClick={() => setIndex(i)} aria-label={`Show ${item.tag} insight`} className="group py-2">
                   <motion.span className="block h-[3px] rounded-full bg-line" animate={{
                 width: i === index ? 34 : 14,
                 backgroundColor: i === index ? insight.tone : "var(--color-line)",

@@ -1,5 +1,7 @@
 "use client";
 import { useRef } from "react";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 import { motion, useInView, useReducedMotion, useSpring, useTransform, } from "motion/react";
 import { usePointer } from "../providers/PointerProvider";
 import { useElementCenter } from "@/components/landing/lib/useElementCenter";
@@ -18,6 +20,7 @@ import { useElementCenter } from "@/components/landing/lib/useElementCenter";
 ================================================================== */
 const CLAMP = (v, min, max) => Math.min(max, Math.max(min, v));
 export function AiAssistant({ size = 280 }) {
+  const tr = landingDict(useLandingLocale());
     const reduceMotion = useReducedMotion();
     const ref = useRef(null);
     // Only track while visible — off-screen mascots shouldn't cost frames.
@@ -45,7 +48,7 @@ export function AiAssistant({ size = 280 }) {
 
       {/* Layer 1 — idle float */}
       <motion.div className="relative h-full w-full gpu" animate={still ? undefined : { y: [0, -12, 0] }} transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}>
-        <motion.svg viewBox="0 0 240 240" className="h-full w-full overflow-visible" fill="none" role="img" aria-label="Nova, the Nompany AI assistant">
+        <motion.svg viewBox="0 0 240 240" className="h-full w-full overflow-visible" fill="none" role="img" aria-label={tr.novaNompanyAiAssistant}>
           <defs>
             <linearGradient id="nova-body" x1="60" y1="40" x2="190" y2="220">
               {/* Theme-aware: her shell was a hardcoded navy, which read as a

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 import { AnimatePresence, motion } from "motion/react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
@@ -29,43 +31,39 @@ import { SectionHeading } from "../ui/SectionHeading";
    the Arabic site is not a second-class copy of the English one.
 ================================================================== */
 
-const COPY = {
-  eyebrow: "Pricing",
-  title: "Pricing that scales with your team",
-  lead: "Priced by your team size — start free for up to 9 users, then choose the plan that fits your headcount. Every plan includes the full platform.",
-  currency: "Currency",
-  monthly: "Monthly",
-  yearly: "Yearly",
-  freePrice: "Free",
-  freeNote: "Always free",
-  perMaxUsers: "for up to {n} users / month",
-  employees: "employees",
-  billedYearly: "billed yearly",
-  invoicedMonthly: "Invoiced monthly",
-  invoicedNote: "Billed at the end of each month based on your number of employees.",
-  mostPopular: "Most popular",
-  featuresLabel: "Includes",
-  ctaStart: "Start free",
-  bandTitle: "Ready to run your company on one platform?",
-  bandText: "Create your free account — no card required.",
-};
+// The card's own words, keyed the way the card reads them. The dictionary is
+// flat and shared with the rest of the marketing page, so the `pv` prefix is
+// what keeps `currency` here from colliding with a currency elsewhere.
+const copyFor = (tr) => ({
+  eyebrow: tr.pvEyebrow,
+  title: tr.pvTitle,
+  lead: tr.pvLead,
+  currency: tr.pvCurrency,
+  monthly: tr.pvMonthly,
+  yearly: tr.pvYearly,
+  freePrice: tr.pvFreePrice,
+  freeNote: tr.pvFreeNote,
+  perMaxUsers: tr.pvPerMaxUsers,
+  employees: tr.pvEmployees,
+  billedYearly: tr.pvBilledYearly,
+  invoicedMonthly: tr.pvInvoicedMonthly,
+  invoicedNote: tr.pvInvoicedNote,
+  mostPopular: tr.pvMostPopular,
+  featuresLabel: tr.pvIncludes,
+  ctaStart: tr.startFree,
+  bandTitle: tr.pvBandTitle,
+  bandText: tr.pvBandText,
+});
 
-const ASSURANCES = [
-  {
-    title: "The whole platform, every plan",
-    body: "Every department is switched on from the free tier up. You pay for team size, not for modules.",
-  },
-  {
-    title: "Free under ten people",
-    body: "Micro is free forever for up to 9 employees — English and Arabic, RTL-ready, no card required.",
-  },
-  {
-    title: "Pay yearly, pay less",
-    body: "Switch to yearly billing and the discount comes off every plan. Companies of 250+ are invoiced monthly on actual headcount instead.",
-  },
+const assurancesFor = (tr) => [
+  { id: "platform", title: tr.pvAs1Title, body: tr.pvAs1Body },
+  { id: "free", title: tr.pvAs2Title, body: tr.pvAs2Body },
+  { id: "yearly", title: tr.pvAs3Title, body: tr.pvAs3Body },
 ];
 
 export function PricingView({ onNavigate, locale = "en" }) {
+  const tr = landingDict(useLandingLocale());
+  const COPY = copyFor(tr);
   const [yearly, setYearly] = useState(false);
   const [currency, setCurrency] = useState("SAR");
 
@@ -164,7 +162,7 @@ export function PricingView({ onNavigate, locale = "en" }) {
   // Fixed by the card type, not chosen per package: the words are a promise
   // about what pressing the button does, and that follows from the shape.
   const ctaLabel = (plan) =>
-    plan.type === "free" ? "Start Free" : plan.type === "premium" ? "Contact Sales" : "Get Started";
+    plan.type === "free" ? tr.startFree : plan.type === "premium" ? tr.contactSales : tr.pvGetStarted;
 
   const Sym = ({ big = false }) =>
     currency === "SAR" ? (
@@ -244,11 +242,11 @@ export function PricingView({ onNavigate, locale = "en" }) {
         className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
       >
         {loading && (
-          <p className="col-span-full py-12 text-center text-sm text-fg-dim">Loading prices…</p>
+          <p className="col-span-full py-12 text-center text-sm text-fg-dim">{tr.loadingPrices}</p>
         )}
         {!loading && cards.length === 0 && (
           <p className="col-span-full py-12 text-center text-sm text-fg-dim">
-            No packages are published yet.
+            {tr.pvNoPackages}
           </p>
         )}
         {cards.map((plan) => {
@@ -430,8 +428,8 @@ export function PricingView({ onNavigate, locale = "en" }) {
         viewport={VIEWPORT}
         className="mt-14 grid gap-5 sm:grid-cols-3"
       >
-        {ASSURANCES.map((item) => (
-          <motion.div key={item.title} variants={fadeUp} className="rounded-2xl border border-line bg-ink-soft/50 p-6">
+        {assurancesFor(tr).map((item) => (
+          <motion.div key={item.id} variants={fadeUp} className="rounded-2xl border border-line bg-ink-soft/50 p-6">
             <h4 className="font-display text-sm font-600">{item.title}</h4>
             <p className="mt-2 text-sm text-fg-muted">{item.body}</p>
           </motion.div>
@@ -476,6 +474,7 @@ export function PricingView({ onNavigate, locale = "en" }) {
    a click anywhere outside dismisses it.
    ------------------------------------------------------------------ */
 function CurrencyPicker({ value, options, onChange, label }) {
+  const tr = landingDict(useLandingLocale());
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -542,14 +541,14 @@ function CurrencyPicker({ value, options, onChange, label }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Search code, name or country"
-              aria-label="Search currencies"
+              placeholder={tr.searchCodeNameCountry}
+              aria-label={tr.searchCurrencies}
               className="w-full rounded-xl bg-ink/60 px-3 py-2 text-sm text-fg placeholder:text-fg-dim/70 focus:outline-none focus:ring-1 focus:ring-fg-dim/40"
             />
           </div>
           <ul role="listbox" aria-label={label} className="max-h-64 overflow-y-auto py-1">
             {results.length === 0 && (
-              <li className="px-3 py-6 text-center text-sm text-fg-dim">Nothing matches that.</li>
+              <li className="px-3 py-6 text-center text-sm text-fg-dim">{tr.nothingMatches}</li>
             )}
             {results.map((c, i) => (
               <li key={c.code} role="option" aria-selected={c.code === value}>
@@ -563,7 +562,7 @@ function CurrencyPicker({ value, options, onChange, label }) {
                 >
                   <span className={`w-11 shrink-0 font-display text-sm font-600 ${c.code === value ? "text-fg" : "text-fg-dim"}`}>{c.code}</span>
                   <span className="min-w-0 flex-1 truncate text-sm text-fg-dim">{c.name}</span>
-                  {c.code === value && <span className="text-xs text-fg">Selected</span>}
+                  {c.code === value && <span className="text-xs text-fg">{tr.selected}</span>}
                 </button>
               </li>
             ))}

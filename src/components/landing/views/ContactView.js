@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 import { AnimatePresence, motion, useAnimate } from "motion/react";
 import { EASE_OUT_EXPO, fadeUp, SPRING_SNAPPY, stagger } from "@/components/landing/lib/motion";
 import { AiAssistant } from "../mascot/AiAssistant";
@@ -8,6 +10,7 @@ import { MagneticButton } from "../ui/MagneticButton";
 import { SectionHeading } from "../ui/SectionHeading";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export function ContactView() {
+  const tr = landingDict(useLandingLocale());
     const [fields, setFields] = useState({
         name: "",
         email: "",
@@ -35,13 +38,13 @@ export function ContactView() {
         e.preventDefault();
         const next = {};
         if (fields.name.trim().length < 2)
-            next.name = "Tell us who to ask for.";
+            next.name = tr.errName;
         if (!EMAIL_RE.test(fields.email))
-            next.email = "Enter a valid work email.";
+            next.email = tr.errEmail;
         if (fields.company.trim().length < 2)
-            next.company = "Company name required.";
+            next.company = tr.errCompany;
         if (fields.message.trim().length < 12)
-            next.message = "A sentence or two about your stack helps us prepare.";
+            next.message = tr.errMessage;
         if (Object.keys(next).length > 0) {
             setErrors(next);
             animate(scope.current, { x: [0, -10, 8, -4, 0] }, { duration: 0.42, ease: "easeInOut" });
@@ -53,7 +56,7 @@ export function ContactView() {
       <div className="grid gap-14 lg:grid-cols-[1.05fr_1fr] lg:gap-20">
         {/* ---------------- Form ---------------- */}
         <div>
-          <SectionHeading eyebrow="Contact" title="Book a demo with a solutions engineer" description="45 minutes, your data model on screen, no slide deck. We'll tell you honestly if Nompany isn't the right fit."/>
+          <SectionHeading eyebrow={tr.contactEyebrow} title={tr.bookDemoSolutionsEngineer} description={tr.contactLead}/>
 
           <div className="mt-10">
             <AnimatePresence mode="wait" initial={false}>
@@ -79,27 +82,27 @@ export function ContactView() {
                     migration outline for {fields.company}.
                   </p>
                   <button onClick={() => setSent(false)} className="mt-6 text-sm text-iris-bright underline-offset-4 hover:underline">
-                    Send another request
+                    {tr.sendAnother}
                   </button>
                 </motion.div>) : (<motion.form key="form" ref={scope} onSubmit={handleSubmit} noValidate variants={stagger(0.06)} initial="hidden" animate="show" className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <motion.div variants={fadeUp}>
-                      <FloatingField label="Full name" value={fields.name} onChange={set("name")} status={statusFor("name")} error={errors.name} autoComplete="name"/>
+                      <FloatingField label={tr.fullName} value={fields.name} onChange={set("name")} status={statusFor("name")} error={errors.name} autoComplete="name"/>
                     </motion.div>
                     <motion.div variants={fadeUp}>
-                      <FloatingField label="Work email" type="email" value={fields.email} onChange={set("email")} status={statusFor("email")} error={errors.email} autoComplete="email"/>
+                      <FloatingField label={tr.workEmail} type="email" value={fields.email} onChange={set("email")} status={statusFor("email")} error={errors.email} autoComplete="email"/>
                     </motion.div>
                   </div>
                   <motion.div variants={fadeUp}>
-                    <FloatingField label="Company" value={fields.company} onChange={set("company")} status={statusFor("company")} error={errors.company} autoComplete="organization"/>
+                    <FloatingField label={tr.company} value={fields.company} onChange={set("company")} status={statusFor("company")} error={errors.company} autoComplete="organization"/>
                   </motion.div>
                   <motion.div variants={fadeUp}>
-                    <FloatingField label="What are you running today?" value={fields.message} onChange={set("message")} status={statusFor("message")} error={errors.message} multiline/>
+                    <FloatingField label={tr.whatRunningToday} value={fields.message} onChange={set("message")} status={statusFor("message")} error={errors.message} multiline/>
                   </motion.div>
                   <motion.div variants={fadeUp} className="flex flex-wrap items-center gap-4 pt-2">
-                    <MagneticButton type="submit">Request demo</MagneticButton>
+                    <MagneticButton type="submit">{tr.requestDemo}</MagneticButton>
                     <p className="text-xs text-fg-dim">
-                      We reply within one business day. No sequences, no drip.
+                      {tr.replyOneDay}
                     </p>
                   </motion.div>
                 </motion.form>)}
@@ -112,16 +115,16 @@ export function ContactView() {
           <motion.div variants={fadeUp} className="surface rounded-3xl p-6">
             <AiAssistant size={230}/>
             <p className="mt-2 text-center text-sm text-fg-muted">
-              Nova will sit in on the call and map your entities live.
+              {tr.novaSitsIn}
             </p>
           </motion.div>
 
           <motion.div variants={fadeUp} className="grid gap-4 sm:grid-cols-2">
             {[
-            { label: "Sales", value: "sales@nompany.com" },
-            { label: "Support", value: "help@nompany.com" },
-            { label: "EMEA", value: "Amsterdam · Riyadh" },
-            { label: "Americas", value: "Austin · Toronto" },
+            { label: tr.sales, value: "sales@nompany.com" },
+            { label: tr.support, value: "help@nompany.com" },
+            { label: "EMEA", value: "{tr.cityRowEmea}" },
+            { label: tr.americas, value: "{tr.cityRowAmericas}" },
         ].map((item) => (<div key={item.label} className="rounded-2xl border border-line bg-ink-soft/50 p-5">
                 <p className="text-[11px] tracking-[0.16em] text-fg-dim uppercase">
                   {item.label}

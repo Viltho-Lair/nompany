@@ -135,6 +135,7 @@ type Strings = CommonStrings & {
   projectSheets: string;
   projectTimeline: string;
   projects: string;
+  projectsEmptySummary: string;
   projectsOpenApprovedQuotation: string;
   projectsStage: string;
   qty: string;
@@ -333,6 +334,7 @@ const en: Strings = {
   projectSheets: "← Project sheets",
   projectTimeline: "Project timeline",
   projects: "Projects",
+  projectsEmptySummary: "Projects open from an approved quotation. Once one is registered, its stages, value and progress are summarised here.",
   projectsOpenApprovedQuotation: "Projects open from an approved quotation. Approve one in Technical and it'll appear here.",
   projectsStage: "Projects by stage",
   qty: "Qty",
@@ -531,6 +533,7 @@ const ar: Strings = {
   projectSheets: "← كشوف المشاريع",
   projectTimeline: "المسار الزمني للمشاريع",
   projects: "المشاريع",
+  projectsEmptySummary: "تُفتح المشاريع من عرض سعر معتمد. ومتى سُجّل مشروع، لُخّصت هنا مراحله وقيمته وتقدّمه.",
   projectsOpenApprovedQuotation: "تُفتح المشاريع من عرض سعر معتمد. اعتمد واحدًا في القسم الفني وسيظهر هنا.",
   projectsStage: "المشاريع حسب المرحلة",
   qty: "الكمية",

@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 import { AnimatePresence, motion, useAnimate } from "motion/react";
 import { EASE_OUT_EXPO, SPRING_SNAPPY } from "@/components/landing/lib/motion";
 import { FloatingField } from "./FloatingField";
@@ -12,6 +14,7 @@ import { MagneticButton } from "./MagneticButton";
 ================================================================== */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export function EmailCapture({ compact = false }) {
+  const tr = landingDict(useLandingLocale());
     const [email, setEmail] = useState("");
     const [status, setStatus] = useState("idle");
     const [error, setError] = useState();
@@ -23,7 +26,7 @@ export function EmailCapture({ compact = false }) {
         e.preventDefault();
         if (!EMAIL_RE.test(email)) {
             setStatus("error");
-            setError("Enter a valid work email so we can reach you.");
+            setError(tr.enterValidWorkEmail);
             animate(scope.current, { x: [0, -9, 7, -4, 0] }, { duration: 0.42, ease: "easeInOut" });
             return;
         }
@@ -49,13 +52,11 @@ export function EmailCapture({ compact = false }) {
               </span>
             </span>
             <div className="text-sm">
-              <p className="font-medium">You&rsquo;re on the list.</p>
-              <p className="text-fg-muted">
-                A solutions engineer will reach out within one business day.
-              </p>
+              <p className="font-medium">{tr.onTheList}</p>
+              <p className="text-fg-muted">{tr.reachOutOneDay}</p>
             </div>
           </motion.div>) : (<motion.form key="form" ref={scope} onSubmit={handleSubmit} noValidate initial={{ opacity: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="flex flex-col gap-3 sm:flex-row sm:items-start">
-            <FloatingField label="Work email" type="email" autoComplete="email" value={email} status={status} error={error} onChange={(v) => {
+            <FloatingField label={tr.workEmail} type="email" autoComplete="email" value={email} status={status} error={error} onChange={(v) => {
                 setEmail(v);
                 if (status !== "idle") {
                     setStatus("idle");
@@ -63,7 +64,7 @@ export function EmailCapture({ compact = false }) {
                 }
             }}/>
             <MagneticButton type="submit" className="shrink-0 sm:mt-0.5">
-              Request demo
+              {tr.requestDemo}
             </MagneticButton>
           </motion.form>)}
       </AnimatePresence>

@@ -1,5 +1,7 @@
 "use client";
 import { motion, useReducedMotion, useSpring, useTransform, } from "motion/react";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 import { EASE_OUT_EXPO, SPRING_SOFT } from "@/components/landing/lib/motion";
 import { usePointer } from "../providers/PointerProvider";
 import { CountUp } from "@/components/motion/CountUp";
@@ -33,12 +35,15 @@ const floatUp = {
 };
 const BARS = [38, 56, 44, 72, 60, 88, 66, 96];
 const RAIL = [0, 1, 2, 3, 4, 5];
-const KPIS = [
-    { label: "Revenue", value: 4.82, prefix: "$", suffix: "M", decimals: 2, tone: "text-fg" },
-    { label: "Orders", value: 12480, decimals: 0, tone: "text-cyan" },
-    { label: "Margin", value: 38.4, suffix: "%", decimals: 1, tone: "text-mint" },
+// `id` is the React key, not the label — the label changes with the reader's
+// language and the tiles would otherwise remount on a switch.
+const kpisFor = (tr) => [
+    { id: "revenue", label: tr.dashRevenue, value: 4.82, prefix: "$", suffix: "M", decimals: 2, tone: "text-fg" },
+    { id: "orders", label: tr.dashOrders, value: 12480, decimals: 0, tone: "text-cyan" },
+    { id: "margin", label: tr.dashMargin, value: 38.4, suffix: "%", decimals: 1, tone: "text-mint" },
 ];
 export function DashboardAssembly() {
+  const tr = landingDict(useLandingLocale());
     const reduceMotion = useReducedMotion();
     const { nx, ny } = usePointer();
     // Cursor tilt — springs give it weight instead of a 1:1 twitch.
@@ -81,7 +86,7 @@ export function DashboardAssembly() {
             <div className="min-w-0 flex-1 space-y-3 p-3 md:space-y-4 md:p-4">
               {/* KPI row */}
               <div className="grid grid-cols-3 gap-2.5 md:gap-3">
-                {KPIS.map((kpi, i) => (<motion.div key={kpi.label} variants={floatUp} className="rounded-xl border border-line-soft bg-ink/50 p-2.5 md:p-3">
+                {kpisFor(tr).map((kpi, i) => (<motion.div key={kpi.id} variants={floatUp} className="rounded-xl border border-line-soft bg-ink/50 p-2.5 md:p-3">
                     <p className="truncate text-[10px] tracking-wider text-fg-dim uppercase">
                       {kpi.label}
                     </p>
@@ -95,7 +100,7 @@ export function DashboardAssembly() {
                 {/* Bar chart */}
                 <motion.div variants={floatUp} className="rounded-xl border border-line-soft bg-ink/50 p-3">
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-[11px] text-fg-muted">Cash flow</p>
+                    <p className="text-[11px] text-fg-muted">{tr.cashFlow}</p>
                     <span className="rounded-full bg-mint/12 px-2 py-0.5 text-[10px] text-mint">
                       +18.2%
                     </span>
@@ -116,7 +121,7 @@ export function DashboardAssembly() {
 
                 {/* Donut + trend */}
                 <motion.div variants={floatUp} className="flex flex-col gap-3 rounded-xl border border-line-soft bg-ink/50 p-3">
-                  <p className="text-[11px] text-fg-muted">Module health</p>
+                  <p className="text-[11px] text-fg-muted">{tr.moduleHealth}</p>
                   <div className="flex items-center gap-3">
                     <svg width="62" height="62" viewBox="0 0 62 62" className="shrink-0">
                       <circle cx="31" cy="31" r="25" fill="none" stroke="var(--color-line)" strokeWidth="7"/>
@@ -154,9 +159,9 @@ export function DashboardAssembly() {
               {/* Activity rows */}
               <motion.div variants={floatUp} className="space-y-2 rounded-xl border border-line-soft bg-ink/50 p-3">
                 {[
-            { label: "PO-4821 approved", tone: "bg-mint" },
-            { label: "Payroll run scheduled", tone: "bg-iris-bright" },
-            { label: "Stock reorder triggered", tone: "bg-gold" },
+            { label: tr.po4821Approved, tone: "bg-mint" },
+            { label: tr.payrollRunScheduled, tone: "bg-iris-bright" },
+            { label: tr.stockReorderTriggered, tone: "bg-gold" },
         ].map((row, i) => (<motion.div key={row.label} className="flex items-center gap-2.5" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.15 + i * 0.12, duration: 0.6, ease: EASE_OUT_EXPO }}>
                     <span className={`h-1.5 w-1.5 rounded-full ${row.tone}`}/>
                     <span className="truncate text-[11px] text-fg-muted">
@@ -177,9 +182,9 @@ export function DashboardAssembly() {
             </svg>
           </span>
           <div>
-            <p className="text-[11px] font-medium">Forecast accuracy</p>
+            <p className="text-[11px] font-medium">{tr.forecastAccuracy}</p>
             <p className="text-[10px] text-fg-dim">
-              <CountUp to={96.4} decimals={1} suffix="%" delay={1.7}/> this quarter
+              <CountUp to={96.4} decimals={1} suffix="%" delay={1.7}/> {tr.thisQuarter}
             </p>
           </div>
         </FloatingCard>
@@ -192,7 +197,7 @@ export function DashboardAssembly() {
           </span>
           <div>
             <p className="text-[11px] font-medium">3 modules synced</p>
-            <p className="text-[10px] text-fg-dim">Finance · HR · Supply</p>
+            <p className="text-[10px] text-fg-dim">{tr.financeHrSupply}</p>
           </div>
         </FloatingCard>
       </motion.div>

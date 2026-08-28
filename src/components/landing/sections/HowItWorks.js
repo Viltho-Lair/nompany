@@ -1,15 +1,17 @@
 "use client";
 import { useRef, useState } from "react";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 import { motion, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform, } from "motion/react";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
 import { SectionHeading } from "../ui/SectionHeading";
-const STEPS = [
+const stepsFor = (tr) => [
     {
         id: "capture",
-        label: "01 — Capture",
-        title: "Every transaction lands in one ledger",
-        body: "Point-of-sale, purchase orders, payroll and bank feeds stream into a single normalised event log the moment they happen. No nightly batch, no reconciliation spreadsheets.",
-        bullets: ["Real-time ingestion", "180+ connectors", "Immutable audit trail"],
+        label: tr.hiw1Step,
+        title: tr.hiw1Title,
+        body: tr.hiw1Body,
+        bullets: [tr.hiw1a, tr.hiw1b, tr.hiw1c],
         color: "var(--color-iris-bright)",
         x: 73,
         y: 154,
@@ -17,10 +19,10 @@ const STEPS = [
     },
     {
         id: "unify",
-        label: "02 — Unify",
-        title: "One data model across every department",
-        body: "Finance, HR, inventory and manufacturing read and write the same records. When procurement receives a shipment, the balance sheet already knows.",
-        bullets: ["Shared entity graph", "Cross-module integrity", "Zero double entry"],
+        label: tr.hiw2Step,
+        title: tr.hiw2Title,
+        body: tr.hiw2Body,
+        bullets: [tr.hiw2a, tr.hiw2b, tr.hiw2c],
         color: "var(--color-cyan)",
         x: 327,
         y: 154,
@@ -28,10 +30,10 @@ const STEPS = [
     },
     {
         id: "automate",
-        label: "03 — Automate",
-        title: "Workflows that run themselves",
-        body: "Rules and agents watch the event stream: approvals route by policy, stock reorders fire at threshold, anomalies escalate before they become write-offs.",
-        bullets: ["Policy-based approvals", "Agentic exception handling", "SLA timers"],
+        label: tr.hiw3Step,
+        title: tr.hiw3Title,
+        body: tr.hiw3Body,
+        bullets: [tr.hiw3a, tr.hiw3b, tr.hiw3c],
         color: "var(--color-violet)",
         x: 303,
         y: 287,
@@ -39,10 +41,10 @@ const STEPS = [
     },
     {
         id: "decide",
-        label: "04 — Decide",
-        title: "Forecasts your board can act on",
-        body: "Live dashboards and scenario models sit on top of the same ledger, so the number the CFO quotes is the number the warehouse just produced.",
-        bullets: ["Rolling forecasts", "Scenario modelling", "Board-ready exports"],
+        label: tr.hiw4Step,
+        title: tr.hiw4Title,
+        body: tr.hiw4Body,
+        bullets: [tr.hiw4a, tr.hiw4b, tr.hiw4c],
         color: "var(--color-mint)",
         x: 97,
         y: 287,
@@ -51,6 +53,8 @@ const STEPS = [
 ];
 const CENTER = { x: 200, y: 200 };
 export function HowItWorks() {
+  const tr = landingDict(useLandingLocale());
+  const STEPS = stepsFor(tr);
     const reduceMotion = useReducedMotion();
     const wrapperRef = useRef(null);
     const [active, setActive] = useState(0);
@@ -74,14 +78,14 @@ export function HowItWorks() {
         setActive((prev) => (prev === next ? prev : next));
     });
     return (<section id="how" className="relative mx-auto max-w-7xl px-6 py-24">
-      <SectionHeading eyebrow="How it works" title="Four moves from raw event to board decision" description="Scroll to watch the data flow through the Nompany core."/>
+      <SectionHeading eyebrow={tr.hiwEyebrow} title={tr.fourMovesRawEvent} description={tr.scrollWatchDataFlow}/>
 
       <div ref={wrapperRef} className="relative mt-14">
         <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_1.05fr] lg:items-start lg:gap-16">
           {/* ---------------- Pinned hub ---------------- */}
           <div className="sticky top-20 z-20 order-1 lg:order-2 lg:top-28">
             <div className="surface relative overflow-hidden rounded-3xl p-4 lg:aspect-square lg:p-8">
-              <HubVisual active={active} orbitRotate={orbitRotate} counterRotate={counterRotate} ringLength={ringLength} coreScale={coreScale} reduceMotion={Boolean(reduceMotion)}/>
+              <HubVisual steps={STEPS} active={active} orbitRotate={orbitRotate} counterRotate={counterRotate} ringLength={ringLength} coreScale={coreScale} reduceMotion={Boolean(reduceMotion)}/>
             </div>
           </div>
 
@@ -122,8 +126,10 @@ export function HowItWorks() {
    The hub. Pure SVG; all scroll-linked props arrive as MotionValues so
    this component renders only when `active` changes (4× per section).
 ------------------------------------------------------------------ */
-function HubVisual({ active, orbitRotate, counterRotate, ringLength, coreScale, reduceMotion, }) {
-    const activeStep = STEPS[active];
+// `steps` comes IN. It used to read the module-level array, which now lives
+// inside HowItWorks because it is built from the dictionary.
+function HubVisual({ steps, active, orbitRotate, counterRotate, ringLength, coreScale, reduceMotion, }) {
+    const activeStep = steps[active];
     return (<div className="relative mx-auto aspect-square w-full max-w-[30rem]">
       <svg viewBox="0 0 400 400" className="h-full w-full">
         <defs>
@@ -157,7 +163,7 @@ function HubVisual({ active, orbitRotate, counterRotate, ringLength, coreScale, 
         <motion.circle cx={CENTER.x} cy={CENTER.y} r="164" fill="none" stroke="url(#ring-grad)" strokeWidth="2" strokeLinecap="round" transform="rotate(-90 200 200)" style={{ pathLength: ringLength }}/>
 
         {/* Connectors */}
-        {STEPS.map((step, i) => {
+        {steps.map((step, i) => {
             const isActive = i === active;
             const isDone = i < active;
             return (<motion.line key={`line-${step.id}`} x1={CENTER.x} y1={CENTER.y} x2={step.x} y2={step.y} stroke={isActive || isDone ? step.color : "var(--color-line)"} strokeWidth={isActive ? 2 : 1} initial={{ opacity: 0.3 }} animate={{ opacity: isActive ? 1 : isDone ? 0.55 : 0.3 }} transition={{ duration: 0.45 }}/>);
@@ -182,7 +188,7 @@ function HubVisual({ active, orbitRotate, counterRotate, ringLength, coreScale, 
         </motion.g>
 
         {/* Module nodes */}
-        {STEPS.map((step, i) => {
+        {steps.map((step, i) => {
             const isActive = i === active;
             return (<motion.g key={step.id} initial={{ scale: 1, opacity: 0.5 }} animate={{
                     scale: isActive ? 1.14 : 1,

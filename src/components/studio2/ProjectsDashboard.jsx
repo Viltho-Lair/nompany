@@ -135,7 +135,7 @@ export default function ProjectsDashboard({
       <div className="rounded-geex border border-dashed border-slate-200 p-10 text-center dark:border-white/10">
         <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.noDataYet}</h3>
         <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">
-          Projects open from an approved quotation. Once one is registered, its stages, value and progress are summarised here.
+          {tr.projectsEmptySummary}
         </p>
       </div>
     );

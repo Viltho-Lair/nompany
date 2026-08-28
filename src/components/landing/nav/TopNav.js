@@ -1,5 +1,7 @@
 "use client";
 import { motion, useMotionValueEvent, useScroll } from "motion/react";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 import { useEffect, useState } from "react";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
 import { initialsOf } from "@/lib/initials";
@@ -7,11 +9,12 @@ import Skeleton from "@/components/Skeleton";
 import ThemeToggle from "@/components/ThemeToggle";
 import { LogoMark, Wordmark } from "../Logo";
 import { MagneticButton } from "../ui/MagneticButton";
-import { VIEWS } from "../views/views";
+import { viewsFor } from "../views/views";
 /* Navigation for the simulated router (TECHNIQUE 9).
    The active-tab pill is a shared `layoutId`, so switching tabs makes it
    glide between items instead of blinking on and off. */
 export function TopNav({ view, onNavigate, locale = "en" }) {
+  const tr = landingDict(useLandingLocale());
     const { scrollY } = useScroll();
     const [condensed, setCondensed] = useState(false);
     // Three states, never two — `undefined` means "still asking", so the header
@@ -55,14 +58,14 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
             paddingTop: condensed ? 8 : 12,
             paddingBottom: condensed ? 8 : 12,
         }} transition={{ duration: 0.4, ease: EASE_OUT_EXPO }} className="flex w-full max-w-6xl items-center gap-1.5 rounded-full border px-2.5 backdrop-blur-xl sm:gap-4 sm:px-5">
-        <button onClick={() => onNavigate("overview")} className="flex shrink-0 items-center gap-2.5 pr-1 sm:pr-2" aria-label="Nompany home">
+        <button onClick={() => onNavigate("overview")} className="flex shrink-0 items-center gap-2.5 pr-1 sm:pr-2" aria-label={tr.nompanyHome}>
           <LogoMark size={26} priority/>
           <Wordmark className="hidden sm:block"/>
         </button>
 
         {/* Tabs */}
         <div className="ml-auto flex items-center gap-1 rounded-full bg-ink/40 p-1">
-          {VIEWS.map((v) => {
+          {viewsFor(tr).map((v) => {
             const isActive = v.id === view;
             return (<button key={v.id} onClick={() => onNavigate(v.id)} aria-current={isActive ? "page" : undefined} className={`relative rounded-full px-2 py-1.5 text-xs font-medium transition-colors duration-300 sm:px-3.5 sm:text-sm ${isActive ? "text-white" : "text-fg-muted hover:text-fg"}`}>
                 {isActive && (<motion.span layoutId="nav-pill" className="absolute inset-0 rounded-full bg-gradient-to-r from-iris to-violet" transition={{ type: "spring", stiffness: 380, damping: 32 }}/>)}
@@ -76,7 +79,7 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
             surface. Inherits `currentColor`, so it needs no landing-specific
             styling of its own. */}
         <div className="shrink-0 text-fg-muted">
-          <ThemeToggle labels={{ theme: "Theme", light: "Light", dark: "Dark", system: "System" }} />
+          <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
         </div>
 
         {/* Signed out → "Log in". Signed in → the person's own picture, opening
@@ -88,7 +91,7 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
             <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
               <button type="button" onClick={() => setMenuOpen((o) => !o)}
                 aria-haspopup="menu" aria-expanded={menuOpen}
-                aria-label={account.name || account.email || "Your account"} title={account.name || account.email}
+                aria-label={account.name || account.email || tr.yourAccount} title={account.name || account.email}
                 className="block rounded-full outline-none focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink">
                 {account.photo ? (
                     // A stored data URI, so next/image would only get in the way.
@@ -104,7 +107,7 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
                   <div role="menu" className="surface absolute end-0 z-50 mt-2 w-56 overflow-hidden rounded-xl py-1 text-left">
                     <p className="truncate px-4 py-2 text-xs text-fg-dim">{account.email}</p>
                     <a role="menuitem" href={`/${locale}/account`} className="block px-4 py-2.5 text-sm text-fg-muted transition-colors hover:bg-line/40 hover:text-fg">
-                      Go to account
+                      {tr.goToAccount}
                     </a>
                     <button role="menuitem" type="button"
                       onClick={async () => {
@@ -112,14 +115,14 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
                           window.location.assign(`/${locale}`);
                       }}
                       className="block w-full px-4 py-2.5 text-left text-sm text-rose-400 transition-colors hover:bg-rose-500/10">
-                      Sign out
+                      {tr.signOut}
                     </button>
                   </div>
               )}
             </div>
         ) : (
             <a href={`/${locale}/login`} className="inline-flex shrink-0 items-center rounded-full border border-line px-3 py-2 text-xs font-medium text-fg-muted transition-colors duration-300 hover:border-iris/50 hover:text-fg focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink focus-visible:outline-none sm:px-4 sm:text-sm">
-              Log in
+              {tr.logIn}
             </a>
         )}
 
@@ -131,7 +134,7 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
               <Skeleton className="h-9 w-[104px]" rounded="rounded-full" bg="bg-line"/>
           ) : account ? null : (
               <MagneticButton variant="ghost" strength={8} className="px-5 py-2 text-xs" href={`/${locale}/signup`}>
-                Start free
+                {tr.startFree}
               </MagneticButton>
           )}
         </div>

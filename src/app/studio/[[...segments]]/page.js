@@ -17,6 +17,7 @@ import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
 import { chatDisplayName } from "@/lib/chatConstants";
 import { studioLocale, preferredLocale, dirFor, UI_LANG_COOKIE } from "@/shared/i18n";
 import { shellDict } from "@/shared/studio/shell";
+import { sectionName } from "@/shared/studio/sections";
 import { StudioLocaleProvider } from "@/components/studio2/locale";
 import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
 import StudioFrame from "@/components/studio2/StudioFrame";
@@ -539,7 +540,7 @@ export default async function StudioPage({ params }) {
         : screenKey === "tasks" ? <StudioTasks slug={studio.slug} view={active?.key} />
         : screenKey === "operations" ? <StudioOperations slug={studio.slug} view={active?.key} />
         : screenKey === "main" ? <StudioMain slug={studio.slug} />
-        : active ? <SectionDashboard section={active} studio={studio}
+        : active ? <SectionDashboard section={active} studio={studio} locale={locale}
             subsections={sections.filter((s) => s.parentId === active.id)}
             canManage={sectionManageable(access, active.key, sections.map((x) => x.key))} />
         : <NothingGranted admin={admin} slug={studio.slug} locale={locale} />}
@@ -552,17 +553,17 @@ export default async function StudioPage({ params }) {
 // deliberately empty of analytics: it exists so that clicking a section always
 // lands somewhere that belongs to that SectionID rather than nowhere at all.
 // Sub-sections, when the section has any, are the way onward from here.
-function SectionDashboard({ section, studio, subsections = [], canManage }) {
+function SectionDashboard({ section, studio, subsections = [], canManage, locale = "en" }) {
   return (
     <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
-      <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{section.name}</h2>
+      <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{sectionName(section.key, section.name, locale)}</h2>
 
       {subsections.length > 0 && (
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           {subsections.map((s) => (
             <Link key={s.id} href={`/${studio.slug}/${s.key}`}
               className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
-              <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{s.name}</p>
+              <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{sectionName(s.key, s.name, locale)}</p>
               <p className="mt-0.5 font-mono text-[11px] text-slate-400 dark:text-slate-500">{s.key}</p>
             </Link>
           ))}

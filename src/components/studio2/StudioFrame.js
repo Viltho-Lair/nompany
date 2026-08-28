@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { dirFor, locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import { shellDict } from "@/shared/studio/shell";
+import { sectionName } from "@/shared/studio/sections";
 import { StudioLocaleProvider } from "@/components/studio2/locale";
 import LangMenu from "@/components/LangMenu";
 // LOADED ONLY BY THE STUDIOS THAT NEED IT. The RTL cache pulls in
@@ -210,8 +211,9 @@ export default function StudioFrame({
     { href: `/${studio.slug}/access`, key: "access", label: tr.access, show: me.canAdminister },
   ].filter((i) => i.show);
 
+  const activeSection = sections.find((s) => s.key === activeKey);
   const activeLabel =
-    sections.find((s) => s.key === activeKey)?.name ||
+    (activeSection && sectionName(activeSection.key, activeSection.name, locale)) ||
     admin.find((i) => i.key === activeKey)?.label ||
     studio.name;
 
@@ -220,7 +222,7 @@ export default function StudioFrame({
   // chevron beside it expands the children without leaving the page. The two
   // are separate hit targets so neither steals the other's click.
   const navGroup = (node) => {
-    if (node.children.length === 0) return navLink(`/${studio.slug}/${node.key}`, node.key, node.name);
+    if (node.children.length === 0) return navLink(`/${studio.slug}/${node.key}`, node.key, sectionName(node.key, node.name, locale));
     const shown = isOpen(node);
     // Highlight the exact page you are on. A child being active expands the
     // group (see isOpen) but no longer dresses the parent up as the current
@@ -238,13 +240,13 @@ export default function StudioFrame({
             className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5"
           >
             <Icon name={SECTION_ICONS[node.key] || "dot"} className={iconClass(active)} />
-            <span className="truncate">{node.name}</span>
+            <span className="truncate">{sectionName(node.key, node.name, locale)}</span>
           </Link>
           <button
             type="button"
             onClick={() => toggleGroup(node.key)}
             aria-expanded={shown}
-            aria-label={`${shown ? tr.collapse : tr.expand} ${node.name}`}
+            aria-label={`${shown ? tr.collapse : tr.expand} ${sectionName(node.key, node.name, locale)}`}
             className="shrink-0 rounded-md p-2 hover:bg-black/5 dark:hover:bg-white/10"
           >
             <Icon
@@ -255,7 +257,7 @@ export default function StudioFrame({
         </div>
         {shown && (
           <div className="mt-0.5 space-y-0.5 ps-4">
-            {node.children.map((c) => navLink(`/${studio.slug}/${c.key}`, c.key, c.name))}
+            {node.children.map((c) => navLink(`/${studio.slug}/${c.key}`, c.key, sectionName(c.key, c.name, locale)))}
           </div>
         )}
       </div>

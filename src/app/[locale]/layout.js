@@ -4,6 +4,7 @@ import Footer from "@/components/Footer";
 import SiteTracker from "@/components/SiteTracker";
 import { getSiteSettings } from "@/lib/data/site";
 import { getDict, dirFor, isLocale, locales } from "@/shared/i18n";
+import { AccountLocaleProvider } from "@/components/public/locale";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -22,11 +23,16 @@ export default async function LocaleLayout({ children, params }) {
   const dir = dirFor(locale);
 
   return (
-    <div dir={dir} lang={locale} className="flex min-h-screen flex-col">
-      <Nav locale={locale} dict={dict} settings={settings} />
-      <main className="flex-1">{children}</main>
-      <Footer locale={locale} dict={dict} settings={settings} />
-      <SiteTracker />
-    </div>
+    <AccountLocaleProvider locale={locale}>
+      {/* The URL is the locale on these pages, so the provider only
+          republishes what the segment already says — it exists so a dialog
+          five components deep does not have to be handed a prop. */}
+      <div dir={dir} lang={locale} className="flex min-h-screen flex-col">
+        <Nav locale={locale} dict={dict} settings={settings} />
+        <main className="flex-1">{children}</main>
+        <Footer locale={locale} dict={dict} settings={settings} />
+        <SiteTracker />
+      </div>
+    </AccountLocaleProvider>
   );
 }

@@ -1,4 +1,6 @@
-// Google / Microsoft sign-in buttons. Plain links — the whole flow is a
+
+import { useAccountLocale } from "@/components/public/locale";
+import { accountDict } from "@/shared/account";// Google / Microsoft sign-in buttons. Plain links — the whole flow is a
 // server-side redirect, so there's nothing to hydrate or fetch.
 // Renders nothing when neither provider is configured.
 
@@ -21,8 +23,9 @@ const MARKS = { google: GoogleMark, microsoft: MicrosoftMark };
 const LABELS = { google: "Google", microsoft: "Microsoft" };
 
 export default function SocialButtons({ providers = [], mode = "login" }) {
+  const tr = accountDict(useAccountLocale());
   if (!providers.length) return null;
-  const verb = mode === "signup" ? "Sign up" : "Continue";
+  const verb = mode === "signup" ? tr.signUp : tr.continueWith;
 
   return (
     <div className="space-y-3">

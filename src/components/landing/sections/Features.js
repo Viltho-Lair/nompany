@@ -1,13 +1,15 @@
 "use client";
 import { motion } from "motion/react";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { DrawIcon } from "../svg/DrawIcon";
 import { MorphShape } from "../svg/MorphShape";
 import { SectionHeading } from "../ui/SectionHeading";
-const FEATURES = [
+const featuresFor = (tr) => [
     {
-        title: "Zero-trust security",
-        body: "Row-level permissions, SSO/SCIM, and an append-only audit log every auditor has already seen.",
+        title: tr.featZeroTrust,
+        body: tr.featZeroTrustBody,
         color: "var(--color-iris-bright)",
         shapes: [
             { type: "path", d: "M20 5l12 5v9c0 8-5.2 13.4-12 16-6.8-2.6-12-8-12-16v-9l12-5z" },
@@ -15,8 +17,8 @@ const FEATURES = [
         ],
     },
     {
-        title: "Live analytics",
-        body: "Sub-second queries over the operational ledger — no warehouse hop, no stale extract.",
+        title: tr.featLiveAnalytics,
+        body: tr.featLiveAnalyticsBody,
         color: "var(--color-cyan)",
         shapes: [
             { type: "path", d: "M6 33h28" },
@@ -26,8 +28,8 @@ const FEATURES = [
         ],
     },
     {
-        title: "Automation engine",
-        body: "Compose approvals, reorders, and escalations from rules or let an agent draft the workflow for you.",
+        title: tr.featAutomation,
+        body: tr.featAutomationBody,
         color: "var(--color-violet)",
         shapes: [
             { type: "circle", cx: 20, cy: 20, r: 6.5 },
@@ -35,8 +37,8 @@ const FEATURES = [
         ],
     },
     {
-        title: "Multi-entity finance",
-        body: "Consolidate 40 legal entities, 12 currencies, and local tax rules into one close cycle.",
+        title: tr.featMultiEntity,
+        body: tr.featMultiEntityBody,
         color: "var(--color-mint)",
         shapes: [
             { type: "circle", cx: 20, cy: 20, r: 14 },
@@ -45,8 +47,8 @@ const FEATURES = [
         ],
     },
     {
-        title: "Supply chain control",
-        body: "Track every SKU from PO to pallet with live landed-cost and demand signals.",
+        title: tr.featSupplyChain,
+        body: tr.featSupplyChainBody,
         color: "var(--color-gold)",
         shapes: [
             { type: "path", d: "M20 5l13 7v16l-13 7-13-7V12l13-7z" },
@@ -54,8 +56,8 @@ const FEATURES = [
         ],
     },
     {
-        title: "Workforce operations",
-        body: "Scheduling, payroll, and skills mapping wired straight into cost centres.",
+        title: tr.featWorkforce,
+        body: tr.featWorkforceBody,
         color: "var(--color-iris)",
         shapes: [
             { type: "circle", cx: 20, cy: 14, r: 6 },
@@ -64,11 +66,12 @@ const FEATURES = [
     },
 ];
 export function Features() {
+  const tr = landingDict(useLandingLocale());
     return (<section id="features" className="relative mx-auto max-w-7xl px-6 py-24">
-      <SectionHeading eyebrow="Platform" title="Enterprise depth, without the enterprise drag" description="Six pillars, one deployment. Every module shares the same permissions, the same ledger, and the same API."/>
+      <SectionHeading eyebrow={tr.featEyebrow} title={tr.enterpriseDepthWithoutEnterprise} description={tr.sixPillarsOneDeployment}/>
 
       <motion.div variants={stagger(0.07)} initial="hidden" whileInView="show" viewport={VIEWPORT} className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {FEATURES.map((feature) => (<motion.article key={feature.title} variants={fadeUp} whileHover={{ y: -6 }} transition={{ duration: 0.35, ease: EASE_OUT_EXPO }} className="group surface relative overflow-hidden rounded-2xl p-6 will-change-transform">
+        {featuresFor(tr).map((feature) => (<motion.article key={feature.title} variants={fadeUp} whileHover={{ y: -6 }} transition={{ duration: 0.35, ease: EASE_OUT_EXPO }} className="group surface relative overflow-hidden rounded-2xl p-6 will-change-transform">
             {/* Hover wash tinted per feature */}
             <span aria-hidden className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{
                 background: `radial-gradient(120% 80% at 20% 0%, color-mix(in oklab, ${feature.color} 14%, transparent), transparent 70%)`,
@@ -98,18 +101,16 @@ export function Features() {
         </div>
         <div className="max-w-xl">
           <p className="text-xs tracking-[0.22em] text-cyan uppercase">
-            Adaptive schema
+            {tr.adaptiveSchema}
           </p>
           <h3 className="mt-4 font-display text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-            Your data model bends to the business, not the other way round
+            {tr.adaptiveTitle}
           </h3>
           <p className="mt-4 text-fg-muted">
-            Add a dimension, split an entity, or introduce a new cost model and
-            Nompany reshapes the graph in place — every report, permission and
-            integration follows automatically.
+            {tr.adaptiveBody}
           </p>
           <p className="mt-5 text-xs text-fg-dim">
-            Hover the shape to see the model reconfigure.
+            {tr.adaptiveHint}
           </p>
         </div>
       </motion.div>

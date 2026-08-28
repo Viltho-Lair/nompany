@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAccountLocale } from "@/components/public/locale";
+import { accountDict } from "@/shared/account";
 import Link from "next/link";
 import OtpStep from "@/components/public/OtpStep";
 import SocialButtons from "@/components/public/SocialButtons";
@@ -16,12 +18,13 @@ import { FloatingField } from "@/components/landing/ui/FloatingField";
 // gutter. tabIndex -1 so a keyboard user tabbing out of the password lands on
 // the submit button, not on a visibility toggle.
 function RevealEye({ shown, onToggle }) {
+  const tr = accountDict(useAccountLocale());
   return (
     <button
       type="button"
       tabIndex={-1}
       onClick={onToggle}
-      aria-label={shown ? "Hide password" : "Show password"}
+      aria-label={shown ? tr.hidePassword : tr.showPassword}
       aria-pressed={shown}
       className="flex h-9 w-9 items-center justify-center rounded-lg text-fg-dim transition-colors hover:text-fg"
     >
@@ -69,6 +72,7 @@ function Alert({ kind, children }) {
 // Risk-based sign-in: password first, then a one-time code ONLY when this
 // browser isn't already trusted. A recognised device goes straight through.
 export default function LoginForm({ locale, dict, providers = [] }) {
+  const tr = accountDict(useAccountLocale());
   const t = dict?.auth || {};
   const [form, setForm] = useState({ email: "", password: "", remember: true });
   const [stage, setStage] = useState("credentials"); // credentials | otp
@@ -89,9 +93,9 @@ export default function LoginForm({ locale, dict, providers = [] }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (data.error === "rate-email" || data.error === "rate-ip") {
-          setError({ kind: "wait", message: "Too many attempts. Give it a few minutes, then try again." });
+          setError({ kind: "wait", message: tr.tooManyAttemptsWait });
         } else if (data.error === "suspended") {
-          setError({ kind: "bad", message: "This account is suspended. Contact your studio's owner." });
+          setError({ kind: "bad", message: tr.accountSuspendedOwner });
         } else {
           setError({ kind: "bad", message: t.errInvalid || "That email or password isn't right." });
         }
@@ -99,7 +103,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         return;
       }
       if (data.otpRequired) {
-        if (data.emailSent === false) setNotice("We couldn't send the code by email — contact support if it doesn't arrive.");
+        if (data.emailSent === false) setNotice(tr.couldnSendCodeEmail);
         setStage("otp");
         setLoading(false);
         return;
@@ -119,7 +123,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         {notice && <Alert kind="wait">{notice}</Alert>}
         <OtpStep
           email={form.email}
-          submitLabel="Sign in"
+          submitLabel={tr.sign}
           onVerified={() => window.location.assign(`/${locale}/questionnaire`)}
         />
         <button
@@ -127,7 +131,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
           onClick={() => { setStage("credentials"); setLoading(false); }}
           className="landing-link text-sm"
         >
-          Use a different account
+          {tr.useDifferentAccount}
         </button>
       </div>
     );

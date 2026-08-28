@@ -1,0 +1,526 @@
+import { defaultLocale, type Locale } from "./locale";
+
+// THE ACCOUNT PAGES — sign in, sign up, the OTP step, password recovery, and the account itself.
+//
+// Generated from the surface's own copy and then translated by hand. It does
+// NOT spread the studio's `common` dictionary: that vocabulary belongs to a
+// record system, and neither the marketing site nor the account pages share it.
+
+type Strings = {
+  account: string;
+  accountNoLongerExists: string;
+  accountSuspended: string;
+  accountSuspendedOwner: string;
+  address: string;
+  address364Characters: string;
+  addressAlreadyTaken: string;
+  alreadyHaveCode: string;
+  alreadyOwnStudio: string;
+  askStudioAccessUsing: string;
+  asksCode: string;
+  cancel: string;
+  capitalsFineStoreMatch: string;
+  change: string;
+  changePassword: string;
+  changingSignsOutEverywhere: string;
+  checking: string;
+  chooseImageFile: string;
+  close: string;
+  codeExpiredRequestNew: string;
+  codeExpiredSendNew: string;
+  codeIsnRightAddress: string;
+  codeIsnRightCheck: string;
+  codeOnWayExpires: string;
+  codeRegeneratedButEmail: string;
+  codeReservedPickAnother: string;
+  codeTakenPickAnother: string;
+  collaborations: string;
+  companyCode: string;
+  companyName: string;
+  companyName2: string;
+  confirmEmail: string;
+  confirmEmailAddressFirst: string;
+  confirmNewPassword: string;
+  confirmPassword: string;
+  continueWith: string;
+  couldnCreateAccountTry: string;
+  couldnCreateStudio: string;
+  couldnReachServerCheck: string;
+  couldnRemovePicture: string;
+  couldnResetPassword: string;
+  couldnSendCodeEmail: string;
+  couldnSendNewCode: string;
+  couldnSendRequest: string;
+  couldnUpdatePasswordPlease: string;
+  couldnUploadPicture: string;
+  couldnVerifyCode: string;
+  createPasswordCanSign: string;
+  createStudio: string;
+  createStudioBtn: string;
+  creating: string;
+  currentPassword: string;
+  currentPasswordIncorrect: string;
+  didnSave: string;
+  documentation: string;
+  done: string;
+  dontOwnStudio: string;
+  email: string;
+  emailAddressDoesnLook: string;
+  emailAlreadyAccount: string;
+  emailVerified: string;
+  enterCode: string;
+  enterCurrentPasswordThen: string;
+  enterEmailSendCode: string;
+  giveStudioName: string;
+  goSign: string;
+  google: string;
+  help: string;
+  hidePassword: string;
+  ifAddress: string;
+  imagesMust2Mb: string;
+  joinStudio: string;
+  jpgPngWebpUp: string;
+  keyRemoved: string;
+  keySaved: string;
+  keySetNovaUses: string;
+  loadingAccount: string;
+  locationUnknown: string;
+  microsoft: string;
+  myCollaborations: string;
+  myStudios: string;
+  name: string;
+  newCodeOnWay: string;
+  newPassword: string;
+  newPasswordDoesnMeet: string;
+  noPictureRemove: string;
+  noStudioUsesCode: string;
+  noTrustedDevices: string;
+  nompanyCom: string;
+  notCollaborating: string;
+  nothingChange: string;
+  novaAiKey: string;
+  novaNotSet: string;
+  onlyOwnerCanRename: string;
+  openStudio: string;
+  overview: string;
+  ownStudio: string;
+  passwordDoesnMeetRequirements: string;
+  passwordUpdated: string;
+  pasteNewKeyReplace: string;
+  personalInfo: string;
+  phone: string;
+  phoneInvalid: string;
+  pictureHelpsPeopleRecognise: string;
+  pictureHelpsPeopleRecognise2: string;
+  pleaseWaitBeforeRequesting: string;
+  profileInfoHowReach: string;
+  profilePicture: string;
+  profileUpdated: string;
+  reAlreadyStudio: string;
+  rememberedIt: string;
+  remove: string;
+  removeAllDevices: string;
+  removing: string;
+  renamed: string;
+  renamedOldLinkNo: string;
+  requestAccess: string;
+  requiresVerification: string;
+  resetPassword: string;
+  save: string;
+  saving: string;
+  searchCountry: string;
+  security: string;
+  sendCode: string;
+  sendCodeAgain: string;
+  sendNewCode: string;
+  sending: string;
+  setNewPassword: string;
+  setPassword: string;
+  setPasswordBtn: string;
+  settingsYoursAlone: string;
+  shortName: string;
+  showPassword: string;
+  showingFourMostOpened: string;
+  sign: string;
+  signAttemptExpiredStart: string;
+  signOut: string;
+  signUp: string;
+  signedOutEverywhereSafety: string;
+  somethingWentWrongTry: string;
+  studioAddressCompanyCode: string;
+  studioCompanyWorkspaceOwn: string;
+  studioLink: string;
+  studioName: string;
+  studioWorkspaceOwnAddress: string;
+  studios: string;
+  studiosOthersGave: string;
+  studiosOthersGaveShort: string;
+  terms: string;
+  thatAddress: string;
+  tooManyAttemptsRequest: string;
+  tooManyAttemptsSendNew: string;
+  tooManyAttemptsTry: string;
+  tooManyAttemptsWait: string;
+  total: string;
+  trustDevice30: string;
+  trusted: string;
+  trustedDevices: string;
+  twoPasswordsMatch: string;
+  updating: string;
+  uploading: string;
+  use3LettersNumbers: string;
+  use3LettersNumbers2: string;
+  useDifferentAccount: string;
+  veAlreadyAskedJoin: string;
+  verify: string;
+  viewAll: string;
+  workspacesYouOwn: string;
+};
+
+const en: Strings = {
+  account: "Account",
+  accountNoLongerExists: "This account no longer exists.",
+  accountSuspended: "This account is suspended.",
+  accountSuspendedOwner: "This account is suspended. Contact your studio's owner.",
+  address: "Address",
+  address364Characters: "An address is 3–64 characters: lowercase letters, numbers and hyphens.",
+  addressAlreadyTaken: "That address is already taken.",
+  alreadyHaveCode: "I already have a code",
+  alreadyOwnStudio: "You already own a studio.",
+  askStudioAccessUsing: "Ask a studio for access using its company code. Someone there approves the request.",
+  asksCode: "Asks for a code",
+  cancel: "Cancel",
+  capitalsFineStoreMatch: "Capitals are fine — we store and match your address in lowercase.",
+  change: "Change",
+  changePassword: "Change password",
+  changingSignsOutEverywhere: "Changing it signs you out everywhere and forgets every trusted device.",
+  checking: "Checking…",
+  chooseImageFile: "Choose an image file.",
+  close: "Close",
+  codeExpiredRequestNew: "That code has expired — request a new one.",
+  codeExpiredSendNew: "That code has expired. Send a new one.",
+  codeIsnRightAddress: "That code isn't right for this address.",
+  codeIsnRightCheck: "That code isn't right. Check it and try again.",
+  codeOnWayExpires: "has an account, a code is on its way. It expires in 1 hour.",
+  codeRegeneratedButEmail: "Code regenerated, but the email couldn't be sent.",
+  codeReservedPickAnother: "That code is reserved — pick another.",
+  codeTakenPickAnother: "That code is taken — pick another.",
+  collaborations: "Your collaborations",
+  companyCode: "Company code",
+  companyName: "Your company's name",
+  companyName2: "Company name",
+  confirmEmail: "Confirm email",
+  confirmEmailAddressFirst: "Confirm your email address first.",
+  confirmNewPassword: "Confirm new password",
+  confirmPassword: "Confirm password",
+  continueWith: "Continue",
+  couldnCreateAccountTry: "We couldn't create your account. Try again.",
+  couldnCreateStudio: "We couldn't create your studio.",
+  couldnReachServerCheck: "Couldn't reach the server. Check your connection and try again.",
+  couldnRemovePicture: "We couldn't remove that picture.",
+  couldnResetPassword: "We couldn't reset your password.",
+  couldnSendCodeEmail: "We couldn't send the code by email — contact support if it doesn't arrive.",
+  couldnSendNewCode: "We couldn't send a new code.",
+  couldnSendRequest: "We couldn't send that request.",
+  couldnUpdatePasswordPlease: "We couldn't update your password. Please try again.",
+  couldnUploadPicture: "We couldn't upload that picture.",
+  couldnVerifyCode: "We couldn't verify that code.",
+  createPasswordCanSign: "Create a password so you can sign in with your email as well.",
+  createStudio: "Create a studio",
+  createStudioBtn: "Create studio",
+  creating: "Creating…",
+  currentPassword: "Current password",
+  currentPasswordIncorrect: "The current password is incorrect.",
+  didnSave: "That didn't save.",
+  documentation: "Documentation",
+  done: "Done",
+  dontOwnStudio: "You don't own a studio yet.",
+  email: "Email",
+  emailAddressDoesnLook: "That email address doesn't look right.",
+  emailAlreadyAccount: "That email already has an account.",
+  emailVerified: "Email verified",
+  enterCode: "Enter your code",
+  enterCurrentPasswordThen: "Enter your current password, then a new one. This signs you out on every device.",
+  enterEmailSendCode: "Enter your email and we'll send you a 6-digit code.",
+  giveStudioName: "Give your studio a name.",
+  goSign: "Go to sign in",
+  google: "Google",
+  help: "Help",
+  hidePassword: "Hide password",
+  ifAddress: "If",
+  imagesMust2Mb: "Images must be 2 MB or smaller.",
+  joinStudio: "Join a studio",
+  jpgPngWebpUp: "JPG, PNG or WebP, up to 2 MB.",
+  keyRemoved: "Key removed.",
+  keySaved: "Key saved.",
+  keySetNovaUses: "A key is set. Nova uses it to answer inside your studios.",
+  loadingAccount: "Loading your account…",
+  locationUnknown: "Location unknown",
+  microsoft: "Microsoft",
+  myCollaborations: "My Collaborations",
+  myStudios: "My Studios",
+  name: "Name",
+  newCodeOnWay: "A new code is on its way.",
+  newPassword: "New password",
+  newPasswordDoesnMeet: "Your new password doesn't meet the requirements yet.",
+  noPictureRemove: "No picture to remove",
+  noStudioUsesCode: "No studio uses that code.",
+  noTrustedDevices: "No trusted devices.",
+  nompanyCom: "nompany.com/",
+  notCollaborating: "You're not collaborating in any studio yet.",
+  nothingChange: "Nothing to change.",
+  novaAiKey: "Nova / AI key",
+  novaNotSet: "Not set — Nova needs your own AI key to work.",
+  onlyOwnerCanRename: "Only the owner can rename a studio.",
+  openStudio: "Open studio",
+  overview: "Overview",
+  ownStudio: "That's your own studio.",
+  passwordDoesnMeetRequirements: "Your password doesn't meet the requirements yet.",
+  passwordUpdated: "Password updated",
+  pasteNewKeyReplace: "Paste a new key to replace it",
+  personalInfo: "Personal info",
+  phone: "Phone",
+  phoneInvalid: "Please enter a valid phone number",
+  pictureHelpsPeopleRecognise: "A picture helps people recognise you and shows when you're signed in.",
+  pictureHelpsPeopleRecognise2: "A picture helps people recognise you",
+  pleaseWaitBeforeRequesting: "Please wait before requesting another code.",
+  profileInfoHowReach: "Your profile information and how to reach you. Only you can see this.",
+  profilePicture: "Profile picture",
+  profileUpdated: "Profile updated.",
+  reAlreadyStudio: "You're already in that studio.",
+  rememberedIt: "Remembered it?",
+  remove: "Remove",
+  removeAllDevices: "Remove all devices",
+  removing: "Removing…",
+  renamed: "Renamed.",
+  renamedOldLinkNo: "Renamed. The old link no longer works — share the new one.",
+  requestAccess: "Request access",
+  requiresVerification: "Requires verification",
+  resetPassword: "Reset your password",
+  save: "Save",
+  saving: "Saving…",
+  searchCountry: "Search for country",
+  security: "Security",
+  sendCode: "Send code",
+  sendCodeAgain: "Send the code again",
+  sendNewCode: "Send a new code",
+  sending: "Sending…",
+  setNewPassword: "Set new password",
+  setPassword: "Set a password",
+  setPasswordBtn: "Set password",
+  settingsYoursAlone: "These settings are yours alone. Studios you join keep their own profile for you and never see what's here.",
+  shortName: "Short name",
+  showPassword: "Show password",
+  showingFourMostOpened: "Showing the four you open most.",
+  sign: "Sign in",
+  signAttemptExpiredStart: "This sign-in attempt expired. Start again.",
+  signOut: "Sign out",
+  signUp: "Sign up",
+  signedOutEverywhereSafety: "You've been signed out everywhere for safety. Sign in with your new password.",
+  somethingWentWrongTry: "Something went wrong. Try again.",
+  studioAddressCompanyCode: "Studio address (company code)",
+  studioCompanyWorkspaceOwn: "A studio is your company's workspace, at its own address on nompany.com.",
+  studioLink: "Studio link",
+  studioName: "Studio name",
+  studioWorkspaceOwnAddress: "A studio is your company's workspace, at its own address.",
+  studios: "Your studios",
+  studiosOthersGave: "Studios other people have given you access to. Your own studio is under My Studios.",
+  studiosOthersGaveShort: "Studios other people have given you access to.",
+  terms: "Terms",
+  thatAddress: "that address",
+  tooManyAttemptsRequest: "Too many attempts. Request a new code.",
+  tooManyAttemptsSendNew: "Too many attempts. Send a new code to continue.",
+  tooManyAttemptsTry: "Too many attempts. Try again later.",
+  tooManyAttemptsWait: "Too many attempts. Give it a few minutes, then try again.",
+  total: "total",
+  trustDevice30: "Trust this device for 30 days",
+  trusted: "Trusted",
+  trustedDevices: "Trusted devices",
+  twoPasswordsMatch: "The two passwords don't match.",
+  updating: "Updating…",
+  uploading: "Uploading…",
+  use3LettersNumbers: "Use 3+ letters, numbers or dashes.",
+  use3LettersNumbers2: "Use 3+ letters, numbers or dashes",
+  useDifferentAccount: "Use a different account",
+  veAlreadyAskedJoin: "You've already asked to join — waiting on their approval.",
+  verify: "Verify",
+  viewAll: "View all",
+  workspacesYouOwn: "Workspaces you own. Renaming one, or changing its link, takes effect at 12:00 am.",
+};
+
+const ar: Strings = {
+  account: "الحساب",
+  accountNoLongerExists: "لم يعد هذا الحساب موجودًا.",
+  accountSuspended: "هذا الحساب موقوف.",
+  accountSuspendedOwner: "هذا الحساب موقوف. تواصل مع مالك استوديوك.",
+  address: "العنوان",
+  address364Characters: "العنوان من 3 إلى 64 حرفًا: حروف إنجليزية صغيرة وأرقام وشرطات.",
+  addressAlreadyTaken: "هذا العنوان محجوز.",
+  alreadyHaveCode: "لديّ رمز بالفعل",
+  alreadyOwnStudio: "تملك استوديو بالفعل.",
+  askStudioAccessUsing: "اطلب الوصول إلى استوديو برمز الشركة. وسيوافق أحدهم هناك على الطلب.",
+  asksCode: "يطلب رمزًا",
+  cancel: "إلغاء",
+  capitalsFineStoreMatch: "الأحرف الكبيرة مقبولة — نخزّن العنوان ونطابقه بأحرف صغيرة.",
+  change: "تغيير",
+  changePassword: "تغيير كلمة المرور",
+  changingSignsOutEverywhere: "تغييرها يسجّل خروجك من كل مكان وينسى كل جهاز موثوق.",
+  checking: "جارٍ التحقق…",
+  chooseImageFile: "اختر ملف صورة.",
+  close: "إغلاق",
+  codeExpiredRequestNew: "انتهت صلاحية هذا الرمز — اطلب رمزًا جديدًا.",
+  codeExpiredSendNew: "انتهت صلاحية هذا الرمز. أرسل رمزًا جديدًا.",
+  codeIsnRightAddress: "هذا الرمز غير صحيح لهذا العنوان.",
+  codeIsnRightCheck: "هذا الرمز غير صحيح. تحقّق منه وحاول مجددًا.",
+  codeOnWayExpires: "له حساب، فالرمز في الطريق. وتنتهي صلاحيته بعد ساعة.",
+  codeRegeneratedButEmail: "أُعيد توليد الرمز، لكن تعذّر إرسال البريد.",
+  codeReservedPickAnother: "هذا الرمز محجوز — اختر غيره.",
+  codeTakenPickAnother: "هذا الرمز مستخدم — اختر غيره.",
+  collaborations: "تعاوناتك",
+  companyCode: "رمز الشركة",
+  companyName: "اسم شركتك",
+  companyName2: "اسم الشركة",
+  confirmEmail: "تأكيد البريد",
+  confirmEmailAddressFirst: "أكّد بريدك الإلكتروني أولًا.",
+  confirmNewPassword: "تأكيد كلمة المرور الجديدة",
+  confirmPassword: "تأكيد كلمة المرور",
+  continueWith: "المتابعة",
+  couldnCreateAccountTry: "تعذّر إنشاء حسابك. حاول مرة أخرى.",
+  couldnCreateStudio: "تعذّر إنشاء استوديوك.",
+  couldnReachServerCheck: "تعذّر الوصول إلى الخادم. تحقّق من اتصالك وحاول مجددًا.",
+  couldnRemovePicture: "تعذّر حذف تلك الصورة.",
+  couldnResetPassword: "تعذّرت إعادة تعيين كلمة المرور.",
+  couldnSendCodeEmail: "تعذّر إرسال الرمز بالبريد — تواصل مع الدعم إن لم يصلك.",
+  couldnSendNewCode: "تعذّر إرسال رمز جديد.",
+  couldnSendRequest: "تعذّر إرسال ذلك الطلب.",
+  couldnUpdatePasswordPlease: "تعذّر تحديث كلمة المرور. حاول مرة أخرى.",
+  couldnUploadPicture: "تعذّر رفع تلك الصورة.",
+  couldnVerifyCode: "تعذّر التحقق من هذا الرمز.",
+  createPasswordCanSign: "أنشئ كلمة مرور لتتمكن من الدخول ببريدك أيضًا.",
+  createStudio: "أنشئ استوديو",
+  createStudioBtn: "أنشئ الاستوديو",
+  creating: "جارٍ الإنشاء…",
+  currentPassword: "كلمة المرور الحالية",
+  currentPasswordIncorrect: "كلمة المرور الحالية غير صحيحة.",
+  didnSave: "لم يُحفظ ذلك.",
+  documentation: "التوثيق",
+  done: "تم",
+  dontOwnStudio: "لا تملك استوديو بعد.",
+  email: "البريد الإلكتروني",
+  emailAddressDoesnLook: "هذا البريد الإلكتروني لا يبدو صحيحًا.",
+  emailAlreadyAccount: "لهذا البريد حساب بالفعل.",
+  emailVerified: "بريد مُتحقَّق منه",
+  enterCode: "أدخل رمزك",
+  enterCurrentPasswordThen: "أدخل كلمة المرور الحالية، ثم واحدة جديدة. هذا يسجّل خروجك من كل جهاز.",
+  enterEmailSendCode: "أدخل بريدك وسنرسل إليك رمزًا من ستة أرقام.",
+  giveStudioName: "سمِّ استوديوك.",
+  goSign: "الذهاب إلى تسجيل الدخول",
+  google: "Google",
+  help: "المساعدة",
+  hidePassword: "إخفاء كلمة المرور",
+  ifAddress: "إن كان",
+  imagesMust2Mb: "يجب ألا تتجاوز الصور 2 ميغابايت.",
+  joinStudio: "انضم إلى استوديو",
+  jpgPngWebpUp: "‏JPG أو PNG أو WebP، حتى 2 ميغابايت.",
+  keyRemoved: "حُذف المفتاح.",
+  keySaved: "حُفظ المفتاح.",
+  keySetNovaUses: "المفتاح مضبوط. تستخدمه نوفا للإجابة داخل استوديوهاتك.",
+  loadingAccount: "جارٍ تحميل حسابك…",
+  locationUnknown: "موقع غير معروف",
+  microsoft: "Microsoft",
+  myCollaborations: "تعاوناتي",
+  myStudios: "استوديوهاتي",
+  name: "الاسم",
+  newCodeOnWay: "رمز جديد في الطريق.",
+  newPassword: "كلمة المرور الجديدة",
+  newPasswordDoesnMeet: "كلمة المرور الجديدة لا تستوفي المتطلبات بعد.",
+  noPictureRemove: "لا توجد صورة لحذفها",
+  noStudioUsesCode: "لا يوجد استوديو بهذا الرمز.",
+  noTrustedDevices: "لا توجد أجهزة موثوقة.",
+  nompanyCom: "nompany.com/",
+  notCollaborating: "لا تتعاون في أي استوديو بعد.",
+  nothingChange: "لا شيء لتغييره.",
+  novaAiKey: "مفتاح نوفا / الذكاء الاصطناعي",
+  novaNotSet: "غير مضبوط — تحتاج نوفا إلى مفتاحك الخاص للعمل.",
+  onlyOwnerCanRename: "المالك وحده يمكنه إعادة تسمية استوديو.",
+  openStudio: "افتح الاستوديو",
+  overview: "نظرة عامة",
+  ownStudio: "هذا استوديوك أنت.",
+  passwordDoesnMeetRequirements: "كلمة المرور لا تستوفي المتطلبات بعد.",
+  passwordUpdated: "حُدِّثت كلمة المرور",
+  pasteNewKeyReplace: "الصق مفتاحًا جديدًا ليحل محله",
+  personalInfo: "المعلومات الشخصية",
+  phone: "الهاتف",
+  phoneInvalid: "أدخل رقم هاتف صالحًا",
+  pictureHelpsPeopleRecognise: "الصورة تساعد الناس على معرفتك وتُظهر أنك متصل.",
+  pictureHelpsPeopleRecognise2: "الصورة تساعد الناس على معرفتك",
+  pleaseWaitBeforeRequesting: "انتظر قليلًا قبل طلب رمز آخر.",
+  profileInfoHowReach: "معلومات ملفك الشخصي وكيفية الوصول إليك. أنت وحدك من يراها.",
+  profilePicture: "صورة الملف الشخصي",
+  profileUpdated: "حُدِّث الملف الشخصي.",
+  reAlreadyStudio: "أنت في ذلك الاستوديو بالفعل.",
+  rememberedIt: "تذكّرتها؟",
+  remove: "حذف",
+  removeAllDevices: "احذف كل الأجهزة",
+  removing: "جارٍ الحذف…",
+  renamed: "أُعيدت التسمية.",
+  renamedOldLinkNo: "أُعيدت التسمية. الرابط القديم لم يعد يعمل — شارك الجديد.",
+  requestAccess: "اطلب الوصول",
+  requiresVerification: "يتطلب تحققًا",
+  resetPassword: "أعد تعيين كلمة المرور",
+  save: "حفظ",
+  saving: "جارٍ الحفظ…",
+  searchCountry: "ابحث عن دولة",
+  security: "الأمان",
+  sendCode: "أرسل الرمز",
+  sendCodeAgain: "أعد إرسال الرمز",
+  sendNewCode: "أرسل رمزًا جديدًا",
+  sending: "جارٍ الإرسال…",
+  setNewPassword: "عيّن كلمة مرور جديدة",
+  setPassword: "عيّن كلمة مرور",
+  setPasswordBtn: "تعيين كلمة المرور",
+  settingsYoursAlone: "هذه الإعدادات لك وحدك. والاستوديوهات التي تنضم إليها تحتفظ بملف خاص بك ولا ترى ما هنا أبدًا.",
+  shortName: "الاسم المختصر",
+  showPassword: "إظهار كلمة المرور",
+  showingFourMostOpened: "تُعرض الأربعة الأكثر فتحًا.",
+  sign: "تسجيل الدخول",
+  signAttemptExpiredStart: "انتهت صلاحية محاولة الدخول هذه. ابدأ من جديد.",
+  signOut: "تسجيل الخروج",
+  signUp: "إنشاء حساب",
+  signedOutEverywhereSafety: "سُجّل خروجك من كل مكان للأمان. سجّل الدخول بكلمة المرور الجديدة.",
+  somethingWentWrongTry: "حدث خطأ ما. حاول مرة أخرى.",
+  studioAddressCompanyCode: "عنوان الاستوديو (رمز الشركة)",
+  studioCompanyWorkspaceOwn: "الاستوديو هو مساحة عمل شركتك، على عنوانها الخاص في nompany.com.",
+  studioLink: "رابط الاستوديو",
+  studioName: "اسم الاستوديو",
+  studioWorkspaceOwnAddress: "الاستوديو هو مساحة عمل شركتك، على عنوانها الخاص.",
+  studios: "استوديوهاتك",
+  studiosOthersGave: "استوديوهات منحك أصحابها الوصول إليها. أما استوديوك أنت فتحت «استوديوهاتي».",
+  studiosOthersGaveShort: "استوديوهات منحك أصحابها الوصول إليها.",
+  terms: "الشروط",
+  thatAddress: "ذلك العنوان",
+  tooManyAttemptsRequest: "محاولات كثيرة. اطلب رمزًا جديدًا.",
+  tooManyAttemptsSendNew: "محاولات كثيرة. أرسل رمزًا جديدًا للمتابعة.",
+  tooManyAttemptsTry: "محاولات كثيرة. حاول لاحقًا.",
+  tooManyAttemptsWait: "محاولات كثيرة. انتظر بضع دقائق ثم حاول مجددًا.",
+  total: "إجمالًا",
+  trustDevice30: "وثِّق هذا الجهاز لمدة 30 يومًا",
+  trusted: "موثوق",
+  trustedDevices: "الأجهزة الموثوقة",
+  twoPasswordsMatch: "كلمتا المرور غير متطابقتين.",
+  updating: "جارٍ التحديث…",
+  uploading: "جارٍ الرفع…",
+  use3LettersNumbers: "استخدم 3 أحرف أو أرقام أو شرطات فأكثر.",
+  use3LettersNumbers2: "استخدم 3 أحرف أو أرقام أو شرطات فأكثر",
+  useDifferentAccount: "استخدم حسابًا آخر",
+  veAlreadyAskedJoin: "طلبت الانضمام بالفعل — بانتظار موافقتهم.",
+  verify: "تحقّق",
+  viewAll: "عرض الكل",
+  workspacesYouOwn: "مساحات العمل التي تملكها. وإعادة تسمية إحداها أو تغيير رابطها يسري عند منتصف الليل.",
+};
+
+const account = { en, ar };
+
+export function accountDict(locale: string): Strings {
+  return account[locale as Locale] || account[defaultLocale];
+}

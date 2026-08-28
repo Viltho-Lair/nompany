@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { animate, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useTransform, } from "motion/react";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
 import { LogoMark } from "./Logo";
+import { useLandingLocale } from "@/components/landing/locale";
+import { landingDict } from "@/shared/landing";
 /* ==================================================================
    TECHNIQUE 1 — Initial state / loading animation
    A determinate progress bar + live percentage counter, then the whole
@@ -11,14 +13,15 @@ import { LogoMark } from "./Logo";
    The counter is driven by a MotionValue rather than React state, so
    ticking from 0→100 costs zero re-renders.
 ================================================================== */
-const STATUS_STEPS = [
-    "Establishing secure session",
-    "Synchronising ledgers",
-    "Loading finance · HR · inventory",
-    "Compiling real-time insights",
-    "Ready",
+const statusSteps = (tr) => [
+    tr.preSecureSession,
+    tr.preLedgers,
+    tr.preModules,
+    tr.preInsights,
+    tr.preReady,
 ];
 export function Preloader({ onComplete }) {
+    const STEPS = statusSteps(landingDict(useLandingLocale()));
     const reduceMotion = useReducedMotion();
     const progress = useMotionValue(0);
     const [statusIndex, setStatusIndex] = useState(0);
@@ -28,7 +31,7 @@ export function Preloader({ onComplete }) {
     // Swap the status label at thresholds — the only state this component
     // updates while loading (4 renders total, not 60/second).
     useMotionValueEvent(progress, "change", (v) => {
-        const next = Math.min(STATUS_STEPS.length - 1, Math.floor((v / 100) * STATUS_STEPS.length));
+        const next = Math.min(STEPS.length - 1, Math.floor((v / 100) * STEPS.length));
         setStatusIndex((prev) => (prev === next ? prev : next));
     });
     useEffect(() => {
@@ -80,7 +83,7 @@ export function Preloader({ onComplete }) {
         {/* Status line */}
         <div className="h-5 overflow-hidden text-xs tracking-[0.18em] text-fg-dim uppercase">
           <motion.span key={statusIndex} initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.4, ease: EASE_OUT_EXPO }} className="block">
-            {STATUS_STEPS[statusIndex]}
+            {STEPS[statusIndex]}
           </motion.span>
         </div>
       </motion.div>

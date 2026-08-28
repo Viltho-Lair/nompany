@@ -7,6 +7,8 @@ import { panel, h2, sub, microLabel, money, fmtDate, StatTile, Empty } from "@/c
 import MainDashboard from "@/components/studio2/MainDashboard";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { mainDict } from "@/shared/studio/main";
+import { sectionName } from "@/shared/studio/sections";
+import { useStudioLocale as useLocale } from "@/components/studio2/locale";
 
 // MAIN — the studio's front door: what is happening across the whole place, for
 // the person looking at it.
@@ -18,7 +20,8 @@ import { mainDict } from "@/shared/studio/main";
 const FEED_ICON = { ticket: "ticket", quotation: "report", project: "blueprint", task: "checkDouble" };
 
 export default function StudioMain({ slug }) {
-  const tr = mainDict(useStudioLocale());
+  const locale = useLocale();
+  const tr = mainDict(locale);
   // The feed names the KIND of record that moved. A fixed four, defined by the
   // code and not by any tenant, so they translate.
   const FEED_WORD = { ticket: tr.feedTicket, quotation: tr.feedQuotation, project: tr.feedProject, task: tr.feedTask };
@@ -122,7 +125,7 @@ export default function StudioMain({ slug }) {
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500/10 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
                     <Icon name="chevronRight" className="h-4 w-4 rtl:-scale-x-100" />
                   </span>
-                  {s.name}
+                  {sectionName(s.key, s.name, locale)}
                 </a>
               ))}
             </div>
