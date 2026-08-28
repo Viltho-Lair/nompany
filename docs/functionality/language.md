@@ -59,12 +59,28 @@ except the auth pill, which is a two-option toggle by design:
 (`rememberLocale` in `src/lib/langCookie.js`), so picking Arabic on the marketing site is
 still Arabic on the far side of the login, where the URL can no longer say so.
 
-**What is translated.** `src/shared/i18n.ts` holds the public site's copy in one object,
-because that side is server-rendered and the dictionary is handed down as a prop.
-`src/shared/studio/` holds the studio's, **one module per surface** — `shell.ts`,
-`settings.ts` — because studio screens are client components and a single object would land
-in every chunk. Nothing may enumerate those modules: a barrel or a registry makes all of
-them reachable from every screen and the split stops paying.
+**What is translated: all of it.** Every studio screen, dialog, empty state, error message
+and chart label, in both languages — roughly 1,400 strings.
+
+`src/shared/i18n.ts` holds the public site's copy in one object, because that side is
+server-rendered and the dictionary is handed down as a prop. `src/shared/studio/` holds the
+studio's, **one module per surface** — `shell`, `settings`, and one per department —
+because studio screens are client components and a single object would land in every chunk.
+Nothing may enumerate those modules: a barrel or a registry makes all of them reachable
+from every screen and the split stops paying. Three of them are shared rather than owned by
+a department: `common` (the forty words every screen says), `chrome` (the toolbar, filter
+panel, column picker and chart empty-states) and `statuses`.
+
+**Two vocabularies translate on DISPLAY only**, keyed by a token that does not move:
+`statuses.ts` for every status word (`Draft`, `Approved`, `In Progress`) and `stages.ts`
+for the engagement registry's stage names. Both are defined by the CODE — nobody typed
+them, the transitions compare against them and the goldens pin them — so what is stored,
+compared and returned by the API is unchanged, and only the word on screen differs.
+
+**Where a screen reads the language from**: `StudioLocaleProvider` in
+`components/studio2/locale`, set once by the shell (and by `FullScreen` in the studio page
+for the six screens that render outside it). Not a prop: eighty-odd components need it,
+most of them several levels below a component whose only prop is `slug`.
 
 **What is never translated, and this is not an omission.** Section names, role names,
 record contents, documents, questionnaire questions, service actions, and every other word a
@@ -78,11 +94,16 @@ language it was written in, so every counted phrase is a function in the diction
 
 ## Not built yet
 
-- **Only the shell and Studio Settings are translated inside a studio.** All twelve
-  department screens, the dialogs they own, the ticket and quotation viewers, the chat, Nova
-  and the planner are still hardcoded English. An Arabic tenant gets an Arabic frame with
-  English contents, laid out right-to-left.
-- **`/super` has no `lang`/`dir` and no dictionary.** Deliberate for now.
+- **`/super` has no `lang`/`dir` and no dictionary.** Deliberate: it is nompany's own
+  console, not a tenant surface.
+- **The public marketing site's own pages are only partly translated.** The header, footer,
+  auth screens, account hub, careers, terms and the questionnaire are; the landing page's
+  section copy is not.
+- **A dictionary can drift from its screen and nothing will say so.** The extraction tool
+  (`.i18n-scratch/`, not committed) found the strings once; there is no check that a key
+  added to a screen later gets an Arabic value, and no check that an unused key is removed.
+  `check_tr.py` catches an unbound read, which is the failure that breaks a page, but not a
+  missing translation, which just reads as English.
 - **There is no "follow the studio" option.** Once the cookie is set it stays set; a person
   cannot return to inheriting the tenant default except by picking the language that
   happens to match it.
@@ -91,7 +112,10 @@ language it was written in, so every counted phrase is a function in the diction
 - **Nothing tells an admin that the studio setting is only a default.** The Settings hint
   says so in words; there is no indication of how many members have overridden it.
 - **No test renders a studio in Arabic.** The resolver and the direction are asserted as
-  pure values in `tests/suite.mjs`; that the shell actually mirrors is not.
+  pure values in `tests/suite.mjs`. That the screens actually render was checked by hand,
+  in a sandbox studio, across nine departments — which is how four crashes were found that
+  neither `tsc` nor `next build` reported: a Server Component calling a client hook, and
+  `.jsx` files reading a name that did not exist. Nothing automated covers that today.
 - **Emails, notifications and PDF documents are English-only.** The notification producers
   write their text at write time, so a stored notification has one language for everybody
   regardless of who reads it.

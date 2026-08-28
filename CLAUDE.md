@@ -221,11 +221,23 @@ mode binds to the existing `.dark` class via `colorSchemeSelector: "class"`. Pre
 `className` over `sx`.
 
 Bilingual EN/AR: use logical properties (`ps-`/`pe-`/`ms-`/`me-`/`border-s-`).
-**Which language you get is ranked, and `docs/functionality/language.md` is the file:**
-the URL wins where there is one (`/en/…`, `/ar/…`), otherwise the person's own choice
-(the `lang` cookie, written by every `LangMenu` in the product), otherwise the studio's
-setting. `studioLocale` is the tenant's DEFAULT, not a ceiling — it used to be both, and
-the studio was the one surface where nobody could pick their own language.
+**The studio is bilingual, and `docs/functionality/language.md` is the file.** Which
+language you get is ranked: the URL wins where there is one (`/en/…`, `/ar/…`), otherwise
+the person's own choice (the `lang` cookie, written by every `LangMenu` in the product),
+otherwise the studio's setting. `studioLocale` is the tenant's DEFAULT, not a ceiling —
+it used to be both, and the studio was the one surface where nobody could pick their own
+language.
+
+Copy lives in `src/shared/studio/`, **one module per surface**, and **nothing may
+enumerate them** — a barrel makes every department's words reachable from every screen and
+the split stops paying. Screens read the language from `StudioLocaleProvider`, never a
+prop. Statuses and engagement stages translate on DISPLAY only, keyed by the stored token,
+so what the API returns and the goldens pin is unchanged. Anything a tenant TYPED — section
+names, client names, roles, service actions — is data and is never translated.
+
+**A Server Component cannot read the locale.** `useStudioLocale` is a client hook, and
+neither `tsc` nor `next build` catches a server call to it or a `.jsx` reading an unbound
+`tr` — both throw on the first request instead. Open the screen.
 **MUI mirrors now.** The SHELL declares `lang`/`dir` rather than `<html>` — the root
 layout never touches the database, so it cannot know a tenant's language — and an
 Arabic studio nests `MuiRtlProvider`: a second Emotion cache keyed `muirtl`, with
