@@ -144,12 +144,32 @@ stage is optional and no stage is a prerequisite for another.
 - **Creating anything:** classify (A) part of one engagement, (B) shared studio reference
   read live, (C) infrastructure. Only A continues: find or mint the engagement → write the
   record with its `engagementId` → attach (a `one` type CAS-claims the slot and refuses a
-  second; `many` is a ZSET add) → index → `XADD` before publish. Deletion is the reverse,
-  and is the "deleting this affects X, Y, Z" answer.
+  second; `many` is a ZSET add) → index → `XADD` before publish.
+- **Deleting anything — the mirror, and it is a step of its own.** Every create path owes a
+  delete path: walk `attachRecord` line by line and undo each step — the singleton slot or
+  the members ZSET, `dept`, `hasStage` (only when the LAST record of that type goes), the
+  `rec-eng` reverse index. Children-first, registry-last, idempotent on re-run
+  (`CLAUDE.md` invariant 11), through `cascade.ts`. Detach BEFORE the row is removed: a
+  crash then leaves a row with no engagement state, which the backfill heals, rather than
+  engagement state pointing at a record that no longer exists, which nothing heals. This
+  is also the *"deleting this affects X, Y, Z"* answer, and the warning is filtered by the
+  same permission rule the engagements view uses — it may never name a record the viewer
+  could not already see on that record's own department screen.
+  **This whole bullet used to be one clause hanging off the end of "Creating anything",
+  phrased as if it described how the system behaved.** It did not: `detachRecord` had zero
+  production callers for five increments, `cascade.ts` had never heard of the `ENG.*` keys,
+  and `removeQuotation`/`removeProject` deleted a row and left the engagement pointing at
+  it — a card reading "present · 1" with a blank reference. Five plans in a row said
+  "attach on create" and none said "detach on delete", and the list below said nothing was
+  missing, so every reviewer checked create against criteria that never mentioned delete.
+  A create path shipped without its delete path is an unfinished feature, not a slice.
 - **Not done yet — do not assume otherwise:** records still live in section arrays;
-  `dept:<type>` and `hasStage` are written but never cleaned, so no reader may treat them
-  as authoritative; project children do not attach on create; there is no reconcile job; a
-  project born from an internal quotation does not attach to that quotation's engagement.
+  `dept:<type>` and `hasStage` are written but never cleaned by anything other than the
+  detach path above, so no reader may treat them as authoritative; project children do not
+  attach on create, and therefore do not detach on delete either; there is no reconcile job;
+  a project born from an internal quotation does not attach to that quotation's engagement.
+  **When you add a stage or a create path, add its delete path in the same commit** — and
+  if you cannot, say so in this list, in these words, rather than leaving it silent.
 - **The backfill is the reconciler.** `scripts/migrate/backfill-engagements.mjs` is
   dry-run by default, refuses the live namespace without `--allow-live`, writes only with
   `--apply`, and is additive and idempotent — a missed dual-write is healed by re-running.
