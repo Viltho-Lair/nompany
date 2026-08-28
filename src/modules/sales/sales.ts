@@ -14,7 +14,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
-import { updateSection } from "@/platform/db/sections";
+import { updateSection, getSectionByKey } from "@/platform/db/sections";
 import { attachTicketEngagement } from "@/platform/db/engagement";
 import { moduleContext } from "../context";
 
@@ -901,6 +901,35 @@ export async function submitTicketPo(ctx: SalesContext, body: Record<string, unk
 // existing rows: typing a brand-new client, contact or location is always
 // allowed. The contact and location used here are folded into the client
 // record without disturbing any other contact/location already on file.
+// EVERY SERVICE ACTION A TICKET STILL NAMES, by studio id alone.
+//
+// The twin of inventory's `itemScopesForStudio`, and it exists for exactly the
+// same reason that one refuses to go through `inventoryContext`: this feeds the
+// retire-vs-drop decision in studioServiceActions.serviceActionUsage, which is
+// guarded upstream by studio.settings.edit — a right a role can hold without
+// holding sales.tickets.view. Resolving through `salesContext` would return an
+// empty set on a forbidden read, and an empty set here does not read as "no
+// permission", it reads as "nothing references this action", so the action gets
+// DROPPED instead of retired and every ticket naming it silently loses that
+// scope on its next edit. Membership and settings authority are already proven
+// by the caller's own route guard; this needs no second permission to be right.
+//
+// Tickets only became a referrer when services moved to Studio Settings -> Service
+// Actions; before that they pointed at a Sales-owned catalogue and the usage
+// query was complete while counting items alone.
+export async function ticketServiceActionsForStudio(studioId: string): Promise<string[][]> {
+  // Child falls back to parent, the same resolution every cross-section read
+  // in this codebase uses, so a studio that never split sales-tickets out
+  // still answers.
+  const section = (await getSectionByKey(studioId, "sales-tickets"))
+    || (await getSectionByKey(studioId, "sales"));
+  if (!section) return [];
+  const tickets = await Tickets.find({ studio: { id: studioId }, section });
+  // Same default as the form: a ticket saved before the field existed carries
+  // nothing at all, and reads as an empty list rather than a guess.
+  return tickets.map((t) => (Array.isArray(t.serviceIds) ? t.serviceIds : []));
+}
+
 export async function createTicket(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be

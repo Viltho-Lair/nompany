@@ -4,6 +4,7 @@
 
 import { SERVICE_ACTIONS } from "@/shared/fieldsOfWork";
 import { itemScopesForStudio } from "@/modules/inventory/inventory";
+import { ticketServiceActionsForStudio } from "@/modules/sales/sales";
 // Membership only — NOT inventoryContext. See serviceActionUsage below: the
 // caller here already proved studio.settings.edit at its own route, and that
 // right does not imply inventory.items.view, so gating this read on the
@@ -71,9 +72,22 @@ export function nextPool(input: {
 export async function serviceActionUsage(user: User, slug: string): Promise<Record<string, number>> {
   const context = await studioContext(user, slug);
   if (context.error) return {};
-  const scopes = await itemScopesForStudio(context.studio.id);
+  // EVERY REFERRER, NOT JUST INVENTORY. The retire-vs-drop guarantee holds only
+  // while this query knows every place an action can be named: an action this
+  // misses is reported unreferenced, and nextPool DROPS an unreferenced action
+  // rather than retiring it. Tickets became a referrer when services moved from
+  // the Sales catalogue to Studio Settings -> Service Actions; until this counted
+  // them, removing an action named by a ticket and by no registered item deleted
+  // it outright, and cleanServiceIds then discarded it from the ticket on its
+  // next edit. Silent loss of a ticket's scope, from a settings screen.
+  //
+  // Read in parallel — two independent collection reads, one wave, not two.
+  const [scopes, ticketActions] = await Promise.all([
+    itemScopesForStudio(context.studio.id),
+    ticketServiceActionsForStudio(context.studio.id),
+  ]);
   const counts: Record<string, number> = {};
-  for (const scope of scopes) for (const a of scope) {
+  for (const scope of [...scopes, ...ticketActions]) for (const a of scope) {
     counts[a] = (counts[a] ?? 0) + 1;
   }
   return counts;
