@@ -769,6 +769,74 @@ console.log("== the architecture, asserted rather than remembered");
     const strayMapped = [...MAPPED_CAPABILITY_KEYS].filter((k) => !registryKeys.has(k));
     ok("every implemented Nova tool is a real capability", strayMapped.length === 0, strayMapped.join(", "));
   }
+
+  // ---- 11. no dictionary key still holds the English -----------------------
+  //
+  // A THIRD KIND OF TRANSLATION FAULT, and the only one nothing else can see.
+  //
+  // A literal that never reached a dictionary is visible on the screen. A `tr.`
+  // read with no binding throws on the first request. But a key that was added,
+  // given an `ar` entry, and left as the English string does neither — it reads
+  // as English to an Arabic reader and looks finished to everyone else. There
+  // are 2,500-odd keys across twenty-six modules; nobody is going to catch that
+  // by eye, and it is exactly what happens when a screen gains a sentence in a
+  // hurry.
+  //
+  // IDENTICAL IS NOT ALWAYS WRONG, so this reports rather than forbids: a brand
+  // ("Google", "Microsoft", "nompany.com/") is the same word in both languages,
+  // and so is anything with no Latin letters in it at all. A value only counts
+  // when it has Latin letters and no Arabic ones — which is what makes the list
+  // short enough to be worth reading.
+  {
+    const KEY_LINE = /^  ([A-Za-z_$][\w$]*): (".*"|`[^`]*`),$/gm;
+    const LATIN = /[A-Za-z]{2,}/;
+    const ARABIC = /[؀-ۿ]/;
+
+    // The `const en` / `const ar` object body, as text. Both are written by the
+    // same generator and always in this shape.
+    const body = (src, name) => {
+      const at = src.indexOf(`const ${name}`);
+      if (at < 0) return "";
+      const open = src.indexOf("{", at);
+      const end = src.indexOf("\n};", open);
+      return src.slice(open, end < 0 ? src.length : end);
+    };
+    const entries = (text) => {
+      const out = new Map();
+      for (const m of text.matchAll(KEY_LINE)) out.set(m[1], m[2]);
+      return out;
+    };
+
+    const dicts = sources.filter((f) =>
+      /^src\/shared\/(studio\/)?[A-Za-z]+\.ts$/.test(f.path) && f.text.includes("const ar"));
+
+    const untranslated = [];
+    const missing = [];
+    let checked = 0;
+    for (const f of dicts) {
+      const en = entries(body(f.text, "en"));
+      const ar = entries(body(f.text, "ar"));
+      checked += en.size;
+      const file = f.path.split("/").pop();
+      for (const [k, v] of en) {
+        if (!ar.has(k)) { missing.push(`${file}:${k}`); continue; }
+        if (ar.get(k) === v && LATIN.test(v) && !ARABIC.test(v)) untranslated.push(`${file}:${k}`);
+      }
+    }
+
+    // THE THREE THAT ARE MEANT TO MATCH. Two OAuth providers and the studio's
+    // own address prefix — all three are read aloud the same way in Arabic.
+    const DELIBERATE = new Set(["account.ts:google", "account.ts:microsoft", "account.ts:nompanyCom"]);
+    const real = untranslated.filter((k) => !DELIBERATE.has(k));
+
+    ok("every dictionary key has an Arabic entry", missing.length === 0, missing.slice(0, 8).join(", "));
+    ok("...and none of them is still the English string",
+      real.length === 0, real.slice(0, 8).join(", "));
+    // And the scan can see the dictionaries at all, or both lines above pass on
+    // an empty set — the same failure the write-scan and the RTL counter had.
+    ok("...and the scan is reading real dictionaries",
+      dicts.length > 20 && checked > 2000, `${dicts.length} modules, ${checked} keys`);
+  }
 }
 
 // ============================================================================

@@ -125,11 +125,15 @@ language it was written in, so every counted phrase is a function in the diction
 
 - **`/super` has no `lang`/`dir` and no dictionary.** Deliberate: it is nompany's own
   console, not a tenant surface.
-- **A dictionary can drift from its screen and nothing will say so.** The extraction tool
-  (`.i18n-scratch/`, not committed) found the strings once; there is no check that a key
-  added to a screen later gets an Arabic value, and no check that an unused key is removed.
-  `check_tr.py` catches an unbound read, which is the failure that breaks a page, but not a
-  missing translation, which just reads as English.
+- **A dictionary can drift from its screen and nothing will say so — except in one
+  direction.** Gate A's assertion 11 now walks all 27 dictionary modules and fails on a key
+  that is missing from `ar`, or present and still holding the English string. That is the
+  quiet failure: it reads as English to an Arabic reader and looks finished to everyone
+  else. Three keys are listed as deliberately identical (`google`, `microsoft`,
+  `nompanyCom`). What is still NOT checked is the other direction — a literal added to a
+  screen that never reaches a dictionary at all, and a key nobody reads any more. The
+  scanners for those live in `.i18n-scratch/` and are not committed; `check_tr.py` catches
+  an unbound read, which is the failure that breaks a page.
 - **There is no "follow the studio" option.** Once the cookie is set it stays set; a person
   cannot return to inheriting the tenant default except by picking the language that
   happens to match it.
