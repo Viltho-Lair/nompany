@@ -10,7 +10,8 @@
         "createdAt": "<timestamp>",
         "stages": [
           "ticket"
-        ]
+        ],
+        "locked": true
       },
       {
         "id": "<eng_ID>",
@@ -20,7 +21,8 @@
         "createdAt": "<timestamp>",
         "stages": [
           "ticket"
-        ]
+        ],
+        "locked": true
       },
       {
         "id": "<eng_ID>",
@@ -30,7 +32,8 @@
         "createdAt": "<timestamp>",
         "stages": [
           "ticket"
-        ]
+        ],
+        "locked": true
       },
       {
         "id": "<eng_ID>",
@@ -40,7 +43,8 @@
         "createdAt": "<timestamp>",
         "stages": [
           "ticket"
-        ]
+        ],
+        "locked": true
       }
     ],
     "nextCursor": null

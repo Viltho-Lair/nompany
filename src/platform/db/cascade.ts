@@ -20,9 +20,16 @@
 //  COLLABORATOR → row → their notifications → ix back-pointer.
 //  ROLE    → the `roleIds` reference on every holder → row. The permissions
 //            themselves live ON the row, so they need no reaping.
+//  ENGAGEMENT → every record the deal OWNS (the stage registry says which) →
+//            each one's engagement state → the member ZSETs → the deal index →
+//            the root. Records the deal merely USED are detached and left
+//            standing; see cascadeDeleteEngagement.
 
-import { REG, U, S, SEC, IX, KEY_PREFIX } from "./keys";
-import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim } from "./store";
+import { REG, U, S, SEC, IX, ENG, KEY_PREFIX } from "./keys";
+import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim, zRem } from "./store";
+import { STAGE_REGISTRY } from "@/platform/engagement/registry";
+import { readEngagement, readEngagementView, detachRecord, isEngagementLocked, SLOT_TYPE } from "./engagement";
+import { listSections, deleteRow } from "./sections";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { hashToken } from "@/platform/auth/passwords";
 import { log } from "@/platform/http/observability";
@@ -241,6 +248,107 @@ const P = KEY_PREFIX;
 // EVERY prefix this function is allowed to scan, built once from the namespace.
 // If a seventh scan is ever added it belongs here, and the test that every
 // scope starts with KEY_PREFIX then covers it automatically.
+// ---- engagement -------------------------------------------------------------
+// DELETING A DEAL, AND THE ONE RULE THAT MAKES IT SAFE.
+//
+// The user's words: "engagements carry ID of everything, when an engagement is
+// deleted everything that is linked to it will be deleted EXCEPT IF THE
+// INFORMATION IS CREATED ELSE WHERE." That exception is the whole design here.
+//
+// WHAT DIES is decided by STAGE_REGISTRY's `onDelete`, walked rather than
+// listed — a hand-written type list is how readEngagementView once silently
+// dropped `bill` and `asset`, and the same mistake on a DESTRUCTIVE path either
+// deletes something nobody agreed to delete or strands it. Each entry carries
+// its own reason; read them there, not here.
+//
+// WHAT SURVIVES, and why it is not even a decision this function makes: a Tier B
+// shared reference (spec §3.1) — the Sales CLIENT above all, plus vendors,
+// items, collaborators, roles, sections, settings — is NOT IN THE STAGE REGISTRY
+// AT ALL. `context.clientId` points at a client; it does not own one, and other
+// engagements point at the same row. Walking only the registry is therefore what
+// keeps every shared reference out of the blast radius by construction, rather
+// than by an exclusion list somebody has to remember to extend.
+//
+// ORDER: children-first, registry-last (invariant 11). Each record's engagement
+// state comes off BEFORE its row — the recoverable direction, exactly as
+// removeQuotation/removeProject do it: a crash then leaves a real row with no
+// engagement state, which the backfill heals, rather than engagement state
+// pointing at a row that no longer exists, which nothing heals. The root goes
+// last of all, so a re-run after a crash still finds it and finishes the job.
+export type EngagementCascade =
+  | { ok: true; deleted: Array<{ type: string; id: string }>; kept: Array<{ type: string; id: string }> }
+  | { error: "notfound" | "locked" };
+
+export async function cascadeDeleteEngagement(
+  studioId: string, engId: string,
+): Promise<EngagementCascade> {
+  const root = await readEngagement(studioId, engId);
+  // Already gone — idempotent. The root is deleted LAST, so its absence means
+  // the cascade already ran to completion; there is nothing left to finish.
+  if (!root) return { error: "notfound" };
+  // THE INTERLOCK, AND IT LIVES HERE rather than only at the route. A destructive
+  // action guarded in one caller is guarded until the second caller is written.
+  if (isEngagementLocked(root)) return { error: "locked" };
+
+  const view = await readEngagementView(studioId, engId);
+  if (!view) return { error: "notfound" };
+
+  // The sections are read ONCE for the whole cascade and looked up in memory.
+  // getSectionByKey per stage type would be fourteen reads of the same list —
+  // the exact "convenience helper that re-reads" the hop-count constraint log
+  // exists to keep out.
+  const sections = await listSections(studioId);
+  const sectionByKey = new Map(sections.map((sec) => [sec.key, sec]));
+
+  // Every (type, id) this deal knows about: its member sets, plus the root's
+  // singleton slots — `approvedQuotation` names a quotation, which SLOT_TYPE
+  // states once so it is not re-guessed here.
+  const byType = new Map<string, Set<string>>();
+  const note = (type: string, id: string | null | undefined) => {
+    if (!id || !STAGE_REGISTRY[type]) return;
+    const set = byType.get(type) || new Set<string>();
+    set.add(id);
+    byType.set(type, set);
+  };
+  for (const [type, ids] of Object.entries(view.members)) for (const id of ids) note(type, id);
+  for (const [slot, id] of Object.entries(view.singletons)) note(SLOT_TYPE[slot] || slot, id);
+
+  const deleted: Array<{ type: string; id: string }> = [];
+  const kept: Array<{ type: string; id: string }> = [];
+
+  for (const entry of Object.values(STAGE_REGISTRY)) {
+    const ids = byType.get(entry.type);
+    if (!ids?.size) continue;
+    const section = sectionByKey.get(entry.sectionKey) || null;
+    for (const id of ids) {
+      // Engagement state first, for BOTH dispositions: a kept record must stop
+      // pointing at a root that is about to disappear just as surely as a
+      // deleted one must.
+      await detachRecord(studioId, engId, entry.type, id);
+      if (entry.onDelete !== "cascade") { kept.push({ type: entry.type, id }); continue; }
+      // A studio with no section of that key has no rows of that type either —
+      // nothing to delete, and nothing to report as deleted.
+      if (section && await deleteRow(studioId, section.id, entry.collection, id)) {
+        deleted.push({ type: entry.type, id });
+      }
+    }
+  }
+
+  // The member ZSETs are children of the root, so they go before it. Every one
+  // should already be empty (detachRecord zRem'd each id, and Redis drops an
+  // empty sorted set), but a re-run after a crash mid-loop must still clear
+  // whatever survived — that is what makes this idempotent rather than merely
+  // repeatable.
+  await delKeys(Object.values(STAGE_REGISTRY).map((e) => ENG.members(studioId, engId, e.type)));
+  // REGISTRY LAST: the listing index, then the root itself. In that order, a
+  // crash between them leaves a root nothing lists — invisible and re-deletable
+  // — rather than an index entry pointing at nothing, which every reader trips
+  // over.
+  await zRem(ENG.index(studioId), engId);
+  await delKeys(ENG.root(studioId, engId));
+  return { ok: true, deleted, kept };
+}
+
 export const SWEEP_SCOPES = Object.freeze({
   email: `${P}ix:email:`,
   slug: `${P}ix:slug:`,

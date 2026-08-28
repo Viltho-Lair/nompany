@@ -332,6 +332,13 @@ export async function zRem(key: string, member: string): Promise<void> {
 export async function sCard(key: string): Promise<number> {
   return (await r()).sCard(key);
 }
+// ZCARD, not zRange(key, 0, -1).length: "is anything still in this set" is the
+// question a detach asks to decide whether an index entry may go, and asking it
+// by materialising every member makes the cost of the answer grow with the size
+// of the engagement it is asked about.
+export async function zCard(key: string): Promise<number> {
+  return (await r()).zCard(key);
+}
 
 // ---- counters ---------------------------------------------------------------
 // A hash of tallies. HINCRBY is atomic server-side, so two tabs bumping the same

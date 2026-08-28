@@ -5,6 +5,11 @@ import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { fmtDate } from "@/lib/format";
+// The studio's own dialog shell — backdrop, Escape, scroll lock, focus trap,
+// portalled to the body. Imported rather than re-rolled: a second confirmation
+// dialog with its own idea of how Escape works is how two screens in one
+// product start behaving differently.
+import { Dialog, stripeOn, stripeOff } from "@/components/studio2/ui";
 // PURE AND READER-INJECTED (its own header comment): nothing in the registry
 // touches Redis, so a client component may import it straight — the same
 // stage vocabulary the read layer (`src/modules/main/engagements.ts`) filters
@@ -33,6 +38,21 @@ const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] 
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
 const sub = "mt-1 text-sm text-slate-500 dark:text-slate-400";
 const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
+// Row-scale twins of the two buttons above. The destructive one is FILLED and
+// rose while everything else on the screen is an outline — the colour is what
+// says "this one does not come back", the same way ending a studio is framed in
+// StudioSettings. Never used for lock or unlock: putting a deal's safety back on
+// is not a destructive act.
+const btnRow = "rounded-full border border-slate-200 px-3 py-1.5 font-display text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
+const btnDanger = "rounded-full bg-rose-600 px-3 py-1.5 font-display text-xs font-600 text-white transition-colors hover:bg-rose-700 disabled:opacity-60";
+const btnDangerLg = "rounded-full bg-rose-600 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-rose-700 disabled:opacity-60";
+const alertBox = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
+
+// "1 RFQ", "3 RFQs". Every label in STAGE_REGISTRY is singular ("Sales ticket",
+// "Project sheet", "Fixed asset"), so a trailing s is all any of them needs —
+// and a plural map for fourteen regular nouns would be a table to keep in step
+// with the registry for no gain.
+const plural = (label, n) => (n === 1 ? label : `${label}s`);
 
 // Waits at least `ms` before resolving, so a fetch that came back instantly
 // still holds the skeleton on screen for one paint's worth of time rather
@@ -52,7 +72,7 @@ function withMinDelay(promise, ms = MIN_SKELETON_MS) {
 // broken field (design §2). Rendered full-screen, OUTSIDE StudioFrame, the
 // same shape as the manual and the live views — see the early return in
 // studio/[[...segments]]/page.js and design §3 for why this is not a section.
-export default function StudioEngagements({ slug }) {
+export default function StudioEngagements({ slug, canLock = false, canDelete = false }) {
   const [list, setList] = useState(null); // { engagements, nextCursor } | null while loading
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState("");
@@ -62,6 +82,17 @@ export default function StudioEngagements({ slug }) {
   const [block, setBlock] = useState(null);
   const [blockLoading, setBlockLoading] = useState(false);
   const [blockError, setBlockError] = useState("");
+
+  // Lock and delete failures report HERE and not through `listError`, which
+  // replaces the whole table: a refused unlock must not take the list away with
+  // it. Cleared at the start of the next attempt.
+  const [actionError, setActionError] = useState("");
+  const [lockBusyId, setLockBusyId] = useState("");
+  // The row a delete has been ASKED about — null until Delete is pressed. The
+  // impact request is made by the dialog when it opens, so a list of 25 rows
+  // still costs one request; only a deal somebody actually moved to delete
+  // costs a second.
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   const loadList = useCallback(async () => {
     setListLoading(true);
@@ -91,6 +122,50 @@ export default function StudioEngagements({ slug }) {
     const more = await res.json();
     setList((prev) => ({ engagements: [...(prev?.engagements || []), ...more.engagements], nextCursor: more.nextCursor }));
   }, [slug, list?.nextCursor]);
+
+  // ONE ROW, PATCHED IN PLACE. The list already edits itself this way for
+  // "Load more", so a lock flip and a delete follow the same path rather than
+  // refetching the page and losing the rows that were loaded after it.
+  const patchRow = useCallback((id, patch) => {
+    setList((prev) => (prev ? { ...prev, engagements: prev.engagements.map((r) => (r.id === id ? { ...r, ...patch } : r)) } : prev));
+  }, []);
+
+  const dropRow = useCallback((id, message = "") => {
+    setPendingDelete(null);
+    setActionError(message);
+    setList((prev) => (prev ? { ...prev, engagements: prev.engagements.filter((r) => r.id !== id) } : prev));
+  }, []);
+
+  // What the delete path calls when the server proves a deal is locked after
+  // all. Locking is the SAFE direction, so this is the one place the screen may
+  // set the flag without having asked for it.
+  const relock = useCallback((id) => patchRow(id, { locked: true }), [patchRow]);
+
+  // THE SERVER'S ANSWER IS WHAT LANDS IN STATE, never the value we asked for.
+  // The lock is an interlock, so a row claiming "Unlocked" while the store said
+  // otherwise would be showing a Delete button that can only ever 409 — exactly
+  // the failure this screen exists to make impossible. Read the same defensive
+  // way the route writes it: anything that is not exactly `false` is locked.
+  const toggleLock = useCallback(async (id, locked) => {
+    setLockBusyId(id);
+    setActionError("");
+    const res = await fetch(`/api/studios/${slug}/main/engagements/${id}/lock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locked }),
+    });
+    setLockBusyId("");
+    if (!res.ok) {
+      setActionError(
+        res.status === 403 ? "You are not allowed to lock or unlock deals in this studio."
+          : res.status === 404 ? "This engagement no longer exists."
+            : "That did not go through. Try again.",
+      );
+      return;
+    }
+    const done = await res.json();
+    patchRow(id, { locked: done.locked !== false });
+  }, [slug, patchRow]);
 
   const openEngagement = useCallback(async (id) => {
     setOpenId(id);
@@ -139,12 +214,31 @@ export default function StudioEngagements({ slug }) {
               list={list}
               loading={listLoading}
               error={listError}
+              actionError={actionError}
               loadingMore={loadingMore}
+              canLock={canLock}
+              canDelete={canDelete}
+              lockBusyId={lockBusyId}
               onOpen={openEngagement}
               onLoadMore={loadMore}
+              onToggleLock={toggleLock}
+              onAskDelete={setPendingDelete}
             />
           )}
       </main>
+
+      {/* Mounted only once a delete has been asked for, so the impact request
+          inside it happens then and not a moment earlier. Portalled to the body
+          by Dialog, so where it sits in this tree is irrelevant to layout. */}
+      {pendingDelete && (
+        <ConfirmDelete
+          slug={slug}
+          row={pendingDelete}
+          onCancel={() => setPendingDelete(null)}
+          onDeleted={dropRow}
+          onRelocked={relock}
+        />
+      )}
     </div>
   );
 }
@@ -153,13 +247,12 @@ export default function StudioEngagements({ slug }) {
 // THE LIST — ref, client, title, and a badge per stage that exists. The
 // badges are where "enter from any stage" becomes visible: a deal that began
 // at a quotation simply has no ticket badge (design §8).
-function EngagementList({ list, loading, error, loadingMore, onOpen, onLoadMore }) {
+function EngagementList({
+  list, loading, error, actionError, loadingMore,
+  canLock, canDelete, lockBusyId, onOpen, onLoadMore, onToggleLock, onAskDelete,
+}) {
   if (error) {
-    return (
-      <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
-        {error}
-      </p>
-    );
+    return <p role="alert" className={alertBox}>{error}</p>;
   }
 
   if (loading && !list) return <ListSkeleton />;
@@ -203,54 +296,148 @@ function EngagementList({ list, loading, error, loadingMore, onOpen, onLoadMore 
   }
 
   return (
-    <div className={`${panel} overflow-x-auto p-0`}>
-      <table className="w-full min-w-[720px] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-slate-200/70 text-start dark:border-white/10">
-            <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Ref</th>
-            <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Client</th>
-            <th scope="col" className="px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Title</th>
-            <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Stages</th>
-            <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Started</th>
-            <th scope="col" className="w-10 px-2 py-3" />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.id}
-              tabIndex={0}
-              role="button"
-              aria-label={`Open ${row.title || row.clientName || row.ref}`}
-              onClick={() => onOpen(row.id)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(row.id); } }}
-              className="cursor-pointer border-b border-slate-100 outline-none last:border-0 hover:bg-slate-50 focus-visible:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5 dark:focus-visible:bg-white/5"
-            >
-              <td className="num whitespace-nowrap px-4 py-3 text-slate-900 dark:text-white">{row.ref || "—"}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-300">{row.clientName || "—"}</td>
-              <td className="max-w-[260px] truncate px-4 py-3 text-slate-700 dark:text-slate-300">{row.title || "—"}</td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {row.stages.map((type) => <StageBadge key={type} type={type} />)}
-                </div>
-              </td>
-              <td className="num whitespace-nowrap px-4 py-3 text-slate-500 dark:text-slate-400">{fmtDate(row.createdAt)}</td>
-              <td className="px-2 py-3 text-end">
-                <Icon name="chevronRight" className="ms-auto h-4 w-4 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-4">
+      {/* A refused lock or a fired interlock says so ABOVE the table and leaves
+          the table standing — the rows are still true, one action on one of
+          them was not. */}
+      {actionError && <p role="alert" className={alertBox}>{actionError}</p>}
 
-      {hasMore && (
-        <div className="border-t border-slate-100 p-4 text-center dark:border-white/5">
-          <button type="button" className={btnGhost} disabled={loadingMore} onClick={onLoadMore}>
-            {loadingMore ? "Loading…" : "Load more"}
-          </button>
-        </div>
-      )}
+      <div className={`${panel} overflow-x-auto p-0`}>
+        <table className="w-full min-w-[820px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-slate-200/70 text-start dark:border-white/10">
+              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Ref</th>
+              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Client</th>
+              <th scope="col" className="px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Title</th>
+              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Stages</th>
+              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Started</th>
+              <th scope="col" className="whitespace-nowrap px-4 py-3 text-end text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Lock</th>
+              <th scope="col" className="w-10 px-2 py-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={row.id}
+                tabIndex={0}
+                role="button"
+                aria-label={`Open ${row.title || row.clientName || row.ref}`}
+                onClick={() => onOpen(row.id)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(row.id); } }}
+                // The amber stripe down the start edge is the studio's existing
+                // "this one wants attention" mark (ui.js stripeOn, the same one
+                // Sales puts on a ticket nobody has answered). An unlocked deal
+                // is exactly that: the safety is off and it is meant to be put
+                // back, so the state is legible down the whole row rather than
+                // only in the chip.
+                // `last:border-b-0`, not `last:border-0`: the last row drops its
+                // DIVIDER, and a variant utility outranks an unprefixed one in
+                // Tailwind's output, so the all-sides version silently zeroed
+                // the stripe below — the bottom deal in the list was the one
+                // row where being unlocked did not show.
+                className={`cursor-pointer border-b border-s-4 border-slate-100 outline-none last:border-b-0 hover:bg-slate-50 focus-visible:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5 dark:focus-visible:bg-white/5 ${row.locked ? stripeOff : stripeOn}`}
+              >
+                <td className="num whitespace-nowrap px-4 py-3 text-slate-900 dark:text-white">{row.ref || "—"}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-300">{row.clientName || "—"}</td>
+                <td className="max-w-[260px] truncate px-4 py-3 text-slate-700 dark:text-slate-300">{row.title || "—"}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {row.stages.map((type) => <StageBadge key={type} type={type} />)}
+                  </div>
+                </td>
+                <td className="num whitespace-nowrap px-4 py-3 text-slate-500 dark:text-slate-400">{fmtDate(row.createdAt)}</td>
+                <td className="whitespace-nowrap px-4 py-3">
+                  {/* The ROW is itself a button — it opens the deal — so every
+                      control inside it has to stop the click bubbling, or Unlock
+                      also navigates and the confirmation Delete exists to raise
+                      opens behind a screen change. Stopped once on the wrapper,
+                      which covers both buttons and the gap between them; the
+                      keydown too, because a button activated with Enter would
+                      otherwise fire the row's own Enter handler as well. */}
+                  <div
+                    className="flex items-center justify-end gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <LockChip locked={row.locked} />
+                    {/* Two separate rights, so a reader may hold one and not the
+                        other; a control nobody holds the right for is not drawn
+                        at all rather than drawn to 403. The server checks both
+                        again — this only decides what is offered. */}
+                    {/* NAMED PER ROW. Twenty-five buttons all reading "Unlock"
+                        is a list a screen reader cannot navigate, and the
+                        visible label has to stay short — which is exactly what
+                        aria-label is for. Same reason the row itself carries
+                        one. */}
+                    {canLock && (
+                      <button
+                        type="button"
+                        className={btnRow}
+                        aria-label={`${row.locked ? "Unlock" : "Lock"} ${row.ref || row.title || "this deal"}`}
+                        disabled={lockBusyId === row.id}
+                        onClick={() => onToggleLock(row.id, !row.locked)}
+                      >
+                        {lockBusyId === row.id ? "Saving…" : row.locked ? "Unlock" : "Lock"}
+                      </button>
+                    )}
+                    {canDelete && !row.locked && (
+                      <button
+                        type="button"
+                        className={btnDanger}
+                        aria-label={`Delete ${row.ref || row.title || "this deal"}`}
+                        onClick={() => onAskDelete(row)}
+                      >
+                        <span className="inline-flex items-center gap-1.5">
+                          <Icon name="trash" className="h-3.5 w-3.5" />
+                          Delete
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </td>
+                <td className="px-2 py-3 text-end">
+                  <Icon name="chevronRight" className="ms-auto h-4 w-4 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {hasMore && (
+          <div className="border-t border-slate-100 p-4 text-center dark:border-white/5">
+            <button type="button" className={btnGhost} disabled={loadingMore} onClick={onLoadMore}>
+              {loadingMore ? "Loading…" : "Load more"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+// LOCKED IS THE DEFAULT AND THE SAFE STATE, and the chip is what says so —
+// rather than leaving it to be inferred from which button happens to be
+// showing. A reader holding neither right still gets the sentence that explains
+// why this deal cannot be touched, and a reader holding both can see the state
+// of twenty-five rows without reading twenty-five buttons.
+//
+// Amber for unlocked, because unlocked is the temporary, unsafe state and amber
+// is what this studio already means by "this needs attention" (URGENCY_BADGE,
+// the stripe on an unanswered ticket). Deliberately not brand blue: the accent
+// says "ours", not "watch this".
+function LockChip({ locked }) {
+  return (
+    <span
+      title={locked ? "Locked. Unlock it before it can be deleted." : "The safety is off — this deal can be deleted."}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-600 ${
+        locked
+          ? "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300"
+          : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+      }`}
+    >
+      <Icon name={locked ? "lock" : "key"} className="h-3 w-3" />
+      {locked ? "Locked" : "Unlocked"}
+    </span>
   );
 }
 
@@ -278,7 +465,7 @@ function ListSkeleton() {
     <div className={`${panel} overflow-hidden p-0`} aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading engagements</span>
       <div className="flex items-center gap-4 border-b border-slate-200/70 px-4 py-3 dark:border-white/10">
-        {["w-16", "w-24", "flex-1", "w-32", "w-20"].map((w, i) => (
+        {["w-16", "w-24", "flex-1", "w-32", "w-20", "w-24"].map((w, i) => (
           <span key={i} className={`skel skel-text block h-3 ${w}`} />
         ))}
       </div>
@@ -289,8 +476,223 @@ function ListSkeleton() {
           <span className="skel skel-text block h-3 flex-1" />
           <span className="skel block h-5 w-20 rounded-full" />
           <span className="skel skel-text block h-3 w-20" />
+          <span className="skel block h-6 w-24 rounded-full" />
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// THE CONFIRMATION, WHICH IS THE POINT AND NOT A FORMALITY.
+//
+// "Are you sure?" is a question nobody can answer, because it does not say what
+// is at stake — and what is at stake here is a whole deal: its tickets, RFQs,
+// quotations, project, sheets and invoices go with it. So this asks the server
+// FIRST (POST to the engagement itself, read-only, "what would deleting this
+// destroy?") and then NAMES it: what dies with the deal, and what stays
+// standing because it was created somewhere else and merely points here. The
+// second list is the half people are actually unsure about.
+//
+// THE COUNTS ARE THIS READER'S COUNTS. engagementImpact filters every stage
+// through the same permission lens the list does, so a stage they may not see
+// is absent rather than shown as zero — nothing in this dialog can name a
+// record they could not already open on its own department screen.
+//
+// Cancel is the easy path on purpose: Escape, the backdrop, the header X and a
+// button that reads "Keep this deal", against one destructive button that stays
+// disabled until a checkbox has been ticked deliberately.
+function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
+  const [impact, setImpact] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [understood, setUnderstood] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // No point offering the button any more — the deal was re-locked, or this
+  // reader's right went away. Distinct from `error`, which can be transient.
+  const [halted, setHalted] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const res = await withMinDelay(fetch(`/api/studios/${slug}/main/engagements/${row.id}`, { method: "POST", cache: "no-store" }));
+      if (!alive) return;
+      setLoading(false);
+      if (!res.ok) {
+        setHalted(true);
+        setError(res.status === 404
+          ? "This engagement no longer exists."
+          : "Could not work out what deleting this would affect, so it is not safe to offer the button.");
+        return;
+      }
+      const payload = await res.json();
+      if (!alive) return;
+      setImpact(payload.impact);
+      // RE-LOCKED BETWEEN THE LIST BEING DRAWN AND THIS DIALOG OPENING —
+      // another tab, another person. Say so now rather than letting somebody
+      // read the whole impact, tick the box and then meet a 409.
+      if (payload.impact?.locked) {
+        setHalted(true);
+        setError("This deal has been locked again. Nothing can be deleted until it is unlocked.");
+        onRelocked(row.id);
+      }
+    })();
+    return () => { alive = false; };
+  }, [slug, row.id, onRelocked]);
+
+  async function remove() {
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/studios/${slug}/main/engagements/${row.id}`, { method: "DELETE" });
+    setBusy(false);
+    if (res.ok) { onDeleted(row.id); return; }
+
+    if (res.status === 409) {
+      // THE INTERLOCK FIRED, and it is a legitimate outcome rather than a bug:
+      // somebody re-locked this deal while the dialog was open. The row behind
+      // is re-synced to what the server just proved — never left claiming
+      // "Unlocked" — and the button goes, because it would only 409 again.
+      setHalted(true);
+      onRelocked(row.id);
+      setError("This deal was locked again while you were deciding. Nothing was deleted — unlock it again if you still want it gone.");
+      return;
+    }
+    if (res.status === 404) {
+      // Already gone. Dropping the row is the honest result, but it is not a
+      // deletion this person performed, so it is said rather than celebrated.
+      onDeleted(row.id, "That engagement had already been deleted.");
+      return;
+    }
+    setHalted(res.status === 403);
+    setError(res.status === 403
+      ? "You are no longer allowed to delete this deal."
+      : "That did not go through, and nothing was deleted. Try again.");
+  }
+
+  const deletes = impact?.deletes || [];
+  const survives = impact?.survives || [];
+  const total = deletes.reduce((n, s) => n + (s.count || 0), 0);
+
+  return (
+    <Dialog
+      title={`Delete ${row.ref || "this deal"}?`}
+      description={row.title || row.clientName || "This cannot be undone."}
+      width="max-w-[560px]"
+      onClose={onCancel}
+    >
+      {loading ? <ImpactSkeleton /> : (
+        <div className="space-y-5">
+          {error && <p role="alert" className={alertBox}>{error}</p>}
+
+          {impact && (
+            <>
+              <section>
+                <h4 className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Deleting this deal deletes
+                </h4>
+                {deletes.length ? (
+                  <ul className="mt-2 space-y-1.5">
+                    {deletes.map((s) => (
+                      <li key={s.type} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                        <Icon name={STAGE_ICON[s.type] || "dot"} className="h-4 w-4 shrink-0 text-rose-500" />
+                        <span className="num font-700">{s.count}</span>
+                        <span>{plural(s.label, s.count)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                    Nothing — there is no work on this deal yet.
+                  </p>
+                )}
+              </section>
+
+              <section>
+                <h4 className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  What survives
+                </h4>
+                {survives.length ? (
+                  <ul className="mt-2 space-y-1.5">
+                    {survives.map((s) => (
+                      <li key={s.type} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                        <Icon name={STAGE_ICON[s.type] || "dot"} className="h-4 w-4 shrink-0 text-emerald-500" />
+                        <span className="num font-700">{s.count}</span>
+                        <span>{plural(s.label, s.count)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  // An empty `survives` is the common case, not an error state:
+                  // most deals own everything on them. Saying so is better than
+                  // an empty heading, which reads as something failing to load.
+                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                    Nothing was borrowed from elsewhere — everything on this deal was raised on it.
+                  </p>
+                )}
+                {/* THE CLIENT IS NOT A STAGE, so engagementImpact names it in
+                    neither list. It is also the first thing anybody worries
+                    about losing, so it is stated outright rather than left to
+                    be inferred from an absence. */}
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  The client stays. A client belongs to the studio, not to one deal.
+                </p>
+              </section>
+
+              {!halted && (
+                <label className="flex items-start gap-2.5 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
+                  <input
+                    type="checkbox"
+                    checked={understood}
+                    onChange={(e) => setUnderstood(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-rose-600"
+                  />
+                  <span>
+                    I understand {total ? <><span className="num font-700">{total}</span> record{total === 1 ? "" : "s"}</> : "this deal"} will be
+                    permanently deleted, and that this cannot be undone.
+                  </span>
+                </label>
+              )}
+            </>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Cancel FIRST in reading order and in the tab order, because it
+                is the answer somebody should be able to give without aiming. */}
+            <button type="button" className={btnGhost} onClick={onCancel}>Keep this deal</button>
+            {!halted && (
+              <button
+                type="button"
+                className={btnDangerLg}
+                disabled={!understood || busy || !impact}
+                onClick={remove}
+              >
+                {busy ? "Deleting…" : total ? `Delete the deal and ${total} record${total === 1 ? "" : "s"}` : "Delete this deal"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </Dialog>
+  );
+}
+
+// Shaped like the two lists it stands in for — a heading bar and rows of the
+// same height — so the dialog does not resize under the pointer when the
+// impact lands, which on a dialog whose other button deletes things is worth
+// more than the two lines it costs.
+function ImpactSkeleton() {
+  return (
+    <div className="space-y-5" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Working out what deleting this would affect</span>
+      {[0, 1].map((s) => (
+        <div key={s}>
+          <span className="skel skel-text block h-3 w-40" />
+          <div className="mt-3 space-y-2">
+            {[0, 1].map((i) => <span key={i} className="skel skel-text block h-3 w-52" />)}
+          </div>
+        </div>
+      ))}
+      <span className="skel block h-10 w-full rounded-xl" />
     </div>
   );
 }
