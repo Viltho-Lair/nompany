@@ -11,8 +11,11 @@
 import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getJSON, editJSON, delKeys } from "@/platform/db/store";
-import { PROJECT, deterministicEngId } from "@/platform/db/keys";
-import { readEngagement, attachRecord, setApprovedQuotation } from "@/platform/db/engagement";
+import { PROJECT } from "@/platform/db/keys";
+import {
+  readEngagement, attachRecord, setApprovedQuotation,
+  detachRecord, engagementIdFor, engagementIdForLineage,
+} from "@/platform/db/engagement";
 import { removeProjectPlans, progressByProject } from "@/modules/operations/planner";
 import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
@@ -266,9 +269,12 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   // the quotation's own otherwise (an internal quotation mints its own, see
   // attachQuotationEngagement). Resolved once, here, because both the client
   // (below) and the attach/approve calls further down need the same id.
-  const engId = quote.ticketId
-    ? deterministicEngId("ticket", String(quote.ticketId))
-    : deterministicEngId("quotation", String(quote.id));
+  //
+  // The rule itself now lives in engagementIdForLineage rather than inline: the
+  // delete path has to reach the SAME id to detach what this attached, and two
+  // copies of "ticket's, else its own" is exactly the kind of near-miss that
+  // detaches from an engagement nobody ever attached to and still reports ok.
+  const engId = engagementIdForLineage({ ticketId: quote.ticketId, quotationId: quote.id });
 
   // THE CLIENT COMES FROM THE ENGAGEMENT'S CONTEXT, not from the ticket.
   // ticketFacts(quote.ticketId) is blank for every internal quotation — no
@@ -498,7 +504,27 @@ export async function removeProject(ctx: ProjectsContext, id: string) {
   const denied = requirePermission(ctx.access, "projects.list.delete");
   if (denied) return denied;
 
-  const removed = await Projects.remove({ studio: ctx.studio, section: ctx.listSection }, id);
+  const scope = { studio: ctx.studio, section: ctx.listSection };
+  // Read before the delete: the ROW carries the lineage (ticketId/quotationId)
+  // that says which engagement claimed this project as its `project` singleton,
+  // and after the delete there is nothing left to ask.
+  const project = await Projects.byId(scope, id);
+  if (!project) return { error: "notfound" };
+
+  // ENGAGEMENT STATE COMES OFF FIRST, THE ROW SECOND — the recoverable
+  // direction. A crash between the two leaves a real project with no engagement
+  // state, which the backfill (the reconciler, additive and idempotent) heals;
+  // the other order leaves the engagement root's `project` singleton pointing at
+  // a row that no longer exists, and nothing removes that. Best-effort, exactly
+  // like the attach in openProject: failing to detach must not refuse a delete
+  // the caller holds the right to make.
+  try {
+    const engId = await engagementIdFor(ctx.studio.id, "project", id,
+      { ticketId: project.ticketId, quotationId: project.quotationId });
+    if (engId) await detachRecord(ctx.studio.id, engId, "project", id);
+  } catch { /* best-effort: reconciled later */ }
+
+  const removed = await Projects.remove(scope, id);
   if (!removed) return { error: "notfound" };
   // Children-first is already satisfied — the project row is what everything
   // else hangs off — but the board and the plans are documents of their OWN,

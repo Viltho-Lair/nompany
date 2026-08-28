@@ -11,7 +11,9 @@ import type { PermissionKey, PermissionSet } from "@/platform/access";
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { ENG } from "@/platform/db/keys";
 import { zRange } from "@/platform/db/store";
-import { readEngagement, readEngagementView } from "@/platform/db/engagement";
+import { readEngagement, readEngagementView, engagementIdFor, setEngagementLock } from "@/platform/db/engagement";
+import { cascadeDeleteEngagement } from "@/platform/db/cascade";
+import type { EngagementLineage } from "@/platform/db/engagement";
 import { getSectionByKey } from "@/platform/db/sections";
 import { repo } from "@/platform/db/repo";
 import type { Refusal } from "@/platform/access";
@@ -206,4 +208,173 @@ export async function engagementBlock(
       cards,
     },
   };
+}
+
+// ---- "deleting this will affect X, Y and Z" ---------------------------------
+//
+// THE ANSWER THE SPEC ASKS FOR (§3.5), read-only. Given a record about to be
+// deleted, it names the deal that record belongs to, the root pointers that
+// would be cleared, and the sibling stages that would be left behind — so a
+// confirmation can say what is actually at stake instead of "are you sure?".
+//
+// IT NAMES NOTHING THE READER COULD NOT ALREADY SEE, and that property is
+// absolute rather than best-effort. Two gates, both the ones the engagements
+// view already uses:
+//
+//  1. The record's OWN stage permission is required. You cannot ask what
+//     deleting a quotation affects without the right to see quotations — the
+//     question would otherwise be an oracle for whether a record exists.
+//  2. Every sibling stage is filtered through visibleStageTypes, the same one
+//     line listEngagements and engagementBlock filter by, so a stage the reader
+//     holds no permission for is ABSENT from the answer — not zeroed, not
+//     counted, not named.
+//
+// engagements.view is deliberately NOT required. This is asked from the
+// record's own department screen, about a record the caller already holds the
+// right to see and delete; requiring a separate grantable key they may not hold
+// would silently blank the warning on the one screen that needs it. What the
+// answer carries is bounded instead: the engagement's id and ref, never its
+// context — the same minimum-disclosure rule engagementBlock's own projection
+// applies, and for the same reason.
+export type DeletionImpact = {
+  engagementId: string;
+  ref: string;
+  /** Root pointers that name this record and would be cleared ("project", "approvedQuotation"). */
+  clears: string[];
+  /** True when this is the engagement's LAST record of its type — the stage goes with it. */
+  lastOfType: boolean;
+  /** What else is on this deal, of the stages this reader may see. */
+  siblings: Array<{ type: string; label: string; count: number }>;
+};
+
+export async function deletionImpact(
+  ctx: EngagementCtx,
+  type: string,
+  record: { id: string } & EngagementLineage,
+): Promise<{ impact: DeletionImpact | null } | Refusal> {
+  const entry = STAGE_REGISTRY[type];
+  // Not a stage at all (Tier B/C — a client, a vendor, an inventory item): it
+  // has no engagement state, so deleting it affects no deal. A fact, not a
+  // refusal, and answered without asking Redis anything.
+  if (!entry) return { impact: null };
+  const denied = requirePermission(ctx.access, entry.permission as PermissionKey);
+  if (denied) return denied;
+
+  const engId = await engagementIdFor(ctx.studio.id, type, record.id, record);
+  if (!engId) return { impact: null };
+  const view = await readEngagementView(ctx.studio.id, engId);
+  if (!view) return { impact: null };
+
+  // Matched on the VALUE, exactly as detachRecord clears them, so the warning
+  // and the deletion can never disagree about which pointers go.
+  const clears = Object.entries(view.singletons)
+    .filter(([, id]) => id === record.id)
+    .map(([slot]) => slot);
+
+  const visible = new Set(visibleStageTypes(ctx.access));
+  const siblings = Object.values(STAGE_REGISTRY)
+    .filter((e) => e.type !== type && visible.has(e.type))
+    .map((e) => ({ type: e.type, label: e.label, count: idsFor(view, e.type).length }))
+    .filter((s) => s.count > 0);
+
+  return {
+    impact: {
+      engagementId: engId,
+      ref: view.ref || "",
+      clears,
+      lastOfType: idsFor(view, type).filter((id) => id !== record.id).length === 0,
+      siblings,
+    },
+  };
+}
+
+// ---- deleting a whole deal --------------------------------------------------
+
+// "DELETING THIS DEAL WILL DELETE X, Y AND Z — AND LEAVE A, B AND C ALONE."
+//
+// The whole-engagement twin of deletionImpact above, and the answer a
+// confirmation dialog needs before it may offer the button. Read-only.
+//
+// Two lists, not one, because the interesting half of the user's rule is the
+// second: a Sales client is NOT named here at all — it is not a stage, so it is
+// neither deleted nor "kept", it is simply not part of the deal's contents.
+// `survives` is the narrower thing: stage records that this deal used but did
+// not create (tasks, expenses, bills, assets — see STAGE_REGISTRY's onDelete),
+// which stay put and merely stop pointing at it.
+//
+// SAME SAFETY PROPERTY, SAME ONE LINE: every stage is filtered through
+// visibleStageTypes, so this can never name a record the reader could not
+// already see on that record's own department screen. A stage they lack is
+// absent, not zeroed — and that means the counts here are what THIS reader
+// would see, deliberately, not a studio-wide total that would leak the
+// existence of work they have no right to.
+export type EngagementImpact = {
+  id: string;
+  ref: string;
+  locked: boolean;
+  deletes: Array<{ type: string; label: string; count: number }>;
+  survives: Array<{ type: string; label: string; count: number }>;
+};
+
+export async function engagementImpact(
+  ctx: EngagementCtx, engId: string,
+): Promise<{ impact: EngagementImpact } | Refusal | { error: "notfound" }> {
+  const denied = requirePermission(ctx.access, "engagements.view");
+  if (denied) return denied;
+
+  const view = await readEngagementView(ctx.studio.id, engId);
+  if (!view) return { error: "notfound" };
+
+  const visible = new Set(visibleStageTypes(ctx.access));
+  const deletes: EngagementImpact["deletes"] = [];
+  const survives: EngagementImpact["survives"] = [];
+  for (const entry of Object.values(STAGE_REGISTRY)) {
+    if (!visible.has(entry.type)) continue;              // withheld, not counted
+    const count = idsFor(view, entry.type).length;
+    if (!count) continue;
+    (entry.onDelete === "cascade" ? deletes : survives)
+      .push({ type: entry.type, label: entry.label, count });
+  }
+  return { impact: { id: engId, ref: view.ref || "", locked: view.locked, deletes, survives } };
+}
+
+// LOCK OR UNLOCK. Its own right, because holding the power to delete a deal must
+// not by itself include the power to take the safety off it.
+export async function lockEngagement(
+  ctx: EngagementCtx, engId: string, locked: boolean,
+): Promise<{ ok: true; locked: boolean } | Refusal | { error: "notfound" }> {
+  const denied = requirePermission(ctx.access, "engagements.lock");
+  if (denied) return denied;
+  const done = await setEngagementLock(ctx.studio.id, engId, locked);
+  return done ? { ok: true, locked } : { error: "notfound" };
+}
+
+// DELETE THE DEAL AND EVERYTHING IT OWNS. The permission is checked here; the
+// LOCK is checked inside cascadeDeleteEngagement, not here, because an interlock
+// on a destructive action that lives only in its caller is an interlock until
+// somebody writes a second caller.
+//
+// The reader must also be able to SEE the deal before deleting it — the same
+// "no stage of this is yours" rule engagementBlock applies — so a Finance-only
+// reader who happens to hold engagements.delete cannot destroy a deal that, to
+// them, does not exist.
+export async function removeEngagement(
+  ctx: EngagementCtx, engId: string,
+): Promise<{ ok: true; deleted: Array<{ type: string; id: string }>; kept: Array<{ type: string; id: string }> }
+  | Refusal | { error: "notfound" | "forbidden" | "locked" }> {
+  const denied = requirePermission(ctx.access, "engagements.delete");
+  if (denied) return denied;
+
+  const view = await readEngagementView(ctx.studio.id, engId);
+  if (!view) return { error: "notfound" };
+  const visible = new Set(visibleStageTypes(ctx.access));
+  const present = Object.values(STAGE_REGISTRY)
+    .filter((e) => idsFor(view, e.type).length)
+    .map((e) => e.type);
+  // An engagement with nothing on it is nobody's to be refused — an empty deal
+  // is exactly what a delete is for. Only a deal whose every stage is hidden
+  // from this reader is refused.
+  if (present.length && !present.some((t) => visible.has(t))) return { error: "forbidden" };
+
+  return cascadeDeleteEngagement(ctx.studio.id, engId);
 }

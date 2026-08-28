@@ -28,7 +28,7 @@ import {
 } from "@/modules/tasks/taskRouting";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { landedUnitCost } from "@/shared/currencies";
-import { attachToTicketEngagement, attachQuotationEngagement } from "@/platform/db/engagement";
+import { attachToTicketEngagement, attachQuotationEngagement, detachRecord, engagementIdFor } from "@/platform/db/engagement";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, DEFAULT_VAT_RATE, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
@@ -986,7 +986,29 @@ export async function removeQuotation(ctx: TechnicalContext, id: string) {
   const denied = requirePermission(ctx.access, "technical.quotations.delete");
   if (denied) return denied;
 
-  const removed = await Quotations.remove({ studio: ctx.studio, section: ctx.quotationsSection }, id);
+  const scope = { studio: ctx.studio, section: ctx.quotationsSection };
+  // Read before the delete, because the ROW is what says which engagement this
+  // quotation belongs to (its ticketId, or its own id when it is internal), and
+  // after the delete there is nothing left to ask.
+  const quotation = await Quotations.byId(scope, id);
+  if (!quotation) return { error: "notfound" };
+
+  // ENGAGEMENT STATE COMES OFF FIRST, THE ROW SECOND — the recoverable
+  // direction. A crash between the two leaves a real quotation with no
+  // engagement state, which the backfill (the reconciler, additive and
+  // idempotent) heals on its next run. The other order leaves engagement state
+  // pointing at a row that no longer exists, and nothing removes that: the
+  // engagements card would read "Quotation · present · 1" with a blank
+  // reference forever. Best-effort like every other engagement dual-write on
+  // this spine — failing to detach must not refuse a delete the caller holds
+  // the right to make.
+  try {
+    const engId = await engagementIdFor(ctx.studio.id, "quotation", quotation.id,
+      { ticketId: quotation.ticketId, quotationId: quotation.id });
+    if (engId) await detachRecord(ctx.studio.id, engId, "quotation", quotation.id);
+  } catch { /* best-effort: reconciled later */ }
+
+  const removed = await Quotations.remove(scope, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
 

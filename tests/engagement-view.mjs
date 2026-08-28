@@ -42,7 +42,16 @@ export function testPermissionKey() {
   assert.ok(ALL_PERMISSIONS.includes("engagements.view"), "engagements.view is a real key");
   const area = AREAS.find((a) => a.key === "engagements");
   assert.ok(area, "the engagements area exists");
-  assert.deepEqual([...area.verbs], ["view"], "view only — v1 is read-only");
+  // This read `["view"]` — "view only, v1 is read-only" — until deleting a deal
+  // became a real capability. It is asserted rather than derived so that
+  // GRANTING SOMEBODY THE POWER TO DESTROY A DEAL IS A VISIBLE ACT in a diff:
+  // deleting an engagement takes its tickets, RFQs, quotations, project, sheets
+  // and invoices with it.
+  assert.deepEqual([...area.verbs], ["view", "delete"], "view and delete; create/edit are not this screen's");
+  assert.deepEqual((area.extra || []).map((x) => x.key), ["lock"],
+    "lock is an extra power, outside the view/create/edit/delete ladder");
+  assert.ok(ALL_PERMISSIONS.includes("engagements.delete"));
+  assert.ok(ALL_PERMISSIONS.includes("engagements.lock"));
   assert.ok(!area.scoped, "not scoped: the department lens does that job");
 }
 

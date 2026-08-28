@@ -219,8 +219,11 @@ console.log("== the permission matrix: one key grants exactly itself");
   // (view/create/edit + dispose); 117 when the planner became a grantable
   // sub-section of Operations (operations.planner view/edit); 121 when the rota
   // moved to its own operations.schedule sub-section (view/create/edit/delete);
-  // 122 when the engagement view became grantable.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 122, String(ALL_PERMISSIONS.length));
+  // 122 when the engagement view became grantable; 124 when deleting a deal
+  // (engagements.delete) and taking the safety off one (engagements.lock)
+  // became rights of their own — deliberately two keys and not one, because
+  // holding the power to delete must not include the power to unlock.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 124, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];

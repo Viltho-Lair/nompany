@@ -256,7 +256,16 @@ const OWN_AREAS = [
   // inside an engagement is decided stage by stage by the permission each stage
   // already declares in platform/engagement/registry.ts, so an own/department/all
   // dimension here would be a second mechanism for the same thing.
-  { key: "engagements", group: "Engagements", label: "Engagements", verbs: ["view"] },
+  //
+  // DELETE AND LOCK ARE SEPARATE POWERS, the same split technical.quotations
+  // already makes and for a sharper reason. Deleting a deal takes its tickets,
+  // RFQs, quotations, project, sheets and invoices with it — so the lock is the
+  // interlock, and holding the power to delete must not by itself hand somebody
+  // the power to take the safety off. `lock` covers both directions: whoever may
+  // lock a deal may unlock it, because re-locking is the safe half and splitting
+  // them would leave a deal nobody could shut again.
+  { key: "engagements", group: "Engagements", label: "Engagements", verbs: ["view", "delete"],
+    extra: [{ key: "lock", label: "Lock and unlock a deal" }] },
 ] as const;
 
 export const AREAS: readonly Area[] = [...DASHBOARD_AREAS, ...OWN_AREAS];

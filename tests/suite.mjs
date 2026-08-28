@@ -42,12 +42,13 @@ import { listForCollaborator, NOTIFY } from "@/platform/notify/notifications";
 import { TASK_TYPE_AUTHORITIES } from "@/modules/tasks/taskRouting";
 import {
   salesContext, createService, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
-  submitTicketPo, editClient,
+  submitTicketPo, editClient, listClients,
 } from "@/modules/sales/sales";
 import { resolveClientFor, normaliseClientName, clientSlug } from "@/modules/sales/salesClients";
-import { projectsContext, openProject, listProjects, approvedQuotations } from "@/modules/projects/projects";
+import { projectsContext, openProject, listProjects, approvedQuotations, removeProject } from "@/modules/projects/projects";
 import {
   technicalContext, requestRfq, convertRfq, createQuotation, updateRfq, updateQuotation, listQuotations,
+  removeQuotation,
 } from "@/modules/technical/technical";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { landedUnitCost, crossRate } from "@/shared/currencies";
@@ -119,12 +120,12 @@ import {
 // PHASE 1b-i DUAL-WRITE: createTicket mints the engagement layer as a
 // best-effort side effect, reusing the backfill's own clustering.
 import { deterministicEngId } from "@/platform/db/keys";
-import { readEngagementView, attachToTicketEngagement } from "@/platform/db/engagement";
+import { readEngagementView, attachToTicketEngagement, readEngagement } from "@/platform/db/engagement";
 // THE ENGAGEMENTS VIEW (Task 6): the read layer that assembles a deal from
 // the layer above, exercised end to end against a real seeded studio in the
 // spine block below — the pure permission filter (visibleStageTypes) already
 // has its own coverage in tests/engagement-view.mjs.
-import { listEngagements, engagementBlock } from "@/modules/main/engagements";
+import { listEngagements, engagementBlock, engagementImpact, lockEngagement, removeEngagement } from "@/modules/main/engagements";
 // PHASE 1b-i ON-CREATE (Task 1). Same standalone-runner shape as engagement.mjs
 // and engagement-backfill.mjs above — importing it here pulls in only the one
 // exported test function, run explicitly further down through the same
@@ -145,11 +146,28 @@ import { testSpineHelpers } from "./engagement-spine.mjs";
 // copied"); this module covers what needs no studio at all — the index key,
 // the permission catalogue entry, and the pure visibleStageTypes filter.
 import { testIndex, testPermissionKey, testVisibleStageTypes } from "./engagement-view.mjs";
+// THE DELETE PATH (this increment). Same standalone-runner shape as the five
+// modules above -- importing it here pulls in only the exported test functions,
+// run explicitly further down through the same try/catch adapter. The delete
+// VERBS themselves (removeQuotation/removeProject) are exercised end to end
+// against the seeded studio further up; this module covers the primitive and
+// the impact query, which need no studio at all.
+import {
+  testNoPhantomStageAfterDelete, testDetachClearsTheApprovedQuotationSlot,
+  testDetachClearsTheProjectSingleton, testDetachIsTheInverseOfAttach,
+  testHasStageTracksTheLastRecordOfAType, testDetachIsIdempotent,
+  testDetachNeverClobbersANewerClaim, testLineageDerivationMatchesTheCreatePath,
+  testDeletionImpactNamesOnlyWhatTheReaderMaySee, testInternalQuotationDetaches,
+  testLockDefaultsToLocked, testLockedEngagementRefusesDeletion,
+  testDeleteEngagementIsIdempotent, testEveryStageDeclaresItsDisposition,
+  testDeletingADealDoesNotDeleteItsClient, testASharedClientSurvivesEitherDeal,
+  testKeptRecordsAreDetachedNotDeleted, testEngagementImpactSplitsDeletedFromSurviving,
+} from "./engagement-delete.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
 } from "@/platform/auth/superAuth";
-import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll, hSet, memoryPolicy } from "@/platform/db/store";
+import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll, hSet, memoryPolicy, sMembers } from "@/platform/db/store";
 import * as KEYS from "@/platform/db/keys";
 import { STAT } from "@/platform/db/keys";
 import { putMedia } from "@/lib/media";
@@ -1261,6 +1279,143 @@ console.log("\n== CI proves a quotation-born deal carries its client (Task 5, cl
   ok("engagementBlock reports the NEW name — resolved live, not a stale write-time copy",
     chainBlockAfterRename.engagement?.context?.clientName === "Home Invasion Renamed",
     JSON.stringify(chainBlockAfterRename.engagement?.context));
+}
+
+// ============================================================================
+console.log("\n== deleting a record takes its engagement state with it");
+// INVARIANT 11, THROUGH THE REAL DELETE VERBS. removeQuotation removed the row
+// and nothing else; removeProject removed the row, the board and the plans and
+// nothing else. Both left the engagement layer standing, so the deal kept
+// pointing at rows that no longer existed: a Quotation card reading
+// "present, 1" with a blank reference, and a `project` singleton naming a
+// deleted project. Detach runs BEFORE the row goes — the recoverable direction,
+// since a crash then leaves a real row with no engagement state, which the
+// backfill heals, rather than engagement state nothing can heal.
+{
+  const tech = await technicalContext(owner, slug);
+  const sequence = (tech.sequences || [])[0];
+  const made = await createQuotation(tech, {
+    sequenceId: sequence?.id, clientName: `Delete Path ${rand()}`,
+    title: "Deleting this affects the deal", industry: "Technology", deadline: "2026-12-01",
+    description: "Built to be deleted.",
+  });
+  ok("fixture: an internal quotation, with its own engagement", !!made.quotation,
+    JSON.stringify(made.error));
+  const quotationId = made.quotation?.id;
+  const engId = deterministicEngId("quotation", quotationId);
+
+  await updateQuotation(await technicalContext(owner, slug), quotationId, { status: "Approved" });
+  const proj = await projectsContext(owner, slug);
+  const opened = await openProject(proj, { quotationId });
+  ok("fixture: a project opened from it", !!opened.project, JSON.stringify(opened.error));
+
+  const before = await readEngagementView(studio.id, engId);
+  ok("fixture: the deal holds the quotation, the approval and the project",
+    before?.members.quotation?.includes(quotationId)
+    && before?.singletons.approvedQuotation === quotationId
+    && before?.singletons.project === opened.project?.id,
+    JSON.stringify(before));
+
+  // ---- the quotation goes -------------------------------------------------
+  const goneQuote = await removeQuotation(await technicalContext(owner, slug), quotationId);
+  ok("removeQuotation removes the row", goneQuote.ok === true, JSON.stringify(goneQuote));
+
+  const afterQuote = await readEngagementView(studio.id, engId);
+  ok("...and the quotation leaves the engagement's members",
+    !afterQuote?.members.quotation?.includes(quotationId), JSON.stringify(afterQuote?.members));
+  ok("...and the approvedQuotation pointer it filled is cleared",
+    afterQuote?.singletons.approvedQuotation === null, JSON.stringify(afterQuote?.singletons));
+
+  // THE USER-VISIBLE SYMPTOM, asserted where it was reported: the card.
+  const access = (await studioContext(owner, slug)).access;
+  const block = await engagementBlock({ studio, access }, engId);
+  const quotationCard = (block.engagement?.cards || []).find((c) => c.type === "quotation");
+  ok("...so the engagement card shows no phantom quotation stage",
+    quotationCard?.present === false && quotationCard?.count === 0, JSON.stringify(quotationCard));
+
+  // ---- the project goes ---------------------------------------------------
+  const goneProject = await removeProject(await projectsContext(owner, slug), opened.project?.id);
+  ok("removeProject removes the row", goneProject.ok === true, JSON.stringify(goneProject));
+
+  const afterProject = await readEngagementView(studio.id, engId);
+  ok("...and the deal's project singleton is cleared",
+    afterProject?.singletons.project === null, JSON.stringify(afterProject?.singletons));
+  ok("...and the engagement leaves eng-ix:has:project, its last project gone",
+    !(await sMembers(KEYS.ENG.hasStage(studio.id, "project"))).includes(engId),
+    KEYS.ENG.hasStage(studio.id, "project"));
+
+  // Idempotent on re-run (invariant 11): deleting what is already deleted is a
+  // "notfound", never a throw and never a second detach that damages anything.
+  const again = await removeProject(await projectsContext(owner, slug), opened.project?.id);
+  ok("...and a re-run is a clean notfound", again.error === "notfound", JSON.stringify(again));
+}
+
+// ============================================================================
+console.log("\n== deleting a deal keeps the client it merely pointed at");
+// THE USER'S RULE, END TO END ON REAL ROWS: "everything that is linked to it
+// will be deleted EXCEPT IF THE INFORMATION IS CREATED ELSE WHERE."
+//
+// The Sales CLIENT is the case with consequences. An engagement's context NAMES
+// a client; it does not own one, and every other deal for that client names the
+// same row. A cascade that reached it would delete a customer because one of
+// their jobs was cancelled. What keeps it safe is structural rather than
+// remembered: a client is Tier B (spec §3.1) and is not in STAGE_REGISTRY at
+// all, and the cascade walks the registry.
+{
+  const tech = await technicalContext(owner, slug);
+  const sequence = (tech.sequences || [])[0];
+  const clientName = `Survives Deletion ${rand()}`;
+  const made = await createQuotation(tech, {
+    sequenceId: sequence?.id, clientName,
+    title: "This deal will be deleted", industry: "Technology", deadline: "2026-12-01",
+    description: "The client must outlive it.",
+  });
+  ok("fixture: an internal quotation with a real client row", !!made.quotation?.clientId,
+    JSON.stringify(made.error || made.quotation));
+  const clientId = made.quotation?.clientId;
+  const engId = deterministicEngId("quotation", made.quotation?.id);
+
+  const access = (await studioContext(owner, slug)).access;
+  const engCtx = { studio, access };
+
+  // (1) THE WARNING COMES FIRST, and it is the same answer the confirmation
+  // dialog will show: what goes, and what stays.
+  const impact = await engagementImpact(engCtx, engId);
+  ok("the impact query names the deal", impact.impact?.id === engId, JSON.stringify(impact));
+  ok("...and says the quotation would be deleted",
+    (impact.impact?.deletes || []).some((d) => d.type === "quotation"), JSON.stringify(impact.impact?.deletes));
+  ok("...and reports the deal as LOCKED, with no migration and no write to it",
+    impact.impact?.locked === true, JSON.stringify(impact.impact?.locked));
+
+  // (2) LOCKED REFUSES. The interlock is on by default for every engagement
+  // that already exists, which is the whole reason `locked` defaults to true.
+  const refusedDelete = await removeEngagement(engCtx, engId);
+  ok("a locked deal refuses deletion", refusedDelete.error === "locked", JSON.stringify(refusedDelete));
+  ok("...and its quotation is still there",
+    (await listQuotations(await technicalContext(owner, slug))).some((q) => q.id === made.quotation?.id),
+    "the row survives a refused delete");
+
+  // (3) UNLOCK, THEN DELETE.
+  const unlocked = await lockEngagement(engCtx, engId, false);
+  ok("unlocking is its own act, behind its own right", unlocked.ok === true, JSON.stringify(unlocked));
+
+  const gone = await removeEngagement(engCtx, engId);
+  ok("an unlocked deal deletes", gone.ok === true, JSON.stringify(gone));
+  ok("...and the quotation went with it",
+    !(await listQuotations(await technicalContext(owner, slug))).some((q) => q.id === made.quotation?.id),
+    JSON.stringify(gone.deleted));
+  ok("...and the root is gone", (await readEngagement(studio.id, engId)) === null, engId);
+
+  // (4) THE ASSERTION THIS BLOCK EXISTS FOR. The client row is still there and
+  // still readable, because it was created elsewhere and other deals use it.
+  const clientsAfter = await listClients(await salesContext(owner, slug));
+  ok("THE CLIENT SURVIVES the deletion of the deal that pointed at it",
+    clientsAfter.some((c) => c.id === clientId && c.name === clientName),
+    JSON.stringify(clientsAfter.map((c) => c.name)));
+
+  // (5) Re-running is a clean no-op, not a throw (invariant 11).
+  const again = await removeEngagement(engCtx, engId);
+  ok("...and re-running the delete is a clean notfound", again.error === "notfound", JSON.stringify(again));
 }
 
 // ============================================================================
@@ -3993,6 +4148,27 @@ console.log("\n== engagement spine (Phase 1b-ii, Task 5)");
 console.log("\n== engagement view (Task 7)");
 {
   for (const t of [testIndex, testPermissionKey, testVisibleStageTypes]) {
+    try {
+      await t();
+      ok(t.name, true);
+    } catch (e) {
+      ok(t.name, false, e.message);
+    }
+  }
+}
+
+// ============================================================================
+console.log("\n== engagement delete path");
+{
+  for (const t of [testNoPhantomStageAfterDelete, testDetachClearsTheApprovedQuotationSlot,
+                   testDetachClearsTheProjectSingleton, testDetachIsTheInverseOfAttach,
+                   testHasStageTracksTheLastRecordOfAType, testDetachIsIdempotent,
+                   testDetachNeverClobbersANewerClaim, testLineageDerivationMatchesTheCreatePath,
+                   testDeletionImpactNamesOnlyWhatTheReaderMaySee, testInternalQuotationDetaches,
+                   testLockDefaultsToLocked, testLockedEngagementRefusesDeletion,
+                   testDeleteEngagementIsIdempotent, testEveryStageDeclaresItsDisposition,
+                   testDeletingADealDoesNotDeleteItsClient, testASharedClientSurvivesEitherDeal,
+                   testKeptRecordsAreDetachedNotDeleted, testEngagementImpactSplitsDeletedFromSurviving]) {
     try {
       await t();
       ok(t.name, true);
