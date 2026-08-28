@@ -15,7 +15,7 @@ export default function AccountMenu({ locale, company, dict, onSignedOut }) {
   const ref = useRef(null);
 
   // Avatar + name represent the signed-in PERSON (owner), not the company.
-  const personName = company?.ownerName || company?.email || "Account";
+  const personName = company?.ownerName || company?.email || dict?.nav?.account || "Account";
   const initials = initialsOf(company?.ownerName || company?.email);
 
   useEffect(() => {

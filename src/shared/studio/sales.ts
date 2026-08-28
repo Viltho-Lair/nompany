@@ -14,6 +14,11 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 type Strings = CommonStrings & {
   // The department's own name, for the shared no-access sentence.
   changeColumns: string;
+  colCity: string;
+  colClientBudget: string;
+  colContact: string;
+  colIndustry: string;
+  colPhone: string;
   noColumnsSelectedSales: string;
   salesDepartment: string;
   loadingSales: string;
@@ -138,6 +143,11 @@ type Strings = CommonStrings & {
 const en: Strings = {
   ...commonEn,
   changeColumns: "Change columns",
+  colCity: "City",
+  colClientBudget: "Client budget",
+  colContact: "Contact",
+  colIndustry: "Industry",
+  colPhone: "Phone",
   noColumnsSelectedSales: "No columns are selected. Choose them in Sales → Settings.",
   salesDepartment: "Sales",
   loadingSales: "Loading Sales…",
@@ -268,6 +278,11 @@ const en: Strings = {
 const ar: Strings = {
   ...commonAr,
   changeColumns: "غيّر الأعمدة",
+  colCity: "المدينة",
+  colClientBudget: "ميزانية العميل",
+  colContact: "جهة الاتصال",
+  colIndustry: "القطاع",
+  colPhone: "الهاتف",
   noColumnsSelectedSales: "لم تُختَر أي أعمدة. اخترها في المبيعات ← الإعدادات.",
   salesDepartment: "المبيعات",
   loadingSales: "جارٍ تحميل المبيعات…",
@@ -420,4 +435,34 @@ const sales = { en, ar };
 
 export function salesDict(locale: string): Strings {
   return sales[locale as Locale] || sales[defaultLocale];
+}
+
+// THE LIVE VIEW'S COLUMN NAMES, keyed by the column key the sub-section stores.
+// The option list itself comes down from the API with its English labels; this
+// is what turns one into words, and an unknown key keeps the label it arrived
+// with so a new column shows before it is translated.
+const LIVE_COLUMNS: Record<string, keyof Strings> = {
+  ref: "colRef",
+  title: "title",
+  clientName: "client",
+  status: "status",
+  urgency: "urgency",
+  industry: "colIndustry",
+  deadline: "deadline",
+  value: "colValueQuoted",
+  clientBudget: "colClientBudget",
+  contactName: "colContact",
+  contactPhone: "colPhone",
+  locationCity: "colCity",
+  owner: "colOwner",
+  probability: "colProbability",
+  rfq: "colRfq",
+  createdAt: "colCreated",
+  updatedAt: "colUpdated",
+};
+
+export function liveColumnLabel(tr: Strings, key: string, stored: string): string {
+  const k = LIVE_COLUMNS[key];
+  const value = k ? tr[k] : undefined;
+  return typeof value === "string" ? value : stored;
 }

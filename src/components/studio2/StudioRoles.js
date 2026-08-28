@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { peopleDict } from "@/shared/studio/people";
+import { areaGroup, areaLabel, extraLabel } from "@/shared/studio/access";
 import { panel, h2, sub, input, label, btn, btnGhost, Empty } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platform/access";
@@ -30,9 +31,13 @@ import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platfor
 // A FUNCTION OF THE DICTIONARY: declared beside the component, so it cannot
 // read a hook of its own.
 const ladderLabel = (tr) => ({ none: tr.ladderNone, view: tr.ladderView, edit: tr.ladderEdit, full: tr.ladderFull });
+// The four verbs a permission key ends in. The KEY is stored; these are how
+// the "why" checker reads one out loud.
+const verbLabel = (tr) => ({ view: tr.verbView, create: tr.verbCreate, edit: tr.verbEdit, delete: tr.verbDelete });
 
 export default function StudioRoles({ slug }) {
-  const tr = peopleDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = peopleDict(locale);
   const [data, setData] = useState(null);
   // Fetched here rather than passed down: this is a client component and the
   // page that renders it is a server one, so asking is cheaper than plumbing.
@@ -164,7 +169,8 @@ export default function StudioRoles({ slug }) {
 }
 
 function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) {
-  const tr = peopleDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = peopleDict(locale);
   const [draft, setDraft] = useState(() => ({
     ...role,
     permissions: [...(role.permissions || [])],
@@ -222,10 +228,12 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
     const cannot = [];
     for (const a of areas) {
       const lvl = levelOf(a, held);
-      const extras = (a.extra || []).filter((x) => held.has(`${a.key}.${x.key}`)).map((x) => x.label.toLowerCase());
-      if (lvl === "none" && !extras.length) { cannot.push(`${a.group} — ${a.label}`); continue; }
+      const extras = (a.extra || []).filter((x) => held.has(`${a.key}.${x.key}`))
+        .map((x) => extraLabel(a.key, x.key, x.label, locale).toLowerCase());
+      const named = `${areaGroup(a.group, locale)} — ${areaLabel(a.key, a.label, locale)}`;
+      if (lvl === "none" && !extras.length) { cannot.push(named); continue; }
       const words = lvl === "none" ? [] : [ladderLabel(tr)[lvl].toLowerCase()];
-      can.push(`${a.group} — ${a.label}: ${[...words, ...extras].join(", ")}`);
+      can.push(`${named}: ${[...words, ...extras].join(", ")}`);
     }
     return { can, cannot };
   }, [areas, held]);
@@ -278,14 +286,14 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
           {groups.map(([group, list]) => {
             const isOpen = open === group;
             const line = list
-              .map((a) => `${a.label}: ${ladderLabel(tr)[levelOf(a, held)].toLowerCase()}`)
+              .map((a) => `${areaLabel(a.key, a.label, locale)}: ${ladderLabel(tr)[levelOf(a, held)].toLowerCase()}`)
               .join(" · ");
             return (
               <div key={group} className="rounded-geex border border-slate-200/70 dark:border-white/10">
                 <button type="button" onClick={() => setOpen(isOpen ? "" : group)}
                   aria-expanded={isOpen}
                   className="flex w-full items-center gap-3 px-4 py-3 text-start">
-                  <span className="font-600 text-slate-900 dark:text-white">{group}</span>
+                  <span className="font-600 text-slate-900 dark:text-white">{areaGroup(group, locale)}</span>
                   <span className="min-w-0 flex-1 truncate text-xs text-slate-500 dark:text-slate-400">{line}</span>
                   <span className="text-slate-400">{isOpen ? "−" : "+"}</span>
                 </button>
@@ -295,7 +303,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
                     {list.map((a) => (
                       <div key={a.key} className="border-b border-slate-100 py-3 last:border-b-0 dark:border-white/5">
                         <div className="flex flex-wrap items-center gap-3">
-                          <span className="min-w-[9rem] text-sm text-slate-700 dark:text-slate-200">{a.label}</span>
+                          <span className="min-w-[9rem] text-sm text-slate-700 dark:text-slate-200">{areaLabel(a.key, a.label, locale)}</span>
                           {/* Only the rungs this area HAS. An area with no delete
                               has no "full" distinct from "edit", and offering
                               both would be two buttons doing the same thing. */}
@@ -318,7 +326,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
                               control on every row teaches people to ignore it. */}
                           {a.scoped && (
                             <select className={`${input} w-auto`} value={draft.scopes[a.key] || "own"}
-                              aria-label={`${a.label} scope`}
+                              aria-label={`${areaLabel(a.key, a.label, locale)} ${tr.scope}`}
                               onChange={(e) => setScope(a, e.target.value)}>
                               {SCOPES.map((s) => (
                                 <option key={s} value={s}>
@@ -337,7 +345,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
                                 <input type="checkbox" className="h-4 w-4 accent-brand-600"
                                   checked={held.has(`${a.key}.${x.key}`)}
                                   onChange={() => toggleExtra(a, x)} />
-                                {x.label}
+                                {extraLabel(a.key, x.key, x.label, locale)}
                               </label>
                             ))}
                           </div>
@@ -390,7 +398,8 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
 // A role that has no access yet is marked, because those are the ones somebody
 // arriving here is usually looking for.
 function RolePicker({ roles, value, onPick }) {
-  const tr = peopleDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = peopleDict(locale);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const box = useRef(null);
@@ -458,17 +467,24 @@ function RolePicker({ roles, value, onPick }) {
 // database, and because a permission system nobody can interrogate is one
 // people work around instead of using.
 function WhyPanel({ slug, people, areas }) {
-  const tr = peopleDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = peopleDict(locale);
   const [who, setWho] = useState("");
   const [key, setKey] = useState("");
   const [answer, setAnswer] = useState(null);
   const [busy, setBusy] = useState(false);
 
   // Every action, named the way somebody would say it rather than as a key.
-  const actions = useMemo(() => areas.flatMap((a) => [
-    ...a.verbs.map((v) => ({ key: `${a.key}.${v}`, label: `${a.group} — ${a.label}: ${v}` })),
-    ...(a.extra || []).map((x) => ({ key: `${a.key}.${x.key}`, label: `${a.group} — ${a.label}: ${x.label.toLowerCase()}` })),
-  ]), [areas]);
+  const actions = useMemo(() => areas.flatMap((a) => {
+    const named = `${areaGroup(a.group, locale)} — ${areaLabel(a.key, a.label, locale)}`;
+    return [
+      ...a.verbs.map((v) => ({ key: `${a.key}.${v}`, label: `${named}: ${verbLabel(tr)[v] || v}` })),
+      ...(a.extra || []).map((x) => ({
+        key: `${a.key}.${x.key}`,
+        label: `${named}: ${extraLabel(a.key, x.key, x.label, locale).toLowerCase()}`,
+      })),
+    ];
+  }), [areas, tr, locale]);
 
   async function ask() {
     if (!who || !key) return;

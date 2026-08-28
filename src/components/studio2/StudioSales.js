@@ -25,7 +25,7 @@ import SalesDashboard from "@/components/studio2/SalesDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { salesDict } from "@/shared/studio/sales";
+import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
 
 // Sales: clients and the tickets raised against them. Read access shows
 // everything; the Manage grant is what reveals the create/edit controls — and
@@ -1173,7 +1173,7 @@ function SalesSettings({ options, selected, services, cities, positions, canMana
           {options.map((o) => (
             <label key={o.key} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm dark:border-white/15">
               <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={cols.includes(o.key)} disabled={!canManage} onChange={() => toggle(o.key)} />
-              <span className="text-slate-900 dark:text-white">{o.label}</span>
+              <span className="text-slate-900 dark:text-white">{liveColumnLabel(tr, o.key, o.label)}</span>
             </label>
           ))}
         </div>

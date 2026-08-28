@@ -97,7 +97,7 @@ export function TableMenu({
                   aria-label={tr.tableOptions}
                 >
                   <Grid3x3 className="size-4" />
-                  Table
+                  {tr.table}
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>

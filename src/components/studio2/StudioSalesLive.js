@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { miscDict } from "@/shared/studio/misc";
+import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -22,6 +23,8 @@ const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, max
 // and nothing to keep in sync.
 export default function StudioSalesLive({ studio }) {
   const tr = miscDict(useStudioLocale());
+  // The column names are Sales' words, not the shell's.
+  const sales = salesDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [lastFetched, setLastFetched] = useState(null);
@@ -120,7 +123,7 @@ export default function StudioSalesLive({ studio }) {
                 <tr className="border-b border-slate-200/70 text-start dark:border-white/10">
                   {columns.map((c) => (
                     <th key={c.key} className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                      {c.label}
+                      {liveColumnLabel(sales, c.key, c.label)}
                     </th>
                   ))}
                 </tr>

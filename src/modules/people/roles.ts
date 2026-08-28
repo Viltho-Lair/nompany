@@ -1,4 +1,6 @@
 import { readArr, editArr } from "@/platform/db/store";
+import { defaultLocale } from "@/shared/locale";
+import { starterRoleWord } from "@/shared/studio/starterRoles";
 import { S, ID } from "@/platform/db/keys";
 import { emit, SCOPE, TYPE } from "@/platform/realtime/events";
 import { cascadeDeleteRole } from "@/platform/db/cascade";
@@ -147,10 +149,16 @@ export const STARTER_ROLES = [
 // Seeded lazily on first read, the same way the default plan is: a studio that
 // existed before roles did gets them the first time anybody looks, with no
 // migration to run and nothing to remember.
-export async function listRoles(studioId: string) {
+export async function listRoles(studioId: string, locale = defaultLocale) {
   const rows = await readArr<Role>(S.roles(studioId));
   if (rows.length) return rows;
-  const seeded = STARTER_ROLES.map((r) => ({ ...r, studioId, createdAt: new Date().toISOString() }));
+  const seeded = STARTER_ROLES.map((r) => ({
+    ...r,
+    name: starterRoleWord(locale, r.name),
+    description: starterRoleWord(locale, r.description),
+    studioId,
+    createdAt: new Date().toISOString(),
+  }));
   await editArr(S.roles(studioId), (cur) => ({ next: cur.length ? cur : seeded }));
   return readArr<Role>(S.roles(studioId));
 }

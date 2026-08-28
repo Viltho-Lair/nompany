@@ -119,7 +119,7 @@ export function DocumentList({
           {canCreate && (
             <Button className="ms-auto" onClick={create} disabled={busy}>
               {busy ? <Loader2 className="animate-spin" /> : <FilePlus2 />}
-              New document
+              {tr.newDocument}
             </Button>
           )}
         </div>

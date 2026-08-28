@@ -3,6 +3,8 @@
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { X } from "lucide-react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { commonDict } from "@/shared/studio/common";
 
 import { cn } from "@/components/kanban/lib/utils";
 
@@ -70,7 +72,7 @@ const DialogContent = React.forwardRef<
           )}
         >
           <X className="size-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{commonDict(useStudioLocale()).close}</span>
         </DialogPrimitive.Close>
       )}
     </DialogPrimitive.Content>

@@ -12,6 +12,7 @@ import {
 } from "@/platform/access";
 import type { PermissionKey } from "@/platform/access";
 import { listRoles } from "@/modules/people/roles";
+import { studioLocale } from "@/shared/locale";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import {
   createStudio, getStudioById, getStudioBySlug, getOwnedStudio,
@@ -162,7 +163,7 @@ export async function studioContext(
   // because nothing is returned to them either way.
   const [collaborator, roles, sections] = await Promise.all([
     getCollaboratorByUser(String(studio.id), String(user.id)),
-    listRoles(String(studio.id)),
+    listRoles(String(studio.id), studioLocale(studio)),
     listSections(String(studio.id)),
   ]);
   if (!collaborator) return { error: "forbidden" };

@@ -81,6 +81,7 @@ type Strings = CommonStrings & {
   save: string;
   saveAccess: string;
   saving: string;
+  scope: string;
   searchRoles: string;
   shareCompanyCodeThey: string;
   someone: string;
@@ -90,6 +91,10 @@ type Strings = CommonStrings & {
   unnamed: string;
   unnamedMember: string;
   unnamedMember2: string;
+  verbCreate: string;
+  verbDelete: string;
+  verbEdit: string;
+  verbView: string;
   what: string;
   whatEachRoleAllowed: string;
   who: string;
@@ -172,6 +177,7 @@ const en: Strings = {
   save: "Save",
   saveAccess: "Save access",
   saving: "Saving…",
+  scope: "scope",
   searchRoles: "Search roles",
   shareCompanyCodeThey: "Share your company code. They enter it on their account page and you approve the request — no links or tokens to pass around.",
   someone: "Someone",
@@ -181,6 +187,10 @@ const en: Strings = {
   unnamed: "Unnamed",
   unnamedMember: "Unnamed member",
   unnamedMember2: "Unnamed member",
+  verbCreate: "create",
+  verbDelete: "delete",
+  verbEdit: "edit",
+  verbView: "view",
   what: "Do what…",
   whatEachRoleAllowed: "What each role is allowed to do. The roles themselves are the studio's job titles, named in Human Resources; this is where one is given its access. Assign them to people on the list above.",
   who: "Who…",
@@ -263,6 +273,7 @@ const ar: Strings = {
   save: "حفظ",
   saveAccess: "حفظ الصلاحيات",
   saving: "جارٍ الحفظ…",
+  scope: "النطاق",
   searchRoles: "ابحث في الأدوار",
   shareCompanyCodeThey: "شارك رمز شركتك. يُدخله الشخص في صفحة حسابه وتوافق أنت على الطلب — بلا روابط أو رموز تُتداول.",
   someone: "أحدهم",
@@ -272,6 +283,10 @@ const ar: Strings = {
   unnamed: "بلا اسم",
   unnamedMember: "عضو بلا اسم",
   unnamedMember2: "عضو بلا اسم",
+  verbCreate: "إنشاء",
+  verbDelete: "حذف",
+  verbEdit: "تعديل",
+  verbView: "عرض",
   what: "يفعل ماذا…",
   whatEachRoleAllowed: "ما يجوز لكل دور فعله. والأدوار نفسها هي المسمّيات الوظيفية للاستوديو، وتُسمّى في الموارد البشرية؛ وهنا يُمنح أحدها صلاحيته. أسندها إلى الأشخاص في القائمة أعلاه.",
   who: "من…",

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { technicalDict } from "@/shared/studio/technical";
+import { technicalDict, liveColumnLabel } from "@/shared/studio/technical";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
@@ -1024,7 +1024,7 @@ function TechnicalSettings({ options, selected, sequences = [], defaultSequenceI
           {options.map((o) => (
             <label key={o.key} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm dark:border-white/15">
               <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={cols.includes(o.key)} disabled={!canManage} onChange={() => toggle(o.key)} />
-              <span className="text-slate-900 dark:text-white">{o.label}</span>
+              <span className="text-slate-900 dark:text-white">{liveColumnLabel(tr, o.key, o.label)}</span>
             </label>
           ))}
         </div>

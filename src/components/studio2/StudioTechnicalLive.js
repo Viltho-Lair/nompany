@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { technicalDict } from "@/shared/studio/technical";
+import { technicalDict, liveColumnLabel } from "@/shared/studio/technical";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -118,7 +118,7 @@ export default function StudioTechnicalLive({ studio }) {
                 <tr className="border-b border-slate-200/70 text-start dark:border-white/10">
                   {columns.map((c) => (
                     <th key={c.key} className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                      {c.label}
+                      {liveColumnLabel(tr, c.key, c.label)}
                     </th>
                   ))}
                 </tr>

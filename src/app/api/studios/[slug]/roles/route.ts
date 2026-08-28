@@ -5,6 +5,7 @@ import type { StudioMembership } from "@/lib/studios";
 import { studioContext } from "@/lib/studios";
 import { requirePermission, escalates, AREAS } from "@/platform/access";
 import { listRoles, createRole, updateRole, deleteRole, cleanRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
+import { studioLocale } from "@/shared/locale";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   const g = await open(ctx);
   if (g.fail) return g.fail;
   return Response.json({
-    roles: await listRoles(g.context.studio.id),
+    roles: await listRoles(g.context.studio.id, studioLocale(g.context.studio)),
     // The catalogue travels with them so the editor can render every area and
     // its verbs without a second call, and can never offer a key the server
     // would refuse.

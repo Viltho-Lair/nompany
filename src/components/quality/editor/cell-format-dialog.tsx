@@ -69,6 +69,11 @@ export function CellFormatDialog({
   editor: Editor;
   onOpenChange: (open: boolean) => void;
 }) {
+// Keyed by the stored side, which is also half of the attribute name.
+const sideLabel = (tr: ReturnType<typeof qualityDict>): Record<CellSide, string> => ({
+  Top: tr.sideTop, Right: tr.sideRight, Bottom: tr.sideBottom, Left: tr.sideLeft,
+});
+
   const tr = qualityDict(useStudioLocale());
   const current = editor.getAttributes("tableCell");
   const currentHeader = editor.getAttributes("tableHeader");
@@ -273,7 +278,9 @@ export function CellFormatDialog({
                     sides[side] && "border-foreground/30 bg-muted",
                   )}
                 >
-                  {side}
+                  {/* The SIDE is the stored attribute name (`borderTop`);
+                      this is only what the button says. */}
+                  {sideLabel(tr)[side]}
                 </Button>
               ))}
             </div>

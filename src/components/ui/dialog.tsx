@@ -6,6 +6,8 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
+import { useStudioLocale } from "@/components/studio2/locale"
+import { commonDict } from "@/shared/studio/common"
 
 function Dialog({
   ...props
@@ -76,7 +78,7 @@ function DialogContent({
             >
               <XIcon
               />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{commonDict(useStudioLocale()).close}</span>
             </Button>
           </DialogPrimitive.Close>
         )}

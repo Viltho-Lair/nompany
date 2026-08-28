@@ -53,14 +53,18 @@ except the auth pill, which is a two-option toggle by design:
 | Account hub (`AccountHome`) | `LangMenu` | Navigates to `/<code>/account` |
 | Questionnaire | `LangMenu` | Navigates to `/<code>/questionnaire` |
 | Studio header (`StudioFrame`) | `LangMenu` | Writes the cookie, `router.refresh()` |
+| Marketing site (`TopNav`) | `LangMenu` | Navigates to the other locale |
 | `/super` | none | English-only, deliberately — it is nompany's own console |
 
 **Every selection is remembered**, wherever it is made: `LangMenu` writes the cookie itself
 (`rememberLocale` in `src/lib/langCookie.js`), so picking Arabic on the marketing site is
 still Arabic on the far side of the login, where the URL can no longer say so.
 
-**What is translated: all of it.** Every studio screen, dialog, empty state, error message
-and chart label, in both languages — roughly 1,400 strings.
+**What is translated: every screen a person touches.** The marketing site, the account and
+auth pages, all twelve departments and their dialogs, empty states, error messages and
+chart labels, the planner, the task board, the quality document editor and the access
+grid — both languages, roughly 1,900 strings. What is not is listed at the bottom, and
+each entry says why.
 
 `src/shared/i18n.ts` holds the public site's copy in one object, because that side is
 server-rendered and the dictionary is handed down as a prop. `src/shared/studio/` holds the
@@ -71,22 +75,46 @@ from every screen and the split stops paying. Three of them are shared rather th
 a department: `common` (the forty words every screen says), `chrome` (the toolbar, filter
 panel, column picker and chart empty-states) and `statuses`.
 
-**Two vocabularies translate on DISPLAY only**, keyed by a token that does not move:
-`statuses.ts` for every status word (`Draft`, `Approved`, `In Progress`) and `stages.ts`
-for the engagement registry's stage names. Both are defined by the CODE — nobody typed
-them, the transitions compare against them and the goldens pin them — so what is stored,
-compared and returned by the API is unchanged, and only the word on screen differs.
+**Several vocabularies translate on DISPLAY only**, each keyed by a token that does not
+move: `statuses.ts` (`Draft`, `Approved`, `In Progress`), `stages.ts` (the engagement
+registry), `sections.ts` (the twelve department names, from `SECTION_DEFS`) and `access.ts`
+(the 102-key permission catalogue — its groups, its rows and its extra powers). Every one
+of them is defined by the CODE: nobody typed them, the transitions and the resolver compare
+against them and the goldens pin them, so what is stored, compared and returned by the API
+is unchanged and only the word on screen differs.
 
-**Where a screen reads the language from**: `StudioLocaleProvider` in
-`components/studio2/locale`, set once by the shell (and by `FullScreen` in the studio page
-for the six screens that render outside it). Not a prop: eighty-odd components need it,
-most of them several levels below a component whose only prop is `slug`.
+The same shape covers the keyed tables inside a screen — task status, priority, zoom level,
+project health, accent colour, and the finance, planner and live-view column lists. Each
+entry keeps its colours and swaps `label` for a `labelKey`, and one resolver per dictionary
+(`plannerWord`, `boardWord`, `liveColumnLabel`, `areaLabel`) turns the key into words. Two
+consequences are the point: a saved column choice is a list of keys, so it survives a
+language switch; and a React key stops being a label, which would have remounted every card
+on the switch.
 
-**What is never translated, and this is not an omission.** Section names, role names,
-record contents, documents, questionnaire questions, service actions, and every other word a
-tenant or an admin has typed are **data**. They are stored once in whichever language they
-were written and no dictionary touches them. Two colleagues on opposite settings read the
-same tickets and the same names; they just reach them through their own menus.
+**Where a screen reads the language from**: one context per surface, and they are three
+separate modules on purpose — `StudioLocaleProvider` (`components/studio2/locale`), set
+once by the shell and by `FullScreen` for the six screens that render outside it;
+`LandingLocaleProvider` (`components/landing/locale`); and `AccountLocaleProvider`
+(`components/public/locale`), on the `[locale]` layout. Not a prop: a hundred-odd
+components need it, most of them several levels below a component whose only prop is
+`slug`. Not one shared context either: a context module is imported by everything that
+reads it, so one provider would put the studio's module in the marketing bundle and the
+marketing site's in the studio's.
+
+**What is never translated, and this is not an omission.** Record contents, documents,
+questionnaire questions, service actions, and every other word a tenant or an admin has
+typed are **data**. They are stored once in whichever language they were written and no
+dictionary touches them. Two colleagues on opposite settings read the same tickets and the
+same names; they just reach them through their own menus.
+
+**Between those two there is a third case: STORED, but written by us.** A studio is seeded
+with five roles, four task-board columns and six planner templates. Nobody typed them — we
+did — but they are stored the moment the studio first reads them, and the studio renames
+them afterwards. Translating those on display would overwrite a rename, so they take the
+**studio's** language once, at seed time, and are data from then on. `starterRoles.ts` and
+`plannerTemplates.ts` hold those words; the board's four are in `board.ts`. The studio's
+language and not the reader's, deliberately: a per-person override must not let whoever
+opens the screen first decide what everyone else sees.
 
 **Counts are functions, not templates.** English needs two forms and Arabic needs four in
 the ranges these screens reach (1, 2, 3–10, 11+). `${n} item(s)` is only correct in the
@@ -96,9 +124,6 @@ language it was written in, so every counted phrase is a function in the diction
 
 - **`/super` has no `lang`/`dir` and no dictionary.** Deliberate: it is nompany's own
   console, not a tenant surface.
-- **The public marketing site's own pages are only partly translated.** The header, footer,
-  auth screens, account hub, careers, terms and the questionnaire are; the landing page's
-  section copy is not.
 - **A dictionary can drift from its screen and nothing will say so.** The extraction tool
   (`.i18n-scratch/`, not committed) found the strings once; there is no check that a key
   added to a screen later gets an Arabic value, and no check that an unused key is removed.
@@ -116,9 +141,26 @@ language it was written in, so every counted phrase is a function in the diction
   in a sandbox studio, across nine departments — which is how four crashes were found that
   neither `tsc` nor `next build` reported: a Server Component calling a client hook, and
   `.jsx` files reading a name that did not exist. Nothing automated covers that today.
-- **Emails, notifications and PDF documents are English-only.** The notification producers
-  write their text at write time, so a stored notification has one language for everybody
-  regardless of who reads it.
+- **Emails, in-app notifications and PDF documents are English-only.** The producers write
+  their sentence at WRITE time — `notifyCollaborators(…, { title: "A leave request is
+  waiting" })` — so a stored notification already has one language for everybody, whatever
+  the reader chose. Fixing it properly means storing a code and its parameters and
+  rendering the sentence on read, which changes the notification's stored shape; seeding
+  in the studio's language, the way roles and board columns are, would be a smaller change
+  and half-right. Neither has been decided.
+- **The public site's `<meta>` description, the manifest and `lib/seo.ts` are
+  English-only.** They are rendered per-locale, so the Arabic site is served with English
+  metadata — a discoverability bug rather than a reading one, and `seo-improver`'s to take.
+- **Reference lists are English-only**: `lib/cities.ts`, `lib/industries.ts`,
+  `lib/legalTerms.ts`, the questionnaire's own elements, and the pricing labels. Some of
+  those are catalogue data a studio picks from rather than copy, and at least two of them
+  (industries, cities) should arguably be driven from Studio settings instead of shipped —
+  which is a product question, not a translation one.
+- **The six built-in planner presets are industry-specific and every studio gets all
+  six.** They are translated, and seeded per studio in the studio's language, so this is
+  not a language gap — but a construction firm being handed a two-week software sprint,
+  and eight fictional named resources (`RESOURCE_POOL`, currently unreferenced outside its
+  own file) sitting beside them, is worth deciding on separately.
 - **Dates are a separate axis and stay that way.** `fmtDate`/`fmtDateTime` read
   `dateLocale` from the tenant's company settings (default `en-GB` → dd/mm/yyyy), which the
   studio shell configures once client-side. Nothing connects it to the reader's language, so

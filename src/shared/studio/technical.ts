@@ -12,6 +12,10 @@ type Strings = CommonStrings & {
   addTable: string;
   alreadyLineInTable: string;
   changeColumns: string;
+  colApproved: string;
+  colCreated: string;
+  colLead: string;
+  colRev: string;
   convertRfqIntoQuotation: string;
   fulfilled: string;
   fullyAllocated: string;
@@ -219,6 +223,10 @@ const en: Strings = {
   addTable: "Add table",
   alreadyLineInTable: "is already a line in this table — change its quantity instead of adding it twice. Add it under another table if it is genuinely separate work.",
   changeColumns: "Change columns",
+  colApproved: "Approved",
+  colCreated: "Created",
+  colLead: "Lead",
+  colRev: "Rev",
   convertRfqIntoQuotation: "Convert this RFQ into a quotation. You choose who handles it next.",
   fulfilled: "Fulfilled",
   fullyAllocated: "Fully allocated.",
@@ -426,6 +434,10 @@ const ar: Strings = {
   addTable: "أضف جدولًا",
   alreadyLineInTable: "بند موجود في هذا الجدول — غيّر كميته بدلًا من إضافته مرتين. وأضفه في جدول آخر إن كان عملًا منفصلًا فعلًا.",
   changeColumns: "غيّر الأعمدة",
+  colApproved: "تاريخ الاعتماد",
+  colCreated: "تاريخ الإنشاء",
+  colLead: "المرجع",
+  colRev: "المراجعة",
   convertRfqIntoQuotation: "حوّل طلب عرض السعر هذا إلى عرض سعر. وأنت من يختار من يتولاه بعد ذلك.",
   fulfilled: "مستوفى",
   fullyAllocated: "مخصّص بالكامل.",
@@ -631,4 +643,27 @@ const technical = { en, ar };
 
 export function technicalDict(locale: string): Strings {
   return technical[locale as Locale] || technical[defaultLocale];
+}
+
+// THE LIVE VIEW'S COLUMN NAMES, keyed by the column key the sub-section stores.
+// The option list comes down from the API carrying its English labels; this is
+// what turns one into words, and an unknown key keeps what it arrived with.
+const LIVE_COLUMNS: Record<string, keyof Strings> = {
+  number: "colNumber",
+  revision: "colRev",
+  title: "colTitle",
+  clientName: "colClient",
+  status: "colStatus",
+  urgency: "colUrgency",
+  handledBy: "colHandledBy",
+  leadLabel: "colLead",
+  total: "colTotal",
+  createdAt: "colCreated",
+  completedAt: "colApproved",
+};
+
+export function liveColumnLabel(tr: Strings, key: string, stored: string): string {
+  const k = LIVE_COLUMNS[key];
+  const value = k ? tr[k] : undefined;
+  return typeof value === "string" ? value : stored;
 }

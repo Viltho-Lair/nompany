@@ -124,6 +124,7 @@ type Strings = CommonStrings & {
   middle2: string;
   nameRoleDateRecorded: string;
   neverEdited: string;
+  newDocument: string;
   nextReview: string;
   noDocumentsYet: string;
   noPermissionDoThat: string;
@@ -182,6 +183,10 @@ type Strings = CommonStrings & {
   savingState: string;
   sayFallback: string;
   shareOutsideStudio: string;
+  sideBottom: string;
+  sideLeft: string;
+  sideRight: string;
+  sideTop: string;
   signatureImageOptional: string;
   signedSuffix: string;
   signedSuffix2: string;
@@ -340,6 +345,7 @@ const en: Strings = {
   middle2: "Middle",
   nameRoleDateRecorded: "Your name, role and the date are recorded either way. The image is decoration on top of that.",
   neverEdited: "Never edited",
+  newDocument: "New document",
   nextReview: "Next review",
   noDocumentsYet: "No documents yet",
   noPermissionDoThat: "You don't have permission to do that.",
@@ -398,6 +404,10 @@ const en: Strings = {
   savingState: "Saving",
   sayFallback: "That didn't work. Try again.",
   shareOutsideStudio: "Share outside the studio",
+  sideBottom: "Bottom",
+  sideLeft: "Left",
+  sideRight: "Right",
+  sideTop: "Top",
   signatureImageOptional: "Signature image (optional)",
   signedSuffix: "· signed",
   signedSuffix2: " · signed",
@@ -556,6 +566,7 @@ const ar: Strings = {
   middle2: "وسط",
   nameRoleDateRecorded: "يُسجَّل اسمك ودورك والتاريخ في الحالتين. والصورة زينة فوق ذلك.",
   neverEdited: "لم تُحرَّر قط",
+  newDocument: "وثيقة جديدة",
   nextReview: "المراجعة التالية",
   noDocumentsYet: "لا توجد وثائق بعد",
   noPermissionDoThat: "لا تملك صلاحية فعل ذلك.",
@@ -614,6 +625,10 @@ const ar: Strings = {
   savingState: "جارٍ الحفظ",
   sayFallback: "لم تنجح العملية. حاول مرة أخرى.",
   shareOutsideStudio: "المشاركة خارج الاستوديو",
+  sideBottom: "أسفل",
+  sideLeft: "يسار",
+  sideRight: "يمين",
+  sideTop: "أعلى",
   signatureImageOptional: "صورة التوقيع (اختياري)",
   signedSuffix: "· موقّعة",
   signedSuffix2: " · موقّعة",
