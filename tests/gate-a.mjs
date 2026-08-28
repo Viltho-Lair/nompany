@@ -3807,5 +3807,76 @@ console.log("== hop counts: how many round trips a screen costs");
 }
 
 // ============================================================================
+console.log("== technical: F1 — a Technical-only collaborator may still resolve a Sales client (decision, not a bug)");
+// createQuotation gates on technical.quotations.create alone, then resolves the
+// Sales client through resolveClientFor — creating the row if the name is new,
+// folding contact/site into it if it already exists — so a Technical-only
+// collaborator writes the Sales clients collection without holding
+// sales.clients.create/sales.clients.edit. The final whole-branch review of
+// client-belongs-to-the-engagement flagged exactly this.
+//
+// RULED, not fixed: accepted deliberately, by the user's own instruction given
+// before the work started ("quotation must have full client fields similar to
+// creating sales ticket, Client, Contact Name, Position, Email, Phone, Site
+// Name, Country, City, Map Link") and consistent with the pre-existing design
+// — createTicket (sales.ts:950) has ALWAYS gated on sales.tickets.create alone
+// and called this same helper on this same collection. See "F1" in
+// .superpowers/sdd/2026-08-28-client-belongs-to-the-engagement/progress.md for
+// the full ruling. This test exists so the NEXT reviewer reads that decision
+// instead of re-opening it as a fresh finding.
+//
+// Placed LAST, deliberately, rather than near the earlier Technical block: a
+// new collaborator or a new-named Sales client anywhere in this shared studio
+// shows up in whichever golden pins that vocabulary whole — projects.empty /
+// projects.list.populated (Sales clients) and operations.board (the studio's
+// full collaborator roster, by alias, used for shift assignment) both do. Put
+// here, after every golden this run produces has already been captured, so
+// pinning this decision costs no golden a re-record it has nothing to do with.
+{
+  const { technicalContext, createQuotation } = await import("@/modules/technical/technical");
+  const { repo } = await import("@/platform/db/repo");
+
+  const personWith = async (permissions, alias) => {
+    const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
+    const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
+    await addCollaborator(studio.id, { userId: u.id, alias, role: "member", roleIds: [role.id] });
+    return u;
+  };
+
+  // technical.quotations.view is here only so technicalContext's own section
+  // guard (sectionViewable — "may this person open Technical at all") lets the
+  // context build; the right under test is .create. No Sales permission of any
+  // kind, not even a view, so a pass here cannot be mistaken for some other
+  // permission covering it.
+  const techOnly = await personWith(
+    ["technical.quotations.view", "technical.quotations.create"], "f1techonly");
+  await signIn(techOnly.id);
+
+  const techOnlyCtx = await technicalContext(techOnly, slug);
+  ok("fixture: technicalContext builds for the Technical-only collaborator",
+    !techOnlyCtx.error, JSON.stringify(techOnlyCtx.error));
+
+  const freshName = `F1 Decision Client ${rand()}`;
+  const result = techOnlyCtx.error ? { error: techOnlyCtx.error } : await createQuotation(techOnlyCtx, {
+    sequenceId: (techOnlyCtx.sequences || [])[0]?.id,
+    clientName: freshName,
+    contactName: "Sam Reviewer", contactEmail: "sam@example.invalid",
+    title: "F1 decision fixture", industry: "Commercial", deadline: "2031-06-01",
+    description: "Pins the F1 ruling — see progress.md",
+  });
+  ok("a Technical-only collaborator, holding no Sales right at all, may raise a quotation that resolves a client",
+    Boolean(result.quotation), JSON.stringify(result.error || result).slice(0, 200));
+
+  const created = techOnlyCtx.error ? undefined : (await repo("salesClients").find(
+    { studio: techOnlyCtx.studio, section: techOnlyCtx.salesClientsSection },
+  )).find((c) => c.name === freshName);
+  ok("...and the client did not exist before this call and does now — resolveClientFor really created it",
+    Boolean(created?.id) && result.quotation?.clientId === created.id,
+    JSON.stringify({ created: created?.id, quotationClientId: result.quotation?.clientId }));
+
+  __signOut();
+}
+
+// ============================================================================
 console.log(`\ngate A: ${fails ? `${fails} FAILURES` : "all passed"}\n`);
 export const gateAFailures = fails;
