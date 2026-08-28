@@ -95,9 +95,6 @@ export default function Nav({ locale, dict }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const langTrigger =
-    "inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current";
-
   // These routes own their whole viewport and bring their own chrome, so the
   // site header is suppressed on all of them (Footer.js does the same):
   //   /         — the landing page, which has its own TopNav
@@ -120,7 +117,7 @@ export default function Nav({ locale, dict }) {
             <div className="hidden sm:block">
               <ThemeToggle labels={themeLabels} />
             </div>
-            <LangMenu current={locale} options={langOptions} label={dict.common.language} triggerClass={langTrigger} align="end" />
+            <LangMenu current={locale} options={langOptions} label={dict.common.language} align="end" />
             {authLoading ? (
               <div className="hidden items-center gap-2.5 sm:flex" aria-hidden="true">
                 <Skeleton className="h-4 w-12" rounded="rounded" />
@@ -250,7 +247,6 @@ export default function Nav({ locale, dict }) {
                   current={locale}
                   options={langOptions.map((o) => ({ ...o, onSelect: () => setOpen(false) }))}
                   label={dict.common.language}
-                  triggerClass={langTrigger}
                   align="start"
                   direction="up"
                 />

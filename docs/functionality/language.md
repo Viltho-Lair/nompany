@@ -56,6 +56,15 @@ except the auth pill, which is a two-option toggle by design:
 | Marketing site (`TopNav`) | `LangMenu` | Navigates to the other locale |
 | `/super` | none | English-only, deliberately — it is nompany's own console |
 
+**The button looks after itself.** `LangMenu`'s `triggerClass` DEFAULTS to the product's
+language pill; a caller passes one only where the surrounding chrome genuinely differs
+(the studio header sizes it to its 36px row, the questionnaire paints it in the landing's
+tokens). It used to have no default, `Nav` and `AccountHome` each carried a byte-identical
+copy of the class string, and `TopNav` passed nothing at all — so on the marketing site the
+control rendered as a 22px-wide column with the globe, the language code and the chevron
+stacked on top of each other. Neither `tsc` nor `next build` can see that, because `""` is
+a valid class; it was found by measuring the element in a browser.
+
 **Every selection is remembered**, wherever it is made: `LangMenu` writes the cookie itself
 (`rememberLocale` in `src/lib/langCookie.js`), so picking Arabic on the marketing site is
 still Arabic on the far side of the login, where the URL can no longer say so.

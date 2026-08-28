@@ -9,7 +9,20 @@ import { rememberLocale } from "@/lib/langCookie";
 //
 // Each option is either a Link (main site: navigating swaps the locale) or a
 // button (Studio: a client-side dir/lang switch), decided by whether `href` is
-// present. Trigger styling is passed in so it matches its surrounding chrome.
+// present.
+//
+// THE TRIGGER HAS A DEFAULT, and the default is the product's language button:
+// the pill the site header and the account hub both drew, written out twice
+// there before this. A caller may still pass `triggerClass` where the chrome
+// genuinely differs — the studio bar sizes it to a 36px row, the questionnaire
+// paints it in the landing's own tokens — but a caller that says nothing now
+// gets the language button rather than an unstyled one. The landing's TopNav
+// said nothing, and its control rendered as a 22px-wide column with the globe,
+// the code and the chevron stacked on top of each other: an omission neither
+// `tsc` nor `next build` can see, because "" is a valid class.
+//
+// It inherits `currentColor` for its border and its text, so it takes the
+// colour of whatever bar it sits in without knowing which surface that is.
 //
 // EVERY SELECTION IS REMEMBERED, whichever form it takes. The public site's
 // language lives in the address and does not need a cookie to work — but the
@@ -17,6 +30,9 @@ import { rememberLocale } from "@/lib/langCookie";
 // choice made by the same person. Writing it here means picking Arabic on the
 // marketing site is still Arabic when you walk into your studio, without every
 // caller remembering to say so.
+const TRIGGER =
+  "inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current";
+
 function GlobeIcon({ className }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -31,7 +47,7 @@ export default function LangMenu({
   current,
   options,
   label = "Language",
-  triggerClass = "",
+  triggerClass = TRIGGER,
   align = "end", // "end" | "start" — which edge the dropdown aligns to
   direction = "down", // "down" | "up" — which way the dropdown opens
 }) {

@@ -124,11 +124,7 @@ export default function AccountHome({ locale, chrome }) {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="hidden sm:block"><ThemeToggle labels={chrome?.theme} /></div>
-          <LangMenu
-            current={locale} options={langOptions} label={chrome?.language}
-            triggerClass="inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current"
-            align="end"
-          />
+          <LangMenu current={locale} options={langOptions} label={chrome?.language} align="end" />
           {/* The only sign-out in the product sits behind this avatar. */}
           <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button
