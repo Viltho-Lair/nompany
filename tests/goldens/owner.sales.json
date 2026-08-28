@@ -104,7 +104,6 @@
         "role": "owner"
       }
     ],
-    "services": [],
     "studioDefaults": {
       "country": "",
       "city": "",
@@ -241,7 +240,8 @@
           "key": "updatedAt",
           "label": "Updated"
         }
-      ]
+      ],
+      "serviceActions": []
     }
   }
 }

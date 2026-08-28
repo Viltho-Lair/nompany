@@ -28,7 +28,7 @@ import { pendingRfq, rfqsForTicket } from "@/modules/technical/rfqs";
 import { isFinishedQuotation } from "@/modules/technical/quotations";
 import { readTaskAssignees, resolveTaskAssignees, TASK_AUTHORITIES, quotationApproved } from "@/modules/tasks/taskRouting";
 import type {
-  SalesContext, Client, Contact, Service, SalesTicket, Site,
+  SalesContext, Client, Contact, SalesTicket, Site,
   QuotationRow, PoSummary, ProjectLink, ApprovalSummary, TicketSummary, TicketView,
 } from "./types";
 import type { Rfq, Quotation } from "@/modules/technical/types";
@@ -42,7 +42,6 @@ export { TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, DEFAULT_STATUS, D
 
 const CLIENTS = "salesClients";
 const TICKETS = "salesTickets";
-const SERVICES = "salesServices";
 // Technical's collections. Sales never WRITES them — it reads them so a ticket
 // can report what happened to it after Sales handed it over.
 const RFQS = "rfqs";
@@ -61,7 +60,6 @@ const Clients = repo<Client>(CLIENTS);
 const Projects = repo<Project>(PROJECTS);
 const Quotations = repo<Quotation>(QUOTATIONS);
 const Rfqs = repo<Rfq>(RFQS);
-const Services = repo<Service>(SERVICES);
 const Tasks = repo<Task>(TASKS);
 const Tickets = repo<SalesTicket>(TICKETS);
 // The task type the Tasks board already routes to Sales + Management. Sending a
@@ -166,74 +164,34 @@ export async function saveSalesSettings(ctx: SalesContext, body: Record<string, 
   return updated ? readSalesVocab({ settings: next }) : { error: "notfound" };
 }
 
-// ---- service catalogue ------------------------------------------------------
-export async function listServices({ studio, settingsSection }: Pick<SalesContext, "studio" | "settingsSection">) {
-  const rows = await Services.find({ studio, section: settingsSection });
-  return [...rows].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-}
-
-export async function createService(ctx: SalesContext, body: Record<string, unknown>) {
-  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
-  // added and forgotten, whereas the function that does the work cannot be
-  // reached around.
-  const denied = requirePermission(ctx.access, "sales.settings.edit");
-  if (denied) return denied;
-
-  const { studio, settingsSection, collaborator } = ctx;
-  const name = str(body?.name, 160);
-  if (!name) return { error: "name" };
-  const existing = await Services.find({ studio, section: settingsSection });
-  if (existing.some((s) => String(s.name || "").trim().toLowerCase() === name.toLowerCase())) {
-    return { error: "duplicate" };
-  }
-  // addRow mints the id — this is the serviceId a ticket stores.
-  const service = await Services.create({ studio, section: settingsSection }, {
-    name,
-    description: str(body?.description, 2000),
-    createdByCollaboratorId: collaborator.id,
-    createdAt: new Date().toISOString(),
+// ---- service ids -------------------------------------------------------
+// A ticket's services USED TO be chosen from a Sales-owned catalogue
+// (`salesServices`, a collection under sales-settings). That catalogue is
+// gone: what a studio sells is now named once, in Studio Settings → Service
+// Actions (`studio.serviceActions`), and Inventory and Projects already read
+// it the same way — see `cleanScope` in modules/inventory/inventory.ts, which
+// this mirrors. A ticket stores the ACTION NAMES themselves in `serviceIds`
+// (the field name survives the catalogue it used to point into, because
+// renaming it would touch every screen and every golden for no behavioural
+// gain — the values are what changed, not the shape).
+//
+// Kept if the name is one of the studio's own actions, ACTIVE OR RETIRED: a
+// retired action is one removed from the pool but still in use here, so a
+// ticket that already named it keeps naming it rather than silently losing a
+// service the moment somebody edits the pool elsewhere. Only a name that is
+// neither — never one of theirs — is dropped, the same rule `cleanScope`
+// applies to an item's scope.
+function cleanServiceIds(raw: unknown, studio: Record<string, unknown>) {
+  const known = new Set([
+    ...(Array.isArray(studio?.serviceActions) ? studio.serviceActions as unknown[] : []),
+    ...(Array.isArray(studio?.retiredServiceActions) ? studio.retiredServiceActions as unknown[] : []),
+  ].map((a) => str(a, 160)));
+  const seen = new Set<string>();
+  return (Array.isArray(raw) ? raw : []).slice(0, 40).map((s) => str(s, 160)).filter((s) => {
+    if (!s || !known.has(s) || seen.has(s)) return false;
+    seen.add(s);
+    return true;
   });
-  return { service };
-}
-
-export async function editService(ctx: SalesContext, id: string, body: Record<string, unknown>) {
-  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
-  // added and forgotten, whereas the function that does the work cannot be
-  // reached around.
-  const denied = requirePermission(ctx.access, "sales.settings.edit");
-  if (denied) return denied;
-
-  const { studio, settingsSection } = ctx;
-  const patch: Record<string, unknown> = {};
-  if (body?.name !== undefined) {
-    const name = str(body.name, 160);
-    if (!name) return { error: "name" };
-    const rows = await Services.find({ studio, section: settingsSection });
-    if (rows.some((s) => s.id !== id && String(s.name || "").trim().toLowerCase() === name.toLowerCase())) {
-      return { error: "duplicate" };
-    }
-    patch.name = name;
-  }
-  if (body?.description !== undefined) patch.description = str(body.description, 2000);
-  const service = await Services.update({ studio, section: settingsSection }, id, patch);
-  return service ? { service } : { error: "notfound" };
-}
-
-// Refuses while tickets still reference the service, so a delete can't leave a
-// ticket pointing at a serviceId that no longer resolves.
-export async function removeService(ctx: SalesContext, id: string) {
-  // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
-  // added and forgotten, whereas the function that does the work cannot be
-  // reached around.
-  const denied = requirePermission(ctx.access, "sales.settings.edit");
-  if (denied) return denied;
-
-  const { studio, settingsSection, ticketsSection } = ctx;
-  const tickets = await Tickets.find({ studio, section: ticketsSection });
-  const used = tickets.filter((t) => (t.serviceIds || []).includes(id)).length;
-  if (used > 0) return { error: "in-use", tickets: used };
-  const removed = await Services.remove({ studio, section: settingsSection }, id);
-  return removed ? { ok: true } : { error: "notfound" };
 }
 
 // ---- clients ---------------------------------------------------------------
@@ -950,7 +908,7 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   const denied = requirePermission(ctx.access, "sales.tickets.create");
   if (denied) return denied;
 
-  const { studio, ticketsSection, clientsSection, collaborator, settingsSection } = ctx;
+  const { studio, ticketsSection, clientsSection, collaborator } = ctx;
 
   const title = str(body?.title, 200);
   const clientName = str(body?.clientName, 160);
@@ -975,12 +933,11 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   const rawBudget = body?.clientBudget;
   const clientBudget = rawBudget === "" || rawBudget == null ? null : Number(rawBudget);
 
-  // Services are chosen from the catalogue in Sales -> Settings. Unknown ids
-  // are dropped rather than trusted, so a stale client can't attach a service
-  // this studio doesn't have.
-  const known = new Set((await Services.find({ studio, section: ctx.settingsSection })).map((s) => s.id));
-  const serviceIds = [...new Set((Array.isArray(body?.serviceIds) ? body.serviceIds : []).map(String))]
-    .filter((id) => known.has(id));
+  // Services are chosen from the studio's own Service Actions (Studio
+  // Settings → Service Actions), not a Sales-owned catalogue — see
+  // cleanServiceIds. Unknown names are dropped rather than trusted, so a
+  // stale client can't attach an action this studio doesn't have.
+  const serviceIds = cleanServiceIds(body?.serviceIds, studio);
   // Per service the client may opt out of Installation and/or Programming.
   const rawSR = (body?.serviceRequirements && typeof body.serviceRequirements === "object"
     ? body.serviceRequirements
@@ -1069,7 +1026,7 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
   const denied = requirePermission(ctx.access, "sales.tickets.edit");
   if (denied) return denied;
 
-  const { studio, ticketsSection, clientsSection, settingsSection, collaborator } = ctx;
+  const { studio, ticketsSection, clientsSection, collaborator } = ctx;
   const patch: Record<string, unknown> = {};
 
   // COMMENTS ARE APPEND-ONLY. One line of text arrives, never a list to
@@ -1117,12 +1074,10 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
     if (budget != null && (!Number.isFinite(budget) || budget < 0)) return { error: "budget" };
     patch.clientBudget = budget;
   }
-  // Same rule as creation: unknown service ids are dropped, not trusted, and a
-  // ticket is never left with none.
+  // Same rule as creation: unknown service names are dropped, not trusted, and
+  // a ticket is never left with none.
   if (body?.serviceIds !== undefined) {
-    const known = new Set((await Services.find({ studio, section: settingsSection })).map((s) => s.id));
-    const serviceIds = [...new Set((Array.isArray(body.serviceIds) ? body.serviceIds : []).map(String))]
-      .filter((sid) => known.has(sid));
+    const serviceIds = cleanServiceIds(body.serviceIds, studio);
     if (serviceIds.length === 0) return { error: "services" };
     patch.serviceIds = serviceIds;
     const rawSR = (body?.serviceRequirements && typeof body.serviceRequirements === "object"

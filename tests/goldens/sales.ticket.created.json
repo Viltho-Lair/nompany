@@ -24,10 +24,10 @@
       "industry": "Commercial",
       "deadline": "2031-12-01",
       "serviceIds": [
-        "<sal_ID>"
+        "Audio Visual Solutions"
       ],
       "serviceRequirements": {
-        "<sal_ID>": {
+        "Audio Visual Solutions": {
           "withoutInstallation": false,
           "withoutProgramming": false
         }

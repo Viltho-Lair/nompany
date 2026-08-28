@@ -164,7 +164,7 @@ export default function StudioSales({ slug, view = "sales" }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <p className="text-sm text-slate-500">{tr.loadingSales}</p>;
 
-  const { canManage: canManageParent, canManageTickets, canManageClients, canManageSettings, clients, tickets, people, vocabulary, nav, liveColumns, services, hasTechnical } = data;
+  const { canManage: canManageParent, canManageTickets, canManageClients, canManageSettings, clients, tickets, people, vocabulary, nav, liveColumns, hasTechnical } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
   // the map is keyed the same way, so a sub-section grant answers for its own
   // screen and the parent's answer no longer stands in for all of them.
@@ -179,12 +179,10 @@ export default function StudioSales({ slug, view = "sales" }) {
         <SalesSettings
           options={vocabulary.liveColumnOptions || []}
           selected={liveColumns || []}
-          services={services || []}
           cities={data.salesCities || []}
           positions={data.salesContactPositions || []}
           canManage={canManageSettings}
           onSaveVocab={(patch) => send("", "PUT", patch)}
-          onService={(method, payload) => send("services", method, payload)}
         />
       </div>
     );
@@ -230,7 +228,7 @@ export default function StudioSales({ slug, view = "sales" }) {
             onClose={closeEditing}
           >
             <TicketForm row={editing.row} clients={clients} vocabulary={vocabulary}
-              services={services || []} cities={data.salesCities || []} positions={data.salesContactPositions || []}
+              cities={data.salesCities || []} positions={data.salesContactPositions || []}
               studioDefaults={data.studioDefaults || {}}
               onCancel={closeEditing}
               onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
@@ -874,7 +872,7 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
   );
 }
 
-export function TicketForm({ row, clients, vocabulary, services = [], cities = [], positions = [], studioDefaults = {}, onSave, onCancel }) {
+export function TicketForm({ row, clients, vocabulary, cities = [], positions = [], studioDefaults = {}, onSave, onCancel }) {
   const tr = salesDict(useStudioLocale());
   // Fields mirror the Old System's ticket. Mandatory: title, client, deadline,
   // type of industry. Value Quoted is NOT here on purpose — it is filled from
@@ -910,6 +908,11 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
     return Array.isArray(c?.locations) ? c.locations : [];
   }, [clients, f.clientName]);
 
+  // THE STUDIO'S OWN SERVICE ACTIONS, not a Sales-only catalogue. These are
+  // plain strings from Studio Settings — the same list Inventory and Projects
+  // read — so `serviceIds` now holds action NAMES. The field kept its name
+  // because the wire shape did not change; only where the values come from did.
+  const serviceActions = Array.isArray(vocabulary?.serviceActions) ? vocabulary.serviceActions : [];
   const [serviceIds, setServiceIds] = useState(row?.serviceIds || []);
   const [reqs, setReqs] = useState(row?.serviceRequirements || {});
   const toggleService = (id) => setServiceIds((v) => v.includes(id) ? v.filter((x) => x !== id) : [...v, id]);
@@ -1022,28 +1025,28 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
       </div>
 
       <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.servicesHeading}</p>
-      {services.length === 0 ? (
+      {serviceActions.length === 0 ? (
         <p className="mt-2 rounded-xl border border-dashed border-slate-200 p-4 text-xs text-slate-500 dark:border-white/15 dark:text-slate-400">
           {tr.noServicesForTicket}
         </p>
       ) : (
         <div className="mt-2 space-y-2">
-          {services.map((sv) => {
-            const on = serviceIds.includes(sv.id);
+          {serviceActions.map((action) => {
+            const on = serviceIds.includes(action);
             return (
-              <div key={sv.id} className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3.5 dark:border-white/15">
+              <div key={action} className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3.5 dark:border-white/15">
                 <label className="flex items-center gap-2.5 text-sm">
-                  <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={on} onChange={() => toggleService(sv.id)} />
-                  <span className="font-600 text-slate-900 dark:text-white">{sv.name}</span>
+                  <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={on} onChange={() => toggleService(action)} />
+                  <span className="font-600 text-slate-900 dark:text-white">{action}</span>
                 </label>
                 {on && (
                   <div className="mt-2 flex flex-wrap gap-4 ps-7 text-xs text-slate-600 dark:text-slate-300">
                     <label className="flex items-center gap-2">
-                      <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600" checked={!!(reqs[sv.id] || {}).withoutInstallation} onChange={() => setReq(sv.id, "withoutInstallation")} />
+                      <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600" checked={!!(reqs[action] || {}).withoutInstallation} onChange={() => setReq(action, "withoutInstallation")} />
                       {tr.withoutInstallation}
                     </label>
                     <label className="flex items-center gap-2">
-                      <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600" checked={!!(reqs[sv.id] || {}).withoutProgramming} onChange={() => setReq(sv.id, "withoutProgramming")} />
+                      <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600" checked={!!(reqs[action] || {}).withoutProgramming} onChange={() => setReq(action, "withoutProgramming")} />
                       {tr.withoutProgramming}
                     </label>
                   </div>
@@ -1115,46 +1118,15 @@ function VocabList({ title, help, items, canManage, onChange }) {
   );
 }
 
-function SalesSettings({ options, selected, services, cities, positions, canManage, onSaveVocab, onService }) {
+function SalesSettings({ options, selected, cities, positions, canManage, onSaveVocab }) {
   const tr = salesDict(useStudioLocale());
   const [cols, setCols] = useState(selected);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [svc, setSvc] = useState({ name: "", description: "" });
   const toggle = (key) => { setSaved(false); setCols((c) => c.includes(key) ? c.filter((x) => x !== key) : [...c, key]); };
 
   return (
     <div className="space-y-6">
-      <section className={panel}>
-        <h2 className={h2}>{tr.servicesTitle}</h2>
-        <p className={sub}>{tr.servicesLead}</p>
-        <ul className="mt-4 space-y-2">
-          {services.length === 0 && <li className="text-xs text-slate-400">{tr.noServicesYet}</li>}
-          {services.map((sv) => (
-            <li key={sv.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-4 dark:border-white/15">
-              <div className="min-w-0">
-                <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{sv.name}</p>
-                {sv.description && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{sv.description}</p>}
-                <p className="mt-0.5 font-mono text-[11px] text-slate-400">{sv.id}</p>
-              </div>
-              {canManage && (
-                <button type="button" className={btnGhost} onClick={() => onService("DELETE", { id: sv.id })}>{tr.delete_}</button>
-              )}
-            </li>
-          ))}
-        </ul>
-        {canManage && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-            <div><label className={label}>{tr.name}</label><input className={input} value={svc.name} onChange={(e) => setSvc((v) => ({ ...v, name: e.target.value }))} placeholder={tr.serviceNamePlaceholder} /></div>
-            <div><label className={label}>{tr.description}</label><input className={input} value={svc.description} onChange={(e) => setSvc((v) => ({ ...v, description: e.target.value }))} /></div>
-            <div className="flex items-end">
-              <button type="button" className={btn} disabled={!svc.name.trim()}
-                onClick={async () => { const ok = await onService("POST", svc); if (ok) setSvc({ name: "", description: "" }); }}>{tr.addService}</button>
-            </div>
-          </div>
-        )}
-      </section>
-
       <section className={panel}>
         <h2 className={h2}>{tr.vocabularyTitle}</h2>
         <p className={sub}>{tr.vocabularyLead}</p>

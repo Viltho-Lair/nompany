@@ -5,7 +5,7 @@ import type { ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 import type { TaskAssignees } from "@/modules/tasks/types";
 
-export type { Client, Service, SalesTicket, Contact, Site, ServiceRequirement } from "./schema";
+export type { Client, SalesTicket, Contact, Site, ServiceRequirement } from "./schema";
 
 // ---- this department's context ---------------------------------------------
 // Generated from the spec in the service file: `sub` and `foreign` become

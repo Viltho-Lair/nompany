@@ -41,7 +41,7 @@ import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/
 import { listForCollaborator, NOTIFY } from "@/platform/notify/notifications";
 import { TASK_TYPE_AUTHORITIES } from "@/modules/tasks/taskRouting";
 import {
-  salesContext, createService, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
+  salesContext, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
   submitTicketPo, editClient, listClients,
 } from "@/modules/sales/sales";
 import { resolveClientFor, normaliseClientName, clientSlug } from "@/modules/sales/salesClients";
@@ -362,17 +362,23 @@ console.log("\n== the handler is carried, never copied");
 //      submit the quotation and it still named the appointment rather than the
 //      person who actually finished the document.
 {
+  // A ticket's services now name the studio's own Service Actions (Studio
+  // Settings → Service Actions) rather than a Sales-owned catalogue, so the
+  // fixture seeds the pool directly instead of creating a service row — and
+  // BEFORE salesContext resolves, because the context snapshots `studio` at
+  // read time and a later write here would not be seen by it.
+  await updateStudio(studio.id, { serviceActions: ["Integration"] });
+
   const sales = await salesContext(owner, slug);
   ok("owner can open Sales", !sales.error, sales.error);
 
-  const service = await createService(sales, { name: "Integration" });
   // contactName/location are set here (the design fixture left them blank) so
   // the C-1 leak test below has real values to assert are ABSENT from a
   // non-Sales reader's engagementBlock payload — a blank field can't prove a
   // projection actually strips anything.
   const made = await createTicket(sales, {
     title: "Carry the handler", clientName: "Acme", deadline: "2026-12-01",
-    industry: "Technology", serviceIds: [service.service?.id],
+    industry: "Technology", serviceIds: ["Integration"],
     contactName: "Priya Shenoy", location: { name: "Acme HQ", city: "Austin", country: "US", url: "https://acme.example/hq" },
   });
   ok("a ticket can be raised", !!made.ticket, JSON.stringify(made.error));
@@ -711,7 +717,7 @@ console.log("\n== the handler is carried, never copied");
   // than by insertion into the index or by id.
   const laterTicket = await createTicket(sales, {
     title: "A later deal", clientName: "Later Co", deadline: "2026-12-01",
-    industry: "Technology", serviceIds: [service.service?.id],
+    industry: "Technology", serviceIds: ["Integration"],
   });
   const laterEngId = deterministicEngId("ticket", laterTicket.ticket.id);
   const listAfter = await listEngagements({ studio, access: ownerAccess });
@@ -1053,11 +1059,14 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
   // never copied" block, above, asserts the equivalent for a ticket-born
   // project — this reasserts it did not regress under the new client-resolving
   // code path).
+  const svcRegressionName = `Regression ${rand()}`;
+  // Seeded before the context resolves — see the note on the same pattern
+  // above ("the handler is carried, never copied").
+  await updateStudio(studio.id, { serviceActions: [svcRegressionName] });
   const salesForRegression = await salesContext(owner, slug);
-  const svcRegression = await createService(salesForRegression, { name: `Regression ${rand()}` });
   const ticketMade = await createTicket(salesForRegression, {
     title: "Ticket-headed path stays put", clientName: `Ticket Client ${rand()}`, deadline: "2026-12-01",
-    industry: "Technology", serviceIds: [svcRegression.service?.id],
+    industry: "Technology", serviceIds: [svcRegressionName],
   });
   const ticketEngId = deterministicEngId("ticket", ticketMade.ticket?.id);
   const rfqMade = await requestTicketRfq(salesForRegression, { ticketId: ticketMade.ticket?.id });
@@ -1095,11 +1104,12 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
   // a SINGLETON claim does, and neither of those is one), so they succeed same
   // as always and leave the engagement genuinely rootless, the way a swallowed
   // failure in attachTicketEngagement would.
+  const svcFallbackName = `Fallback ${rand()}`;
+  await updateStudio(studio.id, { serviceActions: [svcFallbackName] });
   const salesForFallback = await salesContext(owner, slug);
-  const svcFallback = await createService(salesForFallback, { name: `Fallback ${rand()}` });
   const ticketFallback = await createTicket(salesForFallback, {
     title: "Engagement root never landed", clientName: `Fallback Client ${rand()}`, deadline: "2026-12-01",
-    industry: "Technology", serviceIds: [svcFallback.service?.id],
+    industry: "Technology", serviceIds: [svcFallbackName],
   });
   const fallbackEngId = deterministicEngId("ticket", ticketFallback.ticket?.id);
   ok("the ticket's engagement exists before it is deliberately removed",
@@ -1176,11 +1186,12 @@ console.log("\n== the picker one screen before openProject names an internal quo
   // REGRESSION GUARD — a ticket-headed approved quotation still shows its
   // client in the picker, exactly as before this fix (that path was never
   // broken; only the internal-quotation branch above was).
+  const svcPickerTicketName = `Picker Ticket ${rand()}`;
+  await updateStudio(studio.id, { serviceActions: [svcPickerTicketName] });
   const salesForPickerTicket = await salesContext(owner, slug);
-  const svcPickerTicket = await createService(salesForPickerTicket, { name: `Picker Ticket ${rand()}` });
   const pickerTicket = await createTicket(salesForPickerTicket, {
     title: "Ticket-headed picker row", clientName: `Picker Ticket Client ${rand()}`, deadline: "2026-12-01",
-    industry: "Technology", serviceIds: [svcPickerTicket.service?.id],
+    industry: "Technology", serviceIds: [svcPickerTicketName],
   });
   const pickerRfq = await requestTicketRfq(salesForPickerTicket, { ticketId: pickerTicket.ticket?.id });
   const techForPickerTicket = await technicalContext(owner, slug);
@@ -1425,16 +1436,16 @@ console.log("\n== an RFQ tells the people who will quote it");
 // right to quote (technical.quotations.create), not a flag — the leave-approver
 // shape — and the raiser is never told, since raising it is how they know.
 {
-  const salesOwner = await salesContext(owner, slug);
   // Member holds no Technical right by default, so give it the Admin role for
   // this check — it is the second person who can quote, beside the owner who
   // raises — and hand it back after.
   await updateCollaborator(studio.id, member.collaborator.id, { roleIds: [ADMIN_ROLE_ID] });
 
-  const svc = await createService(salesOwner, { name: "Handoff" });
+  await updateStudio(studio.id, { serviceActions: ["Handoff"] });
+  const salesOwner = await salesContext(owner, slug);
   const tk = await createTicket(salesOwner, {
     title: "Quote this", clientName: "Bell Co", deadline: "2026-12-01",
-    industry: "Technology", serviceIds: [svc.service?.id],
+    industry: "Technology", serviceIds: ["Handoff"],
   });
   const asked = await requestTicketRfq(salesOwner, { ticketId: tk.ticket?.id });
   ok("an RFQ is raised", !!asked.rfq, JSON.stringify(asked.error));
@@ -1463,11 +1474,11 @@ console.log("\n== raising a revision closes the quotation it revises");
 // unapproved, which is right for a person declaring a document final and wrong
 // for this — superseding is not approving.
 {
+  await updateStudio(studio.id, { serviceActions: ["Revisions"] });
   const sales = await salesContext(owner, slug);
-  const service = await createService(sales, { name: "Revisions" });
   const made = await createTicket(sales, {
     title: "Revise the quotation", clientName: "Beta Works", deadline: "2026-12-01",
-    industry: "Technology", serviceIds: [service.service?.id],
+    industry: "Technology", serviceIds: ["Revisions"],
   });
 
   const first = await requestTicketRfq(sales, { ticketId: made.ticket?.id });
@@ -2893,13 +2904,13 @@ console.log("\n== fields are carried, not copied, and only where they are allowe
   ok("a legal field resolves to what the studio typed", values["legal.vat-number"] === "3001234567", values["legal.vat-number"]);
 
   // ---- binding ----
-  // A ticket needs a service from the studio's own catalogue, so the fixture
-  // builds one the way Sales does rather than posting an empty list.
+  // A ticket needs a service from the studio's own Service Actions, so the
+  // fixture seeds the pool directly rather than posting an empty list.
+  await updateStudio(studio.id, { serviceActions: ["Control systems"] });
   const salesCtx = await salesContext(owner, slug);
-  const svc = await createService(salesCtx, { name: "Control systems" });
   const ticket = await createTicket(salesCtx, {
     title: "New control room", clientName: "Acme Industrial", deadline: "2026-12-01",
-    industry: "Oil & Gas", serviceIds: [svc.service?.id || svc.id], contactName: "Sara Idris",
+    industry: "Oil & Gas", serviceIds: ["Control systems"], contactName: "Sara Idris",
   });
   if (ticket.error) {
     ok("fixture: a ticket to bind to", false, ticket.error);
@@ -3151,10 +3162,13 @@ console.log("\n== a sales ticket can finally say what became of it");
   }
 
   // A ticket that never got that far says null rather than inventing something.
-  const svc = await createService(sales, { name: "Standalone" });
-  const fresh = await createTicket(sales, {
+  // Re-fetched after the write: `sales` above snapshotted `studio` before this
+  // seeds the pool, and createTicket reads serviceActions off that snapshot.
+  await updateStudio(studio.id, { serviceActions: ["Standalone"] });
+  const salesFresh = await salesContext(owner, slug);
+  const fresh = await createTicket(salesFresh, {
     title: "Nothing downstream yet", clientName: "Acme", deadline: "2027-01-01",
-    industry: "Technology", serviceIds: [svc.service?.id],
+    industry: "Technology", serviceIds: ["Standalone"],
   });
   const again = await listTickets(sales);
   const bare = again.find((t) => t.id === fresh.ticket.id);
