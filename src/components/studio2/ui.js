@@ -435,7 +435,7 @@ export function ScatterChart({ points, height = 200, ariaLabel, emptyLabel }) {
       <text x={width - padR} y={height - 8} textAnchor="end" className="fill-current text-[9px] opacity-50">{tr.newest}</text>
       {points.map((p, i) => (
         <g key={i}>
-          <title>{p.label ? `${p.label}: ${p.y} days` : `${p.y} days`}</title>
+          <title>{p.label ? `${p.label}: ${tr.nDaysTooltip(p.y)}` : tr.nDaysTooltip(p.y)}</title>
           <circle cx={sx(p.x)} cy={sy(p.y)} r="4" fill="currentColor" opacity="0.7" />
         </g>
       ))}

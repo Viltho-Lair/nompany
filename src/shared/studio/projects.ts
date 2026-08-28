@@ -79,6 +79,11 @@ type Strings = CommonStrings & {
   main: string;
   manager: string;
   model: string;
+  nEmergencyVisitsAllowed: (n: number) => string;
+  nHours: (n: number) => string;
+  nHoursPerPerson: (n: number) => string;
+  nOvertimeHoursLogged: (n: number) => string;
+  nVisitsScheduled: (n: number) => string;
   noApprovedQuotationsWaiting: string;
   noDataYet: string;
   noDepartmentsDepartmentSection: string;
@@ -289,6 +294,11 @@ const en: Strings = {
   main: "Main",
   manager: "Manager",
   model: "Model",
+  nEmergencyVisitsAllowed: (n: number) => `This contract allows ${n} emergency visit${n === 1 ? "" : "s"}.`,
+  nHours: (n: number) => `${n} hour${n === 1 ? "" : "s"}.`,
+  nHoursPerPerson: (n: number) => `${n} hour${n === 1 ? "" : "s"} per person.`,
+  nOvertimeHoursLogged: (n: number) => `${n} overtime hours logged`,
+  nVisitsScheduled: (n: number) => `${n} visit${n === 1 ? "" : "s"} scheduled in total`,
   noApprovedQuotationsWaiting: "There are no approved quotations waiting. Approve one in Technical and it will be selectable here.",
   noDataYet: "No data yet",
   noDepartmentsDepartmentSection: "No departments — a department is a section, and this studio has none switched on.",
@@ -499,6 +509,11 @@ const ar: Strings = {
   main: "الرئيسية",
   manager: "المدير",
   model: "الطراز",
+  nEmergencyVisitsAllowed: (n: number) => `يسمح هذا العقد بـ${n === 1 ? "زيارة طارئة واحدة" : n === 2 ? "زيارتين طارئتين" : n <= 10 ? `${n} زيارات طارئة` : `${n} زيارة طارئة`}.`,
+  nHours: (n: number) => `${n === 1 ? "ساعة واحدة" : n === 2 ? "ساعتان" : n <= 10 ? `${n} ساعات` : `${n} ساعة`}.`,
+  nHoursPerPerson: (n: number) => `${n === 1 ? "ساعة واحدة" : n === 2 ? "ساعتان" : n <= 10 ? `${n} ساعات` : `${n} ساعة`} لكل شخص.`,
+  nOvertimeHoursLogged: (n: number) => `${n} ساعة إضافية مسجّلة`,
+  nVisitsScheduled: (n: number) => `إجمالًا ${n === 1 ? "زيارة واحدة مجدولة" : n === 2 ? "زيارتان مجدولتان" : n <= 10 ? `${n} زيارات مجدولة` : `${n} زيارة مجدولة`}`,
   noApprovedQuotationsWaiting: "لا توجد عروض أسعار معتمدة بالانتظار. اعتمد واحدًا في القسم الفني ليصبح قابلًا للاختيار هنا.",
   noDataYet: "لا توجد بيانات بعد",
   noDepartmentsDepartmentSection: "لا توجد أقسام — القسم هو قطاع، ولا يوجد أي قطاع مفعّل في هذا الاستوديو.",

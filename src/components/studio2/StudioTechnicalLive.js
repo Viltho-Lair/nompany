@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { technicalDict, liveColumnLabel } from "@/shared/studio/technical";
+import { technicalDict, liveColumnLabel, leadDisplay } from "@/shared/studio/technical";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -54,7 +54,7 @@ export default function StudioTechnicalLive({ studio }) {
     if (key === "createdAt" || key === "completedAt") return String(q[key] || "").slice(0, 10) || "—";
     if (key === "total") return money(q.total);
     if (key === "revision") return Number(q.revision) > 1 ? `Rev ${q.revision}` : "—";
-    if (key === "leadLabel") return q.leadLabel || tr.internal;
+    if (key === "leadLabel") return leadDisplay(tr, q.leadLabel);
     return q[key] === "" || q[key] == null ? "—" : String(q[key]);
   };
 
@@ -76,7 +76,7 @@ export default function StudioTechnicalLive({ studio }) {
           <div className="min-w-0">
             <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">{tr.technicalLiveView}</h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
-              {studio.name} · {data ? `${data.quotations.length} quotation${data.quotations.length === 1 ? "" : "s"}` : "loading"}
+              {studio.name} · {data ? tr.nQuotations(data.quotations.length) : tr.loading}
               {" · "}refreshes every {REFRESH_MS / 1000}s
               {lastFetched && ` · last ${fmtTime(lastFetched)}`}
             </p>

@@ -63,7 +63,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
         data.error === "already-decided" ? tr.requestAlreadyHandled
         // The package sets the ceiling, so the message says what to do about it
         // rather than just refusing.
-        : data.error === "member-limit" ? `Your package allows ${data.limit} member${data.limit === 1 ? "" : "s"}. Upgrade, or remove someone first.`
+        : data.error === "member-limit" ? tr.nMembersAllowed(data.limit)
         : tr.couldnComplete);
     }
     load();
@@ -243,7 +243,7 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
             {isOwner ? tr.owner : isAdminNow ? tr.admin : held ? held.name : tr.noRole}
             {person.overrideCount > 0 && (
               <span className="ms-1.5 text-amber-700 dark:text-amber-300">
-                +{person.overrideCount} exception{person.overrideCount === 1 ? "" : "s"}
+                {tr.nExceptions(person.overrideCount)}
               </span>
             )}
             {tr.joinedSuffix2}{fmtDate(person.createdAt)}

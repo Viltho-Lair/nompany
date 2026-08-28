@@ -765,7 +765,7 @@ function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }
       <Field label={tr.reason} as="textarea" className="mt-4" value={form.reason} onChange={(v) => setForm((f) => ({ ...f, reason: v }))} />
 
       <p className={`mt-3 text-xs ${backwards ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
-        {backwards ? tr.endDateBeforeStart : days > 0 ? `That is ${days} day${days === 1 ? "" : "s"}.` : "Pick a start date."}
+        {backwards ? tr.endDateBeforeStart : days > 0 ? tr.thatIsNDays(days) : tr.pickStartDate}
       </p>
 
       <div className="mt-5 flex gap-3">

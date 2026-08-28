@@ -12,6 +12,7 @@ type Strings = CommonStrings & {
   docsExpiringDays: (days: number) => string;
   idPassportWithin: (days: number) => string;
   numbersEncrypted: string;
+  pickStartDate: string;
   roleHeldBy: (n: number) => string;
   accessHumanResourcesStudio: string;
   addCertification: string;
@@ -107,6 +108,7 @@ type Strings = CommonStrings & {
   studioKeepsModuleDashboards: string;
   studioSectionsWhereThey: string;
   submit: string;
+  thatIsNDays: (n: number) => string;
   to: string;
   type: string;
   unassigned: string;
@@ -126,6 +128,7 @@ const en: Strings = {
   docsExpiringDays: (days) => `Docs expiring · ${days}d`,
   idPassportWithin: (days) => `ID and passport within ${days} days, or lapsed`,
   numbersEncrypted: "Numbers are encrypted before they're stored, and only people who can manage HR can read them back. A stored number stays locked until you unlock it.",
+  pickStartDate: "Pick a start date.",
   roleHeldBy: (n) => `${n} ${n === 1 ? "person holds" : "people hold"} that role, so deleting it would take their access away — that's set on the access screen.`,
   accessHumanResourcesStudio: "You don't have access to Human Resources in this studio.",
   addCertification: "Add certification",
@@ -221,6 +224,7 @@ const en: Strings = {
   studioKeepsModuleDashboards: "This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar.",
   studioSectionsWhereThey: "The studio's sections, so this is where they work.",
   submit: "Submit",
+  thatIsNDays: (n: number) => `That is ${n} day${n === 1 ? "" : "s"}.`,
   to: "To",
   type: "Type",
   unassigned: "Unassigned",
@@ -240,6 +244,7 @@ const ar: Strings = {
   docsExpiringDays: (days) => `وثائق توشك على الانتهاء · ${days} يومًا`,
   idPassportWithin: (days) => `الهوية وجواز السفر خلال ${days} يومًا، أو منتهيان`,
   numbersEncrypted: "تُشفَّر الأرقام قبل حفظها، ولا يقرؤها إلا من يملك إدارة الموارد البشرية. ويبقى الرقم المحفوظ مقفلًا حتى تفتحه.",
+  pickStartDate: "اختر تاريخ بداية.",
   roleHeldBy: (n) => `${n === 1 ? "شخص واحد يحمل" : n === 2 ? "شخصان يحملان" : n <= 10 ? `${n} أشخاص يحملون` : `${n} شخصًا يحمل`} هذا الدور، فحذفه سيسلبهم صلاحياتهم — وذلك يُضبط في شاشة الصلاحيات.`,
   accessHumanResourcesStudio: "لا تملك صلاحية الوصول إلى الموارد البشرية في هذا الاستوديو.",
   addCertification: "إضافة شهادة",
@@ -335,6 +340,7 @@ const ar: Strings = {
   studioKeepsModuleDashboards: "يُبقي هذا الاستوديو لوحات معلومات الوحدات خلف صلاحية خاصة بها. الشاشات التي تحتها غير متأثرة — اختر واحدة من الشريط الجانبي.",
   studioSectionsWhereThey: "أقسام الاستوديو، وهي مكان عملهم.",
   submit: "إرسال",
+  thatIsNDays: (n: number) => `أي ${n === 1 ? "يوم واحد" : n === 2 ? "يومان" : n <= 10 ? `${n} أيام` : `${n} يومًا`}.`,
   to: "إلى",
   type: "النوع",
   unassigned: "غير مُسند",

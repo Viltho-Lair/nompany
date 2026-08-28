@@ -209,7 +209,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
                   {attention > 0 && (
                     <button type="button" onClick={() => send(tr.whatNeedsMyAttention)}
                       className="w-full rounded-xl bg-brand-50 px-3 py-2 text-start text-sm text-brand-700 transition-colors hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-200">
-                      You have {attention} notification{attention === 1 ? "" : "s"} waiting — ask me what needs your attention.
+                      {tr.nNotificationsWaiting(attention)}
                     </button>
                   )}
                   <p className="text-sm text-slate-500 dark:text-slate-400">{tr.novaScope}</p>

@@ -76,6 +76,9 @@ type Strings = CommonStrings & {
   map: string;
   message: string;
   minimiseChat: string;
+  nNotificationsWaiting: (n: number) => string;
+  nStars: (n: number) => string;
+  nTickets: (n: number) => string;
   newRfqOutstandingWait: string;
   noFinishedQuotationTicket: string;
   noQuotationRaisedAgainst: string;
@@ -225,6 +228,9 @@ const en: Strings = {
   map: "Map",
   message: "Message",
   minimiseChat: "Minimise chat",
+  nNotificationsWaiting: (n: number) => `You have ${n} notification${n === 1 ? "" : "s"} waiting — ask me what needs your attention.`,
+  nStars: (n: number) => `${n} star${n === 1 ? "" : "s"}`,
+  nTickets: (n: number) => `${n} ticket${n === 1 ? "" : "s"}`,
   newRfqOutstandingWait: "A new RFQ is outstanding — wait for the revised quotation before sending it up.",
   noFinishedQuotationTicket: "There is no finished quotation on this ticket to approve yet.",
   noQuotationRaisedAgainst: "No quotation has been raised against this ticket yet.",
@@ -374,6 +380,9 @@ const ar: Strings = {
   map: "الخريطة",
   message: "الرسالة",
   minimiseChat: "تصغير المحادثة",
+  nNotificationsWaiting: (n: number) => `لديك ${n === 1 ? "إشعار واحد" : n === 2 ? "إشعاران" : n <= 10 ? `${n} إشعارات` : `${n} إشعارًا`} بالانتظار — اسألني عمّا يحتاج انتباهك.`,
+  nStars: (n: number) => n === 1 ? "نجمة واحدة" : n === 2 ? "نجمتان" : n <= 10 ? `${n} نجوم` : `${n} نجمة`,
+  nTickets: (n: number) => n === 1 ? "تذكرة واحدة" : n === 2 ? "تذكرتان" : n <= 10 ? `${n} تذاكر` : `${n} تذكرة`,
   newRfqOutstandingWait: "هناك طلب عرض سعر جديد معلّق — انتظر عرض السعر المُعدَّل قبل رفعه.",
   noFinishedQuotationTicket: "لا يوجد عرض سعر مكتمل على هذه التذكرة لاعتماده بعد.",
   noQuotationRaisedAgainst: "لم يُرفع أي عرض سعر على هذه التذكرة بعد.",

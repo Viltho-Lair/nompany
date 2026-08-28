@@ -11,9 +11,14 @@ type Strings = CommonStrings & {
   clientStays: string;
   dealAppearsMoment: string;
   delete: string;
+  deleteDealAndRecords: (n: number) => string;
   deleteNamed: (what: string) => string;
+  deleteThisDeal: string;
   deletingThisDealDeletes: string;
+  iUnderstandDeleted: (what: string) => string;
   moreDealsFurtherDown: string;
+  nDeals: (n: number) => string;
+  nRecords: (n: number) => string;
   noStageYet: (what: string) => string;
   nothingBorrowed: string;
   nothingNoWorkYet: string;
@@ -76,9 +81,14 @@ const en: Strings = {
   clientStays: "The client stays. A client belongs to the studio, not to one deal.",
   dealAppearsMoment: "A deal appears here the moment it starts anywhere in the studio — a ticket, an RFQ, or a quotation raised on its own.",
   delete: "Delete",
+  deleteDealAndRecords: (n: number) => `Delete the deal and ${n} record${n === 1 ? "" : "s"}`,
   deleteNamed: (what) => `Delete ${what}`,
+  deleteThisDeal: "Delete this deal",
   deletingThisDealDeletes: "Deleting this deal deletes",
+  iUnderstandDeleted: (what: string) => `I understand ${what} will be permanently deleted, and that this cannot be undone.`,
   moreDealsFurtherDown: "More deals may be further down the list — this page just did not have any you have access to.",
+  nDeals: (n: number) => `${n} deal${n === 1 ? "" : "s"}`,
+  nRecords: (n: number) => `${n} record${n === 1 ? "" : "s"}`,
   noStageYet: (what) => `No ${what.charAt(0).toLowerCase() + what.slice(1)} yet.`,
   nothingBorrowed: "Nothing was borrowed from elsewhere — everything on this deal was raised on it.",
   nothingNoWorkYet: "Nothing — there is no work on this deal yet.",
@@ -141,9 +151,14 @@ const ar: Strings = {
   clientStays: "يبقى العميل. فالعميل ملك للاستوديو، لا لصفقة واحدة.",
   dealAppearsMoment: "تظهر الصفقة هنا لحظة بدئها في أي مكان من الاستوديو — تذكرة، أو طلب عرض سعر، أو عرض سعر أُنشئ وحده.",
   delete: "حذف",
+  deleteDealAndRecords: (n: number) => `احذف الصفقة و${n === 1 ? "سجلًا واحدًا" : n === 2 ? "سجلين" : n <= 10 ? `${n} سجلات` : `${n} سجلًا`}`,
   deleteNamed: (what) => `حذف ${what}`,
+  deleteThisDeal: "احذف هذه الصفقة",
   deletingThisDealDeletes: "حذف هذه الصفقة يحذف",
+  iUnderstandDeleted: (what: string) => `أفهم أن ${what} ستُحذف نهائيًا، وأن هذا لا يمكن التراجع عنه.`,
   moreDealsFurtherDown: "قد تكون هناك صفقات أخرى أسفل القائمة — هذه الصفحة لم يكن فيها ما تملك الوصول إليه فحسب.",
+  nDeals: (n: number) => n === 1 ? "صفقة واحدة" : n === 2 ? "صفقتان" : n <= 10 ? `${n} صفقات` : `${n} صفقة`,
+  nRecords: (n: number) => n === 1 ? "سجل واحد" : n === 2 ? "سجلان" : n <= 10 ? `${n} سجلات` : `${n} سجلًا`,
   noStageYet: (what) => `لا يوجد ${what} بعد.`,
   nothingBorrowed: "لم يُستعَر شيء من مكان آخر — كل ما على هذه الصفقة أُنشئ عليها.",
   nothingNoWorkYet: "لا شيء — لا عمل على هذه الصفقة بعد.",

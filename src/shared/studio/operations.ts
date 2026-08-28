@@ -17,6 +17,7 @@ type Strings = CommonStrings & {
   mClash: (from: string, to: string) => string;
   mInUse: (what: string) => string;
   mOnLeave: (kind: string, from: string, to: string) => string;
+  nShiftsOutside: (n: number) => string;
   showOnlyWorkingHours: string;
   soonestLapseWindow: (days: number) => string;
   accessOperationsStudio: string;
@@ -141,6 +142,7 @@ const en: Strings = {
   mClash: (from, to) => `They're already scheduled ${from}–${to} that day.`,
   mInUse: (what) => `Still used by ${what} — move those first.`,
   mOnLeave: (kind, from, to) => `They're on approved ${kind} leave ${from} – ${to}.`,
+  nShiftsOutside: (n: number) => `${n} shift${n === 1 ? "" : "s"} fall outside the hours shown`,
   showOnlyWorkingHours: "Show only working hours on the calendar",
   soonestLapseWindow: (days) => `Soonest to lapse first · window ${days}d`,
   accessOperationsStudio: "You don't have access to Operations in this studio.",
@@ -265,6 +267,7 @@ const ar: Strings = {
   mClash: (from, to) => `هو مجدول بالفعل من ${from} إلى ${to} في ذلك اليوم.`,
   mInUse: (what) => `لا يزال مستخدمًا من ${what} — انقلها أولًا.`,
   mOnLeave: (kind, from, to) => `هو في إجازة ${kind} معتمدة من ${from} إلى ${to}.`,
+  nShiftsOutside: (n: number) => `${n === 1 ? "وردية واحدة تقع" : n === 2 ? "ورديتان تقعان" : n <= 10 ? `${n} ورديات تقع` : `${n} وردية تقع`} خارج الساعات المعروضة`,
   showOnlyWorkingHours: "اعرض ساعات العمل فقط على التقويم",
   soonestLapseWindow: (days) => `الأقرب انتهاءً أولًا · نافذة ${days} يومًا`,
   accessOperationsStudio: "لا تملك صلاحية الوصول إلى العمليات في هذا الاستوديو.",

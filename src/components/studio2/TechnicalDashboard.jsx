@@ -75,7 +75,7 @@ export default function TechnicalDashboard({
         <StatTile label={tr.quotationsOut} value={out} />
         <StatTile
           label={tr.averageTurnaround}
-          value={turnaround === null ? "—" : <span className="num">{turnaround} day{turnaround === 1 ? "" : "s"}</span>}
+          value={turnaround === null ? "—" : <span className="num">{tr.nDays(turnaround)}</span>}
         />
         <StatTile label={tr.totalQuotationValue} value={amt(value.all)} />
       </StatRow>
@@ -153,7 +153,7 @@ export default function TechnicalDashboard({
           ) : (
             <div className="flex flex-col items-center justify-center py-4">
               <p className="num text-4xl font-800 text-slate-900 dark:text-white">{turnaround}</p>
-              <p className="mt-1 text-xs text-slate-400">days on average across {scatter.length} approved</p>
+              <p className="mt-1 text-xs text-slate-400">{tr.nDaysAcrossApproved(scatter.length)}</p>
               {scatter.length > 1 && (
                 <div className="mt-3 w-full text-emerald-500 dark:text-emerald-300">
                   <Sparkline data={scatter.map((s) => s.y)} color="rgb(var(--chart-2))" height={44} />

@@ -213,7 +213,7 @@ export default function ProjectsDashboard({
             </div>
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noSlaContractsYet2}</p>}
           {slas.length > 0 && (
-            <p className="mt-2 text-center text-xs text-slate-400 dark:text-slate-500">{vScheduled} visit{vScheduled === 1 ? "" : "s"} scheduled in total · {otHours} overtime hours logged</p>
+            <p className="mt-2 text-center text-xs text-slate-400 dark:text-slate-500">{tr.nVisitsScheduled(vScheduled)} · {tr.nOvertimeHoursLogged(otHours)}</p>
           )}
         </Widget>
 

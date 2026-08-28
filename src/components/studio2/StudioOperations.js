@@ -473,7 +473,7 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
         if (hidden.length === 0) return null;
         return (
           <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-amber-700 dark:border-white/5 dark:text-amber-300">
-            {hidden.length} shift{hidden.length === 1 ? "" : "s"} fall outside the hours shown
+            {tr.nShiftsOutside(hidden.length)}
             ({hidden.map((s) => `${s.alias} ${s.startTime}–${s.endTime}`).join(", ")}).
             Turn off &quot;working hours only&quot; in Settings to see them.
           </p>

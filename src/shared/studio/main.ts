@@ -4,6 +4,7 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // MAIN — the studio's front door, and its executive dashboard.
 
 type Strings = CommonStrings & {
+  exportCsv: string;
   loadFailed: string;
   welcome: string;
   welcomeNamed: (alias: string) => string;
@@ -49,6 +50,7 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  exportCsv: "Export CSV",
   loadFailed: "Couldn't load the overview.",
   welcome: "Welcome back",
   welcomeNamed: (alias) => `Welcome back, ${alias}`,
@@ -91,6 +93,7 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  exportCsv: "تصدير CSV",
   loadFailed: "تعذّر تحميل النظرة العامة.",
   welcome: "أهلًا بعودتك",
   welcomeNamed: (alias) => `أهلًا بعودتك يا ${alias}`,

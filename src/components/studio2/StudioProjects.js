@@ -128,7 +128,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
         : out.error === "already" ? tr.projectAlreadyExistsQuotation
         : out.error === "title" ? tr.giveName
         : out.error === "startDate" ? tr.startDateRequiredVisit
-        : out.error === "emergency-cap" ? `This contract allows ${out.cap} emergency visit${out.cap === 1 ? "" : "s"}.`
+        : out.error === "emergency-cap" ? tr.nEmergencyVisitsAllowed(out.cap)
         : out.error === "project" ? tr.pickProject
         : out.error === "date" ? tr.pickDate
         : out.error === "times" ? tr.endTimeMustAfter
@@ -793,7 +793,7 @@ function SlaVisits({ sla, canManage, onSave, onClose }) {
   function addEmergency() {
     setEmergencyError("");
     if (!emergencyDate) return setEmergencyError(tr.pickDateFirst);
-    if (emergency.length >= cap) return setEmergencyError(`This contract allows ${cap} emergency visit${cap === 1 ? "" : "s"}.`);
+    if (emergency.length >= cap) return setEmergencyError(tr.nEmergencyVisitsAllowed(cap));
     if (end && new Date(emergencyDate) > end) return setEmergencyError(`Date must be on or before the contract end (${slaDate(end)}).`);
     if (sla.startDate && new Date(emergencyDate) < new Date(sla.startDate)) {
       return setEmergencyError(`Date must be on or after the contract start (${slaDate(sla.startDate)}).`);
@@ -1071,7 +1071,7 @@ function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCance
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {hours > 0
-            ? <>{tr.thatIs} <span className="font-600">{hours}</span> hour{hours === 1 ? "" : "s"} per person.</>
+            ? <>{tr.thatIs} {tr.nHoursPerPerson(hours)}</>
             : tr.endTimeAfterStart}
         </p>
 
@@ -1146,7 +1146,7 @@ function EditOvertime({ record, projects, directory, onSave, onDelete, onCancel 
           <Field label={tr.to} type="time" value={f.to} onChange={(v) => setF((s) => ({ ...s, to: v }))} />
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          {hours > 0 ? <>{tr.thatIs} <span className="font-600">{hours}</span> hour{hours === 1 ? "" : "s"}.</> : "The end time has to be after the start time."}
+          {hours > 0 ? <>{tr.thatIs} {tr.nHours(hours)}</> : tr.endTimeAfterStart}
         </p>
       </div>
 

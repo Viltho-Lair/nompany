@@ -81,7 +81,7 @@ export default function StudioSalesLive({ studio }) {
           <div className="min-w-0">
             <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">{tr.salesLiveView}</h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
-              {studio.name} · {data ? `${data.tickets.length} ticket${data.tickets.length === 1 ? "" : "s"}` : "loading"}
+              {studio.name} · {data ? tr.nTickets(data.tickets.length) : tr.loading}
               {" · "}refreshes every {REFRESH_MS / 1000}s
               {lastFetched && ` · last ${fmtTime(lastFetched)}`}
             </p>

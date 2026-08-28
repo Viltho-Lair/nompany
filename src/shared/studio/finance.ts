@@ -40,6 +40,7 @@ type Strings = CommonStrings & {
   inService: string;
   mAlreadyDisposed: (date: string) => string;
   mOverpayment: (amount: string) => string;
+  nProjectsOf: (shown: number, total: number) => string;
   overdueCount: (n: number) => string;
   overdueSuffix: (n: number) => string;
   accessFinanceStudio: string;
@@ -290,6 +291,7 @@ const en: Strings = {
   inService: "In service",
   mAlreadyDisposed: (date) => `That asset was already disposed on ${date}.`,
   mOverpayment: (amount) => `That's more than the ${amount} still outstanding.`,
+  nProjectsOf: (shown: number, total: number) => `${shown} of ${total} project${total === 1 ? "" : "s"}.`,
   overdueCount: (n) => `Overdue · ${n}`,
   overdueSuffix: (n) => ` · ${n} overdue`,
   accessFinanceStudio: "You don't have access to Finance in this studio.",
@@ -540,6 +542,7 @@ const ar: Strings = {
   inService: "في الخدمة",
   mAlreadyDisposed: (date) => `سبق استبعاد هذا الأصل في ${date}.`,
   mOverpayment: (amount) => `هذا أكثر من ${amount} المتبقية المستحقة.`,
+  nProjectsOf: (shown: number, total: number) => `${shown} من ${total} ${total === 1 ? "مشروع" : total === 2 ? "مشروعين" : total <= 10 ? "مشاريع" : "مشروعًا"}.`,
   overdueCount: (n) => `متأخرة · ${n}`,
   overdueSuffix: (n) => ` · ${n} متأخرة`,
   accessFinanceStudio: "لا تملك صلاحية الوصول إلى المالية في هذا الاستوديو.",

@@ -366,7 +366,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
           rather than added up. */}
       <footer className="border-t border-slate-200 bg-white px-5 py-3 dark:border-white/10 dark:bg-white/5">
         <div className="mx-auto max-w-5xl">
-          <p className="mb-1 text-xs text-slate-400">{lines} line{lines === 1 ? "" : "s"}</p>
+          <p className="mb-1 text-xs text-slate-400">{tr.nLines(lines)}</p>
           <dl className="ms-auto w-full max-w-sm space-y-1 text-sm">
             <div className="flex items-baseline gap-3">
               <dt className="text-slate-500 dark:text-slate-400">{tr.subtotal}</dt>

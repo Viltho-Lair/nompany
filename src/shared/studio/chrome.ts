@@ -15,6 +15,7 @@ type ChromeStrings = {
   clearFilters: string;
   chooseColumns: string;
   columnsHint: string;
+  nDaysTooltip: (n: number) => string;
   resetToDefault: string;
   done: string;
   close: string;
@@ -40,6 +41,7 @@ const en: ChromeStrings = {
   clearFilters: "Clear all filters",
   chooseColumns: "Choose columns",
   columnsHint: "The Actions column is always shown. Your choice is kept in this browser.",
+  nDaysTooltip: (n: number) => `${n} days`,
   resetToDefault: "Reset to default",
   done: "Done",
   close: "Close",
@@ -63,6 +65,7 @@ const ar: ChromeStrings = {
   clearFilters: "مسح كل عوامل التصفية",
   chooseColumns: "اختيار الأعمدة",
   columnsHint: "يظهر عمود الإجراءات دائمًا. ويُحفظ اختيارك في هذا المتصفح.",
+  nDaysTooltip: (n: number) => `${n === 1 ? "يوم واحد" : n === 2 ? "يومان" : n <= 10 ? `${n} أيام` : `${n} يومًا`}`,
   resetToDefault: "إعادة التعيين",
   done: "تم",
   close: "إغلاق",

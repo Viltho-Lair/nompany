@@ -168,7 +168,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
                   )}
                 </div>
                 <p className="mt-1 text-slate-400 dark:text-slate-500">
-                  Opened {l.accessCount || 0} time{l.accessCount === 1 ? "" : "s"}
+                  {tr.nTimesOpened(l.accessCount || 0)}
                   {l.lastAccessAt ? tr.lastAccessed(String(l.lastAccessAt).slice(0, 10)) : ""}
                 </p>
               </li>

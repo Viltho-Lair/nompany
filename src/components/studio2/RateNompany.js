@@ -61,7 +61,7 @@ export default function RateNompany() {
             <p className="text-sm text-slate-700 dark:text-slate-200">{tr.howWouldYouRate}</p>
             <div className="flex items-center gap-0.5" onMouseLeave={() => setHover(0)}>
               {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} type="button" aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                <button key={n} type="button" aria-label={tr.nStars(n)}
                   onMouseEnter={() => setHover(n)} onClick={() => rate(n)}
                   className="p-0.5 transition-transform hover:scale-110">
                   <Icon name="star"

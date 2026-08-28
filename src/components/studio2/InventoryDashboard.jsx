@@ -192,7 +192,7 @@ export default function InventoryDashboard({
         <Widget title={tr.outstandingOrder} hint={tr.valueStillExpectedArrive} locked={!visible("inventory.outstanding-on-order")} lockedWhat={tr.outstandingOrderValue}>
           {d.outstandingByOrder.length ? (
             <>
-              <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">{amt(d.outstandingValue)} outstanding across {d.outstandingByOrder.length} order{d.outstandingByOrder.length === 1 ? "" : "s"}.</p>
+              <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">{tr.outstandingAcross(amt(d.outstandingValue), tr.nOrders(d.outstandingByOrder.length))}</p>
               <BarList items={d.outstandingByOrder.slice(0, 8).map((o) => ({
                 label: `${o.reference}${o.vendorName ? ` · ${o.vendorName}` : ""}`,
                 value: d.outstandingByOrder[0].value > 0 ? Math.round((o.value / d.outstandingByOrder[0].value) * 100) : 0,

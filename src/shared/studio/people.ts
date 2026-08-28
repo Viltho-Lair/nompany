@@ -20,6 +20,7 @@ type Strings = CommonStrings & {
   canOnlyPutThings: string;
   canSuffix: string;
   cancel: string;
+  cannotTouchNAreas: (n: number) => string;
   check: string;
   checkWhatSomeoneCan: string;
   checking: string;
@@ -54,6 +55,8 @@ type Strings = CommonStrings & {
   loadingRoles: string;
   makeAdmin: string;
   member: string;
+  nExceptions: (n: number) => string;
+  nMembersAllowed: (n: number) => string;
   nPermissions: string;
   nameStudio: string;
   namedInHumanResources: string;
@@ -116,6 +119,7 @@ const en: Strings = {
   canOnlyPutThings: "You can only put things in a role that you can do yourself.",
   canSuffix: "can",
   cancel: "Cancel",
+  cannotTouchNAreas: (n: number) => `Cannot touch ${n} other area${n === 1 ? "" : "s"}.`,
   check: "Check",
   checkWhatSomeoneCan: "Check what someone can do",
   checking: "Checking…",
@@ -150,6 +154,8 @@ const en: Strings = {
   loadingRoles: "Loading roles…",
   makeAdmin: "Make admin",
   member: "Member",
+  nExceptions: (n: number) => `+${n} exception${n === 1 ? "" : "s"}`,
+  nMembersAllowed: (n: number) => `Your package allows ${n} member${n === 1 ? "" : "s"}. Upgrade, or remove someone first.`,
   nPermissions: "permissions",
   nameStudio: "Name in this studio",
   namedInHumanResources: "Named in Human Resources → Roles. Add one there and it appears here.",
@@ -212,6 +218,7 @@ const ar: Strings = {
   canOnlyPutThings: "لا يمكنك وضع صلاحيات في دور إلا إن كنت تملكها بنفسك.",
   canSuffix: "يستطيع",
   cancel: "إلغاء",
+  cannotTouchNAreas: (n: number) => `لا يمكنه المساس بـ${n === 1 ? "مجال آخر واحد" : n === 2 ? "مجالين آخرين" : n <= 10 ? `${n} مجالات أخرى` : `${n} مجالًا آخر`}.`,
   check: "تحقّق",
   checkWhatSomeoneCan: "تحقّق مما يستطيع شخص ما فعله",
   checking: "جارٍ التحقق…",
@@ -246,6 +253,8 @@ const ar: Strings = {
   loadingRoles: "جارٍ تحميل الأدوار…",
   makeAdmin: "تعيينه مسؤولًا",
   member: "عضو",
+  nExceptions: (n: number) => `+${n === 1 ? "استثناء واحد" : n === 2 ? "استثناءان" : n <= 10 ? `${n} استثناءات` : `${n} استثناءً`}`,
+  nMembersAllowed: (n: number) => `تسمح باقتك بـ${n === 1 ? "عضو واحد" : n === 2 ? "عضوين" : n <= 10 ? `${n} أعضاء` : `${n} عضوًا`}. رقِّ الباقة أو احذف أحدهم أولًا.`,
   nPermissions: "صلاحية",
   nameStudio: "الاسم في هذا الاستوديو",
   namedInHumanResources: "تُسمَّى في الموارد البشرية ← الأدوار. أضف واحدًا هناك ليظهر هنا.",

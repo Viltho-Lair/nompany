@@ -122,6 +122,7 @@ type Strings = CommonStrings & {
   mergeSelected: string;
   middle: string;
   middle2: string;
+  nTimesOpened: (n: number) => string;
   nameRoleDateRecorded: string;
   neverEdited: string;
   newDocument: string;
@@ -343,6 +344,7 @@ const en: Strings = {
   mergeSelected: "Merge selected",
   middle: "Middle",
   middle2: "Middle",
+  nTimesOpened: (n: number) => `Opened ${n} time${n === 1 ? "" : "s"}`,
   nameRoleDateRecorded: "Your name, role and the date are recorded either way. The image is decoration on top of that.",
   neverEdited: "Never edited",
   newDocument: "New document",
@@ -564,6 +566,7 @@ const ar: Strings = {
   mergeSelected: "ادمج المحدد",
   middle: "وسط",
   middle2: "وسط",
+  nTimesOpened: (n: number) => `فُتح ${n === 1 ? "مرة واحدة" : n === 2 ? "مرتين" : n <= 10 ? `${n} مرات` : `${n} مرة`}`,
   nameRoleDateRecorded: "يُسجَّل اسمك ودورك والتاريخ في الحالتين. والصورة زينة فوق ذلك.",
   neverEdited: "لم تُحرَّر قط",
   newDocument: "وثيقة جديدة",

@@ -88,6 +88,7 @@ type Strings = {
   microsoft: string;
   myCollaborations: string;
   myStudios: string;
+  nAttemptsLeft: (n: number) => string;
   name: string;
   newCodeOnWay: string;
   newPassword: string;
@@ -259,6 +260,7 @@ const en: Strings = {
   microsoft: "Microsoft",
   myCollaborations: "My Collaborations",
   myStudios: "My Studios",
+  nAttemptsLeft: (n: number) => `${n} attempt${n === 1 ? "" : "s"} left.`,
   name: "Name",
   newCodeOnWay: "A new code is on its way.",
   newPassword: "New password",
@@ -430,6 +432,7 @@ const ar: Strings = {
   microsoft: "Microsoft",
   myCollaborations: "تعاوناتي",
   myStudios: "استوديوهاتي",
+  nAttemptsLeft: (n: number) => `${n === 1 ? "محاولة واحدة متبقية" : n === 2 ? "محاولتان متبقيتان" : n <= 10 ? `${n} محاولات متبقية` : `${n} محاولة متبقية`}.`,
   name: "الاسم",
   newCodeOnWay: "رمز جديد في الطريق.",
   newPassword: "كلمة المرور الجديدة",

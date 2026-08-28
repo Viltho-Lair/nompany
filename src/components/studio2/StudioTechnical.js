@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { technicalDict, liveColumnLabel } from "@/shared/studio/technical";
+import { technicalDict, liveColumnLabel, leadDisplay } from "@/shared/studio/technical";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
 import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
@@ -555,7 +555,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, handlerName, 
     return {
       ...q,
       handlerLabel: handlerName(q.handledBy),
-      leadText: q.leadLabel || tr.internal,
+      leadText: leadDisplay(tr, q.leadLabel),
       commentText: comment?.text || "",
       _comment: comment,
       // New or Draft: work still owed. The stripe marks quotations nobody has

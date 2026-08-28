@@ -13,6 +13,7 @@ type Strings = CommonStrings & {
   countMovements: (n: number) => string;
   countOrders: (n: number) => string;
   countShipments: (n: number) => string;
+  est: string;
   joinAnd: (parts: string[]) => string;
   mInUse: (what: string) => string;
   mInsufficient: (have: string, needed: string) => string;
@@ -108,6 +109,10 @@ type Strings = CommonStrings & {
   modelNumber: string;
   movement: string;
   movementsTab: string;
+  nItemsOf: (shown: number, total: number) => string;
+  nOrders: (n: number) => string;
+  nRegisteredItems: (n: number) => string;
+  nWeeks: (n: number) => string;
   name: string;
   nameSkuModelVendor: string;
   noAirlinesYetWaybill: string;
@@ -137,6 +142,7 @@ type Strings = CommonStrings & {
   openProject: string;
   openPurchaseOrders: string;
   orderStatusBreakdown: string;
+  outstandingAcross: (amount: string, orders: string) => string;
   outstandingOrder: string;
   outstandingOrderValue: string;
   pasteWaybillNumberAbove: string;
@@ -226,6 +232,7 @@ const en: Strings = {
   countMovements: (n) => `${n} stock ${n === 1 ? "movement" : "movements"}`,
   countOrders: (n) => `${n} ${n === 1 ? "order" : "orders"}`,
   countShipments: (n) => `${n} ${n === 1 ? "shipment" : "shipments"}`,
+  est: "est.",
   joinAnd: (parts) => parts.join(" and "),
   mInUse: (what) => `Still referenced by ${what} — that history can't be erased.`,
   mInsufficient: (have, needed) => `Not enough stock — you have ${have} and asked for ${needed}.`,
@@ -321,6 +328,10 @@ const en: Strings = {
   modelNumber: "Model number",
   movement: "Movement",
   movementsTab: "Movements",
+  nItemsOf: (shown: number, total: number) => `${shown} of ${total} item${total === 1 ? "" : "s"}.`,
+  nOrders: (n: number) => `${n} order${n === 1 ? "" : "s"}`,
+  nRegisteredItems: (n: number) => `${n} registered item${n === 1 ? "" : "s"}`,
+  nWeeks: (n: number) => `${n} week${n === 1 ? "" : "s"}`,
   name: "Name",
   nameSkuModelVendor: "Name, SKU, model or vendor",
   noAirlinesYetWaybill: "No airlines yet. A waybill still tracks without one — it just shows the bare prefix.",
@@ -350,6 +361,7 @@ const en: Strings = {
   openProject: "Open the project",
   openPurchaseOrders: "Open purchase orders",
   orderStatusBreakdown: "Order status breakdown",
+  outstandingAcross: (amount: string, orders: string) => `${amount} outstanding across ${orders}.`,
   outstandingOrder: "Outstanding on order",
   outstandingOrderValue: "Outstanding order value",
   pasteWaybillNumberAbove: "Paste a waybill number above to start following a shipment. Its milestones build up as they are recorded.",
@@ -439,6 +451,7 @@ const ar: Strings = {
   countMovements: (n) => `${n === 1 ? "حركة مخزون واحدة" : n === 2 ? "حركتا مخزون" : n <= 10 ? `${n} حركات مخزون` : `${n} حركة مخزون`}`,
   countOrders: (n) => `${n === 1 ? "طلب واحد" : n === 2 ? "طلبان" : n <= 10 ? `${n} طلبات` : `${n} طلبًا`}`,
   countShipments: (n) => `${n === 1 ? "شحنة واحدة" : n === 2 ? "شحنتان" : n <= 10 ? `${n} شحنات` : `${n} شحنة`}`,
+  est: "تقديريًا",
   joinAnd: (parts) => parts.join(" و"),
   mInUse: (what) => `لا يزال مشارًا إليه من ${what} — لا يمكن محو ذلك السجل.`,
   mInsufficient: (have, needed) => `المخزون غير كافٍ — لديك ${have} وطلبت ${needed}.`,
@@ -534,6 +547,10 @@ const ar: Strings = {
   modelNumber: "رقم الطراز",
   movement: "الحركة",
   movementsTab: "الحركات",
+  nItemsOf: (shown: number, total: number) => `${shown} من ${total} ${total === 1 ? "صنف" : total === 2 ? "صنفين" : total <= 10 ? "أصناف" : "صنفًا"}.`,
+  nOrders: (n: number) => n === 1 ? "طلب واحد" : n === 2 ? "طلبان" : n <= 10 ? `${n} طلبات` : `${n} طلبًا`,
+  nRegisteredItems: (n: number) => n === 1 ? "صنف مسجّل واحد" : n === 2 ? "صنفان مسجّلان" : n <= 10 ? `${n} أصناف مسجّلة` : `${n} صنفًا مسجّلًا`,
+  nWeeks: (n: number) => n === 1 ? "أسبوع واحد" : n === 2 ? "أسبوعان" : n <= 10 ? `${n} أسابيع` : `${n} أسبوعًا`,
   name: "الاسم",
   nameSkuModelVendor: "الاسم أو رمز الصنف أو الطراز أو المورّد",
   noAirlinesYetWaybill: "لا توجد شركات طيران بعد. تُتتبَّع البوليصة بدونها — لكنها تعرض البادئة المجردة فقط.",
@@ -563,6 +580,7 @@ const ar: Strings = {
   openProject: "افتح المشروع",
   openPurchaseOrders: "أوامر شراء مفتوحة",
   orderStatusBreakdown: "توزيع حالات الطلبات",
+  outstandingAcross: (amount: string, orders: string) => `${amount} غير محصّل عبر ${orders}.`,
   outstandingOrder: "معلّق على الطلب",
   outstandingOrderValue: "قيمة الطلبات المعلّقة",
   pasteWaybillNumberAbove: "الصق رقم بوليصة أعلاه لبدء متابعة شحنة. وتتراكم محطاتها كلما سُجّلت.",

@@ -379,7 +379,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
           </ul>
         )}
         <p className="mt-5 text-xs text-slate-400">
-          Cannot touch {summary.cannot.length} other area{summary.cannot.length === 1 ? "" : "s"}.
+          {tr.cannotTouchNAreas(summary.cannot.length)}
         </p>
       </aside>
     </div>

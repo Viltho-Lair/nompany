@@ -1302,7 +1302,7 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
         </Dialog>
       )}
 
-      <p className="text-sm text-slate-500 dark:text-slate-400">{shown.length} of {rows.length} project{rows.length === 1 ? "" : "s"}.</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{tr.nProjectsOf(shown.length, rows.length)}</p>
 
       <section className={panel}>
         {shown.length === 0 ? (

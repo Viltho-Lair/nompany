@@ -196,7 +196,7 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
         <Empty title={tr.nothingRegisteredYet} body={tr.registerThingsBuyQuantities} />
       ) : (
         <>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{filtered.length} of {items.length} item{items.length === 1 ? "" : "s"}.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{tr.nItemsOf(filtered.length, items.length)}</p>
           <section className={panel}>
             {/* A Data Grid now — sortable, paged — reproducing the catalogue table
                 column for column: SKU + name + model, vendor, type (with the lead
@@ -378,7 +378,7 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
             be free-floating text now rides in the field's own hint line. */}
         <Field label={<>Type of item
             {f.itemType && f.deliveryWeeks !== "" && (
-              <span className="font-500 normal-case text-slate-400"> · est. {f.deliveryWeeks} week{Number(f.deliveryWeeks) === 1 ? "" : "s"}</span>
+              <span className="font-500 normal-case text-slate-400"> · {tr.est} {tr.nWeeks(Number(f.deliveryWeeks))}</span>
             )}</>}
           as="select" value={f.itemType} onChange={pickType}
           disabled={!f.vendorId || types.length === 0}
@@ -738,7 +738,7 @@ function Vendors({ rows, items, canManage, busy, send }) {
                   </span>
                 )}
               </div>
-              <p className="mt-2 text-xs text-slate-400">{itemCount[v.id] || 0} registered item{(itemCount[v.id] || 0) === 1 ? "" : "s"}</p>
+              <p className="mt-2 text-xs text-slate-400">{tr.nRegisteredItems(itemCount[v.id] || 0)}</p>
               {(v.itemTypes || []).length > 0 && (
                 <div className="mt-3">
                   <p className={microLabel}>{tr.supplies}</p>

@@ -76,7 +76,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const left = typeof data.attemptsLeft === "number" ? ` ${data.attemptsLeft} attempt${data.attemptsLeft === 1 ? "" : "s"} left.` : "";
+        const left = typeof data.attemptsLeft === "number" ? ` ${tr.nAttemptsLeft(data.attemptsLeft)}` : "";
         setError((MESSAGES[data.error] || tr.couldnVerifyCode) + (data.error === "invalid" ? left : ""));
         setDigits(["", "", "", "", "", ""]);
         refs.current[0]?.focus();

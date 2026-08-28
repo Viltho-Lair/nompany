@@ -21,6 +21,10 @@ type Strings = CommonStrings & {
   fullyAllocated: string;
   hiddenProjects: string;
   hide: string;
+  nDays: (n: number) => string;
+  nDaysAcrossApproved: (n: number) => string;
+  nLines: (n: number) => string;
+  nQuotations: (n: number) => string;
   noColumnsSelectedTechnical: string;
   nothingRegisteredItems: string;
   numberedAutomaticallyLeadSet: string;
@@ -234,6 +238,10 @@ const en: Strings = {
   fullyAllocated: "Fully allocated.",
   hiddenProjects: "Hidden projects",
   hide: "Hide",
+  nDays: (n: number) => `${n} day${n === 1 ? "" : "s"}`,
+  nDaysAcrossApproved: (n: number) => `days on average across ${n} approved`,
+  nLines: (n: number) => `${n} line${n === 1 ? "" : "s"}`,
+  nQuotations: (n: number) => `${n} quotation${n === 1 ? "" : "s"}`,
   noColumnsSelectedTechnical: "No columns are selected. Choose them in Technical → Settings.",
   nothingRegisteredItems: "Nothing in Registered Items yet — lines can still be typed, and typing one here does not register it.",
   numberedAutomaticallyLeadSet: "The quotation is numbered automatically and its lead is set to",
@@ -447,6 +455,10 @@ const ar: Strings = {
   fullyAllocated: "مخصّص بالكامل.",
   hiddenProjects: "المشاريع المخفية",
   hide: "إخفاء",
+  nDays: (n: number) => n === 1 ? "يوم واحد" : n === 2 ? "يومان" : n <= 10 ? `${n} أيام` : `${n} يومًا`,
+  nDaysAcrossApproved: (n: number) => `في المتوسط عبر ${n} معتمد`,
+  nLines: (n: number) => n === 1 ? "بند واحد" : n === 2 ? "بندان" : n <= 10 ? `${n} بنود` : `${n} بندًا`,
+  nQuotations: (n: number) => n === 1 ? "عرض سعر واحد" : n === 2 ? "عرضا سعر" : n <= 10 ? `${n} عروض أسعار` : `${n} عرض سعر`,
   noColumnsSelectedTechnical: "لم تُختَر أي أعمدة. اخترها في القسم الفني ← الإعدادات.",
   nothingRegisteredItems: "لا شيء في الأصناف المسجّلة بعد — ما زال بالإمكان كتابة البنود، وكتابة بند هنا لا تسجّله.",
   numberedAutomaticallyLeadSet: "يُرقَّم عرض السعر تلقائيًا ويُضبط مرجعه على",
@@ -679,4 +691,24 @@ export function liveColumnLabel(tr: Strings, key: string, stored: string): strin
   const k = LIVE_COLUMNS[key];
   const value = k ? tr[k] : undefined;
   return typeof value === "string" ? value : stored;
+}
+
+// THE LEAD IS EITHER A REFERENCE OR A TOKEN, and only one of them is words.
+// `leadLabel` arrives as `t.ticketRef || LEAD_INTERNAL` (modules/technical/
+// quotations), so it is a ticket reference — the tenant's own data, never
+// translated — or the fixed token "Internal", which the code defines and
+// nobody typed. Display only: what is stored, compared and returned by the API
+// does not change, which is the same rule `statusLabel` follows.
+//
+// THE TOKEN IS REPEATED HERE RATHER THAN IMPORTED. `LEAD_INTERNAL` lives in a
+// server module, and importing it would pull the technical module into a client
+// chunk; `statuses.ts` repeats its tokens for exactly that reason. If the token
+// is ever renamed, this is the second place.
+//
+// An empty lead reads as internal too, which is what the `|| tr.internal` at
+// both call sites was reaching for before it was unreachable.
+export function leadDisplay(tr: Strings, stored: unknown): string {
+  const token = stored == null ? "" : String(stored);
+  if (!token || token === "Internal") return tr.internal;
+  return token;
 }

@@ -204,7 +204,7 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
               {openId ? (block?.ref || tr.engagementSingular) : tr.engagementsPlural}
             </h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
-              {openId ? tr.oneDealEveryStage : (list ? `${list.engagements.length} deal${list.engagements.length === 1 ? "" : "s"}` : "loading")}
+              {openId ? tr.oneDealEveryStage : (list ? tr.nDeals(list.engagements.length) : tr.loading)}
             </p>
           </div>
         </div>
@@ -655,8 +655,11 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
                     className="mt-0.5 h-4 w-4 shrink-0 accent-rose-600"
                   />
                   <span>
-                    I understand {total ? <><span className="num font-700">{total}</span> record{total === 1 ? "" : "s"}</> : "this deal"} will be
-                    permanently deleted, and that this cannot be undone.
+                    {/* ONE SENTENCE, not three fragments around an expression.
+                        Arabic does not put the verb and the object where English
+                        does, so a sentence split at its grammar can only ever be
+                        translated word by word. */}
+                    {tr.iUnderstandDeleted(total ? tr.nRecords(total) : tr.thisDeal)}
                   </span>
                 </label>
               )}
@@ -674,7 +677,7 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
                 disabled={!understood || busy || !impact}
                 onClick={remove}
               >
-                {busy ? tr.deleting : total ? `Delete the deal and ${total} record${total === 1 ? "" : "s"}` : "Delete this deal"}
+                {busy ? tr.deleting : total ? tr.deleteDealAndRecords(total) : tr.deleteThisDeal}
               </button>
             )}
           </div>
