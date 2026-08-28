@@ -120,7 +120,7 @@ import {
 // PHASE 1b-i DUAL-WRITE: createTicket mints the engagement layer as a
 // best-effort side effect, reusing the backfill's own clustering.
 import { deterministicEngId } from "@/platform/db/keys";
-import { readEngagementView, attachToTicketEngagement, readEngagement } from "@/platform/db/engagement";
+import { readEngagementView, readEngagement, engagementOf } from "@/platform/db/engagement";
 // THE ENGAGEMENTS VIEW (Task 6): the read layer that assembles a deal from
 // the layer above, exercised end to end against a real seeded studio in the
 // spine block below — the pure permission filter (visibleStageTypes) already
@@ -163,6 +163,21 @@ import {
   testDeletingADealDoesNotDeleteItsClient, testASharedClientSurvivesEitherDeal,
   testKeptRecordsAreDetachedNotDeleted, testEngagementImpactSplitsDeletedFromSurviving,
 } from "./engagement-delete.mjs";
+// A PROJECT'S CHILDREN (this increment). Same standalone-runner shape as the
+// six modules above — importing it here pulls in only the exported test
+// functions, run explicitly further down through the same try/catch adapter.
+// The create and delete VERBS themselves (createInvoice/removeInvoice, the two
+// sheets openProject draws up) are exercised end to end against the seeded
+// studio further up; this module covers the two primitives they share, which
+// need no studio at all.
+import {
+  testAChildResolvesItsDealFromItsProject, testAChildRaisedOnAProjectJoinsTheDeal,
+  testEveryRowOfOneActionJoinsTheSameDeal,
+  testARecordWithNoProjectAttachesToNothingAndDoesNotThrow,
+  testASwallowedAttachNeverFailsTheCreate,
+  testDetachingAChildLeavesTheRestOfTheDealIntact,
+  testDetachingARecordThatNeverAttachedIsANoOp,
+} from "./engagement-children.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -586,6 +601,15 @@ console.log("\n== the handler is carried, never copied");
     (opened.sheets || []).every((s) => s.quotationId === conv.quotation?.id && s.ticketId === made.ticket?.id
       && s.rfqId === asked.rfq?.id && s.projectId === opened.project?.id),
     JSON.stringify(opened.sheets?.[0]));
+  // ...AND BOTH ARE IN THE DEAL. A sheet is `onDelete: "cascade"` — the deal
+  // owns it — but nothing attached one until this increment, so a deal reported
+  // no sheets and deleting it left both behind.
+  {
+    const withSheets = await readEngagementView(studio.id, engId);
+    ok("...and both sheets join the deal the project belongs to",
+      (opened.sheets || []).every((s) => (withSheets?.members.sheet || []).includes(s.id)),
+      JSON.stringify(withSheets?.members.sheet));
+  }
 
   // And the rows come back from the QUOTATION on every read, without prices.
   const composed = await listProjectSheets(await inventoryContext(owner, slug));
@@ -688,16 +712,22 @@ console.log("\n== the handler is carried, never copied");
   // already ticket -> rfq -> quotation -> project, with `engId` deterministic
   // off the ticket, so nothing here re-runs the approval/PO ceremony above.
   //
-  // An invoice, attached the way Phase 2's dual-write will once it exists
-  // (design's non-goals, spec §10) — attachToTicketEngagement is the shipped
-  // primitive it will call, so seeding through it proves the read layer
-  // against the exact shape that write will produce, not a hand-built one.
+  // An invoice, raised on the PROJECT and attached by createInvoice's own
+  // dual-write. This used to seed the membership by hand through
+  // attachToTicketEngagement, with a comment saying the write "will" exist —
+  // it does now, so the read layer below is proved against the shape the
+  // shipped create path actually produces rather than one this file built.
   const fin = await financeContext(owner, slug);
   const invoiceMade = await createInvoice(fin, {
-    clientName: "Acme", lines: [{ description: "Deposit", qty: 1, unitPrice: 500 }],
+    projectId: opened.project?.id, clientName: "Acme",
+    lines: [{ description: "Deposit", qty: 1, unitPrice: 500 }],
   });
   ok("an invoice can be raised against the chain", !!invoiceMade.invoice, JSON.stringify(invoiceMade.error));
-  await attachToTicketEngagement(studio.id, "invoice", invoiceMade.invoice.id, made.ticket.id);
+  // THE DEFECT THIS INCREMENT CLOSED: an invoice raised on a project was never
+  // attached to anything, so the deal it billed did not contain it.
+  ok("...and raising it on a project puts it IN the deal, with nothing told to attach it",
+    (await readEngagementView(studio.id, engId))?.members.invoice?.includes(invoiceMade.invoice?.id),
+    JSON.stringify((await readEngagementView(studio.id, engId))?.members));
 
   const ownerAccess = (await studioContext(owner, slug)).access;
 
@@ -1427,6 +1457,81 @@ console.log("\n== deleting a deal keeps the client it merely pointed at");
   // (5) Re-running is a clean no-op, not a throw (invariant 11).
   const again = await removeEngagement(engCtx, engId);
   ok("...and re-running the delete is a clean notfound", again.error === "notfound", JSON.stringify(again));
+}
+
+// ============================================================================
+console.log("\n== a project's children are in the deal, and leave it when they go");
+// THE GAP THIS INCREMENT CLOSED, end to end on real rows. invoice, sheet,
+// order, delivery, shipment and overtime are all `onDelete: "cascade"` — the
+// deal owns them — and not one of their create verbs ever attached anything.
+// They were registry members in name only: deleting a deal left its invoices
+// standing, and the card under-reported the deal by every child raised on its
+// project. The cascade was already correct; what was missing was the child
+// being IN the deal for the cascade to reach.
+{
+  const tech = await technicalContext(owner, slug);
+  const sequence = (tech.sequences || [])[0];
+  const made = await createQuotation(tech, {
+    sequenceId: sequence?.id, clientName: `Children Of The Deal ${rand()}`,
+    title: "Its children belong to it", industry: "Technology", deadline: "2026-12-01",
+    description: "Raised so it can be billed.",
+  });
+  ok("fixture: an internal quotation with its own engagement", !!made.quotation, JSON.stringify(made.error));
+  const quotationId = made.quotation?.id;
+  const engId = deterministicEngId("quotation", quotationId);
+  await updateQuotation(await technicalContext(owner, slug), quotationId, { status: "Approved" });
+  const opened = await openProject(await projectsContext(owner, slug), { quotationId });
+  ok("fixture: a project opened on it", !!opened.project, JSON.stringify(opened.error));
+  const projectId = opened.project?.id;
+
+  const fin = await financeContext(owner, slug);
+  const lines = [{ description: "Stage payment", qty: 1, unitPrice: 1000 }];
+  const raised = await createInvoice(fin, { projectId, clientName: "Billed Co", lines });
+  ok("an invoice raised on a project is created", !!raised.invoice, JSON.stringify(raised.error));
+  ok("...and joins the deal that project belongs to, resolved from the project alone",
+    (await readEngagementView(studio.id, engId))?.members.invoice?.includes(raised.invoice?.id),
+    JSON.stringify((await readEngagementView(studio.id, engId))?.members));
+
+  const access = (await studioContext(owner, slug)).access;
+  const engCtx = { studio, access };
+  const invoiceCard = ((await engagementBlock(engCtx, engId)).engagement?.cards || [])
+    .find((c) => c.type === "invoice");
+  ok("...and the engagement card counts it", invoiceCard?.present === true && invoiceCard?.count === 1,
+    JSON.stringify(invoiceCard));
+
+  // A RECORD WITH NO PROJECT HAS NO DEAL — a valid end state, not an error, and
+  // deliberately not parked in __unassigned (a promotion holding pen, not a
+  // home for something that never had a deal behind it).
+  const loose = await createInvoice(fin, { clientName: "No Deal Co", lines });
+  ok("an invoice raised with no project is still created", !!loose.invoice, JSON.stringify(loose.error));
+  ok("...and joins no deal at all", (await engagementOf(studio.id, "invoice", loose.invoice?.id)) === null,
+    JSON.stringify(await engagementOf(studio.id, "invoice", loose.invoice?.id)));
+
+  // ---- the invoice is deleted on its own ----------------------------------
+  const goneInvoice = await removeInvoice(await financeContext(owner, slug), raised.invoice?.id);
+  ok("removeInvoice removes the row", goneInvoice.ok === true, JSON.stringify(goneInvoice));
+  const afterInvoice = await readEngagementView(studio.id, engId);
+  ok("...and the invoice leaves the deal's members",
+    !(afterInvoice?.members.invoice || []).includes(raised.invoice?.id), JSON.stringify(afterInvoice?.members));
+  ok("...while the rest of the deal is exactly as it was",
+    afterInvoice?.singletons.project === projectId && (afterInvoice?.members.sheet || []).length === 2,
+    JSON.stringify({ project: afterInvoice?.singletons.project, sheets: afterInvoice?.members.sheet }));
+
+  // ---- the whole deal is deleted ------------------------------------------
+  const second = await createInvoice(fin, { projectId, clientName: "Billed Co", lines });
+  ok("fixture: a second invoice on the deal", !!second.invoice, JSON.stringify(second.error));
+  await lockEngagement(engCtx, engId, false);
+  const gone = await removeEngagement(engCtx, engId);
+  ok("the unlocked deal deletes", gone.ok === true, JSON.stringify(gone));
+  ok("DELETING THE DEAL DELETES THE INVOICE RAISED ON ITS PROJECT",
+    !(await listInvoices(await financeContext(owner, slug))).some((i) => i.id === second.invoice?.id),
+    JSON.stringify(gone.deleted));
+  ok("...and names it among what it deleted",
+    (gone.deleted || []).some((d) => d.type === "invoice" && d.id === second.invoice?.id),
+    JSON.stringify(gone.deleted));
+  ok("...and the invoice that belonged to no deal is untouched",
+    (await listInvoices(await financeContext(owner, slug))).some((i) => i.id === loose.invoice?.id),
+    "a record the deal never had cannot go with it");
 }
 
 // ============================================================================
@@ -4226,6 +4331,24 @@ console.log("\n== engagement delete path");
                    testDeleteEngagementIsIdempotent, testEveryStageDeclaresItsDisposition,
                    testDeletingADealDoesNotDeleteItsClient, testASharedClientSurvivesEitherDeal,
                    testKeptRecordsAreDetachedNotDeleted, testEngagementImpactSplitsDeletedFromSurviving]) {
+    try {
+      await t();
+      ok(t.name, true);
+    } catch (e) {
+      ok(t.name, false, e.message);
+    }
+  }
+}
+
+// ============================================================================
+console.log("\n== a project's children join and leave the deal");
+{
+  for (const t of [testAChildResolvesItsDealFromItsProject, testAChildRaisedOnAProjectJoinsTheDeal,
+                   testEveryRowOfOneActionJoinsTheSameDeal,
+                   testARecordWithNoProjectAttachesToNothingAndDoesNotThrow,
+                   testASwallowedAttachNeverFailsTheCreate,
+                   testDetachingAChildLeavesTheRestOfTheDealIntact,
+                   testDetachingARecordThatNeverAttachedIsANoOp]) {
     try {
       await t();
       ok(t.name, true);

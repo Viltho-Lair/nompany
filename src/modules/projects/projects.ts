@@ -15,6 +15,7 @@ import { PROJECT } from "@/platform/db/keys";
 import {
   readEngagement, attachRecord, setApprovedQuotation,
   detachRecord, engagementIdFor, engagementIdForLineage,
+  attachToProjectEngagement, detachFromItsEngagement,
 } from "@/platform/db/engagement";
 import { removeProjectPlans, progressByProject } from "@/modules/operations/planner";
 import { updateSection } from "@/platform/db/sections";
@@ -433,6 +434,17 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     }
   }
 
+  // THE SHEETS JOIN THE DEAL TOO — the project's own children, and the first of
+  // them to do so. `engId` is the id resolved at the top of this function and
+  // already claimed by the project above, so it is used directly rather than
+  // read back out of the project's reverse index: that would be a read for an
+  // answer this function is holding (the hop-count constraint, 20/08/2026).
+  // Guarded exactly like the project's own attach — drawing up a sheet must not
+  // fail because an index did, and the backfill is the reconciler.
+  try {
+    for (const sheet of sheets) await attachRecord(studio.id, engId, "sheet", String(sheet.id), now);
+  } catch { /* best-effort: reconciled later */ }
+
   await announceProjectManager(ctx, project, "");
   return { project: { ...project, progress: 0 }, sheets };
 }
@@ -821,6 +833,14 @@ export async function createOvertime(ctx: ProjectsContext, body: Record<string, 
       createdAt: new Date().toISOString(),
     }));
   }
+  // HOURS WORKED ON THIS DEAL'S PROJECT JOIN THE DEAL. One form is one action
+  // and several rows, so the engagement is resolved ONCE for the whole crew and
+  // every row joins the same member set — see attachToProjectEngagement, which
+  // takes the array for exactly this shape and swallows its own failures so a
+  // logged evening is never lost to an index write.
+  await attachToProjectEngagement(
+    studio.id, "overtime", created.map((o) => String(o.id)), projectId, String(created[0]?.createdAt || ""),
+  );
   return { overtimes: created };
 }
 
@@ -871,6 +891,9 @@ export async function removeOvertime(ctx: ProjectsContext, id: string) {
   const denied = requirePermission(ctx.access, "projects.overtimes.delete");
   if (denied) return denied;
 
+  // Engagement state first, the row second — the recoverable direction, and the
+  // mirror of the attach in createOvertime.
+  await detachFromItsEngagement(ctx.studio.id, "overtime", id);
   const removed = await Overtimes.remove({ studio: ctx.studio, section: ctx.overtimesSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }

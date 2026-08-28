@@ -15,6 +15,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
+import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
 import { parseAwb } from "./awb";
 import { AWB_STATUS_BY_CODE, summarizeMovements } from "./awbStatus";
 import type { InventoryContext, Airline, Shipment } from "./types";
@@ -161,6 +162,7 @@ export async function trackShipment(ctx: InventoryContext, body: Record<string, 
   const rows = await Shipments.find({ studio, section: awbSection });
   if (rows.some((s) => s.digits === parsed.digits)) return { error: "duplicate" };
 
+  const projectId = str(body?.projectId, 60);
   const shipment = await Shipments.create({ studio, section: awbSection }, {
     awbNumber: parsed.formatted,
     digits: parsed.digits,
@@ -171,11 +173,14 @@ export async function trackShipment(ctx: InventoryContext, body: Record<string, 
     destination: str(body?.destination, 8).toUpperCase(),
     pieces: count(body?.pieces),
     weightKg: qty(body?.weightKg),
-    projectId: str(body?.projectId, 60),
+    projectId,
     movements: [],
     trackedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
+  // FLOWN FOR THIS DEAL'S PROJECT. A waybill followed without one — freight the
+  // studio is tracking for itself — belongs to no deal and attaches to nothing.
+  await attachToProjectEngagement(studio.id, "shipment", shipment.id, projectId, shipment.createdAt as string);
   return { shipment: { ...shipment, ...summarizeMovements([]) } };
 }
 
@@ -227,6 +232,10 @@ export async function removeShipment(ctx: InventoryContext, id: string) {
   const denied = requirePermission(ctx.access, "inventory.awb.delete");
   if (denied) return denied;
 
+  // Engagement state first, the row second — the recoverable direction, and the
+  // mirror of the attach in trackShipment. The reverse index answers on the id
+  // alone, so this needs no read of the row the delete does not already make.
+  await detachFromItsEngagement(ctx.studio.id, "shipment", id);
   const removed = await Shipments.remove({ studio: ctx.studio, section: ctx.awbSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }

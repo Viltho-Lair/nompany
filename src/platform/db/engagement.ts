@@ -194,6 +194,78 @@ export async function engagementIdFor(
   return (await engagementOf(studioId, type, recId)) || engagementIdForLineage(lineage);
 }
 
+// WHICH DEAL A PROJECT'S CHILD JOINS — the project's, read from the reverse
+// index and from nowhere else.
+//
+// Deliberately NOT a second derivation off the ticket/quotation lineage. The
+// child rows here (an invoice, a sheet, a purchase order, a delivery note, a
+// waybill, an overtime line) carry a projectId and nothing more, while
+// openProject already resolved "the ticket's engagement, else the quotation's
+// own" through engagementIdForLineage and recorded the answer when it attached.
+// Asking rec-eng returns that same id by construction; a lineage derivation
+// repeated here could differ by a hair — an internal quotation's own engagement
+// versus its (absent) ticket's — and would attach the child to an engagement
+// nothing else uses, which reads exactly like a lost record.
+//
+// "" IS A REAL ANSWER, not an error: a record raised with no project, or one
+// raised against a project opened before the dual-writes landed, has no deal to
+// join. It is NOT parked in __unassigned — that bucket is a promotion holding
+// pen for a record waiting to be moved into a real engagement, not a home for
+// one that never had a deal behind it. The backfill reconciles the second case,
+// and running it is a decision of its own.
+export async function projectEngagementId(studioId: string, projectId: string): Promise<string> {
+  if (!projectId) return "";
+  return (await engagementOf(studioId, "project", projectId)) || "";
+}
+
+// ATTACH A PROJECT'S CHILD TO THE PROJECT'S DEAL. Never throws.
+//
+// The guard lives HERE rather than at each call site, which is the one place
+// this helper departs from attachToTicketEngagement's shape. Six create verbs
+// across four modules owe the identical two lines, and a guard that has to be
+// remembered six times is a guard that will be forgotten once — the forgotten
+// one turns a raised invoice into a 500 because a ZADD failed. A create that
+// succeeded must keep succeeding; a swallowed attach is healed by the backfill,
+// which is the reconciler.
+//
+// `recIds` accepts an array because ONE action can write several rows (a crew's
+// evening is one overtime form and one row per person): the engagement is
+// resolved once and every row joins the same set, rather than re-reading the
+// same reverse-index key per row.
+export async function attachToProjectEngagement(
+  studioId: string, type: string, recIds: string | string[], projectId: string, createdAt?: string,
+): Promise<string> {
+  const ids = (Array.isArray(recIds) ? recIds : [recIds]).filter(Boolean);
+  if (!ids.length) return "";
+  try {
+    const engId = await projectEngagementId(studioId, projectId);
+    if (!engId) return "";
+    for (const recId of ids) await attachRecord(studioId, engId, type, recId, createdAt);
+    return engId;
+  } catch { return ""; }   // best-effort: reconciled later
+}
+
+// THE MIRROR, AND IT IS A STEP OF ITS OWN. Never throws, for the same reason.
+//
+// Called BEFORE the row is removed: a crash between the two leaves a row with no
+// engagement state, which the backfill heals, rather than engagement state
+// pointing at a record that no longer exists, which nothing heals.
+//
+// It takes no lineage because a project's child has none of its own — the
+// reverse index attachRecord wrote is the only record of which deal it joined,
+// so a record that never attached detaches from nothing, which is a fact rather
+// than a failure.
+export async function detachFromItsEngagement(
+  studioId: string, type: string, recId: string,
+): Promise<string> {
+  if (!recId) return "";
+  try {
+    const engId = await engagementOf(studioId, type, recId);
+    if (engId) await detachRecord(studioId, engId, type, recId);
+    return engId || "";
+  } catch { return ""; }   // best-effort: reconciled later
+}
+
 // LOCK OR UNLOCK A DEAL. A compare-and-set on the root (Inv. 8), never a blind
 // overwrite, and false when there is no root to lock — "this engagement does
 // not exist" is a real answer, not an error worth throwing.

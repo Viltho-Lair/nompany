@@ -21,6 +21,7 @@ import { requirePermission } from "@/platform/access";
 import { isKnownCurrency } from "@/shared/currencies";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey } from "@/platform/db/sections";
+import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -709,13 +710,22 @@ async function ensureSheetsExist(
     if (!p.quotationId) continue;             // nothing to read rows back from
     for (const kind of ["main", "bulk"]) {
       if (have.has(`${p.id}:${kind}`)) continue;
-      await Sheets.create({ studio, section: sheetsSection }, {
+      const seeded = await Sheets.create({ studio, section: sheetsSection }, {
         projectId: p.id,
         quotationId: p.quotationId, rfqId: p.rfqId || "", ticketId: p.ticketId || "",
         kind,
         lines: {},
         createdAt: new Date().toISOString(),
       });
+      // A SHEET SEEDED HERE IS STILL A SHEET CREATED, so it joins its project's
+      // deal exactly as one drawn up by openProject does. Missing this would
+      // leave every project opened before sheets existed with two sheets that
+      // no engagement knows about — the same silent under-report this whole
+      // increment exists to remove, in the one create path that is easy to
+      // forget because it lives on a read.
+      await attachToProjectEngagement(
+        studio.id, "sheet", String(seeded.id), String(p.id), String(seeded.createdAt || ""),
+      );
     }
   }
 }
@@ -922,6 +932,11 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
     createdByCollaboratorId: ctx.collaborator.id,
     createdAt: new Date().toISOString(),
   });
+  // BOUGHT FOR THIS DEAL'S PROJECT, so it joins that deal. A purchase order
+  // raised with no project — stock bought for the shelf, or against a blanket
+  // vendor agreement — attaches to nothing, which is correct: there is no
+  // customer deal behind it to join.
+  await attachToProjectEngagement(ctx.studio.id, "order", order.id, projectId, order.createdAt as string);
   return { order };
 }
 
@@ -1053,6 +1068,10 @@ export async function removeOrder(ctx: InventoryContext, id: string) {
   if (!order) return { error: "notfound" };
   if ((order.lines || []).some((l) => Number(l.received || 0) > 0)) return { error: "received-already" };
 
+  // Engagement state first, the row second — the recoverable direction, and the
+  // mirror of the attach in createOrder.
+  await detachFromItsEngagement(studio.id, "order", id);
+
   const removed = await Orders.remove({ studio, section: sheetsSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }
@@ -1103,6 +1122,9 @@ export async function createDelivery(ctx: InventoryContext, body: Record<string,
     createdByCollaboratorId: ctx.collaborator.id,
     createdAt: new Date().toISOString(),
   });
+  // Issued to this deal's project — a delivery note always names one (refused
+  // above without it), so this always has a deal to look for.
+  await attachToProjectEngagement(ctx.studio.id, "delivery", delivery.id, projectId, delivery.createdAt as string);
   return { delivery };
 }
 
@@ -1157,6 +1179,10 @@ export async function removeDelivery(ctx: InventoryContext, id: string) {
   const delivery = deliveries.find((d) => d.id === id);
   if (!delivery) return { error: "notfound" };
   if (delivery.status === "Issued") return { error: "already-issued" };
+
+  // Engagement state first, the row second — the recoverable direction, and the
+  // mirror of the attach in createDelivery.
+  await detachFromItsEngagement(studio.id, "delivery", id);
 
   const removed = await Deliveries.remove({ studio, section: deliveriesSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
