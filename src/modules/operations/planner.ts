@@ -11,9 +11,6 @@ import { editJSON, editArr, getJSON, delKeys } from "@/platform/db/store";
 import { PLAN, PLAN_TEMPLATE, ID } from "@/platform/db/keys";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { TEMPLATES, instantiateTemplate } from "@/components/planner/lib/templates";
-import { templateWord } from "@/shared/studio/plannerTemplates";
-import { defaultLocale } from "@/shared/locale";
 
 export type PlanStatus = "on_track" | "at_risk" | "off_track" | "on_hold";
 
@@ -290,42 +287,15 @@ export type TemplateSummary = {
 
 const TEMPLATE_ACCENTS = ["#4573D2", "#5DA283", "#E8A33D", "#CD5B45", "#8B5CF6", "#0EA5E9"];
 
-// Seed the studio's templates from the built-in presets — instantiated into real
-// tasks so each opens in the planner exactly as the old dialog produced it. The
-// index is claimed atomically: a concurrent first-load reads the winner's list
-// and this one's would-be docs are simply never written.
-async function seedTemplates(studioId: string, locale = defaultLocale): Promise<TemplateSummary[]> {
-  const now = new Date().toISOString();
-  const w = (s: string) => templateWord(locale, s);
-  const built = TEMPLATES.map((t) => ({
-    id: ID.plan(),
-    doc: {
-      meta: { name: w(t.name), status: "on_track", owner: "", startDate: now.slice(0, 10), description: w(t.description) },
-      // The row names are stored on the task, so they are translated here
-      // rather than at render — see the header of shared/studio/plannerTemplates.
-      tasks: instantiateTemplate(t, new Date()).map((task) => ({ ...task, name: w(task.name) })),
-    },
-    summary: { name: w(t.name), description: w(t.description), accent: t.accent, updatedAt: now },
-  }));
-
-  let winner: TemplateSummary[] = [];
-  await editArr<TemplateSummary>(PLAN_TEMPLATE.index(studioId), (current) => {
-    if (current.length) { winner = current; return { next: current }; }
-    winner = built.map((b) => ({ id: b.id, ...b.summary }));
-    return { next: winner };
-  });
-
-  // Only the seeder that actually claimed the index writes the documents.
-  if (winner.length && winner[0].id === built[0].id) {
-    for (const b of built) await editJSON(PLAN_TEMPLATE.doc(studioId, b.id), () => ({ next: b.doc }));
-  }
-  return winner;
-}
-
-export async function listTemplates(studioId: string, locale = defaultLocale): Promise<TemplateSummary[]> {
+// NOTHING IS SEEDED ANY MORE. A studio used to be given six built-in presets on
+// first read; they were the planner's demo data and industry-specific, so they
+// were removed and a studio now starts with an empty library it fills itself.
+// The studios that were already seeded keep theirs — those are stored documents
+// they own by now — so this returns whatever the index holds, and an empty list
+// is a normal answer the template dialog already draws.
+export async function listTemplates(studioId: string): Promise<TemplateSummary[]> {
   const rows = await getJSON<TemplateSummary[]>(PLAN_TEMPLATE.index(studioId));
-  if (Array.isArray(rows) && rows.length) return rows;
-  return seedTemplates(studioId, locale);
+  return Array.isArray(rows) ? rows : [];
 }
 
 // The template document, plan-shaped, so StudioPlanner can edit it unchanged.

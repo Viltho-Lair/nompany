@@ -108,13 +108,14 @@ dictionary touches them. Two colleagues on opposite settings read the same ticke
 same names; they just reach them through their own menus.
 
 **Between those two there is a third case: STORED, but written by us.** A studio is seeded
-with five roles, four task-board columns and six planner templates. Nobody typed them — we
-did — but they are stored the moment the studio first reads them, and the studio renames
-them afterwards. Translating those on display would overwrite a rename, so they take the
-**studio's** language once, at seed time, and are data from then on. `starterRoles.ts` and
-`plannerTemplates.ts` hold those words; the board's four are in `board.ts`. The studio's
-language and not the reader's, deliberately: a per-person override must not let whoever
-opens the screen first decide what everyone else sees.
+with five roles and four task-board columns. Nobody typed them — we did — but they are
+stored the moment the studio first reads them, and the studio renames them afterwards.
+Translating those on display would overwrite a rename, so they take the **studio's**
+language once, at seed time, and are data from then on. `starterRoles.ts` holds those
+words; the board's four are in `board.ts`. The studio's language and not the reader's,
+deliberately: a per-person override must not let whoever opens the screen first decide
+what everyone else sees. (A third set lived here — six built-in planner templates, in
+`plannerTemplates.ts` — until the presets themselves were removed as demo data.)
 
 **Counts are functions, not templates.** English needs two forms and Arabic needs four in
 the ranges these screens reach (1, 2, 3–10, 11+). `${n} item(s)` is only correct in the
@@ -156,11 +157,6 @@ language it was written in, so every counted phrase is a function in the diction
   those are catalogue data a studio picks from rather than copy, and at least two of them
   (industries, cities) should arguably be driven from Studio settings instead of shipped —
   which is a product question, not a translation one.
-- **The six built-in planner presets are industry-specific and every studio gets all
-  six.** They are translated, and seeded per studio in the studio's language, so this is
-  not a language gap — but a construction firm being handed a two-week software sprint,
-  and eight fictional named resources (`RESOURCE_POOL`, currently unreferenced outside its
-  own file) sitting beside them, is worth deciding on separately.
 - **Dates are a separate axis and stay that way.** `fmtDate`/`fmtDateTime` read
   `dateLocale` from the tenant's company settings (default `en-GB` → dd/mm/yyyy), which the
   studio shell configures once client-side. Nothing connects it to the reader's language, so

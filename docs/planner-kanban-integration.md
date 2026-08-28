@@ -210,9 +210,11 @@ component serves both doors.
 - **Planner is light-only** inside nompany's dark shell — the source app is
   light-only, so `.planner-root` pins its light palette in both themes. Faithful;
   a real dark palette is a later choice.
-- **Assignee pool is the app's demo `RESOURCE_POOL`** for now — a plan seeds only
-  `{ meta, tasks }`; wiring the pool to the project's collaborators (like the
-  kanban `members` seam) is the "adapt later" step.
+- **There is no assignee pool.** It was the demo `RESOURCE_POOL` — eight invented
+  people with hourly rates — and it was removed along with the six demo
+  templates; a plan still seeds only `{ meta, tasks }`. Wiring the pool to the
+  project's collaborators (like the kanban `members` seam) is now the only way
+  a plan gets assignees, and it is still the "adapt later" step.
 - **RTL held at 41/41** — the planner's one dialog centring is an inline
   `transform`, not `left-1/2`, so it adds zero to the count.
 

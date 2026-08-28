@@ -20,9 +20,7 @@ import {
   wouldCreateCycle,
 } from '@/components/planner/lib/schedule/tree';
 import {
-  TEMPLATES,
   blankTask,
-  instantiateTemplate,
   newId,
 } from '@/components/planner/lib/templates';
 
@@ -125,7 +123,6 @@ interface PlannerState {
 
   /* project-level */
   setMeta: (patch: Partial<ProjectMeta>) => void;
-  loadTemplate: (templateId: string, startDate?: Date, words?: { untitledProject: string }) => void;
   resetProject: () => void;
   importTasks: (tasks: Task[]) => void;
 
@@ -302,27 +299,6 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
   setResources: (resources) => set({ resources }),
 
   setMeta: (patch) => set((s) => ({ meta: { ...s.meta, ...patch } })),
-
-  loadTemplate: (templateId, startDate, words) => {
-    const template = TEMPLATES.find((t) => t.id === templateId);
-    if (!template) return;
-    const anchor = startDate ?? new Date();
-    const tasks = template.rows.length
-      ? normalizeOrder(instantiateTemplate(template, anchor))
-      : [];
-    set((s) => ({
-      tasks,
-      meta: {
-        ...s.meta,
-        name:
-          template.id === 'blank' ? (words?.untitledProject ?? 'Untitled project') : template.name,
-        startDate: anchor.toISOString(),
-      },
-      selectedId: null,
-      past: [...s.past, { tasks: s.tasks }].slice(-HISTORY_LIMIT),
-      future: [],
-    }));
-  },
 
   resetProject: () =>
     set((s) => ({
