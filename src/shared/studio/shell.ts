@@ -77,6 +77,10 @@ type ShellStrings = {
   notAMemberBefore: string;
   notAMemberAfter: string;
   backToAccount: string;
+  // The planner's back link. It names where you came FROM, and the planner is
+  // reached from two places, so there are two.
+  backToProject: string;
+  backToPlanner: string;
 };
 
 const en: ShellStrings = {
@@ -126,6 +130,8 @@ const en: ShellStrings = {
   notAMemberBefore: "Ask an admin of ",
   notAMemberAfter: " to approve your request, then try again.",
   backToAccount: "Back to your account",
+  backToProject: "Project",
+  backToPlanner: "Planner",
 };
 
 const ar: ShellStrings = {
@@ -142,12 +148,12 @@ const ar: ShellStrings = {
   collapse: "طي",
   documentation: "دليل الاستخدام",
   studioSettings: "إعدادات الاستوديو",
-  // THE DOMAIN WORD, NOT THE DICTIONARY ONE. An "engagement" here is the whole
-  // spine of one piece of business — ticket, RFQ, quotation, project — which is
-  // what an Arabic-reading salesperson calls a صفقة. The literal "ارتباطات"
-  // means an obligation or a commitment and would send them looking for
-  // something else entirely.
-  engagements: "الصفقات",
+  // ارتباط, NOT صفقة. The two are different words for different things and the
+  // product uses both: an engagement is the SPINE that ties a ticket, an RFQ, a
+  // quotation and a project together, while a deal — صفقة — is the commercial
+  // bargain itself. Translating this one as الصفقات would collide with the word
+  // the sales screens need for their own.
+  engagements: "الارتباطات",
   people: "الأشخاص",
   peopleAndRequests: "الأشخاص والطلبات",
   // "الوصول" is the literal word and the wrong one: this screen grants rights,
@@ -189,6 +195,8 @@ const ar: ShellStrings = {
   notAMemberBefore: "اطلب من مسؤول ",
   notAMemberAfter: " الموافقة على طلبك، ثم حاول مرة أخرى.",
   backToAccount: "العودة إلى حسابك",
+  backToProject: "المشروع",
+  backToPlanner: "المخطِّط",
 };
 
 const shell = { en, ar };

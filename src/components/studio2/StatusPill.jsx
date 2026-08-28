@@ -1,3 +1,8 @@
+"use client";
+
+import { useStudioLocale } from "@/components/studio2/locale";
+import { statusLabel } from "@/shared/studio/statuses";
+
 // ONE status pill for the whole studio. Every department used to keep its own
 // little `const XXX_TONE = { … }` map beside the screen that rendered it —
 // Finance had three, Sales/Tasks/Technical/Projects/Operations/HR/Quality one
@@ -18,10 +23,18 @@
 // from the per-screen maps they replace, so a studio user sees no change. If you
 // need a NEW colour, it is a new semantic token conversation, not an edit here.
 //
-// Pure and hook-free, so it renders in a server or a client tree alike, and
-// carries no library. Shape/size classes live in `base` (default matches the
-// common `rounded-full px-2.5 py-1 text-xs font-600` pill); the tone supplies
-// only colour, so a caller with a smaller chip passes its own `base`.
+// IT USED TO BE PURE AND HOOK-FREE, and that was worth more than it turned out
+// to cost. Translation needs to know who is READING, and the reader's language
+// only exists in a client tree — so the component now takes a `use client`
+// directive and a context read. The trade was cheap because all fourteen call
+// sites were already client components; what it bought is every status word in
+// the studio translating from one place instead of fifty. The maps below and
+// `toneForStatus` are still pure values, so the day a server component wants the
+// colour without the pill, they move to their own module and nothing else moves.
+//
+// Shape/size classes live in `base` (default matches the common
+// `rounded-full px-2.5 py-1 text-xs font-600` pill); the tone supplies only
+// colour, so a caller with a smaller chip passes its own `base`.
 
 // tone name → colour classes. `info` and `progress` are intentionally identical
 // today (both the brand accent): every screen coloured "new/sent/opportunity"
@@ -117,11 +130,15 @@ export const PILL_BASE = "rounded-full px-2.5 py-1 text-xs font-600";
 // revision labels, the asset ladder, waybills). `title` is the hover tooltip a
 // couple of sites carry.
 export function StatusPill({ status, kind, label, title, base = PILL_BASE, className = "" }) {
+  const locale = useStudioLocale();
   const tone = toneForStatus(kind, status);
   const cls = [base, TONE_CLASS[tone], className].filter(Boolean).join(" ");
+  // An explicit `label` still wins: the caller that passes one is showing
+  // something the status token cannot say on its own (an asset's depreciation
+  // rung, a waybill's carrier text), and it has already translated it.
   return (
     <span className={cls} title={title || undefined}>
-      {label ?? status}
+      {label ?? statusLabel(kind, status, locale)}
     </span>
   );
 }

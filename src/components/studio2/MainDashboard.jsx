@@ -14,12 +14,15 @@ import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 import { drillHref } from "@/components/dashboard/drill";
 import { fmtDate } from "@/lib/format";
 import { toCSV, downloadCSV } from "@/components/dashboard/exportTable";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { mainDict } from "@/shared/studio/main";
 
-const NoData = ({ text = "No data yet." }) => (
+const NoData = ({ text }) => (
   <p className="py-8 text-center text-sm text-slate-400">{text}</p>
 );
 
 export default function MainDashboard({ slug, executive }) {
+  const t = mainDict(useStudioLocale());
   const visible = useWidgetVisible();
   const w = executive?.widgets || {};
   const activity = w["main.activity"] || [];
@@ -29,18 +32,18 @@ export default function MainDashboard({ slug, executive }) {
 
   return (
     <DashGrid>
-      <Widget title="Department activity" hint="New records, last 30 days" span={2}
-        locked={!visible("main.activity")} lockedWhat="Department activity">
+      <Widget title={t.departmentActivity} hint={t.departmentActivityHint} span={2}
+        locked={!visible("main.activity")} lockedWhat={t.departmentActivity}>
         {activity.length ? activity.map((d) => (
           <div key={d.section} className="mb-2">
             <a href={drillHref(slug, d.section)} className="text-sm text-muted-foreground">{d.section}</a>
             <Sparkline data={(d.series || []).map((s) => s.value)} />
           </div>
-        )) : <NoData text="No sections you can see yet." />}
+        )) : <NoData text={t.noSectionsVisible} />}
       </Widget>
 
-      <Widget title="Awaiting you" hint="Waiting on your action"
-        locked={!visible("main.awaiting-you")} lockedWhat="Awaiting you">
+      <Widget title={t.awaitingYou} hint={t.awaitingYouHint}
+        locked={!visible("main.awaiting-you")} lockedWhat={t.awaitingYou}>
         {queue.length ? (
           <>
             <ul>{queue.map((q) => (
@@ -52,29 +55,29 @@ export default function MainDashboard({ slug, executive }) {
             ))}</ul>
             <button type="button" className="mt-2 text-xs text-muted-foreground hover:underline"
               onClick={() => downloadCSV("awaiting-you.csv", toCSV(queue, [
-                { key: "label", header: "Item" },
-                { key: "section", header: "Section" },
-                { key: "kind", header: "Kind" },
-                { key: "at", header: "Date" },
+                { key: "label", header: t.item },
+                { key: "section", header: t.csvSection },
+                { key: "kind", header: t.csvKind },
+                { key: "at", header: t.date },
               ]))}>
-              Export CSV
+              {t.exportCsv}
             </button>
           </>
-        ) : <NoData text="Nothing is waiting on you." />}
+        ) : <NoData text={t.nothingWaiting} />}
       </Widget>
 
-      <Widget title="Activity ribbon" hint="All departments, last 30 days" span={2}
-        locked={!visible("main.event-ribbon")} lockedWhat="Activity ribbon">
+      <Widget title={t.activityRibbon} hint={t.activityRibbonHint} span={2}
+        locked={!visible("main.event-ribbon")} lockedWhat={t.activityRibbon}>
         {ribbon.length ? (
           <ChartFrame labels={ribbon.map((d, i) => (i % 5 === 0 ? d.label : ""))} height={120}>
             <AreaChart height={120} labels={ribbon.map((d) => d.label)}
-              series={[{ name: "Events", data: ribbon.map((d) => d.value), color: "rgb(var(--chart-1))" }]} />
+              series={[{ name: t.events, data: ribbon.map((d) => d.value), color: "rgb(var(--chart-1))" }]} />
           </ChartFrame>
-        ) : <NoData text="No recent activity." />}
+        ) : <NoData text={t.noRecentActivity} />}
       </Widget>
 
-      <Widget title="Headline trends" hint="This month vs last"
-        locked={!visible("main.headline-trend")} lockedWhat="Headline trends">
+      <Widget title={t.headlineTrends} hint={t.headlineTrendsHint}
+        locked={!visible("main.headline-trend")} lockedWhat={t.headlineTrends}>
         {trends.length ? (
           <>
             <ul>{trends.map((t) => (
@@ -85,15 +88,15 @@ export default function MainDashboard({ slug, executive }) {
             ))}</ul>
             <button type="button" className="mt-2 text-xs text-muted-foreground hover:underline"
               onClick={() => downloadCSV("headline-trends.csv", toCSV(trends, [
-                { key: "key", header: "Section" },
-                { key: "current", header: "This period" },
-                { key: "previous", header: "Prior period" },
-                { key: "deltaPct", header: "Change %" },
+                { key: "key", header: t.csvSection },
+                { key: "current", header: t.csvThisPeriod },
+                { key: "previous", header: t.csvPriorPeriod },
+                { key: "deltaPct", header: t.csvChangePct },
               ]))}>
-              Export CSV
+              {t.exportCsv}
             </button>
           </>
-        ) : <NoData text="No trend data yet." />}
+        ) : <NoData text={t.noTrendData} />}
       </Widget>
     </DashGrid>
   );

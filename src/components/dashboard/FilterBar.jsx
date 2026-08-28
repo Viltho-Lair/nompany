@@ -1,18 +1,20 @@
 "use client";
 import { useCallback } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { chromeDict } from "@/shared/studio/chrome";
 
 // A row of preset buttons. `value` is one of "month" | "quarter" | "year";
 // `onChange(preset)` lifts state to the dashboard, which reads the URL query.
 // Selected-pill classes mirror the segmented control in StudioTasks.js so the
 // dashboard's filter row reads as the same control family as the rest of the
 // studio, not a one-off.
-const PRESETS = [
-  { key: "month", label: "This month" },
-  { key: "quarter", label: "This quarter" },
-  { key: "year", label: "This year" },
-];
-
 export default function FilterBar({ value = "month", onChange }) {
+  const t = chromeDict(useStudioLocale());
+  const PRESETS = [
+    { key: "month", label: t.thisMonth },
+    { key: "quarter", label: t.thisQuarter },
+    { key: "year", label: t.thisYear },
+  ];
   const pick = useCallback((k) => onChange?.(k), [onChange]);
   return (
     <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">

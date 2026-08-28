@@ -5,6 +5,8 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
 import { panel, h2, sub, microLabel, money, fmtDate, StatTile, Empty } from "@/components/studio2/ui";
 import MainDashboard from "@/components/studio2/MainDashboard";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { mainDict } from "@/shared/studio/main";
 
 // MAIN — the studio's front door: what is happening across the whole place, for
 // the person looking at it.
@@ -14,17 +16,20 @@ import MainDashboard from "@/components/studio2/MainDashboard";
 // about a place they have no access to, and the API does not even read it.
 
 const FEED_ICON = { ticket: "ticket", quotation: "report", project: "blueprint", task: "checkDouble" };
-const FEED_WORD = { ticket: "Ticket", quotation: "Quotation", project: "Project", task: "Task" };
 
 export default function StudioMain({ slug }) {
+  const t = mainDict(useStudioLocale());
+  // The feed names the KIND of record that moved. A fixed four, defined by the
+  // code and not by any tenant, so they translate.
+  const FEED_WORD = { ticket: t.feedTicket, quotation: t.feedQuotation, project: t.feedProject, task: t.feedTask };
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/main`, { cache: "no-store" });
-    if (!res.ok) { setError("Couldn't load the overview."); return; }
+    if (!res.ok) { setError(t.loadFailed); return; }
     setData(await res.json());
-  }, [slug]);
+  }, [slug, t]);
   useEffect(() => { load(); }, [load]);
   // The front door reflects every desk, so it watches the busiest of them.
   useLiveUpdates(slug, "sales", load);
@@ -32,7 +37,7 @@ export default function StudioMain({ slug }) {
   useLiveUpdates(slug, "projects", load);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{t.loading}</p>;
 
   const { studio, me, headlines, recent, sections, nav, executive } = data;
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
@@ -40,14 +45,14 @@ export default function StudioMain({ slug }) {
   // Only the figures this person is entitled to. `null` means the section was
   // never read, so the tile simply is not here.
   const tiles = [
-    { key: "tasks", label: "Needs you", value: headlines.awaitingMe, tone: headlines.awaitingMe > 0 ? "text-brand-700 dark:text-brand-300" : "" },
-    { key: "sales-tickets", label: "Open tickets", value: headlines.openTickets },
-    { key: "technical-rfq", label: "Open RFQs", value: headlines.openRfqs },
-    { key: "technical-quotations", label: "Live quotations", value: headlines.liveQuotations },
-    { key: "projects-list", label: "Projects running", value: headlines.liveProjects },
-    { key: "finance-cash", label: "Outstanding", value: headlines.outstanding === null ? null : money(headlines.outstanding) },
-    { key: "inventory-stock", label: "Tracked items", value: headlines.lowStock },
-    { key: "hr-employees", label: "People", value: headlines.headcount },
+    { key: "tasks", label: t.needsYou, value: headlines.awaitingMe, tone: headlines.awaitingMe > 0 ? "text-brand-700 dark:text-brand-300" : "" },
+    { key: "sales-tickets", label: t.openTickets, value: headlines.openTickets },
+    { key: "technical-rfq", label: t.openRfqs, value: headlines.openRfqs },
+    { key: "technical-quotations", label: t.liveQuotations, value: headlines.liveQuotations },
+    { key: "projects-list", label: t.projectsRunning, value: headlines.liveProjects },
+    { key: "finance-cash", label: t.outstanding, value: headlines.outstanding === null ? null : money(headlines.outstanding) },
+    { key: "inventory-stock", label: t.trackedItems, value: headlines.lowStock },
+    { key: "hr-employees", label: t.headcount, value: headlines.headcount },
   ].filter((t) => t.value !== null && t.value !== undefined);
 
   // The top-level sections, as a way in. Sub-sections are reached from their
@@ -59,8 +64,8 @@ export default function StudioMain({ slug }) {
       <section className={panel}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className={h2}>{me.alias ? `Welcome back, ${me.alias}` : "Welcome back"}</h2>
-            <p className={sub}>What&apos;s happening across {studio.name} today.</p>
+            <h2 className={h2}>{me.alias ? t.welcomeNamed(me.alias) : t.welcome}</h2>
+            <p className={sub}>{t.today(studio.name)}</p>
           </div>
           <span className="text-sm font-500 text-slate-400 dark:text-slate-500">
             {fmtDate(new Date())}
@@ -69,7 +74,7 @@ export default function StudioMain({ slug }) {
 
         {tiles.length === 0 ? (
           <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-            Nothing has been shared with you yet. An admin can grant you sections from Access.
+            {t.nothingShared}
           </p>
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -82,9 +87,9 @@ export default function StudioMain({ slug }) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className={`${panel} lg:col-span-2`}>
-          <p className={microLabel}>Recent activity</p>
+          <p className={microLabel}>{t.recentActivity}</p>
           {recent.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">Nothing has moved yet.</p>
+            <p className="mt-2 text-sm text-slate-400">{t.nothingMoved}</p>
           ) : (
             <ul className="mt-2 divide-y divide-slate-100 dark:divide-white/5">
               {recent.map((r) => (
@@ -106,9 +111,9 @@ export default function StudioMain({ slug }) {
         </section>
 
         <section className={panel}>
-          <p className={microLabel}>Your sections</p>
+          <p className={microLabel}>{t.yourSections}</p>
           {entrances.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">None yet.</p>
+            <p className="mt-2 text-sm text-slate-400">{t.noneYet}</p>
           ) : (
             <div className="mt-2 space-y-1">
               {entrances.map((s) => (

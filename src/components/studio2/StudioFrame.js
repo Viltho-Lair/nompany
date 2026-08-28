@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { dirFor, locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import { shellDict } from "@/shared/studio/shell";
+import { StudioLocaleProvider } from "@/components/studio2/locale";
 import LangMenu from "@/components/LangMenu";
 // LOADED ONLY BY THE STUDIOS THAT NEED IT. The RTL cache pulls in
 // stylis-plugin-rtl and a second Emotion cache; imported eagerly it landed
@@ -351,6 +352,12 @@ export default function StudioFrame({
     // shares it. Boards subscribe through useLiveUpdates and never open a
     // connection of their own — see the note in LiveProvider about why that is
     // a hard requirement rather than a preference.
+    //
+    // THE LANGUAGE GOES DOWN AS CONTEXT, not as a prop. Every department screen
+    // and every dialog inside one needs it, most of them three or four levels
+    // below a component whose only prop is `slug` — see components/studio2/locale
+    // for why threading it would have been the wrong shape.
+    <StudioLocaleProvider locale={locale}>
     <LiveProvider slug={studio.slug}>
     {/* LANG AND DIR SIT HERE, NOT ON <html>.
         A studio's language is the tenant's, resolved from the studio record —
@@ -534,6 +541,7 @@ export default function StudioFrame({
     </Rtl>
     </div>
     </LiveProvider>
+    </StudioLocaleProvider>
   );
 }
 

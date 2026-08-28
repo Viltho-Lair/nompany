@@ -17,6 +17,7 @@ import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
 import { chatDisplayName } from "@/lib/chatConstants";
 import { studioLocale, preferredLocale, dirFor, UI_LANG_COOKIE } from "@/shared/i18n";
 import { shellDict } from "@/shared/studio/shell";
+import { StudioLocaleProvider } from "@/components/studio2/locale";
 import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import LiveProvider from "@/components/studio2/LiveProvider";
@@ -178,6 +179,21 @@ export default async function StudioPage({ params }) {
   // disarms every check downstream.
   const { studio, collaborator, access } = context;
 
+  // WHICH LANGUAGE THIS PERSON READS THE SHELL IN — resolved here, as soon as
+  // the studio record exists, because the full-screen screens below return
+  // before the shell is ever built and they need it too.
+  //
+  // The studio's own setting is the default — what the company was set up in —
+  // and a cookie the person set from the header menu overrides it. Resolved on
+  // the server so `lang`/`dir` and the dictionaries all ship in the first byte
+  // of HTML: a shell that mirrored itself after paint would flash the whole
+  // layout the wrong way round on every load.
+  //
+  // Costs no Redis hop: the studio record is already in hand and the cookie
+  // rode in on the request. See preferredLocale in shared/locale for why this
+  // is a cookie and not a field on the collaborator.
+  const locale = preferredLocale(uiLang, studioLocale(studio));
+
   // Tally the visit so the account overview can rank studios by how much this
   // person actually uses them. Fire-and-forget: ranking is a convenience, and a
   // failed tally must never cost the page a render or a millisecond of latency.
@@ -212,7 +228,11 @@ export default async function StudioPage({ params }) {
   // is available to every member regardless of section grants. Checked ahead of
   // the section lookup, so it wins over a section that happened to use the key.
   if (requested === "documentation") {
-    return <StudioDocs studio={{ name: studio.name, slug: studio.slug }} />;
+    return (
+      <FullScreen locale={locale}>
+        <StudioDocs studio={{ name: studio.name, slug: studio.slug }} />
+      </FullScreen>
+    );
   }
 
   // Sales Live view is full-screen too, so it also returns before the shell.
@@ -224,16 +244,20 @@ export default async function StudioPage({ params }) {
   // screen literally called "Live view" is the worst possible place for it.
   if (requested === "sales-live") {
     return (
-      <LiveProvider slug={studio.slug}>
-        <StudioSalesLive studio={{ name: studio.name, slug: studio.slug }} />
-      </LiveProvider>
+      <FullScreen locale={locale}>
+        <LiveProvider slug={studio.slug}>
+          <StudioSalesLive studio={{ name: studio.name, slug: studio.slug }} />
+        </LiveProvider>
+      </FullScreen>
     );
   }
   if (requested === "technical-live") {
     return (
-      <LiveProvider slug={studio.slug}>
-        <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />
-      </LiveProvider>
+      <FullScreen locale={locale}>
+        <LiveProvider slug={studio.slug}>
+          <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />
+        </LiveProvider>
+      </FullScreen>
     );
   }
 
@@ -246,6 +270,7 @@ export default async function StudioPage({ params }) {
   if (requested === "engagements") {
     if (!can(access, "engagements.view")) notFound();
     return (
+      <FullScreen locale={locale}>
       <LiveProvider slug={studio.slug}>
         {/* THE TWO ACTION RIGHTS ARE RESOLVED HERE, once, and handed down as
             flags — the same way canSeeEngagements and the Documents screen's
@@ -261,6 +286,7 @@ export default async function StudioPage({ params }) {
           canDelete={can(access, "engagements.delete")}
         />
       </LiveProvider>
+      </FullScreen>
     );
   }
 
@@ -288,15 +314,21 @@ export default async function StudioPage({ params }) {
     // exactly what it draws, so there is nothing left for a second screen to
     // show. /<id>/preview is gone with it.
     if (segments[1]) {
-      return <DocumentView studio={shell} documentId={segments[1]} />;
+      return (
+        <FullScreen locale={locale}>
+          <DocumentView studio={shell} documentId={segments[1]} />
+        </FullScreen>
+      );
     }
 
     return (
-      <DocumentList
-        studio={shell}
-        canCreate={can(access, "quality.documents.create")}
-        canDelete={can(access, "quality.documents.delete")}
-      />
+      <FullScreen locale={locale}>
+        <DocumentList
+          studio={shell}
+          canCreate={can(access, "quality.documents.create")}
+          canDelete={can(access, "quality.documents.delete")}
+        />
+      </FullScreen>
     );
   }
 
@@ -317,9 +349,11 @@ export default async function StudioPage({ params }) {
     sections.some((s) => s.key === "projects-list")
   ) {
     return (
-      <LiveProvider slug={studio.slug}>
-        <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />
-      </LiveProvider>
+      <FullScreen locale={locale}>
+        <LiveProvider slug={studio.slug}>
+          <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />
+        </LiveProvider>
+      </FullScreen>
     );
   }
 
@@ -334,14 +368,16 @@ export default async function StudioPage({ params }) {
   ) {
     const planApiBase = `/api/studios/${studio.slug}/projects/${segments[1]}/plans/${segments[3]}`;
     return (
-      <LiveProvider slug={studio.slug}>
-        <StudioPlanner
-          slug={studio.slug}
-          planApiBase={planApiBase}
-          backHref={`/${studio.slug}/projects-list/${segments[1]}`}
-          backLabel="Project"
-        />
-      </LiveProvider>
+      <FullScreen locale={locale}>
+        <LiveProvider slug={studio.slug}>
+          <StudioPlanner
+            slug={studio.slug}
+            planApiBase={planApiBase}
+            backHref={`/${studio.slug}/projects-list/${segments[1]}`}
+            backLabel={shellDict(locale).backToProject}
+          />
+        </LiveProvider>
+      </FullScreen>
     );
   }
 
@@ -355,29 +391,33 @@ export default async function StudioPage({ params }) {
     // It IS the planner, pointed at the template document instead of a plan.
     if (segments[1] === "templates" && segments[2]) {
       return (
-        <LiveProvider slug={studio.slug}>
-          <StudioPlanner
-            slug={studio.slug}
-            planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
-            backHref={`/${studio.slug}/operations-planner`}
-            backLabel="Planner"
-          />
-        </LiveProvider>
+        <FullScreen locale={locale}>
+          <LiveProvider slug={studio.slug}>
+            <StudioPlanner
+              slug={studio.slug}
+              planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
+              backHref={`/${studio.slug}/operations-planner`}
+              backLabel={shellDict(locale).backToPlanner}
+            />
+          </LiveProvider>
+        </FullScreen>
       );
     }
     const planId = segments[1] || "";
     const planApiBase = `/api/studios/${studio.slug}/operations/planner/${planId}`;
     return (
-      <LiveProvider slug={studio.slug}>
-        {planId
-          ? <StudioPlanner
-              slug={studio.slug}
-              planApiBase={planApiBase}
-              backHref={`/${studio.slug}/operations-planner`}
-              backLabel="Planner"
-            />
-          : <StudioPlannerList slug={studio.slug} />}
-      </LiveProvider>
+      <FullScreen locale={locale}>
+        <LiveProvider slug={studio.slug}>
+          {planId
+            ? <StudioPlanner
+                slug={studio.slug}
+                planApiBase={planApiBase}
+                backHref={`/${studio.slug}/operations-planner`}
+                backLabel={shellDict(locale).backToPlanner}
+              />
+            : <StudioPlannerList slug={studio.slug} />}
+        </LiveProvider>
+      </FullScreen>
     );
   }
 
@@ -415,19 +455,6 @@ export default async function StudioPage({ params }) {
   // studio is free to name a section "settings" (Sales already has a settings
   // sub-section). A distinct key means this screen can never shadow one.
   const isSettings = requested === "studio-settings";
-
-  // WHICH LANGUAGE THIS PERSON READS THE SHELL IN.
-  //
-  // The studio's own setting is the default — it is what the company was set up
-  // in — and a cookie the person set from the header menu overrides it. Resolved
-  // HERE, on the server, so `lang`/`dir` and the dictionary all ship in the
-  // first byte of HTML: a shell that mirrored itself after paint would flash the
-  // whole layout the wrong way round on every load.
-  //
-  // Costs no Redis hop: the studio record is already in hand and the cookie
-  // rides in on the request. See preferredLocale in shared/locale for why this
-  // is a cookie and not a field on the collaborator.
-  const locale = preferredLocale(uiLang, studioLocale(studio));
 
   // Admin-only screens.
   if (isAccess && !admin) {
@@ -541,6 +568,26 @@ function SectionDashboard({ section, studio, subsections = [], canManage }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// EVERY SCREEN THAT RENDERS OUTSIDE StudioFrame NEEDS THIS.
+//
+// The manual, the two live views, Engagements, Documents, the project board
+// and the planner all return before the shell is built — they are full-screen
+// by design. The shell is where `lang`/`dir` and the locale context normally
+// come from, so without a wrapper each of them was a screen with no direction
+// and no language: an Arabic reader got left-to-right layout and English
+// chrome on six of the studio's screens, and the bug was invisible until you
+// opened one.
+//
+// One component rather than six copies, so the seventh full-screen screen
+// somebody adds inherits it by wrapping rather than by remembering.
+function FullScreen({ locale, children }) {
+  return (
+    <div lang={locale} dir={dirFor(locale)} className="min-h-screen">
+      <StudioLocaleProvider locale={locale}>{children}</StudioLocaleProvider>
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/studio2/icons";
 import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 import { fmtDate as fmtDateCanonical, fmtDateTime as fmtDateTimeCanonical, fmtWeekday } from "@/lib/format";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { chromeDict } from "@/shared/studio/chrome";
 
 // SHARED STUDIO CHROME. The modules each own their own screens, but a dialog, a
 // toolbar, an empty state and a bar chart have to look the same in Sales as in
@@ -86,6 +88,7 @@ export function savePref(key, value) {
 // BODY scrolls inside a dialog capped below the viewport height; the page
 // behind it stays put rather than scrolling two things at once.
 export function Dialog({ title, description, onClose, children, width = "max-w-[720px]" }) {
+  const t = chromeDict(useStudioLocale());
   // RENDERED INTO document.body, not where it is written. `position: fixed` is
   // only viewport-relative while no ancestor establishes a containing block —
   // any transform, filter, backdrop-filter, perspective, contain or
@@ -128,7 +131,7 @@ export function Dialog({ title, description, onClose, children, width = "max-w-[
             <h3 id={titleId} className="font-display text-lg font-800 text-[var(--geex-ink)]">{title}</h3>
             {description && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Close"
+          <button type="button" onClick={onClose} aria-label={t.close}
             className="ms-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-400 dark:hover:bg-white/5">
             <Icon name="close" className="h-[18px] w-[18px]" />
           </button>
@@ -144,36 +147,39 @@ export function Dialog({ title, description, onClose, children, width = "max-w-[
 // Search, filters and whatever else a list needs on the left; the one action
 // that creates a record on the right — or the badge saying you may not.
 export function Toolbar({ canManage, label: addLabel, onAdd, children }) {
+  const t = chromeDict(useStudioLocale());
   return (
     <div className="flex flex-wrap items-center gap-2">
       {children}
       <span className="ms-auto">
         {canManage
           ? <button type="button" className={btn} onClick={onAdd}>{addLabel}</button>
-          : <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
+          : <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{t.viewOnly}</span>}
       </span>
     </div>
   );
 }
 
 export function FilterButton({ active, open, onClick }) {
+  const t = chromeDict(useStudioLocale());
   return (
     <button type="button" onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-600 transition-colors ${active
         ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:border-brand-400 dark:text-brand-300"
         : "border-slate-200 text-[var(--geex-muted)] hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"}`}>
-      Filters{active ? ` (${active})` : ""}
+      {t.filters}{active ? ` (${active})` : ""}
       <Icon name={open ? "chevronUp" : "chevronDown"} className="h-3.5 w-3.5" />
     </button>
   );
 }
 
 export function FilterPanel({ children, onClear }) {
+  const t = chromeDict(useStudioLocale());
   return (
     <div className="grid gap-3 rounded-geex border border-slate-200/70 bg-[var(--geex-inset)] p-4 dark:border-white/10 sm:grid-cols-2 lg:grid-cols-3">
       {children}
       <div className="flex items-end justify-end sm:col-span-2 lg:col-span-3">
-        <button type="button" onClick={onClear} className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">Clear all filters</button>
+        <button type="button" onClick={onClear} className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">{t.clearFilters}</button>
       </div>
     </div>
   );
@@ -181,9 +187,10 @@ export function FilterPanel({ children, onClear }) {
 
 // Which columns a table shows. The Actions column is never on the list — it is
 // always drawn by the table itself.
-export function ColumnPicker({ columns, selected, onToggle, onReset, onClose, title = "Choose columns" }) {
+export function ColumnPicker({ columns, selected, onToggle, onReset, onClose, title }) {
+  const t = chromeDict(useStudioLocale());
   return (
-    <Dialog title={title} description="The Actions column is always shown. Your choice is kept in this browser." onClose={onClose} width="max-w-[520px]">
+    <Dialog title={title || t.chooseColumns} description={t.columnsHint} onClose={onClose} width="max-w-[520px]">
       <div className="grid grid-cols-2 gap-2">
         {columns.map((c) => {
           const on = selected.includes(c.key);
@@ -198,8 +205,8 @@ export function ColumnPicker({ columns, selected, onToggle, onReset, onClose, ti
         })}
       </div>
       <div className="mt-5 flex items-center justify-between">
-        <button type="button" onClick={onReset} className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">Reset to default</button>
-        <button type="button" className={btn} onClick={onClose}>Done</button>
+        <button type="button" onClick={onReset} className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">{t.resetToDefault}</button>
+        <button type="button" className={btn} onClick={onClose}>{t.done}</button>
       </div>
     </Dialog>
   );
