@@ -79,12 +79,10 @@ export function TemplateDialog({
       <DialogContent className="max-w-2xl">
         <DialogTitle className="flex items-center gap-2">
           <LayoutTemplate className="h-4 w-4 text-primary" />
-          Start from a template
+          {tr.startFromTemplate}
         </DialogTitle>
         <DialogDescription>
-          Pick a template to lay this plan out from. A template carries its own
-          dependency links, so the plan lays its timeline out on its own. Templates
-          are created and edited on the planner landing, not here.
+          {tr.pickTemplateLayout}
         </DialogDescription>
 
         <div className="mt-4 grid max-h-[46vh] grid-cols-2 gap-2 overflow-y-auto pe-1">
@@ -100,11 +98,11 @@ export function TemplateDialog({
                   <span className="truncate text-[13px] font-semibold text-slate-900">{t.name}</span>
                 </div>
                 <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-slate-500">
-                  {t.description || 'No description.'}
+                  {t.description || tr.noDescription}
                 </p>
                 <div className="mt-2 flex items-center gap-1.5">
                   <Button size="sm" onClick={() => use(t)} disabled={busy}>
-                    <Sparkles className="h-3.5 w-3.5" /> Use
+                    <Sparkles className="h-3.5 w-3.5" /> {tr.use}
                   </Button>
                 </div>
               </div>
@@ -114,7 +112,7 @@ export function TemplateDialog({
 
         <div className="mt-4 flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {tr.close}
           </Button>
         </div>
       </DialogContent>

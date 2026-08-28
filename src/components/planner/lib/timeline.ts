@@ -23,7 +23,7 @@ export const HEADER_HEIGHT = 56;
 
 export interface ZoomPreset {
   id: ZoomLevel;
-  label: string;
+  labelKey: string;
   pxPerDay: number;
   /** how the lower header band is chunked */
   lower: 'hour' | 'day' | 'week' | 'month';
@@ -33,11 +33,11 @@ export interface ZoomPreset {
 }
 
 export const ZOOM_PRESETS: ZoomPreset[] = [
-  { id: 'hour',    label: 'Hours',    pxPerDay: 960, lower: 'hour',  upper: 'day',     dayCells: true },
-  { id: 'day',     label: 'Days',     pxPerDay: 150, lower: 'day',   upper: 'week',    dayCells: true },
-  { id: 'week',    label: 'Weeks',    pxPerDay: 40,  lower: 'day',   upper: 'month',   dayCells: true },
-  { id: 'month',   label: 'Months',   pxPerDay: 11,  lower: 'week',  upper: 'month',   dayCells: false },
-  { id: 'quarter', label: 'Quarters', pxPerDay: 3.6, lower: 'month', upper: 'quarter', dayCells: false },
+  { id: 'hour',    labelKey: 'zoomHours',    pxPerDay: 960, lower: 'hour',  upper: 'day',     dayCells: true },
+  { id: 'day',     labelKey: 'zoomDays',     pxPerDay: 150, lower: 'day',   upper: 'week',    dayCells: true },
+  { id: 'week',    labelKey: 'zoomWeeks',    pxPerDay: 40,  lower: 'day',   upper: 'month',   dayCells: true },
+  { id: 'month',   labelKey: 'zoomMonths',   pxPerDay: 11,  lower: 'week',  upper: 'month',   dayCells: false },
+  { id: 'quarter', labelKey: 'zoomQuarters', pxPerDay: 3.6, lower: 'month', upper: 'quarter', dayCells: false },
 ];
 
 export function zoomPreset(zoom: ZoomLevel): ZoomPreset {
@@ -109,12 +109,18 @@ function alignOrigin(d: Date, preset: ZoomPreset): Date {
   }
 }
 
+// THE HEADER IS DATES AND TWO WORDS. A pure function has no dictionary, so
+// both come in — the same shape the board's seed takes.
+export type TimelineWords = { weekOf: string; quarterPrefix: string };
+
 export function buildTimeline(
   projectStart: Date,
   projectEnd: Date,
   zoom: ZoomLevel,
   cal: WorkCalendar,
   fit = false,
+  locale = 'en',
+  words: TimelineWords = { weekOf: 'Week of', quarterPrefix: 'Q' },
 ): Timeline {
   const preset = zoomPreset(zoom);
   // "Fit to tasks" means EXACTLY the window the caller asked for — one day either
@@ -193,7 +199,7 @@ export function buildTimeline(
     while (cursor < end) {
       lower.push({
         key: `w${cursor.getTime()}`,
-        label: formatShortDate(cursor),
+        label: formatShortDate(cursor, locale),
         x: x(cursor),
         width: 7 * preset.pxPerDay,
       });
@@ -206,7 +212,7 @@ export function buildTimeline(
       next.setMonth(next.getMonth() + 1);
       lower.push({
         key: `m${cursor.getTime()}`,
-        label: cursor.toLocaleString('en-US', { month: 'short' }),
+        label: cursor.toLocaleString(locale === 'ar' ? 'ar' : 'en-GB', { month: 'short' }),
         x: x(cursor),
         width: x(next) - x(cursor),
       });
@@ -221,7 +227,7 @@ export function buildTimeline(
       const date = addCalendarDays(origin, i);
       upper.push({
         key: `u${i}`,
-        label: date.toLocaleString('en-US', {
+        label: date.toLocaleString(locale === 'ar' ? 'ar' : 'en-GB', {
           weekday: 'short',
           month: 'short',
           day: 'numeric',
@@ -235,7 +241,7 @@ export function buildTimeline(
     while (cursor < end) {
       upper.push({
         key: `uw${cursor.getTime()}`,
-        label: `Week of ${formatShortDate(cursor)}`,
+        label: `${words.weekOf} ${formatShortDate(cursor, locale)}`,
         x: x(cursor),
         width: 7 * preset.pxPerDay,
       });
@@ -248,7 +254,7 @@ export function buildTimeline(
       next.setMonth(next.getMonth() + 1);
       upper.push({
         key: `um${cursor.getTime()}`,
-        label: cursor.toLocaleString('en-US', {
+        label: cursor.toLocaleString(locale === 'ar' ? 'ar' : 'en-GB', {
           month: 'long',
           year: 'numeric',
         }),
@@ -265,7 +271,7 @@ export function buildTimeline(
       next.setMonth(next.getMonth() + 3);
       upper.push({
         key: `uq${cursor.getTime()}`,
-        label: `Q${Math.floor(cursor.getMonth() / 3) + 1} ${cursor.getFullYear()}`,
+        label: `${words.quarterPrefix}${Math.floor(cursor.getMonth() / 3) + 1} ${cursor.getFullYear()}`,
         x: x(cursor),
         width: x(next) - x(cursor),
       });

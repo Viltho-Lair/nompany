@@ -104,10 +104,10 @@ export default function StudioPlannerList({ slug }) {
 
         <div className="min-w-0">
           <p className="truncate font-display text-base font-800 text-[var(--geex-ink)]">
-            Plans
+            {tr.plans}
           </p>
           <p className="truncate text-xs text-[var(--geex-muted)]">
-            Project schedules across this studio
+            {tr.projectSchedules}
           </p>
         </div>
 
@@ -124,7 +124,7 @@ export default function StudioPlannerList({ slug }) {
                 <circle cx="14" cy="12" r="2" />
                 <circle cx="18" cy="18" r="2" />
               </svg>
-              Defaults
+              {tr.defaults}
             </button>
             <button
               type="button"
@@ -148,8 +148,7 @@ export default function StudioPlannerList({ slug }) {
             ) : state.error ? (
               <div className="grid h-full place-items-center p-8">
                 <p className="max-w-sm text-center text-sm text-rose-600 dark:text-rose-300">
-                  These plans could not be loaded — you may not have access to the
-                  planner.
+                  {tr.plansCouldNotLoad}
                 </p>
               </div>
             ) : state.plans.length === 0 ? (
@@ -227,13 +226,11 @@ function EmptyState() {
       </div>
       <div>
         <h2 className="font-display text-[15px] font-700 text-[var(--geex-ink)]">
-          No plans yet
+          {tr.noPlansYet}
         </h2>
         <p className="mt-1 text-[13px] text-[var(--geex-muted)]">
-          Use <span className="font-600">{tr.newPlan}</span> to start an external
-          schedule, or open a project and use its{" "}
-          <span className="font-600">{tr.projectPlan}</span> action. Plans from either
-          appear here.
+          {tr.usePlanStart} <span className="font-600">{tr.newPlan}</span> {tr.toStartExternal}{" "}
+          <span className="font-600">{tr.projectPlan}</span> {tr.plansFromEitherAppear}
         </p>
       </div>
     </div>

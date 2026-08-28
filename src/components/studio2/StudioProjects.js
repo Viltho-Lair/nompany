@@ -325,7 +325,7 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
                   renderCell: ({ row }) => (
                     <button type="button" className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"
                       onClick={(e) => { e.stopPropagation(); router.push(`/${slug}/projects-list/${row.id}`); }}>
-                      Open
+                      {tr.open}
                     </button>
                   ),
                 },
@@ -350,7 +350,7 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
     return (
       <>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          There are no approved quotations waiting. Approve one in Technical and it will be selectable here.
+          {tr.noApprovedQuotationsWaiting}
         </p>
         <div className="mt-5"><button className={btnGhost} onClick={onCancel}>{tr.close}</button></div>
       </>
@@ -737,7 +737,7 @@ function SlaVisits({ sla, canManage, onSave, onClose }) {
                     onChange={(iso) => setEmergencyDate(iso)} />
                 </Field>
                 <button type="button" className="rounded-full bg-amber-600 px-4 py-2 text-sm font-600 text-white transition-colors hover:bg-amber-700" onClick={addEmergency}>
-                  Register emergency visit
+                  {tr.registerEmergencyVisit}
                 </button>
               </div>
             )}
@@ -1058,13 +1058,11 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
       <section className={panel}>
         <h2 className={h2}>{tr.requirementWeights}</h2>
         <p className={sub}>
-          How a project&apos;s completion percentage splits across its requirements — your studio&apos;s
-          service actions. Give each a share; together they must total 100%. Only the actions a project
-          actually carries are counted, and their shares are re-scaled to fill the bar.
+          {tr.howCompletionSplits}
         </p>
         {serviceActions.length === 0 ? (
           <p className="mt-4 rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400 dark:border-white/10">
-            No service actions yet — add them in Studio Settings, then weight them here.
+            {tr.noServiceActionsYet}
           </p>
         ) : (
           <>
@@ -1123,7 +1121,7 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
       {canManage ? (
         <div className="flex items-center gap-3">
           <button className={btn} disabled={busy || !weightsOk} onClick={save}
-            title={weightsOk ? "" : "Requirement weights must total 100%."}>{busy ? tr.saving : tr.saveSettings}</button>
+            title={weightsOk ? "" : tr.weightsMustTotal100}>{busy ? tr.saving : tr.saveSettings}</button>
           {!weightsOk && <span className="text-sm text-rose-600 dark:text-rose-300">{tr.weightsMustTotal100}</span>}
           {saved && weightsOk && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>

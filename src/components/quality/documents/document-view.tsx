@@ -111,7 +111,7 @@ function DocumentNotFound({ slug }: { slug: string }) {
       <div>
         <p className="font-medium">{tr.documentNotAvailable}</p>
         <p className="text-sm text-muted-foreground">
-          It may have been deleted, or you do not have access to it.
+          {tr.mayHaveBeenDeleted}
         </p>
       </div>
       <Button asChild variant="outline">

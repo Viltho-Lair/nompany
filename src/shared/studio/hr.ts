@@ -8,8 +8,10 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  builtInEverything: string;
   docsExpiringDays: (days: number) => string;
   idPassportWithin: (days: number) => string;
+  numbersEncrypted: string;
   roleHeldBy: (n: number) => string;
   accessHumanResourcesStudio: string;
   addCertification: string;
@@ -112,6 +114,7 @@ type Strings = CommonStrings & {
   validMonths: string;
   viewOnly: string;
   viewOnlyAccessHuman: string;
+  whatEachRoleMayDo: string;
   whatPersonWhatLets: string;
   wherePeopleSit: string;
   whereRequestsStand: string;
@@ -119,8 +122,10 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  builtInEverything: "Built in — everything, including future features",
   docsExpiringDays: (days) => `Docs expiring · ${days}d`,
   idPassportWithin: (days) => `ID and passport within ${days} days, or lapsed`,
+  numbersEncrypted: "Numbers are encrypted before they're stored, and only people who can manage HR can read them back. A stored number stays locked until you unlock it.",
   roleHeldBy: (n) => `${n} ${n === 1 ? "person holds" : "people hold"} that role, so deleting it would take their access away — that's set on the access screen.`,
   accessHumanResourcesStudio: "You don't have access to Human Resources in this studio.",
   addCertification: "Add certification",
@@ -223,6 +228,7 @@ const en: Strings = {
   validMonths: "Valid for (months)",
   viewOnly: "View only",
   viewOnlyAccessHuman: "You have view-only access to Human Resources.",
+  whatEachRoleMayDo: "What each role may do →",
   whatPersonWhatLets: "What this person is, and what that lets them do — the same role Access grants against. Somebody can hold more than one.",
   wherePeopleSit: "Where people sit",
   whereRequestsStand: "Where requests stand",
@@ -230,8 +236,10 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  builtInEverything: "مدمج — كل شيء، بما في ذلك الميزات المستقبلية",
   docsExpiringDays: (days) => `وثائق توشك على الانتهاء · ${days} يومًا`,
   idPassportWithin: (days) => `الهوية وجواز السفر خلال ${days} يومًا، أو منتهيان`,
+  numbersEncrypted: "تُشفَّر الأرقام قبل حفظها، ولا يقرؤها إلا من يملك إدارة الموارد البشرية. ويبقى الرقم المحفوظ مقفلًا حتى تفتحه.",
   roleHeldBy: (n) => `${n === 1 ? "شخص واحد يحمل" : n === 2 ? "شخصان يحملان" : n <= 10 ? `${n} أشخاص يحملون` : `${n} شخصًا يحمل`} هذا الدور، فحذفه سيسلبهم صلاحياتهم — وذلك يُضبط في شاشة الصلاحيات.`,
   accessHumanResourcesStudio: "لا تملك صلاحية الوصول إلى الموارد البشرية في هذا الاستوديو.",
   addCertification: "إضافة شهادة",
@@ -334,6 +342,7 @@ const ar: Strings = {
   validMonths: "صالحة لمدة (بالأشهر)",
   viewOnly: "للعرض فقط",
   viewOnlyAccessHuman: "لديك صلاحية عرض فقط على الموارد البشرية.",
+  whatEachRoleMayDo: "ما يجوز لكل دور فعله ←",
   whatPersonWhatLets: "ما هذا الشخص، وما الذي يتيحه له ذلك — الدور نفسه الذي تمنح عليه الصلاحيات. ويمكن أن يحمل أكثر من دور.",
   wherePeopleSit: "أين يعمل الأشخاص",
   whereRequestsStand: "وضع الطلبات",

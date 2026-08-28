@@ -167,7 +167,7 @@ export function SubtaskList({
 
       {subtasks.length === 0 && (
         <p className="px-0.5 py-2 text-[12px] text-muted-foreground/70">
-          No subtasks yet — break this down into steps below.
+          {tr.noSubtasksYet}
         </p>
       )}
 

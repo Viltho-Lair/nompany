@@ -8,8 +8,15 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  clientStays: string;
+  dealAppearsMoment: string;
+  delete: string;
   deleteNamed: (what: string) => string;
+  deletingThisDealDeletes: string;
+  moreDealsFurtherDown: string;
   noStageYet: (what: string) => string;
+  nothingBorrowed: string;
+  nothingNoWorkYet: string;
   onThisDeal: (n: number) => string;
   openIn: (what: string) => string;
   openNamed: (what: string) => string;
@@ -60,13 +67,21 @@ type Strings = CommonStrings & {
   unlocked: string;
   untitledDeal: string;
   untitledDeal2: string;
+  whatSurvives: string;
   workingOutWhatDeleting: string;
 };
 
 const en: Strings = {
   ...commonEn,
+  clientStays: "The client stays. A client belongs to the studio, not to one deal.",
+  dealAppearsMoment: "A deal appears here the moment it starts anywhere in the studio — a ticket, an RFQ, or a quotation raised on its own.",
+  delete: "Delete",
   deleteNamed: (what) => `Delete ${what}`,
+  deletingThisDealDeletes: "Deleting this deal deletes",
+  moreDealsFurtherDown: "More deals may be further down the list — this page just did not have any you have access to.",
   noStageYet: (what) => `No ${what.charAt(0).toLowerCase() + what.slice(1)} yet.`,
+  nothingBorrowed: "Nothing was borrowed from elsewhere — everything on this deal was raised on it.",
+  nothingNoWorkYet: "Nothing — there is no work on this deal yet.",
   onThisDeal: (n) => `${n} on this deal`,
   openIn: (what) => `Open in ${what} →`,
   openNamed: (what) => `Open ${what}`,
@@ -117,13 +132,21 @@ const en: Strings = {
   unlocked: "Unlocked",
   untitledDeal: "Untitled deal",
   untitledDeal2: "Untitled deal",
+  whatSurvives: "What survives",
   workingOutWhatDeleting: "Working out what deleting this would affect",
 };
 
 const ar: Strings = {
   ...commonAr,
+  clientStays: "يبقى العميل. فالعميل ملك للاستوديو، لا لصفقة واحدة.",
+  dealAppearsMoment: "تظهر الصفقة هنا لحظة بدئها في أي مكان من الاستوديو — تذكرة، أو طلب عرض سعر، أو عرض سعر أُنشئ وحده.",
+  delete: "حذف",
   deleteNamed: (what) => `حذف ${what}`,
+  deletingThisDealDeletes: "حذف هذه الصفقة يحذف",
+  moreDealsFurtherDown: "قد تكون هناك صفقات أخرى أسفل القائمة — هذه الصفحة لم يكن فيها ما تملك الوصول إليه فحسب.",
   noStageYet: (what) => `لا يوجد ${what} بعد.`,
+  nothingBorrowed: "لم يُستعَر شيء من مكان آخر — كل ما على هذه الصفقة أُنشئ عليها.",
+  nothingNoWorkYet: "لا شيء — لا عمل على هذه الصفقة بعد.",
   onThisDeal: (n) => `${n} في هذه الصفقة`,
   openIn: (what) => `افتح في ${what} ←`,
   openNamed: (what) => `فتح ${what}`,
@@ -174,6 +197,7 @@ const ar: Strings = {
   unlocked: "مفتوح",
   untitledDeal: "صفقة بلا عنوان",
   untitledDeal2: "صفقة بلا عنوان",
+  whatSurvives: "ما يبقى",
   workingOutWhatDeleting: "جارٍ تحديد ما سيتأثر بحذف هذا",
 };
 

@@ -264,7 +264,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
               />
               <button type="submit" disabled={busy || !input.trim()}
                 className="rounded-xl bg-brand-600 px-3 py-2 text-sm font-500 text-white disabled:opacity-50">
-                Send
+                {tr.send}
               </button>
             </form>
           </div>

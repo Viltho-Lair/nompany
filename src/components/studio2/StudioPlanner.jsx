@@ -204,7 +204,7 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
 
         {!state.loading && !state.canEdit && (
           <span className="ms-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">
-            View only
+            {tr.viewOnly}
           </span>
         )}
       </header>
@@ -214,12 +214,12 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
           better to say up front that nothing here is being kept. */}
       {!state.loading && !state.error && !state.canEdit && (
         <div data-planner-chrome className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-800">
-          You have view-only access to this plan — changes you make here are not saved.
+          {tr.viewOnlyAccessPlan}
         </div>
       )}
       {!state.loading && state.canEdit && saveFailed && (
         <div data-planner-chrome className="shrink-0 border-b border-rose-200 bg-rose-50 px-4 py-2 text-center text-xs font-semibold text-rose-700">
-          Your last change couldn’t be saved. Check your connection or access, then edit again.
+          {tr.lastChangeNotSaved}
         </div>
       )}
 
@@ -231,7 +231,7 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
           ) : state.error ? (
             <div className="grid h-full place-items-center p-8">
               <p className="max-w-sm text-center text-sm text-rose-600">
-                This plan could not be loaded — you may not have access to it.
+                {tr.planCouldNotLoad}
               </p>
             </div>
           ) : (

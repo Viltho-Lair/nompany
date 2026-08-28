@@ -8,6 +8,28 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  acknowledged: string;
+  appliesToEverySelectedCell: string;
+  chooseRecipients: string;
+  couldNotReachGoogleFonts: string;
+  createLink: string;
+  createTheLink: string;
+  defaultColor: string;
+  deleteColumn: string;
+  deleteRow: string;
+  deleteTable: string;
+  documents: string;
+  draftNextRevision: string;
+  footerSettings: string;
+  headerSettings: string;
+  heightMm: string;
+  iHaveReadThis: string;
+  insertColumnLeft: string;
+  insertColumnRight: string;
+  insertRowAbove: string;
+  insertRowBelow: string;
+  issuedRevisionStays: string;
+  issuingSupersedes: string;
   lastAccessed: (date: string) => string;
   alignCenter: string;
   alignLeft: string;
@@ -89,6 +111,15 @@ type Strings = CommonStrings & {
   linkLiveEveryOpen: string;
   loading: string;
   loadingDocument: string;
+  loadingFonts: string;
+  marginCustom: string;
+  marginModerate: string;
+  marginNarrow: string;
+  marginNormal: string;
+  marginWide: string;
+  margins: string;
+  mayHaveBeenDeleted: string;
+  mergeSelected: string;
   middle: string;
   middle2: string;
   nameRoleDateRecorded: string;
@@ -99,13 +130,17 @@ type Strings = CommonStrings & {
   noRevision: string;
   noRevisionOpen: string;
   noRevisionToMove: string;
+  nobodyNamedYet: string;
   nobodyYet: string;
   none: string;
   none2: string;
   noneLinkBoundOne: string;
   notAccessTheseDocuments: string;
   notIssuedShare: string;
+  notOpened: string;
+  notSaved: string;
   noteOptional: string;
+  nothingDistributedUntilIssued: string;
   nothingRecordedYet: string;
   nothingToAcknowledge: string;
   nothingWaitingAcknowledgement: string;
@@ -115,11 +150,14 @@ type Strings = CommonStrings & {
   obsolete: string;
   onlyIssuedRevisionShared: string;
   opened: string;
+  paddingPx: string;
   pageBreak: string;
   pageFooter: string;
+  pageNumbers: string;
   pageSize: string;
   personNotInStudio: string;
   pickSize: string;
+  print: string;
   printDocument: string;
   quote: string;
   redo: string;
@@ -129,6 +167,7 @@ type Strings = CommonStrings & {
   revisionAlreadyOpen: string;
   revisionMovedOn: string;
   revisions: string;
+  revoke: string;
   revoked: string;
   right: string;
   right2: string;
@@ -138,27 +177,38 @@ type Strings = CommonStrings & {
   rows: string;
   samePersonCantReview: string;
   sameSigner: string;
+  save: string;
+  savedState: string;
+  savingState: string;
   sayFallback: string;
   shareOutsideStudio: string;
+  signatureImageOptional: string;
   signedSuffix: string;
   signedSuffix2: string;
   signerNotHere: string;
   someone: string;
   someone2: string;
+  splitCell: string;
+  startNextRevision: string;
   startOneWillGet: string;
   startPage: string;
   startingText: string;
   storing: string;
   strikethrough: string;
+  table: string;
   tableOptions: string;
   textColour: string;
   thisStudio: string;
+  toggleHeaderColumn: string;
+  toggleHeaderRow: string;
+  toldWhenRevisionIssued: string;
   top: string;
   uncontrolledCopy: string;
   underline: string;
   undo: string;
   untitledDocument: string;
   uploading: string;
+  verticalAlign: string;
   wbDenied: string;
   wbEmpty: string;
   wbNotIssued: string;
@@ -174,6 +224,28 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  acknowledged: "Acknowledged",
+  appliesToEverySelectedCell: "Applies to every selected cell. Drag across cells first to format several at once.",
+  chooseRecipients: "Choose recipients",
+  couldNotReachGoogleFonts: "Could not reach Google Fonts. Check the connection and the GOOGLE_FONTS_API_KEY.",
+  createLink: "Create a link",
+  createTheLink: "Create the link",
+  defaultColor: "Default",
+  deleteColumn: "Delete column",
+  deleteRow: "Delete row",
+  deleteTable: "Delete table",
+  documents: "Documents",
+  draftNextRevision: "Draft the next revision",
+  footerSettings: "Footer settings…",
+  headerSettings: "Header settings…",
+  heightMm: "Height (mm)",
+  iHaveReadThis: "I have read this",
+  insertColumnLeft: "Insert column left",
+  insertColumnRight: "Insert column right",
+  insertRowAbove: "Insert row above",
+  insertRowBelow: "Insert row below",
+  issuedRevisionStays: "The issued revision stays exactly as it is until the new one is published over it.",
+  issuingSupersedes: "Issuing this revision supersedes the one before it. The old one is kept and stays readable — that is what makes it possible to say what the procedure used to require.",
   lastAccessed: (date) => ` · last ${date}`,
   alignCenter: "Align center",
   alignLeft: "Align left",
@@ -255,6 +327,15 @@ const en: Strings = {
   linkLiveEveryOpen: "The link is live. Every open is recorded.",
   loading: "Loading…",
   loadingDocument: "Loading document…",
+  loadingFonts: "Loading fonts…",
+  marginCustom: "Custom…",
+  marginModerate: "Moderate",
+  marginNarrow: "Narrow",
+  marginNormal: "Normal",
+  marginWide: "Wide",
+  margins: "Margins",
+  mayHaveBeenDeleted: "It may have been deleted, or you do not have access to it.",
+  mergeSelected: "Merge selected",
   middle: "Middle",
   middle2: "Middle",
   nameRoleDateRecorded: "Your name, role and the date are recorded either way. The image is decoration on top of that.",
@@ -265,13 +346,17 @@ const en: Strings = {
   noRevision: "There is no revision to move.",
   noRevisionOpen: "No revision open.",
   noRevisionToMove: "There is no revision to move.",
+  nobodyNamedYet: "Nobody has been named yet. Choose who has to work to this document and they will be told when it is issued.",
   nobodyYet: "Nobody yet",
   none: "None",
   none2: "None",
   noneLinkBoundOne: "None. A link is bound to one revision and always expires.",
   notAccessTheseDocuments: "You do not have access to these documents.",
   notIssuedShare: "Only an issued revision can be shared outside the studio.",
+  notOpened: "Not opened",
+  notSaved: "Not saved",
   noteOptional: "Note (optional)",
+  nothingDistributedUntilIssued: "Nothing is distributed until a revision is issued.",
   nothingRecordedYet: "Nothing recorded yet.",
   nothingToAcknowledge: "There's nothing waiting for your acknowledgement.",
   nothingWaitingAcknowledgement: "There's nothing waiting for your acknowledgement.",
@@ -281,11 +366,14 @@ const en: Strings = {
   obsolete: "This document has been withdrawn.",
   onlyIssuedRevisionShared: "Only an issued revision can be shared outside the studio.",
   opened: "Opened",
+  paddingPx: "Padding (px)",
   pageBreak: "Page break",
   pageFooter: "Page footer",
+  pageNumbers: "Page numbers",
   pageSize: "Page size",
   personNotInStudio: "That person isn't in this studio.",
   pickSize: "Pick a size",
+  print: "Print",
   printDocument: "Print document",
   quote: "Quote",
   redo: "Redo",
@@ -295,6 +383,7 @@ const en: Strings = {
   revisionAlreadyOpen: "A revision is already open on this document.",
   revisionMovedOn: "This revision has moved on since the screen was drawn. Reload to see where it is.",
   revisions: "Revisions",
+  revoke: "Revoke",
   revoked: "Revoked",
   right: "Right",
   right2: "Right",
@@ -304,27 +393,38 @@ const en: Strings = {
   rows: "Rows",
   samePersonCantReview: "The same person can't review and approve one revision — that is what the two signatures are for.",
   sameSigner: "The same person can't review and approve one revision — that is what the two signatures are for.",
+  save: "Save",
+  savedState: "Saved",
+  savingState: "Saving",
   sayFallback: "That didn't work. Try again.",
   shareOutsideStudio: "Share outside the studio",
+  signatureImageOptional: "Signature image (optional)",
   signedSuffix: "· signed",
   signedSuffix2: " · signed",
   signerNotHere: "That person isn't in this studio.",
   someone: "Someone",
   someone2: "Someone",
+  splitCell: "Split cell",
+  startNextRevision: "Start the next revision",
   startOneWillGet: "Start one and it will get its number automatically.",
   startPage: "Start from page",
   startingText: "Starting text",
   storing: "Storing…",
   strikethrough: "Strikethrough",
+  table: "Table",
   tableOptions: "Table options",
   textColour: "Text colour",
   thisStudio: "this studio",
+  toggleHeaderColumn: "Toggle header column",
+  toggleHeaderRow: "Toggle header row",
+  toldWhenRevisionIssued: "They are told when a revision is issued, and asked to confirm they have read it. Acknowledgement resets each time a new revision goes out — having read rev 2 says nothing about rev 3.",
   top: "Top",
   uncontrolledCopy: "UNCONTROLLED COPY",
   underline: "Underline",
   undo: "Undo",
   untitledDocument: "Untitled document",
   uploading: "Uploading…",
+  verticalAlign: "Vertical align",
   wbDenied: "You do not have the right for that.",
   wbEmpty: "There is nothing written yet to send for review.",
   wbNotIssued: "Nothing has been issued yet, so there is no next revision to draft.",
@@ -340,6 +440,28 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  acknowledged: "أُقرّ به",
+  appliesToEverySelectedCell: "يُطبَّق على كل خلية محددة. اسحب عبر الخلايا أولًا لتنسيق عدة خلايا دفعة واحدة.",
+  chooseRecipients: "اختر المستلمين",
+  couldNotReachGoogleFonts: "تعذّر الوصول إلى Google Fonts. تحقّق من الاتصال ومن GOOGLE_FONTS_API_KEY.",
+  createLink: "أنشئ رابطًا",
+  createTheLink: "أنشئ الرابط",
+  defaultColor: "افتراضي",
+  deleteColumn: "احذف العمود",
+  deleteRow: "احذف الصف",
+  deleteTable: "احذف الجدول",
+  documents: "الوثائق",
+  draftNextRevision: "سوّد المراجعة التالية",
+  footerSettings: "إعدادات التذييل…",
+  headerSettings: "إعدادات الرأس…",
+  heightMm: "الارتفاع (مم)",
+  iHaveReadThis: "قرأت هذا",
+  insertColumnLeft: "أدرج عمودًا يمينه",
+  insertColumnRight: "أدرج عمودًا يساره",
+  insertRowAbove: "أدرج صفًا أعلاه",
+  insertRowBelow: "أدرج صفًا أدناه",
+  issuedRevisionStays: "تبقى المراجعة الصادرة كما هي تمامًا حتى تُنشر الجديدة فوقها.",
+  issuingSupersedes: "إصدار هذه المراجعة يلغي ما قبلها. وتُحفظ القديمة وتبقى قابلة للقراءة — وهذا ما يتيح القول بما كان الإجراء يقتضيه.",
   lastAccessed: (date) => ` · آخر مرة ${date}`,
   alignCenter: "توسيط",
   alignLeft: "محاذاة لليسار",
@@ -421,6 +543,15 @@ const ar: Strings = {
   linkLiveEveryOpen: "الرابط فعّال. ويُسجَّل كل فتح له.",
   loading: "جارٍ التحميل…",
   loadingDocument: "جارٍ تحميل الوثيقة…",
+  loadingFonts: "جارٍ تحميل الخطوط…",
+  marginCustom: "مخصص…",
+  marginModerate: "متوسط",
+  marginNarrow: "ضيق",
+  marginNormal: "عادي",
+  marginWide: "واسع",
+  margins: "الهوامش",
+  mayHaveBeenDeleted: "ربما حُذفت، أو أنك لا تملك الوصول إليها.",
+  mergeSelected: "ادمج المحدد",
   middle: "وسط",
   middle2: "وسط",
   nameRoleDateRecorded: "يُسجَّل اسمك ودورك والتاريخ في الحالتين. والصورة زينة فوق ذلك.",
@@ -431,13 +562,17 @@ const ar: Strings = {
   noRevision: "لا توجد مراجعة لتحريكها.",
   noRevisionOpen: "لا توجد مراجعة مفتوحة.",
   noRevisionToMove: "لا توجد مراجعة لتحريكها.",
+  nobodyNamedYet: "لم يُسمَّ أحد بعد. اختر من عليه العمل بهذه الوثيقة وسيُبلَّغ عند إصدارها.",
   nobodyYet: "لا أحد بعد",
   none: "لا شيء",
   none2: "لا شيء",
   noneLinkBoundOne: "لا شيء. يرتبط الرابط بمراجعة واحدة وينتهي دائمًا.",
   notAccessTheseDocuments: "لا تملك صلاحية الوصول إلى هذه الوثائق.",
   notIssuedShare: "لا يمكن مشاركة مراجعة خارج الاستوديو إلا إذا كانت صادرة.",
+  notOpened: "لم تُفتح",
+  notSaved: "غير محفوظ",
   noteOptional: "ملاحظة (اختيارية)",
+  nothingDistributedUntilIssued: "لا يُوزَّع شيء حتى تُصدَر مراجعة.",
   nothingRecordedYet: "لم يُسجَّل شيء بعد.",
   nothingToAcknowledge: "لا شيء ينتظر إقرارك.",
   nothingWaitingAcknowledgement: "لا شيء ينتظر إقرارك.",
@@ -447,11 +582,14 @@ const ar: Strings = {
   obsolete: "سُحبت هذه الوثيقة.",
   onlyIssuedRevisionShared: "لا يمكن مشاركة مراجعة خارج الاستوديو إلا إذا كانت صادرة.",
   opened: "فُتحت",
+  paddingPx: "الحشو (بكسل)",
   pageBreak: "فاصل صفحة",
   pageFooter: "تذييل الصفحة",
+  pageNumbers: "أرقام الصفحات",
   pageSize: "حجم الصفحة",
   personNotInStudio: "هذا الشخص ليس في هذا الاستوديو.",
   pickSize: "اختر حجمًا",
+  print: "طباعة",
   printDocument: "طباعة الوثيقة",
   quote: "اقتباس",
   redo: "إعادة",
@@ -461,6 +599,7 @@ const ar: Strings = {
   revisionAlreadyOpen: "توجد مراجعة مفتوحة بالفعل على هذه الوثيقة.",
   revisionMovedOn: "تقدّمت هذه المراجعة منذ رسم الشاشة. أعد التحميل لترى وضعها.",
   revisions: "المراجعات",
+  revoke: "إبطال",
   revoked: "مُلغى",
   right: "يمين",
   right2: "يمين",
@@ -470,27 +609,38 @@ const ar: Strings = {
   rows: "الصفوف",
   samePersonCantReview: "لا يمكن للشخص نفسه مراجعة واعتماد مراجعة واحدة — فذلك هو سبب وجود توقيعين.",
   sameSigner: "لا يمكن للشخص نفسه مراجعة واعتماد مراجعة واحدة — فذلك هو سبب وجود توقيعين.",
+  save: "حفظ",
+  savedState: "محفوظ",
+  savingState: "جارٍ الحفظ",
   sayFallback: "لم تنجح العملية. حاول مرة أخرى.",
   shareOutsideStudio: "المشاركة خارج الاستوديو",
+  signatureImageOptional: "صورة التوقيع (اختياري)",
   signedSuffix: "· موقّعة",
   signedSuffix2: " · موقّعة",
   signerNotHere: "هذا الشخص ليس في هذا الاستوديو.",
   someone: "أحدهم",
   someone2: "أحدهم",
+  splitCell: "قسّم الخلية",
+  startNextRevision: "ابدأ المراجعة التالية",
   startOneWillGet: "ابدأ واحدة وستأخذ رقمها تلقائيًا.",
   startPage: "البدء من صفحة",
   startingText: "النص الافتتاحي",
   storing: "جارٍ التخزين…",
   strikethrough: "يتوسطه خط",
+  table: "جدول",
   tableOptions: "خيارات الجدول",
   textColour: "لون النص",
   thisStudio: "هذا الاستوديو",
+  toggleHeaderColumn: "بدّل عمود الرأس",
+  toggleHeaderRow: "بدّل صف الرأس",
+  toldWhenRevisionIssued: "يُبلَّغون عند إصدار مراجعة، ويُطلب منهم تأكيد قراءتها. ويُعاد ضبط الإقرار مع كل مراجعة جديدة — فقراءة المراجعة الثانية لا تقول شيئًا عن الثالثة.",
   top: "أعلى",
   uncontrolledCopy: "نسخة غير مضبوطة",
   underline: "تسطير",
   undo: "تراجع",
   untitledDocument: "وثيقة بلا عنوان",
   uploading: "جارٍ الرفع…",
+  verticalAlign: "المحاذاة الرأسية",
   wbDenied: "لا تملك الصلاحية لذلك.",
   wbEmpty: "لا يوجد شيء مكتوب بعد لإرساله للمراجعة.",
   wbNotIssued: "لم يصدر شيء بعد، فلا توجد مراجعة تالية لصياغتها.",

@@ -98,8 +98,7 @@ export function WhatWasSoldSection({ slug, projectId, hasSheet, lineCount }) {
       <h2 className={h2}>{tr.whatSold}</h2>
       {!hasSheet ? (
         <p className={sub}>
-          Nothing to show yet — the quotation&apos;s lines appear here once a project is opened from an
-          approved quotation.
+          {tr.nothingToShowQuotationLines}
         </p>
       ) : (
         <Link href={`/${slug}/projects-list/${projectId}/quotation`}

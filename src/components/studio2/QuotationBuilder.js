@@ -169,7 +169,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
               {/* Submitting is what marks it Completed, so it says what it does
                   rather than leaving somebody to set a status afterwards. */}
               <button className={btn} onClick={() => commit("Completed")} disabled={busy || !lines}>
-                Submit
+                {tr.submit}
               </button>
             </>
           )}
@@ -178,13 +178,13 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
 
       {!locked && !catalogue.length && (
         <p className="border-b border-slate-200 bg-slate-100 px-5 py-2 text-xs text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
-          Nothing in Registered Items yet — lines can still be typed, and typing one here does not register it.
+          {tr.nothingRegisteredItems}
         </p>
       )}
 
       {!locked && !lines && (
         <p className="border-b border-amber-500/20 bg-amber-500/10 px-5 py-2 text-xs text-amber-700 dark:text-amber-300">
-          Add at least one described line before submitting.
+          {tr.addOneDescribedLine}
         </p>
       )}
 
@@ -219,8 +219,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                     top of the page answers nothing. */}
                 {duplicate?.table === i && (
                   <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-                    <span className="font-700">{duplicate.name}</span> is already a line in this table — change its quantity
-                    instead of adding it twice. Add it under another table if it is genuinely separate work.
+                    <span className="font-700">{duplicate.name}</span> {tr.alreadyLineInTable}
                   </p>
                 )}
                 <div className="flex items-center gap-3">
@@ -344,7 +343,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                       onClick={() => setTable(i, { rows: [...table.rows, blankRow()] })}>{tr.addRow}</button>
                   ) : <span />}
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Table total <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(sum)}</span>
+                    {tr.tableTotal} <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(sum)}</span>
                     {currency && <span className="ms-1 text-slate-400">{currency}</span>}
                   </p>
                 </div>
@@ -354,7 +353,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
 
           {!locked && tables.length < MAX_TABLES && (
             <button className={btnGhost} onClick={() => setTables((ts) => [...ts, blankTable()])}>
-              Add table
+              {tr.addTable}
             </button>
           )}
         </div>

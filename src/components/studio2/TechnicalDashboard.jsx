@@ -123,7 +123,7 @@ export default function TechnicalDashboard({
                 )}
               />
             </div>
-          ) : <NoData text="No quotations yet." />}
+          ) : <NoData text={tr.noQuotationsYet} />}
         </Widget>
 
         <Widget title={tr.approvedShare} hint={tr.approvedValuePortionWhole} locked={!visible("technical.approved-share")} lockedWhat={tr.approvedShare}>
@@ -144,7 +144,7 @@ export default function TechnicalDashboard({
               display: <span className="num">{l.total}</span>,
               icon: <span className="text-[11px] text-slate-400">{l.approved}✓ · {l.open} open</span>,
             }))} />
-          ) : <NoData text="No quotations yet." />}
+          ) : <NoData text={tr.noQuotationsYet} />}
         </Widget>
 
         <Widget title={tr.turnaround} hint={tr.daysCreationApproval} locked={!visible("technical.turnaround")} lockedWhat={tr.turnaround}>

@@ -127,14 +127,14 @@ const TaskCardShellInner = React.forwardRef<HTMLDivElement, ShellProps>(
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
                   <DropdownMenuItem onSelect={() => onEdit?.()}>
-                    <Pencil /> Edit task
+                    <Pencil /> {tr.editTask}
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => onDuplicate?.()}>
-                    <Copy /> Duplicate
+                    <Copy /> {tr.duplicate}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem destructive onSelect={() => onDelete?.()}>
-                    <Trash2 /> Delete
+                    <Trash2 /> {tr.delete}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

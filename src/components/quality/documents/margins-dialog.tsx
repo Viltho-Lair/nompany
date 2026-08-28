@@ -98,7 +98,7 @@ export function MarginsDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {tr.cancel}
             </Button>
             <Button type="submit">{tr.apply}</Button>
           </DialogFooter>

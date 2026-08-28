@@ -113,7 +113,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
         {/* Said out loud rather than implied by the absence of buttons: somebody
             who came here looking for Export should learn where it lives. */}
         <span className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-700 text-slate-500 dark:bg-white/5 dark:text-slate-300">
-          <Icon name="lock" className="h-3.5 w-3.5" /> View only
+          <Icon name="lock" className="h-3.5 w-3.5" /> {tr.viewOnly}
         </span>
 
         {/* PRINT, beside View only rather than instead of it — the two do not
@@ -207,7 +207,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
               </table>
             </div>
             <div className="border-t border-slate-100 px-5 py-2.5 text-end text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
-              Table total <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(sum)}</span>
+              {tr.tableTotal} <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(sum)}</span>
               {currency && <span className="ms-1 text-slate-400">{currency}</span>}
             </div>
           </section>

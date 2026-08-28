@@ -579,9 +579,7 @@ function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, peo
       <section className={panel}>
         <h2 className={h2}>{tr.taskSettings}</h2>
         <p className={sub}>
-          Every kind of task the studio raises, and who decides it. Appointing someone routes the matching
-          tasks to them straight away, existing ones included — assignment is read from here on every load,
-          never copied onto the task, so it can never keep pointing at whoever used to hold the job.
+          {tr.everyKindOfTask}
         </p>
         {canManage && (
           <div className="mt-5 flex items-center gap-3">

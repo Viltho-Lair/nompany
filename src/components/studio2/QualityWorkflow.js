@@ -176,13 +176,13 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
             {data?.canStartRevision && (
               <button type="button" className={btn} disabled={busy}
                 onClick={() => send({ action: "start-revision" })}>
-                Start the next revision
+                {tr.startNextRevision}
               </button>
             )}
           </div>
           {data?.canStartRevision && (
             <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-              The issued revision stays exactly as it is until the new one is published over it.
+              {tr.issuedRevisionStays}
             </p>
           )}
         </div>
@@ -200,7 +200,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
           ))}
           <button type="button" className={btnGhost} disabled={busy}
             onClick={() => send({ action: "signers", ...signers })}>
-            Save
+            {tr.save}
           </button>
         </div>
       </div>
@@ -248,8 +248,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
                 <StudioDate value={nextReviewDate} onChange={(iso) => setNextReviewDate(iso)} />
               </Field>
               <p className="sm:col-span-2 text-xs text-slate-500 dark:text-slate-400">
-                Issuing this revision supersedes the one before it. The old one is kept and stays readable — that is
-                what makes it possible to say what the procedure used to require.
+                {tr.issuingSupersedes}
               </p>
             </div>
           )}
@@ -263,7 +262,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
 
           {SIGNS.has(prompt.action) && (
             <div className="mt-4">
-              <span className={`${label} block`}>Signature image (optional)</span>
+              <span className={`${label} block`}>{tr.signatureImageOptional}</span>
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5">
                 {uploading ? tr.storing : signature ? tr.changeImage : tr.chooseImage}
                 <input id="w-sig" type="file" accept="image/*" className="hidden"

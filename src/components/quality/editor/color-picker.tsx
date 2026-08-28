@@ -112,7 +112,7 @@ export function ColorPicker({
             }}
           >
             <Ban />
-            Default
+            {tr.defaultColor}
           </Button>
         </div>
       </PopoverContent>

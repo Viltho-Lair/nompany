@@ -295,8 +295,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                   <p className="text-slate-500 dark:text-slate-400">{studioName}</p>
                 </div>
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Chats aren&apos;t stored. When you&apos;re done you can download the transcript — after that
-                  it&apos;s gone from our side too.
+                  {tr.chatsArentStored}
                 </p>
                 {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
                 <button
@@ -336,7 +335,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                 })}
                 {status === WAITING && (
                   <p className="py-3 text-center text-xs text-slate-500 dark:text-slate-400">
-                    Waiting for someone from nompany to join. You can start describing the problem now.
+                    {tr.waitingForSomeone}
                   </p>
                 )}
                 {done && <p className="pt-2 text-center text-xs text-slate-400">{tr.chatEnded}</p>}
@@ -378,7 +377,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                       className="inline-flex items-center gap-1.5 text-[11px] font-600 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                     >
                       <Icon name="download" className="h-3.5 w-3.5" />
-                      Download
+                      {tr.download}
                     </button>
                     <button
                       type="button"
@@ -386,7 +385,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                       disabled={busy}
                       className="text-[11px] font-600 text-rose-600 hover:underline disabled:opacity-60 dark:text-rose-400"
                     >
-                      End chat &amp; download
+                      {tr.endChatDownload}
                     </button>
                   </div>
                 </>
@@ -397,14 +396,14 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                     onClick={download}
                     className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm font-600 text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:text-slate-200 dark:hover:bg-white/5"
                   >
-                    Download transcript
+                    {tr.downloadTranscript}
                   </button>
                   <button
                     type="button"
                     onClick={reset}
                     className="flex-1 rounded-full bg-brand-700 px-4 py-2 text-sm font-600 text-white hover:bg-brand-950"
                   >
-                    Close
+                    {tr.close}
                   </button>
                 </div>
               )}

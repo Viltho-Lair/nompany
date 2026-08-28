@@ -97,7 +97,7 @@ export function WorkflowBar({
       {frozen && (
         <Button size="sm" variant="outline" disabled={busy !== ""} onClick={() => move("start")}>
           <PenLine />
-          Draft the next revision
+          {tr.draftNextRevision}
         </Button>
       )}
 

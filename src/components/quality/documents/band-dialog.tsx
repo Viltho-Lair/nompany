@@ -118,7 +118,7 @@ export function BandDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="band-height">Height (mm)</Label>
+              <Label htmlFor="band-height">{tr.heightMm}</Label>
               <Input
                 id="band-height"
                 type="number"
@@ -165,7 +165,7 @@ export function BandDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {tr.cancel}
             </Button>
             <Button type="submit">{tr.apply}</Button>
           </DialogFooter>

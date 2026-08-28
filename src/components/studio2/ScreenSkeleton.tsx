@@ -14,14 +14,23 @@
 // for.
 //
 // `.skel` is the shared utility in globals.css, not a per-screen animation.
-// `loadingLabel` COMES IN AS A PROP. This is a `nextDynamic` loading fallback,
-// so it renders on the server, where a locale hook cannot be called.
+//
+// A `nextDynamic` loading fallback with no `ssr: false` renders on the server
+// too, which is why this was a Server Component and its one word stayed
+// English. It is a CLIENT component now: every place it is used sits inside a
+// `StudioLocaleProvider`, so the context resolves in the server pass as well.
+// `loadingLabel` still overrides, for anywhere that has no provider above it.
+"use client";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { commonDict } from "@/shared/studio/common";
+
 export default function ScreenSkeleton(
-  { rows = 6, loadingLabel = "Loading" }: { rows?: number; loadingLabel?: string },
+  { rows = 6, loadingLabel }: { rows?: number; loadingLabel?: string },
 ) {
+  const word = loadingLabel ?? commonDict(useStudioLocale()).loading;
   return (
     <div className="space-y-6" aria-busy="true" aria-live="polite">
-      <span className="sr-only">{loadingLabel}</span>
+      <span className="sr-only">{word}</span>
 
       <div className="skel skel-text h-6 w-48" />
 

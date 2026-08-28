@@ -342,7 +342,7 @@ export function TaskDialog({
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  placeholder={tags.length ? "" : "Add tags…"}
+                  placeholder={tags.length ? "" : tr.addTags}
                 />
               )}
             />
@@ -372,7 +372,7 @@ export function TaskDialog({
                 onOpenChange(false);
               }}
             >
-              <Trash2 /> Delete task
+              <Trash2 /> {tr.deleteTask}
             </Button>
           ) : (
             <span className="hidden sm:block" />
@@ -388,7 +388,7 @@ export function TaskDialog({
                 disabled={!draftTitle.trim()}
                 onClick={handleCreate}
               >
-                Create task
+                {tr.createTask}
               </Button>
             )}
           </div>

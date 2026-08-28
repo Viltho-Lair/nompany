@@ -103,8 +103,7 @@ export default function StudioRoles({ slug }) {
         <div>
           <h2 className={h2}>{tr.access}</h2>
           <p className={sub}>
-            What each role is allowed to do. The roles themselves are the studio&apos;s job titles, named in
-            Human Resources; this is where one is given its access. Assign them to people on the list above.
+            {tr.whatEachRoleAllowed}
           </p>
         </div>
         {canEdit && (
@@ -114,7 +113,7 @@ export default function StudioRoles({ slug }) {
           <button className={btn} disabled={grantable.length === 0}
             title={grantable.length === 0 ? tr.everyRoleAlreadyAccess : ""}
             onClick={() => setEditing({ ...(grantable[0] || {}), permissions: [...(grantable[0]?.permissions || [])], scopes: { ...(grantable[0]?.scopes || {}) } })}>
-            Create access
+            {tr.createAccess}
           </button>
         )}
       </div>
@@ -134,7 +133,7 @@ export default function StudioRoles({ slug }) {
                   {r.name}
                   {r.wildcard && (
                     <span className="ms-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-700 text-amber-700 dark:text-amber-300">
-                      Everything, including future features
+                      {tr.everythingIncludingFuture}
                     </span>
                   )}
                 </p>
@@ -144,7 +143,7 @@ export default function StudioRoles({ slug }) {
                 {r.wildcard ? "—"
                   : (r.permissions || []).length === 0
                     ? <span className="font-600 text-amber-700 dark:text-amber-300">{tr.noAccessYet}</span>
-                    : `${r.permissions.length} permissions`}
+                    : `${r.permissions.length} ${tr.nPermissions}`}
               </span>
               {canEdit && (
                 <span className="flex shrink-0 gap-2">
@@ -236,8 +235,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
       <section className={panel}>
         <h2 className={h2}>{draft.name}</h2>
         <p className={sub}>
-          This role holds every permission, including ones added in future releases.
-          That is deliberate, and it is why its list cannot be edited — only its description.
+          {tr.roleHoldsEveryPermission}
         </p>
         <div className="mt-4">
           <Field label={tr.description} value={draft.description || ""}
@@ -267,7 +265,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
             <label className={label}>{tr.role}</label>
             <RolePicker roles={roles.filter((r) => !r.wildcard)} value={draft.id} onPick={pickRole} />
             <p className="mt-1 text-[11px] text-slate-400">
-              Named in Human Resources → Roles. Add one there and it appears here.
+              {tr.namedInHumanResources}
             </p>
           </div>
           <div>

@@ -81,7 +81,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
           </p>
           <button type="button" className={`${btn} mt-3`} disabled={busy}
             onClick={() => send({ action: "acknowledge" })}>
-            I have read this
+            {tr.iHaveReadThis}
           </button>
         </div>
       )}
@@ -97,7 +97,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
           {data?.canDistribute && (
             <button type="button" onClick={() => setPicking(true)}
               className="ms-auto text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">
-              Choose recipients
+              {tr.chooseRecipients}
             </button>
           )}
         </div>
@@ -105,11 +105,11 @@ export default function QualityDistribution({ slug, documentId, document }) {
         <div className="mt-2 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10">
           {dist?.rev == null ? (
             <p className="text-xs text-slate-400 dark:text-slate-500">
-              Nothing is distributed until a revision is issued.
+              {tr.nothingDistributedUntilIssued}
             </p>
           ) : recipients.length === 0 ? (
             <p className="text-xs text-slate-400 dark:text-slate-500">
-              Nobody has been named yet. Choose who has to work to this document and they will be told when it is issued.
+              {tr.nobodyNamedYet}
             </p>
           ) : (
             <>
@@ -125,13 +125,13 @@ export default function QualityDistribution({ slug, documentId, document }) {
                     <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{r.alias}</span>
                     {r.acknowledgedAt ? (
                       <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-600 text-emerald-700 dark:text-emerald-300">
-                        Acknowledged
+                        {tr.acknowledged}
                       </span>
                     ) : r.readAt ? (
                       <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-600 text-amber-700 dark:text-amber-300">{tr.opened}</span>
                     ) : (
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
-                        Not opened
+                        {tr.notOpened}
                       </span>
                     )}
                   </li>
@@ -148,7 +148,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
             <p className={microLabel}>{tr.externalLinks}</p>
             <button type="button" onClick={() => { setMinted(""); setSharing(true); }}
               className="ms-auto text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">
-              Create a link
+              {tr.createLink}
             </button>
           </div>
           <ul className="mt-2 space-y-1.5">
@@ -163,7 +163,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
                     <button type="button" disabled={busy}
                       className="ms-auto font-600 text-slate-500 hover:text-rose-600 dark:text-slate-400"
                       onClick={() => send({ action: "revoke", linkId: l.id })}>
-                      Revoke
+                      {tr.revoke}
                     </button>
                   )}
                 </div>
@@ -183,8 +183,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
       {picking && (
         <Dialog title={tr.whoWorkDocument} onClose={() => setPicking(false)} width="max-w-[520px]">
           <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
-            They are told when a revision is issued, and asked to confirm they have read it. Acknowledgement resets each
-            time a new revision goes out — having read rev 2 says nothing about rev 3.
+            {tr.toldWhenRevisionIssued}
           </p>
           <div className="grid max-h-[45vh] grid-cols-2 gap-2 overflow-y-auto">
             {(data?.people || []).map((x) => {
@@ -204,7 +203,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
             <button type="button" className={btnGhost} onClick={() => setPicking(false)}>{tr.cancel}</button>
             <button type="button" className={btn} disabled={busy}
               onClick={async () => { const r = await send({ action: "distribute", collaboratorIds: chosen }); if (r) setPicking(false); }}>
-              Save
+              {tr.save}
             </button>
           </div>
         </Dialog>
@@ -236,7 +235,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
                 <button type="button" className={btnGhost} onClick={() => setSharing(false)}>{tr.cancel}</button>
                 <button type="button" className={btn} disabled={busy}
                   onClick={async () => { const r = await send({ action: "share", days }); if (r?.url) setMinted(r.url); }}>
-                  Create the link
+                  {tr.createTheLink}
                 </button>
               </div>
             </>

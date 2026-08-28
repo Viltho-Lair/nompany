@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { boardDict } from "@/shared/studio/board";
+import { boardDict, boardWord } from "@/shared/studio/board";
 import { useSortable } from "@dnd-kit/sortable";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -178,25 +178,25 @@ function ColumnHeader({
                   setEditing(true);
                 }}
               >
-                <Pencil /> Rename column
+                <Pencil /> {tr.renameColumn}
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 disabled={columnIndex <= 0}
                 onSelect={() => moveColumnBy(column.id, -1)}
               >
-                <ArrowLeftToLine /> Move left
+                <ArrowLeftToLine /> {tr.moveLeft}
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={columnIndex >= columnOrder.length - 1}
                 onSelect={() => moveColumnBy(column.id, 1)}
               >
-                <ArrowRightToLine /> Move right
+                <ArrowRightToLine /> {tr.moveRight}
               </DropdownMenuItem>
 
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                  <Palette /> Accent colour
+                  <Palette /> {tr.accentColour}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   {ACCENT_ORDER.map((a) => (
@@ -210,7 +210,7 @@ function ColumnHeader({
                           ACCENT_META[a].bar,
                         )}
                       />
-                      {ACCENT_META[a].label}
+                      {boardWord(tr, ACCENT_META[a].labelKey)}
                       {column.accent === a && (
                         <span className="ms-auto text-[10px] text-primary">
                           current
@@ -223,18 +223,18 @@ function ColumnHeader({
 
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                  <ArrowDownWideNarrow /> Sort cards
+                  <ArrowDownWideNarrow /> {tr.sortCards}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   <DropdownMenuItem
                     onSelect={() => sortColumn(column.id, "priority")}
                   >
-                    <ArrowDownWideNarrow /> By priority
+                    <ArrowDownWideNarrow /> {tr.byPriority}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => sortColumn(column.id, "created")}
                   >
-                    <CalendarClock /> Newest first
+                    <CalendarClock /> {tr.newestFirst}
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => sortColumn(column.id, "title")}>
                     <SortAsc /> A → Z
@@ -245,19 +245,19 @@ function ColumnHeader({
               <DropdownMenuSeparator />
               <DropdownMenuLabel>{tr.dangerZone}</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => duplicateColumn(column.id)}>
-                <Copy /> Duplicate column
+                <Copy /> {tr.duplicateColumn}
               </DropdownMenuItem>
               <DropdownMenuItem
                 destructive
                 onSelect={() => clearColumn(column.id)}
               >
-                <Eraser /> Clear all cards
+                <Eraser /> {tr.clearAllCards}
               </DropdownMenuItem>
               <DropdownMenuItem
                 destructive
                 onSelect={() => deleteColumn(column.id)}
               >
-                <Trash2 /> Delete column
+                <Trash2 /> {tr.deleteColumn}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -419,7 +419,7 @@ function BoardColumnInner({
             onClick={() => onAddTask(column.id)}
             className="h-9 w-full justify-start gap-2 text-[12.5px] text-muted-foreground hover:text-foreground"
           >
-            <Plus className="size-4" /> Add a card
+            <Plus className="size-4" /> {tr.addACard}
           </Button>
         </div>
       </ColumnShell>

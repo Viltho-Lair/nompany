@@ -13,6 +13,8 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 
 type Strings = CommonStrings & {
   // The department's own name, for the shared no-access sentence.
+  changeColumns: string;
+  noColumnsSelectedSales: string;
   salesDepartment: string;
   loadingSales: string;
   errDuplicate: string;
@@ -135,6 +137,8 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  changeColumns: "Change columns",
+  noColumnsSelectedSales: "No columns are selected. Choose them in Sales → Settings.",
   salesDepartment: "Sales",
   loadingSales: "Loading Sales…",
   errDuplicate: "A client with that name already exists.",
@@ -263,6 +267,8 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  changeColumns: "غيّر الأعمدة",
+  noColumnsSelectedSales: "لم تُختَر أي أعمدة. اخترها في المبيعات ← الإعدادات.",
   salesDepartment: "المبيعات",
   loadingSales: "جارٍ تحميل المبيعات…",
   errDuplicate: "يوجد عميل بهذا الاسم بالفعل.",

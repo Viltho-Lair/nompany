@@ -277,8 +277,7 @@ function EngagementList({
       <div className={`${panel} text-center`}>
         <p className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.nothingHereYet}</p>
         <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
-          A deal appears here the moment it starts anywhere in the studio — a ticket, an RFQ, or a
-          quotation raised on its own.
+          {tr.dealAppearsMoment}
         </p>
       </div>
     );
@@ -289,7 +288,7 @@ function EngagementList({
       <div className={`${panel} text-center`}>
         <p className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.noEngagementsCanSee}</p>
         <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
-          More deals may be further down the list — this page just did not have any you have access to.
+          {tr.moreDealsFurtherDown}
         </p>
         <div className="mt-4">
           <button type="button" className={btnGhost} disabled={loadingMore} onClick={onLoadMore}>
@@ -394,7 +393,7 @@ function EngagementList({
                       >
                         <span className="inline-flex items-center gap-1.5">
                           <Icon name="trash" className="h-3.5 w-3.5" />
-                          Delete
+                          {tr.delete}
                         </span>
                       </button>
                     )}
@@ -597,7 +596,7 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
             <>
               <section>
                 <h4 className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Deleting this deal deletes
+                  {tr.deletingThisDealDeletes}
                 </h4>
                 {deletes.length ? (
                   <ul className="mt-2 space-y-1.5">
@@ -611,14 +610,14 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
                   </ul>
                 ) : (
                   <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                    Nothing — there is no work on this deal yet.
+                    {tr.nothingNoWorkYet}
                   </p>
                 )}
               </section>
 
               <section>
                 <h4 className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  What survives
+                  {tr.whatSurvives}
                 </h4>
                 {survives.length ? (
                   <ul className="mt-2 space-y-1.5">
@@ -635,7 +634,7 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
                   // most deals own everything on them. Saying so is better than
                   // an empty heading, which reads as something failing to load.
                   <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                    Nothing was borrowed from elsewhere — everything on this deal was raised on it.
+                    {tr.nothingBorrowed}
                   </p>
                 )}
                 {/* THE CLIENT IS NOT A STAGE, so engagementImpact names it in
@@ -643,7 +642,7 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
                     about losing, so it is stated outright rather than left to
                     be inferred from an absence. */}
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  The client stays. A client belongs to the studio, not to one deal.
+                  {tr.clientStays}
                 </p>
               </section>
 

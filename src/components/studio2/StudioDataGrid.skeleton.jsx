@@ -12,6 +12,10 @@
 // The numbers mirror the console's grid rhythm (gridMetrics.js): a 44px uppercase
 // header and 52px rows, so a studio grid keeps the same beat as the console's.
 
+"use client";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { commonDict } from "@/shared/studio/common";
+
 export const GRID_HEADER_HEIGHT = 44;
 export const GRID_ROW_HEIGHT = 52;
 export const GRID_FOOTER_HEIGHT = 52;
@@ -32,16 +36,18 @@ const cellWidth = (i) => `${45 + ((i * 23) % 40)}%`;
 // each column a shimmer bar, the whole thing exactly gridHeight(pageSize) tall so
 // the swap to the real grid moves nothing. Reduced-motion drops the sweep (the
 // `.skel::after` rule in globals.css), leaving a still box — which is the point.
-// `ariaLabel` HAS NO DEFAULT ANY MORE. This renders as a `nextDynamic`
-// loading fallback, which means it renders on the SERVER, where a locale hook
-// cannot be called — so the caller, which does know the language, passes the
-// label in.
+// A `nextDynamic` loading fallback with no `ssr: false` renders on the server
+// too, which is why this had no default and every caller left it undefined —
+// a grid announcing nothing. Every caller is a client screen inside a
+// `StudioLocaleProvider`, so the context resolves in the server pass as well,
+// and `ariaLabel` stays as the override for anywhere that has no provider.
 export function StudioDataGridSkeleton({ columns = 6, pageSize = 10, rows = 6, ariaLabel }) {
+  const label = ariaLabel ?? commonDict(useStudioLocale()).loading;
   const shown = Math.min(rows, pageSize);
   return (
     <div
       aria-busy="true"
-      aria-label={ariaLabel}
+      aria-label={label}
       className="w-full"
       style={{ height: gridHeight(pageSize) }}
     >

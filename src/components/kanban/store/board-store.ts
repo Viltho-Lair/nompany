@@ -82,7 +82,7 @@ export interface BoardActions {
   renameBoard: (name: string) => void;
 
   /* nompany seam */
-  hydrate: (doc: BoardDoc | null, members: Member[]) => void;
+  hydrate: (doc: BoardDoc | null, members: Member[], seedWords?: SeedWords) => void;
 
   /* columns */
   addColumn: (title?: string) => string;
@@ -131,7 +131,7 @@ export interface BoardActions {
   setQuery: (query: string) => void;
   setPriorityFilter: (p: Priority | "all") => void;
 
-  resetBoard: () => void;
+  resetBoard: (seedWords?: SeedWords) => void;
 }
 
 export type BoardStore = BoardState & BoardActions;
@@ -176,16 +176,30 @@ export function boardDoc(state: BoardState): BoardDoc {
  * four columns as the original demo seed — same titles, same accents, same WIP
  * limit — but with empty `taskIds`, no tasks and no members.
  */
-export function emptySeed(): BoardState {
+// Just the five words the seed needs, not the whole dictionary — the store is
+// plain state and has no business importing a locale module.
+export type SeedWords = {
+  seedBoardName: string;
+  seedBacklog: string;
+  seedInProgress: string;
+  seedInReview: string;
+  seedDone: string;
+};
+
+// THE WORDS COME IN. A seeded title is stored and then renamed by whoever owns
+// the board, so it cannot be translated on display without overwriting that
+// rename — it takes the language of the person who created the board instead.
+// The fallback keeps the store usable from a context that has no dictionary.
+export function emptySeed(w?: SeedWords): BoardState {
   const columns: Column[] = [
-    { id: "c1", title: "Backlog", accent: "slate", taskIds: [], wipLimit: null },
-    { id: "c2", title: "In Progress", accent: "violet", taskIds: [], wipLimit: 3 },
-    { id: "c3", title: "In Review", accent: "amber", taskIds: [], wipLimit: null },
-    { id: "c4", title: "Done", accent: "emerald", taskIds: [], wipLimit: null },
+    { id: "c1", title: w?.seedBacklog ?? "Backlog", accent: "slate", taskIds: [], wipLimit: null },
+    { id: "c2", title: w?.seedInProgress ?? "In Progress", accent: "violet", taskIds: [], wipLimit: 3 },
+    { id: "c3", title: w?.seedInReview ?? "In Review", accent: "amber", taskIds: [], wipLimit: null },
+    { id: "c4", title: w?.seedDone ?? "Done", accent: "emerald", taskIds: [], wipLimit: null },
   ];
 
   return {
-    boardName: "Project board",
+    boardName: w?.seedBoardName ?? "Project board",
     columnOrder: columns.map((c) => c.id),
     columns: Object.fromEntries(columns.map((c) => [c.id, c])),
     tasks: {},
@@ -210,9 +224,9 @@ export const useBoardStore = create<BoardStore>()((set) => ({
   // Members come from the project's collaborators and are authoritative, so they
   // replace whatever member list a previously-saved doc carried. Everything else
   // is taken from the doc (or the empty seed when the project has none yet).
-  hydrate: (doc, members) =>
+  hydrate: (doc, members, seedWords) =>
     set(() => {
-      const base = doc ?? emptySeed();
+      const base = doc ?? emptySeed(seedWords);
       return {
         boardName: base.boardName,
         columnOrder: base.columnOrder,
@@ -227,7 +241,7 @@ export const useBoardStore = create<BoardStore>()((set) => ({
 
   /* ------------------------------ columns ----------------------------- */
 
-  addColumn: (title = "New Column") => {
+  addColumn: (title) => {
     const id = uid("col");
     set((s) => {
       const accent =
@@ -238,7 +252,7 @@ export const useBoardStore = create<BoardStore>()((set) => ({
           ...s.columns,
           [id]: {
             id,
-            title: title.trim() || "New Column",
+            title: (title ?? "").trim() || "New Column",
             accent,
             taskIds: [],
             wipLimit: null,
@@ -597,9 +611,9 @@ export const useBoardStore = create<BoardStore>()((set) => ({
   // Clear the board to its empty four columns, keeping the real members. (The
   // original reset restored demo tasks + fictional members; that behaviour is
   // deliberately not carried into a real project's board.)
-  resetBoard: () =>
+  resetBoard: (seedWords) =>
     set((s) => {
-      const seed = emptySeed();
+      const seed = emptySeed(seedWords);
       return {
         boardName: seed.boardName,
         columnOrder: seed.columnOrder,

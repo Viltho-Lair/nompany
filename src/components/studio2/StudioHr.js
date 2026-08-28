@@ -410,7 +410,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
           <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.role}</p>
           {nav?.people && (
             <a href={`/${slug}/people`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">
-              What each role may do →
+              {tr.whatEachRoleMayDo}
             </a>
           )}
         </div>
@@ -443,8 +443,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
       <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
         <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.identityDocuments}</p>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Numbers are encrypted before they&apos;re stored, and only people who can manage HR can read them back.
-          A stored number stays locked until you unlock it.
+          {tr.numbersEncrypted}
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
@@ -563,7 +562,7 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
                       which is why it cannot be renamed or deleted here. */}
                   {r.wildcard && (
                     <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-700 text-amber-700 dark:text-amber-300">
-                      Built in — everything, including future features
+                      {tr.builtInEverything}
                     </span>
                   )}
                   <span className="text-xs text-slate-400">

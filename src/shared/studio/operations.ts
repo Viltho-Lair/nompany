@@ -8,13 +8,16 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  coloursCalendarDraws: string;
   countPermits: (n: number) => string;
   countShifts: (n: number) => string;
   forWindow: (from: string, to: string) => string;
   joinAnd: (parts: string[]) => string;
+  locationsPermitsShiftsRight: string;
   mClash: (from: string, to: string) => string;
   mInUse: (what: string) => string;
   mOnLeave: (kind: string, from: string, to: string) => string;
+  showOnlyWorkingHours: string;
   soonestLapseWindow: (days: number) => string;
   accessOperationsStudio: string;
   acquiringSignal: string;
@@ -104,6 +107,7 @@ type Strings = CommonStrings & {
   tabLocations: string;
   tabPermits: string;
   tabSchedule: string;
+  takenFromStudioSettings: string;
   thisWeek: string;
   thisWeekSuffix: string;
   timedOutFix: string;
@@ -120,6 +124,7 @@ type Strings = CommonStrings & {
   week: string;
   whatKindAuthorisation: string;
   whatPermittedWhereUntil: string;
+  whereTeamIsNow: string;
   who: string;
   whoWorkingWhenWhere: string;
   workingHours: string;
@@ -127,13 +132,16 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  coloursCalendarDraws: "The colours the calendar draws shifts in. These kinds are fixed — recolour or rename them, but they cannot be added to or removed, because a shift whose kind has no entry would have no colour to be drawn in.",
   countPermits: (n) => `${n} ${n === 1 ? "permit" : "permits"}`,
   countShifts: (n) => `${n} ${n === 1 ? "shift" : "shifts"}`,
   forWindow: (from, to) => `for ${from} – ${to}`,
   joinAnd: (parts) => parts.join(" and "),
+  locationsPermitsShiftsRight: "Locations, permits and shifts are kept behind a right of their own here. Tracking and Settings are unaffected.",
   mClash: (from, to) => `They're already scheduled ${from}–${to} that day.`,
   mInUse: (what) => `Still used by ${what} — move those first.`,
   mOnLeave: (kind, from, to) => `They're on approved ${kind} leave ${from} – ${to}.`,
+  showOnlyWorkingHours: "Show only working hours on the calendar",
   soonestLapseWindow: (days) => `Soonest to lapse first · window ${days}d`,
   accessOperationsStudio: "You don't have access to Operations in this studio.",
   acquiringSignal: "Acquiring signal…",
@@ -223,6 +231,7 @@ const en: Strings = {
   tabLocations: "Locations",
   tabPermits: "Permits",
   tabSchedule: "Schedule",
+  takenFromStudioSettings: "Taken from Studio settings — the days and hours the studio works are one answer for the whole product, not a per-section one. The calendar shades days that are off and draws against those hours.",
   thisWeek: "this week",
   thisWeekSuffix: "this week",
   timedOutFix: "Timed out waiting for a fix.",
@@ -239,6 +248,7 @@ const en: Strings = {
   week: "This week",
   whatKindAuthorisation: "What kind of authorisation",
   whatPermittedWhereUntil: "What is permitted, where, and until when.",
+  whereTeamIsNow: "Where the team is right now. Sharing is per session — it stops when you close this page, and only your latest position is kept, never a history of where you have been.",
   who: "Who",
   whoWorkingWhenWhere: "Who is working, when, and where.",
   workingHours: "Working hours",
@@ -246,13 +256,16 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  coloursCalendarDraws: "الألوان التي يرسم بها التقويم الورديات. وهذه الأنواع ثابتة — أعد تلوينها أو تسميتها، لكن لا يمكن الإضافة إليها أو الحذف منها، لأن وردية بلا نوع مسجّل لن يكون لها لون تُرسم به.",
   countPermits: (n) => `${n === 1 ? "تصريح واحد" : n === 2 ? "تصريحان" : n <= 10 ? `${n} تصاريح` : `${n} تصريحًا`}`,
   countShifts: (n) => `${n === 1 ? "وردية واحدة" : n === 2 ? "ورديتان" : n <= 10 ? `${n} ورديات` : `${n} وردية`}`,
   forWindow: (from, to) => `للفترة ${from} – ${to}`,
   joinAnd: (parts) => parts.join(" و"),
+  locationsPermitsShiftsRight: "المواقع والتصاريح والورديات محفوظة خلف صلاحية خاصة بها هنا. أما التتبع والإعدادات فلا يتأثران.",
   mClash: (from, to) => `هو مجدول بالفعل من ${from} إلى ${to} في ذلك اليوم.`,
   mInUse: (what) => `لا يزال مستخدمًا من ${what} — انقلها أولًا.`,
   mOnLeave: (kind, from, to) => `هو في إجازة ${kind} معتمدة من ${from} إلى ${to}.`,
+  showOnlyWorkingHours: "اعرض ساعات العمل فقط على التقويم",
   soonestLapseWindow: (days) => `الأقرب انتهاءً أولًا · نافذة ${days} يومًا`,
   accessOperationsStudio: "لا تملك صلاحية الوصول إلى العمليات في هذا الاستوديو.",
   acquiringSignal: "جارٍ التقاط الإشارة…",
@@ -342,6 +355,7 @@ const ar: Strings = {
   tabLocations: "المواقع",
   tabPermits: "التصاريح",
   tabSchedule: "الجدول",
+  takenFromStudioSettings: "مأخوذة من إعدادات الاستوديو — فأيام العمل وساعاته إجابة واحدة للمنتج كله، لا لكل قسم على حدة. ويظلّل التقويم أيام العطلة ويرسم على تلك الساعات.",
   thisWeek: "هذا الأسبوع",
   thisWeekSuffix: "هذا الأسبوع",
   timedOutFix: "انتهت المهلة في انتظار التحديد.",
@@ -358,6 +372,7 @@ const ar: Strings = {
   week: "هذا الأسبوع",
   whatKindAuthorisation: "أي نوع من التصريح",
   whatPermittedWhereUntil: "ما المسموح به، وأين، وحتى متى.",
+  whereTeamIsNow: "أين الفريق الآن. والمشاركة لكل جلسة — تتوقف عند إغلاق هذه الصفحة، ولا يُحفظ إلا آخر موقع لك، لا سجل بمسارك.",
   who: "من",
   whoWorkingWhenWhere: "من يعمل، ومتى، وأين.",
   workingHours: "ساعات العمل",

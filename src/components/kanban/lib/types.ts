@@ -59,28 +59,28 @@ export const PRIORITY_RANK: Record<Priority, number> = {
 
 export const PRIORITY_META: Record<
   Priority,
-  { label: string; dot: string; chip: string; glow: string }
+  { labelKey: string; dot: string; chip: string; glow: string }
 > = {
   urgent: {
-    label: "Urgent",
+    labelKey: "prUrgent",
     dot: "bg-rose-500",
     chip: "bg-rose-500/12 text-rose-600 dark:text-rose-300 ring-1 ring-inset ring-rose-500/25",
     glow: "shadow-[0_0_12px_-2px_rgba(244,63,94,0.55)]",
   },
   high: {
-    label: "High",
+    labelKey: "prHigh",
     dot: "bg-amber-500",
     chip: "bg-amber-500/12 text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-500/25",
     glow: "shadow-[0_0_12px_-2px_rgba(245,158,11,0.5)]",
   },
   medium: {
-    label: "Medium",
+    labelKey: "prMedium",
     dot: "bg-sky-500",
     chip: "bg-sky-500/12 text-sky-700 dark:text-sky-300 ring-1 ring-inset ring-sky-500/25",
     glow: "shadow-[0_0_12px_-2px_rgba(14,165,233,0.5)]",
   },
   low: {
-    label: "Low",
+    labelKey: "prLow",
     dot: "bg-emerald-500",
     chip: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/25",
     glow: "shadow-[0_0_12px_-2px_rgba(16,185,129,0.45)]",
@@ -95,7 +95,7 @@ export const PRIORITY_META: Record<
 export const ACCENT_META: Record<
   ColumnAccent,
   {
-    label: string;
+    labelKey: string;
     bar: string;
     text: string;
     ring: string;
@@ -109,7 +109,7 @@ export const ACCENT_META: Record<
   }
 > = {
   violet: {
-    label: "Violet",
+    labelKey: "acViolet",
     bar: "from-[#8b5cf6] to-fuchsia-500",
     text: "text-[#8b5cf6]",
     ring: "ring-[#8b5cf6]/30",
@@ -118,7 +118,7 @@ export const ACCENT_META: Record<
       "[background-image:radial-gradient(closest-side,rgba(139,92,246,0.30),rgba(139,92,246,0.10)_55%,transparent_80%)]",
   },
   sky: {
-    label: "Sky",
+    labelKey: "acSky",
     bar: "from-sky-500 to-[#22d3ee]",
     text: "text-sky-500",
     ring: "ring-sky-500/30",
@@ -127,7 +127,7 @@ export const ACCENT_META: Record<
       "[background-image:radial-gradient(closest-side,rgba(14,165,233,0.30),rgba(14,165,233,0.10)_55%,transparent_80%)]",
   },
   emerald: {
-    label: "Emerald",
+    labelKey: "acEmerald",
     bar: "from-emerald-500 to-teal-400",
     text: "text-emerald-500",
     ring: "ring-emerald-500/30",
@@ -136,7 +136,7 @@ export const ACCENT_META: Record<
       "[background-image:radial-gradient(closest-side,rgba(16,185,129,0.30),rgba(16,185,129,0.10)_55%,transparent_80%)]",
   },
   amber: {
-    label: "Amber",
+    labelKey: "acAmber",
     bar: "from-amber-500 to-orange-400",
     text: "text-amber-500",
     ring: "ring-amber-500/30",
@@ -145,7 +145,7 @@ export const ACCENT_META: Record<
       "[background-image:radial-gradient(closest-side,rgba(245,158,11,0.30),rgba(245,158,11,0.10)_55%,transparent_80%)]",
   },
   rose: {
-    label: "Rose",
+    labelKey: "acRose",
     bar: "from-rose-500 to-pink-500",
     text: "text-rose-500",
     ring: "ring-rose-500/30",
@@ -154,7 +154,7 @@ export const ACCENT_META: Record<
       "[background-image:radial-gradient(closest-side,rgba(244,63,94,0.30),rgba(244,63,94,0.10)_55%,transparent_80%)]",
   },
   slate: {
-    label: "Slate",
+    labelKey: "acSlate",
     bar: "from-slate-400 to-slate-500",
     text: "text-slate-400",
     ring: "ring-slate-500/30",

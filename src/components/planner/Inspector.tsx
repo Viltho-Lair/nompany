@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useStudioLocale } from "@/components/studio2/locale";
-import { plannerDict } from "@/shared/studio/planner";
+import { plannerDict, plannerIssue } from "@/shared/studio/planner";
 import { ArrowRight, Link2, Plus, X } from 'lucide-react';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -42,7 +42,8 @@ export function Inspector({
   schedule: ScheduleResult;
   resources: Resource[];
 }) {
-  const tr = plannerDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = plannerDict(locale);
   const {
     selectedId,
     calendar,
@@ -61,7 +62,7 @@ export function Inspector({
       <aside className="flex w-[320px] shrink-0 flex-col border-s border-slate-200 bg-white">
         <Header onClose={() => setInspectorOpen(false)} title={tr.details} />
         <div className="flex flex-1 items-center justify-center p-6 text-center text-[13px] text-slate-400">
-          Select a row to see and edit its details.
+          {tr.selectRowToEdit}
         </div>
       </aside>
     );
@@ -88,7 +89,7 @@ export function Inspector({
         {task.issues.length > 0 && (
           <div className="mt-2 rounded-md bg-amber-50 px-2.5 py-2 text-[12px] text-amber-800">
             {task.issues.map((issue) => (
-              <div key={issue}>{issue}</div>
+              <div key={issue}>{plannerIssue(tr, issue)}</div>
             ))}
           </div>
         )}
@@ -127,10 +128,10 @@ export function Inspector({
 
           <Field label={tr.end}>
             <span className="px-1.5 text-[13px] text-slate-500">
-              {formatMediumDate(task.endDate)}
+              {formatMediumDate(task.endDate, locale)}
               {withTime && (
                 <span className="ms-1 text-[11px]">
-                  {formatTime(task.endDate)}
+                  {formatTime(task.endDate, locale)}
                 </span>
               )}
             </span>
@@ -188,7 +189,7 @@ export function Inspector({
                     : 'bg-amber-50 text-amber-700',
                 )}
               >
-                {task.scheduleMode === 'auto' ? 'Auto' : 'Pinned'}
+                {task.scheduleMode === 'auto' ? tr.auto : tr.pinned}
               </button>
               <span className="text-[11px] text-slate-400">
                 {task.scheduleMode === 'auto'
@@ -205,7 +206,7 @@ export function Inspector({
                 : `${task.totalFloat}${calendar.granularity === 'hours' ? 'h' : 'd'}`}
               {task.critical && !task.isSummary && (
                 <span className="ms-1.5 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-600">
-                  Critical
+                  {tr.critical}
                 </span>
               )}
             </span>
@@ -221,13 +222,13 @@ export function Inspector({
         <Separator className="my-4" />
 
         <SectionTitle>
-          <Link2 className="h-3.5 w-3.5" /> Predecessors
+          <Link2 className="h-3.5 w-3.5" /> {tr.predecessors}
         </SectionTitle>
 
         <div className="mt-2 space-y-1.5">
           {task.dependencies.length === 0 && (
             <p className="px-1 text-[12px] text-slate-400">
-              No incoming links. This task starts on its own date.
+              {tr.noIncomingLinks}
             </p>
           )}
 
@@ -295,7 +296,7 @@ export function Inspector({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="mt-2 w-full">
-              <Plus className="h-3.5 w-3.5" /> Add predecessor
+              <Plus className="h-3.5 w-3.5" /> {tr.addPredecessor}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="max-h-72 w-72 overflow-y-auto">
@@ -315,7 +316,7 @@ export function Inspector({
         {task.successorIds.length > 0 && (
           <>
             <SectionTitle className="mt-5">
-              <ArrowRight className="h-3.5 w-3.5" /> Successors
+              <ArrowRight className="h-3.5 w-3.5" /> {tr.successors}
             </SectionTitle>
             <div className="mt-2 space-y-1">
               {task.successorIds.map((sid) => {
@@ -382,7 +383,7 @@ export function Inspector({
             className="h-2 w-2 rounded-full"
             style={{ backgroundColor: STATUS_META[task.status].dot }}
           />
-          {task.isSummary ? 'Summary row (bracket)' : 'Work item'} ·{' '}
+          {task.isSummary ? tr.summaryRowBracket : tr.workItem} ·{' '}
           {task.childIds.length} sub-task
           {task.childIds.length === 1 ? '' : 's'}
         </div>

@@ -124,13 +124,16 @@ export const MARGIN_PRESET_ORDER: MarginPresetId[] = [
   "custom",
 ];
 
-export const MARGIN_PRESET_LABELS: Record<MarginPresetId, string> = {
-  normal: "Normal",
-  narrow: "Narrow",
-  moderate: "Moderate",
-  wide: "Wide",
-  custom: "Custom…",
-};
+// THE ID IS WHAT A DOCUMENT STORES; the name is what a person reads, so it
+// comes from the dictionary rather than from this table.
+type MarginWords = Record<"marginNormal" | "marginNarrow" | "marginModerate" | "marginWide" | "marginCustom", string>;
+export const marginPresetLabels = (tr: MarginWords): Record<MarginPresetId, string> => ({
+  normal: tr.marginNormal,
+  narrow: tr.marginNarrow,
+  moderate: tr.marginModerate,
+  wide: tr.marginWide,
+  custom: tr.marginCustom,
+});
 
 /**
  * Margins for a preset. "Normal" follows the paper — A4 gets 20mm, Letter gets

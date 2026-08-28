@@ -63,7 +63,12 @@ export function isLocale(value: unknown): value is Locale {
  * Anything unrecognised — including a studio created before the field existed —
  * reads as English, which is what every studio has been until now.
  */
-export function studioLocale(studio: { language?: unknown } | null | undefined): Locale {
+// `Record<string, unknown>` as well as the named shape: a studio arrives here
+// as `StudioRef`, whose `language` lives in its index signature, and a weak
+// type with one optional property alone rejects it.
+export function studioLocale(
+  studio: { language?: unknown } | Record<string, unknown> | null | undefined,
+): Locale {
   return preferredLocale(studio?.language, defaultLocale);
 }
 

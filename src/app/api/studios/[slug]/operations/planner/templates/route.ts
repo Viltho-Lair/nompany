@@ -2,6 +2,7 @@ import { route } from "@/platform/http/route";
 import { plannerContext } from "@/modules/operations/operations";
 import { listTemplates, createTemplate } from "@/modules/operations/planner";
 import { requirePermission } from "@/platform/access";
+import { studioLocale } from "@/shared/locale";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,10 @@ export const dynamic = "force-dynamic";
 const spec = { auth: "studio", context: plannerContext, name: "operations-planner/templates" };
 
 export const GET = route({ ...spec, body: false }, async (c) => ({
-  templates: await listTemplates(c.studio.id),
+  // The seed writes stored documents, so it needs the studio's language —
+  // not the reader's, which is a per-person override and would make the
+  // first person to open the screen decide what everyone else sees.
+  templates: await listTemplates(c.studio.id, studioLocale(c.studio)),
   canEdit: c.canManage,
 }));
 

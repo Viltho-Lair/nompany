@@ -30,6 +30,7 @@ type Strings = CommonStrings & {
   couldnLoadRoles: string;
   couldnRemovePerson: string;
   couldnSaveChange: string;
+  createAccess: string;
   decline: string;
   denied: string;
   department: string;
@@ -40,6 +41,7 @@ type Strings = CommonStrings & {
   everyRoleAlreadyAccess: string;
   everyone: string;
   everyoneAccessStudio: string;
+  everythingIncludingFuture: string;
   everythingJobMayAreas: string;
   invitePeople: string;
   joinedSuffix: string;
@@ -52,7 +54,9 @@ type Strings = CommonStrings & {
   loadingRoles: string;
   makeAdmin: string;
   member: string;
+  nPermissions: string;
   nameStudio: string;
+  namedInHumanResources: string;
   namesRolesHereApply: string;
   noAccessYet: string;
   noOneWaiting: string;
@@ -73,6 +77,7 @@ type Strings = CommonStrings & {
   requestAlreadyHandled: string;
   requestsJoin: string;
   role: string;
+  roleHoldsEveryPermission: string;
   save: string;
   saveAccess: string;
   saving: string;
@@ -86,6 +91,7 @@ type Strings = CommonStrings & {
   unnamedMember: string;
   unnamedMember2: string;
   what: string;
+  whatEachRoleAllowed: string;
   who: string;
   working: string;
   you: string;
@@ -115,6 +121,7 @@ const en: Strings = {
   couldnLoadRoles: "Couldn't load roles.",
   couldnRemovePerson: "We couldn't remove that person.",
   couldnSaveChange: "We couldn't save that change.",
+  createAccess: "Create access",
   decline: "Decline",
   denied: "Denied.",
   department: "Their department",
@@ -125,6 +132,7 @@ const en: Strings = {
   everyRoleAlreadyAccess: "Every role already has its access set. New roles are named in Human Resources.",
   everyone: "Everyone",
   everyoneAccessStudio: "Everyone with access to this studio.",
+  everythingIncludingFuture: "Everything, including future features",
   everythingJobMayAreas: "Everything this job may do. Areas are collapsed — open the ones you need.",
   invitePeople: "Invite people",
   joinedSuffix: " · joined",
@@ -137,7 +145,9 @@ const en: Strings = {
   loadingRoles: "Loading roles…",
   makeAdmin: "Make admin",
   member: "Member",
+  nPermissions: "permissions",
   nameStudio: "Name in this studio",
+  namedInHumanResources: "Named in Human Resources → Roles. Add one there and it appears here.",
   namesRolesHereApply: "Names and roles here apply only inside this studio.",
   noAccessYet: "No access yet",
   noOneWaiting: "No one is waiting.",
@@ -158,6 +168,7 @@ const en: Strings = {
   requestAlreadyHandled: "That request was already handled.",
   requestsJoin: "Requests to join",
   role: "Role",
+  roleHoldsEveryPermission: "This role holds every permission, including ones added in future releases. That is deliberate, and it is why its list cannot be edited — only its description.",
   save: "Save",
   saveAccess: "Save access",
   saving: "Saving…",
@@ -171,6 +182,7 @@ const en: Strings = {
   unnamedMember: "Unnamed member",
   unnamedMember2: "Unnamed member",
   what: "Do what…",
+  whatEachRoleAllowed: "What each role is allowed to do. The roles themselves are the studio's job titles, named in Human Resources; this is where one is given its access. Assign them to people on the list above.",
   who: "Who…",
   working: "Working…",
   you: "(you)",
@@ -200,6 +212,7 @@ const ar: Strings = {
   couldnLoadRoles: "تعذّر تحميل الأدوار.",
   couldnRemovePerson: "تعذّرت إزالة ذلك الشخص.",
   couldnSaveChange: "تعذّر حفظ ذلك التغيير.",
+  createAccess: "أنشئ صلاحية",
   decline: "رفض",
   denied: "مرفوض.",
   department: "قسمه",
@@ -210,6 +223,7 @@ const ar: Strings = {
   everyRoleAlreadyAccess: "كل دور لديه صلاحياته المضبوطة بالفعل. وتُسمّى الأدوار الجديدة في الموارد البشرية.",
   everyone: "الجميع",
   everyoneAccessStudio: "كل من لديه صلاحية الوصول إلى هذا الاستوديو.",
+  everythingIncludingFuture: "كل شيء، بما في ذلك الميزات المستقبلية",
   everythingJobMayAreas: "كل ما يُسمح لهذه الوظيفة بفعله. المجالات مطوية — افتح ما تحتاجه منها.",
   invitePeople: "دعوة أشخاص",
   joinedSuffix: " · انضم",
@@ -222,7 +236,9 @@ const ar: Strings = {
   loadingRoles: "جارٍ تحميل الأدوار…",
   makeAdmin: "تعيينه مسؤولًا",
   member: "عضو",
+  nPermissions: "صلاحية",
   nameStudio: "الاسم في هذا الاستوديو",
+  namedInHumanResources: "تُسمَّى في الموارد البشرية ← الأدوار. أضف واحدًا هناك ليظهر هنا.",
   namesRolesHereApply: "تسري الأسماء والأدوار هنا داخل هذا الاستوديو فقط.",
   noAccessYet: "لا توجد صلاحيات بعد",
   noOneWaiting: "لا أحد في الانتظار.",
@@ -243,6 +259,7 @@ const ar: Strings = {
   requestAlreadyHandled: "سبق التعامل مع هذا الطلب.",
   requestsJoin: "طلبات الانضمام",
   role: "الدور",
+  roleHoldsEveryPermission: "يحمل هذا الدور كل صلاحية، بما فيها ما يُضاف في الإصدارات المقبلة. وهذا مقصود، ولذلك لا يمكن تعديل قائمته — بل وصفه وحده.",
   save: "حفظ",
   saveAccess: "حفظ الصلاحيات",
   saving: "جارٍ الحفظ…",
@@ -256,6 +273,7 @@ const ar: Strings = {
   unnamedMember: "عضو بلا اسم",
   unnamedMember2: "عضو بلا اسم",
   what: "يفعل ماذا…",
+  whatEachRoleAllowed: "ما يجوز لكل دور فعله. والأدوار نفسها هي المسمّيات الوظيفية للاستوديو، وتُسمّى في الموارد البشرية؛ وهنا يُمنح أحدها صلاحيته. أسندها إلى الأشخاص في القائمة أعلاه.",
   who: "من…",
   working: "جارٍ العمل…",
   you: "(أنت)",

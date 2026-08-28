@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { boardDict, boardWord } from "@/shared/studio/board";
 import Tooltip from "@mui/material/Tooltip";
 import Avatar from "@mui/material/Avatar";
 import AvatarGroup from "@mui/material/AvatarGroup";
@@ -22,6 +24,7 @@ export const PriorityBadge = React.memo(function PriorityBadge({
   className?: string;
   compact?: boolean;
 }) {
+  const tr = boardDict(useStudioLocale());
   const meta = PRIORITY_META[priority];
 
   return (
@@ -33,7 +36,7 @@ export const PriorityBadge = React.memo(function PriorityBadge({
       )}
     >
       <span className={cn("size-1.5 rounded-full", meta.dot, meta.glow)} />
-      {!compact && meta.label}
+      {!compact && boardWord(tr, meta.labelKey)}
     </span>
   );
 });

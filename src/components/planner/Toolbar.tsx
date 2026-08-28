@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useStudioLocale } from "@/components/studio2/locale";
-import { plannerDict } from "@/shared/studio/planner";
+import { plannerDict, plannerWord } from "@/shared/studio/planner";
 import {
   CalendarClock,
   CalendarRange,
@@ -21,7 +21,7 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import type { ColorBy, ZoomLevel } from '@/components/planner/lib/types';
-import { ZOOM_PRESETS } from '@/components/planner/lib/timeline';
+import { ZOOM_PRESETS, zoomPreset } from '@/components/planner/lib/timeline';
 import {
   ALL_COLUMNS,
   type GridColumn,
@@ -45,11 +45,12 @@ import {
 } from '@/components/planner/ui/primitives';
 import { cn } from '@/components/planner/lib/utils';
 
-const COLOR_LABELS: Record<ColorBy, string> = {
-  phase: 'Phase',
-  status: 'Status',
-  assignee: 'Assignee',
-  priority: 'Priority',
+// The colour-by key is stored on the view; its name is copy.
+const COLOR_LABEL_KEYS: Record<ColorBy, string> = {
+  phase: 'byPhase',
+  status: 'byStatus',
+  assignee: 'byAssignee',
+  priority: 'byPriority',
 };
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -105,7 +106,7 @@ export function Toolbar({
           )}
         >
           <Sun className="h-3.5 w-3.5" />
-          Working days
+          {tr.workingDays}
         </button>
         <button
           type="button"
@@ -118,7 +119,7 @@ export function Toolbar({
           )}
         >
           <Clock className="h-3.5 w-3.5" />
-          Working hours
+          {tr.workingHours}
         </button>
       </div>
 
@@ -138,7 +139,7 @@ export function Toolbar({
             convert against; changed in Studio settings. */}
         <PopoverContent className="w-80">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            Working week
+            {tr.workingWeek}
           </p>
           <div className="mt-2 flex gap-1">
             {WEEKDAYS.map((label, day) => {
@@ -158,7 +159,7 @@ export function Toolbar({
           </div>
 
           <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            Day window
+            {tr.dayWindow}
           </p>
           <div className="mt-2 flex items-baseline gap-2 text-slate-700">
             <span className="text-lg font-semibold tabular-nums">
@@ -178,7 +179,7 @@ export function Toolbar({
             h per working day. Durations in days convert at this rate.
           </p>
           <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-400">
-            From the studio&apos;s working hours — change them in Studio settings.
+            {tr.fromStudioWorkingHours}
           </p>
         </PopoverContent>
       </Popover>
@@ -187,7 +188,7 @@ export function Toolbar({
 
       <Button variant="ghost" size="sm" onClick={onToday}>
         <Crosshair className="h-3.5 w-3.5" />
-        Today
+        {tr.today}
       </Button>
 
       {/* zoom */}
@@ -195,7 +196,7 @@ export function Toolbar({
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
             <ZoomIn className="h-3.5 w-3.5" />
-            {ZOOM_PRESETS.find((z) => z.id === zoom)?.label}
+            {plannerWord(tr, zoomPreset(zoom).labelKey)}
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
@@ -206,7 +207,7 @@ export function Toolbar({
           >
             {ZOOM_PRESETS.map((z) => (
               <DropdownMenuRadioItem key={z.id} value={z.id}>
-                {z.label}
+                {plannerWord(tr, z.labelKey)}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
@@ -218,7 +219,7 @@ export function Toolbar({
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
             <Palette className="h-3.5 w-3.5" />
-            Color: {COLOR_LABELS[colorBy]}
+            {tr.colorBy}: {plannerWord(tr, COLOR_LABEL_KEYS[colorBy])}
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
@@ -227,9 +228,9 @@ export function Toolbar({
             value={colorBy}
             onValueChange={(v) => setColorBy(v as ColorBy)}
           >
-            {(Object.keys(COLOR_LABELS) as ColorBy[]).map((key) => (
+            {(Object.keys(COLOR_LABEL_KEYS) as ColorBy[]).map((key) => (
               <DropdownMenuRadioItem key={key} value={key}>
-                {COLOR_LABELS[key]}
+                {plannerWord(tr, COLOR_LABEL_KEYS[key])}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
@@ -241,7 +242,7 @@ export function Toolbar({
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
             <Columns3 className="h-3.5 w-3.5" />
-            Fields
+            {tr.fields}
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
@@ -255,7 +256,7 @@ export function Toolbar({
               onSelect={(e) => e.preventDefault()}
               onCheckedChange={() => toggleColumn(col.key as GridColumn)}
             >
-              {col.label}
+              {plannerWord(tr, col.labelKey)}
             </DropdownMenuCheckboxItem>
           ))}
         </DropdownMenuContent>
@@ -309,14 +310,14 @@ export function Toolbar({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItemButton onClick={() => setAllCollapsed(false)}>
-            Expand all
+            {tr.expandAll}
           </DropdownMenuItemButton>
           <DropdownMenuItemButton onClick={() => setAllCollapsed(true)}>
-            Collapse all phases
+            {tr.collapseAllPhases}
           </DropdownMenuItemButton>
           <DropdownMenuSeparator />
           <DropdownMenuItemButton onClick={onOpenTemplates}>
-            <LayoutTemplate className="h-3.5 w-3.5" /> Start from a preset…
+            <LayoutTemplate className="h-3.5 w-3.5" /> {tr.startFromPreset}
           </DropdownMenuItemButton>
         </DropdownMenuContent>
       </DropdownMenu>

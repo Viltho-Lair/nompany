@@ -123,8 +123,7 @@ export function CellFormatDialog({
         <DialogHeader>
           <DialogTitle>{tr.cellFormat}</DialogTitle>
           <DialogDescription>
-            Applies to every selected cell. Drag across cells first to format
-            several at once.
+            {tr.appliesToEverySelectedCell}
           </DialogDescription>
         </DialogHeader>
 
@@ -166,7 +165,7 @@ export function CellFormatDialog({
             <div className="flex flex-col gap-2">
               <Label>
                 <AlignVerticalJustifyCenter className="size-3.5" />
-                Vertical align
+                {tr.verticalAlign}
               </Label>
               <div className="flex gap-1">
                 {verticalAlignsFor(tr).map((option) => (
@@ -190,7 +189,7 @@ export function CellFormatDialog({
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="cell-padding">Padding (px)</Label>
+              <Label htmlFor="cell-padding">{tr.paddingPx}</Label>
               <Input
                 id="cell-padding"
                 type="number"
@@ -287,10 +286,10 @@ export function CellFormatDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            Cancel
+            {tr.cancel}
           </Button>
           <Button type="button" onClick={apply}>
-            Apply
+            {tr.apply}
           </Button>
         </DialogFooter>
       </DialogContent>

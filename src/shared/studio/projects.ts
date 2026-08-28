@@ -22,6 +22,7 @@ type Strings = CommonStrings & {
   approvedQuotation: string;
   approvedQuotationsReadyOpen: string;
   averagePlanCompletion: string;
+  boardCouldNotLoad: string;
   bulk: string;
   cancel: string;
   client: string;
@@ -38,6 +39,7 @@ type Strings = CommonStrings & {
   creating: string;
   dashboardIsnYoursSee: string;
   date: string;
+  decisions: string;
   defaultDepartment: string;
   defaultSupportPeriodDays: string;
   delete: string;
@@ -64,6 +66,7 @@ type Strings = CommonStrings & {
   giveName: string;
   handler: string;
   hours: string;
+  howCompletionSplits: string;
   howLongProjectStays: string;
   item: string;
   loadingProject: string;
@@ -76,6 +79,7 @@ type Strings = CommonStrings & {
   main: string;
   manager: string;
   model: string;
+  noApprovedQuotationsWaiting: string;
   noDataYet: string;
   noDepartmentsDepartmentSection: string;
   noEmergencyVisitsRegistered: string;
@@ -91,6 +95,7 @@ type Strings = CommonStrings & {
   noProjectsSigned: string;
   noProjectsSignedYet: string;
   noProjectsYet: string;
+  noServiceActionsYet: string;
   noSlaContractsYet: string;
   noSlaContractsYet2: string;
   nobodyDepartment: string;
@@ -100,10 +105,12 @@ type Strings = CommonStrings & {
   nothingAllocated: string;
   nothingHidden: string;
   nothingStockAllocate: string;
+  nothingToShowQuotationLines: string;
   number: string;
   oneRecordWrittenPer: string;
   onlyApprovedQuotationsCan: string;
   onlyProjectEditorsCan: string;
+  open: string;
   openProject: string;
   openProject2: string;
   openProjectFirst: string;
@@ -141,6 +148,7 @@ type Strings = CommonStrings & {
   qty: string;
   quotationHasnApprovedYet: string;
   received: string;
+  registerEmergencyVisit: string;
   registeredProjectValue: string;
   releaseUnit: string;
   remove: string;
@@ -221,6 +229,7 @@ const en: Strings = {
   approvedQuotation: "Approved quotation",
   approvedQuotationsReadyOpen: "You have approved quotations ready — open one as a project to start delivering.",
   averagePlanCompletion: "Average plan completion",
+  boardCouldNotLoad: "This project's board could not be loaded — you may not have access to it.",
   bulk: "Bulk",
   cancel: "Cancel",
   client: "Client",
@@ -237,6 +246,7 @@ const en: Strings = {
   creating: "Creating…",
   dashboardIsnYoursSee: "The dashboard isn't yours to see",
   date: "Date",
+  decisions: "Decisions",
   defaultDepartment: "Default department",
   defaultSupportPeriodDays: "Default support period (days)",
   delete: "Delete",
@@ -263,6 +273,7 @@ const en: Strings = {
   giveName: "Give it a name.",
   handler: "Handler",
   hours: "Hours",
+  howCompletionSplits: "How a project's completion percentage splits across its requirements — your studio's service actions. Give each a share; together they must total 100%. Only the actions a project actually carries are counted, and their shares are re-scaled to fill the bar.",
   howLongProjectStays: "How long a project stays in support after its end date. A new project starts with this, and can be changed on its own.",
   item: "Item",
   loadingProject: "Loading project…",
@@ -275,6 +286,7 @@ const en: Strings = {
   main: "Main",
   manager: "Manager",
   model: "Model",
+  noApprovedQuotationsWaiting: "There are no approved quotations waiting. Approve one in Technical and it will be selectable here.",
   noDataYet: "No data yet",
   noDepartmentsDepartmentSection: "No departments — a department is a section, and this studio has none switched on.",
   noEmergencyVisitsRegistered: "No emergency visits registered yet.",
@@ -290,6 +302,7 @@ const en: Strings = {
   noProjectsSigned: "No projects have been signed yet — a project's sheets are drawn up when it is opened from an approved quotation.",
   noProjectsSignedYet: "No projects signed yet.",
   noProjectsYet: "No projects yet",
+  noServiceActionsYet: "No service actions yet — add them in Studio Settings, then weight them here.",
   noSlaContractsYet: "No SLA contracts yet",
   noSlaContractsYet2: "No SLA contracts yet.",
   nobodyDepartment: "Nobody in this department.",
@@ -299,10 +312,12 @@ const en: Strings = {
   nothingAllocated: "Nothing allocated",
   nothingHidden: "Nothing is hidden.",
   nothingStockAllocate: "Nothing in stock to allocate.",
+  nothingToShowQuotationLines: "Nothing to show yet — the quotation's lines appear here once a project is opened from an approved quotation.",
   number: "Number",
   oneRecordWrittenPer: "One record is written per person selected.",
   onlyApprovedQuotationsCan: "Only approved quotations can become projects.",
   onlyProjectEditorsCan: "Only project editors can start a plan.",
+  open: "Open",
   openProject: "Open project",
   openProject2: "Open a project",
   openProjectFirst: "Open a project first",
@@ -340,6 +355,7 @@ const en: Strings = {
   qty: "Qty",
   quotationHasnApprovedYet: "That quotation hasn't been approved yet.",
   received: "Received",
+  registerEmergencyVisit: "Register emergency visit",
   registeredProjectValue: "Registered project value",
   releaseUnit: "Release this unit",
   remove: "Remove",
@@ -420,6 +436,7 @@ const ar: Strings = {
   approvedQuotation: "عرض السعر المعتمد",
   approvedQuotationsReadyOpen: "لديك عروض أسعار معتمدة جاهزة — افتح واحدًا كمشروع لتبدأ التنفيذ.",
   averagePlanCompletion: "متوسط إنجاز الخطط",
+  boardCouldNotLoad: "تعذّر تحميل لوحة هذا المشروع — قد لا تملك الوصول إليها.",
   bulk: "دفعة",
   cancel: "إلغاء",
   client: "العميل",
@@ -436,6 +453,7 @@ const ar: Strings = {
   creating: "جارٍ الإنشاء…",
   dashboardIsnYoursSee: "لوحة المعلومات ليست من صلاحياتك",
   date: "التاريخ",
+  decisions: "القرارات",
   defaultDepartment: "القسم الافتراضي",
   defaultSupportPeriodDays: "فترة الدعم الافتراضية (بالأيام)",
   delete: "حذف",
@@ -462,6 +480,7 @@ const ar: Strings = {
   giveName: "أعطِه اسمًا.",
   handler: "المتولّي",
   hours: "الساعات",
+  howCompletionSplits: "كيف تتوزّع نسبة إنجاز المشروع على متطلباته — أي إجراءات الخدمة في استوديوك. أعطِ كلًّا منها نصيبًا؛ ومجموعها يجب أن يكون 100%. ولا تُحتسب إلا الإجراءات التي يحملها المشروع فعلًا، ويُعاد تحجيم أنصبتها لملء الشريط.",
   howLongProjectStays: "كم يبقى المشروع تحت الدعم بعد تاريخ انتهائه. يبدأ المشروع الجديد بهذه المدة، ويمكن تغييرها له وحده.",
   item: "الصنف",
   loadingProject: "جارٍ تحميل المشروع…",
@@ -474,6 +493,7 @@ const ar: Strings = {
   main: "الرئيسية",
   manager: "المدير",
   model: "الطراز",
+  noApprovedQuotationsWaiting: "لا توجد عروض أسعار معتمدة بالانتظار. اعتمد واحدًا في القسم الفني ليصبح قابلًا للاختيار هنا.",
   noDataYet: "لا توجد بيانات بعد",
   noDepartmentsDepartmentSection: "لا توجد أقسام — القسم هو قطاع، ولا يوجد أي قطاع مفعّل في هذا الاستوديو.",
   noEmergencyVisitsRegistered: "لم تُسجَّل زيارات طارئة بعد.",
@@ -489,6 +509,7 @@ const ar: Strings = {
   noProjectsSigned: "لم تُوقَّع أي مشاريع بعد — تُعدّ كشوف المشروع عند فتحه من عرض سعر معتمد.",
   noProjectsSignedYet: "لم تُوقَّع أي مشاريع بعد.",
   noProjectsYet: "لا توجد مشاريع بعد",
+  noServiceActionsYet: "لا إجراءات خدمة بعد — أضفها في إعدادات الاستوديو ثم وزّع أوزانها هنا.",
   noSlaContractsYet: "لا توجد عقود مستوى خدمة بعد",
   noSlaContractsYet2: "لا توجد عقود مستوى خدمة بعد.",
   nobodyDepartment: "لا أحد في هذا القسم.",
@@ -498,10 +519,12 @@ const ar: Strings = {
   nothingAllocated: "لم يُخصَّص شيء",
   nothingHidden: "لا شيء مخفي.",
   nothingStockAllocate: "لا شيء في المخزون لتخصيصه.",
+  nothingToShowQuotationLines: "لا شيء لعرضه بعد — تظهر بنود عرض السعر هنا متى فُتح مشروع من عرض سعر معتمد.",
   number: "الرقم",
   oneRecordWrittenPer: "يُكتب سجل واحد لكل شخص محدد.",
   onlyApprovedQuotationsCan: "عروض الأسعار المعتمدة وحدها هي التي يمكن أن تصير مشاريع.",
   onlyProjectEditorsCan: "لا يمكن بدء خطة إلا لمحرري المشاريع.",
+  open: "فتح",
   openProject: "فتح المشروع",
   openProject2: "افتح مشروعًا",
   openProjectFirst: "افتح مشروعًا أولًا",
@@ -539,6 +562,7 @@ const ar: Strings = {
   qty: "الكمية",
   quotationHasnApprovedYet: "لم يُعتمد عرض السعر ذاك بعد.",
   received: "مستلم",
+  registerEmergencyVisit: "سجّل زيارة طارئة",
   registeredProjectValue: "قيمة المشاريع المسجّلة",
   releaseUnit: "تحرير هذه الوحدة",
   remove: "إزالة",

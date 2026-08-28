@@ -442,13 +442,13 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
               {canManage && !converted && (
                 <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Convert this RFQ into a quotation. You choose who handles it next.
+                    {tr.convertRfqIntoQuotation}
                   </p>
                   {/* Saves first: converting must never be the thing that loses
                       what was just typed into the box above it. */}
                   <button className={`${btn} ms-auto`} disabled={busy}
                     onClick={async () => { if (dirty && !(await save())) return; onConvert(selected); }}>
-                    Convert
+                    {tr.convert}
                   </button>
                 </div>
               )}
@@ -476,17 +476,18 @@ function RfqInfo({ label: text, value, mono }) {
 // name "sales", from SECTION_ICONS), so the two screens read as one product; an
 // internal one — raised straight from this screen — wears a quiet neutral tag.
 function OriginTag({ fromSales }) {
+  const tr = technicalDict(useStudioLocale());
   if (fromSales) {
     return (
       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-700 text-brand-700 dark:text-brand-300">
         <Icon name="sales" className="h-3 w-3" />
-        Sales
+        {tr.originSales}
       </span>
     );
   }
   return (
     <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
-      Internal
+      {tr.originInternal}
     </span>
   );
 }
@@ -767,7 +768,7 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
         options={people.map((p) => ({ value: p.id, label: p.alias }))} />
 
       <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-        The quotation is numbered automatically and its lead is set to <span className="font-600">{rfq.ticketRef || rfq.reference}</span>.
+        {tr.numberedAutomaticallyLeadSet} <span className="font-600">{rfq.ticketRef || rfq.reference}</span>.
       </p>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !handledBy} onClick={async () => { setBusy(true); await onSave({ handledByCollaboratorId: handledBy }); setBusy(false); }}>
@@ -956,7 +957,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
   return (
     <section className={panel}>
       <h2 className={h2}>{tr.quotationNumbering}</h2>
-      <p className={sub}>The sequences a quotation's number is drawn from. Each has a label, a prefix and a starting number; one is the default for quotations raised from Sales tickets.</p>
+      <p className={sub}>{tr.sequencesQuotationNumber}</p>
 
       <div className="mt-4 space-y-3">
         {rows.length === 0 && <p className="text-sm text-slate-400">{tr.noSequencesYetAdd}</p>}
@@ -973,7 +974,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
                 <div className="flex items-center">
                   <button type="button" className={btnGhost} onClick={() => removeRow(r.id)}
                     disabled={rows.length === 1} title={rows.length === 1 ? tr.leastOneSequenceKept : tr.removeSequence}>
-                    Remove
+                    {tr.remove}
                   </button>
                 </div>
               )}

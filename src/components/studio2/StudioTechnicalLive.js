@@ -94,7 +94,7 @@ export default function StudioTechnicalLive({ studio }) {
                 href={`/${studio.slug}/technical-settings`}
                 className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
               >
-                Change columns
+                {tr.changeColumns}
               </Link>
             )}
           </div>
@@ -107,7 +107,7 @@ export default function StudioTechnicalLive({ studio }) {
 
         {data && columns.length === 0 && (
           <p className="rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-8 text-center text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
-            No columns are selected. Choose them in Technical → Settings.
+            {tr.noColumnsSelectedTechnical}
           </p>
         )}
 

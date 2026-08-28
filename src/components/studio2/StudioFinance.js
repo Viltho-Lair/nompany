@@ -419,7 +419,7 @@ function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
       <LineItemsEditor lines={lines} setLines={setLines} />
 
       <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-        Total <span className="font-mono font-700 text-slate-900 dark:text-white">{money(total)}</span>
+        {tr.total} <span className="font-mono font-700 text-slate-900 dark:text-white">{money(total)}</span>
         <span className="text-xs"> {tr.recalculatedServerWhenSave}</span>
       </p>
 
@@ -538,7 +538,7 @@ function Profitability({ rows, slug, nav }) {
   return (
     <section className={panel}>
       <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-        Value comes from the project's quotation, cost from its purchase orders plus booked expenses. Both are recomputed on every read.
+        {tr.valueFromQuotationCost}
       </p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[860px] border-collapse text-sm">
@@ -727,7 +727,7 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
   const [paying, setPaying] = useState(null);
   const [open, setOpen] = useState(null);
   const terms = vocab.billTerms || Object.keys(termLabel(tr));
-  const methods = vocab.paymentMethods || ["Bank transfer"];
+  const methods = vocab.paymentMethods || [tr.bankTransfer];
 
   // Keep an open form on the freshly loaded row after a save.
   useEffect(() => { setEditing((cur) => (cur ? rows.find((r) => r.id === cur.id) || null : null)); }, [rows]);
@@ -762,7 +762,7 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
             <table className="w-full min-w-[860px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10">
-                  {["Bill", "Vendor", "Due", "Total", "Outstanding", "Status", ""].map((h, i) => (
+                  {[tr.colBill, tr.colVendor, tr.colDue, tr.total, tr.colOutstanding, tr.colStatus, ""].map((h, i) => (
                     <th key={h} className={`${th} ${i >= 3 && i <= 4 ? "text-end" : i === 6 ? "text-end" : ""}`}>{h}</th>
                   ))}
                 </tr>
@@ -904,7 +904,7 @@ function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
       <LineItemsEditor lines={lines} setLines={setLines} />
 
       <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-        Total <span className="num font-700 text-slate-900 dark:text-white">{money(total)}</span>
+        {tr.total} <span className="num font-700 text-slate-900 dark:text-white">{money(total)}</span>
         <span className="text-xs"> {tr.recalculatedServerWhenSave}</span>
       </p>
 
@@ -951,7 +951,8 @@ function BillPaymentForm({ bill, methods, busy, onCancel, onSave }) {
 // server (never stored), so every number a row shows — book value, accumulated,
 // monthly charge — arrives ready; the screen only lays it out.
 // ============================================================================
-const ASSET_METHOD_LABEL = { "straight-line": "Straight line", "reducing-balance": "Reducing balance" };
+// The STORED value is the hyphenated key; the words beside it are display.
+const assetMethodLabel = (tr) => ({ "straight-line": tr.straightLine, "reducing-balance": tr.reducingBalance });
 
 function Assets({ slug }) {
   const tr = financeDict(useStudioLocale());
@@ -976,13 +977,14 @@ function Assets({ slug }) {
 }
 
 function AssetsSummary({ assets }) {
+  const tr = financeDict(useStudioLocale());
   const reg = assetRegister(assets);
   const cells = [
-    ["Cost", money(reg.totalCost), ""],
-    ["Depreciation", money(reg.totalAccumulated), ""],
-    ["Net book value", money(reg.netBookValue), "text-emerald-600 dark:text-emerald-400"],
-    ["In service", String(reg.count), ""],
-    ["Disposed", String(reg.disposedCount), reg.disposedCount > 0 ? "text-slate-400" : ""],
+    [tr.cost, money(reg.totalCost), ""],
+    [tr.depreciation, money(reg.totalAccumulated), ""],
+    [tr.netBookValue, money(reg.netBookValue), "text-emerald-600 dark:text-emerald-400"],
+    [tr.inService, String(reg.count), ""],
+    [tr.disposed, String(reg.disposedCount), reg.disposedCount > 0 ? "text-slate-400" : ""],
   ];
   return (
     <section className={panel}>
@@ -1004,7 +1006,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
   const [editing, setEditing] = useState(null);
   const [disposing, setDisposing] = useState(null);
   const [open, setOpen] = useState(null);
-  const methods = vocab.assetMethods || Object.keys(ASSET_METHOD_LABEL);
+  const methods = vocab.assetMethods || Object.keys(assetMethodLabel(tr));
 
   useEffect(() => { setEditing((cur) => (cur ? rows.find((r) => r.id === cur.id) || null : null)); }, [rows]);
   useEffect(() => { setDisposing((cur) => (cur ? rows.find((r) => r.id === cur.id) || null : null)); }, [rows]);
@@ -1036,7 +1038,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
             <table className="w-full min-w-[880px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10">
-                  {["Asset", "Category", "Cost", "Book value", "Monthly", "Status", ""].map((h, i) => (
+                  {[tr.colAsset, tr.colCategory, tr.cost, tr.colBookValue, tr.colMonthly, tr.colStatus, ""].map((h, i) => (
                     <th key={h} className={`${th} ${i >= 2 && i <= 4 ? "text-end" : i === 6 ? "text-end" : ""}`}>{h}</th>
                   ))}
                 </tr>
@@ -1073,7 +1075,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
                         <td colSpan={7} className="py-4">
                           <div className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm dark:bg-white/5 sm:grid-cols-3 lg:grid-cols-4">
                             <Detail label={tr.acquired} value={a.acquiredOn ? fmt(a.acquiredOn) : "—"} />
-                            <Detail label={tr.method} value={ASSET_METHOD_LABEL[a.method] || a.method || "—"} />
+                            <Detail label={tr.method} value={assetMethodLabel(tr)[a.method] || a.method || "—"} />
                             <Detail label={tr.usefulLife} value={`${a.usefulLifeMonths} months`} />
                             <Detail label={tr.monthsElapsed} value={String(a.monthsElapsed)} />
                             <Detail label={tr.salvageValue} value={money(a.salvageValue || 0)} num />
@@ -1133,7 +1135,7 @@ function AssetForm({ asset, methods, busy, onCancel, onSave }) {
         <Field label={tr.name} required value={f.name} onChange={(v) => set("name", v)} />
         <Field label={tr.category} value={f.category} onChange={(v) => set("category", v)} />
         <Field label={tr.method} as="select" value={f.method} onChange={(v) => set("method", v)}
-          options={methods.map((m) => ({ value: m, label: ASSET_METHOD_LABEL[m] || m }))} />
+          options={methods.map((m) => ({ value: m, label: assetMethodLabel(tr)[m] || m }))} />
         <Field label={tr.cost} required type="number" value={f.cost} onChange={(v) => set("cost", v)} />
         <Field label={tr.salvageValue} type="number" value={f.salvageValue} hint={tr.whatWorthEndLife} onChange={(v) => set("salvageValue", v)} />
         <Field label={tr.usefulLifeMonths} required type="number" value={f.usefulLifeMonths} onChange={(v) => set("usefulLifeMonths", v)} />
@@ -1167,9 +1169,9 @@ function DisposeForm({ asset, busy, onCancel, onSave }) {
 
   return (
     <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Dispose — {asset.reference}</h3>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.dispose} — {asset.reference}</h3>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Current book value <span className="num font-600 text-slate-900 dark:text-white">{money(asset.bookValue)}</span>. Disposal stops depreciation on its date.
+        {tr.currentBookValue} <span className="num font-600 text-slate-900 dark:text-white">{money(asset.bookValue)}</span>{tr.disposalStopsDepreciation}
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={tr.disposalDate} filled={!!f.disposedOn}>
@@ -1199,23 +1201,28 @@ function DisposeForm({ asset, busy, onCancel, onSave }) {
 // numbers Finance itself issues. Columns beyond the core set are opt-in, because
 // the core ones are what somebody chasing money actually reads.
 const FINANCE_COLUMNS = [
-  { key: "poNumber", label: "PO number", core: true },
-  { key: "quotationNumber", label: "Quotation", core: true },
-  { key: "title", label: "Project", core: true },
-  { key: "clientName", label: "Client", core: true },
-  { key: "value", label: "Value", core: true, money: true, end: true },
-  { key: "projectNumber", label: "Project number", core: true },
-  { key: "managerAlias", label: "Manager", core: true },
-  { key: "number", label: "Ref", core: false },
-  { key: "stage", label: "Stage", core: false },
-  { key: "location", label: "Location", core: false },
-  { key: "endDate", label: "Target end", core: false, date: true },
-  { key: "invoiced", label: "Invoiced", core: false, money: true, end: true },
-  { key: "collected", label: "Collected", core: false, money: true, end: true },
-  { key: "uninvoiced", label: "Uninvoiced", core: false, money: true, end: true },
-  { key: "cost", label: "Cost", core: false, money: true, end: true },
-  { key: "margin", label: "Margin", core: false, money: true, end: true },
+  { key: "poNumber", labelKey: "colPoNumber", core: true },
+  { key: "quotationNumber", labelKey: "colQuotation", core: true },
+  { key: "title", labelKey: "colProject", core: true },
+  { key: "clientName", labelKey: "colClient", core: true },
+  { key: "value", labelKey: "colValue", core: true, money: true, end: true },
+  { key: "projectNumber", labelKey: "colProjectNumber", core: true },
+  { key: "managerAlias", labelKey: "colManager", core: true },
+  { key: "number", labelKey: "colRef", core: false },
+  { key: "stage", labelKey: "colStage", core: false },
+  { key: "location", labelKey: "colLocation", core: false },
+  { key: "endDate", labelKey: "colTargetEnd", core: false, date: true },
+  { key: "invoiced", labelKey: "colInvoiced", core: false, money: true, end: true },
+  { key: "collected", labelKey: "colCollected", core: false, money: true, end: true },
+  { key: "uninvoiced", labelKey: "colUninvoiced", core: false, money: true, end: true },
+  { key: "cost", labelKey: "colCost", core: false, money: true, end: true },
+  { key: "margin", labelKey: "colMargin", core: false, money: true, end: true },
 ];
+// KEY AND FLAGS ARE LANGUAGE-INDEPENDENT, the label is not — which is why the
+// list stores a dictionary key and the label is attached at render. A saved
+// column preference is a list of `key`, so it survives a language switch.
+const withLabels = (tr) => FINANCE_COLUMNS.map((c) => ({ ...c, label: tr[c.labelKey] }));
+
 const DEFAULT_FINANCE_COLUMNS = FINANCE_COLUMNS.filter((c) => c.core).map((c) => c.key);
 
 function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
@@ -1260,7 +1267,7 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
     if (c.date) return fmt(v);
     return v || "—";
   };
-  const visible = FINANCE_COLUMNS.filter((c) => columns.includes(c.key));
+  const visible = withLabels(tr).filter((c) => columns.includes(c.key));
 
   if (rows.length === 0) {
     return <Empty title={tr.nothingAccountYet} body={tr.projectsOpenApprovedQuotation} />;
@@ -1272,7 +1279,7 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
         <Field label={tr.searchProjectClientPo} type="search" className="w-full sm:max-w-xs"
           value={query} onChange={setQuery} />
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
-          {[["all", "All"], ["issued", "PO issued"], ["awaiting", "Awaiting PO"]].map(([k, text]) => (
+          {[["all", tr.all], ["issued", tr.poIssued], ["awaiting", tr.awaitingPo]].map(([k, text]) => (
             <button key={k} type="button" onClick={() => setPoFilter(k)}
               className={`rounded-full px-3.5 py-1.5 text-sm font-600 transition-colors ${poFilter === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
               {text}
@@ -1283,7 +1290,7 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
       </div>
 
       {showColumns && (
-        <ColumnPicker title={tr.financeColumns} columns={FINANCE_COLUMNS} selected={columns}
+        <ColumnPicker title={tr.financeColumns} columns={withLabels(tr)} selected={columns}
           onToggle={toggleCol} onReset={resetCols} onClose={() => setShowColumns(false)} />
       )}
 
@@ -1357,7 +1364,7 @@ function Commercials({ row, busy, canManage, onSave, onCancel }) {
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-4">
-        {[["Value", row.value], ["Invoiced", row.invoiced], ["Collected", row.collected], ["Margin", row.margin]].map(([name, v]) => (
+        {[[tr.colValue, row.value], [tr.colInvoiced, row.invoiced], [tr.colCollected, row.collected], [tr.colMargin, row.margin]].map(([name, v]) => (
           <div key={name} className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
             <p className={label}>{name}</p>
             <p className="font-display text-base font-800 tabular-nums text-slate-900 dark:text-white">{money(v)}</p>

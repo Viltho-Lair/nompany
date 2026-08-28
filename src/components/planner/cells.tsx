@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useStudioLocale } from "@/components/studio2/locale";
-import { plannerDict } from "@/shared/studio/planner";
+import { plannerDict, plannerWord } from "@/shared/studio/planner";
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { ChevronDown } from 'lucide-react';
@@ -162,6 +162,7 @@ export function DateCell({
   readOnly?: boolean;
   hint?: string;
 }) {
+  const locale = useStudioLocale();
   const [editing, setEditing] = React.useState(false);
 
   if (readOnly) {
@@ -170,9 +171,9 @@ export function DateCell({
         className="block truncate px-1.5 py-1 text-[13px] text-slate-400"
         title={hint}
       >
-        {formatMediumDate(value)}
+        {formatMediumDate(value, locale)}
         {withTime && (
-          <span className="ms-1 text-[11px]">{formatTime(value)}</span>
+          <span className="ms-1 text-[11px]">{formatTime(value, locale)}</span>
         )}
       </span>
     );
@@ -185,10 +186,10 @@ export function DateCell({
         onClick={() => setEditing(true)}
         className="w-full truncate rounded border border-transparent px-1.5 py-1 text-start text-[13px] text-slate-700 hover:border-slate-200 hover:bg-white"
       >
-        {formatMediumDate(value)}
+        {formatMediumDate(value, locale)}
         {withTime && (
           <span className="ms-1 text-[11px] text-slate-400">
-            {formatTime(value)}
+            {formatTime(value, locale)}
           </span>
         )}
       </button>
@@ -224,6 +225,7 @@ export function StatusCell({
   status: TaskStatus;
   onChange: (s: TaskStatus) => void;
 }) {
+  const tr = plannerDict(useStudioLocale());
   const meta = STATUS_META[status];
   return (
     <DropdownMenu>
@@ -237,7 +239,7 @@ export function StatusCell({
             style={{ backgroundColor: meta.dot }}
           />
           <span className="truncate text-[13px] text-slate-700">
-            {meta.label}
+            {plannerWord(tr, meta.labelKey)}
           </span>
         </button>
       </DropdownMenuTrigger>
@@ -252,7 +254,7 @@ export function StatusCell({
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: STATUS_META[key].dot }}
               />
-              {STATUS_META[key].label}
+              {plannerWord(tr, STATUS_META[key].labelKey)}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
@@ -268,6 +270,7 @@ export function PriorityCell({
   priority: Priority;
   onChange: (p: Priority) => void;
 }) {
+  const tr = plannerDict(useStudioLocale());
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -281,7 +284,7 @@ export function PriorityCell({
               PRIORITY_META[priority].chip,
             )}
           >
-            {PRIORITY_META[priority].label}
+            {plannerWord(tr, PRIORITY_META[priority].labelKey)}
           </span>
         </button>
       </DropdownMenuTrigger>
@@ -292,7 +295,7 @@ export function PriorityCell({
         >
           {(Object.keys(PRIORITY_META) as Priority[]).map((key) => (
             <DropdownMenuRadioItem key={key} value={key}>
-              {PRIORITY_META[key].label}
+              {plannerWord(tr, PRIORITY_META[key].labelKey)}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
@@ -368,7 +371,7 @@ export function AssigneeCell({
               checked={false}
               onCheckedChange={() => onChange([])}
             >
-              Clear all
+              {tr.clearAll}
             </DropdownMenuCheckboxItem>
           </>
         )}

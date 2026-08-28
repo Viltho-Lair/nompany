@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { boardDict } from "@/shared/studio/board";
+import { boardDict, boardWord } from "@/shared/studio/board";
 import Tooltip from "@mui/material/Tooltip";
 import { LayoutGrid, Plus, RotateCcw, Search, X } from "lucide-react";
 
@@ -165,7 +165,7 @@ export function BoardHeader({ onAddColumn }: { onAddColumn: () => void }) {
                           PRIORITY_META[p].dot,
                         )}
                       />
-                      {PRIORITY_META[p].label}
+                      {boardWord(tr, PRIORITY_META[p].labelKey)}
                     </span>
                   </SelectItem>
                 ))}
@@ -178,7 +178,7 @@ export function BoardHeader({ onAddColumn }: { onAddColumn: () => void }) {
                   variant="glass"
                   size="icon"
                   aria-label={tr.clearBoard}
-                  onClick={resetBoard}
+                  onClick={() => resetBoard(tr)}
                 >
                   <RotateCcw />
                 </Button>

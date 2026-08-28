@@ -8,45 +8,47 @@ export function cn(...inputs: ClassValue[]) {
 
 export const STATUS_META: Record<
   TaskStatus,
-  { label: string; dot: string; chip: string }
+  { labelKey: string; dot: string; chip: string }
 > = {
   not_started: {
-    label: 'Not started',
+    labelKey: 'stNotStarted',
     dot: '#9CA3AF',
     chip: 'bg-slate-100 text-slate-600',
   },
   in_progress: {
-    label: 'In progress',
+    labelKey: 'stInProgress',
     dot: '#4573D2',
     chip: 'bg-blue-50 text-blue-700',
   },
   on_track: {
-    label: 'On track',
+    labelKey: 'stOnTrack',
     dot: '#5DA283',
     chip: 'bg-emerald-50 text-emerald-700',
   },
   at_risk: {
-    label: 'At risk',
+    labelKey: 'stAtRisk',
     dot: '#F1BD6C',
     chip: 'bg-amber-50 text-amber-700',
   },
   blocked: {
-    label: 'Blocked',
+    labelKey: 'stBlocked',
     dot: '#F06A6A',
     chip: 'bg-rose-50 text-rose-700',
   },
   complete: {
-    label: 'Complete',
+    labelKey: 'stComplete',
     dot: '#5DA283',
     chip: 'bg-emerald-50 text-emerald-700',
   },
 };
 
+// KEYED BY THE STORED PRIORITY. The chip is styling and the label is copy, so
+// only the label leaves the file.
 export const PRIORITY_META = {
-  low: { label: 'Low', chip: 'bg-slate-100 text-slate-600' },
-  medium: { label: 'Medium', chip: 'bg-sky-50 text-sky-700' },
-  high: { label: 'High', chip: 'bg-amber-50 text-amber-700' },
-  critical: { label: 'Critical', chip: 'bg-rose-50 text-rose-700' },
+  low: { labelKey: 'prLow', chip: 'bg-slate-100 text-slate-600' },
+  medium: { labelKey: 'prMedium', chip: 'bg-sky-50 text-sky-700' },
+  high: { labelKey: 'prHigh', chip: 'bg-amber-50 text-amber-700' },
+  critical: { labelKey: 'prCritical', chip: 'bg-rose-50 text-rose-700' },
 } as const;
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -105,36 +107,35 @@ export function mixWithWhite(hex: string, amount: number): string {
     .join('')}`;
 }
 
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
+// THE PLANNER USED TO CARRY ITS OWN MONTH TABLE, so every date it drew — the
+// Gantt's header included — was English whatever the studio spoke. These go
+// through `Intl` instead: it is a formatter, which is the one place a locale
+// lookup belongs. `en-GB` rather than `en` because that is the studio default
+// everywhere else in the product.
+const intlLocale = (locale?: string) => (locale === 'ar' ? 'ar' : 'en-GB');
 
-const MONTHS_LONG = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-export function formatShortDate(d: Date): string {
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+export function formatShortDate(d: Date, locale?: string): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    month: 'short', day: 'numeric',
+  }).format(d);
 }
 
-export function formatMediumDate(d: Date): string {
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+export function formatMediumDate(d: Date, locale?: string): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    month: 'short', day: 'numeric', year: 'numeric',
+  }).format(d);
 }
 
-export function formatMonthLong(d: Date): string {
-  return `${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`;
+export function formatMonthLong(d: Date, locale?: string): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    month: 'long', year: 'numeric',
+  }).format(d);
 }
 
-export function formatTime(d: Date): string {
-  const h = d.getHours();
-  const m = d.getMinutes();
-  const suffix = h >= 12 ? 'PM' : 'AM';
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return m
-    ? `${hour12}:${`${m}`.padStart(2, '0')} ${suffix}`
-    : `${hour12} ${suffix}`;
+export function formatTime(d: Date, locale?: string): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    hour: 'numeric', minute: d.getMinutes() ? '2-digit' : undefined, hour12: true,
+  }).format(d);
 }
 
 export function formatDuration(value: number, unit: 'days' | 'hours'): string {

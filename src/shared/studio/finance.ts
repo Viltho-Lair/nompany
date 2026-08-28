@@ -8,6 +8,36 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  all: string;
+  awaitingPo: string;
+  bankTransfer: string;
+  colAsset: string;
+  colBill: string;
+  colBookValue: string;
+  colClient: string;
+  colCollected: string;
+  colCost: string;
+  colDue: string;
+  colInvoiced: string;
+  colLocation: string;
+  colManager: string;
+  colMargin: string;
+  colMonthly: string;
+  colOutstanding: string;
+  colPoNumber: string;
+  colProjectNumber: string;
+  colQuotation: string;
+  colRef: string;
+  colStage: string;
+  colStatus: string;
+  colTargetEnd: string;
+  colUninvoiced: string;
+  colValue: string;
+  colVendor: string;
+  currentBookValue: string;
+  depreciation: string;
+  disposalStopsDepreciation: string;
+  inService: string;
   mAlreadyDisposed: (date: string) => string;
   mOverpayment: (amount: string) => string;
   overdueCount: (n: number) => string;
@@ -154,6 +184,7 @@ type Strings = CommonStrings & {
   paid: string;
   payablesAging: string;
   payments: string;
+  poIssued: string;
   poNumber: string;
   proceeds: string;
   project: string;
@@ -168,6 +199,7 @@ type Strings = CommonStrings & {
   recordBill: string;
   recordPayment: string;
   recording: string;
+  reducingBalance: string;
   ref: string;
   reference: string;
   remove: string;
@@ -183,6 +215,7 @@ type Strings = CommonStrings & {
   spentMonth: string;
   stage: string;
   status: string;
+  straightLine: string;
   studioKeepsModuleDashboards: string;
   subtotal: string;
   sumCollected: string;
@@ -212,6 +245,7 @@ type Strings = CommonStrings & {
   usefulLife: string;
   usefulLifeMonths: string;
   value: string;
+  valueFromQuotationCost: string;
   vat: string;
   vendor: string;
   view: string;
@@ -224,6 +258,36 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  all: "All",
+  awaitingPo: "Awaiting PO",
+  bankTransfer: "Bank transfer",
+  colAsset: "Asset",
+  colBill: "Bill",
+  colBookValue: "Book value",
+  colClient: "Client",
+  colCollected: "Collected",
+  colCost: "Cost",
+  colDue: "Due",
+  colInvoiced: "Invoiced",
+  colLocation: "Location",
+  colManager: "Manager",
+  colMargin: "Margin",
+  colMonthly: "Monthly",
+  colOutstanding: "Outstanding",
+  colPoNumber: "PO number",
+  colProjectNumber: "Project number",
+  colQuotation: "Quotation",
+  colRef: "Ref",
+  colStage: "Stage",
+  colStatus: "Status",
+  colTargetEnd: "Target end",
+  colUninvoiced: "Uninvoiced",
+  colValue: "Value",
+  colVendor: "Vendor",
+  currentBookValue: "Current book value",
+  depreciation: "Depreciation",
+  disposalStopsDepreciation: ". Disposal stops depreciation on its date.",
+  inService: "In service",
   mAlreadyDisposed: (date) => `That asset was already disposed on ${date}.`,
   mOverpayment: (amount) => `That's more than the ${amount} still outstanding.`,
   overdueCount: (n) => `Overdue · ${n}`,
@@ -370,6 +434,7 @@ const en: Strings = {
   paid: "Paid",
   payablesAging: "Payables aging",
   payments: "Payments",
+  poIssued: "PO issued",
   poNumber: "PO number",
   proceeds: "Proceeds",
   project: "Project",
@@ -384,6 +449,7 @@ const en: Strings = {
   recordBill: "Record bill",
   recordPayment: "Record payment",
   recording: "Recording…",
+  reducingBalance: "Reducing balance",
   ref: "Ref",
   reference: "Reference",
   remove: "Remove",
@@ -399,6 +465,7 @@ const en: Strings = {
   spentMonth: "Spent this month",
   stage: "Stage",
   status: "Status",
+  straightLine: "Straight line",
   studioKeepsModuleDashboards: "This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar.",
   subtotal: "Subtotal",
   sumCollected: "Collected",
@@ -428,6 +495,7 @@ const en: Strings = {
   usefulLife: "Useful life",
   usefulLifeMonths: "Useful life (months)",
   value: "Value",
+  valueFromQuotationCost: "Value comes from the project's quotation, cost from its purchase orders plus booked expenses. Both are recomputed on every read.",
   vat: "VAT %",
   vendor: "Vendor",
   view: "View",
@@ -440,6 +508,36 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  all: "الكل",
+  awaitingPo: "بانتظار أمر الشراء",
+  bankTransfer: "تحويل بنكي",
+  colAsset: "الأصل",
+  colBill: "الفاتورة",
+  colBookValue: "القيمة الدفترية",
+  colClient: "العميل",
+  colCollected: "المحصّل",
+  colCost: "التكلفة",
+  colDue: "الاستحقاق",
+  colInvoiced: "المفوتر",
+  colLocation: "الموقع",
+  colManager: "المسؤول",
+  colMargin: "الهامش",
+  colMonthly: "شهريًا",
+  colOutstanding: "المتبقي",
+  colPoNumber: "رقم أمر الشراء",
+  colProjectNumber: "رقم المشروع",
+  colQuotation: "عرض السعر",
+  colRef: "المرجع",
+  colStage: "المرحلة",
+  colStatus: "الحالة",
+  colTargetEnd: "النهاية المستهدفة",
+  colUninvoiced: "غير المفوتر",
+  colValue: "القيمة",
+  colVendor: "المورّد",
+  currentBookValue: "القيمة الدفترية الحالية",
+  depreciation: "الإهلاك",
+  disposalStopsDepreciation: ". ويوقف الاستبعاد الإهلاك من تاريخه.",
+  inService: "في الخدمة",
   mAlreadyDisposed: (date) => `سبق استبعاد هذا الأصل في ${date}.`,
   mOverpayment: (amount) => `هذا أكثر من ${amount} المتبقية المستحقة.`,
   overdueCount: (n) => `متأخرة · ${n}`,
@@ -586,6 +684,7 @@ const ar: Strings = {
   paid: "المدفوع",
   payablesAging: "أعمار الذمم الدائنة",
   payments: "المدفوعات",
+  poIssued: "صدر أمر الشراء",
   poNumber: "رقم أمر الشراء",
   proceeds: "المتحصلات",
   project: "المشروع",
@@ -600,6 +699,7 @@ const ar: Strings = {
   recordBill: "تسجيل فاتورة مورّد",
   recordPayment: "تسجيل دفعة",
   recording: "جارٍ التسجيل…",
+  reducingBalance: "قسط متناقص",
   ref: "المرجع",
   reference: "المرجع",
   remove: "إزالة",
@@ -615,6 +715,7 @@ const ar: Strings = {
   spentMonth: "المُنفق هذا الشهر",
   stage: "المرحلة",
   status: "الحالة",
+  straightLine: "قسط ثابت",
   studioKeepsModuleDashboards: "يُبقي هذا الاستوديو لوحات معلومات الوحدات خلف صلاحية خاصة بها. الشاشات التي تحتها غير متأثرة — اختر واحدة من الشريط الجانبي.",
   subtotal: "المجموع الفرعي",
   sumCollected: "المُحصَّل",
@@ -644,6 +745,7 @@ const ar: Strings = {
   usefulLife: "العمر الإنتاجي",
   usefulLifeMonths: "العمر الإنتاجي (بالأشهر)",
   value: "القيمة",
+  valueFromQuotationCost: "القيمة تأتي من عرض سعر المشروع، والتكلفة من أوامر شرائه ومصروفاته المسجّلة. ويُعاد حساب الاثنين مع كل قراءة.",
   vat: "ضريبة القيمة المضافة ٪",
   vendor: "المورّد",
   view: "عرض",

@@ -336,7 +336,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
                 onChange={(e) => setHiddenSaved(e.target.checked
                   ? [...hidden, sheet.projectId]
                   : hidden.filter((id) => id !== sheet.projectId))} />
-              Hide
+              {tr.hide}
             </label>
           )}
           {dirtyRows > 0 && !busy && (
@@ -364,7 +364,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
 
       {sheet.tables.length === 0 ? (
         <p className={`${panel} text-sm text-slate-500`}>
-          The quotation behind this sheet has no priced lines yet. Add them in the builder and they appear here.
+          {tr.quotationNoPricedLines}
         </p>
       ) : sheet.tables.map((table) => (
         <section key={table.id} className={panel}>
@@ -436,6 +436,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
 // answers what is on screen rather than what was last saved — allocating three
 // serials should say "Fulfilled" before Save is pressed, not after.
 function Status({ row, draft, pool = [] }) {
+  const tr = technicalDict(useStudioLocale());
   const serials = draft && "serials" in draft ? draft.serials : (row.serials || []);
   const held = new Set(serials);
   const { fulfilled, lines } = rowStatus({
@@ -450,7 +451,7 @@ function Status({ row, draft, pool = [] }) {
   if (fulfilled) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-700 text-emerald-700 dark:text-emerald-300">
-        Fulfilled
+        {tr.fulfilled}
       </span>
     );
   }
@@ -543,7 +544,7 @@ function SerialCell({ row, chosen, pool, changed, onEdit }) {
           </ul>
           {full && (
             <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] text-emerald-700 dark:border-white/10 dark:text-emerald-300">
-              Fully allocated.
+              {tr.fullyAllocated}
             </p>
           )}
         </div>
@@ -798,7 +799,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
               <div role="menu" className="absolute bottom-full end-0 mb-2 w-44 overflow-hidden rounded-geex border border-slate-200 bg-[var(--geex-surface)] shadow-geex dark:border-white/15">
                 <button type="button" role="menuitem" onClick={() => { setFind(""); setMenu("unhide"); }}
                   className="flex w-full items-center justify-between px-3 py-2.5 text-start text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
-                  Unhide
+                  {tr.unhide}
                   <span className="text-xs text-slate-400">{hiddenProjects.length}</span>
                 </button>
               </div>
@@ -807,7 +808,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
             {menu === "unhide" && (
               <div className="absolute bottom-full end-0 mb-2 w-64 overflow-hidden rounded-geex border border-slate-200 bg-[var(--geex-surface)] shadow-geex dark:border-white/15">
                 <p className="border-b border-slate-100 px-3 py-2 text-[11px] font-700 uppercase tracking-wide text-slate-400 dark:border-white/10">
-                  Hidden projects
+                  {tr.hiddenProjects}
                 </p>
                 <ul className="max-h-56 overflow-auto">
                   {findable.length === 0 ? (

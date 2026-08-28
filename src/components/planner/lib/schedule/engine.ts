@@ -39,6 +39,8 @@ import { buildTreeIndex, type TreeIndex } from './tree';
 
 export interface ScheduleIssue {
   taskId: string;
+  /** A CODE, not a sentence — the engine has no dictionary. `plannerIssue`
+   *  in shared/studio/planner turns it into words at render. */
   message: string;
 }
 
@@ -197,11 +199,11 @@ export function computeSchedule(
   for (const t of tasks) {
     for (const dep of t.dependencies) {
       if (!index.byId.has(dep.predecessorId)) {
-        addIssue(t.id, `Predecessor ${dep.predecessorId} no longer exists`);
+        addIssue(t.id, `missing-predecessor:${dep.predecessorId}`);
         continue;
       }
       if (dep.predecessorId === t.id) {
-        addIssue(t.id, 'A task cannot depend on itself');
+        addIssue(t.id, 'self-dependency');
         continue;
       }
       pushEdge(dep.predecessorId, t.id);
@@ -216,7 +218,7 @@ export function computeSchedule(
   /* ---------- 3. topological order ---------- */
   const { order, cyclic } = topoSort(ids, edges);
   cyclic.forEach((id) =>
-    addIssue(id, 'Circular dependency - this link was ignored'),
+    addIssue(id, 'circular-dependency'),
   );
   // Cyclic nodes still need dates; append them so they schedule standalone.
   const processOrder = [...order, ...Array.from(cyclic)];
@@ -272,7 +274,7 @@ export function computeSchedule(
           ),
         );
         if (start.getTime() < earliest) {
-          addIssue(id, 'Pinned start is earlier than its predecessors allow');
+          addIssue(id, 'pinned-too-early');
         }
       }
     }

@@ -26,6 +26,9 @@ const dictionaries = {
       terms: "Terms",
       login: "Log in",
       signup: "Start free",
+      account: "My account",
+      studio: "My Studio",
+      signout: "Sign out",
     },
     common: {
       brand: "nompany",
@@ -218,6 +221,9 @@ const dictionaries = {
       terms: "الشروط والأحكام",
       login: "تسجيل الدخول",
       signup: "ابدأ مجانًا",
+      account: "حسابي",
+      studio: "استوديوي",
+      signout: "تسجيل الخروج",
     },
     common: {
       brand: "nompany",

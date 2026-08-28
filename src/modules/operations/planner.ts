@@ -12,6 +12,8 @@ import { PLAN, PLAN_TEMPLATE, ID } from "@/platform/db/keys";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { TEMPLATES, instantiateTemplate } from "@/components/planner/lib/templates";
+import { templateWord } from "@/shared/studio/plannerTemplates";
+import { defaultLocale } from "@/shared/locale";
 
 export type PlanStatus = "on_track" | "at_risk" | "off_track" | "on_hold";
 
@@ -292,15 +294,18 @@ const TEMPLATE_ACCENTS = ["#4573D2", "#5DA283", "#E8A33D", "#CD5B45", "#8B5CF6",
 // tasks so each opens in the planner exactly as the old dialog produced it. The
 // index is claimed atomically: a concurrent first-load reads the winner's list
 // and this one's would-be docs are simply never written.
-async function seedTemplates(studioId: string): Promise<TemplateSummary[]> {
+async function seedTemplates(studioId: string, locale = defaultLocale): Promise<TemplateSummary[]> {
   const now = new Date().toISOString();
+  const w = (s: string) => templateWord(locale, s);
   const built = TEMPLATES.map((t) => ({
     id: ID.plan(),
     doc: {
-      meta: { name: t.name, status: "on_track", owner: "", startDate: now.slice(0, 10), description: t.description },
-      tasks: instantiateTemplate(t, new Date()),
+      meta: { name: w(t.name), status: "on_track", owner: "", startDate: now.slice(0, 10), description: w(t.description) },
+      // The row names are stored on the task, so they are translated here
+      // rather than at render — see the header of shared/studio/plannerTemplates.
+      tasks: instantiateTemplate(t, new Date()).map((task) => ({ ...task, name: w(task.name) })),
     },
-    summary: { name: t.name, description: t.description, accent: t.accent, updatedAt: now },
+    summary: { name: w(t.name), description: w(t.description), accent: t.accent, updatedAt: now },
   }));
 
   let winner: TemplateSummary[] = [];
@@ -317,10 +322,10 @@ async function seedTemplates(studioId: string): Promise<TemplateSummary[]> {
   return winner;
 }
 
-export async function listTemplates(studioId: string): Promise<TemplateSummary[]> {
+export async function listTemplates(studioId: string, locale = defaultLocale): Promise<TemplateSummary[]> {
   const rows = await getJSON<TemplateSummary[]>(PLAN_TEMPLATE.index(studioId));
   if (Array.isArray(rows) && rows.length) return rows;
-  return seedTemplates(studioId);
+  return seedTemplates(studioId, locale);
 }
 
 // The template document, plan-shaped, so StudioPlanner can edit it unchanged.

@@ -8,7 +8,9 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  attachThePo: string;
   chatUnread: (n: number) => string;
+  chatsArentStored: string;
   connectedTo: (who: string) => string;
   accessSalesStudio: string;
   addComment: string;
@@ -43,8 +45,12 @@ type Strings = CommonStrings & {
   didnGoThrough: string;
   didnSave: string;
   didnSendTryAgain: string;
+  documentation: string;
+  download: string;
+  downloadTranscript: string;
   edit: string;
   email: string;
+  endChatDownload: string;
   exInvoicesOverdue: string;
   exRemainingLeave: string;
   exSummariseFinances: string;
@@ -84,17 +90,21 @@ type Strings = CommonStrings & {
   novaScope: string;
   novaThinking: string;
   number: string;
+  open: string;
   openMap: string;
   owner: string;
   pause: string;
   poAlreadySubmittedQuotation: string;
+  poApproved: string;
   poNumberValueAnything: string;
+  poSubmitted: string;
   post: string;
   quotation: string;
   quotationAlreadySentApproval: string;
   quotationApproved: string;
   quotationApprovedBeforePo: string;
   quotationSent: string;
+  waitingOnApprovers: (left: number, total: number) => string;
   quotations: string;
   rateNompany: string;
   reference: string;
@@ -120,6 +130,7 @@ type Strings = CommonStrings & {
   studioNoTasksSection: string;
   studioNoTasksSection2: string;
   studioNoTechnicalSection: string;
+  submitPo: string;
   submitPoFinance: string;
   technicalTicketCanRequest: string;
   technicalTicketQuotationWill: string;
@@ -138,6 +149,7 @@ type Strings = CommonStrings & {
   usuallyReplyFewMinutes: string;
   valueQuoted: string;
   viewOnlyAccessSales: string;
+  waitingForSomeone: string;
   waitingSomeoneJoin: string;
   whatClientSentFinance: string;
   whatNeedsMyAttention: string;
@@ -145,7 +157,9 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  attachThePo: "Attach the PO",
   chatUnread: (n) => `Chat with nompany, ${n} new message${n === 1 ? "" : "s"}`,
+  chatsArentStored: "Chats aren't stored. When you're done you can download the transcript — after that it's gone from our side too.",
   connectedTo: (who) => `Connected · ${who}`,
   accessSalesStudio: "You don't have access to Sales in this studio.",
   addComment: "Add a comment",
@@ -180,8 +194,12 @@ const en: Strings = {
   didnGoThrough: "That didn't go through.",
   didnSave: "That didn't save.",
   didnSendTryAgain: "That didn't send. Try again.",
+  documentation: "Documentation",
+  download: "Download",
+  downloadTranscript: "Download transcript",
   edit: "Edit",
   email: "Email",
+  endChatDownload: "End chat & download",
   exInvoicesOverdue: "Which invoices are overdue?",
   exRemainingLeave: "What's my remaining leave?",
   exSummariseFinances: "Summarise our finances",
@@ -221,17 +239,21 @@ const en: Strings = {
   novaScope: "Ask about your studio's data. Nova only sees what you can.",
   novaThinking: "Nova is thinking…",
   number: "Number",
+  open: "Open",
   openMap: "Open map",
   owner: "Owner",
   pause: "Pause",
   poAlreadySubmittedQuotation: "A PO has already been submitted for this quotation.",
+  poApproved: "PO Approved",
   poNumberValueAnything: "PO number, value, anything Finance needs to authorise it",
+  poSubmitted: "PO Submitted",
   post: "Post",
   quotation: "Quotation",
   quotationAlreadySentApproval: "This quotation has already been sent for approval.",
   quotationApproved: "Quotation approved",
   quotationApprovedBeforePo: "The quotation has to be approved before a PO can be booked against it.",
   quotationSent: "Quotation Sent",
+  waitingOnApprovers: (left, total) => `Waiting on ${left} of ${total} approver${total === 1 ? "" : "s"}`,
   quotations: "Quotations",
   rateNompany: "Rate nompany",
   reference: "Reference",
@@ -257,6 +279,7 @@ const en: Strings = {
   studioNoTasksSection: "This studio has no Tasks section to send the approval to.",
   studioNoTasksSection2: "This studio has no Tasks section to send the PO to.",
   studioNoTechnicalSection: "This studio has no Technical section to send an RFQ to.",
+  submitPo: "Submit PO",
   submitPoFinance: "Submit PO to Finance",
   technicalTicketCanRequest: "Technical has this ticket. You can request another RFQ once the quotation comes back.",
   technicalTicketQuotationWill: "Technical has this ticket — the quotation will appear here once it is raised.",
@@ -275,6 +298,7 @@ const en: Strings = {
   usuallyReplyFewMinutes: "We usually reply in a few minutes",
   valueQuoted: "Value Quoted",
   viewOnlyAccessSales: "You have view-only access to Sales.",
+  waitingForSomeone: "Waiting for someone from nompany to join. You can start describing the problem now.",
   waitingSomeoneJoin: "Waiting for someone to join…",
   whatClientSentFinance: "What the client sent. Finance authorise it and issue the project number the work is billed under.",
   whatNeedsMyAttention: "What needs my attention?",
@@ -282,7 +306,9 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  attachThePo: "أرفق أمر الشراء",
   chatUnread: (n) => `محادثة مع nompany، ${n === 1 ? "رسالة جديدة واحدة" : n === 2 ? "رسالتان جديدتان" : n <= 10 ? `${n} رسائل جديدة` : `${n} رسالة جديدة`}`,
+  chatsArentStored: "لا تُحفظ المحادثات. وحين تنتهي يمكنك تنزيل النص — وبعدها يختفي من جانبنا أيضًا.",
   connectedTo: (who) => `متصل · ${who}`,
   accessSalesStudio: "لا تملك صلاحية الوصول إلى المبيعات في هذا الاستوديو.",
   addComment: "إضافة تعليق",
@@ -317,8 +343,12 @@ const ar: Strings = {
   didnGoThrough: "لم تتم العملية.",
   didnSave: "لم يُحفظ ذلك.",
   didnSendTryAgain: "لم يُرسَل ذلك. حاول مرة أخرى.",
+  documentation: "التوثيق",
+  download: "تنزيل",
+  downloadTranscript: "نزّل النص",
   edit: "تعديل",
   email: "البريد الإلكتروني",
+  endChatDownload: "أنهِ المحادثة ونزّل",
   exInvoicesOverdue: "أي الفواتير متأخرة؟",
   exRemainingLeave: "كم تبقّى من إجازتي؟",
   exSummariseFinances: "لخّص وضعنا المالي",
@@ -358,17 +388,28 @@ const ar: Strings = {
   novaScope: "اسأل عن بيانات استوديوك. لا ترى نوفا إلا ما يمكنك رؤيته.",
   novaThinking: "نوفا تفكّر…",
   number: "الرقم",
+  open: "فتح",
   openMap: "فتح الخريطة",
   owner: "المسؤول",
   pause: "إيقاف مؤقت",
   poAlreadySubmittedQuotation: "سبق تقديم أمر شراء لعرض السعر هذا.",
+  poApproved: "اعتُمد أمر الشراء",
   poNumberValueAnything: "رقم أمر الشراء، القيمة، وأي شيء تحتاجه المالية لاعتماده",
+  poSubmitted: "أُرسل أمر الشراء",
   post: "نشر",
   quotation: "عرض السعر",
   quotationAlreadySentApproval: "سبق إرسال عرض السعر هذا للاعتماد.",
   quotationApproved: "اعتُمد عرض السعر",
   quotationApprovedBeforePo: "يجب اعتماد عرض السعر قبل أن يُقيَّد عليه أمر شراء.",
   quotationSent: "أُرسل عرض السعر",
+  waitingOnApprovers: (left, total) => {
+    const who =
+      total === 1 ? "معتمد واحد"
+      : total === 2 ? "معتمدَين"
+      : total <= 10 ? `${total} معتمدين`
+      : `${total} معتمدًا`;
+    return `بانتظار ${left} من ${who}`;
+  },
   quotations: "عروض الأسعار",
   rateNompany: "قيّم nompany",
   reference: "المرجع",
@@ -394,6 +435,7 @@ const ar: Strings = {
   studioNoTasksSection: "لا يوجد قسم مهام في هذا الاستوديو لإرسال الاعتماد إليه.",
   studioNoTasksSection2: "لا يوجد قسم مهام في هذا الاستوديو لإرسال أمر الشراء إليه.",
   studioNoTechnicalSection: "لا يوجد قسم فني في هذا الاستوديو لإرسال طلب عرض سعر إليه.",
+  submitPo: "أرسل أمر الشراء",
   submitPoFinance: "إرسال أمر الشراء إلى المالية",
   technicalTicketCanRequest: "التذكرة لدى القسم الفني. يمكنك طلب عرض سعر آخر بعد عودة العرض الحالي.",
   technicalTicketQuotationWill: "التذكرة لدى القسم الفني — سيظهر عرض السعر هنا بمجرد رفعه.",
@@ -412,6 +454,7 @@ const ar: Strings = {
   usuallyReplyFewMinutes: "نردّ عادةً خلال دقائق",
   valueQuoted: "القيمة المعروضة",
   viewOnlyAccessSales: "لديك صلاحية عرض فقط على المبيعات.",
+  waitingForSomeone: "بانتظار انضمام أحد من nompany. يمكنك البدء بوصف المشكلة الآن.",
   waitingSomeoneJoin: "بانتظار انضمام أحدهم…",
   whatClientSentFinance: "ما أرسله العميل. تعتمده المالية وتُصدر رقم المشروع الذي يُحاسَب عليه العمل.",
   whatNeedsMyAttention: "ما الذي يحتاج إلى انتباهي؟",

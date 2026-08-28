@@ -197,7 +197,7 @@ export function DocumentWorkspace({
             }}
             className="min-w-0 max-w-md flex-1 truncate rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-medium outline-none transition-colors hover:border-input focus:border-input focus:bg-background"
           />
-          <SaveIndicator state={saveState} />
+          <SaveIndicator state={saveState} tr={tr} />
         </div>
 
         <div className="flex items-center gap-3">
@@ -217,7 +217,7 @@ export function DocumentWorkspace({
               bands and numbering included. */}
           <Button variant="outline" size="sm" onClick={() => window.print()} aria-label={tr.printDocument}>
             <Printer />
-            Print
+            {tr.print}
           </Button>
         </div>
       </header>
@@ -240,12 +240,14 @@ export function DocumentWorkspace({
   );
 }
 
-function SaveIndicator({ state }: { state: SaveState }) {
+// The three words are the whole component, so it takes the dictionary rather
+// than reaching for a hook of its own.
+function SaveIndicator({ state, tr }: { state: SaveState; tr: ReturnType<typeof qualityDict> }) {
   if (state === "saving") {
     return (
       <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
         <Loader2 className="size-3 animate-spin" />
-        Saving
+        {tr.savingState}
       </span>
     );
   }
@@ -253,14 +255,14 @@ function SaveIndicator({ state }: { state: SaveState }) {
     return (
       <span className="flex shrink-0 items-center gap-1 text-xs text-destructive">
         <CloudOff className="size-3" />
-        Not saved
+        {tr.notSaved}
       </span>
     );
   }
   return (
     <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
       <Cloud className="size-3" />
-      Saved
+      {tr.savedState}
     </span>
   );
 }

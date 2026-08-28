@@ -356,7 +356,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               {!canRequestRfq ? null : ticket.rfqPending ? (
                 <button type="button" className={btnActionOff} disabled
                   title={tr.technicalTicketCanRequest}>
-                  Quotation Sent
+                  {tr.quotationSent}
                 </button>
               ) : (
                 <button type="button" className={btnActionOn} disabled={acting === "rfq"}
@@ -371,11 +371,11 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               {showApproval && (
                 approval?.approved ? (
                   <button type="button" className={btnApproved} disabled>
-                    <Icon name="checkDouble" className="h-4 w-4" /> Quotation Approved
+                    <Icon name="checkDouble" className="h-4 w-4" /> {tr.quotationApproved}
                   </button>
                 ) : approval ? (
                   <button type="button" className={btnActionOff} disabled
-                    title={`Waiting on ${approval.required - approval.granted} of ${approval.required} approver${approval.required === 1 ? "" : "s"}`}>
+                    title={tr.waitingOnApprovers(approval.required - approval.granted, approval.required)}>
                     Pending Approval ({approval.granted}/{approval.required})
                   </button>
                 ) : (
@@ -396,17 +396,17 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               {showPo && (
                 po?.approved ? (
                   <button type="button" className={btnApproved} disabled>
-                    <Icon name="checkDouble" className="h-4 w-4" /> PO Approved
+                    <Icon name="checkDouble" className="h-4 w-4" /> {tr.poApproved}
                   </button>
                 ) : po ? (
                   <button type="button" className={btnActionOff} disabled
-                    title={`Waiting on ${po.required - po.granted} of ${po.required} approver${po.required === 1 ? "" : "s"}`}>
-                    PO Submitted ({po.granted}/{po.required})
+                    title={tr.waitingOnApprovers(po.required - po.granted, po.required)}>
+                    {tr.poSubmitted} ({po.granted}/{po.required})
                   </button>
                 ) : (
                   <button type="button" className={btnAction + " bg-brand-700 text-white hover:bg-brand-950"}
                     onClick={() => setPoOpen(true)}>
-                    Submit PO
+                    {tr.submitPo}
                   </button>
                 )
               )}
@@ -539,7 +539,7 @@ function PoForm({ busy, onCancel, onSave }) {
     <>
       <div>
         <span className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Attach the PO
+          {tr.attachThePo}
         </span>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5">
           {file ? tr.changeFile : tr.chooseFile}

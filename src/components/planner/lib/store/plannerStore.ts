@@ -63,18 +63,20 @@ export type GridColumn =
   | 'priority'
   | 'effort';
 
-export const ALL_COLUMNS: { key: GridColumn; label: string; width: number }[] = [
-  { key: 'wbs', label: 'WBS', width: 64 },
-  { key: 'name', label: 'Task name', width: 300 },
-  { key: 'assignee', label: 'Assignee', width: 132 },
-  { key: 'start', label: 'Start', width: 128 },
-  { key: 'duration', label: 'Duration', width: 104 },
-  { key: 'end', label: 'End', width: 128 },
-  { key: 'dependencies', label: 'Predecessors', width: 128 },
-  { key: 'status', label: 'Status', width: 128 },
-  { key: 'progress', label: '% Done', width: 104 },
-  { key: 'priority', label: 'Priority', width: 96 },
-  { key: 'effort', label: 'Effort (h)', width: 88 },
+// KEY AND WIDTH ARE THE LAYOUT, the label is copy. A person's saved column
+// choice is a list of `key`, so it survives a language switch.
+export const ALL_COLUMNS: { key: GridColumn; labelKey: string; width: number }[] = [
+  { key: 'wbs', labelKey: 'colWbs', width: 64 },
+  { key: 'name', labelKey: 'colTaskName', width: 300 },
+  { key: 'assignee', labelKey: 'colAssignee', width: 132 },
+  { key: 'start', labelKey: 'colStart', width: 128 },
+  { key: 'duration', labelKey: 'colDuration', width: 104 },
+  { key: 'end', labelKey: 'colEnd', width: 128 },
+  { key: 'dependencies', labelKey: 'colPredecessors', width: 128 },
+  { key: 'status', labelKey: 'colStatus', width: 128 },
+  { key: 'progress', labelKey: 'colProgress', width: 104 },
+  { key: 'priority', labelKey: 'colPriority', width: 96 },
+  { key: 'effort', labelKey: 'colEffort', width: 88 },
 ];
 
 const DEFAULT_COLUMNS: GridColumn[] = [
@@ -123,7 +125,7 @@ interface PlannerState {
 
   /* project-level */
   setMeta: (patch: Partial<ProjectMeta>) => void;
-  loadTemplate: (templateId: string, startDate?: Date) => void;
+  loadTemplate: (templateId: string, startDate?: Date, words?: { untitledProject: string }) => void;
   resetProject: () => void;
   importTasks: (tasks: Task[]) => void;
 
@@ -135,7 +137,7 @@ interface PlannerState {
   updateTask: (id: string, patch: Partial<Task>) => void;
   addTaskBelow: (id: string | null) => string;
   addSubtask: (parentId: string) => string;
-  addMilestone: (id: string | null) => string;
+  addMilestone: (id: string | null, name?: string) => string;
   deleteTask: (id: string) => void;
   duplicateTask: (id: string) => void;
 
@@ -301,7 +303,7 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
 
   setMeta: (patch) => set((s) => ({ meta: { ...s.meta, ...patch } })),
 
-  loadTemplate: (templateId, startDate) => {
+  loadTemplate: (templateId, startDate, words) => {
     const template = TEMPLATES.find((t) => t.id === templateId);
     if (!template) return;
     const anchor = startDate ?? new Date();
@@ -313,7 +315,7 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
       meta: {
         ...s.meta,
         name:
-          template.id === 'blank' ? 'Untitled project' : template.name,
+          template.id === 'blank' ? (words?.untitledProject ?? 'Untitled project') : template.name,
         startDate: anchor.toISOString(),
       },
       selectedId: null,
@@ -425,9 +427,9 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
     return created.id;
   },
 
-  addMilestone: (id) => {
+  addMilestone: (id, name) => {
     const created = blankTask({
-      name: 'New milestone',
+      name: name ?? 'New milestone',
       milestone: true,
       duration: 0,
       effortHours: 0,

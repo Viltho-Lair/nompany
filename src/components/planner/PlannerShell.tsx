@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useStudioLocale } from "@/components/studio2/locale";
-import { plannerDict } from "@/shared/studio/planner";
+import { plannerDict, plannerWord } from "@/shared/studio/planner";
 import {
   AlertTriangle,
   BarChart3,
@@ -30,15 +30,17 @@ import { cn, formatCurrency, formatMediumDate } from '@/components/planner/lib/u
 
 type ViewMode = 'split' | 'grid' | 'timeline';
 
+// The health key is stored on the plan; its name is copy.
 const PROJECT_STATUS = {
-  on_track: { label: 'On Track', dot: '#5DA283' },
-  at_risk: { label: 'At Risk', dot: '#F1BD6C' },
-  off_track: { label: 'Off Track', dot: '#F06A6A' },
-  on_hold: { label: 'On Hold', dot: '#9CA3AF' },
+  on_track: { labelKey: 'phOnTrack', dot: '#5DA283' },
+  at_risk: { labelKey: 'phAtRisk', dot: '#F1BD6C' },
+  off_track: { labelKey: 'phOffTrack', dot: '#F06A6A' },
+  on_hold: { labelKey: 'phOnHold', dot: '#9CA3AF' },
 } as const;
 
 export function PlannerShell({ printHref, readOnly = false }: { printHref?: string; readOnly?: boolean } = {}) {
-  const tr = plannerDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = plannerDict(locale);
   const {
     meta,
     tasks,
@@ -98,8 +100,8 @@ export function PlannerShell({ printHref, readOnly = false }: { printHref?: stri
   }, [trimTimeline, schedule]);
 
   const timeline = React.useMemo(
-    () => buildTimeline(rangeStart, rangeEnd, zoom, calendar, trimTimeline),
-    [rangeStart, rangeEnd, zoom, calendar, trimTimeline],
+    () => buildTimeline(rangeStart, rangeEnd, zoom, calendar, trimTimeline, locale, tr),
+    [rangeStart, rangeEnd, zoom, calendar, trimTimeline, locale, tr],
   );
 
   /* A search keeps the ancestors of every match so the hierarchy still reads. */
@@ -320,7 +322,7 @@ export function PlannerShell({ printHref, readOnly = false }: { printHref?: stri
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: statusMeta.dot }}
               />
-              {statusMeta.label}
+              {plannerWord(tr, statusMeta.labelKey)}
             </button>
 
             <div className="flex-1" />
@@ -329,12 +331,12 @@ export function PlannerShell({ printHref, readOnly = false }: { printHref?: stri
 
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-3.5 w-3.5" />
-              Print
+              {tr.printPlan}
             </Button>
 
             <Button variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>
               <LayoutTemplate className="h-3.5 w-3.5" />
-              Presets
+              {tr.presets}
             </Button>
 
             <Button
@@ -353,21 +355,21 @@ export function PlannerShell({ printHref, readOnly = false }: { printHref?: stri
               onClick={() => setView('split')}
               icon={<Columns2 className="h-3.5 w-3.5" />}
             >
-              Split
+              {tr.viewSplit}
             </ViewTab>
             <ViewTab
               active={view === 'grid'}
               onClick={() => setView('grid')}
               icon={<Rows3 className="h-3.5 w-3.5" />}
             >
-              Information table
+              {tr.viewGrid}
             </ViewTab>
             <ViewTab
               active={view === 'timeline'}
               onClick={() => setView('timeline')}
               icon={<BarChart3 className="h-3.5 w-3.5" />}
             >
-              Waterfall
+              {tr.viewTimeline}
             </ViewTab>
           </div>
         </header>
@@ -545,16 +547,18 @@ function StatusBar({
 }: {
   schedule: ReturnType<typeof computeSchedule>;
 }) {
+  const locale = useStudioLocale();
+  const tr = plannerDict(locale);
   const { stats, projectStart, projectEnd, issues } = schedule;
   return (
     <footer className="flex h-8 shrink-0 items-center gap-4 border-t border-slate-200 bg-white px-3 text-[11.5px] text-slate-500">
       <span className="font-medium text-slate-700">
-        {formatMediumDate(projectStart)} → {formatMediumDate(projectEnd)}
+        {formatMediumDate(projectStart, locale)} → {formatMediumDate(projectEnd, locale)}
       </span>
-      <span>{stats.durationDays} calendar days</span>
+      <span>{tr.nCalendarDays(stats.durationDays)}</span>
       <Dot />
-      <span>{stats.total} tasks</span>
-      <span>{stats.milestones} milestones</span>
+      <span>{tr.nTasks(stats.total)}</span>
+      <span>{tr.nMilestones(stats.milestones)}</span>
       <Dot />
       <span className="flex items-center gap-1.5">
         <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
@@ -577,7 +581,7 @@ function StatusBar({
       {issues.length > 0 && (
         <span className="flex items-center gap-1 text-amber-600">
           <AlertTriangle className="h-3 w-3" />
-          {issues.length} scheduling issue{issues.length === 1 ? '' : 's'}
+          {tr.nSchedulingIssues(issues.length)}
         </span>
       )}
     </footer>
@@ -589,6 +593,7 @@ function Dot() {
 }
 
 function EmptyState({ onOpenTemplates }: { onOpenTemplates: () => void }) {
+  const tr = plannerDict(useStudioLocale());
   const { addTaskBelow, select } = usePlannerStore();
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
@@ -597,24 +602,22 @@ function EmptyState({ onOpenTemplates }: { onOpenTemplates: () => void }) {
       </div>
       <div>
         <h2 className="text-[15px] font-semibold text-slate-900">
-          Nothing planned yet
+          {tr.nothingPlannedYet}
         </h2>
         <p className="mt-1 max-w-sm text-[13px] text-slate-500">
-          Generate a work breakdown from a preset, or add your first row and
-          build the plan from scratch. Sub-rows turn their parent into a
-          summary bracket automatically.
+          {tr.generateWorkBreakdown}
         </p>
       </div>
       <div className="mt-1 flex gap-2">
         <Button onClick={onOpenTemplates}>
           <LayoutTemplate className="h-3.5 w-3.5" />
-          Choose a preset
+          {tr.choosePreset}
         </Button>
         <Button
           variant="outline"
           onClick={() => select(addTaskBelow(null))}
         >
-          Start from scratch
+          {tr.startFromScratch}
         </Button>
       </div>
     </div>

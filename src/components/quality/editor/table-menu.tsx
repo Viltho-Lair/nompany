@@ -109,17 +109,17 @@ export function TableMenu({
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().addRowBefore().run()}
             >
-              Insert row above
+              {tr.insertRowAbove}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().addRowAfter().run()}
             >
-              Insert row below
+              {tr.insertRowBelow}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().deleteRow().run()}
             >
-              Delete row
+              {tr.deleteRow}
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
@@ -128,17 +128,17 @@ export function TableMenu({
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().addColumnBefore().run()}
             >
-              Insert column left
+              {tr.insertColumnLeft}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().addColumnAfter().run()}
             >
-              Insert column right
+              {tr.insertColumnRight}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().deleteColumn().run()}
             >
-              Delete column
+              {tr.deleteColumn}
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
@@ -148,17 +148,17 @@ export function TableMenu({
               onSelect={() => editor.chain().focus().mergeCells().run()}
             >
               <Combine className="text-muted-foreground" />
-              Merge selected
+              {tr.mergeSelected}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().splitCell().run()}
             >
               <Split className="text-muted-foreground" />
-              Split cell
+              {tr.splitCell}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setFormatOpen(true)}>
               <PaintBucket className="text-muted-foreground" />
-              Cell format…
+              {tr.cellFormat}
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
@@ -167,13 +167,13 @@ export function TableMenu({
               onSelect={() => editor.chain().focus().toggleHeaderRow().run()}
             >
               <Grid2x2Plus className="text-muted-foreground" />
-              Toggle header row
+              {tr.toggleHeaderRow}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().toggleHeaderColumn().run()}
             >
               <Grid2x2Plus className="text-muted-foreground" />
-              Toggle header column
+              {tr.toggleHeaderColumn}
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
@@ -183,7 +183,7 @@ export function TableMenu({
               onSelect={() => editor.chain().focus().deleteTable().run()}
             >
               <Trash2 />
-              Delete table
+              {tr.deleteTable}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

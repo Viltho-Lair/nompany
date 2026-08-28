@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { restDict } from "@/shared/studio/rest";
+import { boardDict } from "@/shared/studio/board";
 import {
   DndContext,
   DragOverlay,
@@ -144,6 +145,7 @@ const dropAnimation: DropAnimation | null = null;
 
 export function Board() {
   const tr = restDict(useStudioLocale());
+  const board = boardDict(useStudioLocale());
   // Only the *order* is read here. Reading the whole `columns` map would make
   // every task move re-render the board and, with it, every column and card.
   const columnOrder = useBoardStore((s) => s.columnOrder);
@@ -310,7 +312,7 @@ export function Board() {
   /* -------------------------------- render -------------------------------- */
 
   const handleAddColumn = () => {
-    addColumn();
+    addColumn(board.newColumn);
     // Let the new column mount, then reveal it.
     requestAnimationFrame(() => {
       const el = scrollerRef.current;

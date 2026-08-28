@@ -131,7 +131,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
         <div className={`${panel} text-center`}>
           <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.screenNotYours}</h3>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Locations, permits and shifts are kept behind a right of their own here. Tracking and Settings are unaffected.
+            {tr.locationsPermitsShiftsRight}
           </p>
         </div>
       </div>
@@ -907,8 +907,7 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
           <div className="min-w-0">
             <h2 className={h2}>{tr.tracking}</h2>
             <p className={sub}>
-              Where the team is right now. Sharing is per session — it stops when you close this page, and only your
-              latest position is kept, never a history of where you have been.
+              {tr.whereTeamIsNow}
             </p>
           </div>
           <span className={`text-sm font-600 ${tone[status.tone]}`}>{status.text}</span>
@@ -999,14 +998,12 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
       <section className={panel}>
         <h2 className={h2}>{tr.workingHours}</h2>
         <p className={sub}>
-          Taken from Studio settings — the days and hours the studio works are one
-          answer for the whole product, not a per-section one. The calendar shades
-          days that are off and draws against those hours.
+          {tr.takenFromStudioSettings}
         </p>
         <label className={`mt-4 flex w-fit items-center gap-2.5 text-sm ${canManage ? "cursor-pointer" : ""} text-slate-700 dark:text-slate-200`}>
           <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={workingOnly} disabled={!canManage}
             onChange={(e) => { setWorkingOnly(e.target.checked); dirty(); }} />
-          Show only working hours on the calendar
+          {tr.showOnlyWorkingHours}
         </label>
         <p className="mt-1 text-xs text-slate-400">
           The grid would run {String(from).padStart(2, "0")}:00–{String(to).padStart(2, "0")}:00.
@@ -1017,8 +1014,7 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
       <section className={panel}>
         <h2 className={h2}>{tr.calendarLegend}</h2>
         <p className={sub}>
-          The colours the calendar draws shifts in. These kinds are fixed — recolour or rename them, but they cannot be
-          added to or removed, because a shift whose kind has no entry would have no colour to be drawn in.
+          {tr.coloursCalendarDraws}
         </p>
         <div className="mt-4 space-y-2">
           {legend.map((t, i) => (

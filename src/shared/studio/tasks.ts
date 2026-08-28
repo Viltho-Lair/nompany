@@ -30,6 +30,7 @@ type Strings = CommonStrings & {
   dueDate: string;
   edit: string;
   editTask: string;
+  everyKindOfTask: string;
   giveTaskTitle: string;
   kind: string;
   kindFixed: string;
@@ -104,6 +105,7 @@ const en: Strings = {
   dueDate: "Due date",
   edit: "Edit",
   editTask: "Edit task",
+  everyKindOfTask: "Every kind of task the studio raises, and who decides it. Appointing someone routes the matching tasks to them straight away, existing ones included — assignment is read from here on every load, never copied onto the task, so it can never keep pointing at whoever used to hold the job.",
   giveTaskTitle: "Give the task a title.",
   kind: "Kind",
   kindFixed: "A task's kind is fixed once it exists.",
@@ -178,6 +180,7 @@ const ar: Strings = {
   dueDate: "تاريخ الاستحقاق",
   edit: "تعديل",
   editTask: "تعديل المهمة",
+  everyKindOfTask: "كل نوع من المهام التي يرفعها الاستوديو، ومن يبتّ فيه. وتعيين شخص يوجّه إليه المهام المطابقة فورًا، بما فيها القائمة — إذ يُقرأ الإسناد من هنا مع كل تحميل، ولا يُنسخ على المهمة، فلا يظل أبدًا مشيرًا إلى من كان يشغل الوظيفة.",
   giveTaskTitle: "أعطِ المهمة عنوانًا.",
   kind: "النوع",
   kindFixed: "يُثبَّت نوع المهمة بمجرد وجودها.",

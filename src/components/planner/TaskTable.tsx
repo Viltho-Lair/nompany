@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useStudioLocale } from '@/components/studio2/locale';
-import { plannerDict } from '@/shared/studio/planner';
+import { plannerDict, plannerWord } from '@/shared/studio/planner';
 import { createPortal } from 'react-dom';
 import {
   AlertTriangle,
@@ -54,6 +54,7 @@ interface Props {
  * their first row at the same y offset.
  */
 export function TaskTableHeader({ width }: { width: number }) {
+  const tr = plannerDict(useStudioLocale());
   const visibleColumns = usePlannerStore((s) => s.visibleColumns);
   const columns = ALL_COLUMNS.filter((c) => visibleColumns.includes(c.key));
 
@@ -65,7 +66,7 @@ export function TaskTableHeader({ width }: { width: number }) {
           style={{ width: col.width }}
           className="flex shrink-0 items-center border-e border-slate-100 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400"
         >
-          {col.label}
+          {plannerWord(tr, col.labelKey)}
         </div>
       ))}
     </div>
@@ -118,6 +119,7 @@ export function TaskTable({ rows, schedule, resources, width }: Props) {
 }
 
 function AddRowButton() {
+  const tr = plannerDict(useStudioLocale());
   const { addTaskBelow, select } = usePlannerStore();
   return (
     <button
@@ -134,14 +136,14 @@ function AddRowButton() {
       style={{ height: ROW_HEIGHT }}
     >
       <Plus className="h-3.5 w-3.5" />
-      Add task
+      {tr.addTask}
     </button>
   );
 }
 
 interface RowProps {
   task: ComputedTask;
-  columns: { key: GridColumn; label: string; width: number }[];
+  columns: { key: GridColumn; labelKey: string; width: number }[];
   resources: Resource[];
   schedule: ScheduleResult;
   selected: boolean;
@@ -248,7 +250,7 @@ const Row = React.memo(function Row({
             value={task.startDate}
             withTime={withTime}
             readOnly={task.isSummary}
-            hint={task.isSummary ? 'Rolled up from sub-tasks' : undefined}
+            hint={task.isSummary ? tr.rolledUpFromSubtasks : undefined}
             onCommit={(d) => onUpdate({ start: d.toISOString() })}
           />
         );
@@ -504,23 +506,23 @@ function RowMenu({ task }: { task: ComputedTask }) {
             className="min-w-[200px] overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
           >
             <RowMenuItem icon={Plus} onClick={() => run(() => select(addTaskBelow(task.id)))}>
-              Add task below
+              {tr.addTaskBelow}
             </RowMenuItem>
             <RowMenuItem icon={CornerDownRight} onClick={() => run(() => select(addSubtask(task.id)))}>
-              Add sub-task
+              {tr.addSubtask}
             </RowMenuItem>
-            <RowMenuItem icon={Flag} onClick={() => run(() => select(addMilestone(task.id)))}>
-              Add milestone
+            <RowMenuItem icon={Flag} onClick={() => run(() => select(addMilestone(task.id, tr.newMilestone)))}>
+              {tr.addMilestone}
             </RowMenuItem>
             <RowMenuSep />
             <RowMenuItem icon={IndentIncrease} onClick={() => run(() => indent(task.id))}>
-              Indent
+              {tr.indent}
             </RowMenuItem>
             <RowMenuItem icon={IndentDecrease} onClick={() => run(() => outdent(task.id))}>
-              Outdent
+              {tr.outdent}
             </RowMenuItem>
             <RowMenuItem icon={Copy} onClick={() => run(() => duplicateTask(task.id))}>
-              Duplicate
+              {tr.duplicate}
             </RowMenuItem>
             <RowMenuSep />
             <RowMenuItem
@@ -533,17 +535,17 @@ function RowMenu({ task }: { task: ComputedTask }) {
                 )
               }
             >
-              {task.scheduleMode === 'auto' ? 'Pin start date' : 'Auto-schedule'}
+              {task.scheduleMode === 'auto' ? tr.pinStartDate : tr.autoSchedule}
             </RowMenuItem>
             <RowMenuItem
               icon={Diamond}
               onClick={() => run(() => updateTask(task.id, { milestone: !task.milestone }))}
             >
-              {task.milestone ? 'Convert to task' : 'Convert to milestone'}
+              {task.milestone ? tr.convertToTask : tr.convertToMilestone}
             </RowMenuItem>
             <RowMenuSep />
             <RowMenuItem icon={Trash2} destructive onClick={() => run(() => deleteTask(task.id))}>
-              Delete{task.isSummary ? ' with sub-tasks' : ''}
+              {tr.delete}{task.isSummary ? tr.withSubtasks : ''}
             </RowMenuItem>
           </div>,
           document.body,

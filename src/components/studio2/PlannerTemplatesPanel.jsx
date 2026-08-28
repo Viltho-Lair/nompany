@@ -81,10 +81,10 @@ export default function PlannerTemplatesPanel({ slug }) {
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate font-display text-sm font-800 text-[var(--geex-ink)]">
-            Templates
+            {tr.templates}
           </p>
           <p className="truncate text-xs text-[var(--geex-muted)]">
-            Reusable task structures a plan can start from
+            {tr.reusableTaskStructures}
           </p>
         </div>
         {canEdit && (
@@ -110,7 +110,7 @@ export default function PlannerTemplatesPanel({ slug }) {
           ))
         ) : templates.length === 0 ? (
           <p className="rounded-geex border border-dashed border-slate-200 px-3 py-6 text-center text-xs text-[var(--geex-muted)] dark:border-white/10">
-            No templates yet. Use <span className="font-600">{tr.new}</span> to build one.
+            {tr.noTemplatesYetUse} <span className="font-600">{tr.new}</span> {tr.toBuildOne}
           </p>
         ) : (
           templates.map((t) => (
@@ -140,7 +140,7 @@ export default function PlannerTemplatesPanel({ slug }) {
                       disabled={busy}
                       className="inline-flex h-7 items-center rounded-full bg-rose-600 px-3 text-xs font-600 text-white transition-colors hover:bg-rose-700 disabled:opacity-60"
                     >
-                      Delete
+                      {tr.delete}
                     </button>
                     <button
                       type="button"
@@ -148,7 +148,7 @@ export default function PlannerTemplatesPanel({ slug }) {
                       disabled={busy}
                       className="inline-flex h-7 items-center rounded-full border border-slate-200 px-3 text-xs font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"
                     >
-                      Cancel
+                      {tr.cancel}
                     </button>
                   </div>
                 ) : (
@@ -163,7 +163,7 @@ export default function PlannerTemplatesPanel({ slug }) {
                         <path d="M12 20h9" strokeLinecap="round" />
                         <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      Edit
+                      {tr.edit}
                     </button>
                     <button
                       type="button"

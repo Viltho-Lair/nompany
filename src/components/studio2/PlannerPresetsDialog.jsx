@@ -101,11 +101,11 @@ export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, 
 
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-200/70 pt-4 dark:border-white/10">
           <button type="button" className={btnGhost} onClick={resetToDefaults} disabled={saving}>
-            Reset to app defaults
+            {tr.resetToAppDefaults}
           </button>
           <div className="ms-auto flex items-center gap-2">
             <button type="button" className={btnGhost} onClick={onClose} disabled={saving}>
-              Cancel
+              {tr.cancel}
             </button>
             <button
               type="button"

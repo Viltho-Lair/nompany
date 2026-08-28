@@ -8,11 +8,31 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  addOneDescribedLine: string;
+  addTable: string;
+  alreadyLineInTable: string;
+  changeColumns: string;
+  convertRfqIntoQuotation: string;
+  fulfilled: string;
+  fullyAllocated: string;
+  hiddenProjects: string;
+  hide: string;
+  noColumnsSelectedTechnical: string;
+  nothingRegisteredItems: string;
+  numberedAutomaticallyLeadSet: string;
+  originInternal: string;
+  originSales: string;
+  quotationNoPricedLines: string;
+  remove: string;
+  sequencesQuotationNumber: string;
+  submit: string;
   tableCovers: (n: number) => string;
   tableNumber: (n: number) => string;
   tableRowDiscount: (table: number, row: number) => string;
   tableRowQuantity: (table: number, row: number) => string;
   tableTitle: (n: number) => string;
+  tableTotal: string;
+  unhide: string;
   vatRate: (rate: number) => string;
   accessQuotation: string;
   accessTechnicalStudio: string;
@@ -195,11 +215,31 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  addOneDescribedLine: "Add at least one described line before submitting.",
+  addTable: "Add table",
+  alreadyLineInTable: "is already a line in this table — change its quantity instead of adding it twice. Add it under another table if it is genuinely separate work.",
+  changeColumns: "Change columns",
+  convertRfqIntoQuotation: "Convert this RFQ into a quotation. You choose who handles it next.",
+  fulfilled: "Fulfilled",
+  fullyAllocated: "Fully allocated.",
+  hiddenProjects: "Hidden projects",
+  hide: "Hide",
+  noColumnsSelectedTechnical: "No columns are selected. Choose them in Technical → Settings.",
+  nothingRegisteredItems: "Nothing in Registered Items yet — lines can still be typed, and typing one here does not register it.",
+  numberedAutomaticallyLeadSet: "The quotation is numbered automatically and its lead is set to",
+  originInternal: "Internal",
+  originSales: "Sales",
+  quotationNoPricedLines: "The quotation behind this sheet has no priced lines yet. Add them in the builder and they appear here.",
+  remove: "Remove",
+  sequencesQuotationNumber: "The sequences a quotation's number is drawn from. Each has a label, a prefix and a starting number; one is the default for quotations raised from Sales tickets.",
+  submit: "Submit",
   tableCovers: (n) => `Table ${n} — what this section covers`,
   tableNumber: (n) => `Table ${n}`,
   tableRowDiscount: (table, row) => `Table ${table} row ${row} discount percent`,
   tableRowQuantity: (table, row) => `Table ${table} row ${row} quantity`,
   tableTitle: (n) => `Table ${n} title`,
+  tableTotal: "Table total",
+  unhide: "Unhide",
   vatRate: (rate) => `VAT ${rate}%`,
   accessQuotation: "You don't have access to this quotation.",
   accessTechnicalStudio: "You don't have access to Technical in this studio.",
@@ -382,11 +422,31 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  addOneDescribedLine: "أضف بندًا موصوفًا واحدًا على الأقل قبل الإرسال.",
+  addTable: "أضف جدولًا",
+  alreadyLineInTable: "بند موجود في هذا الجدول — غيّر كميته بدلًا من إضافته مرتين. وأضفه في جدول آخر إن كان عملًا منفصلًا فعلًا.",
+  changeColumns: "غيّر الأعمدة",
+  convertRfqIntoQuotation: "حوّل طلب عرض السعر هذا إلى عرض سعر. وأنت من يختار من يتولاه بعد ذلك.",
+  fulfilled: "مستوفى",
+  fullyAllocated: "مخصّص بالكامل.",
+  hiddenProjects: "المشاريع المخفية",
+  hide: "إخفاء",
+  noColumnsSelectedTechnical: "لم تُختَر أي أعمدة. اخترها في القسم الفني ← الإعدادات.",
+  nothingRegisteredItems: "لا شيء في الأصناف المسجّلة بعد — ما زال بالإمكان كتابة البنود، وكتابة بند هنا لا تسجّله.",
+  numberedAutomaticallyLeadSet: "يُرقَّم عرض السعر تلقائيًا ويُضبط مرجعه على",
+  originInternal: "داخلي",
+  originSales: "المبيعات",
+  quotationNoPricedLines: "عرض السعر خلف هذه الورقة لا يحمل بنودًا مسعّرة بعد. أضفها في المُنشئ لتظهر هنا.",
+  remove: "حذف",
+  sequencesQuotationNumber: "التسلسلات التي يُسحب منها رقم عرض السعر. لكل منها تسمية وبادئة ورقم بداية؛ وأحدها الافتراضي لعروض الأسعار المنشأة من تذاكر المبيعات.",
+  submit: "إرسال",
   tableCovers: (n) => `الجدول ${n} — ما يغطيه هذا القسم`,
   tableNumber: (n) => `الجدول ${n}`,
   tableRowDiscount: (table, row) => `نسبة خصم الصف ${row} في الجدول ${table}`,
   tableRowQuantity: (table, row) => `كمية الصف ${row} في الجدول ${table}`,
   tableTitle: (n) => `عنوان الجدول ${n}`,
+  tableTotal: "إجمالي الجدول",
+  unhide: "إظهار",
   vatRate: (rate) => `ضريبة القيمة المضافة ${rate}٪`,
   accessQuotation: "لا تملك صلاحية الوصول إلى عرض السعر هذا.",
   accessTechnicalStudio: "لا تملك صلاحية الوصول إلى القسم الفني في هذا الاستوديو.",

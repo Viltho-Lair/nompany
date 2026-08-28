@@ -110,7 +110,7 @@ export function DocumentList({
           </Link>
           <div className="min-w-0">
             <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">
-              Documents
+              {tr.documents}
             </h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
               {studio.name || tr.thisStudio}

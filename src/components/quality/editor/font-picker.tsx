@@ -101,14 +101,13 @@ export function FontPicker({
           {catalog.status === "loading" && (
             <p className="flex items-center gap-2 px-3 py-6 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              Loading fonts…
+              {tr.loadingFonts}
             </p>
           )}
 
           {catalog.status === "error" && (
             <p className="px-3 py-6 text-sm text-muted-foreground">
-              Could not reach Google Fonts. Check the connection and the
-              GOOGLE_FONTS_API_KEY.
+              {tr.couldNotReachGoogleFonts}
             </p>
           )}
 

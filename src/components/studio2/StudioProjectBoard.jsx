@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
+import { boardDict } from "@/shared/studio/board";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBoardStore, boardDoc } from "@/components/kanban/store/board-store";
@@ -32,6 +33,7 @@ const DEBOUNCE_MS = 600;
 
 export default function StudioProjectBoard({ slug, projectId }) {
   const tr = projectsDict(useStudioLocale());
+  const seedWords = boardDict(useStudioLocale());
   const hydrate = useBoardStore((s) => s.hydrate);
 
   // Project facts for the rail + sidebar — one fetch of the /projects endpoint a
@@ -61,7 +63,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
         const payload = await res.json();
         // hydrate() notifies subscribers synchronously; hydratedRef is still
         // false at that instant, so the initial hydrate never triggers a PUT.
-        hydrate(payload.board ?? null, payload.members ?? []);
+        hydrate(payload.board ?? null, payload.members ?? [], seedWords);
         hydratedRef.current = true;
         setBoard({ loading: false, canEdit: Boolean(payload.canEdit), error: false });
       } catch {
@@ -69,7 +71,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
       }
     })();
     return () => { alive = false; };
-  }, [slug, projectId, hydrate]);
+  }, [slug, projectId, hydrate, seedWords]);
 
   // Persist on change — only when the caller may manage the project, and only
   // for the persisted slice (search/priority filters are session-only and are
@@ -107,7 +109,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
           href={`/${slug}/projects-list`}
           className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"
         >
-          <span aria-hidden="true" className="rtl:-scale-x-100">←</span> Projects
+          <span aria-hidden="true" className="rtl:-scale-x-100">←</span> {tr.projects}
         </Link>
 
         <div className="min-w-0">
@@ -122,7 +124,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
 
         {!board.loading && !board.canEdit && (
           <span className="ms-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
-            View only
+            {tr.viewOnly}
           </span>
         )}
       </header>
@@ -133,7 +135,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
         <aside className="hidden w-[240px] shrink-0 flex-col gap-4 overflow-y-auto border-e border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10 md:flex">
           <div>
             <p className="mb-1.5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Decisions
+              {tr.decisions}
             </p>
             {/* Clicking this creates the project's plan (carrying a copy of the
                 project's facts) the first time and opens it every time after —
@@ -157,7 +159,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
                   href={`/${slug}/projects-list/${projectId}/quotation`}
                   className="block rounded-lg px-1 py-1 text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"
                 >
-                  Open the quotation viewer →
+                  {tr.openQuotationViewer}
                 </Link>
               )}
             </div>
@@ -171,7 +173,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
           ) : board.error ? (
             <div className="grid h-full place-items-center p-8">
               <p className="max-w-sm text-center text-sm text-rose-600 dark:text-rose-300">
-                This project&apos;s board could not be loaded — you may not have access to it.
+                {tr.boardCouldNotLoad}
               </p>
             </div>
           ) : (

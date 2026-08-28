@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   defaultBandSetup,
-  MARGIN_PRESET_LABELS,
+  marginPresetLabels,
   MARGIN_PRESET_ORDER,
   PAGE_NUMBER_POSITIONS,
   PAGE_PRESETS,
@@ -141,9 +141,9 @@ export function PageSetupMenu({
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Squircle className="text-muted-foreground" />
-              Margins
+              {tr.margins}
               <span className="ml-auto text-xs text-muted-foreground">
-                {MARGIN_PRESET_LABELS[setup.marginPreset].replace("…", "")}
+                {marginPresetLabels(tr)[setup.marginPreset].replace("…", "")}
               </span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-52">
@@ -160,7 +160,7 @@ export function PageSetupMenu({
               >
                 {MARGIN_PRESET_ORDER.map((id) => (
                   <DropdownMenuRadioItem key={id} value={id}>
-                    {MARGIN_PRESET_LABELS[id]}
+                    {marginPresetLabels(tr)[id]}
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
@@ -176,7 +176,7 @@ export function PageSetupMenu({
             onCheckedChange={(checked) => toggleBand("header", checked)}
           >
             <PanelTop className="text-muted-foreground" />
-            Header
+            {tr.header}
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={setup.footer.enabled}
@@ -184,7 +184,7 @@ export function PageSetupMenu({
             onCheckedChange={(checked) => toggleBand("footer", checked)}
           >
             <PanelBottom className="text-muted-foreground" />
-            Footer
+            {tr.footer}
           </DropdownMenuCheckboxItem>
 
           {(setup.header.enabled || setup.footer.enabled) && (
@@ -192,13 +192,13 @@ export function PageSetupMenu({
               {setup.header.enabled && (
                 <DropdownMenuItem onSelect={() => setBandDialog("header")}>
                   <Settings2 className="text-muted-foreground" />
-                  Header settings…
+                  {tr.headerSettings}
                 </DropdownMenuItem>
               )}
               {setup.footer.enabled && (
                 <DropdownMenuItem onSelect={() => setBandDialog("footer")}>
                   <Settings2 className="text-muted-foreground" />
-                  Footer settings…
+                  {tr.footerSettings}
                 </DropdownMenuItem>
               )}
             </>
@@ -209,7 +209,7 @@ export function PageSetupMenu({
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Hash className="text-muted-foreground" />
-              Page numbers
+              {tr.pageNumbers}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-52">
               <DropdownMenuRadioGroup
