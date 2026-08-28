@@ -130,10 +130,10 @@
         "industry": "Commercial",
         "deadline": "2031-12-02",
         "serviceIds": [
-          "<sal_ID>"
+          "Audio Visual Solutions"
         ],
         "serviceRequirements": {
-          "<sal_ID>": {
+          "Audio Visual Solutions": {
             "withoutInstallation": false,
             "withoutProgramming": false
           }
@@ -179,10 +179,10 @@
         "industry": "Commercial",
         "deadline": "2031-12-01",
         "serviceIds": [
-          "<sal_ID>"
+          "Audio Visual Solutions"
         ],
         "serviceRequirements": {
-          "<sal_ID>": {
+          "Audio Visual Solutions": {
             "withoutInstallation": false,
             "withoutProgramming": false
           }
@@ -231,17 +231,6 @@
         "id": "<col_ID>",
         "alias": "Owner",
         "role": "owner"
-      }
-    ],
-    "services": [
-      {
-        "id": "<sal_ID>",
-        "name": "Audio Visual Solutions",
-        "description": "",
-        "createdByCollaboratorId": "<col_ID>",
-        "createdAt": "<timestamp>",
-        "studioId": "<std_ID>",
-        "sectionId": "<sub_ID>"
       }
     ],
     "studioDefaults": {
@@ -380,6 +369,9 @@
           "key": "updatedAt",
           "label": "Updated"
         }
+      ],
+      "serviceActions": [
+        "Audio Visual Solutions"
       ]
     }
   }

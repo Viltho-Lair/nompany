@@ -78,7 +78,6 @@ export const STUDIO_LEVEL: readonly StudioLevelSpec[] = [
 export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   salesTickets: "SalesTicket",
   salesClients: "SalesClient",
-  salesServices: "SalesService",
   generatedDocuments: "GeneratedDocument",
   quotations: "Quotation",
   rfqs: "Rfq",

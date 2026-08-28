@@ -16,7 +16,7 @@
 import * as KEYS from "@/platform/db/keys";
 import { KEY_PREFIX } from "@/platform/db/keys";
 import { createUser, updateUser, mintSession } from "@/platform/auth/users";
-import { createStudio } from "@/modules/main/studios";
+import { createStudio, updateStudio } from "@/modules/main/studios";
 import { addCollaborator, getCollaboratorByUser, updateCollaborator } from "@/platform/auth/collaborators";
 import { listRoles, createRole } from "@/modules/people/roles";
 import { ALL_PERMISSIONS, AREAS, ADMIN_ROLE_ID, effectivePermissions } from "@/platform/access";
@@ -897,7 +897,6 @@ console.log("== sales: the module's whole surface, with data in it");
 // Both are correct. Neither was written down. Both are goldens now.
 {
   const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.ts");
-  const SERVICES = await import("@/app/api/studios/[slug]/sales/services/route.ts");
   const TICKETS = await import("@/app/api/studios/[slug]/sales/tickets/route.ts");
   const RFQ = await import("@/app/api/studios/[slug]/sales/tickets/rfq/route.ts");
   const QUOTATIONS = await import("@/app/api/studios/[slug]/sales/quotations/route.ts");
@@ -922,10 +921,11 @@ console.log("== sales: the module's whole surface, with data in it");
   await signIn(owner.id);
 
   // ---- seed, and pin what each create answers ----------------------------
-  const service = await shot("sales.service.created", await capture(
-    SERVICES.POST, req(`/api/studios/${slug}/sales/services`, { method: "POST", body: { name: "Audio Visual Solutions" } }), P));
-  const serviceId = service.body?.service?.id;
-  ok("the service was created", Boolean(serviceId), JSON.stringify(service.body).slice(0, 120));
+  // A ticket's services name the studio's own Service Actions (Studio
+  // Settings → Service Actions) now, not a row from a Sales-owned catalogue —
+  // there is no create-route golden to pin here any more (see sales.ts).
+  const serviceId = "Audio Visual Solutions";
+  await updateStudio(studio.id, { serviceActions: [serviceId] });
 
   const client = await shot("sales.client.created", await capture(
     CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, { method: "POST", body: { name: "Acme Holdings", country: "Saudi Arabia", city: "Riyadh" } }), P));
@@ -1000,9 +1000,12 @@ console.log("== sales: the module's whole surface, with data in it");
   await shot("sales.allowed.client", await capture(
     CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, { method: "POST", body: { name: "Second Client" } }), P));
 
-  // Settings answer to their own right, not to "can write in Sales".
+  // Settings answer to their own right, not to "can write in Sales". The
+  // service catalogue this used to POST to is gone (see sales.ts) — Sales
+  // Settings still guards a write of its own, the vocabulary PUT, so that is
+  // what proves the same defence-in-depth now.
   await shot("sales.refused.settings", await capture(
-    SERVICES.POST, req(`/api/studios/${slug}/sales/services`, { method: "POST", body: { name: "Sneaky Service" } }), P));
+    SALES.PUT, req(`/api/studios/${slug}/sales`, { method: "PUT", body: { salesCities: ["Sneaky City"] } }), P));
 
   // ---- and a member of NO studio sees the same wall ----------------------
   await signIn(outsider.id);
@@ -1012,6 +1015,13 @@ console.log("== sales: the module's whole surface, with data in it");
   __signOut();
   await shot("sales.unauth.ticket", await capture(
     TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: { title: "Not even signed in" } }), P));
+
+  // Reset before the modules below run: this studio is shared by every block
+  // in this file (see the note on "main: the engagement view"), and Projects
+  // and Inventory both echo studio.serviceActions into their own "populated"
+  // goldens — left non-empty here, it would move goldens that belong to a
+  // module this block never touched.
+  await updateStudio(studio.id, { serviceActions: [] });
 }
 
 // ============================================================================
@@ -1175,7 +1185,6 @@ console.log("== technical: sequences numbered independently, and the approval do
 {
   const TECH = await import("@/app/api/studios/[slug]/technical/route.ts");
   const APPROVAL = await import("@/app/api/studios/[slug]/technical/quotations/approval/route.ts");
-  const SERVICES = await import("@/app/api/studios/[slug]/sales/services/route.ts");
   const TICKETS = await import("@/app/api/studios/[slug]/sales/tickets/route.ts");
   const RFQROUTE = await import("@/app/api/studios/[slug]/sales/tickets/rfq/route.ts");
   const {
@@ -1264,10 +1273,13 @@ console.log("== technical: sequences numbered independently, and the approval do
     a2.quotation?.number === "SQA-0002", JSON.stringify(a2.error || a2.quotation?.number));
 
   // ---- convertRfq numbers from the DEFAULT sequence -------------------------
-  const svc = await capture(SERVICES.POST, req(`/api/studios/${slug}/sales/services`, { method: "POST", body: { name: "Sequence Test Service" } }), P);
+  // A ticket's services name the studio's own Service Actions now, not a row
+  // from a Sales-owned catalogue — seeded directly, the same way the fixture
+  // above reaches past the routes for `existingClient`.
+  await updateStudio(studio.id, { serviceActions: ["Sequence Test Service"] });
   const tkt = await capture(TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: {
     title: "Default sequence check", clientId: existingClient?.id, industry: "Commercial", deadline: "2026-12-22",
-    serviceIds: [svc.body?.service?.id],
+    serviceIds: ["Sequence Test Service"],
   } }), P);
   const rfqAsk = await capture(RFQROUTE.POST, req(`/api/studios/${slug}/sales/tickets/rfq`, { method: "POST", body: { ticketId: tkt.body?.ticket?.id } }), P);
 
@@ -1387,6 +1399,11 @@ console.log("== technical: sequences numbered independently, and the approval do
   ok("...while Studio A's own clients are present", clientNames.includes(existingClient?.name), JSON.stringify(clientNames));
 
   __signOut();
+
+  // Reset before Projects and Inventory run — both echo studio.serviceActions
+  // into their own "populated"/"empty" goldens; see the same reset at the end
+  // of the sales block above.
+  await updateStudio(studio.id, { serviceActions: [] });
 }
 
 // ============================================================================
@@ -2072,7 +2089,6 @@ console.log("== main: the engagement view — two NEW routes, and the safety pro
   const LIST = await import("@/app/api/studios/[slug]/main/engagements/route.ts");
   const BLOCK = await import("@/app/api/studios/[slug]/main/engagements/[engId]/route.ts");
   const CLIENTS = await import("@/app/api/studios/[slug]/sales/clients/route.ts");
-  const SERVICES = await import("@/app/api/studios/[slug]/sales/services/route.ts");
   const TICKETS = await import("@/app/api/studios/[slug]/sales/tickets/route.ts");
   const INVOICES = await import("@/app/api/studios/[slug]/finance/invoices/route.ts");
   // attachToTicketEngagement is the SAME primitive a future invoice dual-write
@@ -2100,13 +2116,15 @@ console.log("== main: the engagement view — two NEW routes, and the safety pro
   // ---- one engagement, two stages: a ticket (Sales) and an invoice
   // (Finance) attached to the SAME engagement, so a viewer holding only the
   // Sales right is a real test of what gets withheld rather than an empty one.
-  const service = await capture(SERVICES.POST, req(`/api/studios/${slug}/sales/services`,
-    { method: "POST", body: { name: "Engagement View Fixture Service" } }), P);
+  // A ticket's services name the studio's own Service Actions now, not a row
+  // from a Sales-owned catalogue — seeded directly rather than through a route
+  // that no longer exists.
+  await updateStudio(studio.id, { serviceActions: ["Engagement View Fixture Service"] });
   const client = await capture(CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`,
     { method: "POST", body: { name: "Engagement View Client", country: "Saudi Arabia", city: "Riyadh" } }), P);
   const ticket = await capture(TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: {
     title: "Engagement view fixture", clientId: client.body?.client?.id, industry: "Commercial",
-    deadline: "2026-12-15", serviceIds: [service.body?.service?.id],
+    deadline: "2026-12-15", serviceIds: ["Engagement View Fixture Service"],
   } }), P);
   const ticketId = ticket.body?.ticket?.id;
   ok("the fixture ticket was created", Boolean(ticketId), JSON.stringify(ticket.body).slice(0, 120));
@@ -2161,6 +2179,11 @@ console.log("== main: the engagement view — two NEW routes, and the safety pro
     BLOCK.GET, req(`/api/studios/${slug}/main/engagements/${engId}`), ctx({ slug, engId })));
 
   __signOut();
+
+  // Left clean for whatever runs after this block, the same discipline as the
+  // two resets above — nothing downstream reads it today, but this studio is
+  // shared for the rest of the file too.
+  await updateStudio(studio.id, { serviceActions: [] });
 }
 
 // ============================================================================

@@ -509,11 +509,11 @@ export const SECTION_COLLECTIONS = {
   // sales
   "sales-tickets": ["salesTickets", "generatedDocuments"],
   "sales-clients": ["salesClients"],
-  // The service catalogue a ticket picks from. It needs real ids, so it is a
-  // collection rather than a vocabulary list on the settings row. In the Old
-  // System this was a GLOBAL `services` collection shared with the public
-  // site; that site is gone, so Sales Settings owns it outright.
-  "sales-settings": ["salesServices"],
+  // sales-settings has no collection of its own any more: the service
+  // catalogue that used to live here (`salesServices`) is gone — a ticket's
+  // services now name the studio's own Service Actions
+  // (`studio.serviceActions`, in Studio Settings), the same field Inventory
+  // and Projects already read, rather than a Sales-owned collection.
   // technical
   // A quotation's generated documents — the cover letter, the terms, whatever
   // template was run against it. They live HERE rather than in Quality because

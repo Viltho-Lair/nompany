@@ -1,6 +1,6 @@
 import { route } from "@/platform/http/route";
 import {
-  salesContext, listClients, listTickets, assignablePeople, saveSalesSettings, listServices,
+  salesContext, listClients, listTickets, assignablePeople, saveSalesSettings,
   TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS,
 } from "@/modules/sales/sales";
 
@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic";
 const spec = { auth: "studio", context: salesContext, name: "sales" };
 
 export const GET = route(spec, async (sales) => {
-  const [clients, tickets, people, services] = await Promise.all([
-    listClients(sales), listTickets(sales), assignablePeople(sales), listServices(sales),
+  const [clients, tickets, people] = await Promise.all([
+    listClients(sales), listTickets(sales), assignablePeople(sales),
   ]);
   return {
     // ONE FLAG PER SUB-SECTION. Tickets, Clients and Settings are separate
@@ -39,7 +39,7 @@ export const GET = route(spec, async (sales) => {
     // ticket drops "Send for Approval" rather than offering a button that could
     // only ever fail — the same rule the RFQ column follows.
     hasTasks: Boolean(sales.tasksSection),
-    clients, tickets, people, services,
+    clients, tickets, people,
     // Where the studio itself is. A new ticket starts here and the person
     // raising it can change either, which is why these are defaults rather
     // than the answer.
@@ -56,6 +56,10 @@ export const GET = route(spec, async (sales) => {
     vocabulary: {
       statuses: TICKET_STATUSES, urgencies: TICKET_URGENCIES, industries: TICKET_INDUSTRIES,
       liveColumnOptions: TICKET_LIVE_COLUMNS,
+      // A ticket's services are chosen from the studio's own Service Actions
+      // now, so the form reads this list rather than a Sales-owned catalogue —
+      // the same pattern Inventory and Projects already serve theirs through.
+      serviceActions: (sales.studio.serviceActions as string[]) || [],
     },
   };
 });
