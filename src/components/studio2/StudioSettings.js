@@ -114,7 +114,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
   if (!studio) return <p className={BANNER_BAD}>{tr.loadFailed}</p>;
 
   return (
-    <T.Provider value={t}>
+    <T.Provider value={tr}>
     <div className="mx-auto w-full max-w-[640px] py-2">
       <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">{tr.title}</h2>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
