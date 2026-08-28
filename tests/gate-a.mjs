@@ -118,57 +118,85 @@ const EXTRA = {
 };
 
 // THE SUBSTITUTION ABOVE IS A BLIND STRING REPLACE, which is fine until a
-// fixture date happens to land on today or today+6 — then a date the test
-// deliberately chose gets rewritten into a placeholder, and its golden fails
-// for a reason that has nothing to do with the code.
+// fixture date happens to land on one of EXTRA's clock-derived placeholders —
+// then a date the test deliberately chose gets rewritten into a placeholder,
+// and its golden fails for a reason that has nothing to do with the code.
 //
-// The fixtures are read out of this file rather than listed here, so the check
-// cannot go stale the way a hand-maintained copy would. The nearest one is
-// twelve days out, so this cannot fire today; it fires on the morning somebody
-// adds a date near now, and it says what to do about it.
+// The set below is read OUT OF `EXTRA` (every placeholder whose value starts
+// with `<today`) rather than hand-listed — this used to be a literal
+// `[utcDay(0), utcDay(6)]`, three lines under a comment about hand-maintained
+// copies going stale, and it went stale exactly that way: it missed
+// today+30/34/40/41 entirely, so it could not have caught any of the three
+// collisions this file has actually shipped.
+//
+// The fixtures are read out of this file rather than listed here, so THIS
+// check cannot go stale the same way.
+const clockDates = new Set(
+  Object.entries(EXTRA).filter(([, placeholder]) => placeholder.startsWith("<today")).map(([literal]) => literal));
 {
   const fixtureDates = new Set(
     (readFileSync(new URL(import.meta.url), "utf8").match(/"20\d\d-\d\d-\d\d"/g) || [])
       .map((s) => s.slice(1, -1)));
-  const collisions = [utcDay(0), utcDay(6)].filter((d) => fixtureDates.has(d));
+  const collisions = [...clockDates].filter((d) => fixtureDates.has(d));
   ok("no fixture date collides with a clock-derived placeholder",
     collisions.length === 0,
     collisions.length
-      ? `${collisions.join(", ")} is both a fixture and today/today+6 — move the fixture further out`
+      ? `${collisions.join(", ")} is both a fixture and a today/today+N placeholder — move the fixture further out`
       : "");
 }
 
-// THE SAME CHECK, ONE STEP LATER — over what actually got written to disk
-// rather than over this file's source. hr.vacation.forothers.bymanager and
-// operations.shift.refused.onleave both carried a raw `2026-10-01`/`2026-10-02`
-// long after the fixture that fed hr.vacation.requested was made clock-relative:
-// the placeholder map above was extended, but those two request bodies were
-// never converted, so the two goldens kept a literal that reads as `today+30`
-// on exactly one day a year and as nothing — silently correct — every other day
-// until the clock caught up with it and it started failing instead. A golden is
-// meant to hold NO raw date that the normaliser would have turned into a
-// placeholder had it seen one this run, so this reads every recorded file
-// looking for exactly that: a date string identical to one this run's `EXTRA`
-// map would substitute. The set is read out of `EXTRA` itself (every placeholder
-// whose value starts with `<today`) rather than re-listed here, for the same
-// reason the fixture scan above reads its own source instead of a maintained
-// copy.
+// THE SAME CLASS OF BUG, CAUGHT BEFORE THE MORNING IT FIRES rather than on it.
+// hr.vacation.forothers.bymanager and operations.shift.refused.onleave both
+// carried a raw `2026-10-01`/`2026-10-02` long after the fixture that fed
+// hr.vacation.requested was made clock-relative — the placeholder map above
+// was extended, but those two request bodies were never converted. An
+// EXACT-match check (does this golden hold literally today+0/+6/+30/+34/+40/
+// +41 right now) only turns red on the one day the calendar lands on that
+// exact literal; every other day it is silently correct, which is how ten
+// more literal instances across eight goldens sat live for weeks without a
+// single red run. So this checks a WINDOW instead: from today out to the furthest
+// offset EXTRA computes, plus a margin, so a doomed literal fails MONTHS
+// before its collision morning rather than failing (mysteriously, with no
+// code change) on it.
+//
+// `maxOffset` is PARSED out of EXTRA's own `<today+N>` values, never
+// hand-listed, so a new offset widens the window on its own — the same
+// reason the sibling check above stopped hand-listing `[utcDay(0), utcDay(6)]`.
 {
-  const clockDates = new Set(
-    Object.entries(EXTRA).filter(([, placeholder]) => placeholder.startsWith("<today")).map(([literal]) => literal));
+  const offsets = [...clockDates].map((literal) => EXTRA[literal])
+    .map((placeholder) => Number(/^<today(?:\+(\d+))?>$/.exec(placeholder)?.[1] || 0));
+  const maxOffset = Math.max(...offsets);
+  // The margin is pure warning lead time, not a safety boundary — a literal
+  // is already dangerous the instant it falls inside `today + maxOffset`.
+  // Ninety days gives a season's notice before any offset in use today could
+  // reach it, and is nowhere near the ~1,200+ days separating "beyond reach"
+  // fixtures (the HR certification expiries below, 2030/2031) from today, so
+  // it does not false-positive on those.
+  const MARGIN_DAYS = 90;
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const windowEnd = new Date(today);
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + maxOffset + MARGIN_DAYS);
+
   const dir = new URL("./goldens/", import.meta.url);
   const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
-  const leaks = [];
+  const doomed = [];
   for (const file of files) {
     const text = readFileSync(new URL(file, dir), "utf8");
     const found = (text.match(/"20\d\d-\d\d-\d\d"/g) || []).map((s) => s.slice(1, -1));
     for (const d of found) {
-      if (clockDates.has(d)) leaks.push(`${file.replace(/\.json$/, "")}: ${d}`);
+      const dt = new Date(`${d}T00:00:00Z`);
+      if (dt >= today && dt <= windowEnd) {
+        const daysOut = Math.round((dt.getTime() - today.getTime()) / 86400000);
+        doomed.push(`${file.replace(/\.json$/, "")}: ${d} (${daysOut}d from today)`);
+      }
     }
   }
-  ok("no recorded golden carries a date the clock can reach",
-    leaks.length === 0,
-    leaks.length ? `${leaks.join("; ")} — re-record with the placeholder, or the fixture that produced it needs one` : "");
+  ok("no recorded golden holds a date the clock will reach within this run's window",
+    doomed.length === 0,
+    doomed.length
+      ? `${doomed.join("; ")} — push the fixture beyond today+${maxOffset + MARGIN_DAYS}d if the exact day is irrelevant to the test, or add a new EXTRA today+N entry (and re-run this check) if it must stay near now`
+      : "");
 }
 
 const signIn = async (userId) => __signIn(SESSION_COOKIE, await mintSession(userId, 600));
@@ -901,9 +929,12 @@ console.log("== sales: the module's whole surface, with data in it");
   const clientId = client.body?.client?.id;
   ok("the client was created", Boolean(clientId), JSON.stringify(client.body).slice(0, 120));
 
+  // Deadline pushed well beyond any offset EXTRA computes (see the window scan
+  // below) — nothing here asserts the exact day, only that it round-trips, so
+  // there is no reason to make it clock-relative and add a new offset.
   const ticket = await shot("sales.ticket.created", await capture(
     TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: {
-      title: "Boardroom refit", clientId, industry: "Commercial", deadline: "2026-12-01",
+      title: "Boardroom refit", clientId, industry: "Commercial", deadline: "2031-12-01",
       serviceIds: [serviceId],
     } }), P));
   const ticketId = ticket.body?.ticket?.id;
@@ -915,8 +946,10 @@ console.log("== sales: the module's whole surface, with data in it");
   ok("a new ticket is a Lead", ticket.body?.ticket?.status === "Lead", ticket.body?.ticket?.status);
   ok("...and Normal urgency, even for the owner", ticket.body?.ticket?.urgency === "Normal", ticket.body?.ticket?.urgency);
 
+  // Same reasoning as the ticket above — pushed beyond reach, not made
+  // clock-relative, because nothing asserts this deadline's value.
   const forced = await capture(TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: {
-    title: "Cannot start won", clientId, industry: "Commercial", deadline: "2026-12-02",
+    title: "Cannot start won", clientId, industry: "Commercial", deadline: "2031-12-02",
     serviceIds: [serviceId], status: "Closed Won", urgency: "Critical",
   } }), P);
   ok("a ticket cannot be born already won", forced.body?.ticket?.status === "Lead", forced.body?.ticket?.status);
@@ -1954,10 +1987,14 @@ console.log("== operations & tasks: a shift knows about leave, and finishing is 
     Boolean(clash.body?.from && clash.body?.to), JSON.stringify(clash.body));
 
   // The same person, a day they are not on leave: the rule is about the
-  // absence, not about the person.
+  // absence, not about the person. It only has to fall outside the leave
+  // window above (today+40..today+41), so pushed well beyond reach rather
+  // than pinned to another offset — a second clock-relative date here would
+  // itself have to be kept apart from the first, which is exactly how this
+  // file collided with itself before.
   const fine = await shot("operations.shift.created", await capture(
     SHIFTS.POST, req(`/api/studios/${slug}/operations/schedule/shifts`, { method: "POST", body: {
-      date: "2026-11-03", collaboratorId: leave?.collaboratorId, locationId,
+      date: "2031-11-03", collaboratorId: leave?.collaboratorId, locationId,
       startTime: "08:00", endTime: "16:00",
     } }), P));
   ok("...but the same person can be scheduled outside it", fine.status === 201,
@@ -2275,8 +2312,10 @@ console.log("== quality: four signatures, four rights, and nobody signs twice");
     `${noPublish.status} ${JSON.stringify(noPublish.body)}`);
 
   await signIn(owner.id);
+  // Both dates are opaque strings to publish() — nothing checks them against
+  // "now" — so pushed beyond reach rather than made clock-relative.
   const issued = await shot("quality.published", await move(docId, "publish", {
-    effectiveDate: "2026-12-01", nextReviewDate: "2027-12-01",
+    effectiveDate: "2031-12-01", nextReviewDate: "2032-12-01",
   }));
   ok("the owner can issue the revision", issued.status === 200,
     `${issued.status} ${JSON.stringify(issued.body).slice(0, 120)}`);
