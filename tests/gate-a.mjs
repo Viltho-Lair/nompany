@@ -788,7 +788,11 @@ console.log("== the architecture, asserted rather than remembered");
   // when it has Latin letters and no Arabic ones — which is what makes the list
   // short enough to be worth reading.
   {
-    const KEY_LINE = /^  ([A-Za-z_$][\w$]*): (".*"|`[^`]*`),$/gm;
+    // `:\s+` rather than `: ` — a long string the formatter pushed onto
+    // the next line is the second blind class, 12 keys, and it looks nothing
+    // like a function. Both are the same mistake: matching the SHAPE of a
+    // value instead of finding where it ends.
+    const KEY_AT = /\n  ([A-Za-z_$][\w$]*):\s+/g;
     const LATIN = /[A-Za-z]{2,}/;
     const ARABIC = /[؀-ۿ]/;
 
@@ -801,9 +805,38 @@ console.log("== the architecture, asserted rather than remembered");
       const end = src.indexOf("\n};", open);
       return src.slice(open, end < 0 ? src.length : end);
     };
+
+    // WHERE THE VALUE ENDS, walked rather than matched. The first version of
+    // this read whole LINES — `key: "…"` or a single-line template — which
+    // quietly exempted every function-valued key from both checks below. There
+    // are 75 of them, and they are the counted phrases: Arabic needs four forms
+    // (1, 2, 3-10, 11+), so every counted phrase is a multi-line function, and
+    // the entries hardest to check by eye were the ones the gate could not see.
+    //
+    // Depth over (), [] and {}, and quote state for ' " and ` — a brace inside
+    // a quoted string must not open a level, and a template's ${…} is part of
+    // the string as far as the comma hunt is concerned.
+    const valueEnd = (text, from) => {
+      let depth = 0;
+      let quote = "";
+      for (let i = from; i < text.length; i++) {
+        const c = text[i];
+        if (quote) {
+          if (c === "\\") { i++; continue; }
+          if (c === quote) quote = "";
+        } else if (c === '"' || c === "'" || c === "`") quote = c;
+        else if (c === "(" || c === "[" || c === "{") depth++;
+        else if (c === ")" || c === "]" || c === "}") depth--;
+        else if (c === "," && depth === 0) return i;
+      }
+      return text.length;
+    };
     const entries = (text) => {
       const out = new Map();
-      for (const m of text.matchAll(KEY_LINE)) out.set(m[1], m[2]);
+      for (const m of text.matchAll(KEY_AT)) {
+        const start = m.index + m[0].length;
+        out.set(m[1], text.slice(start, valueEnd(text, start)).split(/\s+/).join(" "));
+      }
       return out;
     };
 
