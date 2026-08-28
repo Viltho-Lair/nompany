@@ -105,6 +105,16 @@ const EXTRA = {
   // never collide again, the same fix as the operations week window itself.
   [utcDay(30)]: "<today+30>",
   [utcDay(34)]: "<today+34>",
+  // The manager-booked leave below (hr.vacation.forothers.bymanager) and the
+  // operations refusal that schedules against it (operations.shift.refused.
+  // onleave) carried the literal `2026-10-01`/`2026-10-02` — chosen the same
+  // way the `2026-09-01` above once was, and never converted when the vacation
+  // fixture above was made clock-relative. `today+N` reached it on 1 Oct 2026
+  // and will again every time the calendar comes back around, so both goldens
+  // failed on a date rather than on a change. Pushed further out than the
+  // asker's own 30/34 block so the two leave records stay visibly distinct.
+  [utcDay(40)]: "<today+40>",
+  [utcDay(41)]: "<today+41>",
 };
 
 // THE SUBSTITUTION ABOVE IS A BLIND STRING REPLACE, which is fine until a
@@ -126,6 +136,39 @@ const EXTRA = {
     collisions.length
       ? `${collisions.join(", ")} is both a fixture and today/today+6 — move the fixture further out`
       : "");
+}
+
+// THE SAME CHECK, ONE STEP LATER — over what actually got written to disk
+// rather than over this file's source. hr.vacation.forothers.bymanager and
+// operations.shift.refused.onleave both carried a raw `2026-10-01`/`2026-10-02`
+// long after the fixture that fed hr.vacation.requested was made clock-relative:
+// the placeholder map above was extended, but those two request bodies were
+// never converted, so the two goldens kept a literal that reads as `today+30`
+// on exactly one day a year and as nothing — silently correct — every other day
+// until the clock caught up with it and it started failing instead. A golden is
+// meant to hold NO raw date that the normaliser would have turned into a
+// placeholder had it seen one this run, so this reads every recorded file
+// looking for exactly that: a date string identical to one this run's `EXTRA`
+// map would substitute. The set is read out of `EXTRA` itself (every placeholder
+// whose value starts with `<today`) rather than re-listed here, for the same
+// reason the fixture scan above reads its own source instead of a maintained
+// copy.
+{
+  const clockDates = new Set(
+    Object.entries(EXTRA).filter(([, placeholder]) => placeholder.startsWith("<today")).map(([literal]) => literal));
+  const dir = new URL("./goldens/", import.meta.url);
+  const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+  const leaks = [];
+  for (const file of files) {
+    const text = readFileSync(new URL(file, dir), "utf8");
+    const found = (text.match(/"20\d\d-\d\d-\d\d"/g) || []).map((s) => s.slice(1, -1));
+    for (const d of found) {
+      if (clockDates.has(d)) leaks.push(`${file.replace(/\.json$/, "")}: ${d}`);
+    }
+  }
+  ok("no recorded golden carries a date the clock can reach",
+    leaks.length === 0,
+    leaks.length ? `${leaks.join("; ")} — re-record with the placeholder, or the fixture that produced it needs one` : "");
 }
 
 const signIn = async (userId) => __signIn(SESSION_COOKIE, await mintSession(userId, 600));
@@ -1720,7 +1763,7 @@ console.log("== hr: whose records, which numbers, and what is on disk");
   // already made the decision.
   const forOthers = await shot("hr.vacation.forothers.bymanager", await capture(
     VACATIONS.POST, req(`/api/studios/${slug}/hr/vacations`, { method: "POST", body: {
-      collaboratorId: member.id, from: "2026-10-01", to: "2026-10-02",
+      collaboratorId: member.id, from: utcDay(40), to: utcDay(41),
     } }), P));
   ok("somebody who may create leave may book it for another (the !canManage branch is unreachable)",
     forOthers.status === 201, `${forOthers.status} ${JSON.stringify(forOthers.body).slice(0, 80)}`);
