@@ -5,7 +5,7 @@
     "task": {
       "id": "<tas_ID>",
       "type": "approval",
-      "title": "Approve quotation SQA-0001 · Continuation Client",
+      "title": "Approve quotation SQA-0001 · Second Client",
       "description": "Continuation check",
       "assigneeCollaboratorId": "",
       "approvals": {},
@@ -16,7 +16,7 @@
       "quotationNumber": "SQA-0001",
       "quotationRevision": 1,
       "quotationTotal": 0,
-      "clientName": "Continuation Client",
+      "clientName": "Second Client",
       "createdByCollaboratorId": "<col_ID>",
       "createdAt": "<timestamp>",
       "completedAt": "",

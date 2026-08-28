@@ -1143,9 +1143,31 @@ console.log("== technical: sequences numbered independently, and the approval do
     && afterSave.body?.nextQuotationNumber === undefined,
     JSON.stringify(afterSave.body?.sequences));
 
+  // ---- an existing Sales client, fetched once and reused below --------------
+  // AN EXISTING SALES CLIENT IS REUSED, not created: "Acme Holdings" and
+  // "Second Client" were both raised in the Sales block above, and a THIRD one
+  // minted here would show up — by name — in projects.empty and
+  // projects.list.populated, whose goldens pin the studio's whole salesClients
+  // list embedded in the Projects response. A new client anywhere in this
+  // shared studio is exactly as visible there as a new collaborator is in a
+  // people list (see the note beside the approval-forbidden case above).
+  //
+  // THIS MATTERS MORE NOW THAN IT DID: createQuotation resolves every
+  // clientName through resolveClientFor (client-belongs-to-the-engagement,
+  // Task 2), so a fixture typing a fresh name no longer stays free text — it
+  // mints a real, permanent Sales client. None of the fixtures below (the
+  // sequence-numbering run, the required-field checks) are testing client
+  // CREATION — Task 2's own coverage in suite.mjs does that — so they name an
+  // existing client instead. Fetched before `need` so its default can use it.
+  const techForClients = await techCtx();
+  const existingClient = (await repo("salesClients").find(
+    { studio: techForClients.studio, section: techForClients.salesClientsSection },
+  ))[0];
+  ok("fixture: the studio already has a Sales client to reuse", Boolean(existingClient?.id), JSON.stringify(existingClient));
+
   // ---- per-sequence continuation: A, then B, then A again -------------------
   const need = (over) => ({
-    sequenceId: "seqA", clientId: "", clientName: "Continuation Client",
+    sequenceId: "seqA", clientId: existingClient?.id, clientName: "",
     title: "Continuation check", industry: "Commercial", deadline: "2026-12-20",
     description: "seq test", ...over,
   });
@@ -1163,19 +1185,6 @@ console.log("== technical: sequences numbered independently, and the approval do
     a2.quotation?.number === "SQA-0002", JSON.stringify(a2.error || a2.quotation?.number));
 
   // ---- convertRfq numbers from the DEFAULT sequence -------------------------
-  // AN EXISTING SALES CLIENT IS REUSED, not created: "Acme Holdings" and
-  // "Second Client" were both raised in the Sales block above, and creating a
-  // THIRD one here showed up — by name — in projects.empty and
-  // projects.list.populated, whose goldens pin the studio's whole salesClients
-  // list embedded in the Projects response. A new client anywhere in this
-  // shared studio is exactly as visible there as a new collaborator is in a
-  // people list (see the note beside the approval-forbidden case above).
-  const techForClients = await techCtx();
-  const existingClient = (await repo("salesClients").find(
-    { studio: techForClients.studio, section: techForClients.salesClientsSection },
-  ))[0];
-  ok("fixture: the studio already has a Sales client to reuse", Boolean(existingClient?.id), JSON.stringify(existingClient));
-
   const svc = await capture(SERVICES.POST, req(`/api/studios/${slug}/sales/services`, { method: "POST", body: { name: "Sequence Test Service" } }), P);
   const tkt = await capture(TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: {
     title: "Default sequence check", clientId: existingClient?.id, industry: "Commercial", deadline: "2026-12-22",
@@ -1229,8 +1238,11 @@ console.log("== technical: sequences numbered independently, and the approval do
   ok("a converted quotation reads fromSales: true", convertedRow?.fromSales === true, JSON.stringify(convertedRow?.fromSales));
   const internalRow = rows.find((q) => q.id === a1.quotation?.id);
   ok("an internal quotation reads fromSales: false", internalRow?.fromSales === false, JSON.stringify(internalRow?.fromSales));
+  // Compared against existingClient's OWN name, not a literal — this fixture
+  // reuses a client (see the note above `need`) rather than typing one, so the
+  // resolved name is whatever that client is actually called.
   ok("...and carries its own client, industry and deadline",
-    internalRow?.clientName === "Continuation Client" && internalRow?.industry === "Commercial"
+    internalRow?.clientName === existingClient?.name && internalRow?.industry === "Commercial"
     && internalRow?.deadline === "2026-12-20",
     JSON.stringify({ clientName: internalRow?.clientName, industry: internalRow?.industry, deadline: internalRow?.deadline }));
 
@@ -1355,11 +1367,20 @@ console.log("== projects: opened from an approved quotation, and only once");
   // field-tampering item 8 of the security checklist closes off). `tech` was
   // just read above, so its own `sequences` list names a real sequenceId
   // rather than the retired single-default one.
+  //
+  // AN EXISTING CLIENT, NAMED BY ID — not a typed name. createQuotation
+  // resolves a typed clientName through resolveClientFor now (client-belongs-
+  // to-the-engagement, Task 2), so it would mint a real, permanent Sales
+  // client; this fixture only wants an unapproved quotation to exist, not a
+  // new client — a new one would show up, by name, in projects.empty and
+  // projects.list.populated, which pin the studio's whole salesClients list
+  // (see the same note in the Technical block above `need`). `tech`'s own
+  // vocabulary already names one.
   const internal = await capture(QUOTES.POST, req(`/api/studios/${slug}/technical/quotations`, {
     method: "POST",
     body: {
       sequenceId: tech.body?.sequences?.[0]?.id,
-      clientName: "Site Survey Co",
+      clientId: tech.body?.vocabulary?.clients?.[0]?.id,
       title: "Site survey, not yet approved",
       industry: "Commercial",
       deadline: "2026-12-15",
