@@ -1,6 +1,4 @@
-
-import { useStudioLocale } from "@/components/studio2/locale";
-import { restDict } from "@/shared/studio/rest";// WHAT A DEPARTMENT SCREEN LOOKS LIKE BEFORE ITS CHUNK ARRIVES.
+// WHAT A DEPARTMENT SCREEN LOOKS LIKE BEFORE ITS CHUNK ARRIVES.
 //
 // The studio's screens are `nextDynamic()` now, one chunk each, so between
 // clicking Finance and seeing Finance there is a fetch. Without something in
@@ -16,11 +14,14 @@ import { restDict } from "@/shared/studio/rest";// WHAT A DEPARTMENT SCREEN LOOK
 // for.
 //
 // `.skel` is the shared utility in globals.css, not a per-screen animation.
-export default function ScreenSkeleton({ rows = 6 }: { rows?: number }) {
-  const tr = restDict(useStudioLocale());
+// `loadingLabel` COMES IN AS A PROP. This is a `nextDynamic` loading fallback,
+// so it renders on the server, where a locale hook cannot be called.
+export default function ScreenSkeleton(
+  { rows = 6, loadingLabel = "Loading" }: { rows?: number; loadingLabel?: string },
+) {
   return (
     <div className="space-y-6" aria-busy="true" aria-live="polite">
-      <span className="sr-only">{tr.loading}</span>
+      <span className="sr-only">{loadingLabel}</span>
 
       <div className="skel skel-text h-6 w-48" />
 

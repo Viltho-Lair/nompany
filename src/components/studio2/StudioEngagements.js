@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { engagementsDict } from "@/shared/studio/engagements";
+import { stageLabel } from "@/shared/studio/stages";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -102,7 +103,7 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
     setListError("");
     const res = await withMinDelay(fetch(`/api/studios/${slug}/main/engagements`, { cache: "no-store" }));
     setListLoading(false);
-    if (!res.ok) { setListError("You don't have access to Engagements in this studio."); return; }
+    if (!res.ok) { setListError(tr.noAccessEngagements); return; }
     setList(await res.json());
   }, [slug]);
 
@@ -200,7 +201,7 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
           </Link>
           <div className="min-w-0">
             <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">
-              {openId ? (block?.ref || "Engagement") : "Engagements"}
+              {openId ? (block?.ref || tr.engagementSingular) : tr.engagementsPlural}
             </h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
               {openId ? tr.oneDealEveryStage : (list ? `${list.engagements.length} deal${list.engagements.length === 1 ? "" : "s"}` : "loading")}
@@ -377,7 +378,7 @@ function EngagementList({
                       <button
                         type="button"
                         className={btnRow}
-                        aria-label={`${row.locked ? tr.unlock : tr.lock} ${row.ref || row.title || "this deal"}`}
+                        aria-label={`${row.locked ? tr.unlock : tr.lock} ${row.ref || row.title || tr.thisDeal}`}
                         disabled={lockBusyId === row.id}
                         onClick={() => onToggleLock(row.id, !row.locked)}
                       >
@@ -447,7 +448,8 @@ function LockChip({ locked }) {
 }
 
 function StageBadge({ type }) {
-  const label = STAGE_REGISTRY[type]?.label || type;
+  const locale = useStudioLocale();
+  const label = stageLabel(type, STAGE_REGISTRY[type]?.label || type, locale);
   return (
     <span
       title={label}
@@ -567,7 +569,7 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
     if (res.status === 404) {
       // Already gone. Dropping the row is the honest result, but it is not a
       // deletion this person performed, so it is said rather than celebrated.
-      onDeleted(row.id, "That engagement had already been deleted.");
+      onDeleted(row.id, tr.hadAlreadyBeenDeleted);
       return;
     }
     setHalted(res.status === 403);
@@ -582,8 +584,8 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
 
   return (
     <Dialog
-      title={`Delete ${row.ref || "this deal"}?`}
-      description={row.title || row.clientName || "This cannot be undone."}
+      title={`${tr.delete_} ${row.ref || tr.thisDeal}?`}
+      description={row.title || row.clientName || tr.cannotUndo}
       width="max-w-[560px]"
       onClose={onCancel}
     >
@@ -725,6 +727,7 @@ function EngagementDetail({ slug, block, loading, error }) {
 
   if (loading || !block) return <DetailSkeleton />;
 
+  const tr = engagementsDict(useStudioLocale());
   const ctx = block.context || {};
 
   return (
@@ -732,8 +735,8 @@ function EngagementDetail({ slug, block, loading, error }) {
       <section className={panel}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className={h2}>{ctx.title || "Untitled deal"}</h2>
-            <p className={sub}>{ctx.clientName || "No client on file"}</p>
+            <h2 className={h2}>{ctx.title || tr.untitledDeal2}</h2>
+            <p className={sub}>{ctx.clientName || tr.noClientOnFile2}</p>
           </div>
           <div className="flex flex-col items-end gap-1.5">
             <span className="num rounded-full bg-slate-100 px-3 py-1 text-xs font-700 text-slate-700 dark:bg-white/5 dark:text-slate-200">
@@ -760,6 +763,8 @@ function EngagementDetail({ slug, block, loading, error }) {
 }
 
 function StageCard({ slug, card }) {
+  const locale = useStudioLocale();
+  const tr = engagementsDict(locale);
   const entry = STAGE_REGISTRY[card.type];
   return (
     <div className={panel}>
@@ -768,9 +773,9 @@ function StageCard({ slug, card }) {
           <Icon name={STAGE_ICON[card.type] || "dot"} className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0">
-          <p className="font-600 text-slate-900 dark:text-white">{card.label}</p>
+          <p className="font-600 text-slate-900 dark:text-white">{stageLabel(card.type, card.label, locale)}</p>
           {card.present && card.count > 1 && (
-            <p className="text-xs text-slate-400 dark:text-slate-500">{card.count} on this deal</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">{tr.onThisDeal(card.count)}</p>
           )}
         </div>
       </div>
@@ -786,7 +791,7 @@ function StageCard({ slug, card }) {
               href={`/${slug}/${entry.sectionKey}`}
               className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
             >
-              Open in {entry.label} →
+              {tr.openIn(stageLabel(entry.type, entry.label, locale))}
             </Link>
           )}
         </div>
@@ -795,7 +800,7 @@ function StageCard({ slug, card }) {
         // spec's core UX rule (design §8): a stage that has not happened yet
         // reads as an invitation, because it may still.
         <p className="mt-3 text-sm text-slate-400 dark:text-slate-500">
-          No {(card.label || "").charAt(0).toLowerCase() + (card.label || "").slice(1)} yet.
+          {tr.noStageYet(stageLabel(card.type, card.label, locale))}
         </p>
       )}
     </div>

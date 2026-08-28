@@ -16,12 +16,13 @@ import PlannerTemplatesPanel from "@/components/studio2/PlannerTemplatesPanel";
 // look (--geex-* tokens, font-display, rounded-geex), unlike the planner surface
 // itself which keeps the source app's light design.
 
-const PLAN_STATUS = {
-  on_track: { label: "On track", chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
-  at_risk: { label: "At risk", chip: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" },
-  off_track: { label: "Off track", chip: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" },
-  on_hold: { label: "On hold", chip: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300" },
-};
+// A FUNCTION OF THE DICTIONARY — module scope, see StudioRoles.
+const planStatus = (tr) => ({
+  on_track: { label: tr.statusOnTrack, chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
+  at_risk: { label: tr.statusAtRisk, chip: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" },
+  off_track: { label: tr.statusOffTrack, chip: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" },
+  on_hold: { label: tr.statusOnHold, chip: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300" },
+});
 
 export default function StudioPlannerList({ slug }) {
   const tr = plannerDict(useStudioLocale());
@@ -183,7 +184,8 @@ export default function StudioPlannerList({ slug }) {
 
 function PlanCard({ slug, plan }) {
   const tr = plannerDict(useStudioLocale());
-  const status = PLAN_STATUS[plan.status] ?? PLAN_STATUS.on_track;
+  const byStatus = planStatus(tr);
+  const status = byStatus[plan.status] ?? byStatus.on_track;
   return (
     <Link
       href={`/${slug}/operations-planner/${plan.id}`}
@@ -191,7 +193,7 @@ function PlanCard({ slug, plan }) {
     >
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 truncate font-display text-[15px] font-700 text-[var(--geex-ink)]">
-          {plan.name || "Untitled plan"}
+          {plan.name || tr.untitledPlan2}
         </p>
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-600 ${status.chip}`}

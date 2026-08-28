@@ -32,11 +32,13 @@ import {
 } from "@/components/quality/editor/table-cells";
 import { cn } from "@/lib/utils";
 
-const VERTICAL_ALIGNS = [
-  { id: "top", label: "Top" },
-  { id: "middle", label: "Middle" },
-  { id: "bottom", label: "Bottom" },
-] as const;
+// FUNCTIONS OF THE DICTIONARY — see band-dialog. The ids stay put: they are
+// what gets stored on the cell.
+const verticalAlignsFor = (tr: ReturnType<typeof qualityDict>) => [
+  { id: "top" as const, label: tr.top },
+  { id: "middle" as const, label: tr.middle2 },
+  { id: "bottom" as const, label: tr.bottom2 },
+];
 
 const BORDER_STYLES: CellBorder["style"][] = [
   "solid",
@@ -46,13 +48,13 @@ const BORDER_STYLES: CellBorder["style"][] = [
   "none",
 ];
 
-const BACKGROUNDS = [
-  { label: "None", value: "" },
-  { label: "Grey", value: "#f4f4f5" },
-  { label: "Blue", value: "#dbeafe" },
-  { label: "Green", value: "#dcfce7" },
-  { label: "Amber", value: "#fef3c7" },
-  { label: "Rose", value: "#ffe4e6" },
+const backgroundsFor = (tr: ReturnType<typeof qualityDict>) => [
+  { label: tr.none2, value: "" },
+  { label: tr.grey2, value: "#f4f4f5" },
+  { label: tr.blue2, value: "#dbeafe" },
+  { label: tr.green2, value: "#dcfce7" },
+  { label: tr.amber2, value: "#fef3c7" },
+  { label: tr.rose2, value: "#ffe4e6" },
 ];
 
 /**
@@ -130,7 +132,7 @@ export function CellFormatDialog({
           <div className="flex flex-col gap-2">
             <Label>{tr.background}</Label>
             <div className="flex flex-wrap gap-1.5">
-              {BACKGROUNDS.map((option) => (
+              {backgroundsFor(tr).map((option) => (
                 <button
                   key={option.label}
                   type="button"
@@ -167,7 +169,7 @@ export function CellFormatDialog({
                 Vertical align
               </Label>
               <div className="flex gap-1">
-                {VERTICAL_ALIGNS.map((option) => (
+                {verticalAlignsFor(tr).map((option) => (
                   <Button
                     key={option.id}
                     type="button"

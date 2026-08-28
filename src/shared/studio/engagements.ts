@@ -9,6 +9,9 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 
 type Strings = CommonStrings & {
   deleteNamed: (what: string) => string;
+  noStageYet: (what: string) => string;
+  onThisDeal: (n: number) => string;
+  openIn: (what: string) => string;
   openNamed: (what: string) => string;
   accessEngagementsStudio: string;
   alreadyDeleted: string;
@@ -16,6 +19,7 @@ type Strings = CommonStrings & {
   backStudio: string;
   canNoLongerSee: string;
   cannotBeUndone: string;
+  cannotUndo: string;
   client: string;
   couldNotWorkOut: string;
   dealLockedAgainNothing: string;
@@ -25,7 +29,10 @@ type Strings = CommonStrings & {
   didNotGoThrough2: string;
   engagement: string;
   engagementNoLongerExists: string;
+  engagementSingular: string;
   engagements: string;
+  engagementsPlural: string;
+  hadAlreadyBeenDeleted: string;
   keepDeal: string;
   loadMore: string;
   loading: string;
@@ -34,7 +41,9 @@ type Strings = CommonStrings & {
   lock: string;
   locked: string;
   lockedUnlockBeforeCan: string;
+  noAccessEngagements: string;
   noClientOnFile: string;
+  noClientOnFile2: string;
   noEngagementsCanSee: string;
   noLongerAllowedDelete: string;
   notAllowedLockUnlock: string;
@@ -50,12 +59,16 @@ type Strings = CommonStrings & {
   unlock: string;
   unlocked: string;
   untitledDeal: string;
+  untitledDeal2: string;
   workingOutWhatDeleting: string;
 };
 
 const en: Strings = {
   ...commonEn,
   deleteNamed: (what) => `Delete ${what}`,
+  noStageYet: (what) => `No ${what.charAt(0).toLowerCase() + what.slice(1)} yet.`,
+  onThisDeal: (n) => `${n} on this deal`,
+  openIn: (what) => `Open in ${what} →`,
   openNamed: (what) => `Open ${what}`,
   accessEngagementsStudio: "You don't have access to Engagements in this studio.",
   alreadyDeleted: "That engagement had already been deleted.",
@@ -63,6 +76,7 @@ const en: Strings = {
   backStudio: "Back to the studio",
   canNoLongerSee: "You can no longer see this engagement.",
   cannotBeUndone: "This cannot be undone.",
+  cannotUndo: "This cannot be undone.",
   client: "Client",
   couldNotWorkOut: "Could not work out what deleting this would affect, so it is not safe to offer the button.",
   dealLockedAgainNothing: "This deal has been locked again. Nothing can be deleted until it is unlocked.",
@@ -72,7 +86,10 @@ const en: Strings = {
   didNotGoThrough2: "That did not go through, and nothing was deleted. Try again.",
   engagement: "Engagement",
   engagementNoLongerExists: "This engagement no longer exists.",
+  engagementSingular: "Engagement",
   engagements: "Engagements",
+  engagementsPlural: "Engagements",
+  hadAlreadyBeenDeleted: "That engagement had already been deleted.",
   keepDeal: "Keep this deal",
   loadMore: "Load more",
   loading: "Loading…",
@@ -81,7 +98,9 @@ const en: Strings = {
   lock: "Lock",
   locked: "Locked",
   lockedUnlockBeforeCan: "Locked. Unlock it before it can be deleted.",
+  noAccessEngagements: "You don't have access to Engagements in this studio.",
   noClientOnFile: "No client on file",
+  noClientOnFile2: "No client on file",
   noEngagementsCanSee: "No engagements you can see on this page",
   noLongerAllowedDelete: "You are no longer allowed to delete this deal.",
   notAllowedLockUnlock: "You are not allowed to lock or unlock deals in this studio.",
@@ -97,12 +116,16 @@ const en: Strings = {
   unlock: "Unlock",
   unlocked: "Unlocked",
   untitledDeal: "Untitled deal",
+  untitledDeal2: "Untitled deal",
   workingOutWhatDeleting: "Working out what deleting this would affect",
 };
 
 const ar: Strings = {
   ...commonAr,
   deleteNamed: (what) => `حذف ${what}`,
+  noStageYet: (what) => `لا يوجد ${what} بعد.`,
+  onThisDeal: (n) => `${n} في هذه الصفقة`,
+  openIn: (what) => `افتح في ${what} ←`,
   openNamed: (what) => `فتح ${what}`,
   accessEngagementsStudio: "لا تملك صلاحية الوصول إلى الارتباطات في هذا الاستوديو.",
   alreadyDeleted: "سبق حذف هذا الارتباط.",
@@ -110,6 +133,7 @@ const ar: Strings = {
   backStudio: "العودة إلى الاستوديو",
   canNoLongerSee: "لم يعد بإمكانك رؤية هذا الارتباط.",
   cannotBeUndone: "لا يمكن التراجع عن هذا.",
+  cannotUndo: "لا يمكن التراجع عن هذا.",
   client: "العميل",
   couldNotWorkOut: "تعذّر تحديد ما سيتأثر بحذف هذا، لذا ليس من الآمن عرض الزر.",
   dealLockedAgainNothing: "أُقفلت هذه الصفقة من جديد. لا يمكن حذف أي شيء حتى يُفتح القفل.",
@@ -119,7 +143,10 @@ const ar: Strings = {
   didNotGoThrough2: "لم تتم العملية، ولم يُحذف شيء. حاول مرة أخرى.",
   engagement: "الارتباط",
   engagementNoLongerExists: "لم يعد هذا الارتباط موجودًا.",
+  engagementSingular: "الارتباط",
   engagements: "الارتباطات",
+  engagementsPlural: "الارتباطات",
+  hadAlreadyBeenDeleted: "سبق حذف هذا الارتباط.",
   keepDeal: "الإبقاء على هذه الصفقة",
   loadMore: "تحميل المزيد",
   loading: "جارٍ التحميل…",
@@ -128,7 +155,9 @@ const ar: Strings = {
   lock: "قفل",
   locked: "مقفل",
   lockedUnlockBeforeCan: "مقفل. افتح القفل قبل أن يمكن حذفه.",
+  noAccessEngagements: "لا تملك صلاحية الوصول إلى الارتباطات في هذا الاستوديو.",
   noClientOnFile: "لا يوجد عميل مسجّل",
+  noClientOnFile2: "لا يوجد عميل مسجّل",
   noEngagementsCanSee: "لا توجد ارتباطات يمكنك رؤيتها في هذه الصفحة",
   noLongerAllowedDelete: "لم يعد مسموحًا لك بحذف هذه الصفقة.",
   notAllowedLockUnlock: "لا يُسمح لك بقفل الصفقات أو فتحها في هذا الاستوديو.",
@@ -144,6 +173,7 @@ const ar: Strings = {
   unlock: "فتح القفل",
   unlocked: "مفتوح",
   untitledDeal: "صفقة بلا عنوان",
+  untitledDeal2: "صفقة بلا عنوان",
   workingOutWhatDeleting: "جارٍ تحديد ما سيتأثر بحذف هذا",
 };
 

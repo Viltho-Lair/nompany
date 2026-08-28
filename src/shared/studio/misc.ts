@@ -56,12 +56,15 @@ type Strings = CommonStrings & {
   handTicketTechnicalPricing: string;
   howWouldYouRate: string;
   industry: string;
+  infinityLeft: string;
   lastUpdated: string;
   latest: string;
   leftSuffix: string;
   liveChatNotPart: string;
   loading: string;
+  loadingAria: string;
   loadingGrid: string;
+  loadingGrid2: string;
   loadingTicket: string;
   map: string;
   message: string;
@@ -90,6 +93,7 @@ type Strings = CommonStrings & {
   quotationAlreadySentApproval: string;
   quotationApproved: string;
   quotationApprovedBeforePo: string;
+  quotationSent: string;
   quotations: string;
   rateNompany: string;
   reference: string;
@@ -103,7 +107,10 @@ type Strings = CommonStrings & {
   sendTicketBackTechnical: string;
   sending: string;
   shownToUsAs: string;
+  shownToUsAs2: string;
+  shownToUsAs3: string;
   site: string;
+  someone3: string;
   somethingWentWrong: string;
   startChat: string;
   starting: string;
@@ -116,6 +123,7 @@ type Strings = CommonStrings & {
   technicalTicketCanRequest: string;
   technicalTicketQuotationWill: string;
   thankNoted: string;
+  ticket: string;
   ticketAlreadyTechnicalCan: string;
   ticketCreated: string;
   ticketInfo: string;
@@ -124,6 +132,7 @@ type Strings = CommonStrings & {
   ticketQuotationApprovedNothing: string;
   ticketTimeline: string;
   typeMessage: string;
+  unassigned3: string;
   urgency: string;
   usuallyReplyFewMinutes: string;
   valueQuoted: string;
@@ -183,12 +192,15 @@ const en: Strings = {
   handTicketTechnicalPricing: "Hand this ticket to Technical for pricing",
   howWouldYouRate: "How would you rate nompany?",
   industry: "Industry",
+  infinityLeft: "left",
   lastUpdated: "Last updated",
   latest: "Latest",
   leftSuffix: "left",
   liveChatNotPart: "Live chat is not part of this studio's package.",
   loading: "Loading…",
+  loadingAria: "Loading",
   loadingGrid: "Loading",
+  loadingGrid2: "Loading",
   loadingTicket: "Loading ticket…",
   map: "Map",
   message: "Message",
@@ -217,6 +229,7 @@ const en: Strings = {
   quotationAlreadySentApproval: "This quotation has already been sent for approval.",
   quotationApproved: "Quotation approved",
   quotationApprovedBeforePo: "The quotation has to be approved before a PO can be booked against it.",
+  quotationSent: "Quotation Sent",
   quotations: "Quotations",
   rateNompany: "Rate nompany",
   reference: "Reference",
@@ -230,7 +243,10 @@ const en: Strings = {
   sendTicketBackTechnical: "Send this ticket back to Technical to have the last quotation revised",
   sending: "Sending…",
   shownToUsAs: "You'll be shown to us as",
+  shownToUsAs2: "You'll be shown to us as",
+  shownToUsAs3: "You'll be shown to us as",
   site: "Site",
+  someone3: "Someone",
   somethingWentWrong: "Something went wrong — try again.",
   startChat: "Start chat",
   starting: "Starting…",
@@ -243,6 +259,7 @@ const en: Strings = {
   technicalTicketCanRequest: "Technical has this ticket. You can request another RFQ once the quotation comes back.",
   technicalTicketQuotationWill: "Technical has this ticket — the quotation will appear here once it is raised.",
   thankNoted: "Thank you — noted.",
+  ticket: "Ticket",
   ticketAlreadyTechnicalCan: "That ticket is already with Technical — you can send it again once the quotation comes back.",
   ticketCreated: "Ticket created",
   ticketInfo: "Ticket info",
@@ -251,6 +268,7 @@ const en: Strings = {
   ticketQuotationApprovedNothing: "This ticket's quotation has been approved — there is nothing left to revise. A change after approval is a new ticket.",
   ticketTimeline: "Ticket timeline",
   typeMessage: "Type a message…",
+  unassigned3: "Unassigned",
   urgency: "Urgency",
   usuallyReplyFewMinutes: "We usually reply in a few minutes",
   valueQuoted: "Value Quoted",
@@ -310,12 +328,15 @@ const ar: Strings = {
   handTicketTechnicalPricing: "سلّم هذه التذكرة إلى القسم الفني للتسعير",
   howWouldYouRate: "كيف تقيّم nompany؟",
   industry: "النشاط",
+  infinityLeft: "متبقٍ",
   lastUpdated: "آخر تحديث",
   latest: "الأحدث",
   leftSuffix: "متبقٍ",
   liveChatNotPart: "المحادثة المباشرة ليست ضمن باقة هذا الاستوديو.",
   loading: "جارٍ التحميل…",
+  loadingAria: "جارٍ التحميل",
   loadingGrid: "جارٍ التحميل",
+  loadingGrid2: "جارٍ التحميل",
   loadingTicket: "جارٍ تحميل التذكرة…",
   map: "الخريطة",
   message: "الرسالة",
@@ -344,6 +365,7 @@ const ar: Strings = {
   quotationAlreadySentApproval: "سبق إرسال عرض السعر هذا للاعتماد.",
   quotationApproved: "اعتُمد عرض السعر",
   quotationApprovedBeforePo: "يجب اعتماد عرض السعر قبل أن يُقيَّد عليه أمر شراء.",
+  quotationSent: "أُرسل عرض السعر",
   quotations: "عروض الأسعار",
   rateNompany: "قيّم nompany",
   reference: "المرجع",
@@ -357,7 +379,10 @@ const ar: Strings = {
   sendTicketBackTechnical: "أعِد هذه التذكرة إلى القسم الفني لمراجعة آخر عرض سعر",
   sending: "جارٍ الإرسال…",
   shownToUsAs: "ستظهر لنا باسم",
+  shownToUsAs2: "ستظهر لنا باسم",
+  shownToUsAs3: "ستظهر لنا باسم",
   site: "الموقع",
+  someone3: "أحدهم",
   somethingWentWrong: "حدث خطأ ما — حاول مرة أخرى.",
   startChat: "بدء المحادثة",
   starting: "جارٍ البدء…",
@@ -370,6 +395,7 @@ const ar: Strings = {
   technicalTicketCanRequest: "التذكرة لدى القسم الفني. يمكنك طلب عرض سعر آخر بعد عودة العرض الحالي.",
   technicalTicketQuotationWill: "التذكرة لدى القسم الفني — سيظهر عرض السعر هنا بمجرد رفعه.",
   thankNoted: "شكرًا لك — سُجّل ذلك.",
+  ticket: "التذكرة",
   ticketAlreadyTechnicalCan: "هذه التذكرة مع القسم الفني بالفعل — يمكنك إرسالها مجددًا بعد عودة عرض السعر.",
   ticketCreated: "أُنشئت التذكرة",
   ticketInfo: "معلومات التذكرة",
@@ -378,6 +404,7 @@ const ar: Strings = {
   ticketQuotationApprovedNothing: "اعتُمد عرض سعر هذه التذكرة — لم يبقَ ما يُراجَع. وأي تغيير بعد الاعتماد يعني تذكرة جديدة.",
   ticketTimeline: "المسار الزمني للتذكرة",
   typeMessage: "اكتب رسالة…",
+  unassigned3: "غير مُسند",
   urgency: "الاستعجال",
   usuallyReplyFewMinutes: "نردّ عادةً خلال دقائق",
   valueQuoted: "القيمة المعروضة",

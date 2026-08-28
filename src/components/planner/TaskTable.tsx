@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useStudioLocale } from '@/components/studio2/locale';
+import { plannerDict } from '@/shared/studio/planner';
 import { createPortal } from 'react-dom';
 import {
   AlertTriangle,
@@ -162,6 +164,7 @@ const Row = React.memo(function Row({
   onUpdate,
   onDependencyExpression,
 }: RowProps) {
+  const tr = plannerDict(useStudioLocale());
   const showCriticalPath = usePlannerStore((s) => s.showCriticalPath);
 
   // Predecessors are shown the way a planner writes them: "1.2FS+2, 3"
@@ -267,7 +270,7 @@ const Row = React.memo(function Row({
             value={task.endDate}
             withTime={withTime}
             readOnly
-            hint="Calculated from start + duration over working time"
+            hint={tr.calculatedFromStart2}
             onCommit={() => undefined}
           />
         );
@@ -371,7 +374,7 @@ const Row = React.memo(function Row({
 
         <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           {task.scheduleMode === 'manual' && (
-            <Tooltip label="Pinned start - predecessors are ignored">
+            <Tooltip label={tr.pinnedStart2}>
               <Pin className="h-3 w-3 text-amber-500 opacity-100" />
             </Tooltip>
           )}
@@ -389,6 +392,7 @@ const Row = React.memo(function Row({
 // onClick runs the action directly. It portals to <body> with fixed positioning
 // so the row's overflow can never clip it, and closes on outside-press or Escape.
 function RowMenu({ task }: { task: ComputedTask }) {
+  const tr = plannerDict(useStudioLocale());
   const {
     addTaskBelow,
     addSubtask,

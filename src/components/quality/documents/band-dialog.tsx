@@ -19,10 +19,11 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { BandAlign, BandSetup } from "@/lib/docs/page-presets";
 
-const ALIGNMENTS: { id: BandAlign; label: string; icon: typeof AlignLeft }[] = [
-  { id: "left", label: "Left", icon: AlignLeft },
-  { id: "center", label: "Centre", icon: AlignCenter },
-  { id: "right", label: "Right", icon: AlignRight },
+// A FUNCTION OF THE DICTIONARY: module scope cannot read a hook.
+const alignmentsFor = (tr: ReturnType<typeof qualityDict>): { id: BandAlign; label: string; icon: typeof AlignLeft }[] => [
+  { id: "left", label: tr.left, icon: AlignLeft },
+  { id: "center", label: tr.centre2, icon: AlignCenter },
+  { id: "right", label: tr.right2, icon: AlignRight },
 ];
 
 /**
@@ -93,7 +94,7 @@ export function BandDialog({
           <div className="flex flex-col gap-2">
             <Label>{tr.alignment}</Label>
             <div className="flex gap-1">
-              {ALIGNMENTS.map(({ id, label, icon: Icon }) => (
+              {alignmentsFor(tr).map(({ id, label, icon: Icon }) => (
                 <Button
                   key={id}
                   type="button"

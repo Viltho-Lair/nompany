@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useStudioLocale } from '@/components/studio2/locale';
+import { plannerDict } from '@/shared/studio/planner';
 import {
   Switch as SwitchPrimitive,
   Separator as SeparatorPrimitive,
@@ -313,7 +315,9 @@ export const DialogClose = DialogPrimitive.Close;
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => {
+  const tr = plannerDict(useStudioLocale());
+  return (
   <DialogPrimitive.Portal>
     <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-slate-900/30 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=open]:fade-in-0" />
     <DialogPrimitive.Content
@@ -331,11 +335,12 @@ export const DialogContent = React.forwardRef<
       {children}
       <DialogPrimitive.Close className="absolute end-4 top-4 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
         <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
+        <span className="sr-only">{tr.close2}</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPrimitive.Portal>
-));
+  );
+});
 DialogContent.displayName = 'DialogContent';
 
 export const DialogTitle = React.forwardRef<

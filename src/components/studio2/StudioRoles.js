@@ -27,7 +27,9 @@ import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platfor
 // so granting "lock a quotation" is a deliberate act instead of one tick among
 // a hundred identical ones.
 
-const LADDER_LABEL = { none: "None", view: "View", edit: "Edit", full: "Full" };
+// A FUNCTION OF THE DICTIONARY: declared beside the component, so it cannot
+// read a hook of its own.
+const ladderLabel = (tr) => ({ none: tr.ladderNone, view: tr.ladderView, edit: tr.ladderEdit, full: tr.ladderFull });
 
 export default function StudioRoles({ slug }) {
   const tr = peopleDict(useStudioLocale());
@@ -223,7 +225,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
       const lvl = levelOf(a, held);
       const extras = (a.extra || []).filter((x) => held.has(`${a.key}.${x.key}`)).map((x) => x.label.toLowerCase());
       if (lvl === "none" && !extras.length) { cannot.push(`${a.group} — ${a.label}`); continue; }
-      const words = lvl === "none" ? [] : [LADDER_LABEL[lvl].toLowerCase()];
+      const words = lvl === "none" ? [] : [ladderLabel(tr)[lvl].toLowerCase()];
       can.push(`${a.group} — ${a.label}: ${[...words, ...extras].join(", ")}`);
     }
     return { can, cannot };
@@ -252,7 +254,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr,20rem]">
       <section className={panel}>
-        <h2 className={h2}>Access for {draft.name || "a role"}</h2>
+        <h2 className={h2}>{tr.accessFor} {draft.name || tr.aRole}</h2>
         <p className={sub}>{tr.everythingJobMayAreas}</p>
 
         {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
@@ -278,7 +280,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
           {groups.map(([group, list]) => {
             const isOpen = open === group;
             const line = list
-              .map((a) => `${a.label}: ${LADDER_LABEL[levelOf(a, held)].toLowerCase()}`)
+              .map((a) => `${a.label}: ${ladderLabel(tr)[levelOf(a, held)].toLowerCase()}`)
               .join(" · ");
             return (
               <div key={group} className="rounded-geex border border-slate-200/70 dark:border-white/10">
@@ -308,7 +310,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
                                   className={`rounded-full px-3 py-1 text-xs font-600 transition-colors ${
                                     active ? "bg-brand-700 text-white" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
                                   }`}>
-                                  {LADDER_LABEL[lvl]}
+                                  {ladderLabel(tr)[lvl]}
                                 </button>
                               );
                             })}
@@ -331,7 +333,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
 
                         {(a.extra || []).length > 0 && (
                           <div className="mt-2 flex flex-wrap items-center gap-4 ps-1">
-                            <span className="text-xs text-slate-400">Also allow:</span>
+                            <span className="text-xs text-slate-400">{tr.alsoAllow}</span>
                             {a.extra.map((x) => (
                               <label key={x.key} className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                                 <input type="checkbox" className="h-4 w-4 accent-brand-600"
@@ -361,7 +363,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
 
       <aside className={`${panel} h-fit lg:sticky lg:top-4`}>
         <h3 className="font-display text-sm font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          {draft.name?.trim() || "This role"} can
+          {draft.name?.trim() || tr.thisRole} {tr.canSuffix}
         </h3>
         {summary.can.length === 0 ? (
           <p className="mt-2 text-sm text-slate-400">{tr.nothingYet}</p>
@@ -413,7 +415,7 @@ function RolePicker({ roles, value, onPick }) {
       <button type="button" aria-haspopup="listbox" aria-expanded={open}
         onClick={() => { setOpen((v) => !v); setQuery(""); }}
         className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2 text-start text-sm text-slate-900 transition-colors hover:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:text-white">
-        <span className="truncate">{chosen?.name || "Pick a role…"}</span>
+        <span className="truncate">{chosen?.name || tr.pickRole}</span>
         <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="m6 9 6 6 6-6" />
         </svg>
@@ -488,7 +490,7 @@ function WhyPanel({ slug, people, areas }) {
         <select className={`${input} w-auto`} value={who} aria-label={tr.person}
           onChange={(e) => { setWho(e.target.value); setAnswer(null); }}>
           <option value="">{tr.who}</option>
-          {people.map((p) => (<option key={p.id} value={p.id}>{p.alias || "Unnamed"}</option>))}
+          {people.map((p) => (<option key={p.id} value={p.id}>{p.alias || tr.unnamed}</option>))}
         </select>
         <select className={`${input} w-auto max-w-full`} value={key} aria-label={tr.action}
           onChange={(e) => { setKey(e.target.value); setAnswer(null); }}>

@@ -18,6 +18,7 @@ type Strings = CommonStrings & {
   clearBoard: string;
   clearBoardRemovesAll: string;
   clearSearch: string;
+  close3: string;
   column: string;
   columnOptions: string;
   createTask: string;
@@ -28,8 +29,10 @@ type Strings = CommonStrings & {
   doubleClickRename: string;
   dropCardHereClick: string;
   editTask: string;
+  editTask2: string;
   fillDetailsNewTask: string;
   hasDescription: string;
+  hasDescription2: string;
   moveDown: string;
   moveUp: string;
   noCardsMatchCurrent: string;
@@ -38,6 +41,7 @@ type Strings = CommonStrings & {
   subtasks: string;
   tags: string;
   taskOptions: string;
+  taskOptions2: string;
   taskTitle: string;
   whatNeedsHappenHow: string;
 };
@@ -54,6 +58,7 @@ const en: Strings = {
   clearBoard: "Clear board",
   clearBoardRemovesAll: "Clear the board (removes all cards)",
   clearSearch: "Clear search",
+  close3: "Close",
   column: "Column",
   columnOptions: "Column options",
   createTask: "Create task",
@@ -64,8 +69,10 @@ const en: Strings = {
   doubleClickRename: "Double-click to rename",
   dropCardHereClick: "Drop a card here or click to add",
   editTask: "Edit task",
+  editTask2: "Edit task",
   fillDetailsNewTask: "Fill in the details for a new task.",
   hasDescription: "Has a description",
+  hasDescription2: "Has a description",
   moveDown: "Move down",
   moveUp: "Move up",
   noCardsMatchCurrent: "No cards match the current filter",
@@ -74,6 +81,7 @@ const en: Strings = {
   subtasks: "Subtasks",
   tags: "Tags",
   taskOptions: "Task options",
+  taskOptions2: "Task options",
   taskTitle: "Task title",
   whatNeedsHappenHow: "What needs to happen, and how will we know it's done?",
 };
@@ -90,6 +98,7 @@ const ar: Strings = {
   clearBoard: "إفراغ اللوحة",
   clearBoardRemovesAll: "إفراغ اللوحة (يزيل كل البطاقات)",
   clearSearch: "مسح البحث",
+  close3: "إغلاق",
   column: "العمود",
   columnOptions: "خيارات العمود",
   createTask: "إنشاء مهمة",
@@ -100,8 +109,10 @@ const ar: Strings = {
   doubleClickRename: "انقر نقرًا مزدوجًا لإعادة التسمية",
   dropCardHereClick: "أفلت بطاقة هنا أو انقر للإضافة",
   editTask: "تعديل المهمة",
+  editTask2: "تعديل المهمة",
   fillDetailsNewTask: "أدخل تفاصيل المهمة الجديدة.",
   hasDescription: "له وصف",
+  hasDescription2: "له وصف",
   moveDown: "تحريك لأسفل",
   moveUp: "تحريك لأعلى",
   noCardsMatchCurrent: "لا توجد بطاقات تطابق التصفية الحالية",
@@ -110,6 +121,7 @@ const ar: Strings = {
   subtasks: "المهام الفرعية",
   tags: "الوسوم",
   taskOptions: "خيارات المهمة",
+  taskOptions2: "خيارات المهمة",
   taskTitle: "عنوان المهمة",
   whatNeedsHappenHow: "ما الذي يجب أن يحدث، وكيف سنعرف أنه اكتمل؟",
 };

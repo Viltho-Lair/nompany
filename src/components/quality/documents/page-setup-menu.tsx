@@ -169,7 +169,7 @@ export function PageSetupMenu({
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuLabel>Header &amp; footer</DropdownMenuLabel>
+          <DropdownMenuLabel>{tr.headerAndFooter}</DropdownMenuLabel>
           <DropdownMenuCheckboxItem
             checked={setup.header.enabled}
             onSelect={(event) => event.preventDefault()}

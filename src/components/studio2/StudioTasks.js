@@ -137,10 +137,10 @@ export default function StudioTasks({ slug, view = "tasks" }) {
 
       <section className={panel}>
         <div className="flex flex-wrap gap-8">
-          {[["Open", summary.open, ""],
-            ["Needs your decision", summary.awaitingMe, summary.awaitingMe > 0 ? "text-brand-700 dark:text-brand-300" : ""],
-            ["Overdue", summary.overdue, summary.overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""],
-            ["Unassigned", summary.unassigned, summary.unassigned > 0 ? "text-amber-600 dark:text-amber-400" : ""]].map(([name, value, tone]) => (
+          {[[tr.open, summary.open, ""],
+            [tr.needsYourDecision, summary.awaitingMe, summary.awaitingMe > 0 ? "text-brand-700 dark:text-brand-300" : ""],
+            [tr.overdue2, summary.overdue, summary.overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""],
+            [tr.unassigned2, summary.unassigned, summary.unassigned > 0 ? "text-amber-600 dark:text-amber-400" : ""]].map(([name, value, tone]) => (
             <div key={name}>
               <p className={`font-display text-3xl font-800 ${tone || "text-slate-900 dark:text-white"}`}>{value}</p>
               <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{name}</p>
@@ -153,7 +153,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
         {summary.stuck > 0 && (
           <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
             {summary.stuck} {summary.stuck === 1 ? tr.task : tr.tasks} waiting on an authority nobody has been
-            appointed to{nav?.["tasks-settings"] ? <> — <a href={`/${slug}/tasks-settings`} className="font-600 underline">{tr.appointSomeoneTaskSettings}</a></> : " — an admin can appoint someone in Task settings"}.
+            appointed to{nav?.["tasks-settings"] ? <> — <a href={`/${slug}/tasks-settings`} className="font-600 underline">{tr.appointSomeoneTaskSettings}</a></> : tr.adminCanAppoint}.
           </p>
         )}
       </section>
@@ -398,7 +398,7 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
                 .map((c) => authorities.find((a) => a.code === c)?.label || c).join(" and ")}.
             </p>
           ) : (
-            task && <p className="mt-1 text-[11px] text-slate-400">A task&apos;s kind is fixed once it exists.</p>
+            task && <p className="mt-1 text-[11px] text-slate-400">{tr.kindFixed}</p>
           )}
         </div>
         {!form.type && (
@@ -495,7 +495,7 @@ function AssigneePicker({ people, selected, disabled, onToggle }) {
     return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
   }, [open]);
 
-  const names = people.filter((p) => selected.includes(p.id)).map((p) => p.alias || "Member");
+  const names = people.filter((p) => selected.includes(p.id)).map((p) => p.alias || tr.member);
   const summary = names.length === 0 ? tr.nobodyAppointed
     : names.length <= 2 ? names.join(", ")
     : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
@@ -527,7 +527,7 @@ function AssigneePicker({ people, selected, disabled, onToggle }) {
                   : "border-slate-300 dark:border-white/25"}`}>
                   {on ? "✓" : ""}
                 </span>
-                <span className="truncate">{p.alias || "Member"}</span>
+                <span className="truncate">{p.alias || tr.member}</span>
               </button>
             );
           })}
@@ -613,7 +613,7 @@ function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, peo
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <dt className={label}>{tr.whereComes}</dt>
-                <dd className="text-sm text-slate-600 dark:text-slate-300">{meta.from || "Raised on the Tasks board."}</dd>
+                <dd className="text-sm text-slate-600 dark:text-slate-300">{meta.from || tr.raisedOnBoard}</dd>
               </div>
               <div>
                 <dt className={label}>{tr.whoHandles}</dt>

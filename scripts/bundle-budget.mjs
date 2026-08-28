@@ -62,7 +62,21 @@ const MAX_CHUNK_GZIP_KB = 250;
 // plan, and the largest-chunk number above (what every route pays) did not move.
 // So this is the deliberate-split case this ceiling is meant to wave through,
 // not sprawl. Lower it again as the older screens are rewritten and shed weight.
-const MAX_TOTAL_GZIP_KB = 1600;
+//
+// Raised 1600 → 1700 when the studio became bilingual. Every department screen
+// now carries its own dictionary in BOTH languages — roughly 70 KB gz across
+// eighteen modules — because the alternative was one object every chunk pays
+// for (see the header of shared/studio/shell). It is split the way the screens
+// are, so the largest-chunk number above did not move: an English tenant that
+// only opens Sales downloads Sales' words and nobody else's. That is the same
+// deliberate-split case as the planner, and the same reason to wave it through.
+//
+// It can come DOWN, and the way to do it is written here so nobody has to
+// re-derive it: the department dictionaries are resolved on the client only
+// because the screens are client components. As `app/` is restructured in Wave
+// 4 and screens move server-side, each one's words can be handed down as a prop
+// instead and leave the bundle entirely.
+const MAX_TOTAL_GZIP_KB = 1700;
 
 const DIR = ".next/static";
 if (!existsSync(DIR)) {

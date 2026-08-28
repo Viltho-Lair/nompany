@@ -37,6 +37,7 @@ export function DocumentView({
   studio: { slug: string; name?: string };
   documentId: string;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const [state, setState] = useState<
     | { status: "loading" }
     | { status: "missing" }
@@ -70,7 +71,7 @@ export function DocumentView({
   }, [load]);
 
   if (state.status === "loading") {
-    return <DocumentSkeleton message="Loading document…" />;
+    return <DocumentSkeleton message={tr.loadingDocument} />;
   }
   if (state.status === "missing") {
     return <DocumentNotFound slug={studio.slug} />;

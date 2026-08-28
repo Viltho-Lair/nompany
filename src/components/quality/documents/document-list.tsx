@@ -60,7 +60,7 @@ export function DocumentList({
       const response = await fetch(`/api/studios/${studio.slug}/quality/docs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "Untitled document" }),
+        body: JSON.stringify({ title: tr.untitledDocument }),
       });
       if (!response.ok) {
         setError(tr.documentCouldNotCreated);
@@ -113,7 +113,7 @@ export function DocumentList({
               Documents
             </h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
-              {studio.name || "this studio"}
+              {studio.name || tr.thisStudio}
             </p>
           </div>
           {canCreate && (

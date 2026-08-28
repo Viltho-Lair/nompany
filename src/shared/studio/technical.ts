@@ -20,6 +20,7 @@ type Strings = CommonStrings & {
   addRow: string;
   addSequence: string;
   alreadyAdded: string;
+  alreadyAdded2: string;
   alreadyDone: string;
   approved: string;
   approvedShare: string;
@@ -66,6 +67,7 @@ type Strings = CommonStrings & {
   didnSave: string;
   disc: string;
   discount: string;
+  discountLabel: string;
   everyOpenTicketAlready: string;
   existingClient: string;
   from: string;
@@ -120,12 +122,14 @@ type Strings = CommonStrings & {
   quotation: string;
   quotation2: string;
   quotationColumns: string;
+  quotationFallback: string;
   quotationLinkedSalesTicket: string;
   quotationLockedCanChanged: string;
   quotationNoLongerExists: string;
   quotationNoLongerExists2: string;
   quotationNumber: string;
   quotationNumbering: string;
+  quotationTitle: string;
   quotationVolume: string;
   quotationsHandledRanked: string;
   quotationsOut: string;
@@ -203,6 +207,7 @@ const en: Strings = {
   addRow: "Add row",
   addSequence: "Add sequence",
   alreadyAdded: "already added",
+  alreadyAdded2: "already added",
   alreadyDone: "That's already been done.",
   approved: "Approved",
   approvedShare: "Approved share",
@@ -249,6 +254,7 @@ const en: Strings = {
   didnSave: "That didn't save.",
   disc: "Disc %",
   discount: "Discount",
+  discountLabel: "Discount",
   everyOpenTicketAlready: "Every open ticket already has an RFQ against it, so there is nothing to raise.",
   existingClient: "Existing client.",
   from: "From",
@@ -303,12 +309,14 @@ const en: Strings = {
   quotation: "Quotation",
   quotation2: "Quotation",
   quotationColumns: "Quotation columns",
+  quotationFallback: "Quotation",
   quotationLinkedSalesTicket: "That quotation is linked to a Sales ticket — approve it from Sales.",
   quotationLockedCanChanged: "That quotation is locked — it can't be changed. Unlock it first, on its own.",
   quotationNoLongerExists: "That quotation no longer exists.",
   quotationNoLongerExists2: "That quotation no longer exists, or it doesn't belong to this ticket.",
   quotationNumber: "Quotation number",
   quotationNumbering: "Quotation numbering",
+  quotationTitle: "Quotation",
   quotationVolume: "Quotation volume",
   quotationsHandledRanked: "Quotations handled, ranked",
   quotationsOut: "Quotations out",
@@ -386,6 +394,7 @@ const ar: Strings = {
   addRow: "إضافة صف",
   addSequence: "إضافة تسلسل",
   alreadyAdded: "مضاف بالفعل",
+  alreadyAdded2: "مضاف بالفعل",
   alreadyDone: "سبق تنفيذ ذلك.",
   approved: "معتمد",
   approvedShare: "حصة المعتمد",
@@ -432,6 +441,7 @@ const ar: Strings = {
   didnSave: "لم يُحفظ ذلك.",
   disc: "الخصم ٪",
   discount: "الخصم",
+  discountLabel: "الخصم",
   everyOpenTicketAlready: "كل تذكرة مفتوحة لديها طلب عرض سعر بالفعل، فلا شيء لرفعه.",
   existingClient: "عميل قائم.",
   from: "من",
@@ -486,12 +496,14 @@ const ar: Strings = {
   quotation: "عرض السعر",
   quotation2: "عرض السعر",
   quotationColumns: "أعمدة عروض الأسعار",
+  quotationFallback: "عرض السعر",
   quotationLinkedSalesTicket: "عرض السعر هذا مرتبط بتذكرة مبيعات — اعتمده من المبيعات.",
   quotationLockedCanChanged: "عرض السعر هذا مقفل — لا يمكن تغييره. افتح قفله أولًا، بخطوة مستقلة.",
   quotationNoLongerExists: "لم يعد عرض السعر هذا موجودًا.",
   quotationNoLongerExists2: "لم يعد عرض السعر هذا موجودًا، أو أنه لا يخص هذه التذكرة.",
   quotationNumber: "رقم عرض السعر",
   quotationNumbering: "ترقيم عروض الأسعار",
+  quotationTitle: "عرض السعر",
   quotationVolume: "حجم عروض الأسعار",
   quotationsHandledRanked: "عروض الأسعار المتولّاة، مرتّبة",
   quotationsOut: "عروض أسعار صادرة",

@@ -1,4 +1,5 @@
 // The studio Data Grid's dimensions AND its loading placeholder, in one file with
+
 // NO MUI import — so a screen can reserve the grid's box and static-import the
 // skeleton without pulling @mui/x-data-grid into the department's initial chunk.
 // The heavy StudioDataGrid is nextDynamic()'d separately; this is what stands in
@@ -31,7 +32,11 @@ const cellWidth = (i) => `${45 + ((i * 23) % 40)}%`;
 // each column a shimmer bar, the whole thing exactly gridHeight(pageSize) tall so
 // the swap to the real grid moves nothing. Reduced-motion drops the sweep (the
 // `.skel::after` rule in globals.css), leaving a still box — which is the point.
-export function StudioDataGridSkeleton({ columns = 6, pageSize = 10, rows = 6, ariaLabel = "Loading" }) {
+// `ariaLabel` HAS NO DEFAULT ANY MORE. This renders as a `nextDynamic`
+// loading fallback, which means it renders on the SERVER, where a locale hook
+// cannot be called — so the caller, which does know the language, passes the
+// label in.
+export function StudioDataGridSkeleton({ columns = 6, pageSize = 10, rows = 6, ariaLabel }) {
   const shown = Math.min(rows, pageSize);
   return (
     <div

@@ -32,8 +32,8 @@ const inputClass =
   "dark:border-white/15 dark:bg-[#191921] dark:text-white dark:placeholder:text-slate-500";
 
 // What the disabled button says on hover. One sentence, in the words the
-// person needs: what happened, and when it stops being true.
-const EXHAUSTED_MESSAGE = tr.consumedAllTickets;
+// person needs: what happened, and when it stops being true. A function of
+// the dictionary, because module scope cannot read the locale.
 
 export default function StudioChat({ enabled, slug, studioName, userName, unlimited = true, allowed = 0, used = 0, remaining = null, exhausted = false }) {
   const tr = miscDict(useStudioLocale());
@@ -290,7 +290,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                   Start a chat with the nompany team about {studioName}.
                 </p>
                 <div className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 text-xs dark:border-white/10">
-                  <p className="text-slate-500 dark:text-slate-400">You&apos;ll be shown to us as</p>
+                  <p className="text-slate-500 dark:text-slate-400">{tr.shownToUsAs3}</p>
                   <p className="mt-1 font-600 text-slate-800 dark:text-slate-100">{userName}</p>
                   <p className="text-slate-500 dark:text-slate-400">{studioName}</p>
                 </div>
@@ -424,11 +424,11 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
         disabled={spent}
         aria-disabled={spent}
         aria-label={
-          spent ? EXHAUSTED_MESSAGE
+          spent ? tr.consumedAllTickets
             : open ? tr.minimiseChat
             : unread > 0 ? tr.chatUnread(unread) : tr.chatNompany
         }
-        title={spent ? EXHAUSTED_MESSAGE : allowanceHint}
+        title={spent ? tr.consumedAllTickets : allowanceHint}
         className={`relative inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-geex transition-transform ${
           spent
             ? "cursor-not-allowed bg-slate-400 dark:bg-slate-600"

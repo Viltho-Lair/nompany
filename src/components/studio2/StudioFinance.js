@@ -42,7 +42,7 @@ const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, max
 // reserves the exact box for eight columns while that chunk arrives.
 const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioDataGrid"), {
   ssr: false,
-  loading: () => <StudioDataGridSkeleton columns={8} pageSize={10} ariaLabel="Loading invoices" />,
+  loading: () => <StudioDataGridSkeleton columns={8} pageSize={10} />,
 });
 
 // FINANCE — the department's shell dispatches to a screen per SUB-SECTION key.
@@ -273,7 +273,7 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
                 field: "dueDate", headerName: tr.due, minWidth: 150, flex: 0.9,
                 renderCell: ({ row }) => (
                   <span className={row.overdue ? "font-600 text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-300"}>
-                    {fmt(row.dueDate)}{row.overdue && " · overdue"}
+                    {fmt(row.dueDate)}{row.overdue && tr.overdueSuffix2}
                   </span>
                 ),
               },
@@ -491,7 +491,7 @@ function Expenses({ rows, projects, categories, slug, nav, canManage, busy, send
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10">
-                  {["Date", "Description", "Category", "Project", "Paid by", "Amount", ""].map((h, i) => (
+                  {[tr.colDate, tr.colDescription, tr.colCategory, tr.colProject, tr.colPaidBy, tr.colAmount, ""].map((h, i) => (
                     <th key={h} className={`${th} ${i >= 5 ? "text-end" : ""}`}>{h}</th>
                   ))}
                 </tr>
@@ -635,9 +635,9 @@ function useFinanceResource(slug, kind) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/finance/${kind}`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to this in this studio."); return; }
+    if (!res.ok) { setError(tr.noAccessThis); return; }
     setData(await res.json()); setError("");
-  }, [slug, kind]);
+  }, [slug, kind, tr]);
   useEffect(() => { load(); }, [load]);
   // Bills and assets can land from elsewhere (a PO answered, a disposal) — reflect
   // them live, on the same one EventSource the tab already holds (invariant 14).
@@ -664,9 +664,12 @@ function useFinanceResource(slug, kind) {
 // invoice's lines, so both forms share LineItemsEditor and both aging reports
 // share agingOf — the two sides can never disagree about the arithmetic.
 // ============================================================================
-const TERM_LABEL = {
-  "on-receipt": "On receipt", "net-0": "Net 0", "net-15": "Net 15", "net-30": "Net 30", "net-60": "Net 60",
-};
+// A FUNCTION OF THE DICTIONARY — module scope cannot read a hook. The keys are
+// the stored terms; only what they are CALLED changes.
+const termLabel = (tr) => ({
+  "on-receipt": tr.termOnReceipt2, "net-0": tr.termNet02, "net-15": tr.termNet152,
+  "net-30": tr.termNet302, "net-60": tr.termNet602,
+});
 
 function Payables({ slug }) {
   const tr = financeDict(useStudioLocale());
@@ -691,16 +694,17 @@ function Payables({ slug }) {
 }
 
 function PayablesSummary({ bills }) {
+  const tr = financeDict(useStudioLocale());
   const live = bills.filter((b) => b.status !== "Cancelled" && b.status !== "Draft");
   const billed = live.reduce((s, b) => s + (b.total || 0), 0);
   const outstanding = live.reduce((s, b) => s + (b.outstanding || 0), 0);
   const overdue = bills.filter((b) => b.overdue).reduce((s, b) => s + (b.outstanding || 0), 0);
   const awaiting = bills.filter((b) => b.status === "Received").length;
   const cells = [
-    ["Billed", money(billed), ""],
-    ["Outstanding", money(outstanding), ""],
-    ["Overdue", money(overdue), overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""],
-    ["Awaiting approval", String(awaiting), awaiting > 0 ? "text-amber-600 dark:text-amber-400" : ""],
+    [tr.apBilled, money(billed), ""],
+    [tr.apOutstanding, money(outstanding), ""],
+    [tr.apOverdue, money(overdue), overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""],
+    [tr.apAwaitingApproval, String(awaiting), awaiting > 0 ? "text-amber-600 dark:text-amber-400" : ""],
   ];
   return (
     <section className={panel}>
@@ -722,7 +726,7 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
   const [editing, setEditing] = useState(null);
   const [paying, setPaying] = useState(null);
   const [open, setOpen] = useState(null);
-  const terms = vocab.billTerms || Object.keys(TERM_LABEL);
+  const terms = vocab.billTerms || Object.keys(termLabel(tr));
   const methods = vocab.paymentMethods || ["Bank transfer"];
 
   // Keep an open form on the freshly loaded row after a save.
@@ -820,7 +824,7 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
                                 )}
                               </div>
                               <p className="mt-3 text-xs text-slate-400">
-                                Billed {b.billDate ? fmt(b.billDate) : "—"} · terms {TERM_LABEL[b.terms] || b.terms || "—"}
+                                {tr.billedOn} {b.billDate ? fmt(b.billDate) : "—"} · {tr.termsLabel} {termLabel(tr)[b.terms] || b.terms || "—"}
                               </p>
                               {b.notes && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{b.notes}</p>}
                               {(b.payments || []).length > 0 && (
@@ -884,7 +888,7 @@ function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label={tr.vendor} required value={head.vendorName} onChange={(v) => setHead((h) => ({ ...h, vendorName: v }))} />
         <Field label={tr.terms} as="select" value={head.terms} onChange={(v) => setHead((h) => ({ ...h, terms: v }))}
-          options={terms.map((t) => ({ value: t, label: TERM_LABEL[t] || t }))} />
+          options={terms.map((term) => ({ value: term, label: termLabel(tr)[term] || term }))} />
         <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />
         <Field label={tr.billDate} filled={!!head.billDate}>
           <StudioDate value={head.billDate} onChange={(iso) => setHead((h) => ({ ...h, billDate: iso }))} />

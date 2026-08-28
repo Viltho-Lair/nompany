@@ -17,11 +17,13 @@ type Strings = CommonStrings & {
   mOnLeave: (kind: string, from: string, to: string) => string;
   soonestLapseWindow: (days: number) => string;
   accessOperationsStudio: string;
+  acquiringSignal: string;
   acrossEveryScheduledShift: string;
   activePermits: string;
   addLocation: string;
   addPermit: string;
   address: string;
+  browserCantReport: string;
   calendarLegend: string;
   cancel: string;
   city: string;
@@ -40,6 +42,7 @@ type Strings = CommonStrings & {
   listBelowStillWorks: string;
   loadingOperations: string;
   location: string;
+  locationError: string;
   locations: string;
   locationsPlacesWorkHappens: string;
   mDidntSave: string;
@@ -50,9 +53,12 @@ type Strings = CommonStrings & {
   mTime: string;
   mapLink: string;
   name: string;
+  needsSecureConnection: string;
   newLocation: string;
   newPermit: string;
+  noAddress: string;
   noDatesSet: string;
+  noFixAvailable: string;
   noLocation: string;
   noLocationsYet: string;
   noMapConfigured: string;
@@ -62,10 +68,13 @@ type Strings = CommonStrings & {
   noPermitsYet: string;
   noShiftsScheduled: string;
   nobodySharingRightNow: string;
+  notSharing: string;
   notes: string;
   nothingScheduledYet: string;
   openProject: string;
   optionalTextAddedAbove: string;
+  pausedNotFocused: string;
+  permissionDenied: string;
   permitNumber: string;
   permitsExpiring: string;
   permitsRecordWhatStudio: string;
@@ -83,15 +92,21 @@ type Strings = CommonStrings & {
   saving: string;
   schedule: string;
   scheduleShift: string;
+  screenNotYours: string;
   seriesShifts: string;
   shareMyLocation: string;
+  sharing: string;
   shifts: string;
   shiftsLocation: string;
   shiftsWeek: string;
   start: string;
   stopSharing: string;
+  tabLocations: string;
+  tabPermits: string;
+  tabSchedule: string;
   thisWeek: string;
   thisWeekSuffix: string;
+  timedOutFix: string;
   title: string;
   tracking: string;
   type: string;
@@ -99,6 +114,8 @@ type Strings = CommonStrings & {
   valid2: string;
   validExpiringExpired: string;
   validityTimeline: string;
+  viewCalendar: string;
+  viewList: string;
   viewOnlyAccessOperations: string;
   week: string;
   whatKindAuthorisation: string;
@@ -119,11 +136,13 @@ const en: Strings = {
   mOnLeave: (kind, from, to) => `They're on approved ${kind} leave ${from} – ${to}.`,
   soonestLapseWindow: (days) => `Soonest to lapse first · window ${days}d`,
   accessOperationsStudio: "You don't have access to Operations in this studio.",
+  acquiringSignal: "Acquiring signal…",
   acrossEveryScheduledShift: "Across every scheduled shift",
   activePermits: "Active permits",
   addLocation: "Add location",
   addPermit: "Add permit",
   address: "Address",
+  browserCantReport: "This browser can't report a location.",
   calendarLegend: "Calendar legend",
   cancel: "Cancel",
   city: "City",
@@ -142,6 +161,7 @@ const en: Strings = {
   listBelowStillWorks: "The list below still works. A map needs NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to be set.",
   loadingOperations: "Loading Operations…",
   location: "Location",
+  locationError: "Location error",
   locations: "Locations",
   locationsPlacesWorkHappens: "Locations are the places work happens — sites, offices, warehouses. Shifts and permits point at them.",
   mDidntSave: "That didn't save.",
@@ -152,9 +172,12 @@ const en: Strings = {
   mTime: "Give the shift a date, a start and an end.",
   mapLink: "Map link",
   name: "Name",
+  needsSecureConnection: "Location needs a secure connection.",
   newLocation: "New location",
   newPermit: "New permit",
+  noAddress: "No address",
   noDatesSet: "No dates set",
+  noFixAvailable: "No fix available.",
   noLocation: "No location",
   noLocationsYet: "No locations yet",
   noMapConfigured: "No map configured",
@@ -164,10 +187,13 @@ const en: Strings = {
   noPermitsYet: "No permits yet",
   noShiftsScheduled: "No shifts scheduled",
   nobodySharingRightNow: "Nobody is sharing right now.",
+  notSharing: "Not sharing",
   notes: "Notes",
   nothingScheduledYet: "Nothing scheduled yet.",
   openProject: "Open the project",
   optionalTextAddedAbove: "Optional text added above the copied roster for a day — a greeting, or a standing note.",
+  pausedNotFocused: "Paused — page not in focus",
+  permissionDenied: "Permission denied — allow location for this site.",
   permitNumber: "Permit number",
   permitsExpiring: "Permits expiring",
   permitsRecordWhatStudio: "Permits record what the studio is authorised to do, where, and until when.",
@@ -185,15 +211,21 @@ const en: Strings = {
   saving: "Saving…",
   schedule: "Schedule",
   scheduleShift: "Schedule a shift",
+  screenNotYours: "This screen isn't yours to see",
   seriesShifts: "Shifts",
   shareMyLocation: "Share my location",
+  sharing: "Sharing",
   shifts: "Shifts",
   shiftsLocation: "Shifts by location",
   shiftsWeek: "Shifts this week",
   start: "Start",
   stopSharing: "Stop sharing",
+  tabLocations: "Locations",
+  tabPermits: "Permits",
+  tabSchedule: "Schedule",
   thisWeek: "this week",
   thisWeekSuffix: "this week",
+  timedOutFix: "Timed out waiting for a fix.",
   title: "Title",
   tracking: "Tracking",
   type: "Type",
@@ -201,6 +233,8 @@ const en: Strings = {
   valid2: "Valid to",
   validExpiringExpired: "Valid, expiring, expired",
   validityTimeline: "Validity timeline",
+  viewCalendar: "Calendar",
+  viewList: "List",
   viewOnlyAccessOperations: "You have view-only access to Operations settings.",
   week: "This week",
   whatKindAuthorisation: "What kind of authorisation",
@@ -221,11 +255,13 @@ const ar: Strings = {
   mOnLeave: (kind, from, to) => `هو في إجازة ${kind} معتمدة من ${from} إلى ${to}.`,
   soonestLapseWindow: (days) => `الأقرب انتهاءً أولًا · نافذة ${days} يومًا`,
   accessOperationsStudio: "لا تملك صلاحية الوصول إلى العمليات في هذا الاستوديو.",
+  acquiringSignal: "جارٍ التقاط الإشارة…",
   acrossEveryScheduledShift: "عبر كل وردية مجدولة",
   activePermits: "التصاريح السارية",
   addLocation: "إضافة موقع",
   addPermit: "إضافة تصريح",
   address: "العنوان",
+  browserCantReport: "لا يستطيع هذا المتصفح الإبلاغ عن موقع.",
   calendarLegend: "مفتاح التقويم",
   cancel: "إلغاء",
   city: "المدينة",
@@ -244,6 +280,7 @@ const ar: Strings = {
   listBelowStillWorks: "القائمة أدناه تعمل كالمعتاد. أما الخريطة فتحتاج إلى ضبط NEXT_PUBLIC_GOOGLE_MAPS_API_KEY.",
   loadingOperations: "جارٍ تحميل العمليات…",
   location: "الموقع",
+  locationError: "خطأ في تحديد الموقع",
   locations: "المواقع",
   locationsPlacesWorkHappens: "المواقع هي الأماكن التي يجري فيها العمل — مواقع العمل والمكاتب والمستودعات. وتشير إليها الورديات والتصاريح.",
   mDidntSave: "لم يُحفظ ذلك.",
@@ -254,9 +291,12 @@ const ar: Strings = {
   mTime: "أعطِ الوردية تاريخًا وبداية ونهاية.",
   mapLink: "رابط الخريطة",
   name: "الاسم",
+  needsSecureConnection: "يحتاج تحديد الموقع إلى اتصال آمن.",
   newLocation: "موقع جديد",
   newPermit: "تصريح جديد",
+  noAddress: "لا يوجد عنوان",
   noDatesSet: "لم تُحدَّد تواريخ",
+  noFixAvailable: "لا يوجد تحديد متاح.",
   noLocation: "بلا موقع",
   noLocationsYet: "لا توجد مواقع بعد",
   noMapConfigured: "لم تُضبط خريطة",
@@ -266,10 +306,13 @@ const ar: Strings = {
   noPermitsYet: "لا توجد تصاريح بعد",
   noShiftsScheduled: "لا توجد ورديات مجدولة",
   nobodySharingRightNow: "لا أحد يشارك موقعه الآن.",
+  notSharing: "لا تتم المشاركة",
   notes: "ملاحظات",
   nothingScheduledYet: "لا شيء مجدول بعد.",
   openProject: "افتح المشروع",
   optionalTextAddedAbove: "نص اختياري يُضاف أعلى جدول اليوم المنسوخ — تحية، أو ملاحظة ثابتة.",
+  pausedNotFocused: "متوقف مؤقتًا — الصفحة ليست في المقدمة",
+  permissionDenied: "رُفض الإذن — اسمح بالموقع لهذا الموقع الإلكتروني.",
   permitNumber: "رقم التصريح",
   permitsExpiring: "تصاريح توشك على الانتهاء",
   permitsRecordWhatStudio: "تسجّل التصاريح ما يُسمح للاستوديو بفعله، وأين، وحتى متى.",
@@ -287,15 +330,21 @@ const ar: Strings = {
   saving: "جارٍ الحفظ…",
   schedule: "جدولة",
   scheduleShift: "جدولة وردية",
+  screenNotYours: "هذه الشاشة ليست من صلاحياتك",
   seriesShifts: "الورديات",
   shareMyLocation: "مشاركة موقعي",
+  sharing: "تتم المشاركة",
   shifts: "الورديات",
   shiftsLocation: "الورديات حسب الموقع",
   shiftsWeek: "ورديات هذا الأسبوع",
   start: "البداية",
   stopSharing: "إيقاف المشاركة",
+  tabLocations: "المواقع",
+  tabPermits: "التصاريح",
+  tabSchedule: "الجدول",
   thisWeek: "هذا الأسبوع",
   thisWeekSuffix: "هذا الأسبوع",
+  timedOutFix: "انتهت المهلة في انتظار التحديد.",
   title: "العنوان",
   tracking: "التتبّع",
   type: "النوع",
@@ -303,6 +352,8 @@ const ar: Strings = {
   valid2: "ساري حتى",
   validExpiringExpired: "ساري، يوشك على الانتهاء، منتهٍ",
   validityTimeline: "المسار الزمني للسريان",
+  viewCalendar: "التقويم",
+  viewList: "قائمة",
   viewOnlyAccessOperations: "لديك صلاحية عرض فقط على إعدادات العمليات.",
   week: "هذا الأسبوع",
   whatKindAuthorisation: "أي نوع من التصريح",

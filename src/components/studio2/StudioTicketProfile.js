@@ -256,7 +256,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               <DetailField label={tr.urgency} value={ticket.urgency} />
               <DetailField label={tr.deadline} value={fmtDate(ticket.deadline)} />
               <DetailField label={tr.industry} value={ticket.industry} />
-              <DetailField label={tr.owner} value={aliasOf[ticket.assignedToCollaboratorId] || "Unassigned"} />
+              <DetailField label={tr.owner} value={aliasOf[ticket.assignedToCollaboratorId] || tr.unassigned3} />
               {/* VALUE QUOTED: the latest quotation's total, never typed. */}
               <DetailField label={tr.valueQuoted} value={ticket.value ? <Money amount={ticket.value} currency={currency} /> : ""} />
               <DetailField label={tr.clientBudget} value={ticket.clientBudget ? <Money amount={ticket.clientBudget} currency={currency} /> : ""} />
@@ -323,7 +323,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                   <li key={c.id} className="rounded-xl bg-slate-50 px-4 py-3 dark:bg-white/5">
                     <p className="text-sm text-slate-700 dark:text-slate-200">{c.text}</p>
                     <p className="mt-1 text-xs text-slate-400">
-                      {aliasOf[c.byCollaboratorId] || "Someone"} · {fmtDate(c.at)}
+                      {aliasOf[c.byCollaboratorId] || tr.someone3} · {fmtDate(c.at)}
                     </p>
                   </li>
                 ))}
@@ -503,7 +503,7 @@ function Back({ slug, title, ref_, clientName }) {
     <div className="flex items-center gap-3">
       <Link href={`/${slug}/sales-tickets`} className={btnGhost}>{tr.back}</Link>
       <div className="min-w-0">
-        <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white">{title || "Ticket"}</h1>
+        <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white">{title || tr.ticket}</h1>
         {ref_ && (
           <p className="truncate text-xs text-slate-400">
             {ref_}{clientName ? ` · ${clientName}` : ""}

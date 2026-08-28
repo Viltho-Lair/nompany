@@ -27,14 +27,15 @@ const card = `${panel} min-h-0`;
 // live channels a project changes on (its own, and Tasks — the number arrives
 // from FINANCE on the Tasks board when they sign the PO). One hook, one fetch.
 export function useProjectData(slug) {
+  const tr = projectsDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/projects`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Projects in this studio."); return; }
+    if (!res.ok) { setError(tr.accessProjectsStudio); return; }
     setData(await res.json());
-  }, [slug]);
+  }, [slug, tr]);
 
   useEffect(() => { load(); }, [load]);
   useLiveUpdates(slug, "projects", load);
@@ -74,7 +75,7 @@ export function ProjectSection({ project, people, currency }) {
             empty cell — a project without a number is a normal state here. */}
         <Field label={tr.number} value={project.number || <span className="text-amber-700 dark:text-amber-300">{tr.notIssuedYet}</span>} mono />
         <Field label={tr.stage} value={<StatusPill kind="project" status={project.stage} />} />
-        <Field label={tr.handler} value={people[project.managerCollaboratorId] || "Unassigned"} />
+        <Field label={tr.handler} value={people[project.managerCollaboratorId] || tr.unassigned2} />
         <Field label={tr.value} value={project.value ? <Money amount={project.value} currency={currency} /> : ""} />
         <Field label={tr.received} value={fmtDate(project.receivedDate)} />
         <Field label={tr.start} value={fmtDate(project.startDate)} />

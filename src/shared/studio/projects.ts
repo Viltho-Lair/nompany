@@ -69,6 +69,7 @@ type Strings = CommonStrings & {
   loadingProject: string;
   loadingProjects: string;
   loadingProjects2: string;
+  loadingProjectsAria: string;
   loadingSheet: string;
   location: string;
   logHoursWorkedProject: string;
@@ -84,8 +85,10 @@ type Strings = CommonStrings & {
   noOvertimeRecordedYet: string;
   noProjectDatesYet: string;
   noProjectMatches: string;
+  noProjectNumberYet: string;
   noProjectValuesYet: string;
   noProjectsMatchSearch: string;
+  noProjectsSigned: string;
   noProjectsSignedYet: string;
   noProjectsYet: string;
   noSlaContractsYet: string;
@@ -94,6 +97,7 @@ type Strings = CommonStrings & {
   noneStock: string;
   notIssuedYet: string;
   notes: string;
+  nothingAllocated: string;
   nothingHidden: string;
   nothingStockAllocate: string;
   number: string;
@@ -113,6 +117,7 @@ type Strings = CommonStrings & {
   peopleListOpensFiltered: string;
   person: string;
   pickDate: string;
+  pickDateFirst: string;
   pickLeastOnePerson: string;
   pickProject: string;
   plannedVisits: string;
@@ -120,6 +125,7 @@ type Strings = CommonStrings & {
   project: string;
   project2: string;
   projectAlreadyExistsQuotation: string;
+  projectBoard: string;
   projectManager: string;
   projectNoLongerExists: string;
   projectNoSheetYet: string;
@@ -154,6 +160,7 @@ type Strings = CommonStrings & {
   signed: string;
   site: string;
   siteCity: string;
+  slaContract: string;
   someChangesDidnSave: string;
   stage: string;
   stages: string;
@@ -176,10 +183,16 @@ type Strings = CommonStrings & {
   title: string;
   to: string;
   total: string;
+  totalRow: string;
   totalValue: string;
   unassigned: string;
+  unassigned2: string;
+  unnumbered: string;
+  untitled: string;
   value: string;
   valueStage: string;
+  viewList: string;
+  viewMatrix: string;
   viewOnly: string;
   viewOnlyAccessPart: string;
   viewOnlyAccessProjects: string;
@@ -254,6 +267,7 @@ const en: Strings = {
   loadingProject: "Loading project…",
   loadingProjects: "Loading projects",
   loadingProjects2: "Loading Projects…",
+  loadingProjectsAria: "Loading projects",
   loadingSheet: "Loading sheet…",
   location: "Location",
   logHoursWorkedProject: "Log the hours worked on a project outside the plan. They add up per project and per person here.",
@@ -264,13 +278,15 @@ const en: Strings = {
   noDepartmentsDepartmentSection: "No departments — a department is a section, and this studio has none switched on.",
   noEmergencyVisitsRegistered: "No emergency visits registered yet.",
   noHiddenProjectMatches: "No hidden project matches that.",
-  noNumberYet: "no number yet",
+  noNumberYet: "No number yet",
   noOpenProjects: "No open projects.",
   noOvertimeRecordedYet: "No overtime recorded yet",
   noProjectDatesYet: "No project dates yet.",
   noProjectMatches: "No project matches that.",
+  noProjectNumberYet: "No project number yet",
   noProjectValuesYet: "No project values yet.",
   noProjectsMatchSearch: "No projects match that search.",
+  noProjectsSigned: "No projects have been signed yet — a project's sheets are drawn up when it is opened from an approved quotation.",
   noProjectsSignedYet: "No projects signed yet.",
   noProjectsYet: "No projects yet",
   noSlaContractsYet: "No SLA contracts yet",
@@ -279,6 +295,7 @@ const en: Strings = {
   noneStock: "none in stock",
   notIssuedYet: "Not issued yet",
   notes: "Notes",
+  nothingAllocated: "Nothing allocated",
   nothingHidden: "Nothing is hidden.",
   nothingStockAllocate: "Nothing in stock to allocate.",
   number: "Number",
@@ -298,6 +315,7 @@ const en: Strings = {
   peopleListOpensFiltered: ", so the people list opens filtered to it.",
   person: "Person",
   pickDate: "Pick a date.",
+  pickDateFirst: "Pick a date first.",
   pickLeastOnePerson: "Pick at least one person.",
   pickProject: "Pick a project.",
   plannedVisits: "Planned visits",
@@ -305,6 +323,7 @@ const en: Strings = {
   project: "Project",
   project2: "← Project",
   projectAlreadyExistsQuotation: "A project already exists for that quotation.",
+  projectBoard: "Project board",
   projectManager: "Project manager",
   projectNoLongerExists: "That project no longer exists.",
   projectNoSheetYet: "This project has no sheet yet.",
@@ -339,6 +358,7 @@ const en: Strings = {
   signed: "Signed",
   site: "Site",
   siteCity: "Site or city",
+  slaContract: "SLA contract",
   someChangesDidnSave: "Some changes didn't save — nothing after the failed row was sent.",
   stage: "Stage",
   stages: "Stages",
@@ -361,10 +381,16 @@ const en: Strings = {
   title: "Title",
   to: "To",
   total: "Total",
+  totalRow: "Total",
   totalValue: "Total value",
   unassigned: "Unassigned",
+  unassigned2: "Unassigned",
+  unnumbered: "Unnumbered",
+  untitled: "Untitled",
   value: "Value",
   valueStage: "Value by stage",
+  viewList: "List",
+  viewMatrix: "Matrix",
   viewOnly: "View only",
   viewOnlyAccessPart: "You have view-only access to this part of Projects.",
   viewOnlyAccessProjects: "You have view-only access to Projects settings.",
@@ -439,6 +465,7 @@ const ar: Strings = {
   loadingProject: "جارٍ تحميل المشروع…",
   loadingProjects: "جارٍ تحميل المشاريع",
   loadingProjects2: "جارٍ تحميل المشاريع…",
+  loadingProjectsAria: "جارٍ تحميل المشاريع",
   loadingSheet: "جارٍ تحميل الكشف…",
   location: "الموقع",
   logHoursWorkedProject: "سجّل الساعات المبذولة على مشروع خارج الخطة. وتُجمع هنا لكل مشروع ولكل شخص.",
@@ -454,8 +481,10 @@ const ar: Strings = {
   noOvertimeRecordedYet: "لم يُسجَّل عمل إضافي بعد",
   noProjectDatesYet: "لا توجد تواريخ مشاريع بعد.",
   noProjectMatches: "لا يوجد مشروع يطابق ذلك.",
+  noProjectNumberYet: "لا يوجد رقم مشروع بعد",
   noProjectValuesYet: "لا توجد قيم مشاريع بعد.",
   noProjectsMatchSearch: "لا توجد مشاريع تطابق هذا البحث.",
+  noProjectsSigned: "لم تُوقَّع أي مشاريع بعد — تُعدّ كشوف المشروع عند فتحه من عرض سعر معتمد.",
   noProjectsSignedYet: "لم تُوقَّع أي مشاريع بعد.",
   noProjectsYet: "لا توجد مشاريع بعد",
   noSlaContractsYet: "لا توجد عقود مستوى خدمة بعد",
@@ -464,6 +493,7 @@ const ar: Strings = {
   noneStock: "لا شيء في المخزون",
   notIssuedYet: "لم يُصدر بعد",
   notes: "ملاحظات",
+  nothingAllocated: "لم يُخصَّص شيء",
   nothingHidden: "لا شيء مخفي.",
   nothingStockAllocate: "لا شيء في المخزون لتخصيصه.",
   number: "الرقم",
@@ -483,6 +513,7 @@ const ar: Strings = {
   peopleListOpensFiltered: "، فتُفتح قائمة الأشخاص مصفّاة عليه.",
   person: "الشخص",
   pickDate: "اختر تاريخًا.",
+  pickDateFirst: "اختر تاريخًا أولًا.",
   pickLeastOnePerson: "اختر شخصًا واحدًا على الأقل.",
   pickProject: "اختر مشروعًا.",
   plannedVisits: "الزيارات المخططة",
@@ -490,6 +521,7 @@ const ar: Strings = {
   project: "المشروع",
   project2: "← المشروع",
   projectAlreadyExistsQuotation: "يوجد مشروع بالفعل لعرض السعر ذاك.",
+  projectBoard: "لوحة المشروع",
   projectManager: "مدير المشروع",
   projectNoLongerExists: "لم يعد هذا المشروع موجودًا.",
   projectNoSheetYet: "لا يوجد كشف لهذا المشروع بعد.",
@@ -524,6 +556,7 @@ const ar: Strings = {
   signed: "موقّع",
   site: "الموقع",
   siteCity: "الموقع أو المدينة",
+  slaContract: "عقد مستوى الخدمة",
   someChangesDidnSave: "لم تُحفظ بعض التغييرات — ولم يُرسل أي شيء بعد الصف الذي أخفق.",
   stage: "المرحلة",
   stages: "المراحل",
@@ -546,10 +579,16 @@ const ar: Strings = {
   title: "العنوان",
   to: "إلى",
   total: "الإجمالي",
+  totalRow: "الإجمالي",
   totalValue: "القيمة الإجمالية",
   unassigned: "غير مُسند",
+  unassigned2: "غير مُسند",
+  unnumbered: "بلا رقم",
+  untitled: "بلا عنوان",
   value: "القيمة",
   valueStage: "القيمة حسب المرحلة",
+  viewList: "قائمة",
+  viewMatrix: "مصفوفة",
   viewOnly: "للعرض فقط",
   viewOnlyAccessPart: "لديك صلاحية عرض فقط على هذا الجزء من المشاريع.",
   viewOnlyAccessProjects: "لديك صلاحية عرض فقط على إعدادات المشاريع.",

@@ -9,6 +9,7 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 
 type Strings = CommonStrings & {
   accessTasksStudio: string;
+  adminCanAppoint: string;
   appointSomeoneTaskSettings: string;
   approvedOpenProject: string;
   assign: string;
@@ -31,7 +32,10 @@ type Strings = CommonStrings & {
   editTask: string;
   giveTaskTitle: string;
   kind: string;
+  kindFixed: string;
   loadingTasks: string;
+  member: string;
+  needsYourDecision: string;
   newTask: string;
   noOpenTasks: string;
   nobodyAppointed: string;
@@ -43,16 +47,19 @@ type Strings = CommonStrings & {
   oneAuthoritySigns: string;
   onlyManagerCanChange: string;
   onlyManagerCanCreate: string;
+  open: string;
   openProject: string;
   openQuotationBeingDecided: string;
   opening: string;
   overdue: string;
+  overdue2: string;
   priority: string;
   project: string;
   projectAlreadyOpenedQuotation: string;
   projectHandler: string;
   projectHandler2: string;
   quotationNotApproved: string;
+  raisedOnBoard: string;
   save: string;
   saveTaskSettings: string;
   saved: string;
@@ -67,6 +74,7 @@ type Strings = CommonStrings & {
   tasksOnly: string;
   title: string;
   unassigned: string;
+  unassigned2: string;
   viewOnlyAccessTask: string;
   whereComes: string;
   whoHandles: string;
@@ -75,6 +83,7 @@ type Strings = CommonStrings & {
 const en: Strings = {
   ...commonEn,
   accessTasksStudio: "You don't have access to Tasks in this studio.",
+  adminCanAppoint: " — an admin can appoint someone in Task settings",
   appointSomeoneTaskSettings: "appoint someone in Task settings",
   approvedOpenProject: "Approved — open the project",
   assign: "Assign to",
@@ -97,7 +106,10 @@ const en: Strings = {
   editTask: "Edit task",
   giveTaskTitle: "Give the task a title.",
   kind: "Kind",
+  kindFixed: "A task's kind is fixed once it exists.",
   loadingTasks: "Loading Tasks…",
+  member: "Member",
+  needsYourDecision: "Needs your decision",
   newTask: "New task",
   noOpenTasks: "No open tasks",
   nobodyAppointed: "Nobody appointed",
@@ -109,16 +121,19 @@ const en: Strings = {
   oneAuthoritySigns: "One authority signs",
   onlyManagerCanChange: "Only a manager can change task settings.",
   onlyManagerCanCreate: "Only a manager can create or assign tasks.",
+  open: "Open",
   openProject: "Open the project",
   openQuotationBeingDecided: "Open the quotation being decided",
   opening: "Opening…",
   overdue: "Overdue",
+  overdue2: "Overdue",
   priority: "Priority",
   project: "Project",
   projectAlreadyOpenedQuotation: "A project has already been opened from this quotation.",
   projectHandler: "Project handler",
   projectHandler2: "Project handler…",
   quotationNotApproved: "That quotation is not approved.",
+  raisedOnBoard: "Raised on the Tasks board.",
   save: "Save",
   saveTaskSettings: "Save task settings",
   saved: "Saved",
@@ -133,6 +148,7 @@ const en: Strings = {
   tasksOnly: "Your tasks only",
   title: "Title",
   unassigned: "Unassigned",
+  unassigned2: "Unassigned",
   viewOnlyAccessTask: "You have view-only access to Task settings.",
   whereComes: "Where it comes from",
   whoHandles: "Who handles it",
@@ -141,6 +157,7 @@ const en: Strings = {
 const ar: Strings = {
   ...commonAr,
   accessTasksStudio: "لا تملك صلاحية الوصول إلى المهام في هذا الاستوديو.",
+  adminCanAppoint: " — يمكن لمسؤول تعيين شخص من إعدادات المهام",
   appointSomeoneTaskSettings: "عيّن شخصًا من إعدادات المهام",
   approvedOpenProject: "معتمد — افتح المشروع",
   assign: "إسناد إلى",
@@ -163,7 +180,10 @@ const ar: Strings = {
   editTask: "تعديل المهمة",
   giveTaskTitle: "أعطِ المهمة عنوانًا.",
   kind: "النوع",
+  kindFixed: "يُثبَّت نوع المهمة بمجرد وجودها.",
   loadingTasks: "جارٍ تحميل المهام…",
+  member: "عضو",
+  needsYourDecision: "تحتاج إلى قرارك",
   newTask: "مهمة جديدة",
   noOpenTasks: "لا توجد مهام مفتوحة",
   nobodyAppointed: "لم يُعيَّن أحد",
@@ -175,16 +195,19 @@ const ar: Strings = {
   oneAuthoritySigns: "سلطة واحدة توقّع",
   onlyManagerCanChange: "لا يمكن تغيير إعدادات المهام إلا لمدير.",
   onlyManagerCanCreate: "لا يمكن إنشاء المهام أو إسنادها إلا لمدير.",
+  open: "مفتوحة",
   openProject: "افتح المشروع",
   openQuotationBeingDecided: "افتح عرض السعر قيد البت فيه",
   opening: "جارٍ الفتح…",
   overdue: "متأخرة",
+  overdue2: "متأخرة",
   priority: "الأولوية",
   project: "المشروع",
   projectAlreadyOpenedQuotation: "سبق فتح مشروع من عرض السعر هذا.",
   projectHandler: "مسؤول المشروع",
   projectHandler2: "مسؤول المشروع…",
   quotationNotApproved: "عرض السعر هذا غير معتمد.",
+  raisedOnBoard: "رُفعت في لوحة المهام.",
   save: "حفظ",
   saveTaskSettings: "حفظ إعدادات المهام",
   saved: "تم الحفظ",
@@ -199,6 +222,7 @@ const ar: Strings = {
   tasksOnly: "مهامك فقط",
   title: "العنوان",
   unassigned: "غير مُسندة",
+  unassigned2: "غير مُسندة",
   viewOnlyAccessTask: "لديك صلاحية عرض فقط على إعدادات المهام.",
   whereComes: "مصدرها",
   whoHandles: "من يتولاها",

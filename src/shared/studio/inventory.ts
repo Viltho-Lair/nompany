@@ -31,7 +31,10 @@ type Strings = CommonStrings & {
   airlineCodeNumber: string;
   airlineName: string;
   airlineRegistry: string;
+  airlineRegistryHint: string;
+  airportCodeHint: string;
   assignedAutomaticallyIfLeft: string;
+  awbLead: string;
   awbNumber: string;
   awbTracking: string;
   belowReorder: string;
@@ -44,6 +47,12 @@ type Strings = CommonStrings & {
   change: string;
   chooseImageFile: string;
   close: string;
+  colAwb: string;
+  colCarrier: string;
+  colLastEvent: string;
+  colPieces: string;
+  colRoute: string;
+  colStatus: string;
   commaNewlineSeparated: string;
   committedOrderedPartlyReceived: string;
   consignment: string;
@@ -77,6 +86,7 @@ type Strings = CommonStrings & {
   latestLedger: string;
   loadingInventory: string;
   loadingItems: string;
+  loadingItemsAria: string;
   loadingItemsGrid: string;
   low: string;
   mAlreadyIssued: string;
@@ -97,9 +107,11 @@ type Strings = CommonStrings & {
   mVendor: string;
   modelNumber: string;
   movement: string;
+  movementsTab: string;
   name: string;
   nameSkuModelVendor: string;
   noAirlinesYetWaybill: string;
+  noContactDetails: string;
   noItemsMatchSearch: string;
   noPurchaseOrdersYet: string;
   noServiceActionsYet: string;
@@ -119,6 +131,7 @@ type Strings = CommonStrings & {
   nothingRecordedYet: string;
   nothingRegisteredYet: string;
   nothingStockYet: string;
+  onHandTab: string;
   open: string;
   openCarrierOwnTracking: string;
   openProject: string;
@@ -231,7 +244,10 @@ const en: Strings = {
   airlineCodeNumber: "Airline code + number",
   airlineName: "Airline name",
   airlineRegistry: "Airline registry",
+  airlineRegistryHint: "The 3-digit prefix on a waybill is what identifies its carrier.",
+  airportCodeHint: "3-letter airport code",
   assignedAutomaticallyIfLeft: "Assigned automatically if left blank",
+  awbLead: "Follow air freight by its waybill. Eleven digits: a 3-digit carrier prefix, a 7-digit serial and a check digit.",
   awbNumber: "AWB number",
   awbTracking: "AWB Tracking",
   belowReorder: "Below reorder",
@@ -244,6 +260,12 @@ const en: Strings = {
   change: "Change",
   chooseImageFile: "Choose an image file.",
   close: "Close",
+  colAwb: "AWB",
+  colCarrier: "Carrier",
+  colLastEvent: "Last event",
+  colPieces: "Pieces",
+  colRoute: "Route",
+  colStatus: "Status",
   commaNewlineSeparated: "Comma or newline separated",
   committedOrderedPartlyReceived: "Committed on ordered, partly-received and received POs",
   consignment: "Consignment",
@@ -277,6 +299,7 @@ const en: Strings = {
   latestLedger: "The latest of the ledger",
   loadingInventory: "Loading Inventory…",
   loadingItems: "Loading items",
+  loadingItemsAria: "Loading items",
   loadingItemsGrid: "Loading items",
   low: "Low",
   mAlreadyIssued: "That delivery has already been issued.",
@@ -297,9 +320,11 @@ const en: Strings = {
   mVendor: "Pick a vendor.",
   modelNumber: "Model number",
   movement: "Movement",
+  movementsTab: "Movements",
   name: "Name",
   nameSkuModelVendor: "Name, SKU, model or vendor",
   noAirlinesYetWaybill: "No airlines yet. A waybill still tracks without one — it just shows the bare prefix.",
+  noContactDetails: "No contact details",
   noItemsMatchSearch: "No items match that search.",
   noPurchaseOrdersYet: "No purchase orders yet.",
   noServiceActionsYet: "No service actions yet — add them in Studio Settings.",
@@ -319,6 +344,7 @@ const en: Strings = {
   nothingRecordedYet: "Nothing recorded yet.",
   nothingRegisteredYet: "Nothing registered yet",
   nothingStockYet: "Nothing in stock yet",
+  onHandTab: "On hand",
   open: "Open",
   openCarrierOwnTracking: "Open the carrier's own tracking page",
   openProject: "Open the project",
@@ -431,7 +457,10 @@ const ar: Strings = {
   airlineCodeNumber: "رمز شركة الطيران + الرقم",
   airlineName: "اسم شركة الطيران",
   airlineRegistry: "سجل شركات الطيران",
+  airlineRegistryHint: "البادئة المكوّنة من ثلاثة أرقام على البوليصة هي ما يحدّد ناقلها.",
+  airportCodeHint: "رمز مطار من ثلاثة أحرف",
   assignedAutomaticallyIfLeft: "يُسنَد تلقائيًا إن تُرك فارغًا",
+  awbLead: "تابع الشحن الجوي عبر بوليصته. أحد عشر رقمًا: بادئة ناقل من ثلاثة أرقام، ورقم تسلسلي من سبعة، ورقم تحقق.",
   awbNumber: "رقم بوليصة الشحن الجوي",
   awbTracking: "تتبّع بوليصة الشحن الجوي",
   belowReorder: "دون حد إعادة الطلب",
@@ -444,6 +473,12 @@ const ar: Strings = {
   change: "تغيير",
   chooseImageFile: "اختر ملف صورة.",
   close: "إغلاق",
+  colAwb: "البوليصة",
+  colCarrier: "الناقل",
+  colLastEvent: "آخر حدث",
+  colPieces: "القطع",
+  colRoute: "المسار",
+  colStatus: "الحالة",
   commaNewlineSeparated: "مفصولة بفاصلة أو بسطر جديد",
   committedOrderedPartlyReceived: "محجوزة على أوامر الشراء المطلوبة والمستلمة جزئيًا والمستلمة",
   consignment: "الإرسالية",
@@ -477,6 +512,7 @@ const ar: Strings = {
   latestLedger: "الأحدث في السجل",
   loadingInventory: "جارٍ تحميل المخزون…",
   loadingItems: "جارٍ تحميل الأصناف",
+  loadingItemsAria: "جارٍ تحميل الأصناف",
   loadingItemsGrid: "جارٍ تحميل الأصناف",
   low: "منخفض",
   mAlreadyIssued: "صدر هذا التسليم بالفعل.",
@@ -497,9 +533,11 @@ const ar: Strings = {
   mVendor: "اختر مورّدًا.",
   modelNumber: "رقم الطراز",
   movement: "الحركة",
+  movementsTab: "الحركات",
   name: "الاسم",
   nameSkuModelVendor: "الاسم أو رمز الصنف أو الطراز أو المورّد",
   noAirlinesYetWaybill: "لا توجد شركات طيران بعد. تُتتبَّع البوليصة بدونها — لكنها تعرض البادئة المجردة فقط.",
+  noContactDetails: "لا توجد بيانات اتصال",
   noItemsMatchSearch: "لا توجد أصناف تطابق هذا البحث.",
   noPurchaseOrdersYet: "لا توجد أوامر شراء بعد.",
   noServiceActionsYet: "لا توجد إجراءات خدمة بعد — أضِفها من إعدادات الاستوديو.",
@@ -519,6 +557,7 @@ const ar: Strings = {
   nothingRecordedYet: "لم يُسجَّل شيء بعد.",
   nothingRegisteredYet: "لم يُسجَّل شيء بعد",
   nothingStockYet: "لا يوجد شيء في المخزون بعد",
+  onHandTab: "المتوفر",
   open: "فتح",
   openCarrierOwnTracking: "افتح صفحة التتبّع الخاصة بالناقل",
   openProject: "افتح المشروع",

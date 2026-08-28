@@ -112,10 +112,10 @@ export default function StudioProjectBoard({ slug, projectId }) {
 
         <div className="min-w-0">
           <p className="truncate font-display text-base font-800 text-[var(--geex-ink)]">
-            {project?.title || "Project board"}
+            {project?.title || tr.projectBoard}
           </p>
           <p className="truncate text-xs text-[var(--geex-muted)]">
-            {project?.number ? <span className="font-mono tabular-nums">{project.number}</span> : "No number yet"}
+            {project?.number ? <span className="font-mono tabular-nums">{project.number}</span> : tr.noNumberYet}
             {project?.clientName ? ` · ${project.clientName}` : ""}
           </p>
         </div>

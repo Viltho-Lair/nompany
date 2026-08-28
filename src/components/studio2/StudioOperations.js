@@ -129,7 +129,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
       <div className="space-y-6">
         {banner}
         <div className={`${panel} text-center`}>
-          <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">This screen isn&apos;t yours to see</h3>
+          <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.screenNotYours}</h3>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Locations, permits and shifts are kept behind a right of their own here. Tracking and Settings are unaffected.
           </p>
@@ -199,7 +199,8 @@ export default function StudioOperations({ slug, view = "operations" }) {
 // three now live on the one Schedule screen, so all three flip in place; none is a
 // link any more.
 function OperationsBottomBar({ active, onTab }) {
-  const items = [["schedule", "Schedule"], ["permits", "Permits"], ["locations", "Locations"]];
+  const tr = operationsDict(useStudioLocale());
+  const items = [["schedule", tr.tabSchedule], ["permits", tr.tabPermits], ["locations", tr.tabLocations]];
   return (
     <div className="pointer-events-none fixed bottom-0 end-0 start-0 z-30 lg:start-72">
       <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
@@ -266,7 +267,7 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
     <>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
-          {[["calendar", "Calendar"], ["list", "List"]].map(([k, text]) => (
+          {[["calendar", tr.viewCalendar], ["list", tr.viewList]].map(([k, text]) => (
             <button key={k} type="button" onClick={() => setMode(k)}
               className={`rounded-full px-4 py-1.5 text-sm font-600 transition-colors ${mode === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
               {text}
@@ -701,7 +702,7 @@ function Locations({ rows, kinds, canManage, busy, send }) {
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{l.kind}</span>
                   </div>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {[l.address, l.city].filter(Boolean).join(", ") || "No address"}
+                    {[l.address, l.city].filter(Boolean).join(", ") || tr.noAddress}
                     {l.mapUrl && (
                       <a href={l.mapUrl} target="_blank" rel="noopener noreferrer"
                         className="ms-2 text-brand-700 hover:underline dark:text-brand-300">map</a>
@@ -786,7 +787,7 @@ const ageText = (iso) => {
 function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh }) {
   const tr = operationsDict(useStudioLocale());
   const [sharing, setSharing] = useState(false);
-  const [status, setStatus] = useState({ text: "Not sharing", tone: "idle" });
+  const [status, setStatus] = useState({ text: tr.notSharing, tone: "idle" });
   const [fix, setFix] = useState(null);
   const [mapError, setMapError] = useState("");
   const mapRef = useRef(null);
@@ -861,18 +862,18 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
   }, []);
 
   const beginWatch = useCallback(() => {
-    if (!("geolocation" in navigator)) { setStatus({ text: "This browser can't report a location.", tone: "stop" }); return; }
-    if (!window.isSecureContext) { setStatus({ text: "Location needs a secure connection.", tone: "stop" }); return; }
-    setStatus({ text: "Acquiring signal…", tone: "warn" });
+    if (!("geolocation" in navigator)) { setStatus({ text: tr.browserCantReport, tone: "stop" }); return; }
+    if (!window.isSecureContext) { setStatus({ text: tr.needsSecureConnection, tone: "stop" }); return; }
+    setStatus({ text: tr.acquiringSignal, tone: "warn" });
     watchId.current = navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         setFix({ lat: latitude, lng: longitude, accuracy, at: pos.timestamp });
-        setStatus({ text: "Sharing", tone: "live" });
+        setStatus({ text: tr.sharing, tone: "live" });
         send(latitude, longitude, accuracy);
       },
       (err) => setStatus({
-        text: { 1: "Permission denied — allow location for this site.", 2: "No fix available.", 3: "Timed out waiting for a fix." }[err.code] || "Location error",
+        text: { 1: tr.permissionDenied, 2: tr.noFixAvailable, 3: tr.timedOutFix }[err.code] || tr.locationError,
         tone: "stop",
       }),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 },
@@ -884,7 +885,7 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
   useEffect(() => {
     if (!sharing) return undefined;
     const onVisibility = () => {
-      if (document.hidden) { stopWatch(); setStatus({ text: "Paused — page not in focus", tone: "warn" }); }
+      if (document.hidden) { stopWatch(); setStatus({ text: tr.pausedNotFocused, tone: "warn" }); }
       else if (watchId.current === null) beginWatch();
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -895,7 +896,7 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
   function start() { setSharing(true); beginWatch(); }
   function stop() {
     setSharing(false); stopWatch(); setFix(null);
-    setStatus({ text: "Not sharing", tone: "idle" });
+    setStatus({ text: tr.notSharing, tone: "idle" });
     onClear(meId);
   }
 

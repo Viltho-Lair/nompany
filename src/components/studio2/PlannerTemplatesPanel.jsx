@@ -124,11 +124,11 @@ export default function PlannerTemplatesPanel({ slug }) {
                   style={{ backgroundColor: t.accent }}
                 />
                 <span className="truncate font-display text-[13px] font-700 text-[var(--geex-ink)]">
-                  {t.name || "Untitled template"}
+                  {t.name || tr.untitledTemplate3}
                 </span>
               </div>
               <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[var(--geex-muted)]">
-                {t.description || "No description."}
+                {t.description || tr.noDescription3}
               </p>
 
               {canEdit &&

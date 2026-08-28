@@ -173,7 +173,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
       if (!by.has(sh.projectId)) {
         by.set(sh.projectId, {
           projectId: sh.projectId,
-          label: sh.projectNumber || sh.projectTitle || "Unnumbered",
+          label: sh.projectNumber || sh.projectTitle || tr.unnumbered,
           title: sh.projectTitle || "",
           sheets: [],
         });
@@ -264,7 +264,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
           {isInventory ? (
             <p className="max-w-sm text-center text-sm text-slate-500 dark:text-slate-400">
               Pick a project from the bar below. Main and Bulk appear as tabs at the top.
-              {sheets.length === 0 && " No projects have been signed yet — a project's sheets are drawn up when it is opened from an approved quotation."}
+              {sheets.length === 0 && ` ${tr.noProjectsSigned}`}
             </p>
           ) : (
             <p className={`${panel} text-sm text-slate-500`}>{tr.projectNoSheetYet}</p>
@@ -300,13 +300,13 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
         {!isInventory && <Link href={backHref} className={btnGhost}>{backLabel}</Link>}
         <div className="min-w-0">
           <p className="truncate font-display text-lg font-800 text-slate-900 dark:text-white">
-            {sheet.projectTitle || "Untitled"}
+            {sheet.projectTitle || tr.untitled}
             <span className="ms-2 rounded-full bg-brand-500/10 px-2 py-0.5 align-middle text-[11px] font-700 text-brand-700 dark:text-brand-300">
               {sheet.kind === "bulk" ? tr.bulk : tr.main}
             </span>
           </p>
           <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-            {sheet.projectNumber || "No project number yet"}
+            {sheet.projectNumber || tr.noProjectNumberYet}
             {sheet.quotationNumber ? ` · ${sheet.quotationNumber}` : ""}
             {sheet.clientName ? ` · ${sheet.clientName}` : ""}
           </p>
@@ -498,7 +498,7 @@ function SerialCell({ row, chosen, pool, changed, onEdit }) {
   return (
     <span ref={box}>
       <button type="button" onClick={open} aria-haspopup="dialog" aria-expanded={Boolean(at)}
-        title={chosen.length ? chosen.join(", ") : "Nothing allocated"}
+        title={chosen.length ? chosen.join(", ") : tr.nothingAllocated}
         className={`inline-flex w-24 items-center justify-between gap-1 rounded-lg border px-2 py-1 text-xs tabular-nums transition-colors ${
           changed ? "border-amber-400 bg-amber-50 dark:bg-amber-500/10"
             : full ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"

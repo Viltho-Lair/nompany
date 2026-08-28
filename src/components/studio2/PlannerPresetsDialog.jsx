@@ -72,7 +72,7 @@ export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, 
     >
       <div className="flex flex-col gap-8">
         <Section
-          heading="View defaults"
+          heading={tr.viewDefaultsHeading}
           hint={tr.howNewPlanOpens2}
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

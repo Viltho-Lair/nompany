@@ -37,6 +37,8 @@
 import { useMemo } from "react";
 import { DataGrid, gridClasses } from "@mui/x-data-grid";
 import { Icon } from "@/components/studio2/icons";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { miscDict } from "@/shared/studio/misc";
 import {
   GRID_HEADER_HEIGHT,
   GRID_ROW_HEIGHT,
@@ -44,7 +46,9 @@ import {
   gridHeight,
 } from "./StudioDataGrid.skeleton";
 
-const NoRows = ({ label = tr.nothingHereYet, icon = "list" }) => (
+// The label comes IN. This is a default-prop position, which runs at module
+// scope where there is no locale to read.
+const NoRows = ({ label, icon = "list" }) => (
   <div className="flex h-full flex-col items-center justify-center gap-3 px-6 py-10 text-center">
     <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-[var(--geex-faint)] dark:bg-white/5">
       <Icon name={icon} className="h-5 w-5" />
@@ -70,6 +74,7 @@ export default function StudioDataGrid({
   sx: sxOverride,
   ...rest
 }) {
+  const tr = miscDict(useStudioLocale());
   const sx = useMemo(
     () => ({
       // MUI's own grid variables, pointed at ours.
@@ -156,8 +161,8 @@ export default function StudioDataGrid({
   // new component type every render, so React unmounts and remounts the empty
   // state on each keystroke of a search box that feeds the grid.
   const slots = useMemo(
-    () => ({ noRowsOverlay: () => <NoRows label={emptyLabel} icon={emptyIcon} /> }),
-    [emptyLabel, emptyIcon],
+    () => ({ noRowsOverlay: () => <NoRows label={emptyLabel || tr.nothingHereYet} icon={emptyIcon} /> }),
+    [emptyLabel, emptyIcon, tr],
   );
 
   return (

@@ -42,7 +42,7 @@ const PO_STATUS_ORDER = ["Draft", "Ordered", "Partly received", "Received", "Can
 // PURE DERIVATION — no React, so what each widget shows can be read in one place
 // and reasoned about without the component around it. Everything is summed from
 // the rows the screen was handed; a client never tells us what a total is.
-function derive({ items, orders }) {
+function derive({ items, orders }, tr) {
   // The value on the shelf, and the value on the shelf broken down by who it was
   // bought from. Items with no vendor are gathered under one heading rather than
   // dropped, so the parts still add up to the whole.
@@ -110,7 +110,7 @@ export default function InventoryDashboard({
   currency = "",
 }) {
   const tr = inventoryDict(useStudioLocale());
-  const d = derive({ items, orders });
+  const d = derive({ items, orders }, tr);
   const visible = useWidgetVisible();
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
   const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;

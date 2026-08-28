@@ -49,7 +49,7 @@ function SupportTag({ project }) {
 // columns while that chunk arrives.
 const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioDataGrid"), {
   ssr: false,
-  loading: () => <StudioDataGridSkeleton columns={9} pageSize={10} ariaLabel="Loading projects" />,
+  loading: () => <StudioDataGridSkeleton columns={9} pageSize={10} />,
 });
 
 // `view` is the ACTIVE SUB-SECTION key, so each sub-section is its own screen:
@@ -517,7 +517,7 @@ function Slas({ slas, projects, canManage, onSave }) {
       )}
 
       {detail && (
-        <Dialog title={detail.title || "SLA contract"} description={`${projName(detail)} · signed ${slaDate(detail.signingDate)}`}
+        <Dialog title={detail.title || tr.slaContract} description={`${projName(detail)} · signed ${slaDate(detail.signingDate)}`}
           onClose={closeDetail} width="max-w-[620px]">
           <SlaVisits sla={detail} canManage={canManage} onSave={(patch) => onSave("PUT", { id: detail.id, ...patch })} onClose={closeDetail} />
         </Dialog>
@@ -654,7 +654,7 @@ function SlaVisits({ sla, canManage, onSave, onClose }) {
 
   function addEmergency() {
     setEmergencyError("");
-    if (!emergencyDate) return setEmergencyError("Pick a date first.");
+    if (!emergencyDate) return setEmergencyError(tr.pickDateFirst);
     if (emergency.length >= cap) return setEmergencyError(`This contract allows ${cap} emergency visit${cap === 1 ? "" : "s"}.`);
     if (end && new Date(emergencyDate) > end) return setEmergencyError(`Date must be on or before the contract end (${slaDate(end)}).`);
     if (sla.startDate && new Date(emergencyDate) < new Date(sla.startDate)) {
@@ -786,7 +786,7 @@ function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canMan
     const lines = [
       [tr.project, tr.total].map(esc).join(","),
       ...matrix.rows.map((r) => [r.name, ...matrix.cols.map((c) => matrix.at(r.id, c.id)), matrix.rowTotal(r.id)].map(esc).join(",")),
-      ["Total", ...matrix.cols.map((c) => matrix.colTotal(c.id)), matrix.grand].map(esc).join(","),
+      [tr.totalRow, ...matrix.cols.map((c) => matrix.colTotal(c.id)), matrix.grand].map(esc).join(","),
     ];
     const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
@@ -800,7 +800,7 @@ function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canMan
     <>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
-          {[["matrix", "Matrix"], ["list", "List"]].map(([k, lbl]) => (
+          {[["matrix", tr.viewMatrix], ["list", tr.viewList]].map(([k, lbl]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={`rounded-full px-4 py-1.5 text-sm font-600 transition-colors ${tab === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
               {lbl}

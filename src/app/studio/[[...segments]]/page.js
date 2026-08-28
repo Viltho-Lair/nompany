@@ -230,7 +230,7 @@ export default async function StudioPage({ params }) {
   if (requested === "documentation") {
     return (
       <FullScreen locale={locale}>
-        <StudioDocs studio={{ name: studio.name, slug: studio.slug }} />
+        <StudioDocs studio={{ name: studio.name, slug: studio.slug }} locale={locale} />
       </FullScreen>
     );
   }

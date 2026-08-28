@@ -17,11 +17,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Margins, PagePreset } from "@/lib/docs/page-presets";
 
-const SIDES: { key: keyof Margins; label: string }[] = [
-  { key: "topMm", label: "Top" },
-  { key: "bottomMm", label: "Bottom" },
-  { key: "leftMm", label: "Left" },
-  { key: "rightMm", label: "Right" },
+// A FUNCTION OF THE DICTIONARY — see band-dialog.
+const sidesFor = (tr: ReturnType<typeof qualityDict>): { key: keyof Margins; label: string }[] => [
+  { key: "topMm", label: tr.top },
+  { key: "bottomMm", label: tr.bottom2 },
+  { key: "leftMm", label: tr.left },
+  { key: "rightMm", label: tr.right2 },
 ];
 
 /** Custom margins, in millimetres, bounded so the body cannot vanish. */
@@ -64,7 +65,7 @@ export function MarginsDialog({
           }}
         >
           <div className="grid grid-cols-2 gap-4">
-            {SIDES.map(({ key, label }) => {
+            {sidesFor(tr).map(({ key, label }) => {
               const max =
                 key === "topMm" || key === "bottomMm"
                   ? maxVertical

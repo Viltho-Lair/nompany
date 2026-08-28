@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { boardDict } from "@/shared/studio/board";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useShallow } from "zustand/react/shallow";
@@ -58,6 +60,7 @@ const TaskCardShellInner = React.forwardRef<HTMLDivElement, ShellProps>(
     },
     ref,
   ) {
+    const tr = boardDict(useStudioLocale());
     const { done, total } = subtaskProgress(task);
     const priority = PRIORITY_META[task.priority];
 
@@ -106,7 +109,7 @@ const TaskCardShellInner = React.forwardRef<HTMLDivElement, ShellProps>(
               <button
                 type="button"
                 onClick={onEdit}
-                aria-label="Edit task"
+                aria-label={tr.editTask2}
                 className="grid size-6 place-items-center rounded-md text-muted-foreground transition-all duration-150 hover:bg-[hsl(var(--kb-accent)/0.7)] hover:text-foreground active:scale-90"
               >
                 <Pencil className="size-3.5" />
@@ -116,7 +119,7 @@ const TaskCardShellInner = React.forwardRef<HTMLDivElement, ShellProps>(
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    aria-label="Task options"
+                    aria-label={tr.taskOptions2}
                     className="grid size-6 place-items-center rounded-md text-muted-foreground transition-all duration-150 hover:bg-[hsl(var(--kb-accent)/0.7)] hover:text-foreground active:scale-90 data-[state=open]:bg-[hsl(var(--kb-accent)/0.7)]"
                   >
                     <MoreHorizontal className="size-3.5" />
@@ -185,7 +188,7 @@ const TaskCardShellInner = React.forwardRef<HTMLDivElement, ShellProps>(
             <MetaStat
               icon={AlignLeft}
               label=""
-              tooltip="Has a description"
+              tooltip={tr.hasDescription2}
               className="gap-0"
             />
           )}

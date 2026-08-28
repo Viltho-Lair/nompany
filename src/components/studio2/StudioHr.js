@@ -77,7 +77,7 @@ export default function StudioHr({ slug, view = "hr" }) {
         : out.error === "duplicate" ? tr.nameAlreadyUse
         : out.error === "in-use" ? inUseMessage(out)
         : out.error === "protected" ? tr.adminComesStudioCan
-        : out.error === "role-forbidden" ? roleForbiddenMessage(out)
+        : out.error === "role-forbidden" ? roleForbiddenMessage(out, tr)
         : out.error === "escalation" ? tr.canOnlyGiveSomebody
         : out.error === "department" ? tr.sectionIsnPartStudio
         : out.error === "overlap" ? `That overlaps leave already booked ${fmt(out.from)} – ${fmt(out.to)}.`
@@ -171,11 +171,12 @@ function inUseMessage(out) {
 
 // The two ways an access change is refused here, and they are different
 // problems: one is about handing access out, the other about taking it away.
-function roleForbiddenMessage(out) {
+// The dictionary comes in as an argument: module scope, no hook to read.
+function roleForbiddenMessage(out, tr) {
   const n = out.people || 0;
   return n > 0
-    ? `${n} ${n === 1 ? "person holds" : "people hold"} that role, so deleting it would take their access away — that's set on the access screen.`
-    : "Putting somebody in a role is an access change, and that's set on the access screen.";
+    ? tr.roleHeldBy(n)
+    : tr.roleIsAccessChange;
 }
 
 // ---- overview --------------------------------------------------------------
@@ -340,7 +341,7 @@ function Documents({ person, canManage }) {
   const tr = hrDict(useStudioLocale());
   const items = [
     { kind: "ID", has: person.hasId, number: person.idNumber, expiry: person.idExpiry },
-    { kind: "Passport", has: person.hasPassport, number: person.passportNumber, expiry: person.passportExpiry },
+    { kind: tr.passport, has: person.hasPassport, number: person.passportNumber, expiry: person.passportExpiry },
   ].filter((d) => d.has || d.expiry);
 
   if (items.length === 0) return <span className="text-xs text-slate-400">{tr.noDocumentsFile}</span>;

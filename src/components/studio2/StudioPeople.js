@@ -170,7 +170,7 @@ function RequestRow({ request, busy, onDecide }) {
     <li className="rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <p className="font-600 text-slate-900 dark:text-white">{request.fullName || "Someone"}</p>
+          <p className="font-600 text-slate-900 dark:text-white">{request.fullName || tr.someone2}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">{request.email}</p>
         </div>
         <span className="text-xs text-slate-400">asked {fmtDate(request.createdAt)}</span>
@@ -237,7 +237,7 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
         </span>
         <div>
           <p className="font-600 text-slate-900 dark:text-white">
-            {person.alias || "Unnamed member"} {isMe && <span className="text-xs font-400 text-slate-400">(you)</span>}
+            {person.alias || tr.unnamedMember2} {isMe && <span className="text-xs font-400 text-slate-400">{tr.you}</span>}
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             {isOwner ? tr.owner : isAdminNow ? tr.admin : held ? held.name : tr.noRole}
@@ -246,7 +246,7 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
                 +{person.overrideCount} exception{person.overrideCount === 1 ? "" : "s"}
               </span>
             )}
-            {" · joined "}{fmtDate(person.createdAt)}
+            {tr.joinedSuffix2}{fmtDate(person.createdAt)}
           </p>
         </div>
       </div>

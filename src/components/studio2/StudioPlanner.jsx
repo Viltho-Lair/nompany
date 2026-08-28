@@ -59,10 +59,10 @@ export function calendarFromWorkWeek(workWeek) {
 // The studio's collaborators, shaped into the planner's Resource. A task stores
 // only the collaborator id in assigneeIds; everything else here is presentation
 // rebuilt each load, so renaming a person in the studio updates the plan.
-export function peopleToResources(people) {
+export function peopleToResources(people, tr) {
   return (Array.isArray(people) ? people : []).map((p) => ({
     id: p.id,
-    name: p.name || "Unnamed",
+    name: p.name || tr.unnamed,
     initials: initialsOf(p.name || ""),
     role: p.role || "member",
     color: AVATAR_COLORS[hashInt(String(p.id)) % AVATAR_COLORS.length],
@@ -125,7 +125,7 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
         // the document and BEFORE hydratedRef flips — so, like the hydrate
         // itself, this initial fill never triggers a PUT. They are outside
         // planDoc anyway, so they never save.
-        setResources(peopleToResources(payload.people));
+        setResources(peopleToResources(payload.people, tr));
         // The working week is the studio's, applied over the hydrated plan and
         // before hydratedRef flips, so it never saves. A studio with no hours
         // set keeps the planner's own default week.
@@ -198,7 +198,7 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
 
         <div className="min-w-0">
           <p className="truncate text-[15px] font-semibold text-slate-900">
-            {planName || "Untitled plan"}
+            {planName || tr.untitledPlan2}
           </p>
         </div>
 

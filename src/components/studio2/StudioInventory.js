@@ -43,7 +43,7 @@ const num = (n) => new Intl.NumberFormat("en", { maximumFractionDigits: 3 }).for
 // skeleton reserves the seven-column box while that chunk arrives.
 const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioDataGrid"), {
   ssr: false,
-  loading: () => <StudioDataGridSkeleton columns={7} pageSize={10} ariaLabel="Loading items" />,
+  loading: () => <StudioDataGridSkeleton columns={7} pageSize={10} />,
 });
 
 export default function StudioInventory({ slug, view = "inventory" }) {
@@ -462,7 +462,7 @@ function Stock({ items, movements, canManage, busy, send }) {
     <>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
-          {[["onhand", "On hand"], ["movements", "Movements"]].map(([k, text]) => (
+          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab]].map(([k, text]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={`rounded-full px-4 py-1.5 text-sm font-600 transition-colors ${tab === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
               {text}
@@ -728,7 +728,7 @@ function Vendors({ rows, items, canManage, busy, send }) {
                 <div className="min-w-0">
                   <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{v.name}</h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {[v.contactName, v.email, v.phone].filter(Boolean).join(" · ") || "No contact details"}
+                    {[v.contactName, v.email, v.phone].filter(Boolean).join(" · ") || tr.noContactDetails}
                   </p>
                 </div>
                 {canManage && (
@@ -860,7 +860,7 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className={h2}>{tr.awbTracking}</h2>
-            <p className={sub}>Follow air freight by its waybill. Eleven digits: a 3-digit carrier prefix, a 7-digit serial and a check digit.</p>
+            <p className={sub}>{tr.awbLead}</p>
           </div>
           {canManage && <button className={btnGhost} onClick={() => setRegistry(true)}>{tr.airlineRegistry}</button>}
         </div>
@@ -885,7 +885,7 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
       </section>
 
       {registry && (
-        <Dialog title={tr.airlineRegistry} description="The 3-digit prefix on a waybill is what identifies its carrier." onClose={closeRegistry} width="max-w-[640px]">
+        <Dialog title={tr.airlineRegistry} description={tr.airlineRegistryHint} onClose={closeRegistry} width="max-w-[640px]">
           <Airlines rows={airlines} busy={busy} onCancel={closeRegistry}
             onSave={(method, payload) => send("awb/airlines", method, payload)} />
         </Dialog>
@@ -909,7 +909,7 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
             <table className="w-full min-w-[820px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10">
-                  {["AWB", "Carrier", "Route", "Pieces", "Status", "Last event"].map((head, i) => (
+                  {[tr.colAwb, tr.colCarrier, tr.colRoute, tr.colPieces, tr.colStatus, tr.colLastEvent].map((head, i) => (
                     <th key={head} className={`${th} ps-2 ${i === 3 ? "text-end" : "text-start"}`}>{head}</th>
                   ))}
                   <th className={`${th} text-end`} />
@@ -1005,7 +1005,7 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
             <Field label={tr.status} as="select" required value={code} onChange={(v) => setCode(v)}
               options={statuses.map((st) => ({ value: st.code, label: `${st.code} — ${st.label}` }))} />
             <Field label={<>{tr.when} <span className="font-400 normal-case text-slate-400">(now if blank)</span></>} type="datetime-local" value={at} onChange={(v) => setAt(v)} />
-            <Field label={tr.station} value={station} onChange={(v) => setStation(v.toUpperCase())} hint="3-letter airport code" />
+            <Field label={tr.station} value={station} onChange={(v) => setStation(v.toUpperCase())} hint={tr.airportCodeHint} />
             <Field label={tr.flight} value={flightNo} onChange={(v) => setFlightNo(v.toUpperCase())} hint={tr.airlineCodeNumber} />
             <Field label={tr.note} value={note} onChange={(v) => setNote(v)} className="sm:col-span-2" />
           </div>

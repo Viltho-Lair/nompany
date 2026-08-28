@@ -21,17 +21,28 @@ type Strings = CommonStrings & {
   addExpense: string;
   addLine: string;
   amount: string;
+  apAwaitingApproval: string;
+  apBilled: string;
+  apOutstanding: string;
+  apOverdue: string;
   approve: string;
   assetsCategory: string;
   averageAgeMoneyOwed: string;
   billDate: string;
   billWhatOweVendor: string;
+  billedOn: string;
   bookValue: string;
   cancel: string;
   cashOut12Months: string;
   category: string;
   client: string;
   close: string;
+  colAmount: string;
+  colCategory: string;
+  colDate: string;
+  colDescription: string;
+  colPaidBy: string;
+  colProject: string;
   collected: string;
   collectedInvoicedLast90: string;
   collectedMonth: string;
@@ -78,6 +89,7 @@ type Strings = CommonStrings & {
   loadingFinance: string;
   loadingFixedAssets: string;
   loadingInvoices: string;
+  loadingInvoicesAria: string;
   loadingInvoicesGrid: string;
   location: string;
   lossDisposal: string;
@@ -118,6 +130,7 @@ type Strings = CommonStrings & {
   newBill: string;
   newExpense: string;
   newInvoice: string;
+  noAccessThis: string;
   noAssetsService: string;
   noAssetsYet: string;
   noAssetsYet2: string;
@@ -136,6 +149,7 @@ type Strings = CommonStrings & {
   openProject: string;
   outstanding: string;
   outstandingDaysPastDue: string;
+  overdueSuffix2: string;
   owedVendors: string;
   paid: string;
   payablesAging: string;
@@ -177,7 +191,18 @@ type Strings = CommonStrings & {
   sumOutstanding: string;
   sumOverdue: string;
   targetEnd: string;
+  termNet0: string;
+  termNet02: string;
+  termNet15: string;
+  termNet152: string;
+  termNet30: string;
+  termNet302: string;
+  termNet60: string;
+  termNet602: string;
+  termOnReceipt: string;
+  termOnReceipt2: string;
   terms: string;
+  termsLabel: string;
   topDebtors: string;
   topVendorsOwed: string;
   total: string;
@@ -212,17 +237,28 @@ const en: Strings = {
   addExpense: "Add expense",
   addLine: "Add line",
   amount: "Amount",
+  apAwaitingApproval: "Awaiting approval",
+  apBilled: "Billed",
+  apOutstanding: "Outstanding",
+  apOverdue: "Overdue",
   approve: "Approve",
   assetsCategory: "Assets by category",
   averageAgeMoneyOwed: "Average age of money owed",
   billDate: "Bill date",
   billWhatOweVendor: "A bill is what you owe a vendor. Approving it, then recording payments against it, is what settles it.",
+  billedOn: "Billed",
   bookValue: "Book value",
   cancel: "Cancel",
   cashOut12Months: "Cash in and out, 12 months",
   category: "Category",
   client: "Client",
   close: "Close",
+  colAmount: "Amount",
+  colCategory: "Category",
+  colDate: "Date",
+  colDescription: "Description",
+  colPaidBy: "Paid by",
+  colProject: "Project",
   collected: "Collected",
   collectedInvoicedLast90: "Collected ÷ invoiced, last 90 days",
   collectedMonth: "Collected this month",
@@ -269,6 +305,7 @@ const en: Strings = {
   loadingFinance: "Loading Finance…",
   loadingFixedAssets: "Loading Fixed Assets…",
   loadingInvoices: "Loading invoices",
+  loadingInvoicesAria: "Loading invoices",
   loadingInvoicesGrid: "Loading invoices",
   location: "Location",
   lossDisposal: "Loss on disposal",
@@ -309,6 +346,7 @@ const en: Strings = {
   newBill: "New bill",
   newExpense: "New expense",
   newInvoice: "New invoice",
+  noAccessThis: "You don't have access to this in this studio.",
   noAssetsService: "No assets in service.",
   noAssetsYet: "No assets yet",
   noAssetsYet2: "No assets yet.",
@@ -327,6 +365,7 @@ const en: Strings = {
   openProject: "Open the project",
   outstanding: "Outstanding",
   outstandingDaysPastDue: "Outstanding by days past due",
+  overdueSuffix2: " · overdue",
   owedVendors: "Owed to vendors",
   paid: "Paid",
   payablesAging: "Payables aging",
@@ -368,7 +407,18 @@ const en: Strings = {
   sumOutstanding: "Outstanding",
   sumOverdue: "Overdue",
   targetEnd: "Target end",
+  termNet0: "Net 0",
+  termNet02: "Net 0",
+  termNet15: "Net 15",
+  termNet152: "Net 15",
+  termNet30: "Net 30",
+  termNet302: "Net 30",
+  termNet60: "Net 60",
+  termNet602: "Net 60",
+  termOnReceipt: "On receipt",
+  termOnReceipt2: "On receipt",
   terms: "Terms",
+  termsLabel: "terms",
   topDebtors: "Top debtors",
   topVendorsOwed: "Top vendors owed",
   total: "Total",
@@ -403,17 +453,28 @@ const ar: Strings = {
   addExpense: "إضافة مصروف",
   addLine: "إضافة سطر",
   amount: "المبلغ",
+  apAwaitingApproval: "بانتظار الاعتماد",
+  apBilled: "المفوتر علينا",
+  apOutstanding: "المستحق",
+  apOverdue: "المتأخر",
   approve: "اعتماد",
   assetsCategory: "الأصول حسب الفئة",
   averageAgeMoneyOwed: "متوسط عمر المبالغ المستحقة",
   billDate: "تاريخ الفاتورة",
   billWhatOweVendor: "فاتورة المورّد هي ما تدين به له. اعتمادها ثم تسجيل المدفوعات عليها هو ما يسوّيها.",
+  billedOn: "فُوترت في",
   bookValue: "القيمة الدفترية",
   cancel: "إلغاء",
   cashOut12Months: "الوارد والصادر النقدي، 12 شهرًا",
   category: "الفئة",
   client: "العميل",
   close: "إغلاق",
+  colAmount: "المبلغ",
+  colCategory: "الفئة",
+  colDate: "التاريخ",
+  colDescription: "الوصف",
+  colPaidBy: "دفعها",
+  colProject: "المشروع",
   collected: "المُحصَّل",
   collectedInvoicedLast90: "المُحصَّل ÷ المفوتر، آخر 90 يومًا",
   collectedMonth: "المُحصَّل هذا الشهر",
@@ -460,6 +521,7 @@ const ar: Strings = {
   loadingFinance: "جارٍ تحميل المالية…",
   loadingFixedAssets: "جارٍ تحميل الأصول الثابتة…",
   loadingInvoices: "جارٍ تحميل الفواتير",
+  loadingInvoicesAria: "جارٍ تحميل الفواتير",
   loadingInvoicesGrid: "جارٍ تحميل الفواتير",
   location: "الموقع",
   lossDisposal: "خسارة الاستبعاد",
@@ -500,6 +562,7 @@ const ar: Strings = {
   newBill: "فاتورة مورّد جديدة",
   newExpense: "مصروف جديد",
   newInvoice: "فاتورة جديدة",
+  noAccessThis: "لا تملك صلاحية الوصول إلى هذا في هذا الاستوديو.",
   noAssetsService: "لا توجد أصول قيد الخدمة.",
   noAssetsYet: "لا توجد أصول بعد",
   noAssetsYet2: "لا توجد أصول بعد.",
@@ -518,6 +581,7 @@ const ar: Strings = {
   openProject: "افتح المشروع",
   outstanding: "المستحق",
   outstandingDaysPastDue: "المستحق حسب أيام التأخر",
+  overdueSuffix2: " · متأخرة",
   owedVendors: "المستحق للموردين",
   paid: "المدفوع",
   payablesAging: "أعمار الذمم الدائنة",
@@ -559,7 +623,18 @@ const ar: Strings = {
   sumOutstanding: "المستحق",
   sumOverdue: "المتأخر",
   targetEnd: "النهاية المستهدفة",
+  termNet0: "صافي 0",
+  termNet02: "صافي 0",
+  termNet15: "صافي 15",
+  termNet152: "صافي 15",
+  termNet30: "صافي 30",
+  termNet302: "صافي 30",
+  termNet60: "صافي 60",
+  termNet602: "صافي 60",
+  termOnReceipt: "عند الاستلام",
+  termOnReceipt2: "عند الاستلام",
   terms: "الشروط",
+  termsLabel: "الشروط",
   topDebtors: "أكبر المدينين",
   topVendorsOwed: "أكبر الموردين المستحق لهم",
   total: "الإجمالي",

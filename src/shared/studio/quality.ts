@@ -15,6 +15,7 @@ type Strings = CommonStrings & {
   alignment: string;
   alreadyOpen: string;
   amber: string;
+  amber2: string;
   apply: string;
   approved: string;
   approver: string;
@@ -23,6 +24,7 @@ type Strings = CommonStrings & {
   backStudio: string;
   background: string;
   blue: string;
+  blue2: string;
   bold: string;
   borderColour: string;
   borderStyle: string;
@@ -65,7 +67,9 @@ type Strings = CommonStrings & {
   footer: string;
   forbidden: string;
   green: string;
+  green2: string;
   grey: string;
+  grey2: string;
   header: string;
   headerAndFooter: string;
   heading1: string;
@@ -86,6 +90,7 @@ type Strings = CommonStrings & {
   loading: string;
   loadingDocument: string;
   middle: string;
+  middle2: string;
   nameRoleDateRecorded: string;
   neverEdited: string;
   nextReview: string;
@@ -96,6 +101,7 @@ type Strings = CommonStrings & {
   noRevisionToMove: string;
   nobodyYet: string;
   none: string;
+  none2: string;
   noneLinkBoundOne: string;
   notAccessTheseDocuments: string;
   notIssuedShare: string;
@@ -128,6 +134,7 @@ type Strings = CommonStrings & {
   right2: string;
   rightLeft: string;
   rose: string;
+  rose2: string;
   rows: string;
   samePersonCantReview: string;
   sameSigner: string;
@@ -174,6 +181,7 @@ const en: Strings = {
   alignment: "Alignment",
   alreadyOpen: "A revision is already open on this document.",
   amber: "Amber",
+  amber2: "Amber",
   apply: "Apply",
   approved: "Approved",
   approver: "Approver",
@@ -182,6 +190,7 @@ const en: Strings = {
   backStudio: "Back to the studio",
   background: "Background",
   blue: "Blue",
+  blue2: "Blue",
   bold: "Bold",
   borderColour: "Border colour",
   borderStyle: "Border style",
@@ -224,7 +233,9 @@ const en: Strings = {
   footer: "Footer",
   forbidden: "You don't have permission to do that.",
   green: "Green",
+  green2: "Green",
   grey: "Grey",
+  grey2: "Grey",
   header: "Header",
   headerAndFooter: "Header & footer",
   heading1: "Heading 1",
@@ -245,6 +256,7 @@ const en: Strings = {
   loading: "Loading…",
   loadingDocument: "Loading document…",
   middle: "Middle",
+  middle2: "Middle",
   nameRoleDateRecorded: "Your name, role and the date are recorded either way. The image is decoration on top of that.",
   neverEdited: "Never edited",
   nextReview: "Next review",
@@ -255,6 +267,7 @@ const en: Strings = {
   noRevisionToMove: "There is no revision to move.",
   nobodyYet: "Nobody yet",
   none: "None",
+  none2: "None",
   noneLinkBoundOne: "None. A link is bound to one revision and always expires.",
   notAccessTheseDocuments: "You do not have access to these documents.",
   notIssuedShare: "Only an issued revision can be shared outside the studio.",
@@ -287,6 +300,7 @@ const en: Strings = {
   right2: "Right",
   rightLeft: "right to left",
   rose: "Rose",
+  rose2: "Rose",
   rows: "Rows",
   samePersonCantReview: "The same person can't review and approve one revision — that is what the two signatures are for.",
   sameSigner: "The same person can't review and approve one revision — that is what the two signatures are for.",
@@ -333,6 +347,7 @@ const ar: Strings = {
   alignment: "المحاذاة",
   alreadyOpen: "توجد مراجعة مفتوحة بالفعل على هذه الوثيقة.",
   amber: "كهرماني",
+  amber2: "كهرماني",
   apply: "تطبيق",
   approved: "معتمدة",
   approver: "المعتمد",
@@ -341,6 +356,7 @@ const ar: Strings = {
   backStudio: "العودة إلى الاستوديو",
   background: "الخلفية",
   blue: "أزرق",
+  blue2: "أزرق",
   bold: "عريض",
   borderColour: "لون الحد",
   borderStyle: "نمط الحد",
@@ -383,7 +399,9 @@ const ar: Strings = {
   footer: "التذييل",
   forbidden: "لا تملك صلاحية فعل ذلك.",
   green: "أخضر",
+  green2: "أخضر",
   grey: "رمادي",
+  grey2: "رمادي",
   header: "الترويسة",
   headerAndFooter: "الترويسة والتذييل",
   heading1: "عنوان 1",
@@ -404,6 +422,7 @@ const ar: Strings = {
   loading: "جارٍ التحميل…",
   loadingDocument: "جارٍ تحميل الوثيقة…",
   middle: "وسط",
+  middle2: "وسط",
   nameRoleDateRecorded: "يُسجَّل اسمك ودورك والتاريخ في الحالتين. والصورة زينة فوق ذلك.",
   neverEdited: "لم تُحرَّر قط",
   nextReview: "المراجعة التالية",
@@ -414,6 +433,7 @@ const ar: Strings = {
   noRevisionToMove: "لا توجد مراجعة لتحريكها.",
   nobodyYet: "لا أحد بعد",
   none: "لا شيء",
+  none2: "لا شيء",
   noneLinkBoundOne: "لا شيء. يرتبط الرابط بمراجعة واحدة وينتهي دائمًا.",
   notAccessTheseDocuments: "لا تملك صلاحية الوصول إلى هذه الوثائق.",
   notIssuedShare: "لا يمكن مشاركة مراجعة خارج الاستوديو إلا إذا كانت صادرة.",
@@ -446,6 +466,7 @@ const ar: Strings = {
   right2: "يمين",
   rightLeft: "من اليمين إلى اليسار",
   rose: "وردي",
+  rose2: "وردي",
   rows: "الصفوف",
   samePersonCantReview: "لا يمكن للشخص نفسه مراجعة واعتماد مراجعة واحدة — فذلك هو سبب وجود توقيعين.",
   sameSigner: "لا يمكن للشخص نفسه مراجعة واعتماد مراجعة واحدة — فذلك هو سبب وجود توقيعين.",

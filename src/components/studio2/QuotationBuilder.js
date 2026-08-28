@@ -148,7 +148,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
         </button>
         <div className="min-w-0">
           <p className="truncate font-display text-base font-700 text-slate-900 dark:text-white">
-            {quote.title || "Quotation"}
+            {quote.title || tr.quotationFallback}
           </p>
           <p className="truncate text-xs text-slate-500 dark:text-slate-400">
             <span className="font-mono">{quote.number}</span>

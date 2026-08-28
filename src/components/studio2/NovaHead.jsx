@@ -1,6 +1,9 @@
+"use client";
 
 import { useStudioLocale } from "@/components/studio2/locale";
-import { miscDict } from "@/shared/studio/misc";// NOVA'S HEAD, static. The landing mascot (components/landing/mascot) draws on
+import { miscDict } from "@/shared/studio/misc";
+
+// NOVA'S HEAD, static. The landing mascot (components/landing/mascot) draws on
 // motion/react, which the studio chunk is fenced from (Gate A), so this is the
 // same character — skull, visor, cyan eyes, antenna — as a plain SVG the studio
 // may use. Self-contained gradients with literal colours so it reads on any page

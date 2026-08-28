@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { useStudioLocale } from "@/components/studio2/locale";
 import { miscDict } from "@/shared/studio/misc";
 import { Icon } from "@/components/studio2/icons";
 
@@ -9,8 +8,8 @@ import { Icon } from "@/components/studio2/icons";
 //
 // Intentionally empty for now — the shell, the route and the way back exist so
 // articles can be dropped in without touching the studio chrome again.
-export default function StudioDocs({ studio }) {
-  const tr = miscDict(useStudioLocale());
+export default function StudioDocs({ studio, locale = "en" }) {
+  const tr = miscDict(locale);
   return (
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
       <header className="sticky top-0 z-20 border-b border-[var(--geex-border)] bg-[var(--geex-page)]">
