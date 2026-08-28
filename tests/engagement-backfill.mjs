@@ -43,6 +43,36 @@ export function testCluster() {
   assert.equal(d.ref, "ACME-001", "engagement takes the ticket ref");
 }
 
+// Task 3 (client-belongs-to-the-engagement) — THE LIVE BUG: an internal
+// quotation's clientId names a real client (createQuotation now stores
+// clientName as "" once the client is a real record — see technical.ts —
+// so the untranslated id was resolving to nothing). The orphan branch used to
+// read q.clientName only, never consulting clientById the way the ticket
+// branch does one loop up; that asymmetry is what left all six live
+// internal-quotation engagements with a blank client name. Pure, no Redis —
+// buildEngagements takes plain collections in and hands descriptors back.
+export function testOrphanClientLive() {
+  const collections = {
+    salesClients: [{ id: "c1", name: "Loose Industries" }],
+    // The live shape exactly: clientId set, clientName already blanked by
+    // createQuotation once a real Client row exists.
+    quotations: [{ id: "quo_orphan", clientId: "c1", clientName: "", title: "Internal deal" }],
+  };
+  const [d] = buildEngagements(collections);
+  assert.equal(d.context.clientId, "c1", "context carries the quotation's clientId");
+  assert.equal(d.context.clientName, "Loose Industries",
+    "context.clientName resolves through clientById, the same as the ticket branch — today it reads \"\"");
+
+  // The fallback still holds for free text that never became a record — no
+  // clientId, no matching row, nothing to resolve against.
+  const [freeText] = buildEngagements({
+    salesClients: [],
+    quotations: [{ id: "quo_freetext", clientName: "Typed Only" }],
+  });
+  assert.equal(freeText.context.clientName, "Typed Only",
+    "with no clientId at all, the stored clientName is still the fallback");
+}
+
 export async function testApplyAndRead() {
   const sid = `s_${Date.now().toString(36)}`;
   const [d] = buildEngagements({
@@ -302,8 +332,8 @@ export async function testVocabularyParity() {
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   (async () => {
-    for (const t of [testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity,
-                      testVocabularyParity]) {
+    for (const t of [testKeysAndDetId, testCluster, testOrphanClientLive, testApplyAndRead, testBackfillStudio,
+                      testParity, testVocabularyParity]) {
       await t();
       console.log(`ok ${t.name}`);
     }

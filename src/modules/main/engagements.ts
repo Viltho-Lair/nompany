@@ -18,6 +18,34 @@ import type { Refusal } from "@/platform/access";
 
 const PAGE = 25;
 
+// The clients collection is read ONCE per request and turned into an id->name
+// map, the same shape Sales' composeTicket builds (sales.ts:574) — never a
+// lookup per engagement. listEngagements pages up to 25 engagements; a
+// per-row read would be 25 extra Redis round trips for one field. The name is
+// resolved live, never trusted from the stored context, because a copied name
+// drifts the moment somebody renames the client — the same reason Sales
+// resolves it live in composeTicket rather than keeping the ticket's own
+// clientName.
+async function clientNameById(studioId: string): Promise<Record<string, string>> {
+  const section = await getSectionByKey(studioId, "sales-clients");
+  if (!section) return {};
+  const clients = await repo("salesClients").find(
+    { studio: { id: studioId }, section },
+  ) as Array<{ id: string; name?: string }>;
+  return Object.fromEntries(clients.map((c) => [c.id, c.name || ""]));
+}
+
+// One engagement's client name, live: the row's current name when clientId
+// names a real Client, else the stored fallback (free text that never became
+// a record).
+function resolveClientName(
+  context: { clientId?: unknown; clientName?: unknown },
+  nameById: Record<string, string>,
+): string {
+  const id = String(context.clientId || "");
+  return (id && nameById[id]) || String(context.clientName || "");
+}
+
 /** The minimal shape every caller here has in hand — studio id and the
  * resolved permission set. Deliberately not the full ModuleContext: engagements
  * is not a section (spec §3), so there is no department section to require. */
@@ -95,6 +123,9 @@ export async function listEngagements(
 
   const visible = new Set(visibleStageTypes(ctx.access));
   const ids = await zRange(ENG.index(ctx.studio.id), cursor, cursor + limit - 1, { rev: true });
+  // Read once for the whole page (up to PAGE=25 engagements below), not once
+  // per row — see clientNameById's own comment.
+  const nameById = await clientNameById(ctx.studio.id);
 
   const engagements: Array<{ id: string; ref: string; clientName: string; title: string; createdAt: string; stages: string[] }> = [];
   for (const engId of ids) {
@@ -110,7 +141,7 @@ export async function listEngagements(
       // Record<string, unknown> was hiding "this key does not exist here" from
       // tsc, so every row's Ref column read empty forever).
       ref: String(view.ref || ""),
-      clientName: String(view.context.clientName || ""),
+      clientName: resolveClientName(view.context, nameById),
       title: String(view.context.title || ""),
       createdAt: String(view.context.createdAt || ""),
       stages,
@@ -148,6 +179,9 @@ export async function engagementBlock(
     if (ids.length) Object.assign(card, await summarise(ctx, entry, ids));
     cards.push(card);
   }
+  // Live, not the stored copy — see clientNameById's comment. One lookup for
+  // the single engagement this block renders.
+  const nameById = await clientNameById(ctx.studio.id);
   return {
     engagement: {
       id: engId,
@@ -165,7 +199,7 @@ export async function engagementBlock(
       // Minimum disclosure is the default on this boundary: return only what
       // the screen actually renders.
       context: {
-        clientName: root.context.clientName ?? "",
+        clientName: resolveClientName(root.context, nameById),
         title: root.context.title ?? "",
       },
       status: statusOf(cards),

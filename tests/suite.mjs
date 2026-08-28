@@ -42,7 +42,7 @@ import { listForCollaborator, NOTIFY } from "@/platform/notify/notifications";
 import { TASK_TYPE_AUTHORITIES } from "@/modules/tasks/taskRouting";
 import {
   salesContext, createService, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
-  submitTicketPo,
+  submitTicketPo, editClient,
 } from "@/modules/sales/sales";
 import { resolveClientFor, normaliseClientName, clientSlug } from "@/modules/sales/salesClients";
 import { projectsContext, openProject, listProjects } from "@/modules/projects/projects";
@@ -113,7 +113,7 @@ import {
 // test functions, run explicitly further down through the same try/catch
 // adapter (node:assert throws are not this file's ok() shape).
 import {
-  testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity,
+  testKeysAndDetId, testCluster, testOrphanClientLive, testApplyAndRead, testBackfillStudio, testParity,
   testVocabularyParity,
 } from "./engagement-backfill.mjs";
 // PHASE 1b-i DUAL-WRITE: createTicket mints the engagement layer as a
@@ -716,6 +716,26 @@ console.log("\n== the handler is carried, never copied");
     cardsByType.bill?.present === false && cardsByType.bill?.count === 0
     && cardsByType.asset?.present === false && cardsByType.asset?.count === 0,
     JSON.stringify({ bill: cardsByType.bill, asset: cardsByType.asset }));
+
+  // ---- Task 3 (client-belongs-to-the-engagement): the client's name is
+  // resolved LIVE at read time, never from a copy on the engagement root.
+  // Rename the Client record, with NO engagement write in between, and
+  // prove both readers see the NEW name — the property that a write-time
+  // copy would fail silently (the stored clientName would just go stale,
+  // and nothing here would notice unless it were asserted this way).
+  const renamed = await editClient(sales, made.ticket.clientId, { name: "Acme Renamed" });
+  ok("the client record itself is renamed", renamed.client?.name === "Acme Renamed",
+    JSON.stringify(renamed.error || renamed));
+
+  const listAfterRename = await listEngagements({ studio, access: ownerAccess });
+  const engRowRenamed = listAfterRename.engagements?.find((e) => e.id === engId);
+  ok("listEngagements reports the client's CURRENT name after the rename, no engagement write in between",
+    engRowRenamed?.clientName === "Acme Renamed", JSON.stringify(engRowRenamed));
+
+  const blockAfterRename = await engagementBlock({ studio, access: ownerAccess }, engId);
+  ok("engagementBlock reports the current name too — read-time resolution, not a write-time copy",
+    blockAfterRename.engagement?.context?.clientName === "Acme Renamed",
+    JSON.stringify(blockAfterRename.engagement?.context));
 
   // ---- the safety property ---------------------------------------------------
   // A collaborator holding engagements.view and a Sales right, but explicitly
@@ -3642,8 +3662,8 @@ console.log("\n== engagement foundations (Phase 0)");
 // ============================================================================
 console.log("\n== engagement backfill (Phase 1a)");
 {
-  for (const t of [testKeysAndDetId, testCluster, testApplyAndRead, testBackfillStudio, testParity,
-                    testVocabularyParity]) {
+  for (const t of [testKeysAndDetId, testCluster, testOrphanClientLive, testApplyAndRead, testBackfillStudio,
+                    testParity, testVocabularyParity]) {
     try {
       await t();
       ok(t.name, true);

@@ -76,9 +76,20 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
   for (const q of c.quotations || []) {
     if (q.ticketId) continue;
     const engId = deterministicEngId("quotation", q.id as string);
+    // Same resolution as the ticket branch above: prefer the live Client row
+    // over whatever was typed at the time, falling back to the stored name
+    // only when there is no row (free text that never became a record). The
+    // two branches used to read asymmetrically — this one trusted q.clientName
+    // alone and never consulted clientById — which is why every internal
+    // quotation's engagement carried a blank client name: createQuotation
+    // stores clientName as "" once a real Client record exists (see
+    // technical.ts createQuotation), so the untranslated clientId here always
+    // resolved to nothing.
+    const orphanClient = clientById.get(q.clientId as string);
     out.push({
       engId, ref: (q.number as string) || "",
-      context: { clientId: (q.clientId as string) || null, clientName: (q.clientName as string) || "",
+      context: { clientId: (q.clientId as string) || null,
+                 clientName: orphanClient ? (orphanClient.name as string) : (q.clientName as string) || "",
                  industry: (q.industry as string) || "", title: (q.title as string) || "", deadline: (q.deadline as string) || "",
                  contact: {}, site: {},
                  // Same reasoning as the ticket-headed branch above: the deal
