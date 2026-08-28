@@ -122,11 +122,6 @@ type Strings = CommonStrings & {
   withoutProgramming: string;
   saveTicket: string;
 
-  servicesTitle: string;
-  servicesLead: string;
-  noServicesYet: string;
-  serviceNamePlaceholder: string;
-  addService: string;
   vocabularyTitle: string;
   vocabularyLead: string;
   citiesTitle: string;
@@ -249,17 +244,11 @@ const en: Strings = {
   locationHeading: "Location",
   servicesHeading: "Type of services *",
   noServicesForTicket:
-    "No services in the catalogue yet. Add them in Sales → Settings before raising a ticket.",
+    "No service actions yet. Add them in Studio Settings → Service Actions before raising a ticket.",
   withoutInstallation: "Without installation",
   withoutProgramming: "Without programming",
   saveTicket: "Save ticket",
 
-  servicesTitle: "Services",
-  servicesLead:
-    "The catalogue a ticket picks from. Each service gets its own serviceId, and one that a ticket still references cannot be deleted.",
-  noServicesYet: "No services yet — a ticket needs at least one, so add them here first.",
-  serviceNamePlaceholder: "Service name",
-  addService: "Add service",
   vocabularyTitle: "Vocabulary",
   vocabularyLead:
     "Suggestions offered on the ticket form. They are hints, not a closed list — anything can still be typed.",
@@ -405,17 +394,11 @@ const ar: Strings = {
   locationHeading: "الموقع",
   servicesHeading: "نوع الخدمات *",
   noServicesForTicket:
-    "لا توجد خدمات في الكتالوج بعد. أضِفها من المبيعات ← الإعدادات قبل رفع تذكرة.",
+    "لا توجد إجراءات خدمة بعد. أضِفها من إعدادات الاستوديو ← إجراءات الخدمة قبل رفع تذكرة.",
   withoutInstallation: "بدون تركيب",
   withoutProgramming: "بدون برمجة",
   saveTicket: "حفظ التذكرة",
 
-  servicesTitle: "الخدمات",
-  servicesLead:
-    "الكتالوج الذي تختار منه التذكرة. لكل خدمة معرّف خاص بها، والخدمة التي لا تزال تذكرة تشير إليها لا يمكن حذفها.",
-  noServicesYet: "لا توجد خدمات بعد — التذكرة تحتاج إلى واحدة على الأقل، فأضِفها هنا أولًا.",
-  serviceNamePlaceholder: "اسم الخدمة",
-  addService: "إضافة خدمة",
   vocabularyTitle: "المفردات",
   vocabularyLead:
     "اقتراحات تُعرض في نموذج التذكرة. هي تلميحات وليست قائمة مغلقة — يمكن كتابة أي شيء آخر.",
