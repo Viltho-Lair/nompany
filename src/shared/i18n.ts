@@ -2,7 +2,7 @@
 // caller that has always imported them from i18n still can. The split is about
 // what travels with what: this file holds both dictionaries, and a client
 // component that only wants `dirFor` should not carry them.
-export { locales, defaultLocale, dirFor, isLocale, studioLocale } from "./locale";
+export { locales, defaultLocale, dirFor, isLocale, studioLocale, preferredLocale, UI_LANG_COOKIE, LANGUAGE_NAMES, LANGUAGE_SHORT } from "./locale";
 export type { Locale } from "./locale";
 
 import { isLocale } from "./locale";
@@ -84,6 +84,34 @@ const dictionaries = {
       message: "The page you're looking for doesn't exist or has moved. Let's get you back on track.",
       backHome: "Back to home",
       goBack: "Go back",
+    },
+    // THE ONE-TIME SURVEY between verifying and reaching the account. Its own
+    // section rather than words borrowed from `apply`, because it is a gate
+    // everybody passes through exactly once and the tone is different: this is
+    // the product asking, not the visitor applying.
+    //
+    // WHAT IS NOT HERE: the questions. They come from the questionnaire builder
+    // in /super, so they are authored content, not copy — the same reason a
+    // studio's section names are never translated. An Arabic reader gets an
+    // Arabic frame around whatever the builder was written in.
+    questionnaire: {
+      title: "Questionnaire",
+      lead: "Don't worry, it won't take long.",
+      signedIn: "Signed in",
+      freePackage: "Free",
+      empty: "This questionnaire has no questions yet.",
+      saving: "Saving…",
+      submit: "Complete and continue",
+      needsAnswers: "Answer the required questions to continue.",
+      answered: "Answered — carry on to the next page.",
+      saveFailed: "We couldn't save your answers. Try again.",
+      genericError: "Something went wrong. Try again.",
+      prevPage: "Previous page",
+      nextPage: "Next page",
+      tellUs: "Tell us",
+      search: "Search",
+      whichOne: "Which one?",
+      noMatches: "Nothing matches",
     },
     auth: {
       emailLabel: "Work email",
@@ -248,6 +276,25 @@ const dictionaries = {
       message: "الصفحة التي تبحث عنها غير موجودة أو تم نقلها. لنُعِدك إلى المسار الصحيح.",
       backHome: "العودة للرئيسية",
       goBack: "رجوع",
+    },
+    questionnaire: {
+      title: "الاستبيان",
+      lead: "لا تقلق، لن يستغرق وقتًا طويلًا.",
+      signedIn: "تم تسجيل الدخول",
+      freePackage: "مجاني",
+      empty: "لا توجد أسئلة في هذا الاستبيان بعد.",
+      saving: "جارٍ الحفظ…",
+      submit: "إكمال ومتابعة",
+      needsAnswers: "أجب عن الأسئلة المطلوبة للمتابعة.",
+      answered: "تمت الإجابة — تابع إلى الصفحة التالية.",
+      saveFailed: "تعذّر حفظ إجاباتك. حاول مرة أخرى.",
+      genericError: "حدث خطأ ما. حاول مرة أخرى.",
+      prevPage: "الصفحة السابقة",
+      nextPage: "الصفحة التالية",
+      tellUs: "أخبرنا",
+      search: "بحث",
+      whichOne: "أيّها؟",
+      noMatches: "لا شيء يطابق",
     },
     auth: {
       emailLabel: "بريد العمل",

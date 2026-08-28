@@ -23,6 +23,7 @@ Three rules that keep this folder worth reading:
 | File | Covers |
 |---|---|
 | [engagements.md](engagements.md) | The deal: one engagement, its stages, its client, lock and delete |
+| [language.md](language.md) | EN/AR and RTL: what decides which language, where the buttons are, what is translated |
 
 *(Files are written as each area is next touched, not all at once — an unwritten file is
 better than a stale one. Add the row when you add the file.)*

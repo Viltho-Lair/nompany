@@ -6,8 +6,11 @@ import NovaLauncher from "@/components/studio2/NovaLauncher";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { dirFor } from "@/shared/locale";
+import { dirFor, locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
+import { shellDict } from "@/shared/studio/shell";
+import LangMenu from "@/components/LangMenu";
 // LOADED ONLY BY THE STUDIOS THAT NEED IT. The RTL cache pulls in
 // stylis-plugin-rtl and a second Emotion cache; imported eagerly it landed
 // in the shared chunk, so every English studio paid 5 KB for mirroring it
@@ -126,9 +129,17 @@ function PlanTag({ color, label, children }) {
 }
 
 export default function StudioFrame({
-  studio, me, sections, activeKey, chat = null, locale = "en", analytics = null, novaEnabled = false, children,
+  studio, me, sections, activeKey, chat = null, locale = "en",
+  analytics = null, novaEnabled = false, children,
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  // The shell's own words. Imported rather than passed down as a prop: it is a
+  // few hundred bytes, it is needed on literally every studio render, and a
+  // prop would put it in the RSC payload of every navigation instead. See the
+  // header of shared/studio/shell for why each surface's dictionary is its own
+  // module.
+  const t = shellDict(locale);
   // The header avatar is the ACCOUNT, not the studio membership: `me` carries a
   // studio-local alias and role, but the picture belongs to the person and lives
   // on their profile, so it comes from the identity endpoint like it does in the
@@ -156,7 +167,9 @@ export default function StudioFrame({
 
   async function signOut() {
     try { await fetch("/api/identity/logout", { method: "POST" }); } catch { /* sign out locally anyway */ }
-    window.location.assign("/en/login");
+    // Signing out of an Arabic studio landed on the English login screen. The
+    // login page IS locale-addressed, so send them to their own.
+    window.location.assign(`/${locale}/login`);
   }
 
   // Nav tree. A section with `parentId` is a sub-section; its parent renders as
@@ -191,9 +204,9 @@ export default function StudioFrame({
     // Placed above People (design §3): engagements.view is a right on its own,
     // held by any role — not an admin-only screen — so it sits with the other
     // non-section destinations rather than gated behind canAdminister.
-    { href: `/${studio.slug}/engagements`, key: "engagements", label: "Engagements", show: me.canSeeEngagements },
-    { href: `/${studio.slug}/people`, key: "people", label: me.canAdminister ? "People & requests" : "People", show: true },
-    { href: `/${studio.slug}/access`, key: "access", label: "Access", show: me.canAdminister },
+    { href: `/${studio.slug}/engagements`, key: "engagements", label: t.engagements, show: me.canSeeEngagements },
+    { href: `/${studio.slug}/people`, key: "people", label: me.canAdminister ? t.peopleAndRequests : t.people, show: true },
+    { href: `/${studio.slug}/access`, key: "access", label: t.access, show: me.canAdminister },
   ].filter((i) => i.show);
 
   const activeLabel =
@@ -230,7 +243,7 @@ export default function StudioFrame({
             type="button"
             onClick={() => toggleGroup(node.key)}
             aria-expanded={shown}
-            aria-label={`${shown ? "Collapse" : "Expand"} ${node.name}`}
+            aria-label={`${shown ? t.collapse : t.expand} ${node.name}`}
             className="shrink-0 rounded-md p-2 hover:bg-black/5 dark:hover:bg-white/10"
           >
             <Icon
@@ -286,13 +299,13 @@ export default function StudioFrame({
               otherwise, so the tags are never absent — a studio always has a
               plan, and showing it here is how anyone inside knows which. */}
           <span className="mt-1.5 flex flex-wrap items-center gap-1">
-            <PlanTag color={studio.packageColor} label={`Package: ${studio.packageName}`}>{studio.packageName}</PlanTag>
-            <PlanTag color={studio.tierColor} label={`Tier: ${studio.tierName}`}>{studio.tierName}</PlanTag>
+            <PlanTag color={studio.packageColor} label={`${t.packageLabel}: ${studio.packageName}`}>{studio.packageName}</PlanTag>
+            <PlanTag color={studio.tierColor} label={`${t.tierLabel}: ${studio.tierName}`}>{studio.tierName}</PlanTag>
           </span>
         </span>
       </Link>
 
-      <nav aria-label="Departments" className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
+      <nav aria-label={t.departments} className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
         {tree.map((node) => navGroup(node))}
 
         {admin.length > 0 && (
@@ -310,7 +323,7 @@ export default function StudioFrame({
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
         >
           <Icon name="services" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
-          Documentation
+          {t.documentation}
         </Link>
         {/* This slot used to hold "My account". The account is the PERSON and
             belongs with the header avatar, which now carries it; the sidebar
@@ -325,7 +338,7 @@ export default function StudioFrame({
           }`}
         >
           <Icon name="gears" className={`h-[18px] w-[18px] ${activeKey === "studio-settings" ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"}`} />
-          Studio settings
+          {t.studioSettings}
         </Link>
       </div>
     </div>
@@ -364,7 +377,7 @@ export default function StudioFrame({
       href="#studio-main"
       className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-brand-700 focus:px-4 focus:py-2 focus:font-display focus:text-sm focus:font-600 focus:text-white focus:shadow-geex focus-visible:ring-2 focus-visible:ring-brand-500/50"
     >
-      Skip to content
+      {t.skipToContent}
     </a>
     {/* MUI DOES NOT FOLLOW `dir`, so it gets its own cache when the tenant is
         Arabic — see MuiRtlProvider. Everything hand-written above mirrors from
@@ -381,8 +394,8 @@ export default function StudioFrame({
 
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <button type="button" aria-label="Close menu" className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
-          <aside aria-label="Menu" className="absolute inset-y-0 start-0 w-64 bg-[var(--geex-surface)] shadow-xl">{sidebar}</aside>
+          <button type="button" aria-label={t.closeMenu} className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
+          <aside aria-label={t.departments} className="absolute inset-y-0 start-0 w-64 bg-[var(--geex-surface)] shadow-xl">{sidebar}</aside>
         </div>
       )}
 
@@ -392,7 +405,7 @@ export default function StudioFrame({
             <button
               onClick={() => setOpen(true)}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-300 lg:hidden"
-              aria-label="Open menu"
+              aria-label={t.openMenu}
             >
               <Icon name="menu" />
             </button>
@@ -402,16 +415,42 @@ export default function StudioFrame({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* THE PERSON'S LANGUAGE, beside the theme control because it is the
+                same kind of choice: mine, about how I read this, not about what
+                the studio holds.
+
+                The studio's own setting still exists and is still admin-only —
+                it is what a new colleague gets before they have chosen. This is
+                the override, and it is the same LangMenu the public header and
+                the account hub use, so the control does not change shape when
+                somebody walks from one surface into the other.
+
+                A button rather than a link: there is no locale in a studio's
+                address to navigate to. LangMenu writes the cookie; the refresh
+                re-renders the shell server-side, which is what swaps `dir` and
+                re-mirrors the whole layout in one paint. */}
+            <LangMenu
+              current={locale}
+              label={t.language}
+              align="end"
+              triggerClass="inline-flex h-9 items-center gap-1.5 rounded-full border border-current/20 px-3 text-xs font-600 text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-300 dark:hover:text-white"
+              options={locales.map((code) => ({
+                code,
+                label: LANGUAGE_NAMES[code],
+                short: LANGUAGE_SHORT[code],
+                onSelect: () => router.refresh(),
+              }))}
+            />
             {/* Light / Dark / Device — writes the same `theme` cookie and `.dark`
                 class the public site uses, so the Studio follows the choice
                 everywhere and the no-flash script picks it up on next load. */}
-            <ThemeToggle labels={{ theme: "Theme", light: "Light", dark: "Dark", system: "Device" }} />
+            <ThemeToggle labels={{ theme: t.theme, light: t.themeLight, dark: t.themeDark, system: t.themeSystem }} />
             {/* Beside the theme toggle rather than in the sidebar: it belongs
                 with the other things that are about YOU here, not with the
                 studio's sections. */}
-            <NotificationBell slug={studio.slug} />
+            <NotificationBell slug={studio.slug} locale={locale} />
             <span className="hidden text-sm text-slate-500 dark:text-slate-400 sm:inline">
-              {me.alias || "Member"}
+              {me.alias || t.member}
               <span className="ms-2 rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">
                 {me.role}
               </span>
@@ -426,7 +465,7 @@ export default function StudioFrame({
                 aria-haspopup="menu"
                 aria-expanded={accountOpen}
                 className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-950 font-display text-sm font-700 text-white shadow-geex-sm transition-shadow hover:ring-2 hover:ring-brand-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:bg-brand-500/20 dark:text-brand-300"
-                title={me.alias ? `${me.alias} — my account` : "My account"}
+                title={me.alias ? `${me.alias} — ${t.myAccount}` : t.myAccount}
               >
                 {account?.photo
                   /* A stored data URI, so next/image would only get in the way. */
@@ -438,16 +477,20 @@ export default function StudioFrame({
               {accountOpen && (
                 <div role="menu" className="absolute end-0 z-50 mt-2 w-56 overflow-hidden rounded-geex bg-[var(--geex-surface)] py-1 shadow-geex">
                   <p className="truncate px-3 py-2 text-xs text-slate-400 dark:text-slate-500">
-                    {account?.email || me.alias || "Signed in"}
+                    {account?.email || me.alias || t.signedIn}
                   </p>
+                  {/* THE ACCOUNT HUB HAS A LOCALE IN ITS ADDRESS and the studio
+                      does not, so leaving this at /en/account sent an Arabic
+                      studio's members to an English page — the one place in the
+                      product where the language silently changed under them. */}
                   <Link
-                    href="/en/account"
+                    href={`/${locale}/account`}
                     role="menuitem"
                     onClick={() => setAccountOpen(false)}
                     className="flex items-center gap-2.5 px-3 py-2 text-sm font-500 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"
                   >
                     <Icon name="person" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
-                    Go to account
+                    {t.goToAccount}
                   </Link>
                   <button
                     type="button"
@@ -456,7 +499,7 @@ export default function StudioFrame({
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-start text-sm font-500 text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
                   >
                     <Icon name="lock" className="h-[18px] w-[18px]" />
-                    Sign out
+                    {t.signOut}
                   </button>
                 </div>
               )}
@@ -475,7 +518,7 @@ export default function StudioFrame({
         enabled={Boolean(chat?.enabled)}
         slug={studio.slug}
         studioName={studio.name}
-        userName={chat?.userName || me.alias || "You"}
+        userName={chat?.userName || me.alias || t.you}
         unlimited={chat?.unlimited !== false}
         allowed={chat?.allowed || 0}
         used={chat?.used || 0}

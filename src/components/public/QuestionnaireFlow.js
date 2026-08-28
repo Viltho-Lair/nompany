@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Combo from "@/components/studio2/Combo";
+import LangMenu from "@/components/LangMenu";
+import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import { AiAssistant } from "@/components/landing/mascot/AiAssistant";
 import { PointerProvider } from "@/components/landing/providers/PointerProvider";
 import { LogoMark, Wordmark } from "@/components/landing/Logo";
@@ -70,7 +72,11 @@ function optionsFor(question, answers) {
 const nameToCode = (name) =>
   COUNTRIES.find((c) => c.name === name)?.code || "";
 
-export default function QuestionnaireFlow({ locale, initialPackage = "", email = "", pages = [], questionnaireId = "" }) {
+export default function QuestionnaireFlow({ locale, dict, initialPackage = "", email = "", pages = [], questionnaireId = "" }) {
+  // The survey's own frame, in the reader's language. The QUESTIONS are not
+  // here and never will be: they are authored in /super's questionnaire
+  // builder, which makes them content rather than copy.
+  const t = dict.questionnaire;
   const [page, setPage] = useState(0);
   // The furthest page reached, so a page with nothing mandatory on it counts
   // once it has actually been shown rather than from the moment the survey
@@ -100,7 +106,7 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
   if (!current) {
     return (
       <div className="landing-page flex h-screen items-center justify-center px-6 text-center">
-        <p className="text-sm text-fg-muted">This questionnaire has no questions yet.</p>
+        <p className="text-sm text-fg-muted">{t.empty}</p>
       </div>
     );
   }
@@ -120,9 +126,9 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
         body: JSON.stringify({ ...answers, erps, packageKey: initialPackage }),
       });
       if (res.ok) { window.location.assign(`/${locale}/account`); return; }
-      setError("We couldn't save your answers. Try again.");
+      setError(t.saveFailed);
     } catch {
-      setError("Something went wrong. Try again.");
+      setError(t.genericError);
     }
     setSaving(false);
   }
@@ -148,16 +154,39 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
           {/* On narrow screens the title drops below the logo row rather than
               fighting it for width. */}
           <div className="order-last col-span-2 text-center lg:order-none lg:col-span-1">
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-fg sm:text-3xl">Questionnaire</h1>
-            <p className="mt-1 text-sm text-fg-muted">Don&apos;t worry, it won&apos;t take long.</p>
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-fg sm:text-3xl">{t.title}</h1>
+            <p className="mt-1 text-sm text-fg-muted">{t.lead}</p>
           </div>
 
-          <div className="justify-self-end text-end">
-            <p className="max-w-[46vw] truncate text-sm font-500 text-fg sm:max-w-none">{email || "Signed in"}</p>
-            <p className="mt-0.5 text-xs text-fg-muted">
-              {/* Everyone starts on Free unless they arrived from a paid plan. */}
-              {packageLabel(initialPackage, locale) || "Free"}
-            </p>
+          <div className="flex items-center justify-end gap-3 justify-self-end">
+            {/* THE LAST SCREEN BEFORE THE ACCOUNT, and until now the only one on
+                the whole locale-addressed side of the product with no way to
+                change language. Somebody who registered in English and would
+                rather answer in Arabic had to guess at the URL.
+
+                It keeps the current sub-path the way the auth screens' switch
+                does — there is only one, /questionnaire — and LangMenu records
+                the choice, so the studio on the far side of this gate opens in
+                the language the survey was answered in. */}
+            <LangMenu
+              current={locale}
+              label={dict.common.language}
+              align="end"
+              triggerClass="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] text-fg-muted transition-colors hover:border-iris hover:text-fg"
+              options={locales.map((code) => ({
+                code,
+                label: LANGUAGE_NAMES[code],
+                short: LANGUAGE_SHORT[code],
+                href: `/${code}/questionnaire`,
+              }))}
+            />
+            <div className="min-w-0 text-end">
+              <p className="max-w-[46vw] truncate text-sm font-500 text-fg sm:max-w-none">{email || t.signedIn}</p>
+              <p className="mt-0.5 text-xs text-fg-muted">
+                {/* Everyone starts on Free unless they arrived from a paid plan. */}
+                {packageLabel(initialPackage, locale) || t.freePackage}
+              </p>
+            </div>
           </div>
         </header>
 
@@ -176,7 +205,7 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
             <div className="card mt-4 min-h-0 flex-1 overflow-y-auto">
               <div className="space-y-5">
                 {current.questions.map((q) => (
-                  <Question key={q.id} question={q} answers={answers} set={set} />
+                  <Question key={q.id} question={q} answers={answers} set={set} labels={t} />
                 ))}
               </div>
             </div>
@@ -190,13 +219,11 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
             <div className="mt-4 flex h-11 shrink-0 items-center justify-center">
               {last && canAdvance ? (
                 <button type="button" onClick={submit} disabled={saving} className="btn-primary disabled:opacity-60">
-                  {saving ? "Saving…" : "Complete and continue"}
+                  {saving ? t.saving : t.submit}
                 </button>
               ) : (
                 <p className="text-xs text-fg-dim">
-                  {!canAdvance
-                    ? "Answer the required questions to continue."
-                    : "Answered — carry on to the next page."}
+                  {!canAdvance ? t.needsAnswers : t.answered}
                 </p>
               )}
             </div>
@@ -209,7 +236,7 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
         <footer className="shrink-0 px-5 pb-6 sm:px-8">
           <p className="text-center text-xs text-fg-dim">Average completion time: {AVERAGE_MINUTES} mins~</p>
           <div className="mx-auto mt-2 flex w-full max-w-xl items-center gap-2">
-            <Arrow dir="prev" disabled={first} onClick={() => setPage((p) => Math.max(0, p - 1))} />
+            <Arrow dir="prev" disabled={first} onClick={() => setPage((p) => Math.max(0, p - 1))} labels={t} />
             <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-line-soft">
               <div className="h-full rounded-full bg-gradient-to-r from-iris to-violet transition-[width] duration-500"
                 style={{ width: `${pct}%` }} />
@@ -217,7 +244,7 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
             {/* Forward is earned: the page you are on has to be answered before
                 it opens. Back is always free — checking what you put earlier is
                 not a reason to be trapped. */}
-            <Arrow dir="next" disabled={last || !canAdvance} onClick={goNext} />
+            <Arrow dir="next" disabled={last || !canAdvance} onClick={goNext} labels={t} />
           </div>
           <p className="mt-1.5 text-center text-[11px] text-fg-dim">Page {page + 1} of {total}</p>
         </footer>
@@ -229,14 +256,14 @@ export default function QuestionnaireFlow({ locale, initialPackage = "", email =
 // ---- the arrows either side of the bar --------------------------------------
 // Disabled at each end rather than hidden, so the control keeps its shape and
 // the bar never shifts sideways between pages.
-function Arrow({ dir, disabled, onClick }) {
+function Arrow({ dir, disabled, onClick, labels }) {
   const back = dir === "prev";
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={back ? "Previous page" : "Next page"}
+      aria-label={back ? labels.prevPage : labels.nextPage}
       className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-fg-muted transition-colors hover:border-iris hover:text-fg disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-line disabled:hover:text-fg-muted"
     >
       <svg viewBox="0 0 24 24" className={`h-4 w-4 ${back ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -268,7 +295,7 @@ function NovaCorner({ hint }) {
 }
 
 // ---- one question ------------------------------------------------------------
-function Question({ question, answers, set }) {
+function Question({ question, answers, set, labels }) {
   const options = useMemo(() => optionsFor(question, answers), [question, answers]);
   const key = fieldOf(question);
   const value = answers[key];
@@ -319,7 +346,7 @@ function Question({ question, answers, set }) {
             autoFocus
             value={value === OTHER_SENTINEL ? "" : value || ""}
             onChange={(e) => set({ [key]: e.target.value || OTHER_SENTINEL })}
-            placeholder="Tell us"
+            placeholder={labels.tellUs}
             className={`${FIELD} mt-3`}
           />
         )}
@@ -347,7 +374,7 @@ function Question({ question, answers, set }) {
   }
 
   if (question.type === "multiple-choice" && question.multiple) {
-    return <MultiSelect question={question} options={options} answers={answers} set={set} />;
+    return <MultiSelect question={question} options={options} answers={answers} set={set} labels={labels} />;
   }
   if (["short-text", "email", "long-text", "number", "date", "website", "phone"].includes(question.type)) {
     const Tag = question.type === "long-text" ? "textarea" : "input";
@@ -388,7 +415,7 @@ function Field({ question, children }) {
 // ---- multi-select with a search box ------------------------------------------
 // "None" is exclusive: choosing it clears the rest, and choosing anything else
 // clears it. Saying you run no ERP and then naming one is not an answer.
-function MultiSelect({ question, options, answers, set }) {
+function MultiSelect({ question, options, answers, set, labels }) {
   const [query, setQuery] = useState("");
   const key = fieldOf(question);
   const picked = Array.isArray(answers[key]) ? answers[key] : [];
@@ -421,7 +448,7 @@ function MultiSelect({ question, options, answers, set }) {
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search"
+        placeholder={labels.search}
         className={FIELD}
       />
       <div className="mt-3 flex flex-wrap gap-2">
@@ -441,14 +468,14 @@ function MultiSelect({ question, options, answers, set }) {
             </button>
           );
         })}
-        {shown.length === 0 && <p className="text-sm text-fg-dim">Nothing matches “{query}”.</p>}
+        {shown.length === 0 && <p className="text-sm text-fg-dim">{labels.noMatches} “{query}”.</p>}
       </div>
 
       {otherOn && (
         <input
           value={answers.otherErp || ""}
           onChange={(e) => set({ otherErp: e.target.value })}
-          placeholder="Which one?"
+          placeholder={labels.whichOne}
           className={`${FIELD} mt-3`}
         />
       )}

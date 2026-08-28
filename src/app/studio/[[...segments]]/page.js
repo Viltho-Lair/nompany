@@ -5,7 +5,7 @@
 // this, and the fix is the import, never the export: renaming the config would
 // silently make the studio statically rendered.
 import nextDynamic from "next/dynamic";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
@@ -15,7 +15,8 @@ import { listSections } from "@/platform/db/sections";
 import { getProfile } from "@/platform/auth/users";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
 import { chatDisplayName } from "@/lib/chatConstants";
-import { studioLocale } from "@/shared/i18n";
+import { studioLocale, preferredLocale, dirFor, UI_LANG_COOKIE } from "@/shared/i18n";
+import { shellDict } from "@/shared/studio/shell";
 import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
 import StudioFrame from "@/components/studio2/StudioFrame";
 import LiveProvider from "@/components/studio2/LiveProvider";
@@ -140,14 +141,24 @@ export const metadata = { title: "Studio", robots: { index: false, follow: false
 // person, default-deny, so a member only ever sees what they were granted.
 export default async function StudioPage({ params }) {
   const slug = (await headers()).get("x-studio-slug") || "";
+  // READ ONCE. The screens that fire before a studio is resolved — you are
+  // not a member of this one — still have to be in the reader's language,
+  // and they have no tenant default to fall back to. Everything below that
+  // does have one reuses this value rather than reading the jar again.
+  const uiLang = (await cookies()).get(UI_LANG_COOKIE)?.value;
   if (!slug) notFound();
 
   const user = await currentUser();
-  if (!user) redirect(`/en/login`);
+  // BOTH DESTINATIONS ARE LOCALE-ADDRESSED and both were pinned to /en, so an
+  // Arabic reader bounced out of a studio landed on an English login and an
+  // English survey. There is no studio record to consult on either path — the
+  // person is not signed in, or has not finished registering — so the cookie is
+  // the only thing that knows, and it is exactly what it is for.
+  if (!user) redirect(`/${preferredLocale(uiLang)}/login`);
   // Same gate as the account hub, checked BEFORE membership: someone who has
   // not answered the survey has no business inside a studio either, and this
   // way the studio's own 404-for-non-members never fires first and hides why.
-  if (await needsQuestionnaire(user.id)) redirect(`/en/questionnaire`);
+  if (await needsQuestionnaire(user.id)) redirect(`/${preferredLocale(uiLang)}/questionnaire`);
 
   const context = await studioContext(user, slug);
   // THESE TWO ARE NOT THE SAME SCREEN, and the comment that used to sit here
@@ -159,7 +170,7 @@ export default async function StudioPage({ params }) {
   // secret. The contents are: no row, no name, no count, no section reaches
   // anyone who is not a collaborator.
   if (context.error) {
-    if (context.error === "forbidden") return <NotAMember slug={slug} />;
+    if (context.error === "forbidden") return <NotAMember slug={slug} locale={preferredLocale(uiLang)} />;
     notFound();
   }
 
@@ -405,11 +416,24 @@ export default async function StudioPage({ params }) {
   // sub-section). A distinct key means this screen can never shadow one.
   const isSettings = requested === "studio-settings";
 
+  // WHICH LANGUAGE THIS PERSON READS THE SHELL IN.
+  //
+  // The studio's own setting is the default — it is what the company was set up
+  // in — and a cookie the person set from the header menu overrides it. Resolved
+  // HERE, on the server, so `lang`/`dir` and the dictionary all ship in the
+  // first byte of HTML: a shell that mirrored itself after paint would flash the
+  // whole layout the wrong way round on every load.
+  //
+  // Costs no Redis hop: the studio record is already in hand and the cookie
+  // rides in on the request. See preferredLocale in shared/locale for why this
+  // is a cookie and not a field on the collaborator.
+  const locale = preferredLocale(uiLang, studioLocale(studio));
+
   // Admin-only screens.
   if (isAccess && !admin) {
     return (
       <Denied studio={studio} sections={sections} me={collaborator} admin={admin}
-        canSeeEngagements={can(access, "engagements.view")} what="manage access" />
+        canSeeEngagements={can(access, "engagements.view")} locale={locale} />
     );
   }
 
@@ -443,10 +467,10 @@ export default async function StudioPage({ params }) {
     sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),
     activeKey: isPeople ? "people" : isAccess ? "access" : isSettings ? "studio-settings" : (active?.key || ""),
     chat,
-    // THE TENANT'S LANGUAGE, not the visitor's and not the URL's — a studio's
-    // address is its slug, so there is nowhere in it to put a locale. See
-    // studioLocale in shared/i18n for why it is one setting per company.
-    locale: studioLocale(studio),
+    // NOT THE URL'S — a studio's address is its slug, so there is nowhere in it
+    // to put a locale. The tenant's setting, overridden by this person's own
+    // choice; resolved above.
+    locale,
     // The studio's dashboard entitlement, resolved once here (the shell already
     // reads the plan for the package/tier tags), so dashboards can gate paid
     // components without a per-request read that would add a Redis hop. The tier
@@ -473,8 +497,8 @@ export default async function StudioPage({ params }) {
              is now a role here and an assignment on People. */
           <StudioRoles slug={studio.slug} />
         )
-        : isSettings ? <StudioSettings slug={studio.slug} />
-        : deniedSection ? <NoSectionAccess />
+        : isSettings ? <StudioSettings slug={studio.slug} locale={locale} />
+        : deniedSection ? <NoSectionAccess locale={locale} />
         : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} />
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
         : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
@@ -491,7 +515,7 @@ export default async function StudioPage({ params }) {
         : active ? <SectionDashboard section={active} studio={studio}
             subsections={sections.filter((s) => s.parentId === active.id)}
             canManage={sectionManageable(access, active.key, sections.map((x) => x.key))} />
-        : <NothingGranted admin={admin} slug={studio.slug} />}
+        : <NothingGranted admin={admin} slug={studio.slug} locale={locale} />}
     </StudioFrame>
   );
 }
@@ -521,58 +545,64 @@ function SectionDashboard({ section, studio, subsections = [], canManage }) {
   );
 }
 
-function NoSectionAccess() {
+function NoSectionAccess({ locale = "en" }) {
+  const t = shellDict(locale);
   return (
     <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
-      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">You don't have access to that section</h2>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Ask an admin of this studio to grant it to you.</p>
+      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.noSectionAccess}</h2>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.noSectionAccessBody}</p>
     </div>
   );
 }
 
-function NothingGranted({ admin, slug }) {
+function NothingGranted({ admin, slug, locale = "en" }) {
+  const t = shellDict(locale);
   return (
     <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
-      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">Nothing has been shared with you yet</h2>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-        You're a member of this studio, but no sections have been granted to you. An admin can do that from
-        {admin ? " " : " the "}Access.
-      </p>
+      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.nothingGranted}</h2>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.nothingGrantedBody}</p>
       {admin && (
         <Link href={`/${slug}/access`} className="mt-5 inline-block rounded-full bg-brand-700 px-5 py-2.5 font-display text-sm font-600 text-white hover:bg-brand-950">
-          Open Access
+          {t.openAccess}
         </Link>
       )}
     </div>
   );
 }
 
-function Denied({ studio, sections, me, admin, canSeeEngagements = false, what }) {
+function Denied({ studio, sections, me, admin, canSeeEngagements = false, locale = "en" }) {
+  const t = shellDict(locale);
   return (
     <StudioFrame
       studio={{ name: studio.name, slug: studio.slug }}
       me={{ alias: me.alias || "", role: me.role, canAdminister: admin, canSeeEngagements }}
       sections={sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled }))}
       activeKey=""
+      locale={locale}
     >
       <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
-        <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">Admins only</h2>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">You need to be an admin of this studio to {what}.</p>
+        <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.adminsOnly}</h2>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.deniedAccessBody}</p>
       </div>
     </StudioFrame>
   );
 }
 
-function NotAMember({ slug }) {
+function NotAMember({ slug, locale = "en" }) {
+  const t = shellDict(locale);
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--geex-page)] px-5">
+    /* THIS SCREEN CARRIES ITS OWN lang/dir. Everything else in the studio
+       inherits them from StudioFrame, and this is the one screen that
+       renders outside it — a non-member has no shell. Without them an
+       Arabic reader got mirrored copy in a left-to-right box. */
+    <main lang={locale} dir={dirFor(locale)} className="flex min-h-screen items-center justify-center bg-[var(--geex-page)] px-5">
       <div className="max-w-md rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
-        <h1 className="font-display text-xl font-800 text-slate-900 dark:text-white">You're not in this studio</h1>
+        <h1 className="font-display text-xl font-800 text-slate-900 dark:text-white">{t.notAMember}</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Ask an admin of <span className="font-mono">{slug}</span> to approve your request, then try again.
+          {t.notAMemberBefore}<span className="font-mono">{slug}</span>{t.notAMemberAfter}
         </p>
-        <Link href="/en/account" className="mt-5 inline-block rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white hover:bg-brand-700">
-          Back to your account
+        <Link href={`/${locale}/account`} className="mt-5 inline-block rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white hover:bg-brand-700">
+          {t.backToAccount}
         </Link>
       </div>
     </main>

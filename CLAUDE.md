@@ -221,8 +221,12 @@ mode binds to the existing `.dark` class via `colorSchemeSelector: "class"`. Pre
 `className` over `sx`.
 
 Bilingual EN/AR: use logical properties (`ps-`/`pe-`/`ms-`/`me-`/`border-s-`).
-**MUI mirrors now.** A studio's language is a field on the tenant's record
-(`studioLocale`), the SHELL declares `lang`/`dir` rather than `<html>` — the root
+**Which language you get is ranked, and `docs/functionality/language.md` is the file:**
+the URL wins where there is one (`/en/…`, `/ar/…`), otherwise the person's own choice
+(the `lang` cookie, written by every `LangMenu` in the product), otherwise the studio's
+setting. `studioLocale` is the tenant's DEFAULT, not a ceiling — it used to be both, and
+the studio was the one surface where nobody could pick their own language.
+**MUI mirrors now.** The SHELL declares `lang`/`dir` rather than `<html>` — the root
 layout never touches the database, so it cannot know a tenant's language — and an
 Arabic studio nests `MuiRtlProvider`: a second Emotion cache keyed `muirtl`, with
 `stylisPlugins: [prefixer, rtlPlugin]` and `enableCssLayer` still on, loaded through
@@ -236,7 +240,7 @@ Two traps, both paid for once: a rule anchored to `html[dir="rtl"]` never fires 
 and hands back the module object where a bundler takes `module` and hands back the
 function.
 
-Dates render through `fmtDate`/`fmtDateTime` in `src/lib/format.js`, which resolves the
+Dates render through `fmtDate`/`fmtDateTime` in `src/lib/format.ts`, which resolves the
 studio locale (`en-GB` default → **dd/mm/yyyy**). Never `toLocaleDateString()` at a call
 site; roughly a dozen such calls survive and are being converged.
 

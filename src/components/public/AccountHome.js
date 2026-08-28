@@ -9,6 +9,7 @@ import PasswordInput from "@/components/public/PasswordInput";
 import { PASSWORD_RULES, checkPassword } from "@/platform/auth/passwordPolicy";
 import { parsePhone } from "@/shared/countries";
 import LangMenu from "@/components/LangMenu";
+import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import ThemeToggle from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { NOVA_PROVIDERS, providerMeta } from "@/lib/nova/providers";
@@ -100,10 +101,12 @@ export default function AccountHome({ locale, chrome }) {
   const collabs = studios.collaborations || [];
   const signOut = async () => { await fetch("/api/identity/logout", { method: "POST" }); window.location.assign(`/${locale}/login`); };
 
-  const langOptions = [
-    { code: "en", label: "English", short: "EN", href: "/en/account" },
-    { code: "ar", label: "العربية", short: "AR", href: "/ar/account" },
-  ];
+  const langOptions = locales.map((code) => ({
+    code,
+    label: LANGUAGE_NAMES[code],
+    short: LANGUAGE_SHORT[code],
+    href: `/${code}/account`,
+  }));
 
   return (
     <div className={PAGE} onClick={() => menuOpen && setMenuOpen(false)}>

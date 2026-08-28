@@ -4,6 +4,7 @@ import { getQuestionnaire } from "@/platform/auth/users";
 import { isPackageKey, QUESTION_PAGES, REGISTRATION_NAME, REGISTRATION_ROUTE } from "@/lib/questionnaire";
 import { ensureQuestionnaireForRoute } from "@/lib/data/questionnaires";
 import QuestionnaireFlow from "@/components/public/QuestionnaireFlow";
+import { getDict } from "@/shared/i18n";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Set up your account", robots: { index: false, follow: false } };
@@ -34,6 +35,10 @@ export default async function QuestionnairePage({ params, searchParams }) {
   return (
     <QuestionnaireFlow
       locale={locale}
+      // Resolved on the server like every other locale-addressed page, so the
+      // survey's frame is in the right language before the first paint and the
+      // dictionaries never reach the client bundle.
+      dict={getDict(locale)}
       email={user.email}
       pages={pages}
       questionnaireId={def?.id || ""}

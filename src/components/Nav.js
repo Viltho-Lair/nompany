@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 import LangMenu from "@/components/LangMenu";
+import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import AccountMenu from "@/components/AccountMenu";
 import Skeleton from "@/components/Skeleton";
 import { track, pageLabelFromPath } from "@/lib/track";
@@ -66,10 +67,12 @@ export default function Nav({ locale, dict }) {
   // Language options preserve the current sub-path and just swap the locale
   // segment. Each label is shown in its own script; English is the default.
   const rest = pathname.replace(/^\/(en|ar)/, "") || "";
-  const langOptions = [
-    { code: "en", label: "English", short: "EN", href: `/en${rest}` },
-    { code: "ar", label: "العربية", short: "AR", href: `/ar${rest}` },
-  ];
+  const langOptions = locales.map((code) => ({
+    code,
+    label: LANGUAGE_NAMES[code],
+    short: LANGUAGE_SHORT[code],
+    href: `/${code}${rest}`,
+  }));
 
   const themeLabels = {
     theme: dict.common.theme,

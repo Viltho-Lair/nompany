@@ -1,21 +1,31 @@
 "use client";
 
 import { CURRENCIES_FROM_EXCHANGE_API, searchCurrencies, currency as currencyOf, fmtRate } from "@/shared/currencies";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
 import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 import Combo from "@/components/studio2/Combo";
 import { COUNTRIES } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
-import { locales } from "@/shared/locale";
+import { locales, LANGUAGE_NAMES } from "@/shared/locale";
+import { settingsDict } from "@/shared/studio/settings";
 import { fmtDate } from "@/lib/format";
 import { Field } from "@/components/fields/Field";
 import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 
-// EACH NAMED IN ITSELF. A picker that says "Arabic" to somebody looking for
-// العربية is a picker they have to already read English to use.
-const LANGUAGE_NAMES = { en: "English", ar: "العربية" };
+// THE SCREEN'S WORDS, HANDED DOWN RATHER THAN THREADED.
+//
+// Eleven components in this file need them — every dialog, every row, the
+// countdown — and none of them need anything else from their parent. Passing
+// a `t` prop through all eleven would be eleven signatures changed to carry
+// one value that never varies within a render, and the next dialog added here
+// would be the one somebody forgets. A context is the shape of the fact: one
+// value, set once at the top, read wherever it is wanted.
+// English is the default so a component rendered outside the provider — in a
+// test, say — still has words rather than crashing on undefined.
+const T = createContext(settingsDict("en"));
+const useT = () => useContext(T);
 
 // Studio settings — the studio's own identity, reached from the sidebar where
 // "My account" used to sit. The account itself is still one click away, behind
@@ -38,25 +48,32 @@ const BTN_GHOST = "rounded-full border border-slate-200 px-4 py-2 font-display t
 const INPUT = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white";
 // The currencies a studio is likely to price in. Free text is still allowed —
 // the list is a shortcut, not a restriction.
-const DAYS = [["mon", "Monday"], ["tue", "Tuesday"], ["wed", "Wednesday"], ["thu", "Thursday"], ["fri", "Friday"], ["sat", "Saturday"], ["sun", "Sunday"]];
-const DEFAULT_HOURS = Object.fromEntries(DAYS.map(([d]) => [d, { open: !["fri", "sat"].includes(d), from: "09:00", to: "17:00" }]));
+// KEYS ONLY. The day NAMES moved into the dictionary — they are the one part
+// of a working week that is language and not data, and a list of pairs here
+// meant the Arabic week could only ever have been a second list beside it.
+const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DEFAULT_HOURS = Object.fromEntries(DAYS.map((d) => [d, { open: !["fri", "sat"].includes(d), from: "09:00", to: "17:00" }]));
 // citiesFor keys on the ISO code while the stored answer is a country NAME.
 const codeOf = (name) => COUNTRIES.find((c) => c.name === name)?.code || "";
-const hoursSummary = (h) => {
-  if (!h) return "Not set";
-  const open = DAYS.filter(([d]) => h[d]?.open);
-  if (open.length === 0) return "Closed every day";
-  const [, first] = open[0];
-  const same = open.every(([d]) => h[d].from === h[open[0][0]].from && h[d].to === h[open[0][0]].to);
-  const span = h[open[0][0]];
+const hoursSummary = (h, t) => {
+  if (!h) return t.hoursNotSet;
+  const open = DAYS.filter((d) => h[d]?.open);
+  if (open.length === 0) return t.hoursClosedAll;
+  const first = open[0];
+  const same = open.every((d) => h[d].from === h[first].from && h[d].to === h[first].to);
+  const span = h[first];
   return same
-    ? `${open.length} day${open.length === 1 ? "" : "s"} · ${span.from}–${span.to}`
-    : `${open.length} days · varies`;
+    ? `${t.days(open.length)} · ${span.from}–${span.to}`
+    : `${t.days(open.length)} · ${t.hoursVaries}`;
 };
 
 const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
 
-export default function StudioSettings({ slug }) {
+export default function StudioSettings({ slug, locale = "en" }) {
+  // Resolved on the server and handed down with the rest of the screen's
+  // props, so Settings opens in the reader's language on its first paint
+  // rather than after a swap.
+  const t = settingsDict(locale);
   const [studio, setStudio] = useState(null);
   const [canManage, setCanManage] = useState(false);
   const [fx, setFx] = useState(null);
@@ -88,20 +105,21 @@ export default function StudioSettings({ slug }) {
     const res = await fetch(`/api/studios/${slug}/settings`, {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
     });
-    if (!res.ok) { setError("That didn't save."); return false; }
+    if (!res.ok) { setError(t.saveFailed); return false; }
     await load();
     return true;
-  }, [slug, load]);
+  }, [slug, load, t]);
 
-  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">Loading settings…</p>;
-  if (!studio) return <p className={BANNER_BAD}>We couldn&apos;t load this studio&apos;s settings.</p>;
+  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">{t.loading}</p>;
+  if (!studio) return <p className={BANNER_BAD}>{t.loadFailed}</p>;
 
   return (
+    <T.Provider value={t}>
     <div className="mx-auto w-full max-w-[640px] py-2">
-      <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">Studio settings</h2>
+      <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">{t.title}</h2>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-        How {studio.name} appears to everyone working in it.
-        {!canManage && " Only an admin can change these."}
+        {t.intro(studio.name)}
+        {!canManage && t.adminOnly}
       </p>
 
       {error && <p className={`${BANNER_BAD} mt-4`}>{error}</p>}
@@ -121,11 +139,9 @@ export default function StudioSettings({ slug }) {
             <Icon name="gallery" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
           </span>
           <span className="flex min-w-0 flex-1 flex-col justify-center">
-            <span className={ROW_LABEL}>Studio logo</span>
+            <span className={ROW_LABEL}>{t.logo}</span>
             <span className={ROW_VALUE}>
-              {studio.logo
-                ? "Shown at the top of this studio, and on its card in every member's account"
-                : "Using the nompany mark — the default for a new studio"}
+              {studio.logo ? t.logoSet : t.logoDefault}
             </span>
           </span>
           {/* A tile, not a circle: this is a company's mark and it is shown
@@ -145,22 +161,22 @@ export default function StudioSettings({ slug }) {
             ticket starts from, so they are the studio's default location and
             not merely a description of it. */}
         <EditRow
-          icon="locations" label="Country" value={studio.country} canManage={canManage}
+          icon="locations" label={t.country} value={studio.country} canManage={canManage}
           onSave={(v) => save({ country: v, ...(v !== studio.country ? { city: "" } : {}) })}
           render={(draft, set) => (
             <Combo value={draft} onChange={set} options={COUNTRIES.map((c) => c.name)} inputClassName={INPUT} />
           )}
         />
         <EditRow
-          icon="locations" label="City" value={studio.city} canManage={canManage}
-          hint={studio.country ? "" : "Choose a country first."}
+          icon="locations" label={t.city} value={studio.city} canManage={canManage}
+          hint={studio.country ? "" : t.cityNeedsCountry}
           onSave={(v) => save({ city: v })}
           render={(draft, set) => (
             <Combo value={draft} onChange={set} options={citiesFor(codeOf(studio.country))} inputClassName={INPUT} />
           )}
         />
         <EditRow
-          icon="location" label="Location" value={studio.location} canManage={canManage}
+          icon="location" label={t.location} value={studio.location} canManage={canManage}
           onSave={(v) => save({ location: v })}
           render={(draft, set) => (
             <input className={INPUT} value={draft} onChange={(e) => set(e.target.value)} />
@@ -168,18 +184,18 @@ export default function StudioSettings({ slug }) {
         />
 
         <EditRow
-          icon="cash" label="Currency" canManage={canManage}
+          icon="cash" label={t.currency} canManage={canManage}
           value={studio.currency
             ? <span className="inline-flex items-center gap-2"><CurrencySymbol code={studio.currency} /> {studio.currency}</span>
             : ""}
-          hint="Not set — amounts show without one."
+          hint={t.currencyUnset}
           onSave={(v) => save({ currency: v })}
           render={(draft, set) => (
             /* The full ExchangeRate-API list, the same vocabulary the
                favourites are picked from — and a real select, because a
                free-typed currency is one nothing can be priced against. */
             <select className={INPUT} value={draft} onChange={(e) => set(e.target.value)}>
-              <option value="">— not set —</option>
+              <option value="">{t.currencyNone}</option>
               {CURRENCIES_FROM_EXCHANGE_API.map((c) => (
                 <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
               ))}
@@ -188,17 +204,20 @@ export default function StudioSettings({ slug }) {
         />
 
         <EditRow
-          icon="globe" label="Language" canManage={canManage}
+          icon="globe" label={t.language} canManage={canManage}
           value={LANGUAGE_NAMES[studio.language] || LANGUAGE_NAMES.en}
-          hint="Everyone in this studio reads it in this language."
+          hint={t.languageHint}
           onSave={(v) => save({ language: v })}
           render={(draft, set) => (
-            /* ONE LANGUAGE PER COMPANY, not per person. A studio's records, its
-               documents and its vocabulary are shared, and half a studio in
-               Arabic is a studio whose people cannot read each other's work.
-               Changing it also flips the layout — see the note on lang/dir in
-               StudioFrame — so it sits behind the same right as everything else
-               on this screen. */
+            /* THE STUDIO'S DEFAULT, NOT A CEILING. This sets the language a
+               colleague reads the studio in before they have chosen one of
+               their own; the header's language menu is the override, and it
+               belongs to the person rather than to the company (see
+               preferredLocale in shared/locale).
+
+               It stays admin-only because it is still a decision ABOUT the
+               studio — it is what everyone who never opens the menu will see,
+               which for most people is everyone. */
             <select className={INPUT} value={draft || "en"} onChange={(e) => set(e.target.value)}>
               {locales.map((code) => (
                 <option key={code} value={code}>{LANGUAGE_NAMES[code]}</option>
@@ -215,8 +234,8 @@ export default function StudioSettings({ slug }) {
             <Icon name="overtime" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
           </span>
           <span className="flex min-w-0 flex-1 flex-col justify-center">
-            <span className={ROW_LABEL}>Working hours</span>
-            <span className={ROW_VALUE}>{hoursSummary(studio.workingHours)}</span>
+            <span className={ROW_LABEL}>{t.workingHours}</span>
+            <span className={ROW_VALUE}>{hoursSummary(studio.workingHours, t)}</span>
           </span>
           {canManage && <Icon name="chevronRight" className="ms-auto h-5 w-5 shrink-0 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />}
         </button>
@@ -246,34 +265,28 @@ export default function StudioSettings({ slug }) {
           describe. Owner only, and reversible for thirty days. */}
       {isOwner && (
         <div className="mt-8 rounded-geex border border-rose-200 p-5 dark:border-rose-500/30">
-          <h3 className="font-display text-base font-700 text-rose-700 dark:text-rose-300">Delete this studio</h3>
+          <h3 className="font-display text-base font-700 text-rose-700 dark:text-rose-300">{t.deleteHeading}</h3>
           {studio.deletionRequestedAt ? (
             <>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                Scheduled for deletion. Everything keeps working until then, and cancelling
-                undoes it completely.
-              </p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{t.deleteScheduled}</p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <Countdown until={studio.deletionFinalisesAt} />
                 <button
                   className={BTN}
                   onClick={() => save({ requestDeletion: false })}
                 >
-                  Cancel deletion
+                  {t.cancelDeletion}
                 </button>
               </div>
             </>
           ) : (
             <>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                Deleting {studio.name} removes it for everyone in it, along with every
-                section, ticket and record inside.
-              </p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{t.deleteLead(studio.name)}</p>
               <button
                 className="mt-3 rounded-full bg-rose-600 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-rose-700"
                 onClick={() => setConfirmDelete(true)}
               >
-                Delete studio
+                {t.deleteStudio}
               </button>
             </>
           )}
@@ -306,12 +319,14 @@ export default function StudioSettings({ slug }) {
         />
       )}
     </div>
+    </T.Provider>
   );
 }
 
 // How long is left, counted down live. A date alone ("3 September") makes
 // somebody work out whether they still have time; a running clock does not.
 function Countdown({ until }) {
+  const t = useT();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -326,7 +341,7 @@ function Countdown({ until }) {
   return (
     <span className="inline-flex items-baseline gap-1 rounded-full bg-rose-500/10 px-3 py-1.5 font-mono text-sm font-600 tabular-nums text-rose-700 dark:text-rose-300">
       {d}d {String(h).padStart(2, "0")}:{String(m).padStart(2, "0")}:{String(sec).padStart(2, "0")}
-      <span className="font-sans text-xs font-500 opacity-70">left</span>
+      <span className="font-sans text-xs font-500 opacity-70">{t.timeLeft}</span>
     </span>
   );
 }
@@ -334,6 +349,7 @@ function Countdown({ until }) {
 // The alert. It states the thirty days plainly, because that is the part that
 // makes the decision reversible and the part somebody needs to have read.
 function ConfirmDelete({ name, onClose, onConfirm }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const panelRef = useRef(null);
   useFocusTrap(panelRef, true);
@@ -346,19 +362,15 @@ function ConfirmDelete({ name, onClose, onConfirm }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label="Delete studio">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label={t.deleteStudio}>
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
       <div ref={panelRef} className="relative w-full max-w-[480px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
         <div className="px-6 pt-6">
-          <h3 className="font-display text-lg font-700 text-rose-700 dark:text-rose-300">Delete {name}?</h3>
+          <h3 className="font-display text-lg font-700 text-rose-700 dark:text-rose-300">{t.confirmDeleteTitle(name)}</h3>
           <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-            Deletion of this studio will take <strong>30 days</strong> to finalise. Until then
-            nothing changes — everyone keeps their access and all of its work stays where it is.
+            {t.confirmLead}<strong>{t.confirmDays}</strong>{t.confirmRest}
           </p>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-            You can cancel at any point in those 30 days and the studio carries on as if you
-            had never asked.
-          </p>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t.confirmReversible}</p>
         </div>
         <div className="flex gap-3 px-6 pb-6 pt-5">
           <button
@@ -366,9 +378,9 @@ function ConfirmDelete({ name, onClose, onConfirm }) {
             disabled={busy}
             onClick={async () => { setBusy(true); await onConfirm(); setBusy(false); }}
           >
-            {busy ? "Scheduling…" : "Schedule deletion"}
+            {busy ? t.scheduling : t.scheduleDeletion}
           </button>
-          <button className={BTN_GHOST} onClick={onClose}>Keep the studio</button>
+          <button className={BTN_GHOST} onClick={onClose}>{t.keepStudio}</button>
         </div>
       </div>
     </div>
@@ -382,6 +394,7 @@ function ConfirmDelete({ name, onClose, onConfirm }) {
 // Edited as a whole and saved once, like the working week: this is one block of
 // information, and saving it row by row would let it sit half-updated.
 function LegalInfo({ rows, canManage, onSave }) {
+  const t = useT();
   const [draft, setDraft] = useState(() => (rows.length ? rows.map((r) => ({ ...r })) : [{ key: "", value: "" }]));
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -404,11 +417,8 @@ function LegalInfo({ rows, canManage, onSave }) {
 
   return (
     <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
-      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">Legal information</h3>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        Whatever this studio has to state about itself — registration number, VAT number,
-        licence. Each one is a label and what it says.
-      </p>
+      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{t.legalHeading}</h3>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{t.legalLead}</p>
 
       <div className="mt-4 space-y-2">
         {draft.map((row, i) => (
@@ -417,18 +427,18 @@ function LegalInfo({ rows, canManage, onSave }) {
               className={`${INPUT} sm:w-56`}
               value={row.key}
               disabled={!canManage}
-              aria-label={`Legal information label ${i + 1}`}
+              aria-label={t.legalLabelFor(i + 1)}
               onChange={(e) => set(i, { key: e.target.value })}
             />
             <input
               className={INPUT}
               value={row.value}
               disabled={!canManage}
-              aria-label={`Legal information value ${i + 1}`}
+              aria-label={t.legalValueFor(i + 1)}
               onChange={(e) => set(i, { value: e.target.value })}
             />
             {canManage && (
-              <button type="button" aria-label={`Remove ${row.key || `row ${i + 1}`}`}
+              <button type="button" aria-label={t.removeNamed(row.key || t.rowNumber(i + 1))}
                 className="shrink-0 px-1.5 text-slate-400 transition-colors hover:text-rose-600"
                 onClick={() => remove(i)}>×</button>
             )}
@@ -438,8 +448,8 @@ function LegalInfo({ rows, canManage, onSave }) {
 
       {canManage && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : saved ? "Saved" : "Save"}</button>
-          <button className={BTN_GHOST} onClick={add}>Add another</button>
+          <button className={BTN} onClick={save} disabled={busy}>{busy ? t.saving : saved ? t.saved : t.save}</button>
+          <button className={BTN_GHOST} onClick={add}>{t.addAnother}</button>
         </div>
       )}
     </section>
@@ -456,6 +466,7 @@ function LegalInfo({ rows, canManage, onSave }) {
 // accepting `serviceActions` once that route existed, so sharing the parent
 // `save` here would 400 on every change (see the route's own comment).
 function ServiceActions({ slug }) {
+  const t = useT();
   const [data, setData] = useState(null); // GET body: fieldOfWork, serviceActions, usage, options, canManage…
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -487,7 +498,7 @@ function ServiceActions({ slug }) {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
     });
     setBusy(false);
-    if (!res.ok) { setError("That didn't save."); return false; }
+    if (!res.ok) { setError(t.saveFailed); return false; }
     const d = await res.json();
     setData(d);
     setOtherDraft(d.fieldOfWorkOther || "");
@@ -548,16 +559,14 @@ function ServiceActions({ slug }) {
       </section>
     );
   }
-  if (!data) return <p className={`${BANNER_BAD} mt-8`}>We couldn&apos;t load service actions.</p>;
+  if (!data) return <p className={`${BANNER_BAD} mt-8`}>{t.actionsLoadFailed}</p>;
 
   return (
     <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
-      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">Service actions</h3>
+      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{t.actionsHeading}</h3>
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        Seeded from the studio&apos;s field of work — the things this company does to finish a
-        job. An item&apos;s Scope is chosen from this list, and a project&apos;s requirement
-        weights are set against it.
-        {!data.canManage && " Only an admin can change this."}
+        {t.actionsLead}
+        {!data.canManage && t.actionsAdminOnly}
       </p>
 
       {error && <p className={`${BANNER_BAD} mt-3`}>{error}</p>}
@@ -565,7 +574,7 @@ function ServiceActions({ slug }) {
       <div className="mt-4">
         <Field
           as="select"
-          label="Type of industry"
+          label={t.industry}
           value={data.fieldOfWork || ""}
           onChange={requestFieldChange}
           disabled={!data.canManage || busy}
@@ -577,21 +586,21 @@ function ServiceActions({ slug }) {
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <Field
             className="min-w-[220px] flex-1"
-            label="Field of work (your own label)"
+            label={t.ownLabel}
             value={otherDraft}
             onChange={setOtherDraft}
             disabled={!data.canManage || busy}
           />
           {data.canManage && otherDraft !== (data.fieldOfWorkOther || "") && (
             <button className={BTN_GHOST} disabled={busy} onClick={() => put({ fieldOfWork: OTHER_FIELD, fieldOfWorkOther: otherDraft })}>
-              {busy ? "Saving…" : "Save label"}
+              {busy ? t.saving : t.saveLabel}
             </button>
           )}
         </div>
       )}
 
       <div className="mt-5">
-        <p className="text-[11px] font-600 uppercase tracking-wide text-slate-400">Standard actions</p>
+        <p className="text-[11px] font-600 uppercase tracking-wide text-slate-400">{t.standardActions}</p>
         <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
           {data.options.actions.map((action) => {
             const checked = data.serviceActions.includes(action);
@@ -610,7 +619,7 @@ function ServiceActions({ slug }) {
                 />
                 <span className="min-w-0 flex-1 truncate">{action}</span>
                 {count > 0 && (
-                  <span className="shrink-0 font-mono text-xs tabular-nums text-slate-400" title={`${count} item${count === 1 ? "" : "s"} reference this`}>
+                  <span className="shrink-0 font-mono text-xs tabular-nums text-slate-400" title={t.referencedBy(count)}>
                     {count}
                   </span>
                 )}
@@ -622,7 +631,7 @@ function ServiceActions({ slug }) {
 
       {data.retiredServiceActions.length > 0 && (
         <p className="mt-4 text-xs text-slate-400">
-          Retired, still valid on records that already use them: {data.retiredServiceActions.join(", ")}
+          {t.retiredStill}{data.retiredServiceActions.join("، ")}
         </p>
       )}
 
@@ -655,6 +664,7 @@ function ServiceActions({ slug }) {
 // field's matrix row, so whoever picks it should see what that means before it
 // happens rather than discover it afterwards.
 function ConfirmFieldChange({ to, added, leaving, busy, onClose, onConfirm }) {
+  const t = useT();
   const [otherLabel, setOtherLabel] = useState("");
   const panelRef = useRef(null);
   useFocusTrap(panelRef, true);
@@ -667,42 +677,40 @@ function ConfirmFieldChange({ to, added, leaving, busy, onClose, onConfirm }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label="Change field of work">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label={t.changeFieldAria}>
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
       <div ref={panelRef} className="relative w-full max-w-[480px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
         <div className="px-6 pt-6">
-          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Switch to {to}?</h3>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-            This re-seeds the service-action pool from {to}&apos;s standard set.
-          </p>
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{t.switchTo(to)}</h3>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t.reseedsFrom(to)}</p>
           {added.length > 0 && (
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-              <strong className="text-slate-900 dark:text-white">Adds:</strong> {added.join(", ")}
+              <strong className="text-slate-900 dark:text-white">{t.adds}</strong> {added.join("، ")}
             </p>
           )}
           {leaving.length > 0 && (
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-              <strong className="text-slate-900 dark:text-white">Leaves the pool:</strong>{" "}
+              <strong className="text-slate-900 dark:text-white">{t.leavesPool}</strong>{" "}
               {leaving.map(({ action, count }, i) => (
                 <span key={action}>
-                  {i > 0 && ", "}
+                  {i > 0 && "، "}
                   {action}
                   {count > 0
-                    ? <span className="text-amber-700 dark:text-amber-300"> (retired — {count} item{count === 1 ? "" : "s"} still use it)</span>
-                    : <span className="text-slate-400"> (unused, removed)</span>}
+                    ? <span className="text-amber-700 dark:text-amber-300">{t.retiredWithCount(count)}</span>
+                    : <span className="text-slate-400">{t.unusedRemoved}</span>}
                 </span>
               ))}
             </p>
           )}
           {to === OTHER_FIELD && (
             <div className="mt-4">
-              <Field label="Field of work (your own label)" value={otherLabel} onChange={setOtherLabel} />
+              <Field label={t.ownLabel} value={otherLabel} onChange={setOtherLabel} />
             </div>
           )}
         </div>
         <div className="flex gap-3 px-6 pb-6 pt-5">
-          <button className={BTN} disabled={busy} onClick={() => onConfirm(otherLabel)}>{busy ? "Saving…" : "Confirm"}</button>
-          <button className={BTN_GHOST} onClick={onClose}>Cancel</button>
+          <button className={BTN} disabled={busy} onClick={() => onConfirm(otherLabel)}>{busy ? t.saving : t.confirm}</button>
+          <button className={BTN_GHOST} onClick={onClose}>{t.cancel}</button>
         </div>
       </div>
     </div>
@@ -713,6 +721,7 @@ function ConfirmFieldChange({ to, added, leaving, busy, onClose, onConfirm }) {
 // pool edit itself is "soft": the action leaves what new work is offered, but
 // nothing already scoped to it changes (`nextPool` retires rather than drops).
 function ConfirmRetireAction({ action, count, busy, onClose, onConfirm }) {
+  const t = useT();
   const panelRef = useRef(null);
   useFocusTrap(panelRef, true);
   useEffect(() => {
@@ -724,19 +733,16 @@ function ConfirmRetireAction({ action, count, busy, onClose, onConfirm }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label="Retire service action">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label={t.retireAria}>
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
       <div ref={panelRef} className="relative w-full max-w-[440px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
         <div className="px-6 pt-6">
-          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Retire &ldquo;{action}&rdquo;?</h3>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-            {count} item{count === 1 ? "" : "s"} still {count === 1 ? "references" : "reference"} it — they keep it,
-            it&apos;s just no longer offered for new work. Re-add any time.
-          </p>
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{t.retireTitle(action)}</h3>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t.retireBody(count)}</p>
         </div>
         <div className="flex gap-3 px-6 pb-6 pt-5">
-          <button className={BTN} disabled={busy} onClick={onConfirm}>{busy ? "Saving…" : "Retire"}</button>
-          <button className={BTN_GHOST} onClick={onClose}>Cancel</button>
+          <button className={BTN} disabled={busy} onClick={onConfirm}>{busy ? t.saving : t.retire}</button>
+          <button className={BTN_GHOST} onClick={onClose}>{t.cancel}</button>
         </div>
       </div>
     </div>
@@ -753,6 +759,7 @@ function ConfirmRetireAction({ action, count, busy, onClose, onConfirm }) {
 // a code the vocabulary does not know is dropped on the way in rather than kept
 // as a label nobody can price against.
 function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState(codes);
@@ -774,22 +781,20 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
 
   return (
     <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
-      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">Favourite currencies</h3>
+      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{t.favHeading}</h3>
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        The few this studio deals in, each against {base
+        {t.favLeadPrefix}{base
           ? <><CurrencySymbol code={base} /> {base}</>
-          : "the studio currency"}.
+          : t.favStudioCurrency}.
       </p>
 
       {/* ONE ROW PER CURRENCY, each showing what one unit of the studio's own
           money buys. Chips side by side said which currencies mattered but not
           what they were worth, which is the thing somebody opens this to see. */}
       {codes.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-400">None chosen yet.</p>
+        <p className="mt-3 text-sm text-slate-400">{t.favNone}</p>
       ) : !base ? (
-        <p className="mt-3 text-sm text-slate-400">
-          Set the studio currency above and these will show an exchange rate against it.
-        </p>
+        <p className="mt-3 text-sm text-slate-400">{t.favNeedsBase}</p>
       ) : (
         <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
           {codes.map((code) => {
@@ -800,9 +805,9 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
                 <span className="min-w-0 flex-1 truncate text-sm text-slate-600 dark:text-slate-300">{currencyOf(code).name}</span>
                 <span className="shrink-0 text-sm tabular-nums text-slate-500 dark:text-slate-400">
                   {code === base ? (
-                    <span className="text-slate-400">base</span>
+                    <span className="text-slate-400">{t.favBase}</span>
                   ) : rate == null ? (
-                    <span className="text-slate-400">no rate today</span>
+                    <span className="text-slate-400">{t.favNoRate}</span>
                   ) : (
                     <>
                       1 <CurrencySymbol code={base} /> ={" "}
@@ -819,24 +824,24 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
 
       {base && fx?.updatedAt > 0 && (
         <p className="mt-3 text-xs text-slate-400">
-          Rates as of {fmtDate(fx.updatedAt * 1000)}
-          {fx.stale ? " — today's refresh hasn't landed yet." : "."}
+          {t.ratesAsOf(fmtDate(fx.updatedAt * 1000))}
+          {fx.stale ? t.ratesStale : "."}
         </p>
       )}
 
       {canManage && (
         <button className={`${BTN_GHOST} mt-4`} onClick={() => { setPicked(codes); setQuery(""); setOpen(true); }}>
-          {codes.length ? "Change" : "Choose currencies"}
+          {codes.length ? t.changeChoice : t.chooseCurrencies}
         </button>
       )}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Favourite currencies">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={t.favHeading}>
           <div className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
           <div ref={panelRef} className="relative flex max-h-[80vh] w-full max-w-[520px] flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
             <div className="flex items-center gap-3 px-6 pt-5">
-              <h4 className="font-display text-lg font-700 text-slate-900 dark:text-white">Favourite currencies</h4>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Close"
+              <h4 className="font-display text-lg font-700 text-slate-900 dark:text-white">{t.favHeading}</h4>
+              <button type="button" onClick={() => setOpen(false)} aria-label={t.close}
                 className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/5">
                 <Icon name="close" className="h-[18px] w-[18px]" />
               </button>
@@ -845,13 +850,13 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
               {/* Code, name OR country — somebody looking for the riyal may know
                   any of the three. */}
               <input className={INPUT} value={query} autoFocus
-                aria-label="Search currencies" onChange={(e) => setQuery(e.target.value)} />
+                aria-label={t.searchCurrencies} onChange={(e) => setQuery(e.target.value)} />
               <p className="mt-2 text-xs text-slate-400">
-                {picked.length} chosen · {CURRENCIES_FROM_EXCHANGE_API.length} available
+                {t.chosenAvailable(picked.length, CURRENCIES_FROM_EXCHANGE_API.length)}
               </p>
             </div>
             <ul className="mt-3 flex-1 overflow-y-auto px-6">
-              {results.length === 0 && <li className="py-6 text-center text-sm text-slate-400">Nothing matches that.</li>}
+              {results.length === 0 && <li className="py-6 text-center text-sm text-slate-400">{t.noMatches}</li>}
               {results.map((c) => (
                 <li key={c.code}>
                   <label className="flex cursor-pointer items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5">
@@ -864,8 +869,8 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
               ))}
             </ul>
             <div className="flex gap-3 border-t border-slate-100 px-6 py-4 dark:border-white/10">
-              <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
-              <button className={BTN_GHOST} onClick={() => setOpen(false)}>Cancel</button>
+              <button className={BTN} onClick={save} disabled={busy}>{busy ? t.saving : t.save}</button>
+              <button className={BTN_GHOST} onClick={() => setOpen(false)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -878,6 +883,7 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }) {
 // label rather than in a dialog: these are single fields, and a modal for one
 // field is more ceremony than the change deserves.
 function EditRow({ icon, label, value, canManage, hint, onSave, render }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value || "");
   const [busy, setBusy] = useState(false);
@@ -902,8 +908,8 @@ function EditRow({ icon, label, value, canManage, hint, onSave, render }) {
         <div className="mt-3 w-full ps-[52px]">
           {render(draft, setDraft)}
           <div className="mt-3 flex gap-3">
-            <button className={BTN} onClick={commit} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
-            <button className={BTN_GHOST} onClick={() => setOpen(false)}>Cancel</button>
+            <button className={BTN} onClick={commit} disabled={busy}>{busy ? t.saving : t.save}</button>
+            <button className={BTN_GHOST} onClick={() => setOpen(false)}>{t.cancel}</button>
           </div>
         </div>
       </div>
@@ -918,7 +924,7 @@ function EditRow({ icon, label, value, canManage, hint, onSave, render }) {
       </span>
       <span className="flex min-w-0 flex-1 flex-col justify-center">
         <span className={ROW_LABEL}>{label}</span>
-        <span className={ROW_VALUE}>{value || hint || "Not set"}</span>
+        <span className={ROW_VALUE}>{value || hint || t.notSet}</span>
       </span>
       {canManage && <Icon name="chevronRight" className="ms-auto h-5 w-5 shrink-0 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />}
     </button>
@@ -929,6 +935,7 @@ function EditRow({ icon, label, value, canManage, hint, onSave, render }) {
 // once: a week is one decision, and saving day by day would let the record sit
 // half-changed.
 function HoursDialog({ slug, hours, onClose, onSaved }) {
+  const t = useT();
   const [draft, setDraft] = useState(() => structuredClone(hours));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -951,27 +958,26 @@ function HoursDialog({ slug, hours, onClose, onSaved }) {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workingHours: draft }),
     });
     setBusy(false);
-    if (!res.ok) { setErr("We couldn't save those hours."); return; }
+    if (!res.ok) { setErr(t.hoursSaveFailed); return; }
     onSaved(); onClose();
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Working hours">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={t.workingHours}>
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
       <div ref={panelRef} className="relative w-full max-w-[520px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
         <div className="flex items-center gap-3 px-6 pt-5">
-          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Working hours</h3>
-          <button type="button" onClick={onClose} aria-label="Close"
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{t.workingHours}</h3>
+          <button type="button" onClick={onClose} aria-label={t.close}
             className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/5">
             <Icon name="close" className="h-[18px] w-[18px]" />
           </button>
         </div>
-        <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">
-          The days and hours this studio works. Turn a day off to mark it closed.
-        </p>
+        <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">{t.hoursLead}</p>
 
         <div className="max-h-[52vh] space-y-2 overflow-y-auto px-6 py-5">
-          {DAYS.map(([key, name]) => {
+          {DAYS.map((key) => {
+            const name = t.dayNames[key];
             const row = draft[key] || { open: false, from: "09:00", to: "17:00" };
             return (
               <div key={key} className="flex items-center gap-3">
@@ -992,12 +998,12 @@ function HoursDialog({ slug, hours, onClose, onSaved }) {
                 <span className="w-24 shrink-0 text-sm font-500 text-slate-900 dark:text-white">{name}</span>
                 {row.open ? (
                   <span className="flex items-center gap-2">
-                    <input type="time" className={`${INPUT} w-28`} value={row.from} onChange={(e) => set(key, { from: e.target.value })} aria-label={`${name} from`} />
+                    <input type="time" className={`${INPUT} w-28`} value={row.from} onChange={(e) => set(key, { from: e.target.value })} aria-label={t.fromLabel(name)} />
                     <span className="text-slate-400">–</span>
-                    <input type="time" className={`${INPUT} w-28`} value={row.to} onChange={(e) => set(key, { to: e.target.value })} aria-label={`${name} to`} />
+                    <input type="time" className={`${INPUT} w-28`} value={row.to} onChange={(e) => set(key, { to: e.target.value })} aria-label={t.toLabel(name)} />
                   </span>
                 ) : (
-                  <span className="text-sm text-slate-400">Closed</span>
+                  <span className="text-sm text-slate-400">{t.closed}</span>
                 )}
               </div>
             );
@@ -1007,8 +1013,8 @@ function HoursDialog({ slug, hours, onClose, onSaved }) {
         {err && <p className={`${BANNER_BAD} mx-6 mb-4`}>{err}</p>}
 
         <div className="flex gap-3 px-6 pb-6">
-          <button className={BTN} onClick={save} disabled={busy}>{busy ? "Saving…" : "Save hours"}</button>
-          <button className={BTN_GHOST} onClick={onClose}>Cancel</button>
+          <button className={BTN} onClick={save} disabled={busy}>{busy ? t.saving : t.saveHours}</button>
+          <button className={BTN_GHOST} onClick={onClose}>{t.cancel}</button>
         </div>
       </div>
     </div>
@@ -1018,6 +1024,7 @@ function HoursDialog({ slug, hours, onClose, onSaved }) {
 // The same dialog shape as the account hub's profile picture: a large preview,
 // Change, and Remove.
 function LogoDialog({ slug, logo, onClose, onSaved }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const fileRef = useRef(null);
@@ -1041,8 +1048,8 @@ function LogoDialog({ slug, logo, onClose, onSaved }) {
 
   async function upload(file) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) { setErr("Choose an image file."); return; }
-    if (file.size > 2 * 1024 * 1024) { setErr("Images must be 2 MB or smaller."); return; }
+    if (!file.type.startsWith("image/")) { setErr(t.pickImage); return; }
+    if (file.size > 2 * 1024 * 1024) { setErr(t.imageTooBig); return; }
     setBusy(true); setErr("");
     try {
       const form = new FormData();
@@ -1052,32 +1059,29 @@ function LogoDialog({ slug, logo, onClose, onSaved }) {
       if (!up.ok || !media.url) throw new Error(media.error || "upload");
       await save(media.url);
       onSaved(); onClose();
-    } catch { setErr("We couldn't upload that logo."); }
+    } catch { setErr(t.uploadFailed); }
     finally { setBusy(false); }
   }
 
   async function remove() {
     setBusy(true); setErr("");
     try { await save(""); onSaved(); onClose(); }
-    catch { setErr("We couldn't remove that logo."); }
+    catch { setErr(t.removeFailed); }
     finally { setBusy(false); }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Studio logo">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={t.logo}>
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
       <div ref={panelRef} className="relative w-full max-w-[512px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
         <div className="flex items-center gap-3 px-6 pt-5">
-          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">Studio logo</h3>
-          <button type="button" onClick={onClose} aria-label="Close"
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{t.logo}</h3>
+          <button type="button" onClick={onClose} aria-label={t.close}
             className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/5">
             <Icon name="close" className="h-[18px] w-[18px]" />
           </button>
         </div>
-        <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">
-          Stands at the top of this studio in place of the nompany mark, and on the studio&apos;s
-          card in the account of everyone who works in it.
-        </p>
+        <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">{t.logoLead}</p>
 
         {/* A WIDE frame, because the preview has to tell the truth about how the
             logo will sit: contained and whole. A square preview would quietly
@@ -1099,15 +1103,15 @@ function LogoDialog({ slug, logo, onClose, onSaved }) {
             onChange={(e) => upload(e.target.files?.[0])} />
           <button type="button" className={BTN} disabled={busy} onClick={() => fileRef.current?.click()}>
             <span className="inline-flex items-center gap-1.5">
-              <Icon name="camera" className="h-4 w-4" /> {busy ? "Uploading…" : "Change"}
+              <Icon name="camera" className="h-4 w-4" /> {busy ? t.uploading : t.change}
             </span>
           </button>
           <button type="button" className={BTN_GHOST} disabled={busy || !logo} onClick={remove}
-            title={logo ? "" : "No logo to remove"}>
-            Remove
+            title={logo ? "" : t.noLogoToRemove}>
+            {t.remove}
           </button>
         </div>
-        <p className="px-6 pb-6 pt-4 text-center text-xs text-slate-400">JPG, PNG or WebP, up to 2 MB.</p>
+        <p className="px-6 pb-6 pt-4 text-center text-xs text-slate-400">{t.logoFormats}</p>
       </div>
     </div>
   );

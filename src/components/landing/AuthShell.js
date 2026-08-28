@@ -7,7 +7,8 @@ import { AmbientBackground } from "@/components/landing/AmbientBackground";
 import { LogoMark, Wordmark } from "@/components/landing/Logo";
 import { PointerProvider } from "@/components/landing/providers/PointerProvider";
 import { EASE_OUT_EXPO, fadeUp, stagger } from "@/components/landing/lib/motion";
-import { dirFor } from "@/shared/locale";
+import { dirFor, locales, LANGUAGE_SHORT } from "@/shared/locale";
+import { rememberLocale } from "@/lib/langCookie";
 
 /* ==================================================================
    Full-screen frame for the auth screens, in the landing page's design
@@ -33,13 +34,14 @@ import { dirFor } from "@/shared/locale";
 // Two locales, so a toggle rather than a dropdown. Each link keeps the current
 // sub-path (…/login, …/signup, …/forgot) and only swaps the locale segment, so
 // somebody switching language on the sign-up page stays on sign-up.
+//
+// It also records the choice (see rememberLocale). This is the FIRST screen most
+// people meet, and it is the last one with a locale in its address: whatever is
+// picked here is what the studio on the other side of the login should open in.
 function LocaleSwitch({ locale }) {
   const pathname = usePathname() || `/${locale}`;
   const rest = pathname.replace(/^\/(en|ar)/, "") || "";
-  const OPTIONS = [
-    { code: "en", label: "EN" },
-    { code: "ar", label: "ع" },
-  ];
+  const OPTIONS = locales.map((code) => ({ code, label: LANGUAGE_SHORT[code] }));
   return (
     <div className="absolute end-5 top-5 z-20 inline-flex items-center gap-0.5 rounded-full border border-line bg-ink-soft/60 p-0.5 backdrop-blur-sm">
       {OPTIONS.map((o) => {
@@ -49,6 +51,7 @@ function LocaleSwitch({ locale }) {
             key={o.code}
             href={`/${o.code}${rest}`}
             lang={o.code}
+            onClick={() => rememberLocale(o.code)}
             aria-current={active ? "true" : undefined}
             className={`rounded-full px-3 py-1 text-xs font-600 transition-colors ${
               active ? "bg-iris text-white" : "text-fg-muted hover:text-fg"

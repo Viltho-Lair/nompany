@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
 import { useLive } from "@/components/studio2/LiveProvider";
 import { ago } from "@/lib/format";
+import { shellDict } from "@/shared/studio/shell";
 
 // The studio's bell.
 //
@@ -27,7 +28,10 @@ const TONE = {
   danger: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
 };
 
-export default function NotificationBell({ slug }) {
+export default function NotificationBell({ slug, locale = "en" }) {
+  // The bell is part of the header, so it reads from the shell's dictionary
+  // rather than owning one — it is the same chrome, in the same language.
+  const t = shellDict(locale);
   const live = useLive();
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState([]);
@@ -117,7 +121,7 @@ export default function NotificationBell({ slug }) {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
+        aria-label={unread ? t.notificationsUnread(unread) : t.notifications}
         className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-shadow hover:ring-2 hover:ring-brand-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-300"
       >
         <Icon name="bell" className="h-[18px] w-[18px]" />
@@ -131,7 +135,7 @@ export default function NotificationBell({ slug }) {
         {status === "offline" && (
           <span
             className="absolute bottom-0 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-[var(--geex-surface)] ltr:right-0 rtl:left-0"
-            title="Not receiving live updates — reconnecting"
+            title={t.offlineTitle}
           />
         )}
       </button>
@@ -142,28 +146,28 @@ export default function NotificationBell({ slug }) {
           className="absolute end-0 z-50 mt-2 w-80 overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex"
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-white/5">
-            <span className="text-sm font-700 text-slate-900 dark:text-white">Notifications</span>
+            <span className="text-sm font-700 text-slate-900 dark:text-white">{t.notifications}</span>
             {unread > 0 && (
               <button
                 type="button"
                 onClick={() => unread && markRead([])}
                 className="text-xs font-600 text-brand-600 hover:underline dark:text-brand-400"
               >
-                Mark all read
+                {t.markAllRead}
               </button>
             )}
           </div>
 
           {status === "offline" && (
             <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-              Not receiving live updates. Reconnecting…
+              {t.offlineBanner}
             </p>
           )}
 
           <ul className="max-h-96 overflow-y-auto">
             {merged.length === 0 ? (
               <li className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
-                {loaded ? "Nothing yet." : "Loading…"}
+                {loaded ? t.nothingYet : t.loading}
               </li>
             ) : (
               merged.slice(0, 30).map((n) => {

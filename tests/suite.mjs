@@ -22,7 +22,7 @@ import { delPrefix, getIndex, delKeys } from "@/platform/db/store";
 import { getRedisClient } from "@/platform/db/redis";
 import { createUser, mintSession } from "@/platform/auth/users";
 import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/modules/main/studios";
-import { studioLocale, dirFor } from "@/shared/locale";
+import { studioLocale, dirFor, preferredLocale, UI_LANG_COOKIE } from "@/shared/locale";
 import { compile, serialize, middleware, stringify, prefixer } from "stylis";
 // RESOLVED THE WAY THE BUNDLER RESOLVES IT. stylis-plugin-rtl ships both
 // builds and declares no "exports": bundlers take the `module` field, whose
@@ -3497,6 +3497,49 @@ console.log("== a studio's language is the tenant's, and it is a real setting");
     body.studio?.language === "en", JSON.stringify(body.studio?.language));
 
   await signInAs(owner.id);
+}
+
+// ============================================================================
+console.log("== a person's own language overrides the studio's, and only theirs");
+// THE STUDIO SETTING IS A DEFAULT, NOT A CEILING. It says what the company was
+// set up in; the header's language menu says what one person reads it in, and
+// that lives in a cookie because a studio's address has no room for a locale
+// and a person belongs to more than one studio.
+//
+// Asserted because every branch of it fails silently. A cookie that is ignored
+// looks exactly like a person who never set one; a cookie that wins when it
+// holds nonsense would send an Arabic studio to English and look like the
+// tenant setting had been lost. Only the resolver can tell the four apart, and
+// it is a pure function precisely so this can check them without a request.
+{
+  ok("no preference falls back to the studio's own language",
+    preferredLocale(undefined, "ar") === "ar");
+  ok("...and an empty one does too", preferredLocale("", "ar") === "ar");
+  ok("a preference the dictionaries know wins over the studio's",
+    preferredLocale("en", "ar") === "en");
+  ok("...in both directions", preferredLocale("ar", "en") === "ar");
+
+  // The failure that would be invisible: a cookie is attacker-editable and
+  // arrives as an arbitrary string. Falling back to the STUDIO rather than to
+  // English is the difference between a bad cookie doing nothing and a bad
+  // cookie silently un-translating an Arabic company.
+  ok("a language nobody has a dictionary for falls back to the studio, not English",
+    preferredLocale("klingon", "ar") === "ar", preferredLocale("klingon", "ar"));
+  ok("...and with no studio to fall back to, to English",
+    preferredLocale("klingon") === "en");
+
+  // The direction follows the resolved language, not the tenant's — this is
+  // what actually mirrors the layout, so a person on the override gets the
+  // whole shell laid out their way rather than translated copy in a box the
+  // wrong way round.
+  ok("direction follows the person, not the company",
+    dirFor(preferredLocale("ar", "en")) === "rtl" && dirFor(preferredLocale("en", "ar")) === "ltr");
+
+  // The name is part of the contract: the client writes this cookie and the
+  // studio page reads it, in two different files, and a rename in one of them
+  // is a preference that saves and never applies.
+  ok("the cookie the client writes is the cookie the server reads",
+    UI_LANG_COOKIE === "lang", UI_LANG_COOKIE);
 }
 
 // ============================================================================

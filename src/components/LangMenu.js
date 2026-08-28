@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { rememberLocale } from "@/lib/langCookie";
 
 // Hover-/focus-expandable language control. Collapsed it shows a globe icon +
 // the current language's short code; on hover (or keyboard focus) a small
@@ -9,6 +10,13 @@ import Link from "next/link";
 // Each option is either a Link (main site: navigating swaps the locale) or a
 // button (Studio: a client-side dir/lang switch), decided by whether `href` is
 // present. Trigger styling is passed in so it matches its surrounding chrome.
+//
+// EVERY SELECTION IS REMEMBERED, whichever form it takes. The public site's
+// language lives in the address and does not need a cookie to work — but the
+// studio's cannot (its address is the tenant's slug), and the two are the same
+// choice made by the same person. Writing it here means picking Arabic on the
+// marketing site is still Arabic when you walk into your studio, without every
+// caller remembering to say so.
 function GlobeIcon({ className }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -28,6 +36,7 @@ export default function LangMenu({
   direction = "down", // "down" | "up" — which way the dropdown opens
 }) {
   const cur = options.find((o) => o.code === current) || options[0];
+  const choose = (o) => { rememberLocale(o.code); o.onSelect?.(); };
   const panelPos =
     direction === "up"
       ? "bottom-full pb-2 translate-y-1 group-hover:translate-y-0 group-focus-within:translate-y-0"
@@ -66,11 +75,11 @@ export default function LangMenu({
               </>
             );
             return o.href ? (
-              <Link key={o.code} href={o.href} onClick={o.onSelect} className={cls}>
+              <Link key={o.code} href={o.href} onClick={() => choose(o)} className={cls}>
                 {inner}
               </Link>
             ) : (
-              <button key={o.code} type="button" onClick={o.onSelect} className={cls}>
+              <button key={o.code} type="button" onClick={() => choose(o)} className={cls}>
                 {inner}
               </button>
             );

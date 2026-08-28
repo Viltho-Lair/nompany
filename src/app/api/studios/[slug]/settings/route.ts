@@ -23,10 +23,15 @@ export const dynamic = "force-dynamic";
 // so the boundary that decides what a request may write has to be here.
 const FIELDS = [
   "logo", "country", "city", "location", "currency",
-  // THE TENANT'S LANGUAGE — see studioLocale in shared/i18n. It sets the
-  // direction and the dictionary for everyone inside this studio, which is why
-  // it sits behind studio.settings.edit like every other shared decision here
-  // rather than being a per-person preference.
+  // THE STUDIO'S DEFAULT LANGUAGE — see studioLocale in shared/i18n. It sets
+  // the direction and the dictionary for everyone who has not chosen one of
+  // their own, which for most people is everyone; that is why it stays behind
+  // studio.settings.edit rather than becoming a per-person field here.
+  //
+  // The per-person override is NOT stored on this route or on any record: it is
+  // a cookie, written by the language menu in the studio header (preferredLocale
+  // in shared/locale explains why). So this response is still the whole of what
+  // the tenant has decided, and the goldens over it are unchanged.
   "language",
   "workingHours", "legalInfo", "favoriteCurrencies",
   // fieldOfWork, fieldOfWorkOther, serviceActions and retiredServiceActions are
