@@ -141,11 +141,14 @@ type Strings = CommonStrings & {
   projectQuotationPoSerial: string;
   projectSheets: string;
   projectTimeline: string;
+  projectColumns: string;
+  projectCount: (shown: number, total: number) => string;
   projects: string;
   projectsEmptySummary: string;
   projectsOpenApprovedQuotation: string;
   projectsStage: string;
   qty: string;
+  quotation: string;
   quotationHasnApprovedYet: string;
   received: string;
   registerEmergencyVisit: string;
@@ -348,11 +351,14 @@ const en: Strings = {
   projectQuotationPoSerial: "Project, quotation, PO, serial…",
   projectSheets: "← Project sheets",
   projectTimeline: "Project timeline",
+  projectColumns: "Project columns",
+  projectCount: (shown, total) => `${shown} of ${total} project${total === 1 ? "" : "s"}.`,
   projects: "Projects",
   projectsEmptySummary: "Projects open from an approved quotation. Once one is registered, its stages, value and progress are summarised here.",
   projectsOpenApprovedQuotation: "Projects open from an approved quotation. Approve one in Technical and it'll appear here.",
   projectsStage: "Projects by stage",
   qty: "Qty",
+  quotation: "Quotation",
   quotationHasnApprovedYet: "That quotation hasn't been approved yet.",
   received: "Received",
   registerEmergencyVisit: "Register emergency visit",
@@ -555,11 +561,21 @@ const ar: Strings = {
   projectQuotationPoSerial: "المشروع، عرض السعر، أمر الشراء، الرقم التسلسلي…",
   projectSheets: "← كشوف المشاريع",
   projectTimeline: "المسار الزمني للمشاريع",
+  projectColumns: "أعمدة المشاريع",
+  projectCount: (shown, total) => {
+    const what =
+      total === 1 ? "مشروع"
+      : total === 2 ? "مشروعين"
+      : total <= 10 ? "مشاريع"
+      : "مشروع";
+    return `${shown} من ${total} ${what}.`;
+  },
   projects: "المشاريع",
   projectsEmptySummary: "تُفتح المشاريع من عرض سعر معتمد. ومتى سُجّل مشروع، لُخّصت هنا مراحله وقيمته وتقدّمه.",
   projectsOpenApprovedQuotation: "تُفتح المشاريع من عرض سعر معتمد. اعتمد واحدًا في القسم الفني وسيظهر هنا.",
   projectsStage: "المشاريع حسب المرحلة",
   qty: "الكمية",
+  quotation: "عرض السعر",
   quotationHasnApprovedYet: "لم يُعتمد عرض السعر ذاك بعد.",
   received: "مستلم",
   registerEmergencyVisit: "سجّل زيارة طارئة",

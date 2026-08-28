@@ -146,6 +146,8 @@ type Strings = CommonStrings & {
   quotation: string;
   quotation2: string;
   quotationColumns: string;
+  quotationCount: (shown: number, total: number) => string;
+  quotationsAria: string;
   quotationFallback: string;
   quotationLinkedSalesTicket: string;
   quotationLockedCanChanged: string;
@@ -357,6 +359,8 @@ const en: Strings = {
   quotation: "Quotation",
   quotation2: "Quotation",
   quotationColumns: "Quotation columns",
+  quotationCount: (shown, total) => `${shown} of ${total} quotation${total === 1 ? "" : "s"}.`,
+  quotationsAria: "Quotations",
   quotationFallback: "Quotation",
   quotationLinkedSalesTicket: "That quotation is linked to a Sales ticket — approve it from Sales.",
   quotationLockedCanChanged: "That quotation is locked — it can't be changed. Unlock it first, on its own.",
@@ -568,6 +572,15 @@ const ar: Strings = {
   quotation: "عرض السعر",
   quotation2: "عرض السعر",
   quotationColumns: "أعمدة عروض الأسعار",
+  quotationCount: (shown, total) => {
+    const what =
+      total === 1 ? "عرض سعر"
+      : total === 2 ? "عرضَي سعر"
+      : total <= 10 ? "عروض أسعار"
+      : "عرض سعر";
+    return `${shown} من ${total} ${what}.`;
+  },
+  quotationsAria: "عروض الأسعار",
   quotationFallback: "عرض السعر",
   quotationLinkedSalesTicket: "عرض السعر هذا مرتبط بتذكرة مبيعات — اعتمده من المبيعات.",
   quotationLockedCanChanged: "عرض السعر هذا مقفل — لا يمكن تغييره. افتح قفله أولًا، بخطوة مستقلة.",

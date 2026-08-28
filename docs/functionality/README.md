@@ -24,6 +24,7 @@ Three rules that keep this folder worth reading:
 |---|---|
 | [engagements.md](engagements.md) | The deal: one engagement, its stages, its client, lock and delete |
 | [language.md](language.md) | EN/AR and RTL: what decides which language, where the buttons are, what is translated |
+| [list-tables.md](list-tables.md) | The department list tables: the shared Data Grid, and the search / filter / column controls above it |
 
 *(Files are written as each area is next touched, not all at once — an unwritten file is
 better than a stale one. Add the row when you add the file.)*

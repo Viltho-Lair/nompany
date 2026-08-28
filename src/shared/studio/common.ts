@@ -66,6 +66,8 @@ export type CommonStrings = {
   untitled: string;
   unassigned: string;
   all: string;
+  min: string;
+  max: string;
   required: string;
   optional: string;
   saveFailed: string;
@@ -174,6 +176,8 @@ export const commonEn: CommonStrings = {
   untitled: "Untitled",
   unassigned: "Unassigned",
   all: "All",
+  min: "Min",
+  max: "Max",
   required: "Required",
   optional: "Optional",
   saveFailed: "That didn't save.",
@@ -279,6 +283,8 @@ export const commonAr: CommonStrings = {
   untitled: "بلا عنوان",
   unassigned: "غير مُسند",
   all: "الكل",
+  min: "الأدنى",
+  max: "الأعلى",
   required: "مطلوب",
   optional: "اختياري",
   saveFailed: "لم يُحفظ ذلك.",

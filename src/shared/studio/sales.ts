@@ -63,8 +63,6 @@ type Strings = CommonStrings & {
   searchTickets: string;
   columnsButton: string;
   probabilityPct: string;
-  min: string;
-  max: string;
   ticketColumns: string;
   ticketCount: (shown: number, total: number) => string;
   ticketsAria: string;
@@ -189,8 +187,6 @@ const en: Strings = {
   searchTickets: "Search title, client, ref or description…",
   columnsButton: "Columns",
   probabilityPct: "Probability (%)",
-  min: "Min",
-  max: "Max",
   ticketColumns: "Ticket columns",
   ticketCount: (shown, total) => `${shown} of ${total} ticket${total === 1 ? "" : "s"}.`,
   ticketsAria: "Tickets",
@@ -326,8 +322,6 @@ const ar: Strings = {
   searchTickets: "ابحث في العنوان أو العميل أو المرجع أو الوصف…",
   columnsButton: "الأعمدة",
   probabilityPct: "الاحتمال (٪)",
-  min: "الأدنى",
-  max: "الأعلى",
   ticketColumns: "أعمدة التذاكر",
   ticketCount: (shown, total) => {
     const what =

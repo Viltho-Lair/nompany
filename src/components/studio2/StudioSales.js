@@ -13,7 +13,7 @@ import StudioDate from "@/components/fields/StudioDate";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
   panel, h2, sub, input, microLabel, label, btn, btnGhost, btnAmber, th,
-  URGENCY_BADGE, URGENCY_TONE, money, fmtDate, prefKey, loadPref, savePref,
+  URGENCY_BADGE, URGENCY_TONE, money, fmtDate, useTablePrefs,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
 import { linkToClient } from "@/modules/main/studioLinks";
@@ -344,34 +344,19 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
   const TICKET_COLUMNS = useMemo(() => ticketColumns(tr), [tr]);
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
   const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
-  const [columns, setColumns] = useState(DEFAULT_TICKET_COLUMNS);
   const [showColumns, setShowColumns] = useState(false);
+  const { columns, has, toggleCol, resetCols, filters, setFilter, clearFilters, activeFilters } =
+    useTablePrefs("sales", slug, {
+      columnKeys: TICKET_COLUMN_KEYS,
+      defaultColumns: DEFAULT_TICKET_COLUMNS,
+      emptyFilters: EMPTY_FILTERS,
+    });
 
-  // Read the saved preferences AFTER mount: localStorage does not exist on the
-  // server, so reading it during render would make the first paint disagree
-  // with the markup React sent.
-  const colsKey = prefKey("sales", slug, "cols");
-  const filtersKey = prefKey("sales", slug, "filters");
-  useEffect(() => {
-    const saved = loadPref(colsKey, null);
-    // Filtered against the KEY list, not the labelled one: the preference holds
-    // keys, so this check must not depend on the reader's language.
-    setColumns(Array.isArray(saved) && saved.length ? saved.filter((k) => TICKET_COLUMN_KEYS.includes(k)) : DEFAULT_TICKET_COLUMNS);
-    setFilters({ ...EMPTY_FILTERS, ...(loadPref(filtersKey, null) || {}) });
-  }, [colsKey, filtersKey]);
-
-  const col = (key) => columns.includes(key) && (key !== "rfq" || hasTechnical);
-  const toggleCol = (key) => setColumns((prev) => {
-    const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
-    savePref(colsKey, next);
-    return next;
-  });
-  const resetCols = () => { setColumns(DEFAULT_TICKET_COLUMNS); savePref(colsKey, DEFAULT_TICKET_COLUMNS); };
-  const setFilter = (patch) => setFilters((prev) => { const next = { ...prev, ...patch }; savePref(filtersKey, next); return next; });
-  const clearFilters = () => { setFilters(EMPTY_FILTERS); savePref(filtersKey, EMPTY_FILTERS); };
-  const activeFilters = Object.values(filters).filter((v) => v !== "").length;
+  // A column the studio has no Technical section for is off whatever the saved
+  // preference says: RFQ is the one column whose existence is not this person's
+  // choice, so the answer is the shared one AND that.
+  const col = (key) => has(key) && (key !== "rfq" || hasTechnical);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

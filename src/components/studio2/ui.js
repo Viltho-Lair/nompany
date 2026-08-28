@@ -81,6 +81,51 @@ export function savePref(key, value) {
   try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode, full disk — a preference is not worth an error */ }
 }
 
+// THE LIST TOOLBAR'S STATE, once. Sales, Technical and Projects each drive the
+// same three controls — a column picker, a filter panel, and the saved
+// preference behind both — and each grew its own copy of these twenty lines.
+// One copy means one place where the two rules that matter are written down:
+//
+//   THE PREFERENCE IS READ AFTER MOUNT. localStorage does not exist on the
+//   server, so reading it during render would make the first paint disagree
+//   with the markup React sent.
+//
+//   THE SAVED COLUMNS ARE FILTERED AGAINST THE KEY LIST, never the labelled
+//   one. The preference holds keys, so which column is which must not depend
+//   on the reader's language.
+//
+// `columnKeys` is that key list; `has(key)` answers whether a column is on, and
+// a screen with an extra condition of its own (Sales hides RFQ when the studio
+// has no Technical section) wraps it rather than reimplementing it.
+export function useTablePrefs(module, slug, { columnKeys, defaultColumns, emptyFilters }) {
+  const [columns, setColumns] = useState(defaultColumns);
+  const [filters, setFilters] = useState(emptyFilters);
+
+  const colsKey = prefKey(module, slug, "cols");
+  const filtersKey = prefKey(module, slug, "filters");
+  useEffect(() => {
+    const saved = loadPref(colsKey, null);
+    setColumns(Array.isArray(saved) && saved.length ? saved.filter((k) => columnKeys.includes(k)) : defaultColumns);
+    setFilters({ ...emptyFilters, ...(loadPref(filtersKey, null) || {}) });
+    // The three shapes are module constants, stable for the life of the screen;
+    // listing them would only re-read the preference on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colsKey, filtersKey]);
+
+  const has = (key) => columns.includes(key);
+  const toggleCol = (key) => setColumns((prev) => {
+    const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+    savePref(colsKey, next);
+    return next;
+  });
+  const resetCols = () => { setColumns(defaultColumns); savePref(colsKey, defaultColumns); };
+  const setFilter = (patch) => setFilters((prev) => { const next = { ...prev, ...patch }; savePref(filtersKey, next); return next; });
+  const clearFilters = () => { setFilters(emptyFilters); savePref(filtersKey, emptyFilters); };
+  const activeFilters = Object.values(filters).filter((v) => v !== "").length;
+
+  return { columns, has, toggleCol, resetCols, filters, setFilter, clearFilters, activeFilters };
+}
+
 // ---- dialog ----------------------------------------------------------------
 // Modal shell for the studio's forms — backdrop, Escape, a locked page scroll
 // and a titled header, matching the dialogs on the account pages so they open

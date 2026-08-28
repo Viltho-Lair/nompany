@@ -14,7 +14,8 @@ import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import {
   panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
-  money, fmtDate, Dialog, Toolbar, Empty,
+  money, fmtDate, useTablePrefs,
+  Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
 import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
 import { Field } from "@/components/fields/Field";
@@ -33,6 +34,42 @@ import { hoursBetween } from "@/modules/projects/projectSchedule";
 
 // Project-stage colours now live in the shared StatusPill map (kind "project").
 const rnd = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+// Columns the project list can show. Every one is toggleable; the Open action is
+// not on the list because it is always drawn.
+// THE KEYS ARE THE CONTRACT, THE LABELS ARE COPY. The saved column preference
+// stores keys, so the order and the identity of a column must not depend on the
+// reader's language; only what it is CALLED does. Hence a key list here and a
+// labelled list built from the dictionary at render.
+const PROJECT_COLUMN_KEYS = [
+  "number", "title", "clientName", "location", "stage", "manager",
+  "quotationNumber", "value", "progress", "startDate", "endDate", "createdAt",
+];
+const projectColumns = (words) => [
+  { key: "number", label: words.number },
+  { key: "title", label: words.title },
+  { key: "clientName", label: words.client },
+  { key: "location", label: words.location },
+  { key: "stage", label: words.stage },
+  { key: "manager", label: words.manager },
+  { key: "quotationNumber", label: words.quotation },
+  { key: "value", label: words.value },
+  { key: "progress", label: words.progress },
+  { key: "startDate", label: words.start },
+  { key: "endDate", label: words.targetEnd },
+  { key: "createdAt", label: words.createdAt },
+];
+// The nine the list showed before it had a picker, minus the always-drawn Open.
+const DEFAULT_PROJECT_COLUMNS = [
+  "number", "title", "clientName", "location", "stage", "value", "progress", "endDate",
+];
+const EMPTY_FILTERS = {
+  client: "", location: "", stage: "", manager: "",
+  valueMin: "", valueMax: "",
+  progressMin: "", progressMax: "",
+  startFrom: "", startTo: "",
+  endFrom: "", endTo: "",
+};
 
 function SupportTag({ project }) {
   const tr = projectsDict(useStudioLocale());
@@ -181,13 +218,22 @@ export default function StudioProjects({ slug, view = "projects" }) {
 
 function ProjectList({ projects, approvedQuotations, people, stages, canManage, slug, nav, focus, onOpen, onSave, onDelete }) {
   const tr = projectsDict(useStudioLocale());
+  const PROJECT_COLUMNS = useMemo(() => projectColumns(tr), [tr]);
   const router = useRouter();
   const [opening, setOpening] = useState(false);
   const [detail, setDetail] = useState(null);
   const [query, setQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [showColumns, setShowColumns] = useState(false);
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
   const closeOpen = useCallback(() => setOpening(false), []);
   const closeDetail = useCallback(() => setDetail(null), []);
+  const { columns, has: col, toggleCol, resetCols, filters, setFilter, clearFilters, activeFilters } =
+    useTablePrefs("projects", slug, {
+      columnKeys: PROJECT_COLUMN_KEYS,
+      defaultColumns: DEFAULT_PROJECT_COLUMNS,
+      emptyFilters: EMPTY_FILTERS,
+    });
 
   // A deep link lands ON the project rather than at the top of the list.
   useEffect(() => {
@@ -200,25 +246,168 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
     setDetail((cur) => (cur ? projects.find((p) => p.id === cur.id) || null : null));
   }, [projects]);
 
-  // Search only — sorting is the Data Grid's now, so the hand-rolled comparator
-  // this useMemo used to carry (numeric for value/progress, string otherwise) is
-  // gone: the grid sorts each column by its `field`, with `type: "number"` on the
-  // two figures so they sort by magnitude rather than lexically.
+  // Search and filter only — SORTING is the Data Grid's, so the hand-rolled
+  // comparator this useMemo used to carry is gone: the grid sorts each column by
+  // its `field`, with `type: "number"` on the figures so they sort by magnitude
+  // rather than lexically.
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q
-      ? projects.filter((p) => `${p.title || ""} ${p.number || ""} ${p.clientName || ""} ${p.location || ""}`.toLowerCase().includes(q))
-      : projects;
-  }, [projects, query]);
+    const f = filters;
+    const num = (v) => (v === "" || v == null ? null : Number(v));
+    const valMin = num(f.valueMin), valMax = num(f.valueMax);
+    const progMin = num(f.progressMin), progMax = num(f.progressMax);
+    return projects.filter((p) => {
+      if (f.stage && (p.stage || "Received") !== f.stage) return false;
+      if (f.manager && p.managerCollaboratorId !== f.manager) return false;
+      if (f.client && !`${p.clientName || ""}`.toLowerCase().includes(f.client.toLowerCase())) return false;
+      if (f.location && !`${p.location || ""}`.toLowerCase().includes(f.location.toLowerCase())) return false;
+      const value = Number(p.value ?? 0);
+      if (valMin != null && Number.isFinite(valMin) && value < valMin) return false;
+      if (valMax != null && Number.isFinite(valMax) && value > valMax) return false;
+      const progress = Number(p.progress ?? 0);
+      if (progMin != null && Number.isFinite(progMin) && progress < progMin) return false;
+      if (progMax != null && Number.isFinite(progMax) && progress > progMax) return false;
+      // A project with no date is OUT of a date range rather than in it — an
+      // unscheduled project is not "ending in this window", it has no window.
+      const start = (p.startDate || "").slice(0, 10);
+      if (f.startFrom && (!start || start < f.startFrom)) return false;
+      if (f.startTo && (!start || start > f.startTo)) return false;
+      const end = (p.endDate || "").slice(0, 10);
+      if (f.endFrom && (!end || end < f.endFrom)) return false;
+      if (f.endTo && (!end || end > f.endTo)) return false;
+      if (q && !`${p.title || ""} ${p.number || ""} ${p.clientName || ""} ${p.location || ""}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [projects, query, filters]);
+
+  // The manager's ALIAS, so the Manager column sorts by name rather than by
+  // CollaboratorID — computed once here rather than per cell.
+  const gridRows = useMemo(() => rows.map((p) => ({
+    ...p,
+    managerName: aliasOf[p.managerCollaboratorId] || tr.unassigned,
+  })), [rows, aliasOf, tr]);
+
+  // One column def per PROJECT_COLUMNS key. The grid shows only the keys the
+  // user has turned on (via `col`), in the fixed PROJECT_COLUMNS order, then the
+  // always-drawn Open action — which is what carries KEYBOARD navigation to the
+  // project's own page now that the row is not a semantic link.
+  const colDefs = useMemo(() => ({
+    number: { field: "number", headerName: tr.number, minWidth: 120, flex: 0.7,
+      renderCell: ({ row }) => (row.number
+        ? <span className="num text-xs text-slate-500 dark:text-slate-400">{row.number}</span>
+        : <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">{tr.noNumberYet}</span>) },
+    title: { field: "title", headerName: tr.title, minWidth: 180, flex: 1.3,
+      renderCell: ({ row }) => <span className="truncate font-600 text-slate-900 dark:text-white">{row.title}</span> },
+    clientName: { field: "clientName", headerName: tr.client, minWidth: 140, flex: 1,
+      renderCell: ({ row }) => <span className="truncate text-slate-600 dark:text-slate-300">{row.clientName || "—"}</span> },
+    location: { field: "location", headerName: tr.location, minWidth: 120, flex: 0.8,
+      renderCell: ({ row }) => <span className="truncate text-slate-600 dark:text-slate-300">{row.location || "—"}</span> },
+    stage: { field: "stage", headerName: tr.stage, minWidth: 120, flex: 0.7,
+      renderCell: ({ row }) => <StatusPill kind="project" status={row.stage} /> },
+    manager: { field: "managerName", headerName: tr.manager, minWidth: 130, flex: 0.9,
+      renderCell: ({ row }) => <span className="truncate text-slate-600 dark:text-slate-300">{row.managerName}</span> },
+    quotationNumber: { field: "quotationNumber", headerName: tr.quotation, minWidth: 130, flex: 0.8,
+      renderCell: ({ row }) => <span className="num text-xs text-slate-500 dark:text-slate-400">{row.quotationNumber || "—"}</span> },
+    value: { field: "value", headerName: tr.value, type: "number", minWidth: 110, flex: 0.7,
+      align: "right", headerAlign: "right",
+      renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.value)}</span> },
+    progress: { field: "progress", headerName: tr.progress, type: "number", minWidth: 140, flex: 0.8,
+      renderCell: ({ row }) => (
+        <span className="flex items-center gap-2">
+          <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+            <span className="block h-full rounded-full bg-brand-600" style={{ width: `${row.progress}%` }} />
+          </span>
+          <span className="num text-xs text-slate-500 dark:text-slate-400">{row.progress}%</span>
+        </span>
+      ) },
+    startDate: { field: "startDate", headerName: tr.start, minWidth: 130, flex: 0.8,
+      renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.startDate)}</span> },
+    endDate: { field: "endDate", headerName: tr.targetEnd, minWidth: 130, flex: 0.8,
+      renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.endDate)}</span> },
+    createdAt: { field: "createdAt", headerName: tr.createdAt, minWidth: 120, flex: 0.8,
+      renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.createdAt)}</span> },
+  }), [tr]);
+
+  const gridColumns = useMemo(() => [
+    ...PROJECT_COLUMNS.filter((c) => col(c.key)).map((c) => colDefs[c.key]),
+    {
+      field: "_open", headerName: "", minWidth: 90, flex: 0.5, sortable: false,
+      align: "right", headerAlign: "right",
+      renderCell: ({ row }) => (
+        <button type="button" className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"
+          onClick={(e) => { e.stopPropagation(); router.push(`/${slug}/projects-list/${row.id}`); }}>
+          {tr.open}
+        </button>
+      ),
+    },
+  ], [PROJECT_COLUMNS, colDefs, columns, router, slug, tr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
       <Toolbar canManage={canManage} label={tr.openProject} onAdd={() => setOpening(true)}>
         {projects.length > 0 && (
-          <input type="search" className={`${input} sm:max-w-xs`} aria-label={tr.searchTitleNumberClient}
-            value={query} onChange={(e) => setQuery(e.target.value)} />
+          <>
+            <input type="search" className={`${input} sm:max-w-xs`} aria-label={tr.searchTitleNumberClient}
+              value={query} onChange={(e) => setQuery(e.target.value)} />
+            <FilterButton active={activeFilters} open={showFilters} onClick={() => setShowFilters((v) => !v)} />
+            <button type="button" className={btnGhost} onClick={() => setShowColumns(true)}>{tr.columns}</button>
+          </>
         )}
       </Toolbar>
+
+      {showFilters && projects.length > 0 && (
+        <FilterPanel onClear={clearFilters}>
+          <Field label={tr.client} value={filters.client} onChange={(v) => setFilter({ client: v })} />
+          <Field label={tr.location} value={filters.location} onChange={(v) => setFilter({ location: v })} />
+          {/* The stages are the STUDIO'S — vocabulary.stages, not a list this
+              screen invented — so a tenant that renamed them filters by the
+              names it actually uses. */}
+          <Field label={tr.stage} as="select" value={filters.stage} onChange={(v) => setFilter({ stage: v })} options={stages} />
+          <Field label={tr.manager} as="select" value={filters.manager} onChange={(v) => setFilter({ manager: v })}
+            options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+          <div>
+            <label className={microLabel}>{tr.value}</label>
+            <div className="flex items-center gap-2">
+              <Field label={tr.min} type="number" min="0" value={filters.valueMin} onChange={(v) => setFilter({ valueMin: v })} className="flex-1" />
+              <span className="text-slate-400">–</span>
+              <Field label={tr.max} type="number" min="0" value={filters.valueMax} onChange={(v) => setFilter({ valueMax: v })} className="flex-1" />
+            </div>
+          </div>
+          <div>
+            <label className={microLabel}>{tr.progress}</label>
+            <div className="flex items-center gap-2">
+              <Field label={tr.min} type="number" min="0" max="100" value={filters.progressMin} onChange={(v) => setFilter({ progressMin: v })} className="flex-1" />
+              <span className="text-slate-400">–</span>
+              <Field label={tr.max} type="number" min="0" max="100" value={filters.progressMax} onChange={(v) => setFilter({ progressMax: v })} className="flex-1" />
+            </div>
+          </div>
+          <div>
+            <label className={microLabel}>{tr.start}</label>
+            <div className="flex items-center gap-2">
+              <Field label={tr.from} filled={!!filters.startFrom} className="flex-1"><StudioDate value={filters.startFrom} onChange={(iso) => setFilter({ startFrom: iso })} /></Field>
+              <span className="text-slate-400">–</span>
+              <Field label={tr.to} filled={!!filters.startTo} className="flex-1"><StudioDate value={filters.startTo} onChange={(iso) => setFilter({ startTo: iso })} /></Field>
+            </div>
+          </div>
+          <div>
+            <label className={microLabel}>{tr.targetEnd}</label>
+            <div className="flex items-center gap-2">
+              <Field label={tr.from} filled={!!filters.endFrom} className="flex-1"><StudioDate value={filters.endFrom} onChange={(iso) => setFilter({ endFrom: iso })} /></Field>
+              <span className="text-slate-400">–</span>
+              <Field label={tr.to} filled={!!filters.endTo} className="flex-1"><StudioDate value={filters.endTo} onChange={(iso) => setFilter({ endTo: iso })} /></Field>
+            </div>
+          </div>
+        </FilterPanel>
+      )}
+
+      {showColumns && (
+        <ColumnPicker
+          title={tr.projectColumns}
+          columns={PROJECT_COLUMNS}
+          selected={columns} onToggle={toggleCol} onReset={resetCols}
+          onClose={() => setShowColumns(false)}
+        />
+      )}
 
       {opening && (
         <Dialog title={tr.openProject2} description={tr.onlyApprovedQuotationsCan} onClose={closeOpen}>
@@ -247,24 +436,27 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
         />
       ) : (
         <>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{rows.length} of {projects.length} project{projects.length === 1 ? "" : "s"}.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{tr.projectCount(rows.length, projects.length)}</p>
           <section className={panel}>
-            {/* A Data Grid now — sortable columns, client-side paging — reproducing
-                the list column for column: the mono number (or the amber "no
-                number yet" badge until Finance issues one), title, client,
+            {/* A Data Grid now — sortable columns, client-side paging, and the
+                same toggleable column SET Sales' tickets list has, built from
+                PROJECT_COLUMNS and the saved preference via `col`. Every cell
+                reproduces the list it replaced: the mono number (or the amber
+                "no number yet" badge until Finance issues one), title, client,
                 location, the shared StatusPill for the stage, value tabular via
-                tabular-nums, the same progress bar, the target-end date through
+                `.num`, the same progress bar, the target-end date through
                 fmtDate, and an Open action that pushes the project's own page.
                 The whole row still opens that page too (onRowClick), the way it
-                did before. A project nobody has started (stage Received) keeps its
-                amber start-edge stripe — drawn as an inset box-shadow via
-                getRowClassName so it costs no layout, reading the --sg-flag colour
-                set on the wrapper so it flips in dark mode. The deep-link focus
-                still opens the detail dialog (the useEffect above); only the row's
-                brief scroll-and-ring, which client paging can't target across
-                pages, is not carried over. No column and no behaviour else is. */}
+                did before. A project nobody has started (stage Received) keeps
+                its amber start-edge stripe — drawn as an inset box-shadow via
+                getRowClassName so it costs no layout, reading the --sg-flag
+                colour set on the wrapper so it flips in dark mode. The deep-link
+                focus still opens the detail dialog (the useEffect above); only
+                the row's brief scroll-and-ring, which client paging can't target
+                across pages, is not carried over. */}
             <StudioDataGrid
-              rows={rows}
+              rows={gridRows}
+              columns={gridColumns}
               getRowId={(r) => r.id}
               ariaLabel={tr.projects}
               emptyLabel={tr.noProjectsMatchSearch}
@@ -276,60 +468,6 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
                 "& .MuiDataGrid-row": { cursor: "pointer" },
                 "& .MuiDataGrid-row.sg-flag": { boxShadow: "inset 4px 0 0 rgb(var(--sg-flag))" },
               }}
-              columns={[
-                {
-                  field: "number", headerName: tr.number, minWidth: 120, flex: 0.7,
-                  renderCell: ({ row }) => (row.number
-                    ? <span className="num text-xs text-slate-500 dark:text-slate-400">{row.number}</span>
-                    : <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">{tr.noNumberYet}</span>),
-                },
-                {
-                  field: "title", headerName: tr.title, minWidth: 180, flex: 1.3,
-                  renderCell: ({ row }) => <span className="font-600 text-slate-900 dark:text-white">{row.title}</span>,
-                },
-                {
-                  field: "clientName", headerName: tr.client, minWidth: 140, flex: 1,
-                  renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.clientName || "—"}</span>,
-                },
-                {
-                  field: "location", headerName: tr.location, minWidth: 120, flex: 0.8,
-                  renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.location || "—"}</span>,
-                },
-                {
-                  field: "stage", headerName: tr.stage, minWidth: 120, flex: 0.7,
-                  renderCell: ({ row }) => <StatusPill kind="project" status={row.stage} />,
-                },
-                {
-                  field: "value", headerName: tr.value, type: "number", minWidth: 110, flex: 0.7,
-                  align: "right", headerAlign: "right",
-                  renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.value)}</span>,
-                },
-                {
-                  field: "progress", headerName: tr.progress, type: "number", minWidth: 140, flex: 0.8,
-                  renderCell: ({ row }) => (
-                    <span className="flex items-center gap-2">
-                      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-                        <span className="block h-full rounded-full bg-brand-600" style={{ width: `${row.progress}%` }} />
-                      </span>
-                      <span className="num text-xs text-slate-500 dark:text-slate-400">{row.progress}%</span>
-                    </span>
-                  ),
-                },
-                {
-                  field: "endDate", headerName: tr.targetEnd, minWidth: 130, flex: 0.8,
-                  renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.endDate)}</span>,
-                },
-                {
-                  field: "actions", headerName: "", minWidth: 90, flex: 0.5, sortable: false,
-                  align: "right", headerAlign: "right",
-                  renderCell: ({ row }) => (
-                    <button type="button" className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"
-                      onClick={(e) => { e.stopPropagation(); router.push(`/${slug}/projects-list/${row.id}`); }}>
-                      {tr.open}
-                    </button>
-                  ),
-                },
-              ]}
             />
           </section>
         </>

@@ -1,14 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import nextDynamic from "next/dynamic";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { technicalDict, liveColumnLabel } from "@/shared/studio/technical";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
+import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
-  panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
-  URGENCY_BADGE, money, fmtDate, fmtDateTime, prefKey, loadPref, savePref,
+  panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost,
+  URGENCY_BADGE, money, fmtDate, fmtDateTime, useTablePrefs,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
 import { isUnfinished } from "@/modules/technical/quotations";
@@ -50,6 +52,16 @@ const QUOTATION_COLUMN_KEYS = [
   "handledBy", "lead", "latestComment", "total", "createdAt", "status",
 ];
 const DEFAULT_QUOTATION_COLUMNS = ["number", "title", "clientName", "handledBy", "total", "status"];
+
+// The quotations list is a Data Grid now — the same component Sales' tickets
+// list uses, so sorting, paging and the empty state are one implementation
+// rather than two. Loaded in its own async chunk (never folded into Technical's
+// initial bundle) — see StudioDataGrid's header. The skeleton reserves the box
+// for the default six columns plus the always-drawn actions while it arrives.
+const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioDataGrid"), {
+  ssr: false,
+  loading: () => <StudioDataGridSkeleton columns={7} pageSize={10} />,
+});
 const EMPTY_FILTERS = { handledBy: "", client: "", status: "", urgency: "", createdFrom: "", createdTo: "" };
 
 const latestComment = (row) => {
@@ -90,6 +102,18 @@ export default function StudioTechnical({ slug, view = "technical" }) {
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
+
+  // A deep link — /<slug>/technical-quotations?quotation=<id> — OPENS that
+  // quotation rather than ringing its row. The list is a paginated Data Grid
+  // now and cannot scroll to a row that may sit on another page, so the link
+  // does the thing the ring was standing in for.
+  const focusedQuoteId = focusQuote.focusedId;
+  useEffect(() => {
+    if (!focusedQuoteId || !data) return;
+    const hit = (data.quotations || []).find((q) => q.id === focusedQuoteId);
+    if (hit) setEditingQuote(hit);
+  }, [focusedQuoteId, data]);
+
   // Sales raised an RFQ, or someone revised a quotation — pick it up live.
   useLiveUpdates(slug, "technical", load);
   // A ticket moving in Sales is what puts a new RFQ within reach, so the
@@ -236,7 +260,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
             onClose={closeEdit}
             onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />
         )}
-        <Quotations quotations={quotations} canManage={canManageQuotations} slug={slug} nav={nav} focus={focusQuote}
+        <Quotations quotations={quotations} canManage={canManageQuotations} slug={slug} nav={nav}
           handlerName={handlerName} people={people}
           statuses={vocabulary.quotationStatuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setCreatingQuote(true)}
@@ -492,37 +516,19 @@ function OriginTag({ fromSales }) {
   );
 }
 
-function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval }) {
+function Quotations({ quotations, canManage, canUnlock, slug, nav, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval }) {
   const tr = technicalDict(useStudioLocale());
+  // THE KEYS ARE THE CONTRACT, THE LABELS ARE COPY — see quotationColumns.
+  const QUOTATION_COLUMNS = useMemo(() => quotationColumns(tr), [tr]);
   const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
-  const [columns, setColumns] = useState(DEFAULT_QUOTATION_COLUMNS);
   const [showColumns, setShowColumns] = useState(false);
-
-  // Read the saved preferences AFTER mount: localStorage does not exist on the
-  // server, so reading it during render would make the first paint disagree
-  // with the markup React sent.
-  const colsKey = prefKey("technical", slug, "cols");
-  const filtersKey = prefKey("technical", slug, "filters");
-  useEffect(() => {
-    const saved = loadPref(colsKey, null);
-    // Filtered against the KEY list, not the labelled one: the preference holds
-    // keys, so this must not depend on the reader's language.
-    setColumns(Array.isArray(saved) && saved.length ? saved.filter((k) => QUOTATION_COLUMN_KEYS.includes(k)) : DEFAULT_QUOTATION_COLUMNS);
-    setFilters({ ...EMPTY_FILTERS, ...(loadPref(filtersKey, null) || {}) });
-  }, [colsKey, filtersKey]);
-
-  const col = (key) => columns.includes(key);
-  const toggleCol = (key) => setColumns((prev) => {
-    const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
-    savePref(colsKey, next);
-    return next;
-  });
-  const resetCols = () => { setColumns(DEFAULT_QUOTATION_COLUMNS); savePref(colsKey, DEFAULT_QUOTATION_COLUMNS); };
-  const setFilter = (patch) => setFilters((prev) => { const next = { ...prev, ...patch }; savePref(filtersKey, next); return next; });
-  const clearFilters = () => { setFilters(EMPTY_FILTERS); savePref(filtersKey, EMPTY_FILTERS); };
-  const activeFilters = Object.values(filters).filter((v) => v !== "").length;
+  const { columns, has: col, toggleCol, resetCols, filters, setFilter, clearFilters, activeFilters } =
+    useTablePrefs("technical", slug, {
+      columnKeys: QUOTATION_COLUMN_KEYS,
+      defaultColumns: DEFAULT_QUOTATION_COLUMNS,
+      emptyFilters: EMPTY_FILTERS,
+    });
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -539,6 +545,114 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
       return true;
     });
   }, [quotations, query, filters]);
+
+  // Augment each row with what the grid SORTS on. A cell may render a badge or a
+  // truncated line, but the column beneath it has to order by something real —
+  // so the handler's name, the lead label, the latest comment's text and the
+  // unfinished flag are computed once here rather than per cell.
+  const gridRows = useMemo(() => filtered.map((q) => {
+    const comment = latestComment(q);
+    return {
+      ...q,
+      handlerLabel: handlerName(q.handledBy),
+      leadText: q.leadLabel || tr.internal,
+      commentText: comment?.text || "",
+      _comment: comment,
+      // New or Draft: work still owed. The stripe marks quotations nobody has
+      // finished, which is what the sidebar counts too.
+      _unfinished: isUnfinished(q),
+    };
+  }), [filtered, handlerName, tr]);
+
+  // One column def per QUOTATION_COLUMN_KEYS key, so the saved preference keeps
+  // choosing columns by key exactly as it did for the hand-rolled table.
+  const colDefs = useMemo(() => ({
+    number: { field: "number", headerName: tr.colNumber, minWidth: 130, flex: 0.8,
+      renderCell: ({ row }) => (
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="num text-xs text-slate-500 dark:text-slate-400">{row.number}</span>
+          {Number(row.revision) > 1 && <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">Rev {row.revision}</span>}
+          {row.locked && <span className="inline-flex text-slate-400" title={tr.lockedViewOnly}><Icon name="lock" className="h-3.5 w-3.5" /></span>}
+        </span>
+      ) },
+    urgency: { field: "urgency", headerName: tr.colUrgency, minWidth: 110, flex: 0.7,
+      renderCell: ({ row }) => (row.urgency
+        ? <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[row.urgency] || URGENCY_BADGE.Normal}`}>{row.urgency}</span>
+        : <span className="text-slate-400">—</span>) },
+    // Title only. The RFQ and Ticket chips are gone: the whole row already opens
+    // the builder, so two smaller targets inside it sent people somewhere else
+    // by accident. The links are still on the quotation itself — hidden here,
+    // not severed.
+    title: { field: "title", headerName: tr.colTitle, minWidth: 190, flex: 1.3,
+      renderCell: ({ row }) => (
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-600 text-slate-900 dark:text-white">{row.title || "—"}</span>
+          <OriginTag fromSales={row.fromSales} />
+        </span>
+      ) },
+    clientName: { field: "clientName", headerName: tr.colClient, minWidth: 140, flex: 1,
+      renderCell: ({ row }) => <span className="truncate text-slate-600 dark:text-slate-300">{row.clientName || "—"}</span> },
+    description: { field: "description", headerName: tr.colDescription, minWidth: 160, flex: 1.2,
+      renderCell: ({ row }) => <span className="truncate text-slate-600 dark:text-slate-300" title={row.description}>{row.description || "—"}</span> },
+    handledBy: { field: "handlerLabel", headerName: tr.colHandledBy, minWidth: 130, flex: 0.9,
+      renderCell: ({ row }) => <span className="truncate text-slate-600 dark:text-slate-300">{row.handlerLabel}</span> },
+    lead: { field: "leadText", headerName: tr.colFrom, minWidth: 120, flex: 0.8,
+      renderCell: ({ row }) => <span className="truncate text-slate-600 dark:text-slate-300">{row.leadText}</span> },
+    latestComment: { field: "commentText", headerName: tr.colLatestComment, minWidth: 170, flex: 1.2,
+      renderCell: ({ row }) => (row._comment
+        ? <span className="truncate text-slate-600 dark:text-slate-300"
+            title={`${handlerName(row._comment.byCollaboratorId)} · ${fmtDateTime(row._comment.createdAt)}\n${row._comment.text}`}>{row._comment.text}</span>
+        : <span className="text-slate-400">—</span>) },
+    total: { field: "total", headerName: tr.colTotal, type: "number", minWidth: 120, flex: 0.8,
+      align: "left", headerAlign: "left",
+      renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.total)}</span> },
+    createdAt: { field: "createdAt", headerName: tr.colCreatedAt, minWidth: 120, flex: 0.8,
+      renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.createdAt)}</span> },
+    // READ, never set. A quotation's status is what has happened to it — New
+    // until somebody opens the builder, Draft while it is being built, Completed
+    // when they submit. Offering it as a dropdown here invited people to
+    // contradict the record.
+    status: { field: "status", headerName: tr.colStatus, minWidth: 120, flex: 0.7,
+      renderCell: ({ row }) => <StatusPill kind="quotation" status={row.status} /> },
+  }), [tr, handlerName]);
+
+  const gridColumns = useMemo(() => [
+    ...QUOTATION_COLUMNS.filter((c) => col(c.key)).map((c) => colDefs[c.key]),
+    {
+      // Always drawn. Open/View is what carries KEYBOARD reach to the builder
+      // now that the row is a grid row rather than a button, and the three
+      // manage actions sit beside it. stopPropagation on every one of them, so a
+      // button does not also fire the row click that opens the builder.
+      field: "_actions", headerName: "", minWidth: 200, flex: 0.9, sortable: false,
+      align: "right", headerAlign: "right",
+      renderCell: ({ row }) => (
+        <span className="inline-flex items-center gap-2">
+          {/* Only an internal, completed, not-yet-approved quotation can be sent
+              for approval from here — a Sales-origin one is approved from its
+              ticket, and the server refuses this door for it ("has-ticket"). */}
+          {canManage && !row.fromSales && row.status === "Completed" && !row.approved && (
+            <button type="button" className={btnGhost} title={tr.sendQuotationInternalApproval}
+              onClick={(e) => { e.stopPropagation(); onRequestApproval(row); }}>{tr.requestApproval}</button>
+          )}
+          {canManage && row.status === "Approved" && !row.locked && (
+            <button type="button" className={btnGhost} title={tr.lockBecomesViewOnly}
+              onClick={(e) => { e.stopPropagation(); onLock(row); }}>{tr.lock}</button>
+          )}
+          {/* Offered only to somebody who holds unlock. Locking the wrong
+              document used to have no remedy but a new quotation with a new
+              number, which is a worse lie than the mistake. */}
+          {canUnlock && row.locked && (
+            <button type="button" className={btnGhost} title={tr.reopenLockedQuotation}
+              onClick={(e) => { e.stopPropagation(); onUnlock(row); }}>{tr.unlock}</button>
+          )}
+          <button type="button" className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"
+            onClick={(e) => { e.stopPropagation(); onOpen(row); }}>
+            {row.locked || !canManage ? tr.view : tr.open}
+          </button>
+        </span>
+      ),
+    },
+  ], [QUOTATION_COLUMNS, colDefs, columns, canManage, canUnlock, tr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (quotations.length === 0) {
     return (
@@ -578,124 +692,45 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
       )}
 
       {showColumns && (
-        <ColumnPicker title={tr.quotationColumns} columns={quotationColumns(tr)} selected={columns}
+        <ColumnPicker title={tr.quotationColumns} columns={QUOTATION_COLUMNS} selected={columns}
           onToggle={toggleCol} onReset={resetCols} onClose={() => setShowColumns(false)} />
       )}
 
-      <p className="text-sm text-slate-500 dark:text-slate-400">{filtered.length} of {quotations.length} quotation{quotations.length === 1 ? "" : "s"}.</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{tr.quotationCount(filtered.length, quotations.length)}</p>
 
       <section className={panel}>
-        {filtered.length === 0 ? (
-          <p className="py-10 text-center text-sm text-slate-400">{tr.noQuotationsMatchThose}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-white/10">
-                  {/* ps-2 matches the body cells, which are pushed in by the
-                      4px status stripe down the start edge of every row. */}
-                  {QUOTATION_COLUMNS.filter((c) => col(c.key)).map((c) => (
-                    <th key={c.key} className={`${th} ps-2 text-start`}>{c.label}</th>
-                  ))}
-                  <th className={`${th} text-end`} />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((q) => {
-                  const comment = latestComment(q);
-                  // New or Draft: work still owed. The stripe marks quotations
-                  // nobody has finished, which is what the sidebar counts too.
-                  const unsent = isUnfinished(q);
-                  return (
-                    <tr key={q.id} {...focus.focusProps(q.id)}
-                      onClick={() => onOpen(q)}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`${q.locked || !canManage ? tr.view : tr.open} ${q.ref || "quotation"}`}
-                      onKeyDown={(e) => { if (e.key === "Enter") onOpen(q); }}
-                      className={`cursor-pointer border-s-4 border-b border-slate-100 align-top last:border-b-0 dark:border-white/5 ${
-                        unsent ? stripeOn : stripeOff
-                      } ${focus.focusProps(q.id).className || ""}`}>
-                      {col("number") && (
-                        <td className="py-3 pe-3 ps-2">
-                          <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{q.number}</span>
-                          {Number(q.revision) > 1 && <span className="ms-1.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">Rev {q.revision}</span>}
-                          {q.locked && <span className="ms-1.5 inline-flex align-middle text-slate-400" title={tr.lockedViewOnly}><Icon name="lock" className="h-3.5 w-3.5" /></span>}
-                        </td>
-                      )}
-                      {col("urgency") && (
-                        <td className="py-3 pe-3 ps-2">
-                          {q.urgency
-                            ? <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[q.urgency] || URGENCY_BADGE.Normal}`}>{q.urgency}</span>
-                            : <span className="text-slate-400">—</span>}
-                        </td>
-                      )}
-                      {/* Title only. The RFQ and Ticket chips are gone: the whole
-                          row already opens the builder, so two smaller targets
-                          inside it sent people somewhere else by accident. The
-                          links are still on the quotation itself — hidden here,
-                          not severed. */}
-                      {col("title") && (
-                        <td className="py-3 pe-3 ps-2">
-                          <span className="flex items-center gap-2">
-                            <span className="font-600 text-slate-900 dark:text-white">{q.title || "—"}</span>
-                            <OriginTag fromSales={q.fromSales} />
-                          </span>
-                        </td>
-                      )}
-                      {col("clientName") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{q.clientName || "—"}</td>}
-                      {col("description") && <td className="max-w-xs py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300"><span className="block truncate" title={q.description}>{q.description || "—"}</span></td>}
-                      {col("handledBy") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{handlerName(q.handledBy)}</td>}
-                      {col("lead") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{q.leadLabel || tr.internal}</td>}
-                      {col("latestComment") && (
-                        <td className="max-w-xs py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">
-                          {comment
-                            ? <span className="block truncate" title={`${handlerName(comment.byCollaboratorId)} · ${fmtDateTime(comment.createdAt)}\n${comment.text}`}>{comment.text}</span>
-                            : <span className="text-slate-400">—</span>}
-                        </td>
-                      )}
-                      {col("total") && <td className="py-3 pe-3 ps-2 tabular-nums text-slate-600 dark:text-slate-300">{money(q.total)}</td>}
-                      {col("createdAt") && <td className="py-3 pe-3 ps-2 text-slate-500 dark:text-slate-400">{fmtDate(q.createdAt)}</td>}
-                      {col("status") && (
-                        <td className="py-3 pe-3 ps-2">
-                          {/* READ, never set. A quotation's status is what has
-                              happened to it — New until somebody opens the
-                              builder, Draft while it is being built, Completed
-                              when they submit. Offering it as a dropdown here
-                              invited people to contradict the record. */}
-                          <StatusPill kind="quotation" status={q.status} />
-                        </td>
-                      )}
-                      <td className="py-3 text-end">
-                        <span className="inline-flex gap-2">
-                          {/* Only an internal, completed, not-yet-approved
-                              quotation can be sent for approval from here — a
-                              Sales-origin one is approved from its ticket, and
-                              the server refuses this door for it ("has-ticket").
-                              stopPropagation so the button does not also open the
-                              builder the row click owns. */}
-                          {canManage && !q.fromSales && q.status === "Completed" && !q.approved && (
-                            <button className={btnGhost} title={tr.sendQuotationInternalApproval} onClick={(e) => { e.stopPropagation(); onRequestApproval(q); }}>{tr.requestApproval}</button>
-                          )}
-                          {canManage && q.status === "Approved" && !q.locked && (
-                            <button className={btnGhost} title={tr.lockBecomesViewOnly} onClick={(e) => { e.stopPropagation(); onLock(q); }}>{tr.lock}</button>
-                          )}
-                          {/* Offered only to somebody who holds unlock. Locking
-                              the wrong document used to have no remedy but a new
-                              quotation with a new number, which is a worse lie
-                              than the mistake. */}
-                          {canUnlock && q.locked && (
-                            <button className={btnGhost} title={tr.reopenLockedQuotation} onClick={(e) => { e.stopPropagation(); onUnlock(q); }}>{tr.unlock}</button>
-                          )}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* A Data Grid now — the same one Sales' tickets list uses, so the two
+            department tables are one component rather than two lookalikes:
+            sortable headers, client-side paging, and the toggleable column SET
+            still the user's (built from QUOTATION_COLUMNS and the saved
+            preference via `col`, exactly as the hand-rolled table did). Every
+            cell reproduces the table it replaced: the mono number with its Rev
+            badge and lock icon, the urgency badge, the title with its origin
+            tag, client, the truncated description, the handler, the lead, the
+            latest comment, the total tabular via `.num`, the created date
+            through fmtDate, and the shared StatusPill. The row still opens the
+            builder (onRowClick), and the always-drawn actions column carries
+            Open/View for the keyboard now that the row is no longer a button,
+            alongside Request approval / Lock / Unlock. A quotation nobody has
+            finished keeps its amber start-edge stripe — an inset box-shadow (no
+            layout cost) reading --sg-flag so it flips in dark mode. The one
+            thing not carried over is the deep-link scroll-and-ring, which
+            client paging cannot target across pages — the same trade Sales made. */}
+        <StudioDataGrid
+          rows={gridRows}
+          columns={gridColumns}
+          getRowId={(r) => r.id}
+          ariaLabel={tr.quotationsAria}
+          emptyLabel={tr.noQuotationsMatchThose}
+          emptyIcon="report"
+          className="[--sg-flag:251_191_36] dark:[--sg-flag:245_158_11]"
+          onRowClick={(params) => onOpen(params.row)}
+          getRowClassName={({ row }) => (row._unfinished ? "sg-flag" : "")}
+          sx={{
+            "& .MuiDataGrid-row": { cursor: "pointer" },
+            "& .MuiDataGrid-row.sg-flag": { boxShadow: "inset 4px 0 0 rgb(var(--sg-flag))" },
+          }}
+        />
       </section>
     </>
   );
