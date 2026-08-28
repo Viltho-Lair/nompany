@@ -236,7 +236,19 @@ export default async function StudioPage({ params }) {
     if (!can(access, "engagements.view")) notFound();
     return (
       <LiveProvider slug={studio.slug}>
-        <StudioEngagements slug={studio.slug} />
+        {/* THE TWO ACTION RIGHTS ARE RESOLVED HERE, once, and handed down as
+            flags — the same way canSeeEngagements and the Documents screen's
+            canCreate/canDelete are (invariant 3: no client re-derives access).
+            They are separate keys on purpose: being able to delete a deal must
+            not by itself confer the power to take the safety off it, so a
+            reader can legitimately hold one and not the other, and the screen
+            has to be able to draw that. The server checks both again — these
+            flags only decide whether a control is offered. */}
+        <StudioEngagements
+          slug={studio.slug}
+          canLock={can(access, "engagements.lock")}
+          canDelete={can(access, "engagements.delete")}
+        />
       </LiveProvider>
     );
   }
