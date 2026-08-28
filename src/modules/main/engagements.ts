@@ -119,7 +119,7 @@ async function summarise(
 export async function listEngagements(
   ctx: EngagementCtx,
   { limit = PAGE, cursor = 0 }: { limit?: number; cursor?: number } = {},
-): Promise<{ engagements: Array<{ id: string; ref: string; clientName: string; title: string; createdAt: string; stages: string[] }>; nextCursor: number | null } | Refusal> {
+): Promise<{ engagements: Array<{ id: string; ref: string; clientName: string; title: string; createdAt: string; stages: string[]; locked: boolean }>; nextCursor: number | null } | Refusal> {
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
@@ -129,7 +129,7 @@ export async function listEngagements(
   // per row — see clientNameById's own comment.
   const nameById = await clientNameById(ctx.studio.id);
 
-  const engagements: Array<{ id: string; ref: string; clientName: string; title: string; createdAt: string; stages: string[] }> = [];
+  const engagements: Array<{ id: string; ref: string; clientName: string; title: string; createdAt: string; stages: string[]; locked: boolean }> = [];
   for (const engId of ids) {
     const view = await readEngagementView(ctx.studio.id, engId);
     if (!view) continue;
@@ -147,6 +147,12 @@ export async function listEngagements(
       title: String(view.context.title || ""),
       createdAt: String(view.context.createdAt || ""),
       stages,
+      // LOCKED IS THE DEFAULT, and it is decided in the store, not here —
+      // readEngagementView reports a root with no `locked` field as locked, so
+      // every engagement written before the lock existed reads as locked without
+      // a migration or a single write to live data. The row carries it so the list
+      // can draw the unlock control without a second request per row.
+      locked: view.locked,
     });
   }
   return { engagements, nextCursor: ids.length === limit ? cursor + limit : null };
@@ -156,7 +162,7 @@ export async function listEngagements(
 export async function engagementBlock(
   ctx: EngagementCtx,
   engId: string,
-): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; cards: StageCard[] } } | Refusal | { error: "notfound" | "forbidden" }> {
+): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; locked: boolean; cards: StageCard[] } } | Refusal | { error: "notfound" | "forbidden" }> {
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
@@ -205,6 +211,10 @@ export async function engagementBlock(
         title: root.context.title ?? "",
       },
       status: statusOf(cards),
+      // Same default as the list row: absent means locked, decided in the store.
+      // The block carries it so opening one deal answers "can I act on this?"
+      // without asking a second time.
+      locked: view.locked,
       cards,
     },
   };
