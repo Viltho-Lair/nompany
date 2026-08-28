@@ -716,6 +716,10 @@ function ImpactSkeleton() {
 // the viewer may not see is absent entirely — not rendered, not counted, not
 // hinted at (design §8, the safety property).
 function EngagementDetail({ slug, block, loading, error }) {
+  // BEFORE THE EARLY RETURNS. The error and loading paths returned without
+  // ever calling it, so this component ran a different number of hooks
+  // depending on what the fetch had done.
+  const tr = engagementsDict(useStudioLocale());
   if (error) {
     return (
       <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
@@ -726,7 +730,6 @@ function EngagementDetail({ slug, block, loading, error }) {
 
   if (loading || !block) return <DetailSkeleton />;
 
-  const tr = engagementsDict(useStudioLocale());
   const ctx = block.context || {};
 
   return (

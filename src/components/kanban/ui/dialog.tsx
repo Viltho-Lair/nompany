@@ -35,7 +35,12 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     hideClose?: boolean;
   }
->(({ className, children, hideClose, ...props }, ref) => (
+>(({ className, children, hideClose, ...props }, ref) => {
+  // A BLOCK BODY ONLY SO THE HOOK HAS SOMEWHERE UNCONDITIONAL TO STAND. Read
+  // inside `{!hideClose && …}` it was called only on the renders where the
+  // close button was drawn, which makes the hook order depend on a prop.
+  const close = commonDict(useStudioLocale()).close;
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -72,12 +77,13 @@ const DialogContent = React.forwardRef<
           )}
         >
           <X className="size-4" />
-          <span className="sr-only">{commonDict(useStudioLocale()).close}</span>
+          <span className="sr-only">{close}</span>
         </DialogPrimitive.Close>
       )}
     </DialogPrimitive.Content>
   </DialogPortal>
-));
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({

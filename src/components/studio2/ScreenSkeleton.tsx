@@ -27,7 +27,11 @@ import { commonDict } from "@/shared/studio/common";
 export default function ScreenSkeleton(
   { rows = 6, loadingLabel }: { rows?: number; loadingLabel?: string },
 ) {
-  const word = loadingLabel ?? commonDict(useStudioLocale()).loading;
+  // THE HOOK IS NOT INSIDE THE `??`. Written as `loadingLabel ?? commonDict(
+  // useStudioLocale()).loading` the right-hand side only evaluates when the
+  // prop is absent, so the hook was called on some renders and not others.
+  const fallback = commonDict(useStudioLocale()).loading;
+  const word = loadingLabel ?? fallback;
   return (
     <div className="space-y-6" aria-busy="true" aria-live="polite">
       <span className="sr-only">{word}</span>

@@ -57,6 +57,11 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  // AT THE TOP, NOT INSIDE THE CLOSE BUTTON. `showCloseButton` is a prop, so
+  // reading the locale inside `{showCloseButton && …}` called a hook only on
+  // the renders where it was true — the hook order then changes with a prop
+  // and every hook after it lands on the wrong slot.
+  const close = commonDict(useStudioLocale()).close
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -78,7 +83,7 @@ function DialogContent({
             >
               <XIcon
               />
-              <span className="sr-only">{commonDict(useStudioLocale()).close}</span>
+              <span className="sr-only">{close}</span>
             </Button>
           </DialogPrimitive.Close>
         )}
