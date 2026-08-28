@@ -82,12 +82,12 @@ export function BoardHeader({ onAddColumn }: { onAddColumn: () => void }) {
                   value={draftName}
                   onChange={(e) => setDraftName(e.target.value)}
                   onBlur={() => {
-                    renameBoard(draftName);
+                    renameBoard(draftName, tr.untitledBoard);
                     setEditingName(false);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      renameBoard(draftName);
+                      renameBoard(draftName, tr.untitledBoard);
                       setEditingName(false);
                     }
                     if (e.key === "Escape") {

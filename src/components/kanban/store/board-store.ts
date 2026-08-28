@@ -79,7 +79,7 @@ export interface BoardDoc {
 }
 
 export interface BoardActions {
-  renameBoard: (name: string) => void;
+  renameBoard: (name: string, fallback?: string) => void;
 
   /* nompany seam */
   hydrate: (doc: BoardDoc | null, members: Member[], seedWords?: SeedWords) => void;
@@ -107,6 +107,7 @@ export interface BoardActions {
     columnId: string,
     input: Partial<Omit<Task, "id" | "columnId">> & { title: string },
     index?: number,
+    fallbackTitle?: string,
   ) => string;
   updateTask: (taskId: string, patch: Partial<Omit<Task, "id">>) => void;
   deleteTask: (taskId: string) => void;
@@ -217,7 +218,7 @@ export function emptySeed(w?: SeedWords): BoardState {
 export const useBoardStore = create<BoardStore>()((set) => ({
   ...emptySeed(),
 
-  renameBoard: (name) => set({ boardName: name.trim() || "Untitled board" }),
+  renameBoard: (name, fallback) => set({ boardName: name.trim() || fallback || "Untitled board" }),
 
   /* ------------------------------ nompany seam ------------------------------ */
 
@@ -387,7 +388,7 @@ export const useBoardStore = create<BoardStore>()((set) => ({
 
   /* ------------------------------- tasks ------------------------------ */
 
-  addTask: (columnId, input, index) => {
+  addTask: (columnId, input, index, fallbackTitle) => {
     const id = uid("task");
     set((s) => {
       const col = s.columns[columnId];
@@ -395,7 +396,7 @@ export const useBoardStore = create<BoardStore>()((set) => ({
       const task: Task = {
         id,
         columnId,
-        title: input.title.trim() || "Untitled task",
+        title: input.title.trim() || fallbackTitle || "Untitled task",
         description: input.description ?? "",
         priority: input.priority ?? "medium",
         tags: input.tags ?? [],
