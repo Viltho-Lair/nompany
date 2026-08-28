@@ -98,16 +98,14 @@ address to any holder of `engagements.view` plus any one stage right.
 
 ### Deleting anything
 
-> **STATUS: being built on branch `engagement-delete-path`. Not on `main` yet.** Until it
-> merges, deleting a quotation or a project leaves the engagement pointing at a record that
-> no longer exists, and a stage card reads "present · 1" with a blank reference. This section
-> describes the design being implemented, not current behaviour on `main` — it is marked so
-> because the previous version of this text described deletion as working when it never had a
-> single production caller, which is the failure this whole folder exists to prevent. Delete
-> this notice in the commit that merges the branch.
-
 Every create path owes a delete path, and they are one feature — never ship one without the
 other.
+
+Each stage declares its own `onDelete` in the registry: `"cascade"` for what the deal owns,
+`"keep"` for what it merely borrowed. `task`, `expense`, `bill` and `asset` are kept — every
+one is `unassignable`, raised on its own screen and attached to a deal afterwards, so its
+presence on a deal does not mean the deal created it. A bill is money owed to a supplier;
+writing that off is Finance's act, not a side effect of tidying a deal away.
 
 **Deleting one record:** detach from the engagement BEFORE the row is removed, so a crash
 leaves a row with no engagement state (which the backfill heals) rather than engagement state
@@ -145,6 +143,15 @@ to live once; 7 engagements proven.
 
 - Records still live in their section array collections, not at `rec:` keys.
 - **The project's children do not attach on create**, and therefore do not detach on delete.
+  Invoices, expenses, shipments, deliveries, orders, overtimes, tasks, bills and assets all
+  have live delete verbs and no attach, so they have nothing to detach *yet* — when any of
+  them gains an attach, it needs a detach in the same commit.
+- **No RFQ delete verb exists**, so RFQs are cascade-deleted with their deal but cannot be
+  deleted on their own.
+- `engagementBlock` reports `locked` and no screen reads it — the lock controls are on the
+  list only, so opening one deal offers none.
+- `removeEngagement` returns what it deleted and what it kept; the screen discards it and
+  reports only success, so nothing tells the user after the fact which records survived.
 - No reconcile job runs on a schedule; the backfill is manual.
 - `buildEngagements`' orphan branch fills only `members.quotation` and null singletons, so a
   reconcile cannot heal an internal-quotation deal the way it heals a ticket-headed one.
