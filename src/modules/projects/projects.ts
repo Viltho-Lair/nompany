@@ -275,7 +275,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   // Task 3 already named for the ticket's own title/client copies.
   const engagement = await readEngagement(studio.id, engId);
   const engContext = (engagement?.context || {}) as { clientId?: string; clientName?: string };
-  const engClientId = String(engContext.clientId || "");
+  let engClientId = String(engContext.clientId || "");
   let clientName = String(engContext.clientName || "");
   if (engClientId && salesClientsSection) {
     const clients = await Clients.find({ studio, section: salesClientsSection });
@@ -287,6 +287,25 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   // this fix, which is about the client only.
   const { factsFor } = await ticketFacts(ctx);
   const t = factsFor(String(quote.ticketId || ""));
+
+  // FALLBACK, NOT A SECOND SOURCE. The engagement is still where the client
+  // comes from — this only covers a dual-write that never landed: createTicket
+  // attaches the ticket's engagement best-effort (see attachTicketEngagement's
+  // own comment), so a crash or a race between "ticket written" and "engagement
+  // root written" leaves a real ticket with no engagement root at all, not yet
+  // healed by the backfill/reconcile job. Sourcing the client ONLY from the
+  // engagement in that case would blank it on the project — the exact defect
+  // this increment exists to remove, reappearing in a narrower shape. So: only
+  // when the engagement had nothing AND there IS a ticket behind this
+  // quotation (an internal quotation has none to fall back to, and does not
+  // need one — createQuotation guarantees its own engagement carries a real
+  // client) is the ticket asked directly, exactly as the old code always did.
+  // The engagement is asked FIRST and always; this never runs when it answered.
+  if (!engClientId && quote.ticketId) {
+    engClientId = t.clientId;
+    clientName = t.clientName;
+  }
+
   const now = new Date().toISOString();
   const project = await Projects.create({ studio, section: listSection }, {
     // BLANK UNTIL FINANCE ISSUES IT. The project number is quoted on invoices,

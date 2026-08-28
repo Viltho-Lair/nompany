@@ -18,7 +18,7 @@ import bcrypt from "bcryptjs";
 import {
   checkCredentialAttempts, recordCredentialFailure, clearCredentialFailures, __limits as LIMITS,
 } from "@/platform/auth/attempts";
-import { delPrefix, getIndex } from "@/platform/db/store";
+import { delPrefix, getIndex, delKeys } from "@/platform/db/store";
 import { getRedisClient } from "@/platform/db/redis";
 import { createUser, mintSession } from "@/platform/auth/users";
 import { createStudio, renameStudio, getStudioBySlug, updateStudio } from "@/modules/main/studios";
@@ -1058,6 +1058,55 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
   const ticketEngView = await readEngagementView(studio.id, ticketEngId);
   ok("...and the same engagement — the TICKET's, not a quotation-headed one",
     ticketEngView?.singletons.project === openedTicketHeaded.project?.id, JSON.stringify(ticketEngView?.singletons));
+
+  // (d) THE FALLBACK (routed 28/08/2026, after this task first landed): sourcing
+  // the client ONLY from the engagement reintroduced the same defect in a
+  // narrower shape — a ticket whose engagement root never landed (createTicket's
+  // dual-write is best-effort and swallows on failure; see attachTicketEngagement)
+  // and has not yet been healed by the backfill/reconcile job would blank the
+  // project's client rather than reading it off the ticket that is right there.
+  // openProject now falls back to ticketFacts ONLY when the engagement answered
+  // nothing AND a ticket exists to ask — never for an internal quotation, which
+  // has no ticket to fall back to and does not need one (createQuotation already
+  // guarantees its own engagement carries a real client).
+  //
+  // Built honestly: a real ticket -> RFQ -> quotation -> approval, then the
+  // engagement ROOT KEY ITSELF deleted before opening the project — the exact
+  // condition a missed dual-write leaves behind, not a faked code path. The
+  // rfq/quotation attaches that follow do not depend on the root existing (only
+  // a SINGLETON claim does, and neither of those is one), so they succeed same
+  // as always and leave the engagement genuinely rootless, the way a swallowed
+  // failure in attachTicketEngagement would.
+  const salesForFallback = await salesContext(owner, slug);
+  const svcFallback = await createService(salesForFallback, { name: `Fallback ${rand()}` });
+  const ticketFallback = await createTicket(salesForFallback, {
+    title: "Engagement root never landed", clientName: `Fallback Client ${rand()}`, deadline: "2026-12-01",
+    industry: "Technology", serviceIds: [svcFallback.service?.id],
+  });
+  const fallbackEngId = deterministicEngId("ticket", ticketFallback.ticket?.id);
+  ok("the ticket's engagement exists before it is deliberately removed",
+    !!(await readEngagementView(studio.id, fallbackEngId)), fallbackEngId);
+  await delKeys(KEYS.ENG.root(studio.id, fallbackEngId));
+  ok("...and is genuinely gone now, not a faked code path",
+    !(await readEngagementView(studio.id, fallbackEngId)), fallbackEngId);
+
+  const rfqFallback = await requestTicketRfq(salesForFallback, { ticketId: ticketFallback.ticket?.id });
+  ok("an RFQ can still be raised with no engagement root behind the ticket",
+    !!rfqFallback.rfq, JSON.stringify(rfqFallback.error));
+  const techForFallback = await technicalContext(owner, slug);
+  const convFallback = await convertRfq(techForFallback, { rfqId: rfqFallback.rfq?.id });
+  await updateQuotation(techForFallback, convFallback.quotation?.id, { status: "Approved" });
+
+  const projForFallback = await projectsContext(owner, slug);
+  const openedFallback = await openProject(projForFallback, { quotationId: convFallback.quotation?.id });
+  ok("a project still opens when its ticket's engagement root is missing",
+    !!openedFallback.project, JSON.stringify(openedFallback.error));
+  ok("...and falls back to the ticket for its client instead of going blank",
+    !!openedFallback.project?.clientId
+    && openedFallback.project?.clientId === ticketFallback.ticket?.clientId
+    && openedFallback.project?.clientName === ticketFallback.ticket?.clientName,
+    JSON.stringify({ clientId: openedFallback.project?.clientId, clientName: openedFallback.project?.clientName,
+                     ticketClientId: ticketFallback.ticket?.clientId }));
 }
 
 // ============================================================================
