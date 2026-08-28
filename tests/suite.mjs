@@ -1110,6 +1110,94 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
 }
 
 // ============================================================================
+console.log("\n== CI proves a quotation-born deal carries its client (Task 5, client-belongs-to-the-engagement)");
+// THE WHOLE CHAIN, END TO END, ON LIVE'S OWN SHAPE — not a synthetic fixture.
+// "Project Home Invasion" (pro_mt9pi5hjdjgsla) is a project with clientId ""
+// opened from Q-0002, an INTERNAL quotation (no ticket) whose OWN clientId
+// pointed at a real Client ("Abdullah Abu Hamad") that nothing downstream ever
+// reached. Tasks 1-4 fixed each link separately (the client block on
+// createQuotation, the engagement's symmetric orphan-branch resolution, the
+// project reading its client from the engagement); this block rebuilds that
+// exact chain — internal quotation -> approve -> open project — and asserts
+// every link at once, plus the live-resolution property that would have
+// caught a write-time copy silently going stale.
+{
+  const tech = await technicalContext(owner, slug);
+  const sequence = (tech.sequences || [])[0];
+  ok("a default sequence exists to create against", Boolean(sequence), JSON.stringify(tech.sequences));
+
+  const clientName = `Home Invasion Client ${rand()}`;
+  const madeQuote = await createQuotation(tech, {
+    sequenceId: sequence?.id, clientName,
+    contactName: "Abdullah Abu Hamad", contactPosition: "Owner",
+    contactEmail: "abdullah@homeinvasion.example", contactPhone: "555-0142",
+    location: { name: "Site 1", country: "US", city: "Phoenix", url: "https://homeinvasion.example" },
+    title: "Project Home Invasion", industry: "Technology", deadline: "2026-12-01",
+    description: "The exact chain that broke on live, rebuilt to prove it stays fixed.",
+  });
+  ok("the internal quotation resolves a real clientId",
+    !!madeQuote.quotation?.clientId, JSON.stringify(madeQuote.error || madeQuote.quotation));
+
+  const approvedQuote = await updateQuotation(tech, madeQuote.quotation?.id, { status: "Approved" });
+  ok("the internal quotation approves directly (no ticket-approval task behind it)",
+    approvedQuote.quotation?.status === "Approved", JSON.stringify(approvedQuote.error));
+
+  const proj = await projectsContext(owner, slug);
+  const openedQuote = await openProject(proj, { quotationId: madeQuote.quotation?.id });
+  ok("a project opens from the approved internal quotation", !!openedQuote.project,
+    JSON.stringify(openedQuote.error));
+
+  // (1) THE PROJECT CARRIES THE CLIENT — this is the exact assertion that
+  // would have failed for "Project Home Invasion" before Tasks 1-4.
+  ok("the project carries the quotation's client, id and name both",
+    openedQuote.project?.clientId === madeQuote.quotation?.clientId
+    && openedQuote.project?.clientName === clientName,
+    JSON.stringify({ clientId: openedQuote.project?.clientId, clientName: openedQuote.project?.clientName }));
+
+  // (2) THE ENGAGEMENT IS THE QUOTATION'S OWN, with ticket left genuinely
+  // null (never inherited, never guessed), the project claimed as the PROJECT
+  // singleton, the approved quotation recorded, and the quotation itself among
+  // the engagement's own members (createQuotation's dual-write, Phase 1b-ii).
+  const chainEngId = deterministicEngId("quotation", madeQuote.quotation?.id);
+  const chainView = await readEngagementView(studio.id, chainEngId);
+  ok("the engagement is deterministicEngId(\"quotation\", quotationId)", !!chainView, chainEngId);
+  ok("...with no ticket — this deal never had one",
+    chainView?.singletons.ticket === null, JSON.stringify(chainView?.singletons));
+  ok("...the project claimed as the PROJECT singleton",
+    chainView?.singletons.project === openedQuote.project?.id, JSON.stringify(chainView?.singletons));
+  ok("...and the approved quotation recorded",
+    chainView?.singletons.approvedQuotation === madeQuote.quotation?.id, JSON.stringify(chainView?.singletons));
+  ok("...with the quotation itself among the engagement's members",
+    !!chainView?.members.quotation?.includes(madeQuote.quotation?.id), JSON.stringify(chainView?.members));
+
+  // (3) THE VIEW NAMES THE CLIENT — engagementBlock, the screen this whole
+  // increment exists to feed, resolved through the same permission gate a
+  // real reader hits.
+  const chainAccess = (await studioContext(owner, slug)).access;
+  const chainBlock = await engagementBlock({ studio, access: chainAccess }, chainEngId);
+  ok("engagementBlock does not refuse the owner", !chainBlock.error, JSON.stringify(chainBlock.error));
+  ok("...and names the client",
+    chainBlock.engagement?.context?.clientName === clientName, JSON.stringify(chainBlock.engagement?.context));
+
+  // (4) THE LIVE-RESOLUTION PROPERTY, on THIS chain rather than a synthetic
+  // one: rename the Client record and re-read the block with NO write to the
+  // engagement root in between — nothing here calls attachRecord, setApproved-
+  // Quotation or any other engagement mutator between the rename and the
+  // re-read. A write-time copy of the name would report the OLD name here and
+  // nothing would notice; resolving live off the Client record is what makes
+  // it impossible to go stale.
+  const sales = await salesContext(owner, slug);
+  const renamedClient = await editClient(sales, madeQuote.quotation?.clientId, { name: "Home Invasion Renamed" });
+  ok("the client record is renamed", renamedClient.client?.name === "Home Invasion Renamed",
+    JSON.stringify(renamedClient.error || renamedClient));
+
+  const chainBlockAfterRename = await engagementBlock({ studio, access: chainAccess }, chainEngId);
+  ok("engagementBlock reports the NEW name — resolved live, not a stale write-time copy",
+    chainBlockAfterRename.engagement?.context?.clientName === "Home Invasion Renamed",
+    JSON.stringify(chainBlockAfterRename.engagement?.context));
+}
+
+// ============================================================================
 console.log("\n== an RFQ tells the people who will quote it");
 // The Sales to Technical handoff went quiet: a ticket moved to Opportunity and
 // nobody downstream knew work was waiting. The handlers are resolved from the
