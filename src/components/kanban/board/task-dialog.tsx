@@ -245,12 +245,12 @@ export function TaskDialog({
             )}
           </div>
           <DialogTitle className="sr-only">
-            {isCreate ? "Create task" : "Edit task"}
+            {isCreate ? tr.createTask : "Edit task"}
           </DialogTitle>
           <DialogDescription className="sr-only">
             {isCreate
-              ? "Fill in the details for a new task."
-              : "Changes are saved as you type."}
+              ? tr.fillDetailsNewTask
+              : tr.changesSavedType}
           </DialogDescription>
         </DialogHeader>
 
@@ -380,7 +380,7 @@ export function TaskDialog({
 
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
-              {isCreate ? "Cancel" : "Done"}
+              {isCreate ? tr.cancel : "Done"}
             </Button>
             {isCreate && (
               <Button

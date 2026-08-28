@@ -84,8 +84,8 @@ export function DocumentList({
       // working from it, and the record outlives whoever wants it gone.
       setError(
         payload.error === "controlled"
-          ? "An issued document cannot be deleted. Withdraw it instead."
-          : "That document could not be deleted.",
+          ? tr.issuedDocumentCannotDeleted
+          : tr.documentCouldNotDeleted,
       );
       return;
     }
@@ -141,7 +141,7 @@ export function DocumentList({
           </span>
           <p className="font-medium text-card-foreground">{tr.noDocumentsYet}</p>
           <p className="text-sm text-muted-foreground">
-            {canCreate ? "Start one and it will get its number automatically." : "Nothing has been written here yet."}
+            {canCreate ? tr.startOneWillGet : "Nothing has been written here yet."}
           </p>
         </div>
       ) : (

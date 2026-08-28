@@ -326,6 +326,7 @@ function BoardColumnInner({
   onAddTask: (columnId: string) => void;
   isDropTarget: boolean;
 }) {
+  const tr = boardDict(useStudioLocale());
   // Each column subscribes to *its own* slice. Reading the whole `columns` map
   // higher up would re-render every column whenever any task moved.
   const column = useBoardStore((s) => s.columns[columnId]);
@@ -403,8 +404,8 @@ function BoardColumnInner({
                   )}
                 >
                   {tasks.length === 0
-                    ? "Drop a card here or click to add"
-                    : "No cards match the current filter"}
+                    ? tr.dropCardHereClick
+                    : tr.noCardsMatchCurrent}
                 </button>
               )}
             </div>

@@ -8,11 +8,17 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  docsExpiringDays: (days: number) => string;
+  idPassportWithin: (days: number) => string;
   accessHumanResourcesStudio: string;
   addCertification: string;
   addRole: string;
+  adminComesStudioCan: string;
   approve: string;
   approvedNotYetStarted: string;
+  bookYourselfSomebodyManage: string;
+  can: string;
+  canOnlyGiveSomebody: string;
   cancel: string;
   certificationsHeld: string;
   dashboardIsnYoursSee: string;
@@ -20,14 +26,19 @@ type Strings = CommonStrings & {
   decline: string;
   defineQualificationsPeopleHold: string;
   delete: string;
+  deleteGood: string;
   department: string;
   departments: string;
   description: string;
+  didnSave: string;
   eGEmp014: string;
   edit: string;
   employeeCode: string;
   employmentDetailsApplyInside: string;
+  endDateBeforeStart: string;
+  endDateCanBefore: string;
   expiringDocuments: string;
+  file: string;
   from: string;
   headcountDepartment: string;
   idExpiry: string;
@@ -42,6 +53,7 @@ type Strings = CommonStrings & {
   loadingHumanResources: string;
   mobile: string;
   name: string;
+  nameAlreadyUse: string;
   namingJobHrWhat: string;
   noAccessGrantedYet: string;
   noCertificationsYet: string;
@@ -63,12 +75,20 @@ type Strings = CommonStrings & {
   people: string;
   peopleArriveJoiningStudio: string;
   person: string;
+  personHolds: string;
+  personLoses: string;
+  puttingSomebodyRoleAccess: string;
   reason: string;
   rename: string;
   requestLeave: string;
   requestsKindLeave: string;
+  requestsPeopleArriveHere: string;
   role: string;
+  rolesShownHereBut: string;
+  saving: string;
   searchNameCodeDepartment: string;
+  sectionIsnPartStudio: string;
+  sending: string;
   studioKeepsModuleDashboards: string;
   studioSectionsWhereThey: string;
   to: string;
@@ -77,17 +97,25 @@ type Strings = CommonStrings & {
   upcomingLeave: string;
   validMonths: string;
   viewOnly: string;
+  viewOnlyAccessHuman: string;
+  whatPersonWhatLets: string;
   wherePeopleSit: string;
   whereRequestsStand: string;
 };
 
 const en: Strings = {
   ...commonEn,
+  docsExpiringDays: (days) => `Docs expiring · ${days}d`,
+  idPassportWithin: (days) => `ID and passport within ${days} days, or lapsed`,
   accessHumanResourcesStudio: "You don't have access to Human Resources in this studio.",
   addCertification: "Add certification",
   addRole: "Add role",
+  adminComesStudioCan: "Admin comes with the studio — it can't be renamed or deleted.",
   approve: "Approve",
   approvedNotYetStarted: "Approved and not yet started",
+  bookYourselfSomebodyManage: "Book it for yourself, or for somebody you manage.",
+  can: "You can't do that.",
+  canOnlyGiveSomebody: "You can only give somebody a role whose permissions you hold yourself.",
   cancel: "Cancel",
   certificationsHeld: "Certifications held",
   dashboardIsnYoursSee: "The dashboard isn't yours to see",
@@ -95,14 +123,19 @@ const en: Strings = {
   decline: "Decline",
   defineQualificationsPeopleHold: "Define the qualifications your people hold, then tick them off on each person.",
   delete: "Delete",
+  deleteGood: "Delete for good",
   department: "Department",
   departments: "Departments",
   description: "Description",
+  didnSave: "That didn't save.",
   eGEmp014: "e.g. EMP-014",
   edit: "Edit",
   employeeCode: "Employee code",
   employmentDetailsApplyInside: "Employment details apply inside this studio only.",
+  endDateBeforeStart: "The end date is before the start date.",
+  endDateCanBefore: "The end date can't be before the start date.",
   expiringDocuments: "Expiring documents",
+  file: "on file",
   from: "From",
   headcountDepartment: "Headcount by department",
   idExpiry: "ID expiry",
@@ -117,6 +150,7 @@ const en: Strings = {
   loadingHumanResources: "Loading Human Resources…",
   mobile: "Mobile",
   name: "Name",
+  nameAlreadyUse: "That name is already in use.",
   namingJobHrWhat: "Naming the job is HR's. What it may do is set on the access screen.",
   noAccessGrantedYet: "No access granted yet",
   noCertificationsYet: "No certifications yet",
@@ -138,12 +172,20 @@ const en: Strings = {
   people: "People",
   peopleArriveJoiningStudio: "People arrive by joining the studio and being approved. HR describes who they are once they're in.",
   person: "Person",
+  personHolds: "person holds",
+  personLoses: "person loses",
+  puttingSomebodyRoleAccess: "Putting somebody in a role is an access change, and that's set on the access screen.",
   reason: "Reason",
   rename: "Rename",
   requestLeave: "Request leave",
   requestsKindLeave: "Requests by kind of leave",
+  requestsPeopleArriveHere: "Requests from your people arrive here for approval.",
   role: "Role",
+  rolesShownHereBut: "Roles are shown here but assigned on the access screen: handing somebody a role hands them permissions, which is a right of its own.",
+  saving: "Saving…",
   searchNameCodeDepartment: "Search name, code, department or role",
+  sectionIsnPartStudio: "That section isn't part of this studio any more.",
+  sending: "Sending…",
   studioKeepsModuleDashboards: "This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar.",
   studioSectionsWhereThey: "The studio's sections, so this is where they work.",
   to: "To",
@@ -152,17 +194,25 @@ const en: Strings = {
   upcomingLeave: "Upcoming leave",
   validMonths: "Valid for (months)",
   viewOnly: "View only",
+  viewOnlyAccessHuman: "You have view-only access to Human Resources.",
+  whatPersonWhatLets: "What this person is, and what that lets them do — the same role Access grants against. Somebody can hold more than one.",
   wherePeopleSit: "Where people sit",
   whereRequestsStand: "Where requests stand",
 };
 
 const ar: Strings = {
   ...commonAr,
+  docsExpiringDays: (days) => `وثائق توشك على الانتهاء · ${days} يومًا`,
+  idPassportWithin: (days) => `الهوية وجواز السفر خلال ${days} يومًا، أو منتهيان`,
   accessHumanResourcesStudio: "لا تملك صلاحية الوصول إلى الموارد البشرية في هذا الاستوديو.",
   addCertification: "إضافة شهادة",
   addRole: "إضافة دور",
+  adminComesStudioCan: "دور المسؤول يأتي مع الاستوديو — لا يمكن إعادة تسميته أو حذفه.",
   approve: "اعتماد",
   approvedNotYetStarted: "معتمدة ولم تبدأ بعد",
+  bookYourselfSomebodyManage: "احجزها لنفسك، أو لشخص تديره.",
+  can: "لا يمكنك فعل ذلك.",
+  canOnlyGiveSomebody: "لا يمكنك منح شخص دورًا إلا إن كنت تملك صلاحياته بنفسك.",
   cancel: "إلغاء",
   certificationsHeld: "الشهادات المُحرَزة",
   dashboardIsnYoursSee: "لوحة المعلومات ليست من صلاحياتك",
@@ -170,14 +220,19 @@ const ar: Strings = {
   decline: "رفض",
   defineQualificationsPeopleHold: "عرّف المؤهلات التي يحملها موظفوك، ثم علّم عليها لدى كل شخص.",
   delete: "حذف",
+  deleteGood: "حذف نهائي",
   department: "القسم",
   departments: "الأقسام",
   description: "الوصف",
+  didnSave: "لم يُحفظ ذلك.",
   eGEmp014: "مثال: EMP-014",
   edit: "تعديل",
   employeeCode: "الرقم الوظيفي",
   employmentDetailsApplyInside: "تسري بيانات التوظيف داخل هذا الاستوديو فقط.",
+  endDateBeforeStart: "تاريخ النهاية قبل تاريخ البداية.",
+  endDateCanBefore: "لا يمكن أن يسبق تاريخ النهاية تاريخ البداية.",
   expiringDocuments: "وثائق توشك على الانتهاء",
+  file: "مسجّلة",
   from: "من",
   headcountDepartment: "عدد الموظفين حسب القسم",
   idExpiry: "انتهاء الهوية",
@@ -192,6 +247,7 @@ const ar: Strings = {
   loadingHumanResources: "جارٍ تحميل الموارد البشرية…",
   mobile: "الجوال",
   name: "الاسم",
+  nameAlreadyUse: "هذا الاسم مستخدم بالفعل.",
   namingJobHrWhat: "تسمية الوظيفة من شأن الموارد البشرية. أما ما يُسمح لها بفعله فيُضبط في شاشة الصلاحيات.",
   noAccessGrantedYet: "لم تُمنح أي صلاحيات بعد",
   noCertificationsYet: "لا توجد شهادات بعد",
@@ -213,12 +269,20 @@ const ar: Strings = {
   people: "الأشخاص",
   peopleArriveJoiningStudio: "يصل الأشخاص بالانضمام إلى الاستوديو والموافقة عليهم. وتصف الموارد البشرية من هم بعد دخولهم.",
   person: "الشخص",
+  personHolds: "شخص يحملها",
+  personLoses: "شخص يفقدها",
+  puttingSomebodyRoleAccess: "وضع شخص في دور تغييرٌ للصلاحيات، وهذا يُضبط في شاشة الصلاحيات.",
   reason: "السبب",
   rename: "إعادة تسمية",
   requestLeave: "طلب إجازة",
   requestsKindLeave: "الطلبات حسب نوع الإجازة",
+  requestsPeopleArriveHere: "تصل هنا طلبات موظفيك للاعتماد.",
   role: "الدور",
+  rolesShownHereBut: "تُعرض الأدوار هنا لكنها تُسنَد في شاشة الصلاحيات: فمنح شخص دورًا هو منحه صلاحيات، وذلك حق قائم بذاته.",
+  saving: "جارٍ الحفظ…",
   searchNameCodeDepartment: "ابحث بالاسم أو الرقم الوظيفي أو القسم أو الدور",
+  sectionIsnPartStudio: "لم يعد هذا القسم جزءًا من هذا الاستوديو.",
+  sending: "جارٍ الإرسال…",
   studioKeepsModuleDashboards: "يُبقي هذا الاستوديو لوحات معلومات الوحدات خلف صلاحية خاصة بها. الشاشات التي تحتها غير متأثرة — اختر واحدة من الشريط الجانبي.",
   studioSectionsWhereThey: "أقسام الاستوديو، وهي مكان عملهم.",
   to: "إلى",
@@ -227,6 +291,8 @@ const ar: Strings = {
   upcomingLeave: "الإجازات القادمة",
   validMonths: "صالحة لمدة (بالأشهر)",
   viewOnly: "للعرض فقط",
+  viewOnlyAccessHuman: "لديك صلاحية عرض فقط على الموارد البشرية.",
+  whatPersonWhatLets: "ما هذا الشخص، وما الذي يتيحه له ذلك — الدور نفسه الذي تمنح عليه الصلاحيات. ويمكن أن يحمل أكثر من دور.",
   wherePeopleSit: "أين يعمل الأشخاص",
   whereRequestsStand: "وضع الطلبات",
 };

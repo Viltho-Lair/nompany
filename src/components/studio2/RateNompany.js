@@ -58,7 +58,7 @@ export default function RateNompany() {
           <p className="text-sm font-600 text-slate-700 dark:text-slate-200">{tr.thankNoted}</p>
         ) : (
           <>
-            <p className="text-sm text-slate-700 dark:text-slate-200">How would you rate nompany?</p>
+            <p className="text-sm text-slate-700 dark:text-slate-200">{tr.howWouldYouRate}</p>
             <div className="flex items-center gap-0.5" onMouseLeave={() => setHover(0)}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <button key={n} type="button" aria-label={`${n} star${n === 1 ? "" : "s"}`}

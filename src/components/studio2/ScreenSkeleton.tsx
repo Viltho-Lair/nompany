@@ -1,4 +1,6 @@
-// WHAT A DEPARTMENT SCREEN LOOKS LIKE BEFORE ITS CHUNK ARRIVES.
+
+import { useStudioLocale } from "@/components/studio2/locale";
+import { restDict } from "@/shared/studio/rest";// WHAT A DEPARTMENT SCREEN LOOKS LIKE BEFORE ITS CHUNK ARRIVES.
 //
 // The studio's screens are `nextDynamic()` now, one chunk each, so between
 // clicking Finance and seeing Finance there is a fetch. Without something in
@@ -15,9 +17,10 @@
 //
 // `.skel` is the shared utility in globals.css, not a per-screen animation.
 export default function ScreenSkeleton({ rows = 6 }: { rows?: number }) {
+  const tr = restDict(useStudioLocale());
   return (
     <div className="space-y-6" aria-busy="true" aria-live="polite">
-      <span className="sr-only">Loading</span>
+      <span className="sr-only">{tr.loading}</span>
 
       <div className="skel skel-text h-6 w-48" />
 

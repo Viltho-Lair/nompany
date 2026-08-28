@@ -44,7 +44,7 @@ import {
   gridHeight,
 } from "./StudioDataGrid.skeleton";
 
-const NoRows = ({ label = "Nothing here yet.", icon = "list" }) => (
+const NoRows = ({ label = tr.nothingHereYet, icon = "list" }) => (
   <div className="flex h-full flex-col items-center justify-center gap-3 px-6 py-10 text-center">
     <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-[var(--geex-faint)] dark:bg-white/5">
       <Icon name={icon} className="h-5 w-5" />

@@ -24,6 +24,7 @@ const PLAN_STATUS = {
 };
 
 export default function StudioPlannerList({ slug }) {
+  const tr = plannerDict(useStudioLocale());
   const router = useRouter();
   const [state, setState] = useState({ loading: true, error: false, plans: [], canEdit: false, presets: {} });
   const [creating, setCreating] = useState(false);
@@ -131,7 +132,7 @@ export default function StudioPlannerList({ slug }) {
               className="inline-flex h-9 items-center gap-1.5 rounded-full bg-brand-700 px-4 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span aria-hidden="true" className="text-base leading-none">+</span>
-              {creating ? "Creating…" : "New plan"}
+              {creating ? tr.creating : "New plan"}
             </button>
           </div>
         )}

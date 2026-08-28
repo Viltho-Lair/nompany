@@ -60,11 +60,11 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError(
-        data.error === "already-decided" ? "That request was already handled."
+        data.error === "already-decided" ? tr.requestAlreadyHandled
         // The package sets the ceiling, so the message says what to do about it
         // rather than just refusing.
         : data.error === "member-limit" ? `Your package allows ${data.limit} member${data.limit === 1 ? "" : "s"}. Upgrade, or remove someone first.`
-        : "We couldn't complete that.");
+        : tr.couldnComplete);
     }
     load();
   }
@@ -91,7 +91,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
     setBusyId("");
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error === "owner-immutable" ? "The owner can't be removed." : "We couldn't remove that person.");
+      setError(data.error === "owner-immutable" ? tr.ownerCanRemoved : "We couldn't remove that person.");
     }
     load();
   }
@@ -113,7 +113,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
               className={btnGhost}
               onClick={async () => { try { await navigator.clipboard.writeText(slug); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ } }}
             >
-              {copied ? "Copied" : "Copy code"}
+              {copied ? tr.copied : "Copy code"}
             </button>
           </div>
         </section>
@@ -141,7 +141,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
       <section className={panel}>
         <h2 className={h2}>{tr.peopleStudio}</h2>
         <p className={sub}>
-          {canAdminister ? "Names and roles here apply only inside this studio." : "Everyone with access to this studio."}
+          {canAdminister ? tr.namesRolesHereApply : "Everyone with access to this studio."}
         </p>
         <ul className="mt-4 space-y-2">
           {people.map((p) => (
@@ -180,7 +180,7 @@ function RequestRow({ request, busy, onDecide }) {
         <Field label={tr.role} as="select" required value={role} onChange={(v) => setRole(v)}
           options={[{ value: "member", label: tr.member }, { value: "admin", label: tr.admin }]} />
         <button className={btn} disabled={busy} onClick={() => onDecide(request, "approve", alias, role)}>
-          {busy ? "Working…" : "Approve"}
+          {busy ? tr.working : "Approve"}
         </button>
         <button className={btnGhost} disabled={busy} onClick={() => onDecide(request, "decline")}>{tr.decline}</button>
       </div>
@@ -240,7 +240,7 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
             {person.alias || "Unnamed member"} {isMe && <span className="text-xs font-400 text-slate-400">(you)</span>}
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {isOwner ? "Owner" : isAdminNow ? "Admin" : held ? held.name : "No role"}
+            {isOwner ? tr.owner : isAdminNow ? tr.admin : held ? held.name : "No role"}
             {person.overrideCount > 0 && (
               <span className="ms-1.5 text-amber-700 dark:text-amber-300">
                 +{person.overrideCount} exception{person.overrideCount === 1 ? "" : "s"}

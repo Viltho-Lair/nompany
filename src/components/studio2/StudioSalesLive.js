@@ -89,7 +89,7 @@ export default function StudioSalesLive({ studio }) {
               onClick={() => setPaused((p) => !p)}
               className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
             >
-              {paused ? "Resume" : "Pause"}
+              {paused ? tr.resume : "Pause"}
             </button>
             {data?.nav?.["sales-settings"] && (
               <Link

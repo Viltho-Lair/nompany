@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { restDict } from "@/shared/studio/rest";
 import { Check, ChevronDown, Loader2, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ export function FontPicker({
   onSelect: (family: string, category: string) => void;
   onSetAsDefault?: (family: string, category: string) => void;
 }) {
+  const tr = restDict(useStudioLocale());
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const catalog = useFontCatalog();
@@ -70,7 +73,7 @@ export function FontPicker({
           variant="ghost"
           size="sm"
           className="h-8 w-40 justify-between gap-1 px-2 font-normal"
-          aria-label="Font"
+          aria-label={tr.font}
         >
           <span
             className="truncate"
@@ -89,7 +92,7 @@ export function FontPicker({
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search 1,900+ fonts"
+            placeholder={tr.search1900Fonts}
             className="h-7 border-0 p-0 shadow-none focus-visible:ring-0"
           />
         </div>

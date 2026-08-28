@@ -75,6 +75,9 @@ export default function StudioOperations({ slug, view = "operations" }) {
 
   // The Schedule screen reads its own sub-section door (operations.schedule); the
   // rest of Operations reads the root. One screen, two reads, chosen by view.
+  // NOT A LABEL — this is the path the fetch below goes to. It was briefly a
+  // dictionary lookup, which would have asked an Arabic studio for an endpoint
+  // that does not exist.
   const endpoint = view === "operations-schedule" ? "operations/schedule" : "operations";
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/${endpoint}`, { cache: "no-store" });
@@ -94,7 +97,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(message(out)); return false; }
+    if (!res.ok) { setError(message(out, tr)); return false; }
     await load();
     return true;
   }, [slug, load]);
@@ -211,21 +214,22 @@ function OperationsBottomBar({ active, onTab }) {
   );
 }
 
-function message(out) {
-  if (out.error === "read-only") return "You have view-only access to Operations.";
-  if (out.error === "duplicate") return "That name is already in use.";
-  if (out.error === "clash") return `They're already scheduled ${out.startTime}–${out.endTime} that day.`;
-  if (out.error === "on-leave") return `They're on approved ${String(out.type || "").toLowerCase()} leave ${fmt(out.from)} – ${fmt(out.to)}.`;
+// THE DICTIONARY COMES IN AS AN ARGUMENT — module scope, see StudioFinance.
+function message(out, tr) {
+  if (out.error === "read-only") return tr.mReadOnly;
+  if (out.error === "duplicate") return tr.mDuplicate;
+  if (out.error === "clash") return tr.mClash(out.startTime, out.endTime);
+  if (out.error === "on-leave") return tr.mOnLeave(String(out.type || "").toLowerCase(), fmt(out.from), fmt(out.to));
   if (out.error === "in-use") {
     const bits = [];
-    if (out.permits) bits.push(`${out.permits} ${out.permits === 1 ? "permit" : "permits"}`);
-    if (out.shifts) bits.push(`${out.shifts} ${out.shifts === 1 ? "shift" : "shifts"}`);
-    return `Still used by ${bits.join(" and ")} — move those first.`;
+    if (out.permits) bits.push(tr.countPermits(out.permits));
+    if (out.shifts) bits.push(tr.countShifts(out.shifts));
+    return tr.mInUse(tr.joinAnd(bits));
   }
-  if (out.error === "range") return "The end date can't be before the start date.";
-  if (out.error === "time") return "Give the shift a date, a start and an end.";
-  if (out.error === "person") return "Pick who is working.";
-  return "That didn't save.";
+  if (out.error === "range") return tr.mRange;
+  if (out.error === "time") return tr.mTime;
+  if (out.error === "person") return tr.mPerson;
+  return tr.mDidntSave;
 }
 
 // ---- schedule --------------------------------------------------------------
@@ -504,7 +508,7 @@ function ShiftForm({ people, locations, busy, onCancel, onSave }) {
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !form.date || !form.collaboratorId} onClick={() => onSave(form)}>
-          {busy ? "Saving…" : "Schedule"}
+          {busy ? tr.saving : "Schedule"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -524,7 +528,7 @@ function Permits({ rows, locations, people, projects, types, windowDays, slug, n
       {canManage && <button className={btn} onClick={() => setAdding(true)}>{tr.addPermit}</button>}
       {(adding || editing) && (
         <Dialog
-          title={editing ? "Edit permit" : "New permit"}
+          title={editing ? tr.editPermit : "New permit"}
           description={tr.whatPermittedWhereUntil}
           onClose={() => { setAdding(false); setEditing(null); }}
         >
@@ -599,7 +603,7 @@ function PermitForm({ permit, locations, people, projects, types, busy, onCancel
 
   return (
     <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{permit ? "Edit permit" : "New permit"}</h3>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{permit ? tr.editPermit : "New permit"}</h3>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={tr.title} required value={form.title}
           onChange={(v) => setForm((f) => ({ ...f, title: v }))} className="sm:col-span-2" />
@@ -646,7 +650,7 @@ function PermitForm({ permit, locations, people, projects, types, busy, onCancel
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !form.title.trim()}
           onClick={() => onSave({ ...form, holderCollaboratorIds: holders })}>
-          {busy ? "Saving…" : "Save"}
+          {busy ? tr.saving : "Save"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -665,11 +669,11 @@ function Locations({ rows, kinds, canManage, busy, send }) {
       {canManage && <button className={btn} onClick={() => setAdding(true)}>{tr.addLocation}</button>}
       {(adding || editing) && (
         <Dialog
-          title={editing ? "Edit location" : "New location"}
+          title={editing ? tr.editLocation : "New location"}
           description={tr.placeWorkHappensSite}
           onClose={() => { setAdding(false); setEditing(null); }}
         >
-        <SimpleForm title={editing ? "Edit location" : "New location"} busy={busy}
+        <SimpleForm title={editing ? tr.editLocation : "New location"} busy={busy}
           fields={[
             { key: "name", label: tr.name, required: true, value: editing?.name || "" },
             { key: "kind", label: tr.kind, value: editing?.kind || kinds[0], options: kinds.map((k) => ({ value: k, text: k })) },
@@ -745,7 +749,7 @@ function SimpleForm({ title, fields, busy, onCancel, onSave }) {
         ))}
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
-        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? "Saving…" : "Save"}</button>
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : "Save"}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
@@ -1032,7 +1036,7 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
 
       {canManage ? (
         <div className="flex items-center gap-3">
-          <button className={btn} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save settings"}</button>
+          <button className={btn} disabled={busy} onClick={save}>{busy ? tr.saving : "Save settings"}</button>
           {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>
       ) : (

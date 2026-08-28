@@ -15,11 +15,13 @@ import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 // is fenced from (Gate A). Nova's avatar here is a small static mark and the
 // panel slides with a CSS transition — same presence, no library.
 
-const EXAMPLES = [
-  "Which invoices are overdue?",
-  "What's my remaining leave?",
-  "Summarise our finances",
-  "What's on my task board?",
+// A FUNCTION OF THE DICTIONARY, not a constant: these are the questions Nova
+// offers, and at module scope there is no locale to build them from.
+const examplesFor = (tr) => [
+  tr.exInvoicesOverdue,
+  tr.exRemainingLeave,
+  tr.exSummariseFinances,
+  tr.exTaskBoard,
 ];
 
 export default function NovaLauncher({ slug, enabled = false, besideChat = false }) {
@@ -115,19 +117,19 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
       });
       if (res.status === 503) {
         const d = await res.json().catch(() => null);
-        setNote(d?.help || "Nova isn't set up yet.");
+        setNote(d?.help || tr.novaNotSetUp);
         setBusy(false); return;
       }
-      if (res.status === 403) { setNote("Nova isn't part of this studio's plan."); setBusy(false); return; }
+      if (res.status === 403) { setNote(tr.novaNotInPlan); setBusy(false); return; }
       const data = res.ok ? await res.json().catch(() => null) : null;
-      const answer = data?.answer || "Something went wrong — try again.";
+      const answer = data?.answer || tr.somethingWentWrong;
       setBusy(false);
       await typeOut(answer);
       setAnnounce(answer);   // announce the settled answer once
       if (data?.pendingAction) setPending(data.pendingAction);
       return;
     } catch {
-      setMessages((m) => [...m, { role: "assistant", content: "I couldn't reach the server. Try again." }]);
+      setMessages((m) => [...m, { role: "assistant", content: tr.couldntReachServer }]);
     }
     setBusy(false);
   }
@@ -151,7 +153,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
       setAnnounce(msg);
       return;
     } catch {
-      setMessages((m) => [...m, { role: "assistant", content: "I couldn't reach the server, so nothing was changed." }]);
+      setMessages((m) => [...m, { role: "assistant", content: tr.couldntReachServerNoChange }]);
     }
     setBusy(false);
   }
@@ -205,14 +207,14 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
               {messages.length === 0 && (
                 <div className="space-y-3">
                   {attention > 0 && (
-                    <button type="button" onClick={() => send("What needs my attention?")}
+                    <button type="button" onClick={() => send(tr.whatNeedsMyAttention)}
                       className="w-full rounded-xl bg-brand-50 px-3 py-2 text-start text-sm text-brand-700 transition-colors hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-200">
                       You have {attention} notification{attention === 1 ? "" : "s"} waiting — ask me what needs your attention.
                     </button>
                   )}
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Ask about your studio&apos;s data. Nova only sees what you can.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{tr.novaScope}</p>
                   <div className="flex flex-wrap gap-2">
-                    {EXAMPLES.map((e) => (
+                    {examplesFor(tr).map((e) => (
                       <button key={e} type="button" onClick={() => send(e)}
                         className="rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-white/15 dark:text-slate-300">
                         {e}

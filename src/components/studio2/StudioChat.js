@@ -33,7 +33,7 @@ const inputClass =
 
 // What the disabled button says on hover. One sentence, in the words the
 // person needs: what happened, and when it stops being true.
-const EXHAUSTED_MESSAGE = "You have consumed all tickets for this month.";
+const EXHAUSTED_MESSAGE = tr.consumedAllTickets;
 
 export default function StudioChat({ enabled, slug, studioName, userName, unlimited = true, allowed = 0, used = 0, remaining = null, exhausted = false }) {
   const tr = miscDict(useStudioLocale());
@@ -156,7 +156,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
         body: JSON.stringify({ slug }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error === "plan" ? "Live chat is not part of this studio's package." : "Could not start the chat.");
+      if (!res.ok) throw new Error(data.error === "plan" ? tr.liveChatNotPart : tr.couldNotStartChat);
       joinedRef.current = Boolean(data.room?.agent);
       setEvents([]);
       setRoom(data.room);
@@ -237,18 +237,18 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
   // stays usable even once the allowance is gone.
   const spent = exhausted && !open && !room;
   const allowanceHint = unlimited
-    ? "Chat with nompany"
+    ? tr.chatNompany
     : `Chat with nompany · ${remaining} of ${allowed} left this month`;
 
   const status = room?.status || "";
   const done = status === ENDED || status === GONE;
   const subtitle = !room
-    ? "We usually reply in a few minutes"
+    ? tr.usuallyReplyFewMinutes
     : done
-      ? "Chat ended"
+      ? tr.chatEnded2
       : room.agent?.label
-        ? `Connected · ${room.agent.label}`
-        : "Waiting for someone to join…";
+        ? tr.connectedTo(room.agent.label)
+        : tr.waitingSomeoneJoin;
 
   return (
     <div className="fixed bottom-5 end-5 z-40 flex flex-col items-end gap-3 print:hidden">
@@ -305,7 +305,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                   disabled={busy}
                   className="w-full rounded-full bg-brand-700 px-4 py-2.5 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60"
                 >
-                  {busy ? "Starting…" : "Start chat"}
+                  {busy ? tr.starting : "{tr.startChat}"}
                 </button>
               </div>
             ) : (
@@ -425,8 +425,8 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
         aria-disabled={spent}
         aria-label={
           spent ? EXHAUSTED_MESSAGE
-            : open ? "Minimise chat"
-            : unread > 0 ? `Chat with nompany, ${unread} new message${unread === 1 ? "" : "s"}` : "Chat with nompany"
+            : open ? tr.minimiseChat
+            : unread > 0 ? tr.chatUnread(unread) : "Chat with nompany"
         }
         title={spent ? EXHAUSTED_MESSAGE : allowanceHint}
         className={`relative inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-geex transition-transform ${

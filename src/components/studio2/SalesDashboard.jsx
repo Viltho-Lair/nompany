@@ -11,6 +11,8 @@
 // gated by their registry key (see lib/dashboardWidgets).
 
 import { money, StatTile, URGENCY_DOT, FunnelChart } from "@/components/studio2/ui";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { salesExtraDict } from "@/shared/studio/salesExtra";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { BarChart, ChartFrame, Donut, PALETTE } from "@/components/charts";
 import { salesFunnel, probabilityBuckets, atRiskTickets, isClosed } from "@/modules/sales/salesAnalytics";
@@ -25,6 +27,7 @@ const STAGE_ORDER = [
 ];
 
 export default function SalesDashboard({ tickets = [], slug = "", nav = null }) {
+  const tr = salesExtraDict(useStudioLocale());
   const visible = useWidgetVisible();
 
   const funnel = salesFunnel(tickets);
@@ -53,31 +56,31 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label="Open tickets" value={<span className="num">{openCount}</span>} href={nav?.["sales-tickets"] ? `/${slug}/sales-tickets` : ""} />
-        <StatTile label="Weighted pipeline" value={<span className="num">{money(weightedPipeline)}</span>} tone="text-emerald-600 dark:text-emerald-400" />
-        <StatTile label="Won" value={<span className="num">{wonCount}</span>} tone={wonCount > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
-        <StatTile label="At risk" value={<span className="num">{atRisk.length}</span>} tone={atRisk.length > 0 ? "text-rose-600 dark:text-rose-400" : ""} />
+        <StatTile label={tr.openTickets} value={<span className="num">{openCount}</span>} href={nav?.["sales-tickets"] ? `/${slug}/sales-tickets` : ""} />
+        <StatTile label={tr.weightedPipeline} value={<span className="num">{money(weightedPipeline)}</span>} tone="text-emerald-600 dark:text-emerald-400" />
+        <StatTile label={tr.won} value={<span className="num">{wonCount}</span>} tone={wonCount > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
+        <StatTile label={tr.risk} value={<span className="num">{atRisk.length}</span>} tone={atRisk.length > 0 ? "text-rose-600 dark:text-rose-400" : ""} />
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Sales funnel" hint="Distinct tickets that reached each stage" locked={!visible("sales.funnel")} lockedWhat="Sales funnel">
+        <Widget title={tr.salesFunnel} hint={tr.distinctTicketsReachedEach} locked={!visible("sales.funnel")} lockedWhat={tr.salesFunnel}>
           <FunnelChart data={funnel} />
         </Widget>
 
-        <Widget title="Probability forecast" hint={`Weighted forecast: ${money(weightedPipeline)}`} span={2} locked={!visible("sales.probability-forecast")} lockedWhat="Probability forecast">
+        <Widget title={tr.probabilityForecast} hint={tr.weightedForecast(money(weightedPipeline))} span={2} locked={!visible("sales.probability-forecast")} lockedWhat={tr.probabilityForecast}>
           {hasForecast ? (
             <>
               <ChartFrame
                 labels={buckets.map((b) => b.label)}
-                legend={[{ name: "Pipeline", color: "rgb(var(--chart-1))" }, { name: "Weighted", color: "rgb(var(--chart-2))" }]}
+                legend={[{ name: tr.seriesPipeline, color: "rgb(var(--chart-1))" }, { name: tr.seriesWeighted, color: "rgb(var(--chart-2))" }]}
                 height={200}
               >
                 <BarChart height={200}
                   labels={buckets.map((b) => b.label)}
                   series={[
-                    { name: "Pipeline", data: buckets.map((b) => b.value), color: "rgb(var(--chart-1))" },
-                    { name: "Weighted", data: buckets.map((b) => b.weighted), color: "rgb(var(--chart-2))" },
+                    { name: tr.seriesPipeline, data: buckets.map((b) => b.value), color: "rgb(var(--chart-1))" },
+                    { name: tr.seriesWeighted, data: buckets.map((b) => b.weighted), color: "rgb(var(--chart-2))" },
                   ]} />
               </ChartFrame>
               <div className="mt-3 space-y-1 border-t border-slate-100 pt-3 dark:border-white/10">
@@ -92,10 +95,10 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
                 ))}
               </div>
             </>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No open pipeline yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noOpenPipelineYet}</p>}
         </Widget>
 
-        <Widget title="Stage mix" hint="Where every ticket sits" locked={!visible("sales.stage-mix")} lockedWhat="Stage mix">
+        <Widget title={tr.stageMix} hint={tr.whereEveryTicketSits} locked={!visible("sales.stage-mix")} lockedWhat={tr.stageMix}>
           {mixTotal > 0 ? (
             <div className="flex flex-col items-center gap-4 py-2">
               <Donut size={168} data={mix.map((s, i) => ({ label: s.label, value: s.value, color: PALETTE[i % PALETTE.length] }))}
@@ -112,13 +115,13 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
                 ))}
               </ul>
             </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No tickets yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noTicketsYet}</p>}
         </Widget>
 
         {/* Moderate */}
-        <Widget title="At-risk tickets" hint="Open, due within 14 days or flagged High/Critical" span={2} locked={!visible("sales.at-risk")} lockedWhat="At-risk tickets">
+        <Widget title={tr.riskTickets} hint={tr.openDueWithin14} span={2} locked={!visible("sales.at-risk")} lockedWhat={tr.riskTickets}>
           {atRisk.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">Nothing at risk — all clear.</p>
+            <p className="py-8 text-center text-sm text-slate-400">{tr.nothingRiskAllClear}</p>
           ) : (
             <ul className="divide-y divide-slate-100 dark:divide-white/5">
               {atRisk.slice(0, 8).map((t) => {
@@ -134,7 +137,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
                       </div>
                     </div>
                     <span className={`num shrink-0 text-xs font-600 ${overdue ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
-                      {d === null ? "No date" : overdue ? `${Math.abs(d)}d overdue` : `${d}d left`}
+                      {d === null ? tr.noDate : overdue ? `${Math.abs(d)}d overdue` : `${d}d left`}
                     </span>
                   </li>
                 );
@@ -143,7 +146,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
           )}
           {nav?.["sales-tickets"] && (
             <div className="mt-3 text-end">
-              <a href={`/${slug}/sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">Open tickets →</a>
+              <a href={`/${slug}/sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openTickets2}</a>
             </div>
           )}
         </Widget>

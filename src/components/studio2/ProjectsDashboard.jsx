@@ -183,7 +183,7 @@ export default function ProjectsDashboard({
         <Widget title={tr.projectProgress} hint={tr.averagePlanCompletion} locked={!visible("projects.plan-progress")} lockedWhat={tr.projectProgress}>
           <div className="flex justify-center py-2">
             <Radial value={avgProgress} label={`${avgProgress}%`}
-              sub={`across ${projects.length} ${projects.length === 1 ? "project" : "projects"}`}
+              sub={tr.acrossProjects(projects.length)}
               color="rgb(var(--chart-2))" />
           </div>
         </Widget>
@@ -221,14 +221,14 @@ export default function ProjectsDashboard({
           {months.length ? (
             <ChartFrame
               labels={months.map((m) => m.slice(5))}
-              legend={[{ name: "Started", color: "rgb(var(--chart-1))" }, { name: "Ended", color: "rgb(var(--chart-2))" }]}
+              legend={[{ name: tr.seriesStarted, color: "rgb(var(--chart-1))" }, { name: tr.seriesEnded, color: "rgb(var(--chart-2))" }]}
               height={220}
             >
               <BarChart height={220}
                 labels={months}
                 series={[
-                  { name: "Started", data: months.map((m) => startedBy[m]), color: "rgb(var(--chart-1))" },
-                  { name: "Ended", data: months.map((m) => endedBy[m]), color: "rgb(var(--chart-2))" },
+                  { name: tr.seriesStarted, data: months.map((m) => startedBy[m]), color: "rgb(var(--chart-1))" },
+                  { name: tr.seriesEnded, data: months.map((m) => endedBy[m]), color: "rgb(var(--chart-2))" },
                 ]} />
             </ChartFrame>
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noProjectDatesYet}</p>}

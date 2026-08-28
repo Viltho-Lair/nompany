@@ -50,7 +50,7 @@ function derive({ items, orders }) {
   for (const i of items) {
     const value = (i.onHand || 0) * (i.unitCost || 0);
     if (value <= 0) continue;
-    const name = i.vendorName || "Unassigned";
+    const name = i.vendorName || tr.unassigned;
     stockByVendor.set(name, (stockByVendor.get(name) || 0) + value);
   }
 
@@ -78,7 +78,7 @@ function derive({ items, orders }) {
     statusCount[o.status] = (statusCount[o.status] || 0) + 1;
     const committed = o.status === "Ordered" || o.status === "Partly received" || o.status === "Received";
     if (committed) {
-      const name = o.vendorName || "Unknown vendor";
+      const name = o.vendorName || tr.unknownVendor;
       spendByVendor.set(name, (spendByVendor.get(name) || 0) + (o.total || 0));
     }
     // Money still expected to arrive: the remaining quantity on each line valued
@@ -119,11 +119,11 @@ export default function InventoryDashboard({
   const openPos = (summary?.awaiting ?? 0);
 
   const sections = [
-    { key: "inventory-items", label: tr.registeredItems2, desc: "The catalogue, by vendor", icon: "services" },
-    { key: "inventory-stock", label: tr.stockManagement, desc: "What is held, and the ledger behind it", icon: "blueprint" },
-    { key: "inventory-vendors", label: tr.vendors, desc: "Who you buy from, and what they supply", icon: "vendors" },
-    { key: "inventory-sheets", label: tr.projectSheets2, desc: "Ordered for and issued to each project", icon: "report" },
-    { key: "inventory-awb", label: tr.awbTracking, desc: "Air freight, by waybill", icon: "external" },
+    { key: "inventory-items", label: tr.registeredItems2, desc: tr.descCatalogue, icon: "services" },
+    { key: "inventory-stock", label: tr.stockManagement, desc: tr.descHeld, icon: "blueprint" },
+    { key: "inventory-vendors", label: tr.vendors, desc: tr.descVendors, icon: "vendors" },
+    { key: "inventory-sheets", label: tr.projectSheets2, desc: tr.descSheets, icon: "report" },
+    { key: "inventory-awb", label: tr.awbTracking, desc: tr.descAwb, icon: "external" },
   ];
 
   return (

@@ -65,8 +65,8 @@ export default function StudioRoles({ slug }) {
       // The one refusal worth explaining properly: you cannot write a role
       // containing something you cannot do yourself.
       setError(out.error === "escalation"
-        ? "You can only put things in a role that you can do yourself."
-        : "That didn't save.");
+        ? tr.canOnlyPutThings
+        : tr.didnSave);
       return;
     }
     setEditing(null);
@@ -110,7 +110,7 @@ export default function StudioRoles({ slug }) {
           // exists is picked and given its access, which is why the editor
           // opens on a dropdown rather than an empty name field.
           <button className={btn} disabled={grantable.length === 0}
-            title={grantable.length === 0 ? "Every role already has its access set. New roles are named in Human Resources." : ""}
+            title={grantable.length === 0 ? tr.everyRoleAlreadyAccess : ""}
             onClick={() => setEditing({ ...(grantable[0] || {}), permissions: [...(grantable[0]?.permissions || [])], scopes: { ...(grantable[0]?.scopes || {}) } })}>
             Create access
           </button>
@@ -322,7 +322,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
                               onChange={(e) => setScope(a, e.target.value)}>
                               {SCOPES.map((s) => (
                                 <option key={s} value={s}>
-                                  {s === "own" ? "Own records" : s === "department" ? "Their department" : "Everyone"}
+                                  {s === "own" ? tr.ownRecords : s === "department" ? tr.department : "Everyone"}
                                 </option>
                               ))}
                             </select>
@@ -353,7 +353,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
 
         <div className="mt-6 flex gap-3">
           <button className={btn} disabled={busy || !draft.id} onClick={() => onSave(draft)}>
-            {busy ? "Saving…" : "Save access"}
+            {busy ? tr.saving : "Save access"}
           </button>
           <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
         </div>
@@ -496,12 +496,12 @@ function WhyPanel({ slug, people, areas }) {
           {actions.map((a) => (<option key={a.key} value={a.key}>{a.label}</option>))}
         </select>
         <button className={btnGhost} disabled={busy || !who || !key} onClick={ask}>
-          {busy ? "Checking…" : "Check"}
+          {busy ? tr.checking : "Check"}
         </button>
       </div>
       {answer && (
         <p className={`mt-3 text-sm ${answer.allowed ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>
-          <span className="font-700">{answer.allowed ? "Allowed. " : "Denied. "}</span>
+          <span className="font-700">{answer.allowed ? tr.allowed : "Denied. "}</span>
           {answer.reason}
         </p>
       )}

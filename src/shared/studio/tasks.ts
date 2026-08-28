@@ -12,24 +12,51 @@ type Strings = CommonStrings & {
   appointSomeoneTaskSettings: string;
   approvedOpenProject: string;
   assign: string;
+  authorityIsnPartTask: string;
+  blankOrdinaryTaskAssigned: string;
+  canMoveTaskTick: string;
+  canOnlyChangeTasks: string;
+  canOpenProjects: string;
   cancel: string;
   checklist: string;
+  createTaskAssignSomeone: string;
+  decisionBelongsWhoeverHolds: string;
   delete: string;
   description: string;
+  didnGoThrough: string;
+  didnSave: string;
   dueDate: string;
   edit: string;
+  editTask: string;
+  giveTaskTitle: string;
   kind: string;
   loadingTasks: string;
   newTask: string;
+  nobodyAppointed: string;
+  nobodyAppointedAuthorityYet: string;
+  nobodyStudioYet: string;
+  nothingAssigned: string;
+  nothingFinishedYet: string;
+  nothingOverdue: string;
+  oneAuthoritySigns: string;
   onlyManagerCanChange: string;
+  onlyManagerCanCreate: string;
   openProject: string;
   openQuotationBeingDecided: string;
+  opening: string;
   overdue: string;
   priority: string;
   project: string;
+  projectAlreadyOpenedQuotation: string;
   projectHandler: string;
   projectHandler2: string;
+  quotationNotApproved: string;
   saved: string;
+  saving: string;
+  saving2: string;
+  task: string;
+  taskDecisionSystemRaised: string;
+  taskIsnApproval: string;
   taskSettings: string;
   tasksOnly: string;
   title: string;
@@ -45,24 +72,51 @@ const en: Strings = {
   appointSomeoneTaskSettings: "appoint someone in Task settings",
   approvedOpenProject: "Approved — open the project",
   assign: "Assign to",
+  authorityIsnPartTask: "That authority isn't part of this task.",
+  blankOrdinaryTaskAssigned: "Blank is an ordinary task — assigned to a person.",
+  canMoveTaskTick: "You can move your task and tick its checklist — the rest is the manager's to change.",
+  canOnlyChangeTasks: "You can only change tasks assigned to you.",
+  canOpenProjects: "You can't open projects.",
   cancel: "Cancel",
   checklist: "Checklist",
+  createTaskAssignSomeone: "Create a task and assign it to someone in this studio.",
+  decisionBelongsWhoeverHolds: "That decision belongs to whoever holds that authority.",
   delete: "Delete",
   description: "Description",
+  didnGoThrough: "That didn't go through.",
+  didnSave: "That didn't save.",
   dueDate: "Due date",
   edit: "Edit",
+  editTask: "Edit task",
+  giveTaskTitle: "Give the task a title.",
   kind: "Kind",
   loadingTasks: "Loading Tasks…",
   newTask: "New task",
+  nobodyAppointed: "Nobody appointed",
+  nobodyAppointedAuthorityYet: "Nobody is appointed to this authority yet",
+  nobodyStudioYet: "Nobody in this studio yet",
+  nothingAssigned: "Nothing assigned to you",
+  nothingFinishedYet: "Nothing finished yet",
+  nothingOverdue: "Nothing overdue",
+  oneAuthoritySigns: "One authority signs",
   onlyManagerCanChange: "Only a manager can change task settings.",
+  onlyManagerCanCreate: "Only a manager can create or assign tasks.",
   openProject: "Open the project",
   openQuotationBeingDecided: "Open the quotation being decided",
+  opening: "Opening…",
   overdue: "Overdue",
   priority: "Priority",
   project: "Project",
+  projectAlreadyOpenedQuotation: "A project has already been opened from this quotation.",
   projectHandler: "Project handler",
   projectHandler2: "Project handler…",
+  quotationNotApproved: "That quotation is not approved.",
   saved: "Saved",
+  saving: "Saving…",
+  saving2: "Saving...",
+  task: "task is",
+  taskDecisionSystemRaised: "That task is a decision the system raised — it can't be edited or deleted. Withdraw the approval instead.",
+  taskIsnApproval: "That task isn't an approval.",
   taskSettings: "Task settings",
   tasksOnly: "Your tasks only",
   title: "Title",
@@ -78,24 +132,51 @@ const ar: Strings = {
   appointSomeoneTaskSettings: "عيّن شخصًا من إعدادات المهام",
   approvedOpenProject: "معتمد — افتح المشروع",
   assign: "إسناد إلى",
+  authorityIsnPartTask: "هذه السلطة ليست جزءًا من هذه المهمة.",
+  blankOrdinaryTaskAssigned: "الفراغ يعني مهمة عادية — مُسنَدة إلى شخص.",
+  canMoveTaskTick: "يمكنك تحريك مهمتك وتعليم قائمة التحقق الخاصة بها — أما البقية فتغييرها للمدير.",
+  canOnlyChangeTasks: "لا يمكنك تغيير سوى المهام المُسنَدة إليك.",
+  canOpenProjects: "لا يمكنك فتح المشاريع.",
   cancel: "إلغاء",
   checklist: "قائمة التحقق",
+  createTaskAssignSomeone: "أنشئ مهمة وأسنِدها إلى شخص في هذا الاستوديو.",
+  decisionBelongsWhoeverHolds: "هذا القرار يعود لمن يحمل تلك السلطة.",
   delete: "حذف",
   description: "الوصف",
+  didnGoThrough: "لم تتم العملية.",
+  didnSave: "لم يُحفظ ذلك.",
   dueDate: "تاريخ الاستحقاق",
   edit: "تعديل",
+  editTask: "تعديل المهمة",
+  giveTaskTitle: "أعطِ المهمة عنوانًا.",
   kind: "النوع",
   loadingTasks: "جارٍ تحميل المهام…",
   newTask: "مهمة جديدة",
+  nobodyAppointed: "لم يُعيَّن أحد",
+  nobodyAppointedAuthorityYet: "لم يُعيَّن أحد لهذه السلطة بعد",
+  nobodyStudioYet: "لا أحد في هذا الاستوديو بعد",
+  nothingAssigned: "لا شيء مُسنَد إليك",
+  nothingFinishedYet: "لم يُنجز شيء بعد",
+  nothingOverdue: "لا شيء متأخر",
+  oneAuthoritySigns: "سلطة واحدة توقّع",
   onlyManagerCanChange: "لا يمكن تغيير إعدادات المهام إلا لمدير.",
+  onlyManagerCanCreate: "لا يمكن إنشاء المهام أو إسنادها إلا لمدير.",
   openProject: "افتح المشروع",
   openQuotationBeingDecided: "افتح عرض السعر قيد البت فيه",
+  opening: "جارٍ الفتح…",
   overdue: "متأخرة",
   priority: "الأولوية",
   project: "المشروع",
+  projectAlreadyOpenedQuotation: "سبق فتح مشروع من عرض السعر هذا.",
   projectHandler: "مسؤول المشروع",
   projectHandler2: "مسؤول المشروع…",
+  quotationNotApproved: "عرض السعر هذا غير معتمد.",
   saved: "تم الحفظ",
+  saving: "جارٍ الحفظ…",
+  saving2: "جارٍ الحفظ…",
+  task: "المهمة",
+  taskDecisionSystemRaised: "هذه المهمة قرار رفعه النظام — لا يمكن تعديلها أو حذفها. اسحب الاعتماد بدلًا من ذلك.",
+  taskIsnApproval: "هذه المهمة ليست اعتمادًا.",
   taskSettings: "إعدادات المهام",
   tasksOnly: "مهامك فقط",
   title: "العنوان",

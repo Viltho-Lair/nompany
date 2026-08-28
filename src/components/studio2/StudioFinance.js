@@ -87,7 +87,7 @@ function FinanceCash({ slug, view = "finance" }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(message(out)); return false; }
+    if (!res.ok) { setError(message(out, tr)); return false; }
     await load();
     return true;
   }, [slug, load]);
@@ -156,43 +156,46 @@ function FinanceCash({ slug, view = "finance" }) {
   );
 }
 
-function message(out) {
-  if (out.error === "read-only") return "You have view-only access to Finance.";
-  if (out.error === "issued") return "This invoice has been issued — cancel it rather than changing it.";
-  if (out.error === "has-payments") return "Payments have been recorded against this record.";
-  if (out.error === "overpayment") return `That's more than the ${money(out.outstanding)} still outstanding.`;
-  if (out.error === "derived-status") return "Paid follows the payments — record the payment instead.";
-  if (out.error === "not-issued") return "Send the invoice before recording a payment.";
-  if (out.error === "cancelled") return "That record was cancelled.";
-  if (out.error === "lines") return "Add at least one line with a description and quantity.";
-  if (out.error === "client") return "Pick a project, or name the client.";
-  if (out.error === "amount") return "Enter an amount.";
+// THE DICTIONARY COMES IN AS AN ARGUMENT. This is module scope — there is no
+// component here to read the locale from — and every caller already has it.
+function message(out, tr) {
+  if (out.error === "read-only") return tr.mReadOnly;
+  if (out.error === "issued") return tr.mIssued;
+  if (out.error === "has-payments") return tr.mHasPayments;
+  if (out.error === "overpayment") return tr.mOverpayment(money(out.outstanding));
+  if (out.error === "derived-status") return tr.mDerivedStatus;
+  if (out.error === "not-issued") return tr.mNotIssued;
+  if (out.error === "cancelled") return tr.mCancelled;
+  if (out.error === "lines") return tr.mLines;
+  if (out.error === "client") return tr.mClient;
+  if (out.error === "amount") return tr.mAmount;
   // ---- accounts payable ----------------------------------------------------
-  if (out.error === "vendor") return "Name the vendor this bill is from.";
-  if (out.error === "same-signer") return "A bill can't be approved by the person who raised it — ask a second approver.";
-  if (out.error === "locked") return "An approved or paid bill can't be edited — dispute or cancel it instead.";
-  if (out.error === "already") return "That bill has already been approved.";
-  if (out.error === "not-approved") return "Approve the bill before recording a payment against it.";
-  if (out.error === "has-history") return "This bill has been approved or paid against — cancel it rather than deleting.";
-  if (out.error === "status") return "That isn't a status a bill can hold.";
+  if (out.error === "vendor") return tr.mVendor;
+  if (out.error === "same-signer") return tr.mSameSigner;
+  if (out.error === "locked") return tr.mLocked;
+  if (out.error === "already") return tr.mAlready;
+  if (out.error === "not-approved") return tr.mNotApproved;
+  if (out.error === "has-history") return tr.mHasHistory;
+  if (out.error === "status") return tr.mStatus;
   // ---- fixed assets --------------------------------------------------------
-  if (out.error === "name") return "Give the asset a name.";
-  if (out.error === "cost") return "Enter what the asset cost.";
-  if (out.error === "life") return "Enter the useful life in months.";
-  if (out.error === "disposed") return "That asset has been disposed and is read-only.";
-  if (out.error === "already-disposed") return `That asset was already disposed on ${fmt(out.on)}.`;
-  if (out.error === "before-acquired") return "Disposal can't be dated before the asset was acquired.";
-  return "That didn't save.";
+  if (out.error === "name") return tr.mName;
+  if (out.error === "cost") return tr.mCost;
+  if (out.error === "life") return tr.mLife;
+  if (out.error === "disposed") return tr.mDisposed;
+  if (out.error === "already-disposed") return tr.mAlreadyDisposed(fmt(out.on));
+  if (out.error === "before-acquired") return tr.mBeforeAcquired;
+  return tr.mDidntSave;
 }
 
 // ---- summary ---------------------------------------------------------------
 function Summary({ summary }) {
+  const tr = financeDict(useStudioLocale());
   const cells = [
-    ["Invoiced", money(summary.invoiced), ""],
-    ["Collected", money(summary.collected), "text-emerald-600 dark:text-emerald-400"],
-    ["Outstanding", money(summary.outstanding), ""],
-    ["Overdue", money(summary.overdue), summary.overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""],
-    ["Expenses", money(summary.expenses), ""],
+    [tr.sumInvoiced, money(summary.invoiced), ""],
+    [tr.sumCollected, money(summary.collected), "text-emerald-600 dark:text-emerald-400"],
+    [tr.sumOutstanding, money(summary.outstanding), ""],
+    [tr.sumOverdue, money(summary.overdue), summary.overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""],
+    [tr.sumExpenses, money(summary.expenses), ""],
   ];
   return (
     <section className={panel}>
@@ -423,7 +426,7 @@ function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !ready}
           onClick={() => onSave({ ...head, vatRate: Number(head.vatRate) || 0, lines: filled })}>
-          {busy ? "Saving…" : "Save draft"}
+          {busy ? tr.saving : "Save draft"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -449,7 +452,7 @@ function PaymentForm({ invoice, methods, busy, onCancel, onSave }) {
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
-          {busy ? "Recording…" : "Record"}
+          {busy ? tr.recording : "Record"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -477,7 +480,7 @@ function Expenses({ rows, projects, categories, slug, nav, canManage, busy, send
     <>
       {canManage && !adding && !editing && <button className={btn} onClick={() => setAdding(true)}>{tr.addExpense}</button>}
       {(adding || editing) && (
-        <SimpleForm title={editing ? "Edit expense" : "New expense"} busy={busy} fields={fields(editing)}
+        <SimpleForm title={editing ? tr.editExpense : "New expense"} busy={busy} fields={fields(editing)}
           onCancel={() => { setAdding(false); setEditing(null); }}
           onSave={async (v) => { if (await send("expenses", editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v)) { setAdding(false); setEditing(null); } }} />
       )}
@@ -605,7 +608,7 @@ function SimpleForm({ title, fields, busy, onCancel, onSave }) {
         ))}
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
-        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? "Saving…" : "Save"}</button>
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : "Save"}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
@@ -647,7 +650,7 @@ function useFinanceResource(slug, kind) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(message(out)); return false; }
+    if (!res.ok) { setError(message(out, tr)); return false; }
     await load();
     return true;
   }, [slug, kind, load]);
@@ -903,7 +906,7 @@ function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
 
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !ready} onClick={() => onSave(body(editing ? undefined : "Received"))}>
-          {busy ? "Saving…" : editing ? "Save" : "Record bill"}
+          {busy ? tr.saving : editing ? tr.save : "Record bill"}
         </button>
         {!editing && (
           <button className={btnGhost} disabled={busy || !ready} onClick={() => onSave(body("Draft"))}>{tr.saveDraft}</button>
@@ -931,7 +934,7 @@ function BillPaymentForm({ bill, methods, busy, onCancel, onSave }) {
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
-          {busy ? "Recording…" : "Record"}
+          {busy ? tr.recording : "Record"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -1050,7 +1053,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
                       <td className={`${td} text-end tabular-nums text-slate-500 dark:text-slate-400`}>{a.disposed ? "—" : money(a.monthlyDepreciation)}</td>
                       <td className={td}>
                         <StatusPill kind="asset" status={a.disposed ? "disposed" : "service"}
-                          label={a.disposed ? "Disposed" : a.fullyDepreciated ? "Fully depreciated" : "In service"} />
+                          label={a.disposed ? tr.disposed2 : a.fullyDepreciated ? tr.fullyDepreciated : "In service"} />
                       </td>
                       <td className={`${td} text-end`}>
                         {canManage && (
@@ -1076,7 +1079,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
                             {a.disposed && <Detail label={tr.disposed} value={a.disposedOn ? fmt(a.disposedOn) : "—"} />}
                             {a.disposed && <Detail label={tr.proceeds} value={money(a.disposalProceeds || 0)} num />}
                             {a.disposed && a.gainOnDisposal != null && (
-                              <Detail label={a.gainOnDisposal >= 0 ? "Gain on disposal" : "Loss on disposal"}
+                              <Detail label={a.gainOnDisposal >= 0 ? tr.gainDisposal : "Loss on disposal"}
                                 value={money(Math.abs(a.gainOnDisposal))} num
                                 tone={a.gainOnDisposal >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"} />
                             )}
@@ -1142,7 +1145,7 @@ function AssetForm({ asset, methods, busy, onCancel, onSave }) {
             salvageValue: Number(f.salvageValue) || 0,
             usefulLifeMonths: Math.max(0, Math.floor(Number(f.usefulLifeMonths) || 0)),
           })}>
-          {busy ? "Saving…" : "Save"}
+          {busy ? tr.saving : "Save"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -1177,7 +1180,7 @@ function DisposeForm({ asset, busy, onCancel, onSave }) {
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !f.disposedOn}
           onClick={() => onSave({ disposedOn: f.disposedOn, disposalProceeds: proceeds })}>
-          {busy ? "Disposing…" : "Dispose"}
+          {busy ? tr.disposing : "Dispose"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -1317,7 +1320,7 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
                       </td>
                     ))}
                     <td className={`${td} text-end`}>
-                      <button className={btnGhost} onClick={() => setEditing(r)}>{canManage ? "Edit" : "View"}</button>
+                      <button className={btnGhost} onClick={() => setEditing(r)}>{canManage ? tr.edit : "View"}</button>
                     </td>
                   </tr>
                 ))}
@@ -1361,7 +1364,7 @@ function Commercials({ row, busy, canManage, onSave, onCancel }) {
       <div className="mt-5 flex gap-3">
         {canManage && (
           <button className={btn} disabled={busy} onClick={() => onSave({ poNumber, projectNumber })}>
-            {busy ? "Saving…" : "Save"}
+            {busy ? tr.saving : "Save"}
           </button>
         )}
         <button className={btnGhost} onClick={onCancel}>{tr.close}</button>

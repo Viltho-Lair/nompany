@@ -51,8 +51,8 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
     const res = await fetch(`/api/studios/${slug}/sales/quotations?id=${encodeURIComponent(quotationId)}`, { cache: "no-store" });
     if (!res.ok) {
       setError(res.status === 404
-        ? "That quotation no longer exists, or it doesn't belong to this ticket."
-        : "You don't have access to this quotation.");
+        ? tr.quotationNoLongerExists2
+        : tr.accessQuotation);
       return;
     }
     setError("");
@@ -103,8 +103,8 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
         {back}
         <div className="min-w-0">
           <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white">
-            {q.number || "Quotation"}
-            {revision > 1 && <span className="ms-2 text-sm font-600 text-slate-400">Rev {revision}</span>}
+            {q.number || tr.quotation2}
+            {revision > 1 && <span className="ms-2 text-sm font-600 text-slate-400">{tr.revision} {revision}</span>}
           </h1>
           <p className="truncate text-xs text-slate-400">
             {q.title || ticket.title}{q.clientName ? ` · ${q.clientName}` : ""}{ticket.ref ? ` · ${ticket.ref}` : ""}
@@ -158,7 +158,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
         return (
           <section key={table.id || i} className={`${panel} p-0 overflow-hidden`}>
             <div className="border-b border-slate-100 bg-slate-50 px-5 py-3 font-display text-sm font-700 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
-              {table.title || `Table ${i + 1}`}
+              {table.title || tr.tableNumber(i + 1)}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] border-collapse text-sm">
@@ -217,7 +217,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
       <section className={panel}>
         <dl className="ms-auto w-full max-w-sm space-y-1 text-sm">
           <Total label={tr.subtotal} value={q.subtotal} currency={currency} />
-          <Total label={`VAT ${num(q.vatRate)}%`} value={q.vat} currency={currency} />
+          <Total label={tr.vatRate(num(q.vatRate))} value={q.vat} currency={currency} />
           <div className="flex items-baseline gap-3 border-t border-slate-200 pt-1 dark:border-white/10">
             <dt className="text-slate-500 dark:text-slate-400">{tr.total}</dt>
             <dd className="ms-auto font-display text-base font-700 tabular-nums text-slate-900 dark:text-white">

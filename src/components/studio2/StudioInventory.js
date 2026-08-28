@@ -69,7 +69,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(message(out)); return false; }
+    if (!res.ok) { setError(message(out, tr)); return false; }
     await load();
     return true;
   }, [slug, load]);
@@ -121,39 +121,44 @@ export default function StudioInventory({ slug, view = "inventory" }) {
     level={level} currency={studioCurrency} />);
 }
 
-function message(out) {
-  if (out.error === "read-only") return "You have view-only access to this part of Inventory.";
-  if (out.error === "duplicate") return "That name is already in use.";
-  if (out.error === "duplicate-sku") return "That SKU is already in use.";
-  if (out.error === "prefix") return "An airline prefix is exactly 3 digits.";
-  if (out.error === "awb") return out.reason || "That isn't a valid AWB number.";
-  if (out.error === "status") return "Pick a milestone.";
+// THE DICTIONARY COMES IN AS AN ARGUMENT — module scope, see StudioFinance.
+//
+// The counted phrases are functions rather than `${n} item${s}`, because the
+// English rule (one form or the other) is not the Arabic one (four, in the
+// ranges a stock ledger reaches), and the joining word is not "and" either.
+function message(out, tr) {
+  if (out.error === "read-only") return tr.mReadOnly;
+  if (out.error === "duplicate") return tr.mDuplicate;
+  if (out.error === "duplicate-sku") return tr.mDuplicateSku;
+  if (out.error === "prefix") return tr.mPrefix;
+  if (out.error === "awb") return out.reason || tr.mAwb;
+  if (out.error === "status") return tr.mStatus;
   if (out.error === "in-use") {
     const bits = [];
-    if (out.movements) bits.push(`${out.movements} stock ${out.movements === 1 ? "movement" : "movements"}`);
-    if (out.items) bits.push(`${out.items} ${out.items === 1 ? "item" : "items"}`);
-    if (out.orders) bits.push(`${out.orders} ${out.orders === 1 ? "order" : "orders"}`);
-    if (out.deliveries) bits.push(`${out.deliveries} ${out.deliveries === 1 ? "delivery" : "deliveries"}`);
-    if (out.shipments) bits.push(`${out.shipments} ${out.shipments === 1 ? "shipment" : "shipments"}`);
-    return `Still referenced by ${bits.join(" and ")} — that history can't be erased.`;
+    if (out.movements) bits.push(tr.countMovements(out.movements));
+    if (out.items) bits.push(tr.countItems(out.items));
+    if (out.orders) bits.push(tr.countOrders(out.orders));
+    if (out.deliveries) bits.push(tr.countDeliveries(out.deliveries));
+    if (out.shipments) bits.push(tr.countShipments(out.shipments));
+    return tr.mInUse(tr.joinAnd(bits));
   }
   if (out.error === "insufficient") {
     if (Array.isArray(out.short) && out.short.length) {
-      return `Not enough stock: ${out.short.map((s) => `need ${num(s.needed)}, have ${num(s.have)}`).join("; ")}.`;
+      return tr.mShort(out.short.map((s) => tr.mShortNeedHave(num(s.needed), num(s.have))).join("; "));
     }
-    return `Not enough stock — you have ${num(out.have)} and asked for ${num(out.needed)}.`;
+    return tr.mInsufficient(num(out.have), num(out.needed));
   }
-  if (out.error === "over-receive") return `That's more than the order still expects (${num(out.remaining)} outstanding).`;
-  if (out.error === "received-already") return "Goods have already been received against this order — cancel it instead.";
-  if (out.error === "already-issued") return "That delivery has already been issued.";
-  if (out.error === "derived-status") return "Received status follows the goods — record what arrived instead.";
-  if (out.error === "not-ordered") return "Mark the order as Ordered before receiving against it.";
-  if (out.error === "lines") return "Add at least one line with a quantity.";
-  if (out.error === "vendor") return "Pick a vendor.";
-  if (out.error === "charges") return "An item priced in another currency needs its shipping and customs charges.";
-  if (out.error === "project") return "Pick a project.";
-  if (out.error === "nothing") return "Enter what actually arrived.";
-  return "That didn't save.";
+  if (out.error === "over-receive") return tr.mOverReceive(num(out.remaining));
+  if (out.error === "received-already") return tr.mReceivedAlready;
+  if (out.error === "already-issued") return tr.mAlreadyIssued;
+  if (out.error === "derived-status") return tr.mDerivedStatus;
+  if (out.error === "not-ordered") return tr.mNotOrdered;
+  if (out.error === "lines") return tr.mLines;
+  if (out.error === "vendor") return tr.mVendor;
+  if (out.error === "charges") return tr.mCharges;
+  if (out.error === "project") return tr.mProject;
+  if (out.error === "nothing") return tr.mNothing;
+  return tr.mDidntSave;
 }
 
 // ---- registered items (the catalogue) --------------------------------------
@@ -378,7 +383,7 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
           as="select" value={f.itemType} onChange={pickType}
           disabled={!f.vendorId || types.length === 0}
           options={types.map((t) => ({ value: t.type, label: `${t.type}${t.weeks !== "" && t.weeks != null ? ` (${t.weeks} wk)` : ""}` }))}
-          hint={!f.vendorId ? "Pick a vendor first." : types.length === 0 ? "This vendor has no item types yet — add them on the vendor." : undefined} />
+          hint={!f.vendorId ? tr.pickVendorFirst : types.length === 0 ? tr.vendorNoItemTypes : undefined} />
         <div className="grid grid-cols-[1fr,7.5rem] gap-3">
           <Field label={tr.unitCost} type="number" min="0" value={f.unitCost} onChange={(v) => setF((s) => ({ ...s, unitCost: v }))} inputProps={{ step: "0.01" }} />
           {/* What that cost is IN. Blank means the studio's own currency, so an
@@ -425,7 +430,7 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
       <div className="mt-4"><Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
 
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !f.name.trim() || missingCharges} onClick={() => onSave(f)}>{busy ? "Saving…" : "Save item"}</button>
+        <button className={btn} disabled={busy || !f.name.trim() || missingCharges} onClick={() => onSave(f)}>{busy ? tr.saving : "Save item"}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
@@ -569,12 +574,12 @@ function AdjustForm({ item, busy, onSave, onCancel }) {
       </div>
       {qty !== "" && (
         <p className={`mt-3 text-sm ${after < 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
-          {after < 0 ? "That would take on-hand below zero." : <>{tr.handWouldBecome} <span className="font-600">{num(after)} {item.unit}</span>.</>}
+          {after < 0 ? tr.wouldTakeHandBelow : <>{tr.handWouldBecome} <span className="font-600">{num(after)} {item.unit}</span>.</>}
         </p>
       )}
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || qty === "" || Number(qty) === 0} onClick={() => onSave({ qty, reason })}>
-          {busy ? "Saving…" : "Record adjustment"}
+          {busy ? tr.saving : "Record adjustment"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -629,7 +634,7 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
             const held = reserved.includes(sn);
             return (
               <span key={sn}
-                title={held ? "Reserved — allocated to a project sheet" : undefined}
+                title={held ? tr.reservedAllocatedProjectSheet : undefined}
                 className={`inline-flex items-center gap-1 rounded-md px-2 py-1 font-mono text-[11px] ${
                   held
                     ? "bg-slate-100 text-slate-400 line-through dark:bg-white/5 dark:text-slate-500"
@@ -646,7 +651,7 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
       )}
 
       <div className="mt-5 flex gap-3">
-        {canManage && <button className={btn} disabled={busy} onClick={() => onSave(serials)}>{busy ? "Saving…" : "Save serials"}</button>}
+        {canManage && <button className={btn} disabled={busy} onClick={() => onSave(serials)}>{busy ? tr.saving : "Save serials"}</button>}
         <button className={btnGhost} onClick={onCancel}>{tr.close}</button>
       </div>
     </>
@@ -803,7 +808,7 @@ function VendorForm({ row, busy, onSave, onCancel }) {
       <div className="mt-4"><Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
 
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !f.name.trim()} onClick={() => onSave({ ...f, itemTypes: types })}>{busy ? "Saving…" : "Save vendor"}</button>
+        <button className={btn} disabled={busy || !f.name.trim()} onClick={() => onSave({ ...f, itemTypes: types })}>{busy ? tr.saving : "Save vendor"}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
@@ -866,7 +871,7 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
               <Field label={tr.awbNumber} hint={tr.prefix8Digits} value={raw} className="sm:max-w-xs"
                 onChange={(v) => setRaw(v)}
                 inputProps={{ onKeyDown: (e) => { if (e.key === "Enter" && parsed?.valid) { e.preventDefault(); track(); } } }} />
-              <button className={btn} disabled={busy || !parsed?.valid} onClick={track}>{busy ? "Adding…" : "Track"}</button>
+              <button className={btn} disabled={busy || !parsed?.valid} onClick={track}>{busy ? tr.adding : "Track"}</button>
             </div>
             {parsed && (
               <p className={`mt-2 text-xs ${parsed.valid ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
@@ -1009,7 +1014,7 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
             <button className={btn} disabled={busy} onClick={async () => {
               const ok = await onSave({ movement: { code, at: at ? new Date(at).toISOString() : "", station, flightNo, note } });
               if (ok) { setStation(""); setFlightNo(""); setNote(""); setAt(""); }
-            }}>{busy ? "Recording…" : "Record"}</button>
+            }}>{busy ? tr.recording : "Record"}</button>
           </div>
         </div>
       )}
@@ -1057,7 +1062,7 @@ function Airlines({ rows, busy, onSave, onCancel }) {
           <div className="mt-4 flex gap-3">
             <button className={btn} disabled={busy || form.prefix.length !== 3 || !form.name.trim()}
               onClick={async () => { if (await onSave(form.id ? "PUT" : "POST", form)) setForm(null); }}>
-              {busy ? "Saving…" : "Save airline"}
+              {busy ? tr.saving : "Save airline"}
             </button>
             <button className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
           </div>

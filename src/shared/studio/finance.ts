@@ -8,6 +8,10 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  mAlreadyDisposed: (date: string) => string;
+  mOverpayment: (amount: string) => string;
+  overdueCount: (n: number) => string;
+  overdueSuffix: (n: number) => string;
   accessFinanceStudio: string;
   accessStudio: string;
   accumulated: string;
@@ -44,29 +48,60 @@ type Strings = CommonStrings & {
   disposalDate: string;
   dispose: string;
   disposed: string;
+  disposed2: string;
+  disposing: string;
   dispute: string;
   due: string;
   dueDate: string;
   edit: string;
+  editExpense: string;
   enteredFinance: string;
   exactFigureComputedDisposal: string;
+  expense: string;
   expenseMix: string;
   expensesWhatWorkCost: string;
   financeColumns: string;
   fixedAssetRegister: string;
   fixedAssetSomethingBought: string;
+  fullyDepreciated: string;
+  gainDisposal: string;
   general: string;
+  income: string;
   incomeVsExpense: string;
   invoice: string;
   invoiceBillsClientProject: string;
   invoiced: string;
   invoices: string;
   issuedApproval: string;
+  last90Days: string;
   loadingAccountsPayable: string;
   loadingFinance: string;
   loadingFixedAssets: string;
   loadingInvoices: string;
+  loadingInvoicesGrid: string;
   location: string;
+  mAlready: string;
+  mAmount: string;
+  mBeforeAcquired: string;
+  mCancelled: string;
+  mClient: string;
+  mCost: string;
+  mDerivedStatus: string;
+  mDidntSave: string;
+  mDisposed: string;
+  mHasHistory: string;
+  mHasPayments: string;
+  mIssued: string;
+  mLife: string;
+  mLines: string;
+  mLocked: string;
+  mName: string;
+  mNotApproved: string;
+  mNotIssued: string;
+  mReadOnly: string;
+  mSameSigner: string;
+  mStatus: string;
+  mVendor: string;
   manager: string;
   margin: string;
   markReceived: string;
@@ -112,11 +147,14 @@ type Strings = CommonStrings & {
   recalculatedServerWhenSave: string;
   receivablesAging: string;
   recordPayment: string;
+  recording: string;
   ref: string;
   reference: string;
   remove: string;
   salvageValue: string;
+  save: string;
   saveDraft: string;
+  saving: string;
   searchProjectClientPo: string;
   send: string;
   spendCategory: string;
@@ -125,6 +163,11 @@ type Strings = CommonStrings & {
   status: string;
   studioKeepsModuleDashboards: string;
   subtotal: string;
+  sumCollected: string;
+  sumExpenses: string;
+  sumInvoiced: string;
+  sumOutstanding: string;
+  sumOverdue: string;
   targetEnd: string;
   terms: string;
   topDebtors: string;
@@ -147,6 +190,10 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  mAlreadyDisposed: (date) => `That asset was already disposed on ${date}.`,
+  mOverpayment: (amount) => `That's more than the ${amount} still outstanding.`,
+  overdueCount: (n) => `Overdue · ${n}`,
+  overdueSuffix: (n) => ` · ${n} overdue`,
   accessFinanceStudio: "You don't have access to Finance in this studio.",
   accessStudio: "You don't have access to this in this studio.",
   accumulated: "Accumulated",
@@ -183,29 +230,60 @@ const en: Strings = {
   disposalDate: "Disposal date",
   dispose: "Dispose",
   disposed: "Disposed on",
+  disposed2: "Disposed",
+  disposing: "Disposing…",
   dispute: "Dispute",
   due: "Due",
   dueDate: "Due date",
   edit: "Edit",
+  editExpense: "Edit expense",
   enteredFinance: "Entered by Finance",
   exactFigureComputedDisposal: "— exact figure is computed on disposal.",
+  expense: "Expense",
   expenseMix: "Expense mix",
   expensesWhatWorkCost: "Expenses are what the work cost. Booking one to a project feeds its margin.",
   financeColumns: "Finance columns",
   fixedAssetRegister: "Fixed-asset register",
   fixedAssetSomethingBought: "A fixed asset is something you bought and use over years — a vehicle, a machine, a fit-out. Its value is written down month by month here.",
+  fullyDepreciated: "Fully depreciated",
+  gainDisposal: "Gain on disposal",
   general: "General",
+  income: "Income",
   incomeVsExpense: "Income vs expense",
   invoice: "Invoice",
   invoiceBillsClientProject: "An invoice bills a client for a project. Recording payments against it is what marks it paid.",
   invoiced: "Invoiced",
   invoices: "Invoices",
   issuedApproval: "Issued on approval",
+  last90Days: "last 90 days",
   loadingAccountsPayable: "Loading Accounts Payable…",
   loadingFinance: "Loading Finance…",
   loadingFixedAssets: "Loading Fixed Assets…",
   loadingInvoices: "Loading invoices",
+  loadingInvoicesGrid: "Loading invoices",
   location: "Location",
+  mAlready: "That bill has already been approved.",
+  mAmount: "Enter an amount.",
+  mBeforeAcquired: "Disposal can't be dated before the asset was acquired.",
+  mCancelled: "That record was cancelled.",
+  mClient: "Pick a project, or name the client.",
+  mCost: "Enter what the asset cost.",
+  mDerivedStatus: "Paid follows the payments — record the payment instead.",
+  mDidntSave: "That didn't save.",
+  mDisposed: "That asset has been disposed and is read-only.",
+  mHasHistory: "This bill has been approved or paid against — cancel it rather than deleting.",
+  mHasPayments: "Payments have been recorded against this record.",
+  mIssued: "This invoice has been issued — cancel it rather than changing it.",
+  mLife: "Enter the useful life in months.",
+  mLines: "Add at least one line with a description and quantity.",
+  mLocked: "An approved or paid bill can't be edited — dispute or cancel it instead.",
+  mName: "Give the asset a name.",
+  mNotApproved: "Approve the bill before recording a payment against it.",
+  mNotIssued: "Send the invoice before recording a payment.",
+  mReadOnly: "You have view-only access to Finance.",
+  mSameSigner: "A bill can't be approved by the person who raised it — ask a second approver.",
+  mStatus: "That isn't a status a bill can hold.",
+  mVendor: "Name the vendor this bill is from.",
   manager: "Manager",
   margin: "Margin",
   markReceived: "Mark received",
@@ -251,11 +329,14 @@ const en: Strings = {
   recalculatedServerWhenSave: "— recalculated on the server when you save.",
   receivablesAging: "Receivables aging",
   recordPayment: "Record payment",
+  recording: "Recording…",
   ref: "Ref",
   reference: "Reference",
   remove: "Remove",
   salvageValue: "Salvage value",
+  save: "Save",
   saveDraft: "Save as draft",
+  saving: "Saving…",
   searchProjectClientPo: "Search project, client, PO or quotation",
   send: "Send",
   spendCategory: "Spend by category",
@@ -264,6 +345,11 @@ const en: Strings = {
   status: "Status",
   studioKeepsModuleDashboards: "This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar.",
   subtotal: "Subtotal",
+  sumCollected: "Collected",
+  sumExpenses: "Expenses",
+  sumInvoiced: "Invoiced",
+  sumOutstanding: "Outstanding",
+  sumOverdue: "Overdue",
   targetEnd: "Target end",
   terms: "Terms",
   topDebtors: "Top debtors",
@@ -286,6 +372,10 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  mAlreadyDisposed: (date) => `سبق استبعاد هذا الأصل في ${date}.`,
+  mOverpayment: (amount) => `هذا أكثر من ${amount} المتبقية المستحقة.`,
+  overdueCount: (n) => `متأخرة · ${n}`,
+  overdueSuffix: (n) => ` · ${n} متأخرة`,
   accessFinanceStudio: "لا تملك صلاحية الوصول إلى المالية في هذا الاستوديو.",
   accessStudio: "لا تملك صلاحية الوصول إلى هذا في هذا الاستوديو.",
   accumulated: "المتراكم",
@@ -322,29 +412,60 @@ const ar: Strings = {
   disposalDate: "تاريخ الاستبعاد",
   dispose: "استبعاد",
   disposed: "استُبعد في",
+  disposed2: "مستبعد",
+  disposing: "جارٍ الاستبعاد…",
   dispute: "اعتراض",
   due: "مستحق",
   dueDate: "تاريخ الاستحقاق",
   edit: "تعديل",
+  editExpense: "تعديل المصروف",
   enteredFinance: "أدخلته المالية",
   exactFigureComputedDisposal: "— يُحتسب الرقم الدقيق عند الاستبعاد.",
+  expense: "المصروفات",
   expenseMix: "توزيع المصروفات",
   expensesWhatWorkCost: "المصروفات هي ما كلّفه العمل. وقيدها على مشروع يغذّي هامشه.",
   financeColumns: "أعمدة المالية",
   fixedAssetRegister: "سجل الأصول الثابتة",
   fixedAssetSomethingBought: "الأصل الثابت شيء اشتريته وتستخدمه لسنوات — مركبة أو آلة أو تجهيز. وتُطفأ قيمته شهرًا بشهر هنا.",
+  fullyDepreciated: "مُهلَك بالكامل",
+  gainDisposal: "مكسب الاستبعاد",
   general: "عام",
+  income: "الإيرادات",
   incomeVsExpense: "الإيرادات مقابل المصروفات",
   invoice: "الفاتورة",
   invoiceBillsClientProject: "الفاتورة تُحاسب عميلًا على مشروع. وتسجيل المدفوعات عليها هو ما يجعلها مدفوعة.",
   invoiced: "المفوتر",
   invoices: "الفواتير",
   issuedApproval: "تصدر عند الاعتماد",
+  last90Days: "آخر 90 يومًا",
   loadingAccountsPayable: "جارٍ تحميل الذمم الدائنة…",
   loadingFinance: "جارٍ تحميل المالية…",
   loadingFixedAssets: "جارٍ تحميل الأصول الثابتة…",
   loadingInvoices: "جارٍ تحميل الفواتير",
+  loadingInvoicesGrid: "جارٍ تحميل الفواتير",
   location: "الموقع",
+  mAlready: "سبق اعتماد هذه الفاتورة.",
+  mAmount: "أدخل مبلغًا.",
+  mBeforeAcquired: "لا يمكن أن يسبق تاريخ الاستبعاد تاريخ اقتناء الأصل.",
+  mCancelled: "أُلغي هذا السجل.",
+  mClient: "اختر مشروعًا، أو حدّد اسم العميل.",
+  mCost: "أدخل تكلفة الأصل.",
+  mDerivedStatus: "حالة الدفع تتبع المدفوعات — سجّل الدفعة بدلًا من ذلك.",
+  mDidntSave: "لم يُحفظ ذلك.",
+  mDisposed: "استُبعد هذا الأصل وأصبح للقراءة فقط.",
+  mHasHistory: "اعتُمدت هذه الفاتورة أو سُجّلت عليها مدفوعات — ألغِها بدلًا من حذفها.",
+  mHasPayments: "سُجّلت مدفوعات على هذا السجل.",
+  mIssued: "صدرت هذه الفاتورة — ألغِها بدلًا من تغييرها.",
+  mLife: "أدخل العمر الإنتاجي بالأشهر.",
+  mLines: "أضِف سطرًا واحدًا على الأقل بوصف وكمية.",
+  mLocked: "لا يمكن تعديل فاتورة معتمدة أو مدفوعة — اعترض عليها أو ألغِها بدلًا من ذلك.",
+  mName: "أعطِ الأصل اسمًا.",
+  mNotApproved: "اعتمد الفاتورة قبل تسجيل دفعة عليها.",
+  mNotIssued: "أرسل الفاتورة قبل تسجيل دفعة.",
+  mReadOnly: "لديك صلاحية عرض فقط على المالية.",
+  mSameSigner: "لا يمكن لمن رفع الفاتورة أن يعتمدها — اطلب معتمدًا ثانيًا.",
+  mStatus: "ليست هذه حالة يمكن أن تحملها فاتورة.",
+  mVendor: "حدّد المورّد الذي صدرت عنه هذه الفاتورة.",
   manager: "المدير",
   margin: "الهامش",
   markReceived: "تعليم كمستلمة",
@@ -390,11 +511,14 @@ const ar: Strings = {
   recalculatedServerWhenSave: "— يُعاد احتسابه على الخادم عند الحفظ.",
   receivablesAging: "أعمار الذمم المدينة",
   recordPayment: "تسجيل دفعة",
+  recording: "جارٍ التسجيل…",
   ref: "المرجع",
   reference: "المرجع",
   remove: "إزالة",
   salvageValue: "القيمة التخريدية",
+  save: "حفظ",
   saveDraft: "الحفظ كمسودة",
+  saving: "جارٍ الحفظ…",
   searchProjectClientPo: "ابحث بالمشروع أو العميل أو أمر الشراء أو عرض السعر",
   send: "إرسال",
   spendCategory: "الإنفاق حسب الفئة",
@@ -403,6 +527,11 @@ const ar: Strings = {
   status: "الحالة",
   studioKeepsModuleDashboards: "يُبقي هذا الاستوديو لوحات معلومات الوحدات خلف صلاحية خاصة بها. الشاشات التي تحتها غير متأثرة — اختر واحدة من الشريط الجانبي.",
   subtotal: "المجموع الفرعي",
+  sumCollected: "المُحصَّل",
+  sumExpenses: "المصروفات",
+  sumInvoiced: "المفوتر",
+  sumOutstanding: "المستحق",
+  sumOverdue: "المتأخر",
   targetEnd: "النهاية المستهدفة",
   terms: "الشروط",
   topDebtors: "أكبر المدينين",

@@ -116,7 +116,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
                 Revision {dist.rev}
                 {dist.outstanding > 0
                   ? ` · ${dist.outstanding} still to acknowledge`
-                  : " · everybody has acknowledged"}
+                  : tr.everybodyAcknowledged}
               </p>
               <ul className="space-y-1.5">
                 {recipients.map((r) => (
@@ -168,7 +168,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
                 </div>
                 <p className="mt-1 text-slate-400 dark:text-slate-500">
                   Opened {l.accessCount || 0} time{l.accessCount === 1 ? "" : "s"}
-                  {l.lastAccessAt ? ` · last ${String(l.lastAccessAt).slice(0, 10)}` : ""}
+                  {l.lastAccessAt ? tr.lastAccessed(String(l.lastAccessAt).slice(0, 10)) : ""}
                 </p>
               </li>
             ))}

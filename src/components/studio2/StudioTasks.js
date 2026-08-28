@@ -71,16 +71,16 @@ export default function StudioTasks({ slug, view = "tasks" }) {
     setBusy(false);
     if (!res.ok) {
       setError(
-        out.error === "read-only" ? "Only a manager can create or assign tasks."
-        : out.error === "forbidden" ? "You can only change tasks assigned to you."
-        : out.error === "forbidden-field" ? "You can move your task and tick its checklist — the rest is the manager's to change."
-        : out.error === "title" ? "Give the task a title."
-        : out.error === "not-yours" ? "That decision belongs to whoever holds that authority."
-        : out.error === "authority" ? "That authority isn't part of this task."
-        : out.error === "not-approval" ? "That task isn't an approval."
-        : out.error === "typed-immutable" ? "That task is a decision the system raised — it can't be edited or deleted. Withdraw the approval instead."
+        out.error === "read-only" ? tr.onlyManagerCanCreate
+        : out.error === "forbidden" ? tr.canOnlyChangeTasks
+        : out.error === "forbidden-field" ? tr.canMoveTaskTick
+        : out.error === "title" ? tr.giveTaskTitle
+        : out.error === "not-yours" ? tr.decisionBelongsWhoeverHolds
+        : out.error === "authority" ? tr.authorityIsnPartTask
+        : out.error === "not-approval" ? tr.taskIsnApproval
+        : out.error === "typed-immutable" ? tr.taskDecisionSystemRaised
         : out.error === "cooldown" ? `An approval was just withdrawn — try again in ${Math.ceil((out.waitMs || 0) / 60000)} min.`
-        : "That didn't save."
+        : tr.didnSave
       );
       return false;
     }
@@ -152,7 +152,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
             than left to be discovered. */}
         {summary.stuck > 0 && (
           <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-            {summary.stuck} {summary.stuck === 1 ? "task is" : "tasks are"} waiting on an authority nobody has been
+            {summary.stuck} {summary.stuck === 1 ? tr.task : "tasks are"} waiting on an authority nobody has been
             appointed to{nav?.["tasks-settings"] ? <> — <a href={`/${slug}/tasks-settings`} className="font-600 underline">{tr.appointSomeoneTaskSettings}</a></> : " — an admin can appoint someone in Task settings"}.
           </p>
         )}
@@ -184,8 +184,8 @@ export default function StudioTasks({ slug, view = "tasks" }) {
       )}
 
       {shown.length === 0 ? (
-        <Empty title={filter === "mine" ? "Nothing assigned to you" : filter === "overdue" ? "Nothing overdue" : filter === "done" ? "Nothing finished yet" : "No open tasks"}
-          body={canManage ? "Create a task and assign it to someone in this studio." : "Tasks assigned to you will appear here."} />
+        <Empty title={filter === "mine" ? tr.nothingAssigned : filter === "overdue" ? tr.nothingOverdue : filter === "done" ? tr.nothingFinishedYet : "No open tasks"}
+          body={canManage ? tr.createTaskAssignSomeone : "Tasks assigned to you will appear here."} />
       ) : (
         <section className={panel}>
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
@@ -262,7 +262,7 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
                     title={a.approved
                       ? `Approved by ${a.byAlias || "someone"}${a.at ? ` on ${fmtDateTime(a.at)}` : ""}`
                       : a.orphaned
-                        ? "Nobody is appointed to this authority yet"
+                        ? tr.nobodyAppointedAuthorityYet
                         : `Waiting on ${a.holders.join(", ") || "nobody"}`}>
                     {a.approved ? "✓" : a.orphaned ? "!" : "•"} {a.label}
                     {canDecide && !busy && (
@@ -377,7 +377,7 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
 
   return (
     <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{task ? "Edit task" : "New task"}</h3>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{task ? tr.editTask : "New task"}</h3>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={tr.title} required value={form.title}
@@ -388,7 +388,7 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
               picker below stops applying. The empty (blank) choice is the
               ordinary task; the hint line below spells that out. */}
           <Field label={tr.kind} as="select" value={form.type} disabled={!!task}
-            hint={!form.type && !task ? "Blank is an ordinary task — assigned to a person." : undefined}
+            hint={!form.type && !task ? tr.blankOrdinaryTaskAssigned : undefined}
             onChange={(v) => setForm((f) => ({ ...f, type: v, assigneeCollaboratorId: "" }))}
             options={Object.entries(vocab.typeLabels || {}).map(([code, meta]) => ({ value: code, label: meta.label }))} />
           {form.type ? (
@@ -451,7 +451,7 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
 
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !form.title.trim()} onClick={() => onSave({ ...form, checklist })}>
-          {busy ? "Saving…" : "Save"}
+          {busy ? tr.saving : "Save"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -479,6 +479,7 @@ function Empty({ title, body }) {
 // the answer is legible with the list shut, which is how it is nearly always
 // read.
 function AssigneePicker({ people, selected, disabled, onToggle }) {
+  const tr = tasksDict(useStudioLocale());
   const [open, setOpen] = useState(false);
   const box = useRef(null);
 
@@ -495,7 +496,7 @@ function AssigneePicker({ people, selected, disabled, onToggle }) {
   }, [open]);
 
   const names = people.filter((p) => selected.includes(p.id)).map((p) => p.alias || "Member");
-  const summary = names.length === 0 ? "Nobody appointed"
+  const summary = names.length === 0 ? tr.nobodyAppointed
     : names.length <= 2 ? names.join(", ")
     : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
 
@@ -507,7 +508,7 @@ function AssigneePicker({ people, selected, disabled, onToggle }) {
         className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-2 text-start text-sm transition-colors disabled:opacity-60 ${names.length === 0
           ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
           : "border-slate-200 bg-[var(--geex-surface)] text-slate-900 hover:border-brand-500 dark:border-white/15 dark:text-white"}`}>
-        <span className="truncate">{people.length === 0 ? "Nobody in this studio yet" : summary}</span>
+        <span className="truncate">{people.length === 0 ? tr.nobodyStudioYet : summary}</span>
         <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="m6 9 6 6 6-6" />
         </svg>
@@ -585,7 +586,7 @@ function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, peo
         {canManage && (
           <div className="mt-5 flex items-center gap-3">
             <button className={btn} disabled={busy} onClick={async () => { setBusy(true); const ok = await onSave(map); setBusy(false); setSaved(!!ok); }}>
-              {busy ? "Saving..." : "Save task settings"}
+              {busy ? tr.saving2 : "Save task settings"}
             </button>
             {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
           </div>
@@ -604,7 +605,7 @@ function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, peo
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 className="font-display text-base font-800 text-slate-900 dark:text-white">{meta.label || type}</h3>
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
-                {codes.length === 1 ? "One authority signs" : `${codes.length} authorities must sign`}
+                {codes.length === 1 ? tr.oneAuthoritySigns : `${codes.length} authorities must sign`}
               </span>
             </div>
             {meta.hint && <p className={sub}>{meta.hint}</p>}
@@ -687,10 +688,10 @@ function OpenProject({ task, people, slug, onOpened }) {
     setBusy(false);
     if (!res.ok) {
       setError(
-        out.error === "already" ? "A project has already been opened from this quotation."
-        : out.error === "not-approved" ? "That quotation is not approved."
-        : out.error === "forbidden" ? "You can't open projects."
-        : "That didn't go through.",
+        out.error === "already" ? tr.projectAlreadyOpenedQuotation
+        : out.error === "not-approved" ? tr.quotationNotApproved
+        : out.error === "forbidden" ? tr.canOpenProjects
+        : tr.didnGoThrough,
       );
       return;
     }
@@ -708,7 +709,7 @@ function OpenProject({ task, people, slug, onOpened }) {
           {people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
         </select>
         <button className={btn} disabled={busy || !handler} onClick={open}>
-          {busy ? "Opening…" : "Create project & sheet"}
+          {busy ? tr.opening : "Create project & sheet"}
         </button>
       </div>
       {error && <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{error}</p>}

@@ -8,6 +8,14 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  countPermits: (n: number) => string;
+  countShifts: (n: number) => string;
+  forWindow: (from: string, to: string) => string;
+  joinAnd: (parts: string[]) => string;
+  mClash: (from: string, to: string) => string;
+  mInUse: (what: string) => string;
+  mOnLeave: (kind: string, from: string, to: string) => string;
+  soonestLapseWindow: (days: number) => string;
   accessOperationsStudio: string;
   acrossEveryScheduledShift: string;
   activePermits: string;
@@ -23,6 +31,8 @@ type Strings = CommonStrings & {
   dayRosterPrefix: string;
   delete: string;
   edit: string;
+  editLocation: string;
+  editPermit: string;
   end: string;
   issued: string;
   kind: string;
@@ -31,14 +41,22 @@ type Strings = CommonStrings & {
   location: string;
   locations: string;
   locationsPlacesWorkHappens: string;
+  mDidntSave: string;
+  mDuplicate: string;
+  mPerson: string;
+  mRange: string;
+  mReadOnly: string;
+  mTime: string;
   mapLink: string;
   name: string;
+  noLocation: string;
   noLocationsYet: string;
   noMapConfigured: string;
   noOneScheduled: string;
   noPermitsCarryEnd: string;
   noPermitsRecordedYet: string;
   noPermitsYet: string;
+  noShiftsScheduled: string;
   nobodySharingRightNow: string;
   notes: string;
   nothingScheduledYet: string;
@@ -56,12 +74,17 @@ type Strings = CommonStrings & {
   role: string;
   roleShift: string;
   saved: string;
+  saving: string;
   scheduleShift: string;
+  seriesShifts: string;
   shareMyLocation: string;
+  shifts: string;
   shiftsLocation: string;
   shiftsWeek: string;
   start: string;
   stopSharing: string;
+  thisWeek: string;
+  thisWeekSuffix: string;
   title: string;
   tracking: string;
   type: string;
@@ -80,6 +103,14 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   ...commonEn,
+  countPermits: (n) => `${n} ${n === 1 ? "permit" : "permits"}`,
+  countShifts: (n) => `${n} ${n === 1 ? "shift" : "shifts"}`,
+  forWindow: (from, to) => `for ${from} – ${to}`,
+  joinAnd: (parts) => parts.join(" and "),
+  mClash: (from, to) => `They're already scheduled ${from}–${to} that day.`,
+  mInUse: (what) => `Still used by ${what} — move those first.`,
+  mOnLeave: (kind, from, to) => `They're on approved ${kind} leave ${from} – ${to}.`,
+  soonestLapseWindow: (days) => `Soonest to lapse first · window ${days}d`,
   accessOperationsStudio: "You don't have access to Operations in this studio.",
   acrossEveryScheduledShift: "Across every scheduled shift",
   activePermits: "Active permits",
@@ -95,6 +126,8 @@ const en: Strings = {
   dayRosterPrefix: "Day roster prefix",
   delete: "Delete",
   edit: "Edit",
+  editLocation: "Edit location",
+  editPermit: "Edit permit",
   end: "End",
   issued: "Issued by",
   kind: "Kind",
@@ -103,14 +136,22 @@ const en: Strings = {
   location: "Location",
   locations: "Locations",
   locationsPlacesWorkHappens: "Locations are the places work happens — sites, offices, warehouses. Shifts and permits point at them.",
+  mDidntSave: "That didn't save.",
+  mDuplicate: "That name is already in use.",
+  mPerson: "Pick who is working.",
+  mRange: "The end date can't be before the start date.",
+  mReadOnly: "You have view-only access to Operations.",
+  mTime: "Give the shift a date, a start and an end.",
   mapLink: "Map link",
   name: "Name",
+  noLocation: "No location",
   noLocationsYet: "No locations yet",
   noMapConfigured: "No map configured",
   noOneScheduled: "No one scheduled",
   noPermitsCarryEnd: "No permits carry an end date.",
   noPermitsRecordedYet: "No permits recorded yet.",
   noPermitsYet: "No permits yet",
+  noShiftsScheduled: "No shifts scheduled",
   nobodySharingRightNow: "Nobody is sharing right now.",
   notes: "Notes",
   nothingScheduledYet: "Nothing scheduled yet.",
@@ -128,12 +169,17 @@ const en: Strings = {
   role: "Role",
   roleShift: "The role on this shift",
   saved: "Saved",
+  saving: "Saving…",
   scheduleShift: "Schedule a shift",
+  seriesShifts: "Shifts",
   shareMyLocation: "Share my location",
+  shifts: "Shifts",
   shiftsLocation: "Shifts by location",
   shiftsWeek: "Shifts this week",
   start: "Start",
   stopSharing: "Stop sharing",
+  thisWeek: "this week",
+  thisWeekSuffix: "this week",
   title: "Title",
   tracking: "Tracking",
   type: "Type",
@@ -152,6 +198,14 @@ const en: Strings = {
 
 const ar: Strings = {
   ...commonAr,
+  countPermits: (n) => `${n === 1 ? "تصريح واحد" : n === 2 ? "تصريحان" : n <= 10 ? `${n} تصاريح` : `${n} تصريحًا`}`,
+  countShifts: (n) => `${n === 1 ? "وردية واحدة" : n === 2 ? "ورديتان" : n <= 10 ? `${n} ورديات` : `${n} وردية`}`,
+  forWindow: (from, to) => `للفترة ${from} – ${to}`,
+  joinAnd: (parts) => parts.join(" و"),
+  mClash: (from, to) => `هو مجدول بالفعل من ${from} إلى ${to} في ذلك اليوم.`,
+  mInUse: (what) => `لا يزال مستخدمًا من ${what} — انقلها أولًا.`,
+  mOnLeave: (kind, from, to) => `هو في إجازة ${kind} معتمدة من ${from} إلى ${to}.`,
+  soonestLapseWindow: (days) => `الأقرب انتهاءً أولًا · نافذة ${days} يومًا`,
   accessOperationsStudio: "لا تملك صلاحية الوصول إلى العمليات في هذا الاستوديو.",
   acrossEveryScheduledShift: "عبر كل وردية مجدولة",
   activePermits: "التصاريح السارية",
@@ -167,6 +221,8 @@ const ar: Strings = {
   dayRosterPrefix: "مقدمة جدول اليوم",
   delete: "حذف",
   edit: "تعديل",
+  editLocation: "تعديل الموقع",
+  editPermit: "تعديل التصريح",
   end: "النهاية",
   issued: "جهة الإصدار",
   kind: "النوع",
@@ -175,14 +231,22 @@ const ar: Strings = {
   location: "الموقع",
   locations: "المواقع",
   locationsPlacesWorkHappens: "المواقع هي الأماكن التي يجري فيها العمل — مواقع العمل والمكاتب والمستودعات. وتشير إليها الورديات والتصاريح.",
+  mDidntSave: "لم يُحفظ ذلك.",
+  mDuplicate: "هذا الاسم مستخدم بالفعل.",
+  mPerson: "اختر من سيعمل.",
+  mRange: "لا يمكن أن يسبق تاريخ النهاية تاريخ البداية.",
+  mReadOnly: "لديك صلاحية عرض فقط على العمليات.",
+  mTime: "أعطِ الوردية تاريخًا وبداية ونهاية.",
   mapLink: "رابط الخريطة",
   name: "الاسم",
+  noLocation: "بلا موقع",
   noLocationsYet: "لا توجد مواقع بعد",
   noMapConfigured: "لم تُضبط خريطة",
   noOneScheduled: "لا أحد مجدول",
   noPermitsCarryEnd: "لا يحمل أي تصريح تاريخ انتهاء.",
   noPermitsRecordedYet: "لم تُسجَّل أي تصاريح بعد.",
   noPermitsYet: "لا توجد تصاريح بعد",
+  noShiftsScheduled: "لا توجد ورديات مجدولة",
   nobodySharingRightNow: "لا أحد يشارك موقعه الآن.",
   notes: "ملاحظات",
   nothingScheduledYet: "لا شيء مجدول بعد.",
@@ -200,12 +264,17 @@ const ar: Strings = {
   role: "الدور",
   roleShift: "الدور في هذه الوردية",
   saved: "تم الحفظ",
+  saving: "جارٍ الحفظ…",
   scheduleShift: "جدولة وردية",
+  seriesShifts: "الورديات",
   shareMyLocation: "مشاركة موقعي",
+  shifts: "الورديات",
   shiftsLocation: "الورديات حسب الموقع",
   shiftsWeek: "ورديات هذا الأسبوع",
   start: "البداية",
   stopSharing: "إيقاف المشاركة",
+  thisWeek: "هذا الأسبوع",
+  thisWeekSuffix: "هذا الأسبوع",
   title: "العنوان",
   tracking: "التتبّع",
   type: "النوع",

@@ -97,18 +97,18 @@ export default function StudioTicketProfile({ slug, ticketId }) {
     setActing("");
     if (!res.ok) {
       setError(
-        out.error === "already" && kind === "rfq" ? "That ticket is already with Technical — you can send it again once the quotation comes back."
-        : out.error === "already" ? "This quotation has already been sent for approval."
+        out.error === "already" && kind === "rfq" ? tr.ticketAlreadyTechnicalCan
+        : out.error === "already" ? tr.quotationAlreadySentApproval
         // A stale tab still showing the button, pressed after somebody else's
         // approval landed. Say what happened rather than "that didn't go through".
-        : out.error === "approved" ? "This ticket's quotation has been approved — there is nothing left to revise. A change after approval is a new ticket."
-        : out.error === "rfq-pending" ? "A new RFQ is outstanding — wait for the revised quotation before sending it up."
-        : out.error === "not-quoted" ? "There is no finished quotation on this ticket to approve yet."
-        : out.error === "no-tasks" ? "This studio has no Tasks section to send the approval to."
-        : out.error === "no-technical" ? "This studio has no Technical section to send an RFQ to."
-        : out.error === "read-only" || out.error === "forbidden" ? "You have view-only access to Sales."
-        : out.error === "ticket" ? "That ticket no longer exists — reload the page."
-        : "That didn't go through.",
+        : out.error === "approved" ? tr.ticketQuotationApprovedNothing
+        : out.error === "rfq-pending" ? tr.newRfqOutstandingWait
+        : out.error === "not-quoted" ? tr.noFinishedQuotationTicket
+        : out.error === "no-tasks" ? tr.studioNoTasksSection
+        : out.error === "no-technical" ? tr.studioNoTechnicalSection
+        : out.error === "read-only" || out.error === "forbidden" ? tr.viewOnlyAccessSales
+        : out.error === "ticket" ? tr.ticketNoLongerExists2
+        : tr.didnGoThrough,
       );
       return;
     }
@@ -134,7 +134,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
       const up = await fetch("/api/media", { method: "POST", body: form });
       if (!up.ok) {
         setBusy(false);
-        setError(up.status === 413 ? "That file is too large — 5 MB is the limit." : "That file didn't upload.");
+        setError(up.status === 413 ? tr.fileTooLarge5 : "That file didn't upload.");
         return false;
       }
       attachmentUrl = (await up.json()).url;
@@ -148,13 +148,13 @@ export default function StudioTicketProfile({ slug, ticketId }) {
     setBusy(false);
     if (!res.ok) {
       setError(
-        out.error === "evidence" ? "Attach the PO or describe it — Finance can't authorise nothing."
-        : out.error === "already" ? "A PO has already been submitted for this quotation."
-        : out.error === "not-approved" ? "The quotation has to be approved before a PO can be booked against it."
-        : out.error === "not-quoted" ? "There is no quotation on this ticket yet."
-        : out.error === "no-tasks" ? "This studio has no Tasks section to send the PO to."
-        : out.error === "read-only" || out.error === "forbidden" ? "You have view-only access to Sales."
-        : "That didn't go through.",
+        out.error === "evidence" ? tr.attachPoDescribeFinance
+        : out.error === "already" ? tr.poAlreadySubmittedQuotation
+        : out.error === "not-approved" ? tr.quotationApprovedBeforePo
+        : out.error === "not-quoted" ? tr.noQuotationTicketYet
+        : out.error === "no-tasks" ? tr.studioNoTasksSection2
+        : out.error === "read-only" || out.error === "forbidden" ? tr.viewOnlyAccessSales
+        : tr.didnGoThrough,
       );
       return false;
     }
@@ -284,8 +284,8 @@ export default function StudioTicketProfile({ slug, ticketId }) {
             {mine.length === 0 ? (
               <p className={sub}>
                 {ticket.rfqPending
-                  ? "Technical has this ticket — the quotation will appear here once it is raised."
-                  : "No quotation has been raised against this ticket yet."}
+                  ? tr.technicalTicketQuotationWill
+                  : tr.noQuotationRaisedAgainst}
               </p>
             ) : (
               <ul className="mt-3 space-y-2">
@@ -339,7 +339,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                   inputProps={{ onKeyDown: (e) => { if (e.key === "Enter") addComment(); } }}
                 />
                 <button className={btn} onClick={addComment} disabled={busy || !comment.trim()}>
-                  {busy ? "Saving…" : "Post"}
+                  {busy ? tr.saving : "Post"}
                 </button>
               </div>
             )}
@@ -361,10 +361,10 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               ) : (
                 <button type="button" className={btnActionOn} disabled={acting === "rfq"}
                   title={ticket.rfqCount > 0
-                    ? "Send this ticket back to Technical to have the last quotation revised"
-                    : "Hand this ticket to Technical for pricing"}
+                    ? tr.sendTicketBackTechnical
+                    : tr.handTicketTechnicalPricing}
                   onClick={() => act("rfq")}>
-                  {acting === "rfq" ? "Sending…" : "Request RFQ"}
+                  {acting === "rfq" ? tr.sending : "Request RFQ"}
                 </button>
               )}
 
@@ -382,7 +382,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                   <button type="button" className={btnApprove} disabled={acting === "approval"}
                     title={tr.sendLatestQuotationAppointed}
                     onClick={() => act("approval")}>
-                    {acting === "approval" ? "Sending…" : "Send for Approval"}
+                    {acting === "approval" ? tr.sending : "Send for Approval"}
                   </button>
                 )
               )}
@@ -542,7 +542,7 @@ function PoForm({ busy, onCancel, onSave }) {
           Attach the PO
         </span>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5">
-          {file ? "Change file" : "Choose file"}
+          {file ? tr.changeFile : "Choose file"}
           <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
         </label>
         {file && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{file.name}</p>}
@@ -555,13 +555,13 @@ function PoForm({ busy, onCancel, onSave }) {
 
       <p className={`mt-3 text-xs ${ready ? "text-slate-500 dark:text-slate-400" : "text-amber-700 dark:text-amber-300"}`}>
         {ready
-          ? "Goes to whoever holds Management and Finance in Task settings. Finance issues the project number."
-          : "Attach the PO, describe it, or both — one of the two is needed."}
+          ? tr.goesWhoeverHoldsManagement
+          : tr.attachPoDescribeBoth}
       </p>
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button className={btn} disabled={busy || !ready} onClick={() => onSave({ description: description.trim(), file })}>
-          {busy ? "Sending…" : "Submit PO to Finance"}
+          {busy ? tr.sending : "Submit PO to Finance"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>

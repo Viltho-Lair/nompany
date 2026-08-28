@@ -202,6 +202,7 @@ function SizeGrid({
 }: {
   onPick: (rows: number, columns: number) => void;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const [hover, setHover] = useState<{ row: number; column: number } | null>(
     null,
   );
@@ -236,7 +237,7 @@ function SizeGrid({
       </div>
       <p className="pt-2 text-center text-xs text-muted-foreground">
         {hover === null
-          ? "Pick a size"
+          ? tr.pickSize
           : `${hover.row + 1} × ${hover.column + 1}`}
       </p>
     </div>

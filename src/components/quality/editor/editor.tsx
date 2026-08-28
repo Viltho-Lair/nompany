@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { restDict } from "@/shared/studio/rest";
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import { Table, TableRow } from "@tiptap/extension-table";
@@ -391,10 +393,11 @@ function PageBand({
   onSelectSurface: () => void;
   style: React.CSSProperties;
 }) {
+  const tr = restDict(useStudioLocale());
   const isHeader = area === "header";
   const active = pageIndex >= band.startPage;
   const isEditableCopy = pageIndex === editablePage;
-  const label = isHeader ? "Page header" : "Page footer";
+  const label = isHeader ? tr.pageHeader : "Page footer";
 
   return (
     <div
@@ -416,7 +419,7 @@ function PageBand({
             <BandEditor
               content={band.content}
               fallbackText={band.text}
-              placeholder={isHeader ? "Header" : "Footer"}
+              placeholder={isHeader ? tr.header : "Footer"}
               ariaLabel={`${label}, page ${pageIndex}`}
               onChange={onContentChange}
               onReady={onReady}

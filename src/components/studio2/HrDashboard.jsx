@@ -106,7 +106,7 @@ export default function HrDashboard({
           tone={onLeaveNow > 0 ? "text-brand-700 dark:text-brand-300" : ""} href={to} />
         <StatTile label={tr.leavePending} value={pendingLeave}
           tone={pendingLeave > 0 ? "text-amber-700 dark:text-amber-300" : ""} href={to} />
-        <StatTile label={`Docs expiring · ${windowDays}d`} value={expiring.length}
+        <StatTile label={tr.docsExpiringDays(windowDays)} value={expiring.length}
           tone={expiring.length > 0 ? (lapsed > 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300") : ""}
           href={to} />
       </StatRow>
@@ -141,7 +141,7 @@ export default function HrDashboard({
           ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noLeaveBookedYet}</p>}
         </Widget>
 
-        <Widget title={tr.expiringDocuments} hint={`ID and passport within ${windowDays} days, or lapsed`} span={2} locked={!visible("hr.expiring-documents")} lockedWhat={tr.expiringDocuments}>
+        <Widget title={tr.expiringDocuments} hint={tr.idPassportWithin(windowDays)} span={2} locked={!visible("hr.expiring-documents")} lockedWhat={tr.expiringDocuments}>
           {expiring.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">{tr.nothingExpiringAllClear}</p>
           ) : (

@@ -146,7 +146,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
               {["review", "approval"].map((slot) => current[slot]?.byAlias && (
                 <p key={slot} className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                   <span className="font-600 text-slate-700 dark:text-slate-200">
-                    {slot === "review" ? "Reviewed" : "Approved"} by {current[slot].byAlias}
+                    {slot === "review" ? tr.reviewed : "Approved"} by {current[slot].byAlias}
                   </span>
                   {" · "}{String(current[slot].at).slice(0, 10)}
                   {current[slot].signatureUrl && " · signed"}
@@ -254,7 +254,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
 
           {NEEDS_NOTE.has(prompt.action) && (
             <div className={prompt.action === "publish" ? "mt-4" : ""}>
-              <Field label={prompt.action === "reject" ? "What needs changing?" : "Note (optional)"} as="textarea"
+              <Field label={prompt.action === "reject" ? tr.whatNeedsChanging : "Note (optional)"} as="textarea"
                 value={note} onChange={(v) => setNote(v)} />
             </div>
           )}
@@ -263,7 +263,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
             <div className="mt-4">
               <span className={`${label} block`}>Signature image (optional)</span>
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5">
-                {uploading ? "Storing…" : signature ? "Change image" : "Choose image"}
+                {uploading ? tr.storing : signature ? tr.changeImage : "Choose image"}
                 <input id="w-sig" type="file" accept="image/*" className="hidden"
                   onChange={(e) => uploadSignature(e.target.files?.[0])} />
               </label>

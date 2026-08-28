@@ -8,12 +8,24 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  countDeliveries: (n: number) => string;
+  countItems: (n: number) => string;
+  countMovements: (n: number) => string;
+  countOrders: (n: number) => string;
+  countShipments: (n: number) => string;
+  joinAnd: (parts: string[]) => string;
+  mInUse: (what: string) => string;
+  mInsufficient: (have: string, needed: string) => string;
+  mOverReceive: (remaining: string) => string;
+  mShort: (detail: string) => string;
+  mShortNeedHave: (needed: string, have: string) => string;
   accessInventoryStudio: string;
   add: string;
   addAirline: string;
   addItem: string;
   addType: string;
   addVendor: string;
+  adding: string;
   adjust: string;
   airline3DigitPrefix: string;
   airlineCodeNumber: string;
@@ -38,6 +50,11 @@ type Strings = CommonStrings & {
   customsCharges: string;
   dashboardIsnYoursSee: string;
   delete: string;
+  descAwb: string;
+  descCatalogue: string;
+  descHeld: string;
+  descSheets: string;
+  descVendors: string;
   eGStockTake: string;
   edit: string;
   email: string;
@@ -57,7 +74,24 @@ type Strings = CommonStrings & {
   latestLedger: string;
   loadingInventory: string;
   loadingItems: string;
+  loadingItemsGrid: string;
   low: string;
+  mAlreadyIssued: string;
+  mAwb: string;
+  mCharges: string;
+  mDerivedStatus: string;
+  mDidntSave: string;
+  mDuplicate: string;
+  mDuplicateSku: string;
+  mLines: string;
+  mNotOrdered: string;
+  mNothing: string;
+  mPrefix: string;
+  mProject: string;
+  mReadOnly: string;
+  mReceivedAlready: string;
+  mStatus: string;
+  mVendor: string;
   name: string;
   nameSkuModelVendor: string;
   noAirlinesYetWaybill: string;
@@ -89,6 +123,7 @@ type Strings = CommonStrings & {
   outstandingOrderValue: string;
   pasteWaybillNumberAbove: string;
   phone: string;
+  pickVendorFirst: string;
   prefix3Digits: string;
   prefix8Digits: string;
   prefixNameIata: string;
@@ -100,13 +135,16 @@ type Strings = CommonStrings & {
   recentMovements: string;
   recentStockMovements: string;
   recordMilestone: string;
+  recording: string;
   registerItemsFirstThen: string;
   registerThingsBuyQuantities: string;
   registeredItems: string;
   registeredItems2: string;
   remove: string;
   reorderLevel: string;
+  reservedAllocatedProjectSheet: string;
   route: string;
+  saving: string;
   scope: string;
   search: string;
   sections: string;
@@ -123,13 +161,21 @@ type Strings = CommonStrings & {
   studio: string;
   studioKeepsModuleDashboards: string;
   supplies: string;
+  tabAwb: string;
+  tabCatalogue: string;
+  tabHeld: string;
+  tabSheets: string;
+  tabVendors: string;
   theyDisagreeStockMoved: string;
   timeline: string;
   trackingUrlTemplate: string;
   type: string;
+  unassigned: string;
   unitCost: string;
+  unknownVendor: string;
   valueStillExpectedArrive: string;
   vendor: string;
+  vendorNoItemTypes: string;
   vendors: string;
   vendorsWhoBuyItems: string;
   viewOnly: string;
@@ -139,16 +185,29 @@ type Strings = CommonStrings & {
   whereEveryOrderStands: string;
   whichUnitsHeldHand: string;
   whoBuyWhatThey: string;
+  wouldTakeHandBelow: string;
 };
 
 const en: Strings = {
   ...commonEn,
+  countDeliveries: (n) => `${n} ${n === 1 ? "delivery" : "deliveries"}`,
+  countItems: (n) => `${n} ${n === 1 ? "item" : "items"}`,
+  countMovements: (n) => `${n} stock ${n === 1 ? "movement" : "movements"}`,
+  countOrders: (n) => `${n} ${n === 1 ? "order" : "orders"}`,
+  countShipments: (n) => `${n} ${n === 1 ? "shipment" : "shipments"}`,
+  joinAnd: (parts) => parts.join(" and "),
+  mInUse: (what) => `Still referenced by ${what} — that history can't be erased.`,
+  mInsufficient: (have, needed) => `Not enough stock — you have ${have} and asked for ${needed}.`,
+  mOverReceive: (remaining) => `That's more than the order still expects (${remaining} outstanding).`,
+  mShort: (detail) => `Not enough stock: ${detail}.`,
+  mShortNeedHave: (needed, have) => `need ${needed}, have ${have}`,
   accessInventoryStudio: "You don't have access to Inventory in this studio.",
   add: "Add",
   addAirline: "Add airline",
   addItem: "Add item",
   addType: "Add type",
   addVendor: "Add vendor",
+  adding: "Adding…",
   adjust: "Adjust",
   airline3DigitPrefix: "The airline's 3-digit prefix",
   airlineCodeNumber: "Airline code + number",
@@ -173,6 +232,11 @@ const en: Strings = {
   customsCharges: "Customs charges",
   dashboardIsnYoursSee: "The dashboard isn't yours to see",
   delete: "Delete",
+  descAwb: "Air freight, by waybill",
+  descCatalogue: "The catalogue, by vendor",
+  descHeld: "What is held, and the ledger behind it",
+  descSheets: "Ordered for and issued to each project",
+  descVendors: "Who you buy from, and what they supply",
   eGStockTake: "e.g. stock-take correction",
   edit: "Edit",
   email: "Email",
@@ -192,7 +256,24 @@ const en: Strings = {
   latestLedger: "The latest of the ledger",
   loadingInventory: "Loading Inventory…",
   loadingItems: "Loading items",
+  loadingItemsGrid: "Loading items",
   low: "Low",
+  mAlreadyIssued: "That delivery has already been issued.",
+  mAwb: "That isn't a valid AWB number.",
+  mCharges: "An item priced in another currency needs its shipping and customs charges.",
+  mDerivedStatus: "Received status follows the goods — record what arrived instead.",
+  mDidntSave: "That didn't save.",
+  mDuplicate: "That name is already in use.",
+  mDuplicateSku: "That SKU is already in use.",
+  mLines: "Add at least one line with a quantity.",
+  mNotOrdered: "Mark the order as Ordered before receiving against it.",
+  mNothing: "Enter what actually arrived.",
+  mPrefix: "An airline prefix is exactly 3 digits.",
+  mProject: "Pick a project.",
+  mReadOnly: "You have view-only access to this part of Inventory.",
+  mReceivedAlready: "Goods have already been received against this order — cancel it instead.",
+  mStatus: "Pick a milestone.",
+  mVendor: "Pick a vendor.",
   name: "Name",
   nameSkuModelVendor: "Name, SKU, model or vendor",
   noAirlinesYetWaybill: "No airlines yet. A waybill still tracks without one — it just shows the bare prefix.",
@@ -224,6 +305,7 @@ const en: Strings = {
   outstandingOrderValue: "Outstanding order value",
   pasteWaybillNumberAbove: "Paste a waybill number above to start following a shipment. Its milestones build up as they are recorded.",
   phone: "Phone",
+  pickVendorFirst: "Pick a vendor first.",
   prefix3Digits: "Prefix (3 digits)",
   prefix8Digits: "Prefix + 8 digits",
   prefixNameIata: "Prefix, name or IATA",
@@ -235,13 +317,16 @@ const en: Strings = {
   recentMovements: "Recent movements",
   recentStockMovements: "Recent stock movements",
   recordMilestone: "Record a milestone",
+  recording: "Recording…",
   registerItemsFirstThen: "Register items first, then receive an order against them — that is what brings stock in.",
   registerThingsBuyQuantities: "Register the things you buy. Quantities come from receiving orders and issuing deliveries.",
   registeredItems: "Registered items",
   registeredItems2: "Registered Items",
   remove: "Remove",
   reorderLevel: "Reorder level",
+  reservedAllocatedProjectSheet: "Reserved — allocated to a project sheet",
   route: "Route",
+  saving: "Saving…",
   scope: "Scope",
   search: "Search",
   sections: "Sections",
@@ -258,13 +343,21 @@ const en: Strings = {
   studio: "Studio",
   studioKeepsModuleDashboards: "This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar.",
   supplies: "Supplies",
+  tabAwb: "Air freight, by waybill",
+  tabCatalogue: "The catalogue, by vendor",
+  tabHeld: "What is held, and the ledger behind it",
+  tabSheets: "Ordered for and issued to each project",
+  tabVendors: "Who you buy from, and what they supply",
   theyDisagreeStockMoved: "They disagree — stock has moved without its serial being noted.",
   timeline: "Timeline",
   trackingUrlTemplate: "Tracking URL template",
   type: "Type",
+  unassigned: "Unassigned",
   unitCost: "Unit cost",
+  unknownVendor: "Unknown vendor",
   valueStillExpectedArrive: "Value still expected to arrive, by order",
   vendor: "Vendor",
+  vendorNoItemTypes: "This vendor has no item types yet — add them on the vendor.",
   vendors: "Vendors",
   vendorsWhoBuyItems: "Vendors are who you buy from. Items and orders point at them.",
   viewOnly: "View only",
@@ -274,16 +367,29 @@ const en: Strings = {
   whereEveryOrderStands: "Where every order stands",
   whichUnitsHeldHand: "Which units are held. On-hand still comes from the ledger; this records the individual pieces behind it.",
   whoBuyWhatThey: "Who you buy from, and what they supply — the item types here are what an item picks its delivery estimate from.",
+  wouldTakeHandBelow: "That would take on-hand below zero.",
 };
 
 const ar: Strings = {
   ...commonAr,
+  countDeliveries: (n) => `${n === 1 ? "تسليم واحد" : n === 2 ? "تسليمان" : n <= 10 ? `${n} تسليمات` : `${n} تسليمًا`}`,
+  countItems: (n) => `${n === 1 ? "صنف واحد" : n === 2 ? "صنفان" : n <= 10 ? `${n} أصناف` : `${n} صنفًا`}`,
+  countMovements: (n) => `${n === 1 ? "حركة مخزون واحدة" : n === 2 ? "حركتا مخزون" : n <= 10 ? `${n} حركات مخزون` : `${n} حركة مخزون`}`,
+  countOrders: (n) => `${n === 1 ? "طلب واحد" : n === 2 ? "طلبان" : n <= 10 ? `${n} طلبات` : `${n} طلبًا`}`,
+  countShipments: (n) => `${n === 1 ? "شحنة واحدة" : n === 2 ? "شحنتان" : n <= 10 ? `${n} شحنات` : `${n} شحنة`}`,
+  joinAnd: (parts) => parts.join(" و"),
+  mInUse: (what) => `لا يزال مشارًا إليه من ${what} — لا يمكن محو ذلك السجل.`,
+  mInsufficient: (have, needed) => `المخزون غير كافٍ — لديك ${have} وطلبت ${needed}.`,
+  mOverReceive: (remaining) => `هذا أكثر مما لا يزال الطلب يتوقعه (${remaining} متبقية).`,
+  mShort: (detail) => `المخزون غير كافٍ: ${detail}.`,
+  mShortNeedHave: (needed, have) => `المطلوب ${needed}، والمتوفر ${have}`,
   accessInventoryStudio: "لا تملك صلاحية الوصول إلى المخزون في هذا الاستوديو.",
   add: "إضافة",
   addAirline: "إضافة شركة طيران",
   addItem: "إضافة صنف",
   addType: "إضافة نوع",
   addVendor: "إضافة مورّد",
+  adding: "جارٍ الإضافة…",
   adjust: "تسوية",
   airline3DigitPrefix: "بادئة شركة الطيران المكوّنة من ثلاثة أرقام",
   airlineCodeNumber: "رمز شركة الطيران + الرقم",
@@ -308,6 +414,11 @@ const ar: Strings = {
   customsCharges: "الرسوم الجمركية",
   dashboardIsnYoursSee: "لوحة المعلومات ليست من صلاحياتك",
   delete: "حذف",
+  descAwb: "الشحن الجوي، حسب البوليصة",
+  descCatalogue: "الكتالوج، حسب المورّد",
+  descHeld: "ما هو محفوظ، والسجل الذي خلفه",
+  descSheets: "ما طُلب وصُرف لكل مشروع",
+  descVendors: "ممن تشتري، وما الذي يورّدونه",
   eGStockTake: "مثال: تصحيح جرد",
   edit: "تعديل",
   email: "البريد الإلكتروني",
@@ -327,7 +438,24 @@ const ar: Strings = {
   latestLedger: "الأحدث في السجل",
   loadingInventory: "جارٍ تحميل المخزون…",
   loadingItems: "جارٍ تحميل الأصناف",
+  loadingItemsGrid: "جارٍ تحميل الأصناف",
   low: "منخفض",
+  mAlreadyIssued: "صدر هذا التسليم بالفعل.",
+  mAwb: "هذا ليس رقم بوليصة شحن جوي صالحًا.",
+  mCharges: "الصنف المسعّر بعملة أخرى يحتاج إلى رسوم شحنه وجماركه.",
+  mDerivedStatus: "حالة الاستلام تتبع البضائع — سجّل ما وصل بدلًا من ذلك.",
+  mDidntSave: "لم يُحفظ ذلك.",
+  mDuplicate: "هذا الاسم مستخدم بالفعل.",
+  mDuplicateSku: "رمز الصنف هذا مستخدم بالفعل.",
+  mLines: "أضِف سطرًا واحدًا على الأقل بكمية.",
+  mNotOrdered: "علّم الطلب كمطلوب قبل الاستلام عليه.",
+  mNothing: "أدخل ما وصل فعلًا.",
+  mPrefix: "بادئة شركة الطيران ثلاثة أرقام بالضبط.",
+  mProject: "اختر مشروعًا.",
+  mReadOnly: "لديك صلاحية عرض فقط على هذا الجزء من المخزون.",
+  mReceivedAlready: "استُلمت بضائع على هذا الطلب بالفعل — ألغِه بدلًا من ذلك.",
+  mStatus: "اختر محطة.",
+  mVendor: "اختر مورّدًا.",
   name: "الاسم",
   nameSkuModelVendor: "الاسم أو رمز الصنف أو الطراز أو المورّد",
   noAirlinesYetWaybill: "لا توجد شركات طيران بعد. تُتتبَّع البوليصة بدونها — لكنها تعرض البادئة المجردة فقط.",
@@ -359,6 +487,7 @@ const ar: Strings = {
   outstandingOrderValue: "قيمة الطلبات المعلّقة",
   pasteWaybillNumberAbove: "الصق رقم بوليصة أعلاه لبدء متابعة شحنة. وتتراكم محطاتها كلما سُجّلت.",
   phone: "الهاتف",
+  pickVendorFirst: "اختر مورّدًا أولًا.",
   prefix3Digits: "البادئة (3 أرقام)",
   prefix8Digits: "البادئة + 8 أرقام",
   prefixNameIata: "البادئة أو الاسم أو رمز الإياتا",
@@ -370,13 +499,16 @@ const ar: Strings = {
   recentMovements: "الحركات الأخيرة",
   recentStockMovements: "حركات المخزون الأخيرة",
   recordMilestone: "تسجيل محطة",
+  recording: "جارٍ التسجيل…",
   registerItemsFirstThen: "سجّل الأصناف أولًا، ثم استلم أمر شراء عليها — فهذا ما يُدخل المخزون.",
   registerThingsBuyQuantities: "سجّل الأشياء التي تشتريها. أما الكميات فتأتي من استلام الطلبات وإصدار التسليمات.",
   registeredItems: "الأصناف المسجّلة",
   registeredItems2: "الأصناف المسجّلة",
   remove: "إزالة",
   reorderLevel: "حد إعادة الطلب",
+  reservedAllocatedProjectSheet: "محجوزة — مخصصة لكشف مشروع",
   route: "المسار",
+  saving: "جارٍ الحفظ…",
   scope: "النطاق",
   search: "بحث",
   sections: "الأقسام",
@@ -393,13 +525,21 @@ const ar: Strings = {
   studio: "الاستوديو",
   studioKeepsModuleDashboards: "يُبقي هذا الاستوديو لوحات معلومات الوحدات خلف صلاحية خاصة بها. الشاشات التي تحتها غير متأثرة — اختر واحدة من الشريط الجانبي.",
   supplies: "يورّد",
+  tabAwb: "الشحن الجوي، حسب البوليصة",
+  tabCatalogue: "الكتالوج، حسب المورّد",
+  tabHeld: "ما هو محفوظ، والسجل الذي خلفه",
+  tabSheets: "ما طُلب وصُرف لكل مشروع",
+  tabVendors: "ممن تشتري، وما الذي يورّدونه",
   theyDisagreeStockMoved: "بينهما اختلاف — تحرّك المخزون دون تسجيل رقمه التسلسلي.",
   timeline: "المسار الزمني",
   trackingUrlTemplate: "قالب رابط التتبّع",
   type: "النوع",
+  unassigned: "غير مُسند",
   unitCost: "تكلفة الوحدة",
+  unknownVendor: "مورّد غير معروف",
   valueStillExpectedArrive: "القيمة التي لا يزال يُتوقّع وصولها، حسب الطلب",
   vendor: "المورّد",
+  vendorNoItemTypes: "لا توجد أنواع أصناف لهذا المورّد بعد — أضِفها في صفحته.",
   vendors: "الموردون",
   vendorsWhoBuyItems: "الموردون هم من تشتري منهم. وتشير إليهم الأصناف والطلبات.",
   viewOnly: "للعرض فقط",
@@ -409,6 +549,7 @@ const ar: Strings = {
   whereEveryOrderStands: "وضع كل طلب",
   whichUnitsHeldHand: "أي الوحدات محفوظة. لا يزال المتوفر يأتي من السجل؛ وهذا يسجّل القطع الفردية خلفه.",
   whoBuyWhatThey: "ممن تشتري وما الذي يورّدونه — وأنواع الأصناف هنا هي ما يأخذ منه الصنف تقديره الزمني للتسليم.",
+  wouldTakeHandBelow: "سيؤدي ذلك إلى نزول المتوفر تحت الصفر.",
 };
 
 const inventory = { en, ar };

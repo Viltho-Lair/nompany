@@ -86,17 +86,17 @@ export default function StudioProjects({ slug, view = "projects" }) {
     const out = await res.json().catch(() => ({}));
     if (!res.ok) {
       setError(
-        out.error === "read-only" ? "You have view-only access to this part of Projects."
-        : out.error === "not-approved" ? "That quotation hasn't been approved yet."
-        : out.error === "already" ? "A project already exists for that quotation."
-        : out.error === "title" ? "Give it a name."
-        : out.error === "startDate" ? "A start date is required — the visit schedule is counted from it."
+        out.error === "read-only" ? tr.viewOnlyAccessPart
+        : out.error === "not-approved" ? tr.quotationHasnApprovedYet
+        : out.error === "already" ? tr.projectAlreadyExistsQuotation
+        : out.error === "title" ? tr.giveName
+        : out.error === "startDate" ? tr.startDateRequiredVisit
         : out.error === "emergency-cap" ? `This contract allows ${out.cap} emergency visit${out.cap === 1 ? "" : "s"}.`
-        : out.error === "project" ? "Pick a project."
-        : out.error === "date" ? "Pick a date."
-        : out.error === "times" ? "The end time must be after the start time."
-        : out.error === "people" ? "Pick at least one person."
-        : "That didn't save."
+        : out.error === "project" ? tr.pickProject
+        : out.error === "date" ? tr.pickDate
+        : out.error === "times" ? tr.endTimeMustAfter
+        : out.error === "people" ? tr.pickLeastOnePerson
+        : tr.didnSave
       );
       return false;
     }
@@ -242,8 +242,8 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
         <Empty
           title={tr.noProjectsYet}
           body={approvedQuotations.length === 0
-            ? "Projects open from an approved quotation. Approve one in Technical and it'll appear here."
-            : "You have approved quotations ready — open one as a project to start delivering."}
+            ? tr.projectsOpenApprovedQuotation
+            : tr.approvedQuotationsReadyOpen}
         />
       ) : (
         <>
@@ -374,7 +374,7 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
           setBusy(true);
           await onSave({ quotationId, managerCollaboratorId, location });
           setBusy(false);
-        }}>{busy ? "Opening…" : "Open project"}</button>
+        }}>{busy ? tr.opening : "Open project"}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
@@ -629,7 +629,7 @@ function SlaForm({ row, projects, onSave, onCancel }) {
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={async () => { setBusy(true); await onSave(f); setBusy(false); }}>
-          {busy ? "Saving…" : row ? "Save contract" : "Add contract"}
+          {busy ? tr.saving : row ? tr.saveContract : "Add contract"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -813,7 +813,7 @@ function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canMan
         <span className="ms-auto">
           {canManage
             ? <button type="button" className={btn} onClick={() => setAdding(true)} disabled={projects.length === 0}
-                title={projects.length === 0 ? "Open a project first" : undefined}>{tr.addOvertime}</button>
+                title={projects.length === 0 ? tr.openProjectFirst : undefined}>{tr.addOvertime}</button>
             : <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
         </span>
       </div>
@@ -934,7 +934,7 @@ function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCance
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {hours > 0
             ? <>{tr.thatIs} <span className="font-600">{hours}</span> hour{hours === 1 ? "" : "s"} per person.</>
-            : "The end time has to be after the start time."}
+            : tr.endTimeAfterStart}
         </p>
 
         <div>
@@ -967,7 +967,7 @@ function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCance
           setBusy(true);
           await onSave({ projectId, collaboratorIds, date, from, to });
           setBusy(false);
-        }}>{busy ? "Saving…" : "Add overtime"}</button>
+        }}>{busy ? tr.saving : "Add overtime"}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
@@ -1017,7 +1017,7 @@ function EditOvertime({ record, projects, directory, onSave, onDelete, onCancel 
         <div className="flex gap-3">
           <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
           <button className={btn} disabled={busy || hours <= 0} onClick={async () => { setBusy(true); await onSave(f); setBusy(false); }}>
-            {busy ? "Saving…" : "Save"}
+            {busy ? tr.saving : "Save"}
           </button>
         </div>
       </div>
@@ -1077,7 +1077,7 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
             </div>
             <p className={`mt-2 text-xs font-600 ${total === 100 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-300"}`}>
               {total === 100
-                ? "They total 100%."
+                ? tr.theyTotal100
                 : `They total ${total}% — ${total > 100 ? "over" : "under"} by ${Math.abs(100 - total)}%. Adjust to 100% to save.`}
             </p>
           </>
@@ -1123,7 +1123,7 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
       {canManage ? (
         <div className="flex items-center gap-3">
           <button className={btn} disabled={busy || !weightsOk} onClick={save}
-            title={weightsOk ? "" : "Requirement weights must total 100%."}>{busy ? "Saving…" : "Save settings"}</button>
+            title={weightsOk ? "" : "Requirement weights must total 100%."}>{busy ? tr.saving : "Save settings"}</button>
           {!weightsOk && <span className="text-sm text-rose-600 dark:text-rose-300">{tr.weightsMustTotal100}</span>}
           {saved && weightsOk && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>

@@ -159,12 +159,12 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
         <div className="ms-auto flex items-center gap-2">
           {locked ? (
             <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-700 text-slate-500 dark:bg-white/5 dark:text-slate-300">
-              {quote.locked ? "Locked — view only" : "View only"}
+              {quote.locked ? tr.lockedViewOnly : "View only"}
             </span>
           ) : (
             <>
               <button className={btnGhost} onClick={() => commit(null)} disabled={busy}>
-                {busy ? "Saving…" : saved === "saved" ? "Saved" : "Save"}
+                {busy ? tr.saving : saved === "saved" ? tr.saved : "Save"}
               </button>
               {/* Submitting is what marks it Completed, so it says what it does
                   rather than leaving somebody to set a status afterwards. */}
@@ -201,8 +201,8 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
         <p className="border-b border-rose-500/20 bg-rose-500/10 px-5 py-2 text-xs text-rose-700 dark:text-rose-300">
           {unpriced.length} line{unpriced.length === 1 ? " is" : "s are"} priced at zero: {
             unpriced.some((r) => itemById[r.itemId]?.reason === "no-studio-currency")
-              ? "this studio has not set the currency it counts in, so there is nothing to convert a foreign price into. Set it in Settings."
-              : "today's rates do not quote that currency against the studio's, so nothing here can convert the cost."
+              ? tr.studioNotSetCurrency
+              : tr.todayRatesNotQuote
           }
         </p>
       )}
@@ -228,8 +228,8 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                     className={`${input} font-600`}
                     value={table.title}
                     disabled={locked}
-                    placeholder={`Table ${i + 1} — what this section covers`}
-                    aria-label={`Table ${i + 1} title`}
+                    placeholder={tr.tableCovers(i + 1)}
+                    aria-label={tr.tableTitle(i + 1)}
                     onChange={(e) => setTable(i, { title: e.target.value })}
                   />
                   {!locked && tables.length > 1 && (
@@ -285,7 +285,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                           </td>
                           <td className="py-1.5 pe-3">
                             <input className={cell} value={row.qty} disabled={locked} inputMode="decimal"
-                              aria-label={`Table ${i + 1} row ${k + 1} quantity`}
+                              aria-label={tr.tableRowQuantity(i + 1, k + 1)}
                               onChange={(e) => setRow(i, k, { qty: e.target.value })} />
                           </td>
                           {/* THE PRICE THIS DOCUMENT IS WRITTEN IN, always —
@@ -315,7 +315,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                           <td className="py-1.5 pe-3">
                             <div className="flex items-center gap-1.5">
                               <input className={`${cell} w-16`} value={row.discount ?? 0} disabled={locked} inputMode="decimal"
-                                aria-label={`Table ${i + 1} row ${k + 1} discount percent`}
+                                aria-label={tr.tableRowDiscount(i + 1, k + 1)}
                                 onChange={(e) => setRow(i, k, { discount: e.target.value })} />
                               <span className="text-xs text-slate-400">%</span>
                             </div>

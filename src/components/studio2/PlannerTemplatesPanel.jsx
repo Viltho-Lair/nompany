@@ -169,7 +169,7 @@ export default function PlannerTemplatesPanel({ slug }) {
                       type="button"
                       onClick={() => setConfirmId(t.id)}
                       disabled={busy}
-                      aria-label={`Delete ${t.name}`}
+                      aria-label={tr.deleteNamed(t.name)}
                       className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--geex-faint)] transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60 dark:hover:bg-rose-500/10"
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">

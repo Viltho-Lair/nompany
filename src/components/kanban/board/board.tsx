@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { restDict } from "@/shared/studio/rest";
 import {
   DndContext,
   DragOverlay,
@@ -141,6 +143,7 @@ const dropAnimation: DropAnimation | null = null;
 /* -------------------------------------------------------------------------- */
 
 export function Board() {
+  const tr = restDict(useStudioLocale());
   // Only the *order* is read here. Reading the whole `columns` map would make
   // every task move re-render the board and, with it, every column and card.
   const columnOrder = useBoardStore((s) => s.columnOrder);
@@ -373,7 +376,7 @@ export function Board() {
                   <span className="grid size-10 place-items-center rounded-xl bg-foreground/[0.05] transition-all duration-300 group-hover:bg-primary/15 group-hover:text-primary group-hover:shadow-glow-sm">
                     <Plus className="size-5" />
                   </span>
-                  <span className="text-[13px] font-medium">Add column</span>
+                  <span className="text-[13px] font-medium">{tr.addColumn}</span>
                 </button>
               </div>
             </div>

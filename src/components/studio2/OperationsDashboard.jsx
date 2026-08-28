@@ -80,7 +80,7 @@ export default function OperationsDashboard({
 
   // Shifts by location across every scheduled shift. A shift with no location
   // is its own row so the gap is visible rather than dropped.
-  const byLocation = [...tally(shifts, (s) => s.locationName || "No location")]
+  const byLocation = [...tally(shifts, (s) => s.locationName || tr.noLocation)]
     .sort((a, b) => b[1] - a[1]);
   const locMax = byLocation.reduce((m, [, n]) => Math.max(m, n), 0) || 1;
 
@@ -142,17 +142,17 @@ export default function OperationsDashboard({
             <ChartFrame labels={days.map((d) => fmtWeekday(d.iso))} height={200}>
               <BarChart height={200}
                 labels={days.map((d) => d.iso)}
-                series={[{ name: "Shifts", data: days.map((d) => d.count), color: "rgb(var(--chart-1))" }]} />
+                series={[{ name: tr.seriesShifts, data: days.map((d) => d.count), color: "rgb(var(--chart-1))" }]} />
             </ChartFrame>
           ) : (
             <p className="py-8 text-center text-sm text-slate-400">
-              No shifts scheduled {window.from ? `for ${fmtDate(window.from)} – ${fmtDate(window.to)}` : "this week"}.
+              {tr.noShiftsScheduled} {window.from ? tr.forWindow(fmtDate(window.from), fmtDate(window.to)) : tr.thisWeek}.
             </p>
           )}
         </Widget>
 
         {/* Moderate */}
-        <Widget title={tr.validityTimeline} hint={`Soonest to lapse first · window ${windowDays}d`} locked={!visible("operations.validity-timeline")} lockedWhat={tr.validityTimeline}>
+        <Widget title={tr.validityTimeline} hint={tr.soonestLapseWindow(windowDays)} locked={!visible("operations.validity-timeline")} lockedWhat={tr.validityTimeline}>
           {timeline.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">{tr.noPermitsCarryEnd}</p>
           ) : (

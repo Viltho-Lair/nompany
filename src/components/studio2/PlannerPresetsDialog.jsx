@@ -48,8 +48,8 @@ export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, 
       if (!res.ok) {
         setError(
           res.status === 403
-            ? "You don't have permission to change these defaults."
-            : "The defaults could not be saved. Please try again.",
+            ? tr.permissionChangeTheseDefaults
+            : tr.defaultsCouldNotSaved,
         );
         setSaving(false);
         return;
@@ -112,9 +112,9 @@ export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, 
               className={btn}
               onClick={save}
               disabled={saving || !canEdit}
-              title={!canEdit ? "You don't have permission to change these defaults." : undefined}
+              title={!canEdit ? tr.permissionChangeTheseDefaults : undefined}
             >
-              {saving ? "Saving…" : "Save defaults"}
+              {saving ? tr.saving : "Save defaults"}
             </button>
           </div>
         </div>

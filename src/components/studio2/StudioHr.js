@@ -73,18 +73,18 @@ export default function StudioHr({ slug, view = "hr" }) {
     setBusy(false);
     if (!res.ok) {
       setError(
-        out.error === "read-only" ? "You have view-only access to Human Resources."
-        : out.error === "duplicate" ? "That name is already in use."
+        out.error === "read-only" ? tr.viewOnlyAccessHuman
+        : out.error === "duplicate" ? tr.nameAlreadyUse
         : out.error === "in-use" ? inUseMessage(out)
-        : out.error === "protected" ? "Admin comes with the studio — it can't be renamed or deleted."
+        : out.error === "protected" ? tr.adminComesStudioCan
         : out.error === "role-forbidden" ? roleForbiddenMessage(out)
-        : out.error === "escalation" ? "You can only give somebody a role whose permissions you hold yourself."
-        : out.error === "department" ? "That section isn't part of this studio any more."
+        : out.error === "escalation" ? tr.canOnlyGiveSomebody
+        : out.error === "department" ? tr.sectionIsnPartStudio
         : out.error === "overlap" ? `That overlaps leave already booked ${fmt(out.from)} – ${fmt(out.to)}.`
         : out.error === "already-decided" ? `That request was already ${String(out.status || "").toLowerCase()}.`
-        : out.error === "range" ? "The end date can't be before the start date."
-        : out.error === "forbidden" ? "You can't do that."
-        : "That didn't save."
+        : out.error === "range" ? tr.endDateCanBefore
+        : out.error === "forbidden" ? tr.can
+        : tr.didnSave
       );
       return false;
     }
@@ -349,7 +349,7 @@ function Documents({ person, canManage }) {
       {items.map((d) => (
         <span key={d.kind} className="text-xs text-slate-600 dark:text-slate-300">
           <span className="font-600">{d.kind}</span>{" "}
-          {canManage && d.number ? <span className="font-mono">{d.number}</span> : d.has ? "on file" : ""}
+          {canManage && d.number ? <span className="font-mono">{d.number}</span> : d.has ? tr.file : ""}
           {d.expiry && <span className="text-slate-400"> · exp {fmt(d.expiry)}</span>}
         </span>
       ))}
@@ -415,8 +415,8 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
         </div>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {canAssignRoles
-            ? "What this person is, and what that lets them do — the same role Access grants against. Somebody can hold more than one."
-            : "Roles are shown here but assigned on the access screen: handing somebody a role hands them permissions, which is a right of its own."}
+            ? tr.whatPersonWhatLets
+            : tr.rolesShownHereBut}
         </p>
         {roles.length === 0 ? (
           <p className="mt-3 text-sm text-slate-400">{tr.noRolesDefinedYet}</p>
@@ -505,7 +505,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
             holding HR and nothing else. */}
         <button className={btn} disabled={busy}
           onClick={() => { const { roleIds, ...rest } = form; onSave(canAssignRoles ? form : rest); }}>
-          {busy ? "Saving…" : "Save"}
+          {busy ? tr.saving : "Save"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -589,8 +589,8 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
                       <button className={btnDanger} disabled={busy}
                         onClick={async () => { await send("roles", "DELETE", { id: r.id }); setConfirming(""); }}>
                         {r.held > 0
-                          ? `Delete — ${r.held} ${r.held === 1 ? "person loses" : "people lose"} this access`
-                          : "Delete for good"}
+                          ? `Delete — ${r.held} ${r.held === 1 ? tr.personLoses : "people lose"} this access`
+                          : tr.deleteGood}
                       </button>
                       <button className={btnGhost} onClick={() => setConfirming("")}>{tr.keep}</button>
                     </>
@@ -679,7 +679,7 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
       </div>
 
       {asking && (
-        <Dialog title={tr.requestLeave} description={canManage ? "Book it for yourself, or for somebody you manage." : "It goes to whoever manages HR for approval."}
+        <Dialog title={tr.requestLeave} description={canManage ? tr.bookYourselfSomebodyManage : "It goes to whoever manages HR for approval."}
           onClose={closeAsk} width="max-w-[620px]">
           <LeaveForm types={types} employees={employees} canManage={canManage} meId={meId} busy={busy}
             onCancel={closeAsk}
@@ -687,7 +687,7 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
         </Dialog>
       )}
 
-      {rows.length === 0 ? <Empty title={tr.noLeaveBooked} body={canManage ? "Requests from your people arrive here for approval." : "Your own leave requests appear here."} /> : (
+      {rows.length === 0 ? <Empty title={tr.noLeaveBooked} body={canManage ? tr.requestsPeopleArriveHere : "Your own leave requests appear here."} /> : (
         <section className={panel}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[680px] border-collapse text-sm">
@@ -765,11 +765,11 @@ function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }
       <Field label={tr.reason} as="textarea" className="mt-4" value={form.reason} onChange={(v) => setForm((f) => ({ ...f, reason: v }))} />
 
       <p className={`mt-3 text-xs ${backwards ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
-        {backwards ? "The end date is before the start date." : days > 0 ? `That is ${days} day${days === 1 ? "" : "s"}.` : "Pick a start date."}
+        {backwards ? tr.endDateBeforeStart : days > 0 ? `That is ${days} day${days === 1 ? "" : "s"}.` : "Pick a start date."}
       </p>
 
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !form.from || backwards} onClick={() => onSave(form)}>{busy ? "Sending…" : "Submit"}</button>
+        <button className={btn} disabled={busy || !form.from || backwards} onClick={() => onSave(form)}>{busy ? tr.sending : "Submit"}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
@@ -808,7 +808,7 @@ function SimpleForm({ fields, busy, onCancel, onSave }) {
         ))}
       </div>
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? "Saving…" : "Save"}</button>
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : "Save"}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>

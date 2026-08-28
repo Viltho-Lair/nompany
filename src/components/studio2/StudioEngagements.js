@@ -75,6 +75,7 @@ function withMinDelay(promise, ms = MIN_SKELETON_MS) {
 // same shape as the manual and the live views — see the early return in
 // studio/[[...segments]]/page.js and design §3 for why this is not a section.
 export default function StudioEngagements({ slug, canLock = false, canDelete = false }) {
+  const tr = engagementsDict(useStudioLocale());
   const [list, setList] = useState(null); // { engagements, nextCursor } | null while loading
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState("");
@@ -159,9 +160,9 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
     setLockBusyId("");
     if (!res.ok) {
       setActionError(
-        res.status === 403 ? "You are not allowed to lock or unlock deals in this studio."
-          : res.status === 404 ? "This engagement no longer exists."
-            : "That did not go through. Try again.",
+        res.status === 403 ? tr.notAllowedLockUnlock
+          : res.status === 404 ? tr.engagementNoLongerExists
+            : tr.didNotGoThrough,
       );
       return;
     }
@@ -177,7 +178,7 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
     const res = await withMinDelay(fetch(`/api/studios/${slug}/main/engagements/${id}`, { cache: "no-store" }));
     setBlockLoading(false);
     if (!res.ok) {
-      setBlockError(res.status === 404 ? "This engagement no longer exists." : "You can no longer see this engagement.");
+      setBlockError(res.status === 404 ? tr.engagementNoLongerExists : "You can no longer see this engagement.");
       return;
     }
     setBlock((await res.json()).engagement);
@@ -192,7 +193,7 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
           <Link
             href={openId ? `/${slug}/engagements` : `/${slug}`}
             onClick={openId ? (e) => { e.preventDefault(); closeEngagement(); } : undefined}
-            title={openId ? "Back to Engagements" : "Back to the studio"}
+            title={openId ? tr.backEngagements : "Back to the studio"}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >
             <Icon name="arrowLeft" className="h-[18px] w-[18px] rtl:-scale-x-100" />
@@ -202,7 +203,7 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
               {openId ? (block?.ref || "Engagement") : "Engagements"}
             </h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
-              {openId ? "One deal, every stage you may see" : (list ? `${list.engagements.length} deal${list.engagements.length === 1 ? "" : "s"}` : "loading")}
+              {openId ? tr.oneDealEveryStage : (list ? `${list.engagements.length} deal${list.engagements.length === 1 ? "" : "s"}` : "loading")}
             </p>
           </div>
         </div>
@@ -291,7 +292,7 @@ function EngagementList({
         </p>
         <div className="mt-4">
           <button type="button" className={btnGhost} disabled={loadingMore} onClick={onLoadMore}>
-            {loadingMore ? "Loading…" : "Load more"}
+            {loadingMore ? tr.loading : "Load more"}
           </button>
         </div>
       </div>
@@ -324,7 +325,7 @@ function EngagementList({
                 key={row.id}
                 tabIndex={0}
                 role="button"
-                aria-label={`Open ${row.title || row.clientName || row.ref}`}
+                aria-label={tr.openNamed(row.title || row.clientName || row.ref)}
                 onClick={() => onOpen(row.id)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(row.id); } }}
                 // The amber stripe down the start edge is the studio's existing
@@ -376,18 +377,18 @@ function EngagementList({
                       <button
                         type="button"
                         className={btnRow}
-                        aria-label={`${row.locked ? "Unlock" : "Lock"} ${row.ref || row.title || "this deal"}`}
+                        aria-label={`${row.locked ? tr.unlock : "Lock"} ${row.ref || row.title || "this deal"}`}
                         disabled={lockBusyId === row.id}
                         onClick={() => onToggleLock(row.id, !row.locked)}
                       >
-                        {lockBusyId === row.id ? "Saving…" : row.locked ? "Unlock" : "Lock"}
+                        {lockBusyId === row.id ? tr.saving : row.locked ? tr.unlock : "Lock"}
                       </button>
                     )}
                     {canDelete && !row.locked && (
                       <button
                         type="button"
                         className={btnDanger}
-                        aria-label={`Delete ${row.ref || row.title || "this deal"}`}
+                        aria-label={tr.deleteNamed(row.ref || row.title || tr.thisDeal)}
                         onClick={() => onAskDelete(row)}
                       >
                         <span className="inline-flex items-center gap-1.5">
@@ -409,7 +410,7 @@ function EngagementList({
         {hasMore && (
           <div className="border-t border-slate-100 p-4 text-center dark:border-white/5">
             <button type="button" className={btnGhost} disabled={loadingMore} onClick={onLoadMore}>
-              {loadingMore ? "Loading…" : "Load more"}
+              {loadingMore ? tr.loading : "Load more"}
             </button>
           </div>
         )}
@@ -429,9 +430,10 @@ function EngagementList({
 // the stripe on an unanswered ticket). Deliberately not brand blue: the accent
 // says "ours", not "watch this".
 function LockChip({ locked }) {
+  const tr = engagementsDict(useStudioLocale());
   return (
     <span
-      title={locked ? "Locked. Unlock it before it can be deleted." : "The safety is off — this deal can be deleted."}
+      title={locked ? tr.lockedUnlockBeforeCan : "The safety is off — this deal can be deleted."}
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-600 ${
         locked
           ? "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300"
@@ -439,7 +441,7 @@ function LockChip({ locked }) {
       }`}
     >
       <Icon name={locked ? "lock" : "key"} className="h-3 w-3" />
-      {locked ? "Locked" : "Unlocked"}
+      {locked ? tr.locked : "Unlocked"}
     </span>
   );
 }
@@ -526,8 +528,8 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
       if (!res.ok) {
         setHalted(true);
         setError(res.status === 404
-          ? "This engagement no longer exists."
-          : "Could not work out what deleting this would affect, so it is not safe to offer the button.");
+          ? tr.engagementNoLongerExists
+          : tr.couldNotWorkOut);
         return;
       }
       const payload = await res.json();
@@ -570,8 +572,8 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
     }
     setHalted(res.status === 403);
     setError(res.status === 403
-      ? "You are no longer allowed to delete this deal."
-      : "That did not go through, and nothing was deleted. Try again.");
+      ? tr.noLongerAllowedDelete
+      : tr.didNotGoThrough2);
   }
 
   const deletes = impact?.deletes || [];
@@ -671,7 +673,7 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
                 disabled={!understood || busy || !impact}
                 onClick={remove}
               >
-                {busy ? "Deleting…" : total ? `Delete the deal and ${total} record${total === 1 ? "" : "s"}` : "Delete this deal"}
+                {busy ? tr.deleting : total ? `Delete the deal and ${total} record${total === 1 ? "" : "s"}` : "Delete this deal"}
               </button>
             )}
           </div>

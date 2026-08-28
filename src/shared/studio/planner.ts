@@ -8,9 +8,13 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  deleteNamed: (what: string) => string;
   assign: string;
   assignee: string;
+  calculatedFromStart: string;
+  close: string;
   contextLinksAcceptanceCriteria: string;
+  creating: string;
   criticalPath: string;
   days: string;
   defaultColour: string;
@@ -35,31 +39,43 @@ type Strings = CommonStrings & {
   new: string;
   newPlan: string;
   newPlanDefaults: string;
+  noDescription: string;
   noTemplatesYet: string;
   notes: string;
   offTrack: string;
+  permissionChangeTheseDefaults: string;
+  pinnedStart: string;
   priority: string;
   projectPlan: string;
   redo: string;
   risk: string;
+  saveDefaults: string;
+  saving: string;
   scheduling: string;
   showDependencyArrows: string;
   start: string;
   status: string;
   team: string;
+  today: string;
   track: string;
   trimWaterfallOneDay: string;
   unassigned: string;
   undo: string;
   untitledPlan: string;
+  untitledTemplate: string;
   updated: string;
+  viewDefaults: string;
 };
 
 const en: Strings = {
   ...commonEn,
+  deleteNamed: (what) => `Delete ${what}`,
   assign: "Assign to",
   assignee: "Assignee",
+  calculatedFromStart: "Calculated from start + duration over working time",
+  close: "Close",
   contextLinksAcceptanceCriteria: "Context, links, acceptance criteria…",
+  creating: "Creating…",
   criticalPath: "Critical path",
   days: "Days",
   defaultColour: "Default colour-by",
@@ -84,31 +100,43 @@ const en: Strings = {
   new: "New",
   newPlan: "New plan",
   newPlanDefaults: "New-plan defaults",
+  noDescription: "No description.",
   noTemplatesYet: "No templates yet.",
   notes: "Notes",
   offTrack: "Off track",
+  permissionChangeTheseDefaults: "You don't have permission to change these defaults.",
+  pinnedStart: "Pinned start — predecessors are ignored",
   priority: "Priority",
   projectPlan: "Project plan",
   redo: "Redo",
   risk: "At risk",
+  saveDefaults: "Save defaults",
+  saving: "Saving…",
   scheduling: "Scheduling",
   showDependencyArrows: "Show dependency arrows",
   start: "Start",
   status: "Status",
   team: "Team",
+  today: "Today",
   track: "On track",
   trimWaterfallOneDay: "Trim the waterfall to one day either side of the work",
   unassigned: "Unassigned",
   undo: "Undo",
   untitledPlan: "Untitled plan",
+  untitledTemplate: "Untitled template",
   updated: "Updated",
+  viewDefaults: "View defaults",
 };
 
 const ar: Strings = {
   ...commonAr,
+  deleteNamed: (what) => `حذف ${what}`,
   assign: "إسناد إلى",
   assignee: "المُسنَد إليه",
+  calculatedFromStart: "محسوب من البداية + المدة على وقت العمل",
+  close: "إغلاق",
   contextLinksAcceptanceCriteria: "السياق، الروابط، معايير القبول…",
+  creating: "جارٍ الإنشاء…",
   criticalPath: "المسار الحرج",
   days: "الأيام",
   defaultColour: "التلوين الافتراضي حسب",
@@ -133,24 +161,32 @@ const ar: Strings = {
   new: "جديدة",
   newPlan: "خطة جديدة",
   newPlanDefaults: "افتراضيات الخطة الجديدة",
+  noDescription: "لا يوجد وصف.",
   noTemplatesYet: "لا توجد قوالب بعد.",
   notes: "ملاحظات",
   offTrack: "خارج المسار",
+  permissionChangeTheseDefaults: "لا تملك صلاحية تغيير هذه الإعدادات الافتراضية.",
+  pinnedStart: "بداية مثبتة — تُتجاهل المهام السابقة",
   priority: "الأولوية",
   projectPlan: "خطة المشروع",
   redo: "إعادة",
   risk: "معرّضة للخطر",
+  saveDefaults: "حفظ الإعدادات الافتراضية",
+  saving: "جارٍ الحفظ…",
   scheduling: "الجدولة",
   showDependencyArrows: "إظهار أسهم الاعتماديات",
   start: "البداية",
   status: "الحالة",
   team: "الفريق",
+  today: "اليوم",
   track: "على المسار",
   trimWaterfallOneDay: "قصّ المخطط إلى يوم واحد على جانبي العمل",
   unassigned: "غير مُسندة",
   undo: "تراجع",
   untitledPlan: "خطة بلا عنوان",
+  untitledTemplate: "قالب بلا عنوان",
   updated: "آخر تحديث",
+  viewDefaults: "عرض الإعدادات الافتراضية",
 };
 
 const planner = { en, ar };

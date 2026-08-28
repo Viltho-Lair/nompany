@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { CheckCircle2, Lock, PenLine } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,7 @@ export function WorkflowBar({
   frozen: boolean;
   onChanged: () => void;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -66,7 +69,7 @@ export function WorkflowBar({
       );
       const payload = (await response.json().catch(() => ({}))) as { error?: string; workflow?: Workflow };
       if (!response.ok) {
-        setError(MESSAGES[payload.error ?? ""] ?? "That could not be done.");
+        setError(MESSAGES[payload.error ?? ""] ?? tr.couldNotDone);
         return;
       }
       if (payload.workflow) setWorkflow(payload.workflow);
@@ -108,7 +111,7 @@ export function WorkflowBar({
             onClick={() => move(m.action)}
           >
             {m.action === "publish" && <CheckCircle2 />}
-            {busy === m.action ? "Working…" : m.label}
+            {busy === m.action ? tr.working : m.label}
           </Button>
         ))}
       </span>

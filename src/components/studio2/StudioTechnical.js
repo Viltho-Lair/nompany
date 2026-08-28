@@ -104,36 +104,36 @@ export default function StudioTechnical({ slug, view = "technical" }) {
     const out = await res.json().catch(() => ({}));
     if (!res.ok) {
       setError(
-        out.error === "sales-required" || out.error === "forbidden" ? "Raising an RFQ needs Manage access to Sales."
-        : out.error === "read-only" ? "You have view-only access to Technical."
-        : out.error === "already" ? "That's already been done."
+        out.error === "sales-required" || out.error === "forbidden" ? tr.raisingRfqNeedsManage
+        : out.error === "read-only" ? tr.viewOnlyAccessTechnical2
+        : out.error === "already" ? tr.alreadyDone
         // Refused at this door for the same reason the Sales button is not drawn:
         // an approval belongs to one quotation, and a revision would take it down
         // with the document it supersedes.
-        : out.error === "approved" ? "That ticket's quotation has been approved — there is nothing left to revise."
-        : out.error === "ticket" ? "Pick a ticket."
-        : out.error === "locked" ? "That quotation is locked — it can't be changed. Unlock it first, on its own."
-        : out.error === "not-approved" ? "Only an approved quotation can be locked."
-        : out.error === "number" ? "Give it a number."
-        : out.error === "description" ? "Describe what is being quoted."
-        : out.error === "handledBy" ? "Say who is handling it."
+        : out.error === "approved" ? tr.ticketQuotationApprovedNothing
+        : out.error === "ticket" ? tr.pickTicket
+        : out.error === "locked" ? tr.quotationLockedCanChanged
+        : out.error === "not-approved" ? tr.onlyApprovedQuotationCan
+        : out.error === "number" ? tr.giveNumber
+        : out.error === "description" ? tr.describeWhatBeingQuoted
+        : out.error === "handledBy" ? tr.sayWhoHandling
         // New quotation contract: the server validates every field again, in
         // this order, so a client-side gate that lets one slip through still
         // reads back a sentence.
-        : out.error === "sequence" ? "Pick a numbering sequence."
-        : out.error === "client" ? "Name the client."
-        : out.error === "title" ? "Give it a title."
-        : out.error === "industry" ? "Type of industry is required."
-        : out.error === "deadline" ? "Give it a deadline."
+        : out.error === "sequence" ? tr.pickNumberingSequence
+        : out.error === "client" ? tr.nameClient
+        : out.error === "title" ? tr.giveTitle
+        : out.error === "industry" ? tr.typeIndustryRequired
+        : out.error === "deadline" ? tr.giveDeadline
         // Quotation numbering settings.
-        : out.error === "prefix" ? "Give every sequence a prefix."
-        : out.error === "prefix-duplicate" ? "Two sequences share a prefix — make each one unique."
+        : out.error === "prefix" ? tr.giveEverySequencePrefix
+        : out.error === "prefix-duplicate" ? tr.twoSequencesSharePrefix
         // Internal approval routing.
-        : out.error === "no-tasks" ? "This studio has no Tasks board to route approvals to."
-        : out.error === "has-ticket" ? "That quotation is linked to a Sales ticket — approve it from Sales."
-        : out.error === "not-completed" ? "Complete the quotation before sending it for approval."
-        : out.error === "notfound" ? "That quotation no longer exists."
-        : "That didn't save."
+        : out.error === "no-tasks" ? tr.studioNoTasksBoard
+        : out.error === "has-ticket" ? tr.quotationLinkedSalesTicket
+        : out.error === "not-completed" ? tr.completeQuotationBeforeSending
+        : out.error === "notfound" ? tr.quotationNoLongerExists
+        : tr.didnSave
       );
       return false;
     }
@@ -398,7 +398,7 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
                   </span>
                 ) : canManage && (
                   <button className={btn} onClick={save} disabled={busy || !dirty}>
-                    {saved && !dirty ? "Saved" : "Save"}
+                    {saved && !dirty ? tr.saved : "Save"}
                   </button>
                 )}
                 <div className="min-w-0">
@@ -602,7 +602,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
                       onClick={() => onOpen(q)}
                       tabIndex={0}
                       role="button"
-                      aria-label={`${q.locked || !canManage ? "View" : "Open"} ${q.ref || "quotation"}`}
+                      aria-label={`${q.locked || !canManage ? tr.view : "Open"} ${q.ref || "quotation"}`}
                       onKeyDown={(e) => { if (e.key === "Enter") onOpen(q); }}
                       className={`cursor-pointer border-s-4 border-b border-slate-100 align-top last:border-b-0 dark:border-white/5 ${
                         unsent ? stripeOn : stripeOff
@@ -715,7 +715,7 @@ function RaiseRfq({ tickets, onSave, onCancel }) {
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ticketId} onClick={async () => { setBusy(true); await onSave({ ticketId, description }); setBusy(false); }}>
-          {busy ? "Raising…" : "Raise RFQ"}
+          {busy ? tr.raising : "Raise RFQ"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -763,7 +763,7 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
       </p>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !handledBy} onClick={async () => { setBusy(true); await onSave({ handledByCollaboratorId: handledBy }); setBusy(false); }}>
-          {busy ? "Converting…" : "Convert"}
+          {busy ? tr.converting : "Convert"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -830,7 +830,7 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
           options={sequences.map((s) => ({ value: s.id, label: s.prefix ? `${s.label} (${s.prefix})` : s.label }))} />
 
         <Field label={tr.client} required filled={!!f.clientName}
-          hint={matched ? "Existing client." : (f.clientName.trim() ? "A name that isn't on the list creates a new client." : undefined)}>
+          hint={matched ? tr.existingClient : (f.clientName.trim() ? tr.nameIsnListCreates : undefined)}>
           <Combo value={f.clientName} onChange={(v) => set({ clientName: v })}
             options={clients.map((c) => c.name)} inputClassName={BARE_CONTROL} />
         </Field>
@@ -869,7 +869,7 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={save}>
-          {busy ? "Saving…" : "Create quotation"}
+          {busy ? tr.saving : "Create quotation"}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -964,7 +964,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
               {canManage && (
                 <div className="flex items-center">
                   <button type="button" className={btnGhost} onClick={() => removeRow(r.id)}
-                    disabled={rows.length === 1} title={rows.length === 1 ? "At least one sequence is kept" : "Remove this sequence"}>
+                    disabled={rows.length === 1} title={rows.length === 1 ? tr.leastOneSequenceKept : "Remove this sequence"}>
                     Remove
                   </button>
                 </div>
@@ -985,7 +985,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
       {canManage ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button type="button" className={btnGhost} onClick={addRow}>{tr.addSequence}</button>
-          <button type="button" className={btn} disabled={busy} onClick={save}>{busy ? "Saving..." : "Save numbering"}</button>
+          <button type="button" className={btn} disabled={busy} onClick={save}>{busy ? tr.saving2 : "Save numbering"}</button>
           {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>
       ) : (
@@ -1021,7 +1021,7 @@ function TechnicalSettings({ options, selected, sequences = [], defaultSequenceI
         </div>
         {canManage ? (
           <div className="mt-5 flex items-center gap-3">
-            <button className={btn} disabled={busy} onClick={() => save({ liveColumns: cols })}>{busy ? "Saving..." : "Save columns"}</button>
+            <button className={btn} disabled={busy} onClick={() => save({ liveColumns: cols })}>{busy ? tr.saving2 : "Save columns"}</button>
             {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
           </div>
         ) : (

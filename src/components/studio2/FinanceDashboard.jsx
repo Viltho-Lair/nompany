@@ -89,7 +89,7 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
           then the two headline AP/FA figures (Finance 1b) beside them. */}
       <StatRow>
         <StatTile label={tr.outstanding} value={amt(outstanding)} />
-        <StatTile label={`Overdue · ${overdueCount}`} value={amt(overdue)} tone={overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""} />
+        <StatTile label={tr.overdueCount(overdueCount)} value={amt(overdue)} tone={overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""} />
         <StatTile label={tr.collectedMonth} value={amt(collectedThisMonth)} tone="text-emerald-600 dark:text-emerald-400" />
         <StatTile label={tr.spentMonth} value={amt(expensesThisMonth)} />
         <StatTile label={tr.owedVendors} value={amt(owedToVendors)} />
@@ -108,17 +108,17 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
 
         <Widget title={tr.collectionRate} hint={tr.collectedInvoicedLast90} locked={!visible("finance.collection-rate")} lockedWhat={tr.collectionRate}>
           <div className="flex justify-center py-2">
-            <Radial value={Math.round(rate * 100)} label={`${Math.round(rate * 100)}%`} sub="last 90 days" color="rgb(var(--chart-2))" />
+            <Radial value={Math.round(rate * 100)} label={`${Math.round(rate * 100)}%`} sub={tr.last90Days} color="rgb(var(--chart-2))" />
           </div>
         </Widget>
 
         <Widget title={tr.incomeVsExpense} hint={tr.cashOut12Months} span={2} locked={!visible("finance.income-vs-expense")} lockedWhat={tr.incomeVsExpense}>
-          <ChartFrame labels={months.map((m) => m.month.slice(5))} legend={[{ name: "Income", color: "rgb(var(--chart-2))" }, { name: "Expense", color: "rgb(var(--chart-3))" }]} height={220}>
+          <ChartFrame labels={months.map((m) => m.month.slice(5))} legend={[{ name: tr.income, color: "rgb(var(--chart-2))" }, { name: tr.expense, color: "rgb(var(--chart-3))" }]} height={220}>
             <BarChart height={220}
               labels={months.map((m) => m.month)}
               series={[
-                { name: "Income", data: months.map((m) => m.income), color: "rgb(var(--chart-2))" },
-                { name: "Expense", data: months.map((m) => m.expense), color: "rgb(var(--chart-3))" },
+                { name: tr.income, data: months.map((m) => m.income), color: "rgb(var(--chart-2))" },
+                { name: tr.expense, data: months.map((m) => m.expense), color: "rgb(var(--chart-3))" },
               ]} />
           </ChartFrame>
         </Widget>
@@ -182,6 +182,7 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
 // the two read identically and cannot drift (§2.4). Current is calm, the 90+ tail
 // is the warning colour, the middle bands the accent.
 function AgingBars({ aging }) {
+  const tr = financeDict(useStudioLocale());
   return (
     <div className="space-y-2.5">
       {aging.buckets.map((b) => {

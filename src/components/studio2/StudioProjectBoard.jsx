@@ -209,6 +209,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
 // new plan's header. Creating needs the same right that edits the project; anyone
 // who can see the project can open a plan it already has.
 function ProjectPlanButton({ slug, projectId, canEdit }) {
+  const tr = projectsDict(useStudioLocale());
   const router = useRouter();
   const [plans, setPlans] = useState(null); // null = loading; [] = none; [...] = some
   const [busy, setBusy] = useState(false);
@@ -241,7 +242,7 @@ function ProjectPlanButton({ slug, projectId, canEdit }) {
     } catch { setBusy(false); }
   }
 
-  const label = plans === null ? "Project plan" : busy ? "Creating…" : existing ? "Open project plan" : "Create project plan";
+  const label = plans === null ? tr.projectPlan : busy ? tr.creating : existing ? tr.openProjectPlan : "Create project plan";
   const disabled = plans === null || busy || (!existing && !canEdit);
 
   return (
@@ -256,10 +257,10 @@ function ProjectPlanButton({ slug, projectId, canEdit }) {
       </button>
       <p className="mt-1.5 text-[11px] text-[var(--geex-faint)]">
         {existing
-          ? "Opens this project's schedule in the planner."
+          ? tr.opensProjectSchedulePlanner
           : canEdit
-            ? "Creates a schedule for this project, carrying its details across."
-            : "Only project editors can start a plan."}
+            ? tr.createsScheduleProjectCarrying
+            : tr.onlyProjectEditorsCan}
       </p>
     </>
   );
