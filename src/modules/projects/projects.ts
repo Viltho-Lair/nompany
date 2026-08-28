@@ -12,7 +12,7 @@ import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getJSON, editJSON, delKeys } from "@/platform/db/store";
 import { PROJECT, deterministicEngId } from "@/platform/db/keys";
-import { attachToTicketEngagement, setApprovedQuotation } from "@/platform/db/engagement";
+import { readEngagement, attachRecord, setApprovedQuotation } from "@/platform/db/engagement";
 import { removeProjectPlans, progressByProject } from "@/modules/operations/planner";
 import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
@@ -226,7 +226,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   const denied = requirePermission(ctx.access, "projects.list.create");
   if (denied) return denied;
 
-  const { studio, listSection, technicalSection, collaborator, quotationsSection, sheetsSection, tasksSection } = ctx;
+  const { studio, listSection, technicalSection, collaborator, quotationsSection, sheetsSection, tasksSection, salesClientsSection } = ctx;
   if (!technicalSection) return { error: "no-technical" };
 
   const quotationId = str(body?.quotationId, 60);
@@ -247,14 +247,44 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   const existing = await Projects.find({ studio, section: listSection });
   if (existing.some((p) => p.quotationId === quotationId)) return { error: "already" };
 
-  // The quotation no longer holds a copy of the ticket's title and client, so
-  // they are read from the ticket it points at.
+  // THE ENGAGEMENT THIS QUOTATION BELONGS TO — the ticket's when it has one,
+  // the quotation's own otherwise (an internal quotation mints its own, see
+  // attachQuotationEngagement). Resolved once, here, because both the client
+  // (below) and the attach/approve calls further down need the same id.
+  const engId = quote.ticketId
+    ? deterministicEngId("ticket", String(quote.ticketId))
+    : deterministicEngId("quotation", String(quote.id));
+
+  // THE CLIENT COMES FROM THE ENGAGEMENT'S CONTEXT, not from the ticket.
+  // ticketFacts(quote.ticketId) is blank for every internal quotation — no
+  // ticket behind it — which is the reported defect: "Project Home Invasion"
+  // carries clientId "" because its quotation (Q-0002) is internal, so asking
+  // the ticket for a client that was never a ticket's to have returned
+  // nothing. The engagement carries clientId as a fact regardless of which
+  // stage started the deal; the display name is resolved live against the
+  // Client record (the composeTicket pattern in sales.ts) so it can never go
+  // stale, with the engagement's own stored clientName only a fallback for a
+  // client that has no row yet.
   //
-  // STILL STORED ON THE PROJECT, AND STILL WRONG. Under the rule this row should
-  // hold the ticketId and read these back like everything else. It does not yet,
-  // because the project's title and client are read straight off the raw rows by
-  // the Projects screens and by Finance's cash sheet, and those have to resolve
-  // first. Next pass — see the note on ticketFacts.
+  // STILL STORED ON THE PROJECT ROW BELOW, AND STILL A COPY. Under the rule
+  // this row should hold nothing but the lineage ids and read the client back
+  // through the engagement every time, the way this block itself just did.
+  // It does not yet, because the Projects screens and Finance's cash sheet
+  // read clientId/clientName straight off the raw project row, and those have
+  // to be moved onto the engagement-read path first — the same drift item
+  // Task 3 already named for the ticket's own title/client copies.
+  const engagement = await readEngagement(studio.id, engId);
+  const engContext = (engagement?.context || {}) as { clientId?: string; clientName?: string };
+  const engClientId = String(engContext.clientId || "");
+  let clientName = String(engContext.clientName || "");
+  if (engClientId && salesClientsSection) {
+    const clients = await Clients.find({ studio, section: salesClientsSection });
+    const client = clients.find((c) => c.id === engClientId);
+    if (client?.name) clientName = client.name;
+  }
+
+  // The title still reads the ticket the way it always did — untouched by
+  // this fix, which is about the client only.
   const { factsFor } = await ticketFacts(ctx);
   const t = factsFor(String(quote.ticketId || ""));
   const now = new Date().toISOString();
@@ -273,7 +303,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     // Lineage — the whole chain of keys.
     quotationId, quotationNumber: quote.number,
     rfqId: quote.rfqId || "", ticketId: quote.ticketId || "",
-    clientId: t.clientId, clientName: t.clientName,
+    clientId: engClientId, clientName,
     value: Number(quote.total) || 0,
     stage: DEFAULT_STAGE,
     managerCollaboratorId: str(body?.managerCollaboratorId, 60),
@@ -290,16 +320,22 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     createdAt: now,
   });
 
-  // Dual-write: the project joins its ticket's engagement as the PROJECT
-  // singleton, and the ticket's engagement records which quotation was
-  // approved into it. Guarded and best-effort — the module's OWN "one project
-  // per quotation" rule above (`existing.some(...)`) is what actually refuses a
-  // second project; this is a mirror of that outcome, not the source of it, so
-  // a re-attach the engagement layer would otherwise refuse on is simply
+  // Dual-write: the project joins its engagement as the PROJECT singleton —
+  // the ticket's when the quotation has one, the quotation's OWN engagement
+  // when it does not (`engId`, resolved above) — and that same engagement
+  // records which quotation was approved into it. Attaching to the
+  // ticket-only helper here used to resolve a non-existent engagement for
+  // every internal quotation (empty ticketId → a root nothing had created),
+  // so `claimSingleton` threw `no-engagement` and the catch below swallowed
+  // it — a project born from an internal quotation never joined ANY
+  // engagement and never appeared on the engagements screen. Guarded and
+  // best-effort regardless — the module's OWN "one project per quotation"
+  // rule above (`existing.some(...)`) is what actually refuses a second
+  // project; this is a mirror of that outcome, not the source of it, so a
+  // re-attach the engagement layer would otherwise refuse on is simply
   // swallowed rather than surfaced as an error the caller never asked for.
   try {
-    const engId = deterministicEngId("ticket", String(project.ticketId || ""));
-    await attachToTicketEngagement(studio.id, "project", project.id, String(project.ticketId || ""));
+    await attachRecord(studio.id, engId, "project", project.id);
     await setApprovedQuotation(studio.id, engId, String(project.quotationId || ""));
   } catch { /* best-effort: reconciled later */ }
 

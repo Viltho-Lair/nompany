@@ -974,6 +974,93 @@ console.log("\n== engagement on-create (Phase 1b-ii, Task 3b): an internal quota
 }
 
 // ============================================================================
+console.log("\n== a project opened from a quotation knows whose work it is (Task 4, client-belongs-to-the-engagement)");
+// THE DEFECT, confirmed on live data: "Project Home Invasion" has clientId ""
+// and clientName "" — its quotation is INTERNAL (no ticketId), and openProject
+// asked ticketFacts(quote.ticketId) for the client, which is blank whenever
+// there is no ticket. Separately, it attached via attachToTicketEngagement
+// with an empty ticketId, which resolves to a non-existent engagement,
+// throws "no-engagement" inside claimSingleton, and the guarded catch
+// swallowed it — so the project never joined ANY engagement.
+{
+  const tech = await technicalContext(owner, slug);
+  const sequence = (tech.sequences || [])[0];
+
+  const clientName = `Project Client ${rand()}`;
+  const internal = await createQuotation(tech, {
+    sequenceId: sequence?.id, clientName,
+    contactName: "Dana Reyes", contactPosition: "Ops Lead",
+    contactEmail: "dana@projectclient.example", contactPhone: "555-0199",
+    location: { name: "HQ", country: "US", city: "Denver", url: "https://projectclient.example" },
+    title: "Home Invasion, this time with a client", industry: "Technology", deadline: "2026-12-01",
+    description: "An internal quotation, opened straight into a project.",
+  });
+  ok("an internal quotation can be raised with a full client block",
+    !!internal.quotation?.clientId, JSON.stringify(internal.error || internal.quotation));
+
+  // The commercial gate asks the approval TASK first and the stored status
+  // second (quotationApproved) — a hand-set Approved status still counts, and
+  // is the simplest way to approve a quotation with no ticket-approval task
+  // behind it at all.
+  const approved = await updateQuotation(tech, internal.quotation?.id, { status: "Approved" });
+  ok("the internal quotation can be approved directly", approved.quotation?.status === "Approved",
+    JSON.stringify(approved.error));
+
+  const proj = await projectsContext(owner, slug);
+  const openedInternal = await openProject(proj, { quotationId: internal.quotation?.id });
+  ok("a project opens from an approved internal quotation",
+    !!openedInternal.project, JSON.stringify(openedInternal.error));
+
+  // (a) THE CLIENT COMES FROM THE ENGAGEMENT, NOT FROM ticketFacts — this is
+  // the bug fix itself. Before it, both fields were blank.
+  ok("...and carries the quotation's client, not a blank one",
+    openedInternal.project?.clientId === internal.quotation?.clientId
+    && openedInternal.project?.clientName === clientName,
+    JSON.stringify({ clientId: openedInternal.project?.clientId, clientName: openedInternal.project?.clientName }));
+
+  // (b) THE ENGAGEMENT IS THE QUOTATION'S OWN — deterministicEngId("quotation",
+  // quotationId), the same root createQuotation minted — with the project as
+  // its PROJECT singleton and the quotation recorded as approved. Before this
+  // fix, attachToTicketEngagement(..., ticketId: "") threw inside
+  // claimSingleton and the project joined nothing.
+  const quoteEngId = deterministicEngId("quotation", internal.quotation?.id);
+  const quoteEngView = await readEngagementView(studio.id, quoteEngId);
+  ok("the project joins the quotation's OWN engagement as its PROJECT singleton",
+    quoteEngView?.singletons.project === openedInternal.project?.id, JSON.stringify(quoteEngView?.singletons));
+  ok("...and that engagement records the approved quotation",
+    quoteEngView?.singletons.approvedQuotation === internal.quotation?.id, JSON.stringify(quoteEngView?.singletons));
+
+  // (c) REGRESSION GUARD — the ticket-headed path is unchanged: the same
+  // engagement, the same client, resolved as before ("the handler is carried,
+  // never copied" block, above, asserts the equivalent for a ticket-born
+  // project — this reasserts it did not regress under the new client-resolving
+  // code path).
+  const salesForRegression = await salesContext(owner, slug);
+  const svcRegression = await createService(salesForRegression, { name: `Regression ${rand()}` });
+  const ticketMade = await createTicket(salesForRegression, {
+    title: "Ticket-headed path stays put", clientName: `Ticket Client ${rand()}`, deadline: "2026-12-01",
+    industry: "Technology", serviceIds: [svcRegression.service?.id],
+  });
+  const ticketEngId = deterministicEngId("ticket", ticketMade.ticket?.id);
+  const rfqMade = await requestTicketRfq(salesForRegression, { ticketId: ticketMade.ticket?.id });
+  const techForRegression = await technicalContext(owner, slug);
+  const convMade = await convertRfq(techForRegression, { rfqId: rfqMade.rfq?.id });
+  await updateQuotation(techForRegression, convMade.quotation?.id, { status: "Approved" });
+
+  const projForRegression = await projectsContext(owner, slug);
+  const openedTicketHeaded = await openProject(projForRegression, { quotationId: convMade.quotation?.id });
+  ok("the ticket-headed path still opens a project", !!openedTicketHeaded.project,
+    JSON.stringify(openedTicketHeaded.error));
+  ok("...with the same client the ticket has",
+    openedTicketHeaded.project?.clientId === ticketMade.ticket?.clientId
+    && openedTicketHeaded.project?.clientName === ticketMade.ticket?.clientName,
+    JSON.stringify({ p: openedTicketHeaded.project?.clientId, t: ticketMade.ticket?.clientId }));
+  const ticketEngView = await readEngagementView(studio.id, ticketEngId);
+  ok("...and the same engagement — the TICKET's, not a quotation-headed one",
+    ticketEngView?.singletons.project === openedTicketHeaded.project?.id, JSON.stringify(ticketEngView?.singletons));
+}
+
+// ============================================================================
 console.log("\n== an RFQ tells the people who will quote it");
 // The Sales to Technical handoff went quiet: a ticket moved to Opportunity and
 // nobody downstream knew work was waiting. The handlers are resolved from the
