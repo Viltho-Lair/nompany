@@ -23,7 +23,7 @@ function LockIcon({ className = "h-5 w-5" }) {
 }
 
 export default function LockedBody({ what }) {
-  const t = chromeDict(useStudioLocale());
+  const tr = chromeDict(useStudioLocale());
   return (
     <div className="relative min-h-[8rem]">
       <div className="pointer-events-none flex h-32 select-none items-end gap-[4%] px-1 opacity-50 blur-[1.5px]" aria-hidden="true">
@@ -35,8 +35,8 @@ export default function LockedBody({ what }) {
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-300">
           <LockIcon />
         </span>
-        <p className="text-xs font-600 text-slate-600 dark:text-slate-300">{what || t.deeperAnalytics}</p>
-        <p className="text-[11px] text-slate-400 dark:text-slate-500">{t.higherPlan}</p>
+        <p className="text-xs font-600 text-slate-600 dark:text-slate-300">{what || tr.deeperAnalytics}</p>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">{tr.higherPlan}</p>
       </div>
     </div>
   );

@@ -45,19 +45,19 @@ const TICKET_COLUMN_KEYS = [
   // Not "Value": the figure is the latest quotation's total, never typed.
   "value", "deadline", "status", "urgency", "rfq", "probability", "updatedAt",
 ];
-const ticketColumns = (t) => [
-  { key: "createdAt", label: t.colCreated },
-  { key: "ref", label: t.colRef },
-  { key: "title", label: t.title },
-  { key: "client", label: t.client },
-  { key: "owner", label: t.colOwner },
-  { key: "value", label: t.colValueQuoted },
-  { key: "deadline", label: t.deadline },
-  { key: "status", label: t.status },
-  { key: "urgency", label: t.urgency },
-  { key: "rfq", label: t.colRfq },
-  { key: "probability", label: t.colProbability },
-  { key: "updatedAt", label: t.colUpdated },
+const ticketColumns = (words) => [
+  { key: "createdAt", label: words.colCreated },
+  { key: "ref", label: words.colRef },
+  { key: "title", label: words.title },
+  { key: "client", label: words.client },
+  { key: "owner", label: words.colOwner },
+  { key: "value", label: words.colValueQuoted },
+  { key: "deadline", label: words.deadline },
+  { key: "status", label: words.status },
+  { key: "urgency", label: words.urgency },
+  { key: "rfq", label: words.colRfq },
+  { key: "probability", label: words.colProbability },
+  { key: "updatedAt", label: words.colUpdated },
 ];
 const COUNTRY_NAMES = COUNTRIES.map((c) => c.name);
 // citiesFor keys on the ISO code while the answer people give is a NAME.
@@ -91,7 +91,7 @@ const EMPTY_FILTERS = {
 //   sales-settings  -> services, vocabulary and the Live view columns
 // sales-live renders full-screen outside the studio frame (see StudioSalesLive).
 export default function StudioSales({ slug, view = "sales" }) {
-  const t = salesDict(useStudioLocale());
+  const tr = salesDict(useStudioLocale());
   const [data, setData] = useState(null);
   // The tickets list is a paginated Data Grid now, which can't scroll to a row
   // that may sit on another page — so the ticket deep-link's scroll-and-ring
@@ -106,9 +106,9 @@ export default function StudioSales({ slug, view = "sales" }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/sales`, { cache: "no-store" });
-    if (!res.ok) { setError(t.noAccessTo(t.salesDepartment)); return; }
+    if (!res.ok) { setError(tr.noAccessTo(tr.salesDepartment)); return; }
     setData(await res.json());
-  }, [slug, t]);
+  }, [slug, tr]);
   useEffect(() => { load(); }, [load]);
 
   // A colleague raised or moved a ticket - reflect it without a refresh.
@@ -139,20 +139,20 @@ export default function StudioSales({ slug, view = "sales" }) {
     const out = await res.json().catch(() => ({}));
     if (!res.ok) {
       setError(
-        out.error === "duplicate" ? t.errDuplicate
-        : out.error === "in-use" ? t.errInUse(Number(out.tickets) || 0)
-        : out.error === "read-only" ? t.errReadOnly
-        : out.error === "name" || out.error === "title" ? t.errName
-        : out.error === "client" ? t.errClient
-        : out.error === "deadline" ? t.errDeadline
-        : out.error === "industry" ? t.errIndustry
-        : out.error === "services" ? t.errServices
-        : out.error === "budget" ? t.errBudget
-        : out.error === "already" ? t.errAlready
-        : out.error === "no-technical" ? t.errNoTechnical
-        : out.error === "forbidden" || out.error === "sales-required" ? t.errRfqForbidden
-        : out.error === "ticket" ? t.errTicketGone
-        : t.saveFailed
+        out.error === "duplicate" ? tr.errDuplicate
+        : out.error === "in-use" ? tr.errInUse(Number(out.tickets) || 0)
+        : out.error === "read-only" ? tr.errReadOnly
+        : out.error === "name" || out.error === "title" ? tr.errName
+        : out.error === "client" ? tr.errClient
+        : out.error === "deadline" ? tr.errDeadline
+        : out.error === "industry" ? tr.errIndustry
+        : out.error === "services" ? tr.errServices
+        : out.error === "budget" ? tr.errBudget
+        : out.error === "already" ? tr.errAlready
+        : out.error === "no-technical" ? tr.errNoTechnical
+        : out.error === "forbidden" || out.error === "sales-required" ? tr.errRfqForbidden
+        : out.error === "ticket" ? tr.errTicketGone
+        : tr.saveFailed
       );
       return false;
     }
@@ -162,7 +162,7 @@ export default function StudioSales({ slug, view = "sales" }) {
   }
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{t.loadingSales}</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingSales}</p>;
 
   const { canManage: canManageParent, canManageTickets, canManageClients, canManageSettings, clients, tickets, people, vocabulary, nav, liveColumns, services, hasTechnical } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
@@ -199,8 +199,8 @@ export default function StudioSales({ slug, view = "sales" }) {
             the list it is about off the screen. */}
         {editing?.kind === "client" && (
           <Dialog
-            title={editing.row ? t.editNamed(editing.row.name) : t.addClient}
-            description={t.clientFormHint}
+            title={editing.row ? tr.editNamed(editing.row.name) : tr.addClient}
+            description={tr.clientFormHint}
             onClose={closeEditing}
           >
             <ClientForm row={editing.row} cities={data.salesCities || []} positions={data.salesContactPositions || []}
@@ -225,8 +225,8 @@ export default function StudioSales({ slug, view = "sales" }) {
             it is about off the screen. */}
         {editing?.kind === "ticket" && (
           <Dialog
-            title={editing.row ? t.editNamed(editing.row.ref) : t.newTicket}
-            description={t.ticketFormHint}
+            title={editing.row ? tr.editNamed(editing.row.ref) : tr.newTicket}
+            description={tr.ticketFormHint}
             onClose={closeEditing}
           >
             <TicketForm row={editing.row} clients={clients} vocabulary={vocabulary}
@@ -252,7 +252,7 @@ export default function StudioSales({ slug, view = "sales" }) {
     <div className="space-y-6">
       {banner}
       {data.canViewDashboard === false
-        ? <Empty title={t.dashboardLocked} body={t.dashboardLockedBody} />
+        ? <Empty title={tr.dashboardLocked} body={tr.dashboardLockedBody} />
         : <SalesOverview slug={slug} tickets={tickets} clients={clients} people={people} nav={nav} level={level} />}
     </div>
   );
@@ -264,7 +264,7 @@ export default function StudioSales({ slug, view = "sales" }) {
 // The dashboard itself is presentational and paid-rung-gated; this wrapper only
 // supplies it the ticket list the screen already holds and the studio's rung.
 function SalesOverview({ slug, tickets, clients, people, nav, level }) {
-  const t = salesDict(useStudioLocale());
+  const tr = salesDict(useStudioLocale());
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
 
   const recent = useMemo(
@@ -281,31 +281,31 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
       {nav?.["sales-live"] && (
         <section className={`${panel} flex flex-wrap items-center justify-between gap-3`}>
           <div className="min-w-0">
-            <p className={microLabel}>{t.liveView}</p>
+            <p className={microLabel}>{tr.liveView}</p>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              {t.liveViewLeadBefore}
+              {tr.liveViewLeadBefore}
               {nav?.["sales-settings"]
-                ? <a href={`/${slug}/sales-settings`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{t.salesSettingsPath}</a>
-                : <span className="font-600">{t.salesSettingsPath}</span>}.
+                ? <a href={`/${slug}/sales-settings`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.salesSettingsPath}</a>
+                : <span className="font-600">{tr.salesSettingsPath}</span>}.
             </p>
           </div>
-          <a href={`/${slug}/sales-live`} className={btn}>{t.openLiveView}</a>
+          <a href={`/${slug}/sales-live`} className={btn}>{tr.openLiveView}</a>
         </section>
       )}
 
       <section className={panel}>
         <div className="mb-3 flex items-center justify-between gap-3">
-          <p className={microLabel}>{t.allTickets}</p>
-          {nav?.["sales-tickets"] && <a href={`/${slug}/sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{t.openTicketsLink}</a>}
+          <p className={microLabel}>{tr.allTickets}</p>
+          {nav?.["sales-tickets"] && <a href={`/${slug}/sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openTicketsLink}</a>}
         </div>
         {recent.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">{t.noTicketsYet}</p>
+          <p className="py-6 text-center text-sm text-slate-400">{tr.noTicketsYet}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-start dark:border-white/10">
-                  {[t.title, t.client, t.colOwner, t.colValueQuoted, t.colRfq, t.status, t.colUpdated].map((head) => (
+                  {[tr.title, tr.client, tr.colOwner, tr.colValueQuoted, tr.colRfq, tr.status, tr.colUpdated].map((head) => (
                     <th key={head} className={`${th} text-start`}>{head}</th>
                   ))}
                 </tr>
@@ -317,7 +317,7 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
                     <tr key={row.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
                       <td className="py-3 pe-3 font-600 text-slate-900 dark:text-white">{row.title}</td>
                       <td className="py-3 pe-3 text-slate-600 dark:text-slate-300">{row.clientName || "—"}</td>
-                      <td className="py-3 pe-3 text-slate-600 dark:text-slate-300">{aliasOf[row.assignedToCollaboratorId] || t.unassigned}</td>
+                      <td className="py-3 pe-3 text-slate-600 dark:text-slate-300">{aliasOf[row.assignedToCollaboratorId] || tr.unassigned}</td>
                       <td className="py-3 pe-3 tabular-nums text-slate-600 dark:text-slate-300">{money(row.value)}</td>
                       <td className={`py-3 pe-3 text-xs font-600 ${rfq.tone}`}>{rfq.text}</td>
                       <td className="py-3 pe-3">
@@ -342,8 +342,8 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
 // in the order they happen, rather than one of them being smuggled into a
 // column of a table whose rows are links.
 function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses, urgencies, onAdd, onEdit }) {
-  const t = salesDict(useStudioLocale());
-  const TICKET_COLUMNS = useMemo(() => ticketColumns(t), [t]);
+  const tr = salesDict(useStudioLocale());
+  const TICKET_COLUMNS = useMemo(() => ticketColumns(tr), [tr]);
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -381,26 +381,26 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
     const num = (v) => (v === "" || v == null ? null : Number(v));
     const probMin = num(f.probMin), probMax = num(f.probMax);
     const valMin = num(f.valueMin), valMax = num(f.valueMax);
-    return tickets.filter((t) => {
-      if (f.status && t.status !== f.status) return false;
-      if (f.urgency && (t.urgency || "Normal") !== f.urgency) return false;
-      if (f.client && !`${t.clientName || ""}`.toLowerCase().includes(f.client.toLowerCase())) return false;
-      const p = Number(t.probability ?? 0);
+    return tickets.filter((row) => {
+      if (f.status && row.status !== f.status) return false;
+      if (f.urgency && (row.urgency || "Normal") !== f.urgency) return false;
+      if (f.client && !`${row.clientName || ""}`.toLowerCase().includes(f.client.toLowerCase())) return false;
+      const p = Number(row.probability ?? 0);
       if (probMin != null && Number.isFinite(probMin) && p < probMin) return false;
       if (probMax != null && Number.isFinite(probMax) && p > probMax) return false;
-      const value = Number(t.value ?? 0);
+      const value = Number(row.value ?? 0);
       if (valMin != null && Number.isFinite(valMin) && value < valMin) return false;
       if (valMax != null && Number.isFinite(valMax) && value > valMax) return false;
-      const created = (t.createdAt || "").slice(0, 10);
+      const created = (row.createdAt || "").slice(0, 10);
       if (f.createdFrom && created < f.createdFrom) return false;
       if (f.createdTo && created > f.createdTo) return false;
-      const deadline = (t.deadline || "").slice(0, 10);
+      const deadline = (row.deadline || "").slice(0, 10);
       if (f.deadlineFrom && (!deadline || deadline < f.deadlineFrom)) return false;
       if (f.deadlineTo && (!deadline || deadline > f.deadlineTo)) return false;
-      const updated = (t.updatedAt || t.createdAt || "").slice(0, 10);
+      const updated = (row.updatedAt || row.createdAt || "").slice(0, 10);
       if (f.updatedFrom && updated < f.updatedFrom) return false;
       if (f.updatedTo && updated > f.updatedTo) return false;
-      if (q && !`${t.title || ""} ${t.clientName || ""} ${t.ref || ""} ${t.description || ""}`.toLowerCase().includes(q)) return false;
+      if (q && !`${row.title || ""} ${row.clientName || ""} ${row.ref || ""} ${row.description || ""}`.toLowerCase().includes(q)) return false;
       return true;
     });
   }, [tickets, query, filters]);
@@ -409,12 +409,12 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
   // ALIAS (so the Owner column sorts by name, not by CollaboratorID), the RFQ
   // status object rfqInfo derives, and whether the ticket is still unresolved —
   // the amber start-edge stripe. Computed once here rather than per cell.
-  const gridRows = useMemo(() => filtered.map((t) => ({
-    ...t,
-    ownerName: aliasOf[t.assignedToCollaboratorId] || "Unassigned",
-    _rfq: rfqInfo(t, aliasOf),
-    _unresolved: hasTechnical && isUnresolved(t),
-  })), [filtered, aliasOf, hasTechnical]);
+  const gridRows = useMemo(() => filtered.map((row) => ({
+    ...row,
+    ownerName: aliasOf[row.assignedToCollaboratorId] || tr.unassigned,
+    _rfq: rfqInfo(row, aliasOf),
+    _unresolved: hasTechnical && isUnresolved(row),
+  })), [filtered, aliasOf, hasTechnical, tr]);
 
   // One column def per TICKET_COLUMNS key. The grid shows only the keys the
   // user has turned on (via `col`), in the fixed TICKET_COLUMNS order, then the
@@ -423,11 +423,11 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
   // `probability` keep number-typed sorting but their original left alignment.
   const openTicket = (id) => window.location.assign(`/${slug}/sales-tickets/${id}`);
   const colDefs = useMemo(() => ({
-    createdAt: { field: "createdAt", headerName: t.colCreated, minWidth: 120, flex: 0.8,
+    createdAt: { field: "createdAt", headerName: tr.colCreated, minWidth: 120, flex: 0.8,
       renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.createdAt)}</span> },
-    ref: { field: "ref", headerName: t.colRef, minWidth: 110, flex: 0.7,
+    ref: { field: "ref", headerName: tr.colRef, minWidth: 110, flex: 0.7,
       renderCell: ({ row }) => <span className="num text-xs text-slate-500 dark:text-slate-400">{row.ref}</span> },
-    title: { field: "title", headerName: t.title, minWidth: 180, flex: 1.4,
+    title: { field: "title", headerName: tr.title, minWidth: 180, flex: 1.4,
       renderCell: ({ row }) => (
         <span className="min-w-0">
           <span className="font-600 text-slate-900 dark:text-white">{row.title}</span>
@@ -436,39 +436,39 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
           )}
         </span>
       ) },
-    client: { field: "clientName", headerName: t.client, minWidth: 140, flex: 1,
+    client: { field: "clientName", headerName: tr.client, minWidth: 140, flex: 1,
       renderCell: ({ row }) => (row.clientName
-        ? <RecordLink href={linkToClient(slug, row.clientId)} mono={false} title={t.openNamed(row.clientName)}>{row.clientName}</RecordLink>
+        ? <RecordLink href={linkToClient(slug, row.clientId)} mono={false} title={tr.openNamed(row.clientName)}>{row.clientName}</RecordLink>
         : <span className="text-slate-400">—</span>) },
-    owner: { field: "ownerName", headerName: t.colOwner, minWidth: 120, flex: 0.9,
+    owner: { field: "ownerName", headerName: tr.colOwner, minWidth: 120, flex: 0.9,
       renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.ownerName}</span> },
-    value: { field: "value", headerName: t.colValueQuoted, type: "number", minWidth: 130, flex: 0.9,
+    value: { field: "value", headerName: tr.colValueQuoted, type: "number", minWidth: 130, flex: 0.9,
       align: "left", headerAlign: "left",
       renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.value)}</span> },
-    deadline: { field: "deadline", headerName: t.deadline, minWidth: 120, flex: 0.8,
+    deadline: { field: "deadline", headerName: tr.deadline, minWidth: 120, flex: 0.8,
       renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{fmtDate(row.deadline)}</span> },
-    status: { field: "status", headerName: t.status, minWidth: 120, flex: 0.7,
+    status: { field: "status", headerName: tr.status, minWidth: 120, flex: 0.7,
       renderCell: ({ row }) => <StatusPill kind="sales" status={row.status} /> },
-    urgency: { field: "urgency", headerName: t.urgency, minWidth: 110, flex: 0.7,
+    urgency: { field: "urgency", headerName: tr.urgency, minWidth: 110, flex: 0.7,
       renderCell: ({ row }) => <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[row.urgency] || URGENCY_BADGE.Normal}`}>{row.urgency || "Normal"}</span> },
     // WHERE THE TICKET STANDS, and only that — Request RFQ lives on the ticket's
     // own page, not smuggled into a column of a row that is itself a link. Sort
     // is off: it reports a derived status, not a value worth ordering by.
-    rfq: { field: "rfq", headerName: t.colRfq, minWidth: 140, flex: 1, sortable: false,
+    rfq: { field: "rfq", headerName: tr.colRfq, minWidth: 140, flex: 1, sortable: false,
       renderCell: ({ row }) => (
         <span className="min-w-0">
           {row._rfq.requested
             ? <span className={`block text-xs font-600 ${row._rfq.tone}`}>{row._rfq.text}</span>
             : <span className="text-slate-400">—</span>}
-          {row.rfqCount > 1 && <span className="block text-[11px] text-slate-400">{t.rfqRaisedCount(row.rfqCount)}</span>}
+          {row.rfqCount > 1 && <span className="block text-[11px] text-slate-400">{tr.rfqRaisedCount(row.rfqCount)}</span>}
         </span>
       ) },
-    probability: { field: "probability", headerName: t.colProbability, type: "number", minWidth: 90, flex: 0.5,
+    probability: { field: "probability", headerName: tr.colProbability, type: "number", minWidth: 90, flex: 0.5,
       align: "left", headerAlign: "left",
       renderCell: ({ row }) => <span className="num font-600 text-slate-700 dark:text-slate-200">{Number(row.probability ?? 0)}%</span> },
-    updatedAt: { field: "updatedAt", headerName: t.colUpdated, minWidth: 120, flex: 0.8,
+    updatedAt: { field: "updatedAt", headerName: tr.colUpdated, minWidth: 120, flex: 0.8,
       renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.updatedAt || row.createdAt)}</span> },
-  }), [slug, t]);
+  }), [slug, tr]);
 
   const gridColumns = useMemo(() => [
     ...TICKET_COLUMNS.filter((c) => col(c.key)).map((c) => colDefs[c.key]),
@@ -478,75 +478,75 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
       renderCell: ({ row }) => (
         <button type="button" className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"
           onClick={(e) => { e.stopPropagation(); openTicket(row.id); }}>
-          {t.openAction}
+          {tr.openAction}
         </button>
       ),
     },
-  ], [colDefs, columns, hasTechnical, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  ], [colDefs, columns, hasTechnical, tr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // No "add a client first" gate: naming an unknown client on the ticket form
   // creates it, exactly as the Old System does.
   if (tickets.length === 0) {
     return (
       <>
-        <Toolbar canManage={canManage} label={t.newTicket} onAdd={onAdd} />
-        <Empty title={t.ticketsEmptyTitle} body={t.ticketsEmptyBody} />
+        <Toolbar canManage={canManage} label={tr.newTicket} onAdd={onAdd} />
+        <Empty title={tr.ticketsEmptyTitle} body={tr.ticketsEmptyBody} />
       </>
     );
   }
 
   return (
     <>
-      <Toolbar canManage={canManage} label={t.newTicket} onAdd={onAdd}>
-        <input type="search" className={`${input} sm:max-w-xs`} placeholder={t.searchTickets}
+      <Toolbar canManage={canManage} label={tr.newTicket} onAdd={onAdd}>
+        <input type="search" className={`${input} sm:max-w-xs`} placeholder={tr.searchTickets}
           value={query} onChange={(e) => setQuery(e.target.value)} />
         <FilterButton active={activeFilters} open={showFilters} onClick={() => setShowFilters((v) => !v)} />
-        <button type="button" className={btnGhost} onClick={() => setShowColumns(true)}>{t.columnsButton}</button>
+        <button type="button" className={btnGhost} onClick={() => setShowColumns(true)}>{tr.columnsButton}</button>
       </Toolbar>
 
       {showFilters && (
         <FilterPanel onClear={clearFilters}>
-          <Field label={t.client} value={filters.client} onChange={(v) => setFilter({ client: v })} />
-          <Field label={t.status} as="select" value={filters.status} onChange={(v) => setFilter({ status: v })} options={statuses} />
-          <Field label={t.urgency} as="select" value={filters.urgency} onChange={(v) => setFilter({ urgency: v })} options={urgencies} />
+          <Field label={tr.client} value={filters.client} onChange={(v) => setFilter({ client: v })} />
+          <Field label={tr.status} as="select" value={filters.status} onChange={(v) => setFilter({ status: v })} options={statuses} />
+          <Field label={tr.urgency} as="select" value={filters.urgency} onChange={(v) => setFilter({ urgency: v })} options={urgencies} />
           <div>
-            <label className={microLabel}>{t.probabilityPct}</label>
+            <label className={microLabel}>{tr.probabilityPct}</label>
             <div className="flex items-center gap-2">
-              <Field label={t.min} type="number" min="0" max="100" value={filters.probMin} onChange={(v) => setFilter({ probMin: v })} className="flex-1" />
+              <Field label={tr.min} type="number" min="0" max="100" value={filters.probMin} onChange={(v) => setFilter({ probMin: v })} className="flex-1" />
               <span className="text-slate-400">–</span>
-              <Field label={t.max} type="number" min="0" max="100" value={filters.probMax} onChange={(v) => setFilter({ probMax: v })} className="flex-1" />
+              <Field label={tr.max} type="number" min="0" max="100" value={filters.probMax} onChange={(v) => setFilter({ probMax: v })} className="flex-1" />
             </div>
           </div>
           <div>
-            <label className={microLabel}>{t.colValueQuoted}</label>
+            <label className={microLabel}>{tr.colValueQuoted}</label>
             <div className="flex items-center gap-2">
-              <Field label={t.min} type="number" min="0" value={filters.valueMin} onChange={(v) => setFilter({ valueMin: v })} className="flex-1" />
+              <Field label={tr.min} type="number" min="0" value={filters.valueMin} onChange={(v) => setFilter({ valueMin: v })} className="flex-1" />
               <span className="text-slate-400">–</span>
-              <Field label={t.max} type="number" min="0" value={filters.valueMax} onChange={(v) => setFilter({ valueMax: v })} className="flex-1" />
+              <Field label={tr.max} type="number" min="0" value={filters.valueMax} onChange={(v) => setFilter({ valueMax: v })} className="flex-1" />
             </div>
           </div>
           <div>
-            <label className={microLabel}>{t.colCreated}</label>
+            <label className={microLabel}>{tr.colCreated}</label>
             <div className="flex items-center gap-2">
-              <Field label={t.from} filled={!!filters.createdFrom} className="flex-1"><StudioDate value={filters.createdFrom} onChange={(iso) => setFilter({ createdFrom: iso })} /></Field>
+              <Field label={tr.from} filled={!!filters.createdFrom} className="flex-1"><StudioDate value={filters.createdFrom} onChange={(iso) => setFilter({ createdFrom: iso })} /></Field>
               <span className="text-slate-400">–</span>
-              <Field label={t.to} filled={!!filters.createdTo} className="flex-1"><StudioDate value={filters.createdTo} onChange={(iso) => setFilter({ createdTo: iso })} /></Field>
+              <Field label={tr.to} filled={!!filters.createdTo} className="flex-1"><StudioDate value={filters.createdTo} onChange={(iso) => setFilter({ createdTo: iso })} /></Field>
             </div>
           </div>
           <div>
-            <label className={microLabel}>{t.deadline}</label>
+            <label className={microLabel}>{tr.deadline}</label>
             <div className="flex items-center gap-2">
-              <Field label={t.from} filled={!!filters.deadlineFrom} className="flex-1"><StudioDate value={filters.deadlineFrom} onChange={(iso) => setFilter({ deadlineFrom: iso })} /></Field>
+              <Field label={tr.from} filled={!!filters.deadlineFrom} className="flex-1"><StudioDate value={filters.deadlineFrom} onChange={(iso) => setFilter({ deadlineFrom: iso })} /></Field>
               <span className="text-slate-400">–</span>
-              <Field label={t.to} filled={!!filters.deadlineTo} className="flex-1"><StudioDate value={filters.deadlineTo} onChange={(iso) => setFilter({ deadlineTo: iso })} /></Field>
+              <Field label={tr.to} filled={!!filters.deadlineTo} className="flex-1"><StudioDate value={filters.deadlineTo} onChange={(iso) => setFilter({ deadlineTo: iso })} /></Field>
             </div>
           </div>
           <div>
-            <label className={microLabel}>{t.colUpdated}</label>
+            <label className={microLabel}>{tr.colUpdated}</label>
             <div className="flex items-center gap-2">
-              <Field label={t.from} filled={!!filters.updatedFrom} className="flex-1"><StudioDate value={filters.updatedFrom} onChange={(iso) => setFilter({ updatedFrom: iso })} /></Field>
+              <Field label={tr.from} filled={!!filters.updatedFrom} className="flex-1"><StudioDate value={filters.updatedFrom} onChange={(iso) => setFilter({ updatedFrom: iso })} /></Field>
               <span className="text-slate-400">–</span>
-              <Field label={t.to} filled={!!filters.updatedTo} className="flex-1"><StudioDate value={filters.updatedTo} onChange={(iso) => setFilter({ updatedTo: iso })} /></Field>
+              <Field label={tr.to} filled={!!filters.updatedTo} className="flex-1"><StudioDate value={filters.updatedTo} onChange={(iso) => setFilter({ updatedTo: iso })} /></Field>
             </div>
           </div>
         </FilterPanel>
@@ -554,14 +554,14 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
 
       {showColumns && (
         <ColumnPicker
-          title={t.ticketColumns}
+          title={tr.ticketColumns}
           columns={TICKET_COLUMNS.filter((c) => c.key !== "rfq" || hasTechnical)}
           selected={columns} onToggle={toggleCol} onReset={resetCols}
           onClose={() => setShowColumns(false)}
         />
       )}
 
-      <p className="text-sm text-slate-500 dark:text-slate-400">{t.ticketCount(filtered.length, tickets.length)}</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{tr.ticketCount(filtered.length, tickets.length)}</p>
 
       <section className={panel}>
         {/* A Data Grid now — sortable columns, client-side paging, the same
@@ -582,8 +582,8 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
           rows={gridRows}
           columns={gridColumns}
           getRowId={(r) => r.id}
-          ariaLabel={t.ticketsAria}
-          emptyLabel={t.noTicketsMatch}
+          ariaLabel={tr.ticketsAria}
+          emptyLabel={tr.noTicketsMatch}
           emptyIcon="ticket"
           className="[--sg-flag:251_191_36] dark:[--sg-flag:245_158_11]"
           onRowClick={(params) => openTicket(params.id)}
@@ -602,11 +602,11 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
 // A table rather than cards: a client is read across its columns — who to call,
 // where the site is, when it came in — and columns line those up between rows.
 function Clients({ clients, tickets, people, canManage, focus, onAdd, onEdit, onDelete }) {
-  const t = salesDict(useStudioLocale());
+  const tr = salesDict(useStudioLocale());
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
   const ticketCount = useMemo(() => {
     const counts = {};
-    for (const t of tickets) counts[t.clientId] = (counts[t.clientId] || 0) + 1;
+    for (const ticket of tickets) counts[ticket.clientId] = (counts[ticket.clientId] || 0) + 1;
     return counts;
   }, [tickets]);
   const [query, setQuery] = useState("");
@@ -624,30 +624,30 @@ function Clients({ clients, tickets, people, canManage, focus, onAdd, onEdit, on
   if (clients.length === 0) {
     return (
       <>
-        <Toolbar canManage={canManage} label={t.addClient} onAdd={onAdd} />
-        <Empty title={t.clientsEmptyTitle} body={t.clientsEmptyBody} />
+        <Toolbar canManage={canManage} label={tr.addClient} onAdd={onAdd} />
+        <Empty title={tr.clientsEmptyTitle} body={tr.clientsEmptyBody} />
       </>
     );
   }
 
   return (
     <>
-      <Toolbar canManage={canManage} label={t.addClient} onAdd={onAdd}>
-        <input type="search" className={`${input} sm:max-w-xs`} placeholder={t.searchClients}
+      <Toolbar canManage={canManage} label={tr.addClient} onAdd={onAdd}>
+        <input type="search" className={`${input} sm:max-w-xs`} placeholder={tr.searchClients}
           value={query} onChange={(e) => setQuery(e.target.value)} />
       </Toolbar>
 
-      <p className="text-sm text-slate-500 dark:text-slate-400">{t.clientsLead(filtered.length, clients.length)}</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{tr.clientsLead(filtered.length, clients.length)}</p>
 
       <section className={panel}>
         {filtered.length === 0 ? (
-          <p className="py-10 text-center text-sm text-slate-400">{t.noClientsMatch}</p>
+          <p className="py-10 text-center text-sm text-slate-400">{tr.noClientsMatch}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-start dark:border-white/10">
-                  {[t.name, t.contact, t.location, t.colTickets, t.colDateAdded, t.colAddedBy].map((head) => (
+                  {[tr.name, tr.contact, tr.location, tr.colTickets, tr.colDateAdded, tr.colAddedBy].map((head) => (
                     <th key={head} className={`${th} text-start`}>{head}</th>
                   ))}
                   <th className={`${th} text-end`} />
@@ -684,7 +684,7 @@ function Clients({ clients, tickets, people, canManage, focus, onAdd, onEdit, on
                               {l.name && <span className="font-600 text-slate-700 dark:text-slate-200">{l.name}</span>}
                               {l.city && <span className="text-slate-400">· {l.city}</span>}
                               {l.url && (
-                                <a href={l.url} target="_blank" rel="noreferrer" title={t.openLocation}
+                                <a href={l.url} target="_blank" rel="noreferrer" title={tr.openLocation}
                                   className="text-brand-700 dark:text-brand-300"><Icon name="location" className="h-3.5 w-3.5" /></a>
                               )}
                             </div>
@@ -698,8 +698,8 @@ function Clients({ clients, tickets, people, canManage, focus, onAdd, onEdit, on
                     <td className="py-3 text-end">
                       {canManage && (
                         <span className="inline-flex gap-2">
-                          <button className={btnGhost} onClick={() => onEdit(c)}>{t.edit}</button>
-                          <button className={btnGhost} onClick={() => onDelete(c)}>{t.delete_}</button>
+                          <button className={btnGhost} onClick={() => onEdit(c)}>{tr.edit}</button>
+                          <button className={btnGhost} onClick={() => onDelete(c)}>{tr.delete_}</button>
                         </span>
                       )}
                     </td>
@@ -719,7 +719,7 @@ function Clients({ clients, tickets, people, canManage, focus, onAdd, onEdit, on
 // The Old System keeps SEVERAL of each — different people and sites for the
 // same company — so editing one must never be a way to lose the others.
 function RowList({ title, help, rows, columns, onChange, addLabel }) {
-  const t = salesDict(useStudioLocale());
+  const tr = salesDict(useStudioLocale());
   const blank = Object.fromEntries(columns.map((c) => [c.key, ""]));
   const setCell = (i, key, value) => onChange(rows.map((r, n) => (n === i ? { ...r, [key]: value } : r)));
   return (
@@ -732,7 +732,7 @@ function RowList({ title, help, rows, columns, onChange, addLabel }) {
         <button type="button" className={btnGhost} onClick={() => onChange([...rows, blank])}>{addLabel}</button>
       </div>
       {rows.length === 0 ? (
-        <p className="mt-2 text-xs text-slate-400">{t.noneYet}</p>
+        <p className="mt-2 text-xs text-slate-400">{tr.noneYet}</p>
       ) : (
         <div className="mt-2 space-y-2">
           {rows.map((r, i) => (
@@ -748,7 +748,7 @@ function RowList({ title, help, rows, columns, onChange, addLabel }) {
                   </div>
                 ))}
               </div>
-              <button type="button" aria-label={t.remove} title={t.remove}
+              <button type="button" aria-label={tr.remove} title={tr.remove}
                 className="mt-6 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-white/5"
                 onClick={() => onChange(rows.filter((_, n) => n !== i))}>
                 <Icon name="close" className="h-4 w-4" />
@@ -764,15 +764,15 @@ function RowList({ title, help, rows, columns, onChange, addLabel }) {
 // A client's own mark, uploaded the same way the studio's is and shown WHOLE
 // rather than cropped — it is a company logo, not a face.
 function ClientLogoField({ value, onChange }) {
-  const t = salesDict(useStudioLocale());
+  const tr = salesDict(useStudioLocale());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const fileRef = useRef(null);
 
   async function upload(file) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) { setErr(t.pickImage); return; }
-    if (file.size > 2 * 1024 * 1024) { setErr(t.imageTooBig); return; }
+    if (!file.type.startsWith("image/")) { setErr(tr.pickImage); return; }
+    if (file.size > 2 * 1024 * 1024) { setErr(tr.imageTooBig); return; }
     setBusy(true); setErr("");
     try {
       const form = new FormData();
@@ -781,7 +781,7 @@ function ClientLogoField({ value, onChange }) {
       const media = await up.json().catch(() => ({}));
       if (!up.ok || !media.url) throw new Error("upload");
       onChange(media.url);
-    } catch { setErr(t.uploadFailed); }
+    } catch { setErr(tr.uploadFailed); }
     finally { setBusy(false); }
   }
 
@@ -791,24 +791,24 @@ function ClientLogoField({ value, onChange }) {
   // floated at a different height. `filled` keeps the label up, since the control
   // always shows something (a thumbnail, or "None").
   return (
-    <Field label={t.logo} filled error={err || undefined}>
+    <Field label={tr.logo} filled error={err || undefined}>
       <div className="flex items-center gap-3 px-3.5 pb-1.5 pt-5">
         <span className="inline-flex h-6 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5">
           {value
             /* eslint-disable-next-line @next/next/no-img-element */
             ? <img src={value} alt="" className="h-full w-full object-contain" />
-            : <span className="text-[9px] font-600 uppercase tracking-wide text-slate-400">{t.none}</span>}
+            : <span className="text-[9px] font-600 uppercase tracking-wide text-slate-400">{tr.none}</span>}
         </span>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
         <div className="ms-auto flex items-center gap-1.5">
           <button type="button" disabled={busy} onClick={() => fileRef.current?.click()}
             className="rounded-full border border-slate-200 px-3 py-1 text-xs font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/5">
-            {busy ? t.uploading : value ? t.changeLogo : t.upload}
+            {busy ? tr.uploading : value ? tr.changeLogo : tr.upload}
           </button>
           {value && (
             <button type="button" onClick={() => onChange("")}
               className="rounded-full px-2 py-1 text-xs font-600 text-slate-400 transition-colors hover:text-rose-600 dark:hover:text-rose-300">
-              {t.remove}
+              {tr.remove}
             </button>
           )}
         </div>
@@ -818,7 +818,7 @@ function ClientLogoField({ value, onChange }) {
 }
 
 function ClientForm({ row, cities, positions, onSave, onCancel }) {
-  const t = salesDict(useStudioLocale());
+  const tr = salesDict(useStudioLocale());
   const [f, setF] = useState({
     name: row?.name || "", industry: row?.industry || "", website: row?.website || "",
     logo: row?.logo || "", notes: row?.notes || "",
@@ -832,50 +832,50 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t.companyName} required value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} />
-        <Field label={t.industry} value={f.industry} onChange={(v) => setF((p) => ({ ...p, industry: v }))} />
-        <Field label={t.website} value={f.website} onChange={(v) => setF((p) => ({ ...p, website: v }))} />
+        <Field label={tr.companyName} required value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} />
+        <Field label={tr.industry} value={f.industry} onChange={(v) => setF((p) => ({ ...p, industry: v }))} />
+        <Field label={tr.website} value={f.website} onChange={(v) => setF((p) => ({ ...p, website: v }))} />
         <ClientLogoField value={f.logo} onChange={(logo) => setF((p) => ({ ...p, logo }))} />
       </div>
 
       <RowList
-        title={t.contactsTitle} help={t.contactsHelp}
-        rows={contacts} onChange={setContacts} addLabel={t.addContact}
+        title={tr.contactsTitle} help={tr.contactsHelp}
+        rows={contacts} onChange={setContacts} addLabel={tr.addContact}
         columns={[
-          { key: "name", label: t.name },
-          { key: "position", label: t.position, options: positions },
-          { key: "email", label: t.email, type: "email" },
-          { key: "phone", label: t.phone },
+          { key: "name", label: tr.name },
+          { key: "position", label: tr.position, options: positions },
+          { key: "email", label: tr.email, type: "email" },
+          { key: "phone", label: tr.phone },
         ]}
       />
 
       <RowList
-        title={t.locationsTitle} help={t.locationsHelp}
-        rows={locations} onChange={setLocations} addLabel={t.addLocation}
+        title={tr.locationsTitle} help={tr.locationsHelp}
+        rows={locations} onChange={setLocations} addLabel={tr.addLocation}
         columns={[
-          { key: "name", label: t.siteName },
-          { key: "country", label: t.country, options: COUNTRY_NAMES },
-          { key: "city", label: t.city, options: cities },
-          { key: "url", label: t.mapLink },
+          { key: "name", label: tr.siteName },
+          { key: "country", label: tr.country, options: COUNTRY_NAMES },
+          { key: "city", label: tr.city, options: cities },
+          { key: "url", label: tr.mapLink },
         ]}
       />
 
-      <Field label={t.notes} as="textarea" value={f.notes} onChange={(v) => setF((p) => ({ ...p, notes: v }))} className="mt-5" />
+      <Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((p) => ({ ...p, notes: v }))} className="mt-5" />
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !f.name.trim()} onClick={async () => {
           setBusy(true);
           await onSave({ name: f.name, industry: f.industry, website: f.website, logo: f.logo, notes: f.notes, contacts, locations });
           setBusy(false);
-        }}>{busy ? t.saving : t.saveClient}</button>
-        <button className={btnGhost} onClick={onCancel}>{t.cancel}</button>
+        }}>{busy ? tr.saving : tr.saveClient}</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
 }
 
 export function TicketForm({ row, clients, vocabulary, services = [], cities = [], positions = [], studioDefaults = {}, onSave, onCancel }) {
-  const t = salesDict(useStudioLocale());
+  const tr = salesDict(useStudioLocale());
   // Fields mirror the Old System's ticket. Mandatory: title, client, deadline,
   // type of industry. Value Quoted is NOT here on purpose — it is filled from
   // the latest quotation, and Client Budget is the client's own manual figure.
@@ -939,38 +939,38 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t.title} required value={f.title} onChange={(v) => setF((p) => ({ ...p, title: v }))} className="sm:col-span-2" />
+        <Field label={tr.title} required value={f.title} onChange={(v) => setF((p) => ({ ...p, title: v }))} className="sm:col-span-2" />
 
-        <Field label={t.client} required filled={!!f.clientName}
-          hint={!row ? (matched ? t.clientHintExisting((matched.contacts || []).length) : t.clientHintNew) : undefined}>
+        <Field label={tr.client} required filled={!!f.clientName}
+          hint={!row ? (matched ? tr.clientHintExisting((matched.contacts || []).length) : tr.clientHintNew) : undefined}>
           <Combo value={f.clientName} onChange={(v) => setF((p) => ({ ...p, clientName: v }))}
             options={clients.map((c) => c.name)} inputClassName={BARE_CONTROL} disabled={!!row} />
         </Field>
 
-        <Field label={t.deadline} required filled={!!f.deadline}>
+        <Field label={tr.deadline} required filled={!!f.deadline}>
           <StudioDate value={f.deadline} onChange={(iso) => setF((p) => ({ ...p, deadline: iso }))} />
         </Field>
 
-        <Field label={t.typeOfIndustry} required filled={!!f.industry}>
+        <Field label={tr.typeOfIndustry} required filled={!!f.industry}>
           <Combo value={f.industry} onChange={(v) => setF((p) => ({ ...p, industry: v }))}
             options={vocabulary.industries || []} inputClassName={BARE_CONTROL} />
         </Field>
 
         {/* The studio's currency sits IN the field, so the number is read together
             with what it is in. Value Quoted is derived, hence only a hint here. */}
-        <Field label={t.clientBudget} type="number" min="0" value={f.clientBudget} onChange={(v) => setF((p) => ({ ...p, clientBudget: v }))}
+        <Field label={tr.clientBudget} type="number" min="0" value={f.clientBudget} onChange={(v) => setF((p) => ({ ...p, clientBudget: v }))}
           prefix={studioDefaults.currency ? <CurrencySymbol code={studioDefaults.currency} /> : null}
-          hint={<>{t.valueQuotedHintBefore}<span className="font-600">{t.valueQuotedHintTerm}</span>{t.valueQuotedHintAfter}</>} />
+          hint={<>{tr.valueQuotedHintBefore}<span className="font-600">{tr.valueQuotedHintTerm}</span>{tr.valueQuotedHintAfter}</>} />
 
         {row && (
           <>
-            <Field label={t.status} as="select" required value={f.status} onChange={(v) => setF((p) => ({ ...p, status: v }))} options={vocabulary.statuses || []} />
-            <Field label={t.urgency} as="select" required value={f.urgency} onChange={(v) => setF((p) => ({ ...p, urgency: v }))} options={vocabulary.urgencies || []} />
+            <Field label={tr.status} as="select" required value={f.status} onChange={(v) => setF((p) => ({ ...p, status: v }))} options={vocabulary.statuses || []} />
+            <Field label={tr.urgency} as="select" required value={f.urgency} onChange={(v) => setF((p) => ({ ...p, urgency: v }))} options={vocabulary.urgencies || []} />
           </>
         )}
 
         <div className="sm:col-span-2">
-          <label className={label}>{t.probabilityOf(f.probability)}</label>
+          <label className={label}>{tr.probabilityOf(f.probability)}</label>
           <div className="flex items-center gap-3">
             <input type="range" min="0" max="100" step="1" value={f.probability}
               onChange={(e) => setF((s) => ({ ...s, probability: Number(e.target.value) }))}
@@ -981,24 +981,24 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
         </div>
       </div>
 
-      <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{t.contactHeading}</p>
+      <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.contactHeading}</p>
       <div className="mt-2 grid gap-4 sm:grid-cols-2">
-        <Field label={t.name} filled={!!f.contactName}>
+        <Field label={tr.name} filled={!!f.contactName}>
           {knownContacts.length > 0
             ? <Combo value={f.contactName} onChange={pickContact} options={knownContacts.map((c) => c.name)} inputClassName={BARE_CONTROL} />
             : <input className={BARE_CONTROL} value={f.contactName} onChange={set("contactName")} />}
         </Field>
-        <Field label={t.position} filled={!!f.contactPosition}>
+        <Field label={tr.position} filled={!!f.contactPosition}>
           <Combo value={f.contactPosition} onChange={(v) => setF((p) => ({ ...p, contactPosition: v }))}
             options={positions} inputClassName={BARE_CONTROL} />
         </Field>
-        <Field label={t.email} type="email" value={f.contactEmail} onChange={(v) => setF((p) => ({ ...p, contactEmail: v }))} />
-        <Field label={t.phone} value={f.contactPhone} onChange={(v) => setF((p) => ({ ...p, contactPhone: v }))} />
+        <Field label={tr.email} type="email" value={f.contactEmail} onChange={(v) => setF((p) => ({ ...p, contactEmail: v }))} />
+        <Field label={tr.phone} value={f.contactPhone} onChange={(v) => setF((p) => ({ ...p, contactPhone: v }))} />
       </div>
 
-      <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{t.locationHeading}</p>
+      <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.locationHeading}</p>
       <div className="mt-2 grid gap-4 sm:grid-cols-3">
-        <Field label={t.siteName} filled={!!f.locationName}>
+        <Field label={tr.siteName} filled={!!f.locationName}>
           {/* Choosing a saved site fills the rest of this block from what was
               stored with it. */}
           <Combo value={f.locationName}
@@ -1010,21 +1010,21 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
             })}
             options={clientLocations.map((l) => l.name).filter(Boolean)} inputClassName={BARE_CONTROL} />
         </Field>
-        <Field label={t.country} filled={!!f.locationCountry}>
+        <Field label={tr.country} filled={!!f.locationCountry}>
           <Combo value={f.locationCountry} onChange={(v) => setF((p) => ({ ...p, locationCountry: v, locationCity: "" }))}
             options={COUNTRY_NAMES} inputClassName={BARE_CONTROL} />
         </Field>
-        <Field label={t.city} filled={!!f.locationCity}>
+        <Field label={tr.city} filled={!!f.locationCity}>
           <Combo value={f.locationCity} onChange={(v) => setF((p) => ({ ...p, locationCity: v }))}
             options={f.locationCountry ? citiesFor(codeOfCountry(f.locationCountry)) : cities} inputClassName={BARE_CONTROL} />
         </Field>
-        <Field label={t.mapLink} value={f.locationUrl} onChange={(v) => setF((p) => ({ ...p, locationUrl: v }))} />
+        <Field label={tr.mapLink} value={f.locationUrl} onChange={(v) => setF((p) => ({ ...p, locationUrl: v }))} />
       </div>
 
-      <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{t.servicesHeading}</p>
+      <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.servicesHeading}</p>
       {services.length === 0 ? (
         <p className="mt-2 rounded-xl border border-dashed border-slate-200 p-4 text-xs text-slate-500 dark:border-white/15 dark:text-slate-400">
-          {t.noServicesForTicket}
+          {tr.noServicesForTicket}
         </p>
       ) : (
         <div className="mt-2 space-y-2">
@@ -1040,11 +1040,11 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
                   <div className="mt-2 flex flex-wrap gap-4 ps-7 text-xs text-slate-600 dark:text-slate-300">
                     <label className="flex items-center gap-2">
                       <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600" checked={!!(reqs[sv.id] || {}).withoutInstallation} onChange={() => setReq(sv.id, "withoutInstallation")} />
-                      {t.withoutInstallation}
+                      {tr.withoutInstallation}
                     </label>
                     <label className="flex items-center gap-2">
                       <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600" checked={!!(reqs[sv.id] || {}).withoutProgramming} onChange={() => setReq(sv.id, "withoutProgramming")} />
-                      {t.withoutProgramming}
+                      {tr.withoutProgramming}
                     </label>
                   </div>
                 )}
@@ -1054,7 +1054,7 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
         </div>
       )}
 
-      <div className="mt-4"><label className={label}>{t.description}</label><textarea rows={3} className={input} value={f.description} onChange={set("description")} /></div>
+      <div className="mt-4"><label className={label}>{tr.description}</label><textarea rows={3} className={input} value={f.description} onChange={set("description")} /></div>
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={async () => {
@@ -1073,8 +1073,8 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
             ...(row ? { status: f.status, urgency: f.urgency } : {}),
           });
           setBusy(false);
-        }}>{busy ? t.saving : t.saveTicket}</button>
-        <button className={btnGhost} onClick={onCancel}>{t.cancel}</button>
+        }}>{busy ? tr.saving : tr.saveTicket}</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
@@ -1085,7 +1085,7 @@ export function TicketForm({ row, clients, vocabulary, services = [], cities = [
 // service catalogue tickets pick from, the vocabulary behind the contact and
 // location fields, and the Live view's column selection.
 function VocabList({ title, help, items, canManage, onChange }) {
-  const t = salesDict(useStudioLocale());
+  const tr = salesDict(useStudioLocale());
   const [draft, setDraft] = useState("");
   const add = () => { const v = draft.trim(); if (!v) return; onChange([...items, v]); setDraft(""); };
   return (
@@ -1093,12 +1093,12 @@ function VocabList({ title, help, items, canManage, onChange }) {
       <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{title}</h3>
       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{help}</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        {items.length === 0 && <span className="text-xs text-slate-400">{t.noneYet}</span>}
+        {items.length === 0 && <span className="text-xs text-slate-400">{tr.noneYet}</span>}
         {items.map((it) => (
           <span key={it} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-600 text-slate-700 dark:bg-white/5 dark:text-slate-200">
             {it}
             {canManage && (
-              <button type="button" aria-label={t.removeNamed(it)} className="text-slate-400 hover:text-rose-600"
+              <button type="button" aria-label={tr.removeNamed(it)} className="text-slate-400 hover:text-rose-600"
                 onClick={() => onChange(items.filter((x) => x !== it))}>×</button>
             )}
           </span>
@@ -1107,8 +1107,8 @@ function VocabList({ title, help, items, canManage, onChange }) {
       {canManage && (
         <div className="mt-3 flex gap-2">
           <input className={input} value={draft} onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} placeholder={t.addAndEnter} />
-          <button type="button" className={btnGhost} onClick={add}>{t.add}</button>
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} placeholder={tr.addAndEnter} />
+          <button type="button" className={btnGhost} onClick={add}>{tr.add}</button>
         </div>
       )}
     </div>
@@ -1116,7 +1116,7 @@ function VocabList({ title, help, items, canManage, onChange }) {
 }
 
 function SalesSettings({ options, selected, services, cities, positions, canManage, onSaveVocab, onService }) {
-  const t = salesDict(useStudioLocale());
+  const tr = salesDict(useStudioLocale());
   const [cols, setCols] = useState(selected);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1126,10 +1126,10 @@ function SalesSettings({ options, selected, services, cities, positions, canMana
   return (
     <div className="space-y-6">
       <section className={panel}>
-        <h2 className={h2}>{t.servicesTitle}</h2>
-        <p className={sub}>{t.servicesLead}</p>
+        <h2 className={h2}>{tr.servicesTitle}</h2>
+        <p className={sub}>{tr.servicesLead}</p>
         <ul className="mt-4 space-y-2">
-          {services.length === 0 && <li className="text-xs text-slate-400">{t.noServicesYet}</li>}
+          {services.length === 0 && <li className="text-xs text-slate-400">{tr.noServicesYet}</li>}
           {services.map((sv) => (
             <li key={sv.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-4 dark:border-white/15">
               <div className="min-w-0">
@@ -1138,37 +1138,37 @@ function SalesSettings({ options, selected, services, cities, positions, canMana
                 <p className="mt-0.5 font-mono text-[11px] text-slate-400">{sv.id}</p>
               </div>
               {canManage && (
-                <button type="button" className={btnGhost} onClick={() => onService("DELETE", { id: sv.id })}>{t.delete_}</button>
+                <button type="button" className={btnGhost} onClick={() => onService("DELETE", { id: sv.id })}>{tr.delete_}</button>
               )}
             </li>
           ))}
         </ul>
         {canManage && (
           <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-            <div><label className={label}>{t.name}</label><input className={input} value={svc.name} onChange={(e) => setSvc((v) => ({ ...v, name: e.target.value }))} placeholder={t.serviceNamePlaceholder} /></div>
-            <div><label className={label}>{t.description}</label><input className={input} value={svc.description} onChange={(e) => setSvc((v) => ({ ...v, description: e.target.value }))} /></div>
+            <div><label className={label}>{tr.name}</label><input className={input} value={svc.name} onChange={(e) => setSvc((v) => ({ ...v, name: e.target.value }))} placeholder={tr.serviceNamePlaceholder} /></div>
+            <div><label className={label}>{tr.description}</label><input className={input} value={svc.description} onChange={(e) => setSvc((v) => ({ ...v, description: e.target.value }))} /></div>
             <div className="flex items-end">
               <button type="button" className={btn} disabled={!svc.name.trim()}
-                onClick={async () => { const ok = await onService("POST", svc); if (ok) setSvc({ name: "", description: "" }); }}>{t.addService}</button>
+                onClick={async () => { const ok = await onService("POST", svc); if (ok) setSvc({ name: "", description: "" }); }}>{tr.addService}</button>
             </div>
           </div>
         )}
       </section>
 
       <section className={panel}>
-        <h2 className={h2}>{t.vocabularyTitle}</h2>
-        <p className={sub}>{t.vocabularyLead}</p>
+        <h2 className={h2}>{tr.vocabularyTitle}</h2>
+        <p className={sub}>{tr.vocabularyLead}</p>
         <div className="mt-4 grid gap-6 sm:grid-cols-2">
-          <VocabList title={t.citiesTitle} help={t.citiesHelp} items={cities} canManage={canManage}
+          <VocabList title={tr.citiesTitle} help={tr.citiesHelp} items={cities} canManage={canManage}
             onChange={(next) => onSaveVocab({ salesCities: next })} />
-          <VocabList title={t.positionsTitle} help={t.positionsHelp} items={positions} canManage={canManage}
+          <VocabList title={tr.positionsTitle} help={tr.positionsHelp} items={positions} canManage={canManage}
             onChange={(next) => onSaveVocab({ salesContactPositions: next })} />
         </div>
       </section>
 
       <section className={panel}>
-        <h2 className={h2}>{t.liveView}</h2>
-        <p className={sub}>{t.liveViewLead}</p>
+        <h2 className={h2}>{tr.liveView}</h2>
+        <p className={sub}>{tr.liveViewLead}</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {options.map((o) => (
             <label key={o.key} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm dark:border-white/15">
@@ -1180,12 +1180,12 @@ function SalesSettings({ options, selected, services, cities, positions, canMana
         {canManage ? (
           <div className="mt-5 flex items-center gap-3">
             <button className={btn} disabled={busy} onClick={async () => { setBusy(true); const ok = await onSaveVocab({ liveColumns: cols }); setBusy(false); setSaved(!!ok); }}>
-              {busy ? t.saving : t.saveColumns}
+              {busy ? tr.saving : tr.saveColumns}
             </button>
-            {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{t.saved}</span>}
+            {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
           </div>
         ) : (
-          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{t.settingsReadOnly}</p>
+          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{tr.settingsReadOnly}</p>
         )}
       </section>
     </div>

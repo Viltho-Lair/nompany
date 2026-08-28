@@ -111,16 +111,16 @@ const iconClass = (active) =>
 // rather than set inline, because which text colour is readable depends on the
 // theme and inline styles cannot answer that — the stylesheet picks (.plan-tag).
 function PlanTag({ color, label, children }) {
-  const t = toneOf(color);
+  const tone = toneOf(color);
   return (
     <span
       className="plan-tag inline-flex rounded-full px-2 py-0.5 text-[10px] font-700"
       style={{
-        "--tag-bg": t.bg,
-        "--tag-bg-dark": t.bgDark,
-        "--tag-fg": t.fg,
-        "--tag-fg-dark": t.fgDark,
-        "--tag-metal": t.metal,
+        "--tag-bg": tone.bg,
+        "--tag-bg-dark": tone.bgDark,
+        "--tag-fg": tone.fg,
+        "--tag-fg-dark": tone.fgDark,
+        "--tag-metal": tone.metal,
       }}
       title={label}
     >
@@ -140,7 +140,7 @@ export default function StudioFrame({
   // prop would put it in the RSC payload of every navigation instead. See the
   // header of shared/studio/shell for why each surface's dictionary is its own
   // module.
-  const t = shellDict(locale);
+  const tr = shellDict(locale);
   // The header avatar is the ACCOUNT, not the studio membership: `me` carries a
   // studio-local alias and role, but the picture belongs to the person and lives
   // on their profile, so it comes from the identity endpoint like it does in the
@@ -205,9 +205,9 @@ export default function StudioFrame({
     // Placed above People (design §3): engagements.view is a right on its own,
     // held by any role — not an admin-only screen — so it sits with the other
     // non-section destinations rather than gated behind canAdminister.
-    { href: `/${studio.slug}/engagements`, key: "engagements", label: t.engagements, show: me.canSeeEngagements },
-    { href: `/${studio.slug}/people`, key: "people", label: me.canAdminister ? t.peopleAndRequests : t.people, show: true },
-    { href: `/${studio.slug}/access`, key: "access", label: t.access, show: me.canAdminister },
+    { href: `/${studio.slug}/engagements`, key: "engagements", label: tr.engagements, show: me.canSeeEngagements },
+    { href: `/${studio.slug}/people`, key: "people", label: me.canAdminister ? tr.peopleAndRequests : tr.people, show: true },
+    { href: `/${studio.slug}/access`, key: "access", label: tr.access, show: me.canAdminister },
   ].filter((i) => i.show);
 
   const activeLabel =
@@ -244,7 +244,7 @@ export default function StudioFrame({
             type="button"
             onClick={() => toggleGroup(node.key)}
             aria-expanded={shown}
-            aria-label={`${shown ? t.collapse : t.expand} ${node.name}`}
+            aria-label={`${shown ? tr.collapse : tr.expand} ${node.name}`}
             className="shrink-0 rounded-md p-2 hover:bg-black/5 dark:hover:bg-white/10"
           >
             <Icon
@@ -300,13 +300,13 @@ export default function StudioFrame({
               otherwise, so the tags are never absent — a studio always has a
               plan, and showing it here is how anyone inside knows which. */}
           <span className="mt-1.5 flex flex-wrap items-center gap-1">
-            <PlanTag color={studio.packageColor} label={`${t.packageLabel}: ${studio.packageName}`}>{studio.packageName}</PlanTag>
-            <PlanTag color={studio.tierColor} label={`${t.tierLabel}: ${studio.tierName}`}>{studio.tierName}</PlanTag>
+            <PlanTag color={studio.packageColor} label={`${tr.packageLabel}: ${studio.packageName}`}>{studio.packageName}</PlanTag>
+            <PlanTag color={studio.tierColor} label={`${tr.tierLabel}: ${studio.tierName}`}>{studio.tierName}</PlanTag>
           </span>
         </span>
       </Link>
 
-      <nav aria-label={t.departments} className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
+      <nav aria-label={tr.departments} className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
         {tree.map((node) => navGroup(node))}
 
         {admin.length > 0 && (
@@ -324,7 +324,7 @@ export default function StudioFrame({
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
         >
           <Icon name="services" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
-          {t.documentation}
+          {tr.documentation}
         </Link>
         {/* This slot used to hold "My account". The account is the PERSON and
             belongs with the header avatar, which now carries it; the sidebar
@@ -339,7 +339,7 @@ export default function StudioFrame({
           }`}
         >
           <Icon name="gears" className={`h-[18px] w-[18px] ${activeKey === "studio-settings" ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"}`} />
-          {t.studioSettings}
+          {tr.studioSettings}
         </Link>
       </div>
     </div>
@@ -384,7 +384,7 @@ export default function StudioFrame({
       href="#studio-main"
       className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-brand-700 focus:px-4 focus:py-2 focus:font-display focus:text-sm focus:font-600 focus:text-white focus:shadow-geex focus-visible:ring-2 focus-visible:ring-brand-500/50"
     >
-      {t.skipToContent}
+      {tr.skipToContent}
     </a>
     {/* MUI DOES NOT FOLLOW `dir`, so it gets its own cache when the tenant is
         Arabic — see MuiRtlProvider. Everything hand-written above mirrors from
@@ -401,8 +401,8 @@ export default function StudioFrame({
 
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <button type="button" aria-label={t.closeMenu} className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
-          <aside aria-label={t.departments} className="absolute inset-y-0 start-0 w-64 bg-[var(--geex-surface)] shadow-xl">{sidebar}</aside>
+          <button type="button" aria-label={tr.closeMenu} className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
+          <aside aria-label={tr.departments} className="absolute inset-y-0 start-0 w-64 bg-[var(--geex-surface)] shadow-xl">{sidebar}</aside>
         </div>
       )}
 
@@ -412,7 +412,7 @@ export default function StudioFrame({
             <button
               onClick={() => setOpen(true)}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-300 lg:hidden"
-              aria-label={t.openMenu}
+              aria-label={tr.openMenu}
             >
               <Icon name="menu" />
             </button>
@@ -438,7 +438,7 @@ export default function StudioFrame({
                 re-mirrors the whole layout in one paint. */}
             <LangMenu
               current={locale}
-              label={t.language}
+              label={tr.language}
               align="end"
               triggerClass="inline-flex h-9 items-center gap-1.5 rounded-full border border-current/20 px-3 text-xs font-600 text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-300 dark:hover:text-white"
               options={locales.map((code) => ({
@@ -451,13 +451,13 @@ export default function StudioFrame({
             {/* Light / Dark / Device — writes the same `theme` cookie and `.dark`
                 class the public site uses, so the Studio follows the choice
                 everywhere and the no-flash script picks it up on next load. */}
-            <ThemeToggle labels={{ theme: t.theme, light: t.themeLight, dark: t.themeDark, system: t.themeSystem }} />
+            <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
             {/* Beside the theme toggle rather than in the sidebar: it belongs
                 with the other things that are about YOU here, not with the
                 studio's sections. */}
             <NotificationBell slug={studio.slug} locale={locale} />
             <span className="hidden text-sm text-slate-500 dark:text-slate-400 sm:inline">
-              {me.alias || t.member}
+              {me.alias || tr.member}
               <span className="ms-2 rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">
                 {me.role}
               </span>
@@ -472,7 +472,7 @@ export default function StudioFrame({
                 aria-haspopup="menu"
                 aria-expanded={accountOpen}
                 className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-950 font-display text-sm font-700 text-white shadow-geex-sm transition-shadow hover:ring-2 hover:ring-brand-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:bg-brand-500/20 dark:text-brand-300"
-                title={me.alias ? `${me.alias} — ${t.myAccount}` : t.myAccount}
+                title={me.alias ? `${me.alias} — ${tr.myAccount}` : tr.myAccount}
               >
                 {account?.photo
                   /* A stored data URI, so next/image would only get in the way. */
@@ -484,7 +484,7 @@ export default function StudioFrame({
               {accountOpen && (
                 <div role="menu" className="absolute end-0 z-50 mt-2 w-56 overflow-hidden rounded-geex bg-[var(--geex-surface)] py-1 shadow-geex">
                   <p className="truncate px-3 py-2 text-xs text-slate-400 dark:text-slate-500">
-                    {account?.email || me.alias || t.signedIn}
+                    {account?.email || me.alias || tr.signedIn}
                   </p>
                   {/* THE ACCOUNT HUB HAS A LOCALE IN ITS ADDRESS and the studio
                       does not, so leaving this at /en/account sent an Arabic
@@ -497,7 +497,7 @@ export default function StudioFrame({
                     className="flex items-center gap-2.5 px-3 py-2 text-sm font-500 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"
                   >
                     <Icon name="person" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
-                    {t.goToAccount}
+                    {tr.goToAccount}
                   </Link>
                   <button
                     type="button"
@@ -506,7 +506,7 @@ export default function StudioFrame({
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-start text-sm font-500 text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
                   >
                     <Icon name="lock" className="h-[18px] w-[18px]" />
-                    {t.signOut}
+                    {tr.signOut}
                   </button>
                 </div>
               )}
@@ -525,7 +525,7 @@ export default function StudioFrame({
         enabled={Boolean(chat?.enabled)}
         slug={studio.slug}
         studioName={studio.name}
-        userName={chat?.userName || me.alias || t.you}
+        userName={chat?.userName || me.alias || tr.you}
         unlimited={chat?.unlimited !== false}
         allowed={chat?.allowed || 0}
         used={chat?.used || 0}

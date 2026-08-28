@@ -76,7 +76,7 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
   // The survey's own frame, in the reader's language. The QUESTIONS are not
   // here and never will be: they are authored in /super's questionnaire
   // builder, which makes them content rather than copy.
-  const t = dict.questionnaire;
+  const tr = dict.questionnaire;
   const [page, setPage] = useState(0);
   // The furthest page reached, so a page with nothing mandatory on it counts
   // once it has actually been shown rather than from the moment the survey
@@ -106,7 +106,7 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
   if (!current) {
     return (
       <div className="landing-page flex h-screen items-center justify-center px-6 text-center">
-        <p className="text-sm text-fg-muted">{t.empty}</p>
+        <p className="text-sm text-fg-muted">{tr.empty}</p>
       </div>
     );
   }
@@ -126,9 +126,9 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
         body: JSON.stringify({ ...answers, erps, packageKey: initialPackage }),
       });
       if (res.ok) { window.location.assign(`/${locale}/account`); return; }
-      setError(t.saveFailed);
+      setError(tr.saveFailed);
     } catch {
-      setError(t.genericError);
+      setError(tr.genericError);
     }
     setSaving(false);
   }
@@ -154,8 +154,8 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
           {/* On narrow screens the title drops below the logo row rather than
               fighting it for width. */}
           <div className="order-last col-span-2 text-center lg:order-none lg:col-span-1">
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-fg sm:text-3xl">{t.title}</h1>
-            <p className="mt-1 text-sm text-fg-muted">{t.lead}</p>
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-fg sm:text-3xl">{tr.title}</h1>
+            <p className="mt-1 text-sm text-fg-muted">{tr.lead}</p>
           </div>
 
           <div className="flex items-center justify-end gap-3 justify-self-end">
@@ -181,10 +181,10 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
               }))}
             />
             <div className="min-w-0 text-end">
-              <p className="max-w-[46vw] truncate text-sm font-500 text-fg sm:max-w-none">{email || t.signedIn}</p>
+              <p className="max-w-[46vw] truncate text-sm font-500 text-fg sm:max-w-none">{email || tr.signedIn}</p>
               <p className="mt-0.5 text-xs text-fg-muted">
                 {/* Everyone starts on Free unless they arrived from a paid plan. */}
-                {packageLabel(initialPackage, locale) || t.freePackage}
+                {packageLabel(initialPackage, locale) || tr.freePackage}
               </p>
             </div>
           </div>
@@ -205,7 +205,7 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
             <div className="card mt-4 min-h-0 flex-1 overflow-y-auto">
               <div className="space-y-5">
                 {current.questions.map((q) => (
-                  <Question key={q.id} question={q} answers={answers} set={set} labels={t} />
+                  <Question key={q.id} question={q} answers={answers} set={set} labels={tr} />
                 ))}
               </div>
             </div>
@@ -219,11 +219,11 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
             <div className="mt-4 flex h-11 shrink-0 items-center justify-center">
               {last && canAdvance ? (
                 <button type="button" onClick={submit} disabled={saving} className="btn-primary disabled:opacity-60">
-                  {saving ? t.saving : t.submit}
+                  {saving ? tr.saving : tr.submit}
                 </button>
               ) : (
                 <p className="text-xs text-fg-dim">
-                  {!canAdvance ? t.needsAnswers : t.answered}
+                  {!canAdvance ? tr.needsAnswers : tr.answered}
                 </p>
               )}
             </div>
@@ -236,7 +236,7 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
         <footer className="shrink-0 px-5 pb-6 sm:px-8">
           <p className="text-center text-xs text-fg-dim">Average completion time: {AVERAGE_MINUTES} mins~</p>
           <div className="mx-auto mt-2 flex w-full max-w-xl items-center gap-2">
-            <Arrow dir="prev" disabled={first} onClick={() => setPage((p) => Math.max(0, p - 1))} labels={t} />
+            <Arrow dir="prev" disabled={first} onClick={() => setPage((p) => Math.max(0, p - 1))} labels={tr} />
             <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-line-soft">
               <div className="h-full rounded-full bg-gradient-to-r from-iris to-violet transition-[width] duration-500"
                 style={{ width: `${pct}%` }} />
@@ -244,7 +244,7 @@ export default function QuestionnaireFlow({ locale, dict, initialPackage = "", e
             {/* Forward is earned: the page you are on has to be answered before
                 it opens. Back is always free — checking what you put earlier is
                 not a reason to be trapped. */}
-            <Arrow dir="next" disabled={last || !canAdvance} onClick={goNext} labels={t} />
+            <Arrow dir="next" disabled={last || !canAdvance} onClick={goNext} labels={tr} />
           </div>
           <p className="mt-1.5 text-center text-[11px] text-fg-dim">Page {page + 1} of {total}</p>
         </footer>

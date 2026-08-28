@@ -18,18 +18,18 @@ import { mainDict } from "@/shared/studio/main";
 const FEED_ICON = { ticket: "ticket", quotation: "report", project: "blueprint", task: "checkDouble" };
 
 export default function StudioMain({ slug }) {
-  const t = mainDict(useStudioLocale());
+  const tr = mainDict(useStudioLocale());
   // The feed names the KIND of record that moved. A fixed four, defined by the
   // code and not by any tenant, so they translate.
-  const FEED_WORD = { ticket: t.feedTicket, quotation: t.feedQuotation, project: t.feedProject, task: t.feedTask };
+  const FEED_WORD = { ticket: tr.feedTicket, quotation: tr.feedQuotation, project: tr.feedProject, task: tr.feedTask };
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/main`, { cache: "no-store" });
-    if (!res.ok) { setError(t.loadFailed); return; }
+    if (!res.ok) { setError(tr.loadFailed); return; }
     setData(await res.json());
-  }, [slug, t]);
+  }, [slug, tr]);
   useEffect(() => { load(); }, [load]);
   // The front door reflects every desk, so it watches the busiest of them.
   useLiveUpdates(slug, "sales", load);
@@ -37,7 +37,7 @@ export default function StudioMain({ slug }) {
   useLiveUpdates(slug, "projects", load);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">{t.loading}</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loading}</p>;
 
   const { studio, me, headlines, recent, sections, nav, executive } = data;
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
@@ -45,15 +45,15 @@ export default function StudioMain({ slug }) {
   // Only the figures this person is entitled to. `null` means the section was
   // never read, so the tile simply is not here.
   const tiles = [
-    { key: "tasks", label: t.needsYou, value: headlines.awaitingMe, tone: headlines.awaitingMe > 0 ? "text-brand-700 dark:text-brand-300" : "" },
-    { key: "sales-tickets", label: t.openTickets, value: headlines.openTickets },
-    { key: "technical-rfq", label: t.openRfqs, value: headlines.openRfqs },
-    { key: "technical-quotations", label: t.liveQuotations, value: headlines.liveQuotations },
-    { key: "projects-list", label: t.projectsRunning, value: headlines.liveProjects },
-    { key: "finance-cash", label: t.outstanding, value: headlines.outstanding === null ? null : money(headlines.outstanding) },
-    { key: "inventory-stock", label: t.trackedItems, value: headlines.lowStock },
-    { key: "hr-employees", label: t.headcount, value: headlines.headcount },
-  ].filter((t) => t.value !== null && t.value !== undefined);
+    { key: "tasks", label: tr.needsYou, value: headlines.awaitingMe, tone: headlines.awaitingMe > 0 ? "text-brand-700 dark:text-brand-300" : "" },
+    { key: "sales-tickets", label: tr.openTickets, value: headlines.openTickets },
+    { key: "technical-rfq", label: tr.openRfqs, value: headlines.openRfqs },
+    { key: "technical-quotations", label: tr.liveQuotations, value: headlines.liveQuotations },
+    { key: "projects-list", label: tr.projectsRunning, value: headlines.liveProjects },
+    { key: "finance-cash", label: tr.outstanding, value: headlines.outstanding === null ? null : money(headlines.outstanding) },
+    { key: "inventory-stock", label: tr.trackedItems, value: headlines.lowStock },
+    { key: "hr-employees", label: tr.headcount, value: headlines.headcount },
+  ].filter((tile) => tile.value !== null && tile.value !== undefined);
 
   // The top-level sections, as a way in. Sub-sections are reached from their
   // parent, so listing them here would just be the sidebar twice.
@@ -64,8 +64,8 @@ export default function StudioMain({ slug }) {
       <section className={panel}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className={h2}>{me.alias ? t.welcomeNamed(me.alias) : t.welcome}</h2>
-            <p className={sub}>{t.today(studio.name)}</p>
+            <h2 className={h2}>{me.alias ? tr.welcomeNamed(me.alias) : tr.welcome}</h2>
+            <p className={sub}>{tr.today(studio.name)}</p>
           </div>
           <span className="text-sm font-500 text-slate-400 dark:text-slate-500">
             {fmtDate(new Date())}
@@ -74,12 +74,12 @@ export default function StudioMain({ slug }) {
 
         {tiles.length === 0 ? (
           <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-            {t.nothingShared}
+            {tr.nothingShared}
           </p>
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {tiles.map((t) => (
-              <StatTile key={t.label} label={t.label} value={t.value} tone={t.tone} href={href(t.key)} />
+            {tiles.map((tile) => (
+              <StatTile key={tile.label} label={tile.label} value={tile.value} tone={tile.tone} href={href(tile.key)} />
             ))}
           </div>
         )}
@@ -87,9 +87,9 @@ export default function StudioMain({ slug }) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className={`${panel} lg:col-span-2`}>
-          <p className={microLabel}>{t.recentActivity}</p>
+          <p className={microLabel}>{tr.recentActivity}</p>
           {recent.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">{t.nothingMoved}</p>
+            <p className="mt-2 text-sm text-slate-400">{tr.nothingMoved}</p>
           ) : (
             <ul className="mt-2 divide-y divide-slate-100 dark:divide-white/5">
               {recent.map((r) => (
@@ -111,9 +111,9 @@ export default function StudioMain({ slug }) {
         </section>
 
         <section className={panel}>
-          <p className={microLabel}>{t.yourSections}</p>
+          <p className={microLabel}>{tr.yourSections}</p>
           {entrances.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">{t.noneYet}</p>
+            <p className="mt-2 text-sm text-slate-400">{tr.noneYet}</p>
           ) : (
             <div className="mt-2 space-y-1">
               {entrances.map((s) => (

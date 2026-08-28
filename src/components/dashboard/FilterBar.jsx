@@ -9,11 +9,11 @@ import { chromeDict } from "@/shared/studio/chrome";
 // dashboard's filter row reads as the same control family as the rest of the
 // studio, not a one-off.
 export default function FilterBar({ value = "month", onChange }) {
-  const t = chromeDict(useStudioLocale());
+  const tr = chromeDict(useStudioLocale());
   const PRESETS = [
-    { key: "month", label: t.thisMonth },
-    { key: "quarter", label: t.thisQuarter },
-    { key: "year", label: t.thisYear },
+    { key: "month", label: tr.thisMonth },
+    { key: "quarter", label: tr.thisQuarter },
+    { key: "year", label: tr.thisYear },
   ];
   const pick = useCallback((k) => onChange?.(k), [onChange]);
   return (

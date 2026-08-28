@@ -22,7 +22,7 @@ const NoData = ({ text }) => (
 );
 
 export default function MainDashboard({ slug, executive }) {
-  const t = mainDict(useStudioLocale());
+  const tr = mainDict(useStudioLocale());
   const visible = useWidgetVisible();
   const w = executive?.widgets || {};
   const activity = w["main.activity"] || [];
@@ -32,18 +32,18 @@ export default function MainDashboard({ slug, executive }) {
 
   return (
     <DashGrid>
-      <Widget title={t.departmentActivity} hint={t.departmentActivityHint} span={2}
-        locked={!visible("main.activity")} lockedWhat={t.departmentActivity}>
+      <Widget title={tr.departmentActivity} hint={tr.departmentActivityHint} span={2}
+        locked={!visible("main.activity")} lockedWhat={tr.departmentActivity}>
         {activity.length ? activity.map((d) => (
           <div key={d.section} className="mb-2">
             <a href={drillHref(slug, d.section)} className="text-sm text-muted-foreground">{d.section}</a>
             <Sparkline data={(d.series || []).map((s) => s.value)} />
           </div>
-        )) : <NoData text={t.noSectionsVisible} />}
+        )) : <NoData text={tr.noSectionsVisible} />}
       </Widget>
 
-      <Widget title={t.awaitingYou} hint={t.awaitingYouHint}
-        locked={!visible("main.awaiting-you")} lockedWhat={t.awaitingYou}>
+      <Widget title={tr.awaitingYou} hint={tr.awaitingYouHint}
+        locked={!visible("main.awaiting-you")} lockedWhat={tr.awaitingYou}>
         {queue.length ? (
           <>
             <ul>{queue.map((q) => (
@@ -55,48 +55,48 @@ export default function MainDashboard({ slug, executive }) {
             ))}</ul>
             <button type="button" className="mt-2 text-xs text-muted-foreground hover:underline"
               onClick={() => downloadCSV("awaiting-you.csv", toCSV(queue, [
-                { key: "label", header: t.item },
-                { key: "section", header: t.csvSection },
-                { key: "kind", header: t.csvKind },
-                { key: "at", header: t.date },
+                { key: "label", header: tr.item },
+                { key: "section", header: tr.csvSection },
+                { key: "kind", header: tr.csvKind },
+                { key: "at", header: tr.date },
               ]))}>
-              {t.exportCsv}
+              {tr.exportCsv}
             </button>
           </>
-        ) : <NoData text={t.nothingWaiting} />}
+        ) : <NoData text={tr.nothingWaiting} />}
       </Widget>
 
-      <Widget title={t.activityRibbon} hint={t.activityRibbonHint} span={2}
-        locked={!visible("main.event-ribbon")} lockedWhat={t.activityRibbon}>
+      <Widget title={tr.activityRibbon} hint={tr.activityRibbonHint} span={2}
+        locked={!visible("main.event-ribbon")} lockedWhat={tr.activityRibbon}>
         {ribbon.length ? (
           <ChartFrame labels={ribbon.map((d, i) => (i % 5 === 0 ? d.label : ""))} height={120}>
             <AreaChart height={120} labels={ribbon.map((d) => d.label)}
-              series={[{ name: t.events, data: ribbon.map((d) => d.value), color: "rgb(var(--chart-1))" }]} />
+              series={[{ name: tr.events, data: ribbon.map((d) => d.value), color: "rgb(var(--chart-1))" }]} />
           </ChartFrame>
-        ) : <NoData text={t.noRecentActivity} />}
+        ) : <NoData text={tr.noRecentActivity} />}
       </Widget>
 
-      <Widget title={t.headlineTrends} hint={t.headlineTrendsHint}
-        locked={!visible("main.headline-trend")} lockedWhat={t.headlineTrends}>
+      <Widget title={tr.headlineTrends} hint={tr.headlineTrendsHint}
+        locked={!visible("main.headline-trend")} lockedWhat={tr.headlineTrends}>
         {trends.length ? (
           <>
-            <ul>{trends.map((t) => (
-              <li key={t.key} className="flex justify-between text-sm">
-                <a href={drillHref(slug, t.key)}>{t.key}</a>
-                <span className="num">{t.current}{t.deltaPct === null ? "" : ` (${t.deltaPct >= 0 ? "+" : ""}${t.deltaPct}%)`}</span>
+            <ul>{trends.map((row) => (
+              <li key={row.key} className="flex justify-between text-sm">
+                <a href={drillHref(slug, row.key)}>{row.key}</a>
+                <span className="num">{row.current}{row.deltaPct === null ? "" : ` (${row.deltaPct >= 0 ? "+" : ""}${row.deltaPct}%)`}</span>
               </li>
             ))}</ul>
             <button type="button" className="mt-2 text-xs text-muted-foreground hover:underline"
               onClick={() => downloadCSV("headline-trends.csv", toCSV(trends, [
-                { key: "key", header: t.csvSection },
-                { key: "current", header: t.csvThisPeriod },
-                { key: "previous", header: t.csvPriorPeriod },
-                { key: "deltaPct", header: t.csvChangePct },
+                { key: "key", header: tr.csvSection },
+                { key: "current", header: tr.csvThisPeriod },
+                { key: "previous", header: tr.csvPriorPeriod },
+                { key: "deltaPct", header: tr.csvChangePct },
               ]))}>
-              {t.exportCsv}
+              {tr.exportCsv}
             </button>
           </>
-        ) : <NoData text={t.noTrendData} />}
+        ) : <NoData text={tr.noTrendData} />}
       </Widget>
     </DashGrid>
   );
