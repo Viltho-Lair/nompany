@@ -2,9 +2,16 @@ import { repo } from "@/platform/db/repo";
 import type { Scope } from "@/platform/db/repo";
 import type { Client, Contact, Site } from "./types";
 
-// Client-safe helpers for the Sales "Clients" collection (different concept
-// from the marketing "clients" collection — Sales clients are companies that
-// have raised a Sales ticket).
+// Helpers for the Sales "Clients" collection (different concept from the
+// marketing "clients" collection — Sales clients are companies that have
+// raised a Sales ticket).
+//
+// SERVER ONLY. This file once said "client-safe", meaning safe to import from a
+// browser component; it holds pure helpers (normaliseClientName, clientSlug)
+// that look it. It is not: resolveClientFor made it import repo → store → redis,
+// so a `"use client"` component importing clientSlug from here would pull the
+// Redis driver into the browser bundle. Import the pure helpers from here only
+// in server code; if a component ever needs them, split them out first.
 
 // Bound to the same collection sales.ts's own `Clients` repo addresses.
 // repo() is a stateless factory over readCol/addRow/updateRow, so a second
