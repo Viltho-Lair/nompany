@@ -34,7 +34,7 @@ export default function StudioDocs({ studio, locale = "en" }) {
         <div className="rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-10 text-center dark:border-white/10">
           <p className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.nothingHereYet}</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
-            The studio manual will live on this page.
+            {tr.manualWillLive}
           </p>
         </div>
       </main>
