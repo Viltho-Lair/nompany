@@ -24,6 +24,7 @@ type Strings = CommonStrings & {
   approved: string;
   approvedShare: string;
   approvedValuePortionWhole: string;
+  assignedOnSave: string;
   averageTurnaround: string;
   backTechnical: string;
   backTicket: string;
@@ -33,6 +34,17 @@ type Strings = CommonStrings & {
   client: string;
   close: string;
   closeBuilder: string;
+  colClient: string;
+  colCreatedAt: string;
+  colDescription: string;
+  colFrom: string;
+  colHandledBy: string;
+  colLatestComment: string;
+  colNumber: string;
+  colStatus: string;
+  colTitle: string;
+  colTotal: string;
+  colUrgency: string;
   columns: string;
   completeQuotationBeforeSending: string;
   convert: string;
@@ -64,6 +76,7 @@ type Strings = CommonStrings & {
   handled: string;
   handlerLeaderboard: string;
   industry: string;
+  internal: string;
   item: string;
   itemImage: string;
   label: string;
@@ -81,14 +94,20 @@ type Strings = CommonStrings & {
   nameIsnListCreates: string;
   newQuotation: string;
   newQuotationsLast30: string;
+  noDataYet: string;
+  noQuotationApprovedYet: string;
+  noQuotationValueYet: string;
   noQuotationsMatchThose: string;
   noQuotationsYet: string;
   noQuotationsYet2: string;
+  noQuotationsYet3: string;
   noRfqsComeOver: string;
+  noRfqsYet: string;
   noSequencesYetAdd: string;
   nothingPricedQuotationYet: string;
   number: string;
   numberedAutomaticallySave: string;
+  ofPipelineValue: string;
   onlyApprovedQuotationCan: string;
   open: string;
   openRfqs: string;
@@ -188,6 +207,7 @@ const en: Strings = {
   approved: "Approved",
   approvedShare: "Approved share",
   approvedValuePortionWhole: "Approved value as a portion of the whole pipeline",
+  assignedOnSave: "Assigned on save",
   averageTurnaround: "Average turnaround",
   backTechnical: "Back to Technical",
   backTicket: "Back to ticket",
@@ -197,6 +217,17 @@ const en: Strings = {
   client: "Client",
   close: "Close",
   closeBuilder: "Close the builder",
+  colClient: "Client",
+  colCreatedAt: "Created",
+  colDescription: "Description",
+  colFrom: "From",
+  colHandledBy: "Handled by",
+  colLatestComment: "Latest comment",
+  colNumber: "Number",
+  colStatus: "Status",
+  colTitle: "Title",
+  colTotal: "Total",
+  colUrgency: "Urgency",
   columns: "Columns",
   completeQuotationBeforeSending: "Complete the quotation before sending it for approval.",
   convert: "Convert",
@@ -228,6 +259,7 @@ const en: Strings = {
   handled: "Handled by",
   handlerLeaderboard: "Handler leaderboard",
   industry: "Industry",
+  internal: "Internal",
   item: "Item",
   itemImage: "Item image",
   label: "Label",
@@ -245,14 +277,20 @@ const en: Strings = {
   nameIsnListCreates: "A name that isn't on the list creates a new client.",
   newQuotation: "New quotation",
   newQuotationsLast30: "New quotations, last 30 days",
+  noDataYet: "No data yet.",
+  noQuotationApprovedYet: "No quotation has been approved yet.",
+  noQuotationValueYet: "No quotation value yet.",
   noQuotationsMatchThose: "No quotations match those filters.",
   noQuotationsYet: "No quotations yet",
   noQuotationsYet2: "No quotations yet.",
+  noQuotationsYet3: "No quotations yet.",
   noRfqsComeOver: "No RFQs have come over from Sales yet.",
+  noRfqsYet: "No RFQs yet.",
   noSequencesYetAdd: "No sequences yet — add one below.",
   nothingPricedQuotationYet: "Nothing has been priced on this quotation yet.",
   number: "Number",
   numberedAutomaticallySave: "Numbered automatically on save",
+  ofPipelineValue: "of pipeline value",
   onlyApprovedQuotationCan: "Only an approved quotation can be locked.",
   open: "Open",
   openRfqs: "Open RFQs",
@@ -352,6 +390,7 @@ const ar: Strings = {
   approved: "معتمد",
   approvedShare: "حصة المعتمد",
   approvedValuePortionWhole: "القيمة المعتمدة كنسبة من إجمالي المسار",
+  assignedOnSave: "يُسنَد عند الحفظ",
   averageTurnaround: "متوسط مدة الإنجاز",
   backTechnical: "العودة إلى القسم الفني",
   backTicket: "العودة إلى التذكرة",
@@ -361,6 +400,17 @@ const ar: Strings = {
   client: "العميل",
   close: "إغلاق",
   closeBuilder: "إغلاق المُنشئ",
+  colClient: "العميل",
+  colCreatedAt: "تاريخ الإنشاء",
+  colDescription: "الوصف",
+  colFrom: "من",
+  colHandledBy: "يتولاه",
+  colLatestComment: "آخر تعليق",
+  colNumber: "الرقم",
+  colStatus: "الحالة",
+  colTitle: "العنوان",
+  colTotal: "الإجمالي",
+  colUrgency: "الاستعجال",
   columns: "الأعمدة",
   completeQuotationBeforeSending: "أكمل عرض السعر قبل إرساله للاعتماد.",
   convert: "تحويل",
@@ -392,6 +442,7 @@ const ar: Strings = {
   handled: "يتولاه",
   handlerLeaderboard: "ترتيب المتولّين",
   industry: "النشاط",
+  internal: "داخلي",
   item: "الصنف",
   itemImage: "صورة الصنف",
   label: "التسمية",
@@ -409,14 +460,20 @@ const ar: Strings = {
   nameIsnListCreates: "الاسم غير المدرج في القائمة يُنشئ عميلًا جديدًا.",
   newQuotation: "عرض سعر جديد",
   newQuotationsLast30: "عروض أسعار جديدة، آخر 30 يومًا",
+  noDataYet: "لا توجد بيانات بعد.",
+  noQuotationApprovedYet: "لم يُعتمد أي عرض سعر بعد.",
+  noQuotationValueYet: "لا توجد قيمة عروض أسعار بعد.",
   noQuotationsMatchThose: "لا توجد عروض أسعار تطابق عوامل التصفية هذه.",
   noQuotationsYet: "لا توجد عروض أسعار بعد",
   noQuotationsYet2: "لا توجد عروض أسعار بعد.",
+  noQuotationsYet3: "لا توجد عروض أسعار بعد.",
   noRfqsComeOver: "لم تصل أي طلبات عروض أسعار من المبيعات بعد.",
+  noRfqsYet: "لا توجد طلبات عروض أسعار بعد.",
   noSequencesYetAdd: "لا توجد تسلسلات بعد — أضِف واحدًا أدناه.",
   nothingPricedQuotationYet: "لم يُسعَّر شيء في عرض السعر هذا بعد.",
   number: "الرقم",
   numberedAutomaticallySave: "يُرقَّم تلقائيًا عند الحفظ",
+  ofPipelineValue: "من قيمة المسار",
   onlyApprovedQuotationCan: "عرض السعر المعتمد وحده هو ما يمكن قفله.",
   open: "فتح",
   openRfqs: "طلبات عروض أسعار مفتوحة",

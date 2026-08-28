@@ -14,13 +14,14 @@ import { Field } from "@/components/fields/Field";
 // This is where that is answered, and the answer resets every time a new
 // revision is issued — because having read rev 2 says nothing about rev 3.
 
-const MESSAGES = {
-  "not-issued": "Only an issued revision can be shared outside the studio.",
-  "nothing-to-acknowledge": "There's nothing waiting for your acknowledgement.",
-  forbidden: "You don't have permission to do that.",
-  "read-only": "You don't have permission to do that.",
-};
-const say = (e) => MESSAGES[e] || "That didn't work. Try again.";
+// A FUNCTION OF THE DICTIONARY — see QualityWorkflow.
+const messagesFor = (tr) => ({
+  "not-issued": tr.notIssuedShare,
+  "nothing-to-acknowledge": tr.nothingToAcknowledge,
+  forbidden: tr.forbidden,
+  "read-only": tr.forbidden,
+});
+const say = (e, tr) => messagesFor(tr)[e] || tr.sayFallback;
 
 export default function QualityDistribution({ slug, documentId, document }) {
   const tr = qualityDict(useStudioLocale());
@@ -54,7 +55,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
         body: JSON.stringify({ id: documentId, ...payload }),
       });
       const out = await res.json().catch(() => ({}));
-      if (!res.ok) { setNotice(say(out.error)); return null; }
+      if (!res.ok) { setNotice(say(out.error, tr)); return null; }
       await load();
       return out;
     } finally { setBusy(false); }

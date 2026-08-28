@@ -30,18 +30,24 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 
 // Columns the quotations table can show. Actions is always drawn, so it is not
 // on the list.
-const QUOTATION_COLUMNS = [
-  { key: "number", label: "Number" },
-  { key: "urgency", label: "Urgency" },
-  { key: "title", label: "Title" },
-  { key: "clientName", label: "Client" },
-  { key: "description", label: "Description" },
-  { key: "handledBy", label: "Handled by" },
-  { key: "lead", label: "From" },
-  { key: "latestComment", label: "Latest comment" },
-  { key: "total", label: "Total" },
-  { key: "createdAt", label: "Created" },
-  { key: "status", label: "Status" },
+// THE KEYS ARE THE CONTRACT, THE LABELS ARE COPY — the saved column preference
+// stores keys, so which column is which must not depend on the reader.
+const quotationColumns = (tr) => [
+  { key: "number", label: tr.colNumber },
+  { key: "urgency", label: tr.colUrgency },
+  { key: "title", label: tr.colTitle },
+  { key: "clientName", label: tr.colClient },
+  { key: "description", label: tr.colDescription },
+  { key: "handledBy", label: tr.colHandledBy },
+  { key: "lead", label: tr.colFrom },
+  { key: "latestComment", label: tr.colLatestComment },
+  { key: "total", label: tr.colTotal },
+  { key: "createdAt", label: tr.colCreatedAt },
+  { key: "status", label: tr.colStatus },
+];
+const QUOTATION_COLUMN_KEYS = [
+  "number", "urgency", "title", "clientName", "description",
+  "handledBy", "lead", "latestComment", "total", "createdAt", "status",
 ];
 const DEFAULT_QUOTATION_COLUMNS = ["number", "title", "clientName", "handledBy", "total", "status"];
 const EMPTY_FILTERS = { handledBy: "", client: "", status: "", urgency: "", createdFrom: "", createdTo: "" };
@@ -500,7 +506,9 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
   const filtersKey = prefKey("technical", slug, "filters");
   useEffect(() => {
     const saved = loadPref(colsKey, null);
-    setColumns(Array.isArray(saved) && saved.length ? saved.filter((k) => QUOTATION_COLUMNS.some((c) => c.key === k)) : DEFAULT_QUOTATION_COLUMNS);
+    // Filtered against the KEY list, not the labelled one: the preference holds
+    // keys, so this must not depend on the reader's language.
+    setColumns(Array.isArray(saved) && saved.length ? saved.filter((k) => QUOTATION_COLUMN_KEYS.includes(k)) : DEFAULT_QUOTATION_COLUMNS);
     setFilters({ ...EMPTY_FILTERS, ...(loadPref(filtersKey, null) || {}) });
   }, [colsKey, filtersKey]);
 
@@ -569,7 +577,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
       )}
 
       {showColumns && (
-        <ColumnPicker title={tr.quotationColumns} columns={QUOTATION_COLUMNS} selected={columns}
+        <ColumnPicker title={tr.quotationColumns} columns={quotationColumns(tr)} selected={columns}
           onToggle={toggleCol} onReset={resetCols} onClose={() => setShowColumns(false)} />
       )}
 
@@ -637,7 +645,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
                       {col("clientName") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{q.clientName || "—"}</td>}
                       {col("description") && <td className="max-w-xs py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300"><span className="block truncate" title={q.description}>{q.description || "—"}</span></td>}
                       {col("handledBy") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{handlerName(q.handledBy)}</td>}
-                      {col("lead") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{q.leadLabel || "Internal"}</td>}
+                      {col("lead") && <td className="py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">{q.leadLabel || tr.internal}</td>}
                       {col("latestComment") && (
                         <td className="max-w-xs py-3 pe-3 ps-2 text-slate-600 dark:text-slate-300">
                           {comment
@@ -738,7 +746,7 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
           <label className={label}>{tr.quotationNumber}</label>
           {/* Issued by the studio's numbering, not typed: a number somebody
               chose by hand is a number somebody can choose twice. */}
-          <input className={inputRO} value={nextNumber || "Assigned on save"} readOnly />
+          <input className={inputRO} value={nextNumber || tr.assignedOnSave} readOnly />
         </div>
         <div><label className={label}>{tr.client}</label><input className={inputRO} value={rfq.clientName || "—"} readOnly /></div>
         <div><label className={label}>{tr.title}</label><input className={inputRO} value={rfq.title || "—"} readOnly /></div>

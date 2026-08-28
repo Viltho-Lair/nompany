@@ -263,8 +263,9 @@ export function WidgetTitle({ children, hint }) {
 
 // Horizontal funnel: bars scaled to the largest value, drawn top → bottom.
 export function FunnelChart({ data }) {
+  const tr = chromeDict(useStudioLocale());
   const max = Math.max(1, ...data.map((d) => d.value));
-  if (data.every((d) => d.value === 0)) return <p className="py-6 text-center text-sm text-slate-400">No data yet.</p>;
+  if (data.every((d) => d.value === 0)) return <p className="py-6 text-center text-sm text-slate-400">{tr.noDataYet}</p>;
   return (
     <div className="space-y-2">
       {data.map((d, i) => (
@@ -284,8 +285,9 @@ export function FunnelChart({ data }) {
 // Labelled horizontal bars for a categorical breakdown. An item may carry its
 // own `color` (a Tailwind bg-* class); the default is brand.
 export function BarBreakdown({ data }) {
+  const tr = chromeDict(useStudioLocale());
   const max = Math.max(1, ...data.map((d) => d.value));
-  if (data.every((d) => d.value === 0)) return <p className="py-6 text-center text-sm text-slate-400">No data yet.</p>;
+  if (data.every((d) => d.value === 0)) return <p className="py-6 text-center text-sm text-slate-400">{tr.noDataYet}</p>;
   return (
     <div className="space-y-2.5">
       {data.map((d) => (
@@ -303,7 +305,8 @@ export function BarBreakdown({ data }) {
 
 // Ranked list — rows are [{ id, name, total, … }].
 export function Leaderboard({ rows, valueKey = "total", subtitle }) {
-  if (!rows || rows.length === 0) return <p className="py-6 text-center text-sm text-slate-400">No data yet.</p>;
+  const tr = chromeDict(useStudioLocale());
+  if (!rows || rows.length === 0) return <p className="py-6 text-center text-sm text-slate-400">{tr.noDataYet}</p>;
   const max = Math.max(1, ...rows.map((r) => Number(r[valueKey]) || 0));
   return (
     <ul className="space-y-2">
@@ -329,8 +332,10 @@ export function Leaderboard({ rows, valueKey = "total", subtitle }) {
 // Counts over a run of days. Drawn as inline SVG rather than with a chart
 // library: two shapes do not justify the download, and `currentColor` lets the
 // caller theme it with a text class like everything else in the studio.
-export function TimelineChart({ data, height = 160, ariaLabel = "Timeline" }) {
-  if (!data || data.length === 0) return <p className="py-6 text-center text-sm text-slate-400">No data yet.</p>;
+export function TimelineChart({ data, height = 160, ariaLabel }) {
+  const tr = chromeDict(useStudioLocale());
+  ariaLabel = ariaLabel || tr.timeline;
+  if (!data || data.length === 0) return <p className="py-6 text-center text-sm text-slate-400">{tr.noDataYet}</p>;
   const width = 500, padL = 32, padR = 12, padT = 12, padB = 28;
   const w = width - padL - padR, h = height - padT - padB;
   const maxV = Math.max(1, ...data.map((d) => d.value));
@@ -362,7 +367,10 @@ export function TimelineChart({ data, height = 160, ariaLabel = "Timeline" }) {
 
 // One dot per finished record: x is where it sits in creation order, y is how
 // many days it took. `points` = [{ x, y, label }].
-export function ScatterChart({ points, height = 200, ariaLabel = "Scatter", emptyLabel = "Nothing finished yet." }) {
+export function ScatterChart({ points, height = 200, ariaLabel, emptyLabel }) {
+  const tr = chromeDict(useStudioLocale());
+  ariaLabel = ariaLabel || tr.scatter;
+  emptyLabel = emptyLabel || tr.nothingFinishedYet;
   if (!points || points.length === 0) return <p className="py-6 text-center text-sm text-slate-400">{emptyLabel}</p>;
   const width = 500, padL = 32, padR = 12, padT = 12, padB = 28;
   const w = width - padL - padR, h = height - padT - padB;
@@ -378,8 +386,8 @@ export function ScatterChart({ points, height = 200, ariaLabel = "Scatter", empt
       {[0, maxY].map((v) => (
         <text key={v} x={padL - 6} y={v === 0 ? padT + h : padT + 4} textAnchor="end" className="fill-current text-[9px] opacity-50">{v}d</text>
       ))}
-      <text x={padL} y={height - 8} textAnchor="start" className="fill-current text-[9px] opacity-50">Oldest</text>
-      <text x={width - padR} y={height - 8} textAnchor="end" className="fill-current text-[9px] opacity-50">Newest</text>
+      <text x={padL} y={height - 8} textAnchor="start" className="fill-current text-[9px] opacity-50">{tr.oldest}</text>
+      <text x={width - padR} y={height - 8} textAnchor="end" className="fill-current text-[9px] opacity-50">{tr.newest}</text>
       {points.map((p, i) => (
         <g key={i}>
           <title>{p.label ? `${p.label}: ${p.y} days` : `${p.y} days`}</title>

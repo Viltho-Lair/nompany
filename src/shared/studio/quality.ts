@@ -13,6 +13,7 @@ type Strings = CommonStrings & {
   alignLeft: string;
   alignRight: string;
   alignment: string;
+  alreadyOpen: string;
   amber: string;
   apply: string;
   approved: string;
@@ -28,12 +29,14 @@ type Strings = CommonStrings & {
   borderWidthPixels: string;
   borders: string;
   bottom: string;
+  bottom2: string;
   bulletList: string;
   cancel: string;
   cancel2: string;
   cellFormat: string;
   cells: string;
   centre: string;
+  centre2: string;
   changeImage: string;
   chooseImage: string;
   codeBlock: string;
@@ -60,9 +63,11 @@ type Strings = CommonStrings & {
   externalLinks: string;
   fontSize: string;
   footer: string;
+  forbidden: string;
   green: string;
   grey: string;
   header: string;
+  headerAndFooter: string;
   heading1: string;
   heading2: string;
   heading3: string;
@@ -79,24 +84,29 @@ type Strings = CommonStrings & {
   leftRight: string;
   linkLiveEveryOpen: string;
   loading: string;
+  loadingDocument: string;
   middle: string;
   nameRoleDateRecorded: string;
   neverEdited: string;
   nextReview: string;
   noDocumentsYet: string;
   noPermissionDoThat: string;
+  noRevision: string;
   noRevisionOpen: string;
   noRevisionToMove: string;
   nobodyYet: string;
   none: string;
   noneLinkBoundOne: string;
   notAccessTheseDocuments: string;
+  notIssuedShare: string;
   noteOptional: string;
   nothingRecordedYet: string;
+  nothingToAcknowledge: string;
   nothingWaitingAcknowledgement: string;
   nothingWrittenHereYet: string;
   nothingYet: string;
   numberedList: string;
+  obsolete: string;
   onlyIssuedRevisionShared: string;
   opened: string;
   pageBreak: string;
@@ -115,13 +125,19 @@ type Strings = CommonStrings & {
   revisions: string;
   revoked: string;
   right: string;
+  right2: string;
   rightLeft: string;
   rose: string;
   rows: string;
   samePersonCantReview: string;
+  sameSigner: string;
+  sayFallback: string;
   shareOutsideStudio: string;
   signedSuffix: string;
+  signedSuffix2: string;
+  signerNotHere: string;
   someone: string;
+  someone2: string;
   startOneWillGet: string;
   startPage: string;
   startingText: string;
@@ -129,16 +145,24 @@ type Strings = CommonStrings & {
   strikethrough: string;
   tableOptions: string;
   textColour: string;
+  thisStudio: string;
   top: string;
   uncontrolledCopy: string;
   underline: string;
   undo: string;
+  untitledDocument: string;
   uploading: string;
+  wbDenied: string;
+  wbEmpty: string;
+  wbNotIssued: string;
+  wbSameSigner: string;
+  wbWrongState: string;
   whatNeedsChanging: string;
   whereStands: string;
   whoWorkDocument: string;
   whoeverHoldsRight: string;
   working: string;
+  wrongState: string;
 };
 
 const en: Strings = {
@@ -148,6 +172,7 @@ const en: Strings = {
   alignLeft: "Align left",
   alignRight: "Align right",
   alignment: "Alignment",
+  alreadyOpen: "A revision is already open on this document.",
   amber: "Amber",
   apply: "Apply",
   approved: "Approved",
@@ -163,12 +188,14 @@ const en: Strings = {
   borderWidthPixels: "Border width in pixels",
   borders: "Borders",
   bottom: "Bottom",
+  bottom2: "Bottom",
   bulletList: "Bullet list",
   cancel: "Cancel",
   cancel2: "Cancel",
   cellFormat: "Cell format",
   cells: "Cells",
   centre: "Centre",
+  centre2: "Centre",
   changeImage: "Change image",
   chooseImage: "Choose image",
   codeBlock: "Code block",
@@ -195,9 +222,11 @@ const en: Strings = {
   externalLinks: "External links",
   fontSize: "Font size",
   footer: "Footer",
+  forbidden: "You don't have permission to do that.",
   green: "Green",
   grey: "Grey",
   header: "Header",
+  headerAndFooter: "Header & footer",
   heading1: "Heading 1",
   heading2: "Heading 2",
   heading3: "Heading 3",
@@ -214,24 +243,29 @@ const en: Strings = {
   leftRight: "left to right",
   linkLiveEveryOpen: "The link is live. Every open is recorded.",
   loading: "Loading…",
+  loadingDocument: "Loading document…",
   middle: "Middle",
   nameRoleDateRecorded: "Your name, role and the date are recorded either way. The image is decoration on top of that.",
   neverEdited: "Never edited",
   nextReview: "Next review",
   noDocumentsYet: "No documents yet",
   noPermissionDoThat: "You don't have permission to do that.",
+  noRevision: "There is no revision to move.",
   noRevisionOpen: "No revision open.",
   noRevisionToMove: "There is no revision to move.",
   nobodyYet: "Nobody yet",
   none: "None",
   noneLinkBoundOne: "None. A link is bound to one revision and always expires.",
   notAccessTheseDocuments: "You do not have access to these documents.",
+  notIssuedShare: "Only an issued revision can be shared outside the studio.",
   noteOptional: "Note (optional)",
   nothingRecordedYet: "Nothing recorded yet.",
+  nothingToAcknowledge: "There's nothing waiting for your acknowledgement.",
   nothingWaitingAcknowledgement: "There's nothing waiting for your acknowledgement.",
   nothingWrittenHereYet: "Nothing has been written here yet.",
   nothingYet: "Nothing yet.",
   numberedList: "Numbered list",
+  obsolete: "This document has been withdrawn.",
   onlyIssuedRevisionShared: "Only an issued revision can be shared outside the studio.",
   opened: "Opened",
   pageBreak: "Page break",
@@ -250,13 +284,19 @@ const en: Strings = {
   revisions: "Revisions",
   revoked: "Revoked",
   right: "Right",
+  right2: "Right",
   rightLeft: "right to left",
   rose: "Rose",
   rows: "Rows",
   samePersonCantReview: "The same person can't review and approve one revision — that is what the two signatures are for.",
+  sameSigner: "The same person can't review and approve one revision — that is what the two signatures are for.",
+  sayFallback: "That didn't work. Try again.",
   shareOutsideStudio: "Share outside the studio",
   signedSuffix: "· signed",
+  signedSuffix2: " · signed",
+  signerNotHere: "That person isn't in this studio.",
   someone: "Someone",
+  someone2: "Someone",
   startOneWillGet: "Start one and it will get its number automatically.",
   startPage: "Start from page",
   startingText: "Starting text",
@@ -264,16 +304,24 @@ const en: Strings = {
   strikethrough: "Strikethrough",
   tableOptions: "Table options",
   textColour: "Text colour",
+  thisStudio: "this studio",
   top: "Top",
   uncontrolledCopy: "UNCONTROLLED COPY",
   underline: "Underline",
   undo: "Undo",
+  untitledDocument: "Untitled document",
   uploading: "Uploading…",
+  wbDenied: "You do not have the right for that.",
+  wbEmpty: "There is nothing written yet to send for review.",
+  wbNotIssued: "Nothing has been issued yet, so there is no next revision to draft.",
+  wbSameSigner: "The same person cannot both review and approve a revision.",
+  wbWrongState: "Somebody moved this while you were looking at it. Reload and try again.",
   whatNeedsChanging: "What needs changing?",
   whereStands: "Where it stands",
   whoWorkDocument: "Who has to work to this document?",
   whoeverHoldsRight: "whoever holds the right",
   working: "Working…",
+  wrongState: "This revision has moved on since the screen was drawn. Reload to see where it is.",
 };
 
 const ar: Strings = {
@@ -283,6 +331,7 @@ const ar: Strings = {
   alignLeft: "محاذاة لليسار",
   alignRight: "محاذاة لليمين",
   alignment: "المحاذاة",
+  alreadyOpen: "توجد مراجعة مفتوحة بالفعل على هذه الوثيقة.",
   amber: "كهرماني",
   apply: "تطبيق",
   approved: "معتمدة",
@@ -298,12 +347,14 @@ const ar: Strings = {
   borderWidthPixels: "عرض الحد بالبكسل",
   borders: "الحدود",
   bottom: "أسفل",
+  bottom2: "أسفل",
   bulletList: "قائمة نقطية",
   cancel: "إلغاء",
   cancel2: "إلغاء",
   cellFormat: "تنسيق الخلية",
   cells: "الخلايا",
   centre: "توسيط",
+  centre2: "توسيط",
   changeImage: "تغيير الصورة",
   chooseImage: "اختر صورة",
   codeBlock: "كتلة برمجية",
@@ -330,9 +381,11 @@ const ar: Strings = {
   externalLinks: "روابط خارجية",
   fontSize: "حجم الخط",
   footer: "التذييل",
+  forbidden: "لا تملك صلاحية فعل ذلك.",
   green: "أخضر",
   grey: "رمادي",
   header: "الترويسة",
+  headerAndFooter: "الترويسة والتذييل",
   heading1: "عنوان 1",
   heading2: "عنوان 2",
   heading3: "عنوان 3",
@@ -349,24 +402,29 @@ const ar: Strings = {
   leftRight: "من اليسار إلى اليمين",
   linkLiveEveryOpen: "الرابط فعّال. ويُسجَّل كل فتح له.",
   loading: "جارٍ التحميل…",
+  loadingDocument: "جارٍ تحميل الوثيقة…",
   middle: "وسط",
   nameRoleDateRecorded: "يُسجَّل اسمك ودورك والتاريخ في الحالتين. والصورة زينة فوق ذلك.",
   neverEdited: "لم تُحرَّر قط",
   nextReview: "المراجعة التالية",
   noDocumentsYet: "لا توجد وثائق بعد",
   noPermissionDoThat: "لا تملك صلاحية فعل ذلك.",
+  noRevision: "لا توجد مراجعة لتحريكها.",
   noRevisionOpen: "لا توجد مراجعة مفتوحة.",
   noRevisionToMove: "لا توجد مراجعة لتحريكها.",
   nobodyYet: "لا أحد بعد",
   none: "لا شيء",
   noneLinkBoundOne: "لا شيء. يرتبط الرابط بمراجعة واحدة وينتهي دائمًا.",
   notAccessTheseDocuments: "لا تملك صلاحية الوصول إلى هذه الوثائق.",
+  notIssuedShare: "لا يمكن مشاركة مراجعة خارج الاستوديو إلا إذا كانت صادرة.",
   noteOptional: "ملاحظة (اختيارية)",
   nothingRecordedYet: "لم يُسجَّل شيء بعد.",
+  nothingToAcknowledge: "لا شيء ينتظر إقرارك.",
   nothingWaitingAcknowledgement: "لا شيء ينتظر إقرارك.",
   nothingWrittenHereYet: "لم يُكتب شيء هنا بعد.",
   nothingYet: "لا شيء بعد.",
   numberedList: "قائمة مرقّمة",
+  obsolete: "سُحبت هذه الوثيقة.",
   onlyIssuedRevisionShared: "لا يمكن مشاركة مراجعة خارج الاستوديو إلا إذا كانت صادرة.",
   opened: "فُتحت",
   pageBreak: "فاصل صفحة",
@@ -385,13 +443,19 @@ const ar: Strings = {
   revisions: "المراجعات",
   revoked: "مُلغى",
   right: "يمين",
+  right2: "يمين",
   rightLeft: "من اليمين إلى اليسار",
   rose: "وردي",
   rows: "الصفوف",
   samePersonCantReview: "لا يمكن للشخص نفسه مراجعة واعتماد مراجعة واحدة — فذلك هو سبب وجود توقيعين.",
+  sameSigner: "لا يمكن للشخص نفسه مراجعة واعتماد مراجعة واحدة — فذلك هو سبب وجود توقيعين.",
+  sayFallback: "لم تنجح العملية. حاول مرة أخرى.",
   shareOutsideStudio: "المشاركة خارج الاستوديو",
   signedSuffix: "· موقّعة",
+  signedSuffix2: " · موقّعة",
+  signerNotHere: "هذا الشخص ليس في هذا الاستوديو.",
   someone: "أحدهم",
+  someone2: "أحدهم",
   startOneWillGet: "ابدأ واحدة وستأخذ رقمها تلقائيًا.",
   startPage: "البدء من صفحة",
   startingText: "النص الافتتاحي",
@@ -399,16 +463,24 @@ const ar: Strings = {
   strikethrough: "يتوسطه خط",
   tableOptions: "خيارات الجدول",
   textColour: "لون النص",
+  thisStudio: "هذا الاستوديو",
   top: "أعلى",
   uncontrolledCopy: "نسخة غير مضبوطة",
   underline: "تسطير",
   undo: "تراجع",
+  untitledDocument: "وثيقة بلا عنوان",
   uploading: "جارٍ الرفع…",
+  wbDenied: "لا تملك الصلاحية لذلك.",
+  wbEmpty: "لا يوجد شيء مكتوب بعد لإرساله للمراجعة.",
+  wbNotIssued: "لم يصدر شيء بعد، فلا توجد مراجعة تالية لصياغتها.",
+  wbSameSigner: "لا يمكن للشخص نفسه أن يراجع ويعتمد مراجعة واحدة.",
+  wbWrongState: "حرّكها أحدهم بينما كنت تنظر إليها. أعد التحميل وحاول مجددًا.",
   whatNeedsChanging: "ما الذي يحتاج إلى تغيير؟",
   whereStands: "وضعها الحالي",
   whoWorkDocument: "من عليه العمل وفق هذه الوثيقة؟",
   whoeverHoldsRight: "من يحمل الصلاحية",
   working: "جارٍ العمل…",
+  wrongState: "تقدّمت هذه المراجعة منذ رسم الشاشة. أعد التحميل لترى وضعها.",
 };
 
 const quality = { en, ar };

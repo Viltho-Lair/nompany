@@ -29,17 +29,19 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 const NEEDS_NOTE = new Set(["review", "approve", "reject"]);
 const SIGNS = new Set(["review", "approve"]);
 
-const MESSAGES = {
-  "wrong-state": "This revision has moved on since the screen was drawn. Reload to see where it is.",
-  "same-signer": "The same person can't review and approve one revision — that is what the two signatures are for.",
-  "already-open": "A revision is already open on this document.",
-  obsolete: "This document has been withdrawn.",
-  "no-revision": "There is no revision to move.",
-  signer: "That person isn't in this studio.",
-  forbidden: "You don't have permission to do that.",
-  "read-only": "You don't have permission to do that.",
-};
-const say = (e) => MESSAGES[e] || "That didn't work. Try again.";
+// A FUNCTION OF THE DICTIONARY. The map is declared beside the component, so
+// it cannot read a hook; the component passes its own words in.
+const messagesFor = (tr) => ({
+  "wrong-state": tr.wrongState,
+  "same-signer": tr.sameSigner,
+  "already-open": tr.alreadyOpen,
+  obsolete: tr.obsolete,
+  "no-revision": tr.noRevision,
+  signer: tr.signerNotHere,
+  forbidden: tr.forbidden,
+  "read-only": tr.forbidden,
+});
+const say = (e, tr) => messagesFor(tr)[e] || tr.sayFallback;
 
 export default function QualityWorkflow({ slug, documentId, document, onChanged }) {
   const tr = qualityDict(useStudioLocale());
@@ -78,7 +80,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
         body: JSON.stringify({ id: documentId, ...payload }),
       });
       const out = await res.json().catch(() => ({}));
-      if (!res.ok) { setNotice(say(out.error)); return null; }
+      if (!res.ok) { setNotice(say(out.error, tr)); return null; }
       await load();
       onChanged?.();
       return out;
@@ -149,7 +151,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
                     {slot === "review" ? tr.reviewed : tr.approved} by {current[slot].byAlias}
                   </span>
                   {" · "}{String(current[slot].at).slice(0, 10)}
-                  {current[slot].signatureUrl && " · signed"}
+                  {current[slot].signatureUrl && tr.signedSuffix2}
                   {current[slot].note ? ` — ${current[slot].note}` : ""}
                 </p>
               ))}
@@ -191,7 +193,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
       <div>
         <p className={microLabel}>{tr.reviewerApprover}</p>
         <div className="mt-2 space-y-2 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10">
-          {[["reviewerCollaboratorId", "Reviewer"], ["approverCollaboratorId", "Approver"]].map(([key, name]) => (
+          {[["reviewerCollaboratorId", tr.reviewer], ["approverCollaboratorId", tr.approver]].map(([key, name]) => (
             <Field key={key} label={name} as="select" required value={signers[key]}
               onChange={(v) => setSigners((s) => ({ ...s, [key]: v }))}
               options={[{ value: "", label: tr.nobodyYet }, ...(data?.people || []).map((x) => ({ value: x.id, label: x.alias }))]} />
@@ -225,7 +227,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
             <li key={t.id} className="flex gap-2 text-slate-500 dark:text-slate-400">
               <span className="shrink-0 font-mono text-slate-400">{String(t.at).slice(0, 10)}</span>
               <span className="min-w-0">
-                <span className="font-600 text-slate-700 dark:text-slate-200">{t.byAlias || "Someone"}</span>{" "}
+                <span className="font-600 text-slate-700 dark:text-slate-200">{t.byAlias || tr.someone2}</span>{" "}
                 {t.action.replace("revision.", "").replace(/[.-]/g, " ")}
                 {t.detail ? ` — ${t.detail}` : ""}
               </span>

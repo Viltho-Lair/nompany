@@ -54,7 +54,7 @@ export default function StudioTechnicalLive({ studio }) {
     if (key === "createdAt" || key === "completedAt") return String(q[key] || "").slice(0, 10) || "—";
     if (key === "total") return money(q.total);
     if (key === "revision") return Number(q.revision) > 1 ? `Rev ${q.revision}` : "—";
-    if (key === "leadLabel") return q.leadLabel || "Internal";
+    if (key === "leadLabel") return q.leadLabel || tr.internal;
     return q[key] === "" || q[key] == null ? "—" : String(q[key]);
   };
 

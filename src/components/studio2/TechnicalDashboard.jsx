@@ -25,7 +25,7 @@ import {
 } from "@/modules/technical/technicalAnalytics";
 import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 
-const NoData = ({ text = "No data yet." }) => (
+const NoData = ({ text }) => (
   <p className="py-8 text-center text-sm text-slate-400">{text}</p>
 );
 
@@ -96,7 +96,7 @@ export default function TechnicalDashboard({
                 series={[{ name: "New", data: timeline.map((t) => t.value), color: "rgb(var(--chart-1))" }]}
               />
             </ChartFrame>
-          ) : <NoData text="No quotations yet." />}
+          ) : <NoData text={tr.noQuotationsYet3} />}
         </Widget>
 
         <Widget title={tr.rfqFunnel} hint={tr.rfqsWorkflowStatus} locked={!visible("technical.rfq-funnel")} lockedWhat={tr.rfqFunnel}>
@@ -106,7 +106,7 @@ export default function TechnicalDashboard({
               value: Math.round((f.value / funnelMax) * 100),
               display: <span className="num">{f.value}</span>,
             }))} />
-          ) : <NoData text="No RFQs yet." />}
+          ) : <NoData text={tr.noRfqsYet} />}
         </Widget>
 
         <Widget title={tr.urgencyBreakdown} hint={tr.quotationsUrgencyCarriedTicket} locked={!visible("technical.urgency-breakdown")} lockedWhat={tr.urgencyBreakdown}>
@@ -129,10 +129,10 @@ export default function TechnicalDashboard({
         <Widget title={tr.approvedShare} hint={tr.approvedValuePortionWhole} locked={!visible("technical.approved-share")} lockedWhat={tr.approvedShare}>
           {value.all > 0 ? (
             <div className="flex flex-col items-center gap-2 py-2">
-              <Radial value={approvedPct} label={`${approvedPct}%`} sub="of pipeline value" color="rgb(var(--chart-2))" />
+              <Radial value={approvedPct} label={`${approvedPct}%`} sub={tr.ofPipelineValue} color="rgb(var(--chart-2))" />
               <p className="text-xs text-slate-500 dark:text-slate-400">{amt(value.approved)} of {amt(value.all)}</p>
             </div>
-          ) : <NoData text="No quotation value yet." />}
+          ) : <NoData text={tr.noQuotationValueYet} />}
         </Widget>
 
         {/* Moderate */}
@@ -149,7 +149,7 @@ export default function TechnicalDashboard({
 
         <Widget title={tr.turnaround} hint={tr.daysCreationApproval} locked={!visible("technical.turnaround")} lockedWhat={tr.turnaround}>
           {turnaround === null ? (
-            <NoData text="No quotation has been approved yet." />
+            <NoData text={tr.noQuotationApprovedYet} />
           ) : (
             <div className="flex flex-col items-center justify-center py-4">
               <p className="num text-4xl font-800 text-slate-900 dark:text-white">{turnaround}</p>

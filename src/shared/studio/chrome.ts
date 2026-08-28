@@ -25,6 +25,14 @@ type ChromeStrings = {
   thisMonth: string;
   thisQuarter: string;
   thisYear: string;
+  // The shared charts in components/studio2/ui draw these when a series is
+  // empty. They are chrome, not any one department's words.
+  noDataYet: string;
+  timeline: string;
+  scatter: string;
+  nothingFinishedYet: string;
+  oldest: string;
+  newest: string;
 };
 
 const en: ChromeStrings = {
@@ -42,6 +50,12 @@ const en: ChromeStrings = {
   thisMonth: "This month",
   thisQuarter: "This quarter",
   thisYear: "This year",
+  noDataYet: "No data yet.",
+  timeline: "Timeline",
+  scatter: "Scatter",
+  nothingFinishedYet: "Nothing finished yet.",
+  oldest: "Oldest",
+  newest: "Newest",
 };
 
 const ar: ChromeStrings = {
@@ -61,6 +75,12 @@ const ar: ChromeStrings = {
   thisMonth: "هذا الشهر",
   thisQuarter: "هذا الربع",
   thisYear: "هذه السنة",
+  noDataYet: "لا توجد بيانات بعد.",
+  timeline: "المسار الزمني",
+  scatter: "مخطط التبعثر",
+  nothingFinishedYet: "لم يُنجز شيء بعد.",
+  oldest: "الأقدم",
+  newest: "الأحدث",
 };
 
 const chrome = { en, ar };

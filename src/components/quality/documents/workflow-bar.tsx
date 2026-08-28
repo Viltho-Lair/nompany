@@ -69,7 +69,7 @@ export function WorkflowBar({
       );
       const payload = (await response.json().catch(() => ({}))) as { error?: string; workflow?: Workflow };
       if (!response.ok) {
-        setError(MESSAGES[payload.error ?? ""] ?? tr.couldNotDone);
+        setError(messagesFor(tr)[payload.error ?? ""] ?? tr.couldNotDone);
         return;
       }
       if (payload.workflow) setWorkflow(payload.workflow);
@@ -123,13 +123,14 @@ export function WorkflowBar({
 
 // A refusal a person can act on. "wrong-state" and "same-signer" are the two
 // that actually happen, and neither is obvious from the word alone.
-const MESSAGES: Record<string, string> = {
-  "wrong-state": "Somebody moved this while you were looking at it. Reload and try again.",
-  "same-signer": "The same person cannot both review and approve a revision.",
-  "already-open": "A revision is already open on this document.",
-  "not-issued": "Nothing has been issued yet, so there is no next revision to draft.",
-  obsolete: "This document has been withdrawn.",
-  empty: "There is nothing written yet to send for review.",
-  denied: "You do not have the right for that.",
-  forbidden: "You do not have the right for that.",
-};
+// A FUNCTION OF THE DICTIONARY — see QualityWorkflow.
+const messagesFor = (tr: ReturnType<typeof qualityDict>): Record<string, string> => ({
+  "wrong-state": tr.wbWrongState,
+  "same-signer": tr.wbSameSigner,
+  "already-open": tr.alreadyOpen,
+  "not-issued": tr.wbNotIssued,
+  obsolete: tr.obsolete,
+  empty: tr.wbEmpty,
+  denied: tr.wbDenied,
+  forbidden: tr.wbDenied,
+});
