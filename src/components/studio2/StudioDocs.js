@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { miscDict } from "@/shared/studio/misc";
 import { Icon } from "@/components/studio2/icons";
 
 // The studio manual, full-screen: rendered OUTSIDE StudioFrame, so there is no
@@ -8,13 +10,14 @@ import { Icon } from "@/components/studio2/icons";
 // Intentionally empty for now — the shell, the route and the way back exist so
 // articles can be dropped in without touching the studio chrome again.
 export default function StudioDocs({ studio }) {
+  const tr = miscDict(useStudioLocale());
   return (
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
       <header className="sticky top-0 z-20 border-b border-[var(--geex-border)] bg-[var(--geex-page)]">
         <div className="mx-auto flex max-w-[1100px] items-center gap-3 px-5 py-4 sm:px-8">
           <Link
             href={`/${studio.slug}`}
-            title="Back to the studio"
+            title={tr.backStudio}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >
             <Icon name="arrowLeft" className="h-[18px] w-[18px] rtl:-scale-x-100" />
@@ -30,7 +33,7 @@ export default function StudioDocs({ studio }) {
 
       <main className="mx-auto max-w-[1100px] px-5 py-10 sm:px-8">
         <div className="rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-10 text-center dark:border-white/10">
-          <p className="font-display text-base font-700 text-slate-900 dark:text-white">Nothing here yet</p>
+          <p className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.nothingHereYet}</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
             The studio manual will live on this page.
           </p>

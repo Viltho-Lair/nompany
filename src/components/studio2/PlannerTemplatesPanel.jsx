@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
 import { useRouter } from "next/navigation";
 
 // THE TEMPLATE EDITOR, on the planner landing rather than inside a plan. Editing a
@@ -13,6 +15,7 @@ import { useRouter } from "next/navigation";
 // Self-contained: it fetches the studio's templates (and its own canEdit) so the
 // landing does not have to thread template permissions through its plan fetch.
 export default function PlannerTemplatesPanel({ slug }) {
+  const tr = plannerDict(useStudioLocale());
   const router = useRouter();
   const base = `/api/studios/${slug}/operations/planner/templates`;
 
@@ -107,7 +110,7 @@ export default function PlannerTemplatesPanel({ slug }) {
           ))
         ) : templates.length === 0 ? (
           <p className="rounded-geex border border-dashed border-slate-200 px-3 py-6 text-center text-xs text-[var(--geex-muted)] dark:border-white/10">
-            No templates yet. Use <span className="font-600">New</span> to build one.
+            No templates yet. Use <span className="font-600">{tr.new}</span> to build one.
           </p>
         ) : (
           templates.map((t) => (

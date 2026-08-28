@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { FileText, Hash, PanelBottom, PanelTop, Settings2, Squircle } from "lucide-react";
 
 import { BandDialog } from "@/components/quality/documents/band-dialog";
@@ -46,6 +48,7 @@ export function PageSetupMenu({
   documentTitle: string;
   onChange: (change: Partial<PageSetup>) => void;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const paper = PAGE_PRESETS[setup.presetId];
   const margins = resolveMargins(setup);
 
@@ -91,7 +94,7 @@ export function PageSetupMenu({
               this menu is measured from. A document laid out left-to-right when
               it is read right-to-left has its margins on the wrong sides and
               its header aligned to the wrong end. */}
-          <DropdownMenuLabel>Language</DropdownMenuLabel>
+          <DropdownMenuLabel>{tr.language}</DropdownMenuLabel>
           <DropdownMenuRadioGroup
             value={setup.language}
             onValueChange={(value) =>
@@ -101,20 +104,20 @@ export function PageSetupMenu({
             <DropdownMenuRadioItem value="en">
               <span className="flex w-full items-baseline justify-between gap-3">
                 English
-                <span className="text-xs text-muted-foreground">left to right</span>
+                <span className="text-xs text-muted-foreground">{tr.leftRight}</span>
               </span>
             </DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="ar">
               <span className="flex w-full items-baseline justify-between gap-3">
                 العربية
-                <span className="text-xs text-muted-foreground">right to left</span>
+                <span className="text-xs text-muted-foreground">{tr.rightLeft}</span>
               </span>
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuLabel>Page size</DropdownMenuLabel>
+          <DropdownMenuLabel>{tr.pageSize}</DropdownMenuLabel>
           <DropdownMenuRadioGroup
             value={setup.presetId}
             onValueChange={(value) =>

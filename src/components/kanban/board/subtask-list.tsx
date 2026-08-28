@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { boardDict } from "@/shared/studio/board";
 import Tooltip from "@mui/material/Tooltip";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 
@@ -24,6 +26,7 @@ function SubtaskRow({
   index: number;
   count: number;
 }) {
+  const tr = boardDict(useStudioLocale());
   const toggleSubtask = useBoardStore((s) => s.toggleSubtask);
   const renameSubtask = useBoardStore((s) => s.renameSubtask);
   const deleteSubtask = useBoardStore((s) => s.deleteSubtask);
@@ -89,7 +92,7 @@ function SubtaskRow({
         )}
 
         <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover/sub:opacity-100">
-          <Tooltip title="Move up" placement="top">
+          <Tooltip title={tr.moveUp} placement="top">
             <span>
               <button
                 type="button"
@@ -101,7 +104,7 @@ function SubtaskRow({
               </button>
             </span>
           </Tooltip>
-          <Tooltip title="Move down" placement="top">
+          <Tooltip title={tr.moveDown} placement="top">
             <span>
               <button
                 type="button"
@@ -113,7 +116,7 @@ function SubtaskRow({
               </button>
             </span>
           </Tooltip>
-          <Tooltip title="Delete subtask" placement="top">
+          <Tooltip title={tr.deleteSubtask} placement="top">
             <button
               type="button"
               onClick={() => deleteSubtask(taskId, subtask.id)}
@@ -137,6 +140,7 @@ export function SubtaskList({
   taskId: string;
   subtasks: Subtask[];
 }) {
+  const tr = boardDict(useStudioLocale());
   const addSubtask = useBoardStore((s) => s.addSubtask);
   const [draft, setDraft] = React.useState("");
 
@@ -171,7 +175,7 @@ export function SubtaskList({
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Add a subtask and press Enter"
+          placeholder={tr.addSubtaskPressEnter}
           className="h-9 text-[13px]"
         />
         <Button
@@ -179,7 +183,7 @@ export function SubtaskList({
           size="icon"
           variant="secondary"
           disabled={!draft.trim()}
-          aria-label="Add subtask"
+          aria-label={tr.addSubtask}
           className="size-9 shrink-0"
         >
           <Plus />

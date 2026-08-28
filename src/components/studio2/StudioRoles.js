@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { peopleDict } from "@/shared/studio/people";
 import { panel, h2, sub, input, label, btn, btnGhost, Empty } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platform/access";
@@ -28,6 +30,7 @@ import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platfor
 const LADDER_LABEL = { none: "None", view: "View", edit: "Edit", full: "Full" };
 
 export default function StudioRoles({ slug }) {
+  const tr = peopleDict(useStudioLocale());
   const [data, setData] = useState(null);
   // Fetched here rather than passed down: this is a client component and the
   // page that renders it is a server one, so asking is cheaper than plumbing.
@@ -38,7 +41,7 @@ export default function StudioRoles({ slug }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/roles`, { cache: "no-store" });
-    if (!res.ok) { setError("Couldn't load roles."); return; }
+    if (!res.ok) { setError(tr.couldnLoadRoles); return; }
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
@@ -75,7 +78,7 @@ export default function StudioRoles({ slug }) {
   // endpoint on /roles is still there and still guarded; this screen simply
   // stopped being a second door onto it.
 
-  if (!data) return <p className="text-sm text-slate-500">Loading roles…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingRoles}</p>;
   const { roles = [], areas = [], canEdit } = data;
 
   if (editing) {
@@ -96,7 +99,7 @@ export default function StudioRoles({ slug }) {
     <section className={panel}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className={h2}>Access</h2>
+          <h2 className={h2}>{tr.access}</h2>
           <p className={sub}>
             What each role is allowed to do. The roles themselves are the studio&apos;s job titles, named in
             Human Resources; this is where one is given its access. Assign them to people on the list above.
@@ -119,7 +122,7 @@ export default function StudioRoles({ slug }) {
       {canEdit && people.length > 0 && <WhyPanel slug={slug} people={people} areas={areas} />}
 
       {roles.length === 0 ? (
-        <Empty title="No roles yet" body="Studios start with Admin, Manager, Team Lead, Member and Viewer. If yours has none, name one in Human Resources → Roles." />
+        <Empty title={tr.noRolesYet} body={tr.studiosStartAdminManager} />
       ) : (
         <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
           {roles.map((r) => (
@@ -138,7 +141,7 @@ export default function StudioRoles({ slug }) {
               <span className="shrink-0 text-xs text-slate-400">
                 {r.wildcard ? "—"
                   : (r.permissions || []).length === 0
-                    ? <span className="font-600 text-amber-700 dark:text-amber-300">No access yet</span>
+                    ? <span className="font-600 text-amber-700 dark:text-amber-300">{tr.noAccessYet}</span>
                     : `${r.permissions.length} permissions`}
               </span>
               {canEdit && (
@@ -148,7 +151,7 @@ export default function StudioRoles({ slug }) {
                       holds it lives. Two delete paths with two different guards
                       is how somebody ends up pointing at a role that is gone,
                       which reads as no access at all and looks like a bug. */}
-                  <button className={btnGhost} onClick={() => setEditing({ ...r })}>Edit access</button>
+                  <button className={btnGhost} onClick={() => setEditing({ ...r })}>{tr.editAccess}</button>
                 </span>
               )}
             </li>
@@ -160,6 +163,7 @@ export default function StudioRoles({ slug }) {
 }
 
 function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) {
+  const tr = peopleDict(useStudioLocale());
   const [draft, setDraft] = useState(() => ({
     ...role,
     permissions: [...(role.permissions || [])],
@@ -234,12 +238,12 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
           That is deliberate, and it is why its list cannot be edited — only its description.
         </p>
         <div className="mt-4">
-          <Field label="Description" value={draft.description || ""}
+          <Field label={tr.description} value={draft.description || ""}
             onChange={(v) => setDraft((d) => ({ ...d, description: v }))} />
         </div>
         <div className="mt-5 flex gap-3">
-          <button className={btn} disabled={busy} onClick={() => onSave(draft)}>Save</button>
-          <button className={btnGhost} onClick={onCancel}>Cancel</button>
+          <button className={btn} disabled={busy} onClick={() => onSave(draft)}>{tr.save}</button>
+          <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
         </div>
       </section>
     );
@@ -249,7 +253,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
     <div className="grid gap-5 lg:grid-cols-[1fr,20rem]">
       <section className={panel}>
         <h2 className={h2}>Access for {draft.name || "a role"}</h2>
-        <p className={sub}>Everything this job may do. Areas are collapsed — open the ones you need.</p>
+        <p className={sub}>{tr.everythingJobMayAreas}</p>
 
         {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
 
@@ -258,14 +262,14 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
             {/* NOT A NAME FIELD. Roles are named in Human Resources; this picks
                 which of them is being granted access, so the two screens can
                 never end up describing two different "Sales Engineer"s. */}
-            <label className={label}>Role</label>
+            <label className={label}>{tr.role}</label>
             <RolePicker roles={roles.filter((r) => !r.wildcard)} value={draft.id} onPick={pickRole} />
             <p className="mt-1 text-[11px] text-slate-400">
               Named in Human Resources → Roles. Add one there and it appears here.
             </p>
           </div>
           <div>
-            <Field label="Description" value={draft.description || ""} hint="Raises and works tickets."
+            <Field label={tr.description} value={draft.description || ""} hint={tr.raisesWorksTickets}
               onChange={(v) => setDraft((d) => ({ ...d, description: v }))} />
           </div>
         </div>
@@ -351,7 +355,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
           <button className={btn} disabled={busy || !draft.id} onClick={() => onSave(draft)}>
             {busy ? "Saving…" : "Save access"}
           </button>
-          <button className={btnGhost} onClick={onCancel}>Cancel</button>
+          <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
         </div>
       </section>
 
@@ -360,7 +364,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
           {draft.name?.trim() || "This role"} can
         </h3>
         {summary.can.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-400">Nothing yet.</p>
+          <p className="mt-2 text-sm text-slate-400">{tr.nothingYet}</p>
         ) : (
           <ul className="mt-2 space-y-1.5 text-sm text-slate-700 dark:text-slate-200">
             {summary.can.map((line) => <li key={line}>{line}</li>)}
@@ -386,6 +390,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
 // A role that has no access yet is marked, because those are the ones somebody
 // arriving here is usually looking for.
 function RolePicker({ roles, value, onPick }) {
+  const tr = peopleDict(useStudioLocale());
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const box = useRef(null);
@@ -416,11 +421,11 @@ function RolePicker({ roles, value, onPick }) {
 
       {open && (
         <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-[var(--geex-surface)] p-1 shadow-lg dark:border-white/15">
-          <input autoFocus className={`${input} mb-1`} aria-label="Search roles"
+          <input autoFocus className={`${input} mb-1`} aria-label={tr.searchRoles}
             value={query} onChange={(e) => setQuery(e.target.value)} />
           <ul role="listbox" className="max-h-60 overflow-auto">
             {shown.length === 0 && (
-              <li className="px-3 py-2 text-sm text-slate-400">Nothing matches. Roles are named in Human Resources.</li>
+              <li className="px-3 py-2 text-sm text-slate-400">{tr.nothingMatchesRolesNamed}</li>
             )}
             {shown.map((r) => (
               <li key={r.id}>
@@ -453,6 +458,7 @@ function RolePicker({ roles, value, onPick }) {
 // database, and because a permission system nobody can interrogate is one
 // people work around instead of using.
 function WhyPanel({ slug, people, areas }) {
+  const tr = peopleDict(useStudioLocale());
   const [who, setWho] = useState("");
   const [key, setKey] = useState("");
   const [answer, setAnswer] = useState(null);
@@ -477,16 +483,16 @@ function WhyPanel({ slug, people, areas }) {
 
   return (
     <div className="mt-5 rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
-      <p className="text-sm font-600 text-slate-700 dark:text-slate-200">Check what someone can do</p>
+      <p className="text-sm font-600 text-slate-700 dark:text-slate-200">{tr.checkWhatSomeoneCan}</p>
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        <select className={`${input} w-auto`} value={who} aria-label="Person"
+        <select className={`${input} w-auto`} value={who} aria-label={tr.person}
           onChange={(e) => { setWho(e.target.value); setAnswer(null); }}>
-          <option value="">Who…</option>
+          <option value="">{tr.who}</option>
           {people.map((p) => (<option key={p.id} value={p.id}>{p.alias || "Unnamed"}</option>))}
         </select>
-        <select className={`${input} w-auto max-w-full`} value={key} aria-label="Action"
+        <select className={`${input} w-auto max-w-full`} value={key} aria-label={tr.action}
           onChange={(e) => { setKey(e.target.value); setAnswer(null); }}>
-          <option value="">Do what…</option>
+          <option value="">{tr.what}</option>
           {actions.map((a) => (<option key={a.key} value={a.key}>{a.label}</option>))}
         </select>
         <button className={btnGhost} disabled={busy || !who || !key} onClick={ask}>

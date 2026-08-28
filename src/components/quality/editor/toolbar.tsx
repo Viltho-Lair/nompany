@@ -1,6 +1,8 @@
 "use client";
 
 import type { Editor } from "@tiptap/react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { useEditorState } from "@tiptap/react";
 import {
   AlignCenter,
@@ -89,6 +91,7 @@ function Toolbar({
   showPageBreak: boolean;
   onSetDefaultFont: (family: string, category: string, sizePt: number) => void;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const state = useEditorState({
     editor,
     selector: ({ editor: instance }) => {
@@ -158,13 +161,13 @@ function Toolbar({
       <ToolbarSeparator />
 
       <ToolbarButton
-        label="Undo"
+        label={tr.undo}
         icon={<Undo2 />}
         disabled={!state.canUndo}
         onClick={() => editor.chain().focus().undo().run()}
       />
       <ToolbarButton
-        label="Redo"
+        label={tr.redo}
         icon={<Redo2 />}
         disabled={!state.canRedo}
         onClick={() => editor.chain().focus().redo().run()}
@@ -173,25 +176,25 @@ function Toolbar({
       <ToolbarSeparator />
 
       <ToolbarButton
-        label="Bold"
+        label={tr.bold}
         icon={<Bold />}
         active={state.bold}
         onClick={() => editor.chain().focus().toggleBold().run()}
       />
       <ToolbarButton
-        label="Italic"
+        label={tr.italic}
         icon={<Italic />}
         active={state.italic}
         onClick={() => editor.chain().focus().toggleItalic().run()}
       />
       <ToolbarButton
-        label="Underline"
+        label={tr.underline}
         icon={<UnderlineIcon />}
         active={state.underline}
         onClick={() => editor.chain().focus().toggleUnderline().run()}
       />
       <ToolbarButton
-        label="Strikethrough"
+        label={tr.strikethrough}
         icon={<Strikethrough />}
         active={state.strike}
         onClick={() => editor.chain().focus().toggleStrike().run()}
@@ -202,7 +205,7 @@ function Toolbar({
         onClear={() => editor.chain().focus().unsetColor().run()}
       />
       <ToolbarButton
-        label="Inline code"
+        label={tr.inlineCode}
         icon={<Code />}
         active={state.code}
         onClick={() => editor.chain().focus().toggleCode().run()}
@@ -211,19 +214,19 @@ function Toolbar({
       <ToolbarSeparator />
 
       <ToolbarButton
-        label="Heading 1"
+        label={tr.heading1}
         icon={<Heading1 />}
         active={state.heading1}
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
       />
       <ToolbarButton
-        label="Heading 2"
+        label={tr.heading2}
         icon={<Heading2 />}
         active={state.heading2}
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
       />
       <ToolbarButton
-        label="Heading 3"
+        label={tr.heading3}
         icon={<Heading3 />}
         active={state.heading3}
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
@@ -232,25 +235,25 @@ function Toolbar({
       <ToolbarSeparator />
 
       <ToolbarButton
-        label="Bullet list"
+        label={tr.bulletList}
         icon={<List />}
         active={state.bulletList}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
       />
       <ToolbarButton
-        label="Numbered list"
+        label={tr.numberedList}
         icon={<ListOrdered />}
         active={state.orderedList}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
       />
       <ToolbarButton
-        label="Quote"
+        label={tr.quote}
         icon={<Quote />}
         active={state.blockquote}
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
       />
       <ToolbarButton
-        label="Code block"
+        label={tr.codeBlock}
         icon={<Code2 />}
         active={state.codeBlock}
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
@@ -263,7 +266,7 @@ function Toolbar({
       {showPageBreak && (
         <>
           <ToolbarButton
-            label="Page break"
+            label={tr.pageBreak}
             icon={<SeparatorHorizontal />}
             onClick={() => editor.chain().focus().setPageBreak().run()}
           />
@@ -274,25 +277,25 @@ function Toolbar({
       <ToolbarSeparator />
 
       <ToolbarButton
-        label="Align left"
+        label={tr.alignLeft}
         icon={<AlignLeft />}
         active={state.alignLeft}
         onClick={() => editor.chain().focus().setTextAlign("left").run()}
       />
       <ToolbarButton
-        label="Align center"
+        label={tr.alignCenter}
         icon={<AlignCenter />}
         active={state.alignCenter}
         onClick={() => editor.chain().focus().setTextAlign("center").run()}
       />
       <ToolbarButton
-        label="Align right"
+        label={tr.alignRight}
         icon={<AlignRight />}
         active={state.alignRight}
         onClick={() => editor.chain().focus().setTextAlign("right").run()}
       />
       <ToolbarButton
-        label="Justify"
+        label={tr.justify}
         icon={<AlignJustify />}
         active={state.alignJustify}
         onClick={() => editor.chain().focus().setTextAlign("justify").run()}

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { technicalDict } from "@/shared/studio/technical";
 import { btn, btnGhost, input, label, money } from "@/components/studio2/ui";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
@@ -29,6 +31,7 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 export default function QuotationBuilder({ quote, catalogue = [], currency = "", canManage, onSave, onClose }) {
+  const tr = technicalDict(useStudioLocale());
   const locked = Boolean(quote.locked) || !canManage;
   const [tables, setTables] = useState(() => {
     const stored = Array.isArray(quote.tables) ? quote.tables : [];
@@ -140,7 +143,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
       {/* ---------------------------------------------------------- header */}
       <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-5 py-3 dark:border-white/10 dark:bg-white/5">
         <button className="rounded-geex p-1.5 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/10"
-          onClick={onClose} aria-label="Close the builder">
+          onClick={onClose} aria-label={tr.closeBuilder}>
           <Icon name="close" className="h-5 w-5" />
         </button>
         <div className="min-w-0">
@@ -240,16 +243,16 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                   <table className="w-full min-w-[680px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 text-start text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:text-slate-400">
-                        <th className="w-14 py-2 pe-3 text-start font-600"><span className="sr-only">Item image</span></th>
-                        <th className="py-2 pe-3 text-start font-600">Item</th>
-                        <th className="w-20 py-2 pe-3 text-start font-600">Unit</th>
-                        <th className="w-24 py-2 pe-3 text-start font-600">Qty</th>
-                        <th className="w-28 py-2 pe-3 text-end font-600">Unit price</th>
+                        <th className="w-14 py-2 pe-3 text-start font-600"><span className="sr-only">{tr.itemImage}</span></th>
+                        <th className="py-2 pe-3 text-start font-600">{tr.item}</th>
+                        <th className="w-20 py-2 pe-3 text-start font-600">{tr.unit}</th>
+                        <th className="w-24 py-2 pe-3 text-start font-600">{tr.qty}</th>
+                        <th className="w-28 py-2 pe-3 text-end font-600">{tr.unitPrice}</th>
                         {/* PER CENT, said in the heading. Labelled just
                             "Discount" beside a column of money, it read as an
                             amount off — which is what it used to be, and what a
                             studio typing 10 into it meant either way. */}
-                        <th className="w-28 py-2 pe-3 text-start font-600">Disc %</th>
+                        <th className="w-28 py-2 pe-3 text-start font-600">{tr.disc}</th>
                         <th className="w-8" />
                       </tr>
                     </thead>
@@ -270,7 +273,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                           </td>
                           <td className="py-1.5 pe-3">
                             <Combo value={row.description} options={itemNames} disabled={locked}
-                              placeholder="What is being quoted"
+                              placeholder={tr.whatBeingQuoted}
                               inputClassName={cell}
                               onChange={(v) => pickItem(i, k, v)} />
                           </td>
@@ -338,7 +341,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                   {!locked && table.rows.length < MAX_TABLE_ROWS ? (
                     <button className={btnGhost}
-                      onClick={() => setTable(i, { rows: [...table.rows, blankRow()] })}>Add row</button>
+                      onClick={() => setTable(i, { rows: [...table.rows, blankRow()] })}>{tr.addRow}</button>
                   ) : <span />}
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Table total <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(sum)}</span>
@@ -367,14 +370,14 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
           <p className="mb-1 text-xs text-slate-400">{lines} line{lines === 1 ? "" : "s"}</p>
           <dl className="ms-auto w-full max-w-sm space-y-1 text-sm">
             <div className="flex items-baseline gap-3">
-              <dt className="text-slate-500 dark:text-slate-400">Subtotal</dt>
+              <dt className="text-slate-500 dark:text-slate-400">{tr.subtotal}</dt>
               <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">
                 {money(totals.subtotal)} <span className="text-slate-400">{currency}</span>
               </dd>
             </div>
             <div className="flex items-baseline gap-3">
               <dt className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                <label htmlFor="qb-vat">VAT %</label>
+                <label htmlFor="qb-vat">{tr.vat}</label>
                 <input id="qb-vat" className={`${cell} w-16`} value={vatRate} disabled={locked} inputMode="decimal"
                   onChange={(e) => setVatRate(e.target.value)} />
               </dt>
@@ -383,7 +386,7 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
               </dd>
             </div>
             <div className="flex items-baseline gap-3 border-t border-slate-200 pt-1 dark:border-white/10">
-              <dt className="sr-only">Total</dt>
+              <dt className="sr-only">{tr.total}</dt>
               <dd className="ms-auto font-display text-base font-700 tabular-nums text-slate-900 dark:text-white">
                 {money(totals.total)} <span className="text-sm font-600 text-slate-400">{currency}</span>
               </dd>

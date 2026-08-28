@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, Cloud, CloudOff, Loader2, Printer } from "lucide-react";
 
@@ -52,6 +54,7 @@ export function DocumentWorkspace({
   canEdit: boolean;
   onChanged: () => void;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const [draftTitle, setDraftTitle] = useState(title);
   const [setup, setSetup] = useState<PageSetup>(initialSetup);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -173,7 +176,7 @@ export function DocumentWorkspace({
     <div className="flex min-h-screen flex-1 flex-col bg-background">
       <header className="doc-chrome sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur">
         <Button asChild variant="ghost" size="icon" className="shrink-0">
-          <Link href={`/${slug}/quality-documents`} aria-label="Back to documents">
+          <Link href={`/${slug}/quality-documents`} aria-label={tr.backDocuments}>
             <ChevronLeft className="rtl:-scale-x-100" />
           </Link>
         </Button>
@@ -187,7 +190,7 @@ export function DocumentWorkspace({
           <input
             value={draftTitle}
             readOnly={!canEdit}
-            aria-label="Document title"
+            aria-label={tr.documentTitle}
             onChange={(event) => {
               setDraftTitle(event.target.value);
               saveTitle(event.target.value);
@@ -212,7 +215,7 @@ export function DocumentWorkspace({
               @page carries no margin of its own, so the browser has nothing left
               to decide — what is drawn is what comes out, page breaks, running
               bands and numbering included. */}
-          <Button variant="outline" size="sm" onClick={() => window.print()} aria-label="Print document">
+          <Button variant="outline" size="sm" onClick={() => window.print()} aria-label={tr.printDocument}>
             <Printer />
             Print
           </Button>

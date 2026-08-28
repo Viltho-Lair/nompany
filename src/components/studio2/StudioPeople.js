@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { peopleDict } from "@/shared/studio/people";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { ADMIN_ROLE_ID } from "@/platform/access";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
@@ -17,6 +19,7 @@ const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display te
 // Everything shown here is the person's studio-local identity (their alias and
 // role inside this studio); nothing about them in any other studio is visible.
 export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) {
+  const tr = peopleDict(useStudioLocale());
   const [requests, setRequests] = useState([]);
   const [people, setPeople] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -74,7 +77,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
       body: JSON.stringify({ collaboratorId: person.id, patch }),
     });
     setBusyId("");
-    if (!res.ok) setError("We couldn't save that change.");
+    if (!res.ok) setError(tr.couldnSaveChange);
     load();
   }
 
@@ -93,7 +96,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
     load();
   }
 
-  if (loading) return <p className="text-sm text-slate-500">Loading people…</p>;
+  if (loading) return <p className="text-sm text-slate-500">{tr.loadingPeople}</p>;
 
   return (
     <div className="space-y-6">
@@ -101,8 +104,8 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
 
       {canAdminister && (
         <section className={panel}>
-          <h2 className={h2}>Invite people</h2>
-          <p className={sub}>Share your company code. They enter it on their account page and you approve the request — no links or tokens to pass around.</p>
+          <h2 className={h2}>{tr.invitePeople}</h2>
+          <p className={sub}>{tr.shareCompanyCodeThey}</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <code className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-4 py-2.5 font-mono text-base font-700 text-slate-900 dark:border-white/15 dark:text-white">{slug}</code>
             <button
@@ -119,14 +122,14 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
       {canAdminister && (
         <section className={panel}>
           <div className="flex items-center gap-3">
-            <h2 className={h2}>Requests to join</h2>
+            <h2 className={h2}>{tr.requestsJoin}</h2>
             {requests.length > 0 && (
               <span className="rounded-full bg-brand-600 px-2 py-0.5 text-xs font-700 text-white">{requests.length}</span>
             )}
           </div>
-          <p className={sub}>Approving creates their profile inside this studio.</p>
+          <p className={sub}>{tr.approvingCreatesProfileInside}</p>
           {requests.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-400">No one is waiting.</p>
+            <p className="mt-4 text-sm text-slate-400">{tr.noOneWaiting}</p>
           ) : (
             <ul className="mt-4 space-y-3">
               {requests.map((r) => <RequestRow key={r.id} request={r} busy={busyId === r.id} onDecide={decide} />)}
@@ -136,7 +139,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
       )}
 
       <section className={panel}>
-        <h2 className={h2}>People in this studio</h2>
+        <h2 className={h2}>{tr.peopleStudio}</h2>
         <p className={sub}>
           {canAdminister ? "Names and roles here apply only inside this studio." : "Everyone with access to this studio."}
         </p>
@@ -160,6 +163,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
 }
 
 function RequestRow({ request, busy, onDecide }) {
+  const tr = peopleDict(useStudioLocale());
   const [alias, setAlias] = useState(request.fullName || "");
   const [role, setRole] = useState("member");
   return (
@@ -172,19 +176,20 @@ function RequestRow({ request, busy, onDecide }) {
         <span className="text-xs text-slate-400">asked {fmtDate(request.createdAt)}</span>
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        <Field label="Name in this studio" value={alias} onChange={(v) => setAlias(v)} className="min-w-[180px] flex-1" />
-        <Field label="Role" as="select" required value={role} onChange={(v) => setRole(v)}
-          options={[{ value: "member", label: "Member" }, { value: "admin", label: "Admin" }]} />
+        <Field label={tr.nameStudio} value={alias} onChange={(v) => setAlias(v)} className="min-w-[180px] flex-1" />
+        <Field label={tr.role} as="select" required value={role} onChange={(v) => setRole(v)}
+          options={[{ value: "member", label: tr.member }, { value: "admin", label: tr.admin }]} />
         <button className={btn} disabled={busy} onClick={() => onDecide(request, "approve", alias, role)}>
           {busy ? "Working…" : "Approve"}
         </button>
-        <button className={btnGhost} disabled={busy} onClick={() => onDecide(request, "decline")}>Decline</button>
+        <button className={btnGhost} disabled={busy} onClick={() => onDecide(request, "decline")}>{tr.decline}</button>
       </div>
     </li>
   );
 }
 
 function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRemove }) {
+  const tr = peopleDict(useStudioLocale());
   const [editing, setEditing] = useState(false);
   const [alias, setAlias] = useState(person.alias || "");
   // ONE ROLE PER PERSON in this picker. The model allows several and resolves
@@ -201,19 +206,19 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
   if (editing) {
     return (
       <li className="flex flex-wrap items-end gap-3 rounded-xl border border-brand-500/40 p-4">
-        <Field label="Name in this studio" value={alias} onChange={(v) => setAlias(v)} className="min-w-[180px] flex-1" />
+        <Field label={tr.nameStudio} value={alias} onChange={(v) => setAlias(v)} className="min-w-[180px] flex-1" />
         {/* THE ASSIGNMENT. A dropdown, because this is the frequent half of the
             job: naming what somebody does should take five seconds and never
             show a permission key. What the role MEANS is edited once, on the
             access screen. */}
         {roles.length > 0 && !isOwner && (
-          <Field label="Role" as="select" required value={roleId} onChange={(v) => setRoleId(v)} className="min-w-[180px]"
-            options={[{ value: "", label: "No role — no access" }, ...roles.map((r) => ({ value: r.id, label: r.name }))]} />
+          <Field label={tr.role} as="select" required value={roleId} onChange={(v) => setRoleId(v)} className="min-w-[180px]"
+            options={[{ value: "", label: tr.noRoleNoAccess }, ...roles.map((r) => ({ value: r.id, label: r.name }))]} />
         )}
         <button className={btn} disabled={busy}
-          onClick={() => { onSave(person, { alias, roleIds: roleId ? [roleId] : [] }); setEditing(false); }}>Save</button>
+          onClick={() => { onSave(person, { alias, roleIds: roleId ? [roleId] : [] }); setEditing(false); }}>{tr.save}</button>
         <button className={btnGhost}
-          onClick={() => { setAlias(person.alias || ""); setRoleId((person.roleIds || [])[0] || ""); setEditing(false); }}>Cancel</button>
+          onClick={() => { setAlias(person.alias || ""); setRoleId((person.roleIds || [])[0] || ""); setEditing(false); }}>{tr.cancel}</button>
       </li>
     );
   }
@@ -250,7 +255,7 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
           {/* Not "Rename" any more: this row now sets the studio name AND the role,
               and a button that names half of what it opens sends people looking
               for the other half somewhere else. */}
-          <button className={btnGhost} disabled={busy} onClick={() => setEditing(true)}>Edit</button>
+          <button className={btnGhost} disabled={busy} onClick={() => setEditing(true)}>{tr.edit}</button>
           {/* NO "Make admin" HERE. Admin is a ROLE — role_admin, the wildcard the
               studio ships with — so it is assigned where every other role is:
               the dropdown behind Edit. A button beside it was a second way to
@@ -258,7 +263,7 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
               powerful grant in the studio the easiest click on the row. Nothing
               is lost by its absence: Admin still appears in that dropdown, and
               taking it back is choosing something else there. */}
-          <button className={btnDanger} disabled={busy} onClick={() => onRemove(person)}>Remove</button>
+          <button className={btnDanger} disabled={busy} onClick={() => onRemove(person)}>{tr.remove}</button>
         </div>
       )}
     </li>

@@ -8,6 +8,8 @@
 //
 // Everything here is DERIVED INLINE from those lists; Operations has no
 // analytics module, and there is nothing to import that the screen has not
+import { useStudioLocale } from "@/components/studio2/locale";
+import { operationsDict } from "@/shared/studio/operations";
 // already been handed. The permit `state`/`daysLeft` are the server's, computed
 // once per read, so the dashboard and the permit list can never disagree about
 // whether a permit is expiring.
@@ -57,6 +59,7 @@ export default function OperationsDashboard({
   summary = { shiftsThisWeek: 0 },
   windowDays = 60,
 }) {
+  const tr = operationsDict(useStudioLocale());
   const visible = useWidgetVisible();
 
   const active = permits.filter((p) => p.state === "Valid").length;
@@ -105,36 +108,36 @@ export default function OperationsDashboard({
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label="Locations" value={locations.length} />
-        <StatTile label="Active permits" value={active}
+        <StatTile label={tr.locations} value={locations.length} />
+        <StatTile label={tr.activePermits} value={active}
           tone={active > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
-        <StatTile label="Permits expiring" value={attention}
+        <StatTile label={tr.permitsExpiring} value={attention}
           tone={attention > 0 ? (expired > 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300") : ""} />
-        <StatTile label="Shifts this week" value={summary.shiftsThisWeek} />
+        <StatTile label={tr.shiftsWeek} value={summary.shiftsThisWeek} />
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Permits by status" hint="Valid, expiring, expired" locked={!visible("operations.permits-by-status")} lockedWhat="Permits by status">
+        <Widget title={tr.permitsStatus} hint={tr.validExpiringExpired} locked={!visible("operations.permits-by-status")} lockedWhat={tr.permitsStatus}>
           {stateSlices.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={stateSlices}
                 center={<div className="text-center"><p className="num text-lg font-800 text-slate-900 dark:text-white">{permits.length}</p><p className="text-[11px] text-slate-400">permits</p></div>} />
             </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No permits recorded yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noPermitsRecordedYet}</p>}
         </Widget>
 
-        <Widget title="Shifts by location" hint="Across every scheduled shift" locked={!visible("operations.shifts-by-location")} lockedWhat="Shifts by location">
+        <Widget title={tr.shiftsLocation} hint={tr.acrossEveryScheduledShift} locked={!visible("operations.shifts-by-location")} lockedWhat={tr.shiftsLocation}>
           {byLocation.length ? (
             <BarList items={byLocation.map(([name, n]) => ({
               label: name,
               value: Math.round((n / locMax) * 100),
               display: <span className="num">{n}</span>,
             }))} />
-          ) : <p className="py-8 text-center text-sm text-slate-400">Nothing scheduled yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nothingScheduledYet}</p>}
         </Widget>
 
-        <Widget title="Shifts this week" hint="Coverage across the rota window" span={2} locked={!visible("operations.shifts-this-week")} lockedWhat="Shifts this week">
+        <Widget title={tr.shiftsWeek} hint={tr.coverageAcrossRotaWindow} span={2} locked={!visible("operations.shifts-this-week")} lockedWhat={tr.shiftsWeek}>
           {anyShiftsThisWeek ? (
             <ChartFrame labels={days.map((d) => fmtWeekday(d.iso))} height={200}>
               <BarChart height={200}
@@ -149,9 +152,9 @@ export default function OperationsDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Validity timeline" hint={`Soonest to lapse first · window ${windowDays}d`} locked={!visible("operations.validity-timeline")} lockedWhat="Validity timeline">
+        <Widget title={tr.validityTimeline} hint={`Soonest to lapse first · window ${windowDays}d`} locked={!visible("operations.validity-timeline")} lockedWhat={tr.validityTimeline}>
           {timeline.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">No permits carry an end date.</p>
+            <p className="py-8 text-center text-sm text-slate-400">{tr.noPermitsCarryEnd}</p>
           ) : (
             <ul className="divide-y divide-slate-100 dark:divide-white/5">
               {timeline.map((p) => (
@@ -169,14 +172,14 @@ export default function OperationsDashboard({
           )}
         </Widget>
 
-        <Widget title="Permits by type" hint="What kind of authorisation" locked={!visible("operations.permits-by-type")} lockedWhat="Permits by type">
+        <Widget title={tr.permitsType} hint={tr.whatKindAuthorisation} locked={!visible("operations.permits-by-type")} lockedWhat={tr.permitsType}>
           {byType.length ? (
             <BarList items={byType.map(([type, n]) => ({
               label: type,
               value: Math.round((n / typeMax) * 100),
               display: <span className="num">{n}</span>,
             }))} />
-          ) : <p className="py-8 text-center text-sm text-slate-400">No permits recorded yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noPermitsRecordedYet}</p>}
         </Widget>
       </DashGrid>
     </div>

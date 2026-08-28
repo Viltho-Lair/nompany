@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
 import { Dialog, input, label, btn, btnGhost } from "@/components/studio2/ui";
 
 // THE NEW-PLAN DEFAULTS EDITOR. What a fresh plan opens with — configured once
@@ -16,6 +18,7 @@ const ZOOM_LEVELS = ["hour", "day", "week", "month", "quarter"];
 const COLOR_BY = ["phase", "status", "assignee", "priority"];
 
 export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, onSaved }) {
+  const tr = plannerDict(useStudioLocale());
   const [zoom, setZoom] = useState(() =>
     ZOOM_LEVELS.includes(presets?.zoom) ? presets.zoom : "week",
   );
@@ -55,32 +58,32 @@ export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, 
       onSaved?.(body?.presets ?? payload.presets);
       onClose?.();
     } catch {
-      setError("The defaults could not be saved. Please try again.");
+      setError(tr.defaultsCouldNotSaved);
       setSaving(false);
     }
   }
 
   return (
     <Dialog
-      title="New-plan defaults"
-      description="How a new plan opens the first time it is viewed. Its working week and people come from the studio itself."
+      title={tr.newPlanDefaults}
+      description={tr.howNewPlanOpens}
       onClose={onClose}
       width="max-w-[640px]"
     >
       <div className="flex flex-col gap-8">
         <Section
           heading="View defaults"
-          hint="How a new plan opens the first time it is viewed."
+          hint={tr.howNewPlanOpens2}
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Default zoom">
+            <Field label={tr.defaultZoom}>
               <select className={input} value={zoom} onChange={(e) => setZoom(e.target.value)}>
                 {ZOOM_LEVELS.map((z) => (
                   <option key={z} value={z}>{z.charAt(0).toUpperCase() + z.slice(1)}</option>
                 ))}
               </select>
             </Field>
-            <Field label="Default colour-by">
+            <Field label={tr.defaultColour}>
               <select className={input} value={colorBy} onChange={(e) => setColorBy(e.target.value)}>
                 {COLOR_BY.map((c) => (
                   <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>

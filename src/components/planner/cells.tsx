@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { ChevronDown } from 'lucide-react';
@@ -308,6 +310,7 @@ export function AssigneeCell({
   resources: Resource[];
   onChange: (ids: string[]) => void;
 }) {
+  const tr = plannerDict(useStudioLocale());
   const assigned = task.assigneeIds
     .map((id) => resources.find((r) => r.id === id))
     .filter(Boolean) as Resource[];
@@ -339,13 +342,13 @@ export function AssigneeCell({
           ) : (
             <>
               <EmptyAvatar />
-              <span className="text-[13px] text-slate-400">Unassigned</span>
+              <span className="text-[13px] text-slate-400">{tr.unassigned}</span>
             </>
           )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64">
-        <DropdownMenuLabel>Assign to</DropdownMenuLabel>
+        <DropdownMenuLabel>{tr.assign}</DropdownMenuLabel>
         {resources.map((r) => (
           <DropdownMenuCheckboxItem
             key={r.id}
@@ -426,6 +429,7 @@ export function DurationCell({
   onCommit: (v: number) => void;
   onUnitChange: (u: 'days' | 'hours') => void;
 }) {
+  const tr = plannerDict(useStudioLocale());
   if (readOnly) {
     return (
       <span className="px-1.5 text-[13px] tabular-nums text-slate-400">
@@ -459,8 +463,8 @@ export function DurationCell({
             value={task.durationUnit}
             onValueChange={(v) => onUnitChange(v as 'days' | 'hours')}
           >
-            <DropdownMenuRadioItem value="days">Days</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="hours">Hours</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="days">{tr.days}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="hours">{tr.hours}</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>

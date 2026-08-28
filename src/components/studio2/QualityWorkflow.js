@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { Dialog, btn, btnGhost, label, microLabel } from "@/components/studio2/ui";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
@@ -40,6 +42,7 @@ const MESSAGES = {
 const say = (e) => MESSAGES[e] || "That didn't work. Try again.";
 
 export default function QualityWorkflow({ slug, documentId, document, onChanged }) {
+  const tr = qualityDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -101,7 +104,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
       const res = await fetch("/api/media?kind=private", { method: "POST", body: form });
       const out = await res.json().catch(() => ({}));
       if (res.ok && out.url) setSignature(out.url);
-      else setNotice("That image couldn't be stored.");
+      else setNotice(tr.imageCouldnStored);
     } finally {
       setUploading(false);
     }
@@ -125,7 +128,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
       )}
 
       <div>
-        <p className={microLabel}>Where it stands</p>
+        <p className={microLabel}>{tr.whereStands}</p>
         <div className="mt-2 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10">
           {current ? (
             <>
@@ -152,7 +155,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
               ))}
             </>
           ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">No revision open.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{tr.noRevisionOpen}</p>
           )}
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -186,12 +189,12 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
       {/* WHO SIGNS. Named per document, because "whoever holds the right" tells
           nobody whose desk this is sitting on. */}
       <div>
-        <p className={microLabel}>Reviewer and approver</p>
+        <p className={microLabel}>{tr.reviewerApprover}</p>
         <div className="mt-2 space-y-2 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10">
           {[["reviewerCollaboratorId", "Reviewer"], ["approverCollaboratorId", "Approver"]].map(([key, name]) => (
             <Field key={key} label={name} as="select" required value={signers[key]}
               onChange={(v) => setSigners((s) => ({ ...s, [key]: v }))}
-              options={[{ value: "", label: "Nobody yet" }, ...(data?.people || []).map((x) => ({ value: x.id, label: x.alias }))]} />
+              options={[{ value: "", label: tr.nobodyYet }, ...(data?.people || []).map((x) => ({ value: x.id, label: x.alias }))]} />
           ))}
           <button type="button" className={btnGhost} disabled={busy}
             onClick={() => send({ action: "signers", ...signers })}>
@@ -201,7 +204,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
       </div>
 
       <div>
-        <p className={microLabel}>Revisions</p>
+        <p className={microLabel}>{tr.revisions}</p>
         <ul className="mt-2 space-y-1.5">
           {revisions.map((r) => (
             <li key={r.id} className="flex items-center gap-2 rounded-lg border border-slate-200/70 bg-[var(--geex-surface)] px-3 py-2 text-xs dark:border-white/10">
@@ -210,13 +213,13 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
               {r.effectiveDate && <span className="ms-auto text-slate-400">{r.effectiveDate}</span>}
             </li>
           ))}
-          {revisions.length === 0 && <li className="text-xs text-slate-400">Nothing yet.</li>}
+          {revisions.length === 0 && <li className="text-xs text-slate-400">{tr.nothingYet}</li>}
         </ul>
       </div>
 
       {/* THE TRAIL. Append-only, and the thing an auditor actually asks for. */}
       <div>
-        <p className={microLabel}>History</p>
+        <p className={microLabel}>{tr.history}</p>
         <ul className="mt-2 space-y-1 text-xs">
           {(data?.trail || []).map((t) => (
             <li key={t.id} className="flex gap-2 text-slate-500 dark:text-slate-400">
@@ -228,7 +231,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
               </span>
             </li>
           ))}
-          {(data?.trail || []).length === 0 && <li className="text-slate-400">Nothing recorded yet.</li>}
+          {(data?.trail || []).length === 0 && <li className="text-slate-400">{tr.nothingRecordedYet}</li>}
         </ul>
       </div>
 
@@ -236,10 +239,10 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
         <Dialog title={prompt.label} onClose={() => setPrompt(null)} width="max-w-[520px]">
           {prompt.action === "publish" && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Effective from" filled={!!effectiveDate}>
+              <Field label={tr.effective} filled={!!effectiveDate}>
                 <StudioDate value={effectiveDate} onChange={(iso) => setEffectiveDate(iso)} />
               </Field>
-              <Field label="Next review" filled={!!nextReviewDate}>
+              <Field label={tr.nextReview} filled={!!nextReviewDate}>
                 <StudioDate value={nextReviewDate} onChange={(iso) => setNextReviewDate(iso)} />
               </Field>
               <p className="sm:col-span-2 text-xs text-slate-500 dark:text-slate-400">

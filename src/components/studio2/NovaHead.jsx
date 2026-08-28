@@ -1,4 +1,6 @@
-// NOVA'S HEAD, static. The landing mascot (components/landing/mascot) draws on
+
+import { useStudioLocale } from "@/components/studio2/locale";
+import { miscDict } from "@/shared/studio/misc";// NOVA'S HEAD, static. The landing mascot (components/landing/mascot) draws on
 // motion/react, which the studio chunk is fenced from (Gate A), so this is the
 // same character — skull, visor, cyan eyes, antenna — as a plain SVG the studio
 // may use. Self-contained gradients with literal colours so it reads on any page
@@ -7,8 +9,9 @@
 // `idle` adds a gentle CSS bob and an antenna pulse (keyframes in globals.css),
 // off under reduced-motion. No library.
 export default function NovaHead({ className = "h-9 w-9", idle = false }) {
+  const tr = miscDict(useStudioLocale());
   return (
-    <svg viewBox="42 26 156 150" className={`${className} ${idle ? "nova-bob" : ""}`} fill="none" role="img" aria-label="Nova">
+    <svg viewBox="42 26 156 150" className={`${className} ${idle ? "nova-bob" : ""}`} fill="none" role="img" aria-label={tr.nova}>
       <defs>
         <linearGradient id="nh-body" x1="60" y1="50" x2="185" y2="180" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#f1f5ff" />

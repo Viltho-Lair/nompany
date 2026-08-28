@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, FilePlus2, FileText, Loader2, Trash2 } from "lucide-react";
 
@@ -32,6 +34,7 @@ export function DocumentList({
   canCreate: boolean;
   canDelete: boolean;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const [documents, setDocuments] = useState<StoredDocument[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -39,7 +42,7 @@ export function DocumentList({
   const load = useCallback(async () => {
     const response = await fetch(`/api/studios/${studio.slug}/quality/docs`, { cache: "no-store" });
     if (!response.ok) {
-      setError("You do not have access to these documents.");
+      setError(tr.notAccessTheseDocuments);
       return;
     }
     const payload = (await response.json()) as { documents: StoredDocument[] };
@@ -60,7 +63,7 @@ export function DocumentList({
         body: JSON.stringify({ title: "Untitled document" }),
       });
       if (!response.ok) {
-        setError("That document could not be created.");
+        setError(tr.documentCouldNotCreated);
         return;
       }
       const payload = (await response.json()) as { document: StoredDocument };
@@ -100,7 +103,7 @@ export function DocumentList({
         <div className="mx-auto flex max-w-[1000px] flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
           <Link
             href={`/${studio.slug}`}
-            title="Back to the studio"
+            title={tr.backStudio}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >
             <ArrowLeft className="h-[18px] w-[18px] rtl:-scale-x-100" />
@@ -130,13 +133,13 @@ export function DocumentList({
       )}
 
       {documents === null ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">{tr.loading}</p>
       ) : documents.length === 0 ? (
         <div className="rounded-geex border border-border bg-card px-6 py-16 text-center">
           <span className="mx-auto mb-3 grid size-12 place-items-center rounded-xl bg-muted text-muted-foreground">
             <FileText className="size-5" />
           </span>
-          <p className="font-medium text-card-foreground">No documents yet</p>
+          <p className="font-medium text-card-foreground">{tr.noDocumentsYet}</p>
           <p className="text-sm text-muted-foreground">
             {canCreate ? "Start one and it will get its number automatically." : "Nothing has been written here yet."}
           </p>

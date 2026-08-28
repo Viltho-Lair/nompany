@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { technicalDict } from "@/shared/studio/technical";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -17,6 +19,7 @@ const REFRESH_MS = 5000;
 // the columns chosen in Technical -> Settings — so there is no second data source
 // and nothing to keep in sync.
 export default function StudioTechnicalLive({ studio }) {
+  const tr = technicalDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [lastFetched, setLastFetched] = useState(null);
@@ -25,7 +28,7 @@ export default function StudioTechnicalLive({ studio }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${studio.slug}/technical`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Technical in this studio."); return; }
+    if (!res.ok) { setError(tr.accessTechnicalStudio); return; }
     setData(await res.json());
     setLastFetched(new Date());
     setError("");
@@ -65,13 +68,13 @@ export default function StudioTechnicalLive({ studio }) {
         <div className="flex flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
           <Link
             href={`/${studio.slug}/technical`}
-            title="Back to Technical"
+            title={tr.backTechnical}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >
             <Icon name="arrowLeft" className="h-[18px] w-[18px] rtl:-scale-x-100" />
           </Link>
           <div className="min-w-0">
-            <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">Technical — Live view</h1>
+            <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">{tr.technicalLiveView}</h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
               {studio.name} · {data ? `${data.quotations.length} quotation${data.quotations.length === 1 ? "" : "s"}` : "loading"}
               {" · "}refreshes every {REFRESH_MS / 1000}s
@@ -100,7 +103,7 @@ export default function StudioTechnicalLive({ studio }) {
 
       <main className="px-5 py-6 sm:px-8">
         {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
-        {!data && !error && <p className="text-sm text-slate-500">Loading…</p>}
+        {!data && !error && <p className="text-sm text-slate-500">{tr.loading}</p>}
 
         {data && columns.length === 0 && (
           <p className="rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-8 text-center text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
@@ -122,7 +125,7 @@ export default function StudioTechnicalLive({ studio }) {
               </thead>
               <tbody>
                 {data.quotations.length === 0 ? (
-                  <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-slate-400">No quotations yet.</td></tr>
+                  <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-slate-400">{tr.noQuotationsYet2}</td></tr>
                 ) : data.quotations.map((q) => (
                   <tr key={q.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
                     {columns.map((c) => (

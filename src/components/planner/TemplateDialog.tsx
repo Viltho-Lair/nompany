@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
 import { LayoutTemplate, Sparkles } from 'lucide-react';
 import { usePlannerStore } from '@/components/planner/lib/store/plannerStore';
 import { Button } from '@/components/planner/ui/button';
@@ -37,6 +39,7 @@ export function TemplateDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const tr = plannerDict(useStudioLocale());
   const importTasks = usePlannerStore((s) => s.importTasks);
   const setMeta = usePlannerStore((s) => s.setMeta);
   const slug = React.useMemo(studioSlug, []);
@@ -86,9 +89,9 @@ export function TemplateDialog({
 
         <div className="mt-4 grid max-h-[46vh] grid-cols-2 gap-2 overflow-y-auto pe-1">
           {templates === null ? (
-            <p className="col-span-2 py-8 text-center text-[13px] text-slate-400">Loading templates…</p>
+            <p className="col-span-2 py-8 text-center text-[13px] text-slate-400">{tr.loadingTemplates}</p>
           ) : templates.length === 0 ? (
-            <p className="col-span-2 py-8 text-center text-[13px] text-slate-400">No templates yet.</p>
+            <p className="col-span-2 py-8 text-center text-[13px] text-slate-400">{tr.noTemplatesYet}</p>
           ) : (
             templates.map((t) => (
               <div key={t.id} className="rounded-lg border border-slate-200 p-3">

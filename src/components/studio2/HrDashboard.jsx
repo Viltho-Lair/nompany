@@ -12,6 +12,8 @@
 // browser bundle. The server already runs those helpers and sends their output
 // down, so the honest client-side move is to draw that output rather than
 // import the module. Everything the leave widgets need IS derived inline here,
+import { useStudioLocale } from "@/components/studio2/locale";
+import { hrDict } from "@/shared/studio/hr";
 // from the vacations the screen already has.
 //
 // ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
@@ -55,6 +57,7 @@ export default function HrDashboard({
   vacations = [],
   windowDays = 60,
 }) {
+  const tr = hrDict(useStudioLocale());
   const today = new Date().toISOString().slice(0, 10);
   const to = nav?.["hr-employees"] ? `/${slug}/hr-employees` : "";
   const visible = useWidgetVisible();
@@ -73,7 +76,7 @@ export default function HrDashboard({
     .map((d) => ({ label: d.name, value: headcount.byDepartment[d.id] || 0 }))
     .filter((s) => s.value > 0);
   if (headcount.unassigned > 0) {
-    deptSlices.push({ label: "Unassigned", value: headcount.unassigned, color: "rgb(var(--chart-5))" });
+    deptSlices.push({ label: tr.unassigned, value: headcount.unassigned, color: "rgb(var(--chart-5))" });
   }
 
   // Leave by type — a count of requests of each kind, most common first.
@@ -98,10 +101,10 @@ export default function HrDashboard({
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label="People" value={headcount.total} href={to} />
-        <StatTile label="On leave now" value={onLeaveNow}
+        <StatTile label={tr.people} value={headcount.total} href={to} />
+        <StatTile label={tr.leaveNow} value={onLeaveNow}
           tone={onLeaveNow > 0 ? "text-brand-700 dark:text-brand-300" : ""} href={to} />
-        <StatTile label="Leave pending" value={pendingLeave}
+        <StatTile label={tr.leavePending} value={pendingLeave}
           tone={pendingLeave > 0 ? "text-amber-700 dark:text-amber-300" : ""} href={to} />
         <StatTile label={`Docs expiring · ${windowDays}d`} value={expiring.length}
           tone={expiring.length > 0 ? (lapsed > 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300") : ""}
@@ -110,37 +113,37 @@ export default function HrDashboard({
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Headcount by department" hint="Where people sit" locked={!visible("hr.headcount-by-dept")} lockedWhat="Headcount by department">
+        <Widget title={tr.headcountDepartment} hint={tr.wherePeopleSit} locked={!visible("hr.headcount-by-dept")} lockedWhat={tr.headcountDepartment}>
           {deptSlices.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={deptSlices}
                 center={<div className="text-center"><p className="num text-lg font-800 text-slate-900 dark:text-white">{headcount.total}</p><p className="text-[11px] text-slate-400">people</p></div>} />
             </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">Nobody placed in a department yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nobodyPlacedDepartmentYet}</p>}
         </Widget>
 
-        <Widget title="Leave by type" hint="Requests by kind of leave" locked={!visible("hr.leave-by-type")} lockedWhat="Leave by type">
+        <Widget title={tr.leaveType} hint={tr.requestsKindLeave} locked={!visible("hr.leave-by-type")} lockedWhat={tr.leaveType}>
           {byType.length ? (
             <BarList items={byType.map(([type, n]) => ({
               label: type,
               value: Math.round((n / typeMax) * 100),
               display: <span className="num">{n}</span>,
             }))} />
-          ) : <p className="py-8 text-center text-sm text-slate-400">No leave booked yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noLeaveBookedYet}</p>}
         </Widget>
 
-        <Widget title="Leave by status" hint="Where requests stand" locked={!visible("hr.leave-by-status")} lockedWhat="Leave by status">
+        <Widget title={tr.leaveStatus} hint={tr.whereRequestsStand} locked={!visible("hr.leave-by-status")} lockedWhat={tr.leaveStatus}>
           {statusSlices.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={statusSlices}
                 center={<div className="text-center"><p className="num text-lg font-800 text-slate-900 dark:text-white">{vacations.length}</p><p className="text-[11px] text-slate-400">total</p></div>} />
             </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No leave booked yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noLeaveBookedYet}</p>}
         </Widget>
 
-        <Widget title="Expiring documents" hint={`ID and passport within ${windowDays} days, or lapsed`} span={2} locked={!visible("hr.expiring-documents")} lockedWhat="Expiring documents">
+        <Widget title={tr.expiringDocuments} hint={`ID and passport within ${windowDays} days, or lapsed`} span={2} locked={!visible("hr.expiring-documents")} lockedWhat={tr.expiringDocuments}>
           {expiring.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">Nothing expiring — all clear.</p>
+            <p className="py-8 text-center text-sm text-slate-400">{tr.nothingExpiringAllClear}</p>
           ) : (
             <>
               {lapsed > 0 && (
@@ -166,9 +169,9 @@ export default function HrDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Upcoming leave" hint="Approved and not yet started" locked={!visible("hr.upcoming-leave")} lockedWhat="Upcoming leave">
+        <Widget title={tr.upcomingLeave} hint={tr.approvedNotYetStarted} locked={!visible("hr.upcoming-leave")} lockedWhat={tr.upcomingLeave}>
           {upcoming.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">Nobody is booked to be away.</p>
+            <p className="py-8 text-center text-sm text-slate-400">{tr.nobodyBookedAway}</p>
           ) : (
             <ul className="divide-y divide-slate-100 dark:divide-white/5">
               {upcoming.map((v) => (

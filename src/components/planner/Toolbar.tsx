@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
 import {
   CalendarClock,
   CalendarRange,
@@ -63,6 +65,7 @@ export function Toolbar({
   search: string;
   onSearch: (v: string) => void;
 }) {
+  const tr = plannerDict(useStudioLocale());
   const {
     zoom,
     colorBy,
@@ -243,7 +246,7 @@ export function Toolbar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuLabel>Grid columns</DropdownMenuLabel>
+          <DropdownMenuLabel>{tr.gridColumns}</DropdownMenuLabel>
           {ALL_COLUMNS.map((col) => (
             <DropdownMenuCheckboxItem
               key={col.key}
@@ -261,8 +264,8 @@ export function Toolbar({
       <Separator orientation="vertical" className="mx-1 h-5" />
 
       <ToggleChip
-        label="Links"
-        tooltip="Show dependency arrows"
+        label={tr.links}
+        tooltip={tr.showDependencyArrows}
         icon={<GitBranch className="h-3.5 w-3.5" />}
         checked={showDependencies}
         onCheckedChange={setShowDependencies}
@@ -270,16 +273,16 @@ export function Toolbar({
       />
 
       <ToggleChip
-        label="Critical path"
-        tooltip="Highlight the longest path through the plan"
+        label={tr.criticalPath}
+        tooltip={tr.highlightLongestPathThrough}
         checked={showCriticalPath}
         onCheckedChange={setShowCriticalPath}
         tone="rose"
       />
 
       <ToggleChip
-        label="Fit to tasks"
-        tooltip="Trim the waterfall to one day either side of the work"
+        label={tr.fitTasks}
+        tooltip={tr.trimWaterfallOneDay}
         icon={<CalendarRange className="h-3.5 w-3.5" />}
         checked={trimTimeline}
         onCheckedChange={setTrimTimeline}
@@ -293,7 +296,7 @@ export function Toolbar({
         <input
           value={search}
           onChange={(e) => onSearch(e.target.value)}
-          placeholder="Filter tasks"
+          placeholder={tr.filterTasks}
           className="h-7 w-44 rounded-md border border-slate-200 bg-white ps-7 pe-2 text-[12px] outline-none placeholder:text-slate-400 focus:border-primary"
         />
       </div>
@@ -318,7 +321,7 @@ export function Toolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Tooltip label="Undo">
+      <Tooltip label={tr.undo}>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -328,7 +331,7 @@ export function Toolbar({
           <Undo2 className="h-3.5 w-3.5" />
         </Button>
       </Tooltip>
-      <Tooltip label="Redo">
+      <Tooltip label={tr.redo}>
         <Button
           variant="ghost"
           size="icon-sm"

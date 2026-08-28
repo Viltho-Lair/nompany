@@ -13,6 +13,8 @@
 // their registry keys.
 
 import { money, StatTile } from "@/components/studio2/ui";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { projectsDict } from "@/shared/studio/projects";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { BarChart, BarList, Donut, Radial, ChartFrame } from "@/components/charts";
 import { allVisits } from "@/modules/projects/sla";
@@ -41,6 +43,7 @@ function monthKey(d) {
 export default function ProjectsDashboard({
   projects = [], slas = [], overtimes = [], people = [], slug = "", nav = {},
 }) {
+  const tr = projectsDict(useStudioLocale());
   const visible = useWidgetVisible();
   const num = (n) => <span className="num">{n}</span>;
   const amt = (n) => <span className="num">{money(n)}</span>;
@@ -130,7 +133,7 @@ export default function ProjectsDashboard({
   if (projects.length === 0) {
     return (
       <div className="rounded-geex border border-dashed border-slate-200 p-10 text-center dark:border-white/10">
-        <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">No data yet</h3>
+        <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.noDataYet}</h3>
         <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">
           Projects open from an approved quotation. Once one is registered, its stages, value and progress are summarised here.
         </p>
@@ -142,15 +145,15 @@ export default function ProjectsDashboard({
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label="Active projects" value={num(active)} href={listHref} />
-        <StatTile label="Total value" value={amt(totalValue)} href={listHref} />
-        <StatTile label="Completed" value={num(completed)} tone="text-emerald-600 dark:text-emerald-400" href={listHref} />
-        <StatTile label="Overdue" value={num(overdue)} tone={overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""} href={listHref} />
+        <StatTile label={tr.activeProjects} value={num(active)} href={listHref} />
+        <StatTile label={tr.totalValue} value={amt(totalValue)} href={listHref} />
+        <StatTile label={tr.completed} value={num(completed)} tone="text-emerald-600 dark:text-emerald-400" href={listHref} />
+        <StatTile label={tr.overdue} value={num(overdue)} tone={overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""} href={listHref} />
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Projects by stage" hint="Where the work sits" locked={!visible("projects.by-stage")} lockedWhat="Projects by stage">
+        <Widget title={tr.projectsStage} hint={tr.whereWorkSits} locked={!visible("projects.by-stage")} lockedWhat={tr.projectsStage}>
           <div className="flex items-center gap-5">
             <Donut size={148} data={donut}
               center={<div className="text-center"><p className="num text-lg font-800 text-slate-900 dark:text-white">{projects.length}</p><p className="text-[11px] text-slate-400">projects</p></div>} />
@@ -166,7 +169,7 @@ export default function ProjectsDashboard({
           </div>
         </Widget>
 
-        <Widget title="Value by stage" hint="Registered project value" locked={!visible("projects.value-by-stage")} lockedWhat="Value by stage">
+        <Widget title={tr.valueStage} hint={tr.registeredProjectValue} locked={!visible("projects.value-by-stage")} lockedWhat={tr.valueStage}>
           {totalValue > 0 ? (
             <BarList items={byStage.filter((s) => s.value > 0).map((s) => ({
               label: s.stage,
@@ -174,10 +177,10 @@ export default function ProjectsDashboard({
               display: amt(s.value),
               color: STAGE_COLOR[s.stage],
             }))} />
-          ) : <p className="py-8 text-center text-sm text-slate-400">No project values yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noProjectValuesYet}</p>}
         </Widget>
 
-        <Widget title="Project progress" hint="Average plan completion" locked={!visible("projects.plan-progress")} lockedWhat="Project progress">
+        <Widget title={tr.projectProgress} hint={tr.averagePlanCompletion} locked={!visible("projects.plan-progress")} lockedWhat={tr.projectProgress}>
           <div className="flex justify-center py-2">
             <Radial value={avgProgress} label={`${avgProgress}%`}
               sub={`across ${projects.length} ${projects.length === 1 ? "project" : "projects"}`}
@@ -186,18 +189,18 @@ export default function ProjectsDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Workload by manager" hint="Open projects per manager" locked={!visible("projects.workload-by-manager")} lockedWhat="Workload by manager">
+        <Widget title={tr.workloadManager} hint={tr.openProjectsPerManager} locked={!visible("projects.workload-by-manager")} lockedWhat={tr.workloadManager}>
           {managers.length ? (
             <BarList items={managers.map((m) => ({ label: m.name, value: Math.round((m.count / maxManager) * 100), display: num(m.count) }))} />
-          ) : <p className="py-8 text-center text-sm text-slate-400">No open projects.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noOpenProjects}</p>}
         </Widget>
 
-        <Widget title="Support visits" hint="Across every SLA contract" locked={!visible("projects.support-visits")} lockedWhat="Support visits">
+        <Widget title={tr.supportVisits} hint={tr.acrossEverySlaContract} locked={!visible("projects.support-visits")} lockedWhat={tr.supportVisits}>
           {slas.length ? (
             <div className="grid grid-cols-3 gap-3 py-2 text-center">
               <div>
                 <p className={`num text-3xl font-800 ${vSoon > 0 ? "text-brand-700 dark:text-brand-300" : "text-slate-900 dark:text-white"}`}>{vSoon}</p>
-                <p className="mt-1 text-[11px] text-slate-400">due in 30 days</p>
+                <p className="mt-1 text-[11px] text-slate-400">{tr.due30Days}</p>
               </div>
               <div>
                 <p className={`num text-3xl font-800 ${vOverdue > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-white"}`}>{vOverdue}</p>
@@ -208,13 +211,13 @@ export default function ProjectsDashboard({
                 <p className="mt-1 text-[11px] text-slate-400">completed</p>
               </div>
             </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No SLA contracts yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noSlaContractsYet2}</p>}
           {slas.length > 0 && (
             <p className="mt-2 text-center text-xs text-slate-400 dark:text-slate-500">{vScheduled} visit{vScheduled === 1 ? "" : "s"} scheduled in total · {otHours} overtime hours logged</p>
           )}
         </Widget>
 
-        <Widget title="Project timeline" hint="Started and ended by month" span={2} locked={!visible("projects.timeline")} lockedWhat="Project timeline">
+        <Widget title={tr.projectTimeline} hint={tr.startedEndedMonth} span={2} locked={!visible("projects.timeline")} lockedWhat={tr.projectTimeline}>
           {months.length ? (
             <ChartFrame
               labels={months.map((m) => m.slice(5))}
@@ -228,7 +231,7 @@ export default function ProjectsDashboard({
                   { name: "Ended", data: months.map((m) => endedBy[m]), color: "rgb(var(--chart-2))" },
                 ]} />
             </ChartFrame>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No project dates yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noProjectDatesYet}</p>}
         </Widget>
       </DashGrid>
     </div>

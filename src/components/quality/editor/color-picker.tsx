@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { Baseline, Ban } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -44,6 +46,7 @@ export function ColorPicker({
   onSelect: (color: string) => void;
   onClear: () => void;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const [open, setOpen] = useState(false);
 
   return (
@@ -56,7 +59,7 @@ export function ColorPicker({
               variant="ghost"
               size="icon"
               className="size-8 flex-col gap-0"
-              aria-label="Text colour"
+              aria-label={tr.textColour}
             >
               <Baseline className="size-3.5" />
               <span
@@ -66,7 +69,7 @@ export function ColorPicker({
             </Button>
           </PopoverTrigger>
         </TooltipTrigger>
-        <TooltipContent>Text colour</TooltipContent>
+        <TooltipContent>{tr.textColour}</TooltipContent>
       </Tooltip>
 
       <PopoverContent align="start" className="w-auto p-2">
@@ -93,7 +96,7 @@ export function ColorPicker({
         <div className="mt-2 flex items-center gap-2 border-t pt-2">
           <Input
             type="color"
-            aria-label="Custom text colour"
+            aria-label={tr.customTextColour}
             value={value === "" ? "#000000" : value}
             onChange={(event) => onSelect(event.target.value)}
             className="h-7 w-12 p-1"

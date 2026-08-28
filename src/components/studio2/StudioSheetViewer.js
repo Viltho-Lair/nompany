@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { projectsDict } from "@/shared/studio/projects";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, input, btn, btnGhost, th } from "@/components/studio2/ui";
@@ -36,6 +38,7 @@ import { SHEET_COLUMNS, SHEET_OWNERS, rowStatus } from "@/modules/inventory/shee
 const td = "py-2 pe-3 align-middle";
 
 export default function StudioSheetViewer({ slug, projectId, sheetId, perspective = "inventory" }) {
+  const tr = projectsDict(useStudioLocale());
   const isInventory = perspective === "inventory";
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -76,7 +79,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/projects`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Projects in this studio."); return; }
+    if (!res.ok) { setError(tr.accessProjectsStudio); return; }
     setData(await res.json());
   }, [slug]);
 
@@ -247,7 +250,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
 
   // ---- returns, all of them below every hook -------------------------------
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading sheet…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingSheet}</p>;
 
   // THE WORK PORTION IS EMPTY UNTIL A SHEET IS CHOSEN. The bar stays, because
   // the bar is how one is chosen — an inventory person opens this screen to get
@@ -264,7 +267,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
               {sheets.length === 0 && " No projects have been signed yet — a project's sheets are drawn up when it is opened from an approved quotation."}
             </p>
           ) : (
-            <p className={`${panel} text-sm text-slate-500`}>This project has no sheet yet.</p>
+            <p className={`${panel} text-sm text-slate-500`}>{tr.projectNoSheetYet}</p>
           )}
         </div>
         {isInventory && (
@@ -337,7 +340,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
             </label>
           )}
           {dirtyRows > 0 && !busy && (
-            <button type="button" className={btnGhost} onClick={() => setDraft({})}>Discard</button>
+            <button type="button" className={btnGhost} onClick={() => setDraft({})}>{tr.discard}</button>
           )}
         </div>
       </div>
@@ -349,13 +352,13 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
           chosen, so they belong with what they are reading — and a tab strip
           says "these are the views of this thing" in a way a popup never did. */}
       {isInventory && (
-        <Tabs value={kind} onChange={(_, v) => setKind(v)} aria-label="Sheet"
+        <Tabs value={kind} onChange={(_, v) => setKind(v)} aria-label={tr.sheet}
           textColor="inherit"
           sx={{ minHeight: 0, borderBottom: 1, borderColor: "divider",
             "& .MuiTab-root": { minHeight: 0, py: 1.25, textTransform: "none", fontSize: 13, fontWeight: 600 },
             "& .MuiTabs-indicator": { height: 2 } }}>
-          <Tab value="main" label="Main" />
-          <Tab value="bulk" label="Bulk" />
+          <Tab value="main" label={tr.main} />
+          <Tab value="bulk" label={tr.bulk} />
         </Tabs>
       )}
 
@@ -372,11 +375,11 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
             <table className="w-full min-w-[900px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10">
-                  <th className={`${th} ps-2 text-start`}>Item</th>
+                  <th className={`${th} ps-2 text-start`}>{tr.item}</th>
                   {/* The registered item's own, read back through itemId — a
                       line quoted as free text has no model to show. */}
-                  <th className={`${th} text-start`}>Model</th>
-                  <th className={`${th} text-start`}>Qty</th>
+                  <th className={`${th} text-start`}>{tr.model}</th>
+                  <th className={`${th} text-start`}>{tr.qty}</th>
                   {/* EVERY column, whoever owns it — seeing the other
                       department's answer is the reason the row is shared. */}
                   {/* No owner tag. Every column here is Inventory's, so saying
@@ -387,7 +390,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
                   {SHEET_COLUMNS.map((c) => (
                     <th key={c.key} className={`${th} text-start ${c.kind === "serials" ? "w-28" : ""}`} title={c.hint}>{c.label}</th>
                   ))}
-                  <th className={`${th} w-32 text-start`} title="Derived from what is allocated against what was sold">Status</th>
+                  <th className={`${th} w-32 text-start`} title={tr.derivedWhatAllocatedAgainst}>{tr.status}</th>
                 </tr>
               </thead>
               <tbody>
@@ -471,6 +474,7 @@ function Status({ row, draft, pool = [] }) {
 // single line whatever is held; the panel is fixed-positioned from the button's
 // own rectangle, so no ancestor can clip it and nothing below it reflows.
 function SerialCell({ row, chosen, pool, changed, onEdit }) {
+  const tr = projectsDict(useStudioLocale());
   const [at, setAt] = useState(null);
   const box = useRef(null);
 
@@ -514,7 +518,7 @@ function SerialCell({ row, chosen, pool, changed, onEdit }) {
           </p>
           <ul className="max-h-52 overflow-auto py-1">
             {chosen.length === 0 && free.length === 0 && (
-              <li className="px-3 py-3 text-xs text-slate-400">Nothing in stock to allocate.</li>
+              <li className="px-3 py-3 text-xs text-slate-400">{tr.nothingStockAllocate}</li>
             )}
             {/* Held first — releasing is the thing you come back for. */}
             {chosen.map((sn) => (
@@ -552,6 +556,7 @@ function SerialCell({ row, chosen, pool, changed, onEdit }) {
 // control — a greyed-out dropdown on every row teaches people to stop reading
 // them, and most people will hold one department's rights and not the other's.
 function Cell({ column, row, draft, pool = [], disabled, onEdit }) {
+  const tr = projectsDict(useStudioLocale());
   // What is on screen is the DRAFT where there is one, and what the server holds
   // where there is not — so an unsaved edit survives a live update landing
   // underneath it rather than being wiped by somebody else's save.
@@ -571,7 +576,7 @@ function Cell({ column, row, draft, pool = [], disabled, onEdit }) {
       return (
         <span className="flex flex-col items-start gap-1">
           {held.map((sn) => (
-            <span key={sn} title="Reserved to this line"
+            <span key={sn} title={tr.reservedLine}
               className="inline-flex items-center gap-1 rounded-md bg-brand-500/10 px-1.5 py-0.5 font-mono text-[10px] font-600 text-brand-700 dark:text-brand-300">
               {sn}
             </span>
@@ -631,14 +636,14 @@ function Cell({ column, row, draft, pool = [], disabled, onEdit }) {
     const chosen = Array.isArray(value) ? value : [];
     const full = chosen.length >= row.qty;
     if (!pool.length && !chosen.length) {
-      return <span className="text-xs text-slate-400">none in stock</span>;
+      return <span className="text-xs text-slate-400">{tr.noneStock}</span>;
     }
     return (
       <span className={`flex flex-col gap-1 ${mark ? "rounded p-0.5 ring-1 ring-amber-400/70" : ""}`}>
         {chosen.length > 0 && (
           <span className="flex flex-wrap gap-1">
             {chosen.map((sn) => (
-              <button key={sn} type="button" title="Release this unit"
+              <button key={sn} type="button" title={tr.releaseUnit}
                 onClick={() => onEdit(chosen.filter((x) => x !== sn))}
                 className="inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 font-mono text-[10px] font-600 text-brand-700 hover:bg-rose-500/15 hover:text-rose-700 dark:text-brand-300 dark:hover:text-rose-300">
                 {sn} ×
@@ -649,7 +654,7 @@ function Cell({ column, row, draft, pool = [], disabled, onEdit }) {
         {!full && (
           <select className={`${input} w-36 py-1 text-xs`} value="" aria-label={`Allocate a unit to ${row.description}`}
             onChange={(e) => { if (e.target.value) onEdit([...chosen, e.target.value]); }}>
-            <option value="">Allocate…</option>
+            <option value="">{tr.allocate}</option>
             {pool.filter((sn) => !chosen.includes(sn)).map((sn) => (
               <option key={sn} value={sn}>{sn}</option>
             ))}
@@ -683,6 +688,7 @@ function Cell({ column, row, draft, pool = [], disabled, onEdit }) {
 // and Bulk are behind it in a small window, because they are two readings of
 // that project rather than two projects.
 function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQuery, onGo, onUnhide }) {
+  const tr = projectsDict(useStudioLocale());
   // The three-dot menu, and the Unhide window it opens. Two levels, because
   // "settings" will grow and unhiding is only the first of them.
   const [menu, setMenu] = useState("");        // "" | "menu" | "unhide"
@@ -720,7 +726,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
           <div className="w-1/5 shrink-0">
             <input type="search"
               className="w-full rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white"
-              placeholder="Project, quotation, PO, serial…"
+              placeholder={tr.projectQuotationPoSerial}
               value={query} onChange={(e) => onQuery(e.target.value)} />
           </div>
 
@@ -737,7 +743,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
               variant="scrollable"
               scrollButtons
               allowScrollButtonsMobile
-              aria-label="Projects"
+              aria-label={tr.projects}
               textColor="inherit"
               sx={{
                 // Shrink to fit but never grow past what is there, so the rack
@@ -776,7 +782,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
               bar rather than of the scrolling rack, which is what kept the
               earlier one from ever being drawn. */}
           <div className="relative ms-auto shrink-0">
-            <button type="button" aria-label="Sheet settings" aria-haspopup="menu"
+            <button type="button" aria-label={tr.sheetSettings} aria-haspopup="menu"
               aria-expanded={Boolean(menu)}
               onClick={() => setMenu((m) => (m ? "" : "menu"))}
               className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
@@ -822,7 +828,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
                     it opened from — the hand is already down here. */}
                 <div className="border-t border-slate-100 p-2 dark:border-white/10">
                   <input type="search" autoFocus value={find} onChange={(e) => setFind(e.target.value)}
-                    placeholder="Find a hidden project…"
+                    placeholder={tr.findHiddenProject}
                     className="w-full rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none dark:border-white/15 dark:bg-[#191921] dark:text-white" />
                 </div>
               </div>

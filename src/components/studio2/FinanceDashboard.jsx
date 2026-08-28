@@ -15,6 +15,8 @@
 // `enabledWidgets`, never here.
 
 import { useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { financeDict } from "@/shared/studio/finance";
 import { money, StatTile } from "@/components/studio2/ui";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { BarChart, BarList, Donut, Radial, ChartFrame } from "@/components/charts";
@@ -28,6 +30,7 @@ import { useWidgetVisible } from "@/components/studio2/analyticsLevel";
 const monthKey = (d) => String(d).slice(0, 7);
 
 export default function FinanceDashboard({ invoices = [], expenses = [], currency = "", slug = "" }) {
+  const tr = financeDict(useStudioLocale());
   // AP + FA land from their own routes. A route that is missing or forbidden
   // degrades to empty widgets rather than breaking the AR dashboard beside them.
   const [payables, setPayables] = useState([]);
@@ -85,31 +88,31 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
       {/* Basic — the summary everyone gets, before any detail. AR at a glance,
           then the two headline AP/FA figures (Finance 1b) beside them. */}
       <StatRow>
-        <StatTile label="Outstanding" value={amt(outstanding)} />
+        <StatTile label={tr.outstanding} value={amt(outstanding)} />
         <StatTile label={`Overdue · ${overdueCount}`} value={amt(overdue)} tone={overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""} />
-        <StatTile label="Collected this month" value={amt(collectedThisMonth)} tone="text-emerald-600 dark:text-emerald-400" />
-        <StatTile label="Spent this month" value={amt(expensesThisMonth)} />
-        <StatTile label="Owed to vendors" value={amt(owedToVendors)} />
-        <StatTile label="Net book value" value={amt(register.netBookValue)} />
+        <StatTile label={tr.collectedMonth} value={amt(collectedThisMonth)} tone="text-emerald-600 dark:text-emerald-400" />
+        <StatTile label={tr.spentMonth} value={amt(expensesThisMonth)} />
+        <StatTile label={tr.owedVendors} value={amt(owedToVendors)} />
+        <StatTile label={tr.netBookValue} value={amt(register.netBookValue)} />
       </StatRow>
 
       <DashGrid>
         {/* ---- receivables (AR) ---- */}
-        <Widget title="Receivables aging" hint="Outstanding by days past due" locked={!visible("finance.ar-aging")} lockedWhat="Receivables aging">
+        <Widget title={tr.receivablesAging} hint={tr.outstandingDaysPastDue} locked={!visible("finance.ar-aging")} lockedWhat={tr.receivablesAging}>
           <AgingBars aging={aging} />
         </Widget>
 
-        <Widget title="Top debtors" hint="Who owes the most" locked={!visible("finance.top-debtors")} lockedWhat="Top debtors">
+        <Widget title={tr.topDebtors} hint={tr.whoOwesMost} locked={!visible("finance.top-debtors")} lockedWhat={tr.topDebtors}>
           <BarList items={debtors.map((d) => ({ label: d.clientName, value: debtors[0]?.owed ? Math.round((d.owed / debtors[0].owed) * 100) : 0, display: <span className="num">{money(d.owed)}</span> }))} />
         </Widget>
 
-        <Widget title="Collection rate" hint="Collected ÷ invoiced, last 90 days" locked={!visible("finance.collection-rate")} lockedWhat="Collection rate">
+        <Widget title={tr.collectionRate} hint={tr.collectedInvoicedLast90} locked={!visible("finance.collection-rate")} lockedWhat={tr.collectionRate}>
           <div className="flex justify-center py-2">
             <Radial value={Math.round(rate * 100)} label={`${Math.round(rate * 100)}%`} sub="last 90 days" color="rgb(var(--chart-2))" />
           </div>
         </Widget>
 
-        <Widget title="Income vs expense" hint="Cash in and out, 12 months" span={2} locked={!visible("finance.income-vs-expense")} lockedWhat="Income vs expense">
+        <Widget title={tr.incomeVsExpense} hint={tr.cashOut12Months} span={2} locked={!visible("finance.income-vs-expense")} lockedWhat={tr.incomeVsExpense}>
           <ChartFrame labels={months.map((m) => m.month.slice(5))} legend={[{ name: "Income", color: "rgb(var(--chart-2))" }, { name: "Expense", color: "rgb(var(--chart-3))" }]} height={220}>
             <BarChart height={220}
               labels={months.map((m) => m.month)}
@@ -120,54 +123,54 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
           </ChartFrame>
         </Widget>
 
-        <Widget title="Expense mix" hint="Spend by category" locked={!visible("finance.expense-mix")} lockedWhat="Expense mix">
+        <Widget title={tr.expenseMix} hint={tr.spendCategory} locked={!visible("finance.expense-mix")} lockedWhat={tr.expenseMix}>
           {mix.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={mix.slice(0, 6).map((m) => ({ label: m.category, value: m.amount }))}
                 center={<div className="text-center"><p className="num text-lg font-800 text-slate-900 dark:text-white">{money(mix.reduce((s, m) => s + m.amount, 0))}</p><p className="text-[11px] text-slate-400">total</p></div>} />
             </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No expenses yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noExpensesYet2}</p>}
         </Widget>
 
         {/* ---- payables (AP), Finance 1b ---- */}
-        <Widget title="Top vendors owed" hint="Who we owe the most" locked={!visible("finance.top-vendors")} lockedWhat="Top vendors owed">
+        <Widget title={tr.topVendorsOwed} hint={tr.whoOweMost} locked={!visible("finance.top-vendors")} lockedWhat={tr.topVendorsOwed}>
           {vendors.length ? (
             <BarList items={vendors.map((v) => ({ label: v.vendorName, value: vendors[0]?.owed ? Math.round((v.owed / vendors[0].owed) * 100) : 0, display: <span className="num">{money(v.owed)}</span> }))} />
-          ) : <p className="py-8 text-center text-sm text-slate-400">Nothing owed to vendors.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nothingOwedVendors}</p>}
         </Widget>
 
-        <Widget title="Payables aging" hint="What we owe, by days past due" locked={!visible("finance.ap-aging")} lockedWhat="Payables aging">
+        <Widget title={tr.payablesAging} hint={tr.whatOweDaysPast} locked={!visible("finance.ap-aging")} lockedWhat={tr.payablesAging}>
           <AgingBars aging={apeing} />
         </Widget>
 
         {/* ---- fixed assets (FA), Finance 1b ---- */}
-        <Widget title="Fixed-asset register" hint="Cost, depreciation and net book value" locked={!visible("finance.asset-register")} lockedWhat="Fixed-asset register">
+        <Widget title={tr.fixedAssetRegister} hint={tr.costDepreciationNetBook} locked={!visible("finance.asset-register")} lockedWhat={tr.fixedAssetRegister}>
           {register.count || register.disposedCount ? (
             <div className="space-y-3 py-1">
-              <RegLine label="Total cost" value={money(register.totalCost)} />
-              <RegLine label="Accumulated depreciation" value={money(register.totalAccumulated)} tone="text-slate-500 dark:text-slate-400" />
+              <RegLine label={tr.totalCost} value={money(register.totalCost)} />
+              <RegLine label={tr.accumulatedDepreciation} value={money(register.totalAccumulated)} tone="text-slate-500 dark:text-slate-400" />
               <div className="border-t border-slate-200 pt-3 dark:border-white/10">
-                <RegLine label="Net book value" value={money(register.netBookValue)} strong />
+                <RegLine label={tr.netBookValue} value={money(register.netBookValue)} strong />
               </div>
               <p className="text-xs text-slate-400">{register.count} in service{register.disposedCount ? ` · ${register.disposedCount} disposed` : ""}</p>
             </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No assets yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noAssetsYet2}</p>}
         </Widget>
 
-        <Widget title="Assets by category" hint="Net book value by category" locked={!visible("finance.asset-breakdown")} lockedWhat="Assets by category">
+        <Widget title={tr.assetsCategory} hint={tr.netBookValueCategory} locked={!visible("finance.asset-breakdown")} lockedWhat={tr.assetsCategory}>
           {catNbv.length ? (
             <div className="flex items-center justify-center py-2">
               <Donut size={168} data={catNbv.map((g) => ({ label: g.label, value: g.bookValue }))}
-                center={<div className="text-center"><p className="num text-lg font-800 text-slate-900 dark:text-white">{money(register.netBookValue)}</p><p className="text-[11px] text-slate-400">net book value</p></div>} />
+                center={<div className="text-center"><p className="num text-lg font-800 text-slate-900 dark:text-white">{money(register.netBookValue)}</p><p className="text-[11px] text-slate-400">{tr.netBookValue2}</p></div>} />
             </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No assets in service.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noAssetsService}</p>}
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Days sales outstanding" hint="Average age of money owed" locked={!visible("finance.dso")} lockedWhat="Days sales outstanding">
+        <Widget title={tr.daysSalesOutstanding} hint={tr.averageAgeMoneyOwed} locked={!visible("finance.dso")} lockedWhat={tr.daysSalesOutstanding}>
           <div className="flex flex-col items-center justify-center py-4">
             <p className="num text-4xl font-800 text-slate-900 dark:text-white">{days}</p>
-            <p className="mt-1 text-xs text-slate-400">days, weighted by amount</p>
+            <p className="mt-1 text-xs text-slate-400">{tr.daysWeightedAmount}</p>
           </div>
         </Widget>
       </DashGrid>

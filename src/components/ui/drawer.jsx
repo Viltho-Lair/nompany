@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { miscDict } from "@/shared/studio/misc";
 import { cn } from "@/lib/utils";
 
 // Lightweight slide-in Drawer (shadcn "Sheet" style, no external deps). The
@@ -8,6 +10,7 @@ import { cn } from "@/lib/utils";
 // inside (e.g. a ResizeObserver-measured timeline) keeps its width. Closes on
 // overlay click, the close button, or Escape; locks body scroll while open.
 export function Drawer({ open, onClose, title, description, side = "right", widthClass = "w-[min(94vw,1120px)]", actions, className, children }) {
+  const tr = miscDict(useStudioLocale());
   React.useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === "Escape" && onClose?.();
@@ -46,7 +49,7 @@ export function Drawer({ open, onClose, title, description, side = "right", widt
             {actions}
             <button
               onClick={onClose}
-              aria-label="Close"
+              aria-label={tr.close}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>

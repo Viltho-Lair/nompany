@@ -14,6 +14,8 @@
 // floor everyone gets; the gated widgets carry their registry keys.
 
 import { money, StatTile } from "@/components/studio2/ui";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { technicalDict } from "@/shared/studio/technical";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { AreaChart, BarList, Donut, Radial, Sparkline, ChartFrame } from "@/components/charts";
 import { CurrencySymbol } from "@/components/Currency";
@@ -42,6 +44,7 @@ export default function TechnicalDashboard({
   handlerName = (v) => v || "—",
   currency = "",
 }) {
+  const tr = technicalDict(useStudioLocale());
   const visible = useWidgetVisible();
   const stats = quotationStats(quotations);
   const value = quotationValue(quotations);
@@ -68,18 +71,18 @@ export default function TechnicalDashboard({
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label="Open RFQs" value={openRfqs} tone={openRfqs > 0 ? "text-amber-600 dark:text-amber-400" : ""} />
-        <StatTile label="Quotations out" value={out} />
+        <StatTile label={tr.openRfqs} value={openRfqs} tone={openRfqs > 0 ? "text-amber-600 dark:text-amber-400" : ""} />
+        <StatTile label={tr.quotationsOut} value={out} />
         <StatTile
-          label="Average turnaround"
+          label={tr.averageTurnaround}
           value={turnaround === null ? "—" : <span className="num">{turnaround} day{turnaround === 1 ? "" : "s"}</span>}
         />
-        <StatTile label="Total quotation value" value={amt(value.all)} />
+        <StatTile label={tr.totalQuotationValue} value={amt(value.all)} />
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Quotation volume" hint="New quotations, last 30 days" span={2} locked={!visible("technical.quotation-volume")} lockedWhat="Quotation volume">
+        <Widget title={tr.quotationVolume} hint={tr.newQuotationsLast30} span={2} locked={!visible("technical.quotation-volume")} lockedWhat={tr.quotationVolume}>
           {stats.total ? (
             <ChartFrame
               // 30 labels would overprint; show one every fifth day and blank the
@@ -96,7 +99,7 @@ export default function TechnicalDashboard({
           ) : <NoData text="No quotations yet." />}
         </Widget>
 
-        <Widget title="RFQ funnel" hint="RFQs by workflow status" locked={!visible("technical.rfq-funnel")} lockedWhat="RFQ funnel">
+        <Widget title={tr.rfqFunnel} hint={tr.rfqsWorkflowStatus} locked={!visible("technical.rfq-funnel")} lockedWhat={tr.rfqFunnel}>
           {rfqs.length ? (
             <BarList items={funnel.map((f) => ({
               label: f.label,
@@ -106,7 +109,7 @@ export default function TechnicalDashboard({
           ) : <NoData text="No RFQs yet." />}
         </Widget>
 
-        <Widget title="Urgency breakdown" hint="Quotations by the urgency carried from the ticket" locked={!visible("technical.urgency-breakdown")} lockedWhat="Urgency breakdown">
+        <Widget title={tr.urgencyBreakdown} hint={tr.quotationsUrgencyCarriedTicket} locked={!visible("technical.urgency-breakdown")} lockedWhat={tr.urgencyBreakdown}>
           {urgencyTotal ? (
             <div className="flex items-center justify-center py-2">
               <Donut
@@ -123,7 +126,7 @@ export default function TechnicalDashboard({
           ) : <NoData text="No quotations yet." />}
         </Widget>
 
-        <Widget title="Approved share" hint="Approved value as a portion of the whole pipeline" locked={!visible("technical.approved-share")} lockedWhat="Approved share">
+        <Widget title={tr.approvedShare} hint={tr.approvedValuePortionWhole} locked={!visible("technical.approved-share")} lockedWhat={tr.approvedShare}>
           {value.all > 0 ? (
             <div className="flex flex-col items-center gap-2 py-2">
               <Radial value={approvedPct} label={`${approvedPct}%`} sub="of pipeline value" color="rgb(var(--chart-2))" />
@@ -133,7 +136,7 @@ export default function TechnicalDashboard({
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Handler leaderboard" hint="Quotations handled, ranked" locked={!visible("technical.handler-leaderboard")} lockedWhat="Handler leaderboard">
+        <Widget title={tr.handlerLeaderboard} hint={tr.quotationsHandledRanked} locked={!visible("technical.handler-leaderboard")} lockedWhat={tr.handlerLeaderboard}>
           {leaders.length ? (
             <BarList items={leaders.slice(0, 6).map((l) => ({
               label: l.name,
@@ -144,7 +147,7 @@ export default function TechnicalDashboard({
           ) : <NoData text="No quotations yet." />}
         </Widget>
 
-        <Widget title="Turnaround" hint="Days from creation to approval" locked={!visible("technical.turnaround")} lockedWhat="Turnaround">
+        <Widget title={tr.turnaround} hint={tr.daysCreationApproval} locked={!visible("technical.turnaround")} lockedWhat={tr.turnaround}>
           {turnaround === null ? (
             <NoData text="No quotation has been approved yet." />
           ) : (

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { miscDict } from "@/shared/studio/misc";
 import { Icon } from "@/components/studio2/icons";
 import { downloadTranscript } from "@/lib/chatTranscript";
 import {
@@ -34,6 +36,7 @@ const inputClass =
 const EXHAUSTED_MESSAGE = "You have consumed all tickets for this month.";
 
 export default function StudioChat({ enabled, slug, studioName, userName, unlimited = true, allowed = 0, used = 0, remaining = null, exhausted = false }) {
+  const tr = miscDict(useStudioLocale());
   const [open, setOpen] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [room, setRoom] = useState(null);
@@ -182,11 +185,11 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
       } else {
         // Put it back in the box rather than losing what they typed.
         setText(body);
-        setError("That didn't send. Try again.");
+        setError(tr.didnSendTryAgain);
       }
     } catch {
       setText(body);
-      setError("That didn't send. Try again.");
+      setError(tr.didnSendTryAgain);
     }
   }
 
@@ -273,7 +276,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Minimise chat"
+              aria-label={tr.minimiseChat}
               className="rounded-full p-1 text-white/80 hover:bg-white/10"
             >
               <Icon name="chevronDown" className="h-5 w-5" />
@@ -336,7 +339,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                     Waiting for someone from nompany to join. You can start describing the problem now.
                   </p>
                 )}
-                {done && <p className="pt-2 text-center text-xs text-slate-400">This chat has ended.</p>}
+                {done && <p className="pt-2 text-center text-xs text-slate-400">{tr.chatEnded}</p>}
                 {error && <p className="pt-2 text-center text-xs text-rose-600 dark:text-rose-400">{error}</p>}
               </div>
             )}
@@ -350,9 +353,9 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                     <textarea
                       rows={1}
                       className={`${inputClass} resize-none py-2`}
-                      placeholder="Type a message…"
+                      placeholder={tr.typeMessage}
                       value={text}
-                      aria-label="Message"
+                      aria-label={tr.message}
                       onChange={(e) => setText(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
@@ -362,7 +365,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                       type="button"
                       onClick={send}
                       disabled={!text.trim()}
-                      aria-label="Send"
+                      aria-label={tr.send}
                       className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white hover:bg-brand-950 disabled:opacity-50"
                     >
                       <Icon name="send" className="h-4 w-4 rtl:-scale-x-100" />

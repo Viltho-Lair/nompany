@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +36,7 @@ export function MarginsDialog({
   onOpenChange: (open: boolean) => void;
   onApply: (margins: Margins) => void;
 }) {
+  const tr = qualityDict(useStudioLocale());
   // Mounted only while open, so props seed state once and never restate it.
   const [draft, setDraft] = useState<Margins>(initial);
 
@@ -45,7 +48,7 @@ export function MarginsDialog({
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Custom margins</DialogTitle>
+          <DialogTitle>{tr.customMargins}</DialogTitle>
           <DialogDescription>
             Millimetres from each edge of the {paper.label} sheet (
             {paper.dimensions}).
@@ -96,7 +99,7 @@ export function MarginsDialog({
             >
               Cancel
             </Button>
-            <Button type="submit">Apply</Button>
+            <Button type="submit">{tr.apply}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

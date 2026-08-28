@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { useCallback, useEffect, useState } from "react";
 import { FileQuestion } from "lucide-react";
 
@@ -99,19 +101,20 @@ export function DocumentView({
 }
 
 function DocumentNotFound({ slug }: { slug: string }) {
+  const tr = qualityDict(useStudioLocale());
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
       <span className="grid size-12 place-items-center rounded-xl bg-muted text-muted-foreground">
         <FileQuestion className="size-5" />
       </span>
       <div>
-        <p className="font-medium">This document is not available</p>
+        <p className="font-medium">{tr.documentNotAvailable}</p>
         <p className="text-sm text-muted-foreground">
           It may have been deleted, or you do not have access to it.
         </p>
       </div>
       <Button asChild variant="outline">
-        <Link href={`/${slug}/quality-documents`}>Back to documents</Link>
+        <Link href={`/${slug}/quality-documents`}>{tr.backDocuments}</Link>
       </Button>
     </div>
   );

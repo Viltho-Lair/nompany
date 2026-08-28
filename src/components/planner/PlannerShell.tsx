@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
 import {
   AlertTriangle,
   BarChart3,
@@ -36,6 +38,7 @@ const PROJECT_STATUS = {
 } as const;
 
 export function PlannerShell({ printHref, readOnly = false }: { printHref?: string; readOnly?: boolean } = {}) {
+  const tr = plannerDict(useStudioLocale());
   const {
     meta,
     tasks,
@@ -291,7 +294,7 @@ export function PlannerShell({ printHref, readOnly = false }: { printHref?: stri
             <input
               value={meta.name}
               onChange={(e) => setMeta({ name: e.target.value })}
-              placeholder="Untitled plan"
+              placeholder={tr.untitledPlan}
               className="min-w-0 max-w-md flex-1 rounded border border-transparent px-1 text-[17px] font-semibold text-slate-900 outline-none hover:border-slate-200 focus:border-primary"
             />
 

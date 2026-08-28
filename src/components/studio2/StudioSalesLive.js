@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { miscDict } from "@/shared/studio/misc";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -19,6 +21,7 @@ const money = (n) => new Intl.NumberFormat("en", { minimumFractionDigits: 2, max
 // the columns chosen in Sales -> Settings — so there is no second data source
 // and nothing to keep in sync.
 export default function StudioSalesLive({ studio }) {
+  const tr = miscDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [lastFetched, setLastFetched] = useState(null);
@@ -27,7 +30,7 @@ export default function StudioSalesLive({ studio }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${studio.slug}/sales`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Sales in this studio."); return; }
+    if (!res.ok) { setError(tr.accessSalesStudio); return; }
     setData(await res.json());
     setLastFetched(new Date());
     setError("");
@@ -67,13 +70,13 @@ export default function StudioSalesLive({ studio }) {
         <div className="flex flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
           <Link
             href={`/${studio.slug}/sales`}
-            title="Back to Sales"
+            title={tr.backSales}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >
             <Icon name="arrowLeft" className="h-[18px] w-[18px] rtl:-scale-x-100" />
           </Link>
           <div className="min-w-0">
-            <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">Sales — Live view</h1>
+            <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">{tr.salesLiveView}</h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
               {studio.name} · {data ? `${data.tickets.length} ticket${data.tickets.length === 1 ? "" : "s"}` : "loading"}
               {" · "}refreshes every {REFRESH_MS / 1000}s
@@ -102,7 +105,7 @@ export default function StudioSalesLive({ studio }) {
 
       <main className="px-5 py-6 sm:px-8">
         {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
-        {!data && !error && <p className="text-sm text-slate-500">Loading…</p>}
+        {!data && !error && <p className="text-sm text-slate-500">{tr.loading}</p>}
 
         {data && columns.length === 0 && (
           <p className="rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-8 text-center text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
@@ -124,7 +127,7 @@ export default function StudioSalesLive({ studio }) {
               </thead>
               <tbody>
                 {data.tickets.length === 0 ? (
-                  <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-slate-400">No tickets yet.</td></tr>
+                  <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-slate-400">{tr.noTicketsYet}</td></tr>
                 ) : data.tickets.map((t) => (
                   <tr key={t.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
                     {columns.map((c) => (

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { technicalDict } from "@/shared/studio/technical";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
@@ -57,6 +59,7 @@ const latestComment = (row) => {
 //   technical-settings   -> quotation numbering + Live view columns
 // technical-live renders full-screen outside the studio frame.
 export default function StudioTechnical({ slug, view = "technical" }) {
+  const tr = technicalDict(useStudioLocale());
   const [data, setData] = useState(null);
   const level = useAnalyticsLevel();
   const focusQuote = useFocusedRecord("quotation");
@@ -77,7 +80,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/technical`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Technical in this studio."); return; }
+    if (!res.ok) { setError(tr.accessTechnicalStudio); return; }
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
@@ -143,7 +146,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
   }
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading Technical…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingTechnical}</p>;
 
   const { canManage: canManageParent, canManageRfq, canManageQuotations, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, nav, sequences = [], defaultSequenceId } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
@@ -181,7 +184,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
       <div className="space-y-6">
         {banner}
         {raising && (
-          <Dialog title="Raise an RFQ" description="Pick the ticket that needs pricing. Its details are copied across for Technical." onClose={closeRaise}>
+          <Dialog title={tr.raiseRfq} description={tr.pickTicketNeedsPricing} onClose={closeRaise}>
             <RaiseRfq tickets={openTickets} onCancel={closeRaise} onSave={(p) => send("rfqs", "POST", p)} />
           </Dialog>
         )}
@@ -212,7 +215,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
         {banner}
         {noticeBanner}
         {creatingQuote && (
-          <Dialog title="New quotation" description="Created without an RFQ, so it is marked Internal. Fields marked * are required." onClose={closeCreate} width="max-w-[560px]">
+          <Dialog title={tr.newQuotation} description={tr.createdWithoutRfqMarked} onClose={closeCreate} width="max-w-[560px]">
             <NewQuotation people={people} sequences={sequences} defaultSequenceId={defaultSequenceId}
               clients={vocabulary.clients || []} industries={vocabulary.industries || []}
               onCancel={closeCreate} onSave={(p) => send("quotations", "POST", p)} />
@@ -241,7 +244,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
           // name no approver to receive it, so the studio is told to appoint one.
           onRequestApproval={async (q) => {
             const out = await send("quotations/approval", "POST", { quotationId: q.id });
-            if (out && out.unrouted) setNotice("Sent for approval, but no approver is set up to receive it — appoint approvers in Tasks settings.");
+            if (out && out.unrouted) setNotice(tr.sentApprovalButNo);
           }}
           onLock={(q) => send("quotations", "PUT", { id: q.id, locked: true })}
           // ONLY the unlock, nothing beside it — the server refuses a request
@@ -257,7 +260,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
     <div className="space-y-6">
       {banner}
       {data.canViewDashboard === false
-        ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
+        ? <Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} />
         : <TechnicalDashboard rfqs={rfqs} quotations={quotations} handlerName={handlerName} level={level} currency={data.currency || ""} />}
     </div>
   );
@@ -278,6 +281,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
 // because half a decision saved is worse than none. Convert saves first and then
 // opens the quotation, so converting can never silently discard what was typed.
 function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses, busy, onRaise, onSave, onConvert }) {
+  const tr = technicalDict(useStudioLocale());
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
   // { id, values } — whose edits these are, so a draft can never be shown
@@ -339,10 +343,10 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
           className={`${input} max-w-sm`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search RFQs"
+          aria-label={tr.searchRfqs}
         />
         <p className="text-sm text-slate-500 dark:text-slate-400">{shown.length} of {rfqs.length}</p>
-        {canRequestRfq && <button className={`${btn} ms-auto`} onClick={onRaise}>Raise an RFQ</button>}
+        {canRequestRfq && <button className={`${btn} ms-auto`} onClick={onRaise}>{tr.raiseRfq}</button>}
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -381,7 +385,7 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
         {/* ---- the one being handled ---- */}
         <div className="min-h-[240px] rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
           {!selected ? (
-            <p className="text-sm text-slate-400">Choose an RFQ to see it here.</p>
+            <p className="text-sm text-slate-400">{tr.chooseRfqSeeHere}</p>
           ) : (
             <>
               <div className="flex flex-wrap items-start gap-3">
@@ -398,7 +402,7 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
                   </button>
                 )}
                 <div className="min-w-0">
-                  <h3 className="truncate font-display text-lg font-800 text-slate-900 dark:text-white">RFQ information</h3>
+                  <h3 className="truncate font-display text-lg font-800 text-slate-900 dark:text-white">{tr.rfqInformation}</h3>
                   <p className="truncate font-mono text-xs text-slate-400">{selected.reference}</p>
                 </div>
               </div>
@@ -406,26 +410,26 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
               {/* What Sales sent. Read-only here: urgency belongs to a Sales
                   Leader, and the client, industry and deadline are what was sold. */}
               <dl className="mt-5 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                <RfqInfo label="Client" value={selected.clientName} />
-                <RfqInfo label="Title" value={selected.title} />
-                <RfqInfo label="Ticket" value={selected.ticketRef} mono />
-                <RfqInfo label="Industry" value={selected.industry} />
-                <RfqInfo label="Deadline" value={selected.deadline ? fmtDate(selected.deadline) : ""} />
-                <RfqInfo label="Received" value={fmtDate(selected.createdAt)} />
-                <RfqInfo label="Requested by" value={aliasOf[selected.requestedByCollaboratorId]} />
+                <RfqInfo label={tr.client} value={selected.clientName} />
+                <RfqInfo label={tr.title} value={selected.title} />
+                <RfqInfo label={tr.ticket} value={selected.ticketRef} mono />
+                <RfqInfo label={tr.industry} value={selected.industry} />
+                <RfqInfo label={tr.deadline} value={selected.deadline ? fmtDate(selected.deadline) : ""} />
+                <RfqInfo label={tr.received} value={fmtDate(selected.createdAt)} />
+                <RfqInfo label={tr.requested} value={aliasOf[selected.requestedByCollaboratorId]} />
               </dl>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 {/* Converted is never chosen by hand — it is what Convert does.
                     Who handles it is asked once, at conversion, rather than
                     being a second place to answer the same question. */}
-                <Field label="Status" as="select" required value={draft.status}
+                <Field label={tr.status} as="select" required value={draft.status}
                   disabled={!canManage || converted}
                   onChange={(v) => set({ status: v })}
                   options={statuses.filter((s) => s !== "Converted" || converted)} />
               </div>
 
-              <Field className="mt-4" label="Description" as="textarea" value={draft.description}
+              <Field className="mt-4" label={tr.description} as="textarea" value={draft.description}
                 disabled={!canManage || converted}
                 onChange={(v) => set({ description: v })} />
 
@@ -482,6 +486,7 @@ function OriginTag({ fromSales }) {
 }
 
 function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval }) {
+  const tr = technicalDict(useStudioLocale());
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
@@ -529,42 +534,42 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
   if (quotations.length === 0) {
     return (
       <>
-        <Toolbar canManage={canManage} label="New quotation" onAdd={onAdd} />
-        <Empty title="No quotations yet" body="Convert an RFQ to produce a priced quotation, or raise one here directly." />
+        <Toolbar canManage={canManage} label={tr.newQuotation} onAdd={onAdd} />
+        <Empty title={tr.noQuotationsYet} body={tr.convertRfqProducePriced} />
       </>
     );
   }
 
   return (
     <>
-      <Toolbar canManage={canManage} label="New quotation" onAdd={onAdd}>
-        <input type="search" className={`${input} sm:max-w-xs`} aria-label="Search number, title, client or description"
+      <Toolbar canManage={canManage} label={tr.newQuotation} onAdd={onAdd}>
+        <input type="search" className={`${input} sm:max-w-xs`} aria-label={tr.searchNumberTitleClient}
           value={query} onChange={(e) => setQuery(e.target.value)} />
         <FilterButton active={activeFilters} open={showFilters} onClick={() => setShowFilters((v) => !v)} />
-        <button type="button" className={btnGhost} onClick={() => setShowColumns(true)}>Columns</button>
+        <button type="button" className={btnGhost} onClick={() => setShowColumns(true)}>{tr.columns}</button>
       </Toolbar>
 
       {showFilters && (
         <FilterPanel onClear={clearFilters}>
-          <Field label="Handled by" as="select" value={filters.handledBy}
+          <Field label={tr.handled} as="select" value={filters.handledBy}
             onChange={(v) => setFilter({ handledBy: v })}
             options={people.map((p) => ({ value: p.id, label: p.alias }))} />
-          <Field label="Client" value={filters.client} onChange={(v) => setFilter({ client: v })} />
-          <Field label="Status" as="select" value={filters.status}
+          <Field label={tr.client} value={filters.client} onChange={(v) => setFilter({ client: v })} />
+          <Field label={tr.status} as="select" value={filters.status}
             onChange={(v) => setFilter({ status: v })} options={statuses} />
-          <Field label="Urgency" as="select" value={filters.urgency}
+          <Field label={tr.urgency} as="select" value={filters.urgency}
             onChange={(v) => setFilter({ urgency: v })} options={urgencies} />
-          <Field label="Created from" filled={!!filters.createdFrom}>
+          <Field label={tr.created} filled={!!filters.createdFrom}>
             <StudioDate value={filters.createdFrom} onChange={(iso) => setFilter({ createdFrom: iso })} />
           </Field>
-          <Field label="Created to" filled={!!filters.createdTo}>
+          <Field label={tr.created2} filled={!!filters.createdTo}>
             <StudioDate value={filters.createdTo} onChange={(iso) => setFilter({ createdTo: iso })} />
           </Field>
         </FilterPanel>
       )}
 
       {showColumns && (
-        <ColumnPicker title="Quotation columns" columns={QUOTATION_COLUMNS} selected={columns}
+        <ColumnPicker title={tr.quotationColumns} columns={QUOTATION_COLUMNS} selected={columns}
           onToggle={toggleCol} onReset={resetCols} onClose={() => setShowColumns(false)} />
       )}
 
@@ -572,7 +577,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
 
       <section className={panel}>
         {filtered.length === 0 ? (
-          <p className="py-10 text-center text-sm text-slate-400">No quotations match those filters.</p>
+          <p className="py-10 text-center text-sm text-slate-400">{tr.noQuotationsMatchThose}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse text-sm">
@@ -606,7 +611,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
                         <td className="py-3 pe-3 ps-2">
                           <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{q.number}</span>
                           {Number(q.revision) > 1 && <span className="ms-1.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">Rev {q.revision}</span>}
-                          {q.locked && <span className="ms-1.5 inline-flex align-middle text-slate-400" title="Locked — view only"><Icon name="lock" className="h-3.5 w-3.5" /></span>}
+                          {q.locked && <span className="ms-1.5 inline-flex align-middle text-slate-400" title={tr.lockedViewOnly}><Icon name="lock" className="h-3.5 w-3.5" /></span>}
                         </td>
                       )}
                       {col("urgency") && (
@@ -661,17 +666,17 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
                               stopPropagation so the button does not also open the
                               builder the row click owns. */}
                           {canManage && !q.fromSales && q.status === "Completed" && !q.approved && (
-                            <button className={btnGhost} title="Send this quotation for internal approval" onClick={(e) => { e.stopPropagation(); onRequestApproval(q); }}>Request approval</button>
+                            <button className={btnGhost} title={tr.sendQuotationInternalApproval} onClick={(e) => { e.stopPropagation(); onRequestApproval(q); }}>{tr.requestApproval}</button>
                           )}
                           {canManage && q.status === "Approved" && !q.locked && (
-                            <button className={btnGhost} title="Lock — it becomes view-only" onClick={(e) => { e.stopPropagation(); onLock(q); }}>Lock</button>
+                            <button className={btnGhost} title={tr.lockBecomesViewOnly} onClick={(e) => { e.stopPropagation(); onLock(q); }}>{tr.lock}</button>
                           )}
                           {/* Offered only to somebody who holds unlock. Locking
                               the wrong document used to have no remedy but a new
                               quotation with a new number, which is a worse lie
                               than the mistake. */}
                           {canUnlock && q.locked && (
-                            <button className={btnGhost} title="Reopen this locked quotation" onClick={(e) => { e.stopPropagation(); onUnlock(q); }}>Unlock</button>
+                            <button className={btnGhost} title={tr.reopenLockedQuotation} onClick={(e) => { e.stopPropagation(); onUnlock(q); }}>{tr.unlock}</button>
                           )}
                         </span>
                       </td>
@@ -689,35 +694,37 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
 
 // ---- forms -----------------------------------------------------------------
 function RaiseRfq({ tickets, onSave, onCancel }) {
+  const tr = technicalDict(useStudioLocale());
   const [ticketId, setTicketId] = useState(tickets[0]?.id || "");
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   if (tickets.length === 0) {
     return (
       <>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Every open ticket already has an RFQ against it, so there is nothing to raise.</p>
-        <div className="mt-5"><button className={btnGhost} onClick={onCancel}>Close</button></div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{tr.everyOpenTicketAlready}</p>
+        <div className="mt-5"><button className={btnGhost} onClick={onCancel}>{tr.close}</button></div>
       </>
     );
   }
   return (
     <>
       <div className="grid gap-4">
-        <Field label="Ticket" as="select" required value={ticketId} onChange={(v) => setTicketId(v)}
+        <Field label={tr.ticket} as="select" required value={ticketId} onChange={(v) => setTicketId(v)}
           options={tickets.map((t) => ({ value: t.id, label: `${t.ref} — ${t.title}` }))} />
-        <Field label="What's needed" as="textarea" value={description} onChange={(v) => setDescription(v)} />
+        <Field label={tr.whatNeeded} as="textarea" value={description} onChange={(v) => setDescription(v)} />
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ticketId} onClick={async () => { setBusy(true); await onSave({ ticketId, description }); setBusy(false); }}>
           {busy ? "Raising…" : "Raise RFQ"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
 }
 
 function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
+  const tr = technicalDict(useStudioLocale());
   // No items and no VAT. Converting says a quotation exists, who owns it and
   // what it is called; what goes ON it belongs to the builder.
   const [handledBy, setHandledBy] = useState("");
@@ -728,26 +735,26 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
           Leader, and the industry and services are what was sold. */}
       <div className="grid gap-4 sm:grid-cols-3">
         <div>
-          <label className={label}>Quotation number</label>
+          <label className={label}>{tr.quotationNumber}</label>
           {/* Issued by the studio's numbering, not typed: a number somebody
               chose by hand is a number somebody can choose twice. */}
           <input className={inputRO} value={nextNumber || "Assigned on save"} readOnly />
         </div>
-        <div><label className={label}>Client</label><input className={inputRO} value={rfq.clientName || "—"} readOnly /></div>
-        <div><label className={label}>Title</label><input className={inputRO} value={rfq.title || "—"} readOnly /></div>
+        <div><label className={label}>{tr.client}</label><input className={inputRO} value={rfq.clientName || "—"} readOnly /></div>
+        <div><label className={label}>{tr.title}</label><input className={inputRO} value={rfq.title || "—"} readOnly /></div>
         <div>
-          <label className={label}>Urgency <span className="font-500 normal-case text-slate-400">(set by Sales)</span></label>
+          <label className={label}>{tr.urgency} <span className="font-500 normal-case text-slate-400">(set by Sales)</span></label>
           <div className={`${inputRO} flex items-center`}>
             <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[rfq.urgency] || URGENCY_BADGE.Normal}`}>{rfq.urgency || "Normal"}</span>
           </div>
         </div>
-        <div><label className={label}>Industry <span className="font-500 normal-case text-slate-400">(set by Sales)</span></label><input className={inputRO} value={rfq.industry || "—"} readOnly /></div>
+        <div><label className={label}>{tr.industry} <span className="font-500 normal-case text-slate-400">(set by Sales)</span></label><input className={inputRO} value={rfq.industry || "—"} readOnly /></div>
       </div>
 
       {/* One question, because converting only decides WHO takes it. The
           description comes across from the RFQ; retyping it here would give the
           same sentence two homes. */}
-      <Field className="mt-4 sm:max-w-xs" label="Handled by" as="select" value={handledBy}
+      <Field className="mt-4 sm:max-w-xs" label={tr.handled} as="select" value={handledBy}
         onChange={(v) => setHandledBy(v)}
         options={people.map((p) => ({ value: p.id, label: p.alias }))} />
 
@@ -758,7 +765,7 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
         <button className={btn} disabled={busy || !handledBy} onClick={async () => { setBusy(true); await onSave({ handledByCollaboratorId: handledBy }); setBusy(false); }}>
           {busy ? "Converting…" : "Convert"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
@@ -779,6 +786,7 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
 // list through. On save, a typed client name that matches an existing client is
 // sent as `clientId`; anything else is sent as a new `clientName`.
 function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [], industries = [], onSave, onCancel }) {
+  const tr = technicalDict(useStudioLocale());
   const [f, setF] = useState({
     sequenceId: sequences.some((s) => s.id === defaultSequenceId) ? defaultSequenceId : (sequences[0]?.id || ""),
     clientName: "", title: "", industry: "", deadline: "", description: "", handledBy: "",
@@ -816,35 +824,35 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
       <div className="grid gap-4 sm:grid-cols-2">
         {/* The number rides on the sequence; the helper shows the one the next
             quotation on it will carry, noted as assigned on save. */}
-        <Field label="Sequence" as="select" required value={f.sequenceId}
+        <Field label={tr.sequence} as="select" required value={f.sequenceId}
           onChange={(v) => set({ sequenceId: v })}
           hint={seq ? `Number ${seq.nextNumber} — assigned on save` : "Numbered automatically on save"}
           options={sequences.map((s) => ({ value: s.id, label: s.prefix ? `${s.label} (${s.prefix})` : s.label }))} />
 
-        <Field label="Client" required filled={!!f.clientName}
+        <Field label={tr.client} required filled={!!f.clientName}
           hint={matched ? "Existing client." : (f.clientName.trim() ? "A name that isn't on the list creates a new client." : undefined)}>
           <Combo value={f.clientName} onChange={(v) => set({ clientName: v })}
             options={clients.map((c) => c.name)} inputClassName={BARE_CONTROL} />
         </Field>
 
-        <Field className="sm:col-span-2" label="Title" required value={f.title}
+        <Field className="sm:col-span-2" label={tr.title} required value={f.title}
           onChange={(v) => set({ title: v })} />
 
-        <Field label="Type of industry" required filled={!!f.industry}>
+        <Field label={tr.typeIndustry} required filled={!!f.industry}>
           <Combo value={f.industry} onChange={(v) => set({ industry: v })}
             options={industries} inputClassName={BARE_CONTROL} />
         </Field>
 
-        <Field label="Deadline" required filled={!!f.deadline}>
+        <Field label={tr.deadline} required filled={!!f.deadline}>
           <StudioDate value={f.deadline} onChange={(iso) => set({ deadline: iso })} />
         </Field>
 
-        <Field className="sm:col-span-2" label="Description" required as="textarea" value={f.description}
+        <Field className="sm:col-span-2" label={tr.description} required as="textarea" value={f.description}
           onChange={(v) => set({ description: v })} />
 
         {/* Handled by is now OPTIONAL — an internal quotation can be created
             before anyone is assigned it. */}
-        <Field label="Handled by" as="select" value={f.handledBy}
+        <Field label={tr.handled} as="select" value={f.handledBy}
           onChange={(v) => set({ handledBy: v })}
           options={people.map((p) => ({ value: p.id, label: p.alias }))} />
 
@@ -855,15 +863,15 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
             same box, same height — instead of a stacked-label grey box that did
             not. */}
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Created by" readOnly value="You" />
-          <Field label="Created at" readOnly value={fmtDate(new Date().toISOString())} />
+          <Field label={tr.created3} readOnly value="You" />
+          <Field label={tr.created4} readOnly value={fmtDate(new Date().toISOString())} />
         </div>
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={save}>
           {busy ? "Saving…" : "Create quotation"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
@@ -889,6 +897,7 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
 // row — new or persisted — carries a real id that `defaultSequenceId` can point
 // at, and adding a sequence and marking it default is one Save, not two.
 function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave }) {
+  const tr = technicalDict(useStudioLocale());
   // The id IS the row's React key and identity; existing rows already have a
   // server id, new ones are given a local id the moment they are added.
   const seed = () => sequences.map((s) => ({
@@ -917,10 +926,10 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
 
   async function save() {
     // Mirror the server contract so the error lands against the control.
-    if (rows.length === 0) { setErr("Add at least one sequence."); return; }
-    if (rows.some((r) => !r.prefix.trim())) { setErr("Give every sequence a prefix."); return; }
+    if (rows.length === 0) { setErr(tr.addLeastOneSequence); return; }
+    if (rows.some((r) => !r.prefix.trim())) { setErr(tr.giveEverySequencePrefix); return; }
     const lower = rows.map((r) => r.prefix.trim().toLowerCase());
-    if (new Set(lower).size !== lower.length) { setErr("Two sequences share a prefix — make each one unique."); return; }
+    if (new Set(lower).size !== lower.length) { setErr(tr.twoSequencesSharePrefix); return; }
     setErr("");
     setBusy(true);
     const ok = await onSave({
@@ -938,19 +947,19 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
 
   return (
     <section className={panel}>
-      <h2 className={h2}>Quotation numbering</h2>
+      <h2 className={h2}>{tr.quotationNumbering}</h2>
       <p className={sub}>The sequences a quotation's number is drawn from. Each has a label, a prefix and a starting number; one is the default for quotations raised from Sales tickets.</p>
 
       <div className="mt-4 space-y-3">
-        {rows.length === 0 && <p className="text-sm text-slate-400">No sequences yet — add one below.</p>}
+        {rows.length === 0 && <p className="text-sm text-slate-400">{tr.noSequencesYetAdd}</p>}
         {rows.map((r) => (
           <div key={r.id} className="rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_120px_auto]">
-              <Field label="Label" value={r.label} disabled={!canManage}
+              <Field label={tr.label} value={r.label} disabled={!canManage}
                 onChange={(v) => setRow(r.id, { label: v })} />
-              <Field label="Prefix" value={r.prefix} disabled={!canManage}
+              <Field label={tr.prefix} value={r.prefix} disabled={!canManage}
                 onChange={(v) => setRow(r.id, { prefix: v })} />
-              <Field label="Start" type="number" min="1" value={r.start} disabled={!canManage}
+              <Field label={tr.start} type="number" min="1" value={r.start} disabled={!canManage}
                 onChange={(v) => setRow(r.id, { start: v })} />
               {canManage && (
                 <div className="flex items-center">
@@ -965,7 +974,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
               <input type="radio" name="tech-default-sequence" className="h-4 w-4 accent-brand-600"
                 checked={r.id === defId} disabled={!canManage}
                 onChange={() => { setSaved(false); setDefId(r.id); }} />
-              <span className="text-slate-700 dark:text-slate-200">Default for Sales tickets</span>
+              <span className="text-slate-700 dark:text-slate-200">{tr.defaultSalesTickets}</span>
             </label>
           </div>
         ))}
@@ -975,12 +984,12 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
 
       {canManage ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button type="button" className={btnGhost} onClick={addRow}>Add sequence</button>
+          <button type="button" className={btnGhost} onClick={addRow}>{tr.addSequence}</button>
           <button type="button" className={btn} disabled={busy} onClick={save}>{busy ? "Saving..." : "Save numbering"}</button>
-          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>
       ) : (
-        <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">You have view-only access to Technical settings.</p>
+        <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{tr.viewOnlyAccessTechnical}</p>
       )}
     </section>
   );
@@ -988,6 +997,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
 
 // Technical Settings: the quotation numbering sequences and the Live view's columns.
 function TechnicalSettings({ options, selected, sequences = [], defaultSequenceId, canManage, onSave }) {
+  const tr = technicalDict(useStudioLocale());
   const [cols, setCols] = useState(selected);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -999,8 +1009,8 @@ function TechnicalSettings({ options, selected, sequences = [], defaultSequenceI
       <QuotationNumbering sequences={sequences} defaultSequenceId={defaultSequenceId} canManage={canManage} onSave={onSave} />
 
       <section className={panel}>
-        <h2 className={h2}>Live view</h2>
-        <p className={sub}>Choose the quotation columns the Live view shows. This is a shared setting — it applies to everyone. At least one is kept.</p>
+        <h2 className={h2}>{tr.liveView}</h2>
+        <p className={sub}>{tr.chooseQuotationColumnsLive}</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {options.map((o) => (
             <label key={o.key} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm dark:border-white/15">
@@ -1012,10 +1022,10 @@ function TechnicalSettings({ options, selected, sequences = [], defaultSequenceI
         {canManage ? (
           <div className="mt-5 flex items-center gap-3">
             <button className={btn} disabled={busy} onClick={() => save({ liveColumns: cols })}>{busy ? "Saving..." : "Save columns"}</button>
-            {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+            {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
           </div>
         ) : (
-          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">You have view-only access to Technical settings.</p>
+          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{tr.viewOnlyAccessTechnical}</p>
         )}
       </section>
     </div>

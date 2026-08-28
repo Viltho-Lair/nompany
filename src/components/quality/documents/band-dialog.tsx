@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +41,7 @@ export function BandDialog({
   onOpenChange: (open: boolean) => void;
   onApply: (setup: BandSetup) => void;
 }) {
+  const tr = qualityDict(useStudioLocale());
   // Mounted only while open, so the defaults are seeded fresh on each open.
   const [draft, setDraft] = useState<BandSetup>(initial);
 
@@ -66,7 +69,7 @@ export function BandDialog({
         >
           {initial.content === "" ? (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="band-text">Starting text</Label>
+              <Label htmlFor="band-text">{tr.startingText}</Label>
               <Input
                 id="band-text"
                 autoFocus
@@ -88,7 +91,7 @@ export function BandDialog({
           )}
 
           <div className="flex flex-col gap-2">
-            <Label>Alignment</Label>
+            <Label>{tr.alignment}</Label>
             <div className="flex gap-1">
               {ALIGNMENTS.map(({ id, label, icon: Icon }) => (
                 <Button
@@ -132,7 +135,7 @@ export function BandDialog({
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="band-start">Start from page</Label>
+              <Label htmlFor="band-start">{tr.startPage}</Label>
               <Input
                 id="band-start"
                 type="number"
@@ -163,7 +166,7 @@ export function BandDialog({
             >
               Cancel
             </Button>
-            <Button type="submit">Apply</Button>
+            <Button type="submit">{tr.apply}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

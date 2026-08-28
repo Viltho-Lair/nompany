@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { projectsDict } from "@/shared/studio/projects";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBoardStore, boardDoc } from "@/components/kanban/store/board-store";
@@ -29,6 +31,7 @@ import {
 const DEBOUNCE_MS = 600;
 
 export default function StudioProjectBoard({ slug, projectId }) {
+  const tr = projectsDict(useStudioLocale());
   const hydrate = useBoardStore((s) => s.hydrate);
 
   // Project facts for the rail + sidebar — one fetch of the /projects endpoint a
@@ -142,11 +145,11 @@ export default function StudioProjectBoard({ slug, projectId }) {
           {project && (
             <div className="space-y-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Stage</span>
+                <span className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.stage}</span>
                 <StatusPill kind="project" status={project.stage} />
               </div>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Progress</span>
+                <span className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.progress}</span>
                 <span className="font-mono text-sm font-700 tabular-nums text-[var(--geex-ink)]">{project.progress ?? 0}%</span>
               </div>
               {hasSheet && (
@@ -183,9 +186,9 @@ export default function StudioProjectBoard({ slug, projectId }) {
           {infoError && !data ? (
             <p className="text-sm text-rose-600 dark:text-rose-300">{infoError}</p>
           ) : !data ? (
-            <p className="text-sm text-slate-500">Loading project…</p>
+            <p className="text-sm text-slate-500">{tr.loadingProject}</p>
           ) : !project ? (
-            <p className="text-sm text-slate-500">That project no longer exists.</p>
+            <p className="text-sm text-slate-500">{tr.projectNoLongerExists}</p>
           ) : (
             <>
               <ClientSection client={client} clientName={project.clientName} />

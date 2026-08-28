@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import type { Editor } from "@tiptap/react";
 import { AlignVerticalJustifyCenter } from "lucide-react";
 
@@ -65,6 +67,7 @@ export function CellFormatDialog({
   editor: Editor;
   onOpenChange: (open: boolean) => void;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const current = editor.getAttributes("tableCell");
   const currentHeader = editor.getAttributes("tableHeader");
   const existing = { ...currentHeader, ...current };
@@ -116,7 +119,7 @@ export function CellFormatDialog({
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Cell format</DialogTitle>
+          <DialogTitle>{tr.cellFormat}</DialogTitle>
           <DialogDescription>
             Applies to every selected cell. Drag across cells first to format
             several at once.
@@ -125,7 +128,7 @@ export function CellFormatDialog({
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label>Background</Label>
+            <Label>{tr.background}</Label>
             <div className="flex flex-wrap gap-1.5">
               {BACKGROUNDS.map((option) => (
                 <button
@@ -149,7 +152,7 @@ export function CellFormatDialog({
               ))}
               <Input
                 type="color"
-                aria-label="Custom background colour"
+                aria-label={tr.customBackgroundColour}
                 value={background === "" ? "#ffffff" : background}
                 onChange={(event) => setBackground(event.target.value)}
                 className="h-7 w-12 p-1"
@@ -199,14 +202,14 @@ export function CellFormatDialog({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label>Borders</Label>
+            <Label>{tr.borders}</Label>
             <div className="flex gap-2">
               <Input
                 type="number"
                 min={0}
                 max={12}
                 step="any"
-                aria-label="Border width in pixels"
+                aria-label={tr.borderWidthPixels}
                 value={border.widthPx}
                 onChange={(event) =>
                   setBorder((currentBorder) => ({
@@ -225,7 +228,7 @@ export function CellFormatDialog({
                   }))
                 }
               >
-                <SelectTrigger className="flex-1" aria-label="Border style">
+                <SelectTrigger className="flex-1" aria-label={tr.borderStyle}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -238,7 +241,7 @@ export function CellFormatDialog({
               </Select>
               <Input
                 type="color"
-                aria-label="Border colour"
+                aria-label={tr.borderColour}
                 value={border.color}
                 onChange={(event) =>
                   setBorder((currentBorder) => ({

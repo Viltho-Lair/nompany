@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { projectsDict } from "@/shared/studio/projects";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -63,20 +65,21 @@ export function deriveProject(data, projectId) {
 // ---- sections --------------------------------------------------------------
 
 export function ProjectSection({ project, people, currency }) {
+  const tr = projectsDict(useStudioLocale());
   return (
     <section className={card}>
-      <h2 className={h2}>Project</h2>
+      <h2 className={h2}>{tr.project}</h2>
       <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
         {/* BLANK UNTIL FINANCE ISSUES IT, and said so rather than shown as an
             empty cell — a project without a number is a normal state here. */}
-        <Field label="Number" value={project.number || <span className="text-amber-700 dark:text-amber-300">Not issued yet</span>} mono />
-        <Field label="Stage" value={<StatusPill kind="project" status={project.stage} />} />
-        <Field label="Handler" value={people[project.managerCollaboratorId] || "Unassigned"} />
-        <Field label="Value" value={project.value ? <Money amount={project.value} currency={currency} /> : ""} />
-        <Field label="Received" value={fmtDate(project.receivedDate)} />
-        <Field label="Start" value={fmtDate(project.startDate)} />
-        <Field label="End" value={fmtDate(project.endDate)} />
-        <Field label="Site" value={project.location} />
+        <Field label={tr.number} value={project.number || <span className="text-amber-700 dark:text-amber-300">{tr.notIssuedYet}</span>} mono />
+        <Field label={tr.stage} value={<StatusPill kind="project" status={project.stage} />} />
+        <Field label={tr.handler} value={people[project.managerCollaboratorId] || "Unassigned"} />
+        <Field label={tr.value} value={project.value ? <Money amount={project.value} currency={currency} /> : ""} />
+        <Field label={tr.received} value={fmtDate(project.receivedDate)} />
+        <Field label={tr.start} value={fmtDate(project.startDate)} />
+        <Field label={tr.end} value={fmtDate(project.endDate)} />
+        <Field label={tr.site} value={project.location} />
       </dl>
       {project.notes && (
         <p className="mt-4 whitespace-pre-wrap border-t border-slate-100 pt-4 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
@@ -88,9 +91,10 @@ export function ProjectSection({ project, people, currency }) {
 }
 
 export function WhatWasSoldSection({ slug, projectId, hasSheet, lineCount }) {
+  const tr = projectsDict(useStudioLocale());
   return (
     <section className={card}>
-      <h2 className={h2}>What was sold</h2>
+      <h2 className={h2}>{tr.whatSold}</h2>
       {!hasSheet ? (
         <p className={sub}>
           Nothing to show yet — the quotation&apos;s lines appear here once a project is opened from an
@@ -99,7 +103,7 @@ export function WhatWasSoldSection({ slug, projectId, hasSheet, lineCount }) {
       ) : (
         <Link href={`/${slug}/projects-list/${projectId}/quotation`}
           className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 text-sm transition-colors hover:border-brand-500 hover:bg-slate-50 dark:border-white/10 dark:hover:border-brand-500/40 dark:hover:bg-white/5">
-          <span className="font-600 text-slate-900 dark:text-white">Open the quotation viewer</span>
+          <span className="font-600 text-slate-900 dark:text-white">{tr.openQuotationViewer}</span>
           <span className="text-xs text-slate-500 dark:text-slate-400">
             {lineCount} {lineCount === 1 ? "line" : "lines"} · installation and programming are yours to mark
           </span>
@@ -116,6 +120,7 @@ export function WhatWasSoldSection({ slug, projectId, hasSheet, lineCount }) {
 // so this is one reading of that record, not a second copy. Falls back to the
 // project's own clientName when the viewer has no Sales grant to read the rest.
 export function ClientSection({ client, clientName }) {
+  const tr = projectsDict(useStudioLocale());
   const name = client?.name || clientName || "";
   const contact = (client?.contacts || [])[0] || {};
   const hasContact = contact.name || contact.phone || contact.email;
@@ -134,9 +139,9 @@ export function ClientSection({ client, clientName }) {
       </div>
       {hasContact && (
         <dl className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
-          <Field label="Contact person" value={contact.name} />
-          <Field label="Number" value={contact.phone} />
-          <Field label="Email" value={contact.email} />
+          <Field label={tr.contactPerson} value={contact.name} />
+          <Field label={tr.number} value={contact.phone} />
+          <Field label={tr.email} value={contact.email} />
         </dl>
       )}
     </section>

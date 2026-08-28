@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { boardDict } from "@/shared/studio/board";
 import Tooltip from "@mui/material/Tooltip";
 import { LayoutGrid, Plus, RotateCcw, Search, X } from "lucide-react";
 
@@ -28,6 +30,7 @@ const PRIORITIES: Priority[] = ["urgent", "high", "medium", "low"];
 // whatever the studio is set to.
 
 export function BoardHeader({ onAddColumn }: { onAddColumn: () => void }) {
+  const tr = boardDict(useStudioLocale());
   const boardName = useBoardStore((s) => s.boardName);
   const renameBoard = useBoardStore((s) => s.renameBoard);
   const query = useBoardStore((s) => s.query);
@@ -95,7 +98,7 @@ export function BoardHeader({ onAddColumn }: { onAddColumn: () => void }) {
                   className="w-48 rounded-md bg-foreground/[0.06] px-1.5 py-0.5 text-[17px] font-semibold outline-none ring-1 ring-primary/40"
                 />
               ) : (
-                <Tooltip title="Double-click to rename" placement="bottom-start">
+                <Tooltip title={tr.doubleClickRename} placement="bottom-start">
                   <h1
                     onDoubleClick={() => {
                       setDraftName(boardName);
@@ -129,14 +132,14 @@ export function BoardHeader({ onAddColumn }: { onAddColumn: () => void }) {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search cards…"
+                placeholder={tr.searchCards}
                 className="h-9 ps-[2.1rem] pe-8 text-[13px]"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
-                  aria-label="Clear search"
+                  aria-label={tr.clearSearch}
                   className="absolute end-2 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <X className="size-3.5" />
@@ -152,7 +155,7 @@ export function BoardHeader({ onAddColumn }: { onAddColumn: () => void }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All priorities</SelectItem>
+                <SelectItem value="all">{tr.allPriorities}</SelectItem>
                 {PRIORITIES.map((p) => (
                   <SelectItem key={p} value={p}>
                     <span className="flex items-center gap-2">
@@ -169,12 +172,12 @@ export function BoardHeader({ onAddColumn }: { onAddColumn: () => void }) {
               </SelectContent>
             </Select>
 
-            <Tooltip title="Clear the board (removes all cards)" placement="bottom">
+            <Tooltip title={tr.clearBoardRemovesAll} placement="bottom">
               <span>
                 <Button
                   variant="glass"
                   size="icon"
-                  aria-label="Clear board"
+                  aria-label={tr.clearBoard}
                   onClick={resetBoard}
                 >
                   <RotateCcw />
@@ -183,7 +186,7 @@ export function BoardHeader({ onAddColumn }: { onAddColumn: () => void }) {
             </Tooltip>
 
             <Button variant="gradient" onClick={onAddColumn} className="h-9">
-              <Plus /> <span className="hidden sm:inline">Column</span>
+              <Plus /> <span className="hidden sm:inline">{tr.column}</span>
             </Button>
           </div>
         </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { miscDict } from "@/shared/studio/misc";
 import NovaHead from "@/components/studio2/NovaHead";
 import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 
@@ -21,6 +23,7 @@ const EXAMPLES = [
 ];
 
 export default function NovaLauncher({ slug, enabled = false, besideChat = false }) {
+  const tr = miscDict(useStudioLocale());
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);   // { role: "user"|"assistant", content }
   const [input, setInput] = useState("");
@@ -163,7 +166,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
           ref={launcherRef}
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Ask Nova"
+          aria-label={tr.askNova}
           className={`group fixed bottom-4 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 shadow-xl ring-1 ring-white/40 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${besideChat ? "end-24" : "end-5"}`}
         >
           <NovaHead className="h-12 w-12 drop-shadow" idle />
@@ -178,15 +181,15 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
       {/* Backdrop + panel. Rendered only when open so it costs nothing closed. */}
       {open && (
         <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-          <button type="button" aria-label="Close Nova" className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
+          <button type="button" aria-label={tr.closeNova} className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
           <div ref={panelRef} className="absolute inset-y-0 end-0 flex w-full max-w-[420px] flex-col bg-white shadow-2xl dark:bg-[#14141b]">
             <header className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-white/10">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400"><NovaHead className="h-7 w-7" /></span>
               <div className="min-w-0">
-                <p id={titleId} className="text-sm font-600 text-slate-900 dark:text-white">Nova</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Your studio assistant</p>
+                <p id={titleId} className="text-sm font-600 text-slate-900 dark:text-white">{tr.nova}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">{tr.studioAssistant}</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="ms-auto rounded-md p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/5">
+              <button type="button" onClick={() => setOpen(false)} aria-label={tr.close} className="ms-auto rounded-md p-1.5 text-slate-400 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/5">
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
             </header>
@@ -230,17 +233,17 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
               ))}
               {pending && !busy && (
                 <div className="rounded-2xl border border-brand-200 bg-brand-50 p-3 dark:border-brand-500/30 dark:bg-brand-500/10">
-                  <p className="text-xs font-600 uppercase tracking-wide text-brand-600 dark:text-brand-300">Confirm</p>
+                  <p className="text-xs font-600 uppercase tracking-wide text-brand-600 dark:text-brand-300">{tr.confirm}</p>
                   <p className="mt-1 text-sm text-slate-800 dark:text-slate-100">{pending.preview}</p>
                   <div className="mt-2.5 flex gap-2">
                     <button type="button" onClick={confirmAction}
-                      className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-500 text-white">Confirm</button>
+                      className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-500 text-white">{tr.confirm}</button>
                     <button type="button" onClick={() => setPending(null)}
-                      className="rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5">Cancel</button>
+                      className="rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5">{tr.cancel}</button>
                   </div>
                 </div>
               )}
-              {busy && <div className="flex justify-start"><div className="rounded-2xl bg-slate-100 px-3.5 py-2 text-sm text-slate-400 dark:bg-white/5">Nova is thinking…</div></div>}
+              {busy && <div className="flex justify-start"><div className="rounded-2xl bg-slate-100 px-3.5 py-2 text-sm text-slate-400 dark:bg-white/5">{tr.novaThinking}</div></div>}
               {note && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{note}</p>}
             </div>
 
@@ -254,7 +257,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                placeholder="Ask Nova…"
+                placeholder={tr.askNova2}
                 className="max-h-32 flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5 dark:text-white"
               />
               <button type="submit" disabled={busy || !input.trim()}

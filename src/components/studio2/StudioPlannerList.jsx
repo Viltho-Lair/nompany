@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fmtDate } from "@/lib/format";
@@ -179,6 +181,7 @@ export default function StudioPlannerList({ slug }) {
 }
 
 function PlanCard({ slug, plan }) {
+  const tr = plannerDict(useStudioLocale());
   const status = PLAN_STATUS[plan.status] ?? PLAN_STATUS.on_track;
   return (
     <Link
@@ -203,7 +206,7 @@ function PlanCard({ slug, plan }) {
       )}
 
       <div className="mt-auto flex items-center justify-between gap-2 text-[11px] text-[var(--geex-faint)]">
-        <span>Updated</span>
+        <span>{tr.updated}</span>
         <span className="font-mono tabular-nums">{fmtDate(plan.updatedAt)}</span>
       </div>
     </Link>
@@ -211,6 +214,7 @@ function PlanCard({ slug, plan }) {
 }
 
 function EmptyState() {
+  const tr = plannerDict(useStudioLocale());
   return (
     <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-3 py-20 text-center">
       <div className="grid h-12 w-12 place-items-center rounded-geex bg-[var(--geex-inset)] text-[var(--geex-faint)]">
@@ -223,9 +227,9 @@ function EmptyState() {
           No plans yet
         </h2>
         <p className="mt-1 text-[13px] text-[var(--geex-muted)]">
-          Use <span className="font-600">New plan</span> to start an external
+          Use <span className="font-600">{tr.newPlan}</span> to start an external
           schedule, or open a project and use its{" "}
-          <span className="font-600">Project plan</span> action. Plans from either
+          <span className="font-600">{tr.projectPlan}</span> action. Plans from either
           appear here.
         </p>
       </div>

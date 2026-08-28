@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { tasksDict } from "@/shared/studio/tasks";
 import RecordLink from "@/components/studio2/RecordLink";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { linkToProject, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
@@ -33,6 +35,7 @@ const fmt = (iso) => (iso ? fmtDate(iso) : "");
 // in the Old System the Tasks nav item is the list itself — and Task settings
 // is its only sub-section.
 export default function StudioTasks({ slug, view = "tasks" }) {
+  const tr = tasksDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [filter, setFilter] = useState("open");
   const [error, setError] = useState("");
@@ -42,7 +45,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/tasks`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Tasks in this studio."); return; }
+    if (!res.ok) { setError(tr.accessTasksStudio); return; }
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
@@ -54,7 +57,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
     const res = await fetch(`/api/studios/${slug}/tasks/settings`, {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
-    if (!res.ok) { setError("Only a manager can change task settings."); return false; }
+    if (!res.ok) { setError(tr.onlyManagerCanChange); return false; }
     await load();
     return true;
   }, [slug, load]);
@@ -98,7 +101,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
   }, [data, filter]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading Tasks…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingTasks}</p>;
 
   const { canManage, tasks, people, projects, summary, vocabulary, nav, me } = data;
 
@@ -150,7 +153,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
         {summary.stuck > 0 && (
           <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
             {summary.stuck} {summary.stuck === 1 ? "task is" : "tasks are"} waiting on an authority nobody has been
-            appointed to{nav?.["tasks-settings"] ? <> — <a href={`/${slug}/tasks-settings`} className="font-600 underline">appoint someone in Task settings</a></> : " — an admin can appoint someone in Task settings"}.
+            appointed to{nav?.["tasks-settings"] ? <> — <a href={`/${slug}/tasks-settings`} className="font-600 underline">{tr.appointSomeoneTaskSettings}</a></> : " — an admin can appoint someone in Task settings"}.
           </p>
         )}
       </section>
@@ -165,8 +168,8 @@ export default function StudioTasks({ slug, view = "tasks" }) {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          {canManage && !drafting && !editing && <button className={btn} onClick={() => setDrafting(true)}>New task</button>}
-          {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">Your tasks only</span>}
+          {canManage && !drafting && !editing && <button className={btn} onClick={() => setDrafting(true)}>{tr.newTask}</button>}
+          {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.tasksOnly}</span>}
         </div>
       </div>
 
@@ -200,6 +203,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
 }
 
 function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugForProject, onOpened, meId, busy, slug, nav, statuses, typeLabels, onEdit, onSend }) {
+  const tr = tasksDict(useStudioLocale());
   const [open, setOpen] = useState(false);
   // The assignee can act even without Manage — that is the whole point.
   const canAct = canManage || t.assigneeCollaboratorId === meId;
@@ -220,7 +224,7 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
             <StatusPill kind="task" status={t.status} />
             {t.priority !== "Normal" && <span className={`text-xs font-700 ${PRIORITY_TONE[t.priority] || "text-slate-400"}`}>{t.priority}</span>}
             {t.projectNumber && (
-              <RecordLink href={linkIf(nav?.projects, linkToProject(slug, t.projectId))} title="Open the project">{t.projectNumber}</RecordLink>
+              <RecordLink href={linkIf(nav?.projects, linkToProject(slug, t.projectId))} title={tr.openProject}>{t.projectNumber}</RecordLink>
             )}
             {/* WHAT IS BEING DECIDED. An approval names a quotation in its
                 title and had no way to reach it — so answering "should I
@@ -229,9 +233,9 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
                 stored here, so a renumbered document still links correctly. */}
             {t.quotationNumber && (
               <RecordLink href={linkIf(nav?.technical, linkToQuotation(slug, t.quotationId))}
-                title="Open the quotation being decided">{t.quotationNumber}</RecordLink>
+                title={tr.openQuotationBeingDecided}>{t.quotationNumber}</RecordLink>
             )}
-            {t.overdue && <span className="text-xs font-700 text-rose-600 dark:text-rose-400">Overdue</span>}
+            {t.overdue && <span className="text-xs font-700 text-rose-600 dark:text-rose-400">{tr.overdue}</span>}
           </div>
 
           <p className="mt-1 font-600 text-slate-900 dark:text-white">
@@ -289,7 +293,7 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
               ? <>{meta?.label || t.type}{t.approvalState && <> · {t.approvalState.approved} of {t.approvalState.required} approved</>}</>
               : t.assigneeAlias
                 ? <>{t.assigneeAlias}{t.mine && <span className="text-slate-400"> (you)</span>}</>
-                : <span className="text-amber-600 dark:text-amber-400">Unassigned</span>}
+                : <span className="text-amber-600 dark:text-amber-400">{tr.unassigned}</span>}
             {t.dueDate && <> · due {fmt(t.dueDate)}</>}
             {(t.description || (t.checklist || []).length > 0) && (
               <button type="button" className="ms-2 text-brand-700 hover:underline dark:text-brand-300" onClick={() => setOpen(!open)}>
@@ -343,9 +347,9 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
               Delete asks about DELETE rather than about `canManage`, which is
               true for anybody holding any write — so a Member or Team Lead used
               to be shown a button that always came back "That didn't save." */}
-          {!typed && canManage && <button className={btnGhost} onClick={onEdit}>Edit</button>}
+          {!typed && canManage && <button className={btnGhost} onClick={onEdit}>{tr.edit}</button>}
           {!typed && canDelete && (
-            <button className={btnDanger} disabled={busy} onClick={() => onSend("DELETE", { id: t.id })}>Delete</button>
+            <button className={btnDanger} disabled={busy} onClick={() => onSend("DELETE", { id: t.id })}>{tr.delete}</button>
           )}
         </div>
       </div>
@@ -354,6 +358,7 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
 }
 
 function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, authorities, onCancel, onSave }) {
+  const tr = tasksDict(useStudioLocale());
   const [form, setForm] = useState({
     title: task?.title || "",
     type: task?.type || "",
@@ -375,14 +380,14 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{task ? "Edit task" : "New task"}</h3>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field label="Title" required value={form.title}
+        <Field label={tr.title} required value={form.title}
           onChange={(v) => setForm((f) => ({ ...f, title: v }))} className="sm:col-span-2 lg:col-span-3" />
         <div className="sm:col-span-2 lg:col-span-3">
           {/* An ordinary task is assigned to a person. A typed one is routed to
               whoever holds its authorities in Task settings, so the assignee
               picker below stops applying. The empty (blank) choice is the
               ordinary task; the hint line below spells that out. */}
-          <Field label="Kind" as="select" value={form.type} disabled={!!task}
+          <Field label={tr.kind} as="select" value={form.type} disabled={!!task}
             hint={!form.type && !task ? "Blank is an ordinary task — assigned to a person." : undefined}
             onChange={(v) => setForm((f) => ({ ...f, type: v, assigneeCollaboratorId: "" }))}
             options={Object.entries(vocab.typeLabels || {}).map(([code, meta]) => ({ value: code, label: meta.label }))} />
@@ -397,19 +402,19 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
           )}
         </div>
         {!form.type && (
-        <Field label="Assign to" as="select" value={form.assigneeCollaboratorId}
+        <Field label={tr.assign} as="select" value={form.assigneeCollaboratorId}
           onChange={(v) => setForm((f) => ({ ...f, assigneeCollaboratorId: v }))}
           options={people.map((p) => ({ value: p.id, label: p.alias }))} />
         )}
-        <Field label="Project" as="select" value={form.projectId}
+        <Field label={tr.project} as="select" value={form.projectId}
           onChange={(v) => setForm((f) => ({ ...f, projectId: v }))}
           options={projects.map((p) => ({ value: p.id, label: p.number }))} />
-        <Field label="Priority" as="select" required value={form.priority}
+        <Field label={tr.priority} as="select" required value={form.priority}
           onChange={(v) => setForm((f) => ({ ...f, priority: v }))} options={vocab.priorities} />
-        <Field label="Due date" filled={!!form.dueDate}>
+        <Field label={tr.dueDate} filled={!!form.dueDate}>
           <StudioDate value={form.dueDate} onChange={(iso) => setForm((f) => ({ ...f, dueDate: iso }))} />
         </Field>
-        <Field label="Description" as="textarea" value={form.description}
+        <Field label={tr.description} as="textarea" value={form.description}
           onChange={(v) => setForm((f) => ({ ...f, description: v }))} className="sm:col-span-2 lg:col-span-3" />
       </div>
 
@@ -426,7 +431,7 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
           </ul>
         )}
         <div className="flex flex-wrap items-start gap-2">
-          <Field label="Checklist" className="flex-1" value={item}
+          <Field label={tr.checklist} className="flex-1" value={item}
             onChange={(val) => setItem(val)}
             inputProps={{
               onKeyDown: (e) => {
@@ -448,7 +453,7 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
         <button className={btn} disabled={busy || !form.title.trim()} onClick={() => onSave({ ...form, checklist })}>
           {busy ? "Saving…" : "Save"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
@@ -548,6 +553,7 @@ function AssigneePicker({ people, selected, disabled, onToggle }) {
 // appointment, not two, and the box says so rather than letting it look like a
 // bug the first time it happens.
 function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, people, canManage, onSave }) {
+  const tr = tasksDict(useStudioLocale());
   const [map, setMap] = useState(assignees);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -570,7 +576,7 @@ function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, peo
   return (
     <div className="space-y-4">
       <section className={panel}>
-        <h2 className={h2}>Task settings</h2>
+        <h2 className={h2}>{tr.taskSettings}</h2>
         <p className={sub}>
           Every kind of task the studio raises, and who decides it. Appointing someone routes the matching
           tasks to them straight away, existing ones included — assignment is read from here on every load,
@@ -581,11 +587,11 @@ function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, peo
             <button className={btn} disabled={busy} onClick={async () => { setBusy(true); const ok = await onSave(map); setBusy(false); setSaved(!!ok); }}>
               {busy ? "Saving..." : "Save task settings"}
             </button>
-            {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+            {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
           </div>
         )}
         {!canManage && (
-          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">You have view-only access to Task settings.</p>
+          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{tr.viewOnlyAccessTask}</p>
         )}
       </section>
 
@@ -605,11 +611,11 @@ function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, peo
 
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
-                <dt className={label}>Where it comes from</dt>
+                <dt className={label}>{tr.whereComes}</dt>
                 <dd className="text-sm text-slate-600 dark:text-slate-300">{meta.from || "Raised on the Tasks board."}</dd>
               </div>
               <div>
-                <dt className={label}>Who handles it</dt>
+                <dt className={label}>{tr.whoHandles}</dt>
                 <dd className="text-sm text-slate-600 dark:text-slate-300">{meta.handling || codes.map(labelOf).join(" and ")}</dd>
               </div>
             </dl>
@@ -657,6 +663,7 @@ function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, peo
 // ticket, the client, the value, the lineage — is already reachable through the
 // quotation, so it is never asked for and never retyped.
 function OpenProject({ task, people, slug, onOpened }) {
+  const tr = tasksDict(useStudioLocale());
   const [handler, setHandler] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -693,11 +700,11 @@ function OpenProject({ task, people, slug, onOpened }) {
 
   return (
     <div className="mt-2 rounded-xl border border-slate-200 p-3 dark:border-white/10">
-      <p className="text-xs font-600 text-slate-700 dark:text-slate-200">Approved — open the project</p>
+      <p className="text-xs font-600 text-slate-700 dark:text-slate-200">{tr.approvedOpenProject}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <select className={`${input} w-auto`} value={handler} aria-label="Project handler"
+        <select className={`${input} w-auto`} value={handler} aria-label={tr.projectHandler}
           onChange={(e) => setHandler(e.target.value)}>
-          <option value="">Project handler…</option>
+          <option value="">{tr.projectHandler2}</option>
           {people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
         </select>
         <button className={btn} disabled={busy || !handler} onClick={open}>

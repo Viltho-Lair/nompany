@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { boardDict } from "@/shared/studio/board";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import Chip from "@mui/material/Chip";
@@ -152,6 +154,7 @@ export function TaskDialog({
   open,
   onOpenChange,
 }: TaskDialogProps) {
+  const tr = boardDict(useStudioLocale());
   const task = useBoardStore((s) => (taskId ? s.tasks[taskId] : undefined));
   const memberOrder = useBoardStore((s) => s.memberOrder);
   const membersMap = useBoardStore((s) => s.members);
@@ -257,7 +260,7 @@ export function TaskDialog({
             value={title}
             autoFocus={isCreate}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Task title"
+            placeholder={tr.taskTitle}
             className={cn(
               "w-full bg-transparent text-xl font-semibold tracking-[-0.015em] outline-none",
               "placeholder:text-muted-foreground/50",
@@ -277,24 +280,24 @@ export function TaskDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="task-description">Description</Label>
+            <Label htmlFor="task-description">{tr.description}</Label>
             <Textarea
               id="task-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What needs to happen, and how will we know it's done?"
+              placeholder={tr.whatNeedsHappenHow}
               className="min-h-[88px]"
             />
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Priority</Label>
+              <Label>{tr.priority}</Label>
               <PriorityPicker value={priority} onChange={setPriority} />
             </div>
 
             <div className="space-y-2">
-              <Label>Assignees</Label>
+              <Label>{tr.assignees}</Label>
               <AssigneePicker
                 members={members}
                 selected={assignees}
@@ -305,7 +308,7 @@ export function TaskDialog({
 
           {/* MUI Autocomplete: free-solo chip input, themed to match Shadcn. */}
           <div className="space-y-2">
-            <Label>Tags</Label>
+            <Label>{tr.tags}</Label>
             <Autocomplete
               multiple
               freeSolo
@@ -349,7 +352,7 @@ export function TaskDialog({
           {!isCreate && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Subtasks</Label>
+                <Label>{tr.subtasks}</Label>
                 <span className="text-[11px] font-medium tabular-nums text-muted-foreground">
                   {progress.done} of {progress.total} done
                 </span>

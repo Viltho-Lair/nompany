@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { projectsDict } from "@/shared/studio/projects";
 import { useRouter } from "next/navigation";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -33,10 +35,11 @@ import { hoursBetween } from "@/modules/projects/projectSchedule";
 const rnd = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 function SupportTag({ project }) {
+  const tr = projectsDict(useStudioLocale());
   const s = supportStatus(project);
-  if (!s.known) return <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-600 text-slate-500 dark:bg-white/10 dark:text-slate-400">Support not set</span>;
+  if (!s.known) return <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-600 text-slate-500 dark:bg-white/10 dark:text-slate-400">{tr.supportNotSet}</span>;
   if (s.inSupport) return <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-600 text-white">Support: {s.daysRemaining}d left</span>;
-  return <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-600 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">Support ended</span>;
+  return <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-600 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">{tr.supportEnded}</span>;
 }
 
 // The project list is a Data Grid now — sortable columns and client-side paging
@@ -56,6 +59,7 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
 //   projects-overtimes  -> hours logged outside the plan
 //   projects-settings   -> requirement weights, default OT department, stages
 export default function StudioProjects({ slug, view = "projects" }) {
+  const tr = projectsDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const focus = useFocusedRecord("project");
@@ -63,7 +67,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/projects`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Projects in this studio."); return; }
+    if (!res.ok) { setError(tr.accessProjectsStudio); return; }
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
@@ -101,7 +105,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading Projects…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingProjects2}</p>;
 
   const {
     canManage: canManageParent,
@@ -167,7 +171,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
     <div className="space-y-6">
       {banner}
       {data.canViewDashboard === false
-        ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
+        ? <Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} />
         : <ProjectsDashboard projects={projects} slas={slas} overtimes={overtimes} people={people} level={level} slug={slug} nav={nav} />}
     </div>
   );
@@ -176,6 +180,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
 // ---- project list ----------------------------------------------------------
 
 function ProjectList({ projects, approvedQuotations, people, stages, canManage, slug, nav, focus, onOpen, onSave, onDelete }) {
+  const tr = projectsDict(useStudioLocale());
   const router = useRouter();
   const [opening, setOpening] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -208,15 +213,15 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
 
   return (
     <>
-      <Toolbar canManage={canManage} label="Open project" onAdd={() => setOpening(true)}>
+      <Toolbar canManage={canManage} label={tr.openProject} onAdd={() => setOpening(true)}>
         {projects.length > 0 && (
-          <input type="search" className={`${input} sm:max-w-xs`} aria-label="Search title, number, client or location"
+          <input type="search" className={`${input} sm:max-w-xs`} aria-label={tr.searchTitleNumberClient}
             value={query} onChange={(e) => setQuery(e.target.value)} />
         )}
       </Toolbar>
 
       {opening && (
-        <Dialog title="Open a project" description="Only approved quotations can become projects." onClose={closeOpen}>
+        <Dialog title={tr.openProject2} description={tr.onlyApprovedQuotationsCan} onClose={closeOpen}>
           <OpenProject quotations={approvedQuotations} people={people} onCancel={closeOpen}
             onSave={async (p) => { const ok = await onOpen(p); if (ok) setOpening(false); return ok; }} />
         </Dialog>
@@ -235,7 +240,7 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
 
       {projects.length === 0 ? (
         <Empty
-          title="No projects yet"
+          title={tr.noProjectsYet}
           body={approvedQuotations.length === 0
             ? "Projects open from an approved quotation. Approve one in Technical and it'll appear here."
             : "You have approved quotations ready — open one as a project to start delivering."}
@@ -261,8 +266,8 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
             <StudioDataGrid
               rows={rows}
               getRowId={(r) => r.id}
-              ariaLabel="Projects"
-              emptyLabel="No projects match that search."
+              ariaLabel={tr.projects}
+              emptyLabel={tr.noProjectsMatchSearch}
               emptyIcon="briefcase"
               className="[--sg-flag:251_191_36] dark:[--sg-flag:245_158_11]"
               onRowClick={(params) => router.push(`/${slug}/projects-list/${params.id}`)}
@@ -273,34 +278,34 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
               }}
               columns={[
                 {
-                  field: "number", headerName: "Number", minWidth: 120, flex: 0.7,
+                  field: "number", headerName: tr.number, minWidth: 120, flex: 0.7,
                   renderCell: ({ row }) => (row.number
                     ? <span className="num text-xs text-slate-500 dark:text-slate-400">{row.number}</span>
-                    : <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">no number yet</span>),
+                    : <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">{tr.noNumberYet}</span>),
                 },
                 {
-                  field: "title", headerName: "Title", minWidth: 180, flex: 1.3,
+                  field: "title", headerName: tr.title, minWidth: 180, flex: 1.3,
                   renderCell: ({ row }) => <span className="font-600 text-slate-900 dark:text-white">{row.title}</span>,
                 },
                 {
-                  field: "clientName", headerName: "Client", minWidth: 140, flex: 1,
+                  field: "clientName", headerName: tr.client, minWidth: 140, flex: 1,
                   renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.clientName || "—"}</span>,
                 },
                 {
-                  field: "location", headerName: "Location", minWidth: 120, flex: 0.8,
+                  field: "location", headerName: tr.location, minWidth: 120, flex: 0.8,
                   renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.location || "—"}</span>,
                 },
                 {
-                  field: "stage", headerName: "Stage", minWidth: 120, flex: 0.7,
+                  field: "stage", headerName: tr.stage, minWidth: 120, flex: 0.7,
                   renderCell: ({ row }) => <StatusPill kind="project" status={row.stage} />,
                 },
                 {
-                  field: "value", headerName: "Value", type: "number", minWidth: 110, flex: 0.7,
+                  field: "value", headerName: tr.value, type: "number", minWidth: 110, flex: 0.7,
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.value)}</span>,
                 },
                 {
-                  field: "progress", headerName: "Progress", type: "number", minWidth: 140, flex: 0.8,
+                  field: "progress", headerName: tr.progress, type: "number", minWidth: 140, flex: 0.8,
                   renderCell: ({ row }) => (
                     <span className="flex items-center gap-2">
                       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
@@ -311,7 +316,7 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
                   ),
                 },
                 {
-                  field: "endDate", headerName: "Target end", minWidth: 130, flex: 0.8,
+                  field: "endDate", headerName: tr.targetEnd, minWidth: 130, flex: 0.8,
                   renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.endDate)}</span>,
                 },
                 {
@@ -334,6 +339,7 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
 }
 
 function OpenProject({ quotations, people, onSave, onCancel }) {
+  const tr = projectsDict(useStudioLocale());
   const [quotationId, setQuotationId] = useState(quotations[0]?.id || "");
   const [managerCollaboratorId, setManager] = useState("");
   const [location, setLocation] = useState("");
@@ -346,7 +352,7 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
         <p className="text-sm text-slate-500 dark:text-slate-400">
           There are no approved quotations waiting. Approve one in Technical and it will be selectable here.
         </p>
-        <div className="mt-5"><button className={btnGhost} onClick={onCancel}>Close</button></div>
+        <div className="mt-5"><button className={btnGhost} onClick={onCancel}>{tr.close}</button></div>
       </>
     );
   }
@@ -354,14 +360,14 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field className="sm:col-span-2" label="Approved quotation" as="select" required
+        <Field className="sm:col-span-2" label={tr.approvedQuotation} as="select" required
           value={quotationId} onChange={(v) => setQuotationId(v)}
           options={quotations.map((q) => ({ value: q.id, label: `${q.number} — ${q.title}` }))}
           hint={chosen ? `${chosen.clientName} · ${money(chosen.total)}` : undefined} />
-        <Field label="Project manager" as="select" value={managerCollaboratorId}
+        <Field label={tr.projectManager} as="select" value={managerCollaboratorId}
           onChange={(v) => setManager(v)}
-          options={[{ value: "", label: "Unassigned" }, ...people.map((p) => ({ value: p.id, label: p.alias }))]} />
-        <Field label="Location" value={location} onChange={(v) => setLocation(v)} hint="Site or city" />
+          options={[{ value: "", label: tr.unassigned }, ...people.map((p) => ({ value: p.id, label: p.alias }))]} />
+        <Field label={tr.location} value={location} onChange={(v) => setLocation(v)} hint={tr.siteCity} />
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !quotationId} onClick={async () => {
@@ -369,13 +375,14 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
           await onSave({ quotationId, managerCollaboratorId, location });
           setBusy(false);
         }}>{busy ? "Opening…" : "Open project"}</button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
 }
 
 function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, nav, onSave, onDelete, onClose }) {
+  const tr = projectsDict(useStudioLocale());
   const support = supportStatus(p);
   // Location and the support period commit on blur, dates on pick — the same
   // save points the old uncontrolled inputs had. Field is controlled, so these
@@ -389,9 +396,9 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
     <>
       {/* Lineage — the chain this project came from. */}
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <span className="font-600 uppercase tracking-wide">From</span>
+        <span className="font-600 uppercase tracking-wide">{tr.from}</span>
         {[
-          p.ticketId && { label: "Ticket", href: linkIf(nav?.sales, linkToTicket(slug, p.ticketId)) },
+          p.ticketId && { label: tr.ticket, href: linkIf(nav?.sales, linkToTicket(slug, p.ticketId)) },
           p.rfqId && { label: "RFQ", href: linkIf(nav?.["technical-rfq"], linkToRfq(slug, p.rfqId)) },
           p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.["technical-quotations"], linkToQuotation(slug, p.quotationId)) },
         ].filter(Boolean).map((step, i, arr) => (
@@ -403,10 +410,10 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <div><label className={label}>Client</label><input className={inputRO} value={p.clientName || "—"} readOnly /></div>
-        <div><label className={label}>Value</label><input className={inputRO} value={money(p.value)} readOnly /></div>
+        <div><label className={label}>{tr.client}</label><input className={inputRO} value={p.clientName || "—"} readOnly /></div>
+        <div><label className={label}>{tr.value}</label><input className={inputRO} value={money(p.value)} readOnly /></div>
         <div>
-          <label className={label}>Support</label>
+          <label className={label}>{tr.support}</label>
           <div className={`${inputRO} flex items-center`}><SupportTag project={p} /></div>
         </div>
       </div>
@@ -415,7 +422,7 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
           schedule that moves it lives in the planner, opened from the board. */}
       <div className="mt-4">
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-600 uppercase tracking-wide">Progress</span>
+          <span className="font-600 uppercase tracking-wide">{tr.progress}</span>
           <span className="font-600 tabular-nums">{p.progress}%</span>
         </div>
         <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
@@ -425,25 +432,25 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
 
       {canManage && (
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          <Field label="Stage" as="select" value={p.stage}
+          <Field label={tr.stage} as="select" value={p.stage}
             onChange={(val) => onSave({ stage: val })}
             options={stages.map((s) => ({ value: s, label: s }))} />
-          <Field label="Manager" as="select" value={p.managerCollaboratorId || ""}
+          <Field label={tr.manager} as="select" value={p.managerCollaboratorId || ""}
             onChange={(val) => onSave({ managerCollaboratorId: val })}
-            options={[{ value: "", label: "Unassigned" }, ...people.map((x) => ({ value: x.id, label: x.alias }))]} />
+            options={[{ value: "", label: tr.unassigned }, ...people.map((x) => ({ value: x.id, label: x.alias }))]} />
           {/* Wrapper onBlur keeps the save-on-blur point without overriding
               Field's own input onBlur (which tracks the focus ring). */}
           <div onBlur={() => onSave({ location: loc })}>
-            <Field label="Location" value={loc} onChange={(val) => setLoc(val)} />
+            <Field label={tr.location} value={loc} onChange={(val) => setLoc(val)} />
           </div>
-          <Field label="Start" filled={!!start}>
+          <Field label={tr.start} filled={!!start}>
             <StudioDate value={start} onChange={(iso) => { setStart(iso); onSave({ startDate: iso }); }} />
           </Field>
-          <Field label="Target end" filled={!!end}>
+          <Field label={tr.targetEnd} filled={!!end}>
             <StudioDate value={end} onChange={(iso) => { setEnd(iso); onSave({ endDate: iso }); }} />
           </Field>
           <div onBlur={() => onSave({ supportPeriodDays: sup })}>
-            <Field label="Support period (days)" type="number" min="0" value={sup}
+            <Field label={tr.supportPeriodDays} type="number" min="0" value={sup}
               onChange={(val) => setSup(val)}
               hint={support.known ? `Runs to ${slaDate(support.supportEnd)}.` : undefined} />
           </div>
@@ -452,9 +459,9 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
 
       <div className="mt-6 flex items-center justify-between gap-3">
         {canManage
-          ? <button className="text-sm font-600 text-rose-600 hover:underline dark:text-rose-400" onClick={onDelete}>Delete project</button>
+          ? <button className="text-sm font-600 text-rose-600 hover:underline dark:text-rose-400" onClick={onDelete}>{tr.deleteProject}</button>
           : <span />}
-        <button className={btnGhost} onClick={onClose}>Close</button>
+        <button className={btnGhost} onClick={onClose}>{tr.close}</button>
       </div>
     </>
   );
@@ -465,6 +472,7 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
 // from the start, duration and count — change any of them and every date moves —
 // so only the ticks and the emergency call-outs are stored.
 function Slas({ slas, projects, canManage, onSave }) {
+  const tr = projectsDict(useStudioLocale());
   const [form, setForm] = useState(null);   // { row } | { row: null }
   const [detail, setDetail] = useState(null);
   const closeForm = useCallback(() => setForm(null), []);
@@ -480,25 +488,25 @@ function Slas({ slas, projects, canManage, onSave }) {
   if (slas.length === 0) {
     return (
       <>
-        <Toolbar canManage={canManage} label="Add SLA" onAdd={() => setForm({ row: null })} />
+        <Toolbar canManage={canManage} label={tr.addSla} onAdd={() => setForm({ row: null })} />
         {form && (
-          <Dialog title="Add SLA contract" description="The visit schedule is generated from the start date, duration and visit count." onClose={closeForm}>
+          <Dialog title={tr.addSlaContract} description={tr.visitScheduleGeneratedStart} onClose={closeForm}>
             <SlaForm row={null} projects={projects} onCancel={closeForm}
               onSave={async (p) => { const ok = await onSave("POST", p); if (ok) setForm(null); }} />
           </Dialog>
         )}
-        <Empty title="No SLA contracts yet" body="A contract covers a delivered project for a period, with a set number of planned visits and an allowance of emergency ones." />
+        <Empty title={tr.noSlaContractsYet} body={tr.contractCoversDeliveredProject} />
       </>
     );
   }
 
   return (
     <>
-      <Toolbar canManage={canManage} label="Add SLA" onAdd={() => setForm({ row: null })} />
+      <Toolbar canManage={canManage} label={tr.addSla} onAdd={() => setForm({ row: null })} />
 
       {form && (
         <Dialog title={form.row ? `Edit ${form.row.title}` : "Add SLA contract"}
-          description="The visit schedule is generated from the start date, duration and visit count."
+          description={tr.visitScheduleGeneratedStart}
           onClose={closeForm}>
           <SlaForm row={form.row} projects={projects} onCancel={closeForm}
             onSave={async (p) => {
@@ -527,7 +535,7 @@ function Slas({ slas, projects, canManage, onSave }) {
                 {["Contract", "Project", "Signed", "Visits", "Closest visit"].map((head) => (
                   <th key={head} className={`${th} ps-2 text-start`}>{head}</th>
                 ))}
-                <th className={`${th} text-end`}>Actions</th>
+                <th className={`${th} text-end`}>{tr.actions}</th>
               </tr>
             </thead>
             <tbody>
@@ -558,9 +566,9 @@ function Slas({ slas, projects, canManage, onSave }) {
                     </td>
                     <td className="py-3 text-end">
                       <span className="inline-flex gap-2">
-                        <button className={btnGhost} onClick={() => setDetail(sla)}>Visits</button>
-                        {canManage && <button className={btnGhost} onClick={() => setForm({ row: sla })}>Edit</button>}
-                        {canManage && <button className={btnGhost} onClick={() => onSave("DELETE", { id: sla.id })}>Delete</button>}
+                        <button className={btnGhost} onClick={() => setDetail(sla)}>{tr.visits}</button>
+                        {canManage && <button className={btnGhost} onClick={() => setForm({ row: sla })}>{tr.edit}</button>}
+                        {canManage && <button className={btnGhost} onClick={() => onSave("DELETE", { id: sla.id })}>{tr.delete}</button>}
                       </span>
                     </td>
                   </tr>
@@ -575,6 +583,7 @@ function Slas({ slas, projects, canManage, onSave }) {
 }
 
 function SlaForm({ row, projects, onSave, onCancel }) {
+  const tr = projectsDict(useStudioLocale());
   const [f, setF] = useState({
     title: row?.title || "",
     projectId: row?.projectId || "",
@@ -593,24 +602,24 @@ function SlaForm({ row, projects, onSave, onCancel }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Contract name" required value={f.title} onChange={(v) => setF((s) => ({ ...s, title: v }))} />
-        <Field label="Project" as="select" value={f.projectId} onChange={(v) => setF((s) => ({ ...s, projectId: v }))}
+        <Field label={tr.contractName} required value={f.title} onChange={(v) => setF((s) => ({ ...s, title: v }))} />
+        <Field label={tr.project} as="select" value={f.projectId} onChange={(v) => setF((s) => ({ ...s, projectId: v }))}
           options={projects.map((p) => ({ value: p.id, label: `${p.number} — ${p.title}` }))} />
-        <Field label="Signed" filled={!!f.signingDate}>
+        <Field label={tr.signed} filled={!!f.signingDate}>
           <StudioDate value={f.signingDate} onChange={(iso) => setF((s) => ({ ...s, signingDate: iso }))} />
         </Field>
-        <Field label="Starts" required filled={!!f.startDate}>
+        <Field label={tr.starts} required filled={!!f.startDate}>
           <StudioDate value={f.startDate} onChange={(iso) => setF((s) => ({ ...s, startDate: iso }))} />
         </Field>
-        <Field label="Duration (days)" type="number" min="1" value={f.durationDays} onChange={(v) => setF((s) => ({ ...s, durationDays: v }))} />
-        <Field label="Planned visits" type="number" min="1" value={f.visits} onChange={(v) => setF((s) => ({ ...s, visits: v }))} />
-        <Field label="Emergency allowance" type="number" min="0" value={f.emergencyVisits} onChange={(v) => setF((s) => ({ ...s, emergencyVisits: v }))} />
+        <Field label={tr.durationDays} type="number" min="1" value={f.durationDays} onChange={(v) => setF((s) => ({ ...s, durationDays: v }))} />
+        <Field label={tr.plannedVisits} type="number" min="1" value={f.visits} onChange={(v) => setF((s) => ({ ...s, visits: v }))} />
+        <Field label={tr.emergencyAllowance} type="number" min="0" value={f.emergencyVisits} onChange={(v) => setF((s) => ({ ...s, emergencyVisits: v }))} />
       </div>
-      <Field className="mt-4" label="Notes" as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} />
+      <Field className="mt-4" label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} />
 
       {preview.length > 0 && (
         <div className="mt-4 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3.5 dark:border-white/15">
-          <p className={microLabel}>Schedule</p>
+          <p className={microLabel}>{tr.schedule}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Visits fall on {preview.slice(0, 3).map((v) => slaDate(v.date)).join(", ")}
             {preview.length > 3 ? `… through ${slaDate(preview[preview.length - 1].date)}` : ""}. Changing any of the three fields above reschedules all of them.
@@ -622,13 +631,14 @@ function SlaForm({ row, projects, onSave, onCancel }) {
         <button className={btn} disabled={busy || !ready} onClick={async () => { setBusy(true); await onSave(f); setBusy(false); }}>
           {busy ? "Saving…" : row ? "Save contract" : "Add contract"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
 }
 
 function SlaVisits({ sla, canManage, onSave, onClose }) {
+  const tr = projectsDict(useStudioLocale());
   const [emergencyDate, setEmergencyDate] = useState("");
   const [emergencyError, setEmergencyError] = useState("");
   const planned = slaVisits(sla);
@@ -669,7 +679,7 @@ function SlaVisits({ sla, canManage, onSave, onClose }) {
       </p>
 
       <ul className="mt-4 space-y-2">
-        {planned.length === 0 && <li className="text-sm text-slate-400">Set a start date, duration and visit count to generate visits.</li>}
+        {planned.length === 0 && <li className="text-sm text-slate-400">{tr.setStartDateDuration}</li>}
         {planned.map((v) => (
           <li key={v.index} className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm ${v.completed ? "border-emerald-500/40 bg-emerald-500/5" : "border-slate-200 dark:border-white/10"}`}>
             <label className={`flex min-w-0 flex-1 items-center gap-3 ${canManage ? "cursor-pointer" : ""}`}>
@@ -690,15 +700,15 @@ function SlaVisits({ sla, canManage, onSave, onClose }) {
           the contract's own end date. */}
       <div className="mt-6 border-t border-slate-200/70 pt-5 dark:border-white/10">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h4 className="font-display text-sm font-700 text-slate-900 dark:text-white">Emergency visits</h4>
+          <h4 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.emergencyVisits}</h4>
           <span className="text-xs text-slate-400 dark:text-slate-500">{emergency.length}/{cap} used</span>
         </div>
         {cap === 0 ? (
-          <p className="text-sm text-slate-400">This contract has no emergency visits.</p>
+          <p className="text-sm text-slate-400">{tr.contractNoEmergencyVisits}</p>
         ) : (
           <>
             <ul className="space-y-2">
-              {emergency.length === 0 && <li className="text-sm text-slate-400">No emergency visits registered yet.</li>}
+              {emergency.length === 0 && <li className="text-sm text-slate-400">{tr.noEmergencyVisitsRegistered}</li>}
               {emergency.map((e) => (
                 <li key={e.id} className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm ${e.completed ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
                   <label className={`flex min-w-0 flex-1 items-center gap-3 ${canManage ? "cursor-pointer" : ""}`}>
@@ -714,14 +724,14 @@ function SlaVisits({ sla, canManage, onSave, onClose }) {
                   </span>
                   {canManage && (
                     <button type="button" className="shrink-0 text-xs font-600 text-rose-600 hover:underline dark:text-rose-400"
-                      onClick={() => patchEmergency((sla.emergencyVisitsList || []).filter((x) => x.id !== e.id))}>Remove</button>
+                      onClick={() => patchEmergency((sla.emergencyVisitsList || []).filter((x) => x.id !== e.id))}>{tr.remove}</button>
                   )}
                 </li>
               ))}
             </ul>
             {canManage && emergency.length < cap && (
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Field label="Date" filled={!!emergencyDate} className="sm:max-w-[200px]">
+                <Field label={tr.date} filled={!!emergencyDate} className="sm:max-w-[200px]">
                   <StudioDate value={emergencyDate}
                     minDate={sla.startDate || undefined} maxDate={end ? end.toISOString().slice(0, 10) : undefined}
                     onChange={(iso) => setEmergencyDate(iso)} />
@@ -736,7 +746,7 @@ function SlaVisits({ sla, canManage, onSave, onClose }) {
         )}
       </div>
 
-      <div className="mt-6 flex justify-end"><button className={btnGhost} onClick={onClose}>Close</button></div>
+      <div className="mt-6 flex justify-end"><button className={btnGhost} onClick={onClose}>{tr.close}</button></div>
     </>
   );
 }
@@ -746,6 +756,7 @@ function SlaVisits({ sla, canManage, onSave, onClose }) {
 // hours per project per person, with the totals — and the LIST, which is the
 // individual entries, where a mistake gets corrected.
 function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canManage, onSave }) {
+  const tr = projectsDict(useStudioLocale());
   const [tab, setTab] = useState("matrix");
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -797,24 +808,24 @@ function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canMan
           ))}
         </div>
         {tab === "matrix" && overtimes.length > 0 && (
-          <button type="button" className={btnGhost} onClick={exportCsv}>Export CSV</button>
+          <button type="button" className={btnGhost} onClick={exportCsv}>{tr.exportCsv}</button>
         )}
         <span className="ms-auto">
           {canManage
             ? <button type="button" className={btn} onClick={() => setAdding(true)} disabled={projects.length === 0}
-                title={projects.length === 0 ? "Open a project first" : undefined}>Add overtime</button>
-            : <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
+                title={projects.length === 0 ? "Open a project first" : undefined}>{tr.addOvertime}</button>
+            : <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
         </span>
       </div>
 
       {adding && (
-        <Dialog title="Add overtime" description="One record is written per person selected." onClose={closeAdd}>
+        <Dialog title={tr.addOvertime} description={tr.oneRecordWrittenPer} onClose={closeAdd}>
           <AddOvertime projects={projects} directory={directory} defaultDepartmentId={defaultDepartmentId}
             onCancel={closeAdd} onSave={async (p) => { const ok = await onSave("POST", p); if (ok) setAdding(false); }} />
         </Dialog>
       )}
       {editing && (
-        <Dialog title="Edit overtime" description={`${editing.personName} · ${fmtDate(editing.date)}`} onClose={closeEdit} width="max-w-[560px]">
+        <Dialog title={tr.editOvertime} description={`${editing.personName} · ${fmtDate(editing.date)}`} onClose={closeEdit} width="max-w-[560px]">
           <EditOvertime record={editing} projects={projects} directory={directory} onCancel={closeEdit}
             onSave={async (p) => { const ok = await onSave("PUT", { id: editing.id, ...p }); if (ok) setEditing(null); }}
             onDelete={async () => { const ok = await onSave("DELETE", { id: editing.id }); if (ok) setEditing(null); }} />
@@ -822,16 +833,16 @@ function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canMan
       )}
 
       {overtimes.length === 0 ? (
-        <Empty title="No overtime recorded yet" body="Log the hours worked on a project outside the plan. They add up per project and per person here." />
+        <Empty title={tr.noOvertimeRecordedYet} body={tr.logHoursWorkedProject} />
       ) : tab === "matrix" ? (
         <section className={panel}>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10">
-                  <th className={`${th} text-start`}>Project</th>
+                  <th className={`${th} text-start`}>{tr.project}</th>
                   {matrix.cols.map((c) => (<th key={c.id} className={`${th} text-center`}>{c.name}</th>))}
-                  <th className={`${th} text-end`}>Total</th>
+                  <th className={`${th} text-end`}>{tr.total}</th>
                 </tr>
               </thead>
               <tbody>
@@ -846,7 +857,7 @@ function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canMan
                   </tr>
                 ))}
                 <tr className="bg-brand-500/5">
-                  <td className="py-3 pe-3 font-700 text-slate-900 dark:text-white">Total</td>
+                  <td className="py-3 pe-3 font-700 text-slate-900 dark:text-white">{tr.total}</td>
                   {matrix.cols.map((c) => (<td key={c.id} className="py-3 text-center font-700 tabular-nums text-slate-900 dark:text-white">{matrix.colTotal(c.id)}</td>))}
                   <td className="py-3 text-end font-700 tabular-nums text-brand-700 dark:text-brand-300">{matrix.grand}</td>
                 </tr>
@@ -863,7 +874,7 @@ function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canMan
                   {["Project", "Person", "Department", "Date", "From–To"].map((head) => (
                     <th key={head} className={`${th} text-start`}>{head}</th>
                   ))}
-                  <th className={`${th} text-end`}>Hours</th>
+                  <th className={`${th} text-end`}>{tr.hours}</th>
                 </tr>
               </thead>
               <tbody>
@@ -891,6 +902,7 @@ function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canMan
 }
 
 function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCancel }) {
+  const tr = projectsDict(useStudioLocale());
   const [projectId, setProjectId] = useState(projects[0]?.id || "");
   const [departmentId, setDepartmentId] = useState(defaultDepartmentId || "");
   const [collaboratorIds, setCollaboratorIds] = useState([]);
@@ -910,18 +922,18 @@ function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCance
   return (
     <>
       <div className="grid gap-4">
-        <Field label="Project" as="select" required value={projectId} onChange={(v) => setProjectId(v)}
+        <Field label={tr.project} as="select" required value={projectId} onChange={(v) => setProjectId(v)}
           options={projects.map((p) => ({ value: p.id, label: `${p.number} — ${p.title}` }))} />
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Date" filled={!!date}>
+          <Field label={tr.date} filled={!!date}>
             <StudioDate value={date} onChange={(iso) => setDate(iso)} />
           </Field>
-          <Field label="From" type="time" value={from} onChange={(v) => setFrom(v)} />
-          <Field label="To" type="time" value={to} onChange={(v) => setTo(v)} />
+          <Field label={tr.from} type="time" value={from} onChange={(v) => setFrom(v)} />
+          <Field label={tr.to} type="time" value={to} onChange={(v) => setTo(v)} />
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {hours > 0
-            ? <>That is <span className="font-600">{hours}</span> hour{hours === 1 ? "" : "s"} per person.</>
+            ? <>{tr.thatIs} <span className="font-600">{hours}</span> hour{hours === 1 ? "" : "s"} per person.</>
             : "The end time has to be after the start time."}
         </p>
 
@@ -931,14 +943,14 @@ function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCance
             {directory.departments.length > 0 && (
               <select className="rounded-lg border border-slate-200 bg-[var(--geex-inset)] px-2 py-1 text-xs dark:border-white/15 dark:text-white"
                 value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
-                <option value="">All departments</option>
+                <option value="">{tr.allDepartments}</option>
                 {directory.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             )}
           </div>
           <div className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2 dark:border-white/15">
             {people.length === 0 ? (
-              <p className="p-2 text-sm text-slate-400">Nobody in this department.</p>
+              <p className="p-2 text-sm text-slate-400">{tr.nobodyDepartment}</p>
             ) : people.map((p) => (
               <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-white/5">
                 <input type="checkbox" checked={collaboratorIds.includes(p.id)} onChange={() => toggle(p.id)} className="h-4 w-4 accent-brand-600" />
@@ -956,13 +968,14 @@ function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCance
           await onSave({ projectId, collaboratorIds, date, from, to });
           setBusy(false);
         }}>{busy ? "Saving…" : "Add overtime"}</button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
 }
 
 function EditOvertime({ record, projects, directory, onSave, onDelete, onCancel }) {
+  const tr = projectsDict(useStudioLocale());
   const [f, setF] = useState({
     projectId: record.projectId || "",
     collaboratorId: record.collaboratorId || "",
@@ -976,11 +989,11 @@ function EditOvertime({ record, projects, directory, onSave, onDelete, onCancel 
   return (
     <>
       <div className="grid gap-4">
-        <Field label="Project" as="select" required value={f.projectId} onChange={(v) => setF((s) => ({ ...s, projectId: v }))}
+        <Field label={tr.project} as="select" required value={f.projectId} onChange={(v) => setF((s) => ({ ...s, projectId: v }))}
           options={projects.map((p) => ({ value: p.id, label: `${p.number} — ${p.title}` }))} />
         {/* Somebody who has since left the studio still has to render, or saving
             would silently move their hours to whoever is first. */}
-        <Field label="Person" as="select" required value={f.collaboratorId} onChange={(v) => setF((s) => ({ ...s, collaboratorId: v }))}
+        <Field label={tr.person} as="select" required value={f.collaboratorId} onChange={(v) => setF((s) => ({ ...s, collaboratorId: v }))}
           options={[
             ...directory.people.map((p) => ({ value: p.id, label: p.alias })),
             ...(f.collaboratorId && !directory.people.some((p) => p.id === f.collaboratorId)
@@ -988,21 +1001,21 @@ function EditOvertime({ record, projects, directory, onSave, onDelete, onCancel 
               : []),
           ]} />
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Date" filled={!!f.date}>
+          <Field label={tr.date} filled={!!f.date}>
             <StudioDate value={f.date} onChange={(iso) => setF((s) => ({ ...s, date: iso }))} />
           </Field>
-          <Field label="From" type="time" value={f.from} onChange={(v) => setF((s) => ({ ...s, from: v }))} />
-          <Field label="To" type="time" value={f.to} onChange={(v) => setF((s) => ({ ...s, to: v }))} />
+          <Field label={tr.from} type="time" value={f.from} onChange={(v) => setF((s) => ({ ...s, from: v }))} />
+          <Field label={tr.to} type="time" value={f.to} onChange={(v) => setF((s) => ({ ...s, to: v }))} />
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          {hours > 0 ? <>That is <span className="font-600">{hours}</span> hour{hours === 1 ? "" : "s"}.</> : "The end time has to be after the start time."}
+          {hours > 0 ? <>{tr.thatIs} <span className="font-600">{hours}</span> hour{hours === 1 ? "" : "s"}.</> : "The end time has to be after the start time."}
         </p>
       </div>
 
       <div className="mt-6 flex items-center justify-between gap-3">
-        <button className="text-sm font-600 text-rose-600 hover:underline dark:text-rose-400" onClick={onDelete}>Delete</button>
+        <button className="text-sm font-600 text-rose-600 hover:underline dark:text-rose-400" onClick={onDelete}>{tr.delete}</button>
         <div className="flex gap-3">
-          <button className={btnGhost} onClick={onCancel}>Cancel</button>
+          <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
           <button className={btn} disabled={busy || hours <= 0} onClick={async () => { setBusy(true); await onSave(f); setBusy(false); }}>
             {busy ? "Saving…" : "Save"}
           </button>
@@ -1014,6 +1027,7 @@ function EditOvertime({ record, projects, directory, onSave, onDelete, onCancel 
 
 // ---- settings --------------------------------------------------------------
 function ProjectsSettings({ settings, departments, stages, serviceActions, canManage, onSave }) {
+  const tr = projectsDict(useStudioLocale());
   const [weights, setWeights] = useState(() =>
     Object.fromEntries(serviceActions.map((a) => [a, settings.requirementWeights?.[a] ?? ""])));
   const [otDept, setOtDept] = useState(settings.overtimeDefaultDepartmentId || "");
@@ -1042,7 +1056,7 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
   return (
     <div className="space-y-6">
       <section className={panel}>
-        <h2 className={h2}>Requirement weights</h2>
+        <h2 className={h2}>{tr.requirementWeights}</h2>
         <p className={sub}>
           How a project&apos;s completion percentage splits across its requirements — your studio&apos;s
           service actions. Give each a share; together they must total 100%. Only the actions a project
@@ -1071,25 +1085,25 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
       </section>
 
       <section className={panel}>
-        <h2 className={h2}>Support</h2>
-        <p className={sub}>How long a project stays in support after its end date. A new project starts with this, and can be changed on its own.</p>
+        <h2 className={h2}>{tr.support}</h2>
+        <p className={sub}>{tr.howLongProjectStays}</p>
         <div className="mt-4 max-w-xs">
-          <Field label="Default support period (days)" type="number" min="0" value={supportDays} disabled={!canManage}
+          <Field label={tr.defaultSupportPeriodDays} type="number" min="0" value={supportDays} disabled={!canManage}
             onChange={(v) => { setSaved(false); setSupportDays(v); }} />
         </div>
       </section>
 
       <section className={panel}>
-        <h2 className={h2}>Overtime</h2>
-        <p className={sub}>The department pre-selected in <span className="font-600">Add overtime</span>, so the people list opens filtered to it.</p>
+        <h2 className={h2}>{tr.overtime}</h2>
+        <p className={sub}>{tr.departmentPreSelected} <span className="font-600">{tr.addOvertime}</span>{tr.peopleListOpensFiltered}</p>
         <div className="mt-4 max-w-xs">
           {departments.length === 0 ? (
             <>
-              <label className={label}>Default department</label>
-              <p className="text-xs text-slate-400">No departments — a department is a section, and this studio has none switched on.</p>
+              <label className={label}>{tr.defaultDepartment}</label>
+              <p className="text-xs text-slate-400">{tr.noDepartmentsDepartmentSection}</p>
             </>
           ) : (
-            <Field label="Default department" as="select" value={otDept} disabled={!canManage}
+            <Field label={tr.defaultDepartment} as="select" value={otDept} disabled={!canManage}
               onChange={(v) => { setSaved(false); setOtDept(v); }}
               options={departments.map((d) => ({ value: d.id, label: d.name }))} />
           )}
@@ -1097,8 +1111,8 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
       </section>
 
       <section className={panel}>
-        <h2 className={h2}>Stages</h2>
-        <p className={sub}>The stages a project moves through. These are fixed for now — the board and the list both read them.</p>
+        <h2 className={h2}>{tr.stages}</h2>
+        <p className={sub}>{tr.stagesProjectMovesThrough}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {stages.map((s) => (
             <StatusPill key={s} kind="project" status={s} />
@@ -1110,11 +1124,11 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
         <div className="flex items-center gap-3">
           <button className={btn} disabled={busy || !weightsOk} onClick={save}
             title={weightsOk ? "" : "Requirement weights must total 100%."}>{busy ? "Saving…" : "Save settings"}</button>
-          {!weightsOk && <span className="text-sm text-rose-600 dark:text-rose-300">Weights must total 100%.</span>}
-          {saved && weightsOk && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+          {!weightsOk && <span className="text-sm text-rose-600 dark:text-rose-300">{tr.weightsMustTotal100}</span>}
+          {saved && weightsOk && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>
       ) : (
-        <p className="text-xs text-slate-500 dark:text-slate-400">You have view-only access to Projects settings.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{tr.viewOnlyAccessProjects}</p>
       )}
     </div>
   );

@@ -13,6 +13,8 @@
 // free floor gets the KPI row; each gated widget carries its registry key.
 
 import { money, StatTile, microLabel, fmtDate } from "@/components/studio2/ui";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { inventoryDict } from "@/shared/studio/inventory";
 import { Widget, StatRow, DashGrid } from "@/components/dashboard";
 import { BarList, Donut } from "@/components/charts";
 import { CurrencySymbol } from "@/components/Currency";
@@ -107,6 +109,7 @@ export default function InventoryDashboard({
   slug, summary, items = [], orders = [], movements = [], nav,
   currency = "",
 }) {
+  const tr = inventoryDict(useStudioLocale());
   const d = derive({ items, orders });
   const visible = useWidgetVisible();
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
@@ -116,27 +119,27 @@ export default function InventoryDashboard({
   const openPos = (summary?.awaiting ?? 0);
 
   const sections = [
-    { key: "inventory-items", label: "Registered Items", desc: "The catalogue, by vendor", icon: "services" },
-    { key: "inventory-stock", label: "Stock Management", desc: "What is held, and the ledger behind it", icon: "blueprint" },
-    { key: "inventory-vendors", label: "Vendors", desc: "Who you buy from, and what they supply", icon: "vendors" },
-    { key: "inventory-sheets", label: "Project Sheets", desc: "Ordered for and issued to each project", icon: "report" },
-    { key: "inventory-awb", label: "AWB Tracking", desc: "Air freight, by waybill", icon: "external" },
+    { key: "inventory-items", label: tr.registeredItems2, desc: "The catalogue, by vendor", icon: "services" },
+    { key: "inventory-stock", label: tr.stockManagement, desc: "What is held, and the ledger behind it", icon: "blueprint" },
+    { key: "inventory-vendors", label: tr.vendors, desc: "Who you buy from, and what they supply", icon: "vendors" },
+    { key: "inventory-sheets", label: tr.projectSheets2, desc: "Ordered for and issued to each project", icon: "report" },
+    { key: "inventory-awb", label: tr.awbTracking, desc: "Air freight, by waybill", icon: "external" },
   ];
 
   return (
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label="Registered items" value={qty(summary?.items ?? items.length)} href={href("inventory-items")} />
-        <StatTile label="Stock value" value={amt(summary?.value ?? 0)} href={href("inventory-stock")} />
-        <StatTile label="Below reorder" value={qty(summary?.low ?? d.below.length)}
+        <StatTile label={tr.registeredItems} value={qty(summary?.items ?? items.length)} href={href("inventory-items")} />
+        <StatTile label={tr.stockValue} value={amt(summary?.value ?? 0)} href={href("inventory-stock")} />
+        <StatTile label={tr.belowReorder} value={qty(summary?.low ?? d.below.length)}
           tone={(summary?.low ?? 0) > 0 ? "text-amber-700 dark:text-amber-300" : ""} href={href("inventory-stock")} />
-        <StatTile label="Open purchase orders" value={qty(openPos)} href={href("inventory-sheets")} />
+        <StatTile label={tr.openPurchaseOrders} value={qty(openPos)} href={href("inventory-sheets")} />
       </StatRow>
 
       <DashGrid>
         {/* Simple */}
-        <Widget title="Below reorder level" hint="On hand against the level it should sit at" locked={!visible("inventory.below-reorder")} lockedWhat="Below-reorder items">
+        <Widget title={tr.belowReorderLevel} hint={tr.handAgainstLevelShould} locked={!visible("inventory.below-reorder")} lockedWhat={tr.belowReorderItems}>
           {d.below.length ? (
             <BarList items={d.below.slice(0, 8).map((b) => ({
               label: b.name,
@@ -144,10 +147,10 @@ export default function InventoryDashboard({
               color: b.fill < 50 ? "rgb(var(--chart-1))" : "rgb(var(--chart-3))",
               display: <span className="num">{qty(b.onHand)} / {qty(b.reorderLevel)} {b.unit}</span>,
             }))} />
-          ) : <p className="py-8 text-center text-sm text-slate-400">Nothing below reorder level.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nothingBelowReorderLevel}</p>}
         </Widget>
 
-        <Widget title="Purchase orders by status" hint="Where every order stands" locked={!visible("inventory.orders-by-status")} lockedWhat="Order status breakdown">
+        <Widget title={tr.purchaseOrdersStatus} hint={tr.whereEveryOrderStands} locked={!visible("inventory.orders-by-status")} lockedWhat={tr.orderStatusBreakdown}>
           {d.poTotal ? (
             <div className="flex flex-wrap items-center justify-center gap-5 py-2">
               <Donut size={168} data={d.statusSlices.map((s) => ({ label: s.label, value: s.value, color: s.color }))}
@@ -162,31 +165,31 @@ export default function InventoryDashboard({
                 ))}
               </ul>
             </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No purchase orders yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noPurchaseOrdersYet}</p>}
         </Widget>
 
-        <Widget title="Spend by vendor" hint="Committed on ordered, partly-received and received POs" locked={!visible("inventory.spend-by-vendor")} lockedWhat="Spend by vendor">
+        <Widget title={tr.spendVendor} hint={tr.committedOrderedPartlyReceived} locked={!visible("inventory.spend-by-vendor")} lockedWhat={tr.spendVendor}>
           {d.spend.length ? (
             <BarList items={d.spend.slice(0, 8).map((v) => ({
               label: v.name,
               value: d.spend[0].total > 0 ? Math.round((v.total / d.spend[0].total) * 100) : 0,
               display: amt(v.total),
             }))} />
-          ) : <p className="py-8 text-center text-sm text-slate-400">Nothing ordered yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nothingOrderedYet}</p>}
         </Widget>
 
         {/* Moderate */}
-        <Widget title="Stock value by vendor" hint="On-hand quantity valued at unit cost" locked={!visible("inventory.stock-value-by-vendor")} lockedWhat="Stock value by vendor">
+        <Widget title={tr.stockValueVendor} hint={tr.handQuantityValuedUnit} locked={!visible("inventory.stock-value-by-vendor")} lockedWhat={tr.stockValueVendor}>
           {d.stockVendor.length ? (
             <BarList items={d.stockVendor.slice(0, 8).map((v) => ({
               label: v.name,
               value: d.stockVendor[0].value > 0 ? Math.round((v.value / d.stockVendor[0].value) * 100) : 0,
               display: amt(v.value),
             }))} />
-          ) : <p className="py-8 text-center text-sm text-slate-400">No stock value yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noStockValueYet}</p>}
         </Widget>
 
-        <Widget title="Outstanding on order" hint="Value still expected to arrive, by order" locked={!visible("inventory.outstanding-on-order")} lockedWhat="Outstanding order value">
+        <Widget title={tr.outstandingOrder} hint={tr.valueStillExpectedArrive} locked={!visible("inventory.outstanding-on-order")} lockedWhat={tr.outstandingOrderValue}>
           {d.outstandingByOrder.length ? (
             <>
               <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">{amt(d.outstandingValue)} outstanding across {d.outstandingByOrder.length} order{d.outstandingByOrder.length === 1 ? "" : "s"}.</p>
@@ -196,10 +199,10 @@ export default function InventoryDashboard({
                 display: amt(o.value),
               }))} />
             </>
-          ) : <p className="py-8 text-center text-sm text-slate-400">Nothing outstanding on order.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nothingOutstandingOrder}</p>}
         </Widget>
 
-        <Widget title="Recent stock movements" hint="The latest of the ledger" locked={!visible("inventory.recent-movements")} lockedWhat="Recent movements">
+        <Widget title={tr.recentStockMovements} hint={tr.latestLedger} locked={!visible("inventory.recent-movements")} lockedWhat={tr.recentMovements}>
           {recent.length ? (
             <ul className="divide-y divide-slate-100 dark:divide-white/5">
               {recent.map((m) => (
@@ -213,14 +216,14 @@ export default function InventoryDashboard({
                 </li>
               ))}
             </ul>
-          ) : <p className="py-8 text-center text-sm text-slate-400">No stock movements yet.</p>}
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noStockMovementsYet2}</p>}
         </Widget>
       </DashGrid>
 
       {/* The way into each sub-section — kept from the old dashboard, because the
           parent section is where a studio arrives and it still has to point on. */}
       <section>
-        <p className={microLabel}>Sections</p>
+        <p className={microLabel}>{tr.sections}</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {sections.map((s) => {
             const to = href(s.key);

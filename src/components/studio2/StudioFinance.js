@@ -1,6 +1,8 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { financeDict } from "@/shared/studio/finance";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
@@ -61,6 +63,7 @@ export default function StudioFinance({ slug, view = "finance" }) {
 // amount paid from the payments recorded against them, project cost from
 // purchase orders plus booked expenses.
 function FinanceCash({ slug, view = "finance" }) {
+  const tr = financeDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [tab, setTab] = useState("invoices");
   useEffect(() => { if (view === "finance-cash") setTab("invoices"); }, [view]);
@@ -70,7 +73,7 @@ function FinanceCash({ slug, view = "finance" }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/finance`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Finance in this studio."); return; }
+    if (!res.ok) { setError(tr.accessFinanceStudio); return; }
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
@@ -90,7 +93,7 @@ function FinanceCash({ slug, view = "finance" }) {
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading Finance…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingFinance}</p>;
 
   const { canManage: canManageParent, invoices, expenses, projects, profitability, summary, vocabulary, nav } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
@@ -111,7 +114,7 @@ function FinanceCash({ slug, view = "finance" }) {
         {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
         {/* The money summary across every project — the sharpest case for a
             dashboard right of its own. */}
-        {data.canViewDashboard === false ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." /> : (
+        {data.canViewDashboard === false ? <Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} /> : (
           <>
             <FinanceDashboard invoices={invoices} expenses={expenses} level={level} slug={slug} />
             <FinanceProjects rows={profitability} slug={slug} nav={nav} canManage={canManage} busy={busy}
@@ -137,7 +140,7 @@ function FinanceCash({ slug, view = "finance" }) {
             </button>
           ))}
         </div>
-        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
+        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
 
       {tab === "invoices" && (
@@ -207,13 +210,14 @@ function Summary({ summary }) {
 
 // ---- invoices --------------------------------------------------------------
 function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
+  const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
   const [paying, setPaying] = useState(null);
   const [open, setOpen] = useState(null);
 
   return (
     <>
-      {canManage && !drafting && !paying && <button className={btn} onClick={() => setDrafting(true)}>New invoice</button>}
+      {canManage && !drafting && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newInvoice}</button>}
 
       {drafting && (
         <InvoiceForm projects={projects} defaultVat={vocab.defaultVatRate} busy={busy}
@@ -227,7 +231,7 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
           onSave={async (p) => { if (await send("invoices", "PUT", { id: paying.id, payment: p })) setPaying(null); }} />
       )}
 
-      {rows.length === 0 ? <Empty title="No invoices yet" body="An invoice bills a client for a project. Recording payments against it is what marks it paid." /> : (
+      {rows.length === 0 ? <Empty title={tr.noInvoicesYet} body={tr.invoiceBillsClientProject} /> : (
         <section className={panel}>
           {/* The dense list is a Data Grid now — sortable columns, client-side
               paging — but every cell reproduces the hand-rolled table it
@@ -239,12 +243,12 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
           <StudioDataGrid
             rows={rows}
             getRowId={(r) => r.id}
-            ariaLabel="Invoices"
-            emptyLabel="No invoices match."
+            ariaLabel={tr.invoices}
+            emptyLabel={tr.noInvoicesMatch}
             emptyIcon="invoice"
             columns={[
               {
-                field: "reference", headerName: "Invoice", minWidth: 130, flex: 0.9,
+                field: "reference", headerName: tr.invoice, minWidth: 130, flex: 0.9,
                 renderCell: ({ row }) => (
                   <button type="button" className="num text-xs text-brand-700 hover:underline dark:text-brand-300"
                     onClick={() => setOpen(open === row.id ? null : row.id)}>
@@ -253,17 +257,17 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
                 ),
               },
               {
-                field: "clientName", headerName: "Client", minWidth: 140, flex: 1,
+                field: "clientName", headerName: tr.client, minWidth: 140, flex: 1,
                 renderCell: ({ row }) => <span className="text-slate-900 dark:text-white">{row.clientName}</span>,
               },
               {
-                field: "projectNumber", headerName: "Project", minWidth: 120, flex: 0.8,
+                field: "projectNumber", headerName: tr.project, minWidth: 120, flex: 0.8,
                 renderCell: ({ row }) => (row.projectNumber
-                  ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, row.projectId))} title="Open the project">{row.projectNumber}</RecordLink>
+                  ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, row.projectId))} title={tr.openProject}>{row.projectNumber}</RecordLink>
                   : <span className="text-slate-400">—</span>),
               },
               {
-                field: "dueDate", headerName: "Due", minWidth: 150, flex: 0.9,
+                field: "dueDate", headerName: tr.due, minWidth: 150, flex: 0.9,
                 renderCell: ({ row }) => (
                   <span className={row.overdue ? "font-600 text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-300"}>
                     {fmt(row.dueDate)}{row.overdue && " · overdue"}
@@ -271,17 +275,17 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
                 ),
               },
               {
-                field: "total", headerName: "Total", type: "number", minWidth: 120, flex: 0.7,
+                field: "total", headerName: tr.total, type: "number", minWidth: 120, flex: 0.7,
                 align: "right", headerAlign: "right",
                 renderCell: ({ row }) => <span className="num font-600 text-slate-900 dark:text-white">{money(row.total)}</span>,
               },
               {
-                field: "paid", headerName: "Paid", type: "number", minWidth: 110, flex: 0.7,
+                field: "paid", headerName: tr.paid, type: "number", minWidth: 110, flex: 0.7,
                 align: "right", headerAlign: "right",
                 renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.paid)}</span>,
               },
               {
-                field: "status", headerName: "Status", minWidth: 110, flex: 0.6,
+                field: "status", headerName: tr.status, minWidth: 110, flex: 0.6,
                 renderCell: ({ row }) => <StatusPill kind="invoice" status={row.status} />,
               },
               {
@@ -289,12 +293,12 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
                 align: "right", headerAlign: "right",
                 renderCell: ({ row }) => (canManage ? (
                   <span className="flex items-center justify-end gap-2">
-                    {row.status === "Draft" && <button className={btn} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Sent" })}>Send</button>}
-                    {row.status === "Sent" && <button className={btn} onClick={() => setPaying(row)}>Record payment</button>}
+                    {row.status === "Draft" && <button className={btn} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Sent" })}>{tr.send}</button>}
+                    {row.status === "Sent" && <button className={btn} onClick={() => setPaying(row)}>{tr.recordPayment}</button>}
                     {row.status !== "Cancelled" && row.status !== "Paid" && row.paid === 0 && (
-                      <button className={btnGhost} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Cancelled" })}>Cancel</button>
+                      <button className={btnGhost} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Cancelled" })}>{tr.cancel}</button>
                     )}
-                    {row.status === "Draft" && <button className={btnDanger} disabled={busy} onClick={() => send("invoices", "DELETE", { id: row.id })}>Delete</button>}
+                    {row.status === "Draft" && <button className={btnDanger} disabled={busy} onClick={() => send("invoices", "DELETE", { id: row.id })}>{tr.delete}</button>}
                   </span>
                 ) : null),
               },
@@ -310,7 +314,7 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
               <div className="mt-4 rounded-xl bg-slate-50 p-4 dark:bg-white/5">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="num text-xs text-slate-500 dark:text-slate-400">{inv.reference}</p>
-                  <button type="button" className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300" onClick={() => setOpen(null)}>Close</button>
+                  <button type="button" className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300" onClick={() => setOpen(null)}>{tr.close}</button>
                 </div>
                 <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
                   {inv.lines.map((l, i) => (
@@ -321,16 +325,16 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
                   ))}
                 </ul>
                 <div className="mt-3 space-y-0.5 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
-                  <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>Subtotal</span><span className="num">{money(inv.subtotal)}</span></p>
+                  <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>{tr.subtotal}</span><span className="num">{money(inv.subtotal)}</span></p>
                   <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>VAT {inv.vatRate}%</span><span className="num">{money(inv.vat)}</span></p>
-                  <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>Total</span><span className="num">{money(inv.total)}</span></p>
+                  <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>{tr.total}</span><span className="num">{money(inv.total)}</span></p>
                   {inv.outstanding > 0 && inv.status !== "Draft" && (
-                    <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>Outstanding</span><span className="num">{money(inv.outstanding)}</span></p>
+                    <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>{tr.outstanding}</span><span className="num">{money(inv.outstanding)}</span></p>
                   )}
                 </div>
                 {(inv.payments || []).length > 0 && (
                   <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
-                    <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">Payments</p>
+                    <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.payments}</p>
                     <ul className="mt-1 space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
                       {inv.payments.map((p) => (
                         <li key={p.id} className="flex justify-between gap-4">
@@ -359,29 +363,31 @@ export const filledLines = (lines) => lines.filter((l) => l.description.trim() &
 export const linesSubtotal = (lines) => filledLines(lines).reduce((s, l) => s + Number(l.qty) * (Number(l.unitPrice) || 0), 0);
 
 function LineItemsEditor({ lines, setLines }) {
+  const tr = financeDict(useStudioLocale());
   const setLine = (i, k, v) => setLines((ls) => ls.map((l, n) => (n === i ? { ...l, [k]: v } : l)));
   return (
     <div className="mt-5 space-y-3">
       {lines.map((l, i) => (
         <div key={i} className="flex flex-wrap items-end gap-3">
           <div className="min-w-[220px] flex-1">
-            <Field label="Description" value={l.description} onChange={(v) => setLine(i, "description", v)} />
+            <Field label={tr.description} value={l.description} onChange={(v) => setLine(i, "description", v)} />
           </div>
           <div className="w-24">
-            <Field label="Qty" type="number" value={l.qty} onChange={(v) => setLine(i, "qty", v)} />
+            <Field label={tr.qty} type="number" value={l.qty} onChange={(v) => setLine(i, "qty", v)} />
           </div>
           <div className="w-32">
-            <Field label="Unit price" type="number" value={l.unitPrice} onChange={(v) => setLine(i, "unitPrice", v)} />
+            <Field label={tr.unitPrice} type="number" value={l.unitPrice} onChange={(v) => setLine(i, "unitPrice", v)} />
           </div>
-          {lines.length > 1 && <button className={btnGhost} onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}>Remove</button>}
+          {lines.length > 1 && <button className={btnGhost} onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}>{tr.remove}</button>}
         </div>
       ))}
-      <button className={btnGhost} onClick={() => setLines((ls) => [...ls, { ...EMPTY_LINE }])}>Add line</button>
+      <button className={btnGhost} onClick={() => setLines((ls) => [...ls, { ...EMPTY_LINE }])}>{tr.addLine}</button>
     </div>
   );
 }
 
 function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
   const [head, setHead] = useState({ projectId: "", clientName: "", vatRate: String(defaultVat), issueDate: "", dueDate: "" });
   const [lines, setLines] = useState([{ ...EMPTY_LINE }]);
 
@@ -393,16 +399,16 @@ function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
 
   return (
     <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">New invoice</h3>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.newInvoice}</h3>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Project" as="select" value={head.projectId}
+        <Field label={tr.project} as="select" value={head.projectId}
           onChange={(v) => setHead((h) => ({ ...h, projectId: v }))}
           options={projects.map((p) => ({ value: p.id, label: `${p.number} · ${p.clientName}` }))} />
-        <Field label="Client" value={head.clientName} hint={project?.clientName || undefined}
+        <Field label={tr.client} value={head.clientName} hint={project?.clientName || undefined}
           onChange={(v) => setHead((h) => ({ ...h, clientName: v }))} />
-        <Field label="VAT %" type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />
-        <Field label="Due date" filled={!!head.dueDate}>
+        <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />
+        <Field label={tr.dueDate} filled={!!head.dueDate}>
           <StudioDate value={head.dueDate} onChange={(iso) => setHead((h) => ({ ...h, dueDate: iso }))} />
         </Field>
       </div>
@@ -411,7 +417,7 @@ function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
 
       <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
         Total <span className="font-mono font-700 text-slate-900 dark:text-white">{money(total)}</span>
-        <span className="text-xs"> — recalculated on the server when you save.</span>
+        <span className="text-xs"> {tr.recalculatedServerWhenSave}</span>
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -419,13 +425,14 @@ function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
           onClick={() => onSave({ ...head, vatRate: Number(head.vatRate) || 0, lines: filled })}>
           {busy ? "Saving…" : "Save draft"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
 }
 
 function PaymentForm({ invoice, methods, busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
   const [form, setForm] = useState({ amount: String(invoice.outstanding), date: "", method: methods[0], reference: "" });
 
   return (
@@ -433,18 +440,18 @@ function PaymentForm({ invoice, methods, busy, onCancel, onSave }) {
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {invoice.reference}</h3>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(invoice.outstanding)} outstanding of {money(invoice.total)}.</p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Amount" type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
-        <Field label="Date" filled={!!form.date}>
+        <Field label={tr.amount} type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
+        <Field label={tr.date} filled={!!form.date}>
           <StudioDate value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
         </Field>
-        <Field label="Method" as="select" value={form.method} onChange={(v) => setForm((f) => ({ ...f, method: v }))} options={methods} />
-        <Field label="Reference" value={form.reference} onChange={(v) => setForm((f) => ({ ...f, reference: v }))} />
+        <Field label={tr.method} as="select" value={form.method} onChange={(v) => setForm((f) => ({ ...f, method: v }))} options={methods} />
+        <Field label={tr.reference} value={form.reference} onChange={(v) => setForm((f) => ({ ...f, reference: v }))} />
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
           {busy ? "Recording…" : "Record"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
@@ -452,29 +459,30 @@ function PaymentForm({ invoice, methods, busy, onCancel, onSave }) {
 
 // ---- expenses --------------------------------------------------------------
 function Expenses({ rows, projects, categories, slug, nav, canManage, busy, send }) {
+  const tr = financeDict(useStudioLocale());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
 
   const fields = (row) => [
-    { key: "description", label: "Description", required: true, value: row?.description || "" },
-    { key: "amount", label: "Amount", type: "number", required: true, value: row?.amount || "" },
-    { key: "category", label: "Category", value: row?.category || categories[0], options: categories.map((c) => ({ value: c, text: c })) },
-    { key: "date", label: "Date", type: "date", value: row?.date || "" },
-    { key: "projectId", label: "Project", value: row?.projectId || "",
+    { key: "description", label: tr.description, required: true, value: row?.description || "" },
+    { key: "amount", label: tr.amount, type: "number", required: true, value: row?.amount || "" },
+    { key: "category", label: tr.category, value: row?.category || categories[0], options: categories.map((c) => ({ value: c, text: c })) },
+    { key: "date", label: tr.date, type: "date", value: row?.date || "" },
+    { key: "projectId", label: tr.project, value: row?.projectId || "",
       options: [{ value: "", text: "— general —" }, ...projects.map((p) => ({ value: p.id, text: p.number }))] },
-    { key: "notes", label: "Notes", area: true, value: row?.notes || "" },
+    { key: "notes", label: tr.notes, area: true, value: row?.notes || "" },
   ];
 
   return (
     <>
-      {canManage && !adding && !editing && <button className={btn} onClick={() => setAdding(true)}>Add expense</button>}
+      {canManage && !adding && !editing && <button className={btn} onClick={() => setAdding(true)}>{tr.addExpense}</button>}
       {(adding || editing) && (
         <SimpleForm title={editing ? "Edit expense" : "New expense"} busy={busy} fields={fields(editing)}
           onCancel={() => { setAdding(false); setEditing(null); }}
           onSave={async (v) => { if (await send("expenses", editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v)) { setAdding(false); setEditing(null); } }} />
       )}
 
-      {rows.length === 0 ? <Empty title="No expenses yet" body="Expenses are what the work cost. Booking one to a project feeds its margin." /> : (
+      {rows.length === 0 ? <Empty title={tr.noExpensesYet} body={tr.expensesWhatWorkCost} /> : (
         <section className={panel}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-sm">
@@ -496,16 +504,16 @@ function Expenses({ rows, projects, categories, slug, nav, canManage, busy, send
                     <td className={`${td} text-slate-600 dark:text-slate-300`}>{e.category}</td>
                     <td className={td}>
                       {e.projectNumber
-                        ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, e.projectId))} title="Open the project">{e.projectNumber}</RecordLink>
-                        : <span className="text-slate-400">General</span>}
+                        ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, e.projectId))} title={tr.openProject}>{e.projectNumber}</RecordLink>
+                        : <span className="text-slate-400">{tr.general}</span>}
                     </td>
                     <td className={`${td} text-slate-600 dark:text-slate-300`}>{e.paidByAlias || "—"}</td>
                     <td className={`${td} text-end font-600 text-slate-900 dark:text-white`}>{money(e.amount)}</td>
                     <td className={`${td} text-end`}>
                       {canManage && (
                         <span className="flex flex-wrap justify-end gap-2">
-                          <button className={btnGhost} onClick={() => setEditing(e)}>Edit</button>
-                          <button className={btnDanger} disabled={busy} onClick={() => send("expenses", "DELETE", { id: e.id })}>Delete</button>
+                          <button className={btnGhost} onClick={() => setEditing(e)}>{tr.edit}</button>
+                          <button className={btnDanger} disabled={busy} onClick={() => send("expenses", "DELETE", { id: e.id })}>{tr.delete}</button>
                         </span>
                       )}
                     </td>
@@ -522,7 +530,8 @@ function Expenses({ rows, projects, categories, slug, nav, canManage, busy, send
 
 // ---- profitability ---------------------------------------------------------
 function Profitability({ rows, slug, nav }) {
-  if (rows.length === 0) return <Empty title="No projects to measure yet" body="Once a quotation becomes a project, its value, cost and margin appear here." />;
+  const tr = financeDict(useStudioLocale());
+  if (rows.length === 0) return <Empty title={tr.noProjectsMeasureYet} body={tr.onceQuotationBecomesProject} />;
   return (
     <section className={panel}>
       <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
@@ -541,7 +550,7 @@ function Profitability({ rows, slug, nav }) {
             {rows.map((p) => (
               <tr key={p.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
                 <td className={td}>
-                  <RecordLink href={linkIf(nav?.projects, linkToProject(slug, p.id))} title="Open the project">{p.number}</RecordLink>
+                  <RecordLink href={linkIf(nav?.projects, linkToProject(slug, p.id))} title={tr.openProject}>{p.number}</RecordLink>
                   <span className="ms-2 text-slate-600 dark:text-slate-300">{p.clientName}</span>
                 </td>
                 <td className={`${td} text-end text-slate-900 dark:text-white`}>{money(p.value)}</td>
@@ -567,6 +576,7 @@ function Profitability({ rows, slug, nav }) {
 
 // ---- shared bits -----------------------------------------------------------
 function SimpleForm({ title, fields, busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
   const [values, setValues] = useState(() => Object.fromEntries(fields.map((f) => [f.key, f.value ?? ""])));
   const ready = fields.filter((f) => f.required).every((f) => String(values[f.key] ?? "").trim());
 
@@ -596,7 +606,7 @@ function SimpleForm({ title, fields, busy, onCancel, onSave }) {
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? "Saving…" : "Save"}</button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
@@ -656,10 +666,11 @@ const TERM_LABEL = {
 };
 
 function Payables({ slug }) {
+  const tr = financeDict(useStudioLocale());
   const { data, error, busy, send } = useFinanceResource(slug, "bills");
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading Accounts Payable…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingAccountsPayable}</p>;
 
   const canManage = data.manage?.["finance-payables"] ?? data.canManage;
   const { bills = [], vocabulary = {}, nav } = data;
@@ -669,7 +680,7 @@ function Payables({ slug }) {
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
       <PayablesSummary bills={bills} />
       <div className="flex items-center justify-end">
-        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
+        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
       <Bills rows={bills} vocab={vocabulary} slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
     </div>
@@ -703,6 +714,7 @@ function PayablesSummary({ bills }) {
 }
 
 function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
+  const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
   const [editing, setEditing] = useState(null);
   const [paying, setPaying] = useState(null);
@@ -718,7 +730,7 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
 
   return (
     <>
-      {canManage && !form && !paying && <button className={btn} onClick={() => setDrafting(true)}>New bill</button>}
+      {canManage && !form && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newBill}</button>}
 
       {form && (
         <BillForm bill={editing} terms={terms} defaultVat={vocab.defaultVatRate} busy={busy}
@@ -737,7 +749,7 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
           onSave={async (p) => { if (await send("PUT", { id: paying.id, payment: p })) setPaying(null); }} />
       )}
 
-      {rows.length === 0 ? <Empty title="No bills yet" body="A bill is what you owe a vendor. Approving it, then recording payments against it, is what settles it." /> : (
+      {rows.length === 0 ? <Empty title={tr.noBillsYet} body={tr.billWhatOweVendor} /> : (
         <section className={panel}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] border-collapse text-sm">
@@ -773,13 +785,13 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
                         <td className={`${td} text-end`}>
                           {canManage && (
                             <span className="flex flex-wrap justify-end gap-2">
-                              {b.status === "Draft" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Received" })}>Mark received</button>}
-                              {approvable && <button className={btn} disabled={busy} onClick={() => send("PUT", { id: b.id, approve: true })}>Approve</button>}
-                              {payable && <button className={btn} onClick={() => setPaying(b)}>Record payment</button>}
-                              {editable && <button className={btnGhost} onClick={() => setEditing(b)}>Edit</button>}
-                              {b.status === "Received" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Disputed" })}>Dispute</button>}
-                              {["Received", "Disputed"].includes(b.status) && noHistory && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Cancelled" })}>Cancel</button>}
-                              {editable && <button className={btnDanger} disabled={busy} onClick={() => send("DELETE", { id: b.id })}>Delete</button>}
+                              {b.status === "Draft" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Received" })}>{tr.markReceived}</button>}
+                              {approvable && <button className={btn} disabled={busy} onClick={() => send("PUT", { id: b.id, approve: true })}>{tr.approve}</button>}
+                              {payable && <button className={btn} onClick={() => setPaying(b)}>{tr.recordPayment}</button>}
+                              {editable && <button className={btnGhost} onClick={() => setEditing(b)}>{tr.edit}</button>}
+                              {b.status === "Received" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Disputed" })}>{tr.dispute}</button>}
+                              {["Received", "Disputed"].includes(b.status) && noHistory && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Cancelled" })}>{tr.cancel}</button>}
+                              {editable && <button className={btnDanger} disabled={busy} onClick={() => send("DELETE", { id: b.id })}>{tr.delete}</button>}
                             </span>
                           )}
                         </td>
@@ -797,11 +809,11 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
                                 ))}
                               </ul>
                               <div className="mt-3 space-y-0.5 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
-                                <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>Subtotal</span><span className="num">{money(b.subtotal)}</span></p>
+                                <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>{tr.subtotal}</span><span className="num">{money(b.subtotal)}</span></p>
                                 <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>VAT {b.vatRate}%</span><span className="num">{money(b.vat)}</span></p>
-                                <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>Total</span><span className="num">{money(b.total)}</span></p>
+                                <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>{tr.total}</span><span className="num">{money(b.total)}</span></p>
                                 {b.outstanding > 0 && b.status !== "Draft" && (
-                                  <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>Outstanding</span><span className="num">{money(b.outstanding)}</span></p>
+                                  <p className="flex justify-between gap-4 text-slate-500 dark:text-slate-400"><span>{tr.outstanding}</span><span className="num">{money(b.outstanding)}</span></p>
                                 )}
                               </div>
                               <p className="mt-3 text-xs text-slate-400">
@@ -810,7 +822,7 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
                               {b.notes && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{b.notes}</p>}
                               {(b.payments || []).length > 0 && (
                                 <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
-                                  <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">Payments</p>
+                                  <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.payments}</p>
                                   <ul className="mt-1 space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
                                     {b.payments.map((p, i) => (
                                       <li key={p.id || i} className="flex justify-between gap-4">
@@ -838,6 +850,7 @@ function Bills({ rows, vocab, slug, nav, canManage, busy, send }) {
 }
 
 function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
   const editing = !!bill;
   const [head, setHead] = useState({
     vendorName: bill?.vendorName || "",
@@ -866,18 +879,18 @@ function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{editing ? `Edit bill — ${bill.reference}` : "New bill"}</h3>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Vendor" required value={head.vendorName} onChange={(v) => setHead((h) => ({ ...h, vendorName: v }))} />
-        <Field label="Terms" as="select" value={head.terms} onChange={(v) => setHead((h) => ({ ...h, terms: v }))}
+        <Field label={tr.vendor} required value={head.vendorName} onChange={(v) => setHead((h) => ({ ...h, vendorName: v }))} />
+        <Field label={tr.terms} as="select" value={head.terms} onChange={(v) => setHead((h) => ({ ...h, terms: v }))}
           options={terms.map((t) => ({ value: t, label: TERM_LABEL[t] || t }))} />
-        <Field label="VAT %" type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />
-        <Field label="Bill date" filled={!!head.billDate}>
+        <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />
+        <Field label={tr.billDate} filled={!!head.billDate}>
           <StudioDate value={head.billDate} onChange={(iso) => setHead((h) => ({ ...h, billDate: iso }))} />
         </Field>
-        <Field label="Due date" filled={!!head.dueDate}>
+        <Field label={tr.dueDate} filled={!!head.dueDate}>
           <StudioDate value={head.dueDate} onChange={(iso) => setHead((h) => ({ ...h, dueDate: iso }))} />
         </Field>
         <div className="sm:col-span-2 lg:col-span-3">
-          <Field label="Notes" as="textarea" value={head.notes} onChange={(v) => setHead((h) => ({ ...h, notes: v }))} />
+          <Field label={tr.notes} as="textarea" value={head.notes} onChange={(v) => setHead((h) => ({ ...h, notes: v }))} />
         </div>
       </div>
 
@@ -885,7 +898,7 @@ function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
 
       <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
         Total <span className="num font-700 text-slate-900 dark:text-white">{money(total)}</span>
-        <span className="text-xs"> — recalculated on the server when you save.</span>
+        <span className="text-xs"> {tr.recalculatedServerWhenSave}</span>
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -893,33 +906,34 @@ function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
           {busy ? "Saving…" : editing ? "Save" : "Record bill"}
         </button>
         {!editing && (
-          <button className={btnGhost} disabled={busy || !ready} onClick={() => onSave(body("Draft"))}>Save as draft</button>
+          <button className={btnGhost} disabled={busy || !ready} onClick={() => onSave(body("Draft"))}>{tr.saveDraft}</button>
         )}
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
 }
 
 function BillPaymentForm({ bill, methods, busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
   const [form, setForm] = useState({ amount: String(bill.outstanding), date: "", method: methods[0], note: "" });
   return (
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {bill.reference}</h3>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(bill.outstanding)} outstanding of {money(bill.total)} to {bill.vendorName}.</p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Amount" type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
-        <Field label="Date" filled={!!form.date}>
+        <Field label={tr.amount} type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
+        <Field label={tr.date} filled={!!form.date}>
           <StudioDate value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
         </Field>
-        <Field label="Method" as="select" value={form.method} onChange={(v) => setForm((f) => ({ ...f, method: v }))} options={methods} />
-        <Field label="Note" value={form.note} onChange={(v) => setForm((f) => ({ ...f, note: v }))} />
+        <Field label={tr.method} as="select" value={form.method} onChange={(v) => setForm((f) => ({ ...f, method: v }))} options={methods} />
+        <Field label={tr.note} value={form.note} onChange={(v) => setForm((f) => ({ ...f, note: v }))} />
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
           {busy ? "Recording…" : "Record"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
@@ -933,10 +947,11 @@ function BillPaymentForm({ bill, methods, busy, onCancel, onSave }) {
 const ASSET_METHOD_LABEL = { "straight-line": "Straight line", "reducing-balance": "Reducing balance" };
 
 function Assets({ slug }) {
+  const tr = financeDict(useStudioLocale());
   const { data, error, busy, send } = useFinanceResource(slug, "assets");
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading Fixed Assets…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingFixedAssets}</p>;
 
   const canManage = data.manage?.["finance-assets"] ?? data.canManage;
   const { assets = [], vocabulary = {}, nav } = data;
@@ -946,7 +961,7 @@ function Assets({ slug }) {
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
       <AssetsSummary assets={assets} />
       <div className="flex items-center justify-end">
-        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
+        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
       <AssetRegister rows={assets} vocab={vocabulary} slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
     </div>
@@ -977,6 +992,7 @@ function AssetsSummary({ assets }) {
 }
 
 function AssetRegister({ rows, vocab, canManage, busy, send }) {
+  const tr = financeDict(useStudioLocale());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
   const [disposing, setDisposing] = useState(null);
@@ -990,7 +1006,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
 
   return (
     <>
-      {canManage && !form && !disposing && <button className={btn} onClick={() => setAdding(true)}>New asset</button>}
+      {canManage && !form && !disposing && <button className={btn} onClick={() => setAdding(true)}>{tr.newAsset}</button>}
 
       {form && (
         <AssetForm asset={editing} methods={methods} busy={busy}
@@ -1007,7 +1023,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
           onSave={async (v) => { if (await send("PUT", { id: disposing.id, dispose: v })) setDisposing(null); }} />
       )}
 
-      {rows.length === 0 ? <Empty title="No assets yet" body="A fixed asset is something you bought and use over years — a vehicle, a machine, a fit-out. Its value is written down month by month here." /> : (
+      {rows.length === 0 ? <Empty title={tr.noAssetsYet} body={tr.fixedAssetSomethingBought} /> : (
         <section className={panel}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[880px] border-collapse text-sm">
@@ -1039,8 +1055,8 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
                       <td className={`${td} text-end`}>
                         {canManage && (
                           <span className="flex flex-wrap justify-end gap-2">
-                            {!a.disposed && <button className={btnGhost} onClick={() => setEditing(a)}>Edit</button>}
-                            {!a.disposed && <button className={btnGhost} onClick={() => setDisposing(a)}>Dispose</button>}
+                            {!a.disposed && <button className={btnGhost} onClick={() => setEditing(a)}>{tr.edit}</button>}
+                            {!a.disposed && <button className={btnGhost} onClick={() => setDisposing(a)}>{tr.dispose}</button>}
                           </span>
                         )}
                       </td>
@@ -1049,16 +1065,16 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
                       <tr className="border-b border-slate-100 dark:border-white/5">
                         <td colSpan={7} className="py-4">
                           <div className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm dark:bg-white/5 sm:grid-cols-3 lg:grid-cols-4">
-                            <Detail label="Acquired" value={a.acquiredOn ? fmt(a.acquiredOn) : "—"} />
-                            <Detail label="Method" value={ASSET_METHOD_LABEL[a.method] || a.method || "—"} />
-                            <Detail label="Useful life" value={`${a.usefulLifeMonths} months`} />
-                            <Detail label="Months elapsed" value={String(a.monthsElapsed)} />
-                            <Detail label="Salvage value" value={money(a.salvageValue || 0)} num />
-                            <Detail label="Accumulated" value={money(a.accumulated)} num />
-                            <Detail label="Book value" value={money(a.bookValue)} num />
-                            <Detail label="Monthly charge" value={a.disposed ? "—" : money(a.monthlyDepreciation)} num />
-                            {a.disposed && <Detail label="Disposed on" value={a.disposedOn ? fmt(a.disposedOn) : "—"} />}
-                            {a.disposed && <Detail label="Proceeds" value={money(a.disposalProceeds || 0)} num />}
+                            <Detail label={tr.acquired} value={a.acquiredOn ? fmt(a.acquiredOn) : "—"} />
+                            <Detail label={tr.method} value={ASSET_METHOD_LABEL[a.method] || a.method || "—"} />
+                            <Detail label={tr.usefulLife} value={`${a.usefulLifeMonths} months`} />
+                            <Detail label={tr.monthsElapsed} value={String(a.monthsElapsed)} />
+                            <Detail label={tr.salvageValue} value={money(a.salvageValue || 0)} num />
+                            <Detail label={tr.accumulated} value={money(a.accumulated)} num />
+                            <Detail label={tr.bookValue} value={money(a.bookValue)} num />
+                            <Detail label={tr.monthlyCharge} value={a.disposed ? "—" : money(a.monthlyDepreciation)} num />
+                            {a.disposed && <Detail label={tr.disposed} value={a.disposedOn ? fmt(a.disposedOn) : "—"} />}
+                            {a.disposed && <Detail label={tr.proceeds} value={money(a.disposalProceeds || 0)} num />}
                             {a.disposed && a.gainOnDisposal != null && (
                               <Detail label={a.gainOnDisposal >= 0 ? "Gain on disposal" : "Loss on disposal"}
                                 value={money(Math.abs(a.gainOnDisposal))} num
@@ -1089,6 +1105,7 @@ function Detail({ label: name, value, num, tone }) {
 }
 
 function AssetForm({ asset, methods, busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
   const editing = !!asset;
   const [f, setF] = useState({
     name: asset?.name || "",
@@ -1106,14 +1123,14 @@ function AssetForm({ asset, methods, busy, onCancel, onSave }) {
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{editing ? `Edit asset — ${asset.reference}` : "New asset"}</h3>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field label="Name" required value={f.name} onChange={(v) => set("name", v)} />
-        <Field label="Category" value={f.category} onChange={(v) => set("category", v)} />
-        <Field label="Method" as="select" value={f.method} onChange={(v) => set("method", v)}
+        <Field label={tr.name} required value={f.name} onChange={(v) => set("name", v)} />
+        <Field label={tr.category} value={f.category} onChange={(v) => set("category", v)} />
+        <Field label={tr.method} as="select" value={f.method} onChange={(v) => set("method", v)}
           options={methods.map((m) => ({ value: m, label: ASSET_METHOD_LABEL[m] || m }))} />
-        <Field label="Cost" required type="number" value={f.cost} onChange={(v) => set("cost", v)} />
-        <Field label="Salvage value" type="number" value={f.salvageValue} hint="What it's worth at end of life" onChange={(v) => set("salvageValue", v)} />
-        <Field label="Useful life (months)" required type="number" value={f.usefulLifeMonths} onChange={(v) => set("usefulLifeMonths", v)} />
-        <Field label="Acquired on" filled={!!f.acquiredOn}>
+        <Field label={tr.cost} required type="number" value={f.cost} onChange={(v) => set("cost", v)} />
+        <Field label={tr.salvageValue} type="number" value={f.salvageValue} hint={tr.whatWorthEndLife} onChange={(v) => set("salvageValue", v)} />
+        <Field label={tr.usefulLifeMonths} required type="number" value={f.usefulLifeMonths} onChange={(v) => set("usefulLifeMonths", v)} />
+        <Field label={tr.acquired2} filled={!!f.acquiredOn}>
           <StudioDate value={f.acquiredOn} onChange={(iso) => set("acquiredOn", iso)} />
         </Field>
       </div>
@@ -1127,13 +1144,14 @@ function AssetForm({ asset, methods, busy, onCancel, onSave }) {
           })}>
           {busy ? "Saving…" : "Save"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
 }
 
 function DisposeForm({ asset, busy, onCancel, onSave }) {
+  const tr = financeDict(useStudioLocale());
   const [f, setF] = useState({ disposedOn: "", disposalProceeds: "" });
   const proceeds = Number(f.disposalProceeds) || 0;
   // A live ESTIMATE against today's book value; the server recomputes the book
@@ -1147,21 +1165,21 @@ function DisposeForm({ asset, busy, onCancel, onSave }) {
         Current book value <span className="num font-600 text-slate-900 dark:text-white">{money(asset.bookValue)}</span>. Disposal stops depreciation on its date.
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field label="Disposal date" filled={!!f.disposedOn}>
+        <Field label={tr.disposalDate} filled={!!f.disposedOn}>
           <StudioDate value={f.disposedOn} onChange={(iso) => setF((p) => ({ ...p, disposedOn: iso }))} />
         </Field>
-        <Field label="Proceeds" type="number" value={f.disposalProceeds} onChange={(v) => setF((p) => ({ ...p, disposalProceeds: v }))} />
+        <Field label={tr.proceeds} type="number" value={f.disposalProceeds} onChange={(v) => setF((p) => ({ ...p, disposalProceeds: v }))} />
       </div>
       <p className={`mt-4 text-sm font-600 ${estimate >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
         Estimated {estimate >= 0 ? "gain" : "loss"} <span className="num">{money(Math.abs(estimate))}</span>
-        <span className="text-xs font-400 text-slate-400"> — exact figure is computed on disposal.</span>
+        <span className="text-xs font-400 text-slate-400"> {tr.exactFigureComputedDisposal}</span>
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !f.disposedOn}
           onClick={() => onSave({ disposedOn: f.disposedOn, disposalProceeds: proceeds })}>
           {busy ? "Disposing…" : "Dispose"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
@@ -1194,6 +1212,7 @@ const FINANCE_COLUMNS = [
 const DEFAULT_FINANCE_COLUMNS = FINANCE_COLUMNS.filter((c) => c.core).map((c) => c.key);
 
 function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
+  const tr = financeDict(useStudioLocale());
   const [query, setQuery] = useState("");
   const [poFilter, setPoFilter] = useState("all");
   const [columns, setColumns] = useState(DEFAULT_FINANCE_COLUMNS);
@@ -1237,13 +1256,13 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
   const visible = FINANCE_COLUMNS.filter((c) => columns.includes(c.key));
 
   if (rows.length === 0) {
-    return <Empty title="Nothing to account for yet" body="Projects open from an approved quotation. Once one exists it shows up here as a commercial record." />;
+    return <Empty title={tr.nothingAccountYet} body={tr.projectsOpenApprovedQuotation} />;
   }
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Field label="Search project, client, PO or quotation" type="search" className="w-full sm:max-w-xs"
+        <Field label={tr.searchProjectClientPo} type="search" className="w-full sm:max-w-xs"
           value={query} onChange={setQuery} />
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
           {[["all", "All"], ["issued", "PO issued"], ["awaiting", "Awaiting PO"]].map(([k, text]) => (
@@ -1253,11 +1272,11 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
             </button>
           ))}
         </div>
-        <button type="button" className={btnGhost} onClick={() => setShowColumns(true)}>Columns</button>
+        <button type="button" className={btnGhost} onClick={() => setShowColumns(true)}>{tr.columns}</button>
       </div>
 
       {showColumns && (
-        <ColumnPicker title="Finance columns" columns={FINANCE_COLUMNS} selected={columns}
+        <ColumnPicker title={tr.financeColumns} columns={FINANCE_COLUMNS} selected={columns}
           onToggle={toggleCol} onReset={resetCols} onClose={() => setShowColumns(false)} />
       )}
 
@@ -1273,7 +1292,7 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
 
       <section className={panel}>
         {shown.length === 0 ? (
-          <p className="py-10 text-center text-sm text-slate-400">Nothing matches that.</p>
+          <p className="py-10 text-center text-sm text-slate-400">{tr.nothingMatches}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] border-collapse text-sm">
@@ -1293,7 +1312,7 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
                     {visible.map((c) => (
                       <td key={c.key} className={`${td} ps-2 ${c.end ? "text-end tabular-nums" : ""} ${c.key === "title" ? "font-600 text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-300"}`}>
                         {c.key === "number"
-                          ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, r.id))} title="Open the project">{r.number}</RecordLink>
+                          ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, r.id))} title={tr.openProject}>{r.number}</RecordLink>
                           : cell(r, c)}
                       </td>
                     ))}
@@ -1315,17 +1334,18 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
 // Projects and is shown here read-only, so this dialog cannot become a back door
 // into editing somebody else's record.
 function Commercials({ row, busy, canManage, onSave, onCancel }) {
+  const tr = financeDict(useStudioLocale());
   const [poNumber, setPoNumber] = useState(row.poNumber || "");
   const [projectNumber, setProjectNumber] = useState(row.projectNumber || "");
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Quotation" value={row.quotationNumber || "—"} disabled inputProps={{ readOnly: true }} />
-        <Field label="Manager" value={row.managerAlias || "—"} disabled inputProps={{ readOnly: true }} />
-        <Field label="PO number" value={poNumber} disabled={!canManage} hint="Issued on approval"
+        <Field label={tr.quotation} value={row.quotationNumber || "—"} disabled inputProps={{ readOnly: true }} />
+        <Field label={tr.manager} value={row.managerAlias || "—"} disabled inputProps={{ readOnly: true }} />
+        <Field label={tr.poNumber} value={poNumber} disabled={!canManage} hint={tr.issuedApproval}
           onChange={(v) => setPoNumber(v)} />
-        <Field label="Project number" value={projectNumber} disabled={!canManage} hint="Entered by Finance"
+        <Field label={tr.projectNumber} value={projectNumber} disabled={!canManage} hint={tr.enteredFinance}
           onChange={(v) => setProjectNumber(v)} />
       </div>
 
@@ -1344,7 +1364,7 @@ function Commercials({ row, busy, canManage, onSave, onCancel }) {
             {busy ? "Saving…" : "Save"}
           </button>
         )}
-        <button className={btnGhost} onClick={onCancel}>Close</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.close}</button>
       </div>
     </>
   );

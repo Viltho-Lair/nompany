@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { boardDict } from "@/shared/studio/board";
 import { useSortable } from "@dnd-kit/sortable";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -61,6 +63,7 @@ function ColumnHeader({
   onAddTask: () => void;
   dragHandleProps: React.HTMLAttributes<HTMLElement>;
 }) {
+  const tr = boardDict(useStudioLocale());
   const renameColumn = useBoardStore((s) => s.renameColumn);
   const setColumnAccent = useBoardStore((s) => s.setColumnAccent);
   const deleteColumn = useBoardStore((s) => s.deleteColumn);
@@ -118,7 +121,7 @@ function ColumnHeader({
             className="min-w-0 flex-1 rounded-md bg-foreground/[0.06] px-1.5 py-0.5 text-[13px] font-semibold outline-none ring-1 ring-primary/40"
           />
         ) : (
-          <Tooltip title="Double-click to rename" placement="top">
+          <Tooltip title={tr.doubleClickRename} placement="top">
             <h3
               onDoubleClick={() => {
                 setDraft(column.title);
@@ -147,11 +150,11 @@ function ColumnHeader({
         </span>
 
         <div className="flex items-center gap-0.5">
-          <Tooltip title="Add task" placement="top">
+          <Tooltip title={tr.addTask} placement="top">
             <button
               type="button"
               onClick={onAddTask}
-              aria-label="Add task"
+              aria-label={tr.addTask}
               className="grid size-7 place-items-center rounded-md text-muted-foreground transition-all duration-150 hover:bg-[hsl(var(--kb-accent)/0.7)] hover:text-foreground active:scale-90"
             >
               <Plus className="size-4" />
@@ -162,7 +165,7 @@ function ColumnHeader({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                aria-label="Column options"
+                aria-label={tr.columnOptions}
                 className="grid size-7 place-items-center rounded-md text-muted-foreground transition-all duration-150 hover:bg-[hsl(var(--kb-accent)/0.7)] hover:text-foreground active:scale-90 data-[state=open]:bg-[hsl(var(--kb-accent)/0.7)]"
               >
                 <MoreHorizontal className="size-4" />
@@ -240,7 +243,7 @@ function ColumnHeader({
               </DropdownMenuSub>
 
               <DropdownMenuSeparator />
-              <DropdownMenuLabel>Danger zone</DropdownMenuLabel>
+              <DropdownMenuLabel>{tr.dangerZone}</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => duplicateColumn(column.id)}>
                 <Copy /> Duplicate column
               </DropdownMenuItem>

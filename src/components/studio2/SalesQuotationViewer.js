@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { technicalDict } from "@/shared/studio/technical";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -38,6 +40,7 @@ import { netUnitPrice } from "@/modules/technical/quotations";
 const cellHead = "px-3 py-2 text-start text-[11px] font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 
 export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
+  const tr = technicalDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -76,7 +79,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
   // nobody can produce would have been worse than not drawing one.
 
   const back = (
-    <Link href={`/${slug}/sales-tickets/${ticketId}`} className={btnGhost}>Back to ticket</Link>
+    <Link href={`/${slug}/sales-tickets/${ticketId}`} className={btnGhost}>{tr.backTicket}</Link>
   );
 
   if (error) {
@@ -87,7 +90,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
       </div>
     );
   }
-  if (!data) return <p className="text-sm text-slate-500">Loading quotation…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingQuotation}</p>;
 
   const { quotation: q, ticket, currency } = data;
   const tables = Array.isArray(q.tables) ? q.tables : [];
@@ -128,16 +131,16 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
 
       <section className={panel}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h2 className={h2}>Quotation</h2>
+          <h2 className={h2}>{tr.quotation}</h2>
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-600 text-slate-600 dark:bg-white/5 dark:text-slate-300">{q.status}</span>
         </div>
         <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-3">
-          <Field label="Number" value={q.number} mono />
-          <Field label="Revision" value={String(revision)} />
-          <Field label="Client" value={q.clientName} />
-          <Field label="Raised" value={fmtDate(q.createdAt)} />
-          <Field label="Submitted" value={fmtDate(q.submittedAt)} />
-          <Field label="Approved" value={fmtDate(q.completedAt)} />
+          <Field label={tr.number} value={q.number} mono />
+          <Field label={tr.revision} value={String(revision)} />
+          <Field label={tr.client} value={q.clientName} />
+          <Field label={tr.raised} value={fmtDate(q.createdAt)} />
+          <Field label={tr.submitted} value={fmtDate(q.submittedAt)} />
+          <Field label={tr.approved} value={fmtDate(q.completedAt)} />
         </dl>
         {q.description && (
           <p className="mt-4 whitespace-pre-wrap border-t border-slate-100 pt-4 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
@@ -148,7 +151,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
 
       {priced === 0 ? (
         <section className={panel}>
-          <p className={sub}>Nothing has been priced on this quotation yet.</p>
+          <p className={sub}>{tr.nothingPricedQuotationYet}</p>
         </section>
       ) : tables.map((table, i) => {
         const sum = (table.rows || []).reduce((s, r) => s + num(r.qty) * netUnitPrice(r), 0);
@@ -161,10 +164,10 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
               <table className="w-full min-w-[640px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-white/10">
-                    <th className={`${cellHead} w-14`}><span className="sr-only">Item image</span></th>
-                    <th className={cellHead}>Item</th>
-                    <th className={`${cellHead} w-20`}>Unit</th>
-                    <th className={`${cellHead} w-20`}>Qty</th>
+                    <th className={`${cellHead} w-14`}><span className="sr-only">{tr.itemImage}</span></th>
+                    <th className={cellHead}>{tr.item}</th>
+                    <th className={`${cellHead} w-20`}>{tr.unit}</th>
+                    <th className={`${cellHead} w-20`}>{tr.qty}</th>
                     {/* NO DISCOUNT COLUMN. What Sales reads off this screen is
                         what the client is being asked to pay, and the concession
                         behind that number is Technical's working — a figure that
@@ -176,8 +179,8 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
                         table whose own arithmetic does not add up: qty × unit
                         price would not be the line total, and a reader with no
                         way to see why would be right to distrust the document. */}
-                    <th className={`${cellHead} w-28 text-end`}>Unit price</th>
-                    <th className={`${cellHead} w-32 text-end`}>Line total</th>
+                    <th className={`${cellHead} w-28 text-end`}>{tr.unitPrice}</th>
+                    <th className={`${cellHead} w-32 text-end`}>{tr.lineTotal}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -213,10 +216,10 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
 
       <section className={panel}>
         <dl className="ms-auto w-full max-w-sm space-y-1 text-sm">
-          <Total label="Subtotal" value={q.subtotal} currency={currency} />
+          <Total label={tr.subtotal} value={q.subtotal} currency={currency} />
           <Total label={`VAT ${num(q.vatRate)}%`} value={q.vat} currency={currency} />
           <div className="flex items-baseline gap-3 border-t border-slate-200 pt-1 dark:border-white/10">
-            <dt className="text-slate-500 dark:text-slate-400">Total</dt>
+            <dt className="text-slate-500 dark:text-slate-400">{tr.total}</dt>
             <dd className="ms-auto font-display text-base font-700 tabular-nums text-slate-900 dark:text-white">
               {money(q.total)} <span className="text-sm font-600 text-slate-400">{currency}</span>
             </dd>

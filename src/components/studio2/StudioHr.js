@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { hrDict } from "@/shared/studio/hr";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import {
   panel, label, btn, btnGhost, th, stripeOn, stripeOff,
@@ -44,6 +46,7 @@ const fmt = fmtDate;
 // that job implies were two lists for one idea, and only one of them decided
 // anything.
 export default function StudioHr({ slug, view = "hr" }) {
+  const tr = hrDict(useStudioLocale());
   const [data, setData] = useState(null);
   // The active panel is remembered in ?tab= so a refresh or a deep link reopens
   // the same one; the switch itself is an in-place flip via the bottom PanelBar.
@@ -54,7 +57,7 @@ export default function StudioHr({ slug, view = "hr" }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/hr`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Human Resources in this studio."); return; }
+    if (!res.ok) { setError(tr.accessHumanResourcesStudio); return; }
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
@@ -90,7 +93,7 @@ export default function StudioHr({ slug, view = "hr" }) {
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading Human Resources…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingHumanResources}</p>;
 
   const { canManage: canManageParent, departments, roles, certifications, employees, vacations, expiring, headcount, vocabulary, me, nav } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
@@ -108,7 +111,7 @@ export default function StudioHr({ slug, view = "hr" }) {
         {/* The HR dashboard counts everybody and every expiring document, so it
             answers to hr.dashboard.view rather than to the Employees grant. */}
         {data.canViewDashboard === false
-          ? <Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />
+          ? <Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} />
           : <HrDashboard slug={slug} nav={nav} departments={departments}
               headcount={headcount} expiring={expiring} vacations={vacations}
               windowDays={vocabulary.expiryWindowDays} level={level} />}
@@ -133,7 +136,7 @@ export default function StudioHr({ slug, view = "hr" }) {
           view-only badge stays up top-right where the header used to hold it. */}
       {!canManage && (
         <div className="flex justify-end">
-          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>
         </div>
       )}
 
@@ -177,21 +180,22 @@ function roleForbiddenMessage(out) {
 
 // ---- overview --------------------------------------------------------------
 function Overview({ headcount, departments, expiring, windowDays }) {
+  const tr = hrDict(useStudioLocale());
   return (
     <section className={panel}>
       <div className="flex flex-wrap gap-8">
         <div>
           <p className="font-display text-3xl font-800 text-slate-900 dark:text-white">{headcount.total}</p>
-          <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">People</p>
+          <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.people}</p>
         </div>
         <div>
           <p className="font-display text-3xl font-800 text-slate-900 dark:text-white">{departments.length}</p>
-          <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Departments</p>
+          <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.departments}</p>
         </div>
         {headcount.unassigned > 0 && (
           <div>
             <p className="font-display text-3xl font-800 text-amber-600 dark:text-amber-400">{headcount.unassigned}</p>
-            <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Unassigned</p>
+            <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.unassigned}</p>
           </div>
         )}
       </div>
@@ -226,6 +230,7 @@ function Overview({ headcount, departments, expiring, windowDays }) {
 
 // ---- people ----------------------------------------------------------------
 function People({ employees, departments, roles, certifications, canManage, canAssignRoles, slug, nav, busy, onSave }) {
+  const tr = hrDict(useStudioLocale());
   const [editing, setEditing] = useState(null);
   const [query, setQuery] = useState("");
   const closeEditing = useCallback(() => setEditing(null), []);
@@ -246,7 +251,7 @@ function People({ employees, departments, roles, certifications, canManage, canA
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Field label="Search name, code, department or role" type="search" className="w-full sm:max-w-xs"
+        <Field label={tr.searchNameCodeDepartment} type="search" className="w-full sm:max-w-xs"
           value={query} onChange={setQuery} />
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {filtered.length} of {employees.length}. Identity numbers are encrypted at rest.
@@ -254,7 +259,7 @@ function People({ employees, departments, roles, certifications, canManage, canA
       </div>
 
       {editing && (
-        <Dialog title={editing.alias} description="Employment details apply inside this studio only." onClose={closeEditing} width="max-w-[820px]">
+        <Dialog title={editing.alias} description={tr.employmentDetailsApplyInside} onClose={closeEditing} width="max-w-[820px]">
           <EmployeeEditor person={editing} departments={departments} roles={roles}
             certifications={certifications} canAssignRoles={canAssignRoles} slug={slug} nav={nav}
             busy={busy} onCancel={closeEditing}
@@ -263,9 +268,9 @@ function People({ employees, departments, roles, certifications, canManage, canA
       )}
 
       {employees.length === 0 ? (
-        <Empty title="Nobody here yet" body="People arrive by joining the studio and being approved. HR describes who they are once they're in." />
+        <Empty title={tr.nobodyHereYet} body={tr.peopleArriveJoiningStudio} />
       ) : filtered.length === 0 ? (
-        <Empty title="Nobody matches" body="No one here matches that search." />
+        <Empty title={tr.nobodyMatches} body={tr.noOneHereMatches} />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {filtered.map((e) => {
@@ -301,7 +306,7 @@ function People({ employees, departments, roles, certifications, canManage, canA
                     </div>
                     <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
                       {[e.employeeCode, (e.roleNames || []).join(", "), e.departmentName].filter(Boolean).join("  ·  ")
-                        || <span className="text-amber-700 dark:text-amber-300">Not placed yet</span>}
+                        || <span className="text-amber-700 dark:text-amber-300">{tr.notPlacedYet}</span>}
                     </p>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                       Mobile: {e.mobile || "—"} · Joined: {fmt(e.dateOfJoin)}
@@ -317,7 +322,7 @@ function People({ employees, departments, roles, certifications, canManage, canA
                   </div>
 
                   {canManage && (
-                    <button className={btnGhost} onClick={() => setEditing(e)}>Edit</button>
+                    <button className={btnGhost} onClick={() => setEditing(e)}>{tr.edit}</button>
                   )}
                 </div>
               </section>
@@ -332,12 +337,13 @@ function People({ employees, departments, roles, certifications, canManage, canA
 // A view-only viewer sees that a document is on file and when it expires —
 // never the number. That's the whole point of encrypting it at rest.
 function Documents({ person, canManage }) {
+  const tr = hrDict(useStudioLocale());
   const items = [
     { kind: "ID", has: person.hasId, number: person.idNumber, expiry: person.idExpiry },
     { kind: "Passport", has: person.hasPassport, number: person.passportNumber, expiry: person.passportExpiry },
   ].filter((d) => d.has || d.expiry);
 
-  if (items.length === 0) return <span className="text-xs text-slate-400">No documents on file</span>;
+  if (items.length === 0) return <span className="text-xs text-slate-400">{tr.noDocumentsFile}</span>;
   return (
     <span className="flex flex-col gap-0.5">
       {items.map((d) => (
@@ -352,6 +358,7 @@ function Documents({ person, canManage }) {
 }
 
 function EmployeeEditor({ person, departments, roles, certifications, canAssignRoles, slug, nav, busy, onCancel, onSave }) {
+  const tr = hrDict(useStudioLocale());
   const [form, setForm] = useState({
     departmentId: person.departmentId || "",
     roleIds: person.roleIds || [],
@@ -380,16 +387,16 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* THE STUDIO'S SECTIONS ARE ITS DEPARTMENTS. Nothing to maintain,
             and no way for this list to disagree with the nav. */}
-        <Field label="Department" as="select" value={form.departmentId}
+        <Field label={tr.department} as="select" value={form.departmentId}
           onChange={(v) => setForm((f) => ({ ...f, departmentId: v }))}
           options={departments.map((d) => ({ value: d.id, label: d.name }))}
-          hint="The studio's sections, so this is where they work." />
-        <Field label="Employee code" value={form.employeeCode} hint="e.g. EMP-014"
+          hint={tr.studioSectionsWhereThey} />
+        <Field label={tr.employeeCode} value={form.employeeCode} hint={tr.eGEmp014}
           onChange={(v) => setForm((f) => ({ ...f, employeeCode: v }))} />
-        <Field label="Date of joining" filled={!!form.dateOfJoin}>
+        <Field label={tr.dateJoining} filled={!!form.dateOfJoin}>
           <StudioDate value={form.dateOfJoin} onChange={(iso) => setForm((f) => ({ ...f, dateOfJoin: iso }))} />
         </Field>
-        <Field label="Mobile" value={form.mobile} onChange={(v) => setForm((f) => ({ ...f, mobile: v }))} />
+        <Field label={tr.mobile} value={form.mobile} onChange={(v) => setForm((f) => ({ ...f, mobile: v }))} />
       </div>
 
       {/* ROLE, which is what "position" used to be — except this one decides
@@ -399,7 +406,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
           refuses it either way rather than trusting the screen. */}
       <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="font-display text-sm font-700 text-slate-900 dark:text-white">Role</p>
+          <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.role}</p>
           {nav?.people && (
             <a href={`/${slug}/people`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">
               What each role may do →
@@ -412,7 +419,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
             : "Roles are shown here but assigned on the access screen: handing somebody a role hands them permissions, which is a right of its own."}
         </p>
         {roles.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-400">No roles defined yet.</p>
+          <p className="mt-3 text-sm text-slate-400">{tr.noRolesDefinedYet}</p>
         ) : (
           <div className="mt-3 flex flex-wrap gap-2">
             {roles.map((r) => {
@@ -433,7 +440,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
       </div>
 
       <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
-        <p className="font-display text-sm font-700 text-slate-900 dark:text-white">Identity documents</p>
+        <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.identityDocuments}</p>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Numbers are encrypted before they&apos;re stored, and only people who can manage HR can read them back.
           A stored number stays locked until you unlock it.
@@ -441,27 +448,27 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <div className="flex items-start gap-2">
-              <Field label="ID number" className="flex-1" value={form.idNumber} disabled={!editId}
+              <Field label={tr.idNumber} className="flex-1" value={form.idNumber} disabled={!editId}
                 onChange={(val) => setForm((f) => ({ ...f, idNumber: val }))} />
               <button type="button" onClick={() => setEditId((v) => !v)}
                 className="mt-3 rounded-md px-2 py-0.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
                 {editId ? "lock" : "edit"}
               </button>
             </div>
-            <Field label="ID expiry" filled={!!form.idExpiry} className="mt-2">
+            <Field label={tr.idExpiry} filled={!!form.idExpiry} className="mt-2">
               <StudioDate value={form.idExpiry} onChange={(iso) => setForm((f) => ({ ...f, idExpiry: iso }))} />
             </Field>
           </div>
           <div>
             <div className="flex items-start gap-2">
-              <Field label="Passport number" className="flex-1" value={form.passportNumber} disabled={!editPassport}
+              <Field label={tr.passportNumber} className="flex-1" value={form.passportNumber} disabled={!editPassport}
                 onChange={(val) => setForm((f) => ({ ...f, passportNumber: val }))} />
               <button type="button" onClick={() => setEditPassport((v) => !v)}
                 className="mt-3 rounded-md px-2 py-0.5 text-xs font-600 text-brand-700 hover:bg-brand-500/10 dark:text-brand-300">
                 {editPassport ? "lock" : "edit"}
               </button>
             </div>
-            <Field label="Passport expiry" filled={!!form.passportExpiry} className="mt-2">
+            <Field label={tr.passportExpiry} filled={!!form.passportExpiry} className="mt-2">
               <StudioDate value={form.passportExpiry} onChange={(iso) => setForm((f) => ({ ...f, passportExpiry: iso }))} />
             </Field>
           </div>
@@ -470,7 +477,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
 
       {certifications.length > 0 && (
         <div className="mt-6">
-          <label className={label}>Certifications held</label>
+          <label className={label}>{tr.certificationsHeld}</label>
           <div className="flex flex-wrap gap-2">
             {certifications.map((c) => {
               const on = form.certificationIds.includes(c.id);
@@ -500,7 +507,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
           onClick={() => { const { roleIds, ...rest } = form; onSave(canAssignRoles ? form : rest); }}>
           {busy ? "Saving…" : "Save"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
@@ -520,22 +527,23 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
 // permissions is its own right and must not be reachable through an HR grant.
 // Each row here says which half has been done.
 function Roles({ rows, slug, nav, canManage, busy, send }) {
+  const tr = hrDict(useStudioLocale());
   const [form, setForm] = useState(null);
   const [confirming, setConfirming] = useState("");
   const closeForm = useCallback(() => setForm(null), []);
 
   return (
     <>
-      <Toolbar canManage={canManage} label="Add role" onAdd={() => setForm({ row: null })} />
+      <Toolbar canManage={canManage} label={tr.addRole} onAdd={() => setForm({ row: null })} />
 
       {form && (
         <Dialog title={form.row ? `Rename ${form.row.name}` : "New role"}
-          description="Naming the job is HR's. What it may do is set on the access screen."
+          description={tr.namingJobHrWhat}
           onClose={closeForm} width="max-w-[560px]">
           <SimpleForm busy={busy} onCancel={closeForm}
             fields={[
-              { key: "name", label: "Name", required: true, value: form.row?.name || "", placeholder: "Job title" },
-              { key: "description", label: "Description", area: true, value: form.row?.description || "" },
+              { key: "name", label: tr.name, required: true, value: form.row?.name || "", placeholder: "Job title" },
+              { key: "description", label: tr.description, area: true, value: form.row?.description || "" },
             ]}
             onSave={async (values) => {
               if (await send("roles", form.row ? "PUT" : "POST", form.row ? { ...values, id: form.row.id } : values)) setForm(null);
@@ -564,14 +572,14 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
                       to is not broken, but it is unfinished, and saying so here
                       is the only place anybody would notice. */}
                   {!r.wildcard && r.permissionCount === 0 && (
-                    <span className="text-xs font-600 text-amber-700 dark:text-amber-300">No access granted yet</span>
+                    <span className="text-xs font-600 text-amber-700 dark:text-amber-300">{tr.noAccessGrantedYet}</span>
                   )}
                 </div>
                 {r.description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{r.description}</p>}
               </div>
               {canManage && !r.wildcard && (
                 <div className="flex gap-2">
-                  <button className={btnGhost} onClick={() => setForm({ row: r })}>Rename</button>
+                  <button className={btnGhost} onClick={() => setForm({ row: r })}>{tr.rename}</button>
                   {/* DELETING A HELD ROLE TAKES ACCESS OFF PEOPLE, so the count
                       is on the button before it is pressed rather than in a
                       message afterwards. A role nobody holds costs nothing and
@@ -584,10 +592,10 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
                           ? `Delete — ${r.held} ${r.held === 1 ? "person loses" : "people lose"} this access`
                           : "Delete for good"}
                       </button>
-                      <button className={btnGhost} onClick={() => setConfirming("")}>Keep</button>
+                      <button className={btnGhost} onClick={() => setConfirming("")}>{tr.keep}</button>
                     </>
                   ) : (
-                    <button className={btnDanger} disabled={busy} onClick={() => setConfirming(r.id)}>Delete</button>
+                    <button className={btnDanger} disabled={busy} onClick={() => setConfirming(r.id)}>{tr.delete}</button>
                   )}
                 </div>
               )}
@@ -596,7 +604,7 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
         </ul>
         <p className="mt-4 border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
           What each role is allowed to do is set on the access screen
-          {nav?.people ? <> — <a href={`/${slug}/people`} className="font-600 underline">open it</a></> : ", which an admin can open"}.
+          {nav?.people ? <> — <a href={`/${slug}/people`} className="font-600 underline">{tr.open}</a></> : ", which an admin can open"}.
         </p>
       </section>
     </>
@@ -605,22 +613,23 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
 
 // ---- certifications --------------------------------------------------------
 function Certifications({ rows, employees, canManage, busy, send }) {
+  const tr = hrDict(useStudioLocale());
   const [form, setForm] = useState(null);
   const closeForm = useCallback(() => setForm(null), []);
   const held = (id) => employees.filter((e) => (e.certificationIds || []).includes(id)).length;
 
   return (
     <>
-      <Toolbar canManage={canManage} label="Add certification" onAdd={() => setForm({ row: null })} />
+      <Toolbar canManage={canManage} label={tr.addCertification} onAdd={() => setForm({ row: null })} />
 
       {form && (
         <Dialog title={form.row ? `Edit ${form.row.name}` : "New certification"} onClose={closeForm} width="max-w-[560px]">
           <SimpleForm busy={busy} onCancel={closeForm}
             fields={[
-              { key: "name", label: "Name", required: true, value: form.row?.name || "" },
-              { key: "issuer", label: "Issuer", value: form.row?.issuer || "" },
-              { key: "validityMonths", label: "Valid for (months)", type: "number", value: form.row?.validityMonths || "" },
-              { key: "notes", label: "Notes", area: true, value: form.row?.notes || "" },
+              { key: "name", label: tr.name, required: true, value: form.row?.name || "" },
+              { key: "issuer", label: tr.issuer, value: form.row?.issuer || "" },
+              { key: "validityMonths", label: tr.validMonths, type: "number", value: form.row?.validityMonths || "" },
+              { key: "notes", label: tr.notes, area: true, value: form.row?.notes || "" },
             ]}
             onSave={async (values) => {
               if (await send("certifications", form.row ? "PUT" : "POST", form.row ? { ...values, id: form.row.id } : values)) setForm(null);
@@ -628,7 +637,7 @@ function Certifications({ rows, employees, canManage, busy, send }) {
         </Dialog>
       )}
 
-      {rows.length === 0 ? <Empty title="No certifications yet" body="Define the qualifications your people hold, then tick them off on each person." /> : (
+      {rows.length === 0 ? <Empty title={tr.noCertificationsYet} body={tr.defineQualificationsPeopleHold} /> : (
         <section className={panel}>
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
             {rows.map((c) => (
@@ -644,8 +653,8 @@ function Certifications({ rows, employees, canManage, busy, send }) {
                 </div>
                 {canManage && (
                   <div className="flex gap-2">
-                    <button className={btnGhost} onClick={() => setForm({ row: c })}>Edit</button>
-                    <button className={btnDanger} disabled={busy} onClick={() => send("certifications", "DELETE", { id: c.id })}>Delete</button>
+                    <button className={btnGhost} onClick={() => setForm({ row: c })}>{tr.edit}</button>
+                    <button className={btnDanger} disabled={busy} onClick={() => send("certifications", "DELETE", { id: c.id })}>{tr.delete}</button>
                   </div>
                 )}
               </li>
@@ -659,17 +668,18 @@ function Certifications({ rows, employees, canManage, busy, send }) {
 
 // ---- leave -----------------------------------------------------------------
 function Leave({ rows, employees, types, canManage, meId, busy, send }) {
+  const tr = hrDict(useStudioLocale());
   const [asking, setAsking] = useState(false);
   const closeAsk = useCallback(() => setAsking(false), []);
 
   return (
     <>
       <div className="flex justify-end">
-        <button className={btn} onClick={() => setAsking(true)}>Request leave</button>
+        <button className={btn} onClick={() => setAsking(true)}>{tr.requestLeave}</button>
       </div>
 
       {asking && (
-        <Dialog title="Request leave" description={canManage ? "Book it for yourself, or for somebody you manage." : "It goes to whoever manages HR for approval."}
+        <Dialog title={tr.requestLeave} description={canManage ? "Book it for yourself, or for somebody you manage." : "It goes to whoever manages HR for approval."}
           onClose={closeAsk} width="max-w-[620px]">
           <LeaveForm types={types} employees={employees} canManage={canManage} meId={meId} busy={busy}
             onCancel={closeAsk}
@@ -677,7 +687,7 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
         </Dialog>
       )}
 
-      {rows.length === 0 ? <Empty title="No leave booked" body={canManage ? "Requests from your people arrive here for approval." : "Your own leave requests appear here."} /> : (
+      {rows.length === 0 ? <Empty title={tr.noLeaveBooked} body={canManage ? "Requests from your people arrive here for approval." : "Your own leave requests appear here."} /> : (
         <section className={panel}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[680px] border-collapse text-sm">
@@ -706,12 +716,12 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
                         <span className="flex flex-wrap justify-end gap-2">
                           {canManage && (
                             <>
-                              <button className={btnGhost} disabled={busy} onClick={() => send("vacations", "PUT", { id: v.id, status: "Approved" })}>Approve</button>
-                              <button className={btnGhost} disabled={busy} onClick={() => send("vacations", "PUT", { id: v.id, status: "Declined" })}>Decline</button>
+                              <button className={btnGhost} disabled={busy} onClick={() => send("vacations", "PUT", { id: v.id, status: "Approved" })}>{tr.approve}</button>
+                              <button className={btnGhost} disabled={busy} onClick={() => send("vacations", "PUT", { id: v.id, status: "Declined" })}>{tr.decline}</button>
                             </>
                           )}
                           {v.collaboratorId === meId && (
-                            <button className={btnGhost} disabled={busy} onClick={() => send("vacations", "PUT", { id: v.id, status: "Cancelled" })}>Cancel</button>
+                            <button className={btnGhost} disabled={busy} onClick={() => send("vacations", "PUT", { id: v.id, status: "Cancelled" })}>{tr.cancel}</button>
                           )}
                         </span>
                       )}
@@ -728,6 +738,7 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
 }
 
 function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }) {
+  const tr = hrDict(useStudioLocale());
   const [form, setForm] = useState({ collaboratorId: "", type: types[0], from: "", to: "", reason: "" });
   // Inclusive of both ends, which is how leave is counted.
   const days = form.from && form.to
@@ -739,19 +750,19 @@ function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         {canManage && (
-          <Field label="Person" as="select" value={form.collaboratorId}
+          <Field label={tr.person} as="select" value={form.collaboratorId}
             onChange={(v) => setForm((f) => ({ ...f, collaboratorId: v }))}
             options={employees.filter((e) => e.id !== meId).map((e) => ({ value: e.id, label: e.alias }))} />
         )}
-        <Field label="Type" as="select" value={form.type} onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={types} />
-        <Field label="From" filled={!!form.from}>
+        <Field label={tr.type} as="select" value={form.type} onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={types} />
+        <Field label={tr.from} filled={!!form.from}>
           <StudioDate value={form.from} onChange={(iso) => setForm((f) => ({ ...f, from: iso }))} />
         </Field>
-        <Field label="To" filled={!!form.to}>
+        <Field label={tr.to} filled={!!form.to}>
           <StudioDate value={form.to} onChange={(iso) => setForm((f) => ({ ...f, to: iso }))} />
         </Field>
       </div>
-      <Field label="Reason" as="textarea" className="mt-4" value={form.reason} onChange={(v) => setForm((f) => ({ ...f, reason: v }))} />
+      <Field label={tr.reason} as="textarea" className="mt-4" value={form.reason} onChange={(v) => setForm((f) => ({ ...f, reason: v }))} />
 
       <p className={`mt-3 text-xs ${backwards ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
         {backwards ? "The end date is before the start date." : days > 0 ? `That is ${days} day${days === 1 ? "" : "s"}.` : "Pick a start date."}
@@ -759,7 +770,7 @@ function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !form.from || backwards} onClick={() => onSave(form)}>{busy ? "Sending…" : "Submit"}</button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
@@ -769,6 +780,7 @@ function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }
 // One form shape covers departments, positions and certifications — they differ
 // only in their fields, so there is no reason for three near-identical forms.
 function SimpleForm({ fields, busy, onCancel, onSave }) {
+  const tr = hrDict(useStudioLocale());
   const [values, setValues] = useState(() => Object.fromEntries(fields.map((f) => [f.key, f.value ?? ""])));
   const ready = fields.filter((f) => f.required).every((f) => String(values[f.key] || "").trim());
 
@@ -797,7 +809,7 @@ function SimpleForm({ fields, busy, onCancel, onSave }) {
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? "Saving…" : "Save"}</button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import type { Editor } from "@tiptap/react";
 import {
   Combine,
@@ -44,6 +46,7 @@ export function TableMenu({
   editor: Editor;
   inTable: boolean;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const [gridOpen, setGridOpen] = useState(false);
   const [formatOpen, setFormatOpen] = useState(false);
 
@@ -58,13 +61,13 @@ export function TableMenu({
                 variant="ghost"
                 size="icon"
                 className="size-8"
-                aria-label="Insert table"
+                aria-label={tr.insertTable}
               >
                 <TableIcon />
               </Button>
             </PopoverTrigger>
           </TooltipTrigger>
-          <TooltipContent>Insert table</TooltipContent>
+          <TooltipContent>{tr.insertTable}</TooltipContent>
         </Tooltip>
 
         <PopoverContent align="start" className="w-auto p-2">
@@ -91,18 +94,18 @@ export function TableMenu({
                   variant="ghost"
                   size="sm"
                   className="h-8 gap-1 px-2"
-                  aria-label="Table options"
+                  aria-label={tr.tableOptions}
                 >
                   <Grid3x3 className="size-4" />
                   Table
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent>Table options</TooltipContent>
+            <TooltipContent>{tr.tableOptions}</TooltipContent>
           </Tooltip>
 
           <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel>Rows</DropdownMenuLabel>
+            <DropdownMenuLabel>{tr.rows}</DropdownMenuLabel>
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().addRowBefore().run()}
             >
@@ -121,7 +124,7 @@ export function TableMenu({
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuLabel>Columns</DropdownMenuLabel>
+            <DropdownMenuLabel>{tr.columns}</DropdownMenuLabel>
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().addColumnBefore().run()}
             >
@@ -140,7 +143,7 @@ export function TableMenu({
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuLabel>Cells</DropdownMenuLabel>
+            <DropdownMenuLabel>{tr.cells}</DropdownMenuLabel>
             <DropdownMenuItem
               onSelect={() => editor.chain().focus().mergeCells().run()}
             >

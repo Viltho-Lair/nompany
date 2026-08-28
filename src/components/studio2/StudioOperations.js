@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { operationsDict } from "@/shared/studio/operations";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import RecordLink from "@/components/studio2/RecordLink";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
@@ -38,6 +40,7 @@ const dayName = (iso) => fmtWeekday(iso);
 // `view` is the ACTIVE SUB-SECTION key: the parent renders a dashboard and each
 // sub-section selects its screen. The remaining tabs are tabs of one screen.
 export default function StudioOperations({ slug, view = "operations" }) {
+  const tr = operationsDict(useStudioLocale());
   const [data, setData] = useState(null);
   // THE SCHEDULE SCREEN'S THREE PANELS — the rota, Permits and Locations. Permits
   // and Locations moved here off the Operations landing (the landing is now just
@@ -75,7 +78,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
   const endpoint = view === "operations-schedule" ? "operations/schedule" : "operations";
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/${endpoint}`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Operations in this studio."); return; }
+    if (!res.ok) { setError(tr.accessOperationsStudio); return; }
     setData(await res.json());
   }, [slug, endpoint]);
   useEffect(() => { load(); }, [load]);
@@ -97,7 +100,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading Operations…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingOperations}</p>;
 
   const {
     canManage: canManageParent, canManageTracking, canManageSettings, canManagePlaces,
@@ -229,6 +232,7 @@ function message(out) {
 // Two readings of the same rota: the CALENDAR, which answers "who is where at
 // 10am on Tuesday", and the LIST, which is easier to scan and to remove from.
 function Schedule({ shifts, people, locations, window, settings, canManage, busy, send }) {
+  const tr = operationsDict(useStudioLocale());
   const [adding, setAdding] = useState(false);
   const [mode, setMode] = useState("calendar");
   // Which week the calendar is showing, as an offset from the current one — so
@@ -263,12 +267,12 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
           ))}
         </div>
         {canManage && (
-          <button className={`${btn} ms-auto`} onClick={() => setAdding(true)} disabled={people.length === 0}>Schedule a shift</button>
+          <button className={`${btn} ms-auto`} onClick={() => setAdding(true)} disabled={people.length === 0}>{tr.scheduleShift}</button>
         )}
       </div>
 
       {adding && (
-        <Dialog title="Schedule a shift" description="Who is working, when, and where." onClose={() => setAdding(false)}>
+        <Dialog title={tr.scheduleShift} description={tr.whoWorkingWhenWhere} onClose={() => setAdding(false)}>
           <ShiftForm people={people} locations={locations} busy={busy}
             onCancel={() => setAdding(false)}
             onSave={async (v) => { if (await send("schedule/shifts", "POST", v)) setAdding(false); }} />
@@ -290,7 +294,7 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
                 <p className="text-xs text-slate-400">{fmt(d.iso)}</p>
               </div>
               <div className="min-w-0 flex-1">
-                {d.shifts.length === 0 ? <p className="text-sm text-slate-400">No one scheduled</p> : (
+                {d.shifts.length === 0 ? <p className="text-sm text-slate-400">{tr.noOneScheduled}</p> : (
                   <ul className="space-y-1.5">
                     {d.shifts.map((s) => (
                       <li key={s.id} className="flex flex-wrap items-center justify-between gap-3">
@@ -328,6 +332,7 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
 // hour window the studio configured, so the picture and the times can never
 // disagree — the geometry IS the times.
 function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
+  const tr = operationsDict(useStudioLocale());
   const [copied, setCopied] = useState("");
   const schedule = useMemo(() => normalizeSchedule(settings?.workSchedule), [settings]);
   const legend = useMemo(() => normalizeLegend(settings?.legend), [settings]);
@@ -375,7 +380,7 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <button type="button" className={btnGhost} onClick={() => onWeek(weekOffset - 1)}>←</button>
-          <button type="button" className={btnGhost} onClick={() => onWeek(0)}>This week</button>
+          <button type="button" className={btnGhost} onClick={() => onWeek(0)}>{tr.week}</button>
           <button type="button" className={btnGhost} onClick={() => onWeek(weekOffset + 1)}>→</button>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -471,6 +476,7 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
 }
 
 function ShiftForm({ people, locations, busy, onCancel, onSave }) {
+  const tr = operationsDict(useStudioLocale());
   const [form, setForm] = useState({
     collaboratorId: people[0]?.id || "", date: "", startTime: "08:00", endTime: "17:00",
     locationId: "", role: "", notes: "",
@@ -478,29 +484,29 @@ function ShiftForm({ people, locations, busy, onCancel, onSave }) {
 
   return (
     <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Schedule a shift</h3>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.scheduleShift}</h3>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field label="Who" as="select" required value={form.collaboratorId}
+        <Field label={tr.who} as="select" required value={form.collaboratorId}
           onChange={(v) => setForm((f) => ({ ...f, collaboratorId: v }))}
           options={people.map((p) => ({ value: p.id, label: p.alias }))} />
-        <Field label="Date" required filled={!!form.date}>
+        <Field label={tr.date} required filled={!!form.date}>
           <StudioDate value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
         </Field>
-        <Field label="Location" as="select" value={form.locationId}
+        <Field label={tr.location} as="select" value={form.locationId}
           onChange={(v) => setForm((f) => ({ ...f, locationId: v }))}
           options={locations.map((l) => ({ value: l.id, label: l.name }))} />
-        <Field label="Start" type="time" value={form.startTime}
+        <Field label={tr.start} type="time" value={form.startTime}
           onChange={(v) => setForm((f) => ({ ...f, startTime: v }))} />
-        <Field label="End" type="time" value={form.endTime}
+        <Field label={tr.end} type="time" value={form.endTime}
           onChange={(v) => setForm((f) => ({ ...f, endTime: v }))} />
-        <Field label="Role" value={form.role}
-          onChange={(v) => setForm((f) => ({ ...f, role: v }))} hint="The role on this shift" />
+        <Field label={tr.role} value={form.role}
+          onChange={(v) => setForm((f) => ({ ...f, role: v }))} hint={tr.roleShift} />
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !form.date || !form.collaboratorId} onClick={() => onSave(form)}>
           {busy ? "Saving…" : "Schedule"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
@@ -508,17 +514,18 @@ function ShiftForm({ people, locations, busy, onCancel, onSave }) {
 
 // ---- permits ---------------------------------------------------------------
 function Permits({ rows, locations, people, projects, types, windowDays, slug, nav, canManage, busy, send }) {
+  const tr = operationsDict(useStudioLocale());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
   const attention = rows.filter((p) => p.state === "Expiring" || p.state === "Expired");
 
   return (
     <>
-      {canManage && <button className={btn} onClick={() => setAdding(true)}>Add permit</button>}
+      {canManage && <button className={btn} onClick={() => setAdding(true)}>{tr.addPermit}</button>}
       {(adding || editing) && (
         <Dialog
           title={editing ? "Edit permit" : "New permit"}
-          description="What is permitted, where, and until when."
+          description={tr.whatPermittedWhereUntil}
           onClose={() => { setAdding(false); setEditing(null); }}
         >
           <PermitForm permit={editing} locations={locations} people={people} projects={projects} types={types} busy={busy}
@@ -544,7 +551,7 @@ function Permits({ rows, locations, people, projects, types, windowDays, slug, n
         </div>
       )}
 
-      {rows.length === 0 ? <Empty title="No permits yet" body="Permits record what the studio is authorised to do, where, and until when." /> : (
+      {rows.length === 0 ? <Empty title={tr.noPermitsYet} body={tr.permitsRecordWhatStudio} /> : (
         <section className={panel}>
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
             {rows.map((p) => (
@@ -555,7 +562,7 @@ function Permits({ rows, locations, people, projects, types, windowDays, slug, n
                     <span className="font-600 text-slate-900 dark:text-white">{p.title}</span>
                     <StatusPill kind="permit" status={p.state} />
                     {p.projectNumber && (
-                      <RecordLink href={linkIf(nav?.projects, linkToProject(slug, p.projectId))} title="Open the project">{p.projectNumber}</RecordLink>
+                      <RecordLink href={linkIf(nav?.projects, linkToProject(slug, p.projectId))} title={tr.openProject}>{p.projectNumber}</RecordLink>
                     )}
                   </div>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -568,8 +575,8 @@ function Permits({ rows, locations, people, projects, types, windowDays, slug, n
                 </div>
                 {canManage && (
                   <div className="flex gap-2">
-                    <button className={btnGhost} onClick={() => setEditing(p)}>Edit</button>
-                    <button className={btnDanger} disabled={busy} onClick={() => send("permits", "DELETE", { id: p.id })}>Delete</button>
+                    <button className={btnGhost} onClick={() => setEditing(p)}>{tr.edit}</button>
+                    <button className={btnDanger} disabled={busy} onClick={() => send("permits", "DELETE", { id: p.id })}>{tr.delete}</button>
                   </div>
                 )}
               </li>
@@ -582,6 +589,7 @@ function Permits({ rows, locations, people, projects, types, windowDays, slug, n
 }
 
 function PermitForm({ permit, locations, people, projects, types, busy, onCancel, onSave }) {
+  const tr = operationsDict(useStudioLocale());
   const [form, setForm] = useState({
     title: permit?.title || "", type: permit?.type || types[0], number: permit?.number || "",
     issuer: permit?.issuer || "", locationId: permit?.locationId || "", projectId: permit?.projectId || "",
@@ -593,31 +601,31 @@ function PermitForm({ permit, locations, people, projects, types, busy, onCancel
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{permit ? "Edit permit" : "New permit"}</h3>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field label="Title" required value={form.title}
+        <Field label={tr.title} required value={form.title}
           onChange={(v) => setForm((f) => ({ ...f, title: v }))} className="sm:col-span-2" />
-        <Field label="Type" as="select" required value={form.type}
+        <Field label={tr.type} as="select" required value={form.type}
           onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={types} />
-        <Field label="Permit number" value={form.number}
+        <Field label={tr.permitNumber} value={form.number}
           onChange={(v) => setForm((f) => ({ ...f, number: v }))} />
-        <Field label="Issued by" value={form.issuer}
+        <Field label={tr.issued} value={form.issuer}
           onChange={(v) => setForm((f) => ({ ...f, issuer: v }))} />
-        <Field label="Location" as="select" value={form.locationId}
+        <Field label={tr.location} as="select" value={form.locationId}
           onChange={(v) => setForm((f) => ({ ...f, locationId: v }))}
           options={locations.map((l) => ({ value: l.id, label: l.name }))} />
-        <Field label="Project" as="select" value={form.projectId}
+        <Field label={tr.project} as="select" value={form.projectId}
           onChange={(v) => setForm((f) => ({ ...f, projectId: v }))}
           options={projects.map((p) => ({ value: p.id, label: p.number }))} />
-        <Field label="Valid from" filled={!!form.validFrom}>
+        <Field label={tr.valid} filled={!!form.validFrom}>
           <StudioDate value={form.validFrom} onChange={(iso) => setForm((f) => ({ ...f, validFrom: iso }))} />
         </Field>
-        <Field label="Valid to" filled={!!form.validTo}>
+        <Field label={tr.valid2} filled={!!form.validTo}>
           <StudioDate value={form.validTo} onChange={(iso) => setForm((f) => ({ ...f, validTo: iso }))} />
         </Field>
       </div>
 
       {people.length > 0 && (
         <div className="mt-5">
-          <label className={label}>Covers</label>
+          <label className={label}>{tr.covers}</label>
           <div className="flex flex-wrap gap-2">
             {people.map((p) => {
               const on = holders.includes(p.id);
@@ -640,7 +648,7 @@ function PermitForm({ permit, locations, people, projects, types, busy, onCancel
           onClick={() => onSave({ ...form, holderCollaboratorIds: holders })}>
           {busy ? "Saving…" : "Save"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
@@ -648,33 +656,34 @@ function PermitForm({ permit, locations, people, projects, types, busy, onCancel
 
 // ---- locations -------------------------------------------------------------
 function Locations({ rows, kinds, canManage, busy, send }) {
+  const tr = operationsDict(useStudioLocale());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
 
   return (
     <>
-      {canManage && <button className={btn} onClick={() => setAdding(true)}>Add location</button>}
+      {canManage && <button className={btn} onClick={() => setAdding(true)}>{tr.addLocation}</button>}
       {(adding || editing) && (
         <Dialog
           title={editing ? "Edit location" : "New location"}
-          description="A place work happens — a site, an office, a warehouse."
+          description={tr.placeWorkHappensSite}
           onClose={() => { setAdding(false); setEditing(null); }}
         >
         <SimpleForm title={editing ? "Edit location" : "New location"} busy={busy}
           fields={[
-            { key: "name", label: "Name", required: true, value: editing?.name || "" },
-            { key: "kind", label: "Kind", value: editing?.kind || kinds[0], options: kinds.map((k) => ({ value: k, text: k })) },
-            { key: "city", label: "City", value: editing?.city || "" },
-            { key: "address", label: "Address", value: editing?.address || "" },
-            { key: "mapUrl", label: "Map link", value: editing?.mapUrl || "" },
-            { key: "notes", label: "Notes", area: true, value: editing?.notes || "" },
+            { key: "name", label: tr.name, required: true, value: editing?.name || "" },
+            { key: "kind", label: tr.kind, value: editing?.kind || kinds[0], options: kinds.map((k) => ({ value: k, text: k })) },
+            { key: "city", label: tr.city, value: editing?.city || "" },
+            { key: "address", label: tr.address, value: editing?.address || "" },
+            { key: "mapUrl", label: tr.mapLink, value: editing?.mapUrl || "" },
+            { key: "notes", label: tr.notes, area: true, value: editing?.notes || "" },
           ]}
           onCancel={() => { setAdding(false); setEditing(null); }}
           onSave={async (v) => { if (await send("locations", editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v)) { setAdding(false); setEditing(null); } }} />
         </Dialog>
       )}
 
-      {rows.length === 0 ? <Empty title="No locations yet" body="Locations are the places work happens — sites, offices, warehouses. Shifts and permits point at them." /> : (
+      {rows.length === 0 ? <Empty title={tr.noLocationsYet} body={tr.locationsPlacesWorkHappens} /> : (
         <section className={panel}>
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
             {rows.map((l) => (
@@ -694,8 +703,8 @@ function Locations({ rows, kinds, canManage, busy, send }) {
                 </div>
                 {canManage && (
                   <div className="flex gap-2">
-                    <button className={btnGhost} onClick={() => setEditing(l)}>Edit</button>
-                    <button className={btnDanger} disabled={busy} onClick={() => send("locations", "DELETE", { id: l.id })}>Delete</button>
+                    <button className={btnGhost} onClick={() => setEditing(l)}>{tr.edit}</button>
+                    <button className={btnDanger} disabled={busy} onClick={() => send("locations", "DELETE", { id: l.id })}>{tr.delete}</button>
                   </div>
                 )}
               </li>
@@ -709,6 +718,7 @@ function Locations({ rows, kinds, canManage, busy, send }) {
 
 // ---- shared bits -----------------------------------------------------------
 function SimpleForm({ title, fields, busy, onCancel, onSave }) {
+  const tr = operationsDict(useStudioLocale());
   const [values, setValues] = useState(() => Object.fromEntries(fields.map((f) => [f.key, f.value ?? ""])));
   const ready = fields.filter((f) => f.required).every((f) => String(values[f.key] ?? "").trim());
 
@@ -736,7 +746,7 @@ function SimpleForm({ title, fields, busy, onCancel, onSave }) {
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? "Saving…" : "Save"}</button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
   );
@@ -767,6 +777,7 @@ const ageText = (iso) => {
 };
 
 function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh }) {
+  const tr = operationsDict(useStudioLocale());
   const [sharing, setSharing] = useState(false);
   const [status, setStatus] = useState({ text: "Not sharing", tone: "idle" });
   const [fix, setFix] = useState(null);
@@ -886,7 +897,7 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
       <section className={panel}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className={h2}>Tracking</h2>
+            <h2 className={h2}>{tr.tracking}</h2>
             <p className={sub}>
               Where the team is right now. Sharing is per session — it stops when you close this page, and only your
               latest position is kept, never a history of where you have been.
@@ -897,10 +908,10 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           {sharing
-            ? <button className={btnGhost} onClick={stop}>Stop sharing</button>
-            : <button className={btn} onClick={start}>Share my location</button>}
+            ? <button className={btnGhost} onClick={stop}>{tr.stopSharing}</button>
+            : <button className={btn} onClick={start}>{tr.shareMyLocation}</button>}
           {mine && !sharing && (
-            <button className={btnGhost} onClick={() => onClear(meId)}>Remove my last position</button>
+            <button className={btnGhost} onClick={() => onClear(meId)}>{tr.removeMyLastPosition}</button>
           )}
           {fix && (
             <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
@@ -911,7 +922,7 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
       </section>
 
       {!googleMapsKey() ? (
-        <Empty title="No map configured" body="The list below still works. A map needs NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to be set." />
+        <Empty title={tr.noMapConfigured} body={tr.listBelowStillWorks} />
       ) : (
         <section className={`${panel} p-0`}>
           <div ref={mapRef} className="h-[420px] w-full overflow-hidden rounded-geex" />
@@ -920,9 +931,9 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
       )}
 
       <section className={panel}>
-        <p className={microLabel}>Reported positions</p>
+        <p className={microLabel}>{tr.reportedPositions}</p>
         {positions.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-400">Nobody is sharing right now.</p>
+          <p className="mt-2 text-sm text-slate-400">{tr.nobodySharingRightNow}</p>
         ) : (
           <ul className="mt-2 divide-y divide-slate-100 dark:divide-white/5">
             {positions.map((p) => {
@@ -955,6 +966,7 @@ function Tracking({ slug, positions, meId, canManageTracking, onClear, onRefresh
 
 // ---- settings --------------------------------------------------------------
 function OperationsSettings({ settings, canManage, busy, onSave }) {
+  const tr = operationsDict(useStudioLocale());
   // Read-only here: the week belongs to Studio settings now. It is still
   // needed to work out what the grid's hour window would be.
   const schedule = normalizeSchedule(settings?.workSchedule);
@@ -977,7 +989,7 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
       {/* The working week is the STUDIO's, set in Studio settings, so it is
           described once rather than kept here as a second answer. */}
       <section className={panel}>
-        <h2 className={h2}>Working hours</h2>
+        <h2 className={h2}>{tr.workingHours}</h2>
         <p className={sub}>
           Taken from Studio settings — the days and hours the studio works are one
           answer for the whole product, not a per-section one. The calendar shades
@@ -995,7 +1007,7 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
       </section>
 
       <section className={panel}>
-        <h2 className={h2}>Calendar legend</h2>
+        <h2 className={h2}>{tr.calendarLegend}</h2>
         <p className={sub}>
           The colours the calendar draws shifts in. These kinds are fixed — recolour or rename them, but they cannot be
           added to or removed, because a shift whose kind has no entry would have no colour to be drawn in.
@@ -1012,8 +1024,8 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
       </section>
 
       <section className={panel}>
-        <h2 className={h2}>Day roster prefix</h2>
-        <p className={sub}>Optional text added above the copied roster for a day — a greeting, or a standing note.</p>
+        <h2 className={h2}>{tr.dayRosterPrefix}</h2>
+        <p className={sub}>{tr.optionalTextAddedAbove}</p>
         <textarea rows={3} className={`${input} mt-4`} value={rosterPrefix} disabled={!canManage}
           onChange={(e) => { setRosterPrefix(e.target.value); dirty(); }} />
       </section>
@@ -1021,10 +1033,10 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
       {canManage ? (
         <div className="flex items-center gap-3">
           <button className={btn} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save settings"}</button>
-          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved</span>}
+          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>
       ) : (
-        <p className="text-xs text-slate-500 dark:text-slate-400">You have view-only access to Operations settings.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{tr.viewOnlyAccessOperations}</p>
       )}
     </div>
   );

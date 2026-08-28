@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { engagementsDict } from "@/shared/studio/engagements";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -251,6 +253,7 @@ function EngagementList({
   list, loading, error, actionError, loadingMore,
   canLock, canDelete, lockBusyId, onOpen, onLoadMore, onToggleLock, onAskDelete,
 }) {
+  const tr = engagementsDict(useStudioLocale());
   if (error) {
     return <p role="alert" className={alertBox}>{error}</p>;
   }
@@ -270,7 +273,7 @@ function EngagementList({
   if (rows.length === 0 && !hasMore) {
     return (
       <div className={`${panel} text-center`}>
-        <p className="font-display text-base font-700 text-slate-900 dark:text-white">Nothing here yet</p>
+        <p className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.nothingHereYet}</p>
         <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
           A deal appears here the moment it starts anywhere in the studio — a ticket, an RFQ, or a
           quotation raised on its own.
@@ -282,7 +285,7 @@ function EngagementList({
   if (rows.length === 0) {
     return (
       <div className={`${panel} text-center`}>
-        <p className="font-display text-base font-700 text-slate-900 dark:text-white">No engagements you can see on this page</p>
+        <p className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.noEngagementsCanSee}</p>
         <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
           More deals may be further down the list — this page just did not have any you have access to.
         </p>
@@ -306,12 +309,12 @@ function EngagementList({
         <table className="w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200/70 text-start dark:border-white/10">
-              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Ref</th>
-              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Client</th>
-              <th scope="col" className="px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Title</th>
-              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Stages</th>
-              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Started</th>
-              <th scope="col" className="whitespace-nowrap px-4 py-3 text-end text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">Lock</th>
+              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.ref}</th>
+              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.client}</th>
+              <th scope="col" className="px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.title}</th>
+              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.stages}</th>
+              <th scope="col" className="whitespace-nowrap px-4 py-3 text-start text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.started}</th>
+              <th scope="col" className="whitespace-nowrap px-4 py-3 text-end text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.lock}</th>
               <th scope="col" className="w-10 px-2 py-3" />
             </tr>
           </thead>
@@ -461,9 +464,10 @@ function StageBadge({ type }) {
 // sweeping under prefers-reduced-motion (globals.css); aria-busy is set here
 // because that state belongs to the region, not to the utility class.
 function ListSkeleton() {
+  const tr = engagementsDict(useStudioLocale());
   return (
     <div className={`${panel} overflow-hidden p-0`} aria-busy="true" aria-live="polite">
-      <span className="sr-only">Loading engagements</span>
+      <span className="sr-only">{tr.loadingEngagements}</span>
       <div className="flex items-center gap-4 border-b border-slate-200/70 px-4 py-3 dark:border-white/10">
         {["w-16", "w-24", "flex-1", "w-32", "w-20", "w-24"].map((w, i) => (
           <span key={i} className={`skel skel-text block h-3 ${w}`} />
@@ -503,6 +507,7 @@ function ListSkeleton() {
 // button that reads "Keep this deal", against one destructive button that stays
 // disabled until a checkbox has been ticked deliberately.
 function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
+  const tr = engagementsDict(useStudioLocale());
   const [impact, setImpact] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -533,7 +538,7 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
       // read the whole impact, tick the box and then meet a 409.
       if (payload.impact?.locked) {
         setHalted(true);
-        setError("This deal has been locked again. Nothing can be deleted until it is unlocked.");
+        setError(tr.dealLockedAgainNothing);
         onRelocked(row.id);
       }
     })();
@@ -554,7 +559,7 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
       // "Unlocked" — and the button goes, because it would only 409 again.
       setHalted(true);
       onRelocked(row.id);
-      setError("This deal was locked again while you were deciding. Nothing was deleted — unlock it again if you still want it gone.");
+      setError(tr.dealLockedAgainWhile);
       return;
     }
     if (res.status === 404) {
@@ -658,7 +663,7 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
           <div className="flex flex-wrap items-center gap-3">
             {/* Cancel FIRST in reading order and in the tab order, because it
                 is the answer somebody should be able to give without aiming. */}
-            <button type="button" className={btnGhost} onClick={onCancel}>Keep this deal</button>
+            <button type="button" className={btnGhost} onClick={onCancel}>{tr.keepDeal}</button>
             {!halted && (
               <button
                 type="button"
@@ -681,9 +686,10 @@ function ConfirmDelete({ slug, row, onCancel, onDeleted, onRelocked }) {
 // impact lands, which on a dialog whose other button deletes things is worth
 // more than the two lines it costs.
 function ImpactSkeleton() {
+  const tr = engagementsDict(useStudioLocale());
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">
-      <span className="sr-only">Working out what deleting this would affect</span>
+      <span className="sr-only">{tr.workingOutWhatDeleting}</span>
       {[0, 1].map((s) => (
         <div key={s}>
           <span className="skel skel-text block h-3 w-40" />
@@ -795,9 +801,10 @@ function StageCard({ slug, card }) {
 }
 
 function DetailSkeleton() {
+  const tr = engagementsDict(useStudioLocale());
   return (
     <div className="space-y-6" aria-busy="true" aria-live="polite">
-      <span className="sr-only">Loading engagement</span>
+      <span className="sr-only">{tr.loadingEngagement}</span>
       <div className={panel}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">

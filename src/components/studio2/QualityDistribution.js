@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { Dialog, btn, btnGhost, input, label, microLabel } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 
@@ -21,6 +23,7 @@ const MESSAGES = {
 const say = (e) => MESSAGES[e] || "That didn't work. Try again.";
 
 export default function QualityDistribution({ slug, documentId, document }) {
+  const tr = qualityDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -71,7 +74,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
           looking at it has to do. */}
       {data?.mine && !data.mine.acknowledgedAt && (
         <div className="rounded-geex border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/25 dark:bg-amber-500/10">
-          <p className="text-sm font-600 text-amber-900 dark:text-amber-200">This document was issued to you.</p>
+          <p className="text-sm font-600 text-amber-900 dark:text-amber-200">{tr.documentIssued}</p>
           <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
             Confirm you have read revision {dist?.rev} and will work to it.
           </p>
@@ -89,7 +92,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
 
       <div>
         <div className="flex items-center gap-2">
-          <p className={microLabel}>Distribution</p>
+          <p className={microLabel}>{tr.distribution}</p>
           {data?.canDistribute && (
             <button type="button" onClick={() => setPicking(true)}
               className="ms-auto text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">
@@ -124,7 +127,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
                         Acknowledged
                       </span>
                     ) : r.readAt ? (
-                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-600 text-amber-700 dark:text-amber-300">Opened</span>
+                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-600 text-amber-700 dark:text-amber-300">{tr.opened}</span>
                     ) : (
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
                         Not opened
@@ -141,7 +144,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
       {data?.canShare && (
         <div>
           <div className="flex items-center gap-2">
-            <p className={microLabel}>External links</p>
+            <p className={microLabel}>{tr.externalLinks}</p>
             <button type="button" onClick={() => { setMinted(""); setSharing(true); }}
               className="ms-auto text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">
               Create a link
@@ -152,8 +155,8 @@ export default function QualityDistribution({ slug, documentId, document }) {
               <li key={l.id} className="rounded-lg border border-slate-200/70 bg-[var(--geex-surface)] px-3 py-2 text-xs dark:border-white/10">
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-700 text-slate-700 dark:text-slate-200">Rev {l.rev}</span>
-                  {l.revokedAt ? <span className="text-rose-600 dark:text-rose-400">Revoked</span>
-                    : l.expired ? <span className="text-slate-400">Expired</span>
+                  {l.revokedAt ? <span className="text-rose-600 dark:text-rose-400">{tr.revoked}</span>
+                    : l.expired ? <span className="text-slate-400">{tr.expired}</span>
                       : <span className="text-emerald-600 dark:text-emerald-400">Live until {String(l.expiresAt).slice(0, 10)}</span>}
                   {!l.revokedAt && !l.expired && (
                     <button type="button" disabled={busy}
@@ -170,14 +173,14 @@ export default function QualityDistribution({ slug, documentId, document }) {
               </li>
             ))}
             {(data.links || []).length === 0 && (
-              <li className="text-xs text-slate-400 dark:text-slate-500">None. A link is bound to one revision and always expires.</li>
+              <li className="text-xs text-slate-400 dark:text-slate-500">{tr.noneLinkBoundOne}</li>
             )}
           </ul>
         </div>
       )}
 
       {picking && (
-        <Dialog title="Who has to work to this document?" onClose={() => setPicking(false)} width="max-w-[520px]">
+        <Dialog title={tr.whoWorkDocument} onClose={() => setPicking(false)} width="max-w-[520px]">
           <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
             They are told when a revision is issued, and asked to confirm they have read it. Acknowledgement resets each
             time a new revision goes out — having read rev 2 says nothing about rev 3.
@@ -197,7 +200,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
             })}
           </div>
           <div className="mt-6 flex items-center justify-end gap-2">
-            <button type="button" className={btnGhost} onClick={() => setPicking(false)}>Cancel</button>
+            <button type="button" className={btnGhost} onClick={() => setPicking(false)}>{tr.cancel}</button>
             <button type="button" className={btn} disabled={busy}
               onClick={async () => { const r = await send({ action: "distribute", collaboratorIds: chosen }); if (r) setPicking(false); }}>
               Save
@@ -207,29 +210,29 @@ export default function QualityDistribution({ slug, documentId, document }) {
       )}
 
       {sharing && (
-        <Dialog title="Share outside the studio" onClose={() => setSharing(false)} width="max-w-[520px]">
+        <Dialog title={tr.shareOutsideStudio} onClose={() => setSharing(false)} width="max-w-[520px]">
           {minted ? (
             <>
-              <p className="text-sm text-slate-600 dark:text-slate-300">The link is live. Every open is recorded.</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">{tr.linkLiveEveryOpen}</p>
               <input readOnly className={`${input} mt-3 font-mono text-xs`} value={`${window.location.origin}${minted}`}
                 onFocus={(e) => e.target.select()} />
               <div className="mt-6 flex justify-end">
-                <button type="button" className={btn} onClick={() => setSharing(false)}>Done</button>
+                <button type="button" className={btn} onClick={() => setSharing(false)}>{tr.done}</button>
               </div>
             </>
           ) : (
             <>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Anybody with the link can read the issued revision without an account. It is stamped
-                {" "}<span className="font-600">UNCONTROLLED COPY</span>, bound to that one revision, and expires.
+                {" "}<span className="font-600">{tr.uncontrolledCopy}</span>, bound to that one revision, and expires.
               </p>
               <div className="mt-4 max-w-xs">
-                <Field label="Expires after" as="select" value={String(days)}
+                <Field label={tr.expiresAfter} as="select" value={String(days)}
                   onChange={(v) => setDays(Number(v))}
                   options={[7, 30, 90, 180, 365].map((d) => ({ value: String(d), label: `${d} days` }))} />
               </div>
               <div className="mt-6 flex items-center justify-end gap-2">
-                <button type="button" className={btnGhost} onClick={() => setSharing(false)}>Cancel</button>
+                <button type="button" className={btnGhost} onClick={() => setSharing(false)}>{tr.cancel}</button>
                 <button type="button" className={btn} disabled={busy}
                   onClick={async () => { const r = await send({ action: "share", days }); if (r?.url) setMinted(r.url); }}>
                   Create the link

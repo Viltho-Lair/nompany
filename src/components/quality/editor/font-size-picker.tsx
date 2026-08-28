@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { qualityDict } from "@/shared/studio/quality";
 import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,7 @@ export function FontSizePicker({
   value: number;
   onSelect: (sizePt: number) => void;
 }) {
+  const tr = qualityDict(useStudioLocale());
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState("");
 
@@ -39,7 +42,7 @@ export function FontSizePicker({
           variant="ghost"
           size="sm"
           className="h-8 w-16 justify-between gap-1 px-2 font-normal tabular-nums"
-          aria-label="Font size"
+          aria-label={tr.fontSize}
         >
           {value}
           <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
@@ -59,8 +62,8 @@ export function FontSizePicker({
             }}
             onBlur={commitCustom}
             inputMode="decimal"
-            placeholder="Custom"
-            aria-label="Custom font size in points"
+            placeholder={tr.custom}
+            aria-label={tr.customFontSizePoints}
             className="h-7 text-sm"
           />
         </div>

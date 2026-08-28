@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
 import { ArrowRight, Link2, Plus, X } from 'lucide-react';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -40,6 +42,7 @@ export function Inspector({
   schedule: ScheduleResult;
   resources: Resource[];
 }) {
+  const tr = plannerDict(useStudioLocale());
   const {
     selectedId,
     calendar,
@@ -56,7 +59,7 @@ export function Inspector({
   if (!task) {
     return (
       <aside className="flex w-[320px] shrink-0 flex-col border-s border-slate-200 bg-white">
-        <Header onClose={() => setInspectorOpen(false)} title="Details" />
+        <Header onClose={() => setInspectorOpen(false)} title={tr.details} />
         <div className="flex flex-1 items-center justify-center p-6 text-center text-[13px] text-slate-400">
           Select a row to see and edit its details.
         </div>
@@ -91,7 +94,7 @@ export function Inspector({
         )}
 
         <dl className="mt-4 space-y-1">
-          <Field label="Assignee">
+          <Field label={tr.assignee}>
             <AssigneeCell
               task={task}
               resources={resources}
@@ -99,21 +102,21 @@ export function Inspector({
             />
           </Field>
 
-          <Field label="Status">
+          <Field label={tr.status}>
             <StatusCell
               status={task.status}
               onChange={(status) => updateTask(task.id, { status })}
             />
           </Field>
 
-          <Field label="Priority">
+          <Field label={tr.priority}>
             <PriorityCell
               priority={task.priority}
               onChange={(priority) => updateTask(task.id, { priority })}
             />
           </Field>
 
-          <Field label="Start">
+          <Field label={tr.start}>
             <DateCell
               value={task.startDate}
               withTime={withTime}
@@ -122,7 +125,7 @@ export function Inspector({
             />
           </Field>
 
-          <Field label="End">
+          <Field label={tr.end}>
             <span className="px-1.5 text-[13px] text-slate-500">
               {formatMediumDate(task.endDate)}
               {withTime && (
@@ -133,7 +136,7 @@ export function Inspector({
             </span>
           </Field>
 
-          <Field label="Duration">
+          <Field label={tr.duration}>
             {task.isSummary ? (
               <span className="px-1.5 text-[13px] text-slate-500">
                 {task.computedDuration}
@@ -168,7 +171,7 @@ export function Inspector({
             )}
           </Field>
 
-          <Field label="Scheduling">
+          <Field label={tr.scheduling}>
             <div className="flex items-center gap-1.5 px-1.5">
               <button
                 type="button"
@@ -195,7 +198,7 @@ export function Inspector({
             </div>
           </Field>
 
-          <Field label="Float">
+          <Field label={tr.float}>
             <span className="px-1.5 text-[13px] text-slate-500">
               {task.isSummary
                 ? '—'
@@ -208,7 +211,7 @@ export function Inspector({
             </span>
           </Field>
 
-          <Field label="Effort / cost">
+          <Field label={tr.effortCost}>
             <span className="px-1.5 text-[13px] text-slate-500">
               {task.rolledEffortHours}h · {formatCurrency(task.rolledCost)}
             </span>
@@ -296,7 +299,7 @@ export function Inspector({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="max-h-72 w-72 overflow-y-auto">
-            <DropdownMenuLabel>Link from</DropdownMenuLabel>
+            <DropdownMenuLabel>{tr.link}</DropdownMenuLabel>
             {linkable.map((t) => (
               <DropdownMenuItem
                 key={t.id}
@@ -338,18 +341,18 @@ export function Inspector({
 
         <Separator className="my-4" />
 
-        <SectionTitle>Notes</SectionTitle>
+        <SectionTitle>{tr.notes}</SectionTitle>
         <textarea
           value={task.notes}
           onChange={(e) => updateTask(task.id, { notes: e.target.value })}
-          placeholder="Context, links, acceptance criteria…"
+          placeholder={tr.contextLinksAcceptanceCriteria}
           rows={4}
           className="mt-2 w-full resize-y rounded-md border border-slate-200 p-2 text-[13px] outline-none focus:border-primary"
         />
 
         {task.assigneeIds.length > 0 && (
           <>
-            <SectionTitle className="mt-5">Team</SectionTitle>
+            <SectionTitle className="mt-5">{tr.team}</SectionTitle>
             <div className="mt-2 space-y-1.5">
               {task.assigneeIds.map((id) => {
                 const r = resources.find((res) => res.id === id);

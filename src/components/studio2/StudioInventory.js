@@ -1,6 +1,8 @@
 "use client";
 
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { inventoryDict } from "@/shared/studio/inventory";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -45,6 +47,7 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
 });
 
 export default function StudioInventory({ slug, view = "inventory" }) {
+  const tr = inventoryDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -52,7 +55,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/inventory`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Inventory in this studio."); return; }
+    if (!res.ok) { setError(tr.accessInventoryStudio); return; }
     setData(await res.json());
   }, [slug]);
   useEffect(() => { load(); }, [load]);
@@ -72,7 +75,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading Inventory…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingInventory}</p>;
 
   const {
     canManage: canManageParent,
@@ -112,7 +115,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   // The parent section is a place of its own: its own dashboard rather than a
   // redirect into whichever sub-section came first — and, being a place of its
   // own, a right of its own.
-  if (data.canViewDashboard === false) return wrap(<Empty title="The dashboard isn't yours to see" body="This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar." />);
+  if (data.canViewDashboard === false) return wrap(<Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} />);
   return wrap(<InventoryDashboard slug={slug} summary={summary} items={items}
     orders={orders} movements={movements} nav={nav}
     level={level} currency={studioCurrency} />);
@@ -155,6 +158,7 @@ function message(out) {
 
 // ---- registered items (the catalogue) --------------------------------------
 function Items({ items, vendors, units, serviceActions, studioCurrency, canManage, busy, send }) {
+  const tr = inventoryDict(useStudioLocale());
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(null);
   const closeForm = useCallback(() => setForm(null), []);
@@ -167,16 +171,16 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
 
   return (
     <>
-      <Toolbar canManage={canManage} label="Add item" onAdd={() => setForm({ row: null })}>
+      <Toolbar canManage={canManage} label={tr.addItem} onAdd={() => setForm({ row: null })}>
         {items.length > 0 && (
-          <Field label="Search" type="search" hint="Name, SKU, model or vendor"
+          <Field label={tr.search} type="search" hint={tr.nameSkuModelVendor}
             value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
         )}
       </Toolbar>
 
       {form && (
         <Dialog title={form.row ? `Edit ${form.row.name}` : "Add item"}
-          description="The catalogue entry — what this thing is and who supplies it. Quantities live in Stock Management."
+          description={tr.catalogueEntryWhatThing}
           onClose={closeForm}>
           <ItemForm row={form.row} vendors={vendors} units={units} serviceActions={serviceActions} studioCurrency={studioCurrency} busy={busy} onCancel={closeForm}
             onSave={async (v) => { if (await send("items", form.row ? "PUT" : "POST", form.row ? { ...v, id: form.row.id } : v)) setForm(null); }} />
@@ -184,7 +188,7 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
       )}
 
       {items.length === 0 ? (
-        <Empty title="Nothing registered yet" body="Register the things you buy. Quantities come from receiving orders and issuing deliveries." />
+        <Empty title={tr.nothingRegisteredYet} body={tr.registerThingsBuyQuantities} />
       ) : (
         <>
           <p className="text-sm text-slate-500 dark:text-slate-400">{filtered.length} of {items.length} item{items.length === 1 ? "" : "s"}.</p>
@@ -198,12 +202,12 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
             <StudioDataGrid
               rows={filtered}
               getRowId={(r) => r.id}
-              ariaLabel="Registered items"
-              emptyLabel="No items match that search."
+              ariaLabel={tr.registeredItems}
+              emptyLabel={tr.noItemsMatchSearch}
               emptyIcon="package"
               columns={[
                 {
-                  field: "name", headerName: "Item", minWidth: 200, flex: 1.4,
+                  field: "name", headerName: tr.item, minWidth: 200, flex: 1.4,
                   renderCell: ({ row }) => (
                     <span className="min-w-0">
                       <span className="num text-xs text-slate-400">{row.sku}</span>
@@ -213,11 +217,11 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
                   ),
                 },
                 {
-                  field: "vendorName", headerName: "Vendor", minWidth: 130, flex: 0.9,
+                  field: "vendorName", headerName: tr.vendor, minWidth: 130, flex: 0.9,
                   renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.vendorName || "—"}</span>,
                 },
                 {
-                  field: "itemType", headerName: "Type", minWidth: 120, flex: 0.8,
+                  field: "itemType", headerName: tr.type, minWidth: 120, flex: 0.8,
                   renderCell: ({ row }) => (
                     <span className="text-slate-600 dark:text-slate-300">
                       {row.itemType || "—"}
@@ -228,7 +232,7 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
                   ),
                 },
                 {
-                  field: "scope", headerName: "Scope", minWidth: 140, flex: 0.9, sortable: false,
+                  field: "scope", headerName: tr.scope, minWidth: 140, flex: 0.9, sortable: false,
                   renderCell: ({ row }) => (
                     <span className="flex flex-wrap gap-1">
                       {(row.scope || []).length === 0 ? <span className="text-slate-400">—</span> : row.scope.map((action) => (
@@ -238,12 +242,12 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
                   ),
                 },
                 {
-                  field: "unitCost", headerName: "Unit cost", type: "number", minWidth: 110, flex: 0.7,
+                  field: "unitCost", headerName: tr.unitCost, type: "number", minWidth: 110, flex: 0.7,
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{row.unitCost > 0 ? money(row.unitCost) : "—"}</span>,
                 },
                 {
-                  field: "onHand", headerName: "On hand", type: "number", minWidth: 110, flex: 0.7,
+                  field: "onHand", headerName: tr.hand, type: "number", minWidth: 110, flex: 0.7,
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => (
                     <span className="font-600 text-slate-900 dark:text-white">
@@ -256,8 +260,8 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => (canManage ? (
                     <span className="inline-flex items-center gap-2">
-                      <button className={btnGhost} onClick={() => setForm({ row })}>Edit</button>
-                      <button className={btnGhost} disabled={busy} onClick={() => send("items", "DELETE", { id: row.id })}>Delete</button>
+                      <button className={btnGhost} onClick={() => setForm({ row })}>{tr.edit}</button>
+                      <button className={btnGhost} disabled={busy} onClick={() => send("items", "DELETE", { id: row.id })}>{tr.delete}</button>
                     </span>
                   ) : null),
                 },
@@ -276,14 +280,15 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
 const MAX_ITEM_IMAGE = 500 * 1024;
 
 function ItemImage({ value, onChange }) {
+  const tr = inventoryDict(useStudioLocale());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const fileRef = useRef(null);
 
   async function pick(file) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) { setErr("Choose an image file."); return; }
-    if (file.size > MAX_ITEM_IMAGE) { setErr("Images must be 500 KB or smaller."); return; }
+    if (!file.type.startsWith("image/")) { setErr(tr.chooseImageFile); return; }
+    if (file.size > MAX_ITEM_IMAGE) { setErr(tr.imagesMust500Kb); return; }
     setBusy(true); setErr("");
     try {
       const form = new FormData();
@@ -292,7 +297,7 @@ function ItemImage({ value, onChange }) {
       const media = await up.json().catch(() => ({}));
       if (!up.ok || !media.url) throw new Error("upload");
       onChange(media.url);
-    } catch { setErr("We couldn't upload that image."); }
+    } catch { setErr(tr.couldnUploadImage); }
     finally { setBusy(false); }
   }
 
@@ -301,7 +306,7 @@ function ItemImage({ value, onChange }) {
   // and never matched the field beside it. Wrapped in <Field> so its box lines
   // up with the other controls in the grid.
   return (
-    <Field label={<>Image <span className="font-400 normal-case text-slate-400">(500 KB max)</span></>} filled error={err || undefined}>
+    <Field label={<>{tr.image} <span className="font-400 normal-case text-slate-400">(500 KB max)</span></>} filled error={err || undefined}>
       <div className="flex items-center gap-3 px-3.5 pb-1.5 pt-5">
         <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-md border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -327,6 +332,7 @@ function ItemImage({ value, onChange }) {
 }
 
 function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "", busy, onSave, onCancel }) {
+  const tr = inventoryDict(useStudioLocale());
   const [f, setF] = useState({
     name: row?.name || "", sku: row?.sku || "", modelNumber: row?.modelNumber || "",
     unit: row?.unit || units[0], vendorId: row?.vendorId || "",
@@ -374,21 +380,21 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
           options={types.map((t) => ({ value: t.type, label: `${t.type}${t.weeks !== "" && t.weeks != null ? ` (${t.weeks} wk)` : ""}` }))}
           hint={!f.vendorId ? "Pick a vendor first." : types.length === 0 ? "This vendor has no item types yet — add them on the vendor." : undefined} />
         <div className="grid grid-cols-[1fr,7.5rem] gap-3">
-          <Field label="Unit cost" type="number" min="0" value={f.unitCost} onChange={(v) => setF((s) => ({ ...s, unitCost: v }))} inputProps={{ step: "0.01" }} />
+          <Field label={tr.unitCost} type="number" min="0" value={f.unitCost} onChange={(v) => setF((s) => ({ ...s, unitCost: v }))} inputProps={{ step: "0.01" }} />
           {/* What that cost is IN. Blank means the studio's own currency, so an
               item priced in the studio's money needs nothing said about it. */}
-          <Field label="Currency" as="select" required value={f.currency} onChange={(v) => setF((s) => ({ ...s, currency: v }))}
-            options={[{ value: "", label: "Studio" }, ...CURRENCIES_FROM_EXCHANGE_API.map((c) => ({ value: c.code, label: c.code }))]} />
+          <Field label={tr.currency} as="select" required value={f.currency} onChange={(v) => setF((s) => ({ ...s, currency: v }))}
+            options={[{ value: "", label: tr.studio }, ...CURRENCIES_FROM_EXCHANGE_API.map((c) => ({ value: c.code, label: c.code }))]} />
         </div>
-        <Field label="Reorder level" type="number" min="0" value={f.reorderLevel} onChange={(v) => setF((s) => ({ ...s, reorderLevel: v }))} />
+        <Field label={tr.reorderLevel} type="number" min="0" value={f.reorderLevel} onChange={(v) => setF((s) => ({ ...s, reorderLevel: v }))} />
         {/* Only for an item priced in somebody else's money — and then both are
             asked for, because "we didn't say" and "it was nothing" are
             different answers and only one of them is worth storing. */}
         {foreign && (
           <>
-            <Field label={<>Shipping charges <span className="font-400 normal-case text-slate-400">({f.currency})</span></>}
+            <Field label={<>{tr.shippingCharges} <span className="font-400 normal-case text-slate-400">({f.currency})</span></>}
               required type="number" min="0" value={f.shippingCharges} onChange={(v) => setF((s) => ({ ...s, shippingCharges: v }))} inputProps={{ step: "0.01" }} />
-            <Field label={<>Customs charges <span className="font-400 normal-case text-slate-400">({f.currency})</span></>}
+            <Field label={<>{tr.customsCharges} <span className="font-400 normal-case text-slate-400">({f.currency})</span></>}
               required type="number" min="0" value={f.customsCharges} onChange={(v) => setF((s) => ({ ...s, customsCharges: v }))} inputProps={{ step: "0.01" }} />
           </>
         )}
@@ -396,9 +402,9 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
       </div>
 
       <div className="mt-4">
-        <label className={label}>Scope <span className="font-400 normal-case text-slate-400">(which service actions does this need once it lands?)</span></label>
+        <label className={label}>{tr.scope} <span className="font-400 normal-case text-slate-400">(which service actions does this need once it lands?)</span></label>
         {serviceActions.length === 0 ? (
-          <p className="text-xs text-slate-400">No service actions yet — add them in Studio Settings.</p>
+          <p className="text-xs text-slate-400">{tr.noServiceActionsYet}</p>
         ) : (
           <div className="flex flex-wrap gap-3">
             {serviceActions.map((action) => (
@@ -416,11 +422,11 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
         )}
       </div>
 
-      <div className="mt-4"><Field label="Notes" as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
+      <div className="mt-4"><Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !f.name.trim() || missingCharges} onClick={() => onSave(f)}>{busy ? "Saving…" : "Save item"}</button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
@@ -428,6 +434,7 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
 
 // ---- stock management ------------------------------------------------------
 function Stock({ items, movements, canManage, busy, send }) {
+  const tr = inventoryDict(useStudioLocale());
   const [tab, setTab] = useState("onhand");
   const [query, setQuery] = useState("");
   const [adjusting, setAdjusting] = useState(null);
@@ -458,10 +465,10 @@ function Stock({ items, movements, canManage, busy, send }) {
           ))}
         </div>
         {tab === "onhand" && items.length > 0 && (
-          <Field label="Search" type="search" hint="Item, vendor or serial"
+          <Field label={tr.search} type="search" hint={tr.itemVendorSerial}
             value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
         )}
-        {!canManage && <span className="ms-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">View only</span>}
+        {!canManage && <span className="ms-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
 
       {adjusting && (
@@ -475,7 +482,7 @@ function Stock({ items, movements, canManage, busy, send }) {
 
       {serialsFor && (
         <Dialog title={`Serial numbers — ${serialsFor.name}`}
-          description="Which units are held. On-hand still comes from the ledger; this records the individual pieces behind it."
+          description={tr.whichUnitsHeldHand}
           onClose={closeSerials} width="max-w-[620px]">
           <SerialsForm item={serialsFor} busy={busy} canManage={canManage} onCancel={closeSerials}
             onSave={async (serials) => { await send("items", "PUT", { id: serialsFor.id, serials }); }} />
@@ -485,11 +492,11 @@ function Stock({ items, movements, canManage, busy, send }) {
       {tab === "movements" ? (
         <Movements rows={movements} />
       ) : items.length === 0 ? (
-        <Empty title="Nothing in stock yet" body="Register items first, then receive an order against them — that is what brings stock in." />
+        <Empty title={tr.nothingStockYet} body={tr.registerItemsFirstThen} />
       ) : (
         <section className={panel}>
           {filtered.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-400">Nothing matches that search.</p>
+            <p className="py-10 text-center text-sm text-slate-400">{tr.nothingMatchesSearch}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px] border-collapse text-sm">
@@ -508,7 +515,7 @@ function Stock({ items, movements, canManage, busy, send }) {
                       <td className={`${td} ps-2`}>
                         <span className="font-mono text-xs text-slate-400">{i.sku}</span>
                         <span className="ms-2 font-600 text-slate-900 dark:text-white">{i.name}</span>
-                        {i.low && <span className="ms-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-600 text-amber-700 dark:text-amber-300">Low</span>}
+                        {i.low && <span className="ms-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-600 text-amber-700 dark:text-amber-300">{tr.low}</span>}
                       </td>
                       <td className={`${td} ps-2 text-slate-600 dark:text-slate-300`}>{i.vendorName || "—"}</td>
                       <td className={`${td} ps-2`}>
@@ -533,8 +540,8 @@ function Stock({ items, movements, canManage, busy, send }) {
                       <td className={`${td} ps-2 text-end text-slate-500 dark:text-slate-400`}>{i.reorderLevel > 0 ? num(i.reorderLevel) : "—"}</td>
                       <td className={`${td} text-end`}>
                         <span className="inline-flex flex-wrap justify-end gap-2">
-                          <button className={btnGhost} onClick={() => setSerialsFor(i)}>Serials</button>
-                          {canManage && <button className={btnGhost} onClick={() => setAdjusting(i)}>Adjust</button>}
+                          <button className={btnGhost} onClick={() => setSerialsFor(i)}>{tr.serials}</button>
+                          {canManage && <button className={btnGhost} onClick={() => setAdjusting(i)}>{tr.adjust}</button>}
                         </span>
                       </td>
                     </tr>
@@ -550,31 +557,33 @@ function Stock({ items, movements, canManage, busy, send }) {
 }
 
 function AdjustForm({ item, busy, onSave, onCancel }) {
+  const tr = inventoryDict(useStudioLocale());
   const [qty, setQty] = useState("");
   const [reason, setReason] = useState("");
   const after = Number(item.onHand) + (Number(qty) || 0);
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Quantity" required type="number" value={qty} onChange={(v) => setQty(v)} />
-        <Field label="Reason" value={reason} onChange={(v) => setReason(v)} hint="e.g. stock-take correction" />
+        <Field label={tr.quantity} required type="number" value={qty} onChange={(v) => setQty(v)} />
+        <Field label={tr.reason} value={reason} onChange={(v) => setReason(v)} hint={tr.eGStockTake} />
       </div>
       {qty !== "" && (
         <p className={`mt-3 text-sm ${after < 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
-          {after < 0 ? "That would take on-hand below zero." : <>On hand would become <span className="font-600">{num(after)} {item.unit}</span>.</>}
+          {after < 0 ? "That would take on-hand below zero." : <>{tr.handWouldBecome} <span className="font-600">{num(after)} {item.unit}</span>.</>}
         </p>
       )}
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || qty === "" || Number(qty) === 0} onClick={() => onSave({ qty, reason })}>
           {busy ? "Saving…" : "Record adjustment"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
 }
 
 function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
+  const tr = inventoryDict(useStudioLocale());
   // RESERVED is derived on the server from what the project sheets hold —
   // never a flag on the item, so releasing a sheet line frees the unit with
   // nothing here to remember to undo.
@@ -595,16 +604,16 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
     <>
       <p className="text-sm text-slate-500 dark:text-slate-400">
         {serials.length} recorded against <span className="font-600">{num(item.onHand)} {item.unit}</span> on hand
-        {reserved.length > 0 && <>, <span className="font-600">{reserved.length} reserved</span> to project sheets</>}.
-        {item.serialMismatch && <span className="text-amber-600 dark:text-amber-400"> They disagree — stock has moved without its serial being noted.</span>}
+        {reserved.length > 0 && <>, <span className="font-600">{reserved.length} reserved</span> {tr.projectSheets}</>}.
+        {item.serialMismatch && <span className="text-amber-600 dark:text-amber-400"> {tr.theyDisagreeStockMoved}</span>}
       </p>
 
       {canManage && (
         <div className="mt-4 flex gap-2">
-          <Field label="Serial(s)" hint="Comma or newline separated" value={draft} className="flex-1"
+          <Field label={tr.serial} hint={tr.commaNewlineSeparated} value={draft} className="flex-1"
             onChange={(v) => setDraft(v)}
             inputProps={{ onKeyDown: (e) => { if (e.key === "Enter") { e.preventDefault(); add(); } } }} />
-          <button type="button" className={btnGhost} onClick={add}>Add</button>
+          <button type="button" className={btnGhost} onClick={add}>{tr.add}</button>
         </div>
       )}
 
@@ -638,15 +647,16 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
 
       <div className="mt-5 flex gap-3">
         {canManage && <button className={btn} disabled={busy} onClick={() => onSave(serials)}>{busy ? "Saving…" : "Save serials"}</button>}
-        <button className={btnGhost} onClick={onCancel}>Close</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.close}</button>
       </div>
     </>
   );
 }
 
 function Movements({ rows }) {
+  const tr = inventoryDict(useStudioLocale());
   if (rows.length === 0) {
-    return <Empty title="No stock movements yet" body="Every receipt, issue and adjustment lands here — this ledger is where on-hand quantities come from." />;
+    return <Empty title={tr.noStockMovementsYet} body={tr.everyReceiptIssueAdjustment} />;
   }
   return (
     <section className={panel}>
@@ -681,6 +691,7 @@ function Movements({ rows }) {
 
 // ---- vendors ---------------------------------------------------------------
 function Vendors({ rows, items, canManage, busy, send }) {
+  const tr = inventoryDict(useStudioLocale());
   const [form, setForm] = useState(null);
   const closeForm = useCallback(() => setForm(null), []);
   const itemCount = useMemo(() => {
@@ -691,11 +702,11 @@ function Vendors({ rows, items, canManage, busy, send }) {
 
   return (
     <>
-      <Toolbar canManage={canManage} label="Add vendor" onAdd={() => setForm({ row: null })} />
+      <Toolbar canManage={canManage} label={tr.addVendor} onAdd={() => setForm({ row: null })} />
 
       {form && (
         <Dialog title={form.row ? `Edit ${form.row.name}` : "Add vendor"}
-          description="Who you buy from, and what they supply — the item types here are what an item picks its delivery estimate from."
+          description={tr.whoBuyWhatThey}
           onClose={closeForm}>
           <VendorForm row={form.row} busy={busy} onCancel={closeForm}
             onSave={async (v) => { if (await send("vendors", form.row ? "PUT" : "POST", form.row ? { ...v, id: form.row.id } : v)) setForm(null); }} />
@@ -703,7 +714,7 @@ function Vendors({ rows, items, canManage, busy, send }) {
       )}
 
       {rows.length === 0 ? (
-        <Empty title="No vendors yet" body="Vendors are who you buy from. Items and orders point at them." />
+        <Empty title={tr.noVendorsYet} body={tr.vendorsWhoBuyItems} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {rows.map((v) => (
@@ -717,15 +728,15 @@ function Vendors({ rows, items, canManage, busy, send }) {
                 </div>
                 {canManage && (
                   <span className="flex shrink-0 gap-2">
-                    <button className={btnGhost} onClick={() => setForm({ row: v })}>Edit</button>
-                    <button className={btnGhost} disabled={busy} onClick={() => send("vendors", "DELETE", { id: v.id })}>Delete</button>
+                    <button className={btnGhost} onClick={() => setForm({ row: v })}>{tr.edit}</button>
+                    <button className={btnGhost} disabled={busy} onClick={() => send("vendors", "DELETE", { id: v.id })}>{tr.delete}</button>
                   </span>
                 )}
               </div>
               <p className="mt-2 text-xs text-slate-400">{itemCount[v.id] || 0} registered item{(itemCount[v.id] || 0) === 1 ? "" : "s"}</p>
               {(v.itemTypes || []).length > 0 && (
                 <div className="mt-3">
-                  <p className={microLabel}>Supplies</p>
+                  <p className={microLabel}>{tr.supplies}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {v.itemTypes.map((t) => (
                       <span key={t.type} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-600 text-slate-700 dark:bg-white/5 dark:text-slate-200">
@@ -745,6 +756,7 @@ function Vendors({ rows, items, canManage, busy, send }) {
 }
 
 function VendorForm({ row, busy, onSave, onCancel }) {
+  const tr = inventoryDict(useStudioLocale());
   const [f, setF] = useState({
     name: row?.name || "", contactName: row?.contactName || "", email: row?.email || "",
     phone: row?.phone || "", notes: row?.notes || "",
@@ -755,29 +767,29 @@ function VendorForm({ row, busy, onSave, onCancel }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Name" required value={f.name} onChange={(v) => setF((s) => ({ ...s, name: v }))} />
-        <Field label="Contact" value={f.contactName} onChange={(v) => setF((s) => ({ ...s, contactName: v }))} />
-        <Field label="Email" type="email" value={f.email} onChange={(v) => setF((s) => ({ ...s, email: v }))} />
-        <Field label="Phone" value={f.phone} onChange={(v) => setF((s) => ({ ...s, phone: v }))} />
+        <Field label={tr.name} required value={f.name} onChange={(v) => setF((s) => ({ ...s, name: v }))} />
+        <Field label={tr.contact} value={f.contactName} onChange={(v) => setF((s) => ({ ...s, contactName: v }))} />
+        <Field label={tr.email} type="email" value={f.email} onChange={(v) => setF((s) => ({ ...s, email: v }))} />
+        <Field label={tr.phone} value={f.phone} onChange={(v) => setF((s) => ({ ...s, phone: v }))} />
       </div>
 
       <div className="mt-5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className={microLabel}>Item types</p>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">What this vendor supplies, and how long each kind takes. An item picking a type takes the estimate with it.</p>
+            <p className={microLabel}>{tr.itemTypes}</p>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{tr.whatVendorSuppliesHow}</p>
           </div>
-          <button type="button" className={btnGhost} onClick={() => setTypes((cur) => [...cur, { type: "", weeks: "" }])}>Add type</button>
+          <button type="button" className={btnGhost} onClick={() => setTypes((cur) => [...cur, { type: "", weeks: "" }])}>{tr.addType}</button>
         </div>
         {types.length === 0 ? (
-          <p className="mt-2 text-xs text-slate-400">None yet.</p>
+          <p className="mt-2 text-xs text-slate-400">{tr.noneYet}</p>
         ) : (
           <div className="mt-2 space-y-2">
             {types.map((t, i) => (
               <div key={i} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
-                <Field label="Type" value={t.type} onChange={(v) => setType(i, "type", v)} className="flex-1" />
-                <Field label="Weeks" type="number" min="0" value={t.weeks} onChange={(v) => setType(i, "weeks", v)} className="w-32" />
-                <button type="button" aria-label="Remove" title="Remove"
+                <Field label={tr.type} value={t.type} onChange={(v) => setType(i, "type", v)} className="flex-1" />
+                <Field label={tr.weeks} type="number" min="0" value={t.weeks} onChange={(v) => setType(i, "weeks", v)} className="w-32" />
+                <button type="button" aria-label={tr.remove} title={tr.remove}
                   className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-white/5"
                   onClick={() => setTypes((cur) => cur.filter((_, n) => n !== i))}>
                   <Icon name="close" className="h-4 w-4" />
@@ -788,11 +800,11 @@ function VendorForm({ row, busy, onSave, onCancel }) {
         )}
       </div>
 
-      <div className="mt-4"><Field label="Notes" as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
+      <div className="mt-4"><Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !f.name.trim()} onClick={() => onSave({ ...f, itemTypes: types })}>{busy ? "Saving…" : "Save vendor"}</button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
@@ -803,14 +815,16 @@ function VendorForm({ row, busy, onSave, onCancel }) {
 // it. Grouped by project rather than listed flat, because the question this
 // screen answers is always "where is this project's material?".
 function StatusBadge({ code, delivered }) {
+  const tr = inventoryDict(useStudioLocale());
   // Waybill tone is chosen by the delivered/exception flags, not by the raw code,
   // so we hand StatusPill a synthesised token (kind "awb") and the code's label.
-  if (!code) return <StatusPill kind="awb" status="notmoved" label="Not moved yet" />;
+  if (!code) return <StatusPill kind="awb" status="notmoved" label={tr.notMovedYet} />;
   const status = delivered ? "delivered" : isException(code) ? "exception" : "intransit";
   return <StatusPill kind="awb" status={status} label={statusLabel(code)} title={AWB_STATUS_BY_CODE[code]?.desc || ""} />;
 }
 
 function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, busy, send }) {
+  const tr = inventoryDict(useStudioLocale());
   const [raw, setRaw] = useState("");
   const [detail, setDetail] = useState(null);
   const [registry, setRegistry] = useState(false);
@@ -840,16 +854,16 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
       <section className={panel}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className={h2}>AWB Tracking</h2>
+            <h2 className={h2}>{tr.awbTracking}</h2>
             <p className={sub}>Follow air freight by its waybill. Eleven digits: a 3-digit carrier prefix, a 7-digit serial and a check digit.</p>
           </div>
-          {canManage && <button className={btnGhost} onClick={() => setRegistry(true)}>Airline registry</button>}
+          {canManage && <button className={btnGhost} onClick={() => setRegistry(true)}>{tr.airlineRegistry}</button>}
         </div>
 
         {canManage && (
           <div className="mt-4">
             <div className="flex flex-wrap gap-2">
-              <Field label="AWB number" hint="Prefix + 8 digits" value={raw} className="sm:max-w-xs"
+              <Field label={tr.awbNumber} hint={tr.prefix8Digits} value={raw} className="sm:max-w-xs"
                 onChange={(v) => setRaw(v)}
                 inputProps={{ onKeyDown: (e) => { if (e.key === "Enter" && parsed?.valid) { e.preventDefault(); track(); } } }} />
               <button className={btn} disabled={busy || !parsed?.valid} onClick={track}>{busy ? "Adding…" : "Track"}</button>
@@ -866,7 +880,7 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
       </section>
 
       {registry && (
-        <Dialog title="Airline registry" description="The 3-digit prefix on a waybill is what identifies its carrier." onClose={closeRegistry} width="max-w-[640px]">
+        <Dialog title={tr.airlineRegistry} description="The 3-digit prefix on a waybill is what identifies its carrier." onClose={closeRegistry} width="max-w-[640px]">
           <Airlines rows={airlines} busy={busy} onCancel={closeRegistry}
             onSave={(method, payload) => send("awb/airlines", method, payload)} />
         </Dialog>
@@ -883,7 +897,7 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
       )}
 
       {shipments.length === 0 ? (
-        <Empty title="Nothing in the air" body="Paste a waybill number above to start following a shipment. Its milestones build up as they are recorded." />
+        <Empty title={tr.nothingAir} body={tr.pasteWaybillNumberAbove} />
       ) : (
         <section className={panel}>
           <div className="overflow-x-auto">
@@ -918,9 +932,9 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
                     <td className={`${td} text-end`}>
                       <span className="inline-flex gap-2">
                         {s.trackUrl && (
-                          <a href={s.trackUrl} target="_blank" rel="noreferrer" className={btnGhost} title="Open the carrier's own tracking page">Carrier</a>
+                          <a href={s.trackUrl} target="_blank" rel="noreferrer" className={btnGhost} title={tr.openCarrierOwnTracking}>{tr.carrier}</a>
                         )}
-                        <button className={btnGhost} onClick={() => setDetail(s)}>Open</button>
+                        <button className={btnGhost} onClick={() => setDetail(s)}>{tr.open}</button>
                       </span>
                     </td>
                   </tr>
@@ -935,6 +949,7 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
 }
 
 function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav, onSave, onDelete, onClose }) {
+  const tr = inventoryDict(useStudioLocale());
   const [code, setCode] = useState("RCS");
   const [at, setAt] = useState("");
   const [station, setStation] = useState("");
@@ -944,22 +959,22 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-3">
-        <div><label className={label}>Carrier</label><input className={inputRO} readOnly value={s.airlineName || `Prefix ${s.prefix}`} /></div>
-        <div><label className={label}>Route</label><input className={inputRO} readOnly value={`${s.origin || "—"} → ${s.destination || "—"}`} /></div>
-        <div><label className={label}>Consignment</label><input className={inputRO} readOnly value={`${s.pieces || 0} pcs${s.weightKg > 0 ? ` · ${num(s.weightKg)} kg` : ""}`} /></div>
+        <div><label className={label}>{tr.carrier}</label><input className={inputRO} readOnly value={s.airlineName || `Prefix ${s.prefix}`} /></div>
+        <div><label className={label}>{tr.route}</label><input className={inputRO} readOnly value={`${s.origin || "—"} → ${s.destination || "—"}`} /></div>
+        <div><label className={label}>{tr.consignment}</label><input className={inputRO} readOnly value={`${s.pieces || 0} pcs${s.weightKg > 0 ? ` · ${num(s.weightKg)} kg` : ""}`} /></div>
       </div>
       {s.projectId && (
         <p className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-600 uppercase tracking-wide">For</span>
-          <RecordLink href={linkIf(nav?.projects, linkToProject(slug, s.projectId))} title="Open the project">
+          <span className="font-600 uppercase tracking-wide">{tr.for}</span>
+          <RecordLink href={linkIf(nav?.projects, linkToProject(slug, s.projectId))} title={tr.openProject}>
             {projects.find((p) => p.id === s.projectId)?.number || "project"}
           </RecordLink>
         </p>
       )}
 
-      <p className={`${microLabel} mt-5`}>Timeline</p>
+      <p className={`${microLabel} mt-5`}>{tr.timeline}</p>
       {(s.movements || []).length === 0 ? (
-        <p className="text-sm text-slate-400">Nothing recorded yet.</p>
+        <p className="text-sm text-slate-400">{tr.nothingRecordedYet}</p>
       ) : (
         <ol className="space-y-2">
           {s.movements.map((m) => (
@@ -980,14 +995,14 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
 
       {canManage && (
         <div className="mt-5 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-4 dark:border-white/15">
-          <p className={microLabel}>Record a milestone</p>
+          <p className={microLabel}>{tr.recordMilestone}</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Status" as="select" required value={code} onChange={(v) => setCode(v)}
+            <Field label={tr.status} as="select" required value={code} onChange={(v) => setCode(v)}
               options={statuses.map((st) => ({ value: st.code, label: `${st.code} — ${st.label}` }))} />
-            <Field label={<>When <span className="font-400 normal-case text-slate-400">(now if blank)</span></>} type="datetime-local" value={at} onChange={(v) => setAt(v)} />
-            <Field label="Station" value={station} onChange={(v) => setStation(v.toUpperCase())} hint="3-letter airport code" />
-            <Field label="Flight" value={flightNo} onChange={(v) => setFlightNo(v.toUpperCase())} hint="Airline code + number" />
-            <Field label="Note" value={note} onChange={(v) => setNote(v)} className="sm:col-span-2" />
+            <Field label={<>{tr.when} <span className="font-400 normal-case text-slate-400">(now if blank)</span></>} type="datetime-local" value={at} onChange={(v) => setAt(v)} />
+            <Field label={tr.station} value={station} onChange={(v) => setStation(v.toUpperCase())} hint="3-letter airport code" />
+            <Field label={tr.flight} value={flightNo} onChange={(v) => setFlightNo(v.toUpperCase())} hint={tr.airlineCodeNumber} />
+            <Field label={tr.note} value={note} onChange={(v) => setNote(v)} className="sm:col-span-2" />
           </div>
           <p className="mt-2 text-xs text-slate-400">{AWB_STATUS_BY_CODE[code]?.desc}</p>
           <div className="mt-3">
@@ -1001,15 +1016,16 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
 
       <div className="mt-6 flex items-center justify-between gap-3">
         {canManage
-          ? <button className="text-sm font-600 text-rose-600 hover:underline dark:text-rose-400" onClick={onDelete}>Stop tracking</button>
+          ? <button className="text-sm font-600 text-rose-600 hover:underline dark:text-rose-400" onClick={onDelete}>{tr.stopTracking}</button>
           : <span />}
-        <button className={btnGhost} onClick={onClose}>Close</button>
+        <button className={btnGhost} onClick={onClose}>{tr.close}</button>
       </div>
     </>
   );
 }
 
 function Airlines({ rows, busy, onSave, onCancel }) {
+  const tr = inventoryDict(useStudioLocale());
   const [form, setForm] = useState(null);
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => {
@@ -1021,21 +1037,21 @@ function Airlines({ rows, busy, onSave, onCancel }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Field label="Search" type="search" hint="Prefix, name or IATA" value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
-        <button className={btn} onClick={() => setForm({ prefix: "", name: "", iata: "", trackUrlTemplate: "" })}>Add airline</button>
+        <Field label={tr.search} type="search" hint={tr.prefixNameIata} value={query} onChange={(v) => setQuery(v)} className="sm:max-w-xs" />
+        <button className={btn} onClick={() => setForm({ prefix: "", name: "", iata: "", trackUrlTemplate: "" })}>{tr.addAirline}</button>
       </div>
 
       {form && (
         <div className="mt-4 rounded-xl border border-brand-500/40 bg-[var(--geex-inset)] p-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Prefix (3 digits)" value={form.prefix} hint="The airline's 3-digit prefix"
+            <Field label={tr.prefix3Digits} value={form.prefix} hint={tr.airline3DigitPrefix}
               onChange={(v) => setForm((s) => ({ ...s, prefix: v.replace(/\D/g, "").slice(0, 3) }))} />
-            <Field label="IATA code" value={form.iata} hint="2-letter airline code"
+            <Field label={tr.iataCode} value={form.iata} hint="2-letter airline code"
               onChange={(v) => setForm((s) => ({ ...s, iata: v.toUpperCase().slice(0, 3) }))} />
-            <Field label="Airline name" value={form.name} className="sm:col-span-2"
+            <Field label={tr.airlineName} value={form.name} className="sm:col-span-2"
               onChange={(v) => setForm((s) => ({ ...s, name: v }))} />
             <Field className="sm:col-span-2" value={form.trackUrlTemplate} hint="https://airline.com/track?awb={SERIAL}"
-              label={<>Tracking URL template <span className="font-400 normal-case text-slate-400">(tokens {"{AWB} {PREFIX} {SERIAL}"})</span></>}
+              label={<>{tr.trackingUrlTemplate} <span className="font-400 normal-case text-slate-400">(tokens {"{AWB} {PREFIX} {SERIAL}"})</span></>}
               onChange={(v) => setForm((s) => ({ ...s, trackUrlTemplate: v }))} />
           </div>
           <div className="mt-4 flex gap-3">
@@ -1043,13 +1059,13 @@ function Airlines({ rows, busy, onSave, onCancel }) {
               onClick={async () => { if (await onSave(form.id ? "PUT" : "POST", form)) setForm(null); }}>
               {busy ? "Saving…" : "Save airline"}
             </button>
-            <button className={btnGhost} onClick={() => setForm(null)}>Cancel</button>
+            <button className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
           </div>
         </div>
       )}
 
       {rows.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-400">No airlines yet. A waybill still tracks without one — it just shows the bare prefix.</p>
+        <p className="mt-4 text-sm text-slate-400">{tr.noAirlinesYetWaybill}</p>
       ) : (
         <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
           {filtered.map((a) => (
@@ -1062,15 +1078,15 @@ function Airlines({ rows, busy, onSave, onCancel }) {
                 {a.trackUrlTemplate && <p className="truncate text-xs text-slate-400">{a.trackUrlTemplate}</p>}
               </div>
               <span className="flex gap-2">
-                <button className={btnGhost} onClick={() => setForm({ ...a })}>Edit</button>
-                <button className={btnGhost} disabled={busy} onClick={() => onSave("DELETE", { id: a.id })}>Delete</button>
+                <button className={btnGhost} onClick={() => setForm({ ...a })}>{tr.edit}</button>
+                <button className={btnGhost} disabled={busy} onClick={() => onSave("DELETE", { id: a.id })}>{tr.delete}</button>
               </span>
             </li>
           ))}
         </ul>
       )}
 
-      <div className="mt-5 flex justify-end"><button className={btnGhost} onClick={onCancel}>Close</button></div>
+      <div className="mt-5 flex justify-end"><button className={btnGhost} onClick={onCancel}>{tr.close}</button></div>
     </>
   );
 }

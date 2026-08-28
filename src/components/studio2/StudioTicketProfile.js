@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { miscDict } from "@/shared/studio/misc";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -51,6 +53,7 @@ const btnApprove = `${btnAction} bg-emerald-600 text-white hover:bg-emerald-700`
 const btnApproved = `${btnAction} bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300`;
 
 export default function StudioTicketProfile({ slug, ticketId }) {
+  const tr = miscDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,7 +65,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/sales`, { cache: "no-store" });
-    if (!res.ok) { setError("You don't have access to Sales in this studio."); return; }
+    if (!res.ok) { setError(tr.accessSalesStudio); return; }
     setData(await res.json());
   }, [slug]);
 
@@ -171,18 +174,18 @@ export default function StudioTicketProfile({ slug, ticketId }) {
       body: JSON.stringify({ id: ticketId, addComment: comment }),
     });
     setBusy(false);
-    if (!res.ok) { setError("That comment didn't save."); return; }
+    if (!res.ok) { setError(tr.commentDidnSave); return; }
     setComment("");
     await load();
   }
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500">Loading ticket…</p>;
+  if (!data) return <p className="text-sm text-slate-500">{tr.loadingTicket}</p>;
   if (!ticket) {
     return (
       <div className="space-y-4">
         <Back slug={slug} />
-        <p className={`${panel} text-sm text-slate-500`}>That ticket no longer exists.</p>
+        <p className={`${panel} text-sm text-slate-500`}>{tr.ticketNoLongerExists}</p>
       </div>
     );
   }
@@ -212,14 +215,14 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   // The timeline is built from what the ticket already records, so it cannot
   // drift from the row: no separate event log to keep in step.
   const events = [
-    { at: ticket.createdAt, label: "Ticket created" },
+    { at: ticket.createdAt, label: tr.ticketCreated },
     ...mine.map((q) => ({
       at: q.createdAt,
       label: `Quotation ${q.number || ""}${Number(q.revision) > 1 ? ` Rev ${q.revision}` : ""} raised`.replace(/\s+/g, " ").trim(),
     })),
-    ...(approval?.at ? [{ at: approval.at, label: "Quotation approved" }] : []),
+    ...(approval?.at ? [{ at: approval.at, label: tr.quotationApproved }] : []),
     ...(ticket.comments || []).map((c) => ({ at: c.at, label: `Comment by ${aliasOf[c.byCollaboratorId] || "someone"}` })),
-    ...(ticket.updatedAt && ticket.updatedAt !== ticket.createdAt ? [{ at: ticket.updatedAt, label: "Last updated" }] : []),
+    ...(ticket.updatedAt && ticket.updatedAt !== ticket.createdAt ? [{ at: ticket.updatedAt, label: tr.lastUpdated }] : []),
   ].filter((e) => e.at).sort((a, b) => String(a.at).localeCompare(String(b.at)));
 
   return (
@@ -227,8 +230,8 @@ export default function StudioTicketProfile({ slug, ticketId }) {
       <Back slug={slug} title={ticket.title} ref_={ticket.ref} clientName={ticket.clientName} />
 
       {poOpen && (
-        <Dialog title="Submit PO to Finance"
-          description="What the client sent. Finance authorise it and issue the project number the work is billed under."
+        <Dialog title={tr.submitPoFinance}
+          description={tr.whatClientSentFinance}
           onClose={() => setPoOpen(false)} width="max-w-[560px]">
           <PoForm busy={busy} onCancel={() => setPoOpen(false)} onSave={submitPo} />
         </Dialog>
@@ -242,26 +245,26 @@ export default function StudioTicketProfile({ slug, ticketId }) {
         <div className="space-y-4">
           <section className={card}>
             <div className="flex items-start justify-between gap-3">
-              <h2 className={h2}>Ticket info</h2>
+              <h2 className={h2}>{tr.ticketInfo}</h2>
               {data.canManage && (
-                <button type="button" className={btnGhost} onClick={() => setEditing(true)}>Edit</button>
+                <button type="button" className={btnGhost} onClick={() => setEditing(true)}>{tr.edit}</button>
               )}
             </div>
             <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-              <DetailField label="Reference" value={ticket.ref} mono />
-              <DetailField label="Status" value={ticket.status} />
-              <DetailField label="Urgency" value={ticket.urgency} />
-              <DetailField label="Deadline" value={fmtDate(ticket.deadline)} />
-              <DetailField label="Industry" value={ticket.industry} />
-              <DetailField label="Owner" value={aliasOf[ticket.assignedToCollaboratorId] || "Unassigned"} />
+              <DetailField label={tr.reference} value={ticket.ref} mono />
+              <DetailField label={tr.status} value={ticket.status} />
+              <DetailField label={tr.urgency} value={ticket.urgency} />
+              <DetailField label={tr.deadline} value={fmtDate(ticket.deadline)} />
+              <DetailField label={tr.industry} value={ticket.industry} />
+              <DetailField label={tr.owner} value={aliasOf[ticket.assignedToCollaboratorId] || "Unassigned"} />
               {/* VALUE QUOTED: the latest quotation's total, never typed. */}
-              <DetailField label="Value Quoted" value={ticket.value ? <Money amount={ticket.value} currency={currency} /> : ""} />
-              <DetailField label="Client budget" value={ticket.clientBudget ? <Money amount={ticket.clientBudget} currency={currency} /> : ""} />
-              <DetailField label="Site" value={ticket.location?.name} />
-              <DetailField label="Country" value={ticket.location?.country} />
-              <DetailField label="City" value={ticket.location?.city} />
+              <DetailField label={tr.valueQuoted} value={ticket.value ? <Money amount={ticket.value} currency={currency} /> : ""} />
+              <DetailField label={tr.clientBudget} value={ticket.clientBudget ? <Money amount={ticket.clientBudget} currency={currency} /> : ""} />
+              <DetailField label={tr.site} value={ticket.location?.name} />
+              <DetailField label={tr.country} value={ticket.location?.country} />
+              <DetailField label={tr.city} value={ticket.location?.city} />
               {ticket.location?.url && (
-                <DetailField label="Map" value={<a href={ticket.location.url} target="_blank" rel="noopener noreferrer" className="text-brand-700 underline dark:text-brand-300">Open map</a>} />
+                <DetailField label={tr.map} value={<a href={ticket.location.url} target="_blank" rel="noopener noreferrer" className="text-brand-700 underline dark:text-brand-300">{tr.openMap}</a>} />
               )}
             </dl>
             {ticket.description && (
@@ -277,7 +280,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               document in the Sales-side viewer, which is a copy to read: the
               builder belongs to Technical and stays there. */}
           <section className={card}>
-            <h2 className={h2}>Quotations</h2>
+            <h2 className={h2}>{tr.quotations}</h2>
             {mine.length === 0 ? (
               <p className={sub}>
                 {ticket.rfqPending
@@ -297,7 +300,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-600 text-slate-500 dark:bg-white/10 dark:text-slate-300">Rev {q.revision}</span>
                       )}
                       {i === 0 && mine.length > 1 && (
-                        <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-700 text-brand-700 dark:text-brand-300">Latest</span>
+                        <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-700 text-brand-700 dark:text-brand-300">{tr.latest}</span>
                       )}
                       <span className="font-600 text-slate-900 dark:text-white">{q.status}</span>
                       {q.total ? <span className="text-slate-600 dark:text-slate-300">{money(q.total)}</span> : null}
@@ -311,9 +314,9 @@ export default function StudioTicketProfile({ slug, ticketId }) {
           </section>
 
           <section className={card}>
-            <h2 className={h2}>Comments</h2>
+            <h2 className={h2}>{tr.comments}</h2>
             {(ticket.comments || []).length === 0 ? (
-              <p className={sub}>Nothing said yet.</p>
+              <p className={sub}>{tr.nothingSaidYet}</p>
             ) : (
               <ul className="mt-3 space-y-3">
                 {ticket.comments.map((c) => (
@@ -329,7 +332,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
             {data.canManage && (
               <div className="mt-4 flex gap-3">
                 <Field
-                  label="Add a comment"
+                  label={tr.addComment}
                   value={comment}
                   onChange={(v) => setComment(v)}
                   className="flex-1"
@@ -352,7 +355,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
             <div className="space-y-2">
               {!canRequestRfq ? null : ticket.rfqPending ? (
                 <button type="button" className={btnActionOff} disabled
-                  title="Technical has this ticket. You can request another RFQ once the quotation comes back.">
+                  title={tr.technicalTicketCanRequest}>
                   Quotation Sent
                 </button>
               ) : (
@@ -377,7 +380,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                   </button>
                 ) : (
                   <button type="button" className={btnApprove} disabled={acting === "approval"}
-                    title="Send the latest quotation to the appointed Sales and Management approvers"
+                    title={tr.sendLatestQuotationAppointed}
                     onClick={() => act("approval")}>
                     {acting === "approval" ? "Sending…" : "Send for Approval"}
                   </button>
@@ -434,14 +437,14 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               <p className="mt-2 font-600 text-slate-900 dark:text-white">{ticket.clientName}</p>
             </div>
             <dl className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
-              <DetailField label="Contact person" value={contact.name} stacked />
-              <DetailField label="Number" value={contact.phone} stacked />
-              <DetailField label="Email" value={contact.email} stacked />
+              <DetailField label={tr.contactPerson} value={contact.name} stacked />
+              <DetailField label={tr.number} value={contact.phone} stacked />
+              <DetailField label={tr.email} value={contact.email} stacked />
             </dl>
           </section>
 
           <section className={card}>
-            <h2 className={`${h2} text-center`}>Ticket timeline</h2>
+            <h2 className={`${h2} text-center`}>{tr.ticketTimeline}</h2>
             <ol className="mt-4 space-y-3">
               {events.map((e, i) => (
                 <li key={`${e.at}-${i}`} className="flex items-center gap-3">
@@ -466,7 +469,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
       {editing && (
         <Dialog
           title={`Edit ${ticket.ref}`}
-          description="Fields marked * are required."
+          description={tr.fieldsMarkedRequired}
           onClose={() => setEditing(false)}
         >
           <TicketForm
@@ -483,7 +486,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                 method: "PUT", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...payload, id: ticket.id }),
               });
-              if (!res.ok) { setError("That didn't save."); return; }
+              if (!res.ok) { setError(tr.didnSave); return; }
               setEditing(false);
               await load();
             }}
@@ -495,9 +498,10 @@ export default function StudioTicketProfile({ slug, ticketId }) {
 }
 
 function Back({ slug, title, ref_, clientName }) {
+  const tr = miscDict(useStudioLocale());
   return (
     <div className="flex items-center gap-3">
-      <Link href={`/${slug}/sales-tickets`} className={btnGhost}>Back</Link>
+      <Link href={`/${slug}/sales-tickets`} className={btnGhost}>{tr.back}</Link>
       <div className="min-w-0">
         <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white">{title || "Ticket"}</h1>
         {ref_ && (
@@ -526,6 +530,7 @@ function DetailField({ label, value, mono, stacked }) {
 // Submit stays shut until one of them is there. The server refuses the same
 // pair, so a stale tab cannot get one past it.
 function PoForm({ busy, onCancel, onSave }) {
+  const tr = miscDict(useStudioLocale());
   const [description, setDescription] = useState("");
   const [file, setFile] = useState(null);
   const ready = Boolean(description.trim() || file);
@@ -544,7 +549,7 @@ function PoForm({ busy, onCancel, onSave }) {
       </div>
 
       <div className="mt-4">
-        <Field label="Description" as="textarea" hint="PO number, value, anything Finance needs to authorise it"
+        <Field label={tr.description} as="textarea" hint={tr.poNumberValueAnything}
           value={description} onChange={(v) => setDescription(v)} />
       </div>
 
@@ -558,7 +563,7 @@ function PoForm({ busy, onCancel, onSave }) {
         <button className={btn} disabled={busy || !ready} onClick={() => onSave({ description: description.trim(), file })}>
           {busy ? "Sending…" : "Submit PO to Finance"}
         </button>
-        <button className={btnGhost} onClick={onCancel}>Cancel</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
   );
