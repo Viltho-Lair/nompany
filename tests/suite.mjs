@@ -4248,6 +4248,43 @@ console.log("== service-actions: settings.edit without inventory view must never
 }
 
 // ============================================================================
+console.log("== service-actions: an action a TICKET names must retire, not drop");
+{
+  // THE REFERRER THE USAGE QUERY DID NOT KNOW ABOUT. serviceActionUsage counted
+  // inventory item scopes ONLY. That was complete right up until services moved
+  // from the Sales-owned catalogue to Studio Settings -> Service Actions, at which
+  // point a TICKET became a referrer too — and an action this query misses is
+  // reported unreferenced, so nextPool DROPS it instead of retiring it. It then
+  // lands in neither serviceActions nor retiredServiceActions, cleanServiceIds
+  // no longer recognises it, and the next edit of that ticket silently strips it
+  // from the ticket's scope: data loss reached from a settings screen, with no
+  // inventory item involved anywhere.
+  await signInAs(owner.id);
+  await updateStudio(studio.id, { serviceActions: ["Installation", "Commissioning"], retiredServiceActions: [] });
+
+  const salesForPool = await salesContext(owner, slug);
+  const poolTicket = await createTicket(salesForPool, {
+    title: `Pool referrer ${rand()}`, clientName: "Acme", deadline: "2031-12-01",
+    industry: "Technology", serviceIds: ["Commissioning"],
+  });
+  ok("a ticket names Commissioning, and no inventory item does",
+    (poolTicket.ticket?.serviceIds || []).includes("Commissioning"), JSON.stringify(poolTicket.error));
+
+  const usageRes = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
+  ok("the usage query counts the ticket's reference",
+    usageRes.usage?.Commissioning >= 1, JSON.stringify(usageRes.usage));
+
+  const withoutIt = (usageRes.serviceActions || []).filter((a) => a !== "Commissioning");
+  const putRes = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: withoutIt }), { params: params(slug) });
+  ok("removing it from the pool is accepted", putRes.status === 200, String(putRes.status));
+  const afterPool = await putRes.json();
+  ok("Commissioning is RETIRED, not dropped, on a ticket's reference alone",
+    (afterPool.retiredServiceActions || []).includes("Commissioning"), JSON.stringify(afterPool));
+  ok("...and it left the active pool",
+    !(afterPool.serviceActions || []).includes("Commissioning"), JSON.stringify(afterPool));
+}
+
+// ============================================================================
 console.log("\n== engagement foundations (Phase 0)");
 // Each function throws (node:assert) on its first failed check rather than
 // reporting a boolean, so it is adapted to this file's ok() harness one test

@@ -28,6 +28,43 @@ Three rules that keep this folder worth reading:
 *(Files are written as each area is next touched, not all at once — an unwritten file is
 better than a stale one. Add the row when you add the file.)*
 
+## Working in a git worktree
+
+Several sessions share this repo. A worktree keeps them out of each other's checkout —
+without one, a branch gets switched under a running agent and commits land somewhere
+nobody meant. That happened three times in one day.
+
+```bash
+git worktree add ../nompany-<what> main
+```
+
+**A junctioned `node_modules` runs tsc, eslint and the test suites. It does NOT build.**
+Turbopack refuses a symlink that points out of the project root:
+`Symlink [project]/node_modules is invalid, it points out of the filesystem root`. So the
+rule is *junction ⇒ typecheck and tests only* — not *worktree ⇒ no build*. A worktree with
+its own real `npm ci` builds fine; run `next build` there, or in the shared checkout.
+
+**And the trap that made this worth writing down:** `scripts/bundle-budget.mjs` measures
+`.next/static`, which a failed build leaves behind EMPTY. It used to print
+`0 KB across 0 chunks` and then `within budget`, exit 0 — a green CI line stating the
+opposite of what happened. It now refuses a build that produced no chunks. Anything else
+that reads build output should assume the same: the directory existing is not proof the
+build succeeded.
+
+**NEVER `rm -rf` a `node_modules` junction.** `rm -rf` follows a directory junction and
+deletes the TARGET's contents — that is the shared checkout's `node_modules` gone, and every
+session on this machine broken mid-task with no obvious cause. Use `cmd /c rmdir <path>`,
+which removes the link only. Then count the target's contents before and after to prove it
+survived, rather than assuming:
+
+```bash
+cmd /c rmdir "../nompany-<what>/node_modules"     # removes the link, not the target
+```
+
+Copy `.env.local` into the worktree, and give each test run its own namespace
+(`NOMPANY_TEST_SESSION=<short>`) — two runs sharing one delete each other's fixtures, and
+a killed run does not release its lock, so pick a fresh name rather than reusing one.
+
 Deeper background, for when a summary is genuinely not enough: `docs/` holds the
 architecture and audit notes, `docs/superpowers/specs/` the designs, and
 `docs/superpowers/plans/` the task-by-task plans. `CLAUDE.md` holds the invariants and
