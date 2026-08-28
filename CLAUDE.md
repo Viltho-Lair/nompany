@@ -6,6 +6,12 @@ Three surfaces in one app: the tenant ERP at `nompany.com/<slug>/…` (rewritten
 console at `/super`. Twelve departments: Main, Sales, Technical, Projects, Inventory,
 HR, Finance, Operations, Quality, Tasks, People, Access.
 
+**What each thing does is written down: `docs/functionality/`, one file per system
+functionality.** Read the one file you need and start — do not re-derive it from the code,
+and do not read the whole folder. Every file ends with "Not built yet", stated in words,
+because a silent gap reads as a finished feature. When you change behaviour, update that
+file in the same commit.
+
 Full detail lives in `docs/` — architecture, audit, and the wave plan. This file is
 only what must be true in every session.
 
