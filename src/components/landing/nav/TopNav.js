@@ -7,6 +7,8 @@ import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
 import { initialsOf } from "@/lib/initials";
 import Skeleton from "@/components/Skeleton";
 import ThemeToggle from "@/components/ThemeToggle";
+import LangMenu from "@/components/LangMenu";
+import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import { LogoMark, Wordmark } from "../Logo";
 import { MagneticButton } from "../ui/MagneticButton";
 import { viewsFor } from "../views/views";
@@ -15,6 +17,18 @@ import { viewsFor } from "../views/views";
    glide between items instead of blinking on and off. */
 export function TopNav({ view, onNavigate, locale = "en" }) {
   const tr = landingDict(useLandingLocale());
+  // THE LANDING PAGE HAS NO `Nav`. The site header opts out of this route
+  // because the page renders its own, so the language control has to be here
+  // or nowhere — and it was nowhere: /en could not reach /ar at all.
+  // Each label is written in its own script, and the href swaps the locale
+  // segment; `LangMenu` writes the `lang` cookie itself, so the choice
+  // survives the login where the URL can no longer carry it.
+  const langOptions = locales.map((code) => ({
+    code,
+    label: LANGUAGE_NAMES[code],
+    short: LANGUAGE_SHORT[code],
+    href: `/${code}`,
+  }));
     const { scrollY } = useScroll();
     const [condensed, setCondensed] = useState(false);
     // Three states, never two — `undefined` means "still asking", so the header
@@ -80,6 +94,10 @@ export function TopNav({ view, onNavigate, locale = "en" }) {
             styling of its own. */}
         <div className="shrink-0 text-fg-muted">
           <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
+        </div>
+
+        <div className="shrink-0 text-fg-muted">
+          <LangMenu current={locale} options={langOptions} label={tr.language} align="end" />
         </div>
 
         {/* Signed out → "Log in". Signed in → the person's own picture, opening

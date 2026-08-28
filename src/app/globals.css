@@ -119,6 +119,20 @@
   color: var(--color-fg);
 }
 
+/* ARABIC GETS THE ARABIC FACES BACK. The [dir="rtl"] block near the top sets
+   --font-display to Tajawal, but the rule above re-declares it unconditionally
+   and `dir` sits ON `.landing-page` itself — same specificity, later in the
+   file, so Sora won. Sora and Inter carry no Arabic glyphs, so every Arabic
+   visitor got a system fallback: the exact trap already documented for the
+   studio at html.studio-chrome[dir="rtl"], with its own copy on this surface.
+   Both forms are kept for the same reason they are there — the attribute may
+   sit on the element or on an ancestor. */
+.landing-page[dir="rtl"],
+[dir="rtl"] .landing-page {
+  --font-display: "Tajawal", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  font-family: "IBM Plex Sans Arabic", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+}
+
 .landing-page ::selection {
   background: color-mix(in oklab, var(--color-iris) 45%, transparent);
   color: #fff;

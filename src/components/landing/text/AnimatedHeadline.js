@@ -1,6 +1,11 @@
 "use client";
 import { motion, useReducedMotion } from "motion/react";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
+// ARABIC LETTERS JOIN, and a letter in its own `inline-block` box cannot join
+// the one beside it — the browser draws every glyph in its isolated form and
+// the word falls apart. Detected on the TEXT rather than on the locale, so a
+// name written in Arabic inside an English page is handled too.
+const JOINING = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 // `custom` carries the per-character delay so the variant keeps ownership of
 // duration + easing (a component-level `transition` prop would clobber them).
 const charVariants = {
@@ -45,6 +50,19 @@ export function AnimatedHeadline({ lines, className = "", delay = 0, highlight =
                 <span className="text-gradient">{word}</span>
                 <span className="inline-block">&nbsp;</span>
               </motion.span>);
+                }
+                // A word of joining script animates as ONE unit. The stagger
+                // still advances by its length, so a mixed headline keeps the
+                // same rhythm either way.
+                if (JOINING.test(word)) {
+                    const d = delay + charIndex * 0.022;
+                    charIndex += word.length;
+                    return (<span key={wordIndex} className="inline-block whitespace-nowrap">
+                <motion.span className="inline-block will-change-transform" variants={charVariants} custom={d}>
+                  {word}
+                </motion.span>
+                <span className="inline-block">&nbsp;</span>
+              </span>);
                 }
                 return (<span key={wordIndex} className="inline-block whitespace-nowrap">
                 {word.split("").map((char, i) => {

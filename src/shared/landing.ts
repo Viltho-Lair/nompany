@@ -101,6 +101,7 @@ type Strings = {
   insProcurementBody: string;
   insWorkforce: string;
   insWorkforceBody: string;
+  language: string;
   lnkAbout: string;
   lnkAnalytics: string;
   lnkApiReference: string;
@@ -325,6 +326,7 @@ const en: Strings = {
   insProcurementBody: "Three suppliers quote below your contracted rate for resin. Estimated saving: $184k / year.",
   insWorkforce: "Workforce",
   insWorkforceBody: "Overtime in Plant 2 is up 14%. Two shift swaps would bring it back under budget.",
+  language: "Language",
   lnkAbout: "About",
   lnkAnalytics: "Analytics",
   lnkApiReference: "API reference",
@@ -549,6 +551,7 @@ const ar: Strings = {
   insProcurementBody: "ثلاثة موردين يعرضون سعرًا أقل من سعرك التعاقدي للراتنج. التوفير المقدّر: 184 ألف دولار سنويًا.",
   insWorkforce: "القوى العاملة",
   insWorkforceBody: "ارتفع العمل الإضافي في المصنع 2 بنسبة 14٪. تبديل ورديتين يعيده تحت الميزانية.",
+  language: "اللغة",
   lnkAbout: "من نحن",
   lnkAnalytics: "التحليلات",
   lnkApiReference: "مرجع واجهة البرمجة",
