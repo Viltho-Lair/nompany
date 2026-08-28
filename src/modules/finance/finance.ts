@@ -18,6 +18,7 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
+import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -191,6 +192,13 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     createdByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
+  // THE INVOICE JOINS THE DEAL IT BILLS. Resolved from the PROJECT — an invoice
+  // carries no ticket or quotation of its own, and the project already knows
+  // which engagement it belongs to. An invoice raised with no project (a
+  // studio-level bill) simply does not attach, which is the honest end state:
+  // there is no deal to put it in. Best-effort by construction — see
+  // attachToProjectEngagement — so billing never fails because an index did.
+  await attachToProjectEngagement(studio.id, "invoice", invoice.id, projectId, invoice.createdAt as string);
   return { invoice: { ...invoice, ...invoiceTotals(invoice) } };
 }
 
@@ -295,6 +303,13 @@ export async function removeInvoice(ctx: FinanceContext, id: string) {
   const invoice = invoices.find((i) => i.id === id);
   if (!invoice) return { error: "notfound" };
   if (invoice.status !== "Draft") return { error: "issued" };
+
+  // ENGAGEMENT STATE COMES OFF FIRST, THE ROW SECOND — the recoverable
+  // direction, and the mirror of the attach in createInvoice. The other order
+  // leaves the deal's member set naming an invoice that no longer exists, which
+  // the engagements card renders as "Invoice · present · 1" with a blank
+  // reference and nothing ever heals.
+  await detachFromItsEngagement(studio.id, "invoice", id);
 
   const removed = await Invoices.remove({ studio, section: cashSection }, id);
   return removed ? { ok: true } : { error: "notfound" };

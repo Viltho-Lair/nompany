@@ -76,6 +76,19 @@ infrastructure. Only A continues: find or mint the engagement → write the reco
 `engagementId` → attach (a `one` type CAS-claims the root slot and refuses a second; a
 `many` type is a ZSET add) → index → `XADD` strictly before `publish`.
 
+**A project's children resolve their deal from the project, and from nothing else.** An
+invoice, a project sheet, a material order, a delivery note, a waybill and an overtime line
+each carry a `projectId` and no lineage of their own, so `engagementOf(studioId, "project",
+projectId)` — the reverse index the project wrote when it attached — is what says which deal
+they join. Never a second derivation off the ticket/quotation chain: `openProject` already
+made that choice ("the ticket's engagement, else the quotation's own"), and a derivation
+repeated at the child's call site could differ by a hair and attach it to an engagement
+nothing else uses. A record raised with **no project simply does not attach** — a valid end
+state, not an error, and not a reason to park it in `__unassigned`, which is a holding pen
+for a record awaiting promotion rather than a home for one that never had a deal. The attach
+is best-effort by construction (`attachToProjectEngagement` swallows its own failures): a
+create that succeeded must keep succeeding, and the backfill reconciles what was missed.
+
 The client is an **input to** creating a ticket or quotation, not a field stored on them.
 Both paths go through one helper, `resolveClientFor` (`src/modules/sales/salesClients.ts`),
 which finds the client by normalised name, else by explicit id, else creates it, then folds
@@ -111,7 +124,10 @@ writing that off is Finance's act, not a side effect of tidying a deal away.
 leaves a row with no engagement state (which the backfill heals) rather than engagement state
 pointing at a record that no longer exists (which nothing heals). Detach is the exact inverse
 of attach: the singleton slot or the members ZSET, `dept`, `hasStage` when the last record of
-that type goes, and `rec-eng`.
+that type goes, and `rec-eng`. A project's child needs no lineage to detach —
+`detachFromItsEngagement(studioId, type, recId)` reads the reverse index its own attach wrote,
+which is the only record of which deal it joined — and a record that never attached detaches
+from nothing, which is a fact rather than a failure.
 
 **Deleting a whole engagement:** children-first, registry-last, root last, idempotent on
 re-run — walk the registry, never a hand-written list. Everything the deal owns dies with it:
@@ -142,12 +158,27 @@ to live once; 7 engagements proven.
 ## Not built yet — do not assume otherwise
 
 - Records still live in their section array collections, not at `rec:` keys.
-- **The project's children do not attach on create**, and therefore do not detach on delete.
-  Invoices, expenses, shipments, deliveries, orders, overtimes, tasks, bills and assets all
-  have live delete verbs and no attach, so they have nothing to detach *yet* — when any of
-  them gains an attach, it needs a detach in the same commit.
-- **No RFQ delete verb exists**, so RFQs are cascade-deleted with their deal but cannot be
-  deleted on their own.
+- **Re-pointing a record at a different project does not move it between deals.**
+  `editInvoice`, `editOrder`, `updateOvertime` and `updateShipment` each accept a new
+  `projectId` and none of them re-attaches, so the record stays in the deal it first
+  joined. That is the assignment feature (§3.6.2's promotion), not the create path.
+- **`task`, `expense`, `bill` and `asset` still do not attach at all.** Every one is
+  `unassignable` and `onDelete: "keep"` — raised on its own screen and assigned to a deal
+  afterwards — so their attach is the assignment feature above rather than this one, and
+  their delete verbs correspondingly detach nothing. When assignment lands, each of those
+  four delete verbs needs its detach in the same commit.
+- **Deleting a PROJECT does not delete or detach its children.** `removeProject` removes
+  the row, its board and its plans, and leaves every sheet, invoice, order, delivery,
+  shipment and overtime raised on it standing — still in the deal, now naming a project
+  that no longer exists. The deal-level cascade reaches all of them; the project-level
+  delete reaches none. Whether deleting a project should take its invoices with it is a
+  product decision nobody has made.
+- **Records created before the child attach shipped are unattached**, and so are any whose
+  attach was swallowed. The backfill is what reconciles them, and running it is a decision
+  of its own.
+- **Neither an RFQ nor a project sheet has a delete verb of its own**, so both are
+  cascade-deleted with their deal and neither can be deleted alone. There is nothing for
+  them to detach, and nothing missing.
 - `engagementBlock` reports `locked` and no screen reads it — the lock controls are on the
   list only, so opening one deal offers none.
 - `removeEngagement` returns what it deleted and what it kept; the screen discards it and
