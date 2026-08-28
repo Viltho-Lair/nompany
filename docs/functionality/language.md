@@ -129,11 +129,22 @@ language it was written in, so every counted phrase is a function in the diction
   direction.** Gate A's assertion 11 now walks all 27 dictionary modules and fails on a key
   that is missing from `ar`, or present and still holding the English string. That is the
   quiet failure: it reads as English to an Arabic reader and looks finished to everyone
-  else. Three keys are listed as deliberately identical (`google`, `microsoft`,
-  `nompanyCom`). What is still NOT checked is the other direction — a literal added to a
-  screen that never reaches a dictionary at all, and a key nobody reads any more. The
-  scanners for those live in `.i18n-scratch/` and are not committed; `check_tr.py` catches
-  an unbound read, which is the failure that breaks a page.
+  else. All 2,675 keys, three of them listed as deliberately identical (`google`,
+  `microsoft`, `nompanyCom`).
+
+  **The direction it does NOT cover is the larger one: screen → dictionary.** Nothing
+  checks that a key a screen reads exists, or that a key nobody reads is removed. That is
+  the failure that breaks a page rather than mistranslating it — an unbound `tr` read
+  throws on the FIRST REQUEST, and neither `tsc` nor `next build` sees it, so a screen can
+  ship green and dead. `check_tr.py` finds it and lives in `.i18n-scratch/`, uncommitted.
+
+  The assertion shipped with a hole worth remembering, because it is the mistake the next
+  version will make too: it matched whole LINES — `key: "…"` — which admits a quoted
+  string and nothing else, so all 80 function-valued keys and 12 whose value the formatter
+  wrapped were exempt from both halves. 93 of 2,675, and precisely the wrong 93: every
+  counted phrase is a multi-line function, because Arabic needs four forms, so the entries
+  hardest to check by eye were the ones the gate could not see. It walks each value to its
+  matching comma now. Match where a value ENDS, never what it looks like.
 - **There is no "follow the studio" option.** Once the cookie is set it stays set; a person
   cannot return to inheriting the tenant default except by picking the language that
   happens to match it.
