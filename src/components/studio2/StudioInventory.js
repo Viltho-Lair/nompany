@@ -184,7 +184,7 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
       </Toolbar>
 
       {form && (
-        <Dialog title={form.row ? `Edit ${form.row.name}` : "Add item"}
+        <Dialog title={form.row ? `Edit ${form.row.name}` : tr.addItem}
           description={tr.catalogueEntryWhatThing}
           onClose={closeForm}>
           <ItemForm row={form.row} vendors={vendors} units={units} serviceActions={serviceActions} studioCurrency={studioCurrency} busy={busy} onCancel={closeForm}
@@ -322,7 +322,7 @@ function ItemImage({ value, onChange }) {
         <div className="ms-auto flex items-center gap-1.5">
           <button type="button" disabled={busy} onClick={() => fileRef.current?.click()}
             className="rounded-full border border-slate-200 px-3 py-1 text-xs font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/5">
-            {busy ? "Uploading…" : value ? "Change" : "Upload"}
+            {busy ? tr.uploading : value ? tr.change : tr.upload}
           </button>
           {value && !busy && (
             <button type="button" onClick={() => onChange("")}
@@ -366,11 +366,11 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Name" required value={f.name} onChange={(v) => setF((s) => ({ ...s, name: v }))} />
-        <Field label="Model number" value={f.modelNumber} onChange={(v) => setF((s) => ({ ...s, modelNumber: v }))} hint="The vendor's part number" />
-        <Field label="SKU" value={f.sku} onChange={(v) => setF((s) => ({ ...s, sku: v }))} hint="Assigned automatically if left blank" />
-        <Field label="Unit" as="select" required value={f.unit} onChange={(v) => setF((s) => ({ ...s, unit: v }))} options={units} />
-        <Field label="Vendor" as="select" value={f.vendorId}
+        <Field label={tr.name} required value={f.name} onChange={(v) => setF((s) => ({ ...s, name: v }))} />
+        <Field label={tr.modelNumber} value={f.modelNumber} onChange={(v) => setF((s) => ({ ...s, modelNumber: v }))} hint={tr.vendorPartNumber} />
+        <Field label="SKU" value={f.sku} onChange={(v) => setF((s) => ({ ...s, sku: v }))} hint={tr.assignedAutomaticallyIfLeft} />
+        <Field label={tr.unit} as="select" required value={f.unit} onChange={(v) => setF((s) => ({ ...s, unit: v }))} options={units} />
+        <Field label={tr.vendor} as="select" value={f.vendorId}
           onChange={(v) => setF((s) => ({ ...s, vendorId: v, itemType: "", deliveryWeeks: "" }))}
           options={vendors.map((v) => ({ value: v.id, label: v.name }))} />
         {/* A real <Field as="select"> so it shares the box, height and floating
@@ -430,7 +430,7 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
       <div className="mt-4"><Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
 
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !f.name.trim() || missingCharges} onClick={() => onSave(f)}>{busy ? tr.saving : "Save item"}</button>
+        <button className={btn} disabled={busy || !f.name.trim() || missingCharges} onClick={() => onSave(f)}>{busy ? tr.saving : tr.saveItem}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
@@ -507,7 +507,7 @@ function Stock({ items, movements, canManage, busy, send }) {
               <table className="w-full min-w-[820px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-white/10">
-                    {["Item", "Vendor", "Serials", "On hand", "Reorder"].map((head, i) => (
+                    {[tr.item, tr.vendor, tr.serials, tr.hand, tr.reorder].map((head, i) => (
                       <th key={head} className={`${th} ps-2 ${i >= 3 ? "text-end" : "text-start"}`}>{head}</th>
                     ))}
                     <th className={`${th} text-end`} />
@@ -579,7 +579,7 @@ function AdjustForm({ item, busy, onSave, onCancel }) {
       )}
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || qty === "" || Number(qty) === 0} onClick={() => onSave({ qty, reason })}>
-          {busy ? tr.saving : "Record adjustment"}
+          {busy ? tr.saving : tr.recordAdjustment}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -651,7 +651,7 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
       )}
 
       <div className="mt-5 flex gap-3">
-        {canManage && <button className={btn} disabled={busy} onClick={() => onSave(serials)}>{busy ? tr.saving : "Save serials"}</button>}
+        {canManage && <button className={btn} disabled={busy} onClick={() => onSave(serials)}>{busy ? tr.saving : tr.saveSerials}</button>}
         <button className={btnGhost} onClick={onCancel}>{tr.close}</button>
       </div>
     </>
@@ -669,7 +669,7 @@ function Movements({ rows }) {
         <table className="w-full min-w-[680px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 dark:border-white/10">
-              {["When", "Item", "Movement", "Qty", "Reason", "By"].map((head, i) => (
+              {[tr.when, tr.item, tr.movement, tr.qty, tr.reason, tr.by].map((head, i) => (
                 <th key={head} className={`${th} ${i === 3 ? "text-end" : "text-start"}`}>{head}</th>
               ))}
             </tr>
@@ -710,7 +710,7 @@ function Vendors({ rows, items, canManage, busy, send }) {
       <Toolbar canManage={canManage} label={tr.addVendor} onAdd={() => setForm({ row: null })} />
 
       {form && (
-        <Dialog title={form.row ? `Edit ${form.row.name}` : "Add vendor"}
+        <Dialog title={form.row ? `Edit ${form.row.name}` : tr.addVendor}
           description={tr.whoBuyWhatThey}
           onClose={closeForm}>
           <VendorForm row={form.row} busy={busy} onCancel={closeForm}
@@ -808,7 +808,7 @@ function VendorForm({ row, busy, onSave, onCancel }) {
       <div className="mt-4"><Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
 
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !f.name.trim()} onClick={() => onSave({ ...f, itemTypes: types })}>{busy ? tr.saving : "Save vendor"}</button>
+        <button className={btn} disabled={busy || !f.name.trim()} onClick={() => onSave({ ...f, itemTypes: types })}>{busy ? tr.saving : tr.saveVendor}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
@@ -871,7 +871,7 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
               <Field label={tr.awbNumber} hint={tr.prefix8Digits} value={raw} className="sm:max-w-xs"
                 onChange={(v) => setRaw(v)}
                 inputProps={{ onKeyDown: (e) => { if (e.key === "Enter" && parsed?.valid) { e.preventDefault(); track(); } } }} />
-              <button className={btn} disabled={busy || !parsed?.valid} onClick={track}>{busy ? tr.adding : "Track"}</button>
+              <button className={btn} disabled={busy || !parsed?.valid} onClick={track}>{busy ? tr.adding : tr.track}</button>
             </div>
             {parsed && (
               <p className={`mt-2 text-xs ${parsed.valid ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
@@ -1014,7 +1014,7 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
             <button className={btn} disabled={busy} onClick={async () => {
               const ok = await onSave({ movement: { code, at: at ? new Date(at).toISOString() : "", station, flightNo, note } });
               if (ok) { setStation(""); setFlightNo(""); setNote(""); setAt(""); }
-            }}>{busy ? tr.recording : "Record"}</button>
+            }}>{busy ? tr.recording : tr.record}</button>
           </div>
         </div>
       )}
@@ -1062,7 +1062,7 @@ function Airlines({ rows, busy, onSave, onCancel }) {
           <div className="mt-4 flex gap-3">
             <button className={btn} disabled={busy || form.prefix.length !== 3 || !form.name.trim()}
               onClick={async () => { if (await onSave(form.id ? "PUT" : "POST", form)) setForm(null); }}>
-              {busy ? tr.saving : "Save airline"}
+              {busy ? tr.saving : tr.saveAirline}
             </button>
             <button className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
           </div>

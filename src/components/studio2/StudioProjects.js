@@ -374,7 +374,7 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
           setBusy(true);
           await onSave({ quotationId, managerCollaboratorId, location });
           setBusy(false);
-        }}>{busy ? tr.opening : "Open project"}</button>
+        }}>{busy ? tr.opening : tr.openProject}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
@@ -505,7 +505,7 @@ function Slas({ slas, projects, canManage, onSave }) {
       <Toolbar canManage={canManage} label={tr.addSla} onAdd={() => setForm({ row: null })} />
 
       {form && (
-        <Dialog title={form.row ? `Edit ${form.row.title}` : "Add SLA contract"}
+        <Dialog title={form.row ? `Edit ${form.row.title}` : tr.addSlaContract}
           description={tr.visitScheduleGeneratedStart}
           onClose={closeForm}>
           <SlaForm row={form.row} projects={projects} onCancel={closeForm}
@@ -532,7 +532,7 @@ function Slas({ slas, projects, canManage, onSave }) {
           <table className="w-full min-w-[820px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 dark:border-white/10">
-                {["Contract", "Project", "Signed", "Visits", "Closest visit"].map((head) => (
+                {[tr.contract, tr.project, tr.signed, tr.visits, tr.closestVisit].map((head) => (
                   <th key={head} className={`${th} ps-2 text-start`}>{head}</th>
                 ))}
                 <th className={`${th} text-end`}>{tr.actions}</th>
@@ -629,7 +629,7 @@ function SlaForm({ row, projects, onSave, onCancel }) {
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={async () => { setBusy(true); await onSave(f); setBusy(false); }}>
-          {busy ? tr.saving : row ? tr.saveContract : "Add contract"}
+          {busy ? tr.saving : row ? tr.saveContract : tr.addContract}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -784,7 +784,7 @@ function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canMan
   function exportCsv() {
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const lines = [
-      ["Project", ...matrix.cols.map((c) => c.name), "Total"].map(esc).join(","),
+      [tr.project, tr.total].map(esc).join(","),
       ...matrix.rows.map((r) => [r.name, ...matrix.cols.map((c) => matrix.at(r.id, c.id)), matrix.rowTotal(r.id)].map(esc).join(",")),
       ["Total", ...matrix.cols.map((c) => matrix.colTotal(c.id)), matrix.grand].map(esc).join(","),
     ];
@@ -871,7 +871,7 @@ function Overtimes({ overtimes, projects, directory, defaultDepartmentId, canMan
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10">
-                  {["Project", "Person", "Department", "Date", "From–To"].map((head) => (
+                  {[tr.project, tr.person, tr.department, tr.date, tr.fromTo].map((head) => (
                     <th key={head} className={`${th} text-start`}>{head}</th>
                   ))}
                   <th className={`${th} text-end`}>{tr.hours}</th>
@@ -967,7 +967,7 @@ function AddOvertime({ projects, directory, defaultDepartmentId, onSave, onCance
           setBusy(true);
           await onSave({ projectId, collaboratorIds, date, from, to });
           setBusy(false);
-        }}>{busy ? tr.saving : "Add overtime"}</button>
+        }}>{busy ? tr.saving : tr.addOvertime}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
@@ -1017,7 +1017,7 @@ function EditOvertime({ record, projects, directory, onSave, onDelete, onCancel 
         <div className="flex gap-3">
           <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
           <button className={btn} disabled={busy || hours <= 0} onClick={async () => { setBusy(true); await onSave(f); setBusy(false); }}>
-            {busy ? tr.saving : "Save"}
+            {busy ? tr.saving : tr.save}
           </button>
         </div>
       </div>
@@ -1123,7 +1123,7 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
       {canManage ? (
         <div className="flex items-center gap-3">
           <button className={btn} disabled={busy || !weightsOk} onClick={save}
-            title={weightsOk ? "" : "Requirement weights must total 100%."}>{busy ? tr.saving : "Save settings"}</button>
+            title={weightsOk ? "" : "Requirement weights must total 100%."}>{busy ? tr.saving : tr.saveSettings}</button>
           {!weightsOk && <span className="text-sm text-rose-600 dark:text-rose-300">{tr.weightsMustTotal100}</span>}
           {saved && weightsOk && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>

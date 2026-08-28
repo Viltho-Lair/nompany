@@ -364,6 +364,7 @@ function parseSizePt(value: string): number | null {
  * every keystroke by the pagination pass.
  */
 function InsertImage({ editor }: { editor: Editor }) {
+  const tr = qualityDict(useStudioLocale());
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
@@ -396,7 +397,7 @@ function InsertImage({ editor }: { editor: Editor }) {
         }}
       />
       <ToolbarButton
-        label={busy ? "Uploading…" : "Insert image"}
+        label={busy ? tr.uploading : tr.insertImage}
         icon={<ImagePlus />}
         disabled={busy}
         onClick={() => input.current?.click()}

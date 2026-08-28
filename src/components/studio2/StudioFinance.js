@@ -426,7 +426,7 @@ function InvoiceForm({ projects, defaultVat, busy, onCancel, onSave }) {
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !ready}
           onClick={() => onSave({ ...head, vatRate: Number(head.vatRate) || 0, lines: filled })}>
-          {busy ? tr.saving : "Save draft"}
+          {busy ? tr.saving : tr.saveDraft2}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -452,7 +452,7 @@ function PaymentForm({ invoice, methods, busy, onCancel, onSave }) {
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
-          {busy ? tr.recording : "Record"}
+          {busy ? tr.recording : tr.record}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -480,7 +480,7 @@ function Expenses({ rows, projects, categories, slug, nav, canManage, busy, send
     <>
       {canManage && !adding && !editing && <button className={btn} onClick={() => setAdding(true)}>{tr.addExpense}</button>}
       {(adding || editing) && (
-        <SimpleForm title={editing ? tr.editExpense : "New expense"} busy={busy} fields={fields(editing)}
+        <SimpleForm title={editing ? tr.editExpense : tr.newExpense} busy={busy} fields={fields(editing)}
           onCancel={() => { setAdding(false); setEditing(null); }}
           onSave={async (v) => { if (await send("expenses", editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v)) { setAdding(false); setEditing(null); } }} />
       )}
@@ -544,7 +544,7 @@ function Profitability({ rows, slug, nav }) {
         <table className="w-full min-w-[860px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 dark:border-white/10">
-              {["Project", "Value", "Invoiced", "Collected", "Materials", "Expenses", "Margin"].map((h, i) => (
+              {[tr.project, tr.value, tr.sumInvoiced, tr.sumCollected, tr.materials, tr.sumExpenses, tr.margin].map((h, i) => (
                 <th key={h} className={`${th} ${i >= 1 ? "text-end" : ""}`}>{h}</th>
               ))}
             </tr>
@@ -608,7 +608,7 @@ function SimpleForm({ title, fields, busy, onCancel, onSave }) {
         ))}
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
-        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : "Save"}</button>
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : tr.save}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
@@ -879,7 +879,7 @@ function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
 
   return (
     <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{editing ? `Edit bill — ${bill.reference}` : "New bill"}</h3>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{editing ? `Edit bill — ${bill.reference}` : tr.newBill}</h3>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label={tr.vendor} required value={head.vendorName} onChange={(v) => setHead((h) => ({ ...h, vendorName: v }))} />
@@ -905,8 +905,8 @@ function BillForm({ bill, terms, defaultVat, busy, onCancel, onSave }) {
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <button className={btn} disabled={busy || !ready} onClick={() => onSave(body(editing ? undefined : "Received"))}>
-          {busy ? tr.saving : editing ? tr.save : "Record bill"}
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave(body(editing ? undefined : tr.received))}>
+          {busy ? tr.saving : editing ? tr.save : tr.recordBill}
         </button>
         {!editing && (
           <button className={btnGhost} disabled={busy || !ready} onClick={() => onSave(body("Draft"))}>{tr.saveDraft}</button>
@@ -934,7 +934,7 @@ function BillPaymentForm({ bill, methods, busy, onCancel, onSave }) {
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
-          {busy ? tr.recording : "Record"}
+          {busy ? tr.recording : tr.record}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -1053,7 +1053,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
                       <td className={`${td} text-end tabular-nums text-slate-500 dark:text-slate-400`}>{a.disposed ? "—" : money(a.monthlyDepreciation)}</td>
                       <td className={td}>
                         <StatusPill kind="asset" status={a.disposed ? "disposed" : "service"}
-                          label={a.disposed ? tr.disposed2 : a.fullyDepreciated ? tr.fullyDepreciated : "In service"} />
+                          label={a.disposed ? tr.disposed2 : a.fullyDepreciated ? tr.fullyDepreciated : tr.service} />
                       </td>
                       <td className={`${td} text-end`}>
                         {canManage && (
@@ -1079,7 +1079,7 @@ function AssetRegister({ rows, vocab, canManage, busy, send }) {
                             {a.disposed && <Detail label={tr.disposed} value={a.disposedOn ? fmt(a.disposedOn) : "—"} />}
                             {a.disposed && <Detail label={tr.proceeds} value={money(a.disposalProceeds || 0)} num />}
                             {a.disposed && a.gainOnDisposal != null && (
-                              <Detail label={a.gainOnDisposal >= 0 ? tr.gainDisposal : "Loss on disposal"}
+                              <Detail label={a.gainOnDisposal >= 0 ? tr.gainDisposal : tr.lossDisposal}
                                 value={money(Math.abs(a.gainOnDisposal))} num
                                 tone={a.gainOnDisposal >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"} />
                             )}
@@ -1124,7 +1124,7 @@ function AssetForm({ asset, methods, busy, onCancel, onSave }) {
 
   return (
     <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{editing ? `Edit asset — ${asset.reference}` : "New asset"}</h3>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{editing ? `Edit asset — ${asset.reference}` : tr.newAsset}</h3>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={tr.name} required value={f.name} onChange={(v) => set("name", v)} />
         <Field label={tr.category} value={f.category} onChange={(v) => set("category", v)} />
@@ -1145,7 +1145,7 @@ function AssetForm({ asset, methods, busy, onCancel, onSave }) {
             salvageValue: Number(f.salvageValue) || 0,
             usefulLifeMonths: Math.max(0, Math.floor(Number(f.usefulLifeMonths) || 0)),
           })}>
-          {busy ? tr.saving : "Save"}
+          {busy ? tr.saving : tr.save}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -1180,7 +1180,7 @@ function DisposeForm({ asset, busy, onCancel, onSave }) {
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !f.disposedOn}
           onClick={() => onSave({ disposedOn: f.disposedOn, disposalProceeds: proceeds })}>
-          {busy ? tr.disposing : "Dispose"}
+          {busy ? tr.disposing : tr.dispose}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -1320,7 +1320,7 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
                       </td>
                     ))}
                     <td className={`${td} text-end`}>
-                      <button className={btnGhost} onClick={() => setEditing(r)}>{canManage ? tr.edit : "View"}</button>
+                      <button className={btnGhost} onClick={() => setEditing(r)}>{canManage ? tr.edit : tr.view}</button>
                     </td>
                   </tr>
                 ))}
@@ -1364,7 +1364,7 @@ function Commercials({ row, busy, canManage, onSave, onCancel }) {
       <div className="mt-5 flex gap-3">
         {canManage && (
           <button className={btn} disabled={busy} onClick={() => onSave({ poNumber, projectNumber })}>
-            {busy ? tr.saving : "Save"}
+            {busy ? tr.saving : tr.save}
           </button>
         )}
         <button className={btnGhost} onClick={onCancel}>{tr.close}</button>

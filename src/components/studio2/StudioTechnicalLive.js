@@ -87,7 +87,7 @@ export default function StudioTechnicalLive({ studio }) {
               onClick={() => setPaused((p) => !p)}
               className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
             >
-              {paused ? tr.resume : "Pause"}
+              {paused ? tr.resume : tr.pause}
             </button>
             {data?.nav?.["technical-settings"] && (
               <Link

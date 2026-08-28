@@ -45,7 +45,7 @@ export function BandDialog({
   // Mounted only while open, so the defaults are seeded fresh on each open.
   const [draft, setDraft] = useState<BandSetup>(initial);
 
-  const title = band === "header" ? tr.header : "Footer";
+  const title = band === "header" ? tr.header : tr.footer;
 
   return (
     <Dialog open onOpenChange={onOpenChange}>

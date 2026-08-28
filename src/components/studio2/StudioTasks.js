@@ -152,7 +152,7 @@ export default function StudioTasks({ slug, view = "tasks" }) {
             than left to be discovered. */}
         {summary.stuck > 0 && (
           <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-            {summary.stuck} {summary.stuck === 1 ? tr.task : "tasks are"} waiting on an authority nobody has been
+            {summary.stuck} {summary.stuck === 1 ? tr.task : tr.tasks} waiting on an authority nobody has been
             appointed to{nav?.["tasks-settings"] ? <> — <a href={`/${slug}/tasks-settings`} className="font-600 underline">{tr.appointSomeoneTaskSettings}</a></> : " — an admin can appoint someone in Task settings"}.
           </p>
         )}
@@ -184,8 +184,8 @@ export default function StudioTasks({ slug, view = "tasks" }) {
       )}
 
       {shown.length === 0 ? (
-        <Empty title={filter === "mine" ? tr.nothingAssigned : filter === "overdue" ? tr.nothingOverdue : filter === "done" ? tr.nothingFinishedYet : "No open tasks"}
-          body={canManage ? tr.createTaskAssignSomeone : "Tasks assigned to you will appear here."} />
+        <Empty title={filter === "mine" ? tr.nothingAssigned : filter === "overdue" ? tr.nothingOverdue : filter === "done" ? tr.nothingFinishedYet : tr.noOpenTasks}
+          body={canManage ? tr.createTaskAssignSomeone : tr.tasksAssignedWillAppear} />
       ) : (
         <section className={panel}>
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
@@ -377,7 +377,7 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
 
   return (
     <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{task ? tr.editTask : "New task"}</h3>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{task ? tr.editTask : tr.newTask}</h3>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={tr.title} required value={form.title}
@@ -451,7 +451,7 @@ function TaskForm({ task, people, projects, vocab, busy, typeAuthorities, author
 
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !form.title.trim()} onClick={() => onSave({ ...form, checklist })}>
-          {busy ? tr.saving : "Save"}
+          {busy ? tr.saving : tr.save}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -586,7 +586,7 @@ function TaskSettings({ authorities, typeAuthorities, typeLabels, assignees, peo
         {canManage && (
           <div className="mt-5 flex items-center gap-3">
             <button className={btn} disabled={busy} onClick={async () => { setBusy(true); const ok = await onSave(map); setBusy(false); setSaved(!!ok); }}>
-              {busy ? tr.saving2 : "Save task settings"}
+              {busy ? tr.saving2 : tr.saveTaskSettings}
             </button>
             {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
           </div>
@@ -709,7 +709,7 @@ function OpenProject({ task, people, slug, onOpened }) {
           {people.map((p) => <option key={p.id} value={p.id}>{p.alias}</option>)}
         </select>
         <button className={btn} disabled={busy || !handler} onClick={open}>
-          {busy ? tr.opening : "Create project & sheet"}
+          {busy ? tr.opening : tr.createProjectSheet}
         </button>
       </div>
       {error && <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{error}</p>}

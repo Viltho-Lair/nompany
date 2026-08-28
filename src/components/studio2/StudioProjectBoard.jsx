@@ -242,7 +242,7 @@ function ProjectPlanButton({ slug, projectId, canEdit }) {
     } catch { setBusy(false); }
   }
 
-  const label = plans === null ? tr.projectPlan : busy ? tr.creating : existing ? tr.openProjectPlan : "Create project plan";
+  const label = plans === null ? tr.projectPlan : busy ? tr.creating : existing ? tr.openProjectPlan : tr.createProjectPlan;
   const disabled = plans === null || busy || (!existing && !canEdit);
 
   return (

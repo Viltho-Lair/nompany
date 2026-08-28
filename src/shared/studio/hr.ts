@@ -23,6 +23,7 @@ type Strings = CommonStrings & {
   certificationsHeld: string;
   dashboardIsnYoursSee: string;
   dateJoining: string;
+  days: string;
   decline: string;
   defineQualificationsPeopleHold: string;
   delete: string;
@@ -40,6 +41,7 @@ type Strings = CommonStrings & {
   expiringDocuments: string;
   file: string;
   from: string;
+  goesWhoeverManagesHr: string;
   headcountDepartment: string;
   idExpiry: string;
   idNumber: string;
@@ -55,6 +57,8 @@ type Strings = CommonStrings & {
   name: string;
   nameAlreadyUse: string;
   namingJobHrWhat: string;
+  newCertification: string;
+  newRole: string;
   noAccessGrantedYet: string;
   noCertificationsYet: string;
   noDocumentsFile: string;
@@ -70,10 +74,12 @@ type Strings = CommonStrings & {
   notes: string;
   nothingExpiringAllClear: string;
   open: string;
+  ownLeaveRequestsAppear: string;
   passportExpiry: string;
   passportNumber: string;
   people: string;
   peopleArriveJoiningStudio: string;
+  peopleLose: string;
   person: string;
   personHolds: string;
   personLoses: string;
@@ -85,12 +91,15 @@ type Strings = CommonStrings & {
   requestsPeopleArriveHere: string;
   role: string;
   rolesShownHereBut: string;
+  save: string;
   saving: string;
   searchNameCodeDepartment: string;
   sectionIsnPartStudio: string;
   sending: string;
+  status: string;
   studioKeepsModuleDashboards: string;
   studioSectionsWhereThey: string;
+  submit: string;
   to: string;
   type: string;
   unassigned: string;
@@ -120,6 +129,7 @@ const en: Strings = {
   certificationsHeld: "Certifications held",
   dashboardIsnYoursSee: "The dashboard isn't yours to see",
   dateJoining: "Date of joining",
+  days: "Days",
   decline: "Decline",
   defineQualificationsPeopleHold: "Define the qualifications your people hold, then tick them off on each person.",
   delete: "Delete",
@@ -137,6 +147,7 @@ const en: Strings = {
   expiringDocuments: "Expiring documents",
   file: "on file",
   from: "From",
+  goesWhoeverManagesHr: "It goes to whoever manages HR for approval.",
   headcountDepartment: "Headcount by department",
   idExpiry: "ID expiry",
   idNumber: "ID number",
@@ -152,6 +163,8 @@ const en: Strings = {
   name: "Name",
   nameAlreadyUse: "That name is already in use.",
   namingJobHrWhat: "Naming the job is HR's. What it may do is set on the access screen.",
+  newCertification: "New certification",
+  newRole: "New role",
   noAccessGrantedYet: "No access granted yet",
   noCertificationsYet: "No certifications yet",
   noDocumentsFile: "No documents on file",
@@ -167,10 +180,12 @@ const en: Strings = {
   notes: "Notes",
   nothingExpiringAllClear: "Nothing expiring — all clear.",
   open: "open it",
+  ownLeaveRequestsAppear: "Your own leave requests appear here.",
   passportExpiry: "Passport expiry",
   passportNumber: "Passport number",
   people: "People",
   peopleArriveJoiningStudio: "People arrive by joining the studio and being approved. HR describes who they are once they're in.",
+  peopleLose: "people lose",
   person: "Person",
   personHolds: "person holds",
   personLoses: "person loses",
@@ -182,12 +197,15 @@ const en: Strings = {
   requestsPeopleArriveHere: "Requests from your people arrive here for approval.",
   role: "Role",
   rolesShownHereBut: "Roles are shown here but assigned on the access screen: handing somebody a role hands them permissions, which is a right of its own.",
+  save: "Save",
   saving: "Saving…",
   searchNameCodeDepartment: "Search name, code, department or role",
   sectionIsnPartStudio: "That section isn't part of this studio any more.",
   sending: "Sending…",
+  status: "Status",
   studioKeepsModuleDashboards: "This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar.",
   studioSectionsWhereThey: "The studio's sections, so this is where they work.",
+  submit: "Submit",
   to: "To",
   type: "Type",
   unassigned: "Unassigned",
@@ -217,6 +235,7 @@ const ar: Strings = {
   certificationsHeld: "الشهادات المُحرَزة",
   dashboardIsnYoursSee: "لوحة المعلومات ليست من صلاحياتك",
   dateJoining: "تاريخ الالتحاق",
+  days: "الأيام",
   decline: "رفض",
   defineQualificationsPeopleHold: "عرّف المؤهلات التي يحملها موظفوك، ثم علّم عليها لدى كل شخص.",
   delete: "حذف",
@@ -234,6 +253,7 @@ const ar: Strings = {
   expiringDocuments: "وثائق توشك على الانتهاء",
   file: "مسجّلة",
   from: "من",
+  goesWhoeverManagesHr: "يذهب إلى من يدير الموارد البشرية للاعتماد.",
   headcountDepartment: "عدد الموظفين حسب القسم",
   idExpiry: "انتهاء الهوية",
   idNumber: "رقم الهوية",
@@ -249,6 +269,8 @@ const ar: Strings = {
   name: "الاسم",
   nameAlreadyUse: "هذا الاسم مستخدم بالفعل.",
   namingJobHrWhat: "تسمية الوظيفة من شأن الموارد البشرية. أما ما يُسمح لها بفعله فيُضبط في شاشة الصلاحيات.",
+  newCertification: "شهادة جديدة",
+  newRole: "دور جديد",
   noAccessGrantedYet: "لم تُمنح أي صلاحيات بعد",
   noCertificationsYet: "لا توجد شهادات بعد",
   noDocumentsFile: "لا توجد وثائق مسجّلة",
@@ -264,10 +286,12 @@ const ar: Strings = {
   notes: "ملاحظات",
   nothingExpiringAllClear: "لا شيء يوشك على الانتهاء — كل شيء على ما يرام.",
   open: "افتحها",
+  ownLeaveRequestsAppear: "تظهر هنا طلبات إجازتك.",
   passportExpiry: "انتهاء جواز السفر",
   passportNumber: "رقم جواز السفر",
   people: "الأشخاص",
   peopleArriveJoiningStudio: "يصل الأشخاص بالانضمام إلى الاستوديو والموافقة عليهم. وتصف الموارد البشرية من هم بعد دخولهم.",
+  peopleLose: "أشخاص يفقدونها",
   person: "الشخص",
   personHolds: "شخص يحملها",
   personLoses: "شخص يفقدها",
@@ -279,12 +303,15 @@ const ar: Strings = {
   requestsPeopleArriveHere: "تصل هنا طلبات موظفيك للاعتماد.",
   role: "الدور",
   rolesShownHereBut: "تُعرض الأدوار هنا لكنها تُسنَد في شاشة الصلاحيات: فمنح شخص دورًا هو منحه صلاحيات، وذلك حق قائم بذاته.",
+  save: "حفظ",
   saving: "جارٍ الحفظ…",
   searchNameCodeDepartment: "ابحث بالاسم أو الرقم الوظيفي أو القسم أو الدور",
   sectionIsnPartStudio: "لم يعد هذا القسم جزءًا من هذا الاستوديو.",
   sending: "جارٍ الإرسال…",
+  status: "الحالة",
   studioKeepsModuleDashboards: "يُبقي هذا الاستوديو لوحات معلومات الوحدات خلف صلاحية خاصة بها. الشاشات التي تحتها غير متأثرة — اختر واحدة من الشريط الجانبي.",
   studioSectionsWhereThey: "أقسام الاستوديو، وهي مكان عملهم.",
+  submit: "إرسال",
   to: "إلى",
   type: "النوع",
   unassigned: "غير مُسند",

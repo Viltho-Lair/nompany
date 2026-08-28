@@ -426,7 +426,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
         aria-label={
           spent ? EXHAUSTED_MESSAGE
             : open ? tr.minimiseChat
-            : unread > 0 ? tr.chatUnread(unread) : "Chat with nompany"
+            : unread > 0 ? tr.chatUnread(unread) : tr.chatNompany
         }
         title={spent ? EXHAUSTED_MESSAGE : allowanceHint}
         className={`relative inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-geex transition-transform ${

@@ -19,6 +19,7 @@ type Strings = CommonStrings & {
   canOpenProjects: string;
   cancel: string;
   checklist: string;
+  createProjectSheet: string;
   createTaskAssignSomeone: string;
   decisionBelongsWhoeverHolds: string;
   delete: string;
@@ -32,6 +33,7 @@ type Strings = CommonStrings & {
   kind: string;
   loadingTasks: string;
   newTask: string;
+  noOpenTasks: string;
   nobodyAppointed: string;
   nobodyAppointedAuthorityYet: string;
   nobodyStudioYet: string;
@@ -51,6 +53,8 @@ type Strings = CommonStrings & {
   projectHandler: string;
   projectHandler2: string;
   quotationNotApproved: string;
+  save: string;
+  saveTaskSettings: string;
   saved: string;
   saving: string;
   saving2: string;
@@ -58,6 +62,8 @@ type Strings = CommonStrings & {
   taskDecisionSystemRaised: string;
   taskIsnApproval: string;
   taskSettings: string;
+  tasks: string;
+  tasksAssignedWillAppear: string;
   tasksOnly: string;
   title: string;
   unassigned: string;
@@ -79,6 +85,7 @@ const en: Strings = {
   canOpenProjects: "You can't open projects.",
   cancel: "Cancel",
   checklist: "Checklist",
+  createProjectSheet: "Create project & sheet",
   createTaskAssignSomeone: "Create a task and assign it to someone in this studio.",
   decisionBelongsWhoeverHolds: "That decision belongs to whoever holds that authority.",
   delete: "Delete",
@@ -92,6 +99,7 @@ const en: Strings = {
   kind: "Kind",
   loadingTasks: "Loading Tasks…",
   newTask: "New task",
+  noOpenTasks: "No open tasks",
   nobodyAppointed: "Nobody appointed",
   nobodyAppointedAuthorityYet: "Nobody is appointed to this authority yet",
   nobodyStudioYet: "Nobody in this studio yet",
@@ -111,6 +119,8 @@ const en: Strings = {
   projectHandler: "Project handler",
   projectHandler2: "Project handler…",
   quotationNotApproved: "That quotation is not approved.",
+  save: "Save",
+  saveTaskSettings: "Save task settings",
   saved: "Saved",
   saving: "Saving…",
   saving2: "Saving...",
@@ -118,6 +128,8 @@ const en: Strings = {
   taskDecisionSystemRaised: "That task is a decision the system raised — it can't be edited or deleted. Withdraw the approval instead.",
   taskIsnApproval: "That task isn't an approval.",
   taskSettings: "Task settings",
+  tasks: "tasks are",
+  tasksAssignedWillAppear: "Tasks assigned to you will appear here.",
   tasksOnly: "Your tasks only",
   title: "Title",
   unassigned: "Unassigned",
@@ -139,6 +151,7 @@ const ar: Strings = {
   canOpenProjects: "لا يمكنك فتح المشاريع.",
   cancel: "إلغاء",
   checklist: "قائمة التحقق",
+  createProjectSheet: "إنشاء المشروع والكشف",
   createTaskAssignSomeone: "أنشئ مهمة وأسنِدها إلى شخص في هذا الاستوديو.",
   decisionBelongsWhoeverHolds: "هذا القرار يعود لمن يحمل تلك السلطة.",
   delete: "حذف",
@@ -152,6 +165,7 @@ const ar: Strings = {
   kind: "النوع",
   loadingTasks: "جارٍ تحميل المهام…",
   newTask: "مهمة جديدة",
+  noOpenTasks: "لا توجد مهام مفتوحة",
   nobodyAppointed: "لم يُعيَّن أحد",
   nobodyAppointedAuthorityYet: "لم يُعيَّن أحد لهذه السلطة بعد",
   nobodyStudioYet: "لا أحد في هذا الاستوديو بعد",
@@ -171,6 +185,8 @@ const ar: Strings = {
   projectHandler: "مسؤول المشروع",
   projectHandler2: "مسؤول المشروع…",
   quotationNotApproved: "عرض السعر هذا غير معتمد.",
+  save: "حفظ",
+  saveTaskSettings: "حفظ إعدادات المهام",
   saved: "تم الحفظ",
   saving: "جارٍ الحفظ…",
   saving2: "جارٍ الحفظ…",
@@ -178,6 +194,8 @@ const ar: Strings = {
   taskDecisionSystemRaised: "هذه المهمة قرار رفعه النظام — لا يمكن تعديلها أو حذفها. اسحب الاعتماد بدلًا من ذلك.",
   taskIsnApproval: "هذه المهمة ليست اعتمادًا.",
   taskSettings: "إعدادات المهام",
+  tasks: "مهام",
+  tasksAssignedWillAppear: "ستظهر هنا المهام المُسنَدة إليك.",
   tasksOnly: "مهامك فقط",
   title: "العنوان",
   unassigned: "غير مُسندة",

@@ -31,14 +31,17 @@ type Strings = CommonStrings & {
   airlineCodeNumber: string;
   airlineName: string;
   airlineRegistry: string;
+  assignedAutomaticallyIfLeft: string;
   awbNumber: string;
   awbTracking: string;
   belowReorder: string;
   belowReorderItems: string;
   belowReorderLevel: string;
+  by: string;
   cancel: string;
   carrier: string;
   catalogueEntryWhatThing: string;
+  change: string;
   chooseImageFile: string;
   close: string;
   commaNewlineSeparated: string;
@@ -92,6 +95,8 @@ type Strings = CommonStrings & {
   mReceivedAlready: string;
   mStatus: string;
   mVendor: string;
+  modelNumber: string;
+  movement: string;
   name: string;
   nameSkuModelVendor: string;
   noAirlinesYetWaybill: string;
@@ -130,10 +135,13 @@ type Strings = CommonStrings & {
   projectSheets: string;
   projectSheets2: string;
   purchaseOrdersStatus: string;
+  qty: string;
   quantity: string;
   reason: string;
   recentMovements: string;
   recentStockMovements: string;
+  record: string;
+  recordAdjustment: string;
   recordMilestone: string;
   recording: string;
   registerItemsFirstThen: string;
@@ -141,9 +149,14 @@ type Strings = CommonStrings & {
   registeredItems: string;
   registeredItems2: string;
   remove: string;
+  reorder: string;
   reorderLevel: string;
   reservedAllocatedProjectSheet: string;
   route: string;
+  saveAirline: string;
+  saveItem: string;
+  saveSerials: string;
+  saveVendor: string;
   saving: string;
   scope: string;
   search: string;
@@ -168,14 +181,19 @@ type Strings = CommonStrings & {
   tabVendors: string;
   theyDisagreeStockMoved: string;
   timeline: string;
+  track: string;
   trackingUrlTemplate: string;
   type: string;
   unassigned: string;
+  unit: string;
   unitCost: string;
   unknownVendor: string;
+  upload: string;
+  uploading: string;
   valueStillExpectedArrive: string;
   vendor: string;
   vendorNoItemTypes: string;
+  vendorPartNumber: string;
   vendors: string;
   vendorsWhoBuyItems: string;
   viewOnly: string;
@@ -213,14 +231,17 @@ const en: Strings = {
   airlineCodeNumber: "Airline code + number",
   airlineName: "Airline name",
   airlineRegistry: "Airline registry",
+  assignedAutomaticallyIfLeft: "Assigned automatically if left blank",
   awbNumber: "AWB number",
   awbTracking: "AWB Tracking",
   belowReorder: "Below reorder",
   belowReorderItems: "Below-reorder items",
   belowReorderLevel: "Below reorder level",
+  by: "By",
   cancel: "Cancel",
   carrier: "Carrier",
   catalogueEntryWhatThing: "The catalogue entry — what this thing is and who supplies it. Quantities live in Stock Management.",
+  change: "Change",
   chooseImageFile: "Choose an image file.",
   close: "Close",
   commaNewlineSeparated: "Comma or newline separated",
@@ -274,6 +295,8 @@ const en: Strings = {
   mReceivedAlready: "Goods have already been received against this order — cancel it instead.",
   mStatus: "Pick a milestone.",
   mVendor: "Pick a vendor.",
+  modelNumber: "Model number",
+  movement: "Movement",
   name: "Name",
   nameSkuModelVendor: "Name, SKU, model or vendor",
   noAirlinesYetWaybill: "No airlines yet. A waybill still tracks without one — it just shows the bare prefix.",
@@ -312,10 +335,13 @@ const en: Strings = {
   projectSheets: "to project sheets",
   projectSheets2: "Project Sheets",
   purchaseOrdersStatus: "Purchase orders by status",
+  qty: "Qty",
   quantity: "Quantity",
   reason: "Reason",
   recentMovements: "Recent movements",
   recentStockMovements: "Recent stock movements",
+  record: "Record",
+  recordAdjustment: "Record adjustment",
   recordMilestone: "Record a milestone",
   recording: "Recording…",
   registerItemsFirstThen: "Register items first, then receive an order against them — that is what brings stock in.",
@@ -323,9 +349,14 @@ const en: Strings = {
   registeredItems: "Registered items",
   registeredItems2: "Registered Items",
   remove: "Remove",
+  reorder: "Reorder",
   reorderLevel: "Reorder level",
   reservedAllocatedProjectSheet: "Reserved — allocated to a project sheet",
   route: "Route",
+  saveAirline: "Save airline",
+  saveItem: "Save item",
+  saveSerials: "Save serials",
+  saveVendor: "Save vendor",
   saving: "Saving…",
   scope: "Scope",
   search: "Search",
@@ -350,14 +381,19 @@ const en: Strings = {
   tabVendors: "Who you buy from, and what they supply",
   theyDisagreeStockMoved: "They disagree — stock has moved without its serial being noted.",
   timeline: "Timeline",
+  track: "Track",
   trackingUrlTemplate: "Tracking URL template",
   type: "Type",
   unassigned: "Unassigned",
+  unit: "Unit",
   unitCost: "Unit cost",
   unknownVendor: "Unknown vendor",
+  upload: "Upload",
+  uploading: "Uploading…",
   valueStillExpectedArrive: "Value still expected to arrive, by order",
   vendor: "Vendor",
   vendorNoItemTypes: "This vendor has no item types yet — add them on the vendor.",
+  vendorPartNumber: "The vendor's part number",
   vendors: "Vendors",
   vendorsWhoBuyItems: "Vendors are who you buy from. Items and orders point at them.",
   viewOnly: "View only",
@@ -395,14 +431,17 @@ const ar: Strings = {
   airlineCodeNumber: "رمز شركة الطيران + الرقم",
   airlineName: "اسم شركة الطيران",
   airlineRegistry: "سجل شركات الطيران",
+  assignedAutomaticallyIfLeft: "يُسنَد تلقائيًا إن تُرك فارغًا",
   awbNumber: "رقم بوليصة الشحن الجوي",
   awbTracking: "تتبّع بوليصة الشحن الجوي",
   belowReorder: "دون حد إعادة الطلب",
   belowReorderItems: "أصناف دون حد إعادة الطلب",
   belowReorderLevel: "دون حد إعادة الطلب",
+  by: "بواسطة",
   cancel: "إلغاء",
   carrier: "الناقل",
   catalogueEntryWhatThing: "مدخل الكتالوج — ما هذا الشيء ومن يورّده. أما الكميات فتعيش في إدارة المخزون.",
+  change: "تغيير",
   chooseImageFile: "اختر ملف صورة.",
   close: "إغلاق",
   commaNewlineSeparated: "مفصولة بفاصلة أو بسطر جديد",
@@ -456,6 +495,8 @@ const ar: Strings = {
   mReceivedAlready: "استُلمت بضائع على هذا الطلب بالفعل — ألغِه بدلًا من ذلك.",
   mStatus: "اختر محطة.",
   mVendor: "اختر مورّدًا.",
+  modelNumber: "رقم الطراز",
+  movement: "الحركة",
   name: "الاسم",
   nameSkuModelVendor: "الاسم أو رمز الصنف أو الطراز أو المورّد",
   noAirlinesYetWaybill: "لا توجد شركات طيران بعد. تُتتبَّع البوليصة بدونها — لكنها تعرض البادئة المجردة فقط.",
@@ -494,10 +535,13 @@ const ar: Strings = {
   projectSheets: "إلى كشوف المشاريع",
   projectSheets2: "كشوف المشاريع",
   purchaseOrdersStatus: "أوامر الشراء حسب الحالة",
+  qty: "الكمية",
   quantity: "الكمية",
   reason: "السبب",
   recentMovements: "الحركات الأخيرة",
   recentStockMovements: "حركات المخزون الأخيرة",
+  record: "تسجيل",
+  recordAdjustment: "تسجيل تسوية",
   recordMilestone: "تسجيل محطة",
   recording: "جارٍ التسجيل…",
   registerItemsFirstThen: "سجّل الأصناف أولًا، ثم استلم أمر شراء عليها — فهذا ما يُدخل المخزون.",
@@ -505,9 +549,14 @@ const ar: Strings = {
   registeredItems: "الأصناف المسجّلة",
   registeredItems2: "الأصناف المسجّلة",
   remove: "إزالة",
+  reorder: "إعادة الطلب",
   reorderLevel: "حد إعادة الطلب",
   reservedAllocatedProjectSheet: "محجوزة — مخصصة لكشف مشروع",
   route: "المسار",
+  saveAirline: "حفظ شركة الطيران",
+  saveItem: "حفظ الصنف",
+  saveSerials: "حفظ الأرقام التسلسلية",
+  saveVendor: "حفظ المورّد",
   saving: "جارٍ الحفظ…",
   scope: "النطاق",
   search: "بحث",
@@ -532,14 +581,19 @@ const ar: Strings = {
   tabVendors: "ممن تشتري، وما الذي يورّدونه",
   theyDisagreeStockMoved: "بينهما اختلاف — تحرّك المخزون دون تسجيل رقمه التسلسلي.",
   timeline: "المسار الزمني",
+  track: "تتبّع",
   trackingUrlTemplate: "قالب رابط التتبّع",
   type: "النوع",
   unassigned: "غير مُسند",
+  unit: "الوحدة",
   unitCost: "تكلفة الوحدة",
   unknownVendor: "مورّد غير معروف",
+  upload: "رفع",
+  uploading: "جارٍ الرفع…",
   valueStillExpectedArrive: "القيمة التي لا يزال يُتوقّع وصولها، حسب الطلب",
   vendor: "المورّد",
   vendorNoItemTypes: "لا توجد أنواع أصناف لهذا المورّد بعد — أضِفها في صفحته.",
+  vendorPartNumber: "رقم القطعة لدى المورّد",
   vendors: "الموردون",
   vendorsWhoBuyItems: "الموردون هم من تشتري منهم. وتشير إليهم الأصناف والطلبات.",
   viewOnly: "للعرض فقط",

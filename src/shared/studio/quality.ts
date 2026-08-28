@@ -15,6 +15,7 @@ type Strings = CommonStrings & {
   alignment: string;
   amber: string;
   apply: string;
+  approved: string;
   approver: string;
   attachedStamped: string;
   backDocuments: string;
@@ -80,6 +81,7 @@ type Strings = CommonStrings & {
   loading: string;
   middle: string;
   nameRoleDateRecorded: string;
+  neverEdited: string;
   nextReview: string;
   noDocumentsYet: string;
   noPermissionDoThat: string;
@@ -89,8 +91,10 @@ type Strings = CommonStrings & {
   none: string;
   noneLinkBoundOne: string;
   notAccessTheseDocuments: string;
+  noteOptional: string;
   nothingRecordedYet: string;
   nothingWaitingAcknowledgement: string;
+  nothingWrittenHereYet: string;
   nothingYet: string;
   numberedList: string;
   onlyIssuedRevisionShared: string;
@@ -129,6 +133,7 @@ type Strings = CommonStrings & {
   uncontrolledCopy: string;
   underline: string;
   undo: string;
+  uploading: string;
   whatNeedsChanging: string;
   whereStands: string;
   whoWorkDocument: string;
@@ -145,6 +150,7 @@ const en: Strings = {
   alignment: "Alignment",
   amber: "Amber",
   apply: "Apply",
+  approved: "Approved",
   approver: "Approver",
   attachedStamped: "Attached — it will be stamped above your name.",
   backDocuments: "Back to documents",
@@ -210,6 +216,7 @@ const en: Strings = {
   loading: "Loading…",
   middle: "Middle",
   nameRoleDateRecorded: "Your name, role and the date are recorded either way. The image is decoration on top of that.",
+  neverEdited: "Never edited",
   nextReview: "Next review",
   noDocumentsYet: "No documents yet",
   noPermissionDoThat: "You don't have permission to do that.",
@@ -219,8 +226,10 @@ const en: Strings = {
   none: "None",
   noneLinkBoundOne: "None. A link is bound to one revision and always expires.",
   notAccessTheseDocuments: "You do not have access to these documents.",
+  noteOptional: "Note (optional)",
   nothingRecordedYet: "Nothing recorded yet.",
   nothingWaitingAcknowledgement: "There's nothing waiting for your acknowledgement.",
+  nothingWrittenHereYet: "Nothing has been written here yet.",
   nothingYet: "Nothing yet.",
   numberedList: "Numbered list",
   onlyIssuedRevisionShared: "Only an issued revision can be shared outside the studio.",
@@ -259,6 +268,7 @@ const en: Strings = {
   uncontrolledCopy: "UNCONTROLLED COPY",
   underline: "Underline",
   undo: "Undo",
+  uploading: "Uploading…",
   whatNeedsChanging: "What needs changing?",
   whereStands: "Where it stands",
   whoWorkDocument: "Who has to work to this document?",
@@ -275,6 +285,7 @@ const ar: Strings = {
   alignment: "المحاذاة",
   amber: "كهرماني",
   apply: "تطبيق",
+  approved: "معتمدة",
   approver: "المعتمد",
   attachedStamped: "مرفقة — ستُختم فوق اسمك.",
   backDocuments: "العودة إلى الوثائق",
@@ -340,6 +351,7 @@ const ar: Strings = {
   loading: "جارٍ التحميل…",
   middle: "وسط",
   nameRoleDateRecorded: "يُسجَّل اسمك ودورك والتاريخ في الحالتين. والصورة زينة فوق ذلك.",
+  neverEdited: "لم تُحرَّر قط",
   nextReview: "المراجعة التالية",
   noDocumentsYet: "لا توجد وثائق بعد",
   noPermissionDoThat: "لا تملك صلاحية فعل ذلك.",
@@ -349,8 +361,10 @@ const ar: Strings = {
   none: "لا شيء",
   noneLinkBoundOne: "لا شيء. يرتبط الرابط بمراجعة واحدة وينتهي دائمًا.",
   notAccessTheseDocuments: "لا تملك صلاحية الوصول إلى هذه الوثائق.",
+  noteOptional: "ملاحظة (اختيارية)",
   nothingRecordedYet: "لم يُسجَّل شيء بعد.",
   nothingWaitingAcknowledgement: "لا شيء ينتظر إقرارك.",
+  nothingWrittenHereYet: "لم يُكتب شيء هنا بعد.",
   nothingYet: "لا شيء بعد.",
   numberedList: "قائمة مرقّمة",
   onlyIssuedRevisionShared: "لا يمكن مشاركة مراجعة خارج الاستوديو إلا إذا كانت صادرة.",
@@ -389,6 +403,7 @@ const ar: Strings = {
   uncontrolledCopy: "نسخة غير مضبوطة",
   underline: "تسطير",
   undo: "تراجع",
+  uploading: "جارٍ الرفع…",
   whatNeedsChanging: "ما الذي يحتاج إلى تغيير؟",
   whereStands: "وضعها الحالي",
   whoWorkDocument: "من عليه العمل وفق هذه الوثيقة؟",

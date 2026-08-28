@@ -78,6 +78,9 @@ export default function StudioOperations({ slug, view = "operations" }) {
   // NOT A LABEL — this is the path the fetch below goes to. It was briefly a
   // dictionary lookup, which would have asked an Arabic studio for an endpoint
   // that does not exist.
+  // NOT A LABEL — this is the path the fetch below goes to. It was briefly a
+  // dictionary lookup, which would have asked an Arabic studio for an endpoint
+  // that does not exist.
   const endpoint = view === "operations-schedule" ? "operations/schedule" : "operations";
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/${endpoint}`, { cache: "no-store" });
@@ -508,7 +511,7 @@ function ShiftForm({ people, locations, busy, onCancel, onSave }) {
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !form.date || !form.collaboratorId} onClick={() => onSave(form)}>
-          {busy ? tr.saving : "Schedule"}
+          {busy ? tr.saving : tr.schedule}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -528,7 +531,7 @@ function Permits({ rows, locations, people, projects, types, windowDays, slug, n
       {canManage && <button className={btn} onClick={() => setAdding(true)}>{tr.addPermit}</button>}
       {(adding || editing) && (
         <Dialog
-          title={editing ? tr.editPermit : "New permit"}
+          title={editing ? tr.editPermit : tr.newPermit}
           description={tr.whatPermittedWhereUntil}
           onClose={() => { setAdding(false); setEditing(null); }}
         >
@@ -573,7 +576,7 @@ function Permits({ rows, locations, people, projects, types, windowDays, slug, n
                     {[p.type, p.locationName, p.number && `no. ${p.number}`, p.issuer].filter(Boolean).join(" · ")}
                   </p>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {p.validFrom || p.validTo ? `${fmt(p.validFrom)} – ${fmt(p.validTo)}` : "No dates set"}
+                    {p.validFrom || p.validTo ? `${fmt(p.validFrom)} – ${fmt(p.validTo)}` : tr.noDatesSet}
                     {p.holderAliases.length > 0 && ` · ${p.holderAliases.join(", ")}`}
                   </p>
                 </div>
@@ -603,7 +606,7 @@ function PermitForm({ permit, locations, people, projects, types, busy, onCancel
 
   return (
     <section className={`${panel} border-brand-500/40`}>
-      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{permit ? tr.editPermit : "New permit"}</h3>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{permit ? tr.editPermit : tr.newPermit}</h3>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={tr.title} required value={form.title}
           onChange={(v) => setForm((f) => ({ ...f, title: v }))} className="sm:col-span-2" />
@@ -650,7 +653,7 @@ function PermitForm({ permit, locations, people, projects, types, busy, onCancel
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !form.title.trim()}
           onClick={() => onSave({ ...form, holderCollaboratorIds: holders })}>
-          {busy ? tr.saving : "Save"}
+          {busy ? tr.saving : tr.save}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -669,11 +672,11 @@ function Locations({ rows, kinds, canManage, busy, send }) {
       {canManage && <button className={btn} onClick={() => setAdding(true)}>{tr.addLocation}</button>}
       {(adding || editing) && (
         <Dialog
-          title={editing ? tr.editLocation : "New location"}
+          title={editing ? tr.editLocation : tr.newLocation}
           description={tr.placeWorkHappensSite}
           onClose={() => { setAdding(false); setEditing(null); }}
         >
-        <SimpleForm title={editing ? tr.editLocation : "New location"} busy={busy}
+        <SimpleForm title={editing ? tr.editLocation : tr.newLocation} busy={busy}
           fields={[
             { key: "name", label: tr.name, required: true, value: editing?.name || "" },
             { key: "kind", label: tr.kind, value: editing?.kind || kinds[0], options: kinds.map((k) => ({ value: k, text: k })) },
@@ -749,7 +752,7 @@ function SimpleForm({ title, fields, busy, onCancel, onSave }) {
         ))}
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
-        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : "Save"}</button>
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : tr.save}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </section>
@@ -1036,7 +1039,7 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
 
       {canManage ? (
         <div className="flex items-center gap-3">
-          <button className={btn} disabled={busy} onClick={save}>{busy ? tr.saving : "Save settings"}</button>
+          <button className={btn} disabled={busy} onClick={save}>{busy ? tr.saving : tr.saveSettings}</button>
           {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>
       ) : (

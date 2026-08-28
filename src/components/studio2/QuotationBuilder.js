@@ -159,12 +159,12 @@ export default function QuotationBuilder({ quote, catalogue = [], currency = "",
         <div className="ms-auto flex items-center gap-2">
           {locked ? (
             <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-700 text-slate-500 dark:bg-white/5 dark:text-slate-300">
-              {quote.locked ? tr.lockedViewOnly : "View only"}
+              {quote.locked ? tr.lockedViewOnly : tr.viewOnly}
             </span>
           ) : (
             <>
               <button className={btnGhost} onClick={() => commit(null)} disabled={busy}>
-                {busy ? tr.saving : saved === "saved" ? tr.saved : "Save"}
+                {busy ? tr.saving : saved === "saved" ? tr.saved : tr.save}
               </button>
               {/* Submitting is what marks it Completed, so it says what it does
                   rather than leaving somebody to set a status afterwards. */}

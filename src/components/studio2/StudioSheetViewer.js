@@ -246,7 +246,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
   }, [takenByRow]);
 
   const backHref = isInventory ? `/${slug}/inventory-sheets` : `/${slug}/projects-list/${projectId}`;
-  const backLabel = isInventory ? tr.projectSheets : "← Project";
+  const backLabel = isInventory ? tr.projectSheets : tr.project2;
 
   // ---- returns, all of them below every hook -------------------------------
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
@@ -302,7 +302,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
           <p className="truncate font-display text-lg font-800 text-slate-900 dark:text-white">
             {sheet.projectTitle || "Untitled"}
             <span className="ms-2 rounded-full bg-brand-500/10 px-2 py-0.5 align-middle text-[11px] font-700 text-brand-700 dark:text-brand-300">
-              {sheet.kind === "bulk" ? tr.bulk : "Main"}
+              {sheet.kind === "bulk" ? tr.bulk : tr.main}
             </span>
           </p>
           <p className="truncate text-xs text-slate-500 dark:text-slate-400">
@@ -323,7 +323,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
           )}
           <button type="button" className={btn} disabled={!dirtyRows || Boolean(busy)}
             onClick={() => saveAll(sheet.id, perspective)}>
-            {busy ? tr.saving : "Save"}
+            {busy ? tr.saving : tr.save}
           </button>
           {/* HIDE takes this project out of the bar. A checkbox rather than a
               button because it is a state the project is in, not an action with
@@ -732,7 +732,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
 
           {projects.length === 0 ? (
             <span className="whitespace-nowrap text-xs text-slate-400">
-              {query ? tr.noProjectMatches : "No projects signed yet."}
+              {query ? tr.noProjectMatches : tr.noProjectsSignedYet}
             </span>
           ) : (
             <Tabs
@@ -812,7 +812,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
                 <ul className="max-h-56 overflow-auto">
                   {findable.length === 0 ? (
                     <li className="px-3 py-3 text-xs text-slate-400">
-                      {hiddenProjects.length === 0 ? tr.nothingHidden : "No hidden project matches that."}
+                      {hiddenProjects.length === 0 ? tr.nothingHidden : tr.noHiddenProjectMatches}
                     </li>
                   ) : findable.map((p) => (
                     <li key={p.projectId}>

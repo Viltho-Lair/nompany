@@ -91,7 +91,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
     setBusyId("");
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error === "owner-immutable" ? tr.ownerCanRemoved : "We couldn't remove that person.");
+      setError(data.error === "owner-immutable" ? tr.ownerCanRemoved : tr.couldnRemovePerson);
     }
     load();
   }
@@ -113,7 +113,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
               className={btnGhost}
               onClick={async () => { try { await navigator.clipboard.writeText(slug); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ } }}
             >
-              {copied ? tr.copied : "Copy code"}
+              {copied ? tr.copied : tr.copyCode}
             </button>
           </div>
         </section>
@@ -141,7 +141,7 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
       <section className={panel}>
         <h2 className={h2}>{tr.peopleStudio}</h2>
         <p className={sub}>
-          {canAdminister ? tr.namesRolesHereApply : "Everyone with access to this studio."}
+          {canAdminister ? tr.namesRolesHereApply : tr.everyoneAccessStudio}
         </p>
         <ul className="mt-4 space-y-2">
           {people.map((p) => (
@@ -180,7 +180,7 @@ function RequestRow({ request, busy, onDecide }) {
         <Field label={tr.role} as="select" required value={role} onChange={(v) => setRole(v)}
           options={[{ value: "member", label: tr.member }, { value: "admin", label: tr.admin }]} />
         <button className={btn} disabled={busy} onClick={() => onDecide(request, "approve", alias, role)}>
-          {busy ? tr.working : "Approve"}
+          {busy ? tr.working : tr.approve}
         </button>
         <button className={btnGhost} disabled={busy} onClick={() => onDecide(request, "decline")}>{tr.decline}</button>
       </div>
@@ -240,7 +240,7 @@ function MemberRow({ person, roles = [], isMe, canAdminister, busy, onSave, onRe
             {person.alias || "Unnamed member"} {isMe && <span className="text-xs font-400 text-slate-400">(you)</span>}
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {isOwner ? tr.owner : isAdminNow ? tr.admin : held ? held.name : "No role"}
+            {isOwner ? tr.owner : isAdminNow ? tr.admin : held ? held.name : tr.noRole}
             {person.overrideCount > 0 && (
               <span className="ms-1.5 text-amber-700 dark:text-amber-300">
                 +{person.overrideCount} exception{person.overrideCount === 1 ? "" : "s"}

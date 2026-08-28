@@ -322,7 +322,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
                               onChange={(e) => setScope(a, e.target.value)}>
                               {SCOPES.map((s) => (
                                 <option key={s} value={s}>
-                                  {s === "own" ? tr.ownRecords : s === "department" ? tr.department : "Everyone"}
+                                  {s === "own" ? tr.ownRecords : s === "department" ? tr.department : tr.everyone}
                                 </option>
                               ))}
                             </select>
@@ -353,7 +353,7 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
 
         <div className="mt-6 flex gap-3">
           <button className={btn} disabled={busy || !draft.id} onClick={() => onSave(draft)}>
-            {busy ? tr.saving : "Save access"}
+            {busy ? tr.saving : tr.saveAccess}
           </button>
           <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
         </div>
@@ -478,7 +478,7 @@ function WhyPanel({ slug, people, areas }) {
       body: JSON.stringify({ collaboratorId: who, permission: key }),
     });
     setBusy(false);
-    setAnswer(res.ok ? await res.json() : { allowed: false, reason: "Couldn't check that." });
+    setAnswer(res.ok ? await res.json() : { allowed: false, reason: tr.couldnCheck });
   }
 
   return (
@@ -496,12 +496,12 @@ function WhyPanel({ slug, people, areas }) {
           {actions.map((a) => (<option key={a.key} value={a.key}>{a.label}</option>))}
         </select>
         <button className={btnGhost} disabled={busy || !who || !key} onClick={ask}>
-          {busy ? tr.checking : "Check"}
+          {busy ? tr.checking : tr.check}
         </button>
       </div>
       {answer && (
         <p className={`mt-3 text-sm ${answer.allowed ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>
-          <span className="font-700">{answer.allowed ? tr.allowed : "Denied. "}</span>
+          <span className="font-700">{answer.allowed ? tr.allowed : tr.denied}</span>
           {answer.reason}
         </p>
       )}

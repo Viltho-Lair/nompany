@@ -354,7 +354,7 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
         <div className="max-h-[560px] min-h-[240px] overflow-y-auto rounded-geex border border-slate-200/70 dark:border-white/10">
           {shown.length === 0 ? (
             <p className="p-4 text-sm text-slate-400">
-              {query ? `Nothing matches “${query}”.` : "No RFQs have come over from Sales yet."}
+              {query ? `Nothing matches “${query}”.` : tr.noRfqsComeOver}
             </p>
           ) : shown.map((r) => {
             const on = r.id === selectedId;
@@ -398,7 +398,7 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
                   </span>
                 ) : canManage && (
                   <button className={btn} onClick={save} disabled={busy || !dirty}>
-                    {saved && !dirty ? tr.saved : "Save"}
+                    {saved && !dirty ? tr.saved : tr.save}
                   </button>
                 )}
                 <div className="min-w-0">
@@ -602,7 +602,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, focus, handle
                       onClick={() => onOpen(q)}
                       tabIndex={0}
                       role="button"
-                      aria-label={`${q.locked || !canManage ? tr.view : "Open"} ${q.ref || "quotation"}`}
+                      aria-label={`${q.locked || !canManage ? tr.view : tr.open} ${q.ref || "quotation"}`}
                       onKeyDown={(e) => { if (e.key === "Enter") onOpen(q); }}
                       className={`cursor-pointer border-s-4 border-b border-slate-100 align-top last:border-b-0 dark:border-white/5 ${
                         unsent ? stripeOn : stripeOff
@@ -715,7 +715,7 @@ function RaiseRfq({ tickets, onSave, onCancel }) {
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ticketId} onClick={async () => { setBusy(true); await onSave({ ticketId, description }); setBusy(false); }}>
-          {busy ? tr.raising : "Raise RFQ"}
+          {busy ? tr.raising : tr.raiseRfq2}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -763,7 +763,7 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
       </p>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !handledBy} onClick={async () => { setBusy(true); await onSave({ handledByCollaboratorId: handledBy }); setBusy(false); }}>
-          {busy ? tr.converting : "Convert"}
+          {busy ? tr.converting : tr.convert}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -826,7 +826,7 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
             quotation on it will carry, noted as assigned on save. */}
         <Field label={tr.sequence} as="select" required value={f.sequenceId}
           onChange={(v) => set({ sequenceId: v })}
-          hint={seq ? `Number ${seq.nextNumber} — assigned on save` : "Numbered automatically on save"}
+          hint={seq ? `Number ${seq.nextNumber} — assigned on save` : tr.numberedAutomaticallySave}
           options={sequences.map((s) => ({ value: s.id, label: s.prefix ? `${s.label} (${s.prefix})` : s.label }))} />
 
         <Field label={tr.client} required filled={!!f.clientName}
@@ -869,7 +869,7 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
       </div>
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={save}>
-          {busy ? tr.saving : "Create quotation"}
+          {busy ? tr.saving : tr.createQuotation}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -964,7 +964,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
               {canManage && (
                 <div className="flex items-center">
                   <button type="button" className={btnGhost} onClick={() => removeRow(r.id)}
-                    disabled={rows.length === 1} title={rows.length === 1 ? tr.leastOneSequenceKept : "Remove this sequence"}>
+                    disabled={rows.length === 1} title={rows.length === 1 ? tr.leastOneSequenceKept : tr.removeSequence}>
                     Remove
                   </button>
                 </div>
@@ -985,7 +985,7 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
       {canManage ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button type="button" className={btnGhost} onClick={addRow}>{tr.addSequence}</button>
-          <button type="button" className={btn} disabled={busy} onClick={save}>{busy ? tr.saving2 : "Save numbering"}</button>
+          <button type="button" className={btn} disabled={busy} onClick={save}>{busy ? tr.saving2 : tr.saveNumbering}</button>
           {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>
       ) : (
@@ -1021,7 +1021,7 @@ function TechnicalSettings({ options, selected, sequences = [], defaultSequenceI
         </div>
         {canManage ? (
           <div className="mt-5 flex items-center gap-3">
-            <button className={btn} disabled={busy} onClick={() => save({ liveColumns: cols })}>{busy ? tr.saving2 : "Save columns"}</button>
+            <button className={btn} disabled={busy} onClick={() => save({ liveColumns: cols })}>{busy ? tr.saving2 : tr.saveColumns}</button>
             {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
           </div>
         ) : (

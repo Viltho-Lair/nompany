@@ -505,7 +505,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
             holding HR and nothing else. */}
         <button className={btn} disabled={busy}
           onClick={() => { const { roleIds, ...rest } = form; onSave(canAssignRoles ? form : rest); }}>
-          {busy ? tr.saving : "Save"}
+          {busy ? tr.saving : tr.save}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -537,7 +537,7 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
       <Toolbar canManage={canManage} label={tr.addRole} onAdd={() => setForm({ row: null })} />
 
       {form && (
-        <Dialog title={form.row ? `Rename ${form.row.name}` : "New role"}
+        <Dialog title={form.row ? `Rename ${form.row.name}` : tr.newRole}
           description={tr.namingJobHrWhat}
           onClose={closeForm} width="max-w-[560px]">
           <SimpleForm busy={busy} onCancel={closeForm}
@@ -589,7 +589,7 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
                       <button className={btnDanger} disabled={busy}
                         onClick={async () => { await send("roles", "DELETE", { id: r.id }); setConfirming(""); }}>
                         {r.held > 0
-                          ? `Delete — ${r.held} ${r.held === 1 ? tr.personLoses : "people lose"} this access`
+                          ? `Delete — ${r.held} ${r.held === 1 ? tr.personLoses : tr.peopleLose} this access`
                           : tr.deleteGood}
                       </button>
                       <button className={btnGhost} onClick={() => setConfirming("")}>{tr.keep}</button>
@@ -623,7 +623,7 @@ function Certifications({ rows, employees, canManage, busy, send }) {
       <Toolbar canManage={canManage} label={tr.addCertification} onAdd={() => setForm({ row: null })} />
 
       {form && (
-        <Dialog title={form.row ? `Edit ${form.row.name}` : "New certification"} onClose={closeForm} width="max-w-[560px]">
+        <Dialog title={form.row ? `Edit ${form.row.name}` : tr.newCertification} onClose={closeForm} width="max-w-[560px]">
           <SimpleForm busy={busy} onCancel={closeForm}
             fields={[
               { key: "name", label: tr.name, required: true, value: form.row?.name || "" },
@@ -679,7 +679,7 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
       </div>
 
       {asking && (
-        <Dialog title={tr.requestLeave} description={canManage ? tr.bookYourselfSomebodyManage : "It goes to whoever manages HR for approval."}
+        <Dialog title={tr.requestLeave} description={canManage ? tr.bookYourselfSomebodyManage : tr.goesWhoeverManagesHr}
           onClose={closeAsk} width="max-w-[620px]">
           <LeaveForm types={types} employees={employees} canManage={canManage} meId={meId} busy={busy}
             onCancel={closeAsk}
@@ -687,13 +687,13 @@ function Leave({ rows, employees, types, canManage, meId, busy, send }) {
         </Dialog>
       )}
 
-      {rows.length === 0 ? <Empty title={tr.noLeaveBooked} body={canManage ? tr.requestsPeopleArriveHere : "Your own leave requests appear here."} /> : (
+      {rows.length === 0 ? <Empty title={tr.noLeaveBooked} body={canManage ? tr.requestsPeopleArriveHere : tr.ownLeaveRequestsAppear} /> : (
         <section className={panel}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[680px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10">
-                  {["Person", "Type", "From", "To", "Days", "Status"].map((head) => (
+                  {[tr.person, tr.type, tr.from, tr.to, tr.days, tr.status].map((head) => (
                     <th key={head} className={`${th} ps-2 text-start`}>{head}</th>
                   ))}
                   <th className={`${th} text-end`} />
@@ -769,7 +769,7 @@ function LeaveForm({ types, employees, canManage, meId, busy, onSave, onCancel }
       </p>
 
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !form.from || backwards} onClick={() => onSave(form)}>{busy ? tr.sending : "Submit"}</button>
+        <button className={btn} disabled={busy || !form.from || backwards} onClick={() => onSave(form)}>{busy ? tr.sending : tr.submit}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>
@@ -808,7 +808,7 @@ function SimpleForm({ fields, busy, onCancel, onSave }) {
         ))}
       </div>
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : "Save"}</button>
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : tr.save}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </>

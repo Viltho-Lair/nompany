@@ -178,7 +178,7 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
     const res = await withMinDelay(fetch(`/api/studios/${slug}/main/engagements/${id}`, { cache: "no-store" }));
     setBlockLoading(false);
     if (!res.ok) {
-      setBlockError(res.status === 404 ? tr.engagementNoLongerExists : "You can no longer see this engagement.");
+      setBlockError(res.status === 404 ? tr.engagementNoLongerExists : tr.canNoLongerSee);
       return;
     }
     setBlock((await res.json()).engagement);
@@ -193,7 +193,7 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
           <Link
             href={openId ? `/${slug}/engagements` : `/${slug}`}
             onClick={openId ? (e) => { e.preventDefault(); closeEngagement(); } : undefined}
-            title={openId ? tr.backEngagements : "Back to the studio"}
+            title={openId ? tr.backEngagements : tr.backStudio}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >
             <Icon name="arrowLeft" className="h-[18px] w-[18px] rtl:-scale-x-100" />
@@ -292,7 +292,7 @@ function EngagementList({
         </p>
         <div className="mt-4">
           <button type="button" className={btnGhost} disabled={loadingMore} onClick={onLoadMore}>
-            {loadingMore ? tr.loading : "Load more"}
+            {loadingMore ? tr.loading : tr.loadMore}
           </button>
         </div>
       </div>
@@ -377,11 +377,11 @@ function EngagementList({
                       <button
                         type="button"
                         className={btnRow}
-                        aria-label={`${row.locked ? tr.unlock : "Lock"} ${row.ref || row.title || "this deal"}`}
+                        aria-label={`${row.locked ? tr.unlock : tr.lock} ${row.ref || row.title || "this deal"}`}
                         disabled={lockBusyId === row.id}
                         onClick={() => onToggleLock(row.id, !row.locked)}
                       >
-                        {lockBusyId === row.id ? tr.saving : row.locked ? tr.unlock : "Lock"}
+                        {lockBusyId === row.id ? tr.saving : row.locked ? tr.unlock : tr.lock}
                       </button>
                     )}
                     {canDelete && !row.locked && (
@@ -410,7 +410,7 @@ function EngagementList({
         {hasMore && (
           <div className="border-t border-slate-100 p-4 text-center dark:border-white/5">
             <button type="button" className={btnGhost} disabled={loadingMore} onClick={onLoadMore}>
-              {loadingMore ? tr.loading : "Load more"}
+              {loadingMore ? tr.loading : tr.loadMore}
             </button>
           </div>
         )}
@@ -433,7 +433,7 @@ function LockChip({ locked }) {
   const tr = engagementsDict(useStudioLocale());
   return (
     <span
-      title={locked ? tr.lockedUnlockBeforeCan : "The safety is off — this deal can be deleted."}
+      title={locked ? tr.lockedUnlockBeforeCan : tr.safetyIsOff}
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-600 ${
         locked
           ? "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300"
@@ -441,7 +441,7 @@ function LockChip({ locked }) {
       }`}
     >
       <Icon name={locked ? "lock" : "key"} className="h-3 w-3" />
-      {locked ? tr.locked : "Unlocked"}
+      {locked ? tr.locked : tr.unlocked}
     </span>
   );
 }

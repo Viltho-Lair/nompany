@@ -80,6 +80,7 @@ type Strings = CommonStrings & {
   loadingInvoices: string;
   loadingInvoicesGrid: string;
   location: string;
+  lossDisposal: string;
   mAlready: string;
   mAmount: string;
   mBeforeAcquired: string;
@@ -105,6 +106,7 @@ type Strings = CommonStrings & {
   manager: string;
   margin: string;
   markReceived: string;
+  materials: string;
   method: string;
   monthlyCharge: string;
   monthsElapsed: string;
@@ -114,6 +116,7 @@ type Strings = CommonStrings & {
   netBookValueCategory: string;
   newAsset: string;
   newBill: string;
+  newExpense: string;
   newInvoice: string;
   noAssetsService: string;
   noAssetsYet: string;
@@ -146,6 +149,9 @@ type Strings = CommonStrings & {
   quotation: string;
   recalculatedServerWhenSave: string;
   receivablesAging: string;
+  received: string;
+  record: string;
+  recordBill: string;
   recordPayment: string;
   recording: string;
   ref: string;
@@ -154,9 +160,11 @@ type Strings = CommonStrings & {
   salvageValue: string;
   save: string;
   saveDraft: string;
+  saveDraft2: string;
   saving: string;
   searchProjectClientPo: string;
   send: string;
+  service: string;
   spendCategory: string;
   spentMonth: string;
   stage: string;
@@ -181,6 +189,7 @@ type Strings = CommonStrings & {
   value: string;
   vat: string;
   vendor: string;
+  view: string;
   viewOnly: string;
   whatOweDaysPast: string;
   whatWorthEndLife: string;
@@ -262,6 +271,7 @@ const en: Strings = {
   loadingInvoices: "Loading invoices",
   loadingInvoicesGrid: "Loading invoices",
   location: "Location",
+  lossDisposal: "Loss on disposal",
   mAlready: "That bill has already been approved.",
   mAmount: "Enter an amount.",
   mBeforeAcquired: "Disposal can't be dated before the asset was acquired.",
@@ -287,6 +297,7 @@ const en: Strings = {
   manager: "Manager",
   margin: "Margin",
   markReceived: "Mark received",
+  materials: "Materials",
   method: "Method",
   monthlyCharge: "Monthly charge",
   monthsElapsed: "Months elapsed",
@@ -296,6 +307,7 @@ const en: Strings = {
   netBookValueCategory: "Net book value by category",
   newAsset: "New asset",
   newBill: "New bill",
+  newExpense: "New expense",
   newInvoice: "New invoice",
   noAssetsService: "No assets in service.",
   noAssetsYet: "No assets yet",
@@ -328,6 +340,9 @@ const en: Strings = {
   quotation: "Quotation",
   recalculatedServerWhenSave: "— recalculated on the server when you save.",
   receivablesAging: "Receivables aging",
+  received: "Received",
+  record: "Record",
+  recordBill: "Record bill",
   recordPayment: "Record payment",
   recording: "Recording…",
   ref: "Ref",
@@ -336,9 +351,11 @@ const en: Strings = {
   salvageValue: "Salvage value",
   save: "Save",
   saveDraft: "Save as draft",
+  saveDraft2: "Save draft",
   saving: "Saving…",
   searchProjectClientPo: "Search project, client, PO or quotation",
   send: "Send",
+  service: "In service",
   spendCategory: "Spend by category",
   spentMonth: "Spent this month",
   stage: "Stage",
@@ -363,6 +380,7 @@ const en: Strings = {
   value: "Value",
   vat: "VAT %",
   vendor: "Vendor",
+  view: "View",
   viewOnly: "View only",
   whatOweDaysPast: "What we owe, by days past due",
   whatWorthEndLife: "What it's worth at end of life",
@@ -444,6 +462,7 @@ const ar: Strings = {
   loadingInvoices: "جارٍ تحميل الفواتير",
   loadingInvoicesGrid: "جارٍ تحميل الفواتير",
   location: "الموقع",
+  lossDisposal: "خسارة الاستبعاد",
   mAlready: "سبق اعتماد هذه الفاتورة.",
   mAmount: "أدخل مبلغًا.",
   mBeforeAcquired: "لا يمكن أن يسبق تاريخ الاستبعاد تاريخ اقتناء الأصل.",
@@ -469,6 +488,7 @@ const ar: Strings = {
   manager: "المدير",
   margin: "الهامش",
   markReceived: "تعليم كمستلمة",
+  materials: "المواد",
   method: "الطريقة",
   monthlyCharge: "العبء الشهري",
   monthsElapsed: "الأشهر المنقضية",
@@ -478,6 +498,7 @@ const ar: Strings = {
   netBookValueCategory: "صافي القيمة الدفترية حسب الفئة",
   newAsset: "أصل جديد",
   newBill: "فاتورة مورّد جديدة",
+  newExpense: "مصروف جديد",
   newInvoice: "فاتورة جديدة",
   noAssetsService: "لا توجد أصول قيد الخدمة.",
   noAssetsYet: "لا توجد أصول بعد",
@@ -510,6 +531,9 @@ const ar: Strings = {
   quotation: "عرض السعر",
   recalculatedServerWhenSave: "— يُعاد احتسابه على الخادم عند الحفظ.",
   receivablesAging: "أعمار الذمم المدينة",
+  received: "مستلمة",
+  record: "تسجيل",
+  recordBill: "تسجيل فاتورة مورّد",
   recordPayment: "تسجيل دفعة",
   recording: "جارٍ التسجيل…",
   ref: "المرجع",
@@ -518,9 +542,11 @@ const ar: Strings = {
   salvageValue: "القيمة التخريدية",
   save: "حفظ",
   saveDraft: "الحفظ كمسودة",
+  saveDraft2: "حفظ المسودة",
   saving: "جارٍ الحفظ…",
   searchProjectClientPo: "ابحث بالمشروع أو العميل أو أمر الشراء أو عرض السعر",
   send: "إرسال",
+  service: "قيد الخدمة",
   spendCategory: "الإنفاق حسب الفئة",
   spentMonth: "المُنفق هذا الشهر",
   stage: "المرحلة",
@@ -545,6 +571,7 @@ const ar: Strings = {
   value: "القيمة",
   vat: "ضريبة القيمة المضافة ٪",
   vendor: "المورّد",
+  view: "عرض",
   viewOnly: "للعرض فقط",
   whatOweDaysPast: "ما ندين به، حسب أيام التأخر",
   whatWorthEndLife: "قيمته في نهاية عمره الإنتاجي",

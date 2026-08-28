@@ -35,6 +35,7 @@ type Strings = CommonStrings & {
   editPermit: string;
   end: string;
   issued: string;
+  justNow: string;
   kind: string;
   listBelowStillWorks: string;
   loadingOperations: string;
@@ -49,6 +50,9 @@ type Strings = CommonStrings & {
   mTime: string;
   mapLink: string;
   name: string;
+  newLocation: string;
+  newPermit: string;
+  noDatesSet: string;
   noLocation: string;
   noLocationsYet: string;
   noMapConfigured: string;
@@ -73,8 +77,11 @@ type Strings = CommonStrings & {
   reportedPositions: string;
   role: string;
   roleShift: string;
+  save: string;
+  saveSettings: string;
   saved: string;
   saving: string;
+  schedule: string;
   scheduleShift: string;
   seriesShifts: string;
   shareMyLocation: string;
@@ -130,6 +137,7 @@ const en: Strings = {
   editPermit: "Edit permit",
   end: "End",
   issued: "Issued by",
+  justNow: "just now",
   kind: "Kind",
   listBelowStillWorks: "The list below still works. A map needs NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to be set.",
   loadingOperations: "Loading Operations…",
@@ -144,6 +152,9 @@ const en: Strings = {
   mTime: "Give the shift a date, a start and an end.",
   mapLink: "Map link",
   name: "Name",
+  newLocation: "New location",
+  newPermit: "New permit",
+  noDatesSet: "No dates set",
   noLocation: "No location",
   noLocationsYet: "No locations yet",
   noMapConfigured: "No map configured",
@@ -168,8 +179,11 @@ const en: Strings = {
   reportedPositions: "Reported positions",
   role: "Role",
   roleShift: "The role on this shift",
+  save: "Save",
+  saveSettings: "Save settings",
   saved: "Saved",
   saving: "Saving…",
+  schedule: "Schedule",
   scheduleShift: "Schedule a shift",
   seriesShifts: "Shifts",
   shareMyLocation: "Share my location",
@@ -225,6 +239,7 @@ const ar: Strings = {
   editPermit: "تعديل التصريح",
   end: "النهاية",
   issued: "جهة الإصدار",
+  justNow: "الآن",
   kind: "النوع",
   listBelowStillWorks: "القائمة أدناه تعمل كالمعتاد. أما الخريطة فتحتاج إلى ضبط NEXT_PUBLIC_GOOGLE_MAPS_API_KEY.",
   loadingOperations: "جارٍ تحميل العمليات…",
@@ -239,6 +254,9 @@ const ar: Strings = {
   mTime: "أعطِ الوردية تاريخًا وبداية ونهاية.",
   mapLink: "رابط الخريطة",
   name: "الاسم",
+  newLocation: "موقع جديد",
+  newPermit: "تصريح جديد",
+  noDatesSet: "لم تُحدَّد تواريخ",
   noLocation: "بلا موقع",
   noLocationsYet: "لا توجد مواقع بعد",
   noMapConfigured: "لم تُضبط خريطة",
@@ -263,8 +281,11 @@ const ar: Strings = {
   reportedPositions: "المواقع المُبلَّغ عنها",
   role: "الدور",
   roleShift: "الدور في هذه الوردية",
+  save: "حفظ",
+  saveSettings: "حفظ الإعدادات",
   saved: "تم الحفظ",
   saving: "جارٍ الحفظ…",
+  schedule: "جدولة",
   scheduleShift: "جدولة وردية",
   seriesShifts: "الورديات",
   shareMyLocation: "مشاركة موقعي",

@@ -35,8 +35,10 @@ type Strings = CommonStrings & {
   closeBuilder: string;
   columns: string;
   completeQuotationBeforeSending: string;
+  convert: string;
   convertRfqProducePriced: string;
   converting: string;
+  createQuotation: string;
   created: string;
   created2: string;
   created3: string;
@@ -82,11 +84,15 @@ type Strings = CommonStrings & {
   noQuotationsMatchThose: string;
   noQuotationsYet: string;
   noQuotationsYet2: string;
+  noRfqsComeOver: string;
   noSequencesYetAdd: string;
   nothingPricedQuotationYet: string;
   number: string;
+  numberedAutomaticallySave: string;
   onlyApprovedQuotationCan: string;
+  open: string;
   openRfqs: string;
+  pause: string;
   pickNumberingSequence: string;
   pickTicket: string;
   pickTicketNeedsPricing: string;
@@ -106,10 +112,12 @@ type Strings = CommonStrings & {
   quotationsOut: string;
   quotationsUrgencyCarriedTicket: string;
   raiseRfq: string;
+  raiseRfq2: string;
   raised: string;
   raising: string;
   raisingRfqNeedsManage: string;
   received: string;
+  removeSequence: string;
   reopenLockedQuotation: string;
   requestApproval: string;
   requested: string;
@@ -119,6 +127,8 @@ type Strings = CommonStrings & {
   rfqInformation: string;
   rfqsWorkflowStatus: string;
   save: string;
+  saveColumns: string;
+  saveNumbering: string;
   saved: string;
   saving: string;
   saving2: string;
@@ -189,8 +199,10 @@ const en: Strings = {
   closeBuilder: "Close the builder",
   columns: "Columns",
   completeQuotationBeforeSending: "Complete the quotation before sending it for approval.",
+  convert: "Convert",
   convertRfqProducePriced: "Convert an RFQ to produce a priced quotation, or raise one here directly.",
   converting: "Converting…",
+  createQuotation: "Create quotation",
   created: "Created from",
   created2: "Created to",
   created3: "Created by",
@@ -236,11 +248,15 @@ const en: Strings = {
   noQuotationsMatchThose: "No quotations match those filters.",
   noQuotationsYet: "No quotations yet",
   noQuotationsYet2: "No quotations yet.",
+  noRfqsComeOver: "No RFQs have come over from Sales yet.",
   noSequencesYetAdd: "No sequences yet — add one below.",
   nothingPricedQuotationYet: "Nothing has been priced on this quotation yet.",
   number: "Number",
+  numberedAutomaticallySave: "Numbered automatically on save",
   onlyApprovedQuotationCan: "Only an approved quotation can be locked.",
+  open: "Open",
   openRfqs: "Open RFQs",
+  pause: "Pause",
   pickNumberingSequence: "Pick a numbering sequence.",
   pickTicket: "Pick a ticket.",
   pickTicketNeedsPricing: "Pick the ticket that needs pricing. Its details are copied across for Technical.",
@@ -260,10 +276,12 @@ const en: Strings = {
   quotationsOut: "Quotations out",
   quotationsUrgencyCarriedTicket: "Quotations by the urgency carried from the ticket",
   raiseRfq: "Raise an RFQ",
+  raiseRfq2: "Raise RFQ",
   raised: "Raised",
   raising: "Raising…",
   raisingRfqNeedsManage: "Raising an RFQ needs Manage access to Sales.",
   received: "Received",
+  removeSequence: "Remove this sequence",
   reopenLockedQuotation: "Reopen this locked quotation",
   requestApproval: "Request approval",
   requested: "Requested by",
@@ -273,6 +291,8 @@ const en: Strings = {
   rfqInformation: "RFQ information",
   rfqsWorkflowStatus: "RFQs by workflow status",
   save: "Save",
+  saveColumns: "Save columns",
+  saveNumbering: "Save numbering",
   saved: "Saved",
   saving: "Saving…",
   saving2: "Saving...",
@@ -343,8 +363,10 @@ const ar: Strings = {
   closeBuilder: "إغلاق المُنشئ",
   columns: "الأعمدة",
   completeQuotationBeforeSending: "أكمل عرض السعر قبل إرساله للاعتماد.",
+  convert: "تحويل",
   convertRfqProducePriced: "حوّل طلب عرض سعر لإنتاج عرض مُسعّر، أو ارفع واحدًا هنا مباشرة.",
   converting: "جارٍ التحويل…",
+  createQuotation: "إنشاء عرض سعر",
   created: "أُنشئ من",
   created2: "أُنشئ إلى",
   created3: "أنشأه",
@@ -390,11 +412,15 @@ const ar: Strings = {
   noQuotationsMatchThose: "لا توجد عروض أسعار تطابق عوامل التصفية هذه.",
   noQuotationsYet: "لا توجد عروض أسعار بعد",
   noQuotationsYet2: "لا توجد عروض أسعار بعد.",
+  noRfqsComeOver: "لم تصل أي طلبات عروض أسعار من المبيعات بعد.",
   noSequencesYetAdd: "لا توجد تسلسلات بعد — أضِف واحدًا أدناه.",
   nothingPricedQuotationYet: "لم يُسعَّر شيء في عرض السعر هذا بعد.",
   number: "الرقم",
+  numberedAutomaticallySave: "يُرقَّم تلقائيًا عند الحفظ",
   onlyApprovedQuotationCan: "عرض السعر المعتمد وحده هو ما يمكن قفله.",
+  open: "فتح",
   openRfqs: "طلبات عروض أسعار مفتوحة",
+  pause: "إيقاف مؤقت",
   pickNumberingSequence: "اختر تسلسل ترقيم.",
   pickTicket: "اختر تذكرة.",
   pickTicketNeedsPricing: "اختر التذكرة التي تحتاج إلى تسعير. تُنسخ تفاصيلها للقسم الفني.",
@@ -414,10 +440,12 @@ const ar: Strings = {
   quotationsOut: "عروض أسعار صادرة",
   quotationsUrgencyCarriedTicket: "عروض الأسعار حسب الاستعجال المنقول من التذكرة",
   raiseRfq: "رفع طلب عرض سعر",
+  raiseRfq2: "رفع طلب عرض سعر",
   raised: "مرفوع",
   raising: "جارٍ الرفع…",
   raisingRfqNeedsManage: "رفع طلب عرض سعر يتطلب صلاحية إدارة المبيعات.",
   received: "مستلم",
+  removeSequence: "إزالة هذا التسلسل",
   reopenLockedQuotation: "إعادة فتح عرض السعر المقفل",
   requestApproval: "طلب الاعتماد",
   requested: "طلبه",
@@ -427,6 +455,8 @@ const ar: Strings = {
   rfqInformation: "معلومات طلب عرض السعر",
   rfqsWorkflowStatus: "طلبات عروض الأسعار حسب حالة سير العمل",
   save: "حفظ",
+  saveColumns: "حفظ الأعمدة",
+  saveNumbering: "حفظ الترقيم",
   saved: "تم الحفظ",
   saving: "جارٍ الحفظ…",
   saving2: "جارٍ الحفظ…",

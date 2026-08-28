@@ -13,6 +13,7 @@ type Strings = CommonStrings & {
   acrossEverySlaContract: string;
   actions: string;
   activeProjects: string;
+  addContract: string;
   addOvertime: string;
   addSla: string;
   addSlaContract: string;
@@ -25,11 +26,14 @@ type Strings = CommonStrings & {
   cancel: string;
   client: string;
   close: string;
+  closestVisit: string;
   completed: string;
   contactPerson: string;
+  contract: string;
   contractCoversDeliveredProject: string;
   contractName: string;
   contractNoEmergencyVisits: string;
+  createProjectPlan: string;
   createsScheduleProjectCarrying: string;
   creating: string;
   dashboardIsnYoursSee: string;
@@ -38,6 +42,7 @@ type Strings = CommonStrings & {
   defaultSupportPeriodDays: string;
   delete: string;
   deleteProject: string;
+  department: string;
   departmentPreSelected: string;
   derivedWhatAllocatedAgainst: string;
   didnSave: string;
@@ -55,6 +60,7 @@ type Strings = CommonStrings & {
   exportCsv: string;
   findHiddenProject: string;
   from: string;
+  fromTo: string;
   giveName: string;
   handler: string;
   hours: string;
@@ -72,6 +78,7 @@ type Strings = CommonStrings & {
   noDataYet: string;
   noDepartmentsDepartmentSection: string;
   noEmergencyVisitsRegistered: string;
+  noHiddenProjectMatches: string;
   noNumberYet: string;
   noOpenProjects: string;
   noOvertimeRecordedYet: string;
@@ -79,6 +86,7 @@ type Strings = CommonStrings & {
   noProjectMatches: string;
   noProjectValuesYet: string;
   noProjectsMatchSearch: string;
+  noProjectsSignedYet: string;
   noProjectsYet: string;
   noSlaContractsYet: string;
   noSlaContractsYet2: string;
@@ -110,6 +118,7 @@ type Strings = CommonStrings & {
   plannedVisits: string;
   progress: string;
   project: string;
+  project2: string;
   projectAlreadyExistsQuotation: string;
   projectManager: string;
   projectNoLongerExists: string;
@@ -130,7 +139,9 @@ type Strings = CommonStrings & {
   remove: string;
   requirementWeights: string;
   reservedLine: string;
+  save: string;
   saveContract: string;
+  saveSettings: string;
   saved: string;
   saving: string;
   schedule: string;
@@ -187,6 +198,7 @@ const en: Strings = {
   acrossEverySlaContract: "Across every SLA contract",
   actions: "Actions",
   activeProjects: "Active projects",
+  addContract: "Add contract",
   addOvertime: "Add overtime",
   addSla: "Add SLA",
   addSlaContract: "Add SLA contract",
@@ -199,11 +211,14 @@ const en: Strings = {
   cancel: "Cancel",
   client: "Client",
   close: "Close",
+  closestVisit: "Closest visit",
   completed: "Completed",
   contactPerson: "Contact person",
+  contract: "Contract",
   contractCoversDeliveredProject: "A contract covers a delivered project for a period, with a set number of planned visits and an allowance of emergency ones.",
   contractName: "Contract name",
   contractNoEmergencyVisits: "This contract has no emergency visits.",
+  createProjectPlan: "Create project plan",
   createsScheduleProjectCarrying: "Creates a schedule for this project, carrying its details across.",
   creating: "Creating…",
   dashboardIsnYoursSee: "The dashboard isn't yours to see",
@@ -212,6 +227,7 @@ const en: Strings = {
   defaultSupportPeriodDays: "Default support period (days)",
   delete: "Delete",
   deleteProject: "Delete project",
+  department: "Department",
   departmentPreSelected: "The department pre-selected in",
   derivedWhatAllocatedAgainst: "Derived from what is allocated against what was sold",
   didnSave: "That didn't save.",
@@ -229,6 +245,7 @@ const en: Strings = {
   exportCsv: "Export CSV",
   findHiddenProject: "Find a hidden project…",
   from: "From",
+  fromTo: "From–To",
   giveName: "Give it a name.",
   handler: "Handler",
   hours: "Hours",
@@ -246,6 +263,7 @@ const en: Strings = {
   noDataYet: "No data yet",
   noDepartmentsDepartmentSection: "No departments — a department is a section, and this studio has none switched on.",
   noEmergencyVisitsRegistered: "No emergency visits registered yet.",
+  noHiddenProjectMatches: "No hidden project matches that.",
   noNumberYet: "no number yet",
   noOpenProjects: "No open projects.",
   noOvertimeRecordedYet: "No overtime recorded yet",
@@ -253,6 +271,7 @@ const en: Strings = {
   noProjectMatches: "No project matches that.",
   noProjectValuesYet: "No project values yet.",
   noProjectsMatchSearch: "No projects match that search.",
+  noProjectsSignedYet: "No projects signed yet.",
   noProjectsYet: "No projects yet",
   noSlaContractsYet: "No SLA contracts yet",
   noSlaContractsYet2: "No SLA contracts yet.",
@@ -284,6 +303,7 @@ const en: Strings = {
   plannedVisits: "Planned visits",
   progress: "Progress",
   project: "Project",
+  project2: "← Project",
   projectAlreadyExistsQuotation: "A project already exists for that quotation.",
   projectManager: "Project manager",
   projectNoLongerExists: "That project no longer exists.",
@@ -304,7 +324,9 @@ const en: Strings = {
   remove: "Remove",
   requirementWeights: "Requirement weights",
   reservedLine: "Reserved to this line",
+  save: "Save",
   saveContract: "Save contract",
+  saveSettings: "Save settings",
   saved: "Saved",
   saving: "Saving…",
   schedule: "Schedule",
@@ -361,6 +383,7 @@ const ar: Strings = {
   acrossEverySlaContract: "عبر كل عقد مستوى خدمة",
   actions: "الإجراءات",
   activeProjects: "المشاريع النشطة",
+  addContract: "إضافة عقد",
   addOvertime: "إضافة عمل إضافي",
   addSla: "إضافة عقد مستوى خدمة",
   addSlaContract: "إضافة عقد مستوى خدمة",
@@ -373,11 +396,14 @@ const ar: Strings = {
   cancel: "إلغاء",
   client: "العميل",
   close: "إغلاق",
+  closestVisit: "أقرب زيارة",
   completed: "مكتمل",
   contactPerson: "جهة الاتصال",
+  contract: "العقد",
   contractCoversDeliveredProject: "يغطي العقد مشروعًا مُسلَّمًا لفترة محددة، بعدد مقرر من الزيارات المخططة ومخصص من الزيارات الطارئة.",
   contractName: "اسم العقد",
   contractNoEmergencyVisits: "لا يتضمن هذا العقد زيارات طارئة.",
+  createProjectPlan: "إنشاء خطة المشروع",
   createsScheduleProjectCarrying: "يُنشئ جدولًا لهذا المشروع، ناقلًا تفاصيله معه.",
   creating: "جارٍ الإنشاء…",
   dashboardIsnYoursSee: "لوحة المعلومات ليست من صلاحياتك",
@@ -386,6 +412,7 @@ const ar: Strings = {
   defaultSupportPeriodDays: "فترة الدعم الافتراضية (بالأيام)",
   delete: "حذف",
   deleteProject: "حذف المشروع",
+  department: "القسم",
   departmentPreSelected: "القسم المحدد مسبقًا في",
   derivedWhatAllocatedAgainst: "مشتق مما خُصص مقابل ما بيع",
   didnSave: "لم يُحفظ ذلك.",
@@ -403,6 +430,7 @@ const ar: Strings = {
   exportCsv: "تصدير CSV",
   findHiddenProject: "ابحث عن مشروع مخفي…",
   from: "من",
+  fromTo: "من–إلى",
   giveName: "أعطِه اسمًا.",
   handler: "المتولّي",
   hours: "الساعات",
@@ -420,6 +448,7 @@ const ar: Strings = {
   noDataYet: "لا توجد بيانات بعد",
   noDepartmentsDepartmentSection: "لا توجد أقسام — القسم هو قطاع، ولا يوجد أي قطاع مفعّل في هذا الاستوديو.",
   noEmergencyVisitsRegistered: "لم تُسجَّل زيارات طارئة بعد.",
+  noHiddenProjectMatches: "لا يوجد مشروع مخفي يطابق ذلك.",
   noNumberYet: "بلا رقم بعد",
   noOpenProjects: "لا توجد مشاريع مفتوحة.",
   noOvertimeRecordedYet: "لم يُسجَّل عمل إضافي بعد",
@@ -427,6 +456,7 @@ const ar: Strings = {
   noProjectMatches: "لا يوجد مشروع يطابق ذلك.",
   noProjectValuesYet: "لا توجد قيم مشاريع بعد.",
   noProjectsMatchSearch: "لا توجد مشاريع تطابق هذا البحث.",
+  noProjectsSignedYet: "لم تُوقَّع أي مشاريع بعد.",
   noProjectsYet: "لا توجد مشاريع بعد",
   noSlaContractsYet: "لا توجد عقود مستوى خدمة بعد",
   noSlaContractsYet2: "لا توجد عقود مستوى خدمة بعد.",
@@ -458,6 +488,7 @@ const ar: Strings = {
   plannedVisits: "الزيارات المخططة",
   progress: "التقدّم",
   project: "المشروع",
+  project2: "← المشروع",
   projectAlreadyExistsQuotation: "يوجد مشروع بالفعل لعرض السعر ذاك.",
   projectManager: "مدير المشروع",
   projectNoLongerExists: "لم يعد هذا المشروع موجودًا.",
@@ -478,7 +509,9 @@ const ar: Strings = {
   remove: "إزالة",
   requirementWeights: "أوزان المتطلبات",
   reservedLine: "محجوزة لهذا السطر",
+  save: "حفظ",
   saveContract: "حفظ العقد",
+  saveSettings: "حفظ الإعدادات",
   saved: "تم الحفظ",
   saving: "جارٍ الحفظ…",
   schedule: "الجدول",

@@ -114,7 +114,7 @@ export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, 
               disabled={saving || !canEdit}
               title={!canEdit ? tr.permissionChangeTheseDefaults : undefined}
             >
-              {saving ? tr.saving : "Save defaults"}
+              {saving ? tr.saving : tr.saveDefaults}
             </button>
           </div>
         </div>

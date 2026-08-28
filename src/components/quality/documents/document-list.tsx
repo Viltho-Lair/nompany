@@ -141,7 +141,7 @@ export function DocumentList({
           </span>
           <p className="font-medium text-card-foreground">{tr.noDocumentsYet}</p>
           <p className="text-sm text-muted-foreground">
-            {canCreate ? tr.startOneWillGet : "Nothing has been written here yet."}
+            {canCreate ? tr.startOneWillGet : tr.nothingWrittenHereYet}
           </p>
         </div>
       ) : (
@@ -165,7 +165,7 @@ export function DocumentList({
                     </span>
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {document.updatedAt ? `Edited ${String(document.updatedAt).slice(0, 10)}` : "Never edited"}
+                    {document.updatedAt ? `Edited ${String(document.updatedAt).slice(0, 10)}` : tr.neverEdited}
                   </span>
                 </span>
               </Link>

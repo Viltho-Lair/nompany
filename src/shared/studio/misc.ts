@@ -24,6 +24,7 @@ type Strings = CommonStrings & {
   chatEnded: string;
   chatEnded2: string;
   chatNompany: string;
+  chooseFile: string;
   city: string;
   clientBudget: string;
   close: string;
@@ -49,6 +50,7 @@ type Strings = CommonStrings & {
   exSummariseFinances: string;
   exTaskBoard: string;
   fieldsMarkedRequired: string;
+  fileDidnUpload: string;
   fileTooLarge5: string;
   goesWhoeverHoldsManagement: string;
   handTicketTechnicalPricing: string;
@@ -80,8 +82,10 @@ type Strings = CommonStrings & {
   number: string;
   openMap: string;
   owner: string;
+  pause: string;
   poAlreadySubmittedQuotation: string;
   poNumberValueAnything: string;
+  post: string;
   quotation: string;
   quotationAlreadySentApproval: string;
   quotationApproved: string;
@@ -89,10 +93,12 @@ type Strings = CommonStrings & {
   quotations: string;
   rateNompany: string;
   reference: string;
+  requestRfq: string;
   resume: string;
   salesLiveView: string;
   saving: string;
   send: string;
+  sendApproval: string;
   sendLatestQuotationAppointed: string;
   sendTicketBackTechnical: string;
   sending: string;
@@ -145,6 +151,7 @@ const en: Strings = {
   chatEnded: "This chat has ended.",
   chatEnded2: "Chat ended",
   chatNompany: "Chat with nompany",
+  chooseFile: "Choose file",
   city: "City",
   clientBudget: "Client budget",
   close: "Close",
@@ -170,6 +177,7 @@ const en: Strings = {
   exSummariseFinances: "Summarise our finances",
   exTaskBoard: "What's on my task board?",
   fieldsMarkedRequired: "Fields marked * are required.",
+  fileDidnUpload: "That file didn't upload.",
   fileTooLarge5: "That file is too large — 5 MB is the limit.",
   goesWhoeverHoldsManagement: "Goes to whoever holds Management and Finance in Task settings. Finance issues the project number.",
   handTicketTechnicalPricing: "Hand this ticket to Technical for pricing",
@@ -201,8 +209,10 @@ const en: Strings = {
   number: "Number",
   openMap: "Open map",
   owner: "Owner",
+  pause: "Pause",
   poAlreadySubmittedQuotation: "A PO has already been submitted for this quotation.",
   poNumberValueAnything: "PO number, value, anything Finance needs to authorise it",
+  post: "Post",
   quotation: "Quotation",
   quotationAlreadySentApproval: "This quotation has already been sent for approval.",
   quotationApproved: "Quotation approved",
@@ -210,10 +220,12 @@ const en: Strings = {
   quotations: "Quotations",
   rateNompany: "Rate nompany",
   reference: "Reference",
+  requestRfq: "Request RFQ",
   resume: "Resume",
   salesLiveView: "Sales — Live view",
   saving: "Saving…",
   send: "Send",
+  sendApproval: "Send for Approval",
   sendLatestQuotationAppointed: "Send the latest quotation to the appointed Sales and Management approvers",
   sendTicketBackTechnical: "Send this ticket back to Technical to have the last quotation revised",
   sending: "Sending…",
@@ -266,6 +278,7 @@ const ar: Strings = {
   chatEnded: "انتهت هذه المحادثة.",
   chatEnded2: "انتهت المحادثة",
   chatNompany: "تحدّث مع nompany",
+  chooseFile: "اختر ملفًا",
   city: "المدينة",
   clientBudget: "ميزانية العميل",
   close: "إغلاق",
@@ -291,6 +304,7 @@ const ar: Strings = {
   exSummariseFinances: "لخّص وضعنا المالي",
   exTaskBoard: "ما الموجود في لوحة مهامي؟",
   fieldsMarkedRequired: "الحقول المعلَّمة بـ * مطلوبة.",
+  fileDidnUpload: "لم يُرفع ذلك الملف.",
   fileTooLarge5: "هذا الملف كبير جدًا — الحد 5 ميجابايت.",
   goesWhoeverHoldsManagement: "يذهب إلى من يحمل صلاحيتي الإدارة والمالية في إعدادات المهام. وتُصدر المالية رقم المشروع.",
   handTicketTechnicalPricing: "سلّم هذه التذكرة إلى القسم الفني للتسعير",
@@ -322,8 +336,10 @@ const ar: Strings = {
   number: "الرقم",
   openMap: "فتح الخريطة",
   owner: "المسؤول",
+  pause: "إيقاف مؤقت",
   poAlreadySubmittedQuotation: "سبق تقديم أمر شراء لعرض السعر هذا.",
   poNumberValueAnything: "رقم أمر الشراء، القيمة، وأي شيء تحتاجه المالية لاعتماده",
+  post: "نشر",
   quotation: "عرض السعر",
   quotationAlreadySentApproval: "سبق إرسال عرض السعر هذا للاعتماد.",
   quotationApproved: "اعتُمد عرض السعر",
@@ -331,10 +347,12 @@ const ar: Strings = {
   quotations: "عروض الأسعار",
   rateNompany: "قيّم nompany",
   reference: "المرجع",
+  requestRfq: "طلب عرض سعر",
   resume: "استئناف",
   salesLiveView: "المبيعات — العرض المباشر",
   saving: "جارٍ الحفظ…",
   send: "إرسال",
+  sendApproval: "إرسال للاعتماد",
   sendLatestQuotationAppointed: "أرسل أحدث عرض سعر إلى معتمدي المبيعات والإدارة المعيّنين",
   sendTicketBackTechnical: "أعِد هذه التذكرة إلى القسم الفني لمراجعة آخر عرض سعر",
   sending: "جارٍ الإرسال…",

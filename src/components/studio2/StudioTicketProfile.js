@@ -134,7 +134,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
       const up = await fetch("/api/media", { method: "POST", body: form });
       if (!up.ok) {
         setBusy(false);
-        setError(up.status === 413 ? tr.fileTooLarge5 : "That file didn't upload.");
+        setError(up.status === 413 ? tr.fileTooLarge5 : tr.fileDidnUpload);
         return false;
       }
       attachmentUrl = (await up.json()).url;
@@ -339,7 +339,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                   inputProps={{ onKeyDown: (e) => { if (e.key === "Enter") addComment(); } }}
                 />
                 <button className={btn} onClick={addComment} disabled={busy || !comment.trim()}>
-                  {busy ? tr.saving : "Post"}
+                  {busy ? tr.saving : tr.post}
                 </button>
               </div>
             )}
@@ -364,7 +364,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                     ? tr.sendTicketBackTechnical
                     : tr.handTicketTechnicalPricing}
                   onClick={() => act("rfq")}>
-                  {acting === "rfq" ? tr.sending : "Request RFQ"}
+                  {acting === "rfq" ? tr.sending : tr.requestRfq}
                 </button>
               )}
 
@@ -382,7 +382,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                   <button type="button" className={btnApprove} disabled={acting === "approval"}
                     title={tr.sendLatestQuotationAppointed}
                     onClick={() => act("approval")}>
-                    {acting === "approval" ? tr.sending : "Send for Approval"}
+                    {acting === "approval" ? tr.sending : tr.sendApproval}
                   </button>
                 )
               )}
@@ -542,7 +542,7 @@ function PoForm({ busy, onCancel, onSave }) {
           Attach the PO
         </span>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5">
-          {file ? tr.changeFile : "Choose file"}
+          {file ? tr.changeFile : tr.chooseFile}
           <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
         </label>
         {file && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{file.name}</p>}
@@ -561,7 +561,7 @@ function PoForm({ busy, onCancel, onSave }) {
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button className={btn} disabled={busy || !ready} onClick={() => onSave({ description: description.trim(), file })}>
-          {busy ? tr.sending : "Submit PO to Finance"}
+          {busy ? tr.sending : tr.submitPoFinance}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>

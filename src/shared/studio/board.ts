@@ -24,6 +24,7 @@ type Strings = CommonStrings & {
   dangerZone: string;
   deleteSubtask: string;
   description: string;
+  done: string;
   doubleClickRename: string;
   dropCardHereClick: string;
   editTask: string;
@@ -59,6 +60,7 @@ const en: Strings = {
   dangerZone: "Danger zone",
   deleteSubtask: "Delete subtask",
   description: "Description",
+  done: "Done",
   doubleClickRename: "Double-click to rename",
   dropCardHereClick: "Drop a card here or click to add",
   editTask: "Edit task",
@@ -94,6 +96,7 @@ const ar: Strings = {
   dangerZone: "منطقة الخطر",
   deleteSubtask: "حذف المهمة الفرعية",
   description: "الوصف",
+  done: "تم",
   doubleClickRename: "انقر نقرًا مزدوجًا لإعادة التسمية",
   dropCardHereClick: "أفلت بطاقة هنا أو انقر للإضافة",
   editTask: "تعديل المهمة",

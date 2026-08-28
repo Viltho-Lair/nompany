@@ -10,8 +10,10 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 type Strings = CommonStrings & {
   addColumn: string;
   font: string;
+  footer: string;
   header: string;
   loading: string;
+  pageFooter: string;
   pageHeader: string;
   search1900Fonts: string;
 };
@@ -20,8 +22,10 @@ const en: Strings = {
   ...commonEn,
   addColumn: "Add column",
   font: "Font",
+  footer: "Footer",
   header: "Header",
   loading: "Loading",
+  pageFooter: "Page footer",
   pageHeader: "Page header",
   search1900Fonts: "Search 1,900+ fonts",
 };
@@ -30,8 +34,10 @@ const ar: Strings = {
   ...commonAr,
   addColumn: "إضافة عمود",
   font: "الخط",
+  footer: "التذييل",
   header: "الترويسة",
   loading: "جارٍ التحميل",
+  pageFooter: "تذييل الصفحة",
   pageHeader: "ترويسة الصفحة",
   search1900Fonts: "ابحث في أكثر من 1,900 خط",
 };

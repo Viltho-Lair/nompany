@@ -397,7 +397,7 @@ function PageBand({
   const isHeader = area === "header";
   const active = pageIndex >= band.startPage;
   const isEditableCopy = pageIndex === editablePage;
-  const label = isHeader ? tr.pageHeader : "Page footer";
+  const label = isHeader ? tr.pageHeader : tr.pageFooter;
 
   return (
     <div
@@ -419,7 +419,7 @@ function PageBand({
             <BandEditor
               content={band.content}
               fallbackText={band.text}
-              placeholder={isHeader ? tr.header : "Footer"}
+              placeholder={isHeader ? tr.header : tr.footer}
               ariaLabel={`${label}, page ${pageIndex}`}
               onChange={onContentChange}
               onReady={onReady}
