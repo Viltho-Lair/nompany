@@ -14,9 +14,16 @@ const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
 const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
+// OPAQUE, unlike the rest of the board. `glass-strong` is 0.88 white over
+// whatever is behind it, which is right for a dialog the size of a sheet and
+// wrong for a 200px menu: it opens ON TOP of the cards it filters, so the text
+// people are trying to read sits over card titles and priority dots showing
+// through. `bg-popover` is the token that exists for exactly this — opaque
+// white, opaque navy in dark — and the sheen stays so the menu still belongs to
+// the same family of surfaces.
 const menuSurface = [
   "z-50 min-w-[10rem] overflow-hidden rounded-xl p-1.5",
-  "glass-strong glass-sheen shadow-lift",
+  "bg-popover text-popover-foreground border border-border/70 glass-sheen shadow-lift",
   "data-[state=open]:animate-in data-[state=closed]:animate-out",
   "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
   "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",

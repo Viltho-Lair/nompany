@@ -151,7 +151,13 @@ export function BoardHeader({ onAddColumn }: { onAddColumn: () => void }) {
               value={priorityFilter}
               onValueChange={(v) => setPriorityFilter(v as Priority | "all")}
             >
-              <SelectTrigger className="h-9 w-[7.5rem] text-[13px]">
+              {/* WIDE ENOUGH FOR ITS OWN LABEL, whatever the label is. A fixed
+                  7.5rem left two pixels of room around "All priorities" in
+                  English and Cabin — so any wider word truncated it to
+                  "All…": the Arabic label, or the fallback font before Cabin
+                  loads. The minimum keeps the control from collapsing to the
+                  width of "Low". */}
+              <SelectTrigger className="h-9 w-auto min-w-[7.5rem] text-[13px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
