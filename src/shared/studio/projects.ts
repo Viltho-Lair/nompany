@@ -34,6 +34,7 @@ type Strings = CommonStrings & {
   contractCoversDeliveredProject: string;
   contractName: string;
   contractNoEmergencyVisits: string;
+  createProject: string;
   createProjectPlan: string;
   createsScheduleProjectCarrying: string;
   creating: string;
@@ -47,7 +48,9 @@ type Strings = CommonStrings & {
   department: string;
   departmentPreSelected: string;
   derivedWhatAllocatedAgainst: string;
+  descriptionOfTheWork: string;
   didnSave: string;
+  direct: string;
   discard: string;
   due30Days: string;
   durationDays: string;
@@ -59,9 +62,11 @@ type Strings = CommonStrings & {
   end: string;
   endTimeAfterStart: string;
   endTimeMustAfter: string;
+  existingClient: string;
   exportCsv: string;
   findHiddenProject: string;
   from: string;
+  fromApprovedQuotation: string;
   fromTo: string;
   giveName: string;
   handler: string;
@@ -84,7 +89,11 @@ type Strings = CommonStrings & {
   nHoursPerPerson: (n: number) => string;
   nOvertimeHoursLogged: (n: number) => string;
   nVisitsScheduled: (n: number) => string;
+  nameIsnListCreatesClient: string;
+  newClientWork: string;
+  newProject: string;
   noApprovedQuotationsWaiting: string;
+  noClientsListHere: string;
   noDataYet: string;
   noDepartmentsDepartmentSection: string;
   noEmergencyVisitsRegistered: string;
@@ -100,6 +109,11 @@ type Strings = CommonStrings & {
   noProjectsSigned: string;
   noProjectsSignedYet: string;
   noProjectsYet: string;
+  // TWO KINDS OF EMPTY on a project's sheet, and they mean different things. A
+  // sheet with no quotation behind it can never fill from this screen — the
+  // project was raised directly — where a quotation with no priced lines is
+  // waiting on somebody to price it. See quotationNoPricedLines below.
+  noQuotationBehindProject: string;
   noServiceActionsYet: string;
   noSlaContractsYet: string;
   noSlaContractsYet2: string;
@@ -117,7 +131,6 @@ type Strings = CommonStrings & {
   onlyProjectEditorsCan: string;
   open: string;
   openProject: string;
-  openProject2: string;
   openProjectFirst: string;
   openProjectPlan: string;
   openProjectsPerManager: string;
@@ -146,6 +159,7 @@ type Strings = CommonStrings & {
   projectQuotationPoSerial: string;
   projectSheets: string;
   projectTimeline: string;
+  projectValue: string;
   projectColumns: string;
   projectCount: (shown: number, total: number) => string;
   projects: string;
@@ -155,6 +169,7 @@ type Strings = CommonStrings & {
   qty: string;
   quotation: string;
   quotationHasnApprovedYet: string;
+  quotationNoPricedLines: string;
   received: string;
   registerEmergencyVisit: string;
   registeredProjectValue: string;
@@ -202,6 +217,7 @@ type Strings = CommonStrings & {
   total: string;
   totalRow: string;
   totalValue: string;
+  typeIndustry: string;
   unassigned: string;
   unassigned2: string;
   unnumbered: string;
@@ -249,6 +265,7 @@ const en: Strings = {
   contractCoversDeliveredProject: "A contract covers a delivered project for a period, with a set number of planned visits and an allowance of emergency ones.",
   contractName: "Contract name",
   contractNoEmergencyVisits: "This contract has no emergency visits.",
+  createProject: "Create project",
   createProjectPlan: "Create project plan",
   createsScheduleProjectCarrying: "Creates a schedule for this project, carrying its details across.",
   creating: "Creating…",
@@ -262,7 +279,11 @@ const en: Strings = {
   department: "Department",
   departmentPreSelected: "The department pre-selected in",
   derivedWhatAllocatedAgainst: "Derived from what is allocated against what was sold",
+  descriptionOfTheWork: "Description of the work",
   didnSave: "That didn't save.",
+  // The lineage strip's answer for a project with no chain behind it. A blank
+  // strip reads as a missing record; "Direct" says the absence is the fact.
+  direct: "Direct",
   discard: "Discard",
   due30Days: "due in 30 days",
   durationDays: "Duration (days)",
@@ -274,9 +295,11 @@ const en: Strings = {
   end: "End",
   endTimeAfterStart: "The end time has to be after the start time.",
   endTimeMustAfter: "The end time must be after the start time.",
+  existingClient: "Existing client.",
   exportCsv: "Export CSV",
   findHiddenProject: "Find a hidden project…",
   from: "From",
+  fromApprovedQuotation: "From an approved quotation",
   fromTo: "From–To",
   giveName: "Give it a name.",
   handler: "Handler",
@@ -299,7 +322,11 @@ const en: Strings = {
   nHoursPerPerson: (n: number) => `${n} hour${n === 1 ? "" : "s"} per person.`,
   nOvertimeHoursLogged: (n: number) => `${n} overtime hours logged`,
   nVisitsScheduled: (n: number) => `${n} visit${n === 1 ? "" : "s"} scheduled in total`,
+  nameIsnListCreatesClient: "That name isn't on the list — a new client will be created.",
+  newClientWork: "New client work",
+  newProject: "New project",
   noApprovedQuotationsWaiting: "There are no approved quotations waiting. Approve one in Technical and it will be selectable here.",
+  noClientsListHere: "This studio has no clients list, so there is no client to file the project against. Switch the Sales clients section on first.",
   noDataYet: "No data yet",
   noDepartmentsDepartmentSection: "No departments — a department is a section, and this studio has none switched on.",
   noEmergencyVisitsRegistered: "No emergency visits registered yet.",
@@ -315,6 +342,7 @@ const en: Strings = {
   noProjectsSigned: "No projects have been signed yet — a project's sheets are drawn up when it is opened from an approved quotation.",
   noProjectsSignedYet: "No projects signed yet.",
   noProjectsYet: "No projects yet",
+  noQuotationBehindProject: "This project has no quotation behind it, so there are no lines to work. Sheets fill from an approved quotation's priced rows.",
   noServiceActionsYet: "No service actions yet — add them in Studio Settings, then weight them here.",
   noSlaContractsYet: "No SLA contracts yet",
   noSlaContractsYet2: "No SLA contracts yet.",
@@ -332,7 +360,6 @@ const en: Strings = {
   onlyProjectEditorsCan: "Only project editors can start a plan.",
   open: "Open",
   openProject: "Open project",
-  openProject2: "Open a project",
   openProjectFirst: "Open a project first",
   openProjectPlan: "Open project plan",
   openProjectsPerManager: "Open projects per manager",
@@ -361,15 +388,17 @@ const en: Strings = {
   projectQuotationPoSerial: "Project, quotation, PO, serial…",
   projectSheets: "← Project sheets",
   projectTimeline: "Project timeline",
+  projectValue: "Project value",
   projectColumns: "Project columns",
   projectCount: (shown, total) => `${shown} of ${total} project${total === 1 ? "" : "s"}.`,
   projects: "Projects",
-  projectsEmptySummary: "Projects open from an approved quotation. Once one is registered, its stages, value and progress are summarised here.",
-  projectsOpenApprovedQuotation: "Projects open from an approved quotation. Approve one in Technical and it'll appear here.",
+  projectsEmptySummary: "A project opens from an approved quotation, or is created directly from work handed to the studio. Once one is registered, its stages, value and progress are summarised here.",
+  projectsOpenApprovedQuotation: "Projects open from an approved quotation, or are created directly for work handed to you.",
   projectsStage: "Projects by stage",
   qty: "Qty",
   quotation: "Quotation",
   quotationHasnApprovedYet: "That quotation hasn't been approved yet.",
+  quotationNoPricedLines: "The quotation behind this sheet has no priced lines yet. Add them in the builder and they appear here.",
   received: "Received",
   registerEmergencyVisit: "Register emergency visit",
   registeredProjectValue: "Registered project value",
@@ -417,6 +446,7 @@ const en: Strings = {
   total: "Total",
   totalRow: "Total",
   totalValue: "Total value",
+  typeIndustry: "Type of industry",
   unassigned: "Unassigned",
   unassigned2: "Unassigned",
   unnumbered: "Unnumbered",
@@ -464,6 +494,7 @@ const ar: Strings = {
   contractCoversDeliveredProject: "يغطي العقد مشروعًا مُسلَّمًا لفترة محددة، بعدد مقرر من الزيارات المخططة ومخصص من الزيارات الطارئة.",
   contractName: "اسم العقد",
   contractNoEmergencyVisits: "لا يتضمن هذا العقد زيارات طارئة.",
+  createProject: "إنشاء المشروع",
   createProjectPlan: "إنشاء خطة المشروع",
   createsScheduleProjectCarrying: "يُنشئ جدولًا لهذا المشروع، ناقلًا تفاصيله معه.",
   creating: "جارٍ الإنشاء…",
@@ -477,7 +508,9 @@ const ar: Strings = {
   department: "القسم",
   departmentPreSelected: "القسم المحدد مسبقًا في",
   derivedWhatAllocatedAgainst: "مشتق مما خُصص مقابل ما بيع",
+  descriptionOfTheWork: "وصف العمل",
   didnSave: "لم يُحفظ ذلك.",
+  direct: "مباشر",
   discard: "تجاهل",
   due30Days: "مستحق خلال 30 يومًا",
   durationDays: "المدة (بالأيام)",
@@ -489,9 +522,11 @@ const ar: Strings = {
   end: "النهاية",
   endTimeAfterStart: "يجب أن يكون وقت النهاية بعد وقت البداية.",
   endTimeMustAfter: "يجب أن يكون وقت النهاية بعد وقت البداية.",
+  existingClient: "عميل قائم.",
   exportCsv: "تصدير CSV",
   findHiddenProject: "ابحث عن مشروع مخفي…",
   from: "من",
+  fromApprovedQuotation: "من عرض سعر معتمد",
   fromTo: "من–إلى",
   giveName: "أعطِه اسمًا.",
   handler: "المتولّي",
@@ -514,7 +549,11 @@ const ar: Strings = {
   nHoursPerPerson: (n: number) => `${n === 1 ? "ساعة واحدة" : n === 2 ? "ساعتان" : n <= 10 ? `${n} ساعات` : `${n} ساعة`} لكل شخص.`,
   nOvertimeHoursLogged: (n: number) => `${n} ساعة إضافية مسجّلة`,
   nVisitsScheduled: (n: number) => `إجمالًا ${n === 1 ? "زيارة واحدة مجدولة" : n === 2 ? "زيارتان مجدولتان" : n <= 10 ? `${n} زيارات مجدولة` : `${n} زيارة مجدولة`}`,
+  nameIsnListCreatesClient: "هذا الاسم ليس في القائمة — سيُنشأ عميل جديد.",
+  newClientWork: "عمل جديد لعميل",
+  newProject: "مشروع جديد",
   noApprovedQuotationsWaiting: "لا توجد عروض أسعار معتمدة بالانتظار. اعتمد واحدًا في القسم الفني ليصبح قابلًا للاختيار هنا.",
+  noClientsListHere: "لا توجد قائمة عملاء في هذا الاستوديو، فلا يوجد عميل يُسجَّل المشروع عليه. فعِّل قسم عملاء المبيعات أولًا.",
   noDataYet: "لا توجد بيانات بعد",
   noDepartmentsDepartmentSection: "لا توجد أقسام — القسم هو قطاع، ولا يوجد أي قطاع مفعّل في هذا الاستوديو.",
   noEmergencyVisitsRegistered: "لم تُسجَّل زيارات طارئة بعد.",
@@ -530,6 +569,7 @@ const ar: Strings = {
   noProjectsSigned: "لم تُوقَّع أي مشاريع بعد — تُعدّ كشوف المشروع عند فتحه من عرض سعر معتمد.",
   noProjectsSignedYet: "لم تُوقَّع أي مشاريع بعد.",
   noProjectsYet: "لا توجد مشاريع بعد",
+  noQuotationBehindProject: "لا يوجد عرض سعر خلف هذا المشروع، فليست هناك بنود للعمل عليها. تمتلئ الجداول من البنود المسعّرة في عرض سعر معتمد.",
   noServiceActionsYet: "لا إجراءات خدمة بعد — أضفها في إعدادات الاستوديو ثم وزّع أوزانها هنا.",
   noSlaContractsYet: "لا توجد عقود مستوى خدمة بعد",
   noSlaContractsYet2: "لا توجد عقود مستوى خدمة بعد.",
@@ -547,7 +587,6 @@ const ar: Strings = {
   onlyProjectEditorsCan: "لا يمكن بدء خطة إلا لمحرري المشاريع.",
   open: "فتح",
   openProject: "فتح المشروع",
-  openProject2: "افتح مشروعًا",
   openProjectFirst: "افتح مشروعًا أولًا",
   openProjectPlan: "افتح خطة المشروع",
   openProjectsPerManager: "المشاريع المفتوحة لكل مدير",
@@ -576,6 +615,7 @@ const ar: Strings = {
   projectQuotationPoSerial: "المشروع، عرض السعر، أمر الشراء، الرقم التسلسلي…",
   projectSheets: "← كشوف المشاريع",
   projectTimeline: "المسار الزمني للمشاريع",
+  projectValue: "قيمة المشروع",
   projectColumns: "أعمدة المشاريع",
   projectCount: (shown, total) => {
     const what =
@@ -586,12 +626,13 @@ const ar: Strings = {
     return `${shown} من ${total} ${what}.`;
   },
   projects: "المشاريع",
-  projectsEmptySummary: "تُفتح المشاريع من عرض سعر معتمد. ومتى سُجّل مشروع، لُخّصت هنا مراحله وقيمته وتقدّمه.",
-  projectsOpenApprovedQuotation: "تُفتح المشاريع من عرض سعر معتمد. اعتمد واحدًا في القسم الفني وسيظهر هنا.",
+  projectsEmptySummary: "يُفتح المشروع من عرض سعر معتمد، أو يُنشأ مباشرةً من عمل أُسند إلى الاستوديو. ومتى سُجّل مشروع، لُخّصت هنا مراحله وقيمته وتقدّمه.",
+  projectsOpenApprovedQuotation: "تُفتح المشاريع من عرض سعر معتمد، أو تُنشأ مباشرة لعمل أُسند إليك.",
   projectsStage: "المشاريع حسب المرحلة",
   qty: "الكمية",
   quotation: "عرض السعر",
   quotationHasnApprovedYet: "لم يُعتمد عرض السعر ذاك بعد.",
+  quotationNoPricedLines: "عرض السعر خلف هذه الورقة لا يحمل بنودًا مسعّرة بعد. أضفها في المُنشئ لتظهر هنا.",
   received: "مستلم",
   registerEmergencyVisit: "سجّل زيارة طارئة",
   registeredProjectValue: "قيمة المشاريع المسجّلة",
@@ -639,6 +680,7 @@ const ar: Strings = {
   total: "الإجمالي",
   totalRow: "الإجمالي",
   totalValue: "القيمة الإجمالية",
+  typeIndustry: "نوع النشاط",
   unassigned: "غير مُسند",
   unassigned2: "غير مُسند",
   unnumbered: "بلا رقم",

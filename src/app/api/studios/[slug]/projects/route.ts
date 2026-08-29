@@ -5,6 +5,7 @@ import {
   openProject, updateProject, removeProject, PROJECT_STAGES,
 } from "@/modules/projects/projects";
 import { listProjectSheets } from "@/modules/inventory/inventory";
+import { TICKET_INDUSTRIES } from "@/modules/sales/tickets";
 import { can } from "@/platform/access";
 
 export const runtime = "nodejs";
@@ -63,9 +64,19 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     overtimes,
     directory,
     settings: readProjectsSettings(c.settingsSection),
-    // Requirement weights are keyed by the studio's own service actions now, so
-    // the settings screen reads that list rather than a fixed set of keys.
-    vocabulary: { stages: PROJECT_STAGES, serviceActions: (c.studio.serviceActions as string[]) || [] },
+    // The studio's own country and city, so a new site on the direct create
+    // form starts where a ticket and a quotation start rather than empty.
+    studioDefaults: { country: c.studio?.country || "", city: c.studio?.city || "" },
+    vocabulary: {
+      // Requirement weights are keyed by the studio's own service actions now, so
+      // the settings screen reads that list rather than a fixed set of keys.
+      stages: PROJECT_STAGES,
+      serviceActions: (c.studio.serviceActions as string[]) || [],
+      // THE SAME LIST SALES AND TECHNICAL OFFER, not a third copy — an
+      // industry typed here has to match one typed there or the two screens
+      // describe the same client differently.
+      industries: TICKET_INDUSTRIES,
+    },
   };
 });
 

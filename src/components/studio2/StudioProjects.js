@@ -18,7 +18,14 @@ import {
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
 import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
-import { Field } from "@/components/fields/Field";
+// The contact-and-site block, and the free-text dropdown, a new quotation
+// raises a client with. Both already sit in the studio chunk — reusing them is
+// what keeps the direct-create form from being a poorer second copy of one.
+import ClientBlock, { EMPTY_CLIENT_BLOCK, clientBlockPayload } from "@/components/studio2/ClientBlock";
+import Combo from "@/components/studio2/Combo";
+// One import, not two: BARE_CONTROL rides with Field rather than repeating the
+// module specifier a second time.
+import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import {
   slaVisits, emergencyVisits, nextVisit, contractEndDate, supportStatus,
@@ -127,6 +134,10 @@ export default function StudioProjects({ slug, view = "projects" }) {
         : out.error === "not-approved" ? tr.quotationHasnApprovedYet
         : out.error === "already" ? tr.projectAlreadyExistsQuotation
         : out.error === "title" ? tr.giveName
+        // A direct create refuses with "client" when this studio has no Sales
+        // clients section — the form's `ready` gate cannot pre-empt it, because
+        // it only knows the typed name, not whether the section exists.
+        : out.error === "client" ? tr.noClientsListHere
         : out.error === "startDate" ? tr.startDateRequiredVisit
         : out.error === "emergency-cap" ? tr.nEmergencyVisitsAllowed(out.cap)
         : out.error === "project" ? tr.pickProject
@@ -147,7 +158,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
   const {
     canManage: canManageParent,
     canManageList, canManageSla, canManageOvertimes, canManageSettings,
-    projects, approvedQuotations, people, slas, overtimes, directory, settings, vocabulary, nav,
+    projects, approvedQuotations, people, clients = [], slas, overtimes, directory, settings, vocabulary, nav,
   } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN — here by the canManageX flag
   // handed to each screen below, one per sub-section, each resolved from that
@@ -194,6 +205,8 @@ export default function StudioProjects({ slug, view = "projects" }) {
       <div className="space-y-6">
         {banner}
         <ProjectList projects={projects} approvedQuotations={approvedQuotations} people={people}
+          clients={clients} industries={vocabulary.industries || []}
+          studioDefaults={data.studioDefaults || {}}
           stages={vocabulary.stages} canManage={canManageList} slug={slug} nav={nav} focus={focus}
           onOpen={(p) => send("", "POST", p)}
           onSave={(id, patch) => send("", "PUT", { id, ...patch })}
@@ -216,7 +229,8 @@ export default function StudioProjects({ slug, view = "projects" }) {
 
 // ---- project list ----------------------------------------------------------
 
-function ProjectList({ projects, approvedQuotations, people, stages, canManage, slug, nav, focus, onOpen, onSave, onDelete }) {
+function ProjectList({ projects, approvedQuotations, people, clients = [], industries = [],
+  studioDefaults = {}, stages, canManage, slug, nav, focus, onOpen, onSave, onDelete }) {
   const tr = projectsDict(useStudioLocale());
   const PROJECT_COLUMNS = useMemo(() => projectColumns(tr), [tr]);
   const router = useRouter();
@@ -344,7 +358,7 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
 
   return (
     <>
-      <Toolbar canManage={canManage} label={tr.openProject} onAdd={() => setOpening(true)}>
+      <Toolbar canManage={canManage} label={tr.newProject} onAdd={() => setOpening(true)}>
         {projects.length > 0 && (
           <>
             <input type="search" className={`${input} sm:max-w-xs`} aria-label={tr.searchTitleNumberClient}
@@ -409,9 +423,14 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
         />
       )}
 
+      {/* NO `description` ANY MORE: it said "only approved quotations can become
+          projects", which is no longer true — the screen would be lying about
+          its own behaviour. The caveat now belongs to the quotation mode alone,
+          which is where NewProject renders it. */}
       {opening && (
-        <Dialog title={tr.openProject2} description={tr.onlyApprovedQuotationsCan} onClose={closeOpen}>
-          <OpenProject quotations={approvedQuotations} people={people} onCancel={closeOpen}
+        <Dialog title={tr.newProject} onClose={closeOpen} width="max-w-[720px]">
+          <NewProject quotations={approvedQuotations} people={people} clients={clients}
+            industries={industries} studioDefaults={studioDefaults} onCancel={closeOpen}
             onSave={async (p) => { const ok = await onOpen(p); if (ok) setOpening(false); return ok; }} />
         </Dialog>
       )}
@@ -476,27 +495,67 @@ function ProjectList({ projects, approvedQuotations, people, stages, canManage, 
   );
 }
 
-function OpenProject({ quotations, people, onSave, onCancel }) {
+// THE TWO WAYS A PROJECT BEGINS, in one dialog.
+//
+// From an approved quotation: the whole chain is already known, so the form
+// asks for three things and the server reads the rest off the quotation.
+// New client work: the studio was handed the job directly — no ticket, no RFQ,
+// no quotation — so the client, the job and its figures are typed, and the
+// contact and site are captured with the SAME block a new quotation captures
+// them with. One block, not a poorer second copy of it.
+//
+// Which mode opens first is decided by what the studio actually has. A studio
+// with no approved quotations used to get a dialog whose entire body said so
+// and offered a Close button; it now gets the form that works.
+function NewProject({ quotations, people, clients, industries, studioDefaults, onSave, onCancel }) {
+  const tr = projectsDict(useStudioLocale());
+  const [mode, setMode] = useState(quotations.length > 0 ? "quotation" : "direct");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
+        {[
+          { key: "quotation", label: tr.fromApprovedQuotation },
+          { key: "direct", label: tr.newClientWork },
+        ].map((m) => (
+          <button key={m.key} type="button" aria-pressed={mode === m.key}
+            onClick={() => setMode(m.key)}
+            className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${mode === m.key
+              ? "bg-[var(--geex-surface)] text-brand-950 shadow-sm dark:text-white"
+              : "text-slate-500 dark:text-slate-400"}`}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "quotation"
+        ? <FromQuotation quotations={quotations} people={people} busy={busy} setBusy={setBusy}
+            onSave={onSave} onCancel={onCancel} />
+        : <DirectProject people={people} clients={clients} industries={industries}
+            studioDefaults={studioDefaults} busy={busy} setBusy={setBusy}
+            onSave={onSave} onCancel={onCancel} />}
+    </>
+  );
+}
+
+// UNCHANGED IN BEHAVIOUR — today's form, minus the dead end. The "no approved
+// quotations waiting" body is now a line inside the mode rather than the whole
+// dialog, because the other mode is always available.
+function FromQuotation({ quotations, people, busy, setBusy, onSave, onCancel }) {
   const tr = projectsDict(useStudioLocale());
   const [quotationId, setQuotationId] = useState(quotations[0]?.id || "");
   const [managerCollaboratorId, setManager] = useState("");
   const [location, setLocation] = useState("");
-  const [busy, setBusy] = useState(false);
   const chosen = quotations.find((q) => q.id === quotationId);
 
   if (quotations.length === 0) {
-    return (
-      <>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {tr.noApprovedQuotationsWaiting}
-        </p>
-        <div className="mt-5"><button className={btnGhost} onClick={onCancel}>{tr.close}</button></div>
-      </>
-    );
+    return <p className="text-sm text-slate-500 dark:text-slate-400">{tr.noApprovedQuotationsWaiting}</p>;
   }
 
   return (
     <>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{tr.onlyApprovedQuotationsCan}</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field className="sm:col-span-2" label={tr.approvedQuotation} as="select" required
           value={quotationId} onChange={(v) => setQuotationId(v)}
@@ -519,6 +578,100 @@ function OpenProject({ quotations, people, onSave, onCancel }) {
   );
 }
 
+function DirectProject({ people, clients, industries, studioDefaults, busy, setBusy, onSave, onCancel }) {
+  const tr = projectsDict(useStudioLocale());
+  const [f, setF] = useState({
+    clientName: "", title: "", industry: "", notes: "", managerCollaboratorId: "",
+    value: "", startDate: "", endDate: "",
+    ...EMPTY_CLIENT_BLOCK,
+    locationCountry: studioDefaults.country || "",
+    locationCity: studioDefaults.city || "",
+  });
+  const set = (patch) => setF((s) => ({ ...s, ...patch }));
+
+  // The client the typed name resolves to, if any — the same case-insensitive,
+  // whitespace-collapsed match the ticket and the quotation use, so a name typed
+  // with a stray double space is one client rather than two.
+  const norm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const matched = clients.find((c) => norm(c.name) === norm(f.clientName)) || null;
+  const ready = f.clientName.trim() && f.title.trim();
+
+  async function save() {
+    setBusy(true);
+    const cb = clientBlockPayload(f);
+    await onSave({
+      ...(matched ? { clientId: matched.id } : { clientName: f.clientName.trim() }),
+      title: f.title.trim(),
+      industry: f.industry.trim(),
+      notes: f.notes.trim(),
+      value: Number(f.value) || 0,
+      managerCollaboratorId: f.managerCollaboratorId,
+      startDate: f.startDate, endDate: f.endDate,
+      contactName: cb.contactName, contactEmail: cb.contactEmail,
+      contactPhone: cb.contactPhone, contactPosition: cb.contactPosition,
+      // THE SITE TRAVELS AS `site`, NOT AS `location`. The project row's own
+      // `location` is a STRING — it is the list's Location column and its
+      // filter — and the two would collide on one key. The site's city fills
+      // it, so nothing downstream sees a new shape.
+      site: cb.location,
+      location: cb.location.city || cb.location.name || "",
+    });
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={tr.client} required filled={!!f.clientName}
+          hint={matched ? tr.existingClient : (f.clientName.trim() ? tr.nameIsnListCreatesClient : undefined)}>
+          <Combo value={f.clientName} onChange={(v) => set({ clientName: v })}
+            options={clients.map((c) => c.name)} inputClassName={BARE_CONTROL} />
+        </Field>
+
+        <Field label={tr.typeIndustry} filled={!!f.industry}>
+          <Combo value={f.industry} onChange={(v) => set({ industry: v })}
+            options={industries} inputClassName={BARE_CONTROL} />
+        </Field>
+
+        <Field className="sm:col-span-2" label={tr.title} required value={f.title}
+          onChange={(v) => set({ title: v })} />
+
+        <Field className="sm:col-span-2" label={tr.descriptionOfTheWork} as="textarea"
+          value={f.notes} onChange={(v) => set({ notes: v })} />
+
+        <Field label={tr.projectManager} as="select" value={f.managerCollaboratorId}
+          onChange={(v) => set({ managerCollaboratorId: v })}
+          options={[{ value: "", label: tr.unassigned }, ...people.map((p) => ({ value: p.id, label: p.alias }))]} />
+
+        {/* TYPED, because there is no quotation total to read it from. */}
+        <Field label={tr.projectValue} type="number" min="0" value={f.value}
+          onChange={(v) => set({ value: v })} />
+
+        <Field label={tr.start} filled={!!f.startDate}>
+          <StudioDate value={f.startDate} onChange={(iso) => set({ startDate: iso })} />
+        </Field>
+        <Field label={tr.targetEnd} filled={!!f.endDate}>
+          <StudioDate value={f.endDate} onChange={(iso) => set({ endDate: iso })} />
+        </Field>
+      </div>
+
+      {/* The same block a new quotation raises a client with. Positions are
+          offered from the contacts this client already has — Projects has no
+          contact-position vocabulary of its own, and inventing a second one to
+          hold the same words is how two lists drift. */}
+      <ClientBlock value={f} onChange={(patch) => set(patch)} client={matched}
+        positions={[...new Set((matched?.contacts || []).map((c) => c.position).filter(Boolean))]} />
+
+      <div className="mt-5 flex gap-3">
+        <button className={btn} disabled={busy || !ready} onClick={save}>
+          {busy ? tr.creating : tr.createProject}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </>
+  );
+}
+
 function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, nav, onSave, onDelete, onClose }) {
   const tr = projectsDict(useStudioLocale());
   const support = supportStatus(p);
@@ -530,16 +683,21 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
   const [end, setEnd] = useState(p.endDate || "");
   const [sup, setSup] = useState(p.supportPeriodDays ?? 365);
 
+  // The chain this project came from. A directly-created project has none of
+  // the three, and an empty strip after the "From" heading reads as a record
+  // that failed to load — so the absence is named rather than left blank.
+  const lineage = [
+    p.ticketId && { label: tr.ticket, href: linkIf(nav?.sales, linkToTicket(slug, p.ticketId)) },
+    p.rfqId && { label: "RFQ", href: linkIf(nav?.["technical-rfq"], linkToRfq(slug, p.rfqId)) },
+    p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.["technical-quotations"], linkToQuotation(slug, p.quotationId)) },
+  ].filter(Boolean);
+
   return (
     <>
-      {/* Lineage — the chain this project came from. */}
+      {/* Lineage — the chain this project came from, or "Direct" when there is none. */}
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
         <span className="font-600 uppercase tracking-wide">{tr.from}</span>
-        {[
-          p.ticketId && { label: tr.ticket, href: linkIf(nav?.sales, linkToTicket(slug, p.ticketId)) },
-          p.rfqId && { label: "RFQ", href: linkIf(nav?.["technical-rfq"], linkToRfq(slug, p.rfqId)) },
-          p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.["technical-quotations"], linkToQuotation(slug, p.quotationId)) },
-        ].filter(Boolean).map((step, i, arr) => (
+        {lineage.length === 0 ? <span>{tr.direct}</span> : lineage.map((step, i, arr) => (
           <span key={step.label + i} className="flex items-center gap-2">
             <RecordLink href={step.href} title={`Open ${step.label}`}>{step.label}</RecordLink>
             {i < arr.length - 1 && <span aria-hidden="true">→</span>}

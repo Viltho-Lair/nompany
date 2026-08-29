@@ -364,7 +364,12 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
 
       {sheet.tables.length === 0 ? (
         <p className={`${panel} text-sm text-slate-500`}>
-          {tr.quotationNoPricedLines}
+          {/* TWO KINDS OF EMPTY, and they mean different things. A sheet with
+              no quotation behind it can never fill from this screen — the
+              project was raised directly — where a quotation with no priced
+              lines is waiting on somebody to price it. Saying "no priced
+              lines" for the first reads as a bug in a screen that is working. */}
+          {sheet.quotationId ? tr.quotationNoPricedLines : tr.noQuotationBehindProject}
         </p>
       ) : sheet.tables.map((table) => (
         <section key={table.id} className={panel}>

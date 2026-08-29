@@ -126,11 +126,17 @@ import { readEngagementView, readEngagement, engagementOf } from "@/platform/db/
 // spine block below — the pure permission filter (visibleStageTypes) already
 // has its own coverage in tests/engagement-view.mjs.
 import { listEngagements, engagementBlock, engagementImpact, lockEngagement, removeEngagement } from "@/modules/main/engagements";
-// PHASE 1b-i ON-CREATE (Task 1). Same standalone-runner shape as engagement.mjs
-// and engagement-backfill.mjs above — importing it here pulls in only the one
-// exported test function, run explicitly further down through the same
-// try/catch adapter (node:assert throws are not this file's ok() shape).
-import { testAttachTicketEngagement } from "./engagement-oncreate.mjs";
+// PHASE 1b-i ON-CREATE (Task 1), plus the direct-project root (Task 1 of the
+// direct-project-creation plan). Same standalone-runner shape as engagement.mjs
+// and engagement-backfill.mjs above — importing it here pulls in the exported
+// test functions, run explicitly further down through the same try/catch
+// adapter (node:assert throws are not this file's ok() shape).
+import {
+  testAttachTicketEngagement,
+  testDirectProjectMintsItsOwnEngagement,
+  testBackfillClustersOrphanProjects,
+  testBackfillLeavesLineagedProjectsAlone,
+} from "./engagement-oncreate.mjs";
 // PHASE 1b-ii SPINE (Task 5). Same standalone-runner shape as engagement.mjs,
 // engagement-backfill.mjs and engagement-oncreate.mjs above — importing it
 // here pulls in only the one exported test function, run explicitly further
@@ -586,6 +592,86 @@ console.log("\n== the handler is carried, never copied");
   ok("...and records the approved quotation",
     afterProjectEngView?.singletons.approvedQuotation === opened.project?.quotationId,
     JSON.stringify(afterProjectEngView?.singletons));
+
+  console.log("\n== a project can be created directly, with no quotation behind it");
+  {
+    // THE SECOND WAY IN. Everything above this point opened a project from an
+    // approved quotation; this is work handed to the studio directly — no
+    // ticket, no RFQ, no quotation — and it has to become a real project with a
+    // real client and a deal of its own.
+    const directCtx = await projectsContext(owner, slug);
+    const direct = await openProject(directCtx, {
+      clientName: "Northwind Logistics",
+      title: "Warehouse fit-out",
+      industry: "Logistics",
+      notes: "Handed to us directly by the client.",
+      value: 42000,
+      contactName: "Dana Reed", contactEmail: "dana@northwind.test",
+      contactPhone: "+962 7 000 0000", contactPosition: "Facilities Manager",
+      site: { name: "North yard", country: "Jordan", city: "Amman", url: "" },
+      location: "Amman",
+      startDate: "2026-09-01", endDate: "2026-12-01",
+    });
+    ok("a direct project is created", !!direct.project?.id, JSON.stringify(direct));
+    ok("it carries no lineage at all",
+      direct.project?.quotationId === "" && direct.project?.ticketId === "" && direct.project?.rfqId === "",
+      `${direct.project?.quotationId}/${direct.project?.ticketId}/${direct.project?.rfqId}`);
+    ok("its value is the typed figure, not a quotation total", direct.project?.value === 42000,
+      String(direct.project?.value));
+    ok("its number is blank until Finance issues one", direct.project?.number === "",
+      String(direct.project?.number));
+
+    // THE CLIENT IS SALES', RESOLVED THE WAY EVERY OTHER CREATE RESOLVES IT.
+    // A typed name that matches nothing becomes a real Client record, with this
+    // deal's contact and site folded onto it — not a free-text string on the
+    // project row.
+    ok("a real Client record was raised", !!direct.project?.clientId, String(direct.project?.clientId));
+    ok("the project names the resolved client", direct.project?.clientName === "Northwind Logistics",
+      String(direct.project?.clientName));
+
+    // THE TYPED DESCRIPTION IS STORED, read back off the list rather than off
+    // the create's own return — the quotation head never sent `notes`, so a
+    // regression that dropped the field on the way to Redis would otherwise be
+    // green everywhere (the gate-a body omits it and its golden pins "").
+    const directReread = (await listProjects(await projectsContext(owner, slug)))
+      .find((p) => p.id === direct.project?.id);
+    ok("the typed description reaches the stored project",
+      directReread?.notes === "Handed to us directly by the client.",
+      JSON.stringify(directReread?.notes));
+
+    // AND IT JOINS A DEAL. This is the half that fails silently: no ticket and
+    // no quotation means no derived engagement id, so without the project-rooted
+    // root the project is invisible on the engagements view.
+    const directEngId = deterministicEngId("project", String(direct.project?.id));
+    const directView = await readEngagementView(studio.id, directEngId);
+    ok("the direct project roots its own engagement",
+      directView?.singletons?.project === direct.project?.id,
+      JSON.stringify(directView?.singletons));
+    ok("and that engagement names the client live",
+      directView?.context?.clientName === "Northwind Logistics",
+      String(directView?.context?.clientName));
+
+    // REFUSALS — neither writes a row.
+    const before = (await listProjects(await projectsContext(owner, slug))).length;
+    const noTitle = await openProject(await projectsContext(owner, slug),
+      { clientName: "Northwind Logistics" });
+    // "title", the same name updateProject and Sales give the same refusal —
+    // the screens' refusal ladders are keyed on the field's own name.
+    ok("a direct create with no title is refused", noTitle?.error === "title", JSON.stringify(noTitle));
+    const noClient = await openProject(await projectsContext(owner, slug), { title: "Nameless" });
+    ok("a direct create with no client is refused", noClient?.error === "client", JSON.stringify(noClient));
+    const after = (await listProjects(await projectsContext(owner, slug))).length;
+    ok("a refused direct create writes no row", before === after, `${before} → ${after}`);
+
+    // THE SHEETS EXIST FOR A DIRECT PROJECT TOO, and they are empty — decided
+    // deliberately, so a project's Sheets tab is the same tab everywhere. What
+    // they must not be is absent: an absent tab reads as a missing feature.
+    ok("a direct project is drawn up two sheets", (direct.sheets || []).length === 2,
+      String((direct.sheets || []).length));
+    ok("and neither claims a quotation it does not have",
+      (direct.sheets || []).every((s) => s.quotationId === ""),
+      JSON.stringify((direct.sheets || []).map((s) => s.quotationId)));
+  }
 
   // TWO SHEETS, AND NEITHER HOLDS A LINE. The quotation owns the rows; a sheet
   // stores only what its department adds to them, keyed by the row it belongs
@@ -4320,7 +4406,12 @@ console.log("\n== engagement backfill (Phase 1a)");
 // ============================================================================
 console.log("\n== engagement on-create (Phase 1b-i)");
 {
-  for (const t of [testAttachTicketEngagement]) {
+  for (const t of [
+    testAttachTicketEngagement,
+    testDirectProjectMintsItsOwnEngagement,
+    testBackfillClustersOrphanProjects,
+    testBackfillLeavesLineagedProjectsAlone,
+  ]) {
     try {
       await t();
       ok(t.name, true);

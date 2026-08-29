@@ -30,7 +30,6 @@ type Strings = CommonStrings & {
   numberedAutomaticallyLeadSet: string;
   originInternal: string;
   originSales: string;
-  quotationNoPricedLines: string;
   remove: string;
   sequencesQuotationNumber: string;
   submit: string;
@@ -247,7 +246,6 @@ const en: Strings = {
   numberedAutomaticallyLeadSet: "The quotation is numbered automatically and its lead is set to",
   originInternal: "Internal",
   originSales: "Sales",
-  quotationNoPricedLines: "The quotation behind this sheet has no priced lines yet. Add them in the builder and they appear here.",
   remove: "Remove",
   sequencesQuotationNumber: "The sequences a quotation's number is drawn from. Each has a label, a prefix and a starting number; one is the default for quotations raised from Sales tickets.",
   submit: "Submit",
@@ -464,7 +462,6 @@ const ar: Strings = {
   numberedAutomaticallyLeadSet: "يُرقَّم عرض السعر تلقائيًا ويُضبط مرجعه على",
   originInternal: "داخلي",
   originSales: "المبيعات",
-  quotationNoPricedLines: "عرض السعر خلف هذه الورقة لا يحمل بنودًا مسعّرة بعد. أضفها في المُنشئ لتظهر هنا.",
   remove: "حذف",
   sequencesQuotationNumber: "التسلسلات التي يُسحب منها رقم عرض السعر. لكل منها تسمية وبادئة ورقم بداية؛ وأحدها الافتراضي لعروض الأسعار المنشأة من تذاكر المبيعات.",
   submit: "إرسال",
