@@ -35,9 +35,16 @@ const inputClass =
 // person needs: what happened, and when it stops being true. A function of
 // the dictionary, because module scope cannot read the locale.
 
-export default function StudioChat({ enabled, slug, studioName, userName, unlimited = true, allowed = 0, used = 0, remaining = null, exhausted = false }) {
+// OPEN IS THE SHELL'S, NOT THIS COMPONENT'S. Nova and this chat share one
+// corner and one slot: opening either has to close the other, and neither can
+// decide that from inside itself. StudioFrame holds which of the two is open
+// and hands each one `open` plus the setter — see the note there.
+export default function StudioChat({ enabled, slug, studioName, userName, unlimited = true, allowed = 0, used = 0, remaining = null, exhausted = false, open = false, onOpenChange }) {
   const tr = miscDict(useStudioLocale());
-  const [open, setOpen] = useState(false);
+  // A plain boolean in, no functional form: the current value is already a
+  // PROP here, so `setOpen(!open)` says it directly and nothing has to read
+  // state through a ref during render to find out.
+  const setOpen = useCallback((next) => onOpenChange?.(next), [onOpenChange]);
   const [roomId, setRoomId] = useState("");
   const [room, setRoom] = useState(null);
   const [text, setText] = useState("");
@@ -304,7 +311,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
                   disabled={busy}
                   className="w-full rounded-full bg-brand-700 px-4 py-2.5 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60"
                 >
-                  {busy ? tr.starting : "{tr.startChat}"}
+                  {busy ? tr.starting : tr.startChat}
                 </button>
               </div>
             ) : (
@@ -419,7 +426,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
           ticket, so `exhausted` cannot close a chat already in progress. */}
       <button
         type="button"
-        onClick={() => { if (!spent) setOpen((o) => !o); }}
+        onClick={() => { if (!spent) setOpen(!open); }}
         disabled={spent}
         aria-disabled={spent}
         aria-label={

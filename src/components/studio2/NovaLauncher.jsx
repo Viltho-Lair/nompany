@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { miscDict } from "@/shared/studio/misc";
 import NovaHead from "@/components/studio2/NovaHead";
-import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 
 // NOVA, in the studio. A floating launcher and a slide-over chat, shown only
 // when the studio's package includes the assistant. Memory is session-only: the
@@ -24,9 +23,14 @@ const examplesFor = (tr) => [
   tr.exTaskBoard,
 ];
 
-export default function NovaLauncher({ slug, enabled = false, besideChat = false }) {
+// OPEN IS THE SHELL'S — see the note in StudioChat. The two chats share one
+// corner and one slot, so StudioFrame decides which is showing.
+export default function NovaLauncher({ slug, enabled = false, besideChat = false, open = false, onOpenChange }) {
   const tr = miscDict(useStudioLocale());
-  const [open, setOpen] = useState(false);
+  // A plain boolean in, no functional form: the current value is already a
+  // PROP here, so `setOpen(!open)` says it directly and nothing has to read
+  // state through a ref during render to find out.
+  const setOpen = useCallback((next) => onOpenChange?.(next), [onOpenChange]);
   const [messages, setMessages] = useState([]);   // { role: "user"|"assistant", content }
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,15 +70,14 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
     const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, setOpen]);
 
-  // Trap Tab within the panel while it is open. The panel focuses its own input
-  // above, so the trap leaves that alone and only confines Tab.
-  useFocusTrap(panelRef, open);
-  // RETURN FOCUS BY HAND, not through the trap. The launcher UNMOUNTS while the
-  // panel is open ({!open && <button>}), so the node the trap captured as the
-  // opener is detached by close time and focusing it is a no-op — the re-mounted
-  // launcher is a different element. Send focus there on the open→closed edge.
+  // NO FOCUS TRAP, and none wanted. This was a modal slide-over with a backdrop
+  // over the whole studio; it is a window in the corner now, exactly like the
+  // support chat, and the screen behind it stays usable. Trapping Tab inside a
+  // non-modal window is how a keyboard user gets stuck in it. Escape still
+  // closes, and focus returns to the launcher — which now stays mounted, so
+  // there is a real element to send it back to.
   const wasOpen = useRef(false);
   useEffect(() => {
     if (wasOpen.current && !open) launcherRef.current?.focus();
@@ -162,13 +165,15 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
     <>
       {/* The launcher IS Nova — her head, on a soft halo, larger than the chat
           bubble so the two never read as the same control. When live chat shares
-          the corner, Nova steps to its left (end-24 clears the ~48px bubble). */}
-      {!open && (
+          the corner, Nova steps to its left (end-24 clears the ~48px bubble).
+          IT STAYS WHILE THE WINDOW IS OPEN, the way the support bubble does, so
+          the same control that opened Nova closes her. */}
+      {(
         <button
           ref={launcherRef}
           type="button"
-          onClick={() => setOpen(true)}
-          aria-label={tr.askNova}
+          onClick={() => setOpen(!open)}
+          aria-label={open ? tr.close : tr.askNova}
           className={`group fixed bottom-4 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 shadow-xl ring-1 ring-white/40 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${besideChat ? "end-24" : "end-5"}`}
         >
           <NovaHead className="h-12 w-12 drop-shadow" idle />
@@ -180,11 +185,25 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
         </button>
       )}
 
-      {/* Backdrop + panel. Rendered only when open so it costs nothing closed. */}
+      {/* A WINDOW IN THE CORNER, the support chat's window one size up. It used
+          to be a full-height slide-over behind a black backdrop, which made
+          asking Nova a question something you left the screen to do — and the
+          answer is nearly always about the screen you were on. Same anchor as
+          the support chat: 5.5rem is its container's 20px plus its 56px bubble
+          plus the 12px gap between them, so the two windows rest on exactly the
+          same line — measured, not guessed. Same surface, same
+          radius; larger, because Nova's answers are paragraphs where support's
+          are lines. Height is clamped so a short viewport shrinks the window
+          rather than pushing it off the top. Rendered only when open, so it
+          costs nothing closed. */}
       {open && (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-          <button type="button" aria-label={tr.closeNova} className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
-          <div ref={panelRef} className="absolute inset-y-0 end-0 flex w-full max-w-[420px] flex-col bg-white shadow-2xl dark:bg-[#14141b]">
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-labelledby={titleId}
+          className="fixed bottom-[5.5rem] end-5 z-40 flex h-[34rem] max-h-[calc(100dvh-7rem)] w-[26rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex print:hidden"
+        >
+          <div className="flex min-h-0 flex-1 flex-col">
             <header className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-white/10">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400"><NovaHead className="h-7 w-7" /></span>
               <div className="min-w-0">

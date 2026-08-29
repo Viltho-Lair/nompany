@@ -7,7 +7,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { dirFor, locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import { shellDict } from "@/shared/studio/shell";
 import { sectionName } from "@/shared/studio/sections";
@@ -148,6 +148,16 @@ export default function StudioFrame({
   // public header and the account hub.
   const [account, setAccount] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  // ONE CORNER, ONE WINDOW. Nova and the support chat are both anchored to the
+  // bottom-end corner and are both the same shape, so two open at once would be
+  // one stacked on the other. Neither can decide that alone — each only knows
+  // its own state — so the shell holds which of the two is showing and opening
+  // either closes the other. null means neither.
+  const [cornerChat, setCornerChat] = useState(null); // null | "nova" | "support"
+  // Stable, so the key handlers and effects inside each chat can list them as
+  // dependencies instead of re-subscribing on every shell render.
+  const openNova = useCallback((next) => setCornerChat(next ? "nova" : null), []);
+  const openSupport = useCallback((next) => setCornerChat(next ? "support" : null), []);
 
   useEffect(() => {
     let alive = true;
@@ -516,7 +526,9 @@ export default function StudioFrame({
           </div>
         </header>
         <main id="studio-main" tabIndex={-1} className="mx-auto max-w-[1400px] px-5 pb-8 outline-none sm:px-8"><AnalyticsLevelProvider analytics={analytics}>{children}</AnalyticsLevelProvider></main>
-        <NovaLauncher slug={studio.slug} enabled={novaEnabled} besideChat={Boolean(chat?.enabled)} />
+        <NovaLauncher slug={studio.slug} enabled={novaEnabled} besideChat={Boolean(chat?.enabled)}
+          open={cornerChat === "nova"}
+          onOpenChange={openNova} />
       </div>
 
       {/* Live chat with nompany. It lives on the SHELL rather than on a page, so
@@ -524,6 +536,8 @@ export default function StudioFrame({
           and, just as deliberately, nowhere the shell isn't: the account hub and
           the public site have no chat button because they don't render this. */}
       <StudioChat
+        open={cornerChat === "support"}
+        onOpenChange={openSupport}
         enabled={Boolean(chat?.enabled)}
         slug={studio.slug}
         studioName={studio.name}
