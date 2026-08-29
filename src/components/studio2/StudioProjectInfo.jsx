@@ -8,7 +8,6 @@ import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, fmtDate } from "@/components/studio2/ui";
 import { StatusPill } from "@/components/studio2/StatusPill";
-import { Money } from "@/components/Currency";
 
 // ONE PROJECT'S INFORMATION, in one place. This used to live inline in
 // StudioProjectProfile.js; it was lifted out so the full-screen project board
@@ -65,7 +64,10 @@ export function deriveProject(data, projectId) {
 
 // ---- sections --------------------------------------------------------------
 
-export function ProjectSection({ project, people, currency }) {
+// `action` is the decision this box leads to — the project plan button, handed
+// in by the board rather than imported here, so the information module stays
+// clear of the plans API. It reads facts first and the thing to do last.
+export function ProjectSection({ project, people, action = null }) {
   const tr = projectsDict(useStudioLocale());
   return (
     <section className={card}>
@@ -76,7 +78,12 @@ export function ProjectSection({ project, people, currency }) {
         <Field label={tr.number} value={project.number || <span className="text-amber-700 dark:text-amber-300">{tr.notIssuedYet}</span>} mono />
         <Field label={tr.stage} value={<StatusPill kind="project" status={project.stage} />} />
         <Field label={tr.handler} value={people[project.managerCollaboratorId] || tr.unassigned2} />
-        <Field label={tr.value} value={project.value ? <Money amount={project.value} currency={currency} /> : ""} />
+        {/* NOT VALUE. What a project is worth is Finance's figure and Finance's
+            screen; a project box that carries it invites the number to be read
+            (and quoted) from a place nothing reconciles. Progress stands here
+            instead — it was on the left rail that this box absorbed, and it
+            would otherwise have gone with it. */}
+        <Field label={tr.progress} value={`${project.progress ?? 0}%`} mono />
         <Field label={tr.received} value={fmtDate(project.receivedDate)} />
         <Field label={tr.start} value={fmtDate(project.startDate)} />
         <Field label={tr.end} value={fmtDate(project.endDate)} />
@@ -86,6 +93,9 @@ export function ProjectSection({ project, people, currency }) {
         <p className="mt-4 whitespace-pre-wrap border-t border-slate-100 pt-4 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
           {project.notes}
         </p>
+      )}
+      {action && (
+        <div className="mt-4 border-t border-slate-100 pt-4 dark:border-white/10">{action}</div>
       )}
     </section>
   );

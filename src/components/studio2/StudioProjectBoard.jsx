@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBoardStore, boardDoc } from "@/components/kanban/store/board-store";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
-import { StatusPill } from "@/components/studio2/StatusPill";
 import {
   useProjectData,
   deriveProject,
@@ -39,7 +38,7 @@ export default function StudioProjectBoard({ slug, projectId }) {
   // Project facts for the rail + sidebar — one fetch of the /projects endpoint a
   // project is a row of, shared with the legacy profile via StudioProjectInfo.
   const { data, error: infoError } = useProjectData(slug);
-  const { project, people, currency, hasSheet, lineCount, client } =
+  const { project, people, hasSheet, lineCount, client } =
     deriveProject(data, projectId);
 
   // Board document lifecycle.
@@ -131,40 +130,12 @@ export default function StudioProjectBoard({ slug, projectId }) {
 
       {/* ---- body: left rail · board · right sidebar ---- */}
       <div className="flex min-h-0 flex-1">
-        {/* Left rail — immediate decisions. Uses logical padding for RTL. */}
-        <aside className="hidden w-[240px] shrink-0 flex-col gap-4 overflow-y-auto border-e border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10 md:flex">
-          <div>
-            <p className="mb-1.5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              {tr.decisions}
-            </p>
-            {/* Clicking this creates the project's plan (carrying a copy of the
-                project's facts) the first time and opens it every time after —
-                the schedule opens full-screen in the planner, reachable without
-                an Operations grant because it rides the project's own. */}
-            <ProjectPlanButton slug={slug} projectId={projectId} canEdit={board.canEdit} />
-          </div>
-
-          {project && (
-            <div className="space-y-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.stage}</span>
-                <StatusPill kind="project" status={project.stage} />
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.progress}</span>
-                <span className="font-mono text-sm font-700 tabular-nums text-[var(--geex-ink)]">{project.progress ?? 0}%</span>
-              </div>
-              {hasSheet && (
-                <Link
-                  href={`/${slug}/projects-list/${projectId}/quotation`}
-                  className="block rounded-lg px-1 py-1 text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"
-                >
-                  {tr.openQuotationViewer}
-                </Link>
-              )}
-            </div>
-          )}
-        </aside>
+        {/* THE LEFT RAIL IS GONE. It held one button and a three-line box, and
+            every line of that box was already in the right sidebar — stage in
+            the Project box, the quotation link in What was sold — so the board
+            was paying 240px to say the same things twice. The button moved into
+            the Project box, which is where the facts it acts on already are;
+            progress moved with it. */}
 
         {/* Center — the board. */}
         <main className="relative min-w-0 flex-1">
@@ -194,7 +165,13 @@ export default function StudioProjectBoard({ slug, projectId }) {
           ) : (
             <>
               <ClientSection client={client} clientName={project.clientName} />
-              <ProjectSection project={project} people={people} currency={currency} />
+              {/* Clicking this creates the project's plan (carrying a copy of
+                  the project's facts) the first time and opens it every time
+                  after — the schedule opens full-screen in the planner,
+                  reachable without an Operations grant because it rides the
+                  project's own. */}
+              <ProjectSection project={project} people={people}
+                action={<ProjectPlanButton slug={slug} projectId={projectId} canEdit={board.canEdit} />} />
               <WhatWasSoldSection slug={slug} projectId={projectId} hasSheet={hasSheet} lineCount={lineCount} />
             </>
           )}
