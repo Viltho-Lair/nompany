@@ -25,7 +25,7 @@ import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { clientContacts, resolveClientFor } from "@/modules/sales/salesClients";
+import { clientContacts, clientLocations, resolveClientFor } from "@/modules/sales/salesClients";
 import type { Client } from "@/modules/sales/types";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { DEFAULT_SUPPORT_DAYS, hoursBetween } from "./projectSchedule";
@@ -701,6 +701,11 @@ export async function listProjectClients(
     name: c.name || "",
     logo: c.logo || "",
     contacts: clientContacts(c),
+    // THE SITES THIS CLIENT ALREADY HAS. ClientBlock offers them back so a
+    // known site is chosen rather than retyped — without them the direct
+    // create form silently loses half of what the block is for, and the client
+    // accumulates near-duplicate sites nothing will reconcile.
+    locations: clientLocations(c),
   }));
 }
 

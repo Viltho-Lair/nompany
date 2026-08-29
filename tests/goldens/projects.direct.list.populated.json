@@ -297,25 +297,36 @@
             "phone": "",
             "position": "Facilities Manager"
           }
+        ],
+        "locations": [
+          {
+            "name": "North yard",
+            "country": "Jordan",
+            "city": "Amman",
+            "url": ""
+          }
         ]
       },
       {
         "id": "<sal_ID>",
         "name": "Engagement View Client",
         "logo": "",
-        "contacts": []
+        "contacts": [],
+        "locations": []
       },
       {
         "id": "<sal_ID>",
         "name": "Second Client",
         "logo": "",
-        "contacts": []
+        "contacts": [],
+        "locations": []
       },
       {
         "id": "<sal_ID>",
         "name": "Acme Holdings",
         "logo": "",
-        "contacts": []
+        "contacts": [],
+        "locations": []
       }
     ],
     "slas": [],
@@ -481,6 +492,10 @@
       "overtimeDefaultDepartmentId": "",
       "supportPeriodDays": 365
     },
+    "studioDefaults": {
+      "country": "",
+      "city": ""
+    },
     "vocabulary": {
       "stages": [
         "Received",
@@ -488,7 +503,43 @@
         "On Hold",
         "Completed"
       ],
-      "serviceActions": []
+      "serviceActions": [],
+      "industries": [
+        "Residential",
+        "Commercial",
+        "Banking",
+        "Governmental",
+        "Education",
+        "Technology",
+        "Construction",
+        "Healthcare",
+        "Energy",
+        "Consulting",
+        "Engineering",
+        "Manufacturing",
+        "Logistics",
+        "Hospitality",
+        "Finance",
+        "Agriculture",
+        "Transportation",
+        "Automotive",
+        "Aerospace",
+        "Telecommunications",
+        "Media",
+        "Security",
+        "Architecture",
+        "Real-Estate",
+        "Pharmaceuticals",
+        "Chemicals",
+        "Mining",
+        "Retail",
+        "Wholesale",
+        "Legal",
+        "Insurance",
+        "Entertainment",
+        "Defense",
+        "Utilities"
+      ]
     }
   }
 }
