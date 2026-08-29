@@ -100,6 +100,24 @@ const nextConfig = {
     // day is.
     cpus: Math.max(1, Math.min(4, (os.cpus()?.length || 4))),
   },
+  // jsPDF DRAGS THREE PACKAGES IT ONLY NEEDS FOR doc.html() AND SVG.
+  //
+  // They are optionalDependencies, so they are installed and therefore
+  // resolvable, and Turbopack emitted them as lazy chunks: html2canvas at
+  // 44 KB gz and canvg — which depends on core-js — at 48 KB. Nothing loads
+  // them. lib/chatTranscript is the only jsPDF caller, and it draws with
+  // text(), line(), splitTextToSize() and addImage().
+  //
+  // The alias target throws if anything ever does reach those paths, so this
+  // is a deliberate omission rather than a silent one. See
+  // src/lib/jspdfOptional.ts.
+  turbopack: {
+    resolveAlias: {
+      html2canvas: "./src/lib/jspdfOptional.ts",
+      canvg: "./src/lib/jspdfOptional.ts",
+      dompurify: "./src/lib/jspdfOptional.ts",
+    },
+  },
   // "Which framework and version is this" is free reconnaissance and buys us
   // nothing in return.
   poweredByHeader: false,
