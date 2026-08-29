@@ -13,7 +13,7 @@ import { Icon } from "@/components/studio2/icons";
 import InventoryDashboard from "@/components/studio2/InventoryDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import {
-  panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th, stripeOn, stripeOff,
+  panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, btnRow, th, stripeOn, stripeOff,
   money, fmtDate, fmtDateTime, Dialog, Toolbar, Empty,
 } from "@/components/studio2/ui";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
@@ -237,14 +237,24 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
                   ),
                 },
                 {
-                  field: "scope", headerName: tr.scope, minWidth: 140, flex: 0.9, sortable: false,
-                  renderCell: ({ row }) => (
-                    <span className="flex flex-wrap gap-1">
-                      {(row.scope || []).length === 0 ? <span className="text-slate-400">—</span> : row.scope.map((action) => (
-                        <span key={action} className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">{action}</span>
-                      ))}
-                    </span>
-                  ),
+                  field: "scope", headerName: tr.scope, minWidth: 170, flex: 1, sortable: false,
+                  // ONE LINE, ALWAYS. The row is a fixed 52px, so a wrapping badge
+                  // list grows taller than the row and the overflow is clipped —
+                  // that is what "bulky and not visible" looked like. A service
+                  // action is a phrase, not a word ("Programming & Configuration"),
+                  // so only the first is drawn and the rest collapse into a +N;
+                  // two side by side left both of them truncated to nothing
+                  // legible. The cell carries the whole list as its title.
+                  renderCell: ({ row }) => {
+                    const scope = row.scope || [];
+                    if (scope.length === 0) return <span className="text-slate-400">—</span>;
+                    return (
+                      <span className="flex min-w-0 items-center gap-1.5" title={scope.join(", ")}>
+                        <span className="truncate rounded bg-brand-500/10 px-1.5 text-[11px] font-600 leading-5 text-brand-700 dark:text-brand-300">{scope[0]}</span>
+                        {scope.length > 1 && <span className="shrink-0 text-[11px] font-600 text-slate-400">+{scope.length - 1}</span>}
+                      </span>
+                    );
+                  },
                 },
                 {
                   field: "unitCost", headerName: tr.unitCost, type: "number", minWidth: 110, flex: 0.7,
@@ -265,8 +275,8 @@ function Items({ items, vendors, units, serviceActions, studioCurrency, canManag
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => (canManage ? (
                     <span className="inline-flex items-center gap-2">
-                      <button className={btnGhost} onClick={() => setForm({ row })}>{tr.edit}</button>
-                      <button className={btnGhost} disabled={busy} onClick={() => send("items", "DELETE", { id: row.id })}>{tr.delete}</button>
+                      <button className={btnRow} onClick={() => setForm({ row })}>{tr.edit}</button>
+                      <button className={btnRow} disabled={busy} onClick={() => send("items", "DELETE", { id: row.id })}>{tr.delete}</button>
                     </span>
                   ) : null),
                 },

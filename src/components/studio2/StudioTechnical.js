@@ -9,7 +9,7 @@ import { Icon } from "@/components/studio2/icons";
 import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
-  panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost,
+  panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, btnRow,
   URGENCY_BADGE, money, fmtDate, fmtDateTime, useTablePrefs,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
@@ -631,18 +631,18 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, handlerName, 
               for approval from here — a Sales-origin one is approved from its
               ticket, and the server refuses this door for it ("has-ticket"). */}
           {canManage && !row.fromSales && row.status === "Completed" && !row.approved && (
-            <button type="button" className={btnGhost} title={tr.sendQuotationInternalApproval}
+            <button type="button" className={btnRow} title={tr.sendQuotationInternalApproval}
               onClick={(e) => { e.stopPropagation(); onRequestApproval(row); }}>{tr.requestApproval}</button>
           )}
           {canManage && row.status === "Approved" && !row.locked && (
-            <button type="button" className={btnGhost} title={tr.lockBecomesViewOnly}
+            <button type="button" className={btnRow} title={tr.lockBecomesViewOnly}
               onClick={(e) => { e.stopPropagation(); onLock(row); }}>{tr.lock}</button>
           )}
           {/* Offered only to somebody who holds unlock. Locking the wrong
               document used to have no remedy but a new quotation with a new
               number, which is a worse lie than the mistake. */}
           {canUnlock && row.locked && (
-            <button type="button" className={btnGhost} title={tr.reopenLockedQuotation}
+            <button type="button" className={btnRow} title={tr.reopenLockedQuotation}
               onClick={(e) => { e.stopPropagation(); onUnlock(row); }}>{tr.unlock}</button>
           )}
           <button type="button" className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"

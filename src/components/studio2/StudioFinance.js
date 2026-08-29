@@ -15,6 +15,7 @@ import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { assetRegister } from "@/modules/finance/analytics";
 import {
   stripeOn, stripeOff, Dialog, ColumnPicker, prefKey, loadPref, savePref, fmtDate,
+  btnRow, btnRowPrimary, btnRowDanger,
 } from "@/components/studio2/ui";
 import { StatusPill } from "@/components/studio2/StatusPill";
 
@@ -296,12 +297,12 @@ function Invoices({ rows, projects, vocab, slug, nav, canManage, busy, send }) {
                 align: "right", headerAlign: "right",
                 renderCell: ({ row }) => (canManage ? (
                   <span className="flex items-center justify-end gap-2">
-                    {row.status === "Draft" && <button className={btn} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Sent" })}>{tr.send}</button>}
-                    {row.status === "Sent" && <button className={btn} onClick={() => setPaying(row)}>{tr.recordPayment}</button>}
+                    {row.status === "Draft" && <button className={btnRowPrimary} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Sent" })}>{tr.send}</button>}
+                    {row.status === "Sent" && <button className={btnRowPrimary} onClick={() => setPaying(row)}>{tr.recordPayment}</button>}
                     {row.status !== "Cancelled" && row.status !== "Paid" && row.paid === 0 && (
-                      <button className={btnGhost} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Cancelled" })}>{tr.cancel}</button>
+                      <button className={btnRow} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Cancelled" })}>{tr.cancel}</button>
                     )}
-                    {row.status === "Draft" && <button className={btnDanger} disabled={busy} onClick={() => send("invoices", "DELETE", { id: row.id })}>{tr.delete}</button>}
+                    {row.status === "Draft" && <button className={btnRowDanger} disabled={busy} onClick={() => send("invoices", "DELETE", { id: row.id })}>{tr.delete}</button>}
                   </span>
                 ) : null),
               },

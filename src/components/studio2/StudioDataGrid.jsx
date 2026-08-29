@@ -110,6 +110,18 @@ export default function StudioDataGrid({
         borderBottom: "1px solid var(--geex-border)",
         display: "flex",
         alignItems: "center",
+        // LINE HEIGHT IS RESET, and it has to be. The Data Grid sets the cell's
+        // line-height to the row height (51px here) so that a bare string
+        // centres itself vertically — a technique this cell does not need,
+        // because it is a flex box centring its own children. What that
+        // inherited 51px DOES do is inflate every inline child that carries no
+        // leading of its own: a `px-2 py-0.5 text-[10px]` badge becomes 55px
+        // tall inside a 52px row and renders as a blob rather than a pill,
+        // and globals.css cannot save it — the studio type scale pins
+        // line-height for text-xs/sm/lg but deliberately leaves arbitrary
+        // sizes like text-[10px] alone. One reset here fixes every badge in
+        // every grid instead of a `leading-` on each one.
+        lineHeight: 1.5,
         outlineOffset: -2,
       },
       [`& .${gridClasses.cell}:focus, & .${gridClasses.cell}:focus-within`]: {

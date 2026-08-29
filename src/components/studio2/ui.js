@@ -26,6 +26,29 @@ export const label = "mb-1.5 block text-xs font-600 uppercase tracking-wide text
 export const btn = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
 export const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/5";
 export const btnAmber = "rounded-full bg-amber-600 px-3 py-1.5 text-xs font-600 text-white transition-colors hover:bg-amber-700 disabled:opacity-60";
+
+// IN-ROW ACTIONS, not toolbar buttons. A Data Grid row is a fixed 52px
+// (GRID_ROW_HEIGHT), and `btn`/`btnGhost` measure 39px inside it — six pixels of
+// air above and below, so the button crowds the row instead of sitting in it and
+// reads as misaligned against the row's text even though the two are centred on
+// the same line to within half a pixel. These are the same three buttons at row
+// scale: 31px, which leaves the row breathing space either side.
+//
+// THE PADDING SHRINKS, NEVER THE TEXT. globals.css collapses every text-size
+// utility inside `.studio-chrome` into the studio's three allowed sizes, so a
+// smaller `text-xs` here would silently render at 0.875rem anyway — and going
+// under it with `text-[11px]` (which that rule deliberately leaves alone) would
+// put a fourth size in the scale to win 4px. The size is inherited instead of
+// declared, and `leading-5` states the leading rather than inheriting it, so
+// these are 30px in a grid row and 30px anywhere else — the Data Grid's own
+// cell line-height is reset in StudioDataGrid, but a toolbar or a card has no
+// such guarantee. The primary one carries a TRANSPARENT border for the
+// same reason: without it the filled button is 28px against the outlined 30px,
+// and a row holding both — Approve beside Withdraw — steps by two pixels as
+// each decision is taken.
+export const btnRow = "rounded-full border border-slate-200 px-3 py-1 font-display font-600 leading-5 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/5";
+export const btnRowPrimary = "rounded-full border border-transparent bg-brand-700 px-3 py-1 font-display font-600 leading-5 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
+export const btnRowDanger = "rounded-full border border-rose-200 px-3 py-1 font-display font-600 leading-5 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
 export const th = "pb-3 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 
 // A row still waiting for someone to act on it, marked with a stripe down its
