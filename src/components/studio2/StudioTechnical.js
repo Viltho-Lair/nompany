@@ -369,8 +369,28 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
   }
 
   return (
-    <section className={panel}>
-      <div className="flex flex-wrap items-center gap-3">
+    // FULL SCREEN HEIGHT, and the two panes scroll inside it. This is a
+    // workbench — the queue on one side, the RFQ being handled on the other —
+    // and it used to be a 560px box in a scrolling page, so working on an RFQ
+    // meant scrolling the page to read the bottom of the box and losing the
+    // queue off the top. Now the box ends where the window ends and each pane
+    // scrolls on its own, so the queue never leaves.
+    //
+    // ONLY FROM lg UP, where the two panes are side by side. Below it they
+    // stack, and pinning a stack of two to the window height would squeeze
+    // both into strips — a narrow screen scrolls the page instead, which is
+    // what every other screen does there.
+    //
+    // The 7.5rem is what sits above and below: the studio's 88px header, which
+    // this screen starts under, plus the 2rem of bottom padding the shell's
+    // <main> carries. Measured, not guessed. The floor keeps it usable on a
+    // short window rather than crushing the panes to nothing.
+    <div className="flex flex-col gap-4 lg:h-[calc(100dvh-7.5rem)] lg:min-h-[26rem]">
+      {/* THE SEARCH SITS ABOVE THE BOX, not in it. It acts on the queue inside,
+          but it is the screen's own toolbar — the same place every other
+          Technical screen keeps one — and inside the panel it read as another
+          field belonging to whichever RFQ was open. */}
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
         <input
           className={`${input} max-w-sm`}
           value={query}
@@ -381,9 +401,9 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
         {canRequestRfq && <button className={`${btn} ms-auto`} onClick={onRaise}>{tr.raiseRfq}</button>}
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <section className={`${panel} grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[320px_minmax(0,1fr)]`}>
         {/* ---- the queue ---- */}
-        <div className="max-h-[560px] min-h-[240px] overflow-y-auto rounded-geex border border-slate-200/70 dark:border-white/10">
+        <div className="max-h-[26rem] overflow-y-auto rounded-geex border border-slate-200/70 lg:max-h-none lg:min-h-0 dark:border-white/10">
           {shown.length === 0 ? (
             <p className="p-4 text-sm text-slate-400">
               {query ? `Nothing matches “${query}”.` : tr.noRfqsComeOver}
@@ -415,7 +435,7 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
         </div>
 
         {/* ---- the one being handled ---- */}
-        <div className="min-h-[240px] rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
+        <div className="rounded-geex border border-slate-200/70 p-5 lg:min-h-0 lg:overflow-y-auto dark:border-white/10">
           {!selected ? (
             <p className="text-sm text-slate-400">{tr.chooseRfqSeeHere}</p>
           ) : (
@@ -481,8 +501,8 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, people, statuses,
             </>
           )}
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
 
