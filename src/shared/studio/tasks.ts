@@ -11,7 +11,15 @@ type Strings = CommonStrings & {
   accessTasksStudio: string;
   adminCanAppoint: string;
   appointSomeoneTaskSettings: string;
+  approve: string;
+  approvedByOn: (who: string, when: string) => string;
   approvedOpenProject: string;
+  nOfMApproved: (approved: number, required: number) => string;
+  showLess: string;
+  someone: string;
+  showMore: string;
+  waitingOn: (holders: string) => string;
+  withdraw: string;
   assign: string;
   authorityIsnPartTask: string;
   blankOrdinaryTaskAssigned: string;
@@ -28,6 +36,7 @@ type Strings = CommonStrings & {
   didnGoThrough: string;
   didnSave: string;
   dueDate: string;
+  dueOn: (date: string) => string;
   edit: string;
   editTask: string;
   everyKindOfTask: string;
@@ -39,6 +48,7 @@ type Strings = CommonStrings & {
   needsYourDecision: string;
   newTask: string;
   noOpenTasks: string;
+  nobody: string;
   nobodyAppointed: string;
   nobodyAppointedAuthorityYet: string;
   nobodyStudioYet: string;
@@ -86,7 +96,15 @@ const en: Strings = {
   accessTasksStudio: "You don't have access to Tasks in this studio.",
   adminCanAppoint: " — an admin can appoint someone in Task settings",
   appointSomeoneTaskSettings: "appoint someone in Task settings",
+  approve: "Approve",
+  approvedByOn: (who, when) => `Approved by ${who}${when ? ` on ${when}` : ""}`,
   approvedOpenProject: "Approved — open the project",
+  nOfMApproved: (approved, required) => `${approved} of ${required} approved`,
+  showLess: "less",
+  someone: "someone",
+  showMore: "more",
+  waitingOn: (holders) => `Waiting on ${holders}`,
+  withdraw: "Withdraw",
   assign: "Assign to",
   authorityIsnPartTask: "That authority isn't part of this task.",
   blankOrdinaryTaskAssigned: "Blank is an ordinary task — assigned to a person.",
@@ -103,6 +121,7 @@ const en: Strings = {
   didnGoThrough: "That didn't go through.",
   didnSave: "That didn't save.",
   dueDate: "Due date",
+  dueOn: (date) => `due ${date}`,
   edit: "Edit",
   editTask: "Edit task",
   everyKindOfTask: "Every kind of task the studio raises, and who decides it. Appointing someone routes the matching tasks to them straight away, existing ones included — assignment is read from here on every load, never copied onto the task, so it can never keep pointing at whoever used to hold the job.",
@@ -114,6 +133,7 @@ const en: Strings = {
   needsYourDecision: "Needs your decision",
   newTask: "New task",
   noOpenTasks: "No open tasks",
+  nobody: "nobody",
   nobodyAppointed: "Nobody appointed",
   nobodyAppointedAuthorityYet: "Nobody is appointed to this authority yet",
   nobodyStudioYet: "Nobody in this studio yet",
@@ -161,7 +181,15 @@ const ar: Strings = {
   accessTasksStudio: "لا تملك صلاحية الوصول إلى المهام في هذا الاستوديو.",
   adminCanAppoint: " — يمكن لمسؤول تعيين شخص من إعدادات المهام",
   appointSomeoneTaskSettings: "عيّن شخصًا من إعدادات المهام",
+  approve: "اعتماد",
+  approvedByOn: (who, when) => `اعتمدها ${who}${when ? ` في ${when}` : ""}`,
   approvedOpenProject: "معتمد — افتح المشروع",
+  nOfMApproved: (approved, required) => `اعتُمد ${approved} من ${required}`,
+  showLess: "أقل",
+  someone: "أحدهم",
+  showMore: "المزيد",
+  waitingOn: (holders) => `في انتظار ${holders}`,
+  withdraw: "سحب الاعتماد",
   assign: "إسناد إلى",
   authorityIsnPartTask: "هذه السلطة ليست جزءًا من هذه المهمة.",
   blankOrdinaryTaskAssigned: "الفراغ يعني مهمة عادية — مُسنَدة إلى شخص.",
@@ -178,6 +206,7 @@ const ar: Strings = {
   didnGoThrough: "لم تتم العملية.",
   didnSave: "لم يُحفظ ذلك.",
   dueDate: "تاريخ الاستحقاق",
+  dueOn: (date) => `تستحق ${date}`,
   edit: "تعديل",
   editTask: "تعديل المهمة",
   everyKindOfTask: "كل نوع من المهام التي يرفعها الاستوديو، ومن يبتّ فيه. وتعيين شخص يوجّه إليه المهام المطابقة فورًا، بما فيها القائمة — إذ يُقرأ الإسناد من هنا مع كل تحميل، ولا يُنسخ على المهمة، فلا يظل أبدًا مشيرًا إلى من كان يشغل الوظيفة.",
@@ -189,6 +218,7 @@ const ar: Strings = {
   needsYourDecision: "تحتاج إلى قرارك",
   newTask: "مهمة جديدة",
   noOpenTasks: "لا توجد مهام مفتوحة",
+  nobody: "لا أحد",
   nobodyAppointed: "لم يُعيَّن أحد",
   nobodyAppointedAuthorityYet: "لم يُعيَّن أحد لهذه السلطة بعد",
   nobodyStudioYet: "لا أحد في هذا الاستوديو بعد",

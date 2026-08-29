@@ -10,6 +10,7 @@ import { fmtDate, fmtDateTime } from "@/lib/format";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { btnRow, btnRowPrimary } from "@/components/studio2/ui";
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const h2 = "font-display text-lg font-800 text-slate-900 dark:text-white";
@@ -243,41 +244,6 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
             {t.progress !== null && <span className="ms-2 text-xs font-400 text-slate-400">{t.progress}%</span>}
           </p>
 
-          {/* Who is being waited on. Each authority shows its own state, so a
-              half-approved task reads as half-approved rather than just
-              "pending" — and the button is only offered to the person who
-              actually holds that authority. */}
-          {typed && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              {t.authorityStates.map((a) => {
-                const mine = (t.myAuthorities || []).includes(a.code);
-                const canDecide = mine || canManage;
-                return (
-                  <span key={a.code}
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-600 ${a.approved
-                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                      : a.orphaned
-                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                        : "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300"}`}
-                    title={a.approved
-                      ? `Approved by ${a.byAlias || "someone"}${a.at ? ` on ${fmtDateTime(a.at)}` : ""}`
-                      : a.orphaned
-                        ? tr.nobodyAppointedAuthorityYet
-                        : `Waiting on ${a.holders.join(", ") || "nobody"}`}>
-                    {a.approved ? "✓" : a.orphaned ? "!" : "•"} {a.label}
-                    {canDecide && !busy && (
-                      <button type="button"
-                        className="ms-1 font-700 underline underline-offset-2"
-                        onClick={() => onSend("PUT", { id: t.id, authority: a.code, approved: !a.approved })}>
-                        {a.approved ? "withdraw" : "approve"}
-                      </button>
-                    )}
-                  </span>
-                );
-              })}
-            </div>
-          )}
-
           {/* THE NEXT STEP AFTER AN APPROVAL. A signed-off quotation is work
               the studio has agreed to do, so this is where it becomes a
               project — named to a handler, carrying the ticket, the RFQ and
@@ -290,14 +256,14 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
 
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {typed
-              ? <>{meta?.label || t.type}{t.approvalState && <> · {t.approvalState.approved} of {t.approvalState.required} approved</>}</>
+              ? <>{meta?.label || t.type}{t.approvalState && <> · {tr.nOfMApproved(t.approvalState.approved, t.approvalState.required)}</>}</>
               : t.assigneeAlias
                 ? <>{t.assigneeAlias}{t.mine && <span className="text-slate-400"> (you)</span>}</>
                 : <span className="text-amber-600 dark:text-amber-400">{tr.unassigned}</span>}
-            {t.dueDate && <> · due {fmt(t.dueDate)}</>}
+            {t.dueDate && <> · {tr.dueOn(fmt(t.dueDate))}</>}
             {(t.description || (t.checklist || []).length > 0) && (
               <button type="button" className="ms-2 text-brand-700 hover:underline dark:text-brand-300" onClick={() => setOpen(!open)}>
-                {open ? "less" : "more"}
+                {open ? tr.showLess : tr.showMore}
               </button>
             )}
           </p>
@@ -328,7 +294,51 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:ms-auto">
+          {/* WHO IS BEING WAITED ON, in the space a typed task leaves empty.
+              These used to sit under the title, stacking a fourth line onto the
+              left edge of a full-width card while the right half of it held
+              nothing — and the action was an underlined word crammed inside the
+              state chip, which read as part of the label rather than as the
+              button the whole card exists for. State and action are two things
+              now: a dot and the authority's name say where it stands, and the
+              decision is a real button beside it. Each authority still shows its
+              OWN state, so a half-approved task reads as half-approved rather
+              than just "pending", and the button is still offered only to
+              somebody who holds that authority. */}
+          {typed && t.authorityStates.map((a) => {
+            const mine = (t.myAuthorities || []).includes(a.code);
+            const canDecide = mine || canManage;
+            return (
+              <span key={a.code} className="inline-flex items-center gap-2"
+                title={a.approved
+                  ? tr.approvedByOn(a.byAlias || tr.someone, a.at ? fmtDateTime(a.at) : "")
+                  : a.orphaned
+                    ? tr.nobodyAppointedAuthorityYet
+                    : tr.waitingOn(a.holders.join(", ") || tr.nobody)}>
+                <span className={`inline-flex items-center gap-1.5 text-sm font-600 ${a.approved
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : a.orphaned
+                    ? "text-amber-700 dark:text-amber-300"
+                    : "text-slate-500 dark:text-slate-400"}`}>
+                  <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${a.approved
+                    ? "bg-emerald-500"
+                    : a.orphaned ? "bg-amber-500" : "bg-slate-300 dark:bg-white/25"}`} />
+                  {a.label}
+                </span>
+                {/* DISABLED WHILE SAVING, not hidden: the button used to vanish
+                    for the length of the round trip, so the card reflowed under
+                    the cursor of whoever had just clicked it. */}
+                {canDecide && (
+                  <button type="button" className={a.approved ? btnRow : btnRowPrimary} disabled={busy}
+                    onClick={() => onSend("PUT", { id: t.id, authority: a.code, approved: !a.approved })}>
+                    {a.approved ? tr.withdraw : tr.approve}
+                  </button>
+                )}
+              </span>
+            );
+          })}
+
           {/* A typed task's status follows its approvals, so offering a status
               picker would let somebody claim it is Done while an authority has
               not signed. */}
