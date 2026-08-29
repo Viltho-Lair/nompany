@@ -134,6 +134,10 @@ export default function StudioProjects({ slug, view = "projects" }) {
         : out.error === "not-approved" ? tr.quotationHasnApprovedYet
         : out.error === "already" ? tr.projectAlreadyExistsQuotation
         : out.error === "title" ? tr.giveName
+        // A direct create refuses with "client" when this studio has no Sales
+        // clients section — the form's `ready` gate cannot pre-empt it, because
+        // it only knows the typed name, not whether the section exists.
+        : out.error === "client" ? tr.noClientsListHere
         : out.error === "startDate" ? tr.startDateRequiredVisit
         : out.error === "emergency-cap" ? tr.nEmergencyVisitsAllowed(out.cap)
         : out.error === "project" ? tr.pickProject
@@ -660,7 +664,7 @@ function DirectProject({ people, clients, industries, studioDefaults, busy, setB
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={save}>
-          {busy ? tr.creatingProject : tr.createProject}
+          {busy ? tr.creating : tr.createProject}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
@@ -679,16 +683,21 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
   const [end, setEnd] = useState(p.endDate || "");
   const [sup, setSup] = useState(p.supportPeriodDays ?? 365);
 
+  // The chain this project came from. A directly-created project has none of
+  // the three, and an empty strip after the "From" heading reads as a record
+  // that failed to load — so the absence is named rather than left blank.
+  const lineage = [
+    p.ticketId && { label: tr.ticket, href: linkIf(nav?.sales, linkToTicket(slug, p.ticketId)) },
+    p.rfqId && { label: "RFQ", href: linkIf(nav?.["technical-rfq"], linkToRfq(slug, p.rfqId)) },
+    p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.["technical-quotations"], linkToQuotation(slug, p.quotationId)) },
+  ].filter(Boolean);
+
   return (
     <>
-      {/* Lineage — the chain this project came from. */}
+      {/* Lineage — the chain this project came from, or "Direct" when there is none. */}
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
         <span className="font-600 uppercase tracking-wide">{tr.from}</span>
-        {[
-          p.ticketId && { label: tr.ticket, href: linkIf(nav?.sales, linkToTicket(slug, p.ticketId)) },
-          p.rfqId && { label: "RFQ", href: linkIf(nav?.["technical-rfq"], linkToRfq(slug, p.rfqId)) },
-          p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.["technical-quotations"], linkToQuotation(slug, p.quotationId)) },
-        ].filter(Boolean).map((step, i, arr) => (
+        {lineage.length === 0 ? <span>{tr.direct}</span> : lineage.map((step, i, arr) => (
           <span key={step.label + i} className="flex items-center gap-2">
             <RecordLink href={step.href} title={`Open ${step.label}`}>{step.label}</RecordLink>
             {i < arr.length - 1 && <span aria-hidden="true">→</span>}

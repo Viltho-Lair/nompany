@@ -1,6 +1,6 @@
 {
   "status": 400,
   "body": {
-    "error": "missing"
+    "error": "title"
   }
 }

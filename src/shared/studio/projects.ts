@@ -38,7 +38,6 @@ type Strings = CommonStrings & {
   createProjectPlan: string;
   createsScheduleProjectCarrying: string;
   creating: string;
-  creatingProject: string;
   dashboardIsnYoursSee: string;
   date: string;
   decisions: string;
@@ -51,6 +50,7 @@ type Strings = CommonStrings & {
   derivedWhatAllocatedAgainst: string;
   descriptionOfTheWork: string;
   didnSave: string;
+  direct: string;
   discard: string;
   due30Days: string;
   durationDays: string;
@@ -93,6 +93,7 @@ type Strings = CommonStrings & {
   newClientWork: string;
   newProject: string;
   noApprovedQuotationsWaiting: string;
+  noClientsListHere: string;
   noDataYet: string;
   noDepartmentsDepartmentSection: string;
   noEmergencyVisitsRegistered: string;
@@ -130,7 +131,6 @@ type Strings = CommonStrings & {
   onlyProjectEditorsCan: string;
   open: string;
   openProject: string;
-  openProject2: string;
   openProjectFirst: string;
   openProjectPlan: string;
   openProjectsPerManager: string;
@@ -269,7 +269,6 @@ const en: Strings = {
   createProjectPlan: "Create project plan",
   createsScheduleProjectCarrying: "Creates a schedule for this project, carrying its details across.",
   creating: "Creating…",
-  creatingProject: "Creating…",
   dashboardIsnYoursSee: "The dashboard isn't yours to see",
   date: "Date",
   decisions: "Decisions",
@@ -282,6 +281,9 @@ const en: Strings = {
   derivedWhatAllocatedAgainst: "Derived from what is allocated against what was sold",
   descriptionOfTheWork: "Description of the work",
   didnSave: "That didn't save.",
+  // The lineage strip's answer for a project with no chain behind it. A blank
+  // strip reads as a missing record; "Direct" says the absence is the fact.
+  direct: "Direct",
   discard: "Discard",
   due30Days: "due in 30 days",
   durationDays: "Duration (days)",
@@ -324,6 +326,7 @@ const en: Strings = {
   newClientWork: "New client work",
   newProject: "New project",
   noApprovedQuotationsWaiting: "There are no approved quotations waiting. Approve one in Technical and it will be selectable here.",
+  noClientsListHere: "This studio has no clients list, so there is no client to file the project against. Switch the Sales clients section on first.",
   noDataYet: "No data yet",
   noDepartmentsDepartmentSection: "No departments — a department is a section, and this studio has none switched on.",
   noEmergencyVisitsRegistered: "No emergency visits registered yet.",
@@ -357,7 +360,6 @@ const en: Strings = {
   onlyProjectEditorsCan: "Only project editors can start a plan.",
   open: "Open",
   openProject: "Open project",
-  openProject2: "Open a project",
   openProjectFirst: "Open a project first",
   openProjectPlan: "Open project plan",
   openProjectsPerManager: "Open projects per manager",
@@ -390,7 +392,7 @@ const en: Strings = {
   projectColumns: "Project columns",
   projectCount: (shown, total) => `${shown} of ${total} project${total === 1 ? "" : "s"}.`,
   projects: "Projects",
-  projectsEmptySummary: "Projects open from an approved quotation. Once one is registered, its stages, value and progress are summarised here.",
+  projectsEmptySummary: "A project opens from an approved quotation, or is created directly from work handed to the studio. Once one is registered, its stages, value and progress are summarised here.",
   projectsOpenApprovedQuotation: "Projects open from an approved quotation, or are created directly for work handed to you.",
   projectsStage: "Projects by stage",
   qty: "Qty",
@@ -496,7 +498,6 @@ const ar: Strings = {
   createProjectPlan: "إنشاء خطة المشروع",
   createsScheduleProjectCarrying: "يُنشئ جدولًا لهذا المشروع، ناقلًا تفاصيله معه.",
   creating: "جارٍ الإنشاء…",
-  creatingProject: "جارٍ الإنشاء…",
   dashboardIsnYoursSee: "لوحة المعلومات ليست من صلاحياتك",
   date: "التاريخ",
   decisions: "القرارات",
@@ -509,6 +510,7 @@ const ar: Strings = {
   derivedWhatAllocatedAgainst: "مشتق مما خُصص مقابل ما بيع",
   descriptionOfTheWork: "وصف العمل",
   didnSave: "لم يُحفظ ذلك.",
+  direct: "مباشر",
   discard: "تجاهل",
   due30Days: "مستحق خلال 30 يومًا",
   durationDays: "المدة (بالأيام)",
@@ -551,6 +553,7 @@ const ar: Strings = {
   newClientWork: "عمل جديد لعميل",
   newProject: "مشروع جديد",
   noApprovedQuotationsWaiting: "لا توجد عروض أسعار معتمدة بالانتظار. اعتمد واحدًا في القسم الفني ليصبح قابلًا للاختيار هنا.",
+  noClientsListHere: "لا توجد قائمة عملاء في هذا الاستوديو، فلا يوجد عميل يُسجَّل المشروع عليه. فعِّل قسم عملاء المبيعات أولًا.",
   noDataYet: "لا توجد بيانات بعد",
   noDepartmentsDepartmentSection: "لا توجد أقسام — القسم هو قطاع، ولا يوجد أي قطاع مفعّل في هذا الاستوديو.",
   noEmergencyVisitsRegistered: "لم تُسجَّل زيارات طارئة بعد.",
@@ -584,7 +587,6 @@ const ar: Strings = {
   onlyProjectEditorsCan: "لا يمكن بدء خطة إلا لمحرري المشاريع.",
   open: "فتح",
   openProject: "فتح المشروع",
-  openProject2: "افتح مشروعًا",
   openProjectFirst: "افتح مشروعًا أولًا",
   openProjectPlan: "افتح خطة المشروع",
   openProjectsPerManager: "المشاريع المفتوحة لكل مدير",
@@ -624,7 +626,7 @@ const ar: Strings = {
     return `${shown} من ${total} ${what}.`;
   },
   projects: "المشاريع",
-  projectsEmptySummary: "تُفتح المشاريع من عرض سعر معتمد. ومتى سُجّل مشروع، لُخّصت هنا مراحله وقيمته وتقدّمه.",
+  projectsEmptySummary: "يُفتح المشروع من عرض سعر معتمد، أو يُنشأ مباشرةً من عمل أُسند إلى الاستوديو. ومتى سُجّل مشروع، لُخّصت هنا مراحله وقيمته وتقدّمه.",
   projectsOpenApprovedQuotation: "تُفتح المشاريع من عرض سعر معتمد، أو تُنشأ مباشرة لعمل أُسند إليك.",
   projectsStage: "المشاريع حسب المرحلة",
   qty: "الكمية",

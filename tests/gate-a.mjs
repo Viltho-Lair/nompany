@@ -4004,13 +4004,21 @@ console.log("== hop counts: how many round trips a screen costs");
 }
 
 // ============================================================================
-console.log("== technical: F1 — a Technical-only collaborator may still resolve a Sales client (decision, not a bug)");
+console.log("== F1 — a collaborator with no Sales right may still resolve a Sales client (decision, not a bug)");
 // createQuotation gates on technical.quotations.create alone, then resolves the
 // Sales client through resolveClientFor — creating the row if the name is new,
 // folding contact/site into it if it already exists — so a Technical-only
 // collaborator writes the Sales clients collection without holding
 // sales.clients.create/sales.clients.edit. The final whole-branch review of
 // client-belongs-to-the-engagement flagged exactly this.
+//
+// THREE CALLERS NOW, not one. createTicket (sales.ts) has always done it under
+// sales.tickets.create; createQuotation (technical.ts) does it under
+// technical.quotations.create; and directSource (projects.ts) — the direct
+// project head, added by direct-project-creation — does it under
+// projects.list.create alone. Same helper, same collection, same ruling. Both
+// the Technical and the Projects instance are asserted below, because a ruling
+// recorded for one caller is re-opened as a fresh finding against the next.
 //
 // RULED, not fixed: accepted deliberately, by the user's own instruction given
 // before the work started ("quotation must have full client fields similar to
@@ -4070,6 +4078,38 @@ console.log("== technical: F1 — a Technical-only collaborator may still resolv
   ok("...and the client did not exist before this call and does now — resolveClientFor really created it",
     Boolean(created?.id) && result.quotation?.clientId === created.id,
     JSON.stringify({ created: created?.id, quotationClientId: result.quotation?.clientId }));
+
+  // THE THIRD CALLER. The direct project head reaches the same helper from
+  // Projects, so the same ruling has to be visible from here too.
+  const { projectsContext, openProject } = await import("@/modules/projects/projects");
+
+  // projects.list.view is here for the same reason technical.quotations.view is
+  // above — projectsContext's own section guard, not the right under test.
+  const projOnly = await personWith(
+    ["projects.list.view", "projects.list.create"], "f1projonly");
+  await signIn(projOnly.id);
+
+  const projOnlyCtx = await projectsContext(projOnly, slug);
+  ok("fixture: projectsContext builds for the Projects-only collaborator",
+    !projOnlyCtx.error, JSON.stringify(projOnlyCtx.error));
+
+  const projFreshName = `F1 Decision Client ${rand()}`;
+  const projResult = projOnlyCtx.error ? { error: projOnlyCtx.error } : await openProject(projOnlyCtx, {
+    clientName: projFreshName,
+    title: "F1 decision fixture — direct project",
+    industry: "Commercial",
+    contactName: "Sam Reviewer", contactEmail: "sam@example.invalid",
+    site: { name: "", country: "", city: "", url: "" },
+  });
+  ok("a Projects-only collaborator, holding no Sales right at all, may create a direct project that resolves a client",
+    Boolean(projResult.project), JSON.stringify(projResult.error || projResult).slice(0, 200));
+
+  const projCreated = projOnlyCtx.error ? undefined : (await repo("salesClients").find(
+    { studio: projOnlyCtx.studio, section: projOnlyCtx.salesClientsSection },
+  )).find((c) => c.name === projFreshName);
+  ok("...and that client did not exist before this call and does now — the same resolveClientFor, from Projects",
+    Boolean(projCreated?.id) && projResult.project?.clientId === projCreated.id,
+    JSON.stringify({ created: projCreated?.id, projectClientId: projResult.project?.clientId }));
 
   __signOut();
 }

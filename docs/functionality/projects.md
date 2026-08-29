@@ -58,11 +58,12 @@ no-op write when nothing actually changed). A studio with no Sales clients
 section has no client model to resolve into and `directSource` refuses with
 `{ error: "client" }`, the same refusal `createQuotation` gives in that case.
 
-**Industry is the client's fact, not the project's.** `directSource` writes
-the typed industry onto the Client record it resolves (`resolveClientFor`'s
-`industry` argument) and the project row itself stores no copy — a fourth
-copy of something the Client row owns is the drift this product keeps
-removing. It reaches the engagement by being read live off the Client row:
+**Industry is the client's fact, not the project's.** `directSource` hands the
+typed industry to `resolveClientFor`, which uses it only when it CREATES the
+client; on a name that already matches, the existing client's industry stands
+and the typed value is dropped rather than overwriting what Sales holds. Either
+way the project row stores no copy — a fourth copy of something the Client row
+owns is the drift this product keeps removing. It reaches the engagement by being read live off the Client row:
 `buildEngagements`' orphan-project branch (`src/platform/engagement/
 backfill.ts`) sets `context.industry` from `clientById.get(p.clientId)
 ?.industry`, never from the project.

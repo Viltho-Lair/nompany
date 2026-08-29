@@ -30,6 +30,13 @@ export const ProjectSchema = z.looseObject({
   stage: z.string(),
   managerCollaboratorId: z.string().max(60),
   location: z.string().max(200),
+  /**
+   * The description of the work. Required rather than optional: `openProject`
+   * has always written the field, as `""` on the quotation head — which sends
+   * no description — and as the typed text on the direct head. Capped at 4000
+   * characters by the coercion that stores it.
+   */
+  notes: z.string().max(4000),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   createdAt: z.string().optional(),

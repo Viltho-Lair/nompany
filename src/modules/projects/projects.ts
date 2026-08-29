@@ -282,7 +282,10 @@ async function directSource(
 ): Promise<ProjectSource | { error: string }> {
   const { studio, salesClientsSection, collaborator } = ctx;
   const title = str(body?.title, 200);
-  if (!title) return { error: "missing" };
+  // "title", not "missing" — every other blank-title refusal in the product
+  // answers with the field's own name (updateProject below, sales.ts,
+  // technical.ts), and the screens' refusal ladders are keyed on that name.
+  if (!title) return { error: "title" };
   // A studio with no Sales clients section has no client model to resolve
   // into, and refuses exactly as createQuotation refuses in that case.
   if (!salesClientsSection) return { error: "client" };
@@ -293,9 +296,12 @@ async function directSource(
     {
       clientId: str(body?.clientId, 60),
       clientName: str(body?.clientName, 200),
-      // INDUSTRY IS THE CLIENT'S FACT and is written onto the Client record.
-      // The project stores no copy — a fourth copy of something the Client row
-      // owns is the drift this product keeps removing.
+      // INDUSTRY IS THE CLIENT'S FACT, so it goes to the Client, never onto the
+      // project — a fourth copy of something the Client row owns is the drift
+      // this product keeps removing. `resolveClientFor` seeds it when it CREATES
+      // the client and leaves an existing client's industry alone, so on a name
+      // that already matches the typed value is dropped rather than overwriting
+      // what Sales holds. Same behaviour as createQuotation, deliberately.
       industry: str(body?.industry, 120),
       contact: {
         name: str(body?.contactName, 200),
