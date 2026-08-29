@@ -100,5 +100,52 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
       members: { quotation: [q.id as string] },
     });
   }
+
+  // ORPHAN PROJECTS — no ticket and no quotation behind them → their own
+  // engagement. A project raised directly (Sales was never involved) is a real
+  // deal with a real client, and the stage registry's `unassignable: false`
+  // says a project is never loose. Third rather than first, so a project that
+  // DOES have lineage is already claimed by the ticket branch above and cannot
+  // root a second engagement of its own.
+  //
+  // This branch is what makes the live dual-write safe. openProject attaches a
+  // direct project's engagement best-effort; if the reconciler could not
+  // reproduce that root it would drop it on the next pass, which is the
+  // internal-quotation defect one stage further down.
+  for (const p of c.projects || []) {
+    if (p.ticketId || p.quotationId) continue;
+    const engId = deterministicEngId("project", p.id as string);
+    // Same resolution as both branches above: the live Client row first, the
+    // record's own stored name only as the fallback for free text that never
+    // became a record.
+    const directClient = clientById.get(p.clientId as string);
+    const members: Record<string, string[]> = {};
+    for (const [slot, coll] of memberTypes) {
+      members[slot] = byField(c[coll] || [], "projectId", p.id).map((r) => r.id as string);
+    }
+    out.push({
+      // THE REF IS THE NUMBER ONCE FINANCE ISSUES ONE, the title until then. A
+      // direct project starts with a blank number by design (Finance's act),
+      // and a permanently blank ref would leave its card unnamed on the
+      // engagements view. Re-running the reconciler upgrades it in place.
+      engId, ref: (p.number as string) || (p.title as string) || "",
+      context: {
+        clientId: (p.clientId as string) || null,
+        clientName: directClient ? (directClient.name as string) : (p.clientName as string) || "",
+        // INDUSTRY IS THE CLIENT'S FACT and is read off the client row — the
+        // project deliberately stores no copy of it (see the spec, §4.3).
+        industry: (directClient?.industry as string) || "",
+        title: (p.title as string) || "",
+        // A project's deadline is its target end; there is no separate one.
+        deadline: (p.endDate as string) || "",
+        contact: {}, site: {},
+        // The deal began when the project was raised, not when this root was
+        // written — applyDescriptor scores ENG.index off context.createdAt.
+        createdAt: (p.createdAt as string) || "",
+      },
+      singletons: { ticket: null, approvedQuotation: null, project: p.id as string },
+      members,
+    });
+  }
   return out;
 }

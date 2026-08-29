@@ -126,11 +126,17 @@ import { readEngagementView, readEngagement, engagementOf } from "@/platform/db/
 // spine block below — the pure permission filter (visibleStageTypes) already
 // has its own coverage in tests/engagement-view.mjs.
 import { listEngagements, engagementBlock, engagementImpact, lockEngagement, removeEngagement } from "@/modules/main/engagements";
-// PHASE 1b-i ON-CREATE (Task 1). Same standalone-runner shape as engagement.mjs
-// and engagement-backfill.mjs above — importing it here pulls in only the one
-// exported test function, run explicitly further down through the same
-// try/catch adapter (node:assert throws are not this file's ok() shape).
-import { testAttachTicketEngagement } from "./engagement-oncreate.mjs";
+// PHASE 1b-i ON-CREATE (Task 1), plus the direct-project root (Task 1 of the
+// direct-project-creation plan). Same standalone-runner shape as engagement.mjs
+// and engagement-backfill.mjs above — importing it here pulls in the exported
+// test functions, run explicitly further down through the same try/catch
+// adapter (node:assert throws are not this file's ok() shape).
+import {
+  testAttachTicketEngagement,
+  testDirectProjectMintsItsOwnEngagement,
+  testBackfillClustersOrphanProjects,
+  testBackfillLeavesLineagedProjectsAlone,
+} from "./engagement-oncreate.mjs";
 // PHASE 1b-ii SPINE (Task 5). Same standalone-runner shape as engagement.mjs,
 // engagement-backfill.mjs and engagement-oncreate.mjs above — importing it
 // here pulls in only the one exported test function, run explicitly further
@@ -4320,7 +4326,12 @@ console.log("\n== engagement backfill (Phase 1a)");
 // ============================================================================
 console.log("\n== engagement on-create (Phase 1b-i)");
 {
-  for (const t of [testAttachTicketEngagement]) {
+  for (const t of [
+    testAttachTicketEngagement,
+    testDirectProjectMintsItsOwnEngagement,
+    testBackfillClustersOrphanProjects,
+    testBackfillLeavesLineagedProjectsAlone,
+  ]) {
     try {
       await t();
       ok(t.name, true);

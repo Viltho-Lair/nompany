@@ -167,20 +167,27 @@ export async function detachRecord(studioId: string, engId: string, type: string
 }
 
 /** The lineage fields a spine record carries, and all a derivation needs. */
-export type EngagementLineage = { ticketId?: unknown; quotationId?: unknown };
+export type EngagementLineage = { ticketId?: unknown; quotationId?: unknown; projectId?: unknown };
 
 // WHICH ENGAGEMENT A SPINE RECORD BELONGS TO, DERIVED — the ticket's when there
 // is a ticket behind it, the quotation's own when there is not (an internal
-// quotation mints its own, see attachQuotationEngagement). This rule is what
-// openProject resolved inline and what every attach on the spine already
-// obeys; it lives here once because a delete that derived it even slightly
-// differently would detach from an engagement nobody ever attached to, and
-// silently succeed.
+// quotation mints its own, see attachQuotationEngagement), and the project's
+// own when there is neither (a project raised directly, see
+// attachProjectEngagement). This rule is what openProject resolved inline and
+// what every attach on the spine already obeys; it lives here once because a
+// delete that derived it even slightly differently would detach from an
+// engagement nobody ever attached to, and silently succeed.
+//
+// THE ORDER IS THE WHOLE CONTRACT. Project is last, so adding it moves nothing:
+// a project behind a ticket still resolves to the ticket's engagement, and a
+// project behind an internal quotation still resolves to the quotation's.
 export function engagementIdForLineage(lineage: EngagementLineage): string {
   const ticketId = String(lineage.ticketId || "");
   if (ticketId) return deterministicEngId("ticket", ticketId);
   const quotationId = String(lineage.quotationId || "");
-  return quotationId ? deterministicEngId("quotation", quotationId) : "";
+  if (quotationId) return deterministicEngId("quotation", quotationId);
+  const projectId = String(lineage.projectId || "");
+  return projectId ? deterministicEngId("project", projectId) : "";
 }
 
 // THE ONE RESOLUTION A DELETE PATH USES. The reverse index first, because it is
@@ -426,6 +433,21 @@ export async function attachQuotationEngagement(
 ): Promise<string> {
   const [descriptor] = buildEngagements({
     quotations: [quotation], salesClients: client ? [client] : [],
+  });
+  await applyDescriptor(studioId, descriptor);
+  return descriptor.engId;
+}
+
+// A PROJECT RAISED DIRECTLY mints its OWN engagement — the backfill's
+// orphan-project path, reused so a live direct project and a backfilled one
+// match byte-for-byte. Same shape as attachQuotationEngagement one stage up,
+// and for the same reason: two implementations of one clustering is how the
+// live path and the reconciler come to disagree about which deal a record is on.
+export async function attachProjectEngagement(
+  studioId: string, project: Record<string, unknown>, client: Record<string, unknown> | null,
+): Promise<string> {
+  const [descriptor] = buildEngagements({
+    projects: [project], salesClients: client ? [client] : [],
   });
   await applyDescriptor(studioId, descriptor);
   return descriptor.engId;

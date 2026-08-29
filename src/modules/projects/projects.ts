@@ -532,7 +532,7 @@ export async function removeProject(ctx: ProjectsContext, id: string) {
   // the caller holds the right to make.
   try {
     const engId = await engagementIdFor(ctx.studio.id, "project", id,
-      { ticketId: project.ticketId, quotationId: project.quotationId });
+      { ticketId: project.ticketId, quotationId: project.quotationId, projectId: id });
     if (engId) await detachRecord(ctx.studio.id, engId, "project", id);
   } catch { /* best-effort: reconciled later */ }
 
