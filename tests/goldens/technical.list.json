@@ -149,6 +149,10 @@
     ],
     "catalogue": [],
     "currency": "",
+    "studioDefaults": {
+      "country": "",
+      "city": ""
+    },
     "sequences": [
       {
         "id": "default",
@@ -219,11 +223,15 @@
       "clients": [
         {
           "id": "<sal_ID>",
-          "name": "Acme Holdings"
+          "name": "Acme Holdings",
+          "contacts": [],
+          "locations": []
         },
         {
           "id": "<sal_ID>",
-          "name": "Second Client"
+          "name": "Second Client",
+          "contacts": [],
+          "locations": []
         }
       ],
       "liveColumnOptions": [
