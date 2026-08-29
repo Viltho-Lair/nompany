@@ -15,7 +15,13 @@ export const VendorSchema = z.object({
   email: z.string().max(160),
   phone: z.string().max(40),
   notes: z.string().max(1000),
-  itemTypes: z.array(z.string()),
+  // What the vendor supplies, and how long each kind takes to arrive. `weeks`
+  // is "" when nobody said — a blank lead time and a lead time of zero are
+  // different answers, which is why it is not a plain number. (This said
+  // `z.array(z.string())` and had done since the field was added; nothing
+  // parses this schema, so the lie type-checked. cleanItemTypes has always
+  // produced the shape below.)
+  itemTypes: z.array(z.object({ type: z.string().max(80), weeks: z.union([z.number(), z.literal("")]) })),
   createdAt: z.string(),
 });
 

@@ -14,12 +14,17 @@ type Strings = CommonStrings & {
   countOrders: (n: number) => string;
   countShipments: (n: number) => string;
   est: string;
+  importDone: (n: number) => string;
+  importLine: (n: number) => string;
+  importReady: (n: number) => string;
+  importSkipping: (n: number) => string;
   joinAnd: (parts: string[]) => string;
   mInUse: (what: string) => string;
   mInsufficient: (have: string, needed: string) => string;
   mOverReceive: (remaining: string) => string;
   mShort: (detail: string) => string;
   mShortNeedHave: (needed: string, have: string) => string;
+  mTooMany: (max: number) => string;
   accessInventoryStudio: string;
   add: string;
   addAirline: string;
@@ -35,6 +40,7 @@ type Strings = CommonStrings & {
   airlineRegistryHint: string;
   airportCodeHint: string;
   assignedAutomaticallyIfLeft: string;
+  attachFile: string;
   awbLead: string;
   awbNumber: string;
   awbTracking: string;
@@ -81,6 +87,15 @@ type Strings = CommonStrings & {
   iataCode: string;
   image: string;
   imagesMust500Kb: string;
+  importAiPrompt: string;
+  importLabel: string;
+  importNoName: string;
+  importNotImported: string;
+  importPromptHint: string;
+  importTaken: string;
+  importVendors: string;
+  importVendorsHint: string;
+  importing: string;
   item: string;
   itemTypes: string;
   itemVendorSerial: string;
@@ -97,6 +112,7 @@ type Strings = CommonStrings & {
   mDidntSave: string;
   mDuplicate: string;
   mDuplicateSku: string;
+  mEmptyFile: string;
   mLines: string;
   mNotOrdered: string;
   mNothing: string;
@@ -117,6 +133,7 @@ type Strings = CommonStrings & {
   nameSkuModelVendor: string;
   noAirlinesYetWaybill: string;
   noContactDetails: string;
+  noFileChosen: string;
   noItemsMatchSearch: string;
   noPurchaseOrdersYet: string;
   noServiceActionsYet: string;
@@ -233,12 +250,17 @@ const en: Strings = {
   countOrders: (n) => `${n} ${n === 1 ? "order" : "orders"}`,
   countShipments: (n) => `${n} ${n === 1 ? "shipment" : "shipments"}`,
   est: "est.",
+  importDone: (n) => `${n} ${n === 1 ? "vendor" : "vendors"} imported`,
+  importLine: (n) => `Line ${n}`,
+  importReady: (n) => `${n} ${n === 1 ? "vendor" : "vendors"} ready to import`,
+  importSkipping: (n) => `${n} ${n === 1 ? "row" : "rows"} will be skipped`,
   joinAnd: (parts) => parts.join(" and "),
   mInUse: (what) => `Still referenced by ${what} — that history can't be erased.`,
   mInsufficient: (have, needed) => `Not enough stock — you have ${have} and asked for ${needed}.`,
   mOverReceive: (remaining) => `That's more than the order still expects (${remaining} outstanding).`,
   mShort: (detail) => `Not enough stock: ${detail}.`,
   mShortNeedHave: (needed, have) => `need ${needed}, have ${have}`,
+  mTooMany: (max) => `That file has more than ${max} vendors in it. Split it and import the parts.`,
   accessInventoryStudio: "You don't have access to Inventory in this studio.",
   add: "Add",
   addAirline: "Add airline",
@@ -254,6 +276,7 @@ const en: Strings = {
   airlineRegistryHint: "The 3-digit prefix on a waybill is what identifies its carrier.",
   airportCodeHint: "3-letter airport code",
   assignedAutomaticallyIfLeft: "Assigned automatically if left blank",
+  attachFile: "Attach file",
   awbLead: "Follow air freight by its waybill. Eleven digits: a 3-digit carrier prefix, a 7-digit serial and a check digit.",
   awbNumber: "AWB number",
   awbTracking: "AWB Tracking",
@@ -300,6 +323,28 @@ const en: Strings = {
   iataCode: "IATA code",
   image: "Image",
   imagesMust500Kb: "Images must be 500 KB or smaller.",
+  importAiPrompt: `I need a CSV file for importing a vendor list into an inventory system.
+
+Reply with the CSV only — no explanation before or after it — starting with exactly this header line:
+
+Name,Contact Name,Email,Phone,Item Types
+
+Rules:
+- One row per vendor.
+- Name is the only required cell. Leave any other cell empty rather than guessing.
+- Item Types is what the vendor supplies. Put a delivery time in weeks after a colon if you know it, separate several types with semicolons, and wrap the whole cell in double quotes — for example: \"Microphones:4; Speakers:6; Cabling\"
+- Wrap any other cell containing a comma in double quotes too.
+- Do not invent vendors, contacts, email addresses or phone numbers. Use only what I give you.
+
+Here is my vendor list:`,
+  importLabel: "Import",
+  importNoName: "no name",
+  importNotImported: "Not imported",
+  importPromptHint: "No file yet? Copy the prompt, hand it to any AI along with your vendor list, and attach what it gives back.",
+  importTaken: "already on the list",
+  importVendors: "Import vendors",
+  importVendorsHint: "Attach a CSV list of vendors. Name is the only column that must be filled in — everything else can be added later.",
+  importing: "Importing…",
   item: "Item",
   itemTypes: "Item types",
   itemVendorSerial: "Item, vendor or serial",
@@ -316,6 +361,7 @@ const en: Strings = {
   mDidntSave: "That didn't save.",
   mDuplicate: "That name is already in use.",
   mDuplicateSku: "That SKU is already in use.",
+  mEmptyFile: "No vendors could be read from that file — check it has a Name column.",
   mLines: "Add at least one line with a quantity.",
   mNotOrdered: "Mark the order as Ordered before receiving against it.",
   mNothing: "Enter what actually arrived.",
@@ -336,6 +382,7 @@ const en: Strings = {
   nameSkuModelVendor: "Name, SKU, model or vendor",
   noAirlinesYetWaybill: "No airlines yet. A waybill still tracks without one — it just shows the bare prefix.",
   noContactDetails: "No contact details",
+  noFileChosen: "No file chosen",
   noItemsMatchSearch: "No items match that search.",
   noPurchaseOrdersYet: "No purchase orders yet.",
   noServiceActionsYet: "No service actions yet — add them in Studio Settings.",
@@ -452,12 +499,17 @@ const ar: Strings = {
   countOrders: (n) => `${n === 1 ? "طلب واحد" : n === 2 ? "طلبان" : n <= 10 ? `${n} طلبات` : `${n} طلبًا`}`,
   countShipments: (n) => `${n === 1 ? "شحنة واحدة" : n === 2 ? "شحنتان" : n <= 10 ? `${n} شحنات` : `${n} شحنة`}`,
   est: "تقديريًا",
+  importDone: (n) => `${n === 1 ? "تم استيراد مورّد واحد" : n === 2 ? "تم استيراد مورّدين" : n <= 10 ? `تم استيراد ${n} مورّدين` : `تم استيراد ${n} مورّدًا`}`,
+  importLine: (n) => `السطر ${n}`,
+  importReady: (n) => `${n === 1 ? "مورّد واحد جاهز للاستيراد" : n === 2 ? "مورّدان جاهزان للاستيراد" : n <= 10 ? `${n} مورّدين جاهزون للاستيراد` : `${n} مورّدًا جاهزون للاستيراد`}`,
+  importSkipping: (n) => `${n === 1 ? "سيُتجاوز صف واحد" : n === 2 ? "سيُتجاوز صفّان" : n <= 10 ? `ستُتجاوز ${n} صفوف` : `سيُتجاوز ${n} صفًا`}`,
   joinAnd: (parts) => parts.join(" و"),
   mInUse: (what) => `لا يزال مشارًا إليه من ${what} — لا يمكن محو ذلك السجل.`,
   mInsufficient: (have, needed) => `المخزون غير كافٍ — لديك ${have} وطلبت ${needed}.`,
   mOverReceive: (remaining) => `هذا أكثر مما لا يزال الطلب يتوقعه (${remaining} متبقية).`,
   mShort: (detail) => `المخزون غير كافٍ: ${detail}.`,
   mShortNeedHave: (needed, have) => `المطلوب ${needed}، والمتوفر ${have}`,
+  mTooMany: (max) => `يحتوي الملف على أكثر من ${max} مورّد. قسّمه واستورد أجزاءه.`,
   accessInventoryStudio: "لا تملك صلاحية الوصول إلى المخزون في هذا الاستوديو.",
   add: "إضافة",
   addAirline: "إضافة شركة طيران",
@@ -473,6 +525,7 @@ const ar: Strings = {
   airlineRegistryHint: "البادئة المكوّنة من ثلاثة أرقام على البوليصة هي ما يحدّد ناقلها.",
   airportCodeHint: "رمز مطار من ثلاثة أحرف",
   assignedAutomaticallyIfLeft: "يُسنَد تلقائيًا إن تُرك فارغًا",
+  attachFile: "إرفاق ملف",
   awbLead: "تابع الشحن الجوي عبر بوليصته. أحد عشر رقمًا: بادئة ناقل من ثلاثة أرقام، ورقم تسلسلي من سبعة، ورقم تحقق.",
   awbNumber: "رقم بوليصة الشحن الجوي",
   awbTracking: "تتبّع بوليصة الشحن الجوي",
@@ -519,6 +572,28 @@ const ar: Strings = {
   iataCode: "رمز الإياتا",
   image: "الصورة",
   imagesMust500Kb: "يجب ألا تتجاوز الصور 500 كيلوبايت.",
+  importAiPrompt: `أحتاج ملف CSV لاستيراد قائمة مورّدين إلى نظام مخزون.
+
+أجب بالملف وحده — دون أي شرح قبله أو بعده — وليبدأ بسطر العناوين هذا حرفيًا:
+
+Name,Contact Name,Email,Phone,Item Types
+
+القواعد:
+- صف واحد لكل مورّد.
+- الاسم هو الحقل المطلوب الوحيد. اترك أي خانة أخرى فارغة بدل تخمينها.
+- خانة Item Types هي ما يورّده المورّد. ضع مدة التوريد بالأسابيع بعد نقطتين إن عرفتها، وافصل بين الأنواع بفاصلة منقوطة، وضع الخانة كاملة بين علامتي اقتباس مزدوجتين — مثال: \"ميكروفونات:4; سماعات:6; كابلات\"
+- وضع أي خانة أخرى تحتوي على فاصلة بين علامتي اقتباس مزدوجتين أيضًا.
+- لا تخترع مورّدين أو جهات اتصال أو بريدًا إلكترونيًا أو أرقام هواتف. استخدم ما أعطيك فقط.
+
+هذه قائمة المورّدين لديّ:`,
+  importLabel: "استيراد",
+  importNoName: "بلا اسم",
+  importNotImported: "لم يُستورد",
+  importPromptHint: "لا يوجد ملف بعد؟ انسخ المطالبة، وأعطها لأي ذكاء اصطناعي مع قائمة مورّديك، ثم أرفق ما يعيده.",
+  importTaken: "موجود في القائمة بالفعل",
+  importVendors: "استيراد مورّدين",
+  importVendorsHint: "أرفق قائمة مورّدين بصيغة CSV. الاسم هو العمود الوحيد الواجب ملؤه — وما عداه يُضاف لاحقًا.",
+  importing: "جارٍ الاستيراد…",
   item: "الصنف",
   itemTypes: "أنواع الأصناف",
   itemVendorSerial: "الصنف أو المورّد أو الرقم التسلسلي",
@@ -535,6 +610,7 @@ const ar: Strings = {
   mDidntSave: "لم يُحفظ ذلك.",
   mDuplicate: "هذا الاسم مستخدم بالفعل.",
   mDuplicateSku: "رمز الصنف هذا مستخدم بالفعل.",
+  mEmptyFile: "تعذّرت قراءة أي مورّد من هذا الملف — تأكد من وجود عمود Name فيه.",
   mLines: "أضِف سطرًا واحدًا على الأقل بكمية.",
   mNotOrdered: "علّم الطلب كمطلوب قبل الاستلام عليه.",
   mNothing: "أدخل ما وصل فعلًا.",
@@ -555,6 +631,7 @@ const ar: Strings = {
   nameSkuModelVendor: "الاسم أو رمز الصنف أو الطراز أو المورّد",
   noAirlinesYetWaybill: "لا توجد شركات طيران بعد. تُتتبَّع البوليصة بدونها — لكنها تعرض البادئة المجردة فقط.",
   noContactDetails: "لا توجد بيانات اتصال",
+  noFileChosen: "لم يُختر ملف",
   noItemsMatchSearch: "لا توجد أصناف تطابق هذا البحث.",
   noPurchaseOrdersYet: "لا توجد أوامر شراء بعد.",
   noServiceActionsYet: "لا توجد إجراءات خدمة بعد — أضِفها من إعدادات الاستوديو.",

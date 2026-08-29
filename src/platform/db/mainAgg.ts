@@ -27,14 +27,20 @@ export function aggField(sectionId: string, day: string): string {
 }
 
 /**
- * BEST-EFFORT. Fired fire-and-forget from addRow after a row is written. Never
- * throws, never awaited on the write's critical path. Only the six tracked
- * collections count; a miss is corrected by the nightly reconcile.
+ * BEST-EFFORT. Fired fire-and-forget from addRow/addRows after rows are
+ * written. Never throws, never awaited on the write's critical path. Only the
+ * six tracked collections count; a miss is corrected by the nightly reconcile.
+ *
+ * `by` IS HOW MANY ROWS THAT WRITE ADDED, and it exists because addRows landed:
+ * a batch is one write, so it fires this once, and a hard-coded 1 would have
+ * counted an import of two hundred items as one. Vendors are not a tracked
+ * collection so nothing was wrong the day it was added — which is exactly the
+ * kind of latent miscount the reconcile would later have had to explain.
  */
-export async function bumpMainAgg(studioId: string, sectionId: string, collection: string): Promise<void> {
+export async function bumpMainAgg(studioId: string, sectionId: string, collection: string, by = 1): Promise<void> {
   try {
-    if (!TRACKED_COLLECTIONS.has(collection)) return;
-    await hIncrBy(S.mainAgg(studioId), aggField(sectionId, utcDay()), 1);
+    if (!TRACKED_COLLECTIONS.has(collection) || by < 1) return;
+    await hIncrBy(S.mainAgg(studioId), aggField(sectionId, utcDay()), by);
   } catch {
     // swallow — the reconcile is the source of truth, and a rollup miss must
     // never surface on the write that already succeeded.

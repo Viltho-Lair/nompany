@@ -214,12 +214,20 @@ export function Dialog({ title, description, onClose, children, width = "max-w-[
 // ---- list chrome -----------------------------------------------------------
 // Search, filters and whatever else a list needs on the left; the one action
 // that creates a record on the right — or the badge saying you may not.
-export function Toolbar({ canManage, label: addLabel, onAdd, children }) {
+// `children` are the screen's own controls and sit at the START of the bar —
+// filters, search, a view switch. `before` is different: it is a SECOND ACTION,
+// and it belongs beside the primary one rather than at the far end of the row,
+// so it rides inside the same right-hand group immediately ahead of Add.
+//
+// It is gated on `canManage` for the same reason Add is: an action nobody can
+// take is a button that only teaches people the screen is broken (invariant 16).
+export function Toolbar({ canManage, label: addLabel, onAdd, before, children }) {
   const tr = chromeDict(useStudioLocale());
   return (
     <div className="flex flex-wrap items-center gap-2">
       {children}
-      <span className="ms-auto">
+      <span className="ms-auto flex items-center gap-2">
+        {canManage && before}
         {canManage
           ? <button type="button" className={btn} onClick={onAdd}>{addLabel}</button>
           : <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}

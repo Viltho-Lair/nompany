@@ -1,0 +1,23 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "created": 1,
+    "skipped": [
+      {
+        "line": 2,
+        "reason": "name"
+      },
+      {
+        "line": 3,
+        "reason": "duplicate",
+        "name": "levant cabling"
+      },
+      {
+        "line": 5,
+        "reason": "duplicate",
+        "name": "TWICE OVER"
+      }
+    ]
+  }
+}

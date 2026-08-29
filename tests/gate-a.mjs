@@ -1789,6 +1789,101 @@ console.log("== inventory: one shared row, two owners, and a check digit");
   await shot("inventory.outsider", await capture(INV.GET, req(`/api/studios/${slug}/inventory`), P));
   __signOut();
   await shot("inventory.unauth", await capture(INV.GET, req(`/api/studios/${slug}/inventory`), P));
+
+  // ---- importing a vendor list ---------------------------------------------
+  // LAST IN THIS BLOCK ON PURPOSE. Every assertion below adds vendors, and
+  // `inventory.list.populated` above is a golden over the whole module read --
+  // importing before it would rewrite that golden for reasons that have nothing
+  // to do with what it was recorded to pin.
+  //
+  // The bug this guards is the one a loop would have: an import of N vendors
+  // costing N compare-and-set rounds on one key, with every other writer to
+  // that collection queueing behind the whole run. addRows appends the batch
+  // inside ONE editArr, and the assertion is that the cost does not move with N.
+  await signIn(owner.id);
+  const IMPORT = await import("@/app/api/studios/[slug]/inventory/vendors/import/route.ts");
+  const importReq = (rows) => req(`/api/studios/${slug}/inventory/vendors/import`, { method: "POST", body: { rows } });
+  const vendorsNow = async () => (await capture(INV.GET, req(`/api/studios/${slug}/inventory`), P)).body?.vendors || [];
+
+  const threeRows = [
+    { line: 2, name: "Levant Cabling", contactName: "Rami Haddad", email: "RAMI@levant.invalid", phone: "+962 6 555 0101",
+      itemTypes: [{ type: "Cabling", weeks: 2 }, { type: "Connectors", weeks: "" }] },
+    { line: 3, name: "Nile Acoustics", contactName: "", email: "", phone: "", itemTypes: [] },
+    { line: 4, name: "Atlas Rigging", contactName: "Yara Saleh", email: "", phone: "", itemTypes: [{ type: "Trussing", weeks: 5 }] },
+  ];
+  const imported = await withCommandCount(() => capture(IMPORT.POST, importReq(threeRows), P));
+  await shot("inventory.vendors.imported", imported.result);
+
+  // THE COST DOES NOT MOVE WITH N, which is the whole claim.
+  //
+  // Asserted as EQUALITY ACROSS THREE SIZES rather than as "the write count is
+  // one", and the difference matters: the counter records the client METHOD, so
+  // the CAS (sendCommand), the event's XADD (sendCommand) and the rollup all
+  // land under the same name and no single number can be read as "the write".
+  // What CAN be read is whether the number grows — and with addRow in a loop
+  // it would grow by one per row, which twenty-four against three would make
+  // impossible to miss.
+  const cost = (report) => report.names.filter((n) => n === "sendCommand").length;
+  const batch = (n, tag) => Array.from({ length: n }, (_, i) => ({
+    line: i + 2, name: `${tag} Vendor ${i}`, contactName: "", email: "", phone: "", itemTypes: [],
+  }));
+  const six = await withCommandCount(() => capture(IMPORT.POST, importReq(batch(6, "Six")), P));
+  const many = await withCommandCount(() => capture(IMPORT.POST, importReq(batch(24, "Many")), P));
+  ok("six vendors import successfully", six.result.status === 201 && six.result.body?.created === 6,
+    JSON.stringify(six.result.body).slice(0, 120));
+  ok("twenty-four import successfully too", many.result.status === 201 && many.result.body?.created === 24,
+    JSON.stringify(many.result.body).slice(0, 120));
+  ok("...and twenty-four cost exactly what three did",
+    cost(many) === cost(imported) && cost(six) === cost(imported),
+    `${cost(imported)} for three, ${cost(six)} for six, ${cost(many)} for twenty-four`);
+
+  // NAME IS THE ONLY MANDATORY FIELD, and a name already on the list is the
+  // only other way a row is refused. Both are REPORTED rather than swallowed:
+  // an import that silently drops rows is one nobody can reconcile against
+  // their file. The duplicate here is "levant cabling" in a different case, and
+  // the second "Twice Over" collides with the FIRST one in this same batch — a
+  // file that lists a vendor twice must not create it twice.
+  await shot("inventory.vendors.import.partial", await capture(IMPORT.POST, importReq([
+    { line: 2, name: "", contactName: "Nobody", email: "", phone: "", itemTypes: [] },
+    { line: 3, name: "levant cabling", contactName: "", email: "", phone: "", itemTypes: [] },
+    { line: 4, name: "Twice Over", contactName: "", email: "", phone: "", itemTypes: [] },
+    { line: 5, name: "TWICE OVER", contactName: "", email: "", phone: "", itemTypes: [] },
+  ]), P));
+
+  {
+    const stored = await vendorsNow();
+    const named = (n) => stored.filter((v) => v.name.toLowerCase() === n).length;
+    ok("the duplicate did not overwrite the vendor already there", named("levant cabling") === 1, String(named("levant cabling")));
+    ok("...and a name listed twice in one file landed once", named("twice over") === 1, String(named("twice over")));
+    const levant = stored.find((v) => v.name === "Levant Cabling");
+    ok("an imported vendor keeps its item types and lead times",
+      levant?.itemTypes?.[0]?.type === "Cabling" && levant?.itemTypes?.[0]?.weeks === 2, JSON.stringify(levant?.itemTypes));
+    // A blank lead time is not a lead time of zero, and cleanItemTypes keeps
+    // the difference — the import must not flatten it on the way through.
+    ok("...and a type with no lead time keeps none", levant?.itemTypes?.[1]?.weeks === "", JSON.stringify(levant?.itemTypes?.[1]));
+    ok("an imported vendor's email is folded like a typed one", levant?.email === "rami@levant.invalid", String(levant?.email));
+  }
+
+  // IMPORTING IS CREATING, so it asks the create right rather than a right of
+  // its own — storeman holds inventory.sheets.* and nothing on vendors, so a
+  // bulk create is refused for the same reason a single one would be.
+  {
+    await signIn(storeman.id);
+    const refused = await capture(IMPORT.POST, importReq([{ line: 2, name: "Smuggled In" }]), P);
+    ok("somebody without the create right cannot import", refused.status === 403 || refused.status === 404, String(refused.status));
+    await signIn(owner.id);
+    ok("...and nothing of theirs was written", !(await vendorsNow()).some((v) => v.name === "Smuggled In"), "");
+  }
+
+  // A FILE WITH NOTHING IN IT is a bad request, not an empty success — "0
+  // imported" would read as though the file had been understood.
+  {
+    const empty = await capture(IMPORT.POST, importReq([]), P);
+    ok("an empty import is refused", empty.status === 400 && empty.body?.error === "empty", JSON.stringify(empty.body));
+    const flood = await capture(IMPORT.POST, importReq(
+      Array.from({ length: 501 }, (_, i) => ({ line: i + 2, name: `Flood ${i}` }))), P);
+    ok("...and so is one past the ceiling", flood.status === 400 && flood.body?.error === "too-many", JSON.stringify(flood.body));
+  }
 }
 
 // ============================================================================
@@ -3475,6 +3570,70 @@ console.log("== the repository: a query somebody else could answer");
   try { await CLIENTS.find({ studio: context.studio }); }
   catch (e) { noScope = e.message; }
   ok("a scope without a section is refused", noScope.includes("scope needs"), noScope);
+}
+
+console.log("== reading a vendor CSV: the file a person was actually handed");
+// PURE, so it asserts without Redis. The tolerances below are not politeness —
+// each is a file that would otherwise have been refused or, worse, misread:
+// Excel's save-as BOM, Windows CRLF, a header somebody renamed, a comma inside
+// a company name.
+//
+// THE BLANK-LINE CASE IS A BUG THIS ACTUALLY HAD. parseCsv dropped empty rows
+// before readCsvTable numbered them, so one blank line at row 3 renumbered
+// everything after it and every rejection the import reported named a line one
+// too early. A wrong line number is worse than none: it sends somebody to the
+// wrong row, confidently.
+{
+  const { readVendorCsv, parseItemTypes } = await import("@/modules/inventory/vendorCsv");
+  const CRLF = String.fromCharCode(13, 10);
+  const LF = String.fromCharCode(10);
+  const BOM = String.fromCharCode(0xFEFF);
+
+  const blanks = readVendorCsv([
+    "Name,Contact Name,Email,Phone,Item Types",
+    "Alpha,,,,",
+    "",
+    ",Nameless,,,",
+    "Beta,,,,",
+  ].join(CRLF));
+  ok("a blank line does not renumber the rows after it", blanks.nameless[0] === 4, JSON.stringify(blanks.nameless));
+  ok("...and is not itself a row", blanks.rows.length === 3, String(blanks.rows.length));
+  ok("...so the last row keeps its true file line", blanks.rows.at(-1).line === 5, String(blanks.rows.at(-1).line));
+
+  const quoted = readVendorCsv([
+    "Name,Contact Name,Email,Phone,Item Types",
+    'QQAcme, LimitedQQ,Jo,jo@acme.example,,QQCable:2; TrussingQQ',
+    'QQHe said QQQQhiQQQQQQ,,,,',
+  ].join(LF).split("QQ").join(String.fromCharCode(34)));
+  ok("a comma inside quotes does not split the cell", quoted.rows[0].name === "Acme, Limited", quoted.rows[0].name);
+  ok("a doubled quote is one literal quote",
+    quoted.rows[1].name === "He said " + String.fromCharCode(34) + "hi" + String.fromCharCode(34), quoted.rows[1].name);
+  ok("...and the quoted cell's item types still split on semicolons",
+    quoted.rows[0].itemTypes.length === 2, JSON.stringify(quoted.rows[0].itemTypes));
+  // "" and 0 are different answers about a lead time, all the way through.
+  ok("...a type with no colon carries no lead time", quoted.rows[0].itemTypes[1].weeks === "",
+    JSON.stringify(quoted.rows[0].itemTypes[1]));
+
+  const alt = readVendorCsv(BOM + [
+    "VENDOR,contact_person,E-Mail,Mobile,Supplies",
+    "Zed Co,Sam,sam@zed.example,+1 555,Panels:3",
+  ].join(CRLF));
+  ok("a BOM, CRLF endings and renamed headers all still read",
+    alt.rows[0]?.name === "Zed Co" && alt.rows[0]?.email === "sam@zed.example", JSON.stringify(alt.rows[0]));
+  ok("...and the renamed Supplies column was read as item types",
+    alt.rows[0]?.itemTypes?.[0]?.weeks === 3, JSON.stringify(alt.rows[0]?.itemTypes));
+
+  // Split on the LAST colon, and only when the tail is a number — a type is far
+  // likelier to contain a colon than a lead time is.
+  ok("a colon in the type name survives when the tail is not a number",
+    parseItemTypes("Cable: HDMI")[0].type === "Cable: HDMI", JSON.stringify(parseItemTypes("Cable: HDMI")));
+  ok("...and is read as weeks when it is", parseItemTypes("Cable: HDMI:3")[0].weeks === 3,
+    JSON.stringify(parseItemTypes("Cable: HDMI:3")));
+
+  // The wrong file entirely, which the screen must name as such rather than
+  // reporting "0 vendors found" for a file full of them.
+  ok("a file with no name column says so",
+    readVendorCsv(["Invoice,Amount", "INV-1,100"].join(LF)).noNameColumn === true);
 }
 
 console.log("== idempotency: a retry does not bill twice");

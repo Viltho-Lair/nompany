@@ -18,6 +18,7 @@ import {
 } from "@/components/studio2/ui";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { parseAwb, formatAwb } from "@/modules/inventory/awb";
+import { readVendorCsv } from "@/modules/inventory/vendorCsv";
 import { statusLabel, isException, AWB_STATUS_BY_CODE } from "@/modules/inventory/awbStatus";
 import { StatusPill } from "@/components/studio2/StatusPill";
 
@@ -71,7 +72,11 @@ export default function StudioInventory({ slug, view = "inventory" }) {
     setBusy(false);
     if (!res.ok) { setError(message(out, tr)); return false; }
     await load();
-    return true;
+    // THE BODY, not `true`. Every caller here tests this as a boolean and an
+    // object is truthy, so nothing changes for them — but the import needs to
+    // read what came back (how many landed, which lines did not), and a helper
+    // that throws the answer away would force a second fetch to ask again.
+    return out;
   }, [slug, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
@@ -708,7 +713,9 @@ function Movements({ rows }) {
 function Vendors({ rows, items, canManage, busy, send }) {
   const tr = inventoryDict(useStudioLocale());
   const [form, setForm] = useState(null);
+  const [importing, setImporting] = useState(false);
   const closeForm = useCallback(() => setForm(null), []);
+  const closeImport = useCallback(() => setImporting(false), []);
   const itemCount = useMemo(() => {
     const counts = {};
     for (const i of items) if (i.vendorId) counts[i.vendorId] = (counts[i.vendorId] || 0) + 1;
@@ -717,7 +724,14 @@ function Vendors({ rows, items, canManage, busy, send }) {
 
   return (
     <>
-      <Toolbar canManage={canManage} label={tr.addVendor} onAdd={() => setForm({ row: null })} />
+      <Toolbar canManage={canManage} label={tr.addVendor} onAdd={() => setForm({ row: null })}
+        before={<button type="button" className={btnGhost} onClick={() => setImporting(true)}>{tr.importLabel}</button>} />
+
+      {importing && (
+        <Dialog title={tr.importVendors} description={tr.importVendorsHint} onClose={closeImport}>
+          <VendorImport busy={busy} onCancel={closeImport} send={send} />
+        </Dialog>
+      )}
 
       {form && (
         <Dialog title={form.row ? `Edit ${form.row.name}` : tr.addVendor}
@@ -766,6 +780,128 @@ function Vendors({ rows, items, canManage, busy, send }) {
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+// IMPORTING A LIST somebody was handed, rather than typing it in one vendor at
+// a time. Three things happen in here, and they are deliberately separate:
+//
+//   1. THE FILE IS READ IN THE BROWSER. It is already here; sending it to be
+//      parsed elsewhere would add a round trip and a multipart body for no
+//      answer we cannot work out locally. What goes up is JSON the route
+//      re-validates from scratch, so nothing is trusted for having been parsed.
+//   2. WHAT IT SAYS IS SHOWN BEFORE IT IS COMMITTED. Attaching tells you how
+//      many vendors are in there and how many lines have no name; nobody
+//      imports two hundred rows blind.
+//   3. THE PROMPT IS THE ANSWER TO "I DON'T HAVE A FILE". Most people asked for
+//      a CSV have no idea how to produce one, so the dialog carries the exact
+//      words to hand an AI along with whatever list they do have.
+function VendorImport({ busy, onCancel, send }) {
+  const tr = inventoryDict(useStudioLocale());
+  const fileRef = useRef(null);
+  const [fileName, setFileName] = useState("");
+  const [read, setRead] = useState(null);   // what the attached file turned out to hold
+  const [result, setResult] = useState(null); // what the server did with it
+  const [copied, setCopied] = useState(false);
+  // Set only when the clipboard refuses (an insecure origin, a browser policy).
+  // The prompt is then shown to be selected by hand — a Copy button that fails
+  // silently is a button that teaches people the feature is broken.
+  const [showPrompt, setShowPrompt] = useState(false);
+
+  async function pick(file) {
+    setResult(null);
+    if (!file) { setFileName(""); setRead(null); return; }
+    setFileName(file.name);
+    setRead(readVendorCsv(await file.text()));
+  }
+
+  async function copyPrompt() {
+    try {
+      await navigator.clipboard.writeText(tr.importAiPrompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setShowPrompt(true); // blocked — let them take it by hand instead
+    }
+  }
+
+  async function run() {
+    const out = await send("vendors/import", "POST", { rows: read.rows });
+    // `false` is a refusal, and the banner on the screen behind already says
+    // why. Anything else is the tally.
+    if (out) setResult(out);
+  }
+
+  // `read.rows` carries the nameless ones too — they are sent so the server can
+  // report them by line (see readVendorCsv) — so what is READY is what is left
+  // after them.
+  const nameless = read?.nameless.length || 0;
+  const ready = (read?.rows.length || 0) - nameless;
+
+  return (
+    <>
+      {/* The prompt comes FIRST, because not having a file is the state most
+          people open this dialog in. */}
+      <div className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-4 dark:border-white/15">
+        <p className="text-sm text-slate-600 dark:text-slate-300">{tr.importPromptHint}</p>
+        <button type="button" className={`${btnGhost} mt-3`} onClick={copyPrompt}>
+          {copied ? tr.copied : tr.copy}
+        </button>
+        {showPrompt && (
+          <textarea readOnly rows={8} value={tr.importAiPrompt}
+            className={`${input} mt-3 font-mono text-xs`} onFocus={(e) => e.target.select()} />
+        )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden"
+          onChange={(e) => pick(e.target.files?.[0])} />
+        <button type="button" className={btnGhost} onClick={() => fileRef.current?.click()}>{tr.attachFile}</button>
+        <span className="min-w-0 truncate text-sm text-slate-500 dark:text-slate-400">{fileName || tr.noFileChosen}</span>
+      </div>
+
+      {/* What the file turned out to hold, before anything is sent. */}
+      {read && !result && (
+        <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+          {read.noNameColumn || read.rows.length === 0
+            ? tr.mEmptyFile
+            : <>{tr.importReady(ready)}{nameless > 0 && <span className="text-amber-600 dark:text-amber-400"> · {tr.importSkipping(nameless)}</span>}</>}
+        </p>
+      )}
+
+      {/* What the server actually did. A row can be refused for a reason the
+          file alone could not know — the name is already on the list — so this
+          is not the same list as the one above and never stands in for it. */}
+      {result && (
+        <div className="mt-3">
+          <p className="text-sm font-600 text-slate-900 dark:text-white">{tr.importDone(result.created || 0)}</p>
+          {(result.skipped || []).length > 0 && (
+            <>
+              <p className={`${microLabel} mt-3`}>{tr.importNotImported}</p>
+              <ul className="mt-1 space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                {result.skipped.map((s) => (
+                  <li key={s.line}>
+                    {tr.importLine(s.line)} — {s.name ? `${s.name}: ` : ""}
+                    {s.reason === "duplicate" ? tr.importTaken : tr.importNoName}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="mt-5 flex gap-3">
+        {/* Once it has run, Import is spent: pressing it again would re-send the
+            same rows, and every one of them would come back a duplicate. */}
+        {!result && (
+          <button className={btn} disabled={busy || !ready} onClick={run}>
+            {busy ? tr.importing : tr.importLabel}
+          </button>
+        )}
+        <button className={btnGhost} onClick={onCancel}>{result ? tr.close : tr.cancel}</button>
+      </div>
     </>
   );
 }

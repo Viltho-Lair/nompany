@@ -244,6 +244,82 @@ export async function removeVendor(ctx: InventoryContext, id: string) {
   return removed ? { ok: true } : { error: "notfound" };
 }
 
+// How many rows one file may carry. Not a storage limit — the batch is one
+// write at any length — but a bound on what a single request may be asked to
+// validate, and a number a person can be told.
+const MAX_IMPORT = 500;
+
+// A whole vendor list at once, from a file somebody was handed rather than a
+// form they filled in.
+//
+// ONE WRITE, NOT ONE PER ROW — see repo.createMany. That is what makes the
+// decisions below happen up front: the batch is settled before anything is
+// stored, so every rejection is known before the first byte is written.
+//
+// NAME IS THE ONLY MANDATORY FIELD, and the only two ways a row is refused are
+// having no name and having one that is already taken. Everything else is
+// optional and stored as given, because the point of an import is to get the
+// list in — the details are edited afterwards on a screen built for editing.
+export async function importVendors(ctx: InventoryContext, rows: unknown) {
+  // Importing IS creating, so it asks the same right rather than inventing one.
+  // A separate `inventory.vendors.import` key would be a right somebody could
+  // hold without being able to add a vendor, which is a distinction with no
+  // meaning — and one more key in a matrix that is asserted whole.
+  const denied = requirePermission(ctx.access, "inventory.vendors.create");
+  if (denied) return denied;
+
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) return { error: "empty" };
+  if (list.length > MAX_IMPORT) return { error: "too-many", max: MAX_IMPORT };
+
+  const { studio, vendorsSection } = ctx;
+  const existing = await Vendors.find({ studio, section: vendorsSection });
+  // Case-insensitively, the same comparison createVendor makes — so a name the
+  // form would refuse is a name the import refuses, and by the same reading.
+  const taken = new Set(existing.map((v) => v.name.toLowerCase()));
+
+  const skipped: { line: number; reason: string; name?: string }[] = [];
+  const ready: Record<string, unknown>[] = [];
+  const at = new Date().toISOString();
+
+  list.forEach((raw, i) => {
+    const row = (raw ?? {}) as Record<string, unknown>;
+    // The line in the FILE, so a rejection names something the person can go
+    // and look at. Falls back to the position in the batch if the caller did
+    // not say — the number is for a human, and a wrong one is worse than a
+    // rough one, but no number at all is worst.
+    const n = Number(row.line);
+    const line = Number.isFinite(n) && n > 0 ? Math.trunc(n) : i + 2;
+
+    const name = str(row.name, 160);
+    if (!name) { skipped.push({ line, reason: "name" }); return; }
+    // Against the studio AND against the rows already accepted from this file:
+    // a file listing the same vendor twice must not create it twice, and the
+    // second occurrence is refused for exactly the reason the first would be.
+    if (taken.has(name.toLowerCase())) { skipped.push({ line, reason: "duplicate", name }); return; }
+    taken.add(name.toLowerCase());
+
+    // Field order matches createVendor's. Key order is what JSON.stringify
+    // emits and what the golden responses pin, so a vendor that arrived by
+    // import and one that was typed are byte-identical in shape.
+    ready.push({
+      name,
+      contactName: str(row.contactName, 120),
+      email: str(row.email, 160).toLowerCase(),
+      phone: str(row.phone, 40),
+      notes: str(row.notes, 1000),
+      itemTypes: cleanItemTypes(row.itemTypes),
+      createdAt: at,
+    });
+  });
+
+  const created = await Vendors.createMany({ studio, section: vendorsSection }, ready);
+  // A TALLY, NOT THE ROWS. The screen reloads the module after any write, so
+  // handing back two hundred vendors would be two hundred it is about to fetch
+  // again — and a second copy of them to keep true.
+  return { created: created.length, skipped };
+}
+
 // ---- items -----------------------------------------------------------------
 // Every serial spoken for by a project sheet. One read for the whole list, so
 // the item rows do not each go looking.

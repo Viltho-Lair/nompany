@@ -23,7 +23,7 @@
 // seam has failed at the only job it has. If a query cannot be expressed in this
 // vocabulary, widen the vocabulary — do not pass a callback.
 
-import { readCol, addRow, updateRow, deleteRow } from "./sections";
+import { readCol, addRow, addRows, updateRow, deleteRow } from "./sections";
 import type { Row } from "./store";
 
 // ---- the vocabulary, as types ----------------------------------------------
@@ -229,6 +229,23 @@ export function repo<T extends Row = Row>(name: string) {
     async create(scope: Scope, row: Row): Promise<T> {
       const { studioId, sectionId } = scopeOf(scope);
       return addRow(studioId, sectionId, name, row);
+    },
+
+    /**
+     * Append MANY rows in ONE write — see addRows.
+     *
+     * Not `create` in a loop, and the difference is not a micro-optimisation:
+     * looping is one compare-and-set per row, so an import of two hundred is
+     * two hundred contended rounds on one key, during which every other writer
+     * to that collection waits. This is one round whatever the length.
+     *
+     * The trade is that the batch is all-or-nothing at the storage layer, so
+     * callers must decide which rows belong in it BEFORE calling — validation
+     * and de-duplication happen up front, not row by row as the write proceeds.
+     */
+    async createMany(scope: Scope, rows: readonly Row[]): Promise<T[]> {
+      const { studioId, sectionId } = scopeOf(scope);
+      return addRows<T>(studioId, sectionId, name, rows);
     },
 
     /**

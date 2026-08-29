@@ -218,6 +218,37 @@ export async function addRow<T extends Row = Row>(
   return row;
 }
 
+// MANY ROWS, ONE WRITE. addRow in a loop is correct and unusably slow for an
+// import: each call is its own compare-and-set, so N rows are N contended
+// rounds against the same key plus N events — and every OTHER writer to that
+// collection queues behind the whole run. Appending the batch inside a single
+// editArr costs exactly one write no matter how long the list is.
+//
+// The event carries NO rowId, which is the shape emit already supports (it
+// defaults to ""), and it is the honest one: this announces that the collection
+// changed, not which row. Every consumer today reads the collection back, so
+// naming one row out of two hundred would be a detail nobody could use and a
+// lie to anyone who later tried.
+export async function addRows<T extends Row = Row>(
+  studioId: string, sectionId: string, name: string, items: readonly Row[],
+): Promise<T[]> {
+  if (!items.length) return [];
+  const created = await editArr<T, T[]>(SEC.col(studioId, sectionId, name), (rows) => {
+    // `id` first, before the spread — same reason as addRow: key order is
+    // pinned by the golden responses.
+    const batch = items.map((item) =>
+      ({ id: (item.id as string) || ID.row(name), ...item, studioId, sectionId } as unknown as T));
+    // Prepended as a block, so the batch is newest-first like a single add and
+    // the rows keep the order they arrived in among themselves.
+    return { next: [...batch, ...rows], result: batch };
+  });
+  await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name });
+  // BY THE SIZE OF THE BATCH. One write, so this fires once — a bare bump would
+  // count two hundred rows as one and leave the nightly reconcile to find it.
+  void bumpMainAgg(studioId, sectionId, name, created.length); // best-effort, never awaited (§3)
+  return created;
+}
+
 // `patch` may be a function of the current row, which is how a caller expresses
 // "flip this field" rather than "set it to what I last saw". On a contended
 // write the function is re-applied to the row as it now is — so the flip stays
