@@ -1,3 +1,8 @@
+<!--
+Commented out on 29/08/2026 — this agent is disabled. Nothing outside these
+markers, so Claude Code reads no frontmatter and does not register it.
+Delete the wrapper to bring it back.
+
 ---
 name: backend-db
 description: The storage layer of the nompany ERP — src/platform/db/** and src/lib/data/** (keys, store, cascade, sections, the repository seam), the engagement store, session and identity storage, and the Redis→SQL-Server migration. Use for how data is keyed, written, cascaded, indexed, queried or migrated. Not for UI, and not for department rules that sit above the repository.
@@ -193,3 +198,4 @@ Append-only, newest last, `dd/mm/yyyy`. Cross-cutting constraints go to `orchest
 |---|---|---|---|
 | 20/08/2026 | Do not add a helper that reads a collection a caller has already read | Hop counts are a CI contract; a convenience helper that re-reads is how a 2-hop route becomes an 8-hop route without anyone deciding to. | `docs/performance-audit.md` |
 | 25/08/2026 | The security-checklist items that are yours, because they live in keys, identity/session storage and query construction: **3** least-privileged DB key, **4** row-level/tenant isolation, **5** encrypt sensitive data (`fieldCrypto`), **7** lock record access, **9** secure session cookies, **10** hash passwords (bcrypt 12, rehash-on-login), **11** rate limit login, **13** parameterize queries (for the MSSQL migration), **17** trim API responses at the repository/route seam. The full list lives in `qa-security.md`. | A leak here is a data leak, not a UI glitch. | user |
+-->

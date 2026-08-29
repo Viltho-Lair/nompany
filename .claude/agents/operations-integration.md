@@ -1,3 +1,8 @@
+<!--
+Commented out on 29/08/2026 — this agent is disabled. Nothing outside these
+markers, so Claude Code reads no frontmatter and does not register it.
+Delete the wrapper to bring it back.
+
 ---
 name: operations-integration
 description: The record departments of the nompany ERP — HR (employees, certifications, vacations), Finance (invoices, expenses, project rollups), Inventory (stock, vendors, items, sheets, material orders, deliveries, AWB), Operations (locations, permits, shifts, tracking) — plus what an external payload (carrier status, FX rate) MEANS to a record. Not for the sales→quotation chain, the data layer, auth, or CI/deploy plumbing (that is `devops`).
@@ -161,3 +166,4 @@ Append-only, newest last, `dd/mm/yyyy`. Cross-cutting constraints go to `orchest
 | 20/08/2026 | Do not take on CI/CD, deployment or environment plumbing in this role | Owning both the record departments and the pipeline made this agent two-headed. `devops` owns the pipeline; this role owns the records and what an external payload means to them. | user |
 | 25/08/2026 | The security-checklist items that are yours, because external payloads enter here: **14** validate all input — a carrier/FX/webhook payload is untrusted until validated — and **16** restrict file uploads for the documents these modules ingest. The full list lives in `qa-security.md`. | An external response is attacker-influenced data; the meaning this role assigns it must not trust its shape. | user |
 | 25/08/2026 | Open finding (shared with `business-logic`): input validation here is hand-rolled and `schema.ts` files are type-only with zod dormant. When the zod-boundary work lands, adopt the **same** convention `business-logic` sets, validate external payloads the same way, and keep refusal bodies matching the goldens. | One validation convention across modules, or the choke point is not a choke point. | audit, user |
+-->

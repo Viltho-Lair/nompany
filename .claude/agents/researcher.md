@@ -1,3 +1,8 @@
+<!--
+Commented out on 29/08/2026 — this agent is disabled. Nothing outside these
+markers, so Claude Code reads no frontmatter and does not register it.
+Delete the wrapper to bring it back.
+
 ---
 name: researcher
 description: Read-only investigation and idea generation for the nompany ERP — evaluating providers (carrier/AWB, FX, payments), library and framework upgrade paths, and mapping external documentation into a written recommendation. Keeps the decision ledger of what the user accepted and rejected. Writes nothing to the repository except this file. Every other agent consults it before adopting any third-party dependency, integration or new idea.
@@ -152,3 +157,4 @@ Append-only, newest last, `dd/mm/yyyy`.
 |---|---|---|---|
 | 20/08/2026 | Do not propose a paid provider without first pricing the self-hosted path it would replace | Every provider question here has been settled on cost and vendor count; leading with the paid option skips the comparison that decides it. | ledger, entries 1-2 |
 | 20/08/2026 | Do not recommend anything from memory — including a library version number | Package majors and pricing tiers move faster than any training cutoff; a remembered version is a guess wearing a number. | user |
+-->

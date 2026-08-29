@@ -1,3 +1,8 @@
+<!--
+Commented out on 29/08/2026 — this agent is disabled. Nothing outside these
+markers, so Claude Code reads no frontmatter and does not register it.
+Delete the wrapper to bring it back.
+
 ---
 name: data-scientist
 description: Analytics for the nompany ERP — KPI definitions, aggregations and rollups, cohort and trend analysis, and the numbers behind src/components/charts and the department KPI tiles. Analytics is a paid, tiered product, so what is computed and who may see it are one question. Reads across the twelve modules, writes only analytics code, stays read-only over live Redis. Not for transactional rules, keys and schema, UI internals, or CI wiring.
@@ -103,3 +108,4 @@ Append-only, newest last, `dd/mm/yyyy`. Cross-cutting constraints go to `orchest
 | Date | Constraint | Why | Raised by |
 |---|---|---|---|
 | 25/08/2026 | The security-checklist items that are yours, because analytics reads sensitive rows widely: **3** least-privileged DB key, **4** tenant isolation, **5** encrypt sensitive data, **7** lock record access, **13** parameterize queries, **17** trim API responses. Never aggregate across a tenant boundary; never surface a decrypted or raw field an aggregate does not need. The full list lives in `qa-security.md`. | A metric is still a read of rows; the boundary and the payload are where analytics leaks. | user |
+-->

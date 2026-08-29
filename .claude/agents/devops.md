@@ -1,3 +1,8 @@
+<!--
+Commented out on 29/08/2026 — this agent is disabled. Nothing outside these
+markers, so Claude Code reads no frontmatter and does not register it.
+Delete the wrapper to bring it back.
+
 ---
 name: devops
 description: CI/CD, environments and external-service plumbing for the nompany ERP — .github/workflows/**, vercel.json and its crons, next.config.mjs headers, scripts/**, env vars and secrets, Redis Cloud and Vercel Blob config, and the wiring (credential, schedule, timeout, retry) of any provider. Not for department rules, the data layer, or UI — and never decides what an external payload means to a record (that is `operations-integration`).
@@ -169,3 +174,4 @@ Append-only, newest last, `dd/mm/yyyy`. Cross-cutting constraints go to `orchest
 | 25/08/2026 | The security-checklist items that are yours, because they live in secrets, config, headers, transport and CI: **1** hide API keys, **2** purge Git secrets, **9** secure session cookies (with `backend-db`), **11** rate limit login (wiring), **12** bot protection, **16** restrict file uploads (blob wiring), **18** security headers, **19** force HTTPS, **20** scan dependencies. The full list lives in `qa-security.md`. | These controls are configuration and pipeline properties — the surface this role can silently regress. | user |
 | 25/08/2026 | Open findings: **(a)** CSP is still Report-Only and weakened by `'unsafe-inline'` on `script-src`/`style-src`, so it blocks nothing — do NOT flip it blind; nonces first, then clean report data, then enforce. **(b)** No dependency scanning in CI (item 20). **(c)** Private media blobs are served inline with a client-chosen Content-Type — the serve-header half of the upload fix is yours (`Content-Disposition: attachment`), with CSP enforcement as the backstop. | The concrete config-and-pipeline gaps from the 25/08 audit, not the generic checklist. | audit, user |
 | 28/08/2026 | Commit **and push** every verified increment to `origin/main` without waiting to be asked; do not batch them up | The user tests on live, so work that passes verification and stays local is not delivered. Deploys, secret rotations and provider settings still ask. | user |
+-->

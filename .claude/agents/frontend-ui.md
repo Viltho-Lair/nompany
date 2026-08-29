@@ -1,3 +1,8 @@
+<!--
+Commented out on 29/08/2026 — this agent is disabled. Nothing outside these
+markers, so Claude Code reads no frontmatter and does not register it.
+Delete the wrapper to bring it back.
+
 ---
 name: frontend-ui
 description: Client-side presentation for the nompany ERP — React components, component state, design tokens, shadcn primitives, MUI theming, skeletons and Suspense, and the Electron task-bar. Use for src/components/**, src/app/** page files, globals.css, tailwind.config. Not for API routes, src/modules services, or the data layer.
@@ -180,3 +185,4 @@ so a log entry and a screenshot never disagree. Cross-cutting constraints go to
 | 20/08/2026 | Do not write a date in this log in ISO or US order | Mixed orders make an append-only log unreadable, and `dd/mm/yyyy` is what the product renders via `fmtDate`. | user |
 | 25/08/2026 | The security-checklist items that are yours at the render boundary: **15** escape user content (never `dangerouslySetInnerHTML` on tenant data without sanitising) and **16** restrict file uploads (type and size gated in the UI, enforced again server-side). The full list lives in `qa-security.md`. | XSS and unchecked uploads enter through the components this role owns. | user |
 | 25/08/2026 | Open findings: **(a)** media upload has **no MIME/extension allowlist** — `file.type` is trusted and served back inline, a same-origin stored-XSS vector; the UI gate is the first line, `devops` owns the serve headers. **(b)** `sanitizeRichHtml` (`src/lib/richText.ts`) is a **regex** sanitiser over a small allowlist, and neither it nor the ProseMirror-trusting `BandCopy` sink has a regression test — widening that allowlist is the fragile path; a parser-based sanitiser is the safer replacement if it grows. | These are the two render-boundary controls that are correct-but-fragile today. | audit, user |
+-->

@@ -1,3 +1,8 @@
+<!--
+Commented out on 29/08/2026 — this agent is disabled. Nothing outside these
+markers, so Claude Code reads no frontmatter and does not register it.
+Delete the wrapper to bring it back.
+
 ---
 name: business-logic
 description: The rules that decide what happens next in the nompany ERP — the sales ticket lifecycle, RFQ→quotation conversion, multi-tier approvals, the task board and its authority routing, the cross-department relation graph, and signable state machines. Use for src/modules/{sales,technical,projects,tasks}/**, platform/relations and signables, and their routes. Not for HR/Finance/Inventory/Operations, the data layer, or UI.
@@ -141,3 +146,4 @@ Append-only, newest last, `dd/mm/yyyy`. Cross-cutting constraints go to `orchest
 | 20/08/2026 | Do not add a cross-department read that is not already a stated principle | Sales reading the ticket's own outcome is deliberate; widening it turns a narrow allowance into an accidental permission model. | codebase, `sales.js` |
 | 25/08/2026 | The security-checklist items that are yours, because they live in route rules, approvals and signables: **6** server-side auth (entitlement, not "signed in"), **8** block field tampering, **14** validate all input at the server boundary, **17** trim API responses. The full list lives in `qa-security.md`. | The gap between what the UI shows and what a handcrafted request can do is exactly this layer. | user |
 | 25/08/2026 | Open finding: **zod is a dependency but dormant** — every module's `schema.ts` is type-only, there is no `.parse()`/`.safeParse()` in `src/**`, and item 14 is met only by hand-rolled checks across ~13 modules. When wiring zod in, keep the existing `{ error }` refusal bodies **byte-identical** (goldens pin them) and coordinate the `schema.ts` convention with `operations-integration`. | The manual validators work but are unauditable as a set, and the golden contract makes a naive migration a build-breaker. | audit, user |
+-->

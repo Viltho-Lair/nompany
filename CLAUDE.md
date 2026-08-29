@@ -79,6 +79,10 @@ when the code looks cleaner afterwards.
 
 ---
 
+<!-- Commented out on 29/08/2026 — the agent team is disabled. The ten briefs in
+     `.claude/agents/` are commented out too, so no agent is defined. Delete this
+     wrapper and theirs to bring them back.
+
 ## The agent team
 
 Ten agents in `.claude/agents/`. Each file carries the same **Rules** section —
@@ -118,6 +122,7 @@ your own file; two confirmations before any destructive database action; and end
 question only when the answer changes what happens next.
 
 ---
+-->
 
 ## Where the code lives
 

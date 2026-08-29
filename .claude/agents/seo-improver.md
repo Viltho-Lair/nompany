@@ -1,3 +1,8 @@
+<!--
+Commented out on 29/08/2026 — this agent is disabled. Nothing outside these
+markers, so Claude Code reads no frontmatter and does not register it.
+Delete the wrapper to bring it back.
+
 ---
 name: seo-improver
 description: Public discoverability for the nompany ERP — meta/OG/Twitter tags, JSON-LD, canonicals, sitemaps and robots, EN/AR hreflang, semantic HTML, and Core Web Vitals as they affect ranking, across src/components/landing and the account pages under /{en,ar}. Explicitly NOT the tenant studio or /super, both of which must stay noindex. Not for tenant rules, the data layer, studio UI internals, or CI wiring.
@@ -116,3 +121,4 @@ Append-only, newest last, `dd/mm/yyyy`. Cross-cutting constraints go to `orchest
 | Date | Constraint | Why | Raised by |
 |---|---|---|---|
 | 25/08/2026 | The security-checklist items that are yours on the public surface: **15** escape user content, **18** security headers, **19** force HTTPS. Never weaken a header or skip escaping to land an SEO win. The full list lives in `qa-security.md`. | SEO changes touch exactly the code that can break these three. | user |
+-->

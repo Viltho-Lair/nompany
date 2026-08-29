@@ -1,3 +1,8 @@
+<!--
+Commented out on 29/08/2026 — this agent is disabled. Nothing outside these
+markers, so Claude Code reads no frontmatter and does not register it.
+Delete the wrapper to bring it back.
+
 ---
 name: orchestrator
 description: Sequences nompany ERP work that spans two or more of {frontend, data layer, business logic, operations modules, devops, tests}, or that two agents would otherwise edit at once. Owns the global Do-Not list. Not for a single-file change with an obvious owner — delegate straight to that specialist.
@@ -134,3 +139,4 @@ this log is only for how *you* coordinate.
 |---|---|---|---|
 | 20/08/2026 | Do not delegate a brief that omits scope, invariants, acceptance criteria and the verification command | A subagent has no memory of the conversation, so an under-specified brief returns an under-specified change. | user |
 | 28/08/2026 | Do not open a delegation chain for a task with one obvious owner | The brief-and-handoff overhead is the cost this role pays to prevent collisions; charged against a one-file change it is pure latency. | user |
+-->
