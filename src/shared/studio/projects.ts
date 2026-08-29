@@ -34,9 +34,11 @@ type Strings = CommonStrings & {
   contractCoversDeliveredProject: string;
   contractName: string;
   contractNoEmergencyVisits: string;
+  createProject: string;
   createProjectPlan: string;
   createsScheduleProjectCarrying: string;
   creating: string;
+  creatingProject: string;
   dashboardIsnYoursSee: string;
   date: string;
   decisions: string;
@@ -47,6 +49,7 @@ type Strings = CommonStrings & {
   department: string;
   departmentPreSelected: string;
   derivedWhatAllocatedAgainst: string;
+  descriptionOfTheWork: string;
   didnSave: string;
   discard: string;
   due30Days: string;
@@ -59,9 +62,11 @@ type Strings = CommonStrings & {
   end: string;
   endTimeAfterStart: string;
   endTimeMustAfter: string;
+  existingClient: string;
   exportCsv: string;
   findHiddenProject: string;
   from: string;
+  fromApprovedQuotation: string;
   fromTo: string;
   giveName: string;
   handler: string;
@@ -84,6 +89,9 @@ type Strings = CommonStrings & {
   nHoursPerPerson: (n: number) => string;
   nOvertimeHoursLogged: (n: number) => string;
   nVisitsScheduled: (n: number) => string;
+  nameIsnListCreatesClient: string;
+  newClientWork: string;
+  newProject: string;
   noApprovedQuotationsWaiting: string;
   noDataYet: string;
   noDepartmentsDepartmentSection: string;
@@ -151,6 +159,7 @@ type Strings = CommonStrings & {
   projectQuotationPoSerial: string;
   projectSheets: string;
   projectTimeline: string;
+  projectValue: string;
   projectColumns: string;
   projectCount: (shown: number, total: number) => string;
   projects: string;
@@ -208,6 +217,7 @@ type Strings = CommonStrings & {
   total: string;
   totalRow: string;
   totalValue: string;
+  typeIndustry: string;
   unassigned: string;
   unassigned2: string;
   unnumbered: string;
@@ -255,9 +265,11 @@ const en: Strings = {
   contractCoversDeliveredProject: "A contract covers a delivered project for a period, with a set number of planned visits and an allowance of emergency ones.",
   contractName: "Contract name",
   contractNoEmergencyVisits: "This contract has no emergency visits.",
+  createProject: "Create project",
   createProjectPlan: "Create project plan",
   createsScheduleProjectCarrying: "Creates a schedule for this project, carrying its details across.",
   creating: "Creating…",
+  creatingProject: "Creating…",
   dashboardIsnYoursSee: "The dashboard isn't yours to see",
   date: "Date",
   decisions: "Decisions",
@@ -268,6 +280,7 @@ const en: Strings = {
   department: "Department",
   departmentPreSelected: "The department pre-selected in",
   derivedWhatAllocatedAgainst: "Derived from what is allocated against what was sold",
+  descriptionOfTheWork: "Description of the work",
   didnSave: "That didn't save.",
   discard: "Discard",
   due30Days: "due in 30 days",
@@ -280,9 +293,11 @@ const en: Strings = {
   end: "End",
   endTimeAfterStart: "The end time has to be after the start time.",
   endTimeMustAfter: "The end time must be after the start time.",
+  existingClient: "Existing client.",
   exportCsv: "Export CSV",
   findHiddenProject: "Find a hidden project…",
   from: "From",
+  fromApprovedQuotation: "From an approved quotation",
   fromTo: "From–To",
   giveName: "Give it a name.",
   handler: "Handler",
@@ -305,6 +320,9 @@ const en: Strings = {
   nHoursPerPerson: (n: number) => `${n} hour${n === 1 ? "" : "s"} per person.`,
   nOvertimeHoursLogged: (n: number) => `${n} overtime hours logged`,
   nVisitsScheduled: (n: number) => `${n} visit${n === 1 ? "" : "s"} scheduled in total`,
+  nameIsnListCreatesClient: "That name isn't on the list — a new client will be created.",
+  newClientWork: "New client work",
+  newProject: "New project",
   noApprovedQuotationsWaiting: "There are no approved quotations waiting. Approve one in Technical and it will be selectable here.",
   noDataYet: "No data yet",
   noDepartmentsDepartmentSection: "No departments — a department is a section, and this studio has none switched on.",
@@ -368,11 +386,12 @@ const en: Strings = {
   projectQuotationPoSerial: "Project, quotation, PO, serial…",
   projectSheets: "← Project sheets",
   projectTimeline: "Project timeline",
+  projectValue: "Project value",
   projectColumns: "Project columns",
   projectCount: (shown, total) => `${shown} of ${total} project${total === 1 ? "" : "s"}.`,
   projects: "Projects",
   projectsEmptySummary: "Projects open from an approved quotation. Once one is registered, its stages, value and progress are summarised here.",
-  projectsOpenApprovedQuotation: "Projects open from an approved quotation. Approve one in Technical and it'll appear here.",
+  projectsOpenApprovedQuotation: "Projects open from an approved quotation, or are created directly for work handed to you.",
   projectsStage: "Projects by stage",
   qty: "Qty",
   quotation: "Quotation",
@@ -425,6 +444,7 @@ const en: Strings = {
   total: "Total",
   totalRow: "Total",
   totalValue: "Total value",
+  typeIndustry: "Type of industry",
   unassigned: "Unassigned",
   unassigned2: "Unassigned",
   unnumbered: "Unnumbered",
@@ -472,9 +492,11 @@ const ar: Strings = {
   contractCoversDeliveredProject: "يغطي العقد مشروعًا مُسلَّمًا لفترة محددة، بعدد مقرر من الزيارات المخططة ومخصص من الزيارات الطارئة.",
   contractName: "اسم العقد",
   contractNoEmergencyVisits: "لا يتضمن هذا العقد زيارات طارئة.",
+  createProject: "إنشاء المشروع",
   createProjectPlan: "إنشاء خطة المشروع",
   createsScheduleProjectCarrying: "يُنشئ جدولًا لهذا المشروع، ناقلًا تفاصيله معه.",
   creating: "جارٍ الإنشاء…",
+  creatingProject: "جارٍ الإنشاء…",
   dashboardIsnYoursSee: "لوحة المعلومات ليست من صلاحياتك",
   date: "التاريخ",
   decisions: "القرارات",
@@ -485,6 +507,7 @@ const ar: Strings = {
   department: "القسم",
   departmentPreSelected: "القسم المحدد مسبقًا في",
   derivedWhatAllocatedAgainst: "مشتق مما خُصص مقابل ما بيع",
+  descriptionOfTheWork: "وصف العمل",
   didnSave: "لم يُحفظ ذلك.",
   discard: "تجاهل",
   due30Days: "مستحق خلال 30 يومًا",
@@ -497,9 +520,11 @@ const ar: Strings = {
   end: "النهاية",
   endTimeAfterStart: "يجب أن يكون وقت النهاية بعد وقت البداية.",
   endTimeMustAfter: "يجب أن يكون وقت النهاية بعد وقت البداية.",
+  existingClient: "عميل قائم.",
   exportCsv: "تصدير CSV",
   findHiddenProject: "ابحث عن مشروع مخفي…",
   from: "من",
+  fromApprovedQuotation: "من عرض سعر معتمد",
   fromTo: "من–إلى",
   giveName: "أعطِه اسمًا.",
   handler: "المتولّي",
@@ -522,6 +547,9 @@ const ar: Strings = {
   nHoursPerPerson: (n: number) => `${n === 1 ? "ساعة واحدة" : n === 2 ? "ساعتان" : n <= 10 ? `${n} ساعات` : `${n} ساعة`} لكل شخص.`,
   nOvertimeHoursLogged: (n: number) => `${n} ساعة إضافية مسجّلة`,
   nVisitsScheduled: (n: number) => `إجمالًا ${n === 1 ? "زيارة واحدة مجدولة" : n === 2 ? "زيارتان مجدولتان" : n <= 10 ? `${n} زيارات مجدولة` : `${n} زيارة مجدولة`}`,
+  nameIsnListCreatesClient: "هذا الاسم ليس في القائمة — سيُنشأ عميل جديد.",
+  newClientWork: "عمل جديد لعميل",
+  newProject: "مشروع جديد",
   noApprovedQuotationsWaiting: "لا توجد عروض أسعار معتمدة بالانتظار. اعتمد واحدًا في القسم الفني ليصبح قابلًا للاختيار هنا.",
   noDataYet: "لا توجد بيانات بعد",
   noDepartmentsDepartmentSection: "لا توجد أقسام — القسم هو قطاع، ولا يوجد أي قطاع مفعّل في هذا الاستوديو.",
@@ -585,6 +613,7 @@ const ar: Strings = {
   projectQuotationPoSerial: "المشروع، عرض السعر، أمر الشراء، الرقم التسلسلي…",
   projectSheets: "← كشوف المشاريع",
   projectTimeline: "المسار الزمني للمشاريع",
+  projectValue: "قيمة المشروع",
   projectColumns: "أعمدة المشاريع",
   projectCount: (shown, total) => {
     const what =
@@ -596,7 +625,7 @@ const ar: Strings = {
   },
   projects: "المشاريع",
   projectsEmptySummary: "تُفتح المشاريع من عرض سعر معتمد. ومتى سُجّل مشروع، لُخّصت هنا مراحله وقيمته وتقدّمه.",
-  projectsOpenApprovedQuotation: "تُفتح المشاريع من عرض سعر معتمد. اعتمد واحدًا في القسم الفني وسيظهر هنا.",
+  projectsOpenApprovedQuotation: "تُفتح المشاريع من عرض سعر معتمد، أو تُنشأ مباشرة لعمل أُسند إليك.",
   projectsStage: "المشاريع حسب المرحلة",
   qty: "الكمية",
   quotation: "عرض السعر",
@@ -649,6 +678,7 @@ const ar: Strings = {
   total: "الإجمالي",
   totalRow: "الإجمالي",
   totalValue: "القيمة الإجمالية",
+  typeIndustry: "نوع النشاط",
   unassigned: "غير مُسند",
   unassigned2: "غير مُسند",
   unnumbered: "بلا رقم",
