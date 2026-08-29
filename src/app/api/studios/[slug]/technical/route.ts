@@ -57,6 +57,13 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // What this studio prices in. The builder shows it beside every figure, so
     // nobody has to remember which money a number is in.
     currency: tech.studio?.currency || "",
+    // Where the studio itself is. A site on a new quotation starts here and
+    // whoever raises it can change either — defaults, not the answer, exactly
+    // as the Sales payload serves them. Read off the studio record this route
+    // already holds, so it costs no extra round trip.
+    studioDefaults: {
+      country: tech.studio?.country || "", city: tech.studio?.city || "",
+    },
     // EVERY SEQUENCE THE STUDIO NUMBERS QUOTATIONS UNDER, each with the number
     // the NEXT quotation raised against it will carry — so a create screen can
     // show one instead of asking for one. Advisory only: the number is issued

@@ -1189,14 +1189,33 @@ export async function technicalPeople({ studio }: Pick<TechnicalContext, "studio
   return rows.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" }));
 }
 
-// The Sales clients, as the INTERNAL-QUOTATION picker needs them: an id and a
-// name, nothing else. A studio with no Sales section simply has none to offer
-// — same as openTickets does for the RFQ picker — rather than a picker that
-// could only ever fail.
+// The Sales clients, as the INTERNAL-QUOTATION form needs them. A studio with
+// no Sales section simply has none to offer — same as openTickets does for the
+// RFQ picker — rather than a picker that could only ever fail.
+//
+// IT USED TO BE AN ID AND A NAME, NOTHING ELSE, and the form was the poorer for
+// it. `createQuotation` takes a contact and a site and folds both onto the
+// Client record through resolveClientFor, exactly as `createTicket` does — and
+// a client keeps its contacts and sites precisely so nobody retypes them. With
+// only a name to go on, the form could not offer back what the client already
+// held, so the second quotation for a client typed the same contact again,
+// slightly differently. These two lists are what the form offers; nothing else
+// about a client is sent, because nothing else is used.
 export async function technicalClients({ studio, salesClientsSection }: Pick<TechnicalContext, "studio" | "salesClientsSection">) {
   if (!salesClientsSection) return [];
   const rows = await Clients.find({ studio, section: salesClientsSection });
   return rows
-    .map((c) => ({ id: String(c.id), name: String(c.name || "") }))
+    .map((c) => ({
+      id: String(c.id),
+      name: String(c.name || ""),
+      contacts: (Array.isArray(c.contacts) ? c.contacts : []).map((x) => ({
+        name: String(x?.name || ""), email: String(x?.email || ""),
+        phone: String(x?.phone || ""), position: String(x?.position || ""),
+      })),
+      locations: (Array.isArray(c.locations) ? c.locations : []).map((l) => ({
+        name: String(l?.name || ""), country: String(l?.country || ""),
+        city: String(l?.city || ""), url: String(l?.url || ""),
+      })),
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -10,6 +10,7 @@ import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skel
 import Combo from "@/components/studio2/Combo";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
+import ClientBlock from "@/components/studio2/ClientBlock";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
   panel, h2, sub, input, microLabel, label, btn, btnGhost, btnAmber, th,
@@ -18,7 +19,6 @@ import {
 } from "@/components/studio2/ui";
 import { linkToClient } from "@/modules/main/studioLinks";
 import { COUNTRIES } from "@/shared/countries";
-import { citiesFor } from "@/lib/cities";
 import { CurrencySymbol } from "@/components/Currency";
 import { rfqInfo, isUnresolved } from "@/modules/sales/salesAnalytics";
 import SalesDashboard from "@/components/studio2/SalesDashboard";
@@ -59,9 +59,10 @@ const ticketColumns = (words) => [
   { key: "probability", label: words.colProbability },
   { key: "updatedAt", label: words.colUpdated },
 ];
+// The client editor's own Country column still picks from the full list; the
+// code lookup and the city list moved to ClientBlock with the block that used
+// them.
 const COUNTRY_NAMES = COUNTRIES.map((c) => c.name);
-// citiesFor keys on the ISO code while the answer people give is a NAME.
-const codeOfCountry = (name) => COUNTRIES.find((c) => c.name === name)?.code || "";
 
 const DEFAULT_TICKET_COLUMNS = ["ref", "title", "client", "status", "owner", "deadline", "rfq"];
 
@@ -883,16 +884,6 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
     status: row?.status || "Lead", urgency: row?.urgency || "Normal",
     probability: Number(row?.probability ?? 0),
   });
-  // The sites this client already has — what Site name searches, and where a
-  // chosen site's country, city and map link are read back from. Locations are
-  // stored on the CLIENT, so a site named once is offered on every later
-  // ticket for them instead of being retyped.
-  const clientLocations = useMemo(() => {
-    const name = String(f.clientName || "").trim().toLowerCase();
-    const c = clients.find((x) => String(x.name || "").trim().toLowerCase() === name);
-    return Array.isArray(c?.locations) ? c.locations : [];
-  }, [clients, f.clientName]);
-
   // THE STUDIO'S OWN SERVICE ACTIONS, not a Sales-only catalogue. These are
   // plain strings from Studio Settings — the same list Inventory and Projects
   // read — so `serviceIds` now holds action NAMES. The field kept its name
@@ -913,15 +904,6 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
     const q = f.clientName.trim().toLowerCase().replace(/\s+/g, " ");
     return q ? clients.find((c) => String(c.name || "").trim().toLowerCase().replace(/\s+/g, " ") === q) || null : null;
   }, [clients, f.clientName]);
-  const knownContacts = (matched?.contacts || []).filter((c) => c.name);
-
-  function pickContact(name) {
-    const hit = knownContacts.find((c) => String(c.name || "").trim().toLowerCase() === String(name || "").trim().toLowerCase());
-    setF((s) => (hit
-      ? { ...s, contactName: name, contactEmail: hit.email || "", contactPhone: hit.phone || "", contactPosition: hit.position || s.contactPosition }
-      : { ...s, contactName: name }));
-  }
-
   // The title, the close button and the scrolling belong to the Dialog this
   // opens inside, so the form itself renders fields only.
   return (
@@ -969,45 +951,12 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
         </div>
       </div>
 
-      <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.contactHeading}</p>
-      <div className="mt-2 grid gap-4 sm:grid-cols-2">
-        <Field label={tr.name} filled={!!f.contactName}>
-          {knownContacts.length > 0
-            ? <Combo value={f.contactName} onChange={pickContact} options={knownContacts.map((c) => c.name)} inputClassName={BARE_CONTROL} />
-            : <input className={BARE_CONTROL} value={f.contactName} onChange={set("contactName")} />}
-        </Field>
-        <Field label={tr.position} filled={!!f.contactPosition}>
-          <Combo value={f.contactPosition} onChange={(v) => setF((p) => ({ ...p, contactPosition: v }))}
-            options={positions} inputClassName={BARE_CONTROL} />
-        </Field>
-        <Field label={tr.email} type="email" value={f.contactEmail} onChange={(v) => setF((p) => ({ ...p, contactEmail: v }))} />
-        <Field label={tr.phone} value={f.contactPhone} onChange={(v) => setF((p) => ({ ...p, contactPhone: v }))} />
-      </div>
-
-      <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.locationHeading}</p>
-      <div className="mt-2 grid gap-4 sm:grid-cols-3">
-        <Field label={tr.siteName} filled={!!f.locationName}>
-          {/* Choosing a saved site fills the rest of this block from what was
-              stored with it. */}
-          <Combo value={f.locationName}
-            onChange={(v) => setF((p) => {
-              const saved = clientLocations.find((l) => String(l.name || "").trim().toLowerCase() === v.trim().toLowerCase());
-              return saved
-                ? { ...p, locationName: v, locationCountry: saved.country || p.locationCountry, locationCity: saved.city || "", locationUrl: saved.url || "" }
-                : { ...p, locationName: v };
-            })}
-            options={clientLocations.map((l) => l.name).filter(Boolean)} inputClassName={BARE_CONTROL} />
-        </Field>
-        <Field label={tr.country} filled={!!f.locationCountry}>
-          <Combo value={f.locationCountry} onChange={(v) => setF((p) => ({ ...p, locationCountry: v, locationCity: "" }))}
-            options={COUNTRY_NAMES} inputClassName={BARE_CONTROL} />
-        </Field>
-        <Field label={tr.city} filled={!!f.locationCity}>
-          <Combo value={f.locationCity} onChange={(v) => setF((p) => ({ ...p, locationCity: v }))}
-            options={f.locationCountry ? citiesFor(codeOfCountry(f.locationCountry)) : cities} inputClassName={BARE_CONTROL} />
-        </Field>
-        <Field label={tr.mapLink} value={f.locationUrl} onChange={(v) => setF((p) => ({ ...p, locationUrl: v }))} />
-      </div>
+      {/* THE SHARED BLOCK. These eight fields, their known-contact and saved-site
+          autofill and their country/city cascade used to live here and nowhere
+          else, which is why the internal-quotation form asked for none of them.
+          One component, two forms — see ClientBlock. */}
+      <ClientBlock value={f} onChange={(patch) => setF((p) => ({ ...p, ...patch }))}
+        client={matched} positions={positions} cities={cities} />
 
       <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.servicesHeading}</p>
       {serviceActions.length === 0 ? (

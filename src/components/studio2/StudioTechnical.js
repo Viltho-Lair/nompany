@@ -18,6 +18,7 @@ import QuotationBuilder from "@/components/studio2/QuotationBuilder";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import Combo from "@/components/studio2/Combo";
 import StudioDate from "@/components/fields/StudioDate";
+import ClientBlock, { EMPTY_CLIENT_BLOCK, clientBlockPayload } from "@/components/studio2/ClientBlock";
 import TechnicalDashboard from "@/components/studio2/TechnicalDashboard";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
@@ -248,6 +249,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
           <Dialog title={tr.newQuotation} description={tr.createdWithoutRfqMarked} onClose={closeCreate} width="max-w-[560px]">
             <NewQuotation people={people} sequences={sequences} defaultSequenceId={defaultSequenceId}
               clients={vocabulary.clients || []} industries={vocabulary.industries || []}
+              studioDefaults={data.studioDefaults || {}}
               onCancel={closeCreate} onSave={(p) => send("quotations", "POST", p)} />
           </Dialog>
         )}
@@ -829,11 +831,20 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
 // payload (never hardcoded vocabulary) and which lets a name that is not on the
 // list through. On save, a typed client name that matches an existing client is
 // sent as `clientId`; anything else is sent as a new `clientName`.
-function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [], industries = [], onSave, onCancel }) {
+function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [], industries = [], studioDefaults = {}, onSave, onCancel }) {
   const tr = technicalDict(useStudioLocale());
   const [f, setF] = useState({
     sequenceId: sequences.some((s) => s.id === defaultSequenceId) ? defaultSequenceId : (sequences[0]?.id || ""),
     clientName: "", title: "", industry: "", deadline: "", description: "", handledBy: "",
+    // WHO WE SPEAK TO AND WHERE THE WORK IS. createQuotation has always taken
+    // these and folded them onto the Client record through resolveClientFor,
+    // exactly as createTicket does; this form simply never asked, so an
+    // internal quotation created a client with no contact and no site. A new
+    // site starts at the studio's own country and city, the same default a
+    // ticket starts from.
+    ...EMPTY_CLIENT_BLOCK,
+    locationCountry: studioDefaults.country || "",
+    locationCity: studioDefaults.city || "",
   });
   const [busy, setBusy] = useState(false);
   const set = (patch) => setF((s) => ({ ...s, ...patch }));
@@ -858,6 +869,7 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
       industry: f.industry.trim(),
       deadline: f.deadline,
       description: f.description.trim(),
+      ...clientBlockPayload(f),
       ...(f.handledBy ? { handledBy: f.handledBy } : {}),
     });
     setBusy(false);
@@ -911,6 +923,16 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
           <Field label={tr.created4} readOnly value={fmtDate(new Date().toISOString())} />
         </div>
       </div>
+
+      {/* The same block the Sales ticket raises a client with — one component,
+          so a quotation captures the contact and the site exactly as a ticket
+          does rather than a poorer version of it. Positions are offered from
+          the contacts this client already has: Technical has no contact-position
+          vocabulary of its own, and inventing a second one to hold the same
+          words is how two lists drift. */}
+      <ClientBlock value={f} onChange={(patch) => set(patch)} client={matched}
+        positions={[...new Set((matched?.contacts || []).map((c) => c.position).filter(Boolean))]} />
+
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !ready} onClick={save}>
           {busy ? tr.saving : tr.createQuotation}

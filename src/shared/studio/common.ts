@@ -102,7 +102,12 @@ export type CommonStrings = {
   email: string;
   phone: string;
   contact: string;
+  position: string;
   location: string;
+  siteName: string;
+  country: string;
+  city: string;
+  mapLink: string;
   number: string;
   reference: string;
   item: string;
@@ -211,7 +216,12 @@ export const commonEn: CommonStrings = {
   email: "Email",
   phone: "Phone",
   contact: "Contact",
+  position: "Position",
   location: "Location",
+  siteName: "Site name",
+  country: "Country",
+  city: "City",
+  mapLink: "Map link",
   number: "Number",
   reference: "Reference",
   item: "Item",
@@ -318,7 +328,12 @@ export const commonAr: CommonStrings = {
   email: "البريد الإلكتروني",
   phone: "الهاتف",
   contact: "جهة الاتصال",
+  position: "المنصب",
   location: "الموقع",
+  siteName: "اسم الموقع",
+  country: "الدولة",
+  city: "المدينة",
+  mapLink: "رابط الخريطة",
   number: "الرقم",
   reference: "المرجع",
   item: "الصنف",
