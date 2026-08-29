@@ -532,7 +532,17 @@ export default async function StudioPage({ params }) {
         : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
         : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
         : screenKey === "sales" ? <StudioSales slug={studio.slug} view={active?.key} />
-        : screenKey === "technical" ? <StudioTechnical slug={studio.slug} view={active?.key} />
+        : screenKey === "technical" ? (
+          // THE STUDIO'S OWN NAMES FOR ITS SECTIONS, so a quotation's origin tag
+          // can say where it came from in the words this tenant uses rather than
+          // the word the code was written with. Key → stored name, from the
+          // sections this person may open; the screen falls back to its own
+          // label for a section they cannot. Cheap enough to hand down as a
+          // prop — the alternative was widening the technical payload for two
+          // strings the page already holds.
+          <StudioTechnical slug={studio.slug} view={active?.key}
+            sectionNames={Object.fromEntries(sections.map((x) => [x.key, x.name]))} />
+        )
         : screenKey === "projects" ? <StudioProjects slug={studio.slug} view={active?.key} />
         : screenKey === "hr" ? <StudioHr slug={studio.slug} view={active?.key} />
         : screenKey === "inventory" ? <StudioInventory slug={studio.slug} view={active?.key} />

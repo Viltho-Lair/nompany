@@ -14,6 +14,7 @@ import {
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
 import { isUnfinished } from "@/modules/technical/quotations";
+import { sectionName } from "@/shared/studio/sections";
 import QuotationBuilder from "@/components/studio2/QuotationBuilder";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import Combo from "@/components/studio2/Combo";
@@ -77,7 +78,7 @@ const latestComment = (row) => {
 //   technical-rfq        -> the RFQ queue and conversion
 //   technical-settings   -> quotation numbering + Live view columns
 // technical-live renders full-screen outside the studio frame.
-export default function StudioTechnical({ slug, view = "technical" }) {
+export default function StudioTechnical({ slug, view = "technical", sectionNames = {} }) {
   const tr = technicalDict(useStudioLocale());
   const [data, setData] = useState(null);
   const level = useAnalyticsLevel();
@@ -263,6 +264,7 @@ export default function StudioTechnical({ slug, view = "technical" }) {
             onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />
         )}
         <Quotations quotations={quotations} canManage={canManageQuotations} slug={slug} nav={nav}
+          sectionNames={sectionNames}
           handlerName={handlerName} people={people}
           statuses={vocabulary.quotationStatuses || []} urgencies={vocabulary.urgencies || []}
           onAdd={() => setCreatingQuote(true)}
@@ -517,28 +519,41 @@ function RfqInfo({ label: text, value, mono }) {
   );
 }
 
-// The tag beside a quotation's title saying where it came from. A Sales-origin
-// quotation wears the same mark the Sales section wears in the sidebar (icon
-// name "sales", from SECTION_ICONS), so the two screens read as one product; an
-// internal one — raised straight from this screen — wears a quiet neutral tag.
-function OriginTag({ fromSales }) {
+// The tag beside a quotation's title saying WHICH SECTION it came from. A
+// Sales-origin quotation wears the same mark the Sales section wears in the
+// sidebar (icon name "sales", from SECTION_ICONS), so the two screens read as
+// one product; one raised straight from this screen wears a quiet neutral tag.
+//
+// IT NAMES THE SECTION, not the code's word for it. This used to read "Sales"
+// and "Internal" out of the dictionary, which is a lie in any studio that
+// renamed either department — the sidebar would say "Business Development" and
+// the tag beside the quotation it raised would still say "Sales". The name
+// comes from the same place the sidebar's does (sectionName, so a default
+// section still reads Arabic in an Arabic studio and a tenant's own wording is
+// left alone), and falls back to the dictionary word for somebody who cannot
+// open that section and therefore was not handed its name.
+function OriginTag({ fromSales, sectionNames = {} }) {
   const tr = technicalDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const key = fromSales ? "sales" : "technical";
+  const stored = sectionNames[key];
+  const label = stored ? sectionName(key, stored, locale) : (fromSales ? tr.originSales : tr.originInternal);
   if (fromSales) {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-700 text-brand-700 dark:text-brand-300">
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-700 leading-4 text-brand-700 dark:text-brand-300">
         <Icon name="sales" className="h-3 w-3" />
-        {tr.originSales}
+        {label}
       </span>
     );
   }
   return (
-    <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
-      {tr.originInternal}
+    <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-600 leading-4 text-slate-500 dark:bg-white/5 dark:text-slate-400">
+      {label}
     </span>
   );
 }
 
-function Quotations({ quotations, canManage, canUnlock, slug, nav, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval }) {
+function Quotations({ quotations, canManage, canUnlock, slug, nav, sectionNames = {}, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval }) {
   const tr = technicalDict(useStudioLocale());
   // THE KEYS ARE THE CONTRACT, THE LABELS ARE COPY — see quotationColumns.
   const QUOTATION_COLUMNS = useMemo(() => quotationColumns(tr), [tr]);
@@ -609,7 +624,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, handlerName, 
       renderCell: ({ row }) => (
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate font-600 text-slate-900 dark:text-white">{row.title || "—"}</span>
-          <OriginTag fromSales={row.fromSales} />
+          <OriginTag fromSales={row.fromSales} sectionNames={sectionNames} />
         </span>
       ) },
     clientName: { field: "clientName", headerName: tr.colClient, minWidth: 140, flex: 1,
@@ -636,7 +651,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, handlerName, 
     // contradict the record.
     status: { field: "status", headerName: tr.colStatus, minWidth: 120, flex: 0.7,
       renderCell: ({ row }) => <StatusPill kind="quotation" status={row.status} /> },
-  }), [tr, handlerName]);
+  }), [tr, handlerName, sectionNames]);
 
   const gridColumns = useMemo(() => [
     ...QUOTATION_COLUMNS.filter((c) => col(c.key)).map((c) => colDefs[c.key]),
