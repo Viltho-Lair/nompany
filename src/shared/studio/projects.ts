@@ -100,6 +100,11 @@ type Strings = CommonStrings & {
   noProjectsSigned: string;
   noProjectsSignedYet: string;
   noProjectsYet: string;
+  // TWO KINDS OF EMPTY on a project's sheet, and they mean different things. A
+  // sheet with no quotation behind it can never fill from this screen — the
+  // project was raised directly — where a quotation with no priced lines is
+  // waiting on somebody to price it. See quotationNoPricedLines below.
+  noQuotationBehindProject: string;
   noServiceActionsYet: string;
   noSlaContractsYet: string;
   noSlaContractsYet2: string;
@@ -155,6 +160,7 @@ type Strings = CommonStrings & {
   qty: string;
   quotation: string;
   quotationHasnApprovedYet: string;
+  quotationNoPricedLines: string;
   received: string;
   registerEmergencyVisit: string;
   registeredProjectValue: string;
@@ -315,6 +321,7 @@ const en: Strings = {
   noProjectsSigned: "No projects have been signed yet — a project's sheets are drawn up when it is opened from an approved quotation.",
   noProjectsSignedYet: "No projects signed yet.",
   noProjectsYet: "No projects yet",
+  noQuotationBehindProject: "This project has no quotation behind it, so there are no lines to work. Sheets fill from an approved quotation's priced rows.",
   noServiceActionsYet: "No service actions yet — add them in Studio Settings, then weight them here.",
   noSlaContractsYet: "No SLA contracts yet",
   noSlaContractsYet2: "No SLA contracts yet.",
@@ -370,6 +377,7 @@ const en: Strings = {
   qty: "Qty",
   quotation: "Quotation",
   quotationHasnApprovedYet: "That quotation hasn't been approved yet.",
+  quotationNoPricedLines: "The quotation behind this sheet has no priced lines yet. Add them in the builder and they appear here.",
   received: "Received",
   registerEmergencyVisit: "Register emergency visit",
   registeredProjectValue: "Registered project value",
@@ -530,6 +538,7 @@ const ar: Strings = {
   noProjectsSigned: "لم تُوقَّع أي مشاريع بعد — تُعدّ كشوف المشروع عند فتحه من عرض سعر معتمد.",
   noProjectsSignedYet: "لم تُوقَّع أي مشاريع بعد.",
   noProjectsYet: "لا توجد مشاريع بعد",
+  noQuotationBehindProject: "لا يوجد عرض سعر خلف هذا المشروع، فليست هناك بنود للعمل عليها. تمتلئ الجداول من البنود المسعّرة في عرض سعر معتمد.",
   noServiceActionsYet: "لا إجراءات خدمة بعد — أضفها في إعدادات الاستوديو ثم وزّع أوزانها هنا.",
   noSlaContractsYet: "لا توجد عقود مستوى خدمة بعد",
   noSlaContractsYet2: "لا توجد عقود مستوى خدمة بعد.",
@@ -592,6 +601,7 @@ const ar: Strings = {
   qty: "الكمية",
   quotation: "عرض السعر",
   quotationHasnApprovedYet: "لم يُعتمد عرض السعر ذاك بعد.",
+  quotationNoPricedLines: "عرض السعر خلف هذه الورقة لا يحمل بنودًا مسعّرة بعد. أضفها في المُنشئ لتظهر هنا.",
   received: "مستلم",
   registerEmergencyVisit: "سجّل زيارة طارئة",
   registeredProjectValue: "قيمة المشاريع المسجّلة",

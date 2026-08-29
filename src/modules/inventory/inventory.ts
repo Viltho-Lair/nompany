@@ -707,7 +707,14 @@ async function ensureSheetsExist(
 
   const have = new Set(sheets.map((s) => `${s.projectId}:${s.kind || "main"}`));
   for (const p of projects) {
-    if (!p.quotationId) continue;             // nothing to read rows back from
+    // NO GUARD ON quotationId. This used to skip a project with none, on the
+    // reasoning that there was nothing to read rows back from — true, and no
+    // longer a reason to skip: a project raised directly has no quotation by
+    // design, and its sheets are deliberately empty rather than absent. Leaving
+    // the guard would mean openProject creates them and this seeder never
+    // would, so the two paths disagree about whether a project has sheets.
+    // composeSheet with no quotation returns no tables, which the viewer says
+    // in words.
     for (const kind of ["main", "bulk"]) {
       if (have.has(`${p.id}:${kind}`)) continue;
       const seeded = await Sheets.create({ studio, section: sheetsSection }, {

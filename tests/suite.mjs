@@ -650,6 +650,15 @@ console.log("\n== the handler is carried, never copied");
     ok("a direct create with no client is refused", noClient?.error === "client", JSON.stringify(noClient));
     const after = (await listProjects(await projectsContext(owner, slug))).length;
     ok("a refused direct create writes no row", before === after, `${before} → ${after}`);
+
+    // THE SHEETS EXIST FOR A DIRECT PROJECT TOO, and they are empty — decided
+    // deliberately, so a project's Sheets tab is the same tab everywhere. What
+    // they must not be is absent: an absent tab reads as a missing feature.
+    ok("a direct project is drawn up two sheets", (direct.sheets || []).length === 2,
+      String((direct.sheets || []).length));
+    ok("and neither claims a quotation it does not have",
+      (direct.sheets || []).every((s) => s.quotationId === ""),
+      JSON.stringify((direct.sheets || []).map((s) => s.quotationId)));
   }
 
   // TWO SHEETS, AND NEITHER HOLDS A LINE. The quotation owns the rows; a sheet
