@@ -1,0 +1,494 @@
+{
+  "status": 200,
+  "body": {
+    "canManage": true,
+    "canViewDashboard": true,
+    "canManageList": true,
+    "canWriteInventoryColumns": true,
+    "canManageSla": true,
+    "canManageOvertimes": true,
+    "canManageSettings": true,
+    "nav": {
+      "main": true,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": true,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": true,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-ledger": true,
+      "finance-payables": true,
+      "finance-assets": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-schedule": true,
+      "operations-tracking": true,
+      "operations-planner": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "manage": {
+      "main": false,
+      "sales": true,
+      "sales-tickets": true,
+      "sales-clients": true,
+      "sales-live": false,
+      "sales-settings": true,
+      "technical": true,
+      "technical-quotations": true,
+      "technical-rfq": true,
+      "technical-live": false,
+      "technical-settings": true,
+      "projects": true,
+      "projects-list": true,
+      "projects-sla": true,
+      "projects-overtimes": true,
+      "projects-settings": true,
+      "inventory": true,
+      "inventory-stock": true,
+      "inventory-vendors": true,
+      "inventory-items": true,
+      "inventory-sheets": true,
+      "inventory-awb": true,
+      "hr": true,
+      "hr-employees": true,
+      "finance": true,
+      "finance-cash": true,
+      "finance-ledger": false,
+      "finance-payables": true,
+      "finance-assets": true,
+      "finance-settings": true,
+      "operations": true,
+      "operations-schedule": true,
+      "operations-tracking": true,
+      "operations-planner": true,
+      "operations-settings": true,
+      "quality": true,
+      "quality-documents": true,
+      "tasks": true,
+      "tasks-settings": true
+    },
+    "projects": [
+      {
+        "id": "<pro_ID>",
+        "number": "",
+        "title": "Warehouse fit-out",
+        "quotationId": "",
+        "quotationNumber": "",
+        "rfqId": "",
+        "ticketId": "",
+        "clientId": "<sal_ID>",
+        "clientName": "Northwind Logistics",
+        "value": 42000,
+        "stage": "Received",
+        "managerCollaboratorId": "",
+        "location": "Amman",
+        "supportPeriodDays": 365,
+        "receivedDate": "<today>",
+        "startDate": "2031-09-01",
+        "endDate": "2031-12-01",
+        "notes": "",
+        "openedByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "ticketRef": "",
+        "progress": 0
+      },
+      {
+        "id": "<pro_ID>",
+        "number": "",
+        "title": "Boardroom refit, phase 1",
+        "quotationId": "<quo_ID>",
+        "quotationNumber": "Q-0001",
+        "rfqId": "<rfq_ID>",
+        "ticketId": "<sal_ID>",
+        "clientId": "<sal_ID>",
+        "clientName": "Acme Holdings",
+        "value": 0,
+        "stage": "Received",
+        "managerCollaboratorId": "",
+        "location": "",
+        "supportPeriodDays": 365,
+        "receivedDate": "<today>",
+        "startDate": "",
+        "endDate": "",
+        "notes": "",
+        "openedByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>",
+        "ticketRef": "ACME-HOLDINGS-001",
+        "progress": 0
+      }
+    ],
+    "sheets": [
+      {
+        "id": "<pro_ID>",
+        "kind": "bulk",
+        "projectId": "<pro_ID>",
+        "quotationId": "<quo_ID>",
+        "rfqId": "<rfq_ID>",
+        "ticketId": "<sal_ID>",
+        "projectNumber": "",
+        "projectTitle": "Boardroom refit, phase 1",
+        "clientName": "Acme Holdings",
+        "quotationNumber": "Q-0001",
+        "poNumber": "",
+        "tables": [],
+        "lineCount": 0,
+        "serials": []
+      },
+      {
+        "id": "<pro_ID>",
+        "kind": "main",
+        "projectId": "<pro_ID>",
+        "quotationId": "<quo_ID>",
+        "rfqId": "<rfq_ID>",
+        "ticketId": "<sal_ID>",
+        "projectNumber": "",
+        "projectTitle": "Boardroom refit, phase 1",
+        "clientName": "Acme Holdings",
+        "quotationNumber": "Q-0001",
+        "poNumber": "",
+        "tables": [],
+        "lineCount": 0,
+        "serials": []
+      },
+      {
+        "id": "<pro_ID>",
+        "kind": "bulk",
+        "projectId": "<pro_ID>",
+        "quotationId": "",
+        "rfqId": "",
+        "ticketId": "",
+        "projectNumber": "",
+        "projectTitle": "Warehouse fit-out",
+        "clientName": "Northwind Logistics",
+        "quotationNumber": "",
+        "poNumber": "",
+        "tables": [],
+        "lineCount": 0,
+        "serials": []
+      },
+      {
+        "id": "<pro_ID>",
+        "kind": "main",
+        "projectId": "<pro_ID>",
+        "quotationId": "",
+        "rfqId": "",
+        "ticketId": "",
+        "projectNumber": "",
+        "projectTitle": "Warehouse fit-out",
+        "clientName": "Northwind Logistics",
+        "quotationNumber": "",
+        "poNumber": "",
+        "tables": [],
+        "lineCount": 0,
+        "serials": []
+      }
+    ],
+    "approvedQuotations": [],
+    "people": [
+      {
+        "id": "<col_ID>",
+        "alias": "engblind"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "engviewer"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "taskeditor"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "taskdoer"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "financeviewer"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "hrasker"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "hrown"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "hradmin"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "projectmanager"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "storeman"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "projlister"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "techlocker"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "techpricer"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "techeditor"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "salesclerk"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "salesviewer"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "Member"
+      },
+      {
+        "id": "<col_ID>",
+        "alias": "Owner"
+      }
+    ],
+    "clients": [
+      {
+        "id": "<sal_ID>",
+        "name": "Northwind Logistics",
+        "logo": "",
+        "contacts": [
+          {
+            "name": "Dana Reed",
+            "email": "",
+            "phone": "",
+            "position": "Facilities Manager"
+          }
+        ]
+      },
+      {
+        "id": "<sal_ID>",
+        "name": "Engagement View Client",
+        "logo": "",
+        "contacts": []
+      },
+      {
+        "id": "<sal_ID>",
+        "name": "Second Client",
+        "logo": "",
+        "contacts": []
+      },
+      {
+        "id": "<sal_ID>",
+        "name": "Acme Holdings",
+        "logo": "",
+        "contacts": []
+      }
+    ],
+    "slas": [],
+    "overtimes": [],
+    "directory": {
+      "people": [
+        {
+          "id": "<col_ID>",
+          "alias": "engblind",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "engviewer",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "financeviewer",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "hradmin",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "hrasker",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "hrown",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "Member",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "Owner",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "projectmanager",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "projlister",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "salesclerk",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "salesviewer",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "storeman",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "taskdoer",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "taskeditor",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "techeditor",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "techlocker",
+          "departmentId": "",
+          "departmentName": ""
+        },
+        {
+          "id": "<col_ID>",
+          "alias": "techpricer",
+          "departmentId": "",
+          "departmentName": ""
+        }
+      ],
+      "departments": [
+        {
+          "id": "finance",
+          "name": "Finance"
+        },
+        {
+          "id": "hr",
+          "name": "Human Resources"
+        },
+        {
+          "id": "inventory",
+          "name": "Inventory"
+        },
+        {
+          "id": "operations",
+          "name": "Operations"
+        },
+        {
+          "id": "projects",
+          "name": "Projects"
+        },
+        {
+          "id": "quality",
+          "name": "Quality"
+        },
+        {
+          "id": "sales",
+          "name": "Sales"
+        },
+        {
+          "id": "tasks",
+          "name": "Tasks"
+        },
+        {
+          "id": "technical",
+          "name": "Technical"
+        }
+      ]
+    },
+    "settings": {
+      "stages": [
+        "Received",
+        "In Progress",
+        "On Hold",
+        "Completed"
+      ],
+      "requirementWeights": {},
+      "overtimeDefaultDepartmentId": "",
+      "supportPeriodDays": 365
+    },
+    "vocabulary": {
+      "stages": [
+        "Received",
+        "In Progress",
+        "On Hold",
+        "Completed"
+      ],
+      "serviceActions": []
+    }
+  }
+}

@@ -5,8 +5,11 @@
 // reading three other sections, and still reads correctly if an upstream record
 // is edited later.
 //
-// A project may only be opened from an APPROVED quotation — that approval is the
-// commercial gate, and it lives in Technical/Sales, not here.
+// A project opened FROM A QUOTATION may only be opened from an APPROVED one —
+// that approval is the commercial gate, and it lives in Technical/Sales, not
+// here. Work handed to the studio directly has no quotation to gate on and is
+// raised without one; it is the deal's own root rather than a link in a chain.
+// See the two heads above openProject.
 
 import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
@@ -15,14 +18,14 @@ import { PROJECT } from "@/platform/db/keys";
 import {
   readEngagement, attachRecord, setApprovedQuotation,
   detachRecord, engagementIdFor, engagementIdForLineage,
-  attachToProjectEngagement, detachFromItsEngagement,
+  attachToProjectEngagement, attachProjectEngagement, detachFromItsEngagement,
 } from "@/platform/db/engagement";
 import { removeProjectPlans, progressByProject } from "@/modules/operations/planner";
 import { updateSection } from "@/platform/db/sections";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { clientContacts } from "@/modules/sales/salesClients";
+import { clientContacts, resolveClientFor } from "@/modules/sales/salesClients";
 import type { Client } from "@/modules/sales/types";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { DEFAULT_SUPPORT_DAYS, hoursBetween } from "./projectSchedule";
@@ -240,12 +243,96 @@ async function announceProjectManager(
   );
 }
 
-export async function openProject(ctx: ProjectsContext, body: Record<string, unknown>) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "projects.list.create");
-  if (denied) return denied;
+// WHAT A PROJECT IS OPENED FROM, resolved to one shape.
+//
+// Two heads, one body. The quotation head reads the whole chain off an approved
+// quotation; the direct head takes the job as typed. Everything below the split
+// — the row, the sheets, the engagement, the manager notification — cannot tell
+// which one ran, and that is the point: a second create path is a second place
+// for the engagement dual-write to be forgotten, which is precisely how a
+// record ends up on no deal at all.
+type ProjectSource = {
+  title: string;
+  clientId: string;
+  clientName: string;
+  value: number;
+  quotationId: string;
+  quotationNumber: string;
+  rfqId: string;
+  ticketId: string;
+  // THE ENGAGEMENT THIS PROJECT JOINS, when it is knowable before the row
+  // exists. Blank for the direct head, whose engagement is rooted ON the
+  // project and therefore cannot be derived until the project has an id — see
+  // the attach below.
+  engId: string;
+  // The resolved Client record, carried only by the direct head, so the
+  // engagement it mints names the client live rather than from a copy.
+  client: Client | null;
+};
 
-  const { studio, listSection, technicalSection, collaborator, quotationsSection, sheetsSection, tasksSection, salesClientsSection, salesTicketsSection } = ctx;
+// THE DIRECT HEAD — no quotation, so no commercial gate and no
+// one-project-per-quotation check. What it must do instead is resolve the
+// client the same way every other create resolves it: find-or-create by
+// normalised name, then fold this deal's contact and site onto the Client
+// record. That is `resolveClientFor`, which createTicket and createQuotation
+// both call — a third implementation is how three clients named "Acme" end up
+// in one studio.
+async function directSource(
+  ctx: ProjectsContext, body: Record<string, unknown>,
+): Promise<ProjectSource | { error: string }> {
+  const { studio, salesClientsSection, collaborator } = ctx;
+  const title = str(body?.title, 200);
+  if (!title) return { error: "missing" };
+  // A studio with no Sales clients section has no client model to resolve
+  // into, and refuses exactly as createQuotation refuses in that case.
+  if (!salesClientsSection) return { error: "client" };
+
+  const site = (body?.site && typeof body.site === "object" ? body.site : {}) as Record<string, unknown>;
+  const client = await resolveClientFor(
+    { studio, section: salesClientsSection },
+    {
+      clientId: str(body?.clientId, 60),
+      clientName: str(body?.clientName, 200),
+      // INDUSTRY IS THE CLIENT'S FACT and is written onto the Client record.
+      // The project stores no copy — a fourth copy of something the Client row
+      // owns is the drift this product keeps removing.
+      industry: str(body?.industry, 120),
+      contact: {
+        name: str(body?.contactName, 200),
+        email: str(body?.contactEmail, 200),
+        phone: str(body?.contactPhone, 60),
+        position: str(body?.contactPosition, 120),
+      },
+      site: {
+        name: str(site.name, 200), country: str(site.country, 120),
+        city: str(site.city, 120), url: str(site.url, 500),
+      },
+      collaboratorId: collaborator.id,
+    },
+  );
+  if (!client) return { error: "client" };
+
+  return {
+    title,
+    clientId: client.id,
+    clientName: client.name || "",
+    // TYPED, because there is no quotation total to read. A direct project may
+    // legitimately start at zero — the figure is agreed later — so this is a
+    // default, not a refusal.
+    value: nonNeg(body?.value, 0),
+    quotationId: "", quotationNumber: "", rfqId: "", ticketId: "",
+    engId: "",
+    client,
+  };
+}
+
+// THE QUOTATION HEAD — the original path, unchanged: an approved quotation and
+// the whole chain behind it. Everything from the commercial gate down to the
+// client fallback is the code that used to sit inline in openProject.
+async function quotationSource(
+  ctx: ProjectsContext, body: Record<string, unknown>,
+): Promise<ProjectSource | { error: string }> {
+  const { studio, listSection, technicalSection, quotationsSection, tasksSection, salesClientsSection, salesTicketsSection } = ctx;
   if (!technicalSection) return { error: "no-technical" };
 
   const quotationId = str(body?.quotationId, 60);
@@ -345,24 +432,51 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     clientName = t.clientName;
   }
 
+  return {
+    title: str(body?.title, 200) || t.title || String(quote.title || ""),
+    clientId: engClientId, clientName,
+    value: Number(quote.total) || 0,
+    quotationId, quotationNumber: String(quote.number || ""),
+    rfqId: String(quote.rfqId || ""), ticketId: String(quote.ticketId || ""),
+    engId, client: null,
+  };
+}
+
+export async function openProject(ctx: ProjectsContext, body: Record<string, unknown>) {
+  // Guarded before anything is read or written — see platform/access/resolve.ts.
+  const denied = requirePermission(ctx.access, "projects.list.create");
+  if (denied) return denied;
+
+  const { studio, listSection, collaborator, sheetsSection } = ctx;
+
+  // WHICH HEAD RUNS IS DECIDED BY THE BODY, not by a mode flag. A payload with
+  // a quotationId is opening a project from that quotation and must pass the
+  // commercial gate; a payload without one is raising new work directly. There
+  // is no third case, and no flag a client could set to skip the gate.
+  const source = str(body?.quotationId, 60)
+    ? await quotationSource(ctx, body)
+    : await directSource(ctx, body);
+  if ("error" in source) return source;
+
   const now = new Date().toISOString();
   const project = await Projects.create({ studio, section: listSection }, {
-    // BLANK UNTIL FINANCE ISSUES IT. The project number is quoted on invoices,
-    // purchase orders and delivery notes — it is the studio's commitment to
-    // bill this work — and issuing it is Finance's act, taken when they
-    // authorise the client's PO. A project can exist before that: the work is
-    // planned, the handler is named, the sheet is drawn up. What it cannot do
-    // is carry a number nobody issued.
+    // BLANK UNTIL FINANCE ISSUES IT, and true of both heads. The project number
+    // is quoted on invoices, purchase orders and delivery notes — it is the
+    // studio's commitment to bill this work — and issuing it is Finance's act,
+    // taken when they authorise the client's PO. A project can exist before
+    // that: the work is planned, the handler is named, the sheet is drawn up.
+    // What it cannot do is carry a number nobody issued.
     //
     // Blank rather than provisional, deliberately. A placeholder number would
     // be quoted on something before long, and then it would be the number.
     number: "",
-    title: str(body?.title, 200) || t.title || quote.title || "",
-    // Lineage — the whole chain of keys.
-    quotationId, quotationNumber: quote.number,
-    rfqId: quote.rfqId || "", ticketId: quote.ticketId || "",
-    clientId: engClientId, clientName,
-    value: Number(quote.total) || 0,
+    title: source.title,
+    // Lineage — the whole chain of keys. Blank in every field for a direct
+    // project, which has no chain behind it and must not pretend to one.
+    quotationId: source.quotationId, quotationNumber: source.quotationNumber,
+    rfqId: source.rfqId, ticketId: source.ticketId,
+    clientId: source.clientId, clientName: source.clientName,
+    value: source.value,
     stage: DEFAULT_STAGE,
     managerCollaboratorId: str(body?.managerCollaboratorId, 60),
     location: str(body?.location, 200),
@@ -373,14 +487,16 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     receivedDate: now.slice(0, 10),
     startDate: str(body?.startDate, 10),
     endDate: str(body?.endDate, 10),
-    notes: "",
+    // The direct head asks for a description; the quotation head has never sent
+    // one and still stores "".
+    notes: str(body?.notes, 4000),
     openedByCollaboratorId: collaborator.id,
     createdAt: now,
   });
 
   // Dual-write: the project joins its engagement as the PROJECT singleton —
   // the ticket's when the quotation has one, the quotation's OWN engagement
-  // when it does not (`engId`, resolved above) — and that same engagement
+  // when it does not (`source.engId`, resolved by quotationSource) — and that same engagement
   // records which quotation was approved into it. Attaching to the
   // ticket-only helper here used to resolve a non-existent engagement for
   // every internal quotation (empty ticketId → a root nothing had created),
@@ -388,13 +504,27 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   // it — a project born from an internal quotation never joined ANY
   // engagement and never appeared on the engagements screen. Guarded and
   // best-effort regardless — the module's OWN "one project per quotation"
-  // rule above (`existing.some(...)`) is what actually refuses a second
+  // rule in quotationSource (`existing.some(...)`) is what actually refuses a second
   // project; this is a mirror of that outcome, not the source of it, so a
   // re-attach the engagement layer would otherwise refuse on is simply
   // swallowed rather than surfaced as an error the caller never asked for.
+  //
+  // AND THE DIRECT HEAD HAS NO ID TO ATTACH TO. No ticket and no quotation
+  // means nothing to derive an engagement id from, so the deal is rooted ON the
+  // project instead and can only be minted once the row exists. `engId` is let,
+  // not const, because the sheets below join the SAME engagement and the direct
+  // head only learns which one that is here.
+  let engId = source.engId;
   try {
-    await attachRecord(studio.id, engId, "project", project.id);
-    await setApprovedQuotation(studio.id, engId, String(project.quotationId || ""));
+    if (engId) {
+      await attachRecord(studio.id, engId, "project", project.id);
+      await setApprovedQuotation(studio.id, engId, String(project.quotationId || ""));
+    } else {
+      engId = await attachProjectEngagement(
+        studio.id, project as Record<string, unknown>,
+        source.client as unknown as Record<string, unknown> | null,
+      );
+    }
   } catch { /* best-effort: reconciled later */ }
 
   // THE PROJECT SHEETS. Two per project, and NEITHER HOLDS A LINE OF ITS OWN.
@@ -423,7 +553,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
         // THE KEYS, and nothing else about the job. The project number, the
         // client, the quotation's lines and its numbers are all read back.
         projectId: project.id,
-        quotationId, rfqId: quote.rfqId || "", ticketId: quote.ticketId || "",
+        quotationId: source.quotationId, rfqId: source.rfqId, ticketId: source.ticketId,
         kind,
         // The sheet's OWN data, per quotation row: { [rowId]: { … } }. Empty
         // until somebody works the sheet, which is the honest starting state.
@@ -435,14 +565,17 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   }
 
   // THE SHEETS JOIN THE DEAL TOO — the project's own children, and the first of
-  // them to do so. `engId` is the id resolved at the top of this function and
-  // already claimed by the project above, so it is used directly rather than
+  // them to do so. `engId` is the id the project itself just joined — derived
+  // from the source for the quotation head, minted on the row for the direct
+  // one — so it is used directly rather than
   // read back out of the project's reverse index: that would be a read for an
   // answer this function is holding (the hop-count constraint, 20/08/2026).
   // Guarded exactly like the project's own attach — drawing up a sheet must not
-  // fail because an index did, and the backfill is the reconciler.
+  // fail because an index did, and the backfill is the reconciler. Guarded on
+  // `engId` being known at all, because the direct head's attach above may have
+  // failed and left it blank — attaching to "" would name no root.
   try {
-    for (const sheet of sheets) await attachRecord(studio.id, engId, "sheet", String(sheet.id), now);
+    if (engId) for (const sheet of sheets) await attachRecord(studio.id, engId, "sheet", String(sheet.id), now);
   } catch { /* best-effort: reconciled later */ }
 
   await announceProjectManager(ctx, project, "");

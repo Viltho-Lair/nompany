@@ -1,0 +1,59 @@
+{
+  "status": 201,
+  "body": {
+    "ok": true,
+    "project": {
+      "id": "<pro_ID>",
+      "number": "",
+      "title": "Warehouse fit-out",
+      "quotationId": "",
+      "quotationNumber": "",
+      "rfqId": "",
+      "ticketId": "",
+      "clientId": "<sal_ID>",
+      "clientName": "Northwind Logistics",
+      "value": 42000,
+      "stage": "Received",
+      "managerCollaboratorId": "",
+      "location": "Amman",
+      "supportPeriodDays": 365,
+      "receivedDate": "<today>",
+      "startDate": "2031-09-01",
+      "endDate": "2031-12-01",
+      "notes": "",
+      "openedByCollaboratorId": "<col_ID>",
+      "createdAt": "<timestamp>",
+      "studioId": "<std_ID>",
+      "sectionId": "<sub_ID>",
+      "progress": 0
+    },
+    "sheets": [
+      {
+        "id": "<pro_ID>",
+        "projectId": "<pro_ID>",
+        "quotationId": "",
+        "rfqId": "",
+        "ticketId": "",
+        "kind": "main",
+        "lines": {},
+        "openedByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      },
+      {
+        "id": "<pro_ID>",
+        "projectId": "<pro_ID>",
+        "quotationId": "",
+        "rfqId": "",
+        "ticketId": "",
+        "kind": "bulk",
+        "lines": {},
+        "openedByCollaboratorId": "<col_ID>",
+        "createdAt": "<timestamp>",
+        "studioId": "<std_ID>",
+        "sectionId": "<sub_ID>"
+      }
+    ]
+  }
+}

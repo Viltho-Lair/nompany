@@ -1628,6 +1628,10 @@ console.log("== projects: opened from an approved quotation, and only once");
   ok("one quotation yielded exactly one project", populated.body?.projects?.length === 1,
     String(populated.body?.projects?.length));
 
+  // THE DIRECT PATH is recorded in its OWN block, after every other module's
+  // whole-studio snapshot — see "projects: the second way in" below for why it
+  // cannot sit here.
+
   // ---- SLA and Overtimes answer to their OWN rights ----------------------
   // Both are sub-sections of Projects with grants of their own, so somebody who
   // may run the project list is not thereby entitled to set service levels or
@@ -2295,6 +2299,62 @@ console.log("== main: the engagement view — two NEW routes, and the safety pro
   // two resets above — nothing downstream reads it today, but this studio is
   // shared for the rest of the file too.
   await updateStudio(studio.id, { serviceActions: [] });
+}
+
+// ============================================================================
+console.log("== projects: the second way in — work handed to the studio directly");
+// THE DIRECT PATH — a project raised with no quotation behind it. Recorded as
+// its own goldens rather than folded into the existing ones, because the
+// response shape is identical and only the lineage differs: a golden that
+// covered both would not notice the lineage going wrong.
+//
+// PLACED HERE, NOT IN THE PROJECTS BLOCK, for exactly the reason the engagement
+// block above is placed last: this studio is shared, and several later goldens
+// are whole-studio snapshots. Creating a second project inside the projects
+// block moved two goldens that belong to other modules — an extra row in
+// `operations.board`'s project list, and an extra project plus its two sheets
+// in `inventory.list.populated`. Neither route changed; the fixture order did.
+// Running after every other module's "populated" capture adds four goldens and
+// moves none.
+{
+  const PROJECTS = await import("@/app/api/studios/[slug]/projects/route.ts");
+
+  const P = ctx({ slug });
+  const shot = async (name, payload) => {
+    const r = golden(name, payload, EXTRA);
+    if (!r.recorded) ok(`${name} matches its golden`, r.ok, r.detail);
+    return payload;
+  };
+
+  await signIn(owner.id);
+
+  await shot("projects.direct.refused.notitle", await capture(
+    PROJECTS.POST, req(`/api/studios/${slug}/projects`, { method: "POST",
+      body: { clientName: "Northwind Logistics" } }), P));
+
+  await shot("projects.direct.refused.noclient", await capture(
+    PROJECTS.POST, req(`/api/studios/${slug}/projects`, { method: "POST",
+      body: { title: "Nameless" } }), P));
+
+  await shot("projects.direct.opened", await capture(
+    PROJECTS.POST, req(`/api/studios/${slug}/projects`, { method: "POST", body: {
+      clientName: "Northwind Logistics", title: "Warehouse fit-out",
+      industry: "Logistics", value: 42000, location: "Amman",
+      contactName: "Dana Reed", contactPosition: "Facilities Manager",
+      site: { name: "North yard", country: "Jordan", city: "Amman", url: "" },
+      // PUSHED WELL BEYOND ANY OFFSET EXTRA COMPUTES, the same discipline as
+      // the sales fixture's deadline above: nothing here asserts the exact day,
+      // only that it round-trips, so a date near today would go red on its own
+      // one month-end with no code change — the recurring Gate-A date drift.
+      startDate: "2031-09-01", endDate: "2031-12-01",
+    } }), P));
+
+  const bothWays = await capture(PROJECTS.GET, req(`/api/studios/${slug}/projects`), P);
+  await shot("projects.direct.list.populated", bothWays);
+  ok("the list holds the quotation-opened project and the direct one",
+    bothWays.body?.projects?.length === 2, String(bothWays.body?.projects?.length));
+
+  __signOut();
 }
 
 // ============================================================================
