@@ -246,7 +246,15 @@
 }
 
 /* A hairline top highlight — the thing that makes glass read as glass. */
-.kanban-root .glass-sheen {
+/*
+  The sheen is drawn by a ::before pinned to its box, so the box has to be a
+  positioned one — hence `relative`. It is NOT relative when the element has
+  already positioned itself: the dialog panel is `fixed` (Tailwind's `.fixed`,
+  specificity 0,1,0) and this selector is 0,2,0, so before the exclusion it
+  quietly won and dropped a centred modal back into normal flow. A fixed or
+  absolute box is a containing block already, which is all ::before needs.
+*/
+.kanban-root .glass-sheen:not(.fixed):not(.absolute):not(.sticky) {
   position: relative;
 }
 .kanban-root .glass-sheen::before {

@@ -7,6 +7,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { commonDict } from "@/shared/studio/common";
 
 import { cn } from "@/components/kanban/lib/utils";
+import { PortalScope } from "@/components/kanban/ui/portal-scope";
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -42,6 +43,7 @@ const DialogContent = React.forwardRef<
   const close = commonDict(useStudioLocale()).close;
   return (
   <DialogPortal>
+    <PortalScope>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
@@ -81,6 +83,7 @@ const DialogContent = React.forwardRef<
         </DialogPrimitive.Close>
       )}
     </DialogPrimitive.Content>
+    </PortalScope>
   </DialogPortal>
   );
 });
