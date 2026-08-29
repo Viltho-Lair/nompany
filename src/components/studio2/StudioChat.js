@@ -258,9 +258,16 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
         : tr.waitingSomeoneJoin;
 
   return (
-    <div className="fixed bottom-5 end-5 z-40 flex flex-col items-end gap-3 print:hidden">
+    // THE COLUMN IS A LAYOUT WRAPPER, NOT A SURFACE — hence pointer-events-none
+    // here and pointer-events-auto on the two things inside it. It is as wide as
+    // its widest child, so the moment the 22rem window opens the column covers
+    // the empty strip to the START of the bubble — which is exactly where Nova's
+    // launcher sits (end-24, clearing this bubble). Same z-40, later in the DOM,
+    // so the column won the hit test and Nova could not be clicked while a
+    // support chat was open. Nothing looked wrong; the click just went nowhere.
+    <div className="pointer-events-none fixed bottom-5 end-5 z-40 flex flex-col items-end gap-3 print:hidden">
       {open && (
-        <div className="flex h-[30rem] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
+        <div className="pointer-events-auto flex h-[30rem] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
           <div className="flex items-center justify-between gap-2 bg-brand-950 px-4 py-3 text-white dark:bg-brand-500/20">
             <div className="min-w-0">
               <p className="font-display text-sm font-700">{SUPPORT_LABEL}</p>
@@ -435,7 +442,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
             : unread > 0 ? tr.chatUnread(unread) : tr.chatNompany
         }
         title={spent ? tr.consumedAllTickets : allowanceHint}
-        className={`relative inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-geex transition-transform ${
+        className={`pointer-events-auto relative inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-geex transition-transform ${
           spent
             ? "cursor-not-allowed bg-slate-400 dark:bg-slate-600"
             : "bg-brand-700 hover:scale-105 hover:bg-brand-950"
