@@ -130,4 +130,26 @@ export default [
       "no-unused-vars": "off",
     },
   },
+
+  {
+    // A COMPONENT READING A DICTIONARY IT NEVER BOUND. Three screens shipped
+    // with one: StudioPlanner used `tr` and never called plannerDict, the sheet
+    // viewer's Status called technicalDict without importing it, and
+    // useFinanceResource read `tr` in a dependency array. None of the three is
+    // a type error and none of them fails a build — the identifier is a free
+    // variable, so it resolves at RUNTIME, and only on the render that reaches
+    // it. StudioPlanner threw on the server (`/projects-list/<id>/plans/<id>`
+    // was a 200 whose body was an error page); the other two throw in the
+    // browser after the fetch lands, which is a screen that renders its
+    // skeleton and then goes blank.
+    //
+    // `no-undef` states exactly that property, so it is on for the untyped
+    // browser files, where nothing else is checking. It stays OFF for .ts/.tsx:
+    // tsc already refuses an unbound name there, and this rule cannot see a
+    // type-position `React.ComponentProps`, which it reports as undefined.
+    files: ["**/*.js", "**/*.jsx", "**/*.mjs"],
+    rules: {
+      "no-undef": "error",
+    },
+  },
 ];

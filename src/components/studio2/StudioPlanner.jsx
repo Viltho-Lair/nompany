@@ -5,6 +5,8 @@ import Link from "next/link";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { enGB } from "date-fns/locale/en-GB";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
 import "@/components/planner/planner.css";
 import { PlannerShell } from "@/components/planner/PlannerShell";
 import {
@@ -96,6 +98,9 @@ export default function StudioPlanner({ slug, planApiBase, backHref, backLabel }
   // Read the plan name straight from the store so the back bar title tracks
   // edits the user makes in the planner's own header.
   const planName = usePlannerStore((s) => s.meta.name);
+  // The chrome around the ported planner speaks the studio's language too;
+  // the planner inside reads the same dictionary through its own hooks.
+  const tr = plannerDict(useStudioLocale());
 
   const [state, setState] = useState({ loading: true, canEdit: false, error: false });
   // A save that the server refused (or the network dropped). Surfaced rather than

@@ -630,6 +630,7 @@ function Empty({ title, body }) {
 // runs. Each screen owns its own route (`bills`/`assets`), reflects the same
 // live "finance" channel, and reports errors through the shared `message()`.
 function useFinanceResource(slug, kind) {
+  const tr = financeDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
