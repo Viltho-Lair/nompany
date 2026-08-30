@@ -72,8 +72,13 @@ export default function StudioTechnicalLive({ studio }) {
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
       <header className="sticky top-0 z-20 border-b border-[var(--geex-border)] bg-[var(--geex-page)]">
         <div className="flex flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
+          {/* NOT the bare pre-restructure department key — retired when
+              Technical became Engineering & Documents (restructure.ts's
+              SECTION_KEY_MAP maps it to engineering-docs). Same class of bug
+              as the dead Sales-department link in StudioSalesLive.js, found
+              by the same context-shaped literal check. */}
           <Link
-            href={`/${studio.slug}/technical`}
+            href={`/${studio.slug}/engineering-docs`}
             title={tr.backTechnical}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >

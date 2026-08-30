@@ -289,6 +289,46 @@ const anyKey = (access: PermissionSet, sectionKey: string, suffixes: readonly st
   (SECTION_AREAS[sectionKey] || []).some((area) =>
     suffixes.some((v) => access.has(`${area}.${v}` as PermissionKey)));
 
+// EVERY KEY sectionViewable answers "no" for UNCONDITIONALLY — regardless of
+// what the person holds, because there is no permission behind the key at
+// all. Named explicitly, rather than left for the function below to infer
+// from "no areas, no children", because that inference used to be the bug:
+// before the fifteen-section restructure Main was the ONLY section shaped
+// this way, so "a heading with nothing to protect stays visible" was safe to
+// leave unconditional; the restructure added seven more sections in the same
+// shape, and the unconditional version showed all of them to everyone,
+// including the four with no screen anywhere. testEveryKeyWithNothingToShowIsDeclared
+// in tests/restructure.mjs asserts every key in this shape is named here —
+// so a NINTH one added later without a SECTION_AREAS entry fails a test
+// instead of silently vanishing from the sidebar for every studio.
+//
+// FOUR genuinely have no screen anywhere yet — declared in SECTION_DEFS
+// (keys.ts) for ordering only, until a later phase: nothing can ever grant
+// these, because there is no permission to hold.
+//
+// FOUR MORE do have real screens, reached by a route that bypasses this
+// mechanism ON PURPOSE, not by a gap in it:
+//   - "administration-settings" is StudioSettings, reached by the router's
+//     own literal key match (page.js's `isSettings`) because reading it is
+//     open to any member (settings/route.ts) — ungated by design, the same
+//     shape as Main, just not the studio's own home, so it does not get
+//     Main's pass either.
+//   - "administration-members" is the People screen, reached at the
+//     entirely different, pre-restructure key "people" (StudioFrame.js's
+//     hardcoded nav item, shown to everyone) — this key has never had a
+//     route of its own.
+//   - "administration-master" has no screen at all yet (catalogue.ts:
+//     "until that rewire lands").
+//   - "administration" itself, the parent, has no dashboard of its own (no
+//     `screenKey === "administration"` case in page.js) and is correctly
+//     invisible as a CONSEQUENCE of its three children being invisible, not
+//     by a rule of its own — named here anyway so the list is a complete
+//     answer to "why doesn't sectionViewable show this", not a partial one.
+export const NO_SCREEN_YET = [
+  "tendering", "manufacturing", "assets", "reports",
+  "administration", "administration-members", "administration-master", "administration-settings",
+] as const;
+
 // A section is worth showing if the person may see anything in it.
 //
 // A section with no areas of its own is a HEADING — "Sales" — and is shown when
@@ -310,18 +350,11 @@ export function sectionViewable(access: PermissionSet, sectionKey: string, allKe
   if (own && anyKey(access, sectionKey, ["view"])) return true;
   const children = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
   if (children.length) return children.some((k) => sectionViewable(access, k, allKeys));
-  // A leaf with areas answered "no" above. A heading with neither areas nor
-  // children is either the studio home (Main — nothing to protect, so it
-  // stays for everyone) or one of the roots the fifteen-section restructure
-  // declared for ORDERING ONLY — tendering, manufacturing, assets, reports
-  // (keys.ts's SECTION_DEFS) — with no screen behind them until a later
-  // phase. Before that restructure Main was the only section in this shape,
-  // so `!own` unconditionally was correct; it stopped being correct the
-  // moment SECTION_DEFS grew a second one, because a placeholder root would
-  // pass the same test and render a nav row that opens nothing. Only Main
-  // gets the pass now — see testEmptySectionsDoNotRender in
-  // tests/restructure.mjs, which exists to catch this exact regression.
-  return !own && sectionKey === "main";
+  // A leaf with neither areas nor children answered "no" above except for
+  // one case: the studio home (Main) has nothing to protect, so it stays for
+  // everyone. Everything else in this shape is one of the NO_SCREEN_YET keys
+  // above and stays absent — see that constant for which and why.
+  return sectionKey === "main";
 }
 
 // A section's screens are editable if the person holds ANY write on its areas.

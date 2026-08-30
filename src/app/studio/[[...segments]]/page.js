@@ -10,7 +10,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
 import { studioContext, canAdminister, visibleSections, recordStudioVisit } from "@/lib/studios";
-import { sectionManageable, can } from "@/platform/access";
+import { sectionManageable, can, NO_SCREEN_YET } from "@/platform/access";
 import { listSections } from "@/platform/db/sections";
 import { getProfile } from "@/platform/auth/users";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
@@ -477,6 +477,16 @@ export default async function StudioPage({ params }) {
   // silently showing something else.
   const deniedSection = !isPeople && !isAccess && !isSettings && requested && !sections.some((s) => s.key === requested)
     && allSections.some((s) => s.key === requested);
+  // ONE OF THE FOUR ORDERING-ONLY ROOTS — NO_SCREEN_YET names eight keys, but
+  // the other four (the administration group) DO have real screens reached
+  // elsewhere (see that constant's own comment); only these four have no
+  // screen ANYWHERE, for anyone. "Ask an admin to grant it" is a false
+  // promise for them — there is no permission behind the key to hold, admin
+  // included, confirmed in the sandbox walk where even the studio's Owner
+  // sees this. A distinct message says so instead of implying a grant would
+  // help.
+  const notBuiltYet = deniedSection
+    && ["tendering", "manufacturing", "assets", "reports"].includes(requested);
 
   // Which component to render: a sub-section resolves to its parent's module.
   // The module then decides the screen from the ACTIVE key — Sales does this
@@ -533,11 +543,30 @@ export default async function StudioPage({ params }) {
           <StudioRoles slug={studio.slug} />
         )
         : isSettings ? <StudioSettings slug={studio.slug} locale={locale} />
-        : deniedSection ? <NoSectionAccess locale={locale} />
+        : deniedSection ? <NoSectionAccess locale={locale} notBuiltYet={notBuiltYet} />
         : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} />
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
         : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
         : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
+        // CRM & SALES'S QUOTATIONS ARE STILL RENDERED BY TECHNICAL, by key
+        // rather than by screenKey, same pattern and same reason as Procurement's
+        // Suppliers and Logistics's Shipments below. Quotations moved to CRM &
+        // Sales (SECTION_DEFS: "the offer is a sales act") but the screen that
+        // builds and lists them — QuotationBuilder, NewQuotation — never moved;
+        // it still lives in StudioTechnical.js, which already has a
+        // `view === "crm-sales-quotations"` branch waiting (and
+        // technicalContext already resolves it through the new section:
+        // `sub: { quotations: "crm-sales-quotations" }` in technical.ts).
+        // `crm-sales-quotations`'s PARENT is `crm-sales`, so `screenKey`
+        // collapses to "crm-sales" and would otherwise hand this to
+        // StudioSales, which has no such branch — a silent fall-through to
+        // the CRM & Sales dashboard that left `crmSales.quotations.create`/
+        // `.edit` as rights nothing could exercise (invariant 16). Checked
+        // ahead of the `screenKey === "crm-sales"` case below for that reason.
+        : active?.key === "crm-sales-quotations" ? (
+          <StudioTechnical slug={studio.slug} view={active?.key}
+            sectionNames={Object.fromEntries(sections.map((x) => [x.key, x.name]))} />
+        )
         : screenKey === "crm-sales" ? <StudioSales slug={studio.slug} view={active?.key} />
         : screenKey === "engineering-docs" ? (
           // THE STUDIO'S OWN NAMES FOR ITS SECTIONS, so a quotation's origin tag
@@ -626,12 +655,16 @@ function FullScreen({ locale, children }) {
   );
 }
 
-function NoSectionAccess({ locale = "en" }) {
+function NoSectionAccess({ locale = "en", notBuiltYet = false }) {
   const t = shellDict(locale);
   return (
     <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
-      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.noSectionAccess}</h2>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.noSectionAccessBody}</p>
+      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">
+        {notBuiltYet ? t.sectionNotBuiltYet : t.noSectionAccess}
+      </h2>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+        {notBuiltYet ? t.sectionNotBuiltYetBody : t.noSectionAccessBody}
+      </p>
     </div>
   );
 }

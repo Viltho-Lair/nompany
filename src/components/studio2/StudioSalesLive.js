@@ -71,8 +71,16 @@ export default function StudioSalesLive({ studio }) {
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
       <header className="sticky top-0 z-20 border-b border-[var(--geex-border)] bg-[var(--geex-page)]">
         <div className="flex flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
+          {/* NOT the bare pre-restructure department key — retired when Sales
+              became CRM & Sales (restructure.ts's SECTION_KEY_MAP maps it to
+              crm-sales). It named no section any more, so this back link
+              silently fell through to whatever section came first for the
+              viewer instead of CRM & Sales — found by the context-shaped
+              literal check in tests/restructure.mjs, the same class of bug as
+              the doubled crm-crm-sales-* literals fixed earlier in this
+              module. */}
           <Link
-            href={`/${studio.slug}/sales`}
+            href={`/${studio.slug}/crm-sales`}
             title={tr.backSales}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm transition-colors hover:text-brand-600 dark:text-slate-300"
           >

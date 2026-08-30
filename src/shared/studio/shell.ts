@@ -68,6 +68,12 @@ type ShellStrings = {
   deniedAccessBody: string;
   noSectionAccess: string;
   noSectionAccessBody: string;
+  // A section SECTION_DEFS declares for ordering only — no screen behind it
+  // yet, so unlike noSectionAccess there is no admin anywhere who could grant
+  // it. Distinct copy because "ask an admin" is a false promise here (see
+  // NO_SCREEN_YET in platform/access/resolve.ts).
+  sectionNotBuiltYet: string;
+  sectionNotBuiltYetBody: string;
   nothingGranted: string;
   nothingGrantedBody: string;
   openAccess: string;
@@ -122,6 +128,8 @@ const en: ShellStrings = {
   deniedAccessBody: "You need to be an admin of this studio to manage access.",
   noSectionAccess: "You don't have access to that section",
   noSectionAccessBody: "Ask an admin of this studio to grant it to you.",
+  sectionNotBuiltYet: "This section isn't open yet",
+  sectionNotBuiltYetBody: "It's on the way, but there's nothing here to grant — not even an admin can open it early.",
   nothingGranted: "Nothing has been shared with you yet",
   nothingGrantedBody:
     "You're a member of this studio, but no sections have been granted to you. An admin can do that from Access.",
@@ -187,6 +195,8 @@ const ar: ShellStrings = {
   deniedAccessBody: "يلزم أن تكون مسؤولًا في هذا الاستوديو لإدارة الصلاحيات.",
   noSectionAccess: "لا تملك صلاحية الوصول إلى ذلك القسم",
   noSectionAccessBody: "اطلب من مسؤول في هذا الاستوديو منحك إياها.",
+  sectionNotBuiltYet: "هذا القسم غير متاح بعد",
+  sectionNotBuiltYetBody: "إنه قيد الإعداد، ولا يوجد فيه شيء يمكن منحه — حتى المسؤول لا يستطيع فتحه قبل أوانه.",
   nothingGranted: "لم تتم مشاركة أي شيء معك بعد",
   nothingGrantedBody:
     "أنت عضو في هذا الاستوديو، لكن لم يُمنح لك أي قسم. يمكن لمسؤول فعل ذلك من شاشة الصلاحيات.",

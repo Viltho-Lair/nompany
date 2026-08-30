@@ -1128,7 +1128,13 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
           type: NOTIFY.purchaseReceived,
           title: "A purchase order was received in full",
           body: String(order.reference || ""),
-          href: "inventory-orders",
+          // NOT "inventory-orders" — that key was never a section. There is
+          // no standalone purchase-order screen at all (the comment in
+          // StudioInventory.js is explicit: those buttons were removed on
+          // purpose); InventoryDashboard.jsx's own "Open purchase orders"
+          // stat tile already treats `inventory-sheets` as where a PO is
+          // actually seen, so the notification now points there too.
+          href: "inventory-sheets",
           tone: "success",
         },
         { userIdOf: (cid) => (cid === buyer.id ? String(buyer.userId) : undefined) },

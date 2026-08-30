@@ -34,7 +34,7 @@ const {
 } = await import("../src/platform/db/restructure.ts");
 const { SECTION_DEFS, ALL_SECTION_KEYS } = await import("../src/platform/db/keys.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
-const { effectivePermissions, scopeFor, escalates, sectionViewable } = await import("../src/platform/access/resolve.ts");
+const { effectivePermissions, scopeFor, escalates, sectionViewable, SECTION_AREAS, NO_SCREEN_YET } = await import("../src/platform/access/resolve.ts");
 const { sectionName } = await import("../src/shared/studio/sections.ts");
 
 export async function testEveryOldSectionKeyIsAccountedFor(t) {
@@ -597,19 +597,188 @@ export async function testEmptySectionsDoNotRender(t) {
     "main has nothing to protect and stays for everyone");
 }
 
-export async function testSectionsRenderInDefOrder(t) {
-  // The sidebar's running order comes from SECTION_DEFS via
-  // plantMissingSections' `rank` (platform/db/sections.ts), which re-derives
-  // every section's sortOrder from ALL_SECTION_KEYS — itself flattened from
-  // SECTION_DEFS in declaration order. visibleSections only FILTERS that
-  // list (sectionViewable per key); it never reorders it. So SECTION_DEFS's
-  // own order is the real thing to pin, and this is the one place a
-  // department was declared out of the order the blueprint puts it in.
-  const keys = SECTION_DEFS.map((d) => d.key);
-  t.equal(keys.indexOf("crm-sales") < keys.indexOf("projects"), true,
-    "CRM & Sales precedes Projects");
-  t.equal(keys.indexOf("administration") > keys.indexOf("finance"), true,
-    "Administration is late in the list");
+// testSectionsRenderInDefOrder is DELETED, on review (fix round 1). It
+// asserted two ordinals on SECTION_DEFS itself, never called sectionViewable
+// or anything nav-shaped, and passed unchanged against the pre-fix code —
+// it was guarding Task 2's declaration order, not anything Task 8 touches.
+// It also had an indexOf blind spot: `indexOf(x) < indexOf(y)` still passes
+// when `x` is missing entirely (`-1 < anything`), so a deleted "crm-sales"
+// would have passed it rather than failed it. SECTION_DEFS's order is
+// exercised for real by testEmptySectionsDoNotRender and by
+// testEveryKeyWithNothingToShowIsDeclared below (both walk ALL_SECTION_KEYS,
+// which is SECTION_DEFS flattened in declaration order) — a dedicated
+// order-only test would be redundant with those, so it is not replaced.
+
+export async function testEveryKeyWithNothingToShowIsDeclared(t) {
+  // THE OTHER DIRECTION of testEmptySectionsDoNotRender's proof. That test
+  // pins the FOUR keys sectionViewable must answer false for; this one pins
+  // that the list is COMPLETE — every key in ALL_SECTION_KEYS is accounted
+  // for, either because it has a permission behind it (directly or through a
+  // descendant) or because it is named in NO_SCREEN_YET (platform/access/
+  // resolve.ts). Without this, a ninth key added later with a real screen
+  // but no SECTION_AREAS entry would fail exactly the way tendering et al.
+  // used to — silently absent for everyone, permission or not — and nothing
+  // would say so. Now something does: this test, not a human noticing a
+  // missing nav row.
+  const hasOwnArea = (key) => Boolean(SECTION_AREAS[key]);
+  const hasAreaBearingDescendant = (key) => {
+    const children = ALL_SECTION_KEYS.filter((k) => k.startsWith(`${key}-`));
+    return children.some((c) => hasOwnArea(c) || hasAreaBearingDescendant(c));
+  };
+  for (const key of ALL_SECTION_KEYS) {
+    const accounted = key === "main" || hasOwnArea(key) || hasAreaBearingDescendant(key)
+      || NO_SCREEN_YET.includes(key);
+    t.equal(accounted, true,
+      `${key} either has a permission behind it (directly or via a descendant) or is declared in NO_SCREEN_YET`);
+  }
+}
+
+// ---- context-shaped literal-key check ---------------------------------------
+// A SHAPE-based check ("does this string look like a section key") cannot
+// tell "crm-crm-sales-tickets" from any other hyphenated identifier — it
+// begins with no real root key, so nothing about its shape says it was
+// SUPPOSED to be one. What actually caught all four Task 8 defects during
+// the sandbox walk was the CONTEXT each literal sat in: it was the value
+// being compared against `view`/`requested`/`screenKey`/`active?.key`, the
+// value inside a `nav?.[...]`/`manage?.[...]` lookup, or the segment right
+// after `${slug}/` in a path. This test asks the same five contexts the
+// walk found bugs in, mechanically, rather than relying on a human walking
+// every screen in two languages again next time.
+//
+// STRICTLY STRONGER than the two retired-key greps above: those are blind to
+// a key that was never RETIRED (SECTION_KEY_MAP has no entry for it) because
+// it was simply mistyped, doubled, or never renamed to begin with — exactly
+// "crm-crm-sales-tickets"'s shape, and exactly why that survived two rounds
+// of Task 5's sweep undetected.
+//
+// git grep -F, execFileSync argv arrays only — same Windows incident as
+// testNoRetiredSectionKeySurvivesInSource above: cmd.exe (execSync's default
+// shell) does not treat single quotes as quoting, so a shell-string pattern
+// arrives at git mangled, git exits non-zero, and a swallowed non-zero exit
+// is an EMPTY result read as a silent, universal pass. execFileSync hands
+// git its argv directly — there is no shell to re-quote anything.
+function gitGrepFiles(execFileSync, patterns, scopes) {
+  const args = ["grep", "-l", "-F"];
+  for (const p of patterns) args.push("-e", p);
+  args.push("--", ...scopes);
+  try {
+    return execFileSync("git", args, { encoding: "utf8" }).trim().split("\n").filter(Boolean);
+  } catch (e) {
+    if (e.status === 1) return []; // no match anywhere — the good outcome
+    throw e;
+  }
+}
+
+function gitGrepLines(execFileSync, file, patterns) {
+  const args = ["grep", "-n", "-F"];
+  for (const p of patterns) args.push("-e", p);
+  args.push("--", file);
+  let out;
+  try {
+    out = execFileSync("git", args, { encoding: "utf8" });
+  } catch (e) {
+    if (e.status === 1) return [];
+    throw e;
+  }
+  const prefix = `${file}:`;
+  const lines = [];
+  for (const raw of out.split("\n")) {
+    if (!raw.startsWith(prefix)) continue;
+    const rest = raw.slice(prefix.length);
+    const sep = rest.indexOf(":");
+    lines.push({ lineNo: rest.slice(0, sep), content: rest.slice(sep + 1) });
+  }
+  return lines;
+}
+
+// Keys the router sends somewhere ON PURPOSE that is NOT one of the fifteen
+// sections: People, Access and the manual are pre-restructure standalone
+// screens that never had a SECTION_DEFS entry (StudioFrame.js: "outside the
+// tree entirely"), and Engagements is deliberately kept off the section tree
+// so giving Main a child would not gate Main itself (catalogue.ts). None of
+// these four are section keys and none of them should ever become one — a
+// literal naming one of them is correct, not a survivor.
+const NON_SECTION_TARGETS = ["people", "access", "documentation", "engagements"];
+const isKnownRouteTarget = (key) => ALL_SECTION_KEYS.includes(key) || NON_SECTION_TARGETS.includes(key);
+
+export async function testEveryContextualSectionKeyLiteralExists(t) {
+  const { execFileSync } = await import("node:child_process");
+  const bad = [];
+
+  // Shape 1 — `href: "<key>"` or `href: "<key>/<rest>"`, a bare quoted
+  // string (mainly notification producers across src/modules and src/app/api
+  // — this is what caught inventory.ts's `href: "inventory-orders"`, a
+  // notification deep-link to a section key that never existed). Only the
+  // LEADING segment before the first "/" ever names a section (Task 7's
+  // report makes the same point about stored notification hrefs).
+  for (const file of gitGrepFiles(execFileSync, ["href: \""], ["src"])) {
+    for (const { lineNo, content } of gitGrepLines(execFileSync, file, ["href: \""])) {
+      const m = content.match(/href:\s*"([^"]+)"/);
+      if (!m) continue;
+      const leading = m[1].split("/")[0];
+      if (!leading || isKnownRouteTarget(leading)) continue;
+      bad.push(`${file}:${lineNo}: href "${m[1]}" — "${leading}" is not a section key`);
+    }
+  }
+
+  // Shape 2 — `view|requested|screenKey|active?.key === "<key>"`. Scoped to
+  // the studio router and its screens: `view` is a generic local-state name
+  // everywhere else in the app (LandingPage.js, AccountHome.js,
+  // QuestionnaireList.js all compare an unrelated `view` against tab names
+  // like "overview"/"pricing"/"list") — outside this scope the same shape
+  // means something else entirely, and checking it against ALL_SECTION_KEYS
+  // there would be checking the wrong thing, not a stricter check.
+  const COMPARISON_SCOPE = ["src/app/studio", "src/components/studio2"];
+  const COMPARISON_PATTERNS = ["view === \"", "requested === \"", "screenKey === \"", "active?.key === \""];
+  for (const file of gitGrepFiles(execFileSync, COMPARISON_PATTERNS, COMPARISON_SCOPE)) {
+    for (const { lineNo, content } of gitGrepLines(execFileSync, file, COMPARISON_PATTERNS)) {
+      const re = /(?:view|requested|screenKey|active\?\.key)\s*===\s*"([^"]+)"/g;
+      let m;
+      while ((m = re.exec(content))) {
+        if (isKnownRouteTarget(m[1])) continue;
+        bad.push(`${file}:${lineNo}: ${m[0]} — "${m[1]}" is not a section key`);
+      }
+    }
+  }
+
+  // Shape 3 — `nav?.["<key>"]` / `manage?.["<key>"]`. Both maps are keyed
+  // 1:1 by real section keys (sectionNav/manageMap in lib/studios.ts), so
+  // scoped to studio2 where they are actually built and read.
+  const BRACKET_PATTERNS = ["nav?.[\"", "manage?.[\""];
+  for (const file of gitGrepFiles(execFileSync, BRACKET_PATTERNS, ["src/components/studio2"])) {
+    for (const { lineNo, content } of gitGrepLines(execFileSync, file, BRACKET_PATTERNS)) {
+      const re = /(?:nav|manage)\?\.\[\s*"([^"]+)"\s*\]/g;
+      let m;
+      while ((m = re.exec(content))) {
+        if (isKnownRouteTarget(m[1])) continue;
+        bad.push(`${file}:${lineNo}: ${m[0]} — "${m[1]}" is not a section key`);
+      }
+    }
+  }
+
+  // Shape 4 — `` `/${slug}/<key>` `` or `` `/${studio.slug}/<key>` ``, a
+  // path built as a template literal (this is what caught StudioSalesLive.js's
+  // dead "sales" back-link and StudioTechnicalLive.js's dead "technical"
+  // one — both retired department names, neither ever a `href: "..."` bare
+  // string so shape 1 could not have seen them). `/api/studios/...` calls
+  // are the SAME shape and are not section routes at all — excluded by
+  // skipping any line that names that path outright, not by scoping files,
+  // since the same file (and often the same component) also builds real
+  // page hrefs a line or two away.
+  const TEMPLATE_PATTERNS = ["${slug}/", "${studio.slug}/"];
+  for (const file of gitGrepFiles(execFileSync, TEMPLATE_PATTERNS, ["src"])) {
+    for (const { lineNo, content } of gitGrepLines(execFileSync, file, TEMPLATE_PATTERNS)) {
+      if (content.includes("/api/studios")) continue;
+      const re = /\$\{(?:studio\.)?slug\}\/([a-zA-Z0-9-]+)/g;
+      let m;
+      while ((m = re.exec(content))) {
+        if (isKnownRouteTarget(m[1])) continue;
+        bad.push(`${file}:${lineNo}: ${m[0]} — "${m[1]}" is not a section key`);
+      }
+    }
+  }
+
+  t.equal(bad.length, 0, `every contextual section-key literal names a real key or a known non-section route\n${bad.join("\n")}`);
 }
 
 // ---- harness ----------------------------------------------------------------
@@ -663,7 +832,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEscalationAndEffectivePermissionsAgreeOnTheSameStoredKey,
       testEverySectionHasAnArabicName,
       testEmptySectionsDoNotRender,
-      testSectionsRenderInDefOrder,
+      testEveryKeyWithNothingToShowIsDeclared,
+      testEveryContextualSectionKeyLiteralExists,
     ];
     let totalFails = 0;
     for (const test of tests) {
