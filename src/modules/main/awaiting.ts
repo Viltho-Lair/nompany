@@ -83,12 +83,16 @@ export async function awaitingQueue(ctx: MainContext): Promise<QueueItem[]> {
   }
 
   // Quotations awaiting the viewer's action (Draft/Sent handled by Technical).
-  const quotesSection = ctx.seen("technical-quotations", "technical");
+  // Fallback is crm-sales, not engineering-docs — quotations moved WITH the
+  // section (restructure.ts's SECTION_KEY_MAP: technical-quotations ->
+  // crm-sales-quotations), so an unprovisioned sub-section falls back to its
+  // real parent, CRM & Sales, not the RFQ's home.
+  const quotesSection = ctx.seen("crm-sales-quotations", "crm-sales");
   if (quotesSection) {
     const quotations = await repo<QuotationRow>("quotations").find({ studio: ctx.studio, section: quotesSection });
     for (const q of quotations) {
       if (q.status === "Draft" || q.status === "Sent") {
-        out.push({ kind: "quotation", section: "technical-quotations", id: String(q.id), label: String(q.number || q.id), at: String(q.createdAt || "") });
+        out.push({ kind: "quotation", section: "crm-sales-quotations", id: String(q.id), label: String(q.number || q.id), at: String(q.createdAt || "") });
       }
     }
   }

@@ -61,8 +61,8 @@ const clock = (v: unknown) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v ?? "").
 const today = () => new Date().toISOString().slice(0, 10);
 
 export const operationsContext = moduleContext<OperationsContext>({
-  root: "operations",
-  sub: { tracking: "operations-tracking", settings: "operations-settings" },
+  root: "field-service",
+  sub: { tracking: "field-service-tracking", settings: "field-service-settings" },
   // HR, because a shift must not be scheduled over leave HR has approved, and
   // Projects because a shift is worked against one.
   foreign: { hr: "hr", projectsList: ["projects-list", "projects"] },
@@ -79,7 +79,7 @@ export const operationsContext = moduleContext<OperationsContext>({
 // the people it was granted to. Its section carries the new-plan presets on its
 // own `settings`, so extend surfaces them the way operationsContext does its own.
 export const plannerContext = moduleContext<PlannerContext>({
-  root: "operations-planner",
+  root: "projects-planner",
   extend: ({ section }) => ({
     presets: (section as { settings?: Record<string, unknown> })?.settings || {},
   }),
@@ -93,9 +93,9 @@ export const plannerContext = moduleContext<PlannerContext>({
 // writes live under the operations ROOT section, surfaced here as the foreign
 // `operationsMainSection`, and the leave check needs HR.
 export const scheduleContext = moduleContext<ScheduleContext>({
-  root: "operations-schedule",
+  root: "field-service-schedule",
   foreign: {
-    operationsMain: "operations", settings: "operations-settings",
+    operationsMain: "field-service", settings: "field-service-settings",
     hr: "hr", projectsList: ["projects-list", "projects"],
   },
 });
@@ -144,7 +144,7 @@ export async function scheduleView(ctx: ScheduleContext) {
   // do — may this caller manage the operations root — rather than the schedule
   // grant that gates the rota. `ctx.canManage` is the schedule answer; this is the
   // places answer, and the two can differ.
-  const canManagePlaces = sectionManageable(ctx.access, "operations", ctx.sections.map((s) => s.key));
+  const canManagePlaces = sectionManageable(ctx.access, "field-service", ctx.sections.map((s) => s.key));
   return {
     canManage: ctx.canManage,
     canManagePlaces,
@@ -164,7 +164,7 @@ export async function scheduleView(ctx: ScheduleContext) {
 // Patch semantics: only the keys present in the body are touched.
 export async function saveOperationsSettings(ctx: OperationsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.settings.edit");
+  const denied = requirePermission(ctx.access, "fieldService.settings.edit");
   if (denied) return denied;
 
   const { studio, settingsSection } = ctx;
@@ -280,7 +280,7 @@ export async function listLocations({ studio, section }: Pick<OperationsContext,
 
 export async function createLocation(ctx: OperationsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.tracking.create");
+  const denied = requirePermission(ctx.access, "fieldService.tracking.create");
   if (denied) return denied;
 
   const { studio, section } = ctx;
@@ -304,7 +304,7 @@ export async function createLocation(ctx: OperationsContext, body: Record<string
 
 export async function editLocation(ctx: OperationsContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.tracking.edit");
+  const denied = requirePermission(ctx.access, "fieldService.tracking.edit");
   if (denied) return denied;
 
   const { studio, section } = ctx;
@@ -329,7 +329,7 @@ export async function editLocation(ctx: OperationsContext, id: string, body: Rec
 // rota and a stack of paperwork referring to a place that no longer exists.
 export async function removeLocation(ctx: OperationsContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.tracking.delete");
+  const denied = requirePermission(ctx.access, "fieldService.tracking.delete");
   if (denied) return denied;
 
   const { studio, section } = ctx;
@@ -384,7 +384,7 @@ export async function listPermits({ studio, section }: Pick<OperationsContext, "
 
 export async function createPermit(ctx: OperationsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.tracking.create");
+  const denied = requirePermission(ctx.access, "fieldService.tracking.create");
   if (denied) return denied;
 
   const { studio, section, collaborator } = ctx;
@@ -427,7 +427,7 @@ export async function createPermit(ctx: OperationsContext, body: Record<string, 
 
 export async function editPermit(ctx: OperationsContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.tracking.edit");
+  const denied = requirePermission(ctx.access, "fieldService.tracking.edit");
   if (denied) return denied;
 
   const { studio, section } = ctx;
@@ -466,7 +466,7 @@ export async function editPermit(ctx: OperationsContext, id: string, body: Recor
 
 export async function removePermit(ctx: OperationsContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.tracking.delete");
+  const denied = requirePermission(ctx.access, "fieldService.tracking.delete");
   if (denied) return denied;
 
   const removed = await Permits.remove({ studio: ctx.studio, section: ctx.section }, id);
@@ -514,7 +514,7 @@ export async function listShifts(
 
 export async function createShift(ctx: ScheduleContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.schedule.create");
+  const denied = requirePermission(ctx.access, "fieldService.schedule.create");
   if (denied) return denied;
 
   // The rota lives under the operations ROOT section, not the schedule section.
@@ -560,7 +560,7 @@ export async function createShift(ctx: ScheduleContext, body: Record<string, unk
 
 export async function editShift(ctx: ScheduleContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.schedule.edit");
+  const denied = requirePermission(ctx.access, "fieldService.schedule.edit");
   if (denied) return denied;
 
   const { studio, operationsMainSection: section } = ctx;
@@ -595,7 +595,7 @@ export async function editShift(ctx: ScheduleContext, id: string, body: Record<s
 
 export async function removeShift(ctx: ScheduleContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "operations.schedule.delete");
+  const denied = requirePermission(ctx.access, "fieldService.schedule.delete");
   if (denied) return denied;
 
   const removed = await Shifts.remove({ studio: ctx.studio, section: ctx.operationsMainSection }, id);

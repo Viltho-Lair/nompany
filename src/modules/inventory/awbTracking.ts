@@ -43,7 +43,7 @@ export async function listAirlines({ studio, awbSection }: Pick<InventoryContext
 
 export async function createAirline(ctx: InventoryContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "inventory.awb.create");
+  const denied = requirePermission(ctx.access, "logistics.shipments.create");
   if (denied) return denied;
 
   const { studio, awbSection } = ctx;
@@ -69,7 +69,7 @@ export async function createAirline(ctx: InventoryContext, body: Record<string, 
 
 export async function editAirline(ctx: InventoryContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "inventory.awb.edit");
+  const denied = requirePermission(ctx.access, "logistics.shipments.edit");
   if (denied) return denied;
 
   const { studio, awbSection } = ctx;
@@ -93,7 +93,7 @@ export async function editAirline(ctx: InventoryContext, id: string, body: Recor
 // otherwise those shipments lose the name of whoever is carrying them.
 export async function removeAirline(ctx: InventoryContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "inventory.awb.delete");
+  const denied = requirePermission(ctx.access, "logistics.shipments.delete");
   if (denied) return denied;
 
   const { studio, awbSection } = ctx;
@@ -152,7 +152,7 @@ export async function trackShipment(ctx: InventoryContext, body: Record<string, 
   // Guarded before anything is read or written — see platform/access/resolve.ts. Every other
   // write in this file asked for its right and this one did not, which made the
   // route's section-level check the only thing standing in front of it.
-  const denied = requirePermission(ctx.access, "inventory.awb.create");
+  const denied = requirePermission(ctx.access, "logistics.shipments.create");
   if (denied) return denied;
 
   const { studio, awbSection, collaborator } = ctx;
@@ -186,7 +186,7 @@ export async function trackShipment(ctx: InventoryContext, body: Record<string, 
 
 export async function updateShipment(ctx: InventoryContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "inventory.awb.edit");
+  const denied = requirePermission(ctx.access, "logistics.shipments.edit");
   if (denied) return denied;
 
   const { studio, awbSection, collaborator } = ctx;
@@ -229,7 +229,7 @@ export async function updateShipment(ctx: InventoryContext, id: string, body: Re
 
 export async function removeShipment(ctx: InventoryContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "inventory.awb.delete");
+  const denied = requirePermission(ctx.access, "logistics.shipments.delete");
   if (denied) return denied;
 
   // Engagement state first, the row second — the recoverable direction, and the

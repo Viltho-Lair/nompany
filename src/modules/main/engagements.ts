@@ -29,7 +29,7 @@ const PAGE = 25;
 // resolves it live in composeTicket rather than keeping the ticket's own
 // clientName.
 async function clientNameById(studioId: string): Promise<Record<string, string>> {
-  const section = await getSectionByKey(studioId, "sales-clients");
+  const section = await getSectionByKey(studioId, "crm-sales-clients");
   if (!section) return {};
   const clients = await repo("salesClients").find(
     { studio: { id: studioId }, section },

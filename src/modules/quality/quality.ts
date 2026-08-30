@@ -79,7 +79,7 @@ const money = (v: unknown) => {
 // ---- context ---------------------------------------------------------------
 
 export const qualityContext = moduleContext<QualityContext>({
-  root: "quality-documents",
+  root: "engineering-docs-register",
   // Departments are the studio's own top-level sections, so this list is
   // whatever the studio is actually divided into today.
   extend: ({ sections }) => ({ departments: departmentsFromSections(sections) }),
@@ -334,7 +334,7 @@ export async function subjectOptions(ctx: QualityContext, subjectType: unknown) 
 // its Company and Document fields perfectly well; binding is what makes a
 // DEPARTMENT'S fields reachable, and it is the mechanism templates are built on.
 export async function bindSubject(ctx: QualityContext, documentId: string, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  const denied = requirePermission(ctx.access, "engineeringDocs.register.edit");
   if (denied) return denied;
 
   const subjectType = str(body?.subjectType, 40);

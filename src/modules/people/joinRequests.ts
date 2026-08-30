@@ -57,7 +57,7 @@ export async function createJoinRequest({ studioId, userId }: { studioId?: strin
     // approve it is a notification that wastes the only person who saw it.
     const [people, roles] = await Promise.all([listCollaborators(studioId), listRoles(studioId)]);
     const admins = people.filter((c) =>
-      can(effectivePermissions({ collaborator: c, roles }), "people.members.edit"));
+      can(effectivePermissions({ collaborator: c, roles }), "administration.members.edit"));
     const userIdOf = new Map(admins.map((c) => [String(c.id), String(c.userId)]));
     await notifyCollaborators(
       studioId,

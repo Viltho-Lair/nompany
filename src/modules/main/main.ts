@@ -122,9 +122,9 @@ export async function headlines(ctx: MainContext) {
   const today = new Date().toISOString().slice(0, 10);
 
   const [tickets, quotations, rfqs, projects, items, movements, tasks, invoices, permits, people] = await Promise.all([
-    readIfVisible(ctx, "sales-tickets", "sales", "salesTickets"),
-    readIfVisible(ctx, "technical-quotations", "technical", "quotations"),
-    readIfVisible(ctx, "technical-rfq", "technical", "rfqs"),
+    readIfVisible(ctx, "crm-sales-tickets", "crm-sales", "salesTickets"),
+    readIfVisible(ctx, "crm-sales-quotations", "crm-sales", "quotations"),
+    readIfVisible(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs"),
     readIfVisible(ctx, "projects-list", "projects", "projects"),
     readIfVisible(ctx, "inventory-items", "inventory", "inventoryItems"),
     // ON-HAND LIVES IN THE LEDGER, not on the item. "Below reorder level" is a
@@ -134,7 +134,7 @@ export async function headlines(ctx: MainContext) {
     readIfVisible(ctx, "inventory-stock", "inventory", "inventoryStock"),
     readIfVisible<Task>(ctx, "tasks", null, "tasks"),
     readIfVisible(ctx, "finance-cash", "finance", "invoices"),
-    readIfVisible<Permit>(ctx, "operations", null, "permits"),
+    readIfVisible<Permit>(ctx, "field-service", null, "permits"),
     ctx.seen("hr-employees", "hr") ? listCollaborators(ctx.studio.id) : null,
   ]);
 
@@ -187,8 +187,8 @@ export async function headlines(ctx: MainContext) {
 // see — so the front door answers "what happened while I was away".
 export async function recent(ctx: MainContext, limit = 8) {
   const [tickets, quotations, projects, tasks] = await Promise.all([
-    readIfVisible(ctx, "sales-tickets", "sales", "salesTickets"),
-    readIfVisible(ctx, "technical-quotations", "technical", "quotations"),
+    readIfVisible(ctx, "crm-sales-tickets", "crm-sales", "salesTickets"),
+    readIfVisible(ctx, "crm-sales-quotations", "crm-sales", "quotations"),
     readIfVisible(ctx, "projects-list", "projects", "projects"),
     readIfVisible(ctx, "tasks", null, "tasks"),
   ]);
@@ -200,8 +200,8 @@ export async function recent(ctx: MainContext, limit = 8) {
   const ticketTitle = new Map((tickets || []).map((t) => [t.id, t.title]));
 
   const feed = [
-    ...(tickets || []).map((t) => ({ kind: "ticket", section: "sales", id: t.id, label: t.title, meta: t.clientName || "", at: t.updatedAt || t.createdAt })),
-    ...(quotations || []).map((q) => ({ kind: "quotation", section: "technical", id: q.id, label: q.number, meta: ticketTitle.get(q.ticketId) || q.title || "", at: q.createdAt })),
+    ...(tickets || []).map((t) => ({ kind: "ticket", section: "crm-sales", id: t.id, label: t.title, meta: t.clientName || "", at: t.updatedAt || t.createdAt })),
+    ...(quotations || []).map((q) => ({ kind: "quotation", section: "crm-sales", id: q.id, label: q.number, meta: ticketTitle.get(q.ticketId) || q.title || "", at: q.createdAt })),
     ...(projects || []).map((p) => ({ kind: "project", section: "projects", id: p.id, label: p.title, meta: p.number || "", at: p.createdAt })),
     ...(tasks || []).map((t) => ({ kind: "task", section: "tasks", id: t.id, label: t.title, meta: t.type || "", at: t.createdAt })),
   ];

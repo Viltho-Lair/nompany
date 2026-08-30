@@ -192,7 +192,7 @@ async function mintCode(
 }
 
 export async function createDoc(ctx: QualityContext, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "quality.documents.create");
+  const denied = requirePermission(ctx.access, "engineeringDocs.register.create");
   if (denied) return denied;
 
   const title = str(body?.title, MAX_TITLE) || "Untitled document";
@@ -223,7 +223,7 @@ export async function createDoc(ctx: QualityContext, body: Record<string, unknow
 }
 
 export async function renameDoc(ctx: QualityContext, id: string, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  const denied = requirePermission(ctx.access, "engineeringDocs.register.edit");
   if (denied) return denied;
   const title = str(body?.title, MAX_TITLE) || "Untitled document";
   const row = await Docs.update(ctx, id, {
@@ -237,7 +237,7 @@ export async function renameDoc(ctx: QualityContext, id: string, body: Record<st
  * returns without reading anything it does not need.
  */
 export async function saveContent(ctx: QualityContext, id: string, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  const denied = requirePermission(ctx.access, "engineeringDocs.register.edit");
   if (denied) return denied;
 
   const frozen = await editable(ctx, id);
@@ -262,7 +262,7 @@ export async function saveContent(ctx: QualityContext, id: string, body: Record<
 }
 
 export async function savePageSetup(ctx: QualityContext, id: string, body: Record<string, unknown>) {
-  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  const denied = requirePermission(ctx.access, "engineeringDocs.register.edit");
   if (denied) return denied;
 
   const frozen = await editable(ctx, id);
@@ -278,7 +278,7 @@ export async function savePageSetup(ctx: QualityContext, id: string, body: Recor
 }
 
 export async function removeDoc(ctx: QualityContext, id: string) {
-  const denied = requirePermission(ctx.access, "quality.documents.delete");
+  const denied = requirePermission(ctx.access, "engineeringDocs.register.delete");
   if (denied) return denied;
 
   const revisions = await Revisions.find(ctx);

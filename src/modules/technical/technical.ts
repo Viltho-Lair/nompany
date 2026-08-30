@@ -65,9 +65,9 @@ const num = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Numb
 // Resolve both sections at once: Technical (where the data lives) and Sales
 // (where tickets come from), plus this person's rights on each.
 export const technicalContext = moduleContext<TechnicalContext>({
-  root: "technical",
+  root: "engineering-docs",
   sub: {
-    quotations: "technical-quotations", rfq: "technical-rfq", settings: "technical-settings",
+    quotations: "crm-sales-quotations", rfq: "engineering-docs-rfq", settings: "engineering-docs-settings",
   },
   // Sales, because a quotation answers a Sales ticket; Inventory items because a
   // quotation line can name one; Tasks because sending one for approval raises
@@ -82,9 +82,9 @@ export const technicalContext = moduleContext<TechnicalContext>({
   // note on sendQuotationForApproval for where it moved and why that costs
   // nothing (ctx.sections already holds the section it looks up).
   foreign: {
-    sales: "sales",
-    salesTickets: ["sales-tickets", "sales"],
-    salesClients: ["sales-clients", "sales"],
+    sales: "crm-sales",
+    salesTickets: ["crm-sales-tickets", "crm-sales"],
+    salesClients: ["crm-sales-clients", "crm-sales"],
     inventoryItems: ["inventory-items", "inventory"],
     tasks: "tasks",
   },
@@ -117,7 +117,7 @@ export function readTechnicalSettings(settingsSection: { settings?: Record<strin
 
 export async function saveTechnicalSettings(ctx: TechnicalContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "technical.settings.edit");
+  const denied = requirePermission(ctx.access, "engineeringDocs.settings.edit");
   if (denied) return denied;
 
   const { studio, settingsSection } = ctx;
@@ -261,8 +261,8 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   // role the button is shown to, which is the whole point of that button.
   // Either door, canManageSales below still has to hold.
   const denied = ctx.viaSales
-    ? requirePermission(ctx.access, "sales.tickets.edit")
-    : requirePermission(ctx.access, "technical.rfq.create");
+    ? requirePermission(ctx.access, "crmSales.tickets.edit")
+    : requirePermission(ctx.access, "engineeringDocs.rfq.create");
   if (denied) return denied;
 
   const { studio, rfqSection, quotationsSection, salesSection, salesTicketsSection, collaborator, canManageSales } = ctx;
@@ -376,7 +376,7 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   try {
     const [people, roles] = await Promise.all([listCollaborators(studio.id), listRoles(studio.id)]);
     const handlers = people.filter((c) => c.id !== collaborator.id
-      && can(effectivePermissions({ collaborator: c, roles }), "technical.quotations.create"));
+      && can(effectivePermissions({ collaborator: c, roles }), "crmSales.quotations.create"));
     if (handlers.length) {
       const userIdOf = new Map(handlers.map((c) => [String(c.id), String(c.userId)]));
       await notifyCollaborators(
@@ -386,7 +386,7 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
           type: NOTIFY.rfqRaised,
           title: "An RFQ is waiting to be quoted",
           body: String(rfq.reference || ""),
-          href: "technical-rfq",
+          href: "engineering-docs-rfq",
           tone: "primary",
         },
         { userIdOf: (id) => userIdOf.get(id) },
@@ -399,7 +399,7 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
 
 export async function updateRfq(ctx: TechnicalContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "technical.rfq.edit");
+  const denied = requirePermission(ctx.access, "engineeringDocs.rfq.edit");
   if (denied) return denied;
 
   const { studio, rfqSection, salesTicketsSection } = ctx;
@@ -649,7 +649,7 @@ export async function listQuotations(ctx: TechnicalContext) {
 // with the source ticket.
 export async function createQuotation(ctx: TechnicalContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "technical.quotations.create");
+  const denied = requirePermission(ctx.access, "crmSales.quotations.create");
   if (denied) return denied;
 
   const { studio, quotationsSection, salesClientsSection, collaborator } = ctx;
@@ -772,7 +772,7 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
 
 export async function convertRfq(ctx: TechnicalContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "technical.rfq.convert");
+  const denied = requirePermission(ctx.access, "engineeringDocs.rfq.convert");
   if (denied) return denied;
 
   const { studio, rfqSection, quotationsSection, settingsSection, collaborator } = ctx;
@@ -862,7 +862,7 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
 
 export async function updateQuotation(ctx: TechnicalContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "technical.quotations.edit");
+  const denied = requirePermission(ctx.access, "crmSales.quotations.edit");
   if (denied) return denied;
 
   const { studio, quotationsSection, collaborator } = ctx;
@@ -885,7 +885,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   if (current.locked) {
     const asks = Object.keys(body || {}).filter((k) => k !== "id");
     if (body?.locked !== false || asks.length !== 1) return { error: "locked" };
-    const noUnlock = requirePermission(ctx.access, "technical.quotations.unlock");
+    const noUnlock = requirePermission(ctx.access, "crmSales.quotations.unlock");
     if (noUnlock) return noUnlock;
     const reopened = await Quotations.update({ studio, section: quotationsSection }, id, {
       locked: false,
@@ -899,7 +899,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   // unchangeable, which is a different act from editing one, and the catalogue
   // declared it separately so it could be withheld from people who may edit.
   if (body?.locked === true) {
-    const noLock = requirePermission(ctx.access, "technical.quotations.lock");
+    const noLock = requirePermission(ctx.access, "crmSales.quotations.lock");
     if (noLock) return noLock;
   }
 
@@ -983,7 +983,7 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
 
 export async function removeQuotation(ctx: TechnicalContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "technical.quotations.delete");
+  const denied = requirePermission(ctx.access, "crmSales.quotations.delete");
   if (denied) return denied;
 
   const scope = { studio: ctx.studio, section: ctx.quotationsSection };
@@ -1025,7 +1025,7 @@ export async function removeQuotation(ctx: TechnicalContext, id: string) {
 // THAT decision belongs to the ticket it is sending up.
 export async function sendQuotationForApproval(ctx: TechnicalContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN.
-  const denied = requirePermission(ctx.access, "technical.quotations.edit");
+  const denied = requirePermission(ctx.access, "crmSales.quotations.edit");
   if (denied) return denied;
 
   const { studio, sections, quotationsSection, tasksSection, salesClientsSection, collaborator } = ctx;

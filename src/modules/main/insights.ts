@@ -133,7 +133,7 @@ export function quotationInsights(quotations: QuotationRow[], todayISO: string):
   const out: Insight[] = [];
   const empty = quotations.filter((q) => q.status === "Draft" && !(Array.isArray(q.items) && q.items.length));
   if (empty.length) {
-    out.push(make("quotation.noItems", "warn", "technical-quotations", "technical-quotations",
+    out.push(make("quotation.noItems", "warn", "crm-sales-quotations", "crm-sales-quotations",
       String(empty[0].id || ""), { number: String(empty[0].number || ""), more: more(empty) }, 30));
   }
 
@@ -143,7 +143,7 @@ export function quotationInsights(quotations: QuotationRow[], todayISO: string):
       x.q.status === "Sent" && x.days !== null && x.days >= QUOTATION_STALE_DAYS)
     .sort((a, b) => b.days - a.days);
   if (stale.length) {
-    out.push(make("quotation.stale", "warn", "technical-quotations", "technical-quotations",
+    out.push(make("quotation.stale", "warn", "crm-sales-quotations", "crm-sales-quotations",
       String(stale[0].q.id || ""),
       { number: String(stale[0].q.number || ""), days: stale[0].days, more: more(stale) }));
   }
@@ -166,7 +166,7 @@ export function rfqInsights(rfqs: RfqRow[], todayISO: string): Insight[] {
       && x.days !== null && x.days >= RFQ_UNQUOTED_DAYS)
     .sort((a, b) => b.days - a.days);
   if (!open.length) return [];
-  return [make("rfq.unquoted", "warn", "technical-rfq", "technical-rfq", String(open[0].r.id || ""),
+  return [make("rfq.unquoted", "warn", "engineering-docs-rfq", "engineering-docs-rfq", String(open[0].r.id || ""),
     { reference: String(open[0].r.reference || ""), days: open[0].days, more: more(open) })];
 }
 
@@ -191,7 +191,7 @@ export function ticketInsights(tickets: TicketRow[], rfqs: RfqRow[] | null, toda
     const covered = new Set(rfqs.map((r) => String(r.ticketId || "")));
     const bare = open.filter((t) => !covered.has(String(t.id || "")));
     if (bare.length) {
-      out.push(make("ticket.noRfq", "info", "sales-tickets", "sales-tickets", String(bare[0].id || ""),
+      out.push(make("ticket.noRfq", "info", "crm-sales-tickets", "crm-sales-tickets", String(bare[0].id || ""),
         { reference: String(bare[0].ref || ""), client: String(bare[0].clientName || ""), more: more(bare) }, 20));
     }
   }
@@ -203,7 +203,7 @@ export function ticketInsights(tickets: TicketRow[], rfqs: RfqRow[] | null, toda
     .sort((a, b) => a.days - b.days);
   if (near.length) {
     const top = near[0];
-    out.push(make("ticket.deadline", top.days < 0 ? "urgent" : "warn", "sales-tickets", "sales-tickets",
+    out.push(make("ticket.deadline", top.days < 0 ? "urgent" : "warn", "crm-sales-tickets", "crm-sales-tickets",
       String(top.t.id || ""), { reference: String(top.t.ref || ""), days: top.days, more: more(near) }));
   }
   return out;
@@ -345,7 +345,7 @@ export function permitInsights(permits: Permit[], todayISO: string): Insight[] {
 
   const expired = permits.filter((p) => permitState(p, todayISO) === "Expired");
   if (expired.length) {
-    out.push(make("permit.expired", "urgent", "operations", "operations", String(expired[0].id || ""),
+    out.push(make("permit.expired", "urgent", "field-service", "field-service", String(expired[0].id || ""),
       { reference: label(expired[0]), more: more(expired) }, 20));
   }
   const expiring = permits
@@ -353,7 +353,7 @@ export function permitInsights(permits: Permit[], todayISO: string): Insight[] {
     .sort((a, b) => String(a.validTo || "").localeCompare(String(b.validTo || "")));
   if (expiring.length) {
     const days = daysUntil(expiring[0].validTo, todayISO) ?? 0;
-    out.push(make("permit.expiring", "warn", "operations", "operations", String(expiring[0].id || ""),
+    out.push(make("permit.expiring", "warn", "field-service", "field-service", String(expiring[0].id || ""),
       { reference: label(expiring[0]), days, more: more(expiring) }));
   }
   return out;
@@ -413,9 +413,9 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
   const [tasks, quotations, rfqs, tickets, projects, items, movements,
     invoices, bills, permits, vacations, people, notifications] = await Promise.all([
     readIfVisible<TaskRow>(ctx, "tasks", null, "tasks"),
-    readIfVisible<QuotationRow>(ctx, "technical-quotations", "technical", "quotations"),
-    readIfVisible<RfqRow>(ctx, "technical-rfq", "technical", "rfqs"),
-    readIfVisible<TicketRow>(ctx, "sales-tickets", "sales", "salesTickets"),
+    readIfVisible<QuotationRow>(ctx, "crm-sales-quotations", "crm-sales", "quotations"),
+    readIfVisible<RfqRow>(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs"),
+    readIfVisible<TicketRow>(ctx, "crm-sales-tickets", "crm-sales", "salesTickets"),
     readIfVisible<ProjectRow>(ctx, "projects-list", "projects", "projects"),
     readIfVisible<ItemRow>(ctx, "inventory-items", "inventory", "inventoryItems"),
     // ON-HAND LIVES IN THE LEDGER, so somebody who may see the catalogue but not
@@ -424,7 +424,7 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
     readIfVisible<Row>(ctx, "inventory-stock", "inventory", "inventoryStock"),
     readIfAllowed<InvoiceRow>(ctx, "finance-cash", "finance", "invoices", "finance.cash.view"),
     readIfAllowed<BillRow>(ctx, "finance-payables", "finance", "bills", "finance.payables.view"),
-    readIfAllowed<Permit>(ctx, "operations", null, "permits", "operations.tracking.view"),
+    readIfAllowed<Permit>(ctx, "field-service", null, "permits", "fieldService.tracking.view"),
     // LEAVE IS OFFERED ONLY TO SOMEBODY WHO MAY DECIDE IT. `listVacations`
     // narrows by scope (mine / my department / all) and this reads the raw
     // collection, so the APPROVE right — not the view right — is what gates it:

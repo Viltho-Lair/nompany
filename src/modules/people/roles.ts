@@ -92,16 +92,16 @@ export const STARTER_ROLES = [
       // THE DASHBOARDS. A module's summary is now its own right, so it has to be
       // granted rather than arriving with any child. A manager runs a
       // department, so seeing the department whole is the job.
-      ...level("sales.dashboard", "view"), ...level("technical.dashboard", "view"),
+      ...level("crmSales.dashboard", "view"), ...level("engineeringDocs.dashboard", "view"),
       ...level("projects.dashboard", "view"), ...level("inventory.dashboard", "view"),
       ...level("hr.dashboard", "view"), ...level("finance.dashboard", "view"),
-      ...level("sales.tickets", "full"), ...level("sales.clients", "full"), ...level("sales.live", "view"),
-      ...level("technical.rfq", "edit"), ...level("technical.quotations", "full"),
+      ...level("crmSales.tickets", "full"), ...level("crmSales.clients", "full"), ...level("crmSales.live", "view"),
+      ...level("engineeringDocs.rfq", "edit"), ...level("crmSales.quotations", "full"),
       ...level("projects.list", "full"), ...level("projects.sla", "edit"),
       ...level("inventory.stock", "view"), ...level("inventory.items", "view"),
-      ...level("operations.tracking", "edit"), ...level("tasks.board", "full"),
+      ...level("fieldService.tracking", "edit"), ...level("tasks.board", "full"),
       ...level("hr.employees", "view"), ...level("hr.vacations", "edit"),
-      "hr.vacations.approve", "technical.rfq.convert",
+      "hr.vacations.approve", "engineeringDocs.rfq.convert",
     ],
     scopes: { "hr.employees": "department", "hr.vacations": "department" },
   },
@@ -113,12 +113,12 @@ export const STARTER_ROLES = [
       // which is not the same as being shown what the department costs or who
       // is in it. Member and Viewer get no dashboard at all: the summary is the
       // thing a studio most often means to withhold, so it is not a default.
-      ...level("sales.dashboard", "view"), ...level("technical.dashboard", "view"),
+      ...level("crmSales.dashboard", "view"), ...level("engineeringDocs.dashboard", "view"),
       ...level("projects.dashboard", "view"),
-      ...level("sales.tickets", "edit"), ...level("sales.clients", "edit"),
-      ...level("technical.rfq", "edit"), ...level("technical.quotations", "edit"),
+      ...level("crmSales.tickets", "edit"), ...level("crmSales.clients", "edit"),
+      ...level("engineeringDocs.rfq", "edit"), ...level("crmSales.quotations", "edit"),
       ...level("projects.list", "edit"), ...level("tasks.board", "full"),
-      ...level("inventory.items", "view"), ...level("operations.tracking", "edit"),
+      ...level("inventory.items", "view"), ...level("fieldService.tracking", "edit"),
       ...level("hr.vacations", "view"),
     ],
     scopes: { "hr.vacations": "own" },
@@ -127,8 +127,8 @@ export const STARTER_ROLES = [
     id: "role_member", name: "Member",
     description: "Does the work: raises and edits records, deletes nothing.",
     permissions: [
-      ...level("sales.tickets", "edit"), ...level("sales.clients", "view"),
-      ...level("technical.quotations", "view"), ...level("projects.list", "view"),
+      ...level("crmSales.tickets", "edit"), ...level("crmSales.clients", "view"),
+      ...level("crmSales.quotations", "view"), ...level("projects.list", "view"),
       ...level("tasks.board", "edit"), ...level("inventory.items", "view"),
       ...level("hr.vacations", "edit"),
     ],
@@ -138,8 +138,8 @@ export const STARTER_ROLES = [
     id: "role_viewer", name: "Viewer",
     description: "Reads, changes nothing.",
     permissions: [
-      ...level("sales.tickets", "view"), ...level("sales.clients", "view"),
-      ...level("technical.quotations", "view"), ...level("projects.list", "view"),
+      ...level("crmSales.tickets", "view"), ...level("crmSales.clients", "view"),
+      ...level("crmSales.quotations", "view"), ...level("projects.list", "view"),
       ...level("inventory.items", "view"), ...level("tasks.board", "view"),
     ],
     scopes: {},

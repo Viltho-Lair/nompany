@@ -16,10 +16,13 @@ const to = (slug: string, section: string, params: Record<string, unknown>) => {
   return `/${slug}/${section}${query ? `?${query}` : ""}`;
 };
 
-export const linkToClient = (slug: string, id: string) => (id ? to(slug, "sales", { client: id }) : "");
-export const linkToTicket = (slug: string, id: string) => (id ? to(slug, "sales", { ticket: id }) : "");
-export const linkToRfq = (slug: string, id: string) => (id ? to(slug, "technical", { rfq: id }) : "");
-export const linkToQuotation = (slug: string, id: string) => (id ? to(slug, "technical", { quotation: id }) : "");
+export const linkToClient = (slug: string, id: string) => (id ? to(slug, "crm-sales", { client: id }) : "");
+export const linkToTicket = (slug: string, id: string) => (id ? to(slug, "crm-sales", { ticket: id }) : "");
+export const linkToRfq = (slug: string, id: string) => (id ? to(slug, "engineering-docs", { rfq: id }) : "");
+// crm-sales, not engineering-docs — quotations moved WITH the section
+// (restructure.ts's SECTION_KEY_MAP), even though the RFQ they are raised
+// from stays behind in Engineering & Documents.
+export const linkToQuotation = (slug: string, id: string) => (id ? to(slug, "crm-sales", { quotation: id }) : "");
 export const linkToProject = (slug: string, id: string) => (id ? to(slug, "projects", { project: id }) : "");
 
 // A link is only offered when the person can actually open that section —

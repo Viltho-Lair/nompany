@@ -75,7 +75,7 @@ export const hrContext = moduleContext<HrContext>({
   extend: ({ access }) => ({
     // Handing somebody a role is an ACCESS act, not an HR one, so it is gated on
     // the access permission wherever it is done from — including here.
-    canAssignRoles: !requirePermission(access, "people.members.edit"),
+    canAssignRoles: !requirePermission(access, "administration.members.edit"),
   }),
 });
 

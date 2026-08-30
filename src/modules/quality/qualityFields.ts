@@ -17,6 +17,13 @@
 // resolver works from, or the editor offers something the server then drops.
 
 import { NODES, pathBetween } from "@/platform/relations";
+// SHARED, NOT RE-DERIVED — a bare `sectionKey.split("-")[0]` was correct only
+// while every root was a single bare word. Four roots are hyphenated compounds
+// now ("crm-sales", "engineering-docs", "field-service", "quality-hse"), and a
+// department-of-a-key rule already exists and already knows this
+// (shared/studio/insights.ts) — a second, un-updated copy here is exactly how
+// this file would have drifted the moment the map above changed again.
+import { departmentOf } from "@/shared/studio/insights";
 
 // ---- subjects ---------------------------------------------------------------
 //
@@ -41,7 +48,7 @@ export const BINDABLE = Object.keys(NAMING);
 export const SUBJECTS = BINDABLE.map((id) => ({
   id,
   label: NODES[id].label,
-  department: NODES[id].sectionKey.split("-")[0],
+  department: departmentOf(NODES[id].sectionKey),
   sectionKey: NODES[id].sectionKey,
   collection: NODES[id].collection,
   permission: NODES[id].permission,
@@ -97,13 +104,13 @@ const SALES_TICKET = [
   ["sales.ticket.siteCountry", "Site country", "location.country"],
 ].map(([key, label, path]) => ({
   key, label, path, kind: "scalar",
-  group: "Sales", department: "sales", subject: "salesTicket",
+  group: "Sales", department: "crm-sales", subject: "salesTicket",
 } as MergeField));
 
 SALES_TICKET.push({
   key: "sales.ticket.owner", label: "Ticket owner", path: "assignedToCollaboratorId",
   via: "collaborator", kind: "scalar",
-  group: "Sales", department: "sales", subject: "salesTicket",
+  group: "Sales", department: "crm-sales", subject: "salesTicket",
 });
 
 // Available on every document, because they describe the studio and the
@@ -255,7 +262,7 @@ STATIC_FIELDS.push(
     ["quotation.completedAt", "Date completed", "completedAt"],
   ].map(([key, label, path]) => ({
     key, label, path, kind: "scalar",
-    group: "Technical", department: "technical", subject: "quotation",
+    group: "Sales", department: "crm-sales", subject: "quotation",
   })),
 );
 STATIC_FIELDS.push(
@@ -295,10 +302,10 @@ export const BLOCK_SOURCES = [
   {
     key: "quotation.lines",
     label: "Quotation tables",
-    group: "Technical",
-    department: "technical",
+    group: "Sales",
+    department: "crm-sales",
     subject: "quotation",
-    permission: "technical.quotations.view",
+    permission: "crmSales.quotations.view",
     // A QUOTATION IS DIVIDED INTO NAMED TABLES, each holding the items priced
     // under it — "under First floor is two pieces of work, which is what tables
     // are for", as quotations.js puts it. So this returns GROUPS, and the
@@ -318,10 +325,10 @@ export const BLOCK_SOURCES = [
   {
     key: "quotation.totals",
     label: "Quotation totals",
-    group: "Technical",
-    department: "technical",
+    group: "Sales",
+    department: "crm-sales",
     subject: "quotation",
-    permission: "technical.quotations.view",
+    permission: "crmSales.quotations.view",
     // Read off the quotation rather than recomputed. It stores subtotal, vat and
     // total already, and a second arithmetic here would be a second answer to a
     // question the document must not get two answers to.

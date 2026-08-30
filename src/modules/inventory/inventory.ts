@@ -157,13 +157,13 @@ function cleanSerials(list: unknown) {
 export const inventoryContext = moduleContext<InventoryContext>({
   root: "inventory",
   sub: {
-    stock: "inventory-stock", vendors: "inventory-vendors", items: "inventory-items",
-    sheets: "inventory-sheets", awb: "inventory-awb",
+    stock: "inventory-stock", vendors: "procurement-suppliers", items: "inventory-items",
+    sheets: "inventory-sheets", awb: "logistics-shipments",
   },
   foreign: {
     projects: "projects",
     projectsList: ["projects-list", "projects"],
-    quotations: ["technical-quotations", "technical"],
+    quotations: ["crm-sales-quotations", "crm-sales"],
     tasks: "tasks",
   },
   flags: ["stock", "vendors", "items", "sheets", "awb"],
@@ -181,7 +181,7 @@ export async function listVendors({ studio, vendorsSection }: Pick<InventoryCont
 
 export async function createVendor(ctx: InventoryContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "inventory.vendors.create");
+  const denied = requirePermission(ctx.access, "procurement.suppliers.create");
   if (denied) return denied;
 
   const { studio, vendorsSection } = ctx;
@@ -205,7 +205,7 @@ export async function createVendor(ctx: InventoryContext, body: Record<string, u
 
 export async function editVendor(ctx: InventoryContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "inventory.vendors.edit");
+  const denied = requirePermission(ctx.access, "procurement.suppliers.edit");
   if (denied) return denied;
 
   const { studio, vendorsSection } = ctx;
@@ -228,7 +228,7 @@ export async function editVendor(ctx: InventoryContext, id: string, body: Record
 
 export async function removeVendor(ctx: InventoryContext, id: string) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "inventory.vendors.delete");
+  const denied = requirePermission(ctx.access, "procurement.suppliers.delete");
   if (denied) return denied;
 
   const { studio, vendorsSection, sheetsSection, itemsSection } = ctx;
@@ -265,7 +265,7 @@ export async function importVendors(ctx: InventoryContext, rows: unknown) {
   // A separate `inventory.vendors.import` key would be a right somebody could
   // hold without being able to add a vendor, which is a distinction with no
   // meaning — and one more key in a matrix that is asserted whole.
-  const denied = requirePermission(ctx.access, "inventory.vendors.create");
+  const denied = requirePermission(ctx.access, "procurement.suppliers.create");
   if (denied) return denied;
 
   const list = Array.isArray(rows) ? rows : [];

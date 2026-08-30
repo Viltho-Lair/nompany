@@ -143,7 +143,7 @@ export async function workflowFor(
  * of an abandoned one.
  */
 export async function startRevision(ctx: QualityContext, documentId: string) {
-  const denied = requirePermission(ctx.access, "quality.documents.edit");
+  const denied = requirePermission(ctx.access, "engineeringDocs.register.edit");
   if (denied) return denied;
 
   const [docs, revisions] = await Promise.all([
@@ -308,8 +308,8 @@ export async function moveRevision(
         // STUDIO-RELATIVE, per the contract on notifyCollaborators. This wrote
         // the slug in too, and the bell prefixes the slug it is on — so the one
         // notice telling somebody a revision needs them built
-        // /acme//acme/quality-documents/doc_1 and went nowhere.
-        href: `quality-documents/${documentId}`,
+        // /acme//acme/engineering-docs-register/doc_1 and went nowhere.
+        href: `engineering-docs-register/${documentId}`,
       }).catch(() => {});
     },
   }, action, body);

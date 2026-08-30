@@ -46,7 +46,7 @@ export const CALL_POINTS: CallPoint[] = [
     // The right to be standing there at all. Generating additionally needs
     // quality.documents.create and the subject's own right, both enforced in
     // generateDocument — this is only about reaching the button.
-    permission: "sales.tickets.view",
+    permission: "crmSales.tickets.view",
     // Only the latest quotation carries a Print button. Earlier revisions exist
     // so the reference for what was previously sent survives; printing one of
     // those would be issuing a document about a superseded offer.
@@ -102,9 +102,9 @@ export const HOMES: Record<string, Home | undefined> = {
   quotation: {
     needs: "salesTicket",
     href: (slug, record, ticket) =>
-      ticket ? `/${slug}/sales-tickets/${ticket.id}/quotations/${record.id}` : `/${slug}/quality-documents`,
+      ticket ? `/${slug}/crm-sales-tickets/${ticket.id}/quotations/${record.id}` : `/${slug}/engineering-docs-register`,
   },
-  salesTicket: { needs: null, href: (slug, record) => `/${slug}/sales-tickets/${record.id}` },
+  salesTicket: { needs: null, href: (slug, record) => `/${slug}/crm-sales-tickets/${record.id}` },
   project: { needs: null, href: (slug, record) => `/${slug}/projects-list/${record.id}` },
 };
 

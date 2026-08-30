@@ -55,7 +55,7 @@ const PRESET_FIELDS = ["zoom", "colorBy"] as const;
 const PRESETS_MAX_BYTES = 500_000;
 
 export async function readPlannerPresets(studioId: string): Promise<Record<string, unknown>> {
-  const section = await getSectionByKey(studioId, "operations-planner");
+  const section = await getSectionByKey(studioId, "projects-planner");
   return (section?.settings || {}) as Record<string, unknown>;
 }
 
@@ -66,7 +66,7 @@ export async function savePlannerPresets(studioId: string, presets: unknown) {
   const clean: Record<string, unknown> = {};
   for (const f of PRESET_FIELDS) if ((presets as Record<string, unknown>)[f] !== undefined) clean[f] = (presets as Record<string, unknown>)[f];
   if (JSON.stringify(clean).length > PRESETS_MAX_BYTES) return { error: "too-large" };
-  const section = await getSectionByKey(studioId, "operations-planner");
+  const section = await getSectionByKey(studioId, "projects-planner");
   if (!section) return { error: "no-section" };
   const updated = await updateSection(studioId, section.id, { settings: clean });
   return updated ? { ok: true, presets: clean } : { error: "notfound" };

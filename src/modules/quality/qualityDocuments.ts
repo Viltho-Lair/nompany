@@ -71,7 +71,7 @@ export function cleanCodePart(value: unknown, max = 4) {
 }
 
 // The default short code for a department, which IS a top-level section key
-// (see lib/departments.js). "human-resources" -> "HUM", "sales" -> "SAL".
+// (see lib/departments.js). "human-resources" -> "HUM", "crm-sales" -> "SAL".
 // Editable afterwards; this only decides what it starts as.
 export const defaultDeptCode = (sectionKey: unknown) =>
   cleanCodePart(String(sectionKey || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 3)) || "GEN";
@@ -189,12 +189,12 @@ export type Transition = {
 };
 
 export const TRANSITIONS: Record<string, Transition> = {
-  submit:   { from: ["draft", "rejected"], to: "review",    permission: "quality.documents.edit",     label: "Send for review" },
-  review:   { from: ["review"],            to: "approval",  permission: "quality.documents.review",   label: "Sign as reviewer" },
-  approve:  { from: ["approval"],          to: "approved",  permission: "quality.documents.approve",  label: "Sign as approver" },
-  publish:  { from: ["approved"],          to: "effective", permission: "quality.documents.publish",  label: "Issue this revision" },
-  reject:   { from: ["review", "approval"], to: "rejected", permission: "quality.documents.review",   label: "Send back" },
-  withdraw: { from: ["effective"],         to: "superseded", permission: "quality.documents.obsolete", label: "Withdraw the document" },
+  submit:   { from: ["draft", "rejected"], to: "review",    permission: "engineeringDocs.register.edit",     label: "Send for review" },
+  review:   { from: ["review"],            to: "approval",  permission: "engineeringDocs.register.review",   label: "Sign as reviewer" },
+  approve:  { from: ["approval"],          to: "approved",  permission: "engineeringDocs.register.approve",  label: "Sign as approver" },
+  publish:  { from: ["approved"],          to: "effective", permission: "engineeringDocs.register.publish",  label: "Issue this revision" },
+  reject:   { from: ["review", "approval"], to: "rejected", permission: "engineeringDocs.register.review",   label: "Send back" },
+  withdraw: { from: ["effective"],         to: "superseded", permission: "engineeringDocs.register.obsolete", label: "Withdraw the document" },
 };
 
 export const canMove = (action: string, state: string) =>

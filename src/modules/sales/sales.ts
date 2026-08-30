@@ -81,8 +81,8 @@ const now = () => new Date().toISOString();
 // Resolve studio + membership + the sales section + this person's rights on it.
 // Every route starts here, so permission is checked once, in one place.
 export const salesContext = moduleContext<SalesContext>({
-  root: "sales",
-  sub: { tickets: "sales-tickets", clients: "sales-clients", settings: "sales-settings" },
+  root: "crm-sales",
+  sub: { tickets: "crm-sales-tickets", clients: "crm-sales-clients", settings: "crm-sales-settings" },
   // TECHNICAL, TASKS AND PROJECTS, READ ON THE TICKET'S OWN TERMS. What became of
   // a ticket after Sales raised an RFQ, whether the approval came back, and
   // whether a project opened are all part of the ticket's own story — so the
@@ -96,9 +96,9 @@ export const salesContext = moduleContext<SalesContext>({
   // until it was declared nothing anywhere asked the question. A parent that
   // cannot say how its child is doing is a parent nobody can plan from.
   foreign: {
-    technical: "technical",
-    rfq: ["technical-rfq", "technical"],
-    quotations: ["technical-quotations", "technical"],
+    technical: "engineering-docs",
+    rfq: ["engineering-docs-rfq", "engineering-docs"],
+    quotations: ["crm-sales-quotations", "crm-sales"],
     tasks: "tasks",
     tasksSettings: ["tasks-settings", "tasks"],
     projects: ["projects-list", "projects"],
@@ -150,7 +150,7 @@ export async function saveSalesSettings(ctx: SalesContext, body: Record<string, 
   // module's settings saver asked for its right and this one did not, leaving
   // the route's check as the only thing in front of it. Found by the wiring
   // audit in tests/access.test.js, which is the whole point of having one.
-  const denied = requirePermission(ctx.access, "sales.settings.edit");
+  const denied = requirePermission(ctx.access, "crmSales.settings.edit");
   if (denied) return denied;
 
   const { studio, settingsSection } = ctx;
@@ -204,7 +204,7 @@ export async function createClient(ctx: SalesContext, body: Record<string, unkno
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
-  const denied = requirePermission(ctx.access, "sales.clients.create");
+  const denied = requirePermission(ctx.access, "crmSales.clients.create");
   if (denied) return denied;
 
   const { studio, clientsSection, collaborator } = ctx;
@@ -237,7 +237,7 @@ export async function editClient(ctx: SalesContext, id: string, body: Record<str
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
-  const denied = requirePermission(ctx.access, "sales.clients.edit");
+  const denied = requirePermission(ctx.access, "crmSales.clients.edit");
   if (denied) return denied;
 
   const { studio, clientsSection } = ctx;
@@ -267,7 +267,7 @@ export async function removeClient(ctx: SalesContext, id: string) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
-  const denied = requirePermission(ctx.access, "sales.clients.delete");
+  const denied = requirePermission(ctx.access, "crmSales.clients.delete");
   if (denied) return denied;
 
   const { studio, clientsSection, ticketsSection } = ctx;
@@ -707,7 +707,7 @@ export async function requestTicketRfq(ctx: SalesContext, body: Record<string, u
 // Task settings receive it on the board they already use.
 export async function sendTicketForApproval(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN.
-  const denied = requirePermission(ctx.access, "sales.tickets.edit");
+  const denied = requirePermission(ctx.access, "crmSales.tickets.edit");
   if (denied) return denied;
 
   const { studio, ticketsSection, rfqSection, quotationsSection, tasksSection, collaborator, taskAssignees } = ctx;
@@ -803,7 +803,7 @@ export async function sendTicketForApproval(ctx: SalesContext, body: Record<stri
 // back through them. Its own is the PO itself: what the client sent, and when.
 export async function submitTicketPo(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN.
-  const denied = requirePermission(ctx.access, "sales.tickets.edit");
+  const denied = requirePermission(ctx.access, "crmSales.tickets.edit");
   if (denied) return denied;
 
   const { studio, ticketsSection, quotationsSection, tasksSection, collaborator, taskAssignees } = ctx;
@@ -921,8 +921,8 @@ export async function ticketServiceActionsForStudio(studioId: string): Promise<s
   // Child falls back to parent, the same resolution every cross-section read
   // in this codebase uses, so a studio that never split sales-tickets out
   // still answers.
-  const section = (await getSectionByKey(studioId, "sales-tickets"))
-    || (await getSectionByKey(studioId, "sales"));
+  const section = (await getSectionByKey(studioId, "crm-sales-tickets"))
+    || (await getSectionByKey(studioId, "crm-sales"));
   if (!section) return [];
   const tickets = await Tickets.find({ studio: { id: studioId }, section });
   // Same default as the form: a ticket saved before the field existed carries
@@ -934,7 +934,7 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
-  const denied = requirePermission(ctx.access, "sales.tickets.create");
+  const denied = requirePermission(ctx.access, "crmSales.tickets.create");
   if (denied) return denied;
 
   const { studio, ticketsSection, clientsSection, collaborator } = ctx;
@@ -1052,7 +1052,7 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
   // reached around.
-  const denied = requirePermission(ctx.access, "sales.tickets.edit");
+  const denied = requirePermission(ctx.access, "crmSales.tickets.edit");
   if (denied) return denied;
 
   const { studio, ticketsSection, clientsSection, collaborator } = ctx;
