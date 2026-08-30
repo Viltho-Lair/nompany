@@ -109,12 +109,13 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
 
   useEffect(() => { loadList(); }, [loadList]);
   // No "engagements" live channel of its own — the spine dual-writes on the
-  // SAME create paths Sales, Technical and Projects already publish on (a
-  // ticket, an RFQ, a quotation, a project opening), so watching those three
-  // is watching every way an engagement can change today. Same wiring
+  // SAME create paths CRM & Sales, Engineering & Documents and Projects
+  // already publish on (a ticket or a quotation from the first, an RFQ from
+  // the second, a project opening from the third), so watching those three is
+  // watching every way an engagement can change today. Same wiring
   // StudioMain's dashboard uses for the same reason.
-  useLiveUpdates(slug, "sales", () => { if (!openId) loadList(); });
-  useLiveUpdates(slug, "technical", () => { if (!openId) loadList(); });
+  useLiveUpdates(slug, "crm-sales", () => { if (!openId) loadList(); });
+  useLiveUpdates(slug, "engineering-docs", () => { if (!openId) loadList(); });
   useLiveUpdates(slug, "projects", () => { if (!openId) loadList(); });
 
   const loadMore = useCallback(async () => {

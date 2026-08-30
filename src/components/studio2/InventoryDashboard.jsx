@@ -121,9 +121,9 @@ export default function InventoryDashboard({
   const sections = [
     { key: "inventory-items", label: tr.registeredItems2, desc: tr.descCatalogue, icon: "services" },
     { key: "inventory-stock", label: tr.stockManagement, desc: tr.descHeld, icon: "blueprint" },
-    { key: "inventory-vendors", label: tr.vendors, desc: tr.descVendors, icon: "vendors" },
+    { key: "procurement-suppliers", label: tr.vendors, desc: tr.descVendors, icon: "vendors" },
     { key: "inventory-sheets", label: tr.projectSheets2, desc: tr.descSheets, icon: "report" },
-    { key: "inventory-awb", label: tr.awbTracking, desc: tr.descAwb, icon: "external" },
+    { key: "logistics-shipments", label: tr.awbTracking, desc: tr.descAwb, icon: "external" },
   ];
 
   return (

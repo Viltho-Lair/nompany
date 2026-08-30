@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // checks, so what lists a plan and what edits it can never disagree. The app
 // lists every plan in the studio; a project's own plans are reached instead
 // through the projects door, which needs no planner grant at all.
-const spec = { auth: "studio", context: plannerContext, name: "operations-planner" };
+const spec = { auth: "studio", context: plannerContext, name: "projects-planner" };
 
 // `presets` are the new-plan defaults (calendar, resources, zoom, colorBy) the
 // studio configures here — plannerContext reads them off the section's settings.
@@ -26,7 +26,7 @@ export const GET = route({ ...spec, body: false }, async (c) => ({
 // the planner app starting a schedule of its own. Guarded on the edit right the
 // key itself carries, so the audit sees operations.planner.edit reach a door.
 export const POST = route({ ...spec, body: true }, async (c) => {
-  const denied = requirePermission(c.access, "operations.planner.edit");
+  const denied = requirePermission(c.access, "projects.planner.edit");
   if (denied) return denied;
   const { planId } = await createStandalonePlan(c.studio.id, c.collaborator.id, c.body?.name);
   return { planId };
@@ -36,7 +36,7 @@ export const POST = route({ ...spec, body: true }, async (c) => {
 // section's settings — the same edit right as creating a plan, so what sets the
 // defaults and what starts a plan from them stay one grant.
 export const PUT = route({ ...spec, body: true }, async (c) => {
-  const denied = requirePermission(c.access, "operations.planner.edit");
+  const denied = requirePermission(c.access, "projects.planner.edit");
   if (denied) return denied;
   return savePlannerPresets(c.studio.id, c.body?.presets);
 });

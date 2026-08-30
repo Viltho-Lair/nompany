@@ -243,7 +243,7 @@ export default async function StudioPage({ params }) {
   // these two deliberately render outside the shell — so without this they
   // would be the only boards in the studio with no live connection, which on a
   // screen literally called "Live view" is the worst possible place for it.
-  if (requested === "sales-live") {
+  if (requested === "crm-crm-sales-live") {
     return (
       <FullScreen locale={locale}>
         <LiveProvider slug={studio.slug}>
@@ -252,7 +252,7 @@ export default async function StudioPage({ params }) {
       </FullScreen>
     );
   }
-  if (requested === "technical-live") {
+  if (requested === "engineering-docs-live") {
     return (
       <FullScreen locale={locale}>
         <LiveProvider slug={studio.slug}>
@@ -300,7 +300,7 @@ export default async function StudioPage({ params }) {
   // the shell below already answers "you asked for a section you weren't
   // granted" for every other section, and a second refusal screen of its own
   // would be the same sentence in a different voice.
-  if (requested === "quality-documents" && sections.some((s) => s.key === "quality-documents")) {
+  if (requested === "engineering-docs-register" && sections.some((s) => s.key === "engineering-docs-register")) {
     const shell = { name: studio.name, slug: studio.slug };
     // NO SETUP SCREEN. Document types, prefixes, department codes and the
     // studio letterhead were all settings the old builder needed: it could not
@@ -326,8 +326,8 @@ export default async function StudioPage({ params }) {
       <FullScreen locale={locale}>
         <DocumentList
           studio={shell}
-          canCreate={can(access, "quality.documents.create")}
-          canDelete={can(access, "quality.documents.delete")}
+          canCreate={can(access, "engineeringDocs.register.create")}
+          canDelete={can(access, "engineeringDocs.register.delete")}
         />
       </FullScreen>
     );
@@ -382,13 +382,13 @@ export default async function StudioPage({ params }) {
     );
   }
 
-  // THE PLANNER APP — /<slug>/operations-planner is the full-screen list of every
-  // plan; /<slug>/operations-planner/<planId> is one plan, editable by anyone who
+  // THE PLANNER APP — /<slug>/projects-planner is the full-screen list of every
+  // plan; /<slug>/projects-planner/<planId> is one plan, editable by anyone who
   // holds the planner's edit right. It is a grantable sub-section of its own, so
   // the gate is that section's visibility (operations.planner.view); its own APIs
   // re-check. A refusal falls through to the shell's "nothing granted" below.
-  if (requested === "operations-planner" && sections.some((s) => s.key === "operations-planner")) {
-    // A WBS TEMPLATE, edited in the planner — /operations-planner/templates/<id>.
+  if (requested === "projects-planner" && sections.some((s) => s.key === "projects-planner")) {
+    // A WBS TEMPLATE, edited in the planner — /projects-planner/templates/<id>.
     // It IS the planner, pointed at the template document instead of a plan.
     if (segments[1] === "templates" && segments[2]) {
       return (
@@ -397,7 +397,7 @@ export default async function StudioPage({ params }) {
             <StudioPlanner
               slug={studio.slug}
               planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
-              backHref={`/${studio.slug}/operations-planner`}
+              backHref={`/${studio.slug}/projects-planner`}
               backLabel={shellDict(locale).backToPlanner}
             />
           </LiveProvider>
@@ -413,7 +413,7 @@ export default async function StudioPage({ params }) {
             ? <StudioPlanner
                 slug={studio.slug}
                 planApiBase={planApiBase}
-                backHref={`/${studio.slug}/operations-planner`}
+                backHref={`/${studio.slug}/projects-planner`}
                 backLabel={shellDict(locale).backToPlanner}
               />
             : <StudioPlannerList slug={studio.slug} />}
@@ -422,15 +422,15 @@ export default async function StudioPage({ params }) {
     );
   }
 
-  // A second segment on a sales-tickets URL names ONE ticket: /<slug>/
-  // sales-tickets/<id> is that ticket's own page. It still resolves through
-  // the sales-tickets section, so the same grant governs it.
-  const ticketId = requested === "sales-tickets" ? (segments[1] || "") : "";
+  // A second segment on a crm-sales-tickets URL names ONE ticket: /<slug>/
+  // crm-sales-tickets/<id> is that ticket's own page. It still resolves through
+  // the crm-sales-tickets section, so the same grant governs it.
+  const ticketId = requested === "crm-crm-sales-tickets" ? (segments[1] || "") : "";
   // And a THIRD segment names one of that ticket's quotations:
-  // /<slug>/sales-tickets/<id>/quotations/<quotationId> is the Sales-side
+  // /<slug>/crm-sales-tickets/<id>/quotations/<quotationId> is the Sales-side
   // viewer — the document as Sales reads it, view only. It hangs off the ticket
   // rather than living under Technical because that is whose record it is about,
-  // and it resolves through the same sales-tickets grant as the page above it.
+  // and it resolves through the same crm-sales-tickets grant as the page above it.
   const quotationId = ticketId && segments[2] === "quotations" ? (segments[3] || "") : "";
 
   // THE SAME SHAPE FOR PROJECTS. /<slug>/projects-list/<id> is one project's own
@@ -452,10 +452,17 @@ export default async function StudioPage({ params }) {
 
   const isPeople = requested === "people";
   const isAccess = requested === "access";
-  // Keyed "studio-settings", not "settings": section keys are tenant data, and a
-  // studio is free to name a section "settings" (Sales already has a settings
-  // sub-section). A distinct key means this screen can never shadow one.
-  const isSettings = requested === "studio-settings";
+  // Keyed "administration-settings", not bare "settings": that is the real
+  // catalog key SECTION_DEFS gives the Administration & Settings section's own
+  // Studio settings child (keys.ts). Reusing that exact key costs nothing —
+  // this branch short-circuits BEFORE the `sections.find` lookup below ever
+  // runs, so there is no risk of this special-cased screen and a real section
+  // row resolving the same request two different ways. Formerly this was a
+  // deliberately DISTINCT key (`studio-settings`, before this restructure gave
+  // Administration & Settings a real "administration-settings" child of its
+  // own) so this screen could never be shadowed by a catalog key of the same
+  // name — that concern is moot now that the catalog key IS this screen.
+  const isSettings = requested === "administration-settings";
 
   // Admin-only screens.
   if (isAccess && !admin) {
@@ -493,7 +500,7 @@ export default async function StudioPage({ params }) {
     },
     // parentId drives the expandable nav.
     sections: sections.map((s) => ({ id: s.id, key: s.key, name: s.name, enabled: s.enabled, parentId: s.parentId || null })),
-    activeKey: isPeople ? "people" : isAccess ? "access" : isSettings ? "studio-settings" : (active?.key || ""),
+    activeKey: isPeople ? "people" : isAccess ? "access" : isSettings ? "administration-settings" : (active?.key || ""),
     chat,
     // NOT THE URL'S — a studio's address is its slug, so there is nowhere in it
     // to put a locale. The tenant's setting, overridden by this person's own
@@ -531,8 +538,8 @@ export default async function StudioPage({ params }) {
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
         : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
         : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
-        : screenKey === "sales" ? <StudioSales slug={studio.slug} view={active?.key} />
-        : screenKey === "technical" ? (
+        : screenKey === "crm-sales" ? <StudioSales slug={studio.slug} view={active?.key} />
+        : screenKey === "engineering-docs" ? (
           // THE STUDIO'S OWN NAMES FOR ITS SECTIONS, so a quotation's origin tag
           // can say where it came from in the words this tenant uses rather than
           // the word the code was written with. Key → stored name, from the
@@ -548,7 +555,7 @@ export default async function StudioPage({ params }) {
         : screenKey === "inventory" ? <StudioInventory slug={studio.slug} view={active?.key} />
         : screenKey === "finance" ? <StudioFinance slug={studio.slug} view={active?.key} />
         : screenKey === "tasks" ? <StudioTasks slug={studio.slug} view={active?.key} />
-        : screenKey === "operations" ? <StudioOperations slug={studio.slug} view={active?.key} />
+        : screenKey === "field-service" ? <StudioOperations slug={studio.slug} view={active?.key} />
         : screenKey === "main" ? <StudioMain slug={studio.slug} />
         : active ? <SectionDashboard section={active} studio={studio} locale={locale}
             subsections={sections.filter((s) => s.parentId === active.id)}

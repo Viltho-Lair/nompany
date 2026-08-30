@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Viewing Sales is enough to read; CHANGING it needs the Manage grant.
-const spec = { auth: "studio", context: salesContext, body: true, name: "sales/clients" };
+const spec = { auth: "studio", context: salesContext, body: true, name: "crm-sales-clients" };
 const manageable = (sales: { canManage: boolean }) => (sales.canManage ? null : { error: "read-only" });
 
 export const POST = route(spec, async (sales) => {

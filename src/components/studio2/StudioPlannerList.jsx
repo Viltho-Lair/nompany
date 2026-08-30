@@ -9,9 +9,9 @@ import { fmtDate } from "@/lib/format";
 import PlannerPresetsDialog from "@/components/studio2/PlannerPresetsDialog";
 import PlannerTemplatesPanel from "@/components/studio2/PlannerTemplatesPanel";
 
-// THE /operations-planner APP LANDING. A full-screen list of the studio's plans,
+// THE /projects-planner APP LANDING. A full-screen list of the studio's plans,
 // rendered outside StudioFrame (the studio route early-returns it). Each plan is
-// a card linking to `/${slug}/operations-planner/${plan.id}`, where StudioPlanner
+// a card linking to `/${slug}/projects-planner/${plan.id}`, where StudioPlanner
 // opens the ported scheduler. This chrome is nompany's own — it wears the Geex
 // look (--geex-* tokens, font-display, rounded-geex), unlike the planner surface
 // itself which keeps the source app's light design.
@@ -46,7 +46,7 @@ export default function StudioPlannerList({ slug }) {
       });
       const payload = res.ok ? await res.json() : null;
       if (payload?.planId) {
-        router.push(`/${slug}/operations-planner/${payload.planId}`);
+        router.push(`/${slug}/projects-planner/${payload.planId}`);
         return;
       }
     } catch {
@@ -187,7 +187,7 @@ function PlanCard({ slug, plan }) {
   const status = byStatus[plan.status] ?? byStatus.on_track;
   return (
     <Link
-      href={`/${slug}/operations-planner/${plan.id}`}
+      href={`/${slug}/projects-planner/${plan.id}`}
       className="flex h-full flex-col gap-3 rounded-geex border border-slate-200 bg-[var(--geex-surface)] p-4 shadow-geex-sm transition-colors hover:border-brand-300 dark:border-white/10 dark:hover:border-brand-500/40"
     >
       <div className="flex items-start justify-between gap-2">

@@ -147,7 +147,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // whole USD table because it lets you re-pick the base, and this page does
     // not. The snapshot is a shared daily read, so this costs no API call.
     fx: await favouriteRates(studio),
-    canManage: !requirePermission(context.access, "studio.settings.edit"),
+    canManage: !requirePermission(context.access, "administration.settings.edit"),
     // Asking for deletion is the OWNER's call, not an admin's: it ends the
     // studio for everybody in it.
     isOwner: collaborator.role === "owner",
@@ -167,7 +167,7 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   // The studio's own settings are a grantable right rather than an admin-only
   // one. Requesting DELETION stays owner-only below — that ends the studio for
   // everybody, which is not something a permission should be able to hand out.
-  if (requirePermission(context.access, "studio.settings.edit")) {
+  if (requirePermission(context.access, "administration.settings.edit")) {
     return Response.json({ error: "forbidden" }, { status: 403 });
   }
 

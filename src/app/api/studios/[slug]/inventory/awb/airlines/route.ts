@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // The registry that turns a waybill's 3-digit prefix into a carrier. Read
 // through the section's main GET; written only here, and writing answers to the
 // AWB sub-section's own Manage grant rather than the coarse Inventory one.
-const spec = { auth: "studio", context: inventoryContext, body: true, name: "inventory/awb/airlines" };
+const spec = { auth: "studio", context: inventoryContext, body: true, name: "logistics-shipments/airlines" };
 const manageable = (inv: { canManageAwb: boolean }) => (inv.canManageAwb ? null : { error: "read-only" });
 
 export const POST = route(spec, async (inv) => {

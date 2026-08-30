@@ -74,7 +74,7 @@ export function peopleToResources(people, tr) {
 }
 
 // THE FULL-SCREEN PLANNER. One component serves both doors: the Operations
-// `/operations-planner` app and a plan opened from a project. It renders OUTSIDE
+// `/projects-planner` app and a plan opened from a project. It renders OUTSIDE
 // StudioFrame (the studio route early-returns it, like the project board). The
 // ported MS-Project-style planner lives inside `<div className="planner-root">`,
 // its scoped design system; this screen adds only the nompany seam — a back bar

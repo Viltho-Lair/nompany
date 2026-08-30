@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // edited with operations.planner.edit (the section's manage right). A viewer
 // without edit gets a read-only plan; a project member without any planner grant
 // reaches the plan through the projects door instead.
-const spec = { auth: "studio", context: plannerContext, name: "operations-plan" };
+const spec = { auth: "studio", context: plannerContext, name: "projects-plan" };
 
 export const GET = route({ ...spec, body: false }, async (c) => {
   const plan = await readPlan(c.studio.id, c.params.planId);
@@ -23,7 +23,7 @@ export const GET = route({ ...spec, body: false }, async (c) => {
 export const PUT = route({ ...spec, body: true }, async (c) => {
   // Enforced on the key itself (not just c.canManage, which resolves to the same
   // grant) so the access audit sees operations.planner.edit reach a guard.
-  const denied = requirePermission(c.access, "operations.planner.edit");
+  const denied = requirePermission(c.access, "projects.planner.edit");
   if (denied) return denied;
   return savePlan(c.studio.id, c.params.planId, c.body?.plan);
 });

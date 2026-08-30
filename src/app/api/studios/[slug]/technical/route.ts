@@ -42,7 +42,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     canManageQuotations: tech.canManageQuotations,
     // Reopening a locked document is its own power, so the button asks for
     // it rather than riding in on Manage.
-    canUnlockQuotations: can(tech.access, "technical.quotations.unlock"),
+    canUnlockQuotations: can(tech.access, "crmSales.quotations.unlock"),
     canManageSettings: tech.canManageSettings,
     liveColumns: tech.liveColumns,
     // Raising an RFQ is a Sales action, so the button depends on a different grant.

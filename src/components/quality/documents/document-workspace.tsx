@@ -176,7 +176,7 @@ export function DocumentWorkspace({
     <div className="flex min-h-screen flex-1 flex-col bg-background">
       <header className="doc-chrome sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur">
         <Button asChild variant="ghost" size="icon" className="shrink-0">
-          <Link href={`/${slug}/quality-documents`} aria-label={tr.backDocuments}>
+          <Link href={`/${slug}/engineering-docs-register`} aria-label={tr.backDocuments}>
             <ChevronLeft className="rtl:-scale-x-100" />
           </Link>
         </Button>

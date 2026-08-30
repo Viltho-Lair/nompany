@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // whoever holds Sales and Management in Task settings receives it on the board
 // they already use. sendTicketForApproval guards itself before it writes.
 export const POST = route(
-  { auth: "studio", context: salesContext, body: true, name: "sales/tickets/approval" },
+  { auth: "studio", context: salesContext, body: true, name: "crm-sales-tickets/approval" },
   async (sales) => {
     if (!sales.canManage) return { error: "read-only" };
 

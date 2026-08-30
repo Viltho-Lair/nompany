@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // HR has approved comes back as on-leave with from/to/type; the route wrapper
 // carries every refusal's context, so those fields survive without a hand-kept
 // list of which ones matter.
-const spec = { auth: "studio", context: scheduleContext, body: true, name: "operations-schedule/shifts" };
+const spec = { auth: "studio", context: scheduleContext, body: true, name: "field-service-schedule/shifts" };
 const manageable = (c: { canManage: boolean }) => (c.canManage ? null : { error: "read-only" });
 
 export const POST = route(spec, async (c) => {

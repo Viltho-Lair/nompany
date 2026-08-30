@@ -115,7 +115,7 @@ function DocumentNotFound({ slug }: { slug: string }) {
         </p>
       </div>
       <Button asChild variant="outline">
-        <Link href={`/${slug}/quality-documents`}>{tr.backDocuments}</Link>
+        <Link href={`/${slug}/engineering-docs-register`}>{tr.backDocuments}</Link>
       </Button>
     </div>
   );

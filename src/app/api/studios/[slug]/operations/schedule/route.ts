@@ -9,6 +9,6 @@ export const dynamic = "force-dynamic";
 // planner does, so a person may hold the rota without the rest of Operations.
 // It owns no collection: the shifts it reads live under the operations root
 // section, reached through scheduleContext's foreign door.
-const spec = { auth: "studio", context: scheduleContext, name: "operations-schedule" };
+const spec = { auth: "studio", context: scheduleContext, name: "field-service-schedule" };
 
 export const GET = route({ ...spec, body: false }, async (c) => scheduleView(c));

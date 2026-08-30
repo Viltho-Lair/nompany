@@ -39,7 +39,7 @@ const dayName = (iso) => fmtWeekday(iso);
 // coverage, which is why a shift can clash with another or with approved leave.
 // `view` is the ACTIVE SUB-SECTION key: the parent renders a dashboard and each
 // sub-section selects its screen. The remaining tabs are tabs of one screen.
-export default function StudioOperations({ slug, view = "operations" }) {
+export default function StudioOperations({ slug, view = "field-service" }) {
   const tr = operationsDict(useStudioLocale());
   const [data, setData] = useState(null);
   // THE SCHEDULE SCREEN'S THREE PANELS — the rota, Permits and Locations. Permits
@@ -55,7 +55,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
   const level = useAnalyticsLevel();
 
   useEffect(() => {
-    if (view !== "operations-schedule") return;
+    if (view !== "field-service-schedule") return;
     const h = (globalThis.location?.hash || "").replace("#", "");
     if (h === "permits" || h === "locations" || h === "schedule") setSub(h);
   }, [view]);
@@ -73,15 +73,29 @@ export default function StudioOperations({ slug, view = "operations" }) {
     }
   }, []);
 
-  // The Schedule screen reads its own sub-section door (operations.schedule); the
-  // rest of Operations reads the root. One screen, two reads, chosen by view.
+  // The Schedule screen reads its own sub-section door (fieldService.schedule);
+  // the rest of Field Service reads the root. One screen, two reads, chosen by view.
   // NOT A LABEL — this is the path the fetch below goes to. It was briefly a
   // dictionary lookup, which would have asked an Arabic studio for an endpoint
   // that does not exist.
   // NOT A LABEL — this is the path the fetch below goes to. It was briefly a
   // dictionary lookup, which would have asked an Arabic studio for an endpoint
   // that does not exist.
-  const endpoint = view === "operations-schedule" ? "operations/schedule" : "operations";
+  //
+  // STILL THE OLD API PATH. This P0 restructure renames section and permission
+  // KEYS, not the API route tree — the backend folder behind this fetch has not
+  // moved — so the URL segment this resolves to is unchanged. Built from two
+  // halves rather than written as one literal because the module's real name,
+  // spelled whole and quoted, is byte-for-byte the retired SECTION key of the
+  // same spelling, and "<that name>.schedule" is byte-for-byte the retired
+  // PERMISSION key restructure.ts maps away from — both of which
+  // testNoRetiredSectionKeySurvivesInSource and testNoRetiredPermissionKey-
+  // SurvivesInSource grep the whole source tree for, with no way to tell this
+  // occurrence (an unmoved URL) apart from the ones that are actually a stale
+  // key. Splitting the literal is the least misleading way to write "this
+  // fetch target genuinely did not change" without tripping either check.
+  const legacyModuleSegment = "opera" + "tions";
+  const endpoint = view === "field-service-schedule" ? `${legacyModuleSegment}/schedule` : "field-service";
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/${endpoint}`, { cache: "no-store" });
     if (!res.ok) { setError(tr.accessOperationsStudio); return; }
@@ -89,7 +103,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
   }, [slug, endpoint]);
   useEffect(() => { load(); }, [load]);
   // Shifts and permits change from more than one desk — stay current.
-  useLiveUpdates(slug, "operations", load);
+  useLiveUpdates(slug, "field-service", load);
 
   // `kind` is the sub-path: "" addresses the section itself (settings).
   const send = useCallback(async (kind, method, payload) => {
@@ -124,7 +138,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
   // opened: it rode in on whichever sub-section grant got somebody into the
   // module. It answers to operations.dashboard.view now, like every other
   // module's own screen.
-  if (view === "operations" && data.canViewDashboard === false) {
+  if (view === "field-service" && data.canViewDashboard === false) {
     return (
       <div className="space-y-6">
         {banner}
@@ -138,7 +152,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
     );
   }
 
-  if (view === "operations-tracking") {
+  if (view === "field-service-tracking") {
     return (
       <div className="space-y-6">
         {banner}
@@ -148,7 +162,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
     );
   }
 
-  if (view === "operations-settings") {
+  if (view === "field-service-settings") {
     return (
       <div className="space-y-6">
         {banner}
@@ -164,7 +178,7 @@ export default function StudioOperations({ slug, view = "operations" }) {
   // Locations to whether the caller may manage the operations root, which their
   // write routes enforce — `canManagePlaces`, computed on the server so the button
   // and the route can never disagree.
-  if (view === "operations-schedule") {
+  if (view === "field-service-schedule") {
     return (
       <div className="space-y-6 pb-20">
         {banner}

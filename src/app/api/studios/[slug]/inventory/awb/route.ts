@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // Shipments are read through the section's main GET; this route only writes
 // them, and writing needs the Manage grant on the AWB sub-section specifically
 // rather than the coarse Inventory one.
-const spec = { auth: "studio", context: inventoryContext, body: true, name: "inventory/awb" };
+const spec = { auth: "studio", context: inventoryContext, body: true, name: "logistics-shipments" };
 const manageable = (inv: { canManageAwb: boolean }) => (inv.canManageAwb ? null : { error: "read-only" });
 
 // Start following a waybill. An invalid number comes back with the arithmetic

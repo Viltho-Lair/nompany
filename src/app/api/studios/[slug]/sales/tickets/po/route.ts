@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // ordinary `po` task, which Task settings already routes to Management and
 // Finance. submitTicketPo guards itself before it writes.
 export const POST = route(
-  { auth: "studio", context: salesContext, body: true, name: "sales/tickets/po" },
+  { auth: "studio", context: salesContext, body: true, name: "crm-sales-tickets/po" },
   async (sales) => {
     if (!sales.canManage) return { error: "read-only" };
 

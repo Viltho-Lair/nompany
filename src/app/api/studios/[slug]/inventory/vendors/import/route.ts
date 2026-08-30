@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 // the browser, which is where the file is; this route never sees a file and
 // never trusts the parse, because importVendors re-cleans every field through
 // the same helpers the single-vendor form goes through.
-const spec = { auth: "studio", context: inventoryContext, body: true, name: "inventory/vendors/import" };
+const spec = { auth: "studio", context: inventoryContext, body: true, name: "procurement-suppliers/import" };
 
 export const POST = route(spec, async (inv) => {
   if (!inv.canManage) return { error: "read-only" };

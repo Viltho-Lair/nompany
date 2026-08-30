@@ -67,7 +67,7 @@ export function DocumentList({
         return;
       }
       const payload = (await response.json()) as { document: StoredDocument };
-      window.location.href = `/${studio.slug}/quality-documents/${payload.document.id}`;
+      window.location.href = `/${studio.slug}/engineering-docs-register/${payload.document.id}`;
     } finally {
       setBusy(false);
     }
@@ -149,7 +149,7 @@ export function DocumentList({
           {documents.map((document) => (
             <li key={document.id} className="flex items-center gap-3 px-4 py-3">
               <Link
-                href={`/${studio.slug}/quality-documents/${document.id}`}
+                href={`/${studio.slug}/engineering-docs-register/${document.id}`}
                 className="flex min-w-0 flex-1 items-center gap-3"
               >
                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">

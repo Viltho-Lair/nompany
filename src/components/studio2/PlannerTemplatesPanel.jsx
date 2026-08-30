@@ -49,7 +49,7 @@ export default function PlannerTemplatesPanel({ slug }) {
       });
       const d = r.ok ? await r.json() : null;
       if (d?.templateId) {
-        router.push(`/${slug}/operations-planner/templates/${d.templateId}`);
+        router.push(`/${slug}/projects-planner/templates/${d.templateId}`);
         return;
       }
     } catch {
@@ -58,7 +58,7 @@ export default function PlannerTemplatesPanel({ slug }) {
     setBusy(false);
   };
 
-  const edit = (t) => router.push(`/${slug}/operations-planner/templates/${t.id}`);
+  const edit = (t) => router.push(`/${slug}/projects-planner/templates/${t.id}`);
 
   const remove = async (t) => {
     setBusy(true);

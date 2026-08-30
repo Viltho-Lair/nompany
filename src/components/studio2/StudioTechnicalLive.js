@@ -34,7 +34,13 @@ export default function StudioTechnicalLive({ studio }) {
     setError("");
   }, [studio.slug]);
   useEffect(() => { load(); }, [load]);
-  useLiveUpdates(studio.slug, "technical", load);
+  // Column choice lives in Engineering & Documents' own settings, so that
+  // section is watched — but the rows themselves are quotations, which moved
+  // to CRM & Sales (restructure.ts's SECTION_KEY_MAP: technical-quotations ->
+  // crm-sales-quotations), so a revision now publishes there instead. Both are
+  // watched; the 5s timer above is the floor either way.
+  useLiveUpdates(studio.slug, "engineering-docs", load);
+  useLiveUpdates(studio.slug, "crm-sales", load);
 
   // The timer runs only while the tab is visible and nobody has paused it — a
   // screen nobody is looking at should not be asking the server anything.
@@ -89,9 +95,9 @@ export default function StudioTechnicalLive({ studio }) {
             >
               {paused ? tr.resume : tr.pause}
             </button>
-            {data?.nav?.["technical-settings"] && (
+            {data?.nav?.["engineering-docs-settings"] && (
               <Link
-                href={`/${studio.slug}/technical-settings`}
+                href={`/${studio.slug}/engineering-docs-settings`}
                 className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
               >
                 {tr.changeColumns}

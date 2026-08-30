@@ -62,7 +62,7 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   // Editing who is in the studio, and what they may do, is itself a permission
   // now. canAdminister stays as the owner/admin shortcut inside the resolver,
   // so this reads the same for them and becomes grantable for everyone else.
-  if (requirePermission(context.access, "people.members.edit")) {
+  if (requirePermission(context.access, "administration.members.edit")) {
     return Response.json({ error: "forbidden" }, { status: 403 });
   }
 
@@ -128,7 +128,7 @@ export async function DELETE(request: Request, ctx: { params: Promise<Record<str
   const isSelf = targetId === context.collaborator.id;
   // Removing yourself is always allowed; removing anyone else is the same
   // permission as editing them.
-  if (!isSelf && requirePermission(context.access, "people.members.edit")) {
+  if (!isSelf && requirePermission(context.access, "administration.members.edit")) {
     return Response.json({ error: "forbidden" }, { status: 403 });
   }
 

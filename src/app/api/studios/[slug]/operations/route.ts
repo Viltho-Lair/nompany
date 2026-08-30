@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 // computed from their dates here, never stored. The working week comes from the
 // studio (scheduleFromStudio) — the rota/schedule screen lives on its own
 // sub-section now, but the dashboard here still summarises shifts.
-const spec = { auth: "studio", context: operationsContext, name: "operations" };
+const spec = { auth: "studio", context: operationsContext, name: "field-service" };
 
 export const GET = route(spec, async (g) => {
   const window = weekWindow();

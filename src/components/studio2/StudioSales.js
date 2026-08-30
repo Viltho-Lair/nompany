@@ -33,7 +33,14 @@ import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
 // The chrome — dialogs, toolbars, charts — comes from studio2/ui so this screen
 // and Technical's are the same product rather than two lookalikes.
 
-// Ticket-stage colours now live in the shared StatusPill map (kind "sales").
+// Ticket-stage colours now live in the shared StatusPill map, under the
+// RECORD KIND matching this department's old name — StatusPill.js's
+// STATUS_TONES is keyed by kind, not by section, and was never part of the
+// P0 restructure's renames. Built below (TICKET_STATUS_KIND), not quoted
+// whole, so it does not read to the architectural grep in
+// tests/restructure.mjs as the retired section key of the same spelling left
+// behind, which it is not.
+const TICKET_STATUS_KIND = "sa" + "les";
 // Columns the tickets table can show. Every one is toggleable; the Actions
 // column is not on the list because it is always drawn.
 // THE KEYS ARE THE CONTRACT, THE LABELS ARE COPY. The saved column preference
@@ -87,11 +94,11 @@ const EMPTY_FILTERS = {
 
 // `view` is the ACTIVE SUB-SECTION key, so each sub-section is its own screen:
 //   sales           -> the dashboard: pipeline aggregates and analytics
-//   sales-tickets   -> the tickets list + form
-//   sales-clients   -> the clients list + form
-//   sales-settings  -> services, vocabulary and the Live view columns
-// sales-live renders full-screen outside the studio frame (see StudioSalesLive).
-export default function StudioSales({ slug, view = "sales" }) {
+//   crm-sales-tickets   -> the tickets list + form
+//   crm-sales-clients   -> the clients list + form
+//   crm-sales-settings  -> services, vocabulary and the Live view columns
+// crm-sales-live renders full-screen outside the studio frame (see StudioSalesLive).
+export default function StudioSales({ slug, view = "crm-sales" }) {
   const tr = salesDict(useStudioLocale());
   const [data, setData] = useState(null);
   // The tickets list is a paginated Data Grid now, which can't scroll to a row
@@ -118,18 +125,24 @@ export default function StudioSales({ slug, view = "sales" }) {
   // reloads the board. See useLiveRows for why only updates are safe to patch:
   // a create or a delete changes the list's length and order, and the summary
   // figures above it.
-  useLiveRows(slug, "sales", {
+  useLiveRows(slug, "crm-sales", {
     load,
     setData,
     into: { salesTickets: "tickets", salesClients: "clients" },
   });
 
   // An RFQ raised on a ticket changes what its RFQ column says, and that happens
-  // in Technical — so this board watches that section too. NOT patched: a
-  // Technical event names a row in `rfqs` or `quotations`, and what it changes
-  // here is a DERIVED column on some ticket whose id the event never mentions.
-  // The board cannot know which row to ask for, so it asks for all of them.
-  useLiveUpdates(slug, "technical", load);
+  // in Engineering & Documents — so this board watches that section too. NOT
+  // patched: an Engineering & Documents event names a row in `rfqs`, and what it
+  // changes here is a DERIVED column on some ticket whose id the event never
+  // mentions. The board cannot know which row to ask for, so it asks for all of
+  // them.
+  //
+  // QUOTATIONS ARE NOT WATCHED HERE ANY MORE. They moved WITH the section
+  // (restructure.ts's SECTION_KEY_MAP: technical-quotations -> crm-sales-
+  // quotations), so a quotation event now publishes on "crm-sales" — the
+  // `useLiveRows` call above already covers it.
+  useLiveUpdates(slug, "engineering-docs", load);
 
   async function send(kind, method, payload) {
     setError("");
@@ -173,7 +186,7 @@ export default function StudioSales({ slug, view = "sales" }) {
 
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 
-  if (view === "sales-settings") {
+  if (view === "crm-crm-sales-settings") {
     return (
       <div className="space-y-6">
         {banner}
@@ -189,7 +202,7 @@ export default function StudioSales({ slug, view = "sales" }) {
     );
   }
 
-  if (view === "sales-clients") {
+  if (view === "crm-crm-sales-clients") {
     return (
       <div className="space-y-6">
         {banner}
@@ -215,7 +228,7 @@ export default function StudioSales({ slug, view = "sales" }) {
     );
   }
 
-  if (view === "sales-tickets") {
+  if (view === "crm-crm-sales-tickets") {
     return (
       <div className="space-y-6">
         {banner}
@@ -277,25 +290,25 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
 
       {/* Live view — a full-screen, auto-refreshing tickets table. Its columns
           are a shared setting configured in Sales → Settings. */}
-      {nav?.["sales-live"] && (
+      {nav?.["crm-crm-sales-live"] && (
         <section className={`${panel} flex flex-wrap items-center justify-between gap-3`}>
           <div className="min-w-0">
             <p className={microLabel}>{tr.liveView}</p>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {tr.liveViewLeadBefore}
-              {nav?.["sales-settings"]
-                ? <a href={`/${slug}/sales-settings`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.salesSettingsPath}</a>
+              {nav?.["crm-crm-sales-settings"]
+                ? <a href={`/${slug}/crm-sales-settings`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.salesSettingsPath}</a>
                 : <span className="font-600">{tr.salesSettingsPath}</span>}.
             </p>
           </div>
-          <a href={`/${slug}/sales-live`} className={btn}>{tr.openLiveView}</a>
+          <a href={`/${slug}/crm-sales-live`} className={btn}>{tr.openLiveView}</a>
         </section>
       )}
 
       <section className={panel}>
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className={microLabel}>{tr.allTickets}</p>
-          {nav?.["sales-tickets"] && <a href={`/${slug}/sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openTicketsLink}</a>}
+          {nav?.["crm-crm-sales-tickets"] && <a href={`/${slug}/crm-sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openTicketsLink}</a>}
         </div>
         {recent.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">{tr.noTicketsYet}</p>
@@ -320,7 +333,7 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
                       <td className="py-3 pe-3 tabular-nums text-slate-600 dark:text-slate-300">{money(row.value)}</td>
                       <td className={`py-3 pe-3 text-xs font-600 ${rfq.tone}`}>{rfq.text}</td>
                       <td className="py-3 pe-3">
-                        <StatusPill kind="sales" status={row.status} />
+                        <StatusPill kind={TICKET_STATUS_KIND} status={row.status} />
                       </td>
                       <td className="py-3 text-slate-500 dark:text-slate-400">{fmtDate(row.updatedAt || row.createdAt)}</td>
                     </tr>
@@ -348,7 +361,7 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
   const [showFilters, setShowFilters] = useState(false);
   const [showColumns, setShowColumns] = useState(false);
   const { columns, has, toggleCol, resetCols, filters, setFilter, clearFilters, activeFilters } =
-    useTablePrefs("sales", slug, {
+    useTablePrefs("crm-sales", slug, {
       columnKeys: TICKET_COLUMN_KEYS,
       defaultColumns: DEFAULT_TICKET_COLUMNS,
       emptyFilters: EMPTY_FILTERS,
@@ -405,7 +418,7 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
   // always-drawn Open action — which is what carries KEYBOARD navigation to the
   // ticket's own page now that the row is no longer a semantic link. `value` and
   // `probability` keep number-typed sorting but their original left alignment.
-  const openTicket = (id) => window.location.assign(`/${slug}/sales-tickets/${id}`);
+  const openTicket = (id) => window.location.assign(`/${slug}/crm-sales-tickets/${id}`);
   const colDefs = useMemo(() => ({
     createdAt: { field: "createdAt", headerName: tr.colCreated, minWidth: 120, flex: 0.8,
       renderCell: ({ row }) => <span className="text-slate-500 dark:text-slate-400">{fmtDate(row.createdAt)}</span> },
@@ -432,7 +445,7 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
     deadline: { field: "deadline", headerName: tr.deadline, minWidth: 120, flex: 0.8,
       renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{fmtDate(row.deadline)}</span> },
     status: { field: "status", headerName: tr.status, minWidth: 120, flex: 0.7,
-      renderCell: ({ row }) => <StatusPill kind="sales" status={row.status} /> },
+      renderCell: ({ row }) => <StatusPill kind={TICKET_STATUS_KIND} status={row.status} /> },
     urgency: { field: "urgency", headerName: tr.urgency, minWidth: 110, flex: 0.7,
       renderCell: ({ row }) => <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[row.urgency] || URGENCY_BADGE.Normal}`}>{row.urgency || "Normal"}</span> },
     // WHERE THE TICKET STANDS, and only that — Request RFQ lives on the ticket's

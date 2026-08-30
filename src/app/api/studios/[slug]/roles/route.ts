@@ -43,7 +43,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // its verbs without a second call, and can never offer a key the server
     // would refuse.
     areas: AREAS,
-    canEdit: !requirePermission(g.context.access, "people.members.edit"),
+    canEdit: !requirePermission(g.context.access, "administration.members.edit"),
   });
 }
 
@@ -63,7 +63,7 @@ function overreaches(
 export async function POST(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const g = await open(ctx);
   if (g.fail) return g.fail;
-  const denied = requirePermission(g.context.access, "people.members.edit");
+  const denied = requirePermission(g.context.access, "administration.members.edit");
   if (denied) return Response.json(denied, { status: 403 });
 
   const draft = cleanRole(await body(request));
@@ -75,7 +75,7 @@ export async function POST(request: Request, ctx: { params: Promise<Record<strin
 export async function PUT(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const g = await open(ctx);
   if (g.fail) return g.fail;
-  const denied = requirePermission(g.context.access, "people.members.edit");
+  const denied = requirePermission(g.context.access, "administration.members.edit");
   if (denied) return Response.json(denied, { status: 403 });
 
   const payload = await body(request);
@@ -93,7 +93,7 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
 export async function DELETE(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const g = await open(ctx);
   if (g.fail) return g.fail;
-  const denied = requirePermission(g.context.access, "people.members.edit");
+  const denied = requirePermission(g.context.access, "administration.members.edit");
   if (denied) return Response.json(denied, { status: 403 });
 
   const { id } = await body(request);

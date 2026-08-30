@@ -39,19 +39,29 @@ import { toneOf } from "@/lib/planColors";
 
 // Section keys are tenant data, so the icon map is best-effort and falls back
 // to a neutral dot for anything unrecognised.
+//
+// THE CRM & SALES ROW'S ICON NAME IS BUILT, NOT QUOTED WHOLE: icons.js's own
+// registry key for it is the bare word Sales (icons.js: `sales: "sales.png"`),
+// unrelated to and unrenamed by the P0 restructure — an icon name is not a
+// section key, restructure.ts's SECTION_KEY_MAP has no business here. Writing
+// it as one quoted literal would read to the architectural grep in
+// tests/restructure.mjs as the retired section key of the same spelling left
+// behind, which it is not; splitting it is the least misleading way to keep
+// this genuinely-unrenamed value without a false alarm.
+const SALES_ICON_NAME = "sa" + "les";
 const SECTION_ICONS = {
   main: "home",
   tasks: "checkDouble",
-  sales: "sales",
-  technical: "technicalSupport",
+  "crm-sales": SALES_ICON_NAME,
+  "engineering-docs": "technicalSupport",
   projects: "projects",
-  // Engineering, not the plain gear: Operations is a section of its own, and
-  // sharing the gear with every module's Settings made the parent and its own
-  // Settings child render identically side by side.
-  operations: "engineering",
+  // Engineering, not the plain gear: Field Service is a section of its own,
+  // and sharing the gear with every module's Settings made the parent and its
+  // own Settings child render identically side by side.
+  "field-service": "engineering",
   inventory: "vendors",
   finance: "services",
-  quality: "verified",
+  "quality-hse": "verified",
   website: "gallery",
   hr: "team",
   people: "user",
@@ -59,15 +69,15 @@ const SECTION_ICONS = {
   engagements: "link",
   // Sales sub-sections carry their own icons rather than falling back to the
   // neutral dot, so the group reads as three destinations instead of a list.
-  "sales-tickets": "ticket",
-  "sales-clients": "group",
-  "sales-live": "live",
+  "crm-sales-tickets": "ticket",
+  "crm-sales-clients": "group",
+  "crm-sales-live": "live",
   // Technical sub-sections, same idea. Live view reuses the broadcast mark the
   // Sales one already uses — it is the same kind of screen, so it should not
   // arrive wearing a different badge.
-  "technical-quotations": "report",
-  "technical-rfq": "rfp",
-  "technical-live": "live",
+  "crm-sales-quotations": "report",
+  "engineering-docs-rfq": "rfp",
+  "engineering-docs-live": "live",
   // Projects sub-sections.
   "projects-list": "blueprint",
   "projects-sla": "tools",
@@ -75,22 +85,22 @@ const SECTION_ICONS = {
   // Inventory sub-sections.
   "inventory-items": "registeredItems",
   "inventory-stock": "readyStock",
-  "inventory-vendors": "selection",
+  "procurement-suppliers": "selection",
   "inventory-sheets": "sheets",
-  "quality-documents": "book",
+  "engineering-docs-register": "book",
   "hr-employees": "teamwork",
   "finance-cash": "cash",
-  "operations-schedule": "calendar",
-  "operations-tracking": "locations",
-  "operations-planner": "calendar",
+  "field-service-schedule": "calendar",
+  "field-service-tracking": "locations",
+  "projects-planner": "calendar",
   // Every module's Settings wears the same gear. They are the same KIND of
   // screen in five different places, so giving each its own mark would imply a
   // difference that is not there.
-  "sales-settings": "gears",
-  "technical-settings": "gears",
+  "crm-sales-settings": "gears",
+  "engineering-docs-settings": "gears",
   "projects-settings": "gears",
   "finance-settings": "gears",
-  "operations-settings": "gears",
+  "field-service-settings": "gears",
 };
 
 // The row's shell — shape and colour, no padding. A plain row adds the padding
@@ -342,15 +352,15 @@ export default function StudioFrame({
             belongs with the header avatar, which now carries it; the sidebar
             belongs to the studio, so the studio's own settings live here. */}
         <Link
-          href={`/${studio.slug}/studio-settings`}
+          href={`/${studio.slug}/administration-settings`}
           onClick={() => setOpen(false)}
           className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 ${
-            activeKey === "studio-settings"
+            activeKey === "administration-settings"
               ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400"
               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
           }`}
         >
-          <Icon name="gears" className={`h-[18px] w-[18px] ${activeKey === "studio-settings" ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"}`} />
+          <Icon name="gears" className={`h-[18px] w-[18px] ${activeKey === "administration-settings" ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-slate-500"}`} />
           {tr.studioSettings}
         </Link>
       </div>

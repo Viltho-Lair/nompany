@@ -4,7 +4,7 @@ import { salesContext, createTicket, editTicket } from "@/modules/sales/sales";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const spec = { auth: "studio", context: salesContext, body: true, name: "sales/tickets" };
+const spec = { auth: "studio", context: salesContext, body: true, name: "crm-sales-tickets" };
 const manageable = (sales: { canManage: boolean }) => (sales.canManage ? null : { error: "read-only" });
 
 export const POST = route(spec, async (sales) => {

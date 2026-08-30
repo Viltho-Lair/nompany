@@ -70,8 +70,8 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   }, [slug]);
 
   useEffect(() => { load(); }, [load]);
-  useLiveUpdates(slug, "sales", load);
-  useLiveUpdates(slug, "technical", load);
+  useLiveUpdates(slug, "crm-sales", load);
+  useLiveUpdates(slug, "engineering-docs", load);
   // An approver signing off is what turns "Send for Approval" into "Quotation
   // Approved", and that happens on the Tasks board.
   useLiveUpdates(slug, "tasks", load);
@@ -292,7 +292,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                 {mine.map((q, i) => (
                   <li key={q.id}>
                     <Link
-                      href={`/${slug}/sales-tickets/${ticketId}/quotations/${q.id}`}
+                      href={`/${slug}/crm-sales-tickets/${ticketId}/quotations/${q.id}`}
                       className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 text-sm transition-colors hover:border-brand-500 hover:bg-slate-50 dark:border-white/10 dark:hover:border-brand-500/40 dark:hover:bg-white/5"
                     >
                       <span className="font-mono text-xs text-slate-500">{q.number || "—"}</span>
@@ -501,7 +501,7 @@ function Back({ slug, title, ref_, clientName }) {
   const tr = miscDict(useStudioLocale());
   return (
     <div className="flex items-center gap-3">
-      <Link href={`/${slug}/sales-tickets`} className={btnGhost}>{tr.back}</Link>
+      <Link href={`/${slug}/crm-sales-tickets`} className={btnGhost}>{tr.back}</Link>
       <div className="min-w-0">
         <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white">{title || tr.ticket}</h1>
         {ref_ && (

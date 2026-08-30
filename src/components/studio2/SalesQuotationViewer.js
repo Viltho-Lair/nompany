@@ -61,8 +61,11 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
 
   useEffect(() => { load(); }, [load]);
   // Technical is still working on it while Sales is reading it, so a revision or
-  // a status change lands here without a refresh.
-  useLiveUpdates(slug, "technical", load);
+  // a status change lands here without a refresh. Watches "crm-sales", not
+  // "engineering-docs" — the quotation moved WITH the section (restructure.ts's
+  // SECTION_KEY_MAP: technical-quotations -> crm-sales-quotations), so that is
+  // the channel its writes now publish on.
+  useLiveUpdates(slug, "crm-sales", load);
 
   // THE WHOLE POINT OF THE BUTTON. Sales presses it; Quality's template runs;
   // the fields it asked for are fetched from THIS quotation and from everything
@@ -79,7 +82,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
   // nobody can produce would have been worse than not drawing one.
 
   const back = (
-    <Link href={`/${slug}/sales-tickets/${ticketId}`} className={btnGhost}>{tr.backTicket}</Link>
+    <Link href={`/${slug}/crm-sales-tickets/${ticketId}`} className={btnGhost}>{tr.backTicket}</Link>
   );
 
   if (error) {

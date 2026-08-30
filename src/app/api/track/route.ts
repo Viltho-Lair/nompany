@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     } else if (type === "chat_open") {
       await inc("chat:opens");
     } else if (type === "chat_topic") {
-      const topic = body.topic === "sales" ? "sales" : body.topic === "support" ? "support" : "";
+      const topic = body.topic === "crm-sales" ? "crm-sales" : body.topic === "support" ? "support" : "";
       if (!topic) return Response.json({ ok: false }, { status: 200 });
       await inc(`chat:${topic}`);
     } else {

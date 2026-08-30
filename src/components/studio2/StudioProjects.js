@@ -117,8 +117,11 @@ export default function StudioProjects({ slug, view = "projects" }) {
   useEffect(() => { load(); }, [load]);
   // Project rows move from several desks at once — stay current.
   useLiveUpdates(slug, "projects", load);
-  // A quotation being approved is what makes a new project openable.
-  useLiveUpdates(slug, "technical", load);
+  // A quotation being approved is what makes a new project openable — and a
+  // quotation is a CRM & Sales event now (restructure.ts's SECTION_KEY_MAP:
+  // technical-quotations -> crm-sales-quotations), not an Engineering &
+  // Documents one.
+  useLiveUpdates(slug, "crm-sales", load);
 
   // `kind` is the sub-path: "" for the section itself, "sla", "overtimes".
   const send = useCallback(async (kind, method, payload) => {
@@ -688,8 +691,8 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
   // that failed to load — so the absence is named rather than left blank.
   const lineage = [
     p.ticketId && { label: tr.ticket, href: linkIf(nav?.sales, linkToTicket(slug, p.ticketId)) },
-    p.rfqId && { label: "RFQ", href: linkIf(nav?.["technical-rfq"], linkToRfq(slug, p.rfqId)) },
-    p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.["technical-quotations"], linkToQuotation(slug, p.quotationId)) },
+    p.rfqId && { label: "RFQ", href: linkIf(nav?.["engineering-docs-rfq"], linkToRfq(slug, p.rfqId)) },
+    p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.["crm-sales-quotations"], linkToQuotation(slug, p.quotationId)) },
   ].filter(Boolean);
 
   return (

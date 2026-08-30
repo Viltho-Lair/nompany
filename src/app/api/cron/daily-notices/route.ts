@@ -75,7 +75,7 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
 
   const cashId = sectionId("finance-cash");
   const payablesId = sectionId("finance-payables");
-  const trackingId = sectionId("operations-tracking");
+  const trackingId = sectionId("field-service-tracking");
 
   // Read only the sections this studio actually has, all at once.
   const [invoices, bills, permits] = await Promise.all([
@@ -96,7 +96,7 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
     { notices: overdueInvoiceNotices(invoices as never, todayISO), key: "finance.cash.view", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance/cash", say: overdueDetail },
     { notices: overdueBillNotices(bills as never, todayISO), key: "finance.payables.view", type: NOTIFY.billOverdue, title: "Bills overdue", href: "finance/payables", say: overdueDetail },
     { notices: expiringDocumentNotices(collaborators as never, todayDate), key: "hr.employees.view", type: NOTIFY.documentExpiring, title: "Documents expiring", href: "hr/employees", say: expiryDetail((n) => `${n.name}'s ${n.kind}`) },
-    { notices: expiringPermitNotices(permits as never, todayISO), key: "operations.tracking.view", type: NOTIFY.permitExpiring, title: "Permits expiring", href: "operations/tracking", say: expiryDetail((n) => `${n.name}`) },
+    { notices: expiringPermitNotices(permits as never, todayISO), key: "fieldService.tracking.view", type: NOTIFY.permitExpiring, title: "Permits expiring", href: "field-service-tracking", say: expiryDetail((n) => `${n.name}`) },
   ];
 
   let sent = 0;

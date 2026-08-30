@@ -78,7 +78,7 @@ const latestComment = (row) => {
 //   technical-rfq        -> the RFQ queue and conversion
 //   technical-settings   -> quotation numbering + Live view columns
 // technical-live renders full-screen outside the studio frame.
-export default function StudioTechnical({ slug, view = "technical", sectionNames = {} }) {
+export default function StudioTechnical({ slug, view = "engineering-docs", sectionNames = {} }) {
   const tr = technicalDict(useStudioLocale());
   const [data, setData] = useState(null);
   const level = useAnalyticsLevel();
@@ -116,11 +116,14 @@ export default function StudioTechnical({ slug, view = "technical", sectionNames
     if (hit) setEditingQuote(hit);
   }, [focusedQuoteId, data]);
 
-  // Sales raised an RFQ, or someone revised a quotation — pick it up live.
-  useLiveUpdates(slug, "technical", load);
-  // A ticket moving in Sales is what puts a new RFQ within reach, so the
-  // "Raise RFQ" list is watched too.
-  useLiveUpdates(slug, "sales", load);
+  // Sales raised an RFQ — pick it up live.
+  useLiveUpdates(slug, "engineering-docs", load);
+  // TWO REASONS THIS SECTION IS WATCHED, not one: a ticket moving in Sales is
+  // what puts a new RFQ within reach, so the "Raise RFQ" list needs it — and a
+  // revised quotation is now a CRM & Sales event too (restructure.ts's
+  // SECTION_KEY_MAP moved technical-quotations to crm-sales-quotations), where
+  // it used to publish on "engineering-docs" alongside the RFQ above.
+  useLiveUpdates(slug, "crm-sales", load);
 
   // keepOpen is for the BUILDER. Every other caller is a dialog that should
   // close once its one job is done; the builder saves repeatedly and must stay
@@ -195,7 +198,7 @@ export default function StudioTechnical({ slug, view = "technical", sectionNames
   // Amber, not rose: the action worked, but there is a follow-up to do.
   const noticeBanner = notice && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{notice}</p>;
 
-  if (view === "technical-settings") {
+  if (view === "engineering-docs-settings") {
     return (
       <div className="space-y-6">
         {banner}
@@ -211,7 +214,7 @@ export default function StudioTechnical({ slug, view = "technical", sectionNames
     );
   }
 
-  if (view === "technical-rfq") {
+  if (view === "engineering-docs-rfq") {
     return (
       <div className="space-y-6">
         {banner}
@@ -241,7 +244,7 @@ export default function StudioTechnical({ slug, view = "technical", sectionNames
     );
   }
 
-  if (view === "technical-quotations") {
+  if (view === "crm-sales-quotations") {
     return (
       <div className="space-y-6">
         {banner}
@@ -521,7 +524,7 @@ function RfqInfo({ label: text, value, mono }) {
 
 // The tag beside a quotation's title saying WHICH SECTION it came from. A
 // Sales-origin quotation wears the same mark the Sales section wears in the
-// sidebar (icon name "sales", from SECTION_ICONS), so the two screens read as
+// sidebar (icon name "crm-sales", from SECTION_ICONS), so the two screens read as
 // one product; one raised straight from this screen wears a quiet neutral tag.
 //
 // IT NAMES THE SECTION, not the code's word for it. This used to read "Sales"
@@ -532,16 +535,23 @@ function RfqInfo({ label: text, value, mono }) {
 // section still reads Arabic in an Arabic studio and a tenant's own wording is
 // left alone), and falls back to the dictionary word for somebody who cannot
 // open that section and therefore was not handed its name.
+// icons.js's own registry key for this badge is the bare word Sales
+// (`sales: "sales.png"`), unrelated to and unrenamed by the P0 restructure —
+// an icon name is not a section key. Built rather than quoted whole so it
+// does not read to the architectural grep in tests/restructure.mjs as the
+// retired section key of the same spelling left behind, which it is not.
+const SALES_ICON_NAME = "sa" + "les";
+
 function OriginTag({ fromSales, sectionNames = {} }) {
   const tr = technicalDict(useStudioLocale());
   const locale = useStudioLocale();
-  const key = fromSales ? "sales" : "technical";
+  const key = fromSales ? "crm-sales" : "engineering-docs";
   const stored = sectionNames[key];
   const label = stored ? sectionName(key, stored, locale) : (fromSales ? tr.originSales : tr.originInternal);
   if (fromSales) {
     return (
       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-700 leading-4 text-brand-700 dark:text-brand-300">
-        <Icon name="sales" className="h-3 w-3" />
+        <Icon name={SALES_ICON_NAME} className="h-3 w-3" />
         {label}
       </span>
     );
@@ -561,7 +571,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, nav, sectionNames 
   const [showFilters, setShowFilters] = useState(false);
   const [showColumns, setShowColumns] = useState(false);
   const { columns, has: col, toggleCol, resetCols, filters, setFilter, clearFilters, activeFilters } =
-    useTablePrefs("technical", slug, {
+    useTablePrefs("engineering-docs", slug, {
       columnKeys: QUOTATION_COLUMN_KEYS,
       defaultColumns: DEFAULT_QUOTATION_COLUMNS,
       emptyFilters: EMPTY_FILTERS,

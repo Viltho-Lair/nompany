@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 //
 // All three now map through src/platform/http/httpStatus.js, so `forbidden` is 403,
 // `locked` is 409 and `notfound` is 404 here exactly as everywhere else.
-const spec = { auth: "studio", context: technicalContext, body: true, name: "technical/quotations" };
+const spec = { auth: "studio", context: technicalContext, body: true, name: "crm-sales-quotations" };
 
 // The one check the services cannot make for themselves: they guard the WRITE,
 // this guards the door. Kept as it was rather than folded into the wrapper —

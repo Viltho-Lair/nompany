@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 // One read for the whole Sales screen: clients, tickets, the people who can be
 // assigned work, the vocabulary, and whether this person may change anything.
-const spec = { auth: "studio", context: salesContext, name: "sales" };
+const spec = { auth: "studio", context: salesContext, name: "crm-sales" };
 
 export const GET = route(spec, async (sales) => {
   const [clients, tickets, people] = await Promise.all([

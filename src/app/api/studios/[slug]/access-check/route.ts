@@ -20,7 +20,7 @@ export async function POST(request: Request, ctx: { params: Promise<Record<strin
   if (context.error) {
     return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
   }
-  const denied = requirePermission(context.access, "people.members.edit");
+  const denied = requirePermission(context.access, "administration.members.edit");
   if (denied) return Response.json(denied, { status: 403 });
 
   const body = await request.json().catch(() => ({}));

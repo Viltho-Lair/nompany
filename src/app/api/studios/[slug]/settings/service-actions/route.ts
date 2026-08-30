@@ -23,7 +23,7 @@ async function payload(user: User, slug: string) {
   const context = await studioContext(user, slug);
   if (context.error) return { context, body: null };
   const { studio } = context;
-  const canManage = !requirePermission(context.access, "studio.settings.edit");
+  const canManage = !requirePermission(context.access, "administration.settings.edit");
   return {
     context,
     body: {
@@ -57,7 +57,7 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   const { slug } = await ctx.params;
   const context = await studioContext(user, slug);
   if (context.error) return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
-  if (requirePermission(context.access, "studio.settings.edit")) return Response.json({ error: "forbidden" }, { status: 403 });
+  if (requirePermission(context.access, "administration.settings.edit")) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { studio } = context;
   let raw: Record<string, unknown> = {};

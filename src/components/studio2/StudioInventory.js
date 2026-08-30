@@ -104,7 +104,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   if (view === "inventory-stock") {
     return wrap(<Stock items={items} movements={movements} canManage={canManageStock} busy={busy} send={send} />);
   }
-  if (view === "inventory-vendors") {
+  if (view === "procurement-suppliers") {
     return wrap(<Vendors rows={vendors} items={items} canManage={canManageVendors} busy={busy} send={send} />);
   }
   // NO BRANCH FOR inventory-sheets. The sub-section IS the sheet workspace now
@@ -112,7 +112,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   // rendered straight from the studio route, not from here. What used to be on
   // this screen was purchase orders and delivery notes raised by hand, and
   // those buttons are not wanted: material comes from what was quoted.
-  if (view === "inventory-awb") {
+  if (view === "logistics-shipments") {
     return wrap(<Awb shipments={shipments} airlines={airlines} projects={projects} statuses={vocabulary.awbStatuses || []}
       slug={slug} nav={nav} canManage={canManageAwb} busy={busy} send={send} />);
   }

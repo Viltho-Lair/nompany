@@ -4,7 +4,7 @@ import { inventoryContext, createVendor, editVendor, removeVendor } from "@/modu
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const spec = { auth: "studio", context: inventoryContext, body: true, name: "inventory/vendors" };
+const spec = { auth: "studio", context: inventoryContext, body: true, name: "procurement-suppliers" };
 const manageable = (inv: { canManage: boolean }) => (inv.canManage ? null : { error: "read-only" });
 
 export const POST = route(spec, async (inv) => {

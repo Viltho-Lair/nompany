@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 // Technical:manage, not Sales:manage — sendQuotationForApproval guards the
 // WRITE itself (technical.quotations.edit); this is the door onto it, same
 // split as quotations/route.ts.
-const spec = { auth: "studio", context: technicalContext, body: true, name: "technical/quotations/approval" };
+const spec = { auth: "studio", context: technicalContext, body: true, name: "crm-sales-quotations/approval" };
 
 const manageable = (tech: { canManage: boolean }) => (tech.canManage ? null : { error: "read-only" });
 

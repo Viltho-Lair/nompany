@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // same rule in reverse: your own always, somebody else's needs the Manage grant
 // on Tracking, which clearPosition asks for itself. That is the grant you need
 // when a phone is left logged in on a desk.
-const spec = { auth: "studio", context: operationsContext, body: true, name: "operations/tracking" };
+const spec = { auth: "studio", context: operationsContext, body: true, name: "field-service-tracking" };
 
 export const POST = route(spec, async (ops) => {
   const result = await reportPosition(ops, ops.body);

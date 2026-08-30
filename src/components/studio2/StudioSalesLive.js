@@ -39,8 +39,8 @@ export default function StudioSalesLive({ studio }) {
     setError("");
   }, [studio.slug]);
   useEffect(() => { load(); }, [load]);
-  useLiveUpdates(studio.slug, "sales", load);
-  useLiveUpdates(studio.slug, "technical", load);
+  useLiveUpdates(studio.slug, "crm-sales", load);
+  useLiveUpdates(studio.slug, "engineering-docs", load);
 
   // The timer runs only while the tab is visible and nobody has paused it — a
   // screen nobody is looking at should not be asking the server anything.
@@ -94,9 +94,9 @@ export default function StudioSalesLive({ studio }) {
             >
               {paused ? tr.resume : tr.pause}
             </button>
-            {data?.nav?.["sales-settings"] && (
+            {data?.nav?.["crm-crm-sales-settings"] && (
               <Link
-                href={`/${studio.slug}/sales-settings`}
+                href={`/${studio.slug}/crm-sales-settings`}
                 className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
               >
                 {tr.changeColumns}

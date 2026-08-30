@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // row without needing to see the Technical section at all — the permission that
 // matters is Sales:manage either way.
 export const POST = route(
-  { auth: "studio", context: salesContext, body: true, name: "sales/tickets/rfq" },
+  { auth: "studio", context: salesContext, body: true, name: "crm-sales-tickets/rfq" },
   async (sales) => {
     if (!sales.canManage) return { error: "read-only" };
 
