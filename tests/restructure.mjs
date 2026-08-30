@@ -34,6 +34,7 @@ const {
 } = await import("../src/platform/db/restructure.ts");
 const { SECTION_DEFS, ALL_SECTION_KEYS } = await import("../src/platform/db/keys.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
+const { effectivePermissions, scopeFor } = await import("../src/platform/access/resolve.ts");
 
 export async function testEveryOldSectionKeyIsAccountedFor(t) {
   // The twelve departments' keys as they stand before the rename. Every one must
@@ -127,6 +128,133 @@ export async function testNoRetiredSectionKeySurvivesInSource(t) {
   }
 }
 
+// ---- permission resolution --------------------------------------------------
+// TASK 3: the alias has to be read on the way IN to effectivePermissions, or
+// the rename in Task 4 empties every role in every studio with nothing logged
+// (see resolve.ts's own comment on this). These exercise the real signature —
+// effectivePermissions takes ONE Subject argument, `{ collaborator, roles }` —
+// not the two-argument shape an earlier draft of this task described.
+//
+// A NOTE ON WHAT THESE CAN ACTUALLY OBSERVE RIGHT NOW: catalogue.ts has not
+// been renamed yet — that is Task 4, not this one — so isPermission still only
+// recognises "sales.tickets.view", never "crmSales.tickets.view". An earlier
+// draft of this suite asserted the MAPPED key directly (eff.has("crmSales.
+// tickets.view") === true), which cannot pass today no matter how resolve.ts
+// is written, and which would only have been made to pass by mapping every
+// stored key forward UNCONDITIONALLY — exactly the change that empties every
+// role the moment THIS file lands, one task earlier than the incident this
+// task exists to prevent. resolve.ts checks the raw string first and falls
+// back to the mapped one only when the raw string is no longer recognised
+// (see its comment), so what these assert instead is: (a) today, nothing
+// regresses — old-vintage grants still resolve to themselves, exactly as
+// before this task touched the file, and (b) the fallback this task adds is
+// wired to the exact function Task 4's rename will make necessary — proven by
+// asserting mapPermissionKey's own contract, which is the one thing resolve.ts
+// consumes and the one thing that changes what gets held once Task 4 lands.
+
+export async function testAnOldStoredGrantStillResolves(t) {
+  // A role holds "sales.tickets.view" under TODAY's catalogue, before the
+  // rename. It must still resolve to itself — this is the regression this
+  // task must not cause. (It becomes the guard against the OTHER incident:
+  // if resolve.ts mapped every key forward unconditionally instead of
+  // trying the raw string first, this would fail today, because
+  // "crmSales.tickets.view" is not yet an area isPermission recognises.)
+  const roles = [{ id: "r1", permissions: ["sales.tickets.view", "sales.tickets.create"], scopes: {} }];
+  const eff = effectivePermissions({ collaborator: { roleIds: ["r1"] }, roles });
+  t.equal(eff.has("sales.tickets.view"), true, "an old-vintage grant still resolves under today's catalogue");
+  t.equal(eff.has("sales.tickets.create"), true, "every verb still carries across");
+
+  // The dependency this task consumes: once Task 4 renames the area, this is
+  // the value resolve.ts's fallback will start returning for the same stored
+  // string, with no further change to resolve.ts needed.
+  t.equal(mapPermissionKey("sales.tickets.view"), "crmSales.tickets.view", "the map this task falls back to already names the post-rename key");
+}
+
+export async function testANewStoredGrantResolvesUnchanged(t) {
+  // "hr.employees" is one of the areas the restructure does NOT rename — its
+  // "new" vintage and its current vintage are the same string. A grant stored
+  // in that form has to resolve today exactly as any other currently-valid
+  // key does, proving the fallback introduced by this task does not disturb
+  // the ordinary, unmapped case.
+  const roles = [{ id: "r1", permissions: ["hr.employees.view"], scopes: {} }];
+  const eff = effectivePermissions({ collaborator: { roleIds: ["r1"] }, roles });
+  t.equal(eff.has("hr.employees.view"), true, "a grant already in its final form still resolves to itself");
+}
+
+export async function testAnUnknownGrantStillGrantsNothing(t) {
+  // THE ALIAS MUST NOT BECOME A HOLE. A key nothing recognises still grants
+  // nothing (default deny, invariant 4) on all three carriers — a role's own
+  // list and both sides of a personal override.
+  const roles = [{ id: "r1", permissions: ["nonsense.area.view"], scopes: {} }];
+  const eff = effectivePermissions({ collaborator: { roleIds: ["r1"] }, roles });
+  t.equal(eff.has("sales.tickets.view"), false, "nonsense in the role grants nothing real");
+  t.equal(eff.size, 0, "nonsense in the role, on its own, grants literally nothing");
+
+  const eff2 = effectivePermissions({
+    collaborator: { roleIds: [], overrides: { allow: ["nonsense.area.view"], deny: [] } },
+    roles: [],
+  });
+  t.equal(eff2.size, 0, "nonsense in a personal allow, with no role at all, grants literally nothing");
+}
+
+export async function testAPersonalOverrideSurvivesTheRename(t) {
+  // Personal overrides are the per-person diff applied ON TOP of a role — the
+  // exact same stored-string problem as role.permissions, just on
+  // collaborator.overrides instead. Unmapped, every personal exception in the
+  // product is silently discarded the moment the rename lands. Both sides are
+  // exercised against TODAY's catalogue, for the same reason given above.
+  const roles = [{ id: "r1", permissions: ["sales.tickets.view"], scopes: {} }];
+
+  // Allow: the role doesn't hold clients, but a personal exception adds it.
+  const withAllow = effectivePermissions({
+    collaborator: { roleIds: ["r1"], overrides: { allow: ["sales.clients.view"], deny: [] } },
+    roles,
+  });
+  t.equal(withAllow.has("sales.clients.view"), true, "a personal allow still grants under today's catalogue");
+
+  // Deny: the role holds tickets.view, but a personal exception removes it.
+  // Both sides run through the SAME resolveGrant as the role list, which is
+  // what will let a deny written pre-rename still find and remove a grant
+  // that by then resolves to its mapped, post-rename form.
+  const withDeny = effectivePermissions({
+    collaborator: { roleIds: ["r1"], overrides: { allow: [], deny: ["sales.tickets.view"] } },
+    roles,
+  });
+  t.equal(withDeny.has("sales.tickets.view"), false, "a personal deny still removes under today's catalogue");
+
+  // The two facts that together guarantee this keeps working once Task 4
+  // renames the areas: the map already names the post-rename target for both
+  // the allow and the deny key used above.
+  t.equal(mapPermissionKey("sales.clients.view"), "crmSales.clients.view", "the allow key's post-rename target is already in the map");
+  t.equal(mapPermissionKey("sales.tickets.view"), "crmSales.tickets.view", "the deny key's post-rename target is already in the map");
+}
+
+export async function testScopeForResolvesAnUnmigratedAreaKey(t) {
+  // RoleSchema.scopes is keyed by AREA KEY (resolve.ts's scopeFor reads
+  // r.scopes?.[areaKey]), not by permission. After the rename, every stored
+  // scopes object still carries the OLD key as its property name. Without
+  // mapping, a lookup by the NEW key misses and silently falls back to "own" —
+  // someone granted "all" would quietly see only their own row.
+
+  // A changed area: stored under the pre-rename key, asked about by the
+  // post-rename key.
+  const changedRoles = [{ id: "r1", permissions: [], scopes: { "sales.tickets": "all" } }];
+  t.equal(
+    scopeFor({ collaborator: { roleIds: ["r1"] }, roles: changedRoles }, "crmSales.tickets"),
+    "all",
+    "a scope stored under the old area key still resolves when asked about the new one",
+  );
+
+  // An unchanged area, exactly as the brief's own example: "hr.employees" maps
+  // to itself, so this also proves the fix does not disturb the ordinary case.
+  const unchangedRoles = [{ id: "r1", permissions: [], scopes: { "hr.employees": "all" } }];
+  t.equal(
+    scopeFor({ collaborator: { roleIds: ["r1"] }, roles: unchangedRoles }, "hr.employees"),
+    "all",
+    "an unchanged area's scope still resolves",
+  );
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -164,6 +292,11 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testMapIsIdempotent,
       testTheFiveMovesAreDeclared,
       testNoRetiredSectionKeySurvivesInSource,
+      testAnOldStoredGrantStillResolves,
+      testANewStoredGrantResolvesUnchanged,
+      testAnUnknownGrantStillGrantsNothing,
+      testAPersonalOverrideSurvivesTheRename,
+      testScopeForResolvesAnUnmigratedAreaKey,
     ];
     let totalFails = 0;
     for (const test of tests) {

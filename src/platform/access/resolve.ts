@@ -1,5 +1,13 @@
 import { ALL_PERMISSIONS, isPermission } from "./catalogue";
 import type { PermissionKey, Scope } from "./catalogue";
+// SIBLING-STYLE RELATIVE IMPORT ACROSS FOLDERS, matching platform/engagement's
+// own reach into platform/db (`../db/keys`) — see backfill.ts. platform/db
+// deliberately has no barrel (its `store` module opens a Redis connection, and
+// a barrel would drag that into anything that imports the folder), so this
+// names the file directly rather than going through an index that does not
+// exist. restructure.ts itself has zero imports, so this stays pure data with
+// no transitive Redis connection to carry into a client bundle.
+import { mapPermissionKey } from "../db/restructure";
 
 // THE THREE ROWS THIS MODULE READS, described by what it needs from them rather
 // than by what they are. A collaborator row carries a dozen fields; access cares
@@ -125,17 +133,53 @@ export function effectivePermissions({ collaborator, roles = [] }: Subject): Per
   // Exactly one wildcard, and it is Admin. Everything else is an explicit list,
   // which is what stops a new permission reaching anyone by accident.
   if (mine.some((r) => r.wildcard)) return new Set(ALL_PERMISSIONS);
-  for (const r of mine) for (const k of r.permissions || []) if (isPermission(k)) held.add(k);
 
+  // STORED GRANTS ARE READ THROUGH THE RESTRUCTURE MAP, and this is not
+  // belt-and-braces. A role stores literal permission strings; the P0 restructure
+  // renames the areas those strings name; and isPermission DROPS keys it does
+  // not recognise. Without this line, the rename empties every role in every
+  // studio, default deny (invariant 4) takes over, and nobody can open anything —
+  // with nothing logged, because nothing failed.
+  //
+  // THE RAW STRING IS CHECKED FIRST, and the mapped one is a FALLBACK, not the
+  // other way round — this is what makes it safe to land this file BEFORE the
+  // catalogue is renamed, not only after. Today the catalogue still recognises
+  // "sales.tickets.view", so isPermission(raw) succeeds and this resolves
+  // exactly as it always has — mapping it unconditionally would have turned
+  // mapPermissionKey's own output ("crmSales.tickets.view", an area the
+  // catalogue does not have yet) into the ONLY candidate checked, silently
+  // dropping every current grant the moment this file lands — the lockout this
+  // task exists to prevent, arriving one task early instead of one task late.
+  // Once Task 4 renames the areas, isPermission(raw) starts failing for the old
+  // string, and this SAME line falls through to the mapped form, which by then
+  // is what the catalogue recognises. No further change to this function is
+  // needed when that happens — the fallback is already here, in front of it.
+  //
+  // It stays after the data migration (Task 7) too. A role exported before the
+  // rename and re-imported after it is the same problem arriving later, and one
+  // map lookup is cheaper than the incident.
+  const resolveGrant = (raw: string): PermissionKey | null => {
+    if (isPermission(raw)) return raw;
+    const mapped = mapPermissionKey(raw);
+    return isPermission(mapped) ? mapped : null;
+  };
+  for (const r of mine) for (const raw of r.permissions || []) { const k = resolveGrant(raw); if (k) held.add(k); }
 
   // Personal exceptions, applied last and stored as a DIFF from the role. Deny
   // is applied after allow so an exception can genuinely take something away.
+  // Both sides are personal per-collaborator diffs, not role grants, but they are
+  // the SAME stored strings written against the SAME pre-rename catalogue — an
+  // override survives the rename exactly because it goes through the same
+  // raw-then-mapped resolution as the role list above.
   const ov = collaborator?.overrides || {};
-  for (const k of ov.allow || []) if (isPermission(k)) held.add(k);
+  for (const raw of ov.allow || []) { const k = resolveGrant(raw); if (k) held.add(k); }
   // The guard on the deny side is the type asking a question worth answering:
   // deleting a key the catalogue does not have was always a no-op, so nothing
   // changes, and the set stays a set of permissions rather than of strings.
-  for (const k of ov.deny || []) if (isPermission(k)) held.delete(k);
+  // Resolving through the same fallback matters here too: a deny written
+  // against the old key must still find and remove the (possibly re-mapped)
+  // grant sitting in `held`, on either side of the rename.
+  for (const raw of ov.deny || []) { const k = resolveGrant(raw); if (k) held.delete(k); }
 
   return held;
 }
@@ -146,10 +190,24 @@ export function scopeFor({ collaborator, roles = [] }: Subject, areaKey: string)
   if (collaborator?.role === "owner") return "all";
   const assigned = Array.isArray(collaborator?.roleIds) ? collaborator.roleIds : [];
   const order: Record<Scope, number> = { own: 0, department: 1, all: 2 };
+  // RoleSchema.scopes IS KEYED BY AREA KEY, not by permission — a role stores
+  // `{ "hr.employees": "all" }`, not a verb-suffixed string. After the rename
+  // every stored scopes object still carries the OLD area key as its property
+  // name, so a direct `r.scopes?.[areaKey]` lookup against the NEW key misses
+  // every one of them and everybody silently drops to "own" (the fallback two
+  // lines down) — someone granted "all" quietly sees only their own row, with
+  // nothing failing loudly enough to notice. mapPermissionKey has no reverse
+  // direction exported, so each STORED key is mapped forward and compared
+  // against the (already-current) areaKey being asked about, rather than
+  // trying to map the ask backwards.
+  const target = mapPermissionKey(areaKey);
   let best: Scope | null = null;
   for (const r of (roles || []).filter((x) => assigned.includes(x.id))) {
     if (r.wildcard) return "all";
-    const s = r.scopes?.[areaKey];
+    let s: Scope | undefined;
+    for (const [storedKey, storedScope] of Object.entries(r.scopes || {})) {
+      if (mapPermissionKey(storedKey) === target) { s = storedScope; break; }
+    }
     if (s && (best === null || order[s] > order[best])) best = s;
   }
   return best || "own";
