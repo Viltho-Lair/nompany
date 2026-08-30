@@ -6,9 +6,12 @@ import { S } from "./keys";
 import { hIncrBy } from "./store";
 
 export const MAIN_AGG_SOURCES: { section: string; fallback: string | null; collection: string }[] = [
-  { section: "sales-tickets", fallback: "sales", collection: "salesTickets" },
-  { section: "technical-quotations", fallback: "technical", collection: "quotations" },
-  { section: "technical-rfq", fallback: "technical", collection: "rfqs" },
+  { section: "crm-sales-tickets", fallback: "crm-sales", collection: "salesTickets" },
+  // Quotations moved OUT from under Engineering & Documents to CRM & Sales
+  // (restructure.ts's SECTION_KEY_MAP: technical-quotations -> crm-sales-
+  // quotations), so its fallback parent moves with it.
+  { section: "crm-sales-quotations", fallback: "crm-sales", collection: "quotations" },
+  { section: "engineering-docs-rfq", fallback: "engineering-docs", collection: "rfqs" },
   { section: "projects-list", fallback: "projects", collection: "projects" },
   { section: "inventory-items", fallback: "inventory", collection: "inventoryItems" },
   { section: "tasks", fallback: null, collection: "tasks" },

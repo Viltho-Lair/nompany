@@ -41,10 +41,10 @@ export type Node = {
 // and the alternative, narrowing NodeKey to `keyof typeof NODES`, would make
 // adding a node a change in two places instead of one.
 export const NODES: Record<string, Node> = {
-  salesTicket: { label: "Sales ticket", sectionKey: "sales-tickets", collection: "salesTickets", permission: "sales.tickets.view" },
-  client: { label: "Client", sectionKey: "sales-clients", collection: "salesClients", permission: "sales.clients.view" },
-  rfq: { label: "RFQ", sectionKey: "technical-rfq", collection: "rfqs", permission: "technical.rfq.view" },
-  quotation: { label: "Quotation", sectionKey: "technical-quotations", collection: "quotations", permission: "technical.quotations.view" },
+  salesTicket: { label: "Sales ticket", sectionKey: "crm-sales-tickets", collection: "salesTickets", permission: "crmSales.tickets.view" },
+  client: { label: "Client", sectionKey: "crm-sales-clients", collection: "salesClients", permission: "crmSales.clients.view" },
+  rfq: { label: "RFQ", sectionKey: "engineering-docs-rfq", collection: "rfqs", permission: "engineeringDocs.rfq.view" },
+  quotation: { label: "Quotation", sectionKey: "crm-sales-quotations", collection: "quotations", permission: "crmSales.quotations.view" },
   project: { label: "Project", sectionKey: "projects-list", collection: "projects", permission: "projects.list.view" },
   projectSheet: { label: "Project sheet", sectionKey: "inventory-sheets", collection: "projectSheets", permission: "inventory.sheets.view" },
   materialOrder: { label: "Material order", sectionKey: "inventory-sheets", collection: "materialOrders", permission: "inventory.sheets.view" },
@@ -52,7 +52,7 @@ export const NODES: Record<string, Node> = {
   expense: { label: "Expense", sectionKey: "finance-cash", collection: "expenses", permission: "finance.cash.view" },
   delivery: { label: "Delivery", sectionKey: "inventory", collection: "deliveries", permission: "inventory.stock.view" },
   overtime: { label: "Overtime", sectionKey: "projects-overtimes", collection: "overtimes", permission: "projects.overtimes.view" },
-  awbShipment: { label: "AWB shipment", sectionKey: "inventory-awb", collection: "awbShipments", permission: "inventory.awb.view" },
+  awbShipment: { label: "AWB shipment", sectionKey: "logistics-shipments", collection: "awbShipments", permission: "logistics.shipments.view" },
   task: { label: "Task", sectionKey: "tasks", collection: "tasks", permission: "tasks.board.view" },
 };
 

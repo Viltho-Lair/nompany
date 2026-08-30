@@ -157,7 +157,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await salesContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "sales.tickets.view");
+      const denied = requirePermission(ctx.access, "crmSales.tickets.view");
       if (refusal(denied)) return denied;
       return capped(await listTickets(ctx));
     },
@@ -168,7 +168,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await salesContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "sales.clients.view");
+      const denied = requirePermission(ctx.access, "crmSales.clients.view");
       if (refusal(denied)) return denied;
       return capped(await listClients(ctx));
     },
@@ -179,7 +179,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await technicalContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "technical.rfq.view");
+      const denied = requirePermission(ctx.access, "engineeringDocs.rfq.view");
       if (refusal(denied)) return denied;
       return capped(await listRfqs(ctx));
     },
@@ -190,7 +190,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await technicalContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "technical.quotations.view");
+      const denied = requirePermission(ctx.access, "crmSales.quotations.view");
       if (refusal(denied)) return denied;
       return capped(await listQuotations(ctx));
     },
@@ -245,7 +245,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await inventoryContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "inventory.vendors.view");
+      const denied = requirePermission(ctx.access, "procurement.suppliers.view");
       if (refusal(denied)) return denied;
       return capped(await listVendors(ctx));
     },
@@ -267,7 +267,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await inventoryContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "inventory.awb.view");
+      const denied = requirePermission(ctx.access, "logistics.shipments.view");
       if (refusal(denied)) return denied;
       return capped(await listShipments(ctx));
     },
@@ -278,7 +278,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await operationsContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "operations.tracking.view");
+      const denied = requirePermission(ctx.access, "fieldService.tracking.view");
       if (refusal(denied)) return denied;
       return capped(await listPermits(ctx));
     },
@@ -289,7 +289,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await operationsContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "operations.tracking.view");
+      const denied = requirePermission(ctx.access, "fieldService.tracking.view");
       if (refusal(denied)) return denied;
       return capped(await listShifts(ctx));
     },

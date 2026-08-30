@@ -26,19 +26,19 @@ const ar: SectionMap = {
   main: "الرئيسية",
 
   sales: "المبيعات",
-  "sales-tickets": "التذاكر",
-  "sales-clients": "العملاء",
-  "sales-live": "العرض المباشر",
-  "sales-settings": "الإعدادات",
+  "crm-sales-tickets": "التذاكر",
+  "crm-sales-clients": "العملاء",
+  "crm-sales-live": "العرض المباشر",
+  "crm-sales-settings": "الإعدادات",
 
   technical: "القسم الفني",
-  "technical-quotations": "عروض الأسعار",
+  "crm-sales-quotations": "عروض الأسعار",
   // Kept as the initialism. An Arabic engineer says "RFQ"; the expanded
   // "طلب عرض سعر" is the right phrase in a sentence and the wrong one on a
   // sidebar row that has to stay short.
-  "technical-rfq": "طلبات عروض الأسعار",
-  "technical-live": "العرض المباشر",
-  "technical-settings": "الإعدادات",
+  "engineering-docs-rfq": "طلبات عروض الأسعار",
+  "engineering-docs-live": "العرض المباشر",
+  "engineering-docs-settings": "الإعدادات",
 
   projects: "المشاريع",
   "projects-list": "قائمة المشاريع",
@@ -48,10 +48,10 @@ const ar: SectionMap = {
 
   inventory: "المخزون",
   "inventory-stock": "إدارة المخزون",
-  "inventory-vendors": "الموردون",
+  "procurement-suppliers": "الموردون",
   "inventory-items": "الأصناف المسجّلة",
   "inventory-sheets": "كشوف المشاريع",
-  "inventory-awb": "تتبّع بوليصة الشحن",
+  "logistics-shipments": "تتبّع بوليصة الشحن",
 
   hr: "الموارد البشرية",
   "hr-employees": "الموظفون",
@@ -64,13 +64,13 @@ const ar: SectionMap = {
   "finance-settings": "الإعدادات",
 
   operations: "العمليات",
-  "operations-schedule": "الجدول",
-  "operations-tracking": "التتبّع",
-  "operations-planner": "المخطِّط",
-  "operations-settings": "الإعدادات",
+  "field-service-schedule": "الجدول",
+  "field-service-tracking": "التتبّع",
+  "projects-planner": "المخطِّط",
+  "field-service-settings": "الإعدادات",
 
   quality: "الجودة",
-  "quality-documents": "الوثائق",
+  "engineering-docs-register": "الوثائق",
 
   tasks: "المهام",
   "tasks-settings": "إعدادات المهام",

@@ -12,21 +12,33 @@ import { defaultLocale, type Locale } from "../locale";
 // response moves, and a catalogue entry with no translation renders the English
 // the catalogue gave it rather than nothing at all.
 
+// KEYED BY THE AREA'S `group` FIELD, VERBATIM — platform/access/catalogue.ts,
+// not by department. The P0 restructure changed several of these strings even
+// where the PERMISSION keys underneath did not: Inventory and Finance keep
+// their area keys but their group WIDENED to "Inventory & Warehouse" and
+// "Finance & Accounting", so a dict still keyed by the old bare word would
+// silently stop matching and fall back to English — the same failure mode as
+// an unmapped permission key, just on a heading instead of a row. People and
+// Studio settings, screens without a section before this restructure, are now
+// both areas grouped under the single "Administration & Settings" (keys.ts's
+// SECTION_DEFS gives it three children: members, master data, settings), so
+// the two separate old groups collapse into one here too.
 const groups: Record<Locale, Record<string, string>> = {
   en: {},
   ar: {
-    Sales: "المبيعات",
-    Technical: "القسم الفني",
+    Main: "الرئيسية",
+    "CRM & Sales": "المبيعات",
+    "Engineering & Documents": "الهندسة والوثائق",
     Projects: "المشاريع",
-    Inventory: "المخزون",
+    "Inventory & Warehouse": "المخزون",
+    "Procurement & Subcontracting": "المشتريات",
     "Human Resources": "الموارد البشرية",
-    Finance: "المالية",
-    Operations: "العمليات",
-    Quality: "الجودة",
+    "Finance & Accounting": "المالية",
+    "Field Operations & Service": "العمليات الميدانية",
+    "Logistics & Fleet": "اللوجستيات",
+    "Quality & HSE": "الجودة والسلامة",
+    "Administration & Settings": "الإدارة والإعدادات",
     Tasks: "المهام",
-    People: "الأشخاص",
-    Studio: "الاستوديو",
-    Engagements: "الارتباطات",
   },
 };
 
@@ -35,31 +47,31 @@ const groups: Record<Locale, Record<string, string>> = {
 const areas: Record<Locale, Record<string, string>> = {
   en: {},
   ar: {
-    "sales.dashboard": "لوحة المبيعات",
-    "technical.dashboard": "اللوحة الفنية",
+    "crmSales.dashboard": "لوحة المبيعات",
+    "engineeringDocs.dashboard": "اللوحة الفنية",
     "projects.dashboard": "لوحة المشاريع",
     "inventory.dashboard": "لوحة المخزون",
     "hr.dashboard": "لوحة الموارد البشرية",
     "finance.dashboard": "لوحة المالية",
-    "operations.dashboard": "الشاشة الرئيسية",
-    "quality.dashboard": "لوحة الجودة",
-    "sales.tickets": "التذاكر",
-    "sales.clients": "العملاء",
-    "sales.live": "العرض المباشر",
-    "sales.settings": "الإعدادات",
-    "technical.rfq": "طلبات عروض الأسعار",
-    "technical.quotations": "عروض الأسعار",
-    "technical.live": "العرض المباشر",
-    "technical.settings": "الإعدادات",
+    "fieldService.dashboard": "الشاشة الرئيسية",
+    "qualityHse.dashboard": "لوحة الجودة",
+    "crmSales.tickets": "التذاكر",
+    "crmSales.clients": "العملاء",
+    "crmSales.live": "العرض المباشر",
+    "crmSales.settings": "الإعدادات",
+    "engineeringDocs.rfq": "طلبات عروض الأسعار",
+    "crmSales.quotations": "عروض الأسعار",
+    "engineeringDocs.live": "العرض المباشر",
+    "engineeringDocs.settings": "الإعدادات",
     "projects.list": "المشاريع",
     "projects.sla": "اتفاقيات مستوى الخدمة",
     "projects.overtimes": "الساعات الإضافية",
     "projects.settings": "الإعدادات",
     "inventory.stock": "المخزون",
-    "inventory.vendors": "المورّدون",
+    "procurement.suppliers": "المورّدون",
     "inventory.items": "الأصناف المسجّلة",
     "inventory.sheets": "أوراق المشاريع",
-    "inventory.awb": "تتبّع بوالص الشحن",
+    "logistics.shipments": "تتبّع بوالص الشحن",
     "hr.employees": "الموظفون",
     "hr.vacations": "الإجازات",
     "finance.cash": "النقد",
@@ -67,15 +79,15 @@ const areas: Record<Locale, Record<string, string>> = {
     "finance.payables": "الذمم الدائنة",
     "finance.assets": "الأصول الثابتة",
     "finance.settings": "الإعدادات",
-    "operations.schedule": "الجدول",
-    "operations.tracking": "التتبّع",
-    "operations.settings": "الإعدادات",
-    "operations.planner": "المخطِّط",
-    "quality.documents": "الوثائق",
+    "fieldService.schedule": "الجدول",
+    "fieldService.tracking": "التتبّع",
+    "fieldService.settings": "الإعدادات",
+    "projects.planner": "المخطِّط",
+    "engineeringDocs.register": "الوثائق",
     "tasks.board": "لوحة المهام",
     "tasks.settings": "الإعدادات",
-    "people.members": "الأشخاص والصلاحيات",
-    "studio.settings": "إعدادات الاستوديو",
+    "administration.members": "الأشخاص والصلاحيات",
+    "administration.settings": "إعدادات الاستوديو",
     engagements: "الارتباطات",
   },
 };
@@ -85,9 +97,9 @@ const areas: Record<Locale, Record<string, string>> = {
 const extras: Record<Locale, Record<string, string>> = {
   en: {},
   ar: {
-    "technical.rfq.convert": "التحويل إلى عرض سعر",
-    "technical.quotations.lock": "القفل الدائم",
-    "technical.quotations.unlock": "فتح عرض سعر مقفل",
+    "engineeringDocs.rfq.convert": "التحويل إلى عرض سعر",
+    "crmSales.quotations.lock": "القفل الدائم",
+    "crmSales.quotations.unlock": "فتح عرض سعر مقفل",
     "hr.employees.salary": "الاطلاع على الأجر والراتب",
     "hr.vacations.approve": "اعتماد الطلبات",
     "finance.ledger.post": "ترحيل القيود",
@@ -95,10 +107,10 @@ const extras: Record<Locale, Record<string, string>> = {
     "finance.payables.approve": "اعتماد الفواتير",
     "finance.payables.pay": "تسجيل المدفوعات",
     "finance.assets.dispose": "استبعاد أصل",
-    "quality.documents.review": "التوقيع كمراجع",
-    "quality.documents.approve": "التوقيع كمعتمد",
-    "quality.documents.publish": "إصدار مراجعة",
-    "quality.documents.obsolete": "سحب وثيقة",
+    "engineeringDocs.register.review": "التوقيع كمراجع",
+    "engineeringDocs.register.approve": "التوقيع كمعتمد",
+    "engineeringDocs.register.publish": "إصدار مراجعة",
+    "engineeringDocs.register.obsolete": "سحب وثيقة",
     "engagements.lock": "قفل صفقة وفتحها",
   },
 };

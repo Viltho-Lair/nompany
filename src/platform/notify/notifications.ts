@@ -105,7 +105,7 @@ function build({ type, title, body = "", href = "", tone = "primary" }: Notice) 
  * @param {string[]} recipientIds  CollaboratorIDs (never UserIDs — see the note
  *                                 at the top of collaborators.js)
  * @param {{type: string, title: string, body?: string, href?: string, tone?: string}} notice
- *        `href` is STUDIO-RELATIVE ("people", "sales/tickets") — the bell
+ *        `href` is STUDIO-RELATIVE ("people", "crm-sales-tickets") — the bell
  *        prefixes it with the studio's slug. Storing the slug here would bake
  *        in an address that can be renamed, leaving old notifications pointing
  *        at a studio that no longer answers to that name.

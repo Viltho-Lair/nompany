@@ -69,33 +69,43 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // sectionViewable below asks the parent's own area FIRST and falls through to
   // the children, so withholding the dashboard hides the summary without making
   // the ticket screen underneath it unreachable.
-  sales: ["sales.dashboard"],
-  technical: ["technical.dashboard"],
+  "crm-sales": ["crmSales.dashboard"],
+  "engineering-docs": ["engineeringDocs.dashboard"],
   projects: ["projects.dashboard"],
   inventory: ["inventory.dashboard"],
   hr: ["hr.dashboard"],
   finance: ["finance.dashboard"],
-  operations: ["operations.dashboard"],
-  quality: ["quality.dashboard"],
+  "field-service": ["fieldService.dashboard"],
+  "quality-hse": ["qualityHse.dashboard"],
 
-  "sales-tickets": ["sales.tickets"],
-  "sales-clients": ["sales.clients"],
-  "sales-live": ["sales.live"],
-  "sales-settings": ["sales.settings"],
-  "technical-rfq": ["technical.rfq"],
-  "technical-quotations": ["technical.quotations"],
-  "technical-live": ["technical.live"],
-  "technical-settings": ["technical.settings"],
+  "crm-sales-tickets": ["crmSales.tickets"],
+  "crm-sales-clients": ["crmSales.clients"],
+  "crm-sales-live": ["crmSales.live"],
+  "crm-sales-settings": ["crmSales.settings"],
+  "engineering-docs-rfq": ["engineeringDocs.rfq"],
+  // QUOTATIONS GAINED BY CRM & SALES — the offer is a sales act (blueprint
+  // §3.1), so the section key moves out from under Engineering & Documents
+  // even though the RFQ it is raised from stays behind (restructure.ts's
+  // SECTION_KEY_MAP).
+  "crm-sales-quotations": ["crmSales.quotations"],
+  "engineering-docs-live": ["engineeringDocs.live"],
+  "engineering-docs-settings": ["engineeringDocs.settings"],
   "projects-list": ["projects.list"],
   "projects-sla": ["projects.sla"],
   "projects-overtimes": ["projects.overtimes"],
   "projects-settings": ["projects.settings"],
-  "operations-planner": ["operations.planner"],
+  // The planner is project scheduling and moves to Projects, where it belongs
+  // — it sat under Operations only because that is where it was built.
+  "projects-planner": ["projects.planner"],
   "inventory-stock": ["inventory.stock"],
-  "inventory-vendors": ["inventory.vendors"],
+  // MOVED TO PROCUREMENT & SUBCONTRACTING — buying is where Vendors always
+  // belonged; Inventory kept the screen only because that is where it was built.
+  "procurement-suppliers": ["procurement.suppliers"],
   "inventory-items": ["inventory.items"],
   "inventory-sheets": ["inventory.sheets"],
-  "inventory-awb": ["inventory.awb"],
+  // MOVED TO LOGISTICS & FLEET — AWB is goods in movement, which is Logistics's
+  // home now.
+  "logistics-shipments": ["logistics.shipments"],
   "hr-employees": ["hr.employees", "hr.vacations"],
   "finance-cash": ["finance.cash"],
   // Gated by its own right — WITHOUT this line a leaf section has no areas, so
@@ -105,10 +115,16 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "finance-payables": ["finance.payables"],
   "finance-assets": ["finance.assets"],
   "finance-settings": ["finance.settings"],
-  "operations-schedule": ["operations.schedule"],
-  "operations-tracking": ["operations.tracking"],
-  "operations-settings": ["operations.settings"],
-  "quality-documents": ["quality.documents"],
+  // WHAT REMAINS OF OPERATIONS IS FIELD SERVICE: the rota that dispatches
+  // crews and the tracking that follows them. The planner went to Projects,
+  // permits to Quality & HSE, locations to Administration.
+  "field-service-schedule": ["fieldService.schedule"],
+  "field-service-tracking": ["fieldService.tracking"],
+  "field-service-settings": ["fieldService.settings"],
+  // MOVED TO ENGINEERING & DOCUMENTS — the register is the technical truth now
+  // (blueprint §3.4); Quality & HSE keeps the evidence (inspections, NCRs,
+  // audits, incidents, permits), not the record itself.
+  "engineering-docs-register": ["engineeringDocs.register"],
   "tasks-settings": ["tasks.settings"],
   tasks: ["tasks.board"],
 };
@@ -134,18 +150,20 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
 // vocabularies and calling it a security check.
 //
 // THE RAW STRING IS CHECKED FIRST, and the mapped one is a FALLBACK, not the
-// other way round — this is what makes it safe to land this file BEFORE the
-// catalogue is renamed, not only after. Today the catalogue still recognises
-// "sales.tickets.view", so isPermission(raw) succeeds and this resolves
-// exactly as it always has — mapping it unconditionally would have turned
-// mapPermissionKey's own output ("crmSales.tickets.view", an area the
-// catalogue does not have yet) into the ONLY candidate checked, silently
-// dropping every current grant the moment this file lands — the lockout this
-// task exists to prevent, arriving one task early instead of one task late.
-// Once Task 4 renames the areas, isPermission(raw) starts failing for the old
-// string, and this SAME line falls through to the mapped form, which by then
-// is what the catalogue recognises. No further change to either caller is
-// needed when that happens — the fallback is already here, in front of it.
+// other way round — this is what let this file land safely BEFORE the
+// catalogue was renamed (Task 4), not only after. Before that rename the
+// catalogue still recognised the pre-restructure spelling of an area — the
+// key now called `crmSales.tickets.view` was then `sales.tickets.view` — so
+// isPermission(raw) succeeded and this resolved exactly as it always had;
+// mapping unconditionally would have turned mapPermissionKey's own output
+// (an area the catalogue did not have yet) into the ONLY candidate checked,
+// silently dropping every current grant the moment this file landed — the
+// lockout this task exists to prevent, arriving one task early instead of one
+// task late. Now that Task 4 has renamed the areas, isPermission(raw) fails
+// for a role still storing the old spelling, and this SAME line falls
+// through to the mapped form, which is what the catalogue recognises today.
+// No further change to either caller was needed when that happened — the
+// fallback was already here, in front of it.
 //
 // It stays after the data migration (Task 7) too. A role exported before the
 // rename and re-imported after it is the same problem arriving later, and one
@@ -303,10 +321,10 @@ export function sectionViewable(access: PermissionSet, sectionKey: string, allKe
 export function sectionManageable(access: PermissionSet, sectionKey: string, allKeys: readonly string[] = []): boolean {
   const own = SECTION_AREAS[sectionKey];
   if (own && anyKey(access, sectionKey, ["create", "edit", "delete"])) return true;
-  // A HEADING has no writes of its own — "sales" is a nav parent, not a right.
-  // Without falling through to the children it answered false for everybody,
-  // owners included, and asking "may they manage Sales?" is exactly what raising
-  // an RFQ does.
+  // A HEADING has no writes of its own — `crm-sales` is a nav parent, not a
+  // right. Without falling through to the children it answered false for
+  // everybody, owners included, and asking "may they manage CRM & Sales?" is
+  // exactly what raising an RFQ does.
   //
   // The dashboard areas do not change that. They are view-only, so a parent that
   // now HAS an area still has nothing manageable of its own and still has to ask
@@ -364,7 +382,7 @@ export function cleanAssignment(patch: Record<string, unknown>, knownRoleIds: re
 // could write themselves an override for anything in the catalogue — including
 // permissions nobody ever gave them. That is privilege escalation through the
 // front door, and it is the reason assignment needs a check of its own rather
-// than just the people.members.edit guard on the route.
+// than just the administration.members.edit guard on the route.
 //
 // An owner or Admin holds everything, so this never obstructs them.
 export function escalates(
@@ -376,14 +394,15 @@ export function escalates(
   // effectivePermissions uses to build actorAccess. THIS WAS THE GAP: reading
   // role.permissions straight through isPermission, unmapped, while the
   // actor's own access was already being resolved through the map, meant that
-  // once Task 4 renames the areas — and before Task 7's data migration has
-  // rewritten every stored role — a role still holding the pre-rename
-  // "sales.tickets.view" would have that string DROPPED here (isPermission
-  // rejects it) before ever reaching `granting`, so an actor who does not
-  // hold the equivalent "crmSales.tickets.view" would see nothing to object
-  // to and the assignment would be waved through — invariant 5, "nobody
-  // grants what they do not hold," breached at the one door built to enforce
-  // it, in the exact window this restructure creates.
+  // now that Task 4 has renamed the areas — and before Task 7's data
+  // migration has rewritten every stored role — a role still holding the
+  // pre-rename spelling of an area (`sales.tickets.view`, before the rename,
+  // for the key now called `crmSales.tickets.view`) would have that string
+  // DROPPED here (isPermission rejects it) before ever reaching `granting`,
+  // so an actor who does not hold the renamed key would see nothing to
+  // object to and the assignment would be waved through — invariant 5,
+  // "nobody grants what they do not hold," breached at the one door built to
+  // enforce it, in the exact window this restructure creates.
   //
   // `assignment.overrides.allow` is typed as PermissionKey[] and every call
   // site builds it via cleanAssignment/cleanRole, which already filter

@@ -42,15 +42,31 @@ export type Insight = {
   weight: number;
 };
 
+// FOUR ROOTS ARE THEMSELVES HYPHENATED COMPOUNDS since the P0 restructure —
+// "crm-sales", "engineering-docs", "field-service", "quality-hse" — where
+// every earlier root was one bare word (`technical`, `operations`, `hr`, …).
+// Declared here rather than derived from platform/db/keys' SECTION_DEFS
+// because everything under shared/ is pure values with no dependants, and
+// reaching up into platform/db from here would be exactly the kind of import
+// that rule exists to forbid.
+const COMPOUND_ROOTS = ["crm-sales", "engineering-docs", "field-service", "quality-hse"];
+
 /**
- * THE DEPARTMENT A SECTION KEY BELONGS TO — "technical-quotations" is Technical.
- * A prefix split rather than a table, because SECTION_DEFS names every child
- * `<department>-<thing>` and a hand-kept table is a second list to forget to
- * extend. `tasks`, `hr` and `operations` have no dash and are their own
- * department, which the same split already gives.
+ * THE DEPARTMENT A SECTION KEY BELONGS TO — "crm-sales-quotations" is CRM &
+ * Sales. A prefix split rather than a table, because SECTION_DEFS names every
+ * child `<department>-<thing>` and a hand-kept table is a second list to
+ * forget to extend. `tasks`, `hr` and `projects` have no dash and are their
+ * own department, which the same split already gives — but a PLAIN first-dash
+ * split stops being enough the moment a root itself contains one, which is
+ * exactly what the four compounds above do: "field-service-schedule".indexOf(
+ * "-") would answer "field", a department this product does not have. Those
+ * four are matched as a whole prefix first; everyone else still gets the
+ * original single-dash split.
  */
 export function departmentOf(sectionKey: string): string {
   const k = String(sectionKey || "");
+  const compound = COMPOUND_ROOTS.find((root) => k === root || k.startsWith(`${root}-`));
+  if (compound) return compound;
   const dash = k.indexOf("-");
   return dash === -1 ? k : k.slice(0, dash);
 }

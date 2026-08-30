@@ -42,30 +42,30 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   // THE SPINE — each of these is raised for one deal and means nothing without
   // it, so each dies with it.
   //   ticket    the deal itself: the request that started it.
-  //   rfq       Sales asking Technical to quote THIS ticket.
+  //   rfq       CRM & Sales asking Engineering & Documents to quote THIS ticket.
   //   quotation the document offered on this deal (converted or internal).
   //   project   the delivery of this deal's approved quotation.
   //   sheet     the project's own cost/material sheet — no project, no sheet.
-  ticket:    { type: "ticket",    cardinality: "one",  sectionKey: "sales-tickets",         permission: "sales.tickets.view",       unassignable: false, collection: "salesTickets",   label: "Sales ticket",   onDelete: "cascade" },
-  rfq:       { type: "rfq",       cardinality: "many", sectionKey: "technical-rfq",         permission: "technical.rfq.view",       unassignable: false, collection: "rfqs",           label: "RFQ",            onDelete: "cascade" },
-  quotation: { type: "quotation", cardinality: "many", sectionKey: "technical-quotations",  permission: "technical.quotations.view",unassignable: false, collection: "quotations",     label: "Quotation",      onDelete: "cascade" },
-  project:   { type: "project",   cardinality: "one",  sectionKey: "projects-list",         permission: "projects.list.view",       unassignable: false, collection: "projects",       label: "Project",        onDelete: "cascade" },
-  sheet:     { type: "sheet",     cardinality: "many", sectionKey: "inventory-sheets",      permission: "inventory.sheets.view",    unassignable: false, collection: "projectSheets",  label: "Project sheet",  onDelete: "cascade" },
+  ticket:    { type: "ticket",    cardinality: "one",  sectionKey: "crm-sales-tickets",    permission: "crmSales.tickets.view",       unassignable: false, collection: "salesTickets",   label: "Sales ticket",   onDelete: "cascade" },
+  rfq:       { type: "rfq",       cardinality: "many", sectionKey: "engineering-docs-rfq", permission: "engineeringDocs.rfq.view",    unassignable: false, collection: "rfqs",           label: "RFQ",            onDelete: "cascade" },
+  quotation: { type: "quotation", cardinality: "many", sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view",    unassignable: false, collection: "quotations",     label: "Quotation",      onDelete: "cascade" },
+  project:   { type: "project",   cardinality: "one",  sectionKey: "projects-list",        permission: "projects.list.view",          unassignable: false, collection: "projects",       label: "Project",        onDelete: "cascade" },
+  sheet:     { type: "sheet",     cardinality: "many", sectionKey: "inventory-sheets",     permission: "inventory.sheets.view",       unassignable: false, collection: "projectSheets",  label: "Project sheet",  onDelete: "cascade" },
   // RAISED TO FULFIL THIS DEAL'S PROJECT. An order is placed against its sheet,
   // a delivery records that order arriving, a shipment tracks it in transit —
   // none of the three exists as a studio-wide fact the way a vendor or an item
   // does, and each names the project it was raised for. They die with it.
-  order:     { type: "order",     cardinality: "many", sectionKey: "inventory-sheets",      permission: "inventory.sheets.view",    unassignable: false, collection: "materialOrders", label: "Material order", onDelete: "cascade" },
-  delivery:  { type: "delivery",  cardinality: "many", sectionKey: "inventory",             permission: "inventory.stock.view",     unassignable: false, collection: "deliveries",     label: "Delivery",       onDelete: "cascade" },
-  shipment:  { type: "shipment",  cardinality: "many", sectionKey: "inventory-awb",         permission: "inventory.awb.view",       unassignable: false, collection: "awbShipments",   label: "Shipment",       onDelete: "cascade" },
+  order:     { type: "order",     cardinality: "many", sectionKey: "inventory-sheets",     permission: "inventory.sheets.view",       unassignable: false, collection: "materialOrders", label: "Material order", onDelete: "cascade" },
+  delivery:  { type: "delivery",  cardinality: "many", sectionKey: "inventory",            permission: "inventory.stock.view",        unassignable: false, collection: "deliveries",     label: "Delivery",       onDelete: "cascade" },
+  shipment:  { type: "shipment",  cardinality: "many", sectionKey: "logistics-shipments",  permission: "logistics.shipments.view",    unassignable: false, collection: "awbShipments",   label: "Shipment",       onDelete: "cascade" },
   // WORKED ON THIS DEAL'S PROJECT, and recorded against it — an overtime claim
   // names the project it was worked on and has no meaning without it.
-  overtime:  { type: "overtime",  cardinality: "many", sectionKey: "projects-overtimes",    permission: "projects.overtimes.view",  unassignable: false, collection: "overtimes",      label: "Overtime",       onDelete: "cascade" },
+  overtime:  { type: "overtime",  cardinality: "many", sectionKey: "projects-overtimes",   permission: "projects.overtimes.view",     unassignable: false, collection: "overtimes",      label: "Overtime",       onDelete: "cascade" },
   // BILLED FOR THIS DEAL. The user named invoices explicitly among the things
   // that go with the engagement. Note what does NOT come back with it: the
   // invoice NUMBER stays spent (invariant 10 — reference numbers only move
   // forward), so deleting a deal can never reissue a number a client holds.
-  invoice:   { type: "invoice",   cardinality: "many", sectionKey: "finance-cash",          permission: "finance.cash.view",        unassignable: false, collection: "invoices",       label: "Invoice",        onDelete: "cascade" },
+  invoice:   { type: "invoice",   cardinality: "many", sectionKey: "finance-cash",         permission: "finance.cash.view",           unassignable: false, collection: "invoices",       label: "Invoice",        onDelete: "cascade" },
   // ---- KEPT, DELIBERATELY --------------------------------------------------
   // Every type below can exist with NO deal at all (`unassignable`), is created
   // on its own department screen, and is assigned to a deal afterwards (§3.6.2's
