@@ -689,8 +689,16 @@ function ProjectDetail({ project: p, people, stages, canManage, aliasOf, slug, n
   // The chain this project came from. A directly-created project has none of
   // the three, and an empty strip after the "From" heading reads as a record
   // that failed to load — so the absence is named rather than left blank.
+  // The nav lookup below used to read the bare pre-restructure department
+  // name off the nav map (restructure.ts renamed that department to
+  // crm-sales) — nav is never keyed by the retired spelling, so the link
+  // could never render for anyone regardless of access. Same defect, same
+  // fix, as the bracketed neighbours below (already correct because they
+  // were swept), just in the dot-access shape a bracket-only check cannot
+  // see. linkToTicket (studioLinks.ts) always builds a /crm-sales URL, so
+  // the root key is what actually governs whether that URL opens.
   const lineage = [
-    p.ticketId && { label: tr.ticket, href: linkIf(nav?.sales, linkToTicket(slug, p.ticketId)) },
+    p.ticketId && { label: tr.ticket, href: linkIf(nav?.["crm-sales"], linkToTicket(slug, p.ticketId)) },
     p.rfqId && { label: "RFQ", href: linkIf(nav?.["engineering-docs-rfq"], linkToRfq(slug, p.rfqId)) },
     p.quotationNumber && { label: p.quotationNumber, href: linkIf(nav?.["crm-sales-quotations"], linkToQuotation(slug, p.quotationId)) },
   ].filter(Boolean);

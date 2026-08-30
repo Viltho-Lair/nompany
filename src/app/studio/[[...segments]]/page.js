@@ -477,16 +477,23 @@ export default async function StudioPage({ params }) {
   // silently showing something else.
   const deniedSection = !isPeople && !isAccess && !isSettings && requested && !sections.some((s) => s.key === requested)
     && allSections.some((s) => s.key === requested);
-  // ONE OF THE FOUR ORDERING-ONLY ROOTS — NO_SCREEN_YET names eight keys, but
-  // the other four (the administration group) DO have real screens reached
-  // elsewhere (see that constant's own comment); only these four have no
-  // screen ANYWHERE, for anyone. "Ask an admin to grant it" is a false
-  // promise for them — there is no permission behind the key to hold, admin
-  // included, confirmed in the sandbox walk where even the studio's Owner
-  // sees this. A distinct message says so instead of implying a grant would
-  // help.
+  // ONE OF THE ORDERING-ONLY ROOTS — NO_SCREEN_YET names eight keys (platform/
+  // access/resolve.ts), but the four administration ones DO have real screens
+  // reached elsewhere (see that constant's own comment); only a key OUTSIDE
+  // that group has no screen ANYWHERE, for anyone. Filtered here rather than
+  // hardcoding the other four keys a second time — fix round 1 imported
+  // NO_SCREEN_YET for exactly this and then didn't use it, which is the
+  // "two lists that must agree" drift this restructure keeps finding. Filtering
+  // by the administration prefix, not by naming the four placeholders again,
+  // also means a ninth placeholder added to NO_SCREEN_YET later gets this
+  // copy automatically instead of needing a third list kept in step.
+  //
+  // "Ask an admin to grant it" is a false promise for these — there is no
+  // permission behind the key to hold, admin included, confirmed in the
+  // sandbox walk where even the studio's Owner sees this. A distinct message
+  // says so instead of implying a grant would help.
   const notBuiltYet = deniedSection
-    && ["tendering", "manufacturing", "assets", "reports"].includes(requested);
+    && NO_SCREEN_YET.includes(requested) && !requested.startsWith("administration");
 
   // Which component to render: a sub-section resolves to its parent's module.
   // The module then decides the screen from the ACTIVE key — Sales does this

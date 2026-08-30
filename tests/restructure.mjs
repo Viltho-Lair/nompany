@@ -741,13 +741,36 @@ export async function testEveryContextualSectionKeyLiteralExists(t) {
     }
   }
 
-  // Shape 3 — `nav?.["<key>"]` / `manage?.["<key>"]`. Both maps are keyed
-  // 1:1 by real section keys (sectionNav/manageMap in lib/studios.ts), so
-  // scoped to studio2 where they are actually built and read.
+  // Shape 3 — `nav?.["<key>"]` / `manage?.["<key>"]` (bracket) AND
+  // `nav?.<key>` / `manage?.<key>` (dot access — the SAME lookup on the
+  // SAME map, just written without the brackets a hyphenated key would
+  // actually require). Fix round 1 checked only the bracket form and missed
+  // four live sites written the other way: `nav?.sales` (StudioProjects.js),
+  // `nav?.technical` (StudioTasks.js) — both retired department names, the
+  // identical defect as the bracketed literals fixed elsewhere in this same
+  // task, just invisible to a check that only recognised one of the two
+  // equivalent syntaxes — and `nav?.people` (StudioHr.js, two sites),
+  // genuinely dead: "people" has never been a nav key under either syntax.
+  // Both maps are keyed 1:1 by real section keys (sectionNav/manageMap in
+  // lib/studios.ts), so scoped to studio2 where they are actually built and
+  // read. The dot-access regex requires a following identifier character, so
+  // it does not also fire on the bracket form (`nav?.["x"]` has `[` right
+  // after the dot, not a word character) — the two loops see disjoint text.
   const BRACKET_PATTERNS = ["nav?.[\"", "manage?.[\""];
   for (const file of gitGrepFiles(execFileSync, BRACKET_PATTERNS, ["src/components/studio2"])) {
     for (const { lineNo, content } of gitGrepLines(execFileSync, file, BRACKET_PATTERNS)) {
       const re = /(?:nav|manage)\?\.\[\s*"([^"]+)"\s*\]/g;
+      let m;
+      while ((m = re.exec(content))) {
+        if (isKnownRouteTarget(m[1])) continue;
+        bad.push(`${file}:${lineNo}: ${m[0]} — "${m[1]}" is not a section key`);
+      }
+    }
+  }
+  const DOT_PATTERNS = ["nav?.", "manage?."];
+  for (const file of gitGrepFiles(execFileSync, DOT_PATTERNS, ["src/components/studio2"])) {
+    for (const { lineNo, content } of gitGrepLines(execFileSync, file, DOT_PATTERNS)) {
+      const re = /(?:nav|manage)\?\.(\w+)/g;
       let m;
       while ((m = re.exec(content))) {
         if (isKnownRouteTarget(m[1])) continue;

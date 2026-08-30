@@ -231,9 +231,18 @@ function TaskRow({ task: t, canManage, canDelete, canOpenProject, people, slugFo
                 title and had no way to reach it — so answering "should I
                 approve this?" meant finding the document by hand in another
                 module. The number is READ BACK through quotationId, never
-                stored here, so a renumbered document still links correctly. */}
+                stored here, so a renumbered document still links correctly.
+
+                The nav lookup below used to read the bare pre-restructure
+                department name off the nav map — and even that department's
+                renamed spelling would be wrong here, since quotations moved
+                WITH the section to CRM & Sales while the RFQ they are raised
+                from is what stayed behind. linkToQuotation (studioLinks.ts)
+                always builds a /crm-sales URL, so that root key is what
+                actually governs whether it opens; the old spelling could
+                never render for anyone regardless of access. */}
             {t.quotationNumber && (
-              <RecordLink href={linkIf(nav?.technical, linkToQuotation(slug, t.quotationId))}
+              <RecordLink href={linkIf(nav?.["crm-sales"], linkToQuotation(slug, t.quotationId))}
                 title={tr.openQuotationBeingDecided}>{t.quotationNumber}</RecordLink>
             )}
             {t.overdue && <span className="text-xs font-700 text-rose-600 dark:text-rose-400">{tr.overdue}</span>}

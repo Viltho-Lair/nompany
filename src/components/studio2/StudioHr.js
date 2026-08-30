@@ -145,11 +145,11 @@ export default function StudioHr({ slug, view = "hr" }) {
       {tab === "people" && (
         <People employees={employees} departments={departments} roles={roles}
           certifications={certifications} canManage={canManage} canAssignRoles={data.canAssignRoles}
-          slug={slug} nav={nav} busy={busy}
+          slug={slug} busy={busy}
           onSave={(collaboratorId, patch) => send("employees", "PUT", { collaboratorId, patch })} />
       )}
       {tab === "roles" && (
-        <Roles rows={roles} slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
+        <Roles rows={roles} slug={slug} canManage={canManage} canAssignRoles={data.canAssignRoles} busy={busy} send={send} />
       )}
       {tab === "certifications" && (
         <Certifications rows={certifications} employees={employees} canManage={canManage} busy={busy} send={send} />
@@ -230,7 +230,7 @@ function Overview({ headcount, departments, expiring, windowDays }) {
 }
 
 // ---- people ----------------------------------------------------------------
-function People({ employees, departments, roles, certifications, canManage, canAssignRoles, slug, nav, busy, onSave }) {
+function People({ employees, departments, roles, certifications, canManage, canAssignRoles, slug, busy, onSave }) {
   const tr = hrDict(useStudioLocale());
   const [editing, setEditing] = useState(null);
   const [query, setQuery] = useState("");
@@ -262,7 +262,7 @@ function People({ employees, departments, roles, certifications, canManage, canA
       {editing && (
         <Dialog title={editing.alias} description={tr.employmentDetailsApplyInside} onClose={closeEditing} width="max-w-[820px]">
           <EmployeeEditor person={editing} departments={departments} roles={roles}
-            certifications={certifications} canAssignRoles={canAssignRoles} slug={slug} nav={nav}
+            certifications={certifications} canAssignRoles={canAssignRoles} slug={slug}
             busy={busy} onCancel={closeEditing}
             onSave={async (patch) => { if (await onSave(editing.id, patch)) setEditing(null); }} />
         </Dialog>
@@ -358,7 +358,7 @@ function Documents({ person, canManage }) {
   );
 }
 
-function EmployeeEditor({ person, departments, roles, certifications, canAssignRoles, slug, nav, busy, onCancel, onSave }) {
+function EmployeeEditor({ person, departments, roles, certifications, canAssignRoles, slug, busy, onCancel, onSave }) {
   const tr = hrDict(useStudioLocale());
   const [form, setForm] = useState({
     departmentId: person.departmentId || "",
@@ -408,8 +408,17 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
       <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.role}</p>
-          {nav?.people && (
-            <a href={`/${slug}/people`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">
+          {/* This used to read the People screen's nav key off the nav map —
+              People is never a nav key at all (sectionNav only keys real
+              SECTION_DEFS entries), so the link could never render for
+              anyone. It was never supposed to check nav in the first place:
+              what each role may do is defined on Access, not People, exactly
+              as the link text already said before the href pointed somewhere
+              else — and whether this person may open Access is
+              canAssignRoles, already threaded into this component for the
+              same "may hand access out" gate the comment above describes. */}
+          {canAssignRoles && (
+            <a href={`/${slug}/access`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">
               {tr.whatEachRoleMayDo}
             </a>
           )}
@@ -526,7 +535,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
 // is an HR fact. Access says what the job may do, because handing out
 // permissions is its own right and must not be reachable through an HR grant.
 // Each row here says which half has been done.
-function Roles({ rows, slug, nav, canManage, busy, send }) {
+function Roles({ rows, slug, canManage, canAssignRoles, busy, send }) {
   const tr = hrDict(useStudioLocale());
   const [form, setForm] = useState(null);
   const [confirming, setConfirming] = useState("");
@@ -604,7 +613,13 @@ function Roles({ rows, slug, nav, canManage, busy, send }) {
         </ul>
         <p className="mt-4 border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
           What each role is allowed to do is set on the access screen
-          {nav?.people ? <> — <a href={`/${slug}/people`} className="font-600 underline">{tr.open}</a></> : ", which an admin can open"}.
+          {/* Same defect as the Role panel above: this used to read the
+              People screen's nav key off the nav map, which is never a nav
+              key at all, so the link could never render — and the text right
+              here already names the access screen, not People. The false
+              branch's own copy (an admin can open it) is the tell that
+              canAssignRoles was always the intended gate. */}
+          {canAssignRoles ? <> — <a href={`/${slug}/access`} className="font-600 underline">{tr.open}</a></> : ", which an admin can open"}.
         </p>
       </section>
     </>
