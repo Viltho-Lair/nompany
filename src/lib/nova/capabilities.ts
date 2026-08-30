@@ -38,16 +38,16 @@ export type NovaCapability = {
 // that need an explicit confirm before they fire.
 export const NOVA_CAPABILITIES: NovaCapability[] = [
   // ---- Sales ----
-  { key: "read.sales.tickets", label: "Sales tickets", department: "Sales", kind: "read", permissionKey: "sales.tickets.view", defaultOn: true, scope: "all" },
-  { key: "read.sales.clients", label: "Clients", department: "Sales", kind: "read", permissionKey: "sales.clients.view", defaultOn: true, scope: "all" },
-  { key: "action.sales.comment-ticket", label: "Comment on a ticket", department: "Sales", kind: "action", permissionKey: "sales.tickets.edit", defaultOn: true, writes: true },
-  { key: "action.sales.create-ticket", label: "Raise a sales ticket", department: "Sales", kind: "action", permissionKey: "sales.tickets.create", defaultOn: false, writes: true },
-  { key: "action.sales.create-client", label: "Add a client", department: "Sales", kind: "action", permissionKey: "sales.clients.create", defaultOn: false, writes: true },
+  { key: "read.sales.tickets", label: "Sales tickets", department: "Sales", kind: "read", permissionKey: "crmSales.tickets.view", defaultOn: true, scope: "all" },
+  { key: "read.sales.clients", label: "Clients", department: "Sales", kind: "read", permissionKey: "crmSales.clients.view", defaultOn: true, scope: "all" },
+  { key: "action.sales.comment-ticket", label: "Comment on a ticket", department: "Sales", kind: "action", permissionKey: "crmSales.tickets.edit", defaultOn: true, writes: true },
+  { key: "action.sales.create-ticket", label: "Raise a sales ticket", department: "Sales", kind: "action", permissionKey: "crmSales.tickets.create", defaultOn: false, writes: true },
+  { key: "action.sales.create-client", label: "Add a client", department: "Sales", kind: "action", permissionKey: "crmSales.clients.create", defaultOn: false, writes: true },
 
   // ---- Technical ----
-  { key: "read.technical.rfqs", label: "RFQs", department: "Technical", kind: "read", permissionKey: "technical.rfq.view", defaultOn: true, scope: "all" },
-  { key: "read.technical.quotations", label: "Quotations", department: "Technical", kind: "read", permissionKey: "technical.quotations.view", defaultOn: true, scope: "all" },
-  { key: "action.technical.request-rfq", label: "Raise an RFQ", department: "Technical", kind: "action", permissionKey: "technical.rfq.create", defaultOn: false, writes: true },
+  { key: "read.technical.rfqs", label: "RFQs", department: "Technical", kind: "read", permissionKey: "engineeringDocs.rfq.view", defaultOn: true, scope: "all" },
+  { key: "read.technical.quotations", label: "Quotations", department: "Technical", kind: "read", permissionKey: "crmSales.quotations.view", defaultOn: true, scope: "all" },
+  { key: "action.technical.request-rfq", label: "Raise an RFQ", department: "Technical", kind: "action", permissionKey: "engineeringDocs.rfq.create", defaultOn: false, writes: true },
 
   // ---- Projects ----
   { key: "read.projects.list", label: "Projects", department: "Projects", kind: "read", permissionKey: "projects.list.view", defaultOn: true, scope: "all" },
@@ -60,8 +60,8 @@ export const NOVA_CAPABILITIES: NovaCapability[] = [
   { key: "action.tasks.create", label: "Create a task", department: "Tasks", kind: "action", permissionKey: "tasks.board.create", defaultOn: false, writes: true },
 
   // ---- Quality ----
-  { key: "read.quality.docs", label: "Controlled documents", department: "Quality", kind: "read", permissionKey: "quality.documents.view", defaultOn: true, scope: "all" },
-  { key: "action.quality.create-doc", label: "Create a document draft", department: "Quality", kind: "action", permissionKey: "quality.documents.create", defaultOn: false, writes: true },
+  { key: "read.quality.docs", label: "Controlled documents", department: "Quality", kind: "read", permissionKey: "engineeringDocs.register.view", defaultOn: true, scope: "all" },
+  { key: "action.quality.create-doc", label: "Create a document draft", department: "Quality", kind: "action", permissionKey: "engineeringDocs.register.create", defaultOn: false, writes: true },
 
   // ---- HR ----
   { key: "read.hr.my-record", label: "My employee record", department: "HR", kind: "read", permissionKey: "hr.employees.view", defaultOn: true, scope: "own" },
@@ -82,13 +82,13 @@ export const NOVA_CAPABILITIES: NovaCapability[] = [
 
   // ---- Inventory ----
   { key: "read.inventory.items", label: "Items & stock", department: "Inventory", kind: "read", permissionKey: "inventory.items.view", defaultOn: true, scope: "all" },
-  { key: "read.inventory.vendors", label: "Vendors", department: "Inventory", kind: "read", permissionKey: "inventory.vendors.view", defaultOn: true, scope: "all" },
+  { key: "read.inventory.vendors", label: "Vendors", department: "Inventory", kind: "read", permissionKey: "procurement.suppliers.view", defaultOn: true, scope: "all" },
   { key: "read.inventory.orders", label: "Purchase orders", department: "Inventory", kind: "read", permissionKey: "inventory.stock.view", defaultOn: true, scope: "all" },
-  { key: "read.inventory.awb", label: "Shipments (AWB)", department: "Inventory", kind: "read", permissionKey: "inventory.awb.view", defaultOn: true, scope: "all" },
+  { key: "read.inventory.awb", label: "Shipments (AWB)", department: "Inventory", kind: "read", permissionKey: "logistics.shipments.view", defaultOn: true, scope: "all" },
 
   // ---- Operations ----
-  { key: "read.operations.permits", label: "Permits", department: "Operations", kind: "read", permissionKey: "operations.tracking.view", defaultOn: true, scope: "all" },
-  { key: "read.operations.shifts", label: "Shifts & rota", department: "Operations", kind: "read", permissionKey: "operations.tracking.view", defaultOn: true, scope: "all" },
+  { key: "read.operations.permits", label: "Permits", department: "Operations", kind: "read", permissionKey: "fieldService.tracking.view", defaultOn: true, scope: "all" },
+  { key: "read.operations.shifts", label: "Shifts & rota", department: "Operations", kind: "read", permissionKey: "fieldService.tracking.view", defaultOn: true, scope: "all" },
   { key: "action.operations.report-position", label: "Report my position", department: "Operations", kind: "action", permissionKey: null, defaultOn: true, writes: true },
 
   // ---- Everywhere ----

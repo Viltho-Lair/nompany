@@ -194,7 +194,7 @@ export async function studioContext(
 // people.members.edit is the right the screens behind this actually need:
 // approving a join request, editing somebody's access, opening Access.
 export function canAdminister(access: PermissionSet) {
-  return !requirePermission(access, "people.members.edit");
+  return !requirePermission(access, "administration.members.edit");
 }
 
 // ---- section permissions ---------------------------------------------------
@@ -219,7 +219,7 @@ export function sectionNav(studio: Row | null | undefined, collaborator: unknown
   return Object.fromEntries((sections || []).map((s: Section) => [s.key, visible.has(s.key)]));
 }
 
-// { "sales-tickets": true, "sales-clients": false, … } — MANAGE, per section
+// { "crm-sales-tickets": true, "crm-sales-clients": false, … } — MANAGE, per section
 // key, the same shape sectionNav gives for view.
 //
 // Every screen in the studio already dispatches on the section key it is

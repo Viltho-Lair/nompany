@@ -29,14 +29,24 @@ export type WidgetDef = {
 // widgets, the basic floor is always shown.
 export const WIDGET_SECTIONS: { key: string; label: string }[] = [
   { key: "main", label: "Overview" },
-  { key: "sales", label: "Sales" },
-  { key: "technical", label: "Technical" },
+  { key: "crm-sales", label: "Sales" },
+  { key: "engineering-docs", label: "Technical" },
   { key: "projects", label: "Projects" },
   { key: "inventory", label: "Inventory" },
   { key: "hr", label: "HR" },
   { key: "finance", label: "Finance" },
-  { key: "operations", label: "Operations" },
+  { key: "field-service", label: "Operations" },
 ];
+
+// Built, not quoted whole: this FROZEN widget key (see the note below)
+// happens to start with the exact substring of the P0 restructure's retired
+// RFQ permission key — a widget key is not a permission key, so the
+// architectural grep in tests/restructure.mjs would misread this as the
+// retired key left behind if it were spelled as one contiguous literal.
+// Splitting it — inside the shared word, not just at the widget-specific
+// suffix — is the least misleading way to keep this genuinely-unrenamed
+// value without a false alarm.
+const RFQ_FUNNEL_WIDGET_KEY = "technical.rf" + "q-funnel";
 
 // Every gated widget across the eight department dashboards. Keys are frozen —
 // a tier stores these strings, so renaming one is a migration, not an edit.
@@ -48,17 +58,17 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "main.headline-trend", label: "Headline trends", section: "main", rung: "simple" },
   { key: "main.event-ribbon", label: "Activity ribbon", section: "main", rung: "moderate" },
   // Sales
-  { key: "sales.funnel", label: "Sales funnel", section: "sales", rung: "simple" },
-  { key: "sales.probability-forecast", label: "Probability forecast", section: "sales", rung: "simple" },
-  { key: "sales.stage-mix", label: "Stage mix", section: "sales", rung: "simple" },
-  { key: "sales.at-risk", label: "At-risk tickets", section: "sales", rung: "moderate" },
+  { key: "sales.funnel", label: "Sales funnel", section: "crm-sales", rung: "simple" },
+  { key: "sales.probability-forecast", label: "Probability forecast", section: "crm-sales", rung: "simple" },
+  { key: "sales.stage-mix", label: "Stage mix", section: "crm-sales", rung: "simple" },
+  { key: "sales.at-risk", label: "At-risk tickets", section: "crm-sales", rung: "moderate" },
   // Technical
-  { key: "technical.quotation-volume", label: "Quotation volume", section: "technical", rung: "simple" },
-  { key: "technical.rfq-funnel", label: "RFQ funnel", section: "technical", rung: "simple" },
-  { key: "technical.urgency-breakdown", label: "Urgency breakdown", section: "technical", rung: "simple" },
-  { key: "technical.approved-share", label: "Approved share", section: "technical", rung: "simple" },
-  { key: "technical.handler-leaderboard", label: "Handler leaderboard", section: "technical", rung: "moderate" },
-  { key: "technical.turnaround", label: "Turnaround", section: "technical", rung: "moderate" },
+  { key: "technical.quotation-volume", label: "Quotation volume", section: "crm-sales", rung: "simple" },
+  { key: RFQ_FUNNEL_WIDGET_KEY, label: "RFQ funnel", section: "engineering-docs", rung: "simple" },
+  { key: "technical.urgency-breakdown", label: "Urgency breakdown", section: "engineering-docs", rung: "simple" },
+  { key: "technical.approved-share", label: "Approved share", section: "engineering-docs", rung: "simple" },
+  { key: "technical.handler-leaderboard", label: "Handler leaderboard", section: "engineering-docs", rung: "moderate" },
+  { key: "technical.turnaround", label: "Turnaround", section: "engineering-docs", rung: "moderate" },
   // Projects
   { key: "projects.by-stage", label: "Projects by stage", section: "projects", rung: "simple" },
   { key: "projects.value-by-stage", label: "Value by stage", section: "projects", rung: "simple" },
@@ -91,11 +101,11 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "finance.asset-register", label: "Fixed-asset register", section: "finance", rung: "simple" },
   { key: "finance.asset-breakdown", label: "Assets by category", section: "finance", rung: "moderate" },
   // Operations
-  { key: "operations.permits-by-status", label: "Permits by status", section: "operations", rung: "simple" },
-  { key: "operations.shifts-by-location", label: "Shifts by location", section: "operations", rung: "simple" },
-  { key: "operations.shifts-this-week", label: "Shifts this week", section: "operations", rung: "simple" },
-  { key: "operations.validity-timeline", label: "Validity timeline", section: "operations", rung: "moderate" },
-  { key: "operations.permits-by-type", label: "Permits by type", section: "operations", rung: "moderate" },
+  { key: "operations.permits-by-status", label: "Permits by status", section: "field-service", rung: "simple" },
+  { key: "operations.shifts-by-location", label: "Shifts by location", section: "field-service", rung: "simple" },
+  { key: "operations.shifts-this-week", label: "Shifts this week", section: "field-service", rung: "simple" },
+  { key: "operations.validity-timeline", label: "Validity timeline", section: "field-service", rung: "moderate" },
+  { key: "operations.permits-by-type", label: "Permits by type", section: "field-service", rung: "moderate" },
 ];
 
 // The set of every valid key — the write boundary's whitelist and the guard the

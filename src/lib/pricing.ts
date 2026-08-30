@@ -41,12 +41,12 @@ export const TIERS = [
 // Optional departments (à-la-carte). `sar` = full-department price.
 export const DEPARTMENTS = [
   {
-    key: "sales", sar: 870,
+    key: "crm-sales", sar: 870,
     name: { en: "Sales & CRM", ar: "المبيعات وإدارة العملاء" },
     desc: { en: "Leads, tickets, clients, PO approvals and a live board.", ar: "العملاء المحتملون والتذاكر والعملاء واعتماد أوامر الشراء ولوحة مباشرة." },
   },
   {
-    key: "technical", sar: 900,
+    key: "engineering-docs", sar: 900,
     name: { en: "Technical Approvals", ar: "الاعتمادات الفنية" },
     desc: { en: "Quotation builder, RFQs, cost control and approvals.", ar: "منشئ عروض الأسعار وطلبات التسعير والتحكم بالتكلفة والاعتمادات." },
   },
@@ -71,7 +71,7 @@ export const DEPARTMENTS = [
     desc: { en: "Project ledgers, cash sheets and spend analytics.", ar: "دفاتر المشاريع وكشوف النقد وتحليلات الإنفاق." },
   },
   {
-    key: "operations", sar: 510,
+    key: "field-service", sar: 510,
     name: { en: "Operations", ar: "العمليات" },
     desc: { en: "Work schedules, permit watch and live GPS tracking.", ar: "جداول العمل ومتابعة التصاريح والتتبّع المباشر بالموقع." },
   },
@@ -82,7 +82,7 @@ export const DEPARTMENTS = [
 export const PRESETS = [
   {
     key: "starter", sar: 1190, popular: false,
-    moduleKeys: ["sales"],
+    moduleKeys: ["crm-sales"],
     name: { en: "Starter", ar: "البداية" },
     tagline: { en: "Light CRM to start selling.", ar: "إدارة عملاء مبسطة للبدء بالبيع." },
     includes: {
@@ -91,8 +91,8 @@ export const PRESETS = [
     },
   },
   {
-    key: "operations", sar: 2650, popular: true,
-    moduleKeys: ["projects", "inventory", "operations"],
+    key: "field-service", sar: 2650, popular: true,
+    moduleKeys: ["projects", "inventory", "field-service"],
     name: { en: "Operations Suite", ar: "باقة العمليات" },
     tagline: { en: "Run projects, stock and the field.", ar: "أدِر المشاريع والمخزون والميدان." },
     includes: {
@@ -102,7 +102,7 @@ export const PRESETS = [
   },
   {
     key: "full", sar: 5040, popular: false,
-    moduleKeys: ["sales", "technical", "projects", "inventory", "hr", "finance", "operations"],
+    moduleKeys: ["crm-sales", "engineering-docs", "projects", "inventory", "hr", "finance", "field-service"],
     name: { en: "Full Suite", ar: "الباقة الكاملة" },
     tagline: { en: "The entire ERP, every department.", ar: "النظام الكامل، كل الأقسام." },
     includes: {

@@ -14,7 +14,7 @@
 // as turning the section on and off, and there is nothing to keep in step.
 //
 // THE ID IS THE SECTION KEY. A department has no row and therefore no id of its
-// own; `departmentId` on a person now holds "sales", not "dep_xyz". Every
+// own; `departmentId` on a person now holds "crm-sales", not "dep_xyz". Every
 // caller kept its field name, because the question it asks — which department
 // is this person in — did not change.
 //
