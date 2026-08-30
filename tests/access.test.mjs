@@ -34,7 +34,7 @@ console.log("\n== catalogue");
 console.log(`  ${ACCESS.AREAS.length} areas, ${ACCESS.ALL_PERMISSIONS.length} permissions`);
 ok("no duplicate keys", new Set(ACCESS.ALL_PERMISSIONS).size === ACCESS.ALL_PERMISSIONS.length);
 ok("no bare parent permission exists",
-  !ACCESS.ALL_PERMISSIONS.some((k) => ["sales", "technical", "hr", "finance"].includes(k)));
+  !ACCESS.ALL_PERMISSIONS.some((k) => ["crmSales", "engineeringDocs", "hr", "finance"].includes(k)));
 ok("unknown keys rejected", !ACCESS.isPermission("sales.tickets.nuke") && ACCESS.isPermission("sales.tickets.edit"));
 ok("cleanPermissions drops junk",
   JSON.stringify(ACCESS.cleanPermissions(["sales.tickets.view", "nope", "sales.tickets.view"]))
@@ -43,7 +43,7 @@ ok("cleanPermissions drops junk",
 console.log("\n== the ladder");
 // Tickets have no delete, so their ladder is none/view/edit — three rungs, not
 // four. Clients have all four. Both must round-trip.
-for (const areaKey of ["sales.tickets", "sales.clients"]) {
+for (const areaKey of ["crmSales.tickets", "crmSales.clients"]) {
   const area = ACCESS.AREAS.find((a) => a.key === areaKey);
   console.log(`  ${areaKey}: ${ACCESS.levelsFor(area).join(" / ")}`);
   for (const lvl of ACCESS.levelsFor(area)) {

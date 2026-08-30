@@ -92,6 +92,77 @@ export async function testTheFiveMovesAreDeclared(t) {
   );
 }
 
+export async function testNoAreaExistsForASectionWithNoScreen(t) {
+  // A right nothing can exercise is a bug (invariant 16). These four sections
+  // are declared for ordering and have no screens until P4a/P5/P6/P7.
+  const empty = ["tendering", "manufacturing", "assets", "reports"];
+  for (const key of empty) {
+    const found = AREAS.filter((a) => a.key.startsWith(`${key}.`));
+    t.equal(found.length, 0, `${key} has no rights yet: ${found.map((a) => a.key).join(",")}`);
+  }
+}
+
+export async function testEveryAreaGroupIsARealSectionLabel(t) {
+  const labels = new Set(SECTION_DEFS.map((d) => d.name));
+  for (const area of AREAS) {
+    t.equal(labels.has(area.group), true, `area ${area.key} is grouped under a real section (${area.group})`);
+  }
+}
+
+export async function testNoRetiredPermissionKeySurvivesInSource(t) {
+  // THE SECOND ARCHITECTURAL ASSERTION, the same shape as
+  // testNoRetiredSectionKeySurvivesInSource below but for PERMISSION keys
+  // rather than SECTION keys. A literal "operations.tracking.view" or
+  // "quality.documents.approve" left behind in a route guards on a key nobody
+  // holds any more the moment Task 4's rename lands — isPermission accepts
+  // only the renamed spelling — and requirePermission cannot tell "nobody
+  // granted this" from "this key doesn't exist any more", so the route just
+  // returns 403 for everybody with nothing pointing at the cause. Grep is the
+  // only thing that finds these.
+  //
+  // THE PATTERN IS `"<area-key>` — an opening quote followed by the bare area
+  // key, with no closing quote — so ONE pattern catches both the bare form
+  // (`"sales.tickets"`, e.g. a RoleSchema.scopes property name) and every
+  // verb-suffixed permission literal built from it (`"sales.tickets.view"`,
+  // `"sales.tickets.create"`, ...), since both start with the same substring.
+  //
+  // src/platform/db/restructure.ts is excluded for the same reason as the
+  // section-key assertion below: it IS the map, and a map has to name every
+  // retired key as a SOURCE to say where it went — without the exclusion this
+  // assertion could never pass, on the very file that fixes the problem it
+  // exists to catch.
+  //
+  // execFileSync, not execSync + a shell string — the same Windows incident
+  // documented on testNoRetiredSectionKeySurvivesInSource below: execSync's
+  // default shell on Windows is cmd.exe, which does not treat single quotes as
+  // quoting at all, so a quoted pattern and a `:!…` exclusion pathspec both
+  // arrive at git mangled, git exits non-zero, and `|| true` would swallow
+  // that into an EMPTY stdout — a false pass on every single key, silently.
+  // execFileSync hands git its argv directly, no shell, so there is nothing
+  // for a shell to re-quote.
+  //
+  // RED ON ARRIVAL. This task (4) renames the catalogue; it does not sweep the
+  // 31 files in src/ still guarding on the old spelling. Task 5 does that
+  // sweep and turns this green — do not sweep it here.
+  const { execFileSync } = await import("node:child_process");
+  const retired = Object.keys(PERMISSION_KEY_MAP).filter((k) => PERMISSION_KEY_MAP[k] !== k);
+  for (const key of retired) {
+    let hits;
+    try {
+      hits = execFileSync(
+        "git",
+        ["grep", "-l", "--", `"${key}`, "src", ":!src/platform/db/restructure.ts"],
+        { encoding: "utf8" },
+      ).trim();
+    } catch (e) {
+      // Exit code 1 is git grep's "no match" — the good outcome, not an error.
+      if (e.status === 1) hits = "";
+      else throw e;
+    }
+    t.equal(hits, "", `no source file still names the retired permission key "${key}"\n${hits}`);
+  }
+}
+
 export async function testNoRetiredSectionKeySurvivesInSource(t) {
   // THE ARCHITECTURAL ASSERTION. A literal "sales-tickets" left behind in a
   // module looks up a section that no longer exists, and getSectionByKey returns
@@ -374,6 +445,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEveryMappedPermissionTargetIsARealArea,
       testMapIsIdempotent,
       testTheFiveMovesAreDeclared,
+      testNoAreaExistsForASectionWithNoScreen,
+      testEveryAreaGroupIsARealSectionLabel,
+      testNoRetiredPermissionKeySurvivesInSource,
       testNoRetiredSectionKeySurvivesInSource,
       testAnOldStoredGrantStillResolves,
       testANewStoredGrantResolvesUnchanged,

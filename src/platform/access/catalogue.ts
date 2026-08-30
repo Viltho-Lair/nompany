@@ -45,54 +45,64 @@ export const ADMIN_ROLE_ID = "role_admin";
 // One row per protected area. `verbs` are the ladder rungs this area supports;
 // `extra` are powers that do NOT nest inside the ladder and therefore have to be
 // granted deliberately — converting an RFQ is not "a bigger edit".
-// A PARENT SECTION IS NOT ALWAYS JUST A HEADING. Six of them render a screen of
-// their own — the module dashboard — and until now that screen had no right
+// A PARENT SECTION IS NOT ALWAYS JUST A HEADING. Eight of them render a screen
+// of their own — the module dashboard — and until now that screen had no right
 // behind it: "Sales" was treated as a pure nav parent, so anybody who could open
 // any one ticket screen could also read the whole department's funnel, pipeline
 // value and win rate. A dashboard is a summary of everything underneath it,
 // which is frequently the most sensitive view in the module and exactly the one
-// a studio wants to withhold from the people doing the work.
+// a studio wants to withhold from the people doing the work. Procurement and
+// Logistics join the list for the same reason as the other six: each is a new
+// section that already backs a real screen of its own — Suppliers, Shipments —
+// so its landing page needs the same right any other module's does.
 //
 // VIEW ONLY, deliberately. A dashboard writes nothing — everything on it is
 // derived from records whose own areas already guard them — so create/edit/
 // delete here would be three more rights nothing can exercise.
 //
-// OPERATIONS IS ON THIS LIST TOO, even though its parent is not a summary — it
-// is the locations/permits/shifts screen. Its WRITES already answer to
-// operations.tracking, but nothing decided whether the screen could be OPENED,
-// so it rode in on whatever sub-section grant got somebody into the module. A
-// parent that renders anything at all needs a right, whether what it renders is
-// a summary or a screen.
+// FIELD SERVICE IS ON THIS LIST TOO, even though its parent is not a summary —
+// today it is still the combined locations/permits/shifts screen carried over
+// from Operations (locations move to Administration and permits to Quality &
+// HSE in the data — see restructure.ts's COLLECTION_MOVES — but the screen that
+// renders them has not been split yet). Its WRITES already answer to
+// fieldService.tracking, but nothing decided whether the screen could be
+// OPENED, so it rode in on whatever sub-section grant got somebody into the
+// module. A parent that renders anything at all needs a right, whether what it
+// renders is a summary or a screen.
 //
 // Tasks is the one parent still absent, and for a reason that does not apply to
 // the others: its parent IS the board, which is tasks.board — it already has a
 // right of its own, and a second would be two answers to one question.
 //
-// QUALITY is on this list for the same reason, arriving from the other end: it
-// has no module of its own, so its parent renders the generic section dashboard
-// — which is still a screen, and a parent that renders anything at all needs a
-// right. Without one it would be a heading with areas nowhere, and
-// sectionViewable treats a section with no areas and no viewable children as
-// having nothing to protect: Quality would have shown for everybody.
+// QUALITY & HSE is on this list for the same reason, arriving from the other
+// end: it has no sub-sections of its own at all now that the document register
+// has moved to Engineering & Documents too, so its parent renders the generic
+// section dashboard — which is still a screen, and a parent that renders
+// anything at all needs a right. Without one it would be a heading with areas
+// nowhere, and sectionViewable treats a section with no areas and no viewable
+// children as having nothing to protect: Quality & HSE would have shown for
+// everybody.
 //
-// STILL GENERATED, not written out. One row per module is the point — the eight
-// are the same right with a different subject — and spelling them out to satisfy
-// the type system would trade the reason for the convenience. The tuple below
-// carries the literal types instead, and the union at the bottom is built from
-// it rather than from the mapped result, which `.map` would have widened to
-// `string`.
+// STILL GENERATED, not written out. One row per module is the point — the ten
+// are the same right with a different subject — and spelling them out to
+// satisfy the type system would trade the reason for the convenience. The
+// tuple below carries the literal types instead, and the union at the bottom
+// is built from it rather than from the mapped result, which `.map` would have
+// widened to `string`.
 const DASHBOARD_MODULES = [
-  ["sales", "Sales"], ["technical", "Technical"], ["projects", "Projects"],
-  ["inventory", "Inventory"], ["hr", "Human Resources"], ["finance", "Finance"],
-  ["operations", "Operations"], ["quality", "Quality"],
+  ["crmSales", "CRM & Sales"], ["engineeringDocs", "Engineering & Documents"],
+  ["projects", "Projects"], ["inventory", "Inventory & Warehouse"],
+  ["procurement", "Procurement & Subcontracting"], ["hr", "Human Resources"],
+  ["finance", "Finance & Accounting"], ["fieldService", "Field Operations & Service"],
+  ["logistics", "Logistics & Fleet"], ["qualityHse", "Quality & HSE"],
 ] as const;
 type DashboardModule = (typeof DASHBOARD_MODULES)[number][0];
 
 const DASHBOARD_AREAS: readonly Area[] = DASHBOARD_MODULES.map(([key, group]) => ({
   key: `${key}.dashboard`, group,
-  // Operations' parent is a working screen rather than a dashboard, so it is
-  // named for what it actually is on the access grid.
-  label: key === "operations" ? "Main screen" : "Dashboard",
+  // Field Service's parent is a working screen rather than a dashboard, so it
+  // is named for what it actually is on the access grid.
+  label: key === "fieldService" ? "Main screen" : "Dashboard",
   verbs: ["view"],
 }));
 
@@ -115,41 +125,51 @@ export type Area = {
 // PermissionKey silently degrades into "any key crossed with any verb".
 //
 // That is exactly what happened on the first draft of this conversion, and the
-// type caught it: `sales.tickets.delete` type-checked, on an area whose comment
-// three lines down says it deliberately has no delete. The runtime bug hiding
-// underneath was a duplicate — every dashboard permission listed twice.
+// type caught it: `sales.tickets.delete` type-checked (the area was still
+// called `sales.tickets` then), on an area whose comment three lines down says
+// it deliberately has no delete. The runtime bug hiding underneath was a
+// duplicate — every dashboard permission listed twice.
 const OWN_AREAS = [
   // NO DELETE. A sales ticket is closed, never erased — its quotations, RFQs
   // and comments all point back at it. Declaring a right nothing can exercise
   // is the same dead-capability trap as the department grants that were stored
   // and never read.
-  { key: "sales.tickets", group: "Sales", label: "Tickets", verbs: ["view", "create", "edit"] },
-  { key: "sales.clients", group: "Sales", label: "Clients", verbs: ["view", "create", "edit", "delete"] },
-  { key: "sales.live", group: "Sales", label: "Live view", verbs: ["view"] },
-  { key: "sales.settings", group: "Sales", label: "Settings", verbs: ["view", "edit"] },
+  { key: "crmSales.tickets", group: "CRM & Sales", label: "Tickets", verbs: ["view", "create", "edit"] },
+  { key: "crmSales.clients", group: "CRM & Sales", label: "Clients", verbs: ["view", "create", "edit", "delete"] },
+  { key: "crmSales.live", group: "CRM & Sales", label: "Live view", verbs: ["view"] },
+  { key: "crmSales.settings", group: "CRM & Sales", label: "Settings", verbs: ["view", "edit"] },
 
-  { key: "technical.rfq", group: "Technical", label: "RFQ", verbs: ["view", "create", "edit"],
+  { key: "engineeringDocs.rfq", group: "Engineering & Documents", label: "RFQ", verbs: ["view", "create", "edit"],
     extra: [{ key: "convert", label: "Convert to quotation" }] },
   // LOCK AND UNLOCK ARE SEPARATE POWERS, and unlock is the rarer and larger of
   // the two. Locking says "this document is finished"; unlocking reopens one
   // somebody already declared finished — a client is holding it — so it is
   // granted deliberately rather than folded into lock or into edit.
-  { key: "technical.quotations", group: "Technical", label: "Quotations", verbs: ["view", "create", "edit", "delete"],
+  //
+  // GROUPED UNDER CRM & SALES, not Engineering & Documents alongside the RFQ it
+  // is raised from — the quotation is the offer, which the blueprint puts in
+  // the sales half of the deal (restructure.ts's SECTION_KEY_MAP: the quotation
+  // moves to crm-sales-quotations, RFQ stays behind in engineering-docs-rfq).
+  { key: "crmSales.quotations", group: "CRM & Sales", label: "Quotations", verbs: ["view", "create", "edit", "delete"],
     extra: [
       { key: "lock", label: "Lock permanently" },
       { key: "unlock", label: "Unlock a locked quotation" },
     ] },
-  { key: "technical.live", group: "Technical", label: "Live view", verbs: ["view"] },
-  { key: "technical.settings", group: "Technical", label: "Settings", verbs: ["view", "edit"] },
+  { key: "engineeringDocs.live", group: "Engineering & Documents", label: "Live view", verbs: ["view"] },
+  { key: "engineeringDocs.settings", group: "Engineering & Documents", label: "Settings", verbs: ["view", "edit"] },
 
   { key: "projects.list", group: "Projects", label: "Projects", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.sla", group: "Projects", label: "SLA", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.overtimes", group: "Projects", label: "Overtimes", verbs: ["view", "create", "edit", "delete"] },
   { key: "projects.settings", group: "Projects", label: "Settings", verbs: ["view", "edit"] },
 
-  { key: "inventory.stock", group: "Inventory", label: "Stock", verbs: ["view", "create", "edit", "delete"] },
-  { key: "inventory.vendors", group: "Inventory", label: "Vendors", verbs: ["view", "create", "edit", "delete"] },
-  { key: "inventory.items", group: "Inventory", label: "Registered items", verbs: ["view", "create", "edit", "delete"] },
+  { key: "inventory.stock", group: "Inventory & Warehouse", label: "Stock", verbs: ["view", "create", "edit", "delete"] },
+  // MOVED TO PROCUREMENT & SUBCONTRACTING — buying is where Vendors always
+  // belonged; Inventory kept the screen only because that is where it was
+  // built. Relabelled to match the section it now sits in
+  // (procurement-suppliers, "Suppliers", in keys.ts's SECTION_DEFS).
+  { key: "procurement.suppliers", group: "Procurement & Subcontracting", label: "Suppliers", verbs: ["view", "create", "edit", "delete"] },
+  { key: "inventory.items", group: "Inventory & Warehouse", label: "Registered items", verbs: ["view", "create", "edit", "delete"] },
   // NO LONGER VIEW ONLY. It was, while a sheet was just the screen over purchase
   // orders — every write on it moved stock, so those were inventory.stock
   // rights and declaring more here would have been rights nothing could
@@ -160,8 +180,11 @@ const OWN_AREAS = [
   // and move no stock. That is a real write with no existing right behind it,
   // so it gets one. See modules/inventory/sheetColumns.js for which columns this covers;
   // Projects' columns on the same row answer to projects.list.edit.
-  { key: "inventory.sheets", group: "Inventory", label: "Project sheets", verbs: ["view", "edit"] },
-  { key: "inventory.awb", group: "Inventory", label: "AWB tracking", verbs: ["view", "create", "edit", "delete"] },
+  { key: "inventory.sheets", group: "Inventory & Warehouse", label: "Project sheets", verbs: ["view", "edit"] },
+  // MOVED TO LOGISTICS & FLEET — AWB is goods in movement, which is Logistics's
+  // home now (restructure.ts's SECTION_KEY_MAP). Relabelled to match
+  // logistics-shipments, "Shipments", in keys.ts's SECTION_DEFS.
+  { key: "logistics.shipments", group: "Logistics & Fleet", label: "Shipments", verbs: ["view", "create", "edit", "delete"] },
 
   // The sharpest scoping case in the product: everybody needs their own record
   // and nobody else's, and salary is a separate right from the record itself.
@@ -170,35 +193,37 @@ const OWN_AREAS = [
   { key: "hr.vacations", group: "Human Resources", label: "Vacations", verbs: ["view", "create", "edit"],
     scoped: true, extra: [{ key: "approve", label: "Approve requests" }] },
 
-  { key: "finance.cash", group: "Finance", label: "Cash", verbs: ["view", "create", "edit", "delete"] },
+  { key: "finance.cash", group: "Finance & Accounting", label: "Cash", verbs: ["view", "create", "edit", "delete"] },
   // THE LEDGER HAS NO ORDINARY CRUD. An entry is posted and, if wrong, reversed;
   // it is never edited or deleted, because it is the record of a decision (the
   // same reasoning as a typed task). So `post` and `reverse` are `extra` powers
   // outside the view/create/edit/delete ladder, and they are SEPARATE from each
   // other on purpose — reversing somebody's posting is not a bigger post.
-  { key: "finance.ledger", group: "Finance", label: "Ledger", verbs: ["view"],
+  { key: "finance.ledger", group: "Finance & Accounting", label: "Ledger", verbs: ["view"],
     extra: [{ key: "post", label: "Post journal entries" }, { key: "reverse", label: "Reverse entries" }] },
   // Raising a bill and AUTHORISING it are two acts (invariant 7: raiser ≠
   // approver), and paying is a third — so approve and pay are extra powers
   // outside the view/create/edit/delete ladder.
-  { key: "finance.payables", group: "Finance", label: "Payables", verbs: ["view", "create", "edit", "delete"],
+  { key: "finance.payables", group: "Finance & Accounting", label: "Payables", verbs: ["view", "create", "edit", "delete"],
     extra: [{ key: "approve", label: "Approve bills" }, { key: "pay", label: "Record payments" }] },
-  { key: "finance.assets", group: "Finance", label: "Fixed assets", verbs: ["view", "create", "edit"],
+  { key: "finance.assets", group: "Finance & Accounting", label: "Fixed assets", verbs: ["view", "create", "edit"],
     extra: [{ key: "dispose", label: "Dispose of an asset" }] },
-  { key: "finance.settings", group: "Finance", label: "Settings", verbs: ["view", "edit"] },
+  { key: "finance.settings", group: "Finance & Accounting", label: "Settings", verbs: ["view", "edit"] },
 
   // The rota is a sub-section of its own: view opens the schedule screen, and
   // create/edit/delete are the shifts on it. The working week it draws against
   // is the STUDIO's (studio.workingHours), set in Studio settings — this grant
   // governs the shifts, not the week.
-  { key: "operations.schedule", group: "Operations", label: "Schedule", verbs: ["view", "create", "edit", "delete"] },
-  { key: "operations.tracking", group: "Operations", label: "Tracking", verbs: ["view", "create", "edit", "delete"] },
-  { key: "operations.settings", group: "Operations", label: "Settings", verbs: ["view", "edit"] },
+  { key: "fieldService.schedule", group: "Field Operations & Service", label: "Schedule", verbs: ["view", "create", "edit", "delete"] },
+  { key: "fieldService.tracking", group: "Field Operations & Service", label: "Tracking", verbs: ["view", "create", "edit", "delete"] },
+  { key: "fieldService.settings", group: "Field Operations & Service", label: "Settings", verbs: ["view", "edit"] },
   // The project planner is a sub-section of its own, so it carries its own right:
   // view opens the app and its plans, edit creates and changes them. A project's
   // OWN plan is reached through the projects-list grant instead (the "Project
-  // plan" button), so this gates the cross-project app, not a project's schedule.
-  { key: "operations.planner", group: "Operations", label: "Planner", verbs: ["view", "edit"] },
+  // plan" button), so this gates the cross-project app, not a project's
+  // schedule. GROUPED UNDER PROJECTS now, which is where it actually belongs —
+  // it sat under Operations only because that is where it was built.
+  { key: "projects.planner", group: "Projects", label: "Planner", verbs: ["view", "edit"] },
 
   // The controlled-document register.
   //
@@ -228,7 +253,11 @@ const OWN_AREAS = [
   // PUBLISH is separate again: signing off on the text and deciding the day a
   // company starts working to it are different acts, and the second one is
   // usually somebody else's to time.
-  { key: "quality.documents", group: "Quality", label: "Documents", verbs: ["view", "create", "edit", "delete"],
+  // MOVED TO ENGINEERING & DOCUMENTS — the register is the technical truth now
+  // (blueprint §3.4); Quality & HSE keeps the evidence (inspections, NCRs,
+  // audits, incidents, permits), not the record itself. Relabelled to match
+  // engineering-docs-register, "Document register", in keys.ts's SECTION_DEFS.
+  { key: "engineeringDocs.register", group: "Engineering & Documents", label: "Document register", verbs: ["view", "create", "edit", "delete"],
     extra: [
       { key: "review", label: "Sign as reviewer" },
       { key: "approve", label: "Sign as approver" },
@@ -249,22 +278,40 @@ const OWN_AREAS = [
   { key: "tasks.board", group: "Tasks", label: "Task board", verbs: ["view", "create", "edit", "delete"] },
   { key: "tasks.settings", group: "Tasks", label: "Settings", verbs: ["view", "edit"] },
 
-  { key: "people.members", group: "People", label: "People & access", verbs: ["view", "edit"] },
-  { key: "studio.settings", group: "Studio", label: "Studio settings", verbs: ["view", "edit"] },
+  { key: "administration.members", group: "Administration & Settings", label: "People & access", verbs: ["view", "edit"] },
+  { key: "administration.settings", group: "Administration & Settings", label: "Studio settings", verbs: ["view", "edit"] },
+  // NEW. Locations were an Operations tab, guarded (mid-restructure) by
+  // operations.tracking alongside permits and shifts — see restructure.ts's
+  // COLLECTION_MOVES, which moves the `locations` collection itself to
+  // Administration. This is the right the locations screen will answer to once
+  // it is rebuilt under administration-master, "Master data" (keys.ts's
+  // SECTION_DEFS); until that rewire lands the screen still enforces the old
+  // key, which is exactly the gap testNoRetiredPermissionKeySurvivesInSource
+  // exists to surface and a later task to close — declaring the right here
+  // first is what keeps the catalogue and the section definitions in lockstep
+  // while that happens.
+  { key: "administration.master", group: "Administration & Settings", label: "Master data", verbs: ["view", "create", "edit", "delete"] },
 
   // THE ENGAGEMENT VIEW. One key, and deliberately unscoped: what a person sees
   // inside an engagement is decided stage by stage by the permission each stage
   // already declares in platform/engagement/registry.ts, so an own/department/all
   // dimension here would be a second mechanism for the same thing.
   //
-  // DELETE AND LOCK ARE SEPARATE POWERS, the same split technical.quotations
+  // DELETE AND LOCK ARE SEPARATE POWERS, the same split crmSales.quotations
   // already makes and for a sharper reason. Deleting a deal takes its tickets,
   // RFQs, quotations, project, sheets and invoices with it — so the lock is the
   // interlock, and holding the power to delete must not by itself hand somebody
   // the power to take the safety off. `lock` covers both directions: whoever may
   // lock a deal may unlock it, because re-locking is the safe half and splitting
   // them would leave a deal nobody could shut again.
-  { key: "engagements", group: "Engagements", label: "Engagements", verbs: ["view", "delete"],
+  //
+  // GROUPED UNDER MAIN, not a section of its own — the engagement view is
+  // deliberately NOT one of the fifteen sections (giving Main a nav child would
+  // gate the parent and hide Main from every member without the right; see
+  // docs/progress.md). "Main" here is only the access-grid's grouping label,
+  // the same as any other area's `group`, and carries no nav nesting with it —
+  // the screen itself is reached from a nav entry beside Main, not under it.
+  { key: "engagements", group: "Main", label: "Engagements", verbs: ["view", "delete"],
     extra: [{ key: "lock", label: "Lock and unlock a deal" }] },
 ] as const;
 
@@ -273,7 +320,7 @@ export const AREAS: readonly Area[] = [...DASHBOARD_AREAS, ...OWN_AREAS];
 // EVERY KEY THIS PRODUCT RECOGNISES, as a type.
 //
 // This is what the whole file was `as const` for. `requirePermission(access,
-// "sales.tickets.viw")` is now a compile error rather than a runtime
+// "crmSales.tickets.viw")` is now a compile error rather than a runtime
 // `unknown-permission` that only fires if the line is reached — which for a
 // guard on a rare branch can be a long time.
 //
@@ -289,7 +336,7 @@ export type PermissionKey =
   | `${DashboardModule}.dashboard.view`
   | PermsOf<(typeof OWN_AREAS)[number]>;
 
-// The same set as a value: "sales.tickets.view", "hr.employees.salary".
+// The same set as a value: "crmSales.tickets.view", "hr.employees.salary".
 //
 // The cast is the one seam between the type and the runtime, and it is narrow
 // by construction: this flattens exactly the arrays PermissionKey is derived
@@ -366,11 +413,11 @@ export const GROUPS = [...new Set(AREAS.map((a) => a.group))];
 // comment rather than silently letting the typo through.
 type Assert<T extends true> = T;
 
-export type _RealKeyIsAccepted = Assert<"sales.tickets.view" extends PermissionKey ? true : false>;
+export type _RealKeyIsAccepted = Assert<"crmSales.tickets.view" extends PermissionKey ? true : false>;
 export type _ExtraKeyIsAccepted = Assert<"hr.employees.salary" extends PermissionKey ? true : false>;
 export type _DashboardKeyIsAccepted = Assert<"finance.dashboard.view" extends PermissionKey ? true : false>;
 
 // @ts-expect-error a typo is not a permission
-export type _TypoIsRejected = Assert<"sales.tickets.viw" extends PermissionKey ? true : false>;
-// @ts-expect-error `delete` is not a verb sales tickets have — they close, never erase
-export type _UndeclaredVerbIsRejected = Assert<"sales.tickets.delete" extends PermissionKey ? true : false>;
+export type _TypoIsRejected = Assert<"crmSales.tickets.viw" extends PermissionKey ? true : false>;
+// @ts-expect-error `delete` is not a verb tickets have — they close, never erase
+export type _UndeclaredVerbIsRejected = Assert<"crmSales.tickets.delete" extends PermissionKey ? true : false>;
