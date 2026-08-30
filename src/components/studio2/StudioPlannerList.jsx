@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { plannerDict } from "@/shared/studio/planner";
+import { sectionName } from "@/shared/studio/sections";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fmtDate } from "@/lib/format";
@@ -25,7 +26,8 @@ const planStatus = (tr) => ({
 });
 
 export default function StudioPlannerList({ slug }) {
-  const tr = plannerDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = plannerDict(locale);
   const router = useRouter();
   const [state, setState] = useState({ loading: true, error: false, plans: [], canEdit: false, presets: {} });
   const [creating, setCreating] = useState(false);
@@ -92,14 +94,23 @@ export default function StudioPlannerList({ slug }) {
     <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--geex-page)] text-[var(--geex-ink)]">
       {/* ---- top bar ---- */}
       <header className="flex shrink-0 items-center gap-3 border-b border-slate-200/70 bg-[var(--geex-surface)] px-4 py-3 dark:border-white/10">
+        {/* THE PLANNER MOVED TO PROJECTS (keys.ts's SECTION_DEFS: "the planner is
+            project scheduling... it sat under Operations only because that is
+            where it was built"). This back link pointed at "/operations" — a
+            section key that no longer exists — so it silently landed on
+            whichever section happened to be `sections[0]` instead of Projects.
+            `sectionName` is the same lookup the sidebar and SectionDashboard
+            already use for a section's own translated label, so this stays in
+            step with the catalogue rather than carrying a second hardcoded
+            English string nothing localized to Arabic. */}
         <Link
-          href={`/${slug}/operations`}
+          href={`/${slug}/projects`}
           className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"
         >
           <span aria-hidden="true" className="rtl:-scale-x-100">
             ←
           </span>{" "}
-          Operations
+          {sectionName("projects", "Projects", locale)}
         </Link>
 
         <div className="min-w-0">

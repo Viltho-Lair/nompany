@@ -182,7 +182,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
 
   const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
 
-  if (view === "crm-crm-sales-settings") {
+  if (view === "crm-sales-settings") {
     return (
       <div className="space-y-6">
         {banner}
@@ -198,7 +198,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
     );
   }
 
-  if (view === "crm-crm-sales-clients") {
+  if (view === "crm-sales-clients") {
     return (
       <div className="space-y-6">
         {banner}
@@ -224,7 +224,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
     );
   }
 
-  if (view === "crm-crm-sales-tickets") {
+  if (view === "crm-sales-tickets") {
     return (
       <div className="space-y-6">
         {banner}
@@ -286,13 +286,13 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
 
       {/* Live view — a full-screen, auto-refreshing tickets table. Its columns
           are a shared setting configured in Sales → Settings. */}
-      {nav?.["crm-crm-sales-live"] && (
+      {nav?.["crm-sales-live"] && (
         <section className={`${panel} flex flex-wrap items-center justify-between gap-3`}>
           <div className="min-w-0">
             <p className={microLabel}>{tr.liveView}</p>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {tr.liveViewLeadBefore}
-              {nav?.["crm-crm-sales-settings"]
+              {nav?.["crm-sales-settings"]
                 ? <a href={`/${slug}/crm-sales-settings`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.salesSettingsPath}</a>
                 : <span className="font-600">{tr.salesSettingsPath}</span>}.
             </p>
@@ -304,7 +304,7 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
       <section className={panel}>
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className={microLabel}>{tr.allTickets}</p>
-          {nav?.["crm-crm-sales-tickets"] && <a href={`/${slug}/crm-sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openTicketsLink}</a>}
+          {nav?.["crm-sales-tickets"] && <a href={`/${slug}/crm-sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openTicketsLink}</a>}
         </div>
         {recent.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">{tr.noTicketsYet}</p>

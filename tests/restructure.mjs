@@ -34,7 +34,7 @@ const {
 } = await import("../src/platform/db/restructure.ts");
 const { SECTION_DEFS, ALL_SECTION_KEYS } = await import("../src/platform/db/keys.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
-const { effectivePermissions, scopeFor, escalates } = await import("../src/platform/access/resolve.ts");
+const { effectivePermissions, scopeFor, escalates, sectionViewable } = await import("../src/platform/access/resolve.ts");
 const { sectionName } = await import("../src/shared/studio/sections.ts");
 
 export async function testEveryOldSectionKeyIsAccountedFor(t) {
@@ -566,6 +566,52 @@ export async function testEverySectionHasAnArabicName(t) {
   }
 }
 
+// ---- Task 8: the nav and the router -----------------------------------------
+// The task-8 brief invented `navFor(...)` as the thing to test against — no
+// such function exists anywhere in the codebase (the only `navFor` in the repo
+// is an unrelated helper in src/components/public/AccountHome.js). The real
+// primitive the nav and the router both build on is `sectionViewable(access,
+// sectionKey, allKeys)`, exported from platform/access and already used by
+// lib/studios.ts's `visibleSections` (what the sidebar renders) and by
+// app/api/studios/[slug]/stream/route.ts. These two tests ask it directly.
+
+export async function testEmptySectionsDoNotRender(t) {
+  // tendering, manufacturing, assets and reports are declared in keys.ts's
+  // SECTION_DEFS for ORDERING ONLY — no children, no area of their own, no
+  // screen until a later phase. A person holding an unrelated narrow right
+  // (crmSales.tickets.view — not admin, not wildcard) must not see any of
+  // the four: sectionViewable's "a heading with nothing to protect stays"
+  // fallthrough used to answer `true` for every such heading, Main included,
+  // which would have rendered a nav row that opens nothing. See the fix and
+  // comment on sectionViewable in platform/access/resolve.ts.
+  const access = new Set(["crmSales.tickets.view"]);
+  for (const key of ["tendering", "manufacturing", "assets", "reports"]) {
+    t.equal(sectionViewable(access, key, ALL_SECTION_KEYS), false,
+      `${key} has nothing to open and does not render`);
+  }
+  // Main is the one heading in the same shape (no areas, no children) that
+  // DOES stay — it is the studio home, reachable by membership alone. Proving
+  // the four placeholders are absent would be hollow if the fix had also
+  // taken Main down with them.
+  t.equal(sectionViewable(access, "main", ALL_SECTION_KEYS), true,
+    "main has nothing to protect and stays for everyone");
+}
+
+export async function testSectionsRenderInDefOrder(t) {
+  // The sidebar's running order comes from SECTION_DEFS via
+  // plantMissingSections' `rank` (platform/db/sections.ts), which re-derives
+  // every section's sortOrder from ALL_SECTION_KEYS — itself flattened from
+  // SECTION_DEFS in declaration order. visibleSections only FILTERS that
+  // list (sectionViewable per key); it never reorders it. So SECTION_DEFS's
+  // own order is the real thing to pin, and this is the one place a
+  // department was declared out of the order the blueprint puts it in.
+  const keys = SECTION_DEFS.map((d) => d.key);
+  t.equal(keys.indexOf("crm-sales") < keys.indexOf("projects"), true,
+    "CRM & Sales precedes Projects");
+  t.equal(keys.indexOf("administration") > keys.indexOf("finance"), true,
+    "Administration is late in the list");
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -616,6 +662,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEscalatesRefusesAnUnmappedPersonalOverrideToo,
       testEscalationAndEffectivePermissionsAgreeOnTheSameStoredKey,
       testEverySectionHasAnArabicName,
+      testEmptySectionsDoNotRender,
+      testSectionsRenderInDefOrder,
     ];
     let totalFails = 0;
     for (const test of tests) {

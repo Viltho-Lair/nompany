@@ -243,7 +243,7 @@ export default async function StudioPage({ params }) {
   // these two deliberately render outside the shell — so without this they
   // would be the only boards in the studio with no live connection, which on a
   // screen literally called "Live view" is the worst possible place for it.
-  if (requested === "crm-crm-sales-live") {
+  if (requested === "crm-sales-live") {
     return (
       <FullScreen locale={locale}>
         <LiveProvider slug={studio.slug}>
@@ -425,7 +425,7 @@ export default async function StudioPage({ params }) {
   // A second segment on a crm-sales-tickets URL names ONE ticket: /<slug>/
   // crm-sales-tickets/<id> is that ticket's own page. It still resolves through
   // the crm-sales-tickets section, so the same grant governs it.
-  const ticketId = requested === "crm-crm-sales-tickets" ? (segments[1] || "") : "";
+  const ticketId = requested === "crm-sales-tickets" ? (segments[1] || "") : "";
   // And a THIRD segment names one of that ticket's quotations:
   // /<slug>/crm-sales-tickets/<id>/quotations/<quotationId> is the Sales-side
   // viewer — the document as Sales reads it, view only. It hangs off the ticket
@@ -552,6 +552,22 @@ export default async function StudioPage({ params }) {
         )
         : screenKey === "projects" ? <StudioProjects slug={studio.slug} view={active?.key} />
         : screenKey === "hr" ? <StudioHr slug={studio.slug} view={active?.key} />
+        // PROCUREMENT'S SUPPLIERS AND LOGISTICS'S SHIPMENTS ARE STILL RENDERED
+        // HERE, by key rather than by screenKey. Both moved out of Inventory
+        // (SECTION_DEFS: Suppliers to Procurement & Subcontracting, the AWB
+        // screen to Logistics & Fleet) and inventoryContext's `sub` map
+        // (inventory.ts) already resolves each through its OWN new section —
+        // StudioInventory.js's `view === "procurement-suppliers"` / `"logistics-
+        // shipments"` branches were already there, waiting to be reached, and
+        // without this they fell through to the empty generic SectionDashboard:
+        // a heading with no data and no error. `active?.key`, NOT screenKey —
+        // screenKey collapses a child to the ROOT its parentId points at
+        // ("procurement", "logistics"), and those two roots have no dashboard
+        // of their own the way Inventory does, so their OWN root screen still
+        // wants the generic SectionDashboard (a heading and its subsection
+        // cards), not the whole Inventory dashboard wearing their name.
+        : active?.key === "procurement-suppliers" || active?.key === "logistics-shipments"
+          ? <StudioInventory slug={studio.slug} view={active?.key} />
         : screenKey === "inventory" ? <StudioInventory slug={studio.slug} view={active?.key} />
         : screenKey === "finance" ? <StudioFinance slug={studio.slug} view={active?.key} />
         : screenKey === "tasks" ? <StudioTasks slug={studio.slug} view={active?.key} />

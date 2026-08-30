@@ -311,8 +311,17 @@ export function sectionViewable(access: PermissionSet, sectionKey: string, allKe
   const children = allKeys.filter((k) => k.startsWith(`${sectionKey}-`));
   if (children.length) return children.some((k) => sectionViewable(access, k, allKeys));
   // A leaf with areas answered "no" above. A heading with neither areas nor
-  // children — the studio home — has nothing to protect, so it stays.
-  return !own;
+  // children is either the studio home (Main — nothing to protect, so it
+  // stays for everyone) or one of the roots the fifteen-section restructure
+  // declared for ORDERING ONLY — tendering, manufacturing, assets, reports
+  // (keys.ts's SECTION_DEFS) — with no screen behind them until a later
+  // phase. Before that restructure Main was the only section in this shape,
+  // so `!own` unconditionally was correct; it stopped being correct the
+  // moment SECTION_DEFS grew a second one, because a placeholder root would
+  // pass the same test and render a nav row that opens nothing. Only Main
+  // gets the pass now — see testEmptySectionsDoNotRender in
+  // tests/restructure.mjs, which exists to catch this exact regression.
+  return !own && sectionKey === "main";
 }
 
 // A section's screens are editable if the person holds ANY write on its areas.

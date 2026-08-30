@@ -56,7 +56,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
     <div className="space-y-5">
       {/* Basic — the summary everyone gets, before any detail. */}
       <StatRow>
-        <StatTile label={tr.openTickets} value={<span className="num">{openCount}</span>} href={nav?.["crm-crm-sales-tickets"] ? `/${slug}/crm-sales-tickets` : ""} />
+        <StatTile label={tr.openTickets} value={<span className="num">{openCount}</span>} href={nav?.["crm-sales-tickets"] ? `/${slug}/crm-sales-tickets` : ""} />
         <StatTile label={tr.weightedPipeline} value={<span className="num">{money(weightedPipeline)}</span>} tone="text-emerald-600 dark:text-emerald-400" />
         <StatTile label={tr.won} value={<span className="num">{wonCount}</span>} tone={wonCount > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
         <StatTile label={tr.risk} value={<span className="num">{atRisk.length}</span>} tone={atRisk.length > 0 ? "text-rose-600 dark:text-rose-400" : ""} />
@@ -144,7 +144,7 @@ export default function SalesDashboard({ tickets = [], slug = "", nav = null }) 
               })}
             </ul>
           )}
-          {nav?.["crm-crm-sales-tickets"] && (
+          {nav?.["crm-sales-tickets"] && (
             <div className="mt-3 text-end">
               <a href={`/${slug}/crm-sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openTickets2}</a>
             </div>

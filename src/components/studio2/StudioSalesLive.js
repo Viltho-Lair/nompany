@@ -94,7 +94,7 @@ export default function StudioSalesLive({ studio }) {
             >
               {paused ? tr.resume : tr.pause}
             </button>
-            {data?.nav?.["crm-crm-sales-settings"] && (
+            {data?.nav?.["crm-sales-settings"] && (
               <Link
                 href={`/${studio.slug}/crm-sales-settings`}
                 className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-600 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
