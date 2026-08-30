@@ -20,28 +20,12 @@ import type { Task, ChecklistItem, TaskAssignees, EnrichedTask, BoardTask } from
 // it names a STORED authority ownership record, not a section — the
 // restructure map has no business here, and moving it to the CRM & Sales
 // section spelling would silently orphan every studio's existing Sales
-// authority assignment.
-//
-// DECLARED VIA A SPLIT TYPE AND A SPLIT VALUE, not as one quoted literal, for
-// a second and unrelated reason: the two architectural greps that check no
-// retired key survives in source (tests/restructure.mjs) scan the WHOLE
-// source tree for the exact retired spelling — they cannot tell "this really
-// is the retired section key" from "this is an unrelated stored value that
-// happens to be spelled the same way". Splitting it is the least misleading
-// way to keep this code intentionally unrenamed without a false alarm. The
-// two-piece TEMPLATE LITERAL TYPE recombines to the exact literal type
-// TypeScript would have given a plain quoted literal — this is guaranteed by
-// how template literal types resolve, not an inference heuristic that could
-// silently widen to plain `string`.
-type SalesCodeFirstHalf = "sa";
-type SalesCodeSecondHalf = "les";
-type SalesAuthorityCode = `${SalesCodeFirstHalf}${SalesCodeSecondHalf}`;
-const SALES_AUTHORITY_CODE: SalesAuthorityCode = ("sa" + "les") as SalesAuthorityCode;
-
+// authority assignment. tests/restructure.mjs's KNOWN_COLLISIONS allowlist
+// knows about this one.
 export const TASK_AUTHORITIES = [
   { code: "mng", label: "Management" },
   { code: "fin", label: "Finance" },
-  { code: SALES_AUTHORITY_CODE, label: "Sales" },
+  { code: "sales", label: "Sales" },
   { code: "log", label: "Logistics" },
   { code: "hr", label: "Human Resources" },
   { code: "permit", label: "Permit team" },
@@ -57,7 +41,7 @@ export const AUTHORITY_CODES: readonly AuthorityCode[] = TASK_AUTHORITIES.map((a
 // stored row and is a plain string; a literal-keyed table would force every
 // lookup through a cast to ask the question the table exists to answer.
 export const TASK_TYPE_AUTHORITIES: Record<string, readonly AuthorityCode[]> = {
-  approval: [SALES_AUTHORITY_CODE, "mng"],
+  approval: ["sales", "mng"],
   po: ["mng", "fin"],
   "material-po": ["fin", "mng"],
   delivery: ["log"],

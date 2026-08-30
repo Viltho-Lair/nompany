@@ -78,24 +78,15 @@ export default function StudioOperations({ slug, view = "field-service" }) {
   // NOT A LABEL — this is the path the fetch below goes to. It was briefly a
   // dictionary lookup, which would have asked an Arabic studio for an endpoint
   // that does not exist.
-  // NOT A LABEL — this is the path the fetch below goes to. It was briefly a
-  // dictionary lookup, which would have asked an Arabic studio for an endpoint
-  // that does not exist.
   //
-  // STILL THE OLD API PATH. This P0 restructure renames section and permission
-  // KEYS, not the API route tree — the backend folder behind this fetch has not
-  // moved — so the URL segment this resolves to is unchanged. Built from two
-  // halves rather than written as one literal because the module's real name,
-  // spelled whole and quoted, is byte-for-byte the retired SECTION key of the
-  // same spelling, and "<that name>.schedule" is byte-for-byte the retired
-  // PERMISSION key restructure.ts maps away from — both of which
-  // testNoRetiredSectionKeySurvivesInSource and testNoRetiredPermissionKey-
-  // SurvivesInSource grep the whole source tree for, with no way to tell this
-  // occurrence (an unmoved URL) apart from the ones that are actually a stale
-  // key. Splitting the literal is the least misleading way to write "this
-  // fetch target genuinely did not change" without tripping either check.
-  const legacyModuleSegment = "opera" + "tions";
-  const endpoint = view === "field-service-schedule" ? `${legacyModuleSegment}/schedule` : "field-service";
+  // STILL "operations", not "field-service" — this P0 restructure renames
+  // section and permission KEYS, not the API route tree. The backend folder
+  // behind this fetch (src/app/api/studios/[slug]/operations/) did not move,
+  // so the URL segment stays exactly what it always was; `send()` below reads
+  // the same unmoved path. Only the two `view` values being compared against
+  // are the new section-key spelling — those come off the section list, which
+  // Task 2 already renamed.
+  const endpoint = view === "field-service-schedule" ? "operations/schedule" : "operations";
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/${endpoint}`, { cache: "no-store" });
     if (!res.ok) { setError(tr.accessOperationsStudio); return; }

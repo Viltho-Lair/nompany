@@ -30,13 +30,10 @@ const NoData = ({ text }) => (
 );
 
 // The currency glyph before an amount, when the studio has one configured.
-// Built, not quoted whole: this FROZEN widget key (lib/dashboardWidgets.ts)
-// happens to start with the exact substring of the P0 restructure's retired
-// RFQ permission key — a widget key is not a permission key, so splitting
-// it — inside the shared word, not just at the widget-specific suffix —
-// keeps the architectural grep in tests/restructure.mjs from misreading this
-// as the retired key left behind, which it is not.
-const RFQ_FUNNEL_WIDGET_KEY = "technical.rf" + "q-funnel";
+// "technical.rfq-funnel" below (lib/dashboardWidgets.ts) is a FROZEN widget
+// key that happens to start with the exact substring of the P0 restructure's
+// retired RFQ permission key — a widget key is not a permission key.
+// tests/restructure.mjs's KNOWN_COLLISIONS allowlist knows about this one.
 
 function CurrencyGlyph({ currency }) {
   if (!currency) return null;
@@ -107,7 +104,7 @@ export default function TechnicalDashboard({
           ) : <NoData text={tr.noQuotationsYet3} />}
         </Widget>
 
-        <Widget title={tr.rfqFunnel} hint={tr.rfqsWorkflowStatus} locked={!visible(RFQ_FUNNEL_WIDGET_KEY)} lockedWhat={tr.rfqFunnel}>
+        <Widget title={tr.rfqFunnel} hint={tr.rfqsWorkflowStatus} locked={!visible("technical.rfq-funnel")} lockedWhat={tr.rfqFunnel}>
           {rfqs.length ? (
             <BarList items={funnel.map((f) => ({
               label: f.label,

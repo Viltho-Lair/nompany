@@ -20,16 +20,12 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 // The consequence worth noticing: a button here can always be pressed. Nothing
 // is offered and then refused.
 
-// Revision-state colours now live in the shared StatusPill map, under the
-// RECORD KIND matching this department's old name — StatusPill.js's
-// STATUS_TONES is keyed by kind, not by section, and was never part of the
-// P0 restructure's renames. Built below (REVISION_STATUS_KIND), not quoted
-// whole, so it does not read to the architectural grep in
-// tests/restructure.mjs as the retired section key of the same spelling left
-// behind, which it is not.
+// Revision-state colours now live in the shared StatusPill map, keyed
+// "quality" — StatusPill.js's STATUS_TONES is keyed by RECORD KIND, not by
+// section, and was never part of the P0 restructure's renames.
+// tests/restructure.mjs's KNOWN_COLLISIONS allowlist knows about this one.
 // Note "approved" is the brand accent here (sent for effect), not the emerald a
 // bill or leave "Approved" gets — see StatusPill.jsx.
-const REVISION_STATUS_KIND = "qual" + "ity";
 
 // Signing and sending back both want a note; publishing wants dates. Anything
 // else is a plain confirm.
@@ -143,7 +139,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
             <>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm font-700 text-slate-900 dark:text-white">Rev {current.rev}</span>
-                <StatusPill kind={REVISION_STATUS_KIND} status={current.state} label={REV_LABELS[current.state] || current.state} />
+                <StatusPill kind="quality" status={current.state} label={REV_LABELS[current.state] || current.state} />
               </div>
               {current.rejection?.byAlias && (
                 <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">
@@ -218,7 +214,7 @@ export default function QualityWorkflow({ slug, documentId, document, onChanged 
           {revisions.map((r) => (
             <li key={r.id} className="flex items-center gap-2 rounded-lg border border-slate-200/70 bg-[var(--geex-surface)] px-3 py-2 text-xs dark:border-white/10">
               <span className="font-mono font-700 text-slate-700 dark:text-slate-200">Rev {r.rev}</span>
-              <StatusPill kind={REVISION_STATUS_KIND} status={r.state} label={REV_LABELS[r.state] || r.state} base="rounded-full px-2 py-0.5 font-600" />
+              <StatusPill kind="quality" status={r.state} label={REV_LABELS[r.state] || r.state} base="rounded-full px-2 py-0.5 font-600" />
               {r.effectiveDate && <span className="ms-auto text-slate-400">{r.effectiveDate}</span>}
             </li>
           ))}

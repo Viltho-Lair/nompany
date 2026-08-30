@@ -109,6 +109,92 @@ export async function testEveryAreaGroupIsARealSectionLabel(t) {
   }
 }
 
+// KNOWN_COLLISIONS — exact (file, value) pairs where a literal SPELLED like a
+// retired section or permission key is something else entirely: an icon
+// name, a StatusPill record-kind discriminator, a frozen per-tier dashboard-
+// widget key, a stored per-studio task-authority code, or an API route
+// segment the P0 restructure never moved. Task 5's review found eight such
+// collisions, each verified by checking whether the value is EVER resolved
+// against SECTION_KEY_MAP/PERMISSION_KEY_MAP/SECTION_DEFS/AREAS anywhere (it
+// is not, in every case) before being added here.
+//
+// Consulted by BOTH assertions below. The check is never a whole-file
+// exemption: a matching line is excused only when the EXACT quoted token
+// that triggered the match is itself one of the file's listed values — a
+// genuine retired-key survivor sitting on another line of the same file, or
+// even a different quoted token on the SAME line, still fails. A stale entry
+// here fails LOUDLY the day the file it names stops needing it (nothing will
+// ever match it again, and nothing depends on that — unlike a stale split
+// literal in production code, which fails silently forever).
+const KNOWN_COLLISIONS = {
+  "src/components/studio2/StudioFrame.js": [
+    { value: "sales", reason: "icons.js's icon-name registry key for the CRM & Sales row" },
+  ],
+  "src/components/studio2/StudioTechnical.js": [
+    { value: "sales", reason: "icons.js's icon-name registry key for the quotation's origin badge" },
+  ],
+  "src/components/studio2/StudioSales.js": [
+    { value: "sales", reason: "StatusPill.jsx's STATUS_TONES record-kind key for ticket-stage colours" },
+  ],
+  "src/components/studio2/QualityWorkflow.js": [
+    { value: "quality", reason: "StatusPill.jsx's STATUS_TONES record-kind key for revision-state colours" },
+  ],
+  "src/modules/tasks/taskRouting.ts": [
+    { value: "sales", reason: "a STORED Task-settings authority code (types.ts's TaskAssignees)" },
+  ],
+  "src/lib/dashboardWidgets.ts": [
+    { value: "technical.rfq-funnel", reason: "a FROZEN per-tier dashboard-widget key (renaming one is a data migration)" },
+  ],
+  "src/components/studio2/TechnicalDashboard.jsx": [
+    { value: "technical.rfq-funnel", reason: "the same frozen widget key, referenced by its consumer" },
+  ],
+  "src/components/studio2/StudioOperations.js": [
+    { value: "operations", reason: "the unmoved API route segment (src/app/api/studios/[slug]/operations/)" },
+    { value: "operations/schedule", reason: "same — the schedule sub-route, never renamed" },
+  ],
+};
+
+// Every double-quoted token on a line, so a hit can be checked against
+// KNOWN_COLLISIONS by the EXACT literal that matched rather than by the
+// looser substring the grep pattern itself allows.
+function quotedTokens(line) {
+  const re = /"([^"]*)"/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(line))) out.push(m[1]);
+  return out;
+}
+
+// Re-greps a single already-flagged file for the lines that actually match,
+// so each can be checked token by token against KNOWN_COLLISIONS. `matches`
+// decides, per extracted token, whether it is the retired-key shape being
+// hunted (exact equality for section keys, prefix for permission keys — see
+// each caller). Kept separate from the whole-tree grep below for the same
+// execFileSync/argv reasons documented there.
+function survivingTokens(execFileSync, file, argvPattern, matches) {
+  let out;
+  try {
+    out = execFileSync("git", ["grep", "-n", "--", argvPattern, file], { encoding: "utf8" });
+  } catch (e) {
+    if (e.status === 1) return [];
+    throw e;
+  }
+  const prefix = `${file}:`;
+  const allowed = KNOWN_COLLISIONS[file] || [];
+  const survivors = [];
+  for (const line of out.split("\n")) {
+    if (!line.startsWith(prefix)) continue;
+    const rest = line.slice(prefix.length);
+    const content = rest.slice(rest.indexOf(":") + 1);
+    for (const token of quotedTokens(content)) {
+      if (!matches(token)) continue;
+      if (allowed.some((c) => c.value === token)) continue;
+      survivors.push(token);
+    }
+  }
+  return survivors;
+}
+
 export async function testNoRetiredPermissionKeySurvivesInSource(t) {
   // THE SECOND ARCHITECTURAL ASSERTION, the same shape as
   // testNoRetiredSectionKeySurvivesInSource below but for PERMISSION keys
@@ -125,6 +211,8 @@ export async function testNoRetiredPermissionKeySurvivesInSource(t) {
   // (`"sales.tickets"`, e.g. a RoleSchema.scopes property name) and every
   // verb-suffixed permission literal built from it (`"sales.tickets.view"`,
   // `"sales.tickets.create"`, ...), since both start with the same substring.
+  // The SAME wildcard-`.` behaviour that lets one pattern do that is what
+  // makes it match a few unrelated values too — see KNOWN_COLLISIONS above.
   //
   // src/platform/db/restructure.ts is excluded for the same reason as the
   // section-key assertion below: it IS the map, and a map has to name every
@@ -147,19 +235,25 @@ export async function testNoRetiredPermissionKeySurvivesInSource(t) {
   const { execFileSync } = await import("node:child_process");
   const retired = Object.keys(PERMISSION_KEY_MAP).filter((k) => PERMISSION_KEY_MAP[k] !== k);
   for (const key of retired) {
-    let hits;
+    let files;
     try {
-      hits = execFileSync(
+      files = execFileSync(
         "git",
         ["grep", "-l", "--", `"${key}`, "src", ":!src/platform/db/restructure.ts"],
         { encoding: "utf8" },
-      ).trim();
+      ).trim().split("\n").filter(Boolean);
     } catch (e) {
       // Exit code 1 is git grep's "no match" — the good outcome, not an error.
-      if (e.status === 1) hits = "";
+      if (e.status === 1) files = [];
       else throw e;
     }
-    t.equal(hits, "", `no source file still names the retired permission key "${key}"\n${hits}`);
+    const matches = (token) => new RegExp(`^${key}`).test(token);
+    const bad = [];
+    for (const file of files) {
+      const survivors = survivingTokens(execFileSync, file, `"${key}`, matches);
+      if (survivors.length) bad.push(`${file}: ${survivors.join(", ")}`);
+    }
+    t.equal(bad.join("\n"), "", `no source file still names the retired permission key "${key}"\n${bad.join("\n")}`);
   }
 }
 
@@ -183,19 +277,25 @@ export async function testNoRetiredSectionKeySurvivesInSource(t) {
   const { execFileSync } = await import("node:child_process");
   const retired = Object.keys(SECTION_KEY_MAP).filter((k) => SECTION_KEY_MAP[k] !== k);
   for (const key of retired) {
-    let hits;
+    let files;
     try {
-      hits = execFileSync(
+      files = execFileSync(
         "git",
         ["grep", "-l", "--", `"${key}"`, "src", ":!src/platform/db/restructure.ts"],
         { encoding: "utf8" },
-      ).trim();
+      ).trim().split("\n").filter(Boolean);
     } catch (e) {
       // Exit code 1 is git grep's "no match" — the good outcome, not an error.
-      if (e.status === 1) hits = "";
+      if (e.status === 1) files = [];
       else throw e;
     }
-    t.equal(hits, "", `no source file still names the retired key "${key}"\n${hits}`);
+    const matches = (token) => token === key;
+    const bad = [];
+    for (const file of files) {
+      const survivors = survivingTokens(execFileSync, file, `"${key}"`, matches);
+      if (survivors.length) bad.push(`${file}: ${survivors.join(", ")}`);
+    }
+    t.equal(bad.join("\n"), "", `no source file still names the retired key "${key}"\n${bad.join("\n")}`);
   }
 }
 
@@ -292,6 +392,15 @@ export async function testAPersonalOverrideSurvivesTheRename(t) {
     roles,
   });
   t.equal(withAllow.has("crmSales.clients.view"), true, "a personal allow written pre-rename still grants, under its mapped key");
+
+  // THE POSITIVE CONTROL FOR THE DENY BELOW: role r1 alone, no override at
+  // all, genuinely holds the mapped key — without this, "withDeny.has(...) ===
+  // false" would pass just as well if the alias were entirely broken (a role
+  // that never resolves has nothing to remove either), proving nothing about
+  // deny actually removing something. This is what makes it a removal, not a
+  // no-op the assertion cannot tell apart from one.
+  const withoutDeny = effectivePermissions({ collaborator: { roleIds: ["r1"] }, roles });
+  t.equal(withoutDeny.has("crmSales.tickets.view"), true, "the role alone genuinely holds the key the deny below removes");
 
   // Deny: the role holds tickets.view, but a personal exception removes it.
   // Both sides run through the SAME resolveGrant as the role list, which is

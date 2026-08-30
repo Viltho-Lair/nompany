@@ -40,19 +40,14 @@ import { toneOf } from "@/lib/planColors";
 // Section keys are tenant data, so the icon map is best-effort and falls back
 // to a neutral dot for anything unrecognised.
 //
-// THE CRM & SALES ROW'S ICON NAME IS BUILT, NOT QUOTED WHOLE: icons.js's own
-// registry key for it is the bare word Sales (icons.js: `sales: "sales.png"`),
-// unrelated to and unrenamed by the P0 restructure — an icon name is not a
-// section key, restructure.ts's SECTION_KEY_MAP has no business here. Writing
-// it as one quoted literal would read to the architectural grep in
-// tests/restructure.mjs as the retired section key of the same spelling left
-// behind, which it is not; splitting it is the least misleading way to keep
-// this genuinely-unrenamed value without a false alarm.
-const SALES_ICON_NAME = "sa" + "les";
+// THE CRM & SALES ROW'S ICON NAME IS THE BARE WORD "sales" — icons.js's own
+// registry key for it (icons.js: `sales: "sales.png"`), unrelated to and
+// unrenamed by the P0 restructure: an icon name is not a section key.
+// tests/restructure.mjs's KNOWN_COLLISIONS allowlist knows about this one.
 const SECTION_ICONS = {
   main: "home",
   tasks: "checkDouble",
-  "crm-sales": SALES_ICON_NAME,
+  "crm-sales": "sales",
   "engineering-docs": "technicalSupport",
   projects: "projects",
   // Engineering, not the plain gear: Field Service is a section of its own,

@@ -38,18 +38,12 @@ export const WIDGET_SECTIONS: { key: string; label: string }[] = [
   { key: "field-service", label: "Operations" },
 ];
 
-// Built, not quoted whole: this FROZEN widget key (see the note below)
-// happens to start with the exact substring of the P0 restructure's retired
-// RFQ permission key — a widget key is not a permission key, so the
-// architectural grep in tests/restructure.mjs would misread this as the
-// retired key left behind if it were spelled as one contiguous literal.
-// Splitting it — inside the shared word, not just at the widget-specific
-// suffix — is the least misleading way to keep this genuinely-unrenamed
-// value without a false alarm.
-const RFQ_FUNNEL_WIDGET_KEY = "technical.rf" + "q-funnel";
-
 // Every gated widget across the eight department dashboards. Keys are frozen —
 // a tier stores these strings, so renaming one is a migration, not an edit.
+// "technical.rfq-funnel" below happens to start with the exact substring of
+// the P0 restructure's retired RFQ permission key — a widget key is not a
+// permission key. tests/restructure.mjs's KNOWN_COLLISIONS allowlist knows
+// about this one (and its consumer in TechnicalDashboard.jsx).
 export const DASHBOARD_WIDGETS: WidgetDef[] = [
   // Main (the executive overview — the free headline tiles & feed are NOT here;
   // the registry governs paid widgets, the floor is always shown)
@@ -64,7 +58,7 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "sales.at-risk", label: "At-risk tickets", section: "crm-sales", rung: "moderate" },
   // Technical
   { key: "technical.quotation-volume", label: "Quotation volume", section: "crm-sales", rung: "simple" },
-  { key: RFQ_FUNNEL_WIDGET_KEY, label: "RFQ funnel", section: "engineering-docs", rung: "simple" },
+  { key: "technical.rfq-funnel", label: "RFQ funnel", section: "engineering-docs", rung: "simple" },
   { key: "technical.urgency-breakdown", label: "Urgency breakdown", section: "engineering-docs", rung: "simple" },
   { key: "technical.approved-share", label: "Approved share", section: "engineering-docs", rung: "simple" },
   { key: "technical.handler-leaderboard", label: "Handler leaderboard", section: "engineering-docs", rung: "moderate" },

@@ -33,14 +33,10 @@ import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
 // The chrome — dialogs, toolbars, charts — comes from studio2/ui so this screen
 // and Technical's are the same product rather than two lookalikes.
 
-// Ticket-stage colours now live in the shared StatusPill map, under the
-// RECORD KIND matching this department's old name — StatusPill.js's
-// STATUS_TONES is keyed by kind, not by section, and was never part of the
-// P0 restructure's renames. Built below (TICKET_STATUS_KIND), not quoted
-// whole, so it does not read to the architectural grep in
-// tests/restructure.mjs as the retired section key of the same spelling left
-// behind, which it is not.
-const TICKET_STATUS_KIND = "sa" + "les";
+// Ticket-stage colours now live in the shared StatusPill map, keyed "sales" —
+// StatusPill.js's STATUS_TONES is keyed by RECORD KIND, not by section, and
+// was never part of the P0 restructure's renames.
+// tests/restructure.mjs's KNOWN_COLLISIONS allowlist knows about this one.
 // Columns the tickets table can show. Every one is toggleable; the Actions
 // column is not on the list because it is always drawn.
 // THE KEYS ARE THE CONTRACT, THE LABELS ARE COPY. The saved column preference
@@ -333,7 +329,7 @@ function SalesOverview({ slug, tickets, clients, people, nav, level }) {
                       <td className="py-3 pe-3 tabular-nums text-slate-600 dark:text-slate-300">{money(row.value)}</td>
                       <td className={`py-3 pe-3 text-xs font-600 ${rfq.tone}`}>{rfq.text}</td>
                       <td className="py-3 pe-3">
-                        <StatusPill kind={TICKET_STATUS_KIND} status={row.status} />
+                        <StatusPill kind="sales" status={row.status} />
                       </td>
                       <td className="py-3 text-slate-500 dark:text-slate-400">{fmtDate(row.updatedAt || row.createdAt)}</td>
                     </tr>
@@ -445,7 +441,7 @@ function Tickets({ tickets, people, canManage, slug, nav, hasTechnical, statuses
     deadline: { field: "deadline", headerName: tr.deadline, minWidth: 120, flex: 0.8,
       renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{fmtDate(row.deadline)}</span> },
     status: { field: "status", headerName: tr.status, minWidth: 120, flex: 0.7,
-      renderCell: ({ row }) => <StatusPill kind={TICKET_STATUS_KIND} status={row.status} /> },
+      renderCell: ({ row }) => <StatusPill kind="sales" status={row.status} /> },
     urgency: { field: "urgency", headerName: tr.urgency, minWidth: 110, flex: 0.7,
       renderCell: ({ row }) => <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[row.urgency] || URGENCY_BADGE.Normal}`}>{row.urgency || "Normal"}</span> },
     // WHERE THE TICKET STANDS, and only that — Request RFQ lives on the ticket's

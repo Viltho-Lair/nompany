@@ -535,12 +535,10 @@ function RfqInfo({ label: text, value, mono }) {
 // section still reads Arabic in an Arabic studio and a tenant's own wording is
 // left alone), and falls back to the dictionary word for somebody who cannot
 // open that section and therefore was not handed its name.
-// icons.js's own registry key for this badge is the bare word Sales
+// icons.js's own registry key for this badge is the bare word "sales"
 // (`sales: "sales.png"`), unrelated to and unrenamed by the P0 restructure —
-// an icon name is not a section key. Built rather than quoted whole so it
-// does not read to the architectural grep in tests/restructure.mjs as the
-// retired section key of the same spelling left behind, which it is not.
-const SALES_ICON_NAME = "sa" + "les";
+// an icon name is not a section key. tests/restructure.mjs's
+// KNOWN_COLLISIONS allowlist knows about this one.
 
 function OriginTag({ fromSales, sectionNames = {} }) {
   const tr = technicalDict(useStudioLocale());
@@ -551,7 +549,7 @@ function OriginTag({ fromSales, sectionNames = {} }) {
   if (fromSales) {
     return (
       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-700 leading-4 text-brand-700 dark:text-brand-300">
-        <Icon name={SALES_ICON_NAME} className="h-3 w-3" />
+        <Icon name="sales" className="h-3 w-3" />
         {label}
       </span>
     );
