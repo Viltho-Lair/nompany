@@ -184,6 +184,19 @@ import {
   testDetachingAChildLeavesTheRestOfTheDealIntact,
   testDetachingARecordThatNeverAttachedIsANoOp,
 } from "./engagement-children.mjs";
+// THE FIFTEEN-SECTION RESTRUCTURE MAP (P0 restructure, Task 1). Same
+// standalone-runner shape as the seven modules above — importing it here pulls
+// in only the exported test functions, run explicitly further down. Unlike
+// those seven, this file's tests take their assertion object as an ARGUMENT
+// rather than importing node:assert themselves (so the same functions can also
+// self-check when the file is run bare via `node tests/restructure.mjs`), so
+// the adapter below is a tiny shim that forwards straight into this file's own
+// ok() rather than a try/catch around a thrown node:assert error.
+import {
+  testEveryOldSectionKeyIsAccountedFor, testEveryMappedTargetActuallyExists,
+  testEveryMappedPermissionTargetIsARealArea, testMapIsIdempotent,
+  testTheFiveMovesAreDeclared, testNoRetiredSectionKeySurvivesInSource,
+} from "./restructure.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -4661,6 +4674,33 @@ console.log("\n== what Nova volunteers, before anybody asks");
       ["en", "ar"].some((l) => !COPY.insightCopy(k, { n: 1, days: 2, more: 0 }, l, money)));
     ok("every kind the derivations emit has words in both languages",
       missing.length === 0, missing.join(", "));
+  }
+}
+
+// ============================================================================
+console.log("\n== the fifteen-section restructure map (P0 restructure, Task 1)");
+// testEveryMappedTargetActuallyExists, testEveryMappedPermissionTargetIsARealArea
+// and testNoRetiredSectionKeySurvivesInSource are EXPECTED RED here: SECTION_DEFS
+// and the permission catalogue have not moved to the fifteen sections yet
+// (Tasks 2 and 4) and the source sweep that retires the twelve-department keys
+// has not happened (Task 5). Do not weaken these three to make this block
+// green — them turning green for real is what proves those tasks landed.
+{
+  const asT = {
+    equal: (actual, expected, message = "") => ok(
+      message, actual === expected,
+      actual === expected ? "" : `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    ),
+  };
+  for (const test of [
+    testEveryOldSectionKeyIsAccountedFor,
+    testEveryMappedTargetActuallyExists,
+    testEveryMappedPermissionTargetIsARealArea,
+    testMapIsIdempotent,
+    testTheFiveMovesAreDeclared,
+    testNoRetiredSectionKeySurvivesInSource,
+  ]) {
+    await test(asT);
   }
 }
 
