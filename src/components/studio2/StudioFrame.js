@@ -526,9 +526,15 @@ export default function StudioFrame({
           </div>
         </header>
         <main id="studio-main" tabIndex={-1} className="mx-auto max-w-[1400px] px-5 pb-8 outline-none sm:px-8"><AnalyticsLevelProvider analytics={analytics}>{children}</AnalyticsLevelProvider></main>
+        {/* `view` is the section key of the screen behind the shell — the same
+            one the sidebar highlights. Nova's bubble ranks what it has to say
+            around it, so what she volunteers is about where you are; passing
+            the key rather than the pathname means no component has to parse an
+            address to work out which department it is looking at. */}
         <NovaLauncher slug={studio.slug} enabled={novaEnabled} besideChat={Boolean(chat?.enabled)}
           open={cornerChat === "nova"}
-          onOpenChange={openNova} />
+          onOpenChange={openNova}
+          view={activeKey} />
       </div>
 
       {/* Live chat with nompany. It lives on the SHELL rather than on a page, so

@@ -196,7 +196,7 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1562 KB gz
+  ceiling, because that is what every route pays. Total client JS is 1566 KB gz
   against 1600 KB, which catches sprawl rather than splitting. The studio’s
   department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
   the total rose 12 KB in the same commit, which is the two ceilings doing their
@@ -206,7 +206,10 @@ every push to `main` and every pull request.
   screens are rewritten. (This line said 1091/1200, then 305/400, then 1529/1600,
   as the script moved on — a stale number in the invariants file is worse than
   none.) 1559 → 1562 with the vendor CSV import: a dependency-free reader and a
-  dialog, which is what NOT taking `xlsx` (~400 KB gz) buys.
+  dialog, which is what NOT taking `xlsx` (~400 KB gz) buys. 1562 → 1566 with
+  Nova's speech bubble — four of those kilobytes are its twenty sentences in two
+  languages, which is the price of translating on DISPLAY rather than shipping
+  prose from an API.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.

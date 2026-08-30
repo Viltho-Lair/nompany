@@ -4487,6 +4487,184 @@ console.log("\n== a project's children join and leave the deal");
 }
 
 // ============================================================================
+console.log("\n== what Nova volunteers, before anybody asks");
+// THE SPEECH BUBBLE'S SENTENCES ARE DERIVED, NOT WRITTEN. Every assertion here
+// guards a condition that can be got wrong quietly — a bubble that says the
+// wrong thing is worse than a silent one, because it is unprompted and it looks
+// authoritative. Pure functions, so no Redis and no fixture: rows in, insights
+// out.
+{
+  const INS = await import("@/modules/main/insights.ts");
+  const COPY = await import("@/shared/studio/insights.ts");
+  const money = (v) => `SAR ${Number(v || 0).toFixed(2)}`;
+  const TODAY = "2026-08-30";
+  const kinds = (rows) => rows.map((r) => r.kind);
+
+  // ---- the arithmetic ------------------------------------------------------
+  ok("days are counted forward and backward from the same instant",
+    INS.daysSince("2026-08-20", TODAY) === 10 && INS.daysUntil("2026-09-09", TODAY) === 10);
+  ok("a date nobody filled in is null, not zero",
+    INS.daysSince("", TODAY) === null && INS.daysSince(undefined, TODAY) === null);
+
+  // ---- THE BUG main.ts SHIPPED ONCE ---------------------------------------
+  // `lowStock` counted items that merely HAD a reorder level, so a studio that
+  // had configured its catalogue properly was told all of it was running out.
+  // The condition is a COMPARISON against the ledger's balance, and this is the
+  // assertion that keeps it one.
+  {
+    const items = [
+      { id: "a", name: "Healthy", reorderLevel: 5 },
+      { id: "b", name: "Low", reorderLevel: 10 },
+      { id: "c", name: "Gone", reorderLevel: 4 },
+      { id: "d", name: "Unwatched" },
+    ];
+    const onHand = { a: 40, b: 6, c: 0, d: 0 };
+    const out = INS.stockInsights(items, onHand);
+    ok("a well-stocked item with a reorder level is not 'low'",
+      !out.some((i) => i.vars.name === "Healthy"), kinds(out).join(","));
+    ok("an item with no reorder level is never reported, at any quantity",
+      !out.some((i) => i.vars.name === "Unwatched"));
+    ok("out-of-stock and low are separate sentences",
+      out.some((i) => i.kind === "stock.out" && i.vars.name === "Gone")
+      && out.some((i) => i.kind === "stock.low" && i.vars.name === "Low"), kinds(out).join(","));
+  }
+
+  // The one asked for by name: a quotation number with nothing priced under it.
+  // `items` is the FLAT PRICED LIST, so tables without rows still count as
+  // empty — the number was issued and the work was never priced.
+  {
+    const out = INS.quotationInsights([
+      { id: "q1", number: "Q-0041", status: "Draft", items: [], createdAt: "2026-08-29" },
+      { id: "q2", number: "Q-0042", status: "Draft", items: [{ description: "x", qty: 1, unitPrice: 5 }], createdAt: "2026-08-29" },
+      { id: "q3", number: "Q-0033", status: "Sent", items: [{ description: "x", qty: 1, unitPrice: 5 }], createdAt: "2026-08-01" },
+    ], TODAY);
+    ok("a draft quotation with no items is named, a priced one is not",
+      out.some((i) => i.kind === "quotation.noItems" && i.vars.number === "Q-0041")
+      && !out.some((i) => i.vars.number === "Q-0042"), kinds(out).join(","));
+    ok("a quotation sitting with the client for a fortnight is chased",
+      out.some((i) => i.kind === "quotation.stale" && i.vars.number === "Q-0033" && i.vars.days === 29));
+  }
+
+  // A NULL LIST IS "NOT YOURS TO KNOW", NOT "THERE ARE NONE". Two derivations
+  // cross a section boundary, and both must go quiet rather than assert
+  // something about a department the viewer was never granted — "this ticket
+  // has no RFQ" IS a statement about Technical.
+  {
+    const tickets = [{ id: "t1", ref: "T-001", status: "Open", deadline: "2026-12-01" }];
+    ok("with Technical invisible, no claim is made about a ticket's RFQ",
+      !INS.ticketInsights(tickets, null, TODAY).some((i) => i.kind === "ticket.noRfq"));
+    ok("...and with Technical visible, the bare ticket is named",
+      INS.ticketInsights(tickets, [], TODAY).some((i) => i.kind === "ticket.noRfq" && i.vars.reference === "T-001"));
+
+    const projects = [{ id: "p1", number: "P-01", stage: "Completed" }];
+    ok("with Finance invisible, no claim is made about what was invoiced",
+      !INS.projectInsights(projects, null, TODAY).some((i) => i.kind === "project.uninvoiced"));
+    ok("...and with Finance visible, the unbilled project is named",
+      INS.projectInsights(projects, [], TODAY).some((i) => i.kind === "project.uninvoiced" && i.vars.number === "P-01"));
+  }
+
+  // A closed ticket is not a live one, and the trio must match main.ts's
+  // `openTickets` headline — a bubble and a tile disagreeing about what "open"
+  // means is the kind of thing nobody reports and everybody notices.
+  {
+    const closed = ["Closed Won", "Closed Lost", "Dropped"].map((status, n) =>
+      ({ id: `c${n}`, ref: `T-9${n}`, status, deadline: "2026-08-01" }));
+    ok("a won, lost or dropped ticket is never chased for its deadline",
+      INS.ticketInsights(closed, [], TODAY).length === 0);
+  }
+
+  // Outstanding is RECOMPUTED from the lines and the payments, never a stored
+  // balance — the same `invoiceTotals` Finance and the notice cron use. A fully
+  // paid invoice past its due date is not overdue.
+  {
+    const line = [{ description: "w", qty: 1, unitPrice: 100 }];
+    const out = INS.invoiceInsights([
+      { id: "i1", reference: "INV-1", status: "Sent", dueDate: "2026-08-10", lines: line, vatRate: 0, payments: [] },
+      { id: "i2", reference: "INV-2", status: "Sent", dueDate: "2026-08-10", lines: line, vatRate: 0, payments: [{ amount: 100 }] },
+      { id: "i3", reference: "INV-3", status: "Draft", createdAt: "2026-08-01", lines: line, vatRate: 0 },
+    ], TODAY);
+    const overdue = out.find((i) => i.kind === "invoice.overdue");
+    ok("an invoice paid in full is not overdue, however late",
+      overdue && overdue.vars.reference === "INV-1" && !out.some((i) => i.vars.reference === "INV-2"),
+      kinds(out).join(","));
+    ok("the amount is the outstanding balance, not the total",
+      overdue && overdue.vars.amount === 100 && overdue.vars.days === 20);
+    ok("a draft nobody sent is its own, quieter sentence",
+      out.some((i) => i.kind === "invoice.draft" && i.vars.reference === "INV-3"));
+  }
+
+  // ---- ranking for the screen ---------------------------------------------
+  {
+    const mk = (kind, section, weight) => ({ id: kind, kind, tone: "info", section, href: null, vars: {}, weight });
+    const rows = [
+      mk("invoice.overdue", "finance-cash", 350),
+      mk("ticket.noRfq", "sales-tickets", 120),
+      mk("quotation.noItems", "technical-quotations", 230),
+    ];
+    ok("with no view, the loudest thing is said first",
+      COPY.rankForView(rows, "")[0].kind === "invoice.overdue");
+    ok("on a screen, that screen's own section outranks a louder one elsewhere",
+      COPY.rankForView(rows, "sales-tickets")[0].kind === "ticket.noRfq");
+    ok("a sibling section still beats an unrelated department",
+      COPY.rankForView(rows, "finance-payables")[0].kind === "invoice.overdue");
+    ok("nothing is dropped by the view — only reordered",
+      COPY.rankForView(rows, "sales-tickets").length === rows.length);
+    ok("a department is the key up to its first dash",
+      COPY.departmentOf("technical-quotations") === "technical" && COPY.departmentOf("tasks") === "tasks");
+  }
+
+  // ---- the words -----------------------------------------------------------
+  // THE API SHIPS NO PROSE. Every sentence is assembled on display, in the
+  // reader's language, which is the only reason an Arabic studio does not get
+  // English from an endpoint and a golden does not pin a language.
+  {
+    const vars = { number: "Q-0041", more: 0 };
+    const en = COPY.insightCopy("quotation.noItems", vars, "en", money);
+    const ar = COPY.insightCopy("quotation.noItems", vars, "ar", money);
+    ok("the same insight reads in English and in Arabic",
+      en && ar && en.text !== ar.text && en.text.includes("Q-0041") && ar.text.includes("Q-0041"));
+    ok("...and its chip is translated too", en.label === "Quotation" && ar.label === "عرض سعر");
+
+    ok("a kind this build has never heard of is skipped, not drawn blank",
+      COPY.insightCopy("something.invented", {}, "en", money) === null);
+
+    // A DEADLINE IN THE PAST AND ONE IN THE FUTURE ARE DIFFERENT SENTENCES,
+    // not the same one with a minus sign in it.
+    const soon = COPY.insightCopy("ticket.deadline", { reference: "T-1", days: 3, more: 0 }, "en", money);
+    const past = COPY.insightCopy("ticket.deadline", { reference: "T-1", days: -3, more: 0 }, "en", money);
+    const now = COPY.insightCopy("ticket.deadline", { reference: "T-1", days: 0, more: 0 }, "en", money);
+    ok("due in three days, due today and three days late all read differently",
+      soon.text !== past.text && past.text !== now.text && !past.text.includes("-3"), past.text);
+
+    ok("money goes through the caller's formatter, never a hardcoded currency",
+      COPY.insightCopy("invoice.overdue",
+        { reference: "INV-1", days: 4, amount: 250, total: 250, more: 0 }, "en", money).text.includes("SAR 250.00"));
+
+    ok("the count of others is a tail, and absent when there are none",
+      COPY.insightCopy("quotation.noItems", { number: "Q-1", more: 2 }, "en", money).text.includes("+2 more")
+      && !COPY.insightCopy("quotation.noItems", { number: "Q-1", more: 0 }, "en", money).text.includes("+"));
+
+    // Every kind the server can emit must have words on both sides. A kind
+    // added to the derivations and forgotten here is a bubble that never fires,
+    // which is invisible — exactly the failure this file exists to make loud.
+    const EMITTED = [
+      "task.overdue", "task.approval", "task.awaiting",
+      "quotation.noItems", "quotation.stale", "rfq.unquoted",
+      "ticket.noRfq", "ticket.deadline",
+      "project.overdue", "project.uninvoiced",
+      "stock.out", "stock.low",
+      "invoice.overdue", "invoice.draft", "bill.overdue",
+      "permit.expired", "permit.expiring",
+      "hr.docExpiring", "hr.leavePending", "notifications.unread",
+    ];
+    const missing = EMITTED.filter((k) =>
+      ["en", "ar"].some((l) => !COPY.insightCopy(k, { n: 1, days: 2, more: 0 }, l, money)));
+    ok("every kind the derivations emit has words in both languages",
+      missing.length === 0, missing.join(", "));
+  }
+}
+
+// ============================================================================
 // Everything this suite wrote lives under the namespace, so cleanup is one
 // prefix deletion. Runs whatever happened above — a failed assertion must not
 // leave keys behind.

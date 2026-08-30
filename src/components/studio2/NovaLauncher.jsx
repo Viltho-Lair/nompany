@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { miscDict } from "@/shared/studio/misc";
 import NovaHead from "@/components/studio2/NovaHead";
+import NovaBubble from "@/components/studio2/NovaBubble";
 
 // NOVA, in the studio. A floating launcher and a slide-over chat, shown only
 // when the studio's package includes the assistant. Memory is session-only: the
@@ -25,7 +26,7 @@ const examplesFor = (tr) => [
 
 // OPEN IS THE SHELL'S — see the note in StudioChat. The two chats share one
 // corner and one slot, so StudioFrame decides which is showing.
-export default function NovaLauncher({ slug, enabled = false, besideChat = false, open = false, onOpenChange }) {
+export default function NovaLauncher({ slug, enabled = false, besideChat = false, open = false, onOpenChange, view = "" }) {
   const tr = miscDict(useStudioLocale());
   // A plain boolean in, no functional form: the current value is already a
   // PROP here, so `setOpen(!open)` says it directly and nothing has to read
@@ -161,8 +162,29 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
     setBusy(false);
   }
 
+  // The bubble's one way in. It hands over a question already phrased around the
+  // insight it was showing, so "Ask Nova about this" lands in the transcript as
+  // something the person could have typed — the assistant then answers it
+  // through its own permission-checked tools, exactly as if they had.
+  function askFromBubble(question) {
+    setOpen(true);
+    send(question);
+  }
+
   return (
     <>
+      {/* NOVA SPEAKS FIRST. Rendered here, INSIDE the `enabled` guard and beside
+          the launcher it is anchored to, so the two cannot come apart: a studio
+          without Nova in its package has neither, and the bubble stands down
+          while the panel is open because the panel owns that corner. */}
+      <NovaBubble
+        slug={slug}
+        view={view}
+        besideChat={besideChat}
+        suspended={open}
+        onAsk={askFromBubble}
+      />
+
       {/* The launcher IS Nova — her head, on a soft halo, larger than the chat
           bubble so the two never read as the same control. When live chat shares
           the corner, Nova steps to its left (end-24 clears the ~48px bubble).

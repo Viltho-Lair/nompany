@@ -677,6 +677,27 @@ html.studio-chrome ::-webkit-scrollbar-corner {
   }
 }
 
+/* Nova's speech bubble arriving (src/components/studio2/NovaBubble.jsx).
+   IT RISES, IT DOES NOT SLIDE IN FROM A SIDE. A horizontal entrance would need
+   a second keyframe for Arabic — the bubble sits on the other side there — and
+   the pair would drift. Vertical mirrors itself.
+   Applied through `motion-safe:`, so somebody who asked for less motion gets
+   the bubble without the movement rather than no bubble.
+   NO `fill-mode`, deliberately: with `both` the element holds the FROM frame —
+   opacity 0 — anywhere the animation does not actually run, and an entrance
+   animation that fails closed hides the thing it was decorating. The `to` frame
+   is the element's natural state, so nothing is needed to hold it. */
+@keyframes nova-bubble-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Controlled documents (Quality → Documents) style themselves.
    The document's appearance lives in src/lib/qualityCss.js, because the SAME
    string paints the canvas on screen and the page inside the exported PDF —

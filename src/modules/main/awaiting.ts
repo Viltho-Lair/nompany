@@ -22,11 +22,53 @@ export type QueueItem = {
   id: string;
   label: string;
   at: string;
+  /** The task's own due date, where it has one. Empty on everything else. */
+  dueDate?: string;
 };
 
 /** Oldest-waiting first (a queue drains from the front). Pure. */
 export function rankQueue(items: QueueItem[]): QueueItem[] {
   return [...items].sort((a, b) => String(a.at).localeCompare(String(b.at)));
+}
+
+/**
+ * THE PURE HALF, extracted so a second reader cannot invent a second opinion
+ * about what "waiting on me" means. Nova's speech bubble asks the same question
+ * from its own read of the same rows (src/modules/main/insights.ts), and a
+ * bubble that disagreed with the widget beside it about which tasks are yours
+ * would be worse than no bubble. Given rows, assignees and a CollaboratorID
+ * (invariant 6), it answers; it reads nothing.
+ */
+export function taskQueueFrom(
+  tasks: Task[],
+  assignees: ReturnType<typeof readTaskAssignees>,
+  meId: string,
+): QueueItem[] {
+  const out: QueueItem[] = [];
+  for (const raw of tasks) {
+    if (raw.status === "Done") continue;
+    const t = enrichTask(raw, assignees, meId);
+    const mineToDo = t.assigneeCollaboratorId === meId;
+    const mineToApprove = (t.myAuthorities || []).some((c) => !t.approvals?.[c]?.approved);
+    if (mineToDo || mineToApprove) {
+      out.push({
+        kind: mineToApprove ? "approval" : "task",
+        section: "tasks",
+        id: String(t.id),
+        label: t.title,
+        at: t.createdAt || "",
+        // The board's own due date, carried so a caller can age the row without
+        // reading the task again. Absent on a task nobody dated.
+        dueDate: String(raw.dueDate || ""),
+      });
+    }
+  }
+  return out;
+}
+
+/** Which assignee table the studio's Tasks settings hold, for `taskQueueFrom`. */
+export function taskAssigneesOf(ctx: MainContext) {
+  return readTaskAssignees(ctx.byKey["tasks-settings"] || ctx.byKey["tasks"]);
 }
 
 export async function awaitingQueue(ctx: MainContext): Promise<QueueItem[]> {
@@ -36,24 +78,8 @@ export async function awaitingQueue(ctx: MainContext): Promise<QueueItem[]> {
   // Tasks waiting on me — the same enrichment main.ts uses for the count.
   const tasksSection = ctx.seen("tasks", null);
   if (tasksSection) {
-    const settings = ctx.byKey["tasks-settings"] || ctx.byKey["tasks"];
-    const assignees = readTaskAssignees(settings);
     const tasks = await repo<Task>("tasks").find({ studio: ctx.studio, section: tasksSection });
-    for (const raw of tasks) {
-      if (raw.status === "Done") continue;
-      const t = enrichTask(raw, assignees, meId);
-      const mineToDo = t.assigneeCollaboratorId === meId;
-      const mineToApprove = (t.myAuthorities || []).some((c) => !t.approvals?.[c]?.approved);
-      if (mineToDo || mineToApprove) {
-        out.push({
-          kind: mineToApprove ? "approval" : "task",
-          section: "tasks",
-          id: String(t.id),
-          label: t.title,
-          at: t.createdAt || "",
-        });
-      }
-    }
+    out.push(...taskQueueFrom(tasks, taskAssigneesOf(ctx), meId));
   }
 
   // Quotations awaiting the viewer's action (Draft/Sent handled by Technical).
