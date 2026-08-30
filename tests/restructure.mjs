@@ -34,7 +34,7 @@ const {
 } = await import("../src/platform/db/restructure.ts");
 const { SECTION_DEFS, ALL_SECTION_KEYS } = await import("../src/platform/db/keys.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
-const { effectivePermissions, scopeFor } = await import("../src/platform/access/resolve.ts");
+const { effectivePermissions, scopeFor, escalates } = await import("../src/platform/access/resolve.ts");
 
 export async function testEveryOldSectionKeyIsAccountedFor(t) {
   // The twelve departments' keys as they stand before the rename. Every one must
@@ -255,6 +255,89 @@ export async function testScopeForResolvesAnUnmigratedAreaKey(t) {
   );
 }
 
+// ---- escalation (fix round 1) ------------------------------------------------
+// FIX ROUND 1: escalates() read role.permissions straight through isPermission,
+// unmapped, while actorAccess (built by effectivePermissions, above) was
+// already going through resolveGrant. Once Task 4 renames the areas — and
+// before Task 7's data migration rewrites every stored role — a role still
+// holding "sales.tickets.view" would have that string DROPPED inside
+// escalates() (isPermission rejects the old spelling) before it ever reached
+// `granting`, so an actor who does NOT hold the equivalent
+// "crmSales.tickets.view" would see nothing to object to, and a privilege
+// escalation would go through: invariant 5 ("nobody grants what they do not
+// hold") breached at the one door built to enforce it.
+//
+// A NOTE ON WHAT THESE CAN OBSERVE TODAY, for the same reason given above
+// testAnOldStoredGrantStillResolves: catalogue.ts has not been renamed yet, so
+// isPermission("sales.tickets.view") is STILL true today, and both the fixed
+// and the pre-fix code resolve that string to itself either way — there is no
+// stored key for which raw resolution and mapped resolution currently disagree,
+// so no assertion against the REAL catalogue can flip between "refused" and
+// "allowed" depending on whether resolveGrant is wired in. (Verified by hand:
+// reverting escalates() to the pre-fix `if (isPermission(k)) granting.add(k)`
+// and re-running these produces the identical pass/fail result.) This is the
+// same sequencing artifact already disclosed and accepted for the five
+// effectivePermissions tests, arrived at again on the other door for the
+// identical reason — not a new gap, and not something Task 4 gets to skip
+// re-verifying. What these tests DO prove today: escalates() and
+// effectivePermissions resolve the SAME stored key to the SAME held value
+// (testEscalationAndEffectivePermissionsAgreeOnTheSameStoredKey), which is
+// exactly the "same footing" property the fix depends on — and once Task 4
+// renames the areas, that agreement is what makes the refusal actually fire.
+
+export async function testEscalatesRefusesAStoredRoleTheActorDoesNotHold(t) {
+  // The actor holds nothing relevant. The role being assigned (looked up by
+  // id from the `roles` list — the exact path the gap was in, as opposed to
+  // an inline `overrides.allow`) stores an old-vintage key.
+  const roles = [{ id: "r_tickets", permissions: ["sales.tickets.view"], scopes: {} }];
+  const actorAccess = effectivePermissions({ collaborator: { roleIds: [] }, roles: [] });
+  const result = escalates(actorAccess, { roleIds: ["r_tickets"] }, roles);
+  t.equal(result?.error, "escalation", "an actor holding nothing may not hand out a stored role's grant");
+  t.equal(result?.keys?.includes("sales.tickets.view"), true, "the refused key is named");
+}
+
+export async function testEscalatesAllowsAStoredRoleTheActorDoesHold(t) {
+  // The mirror case required alongside the refusal above: the fix must not
+  // turn into a blanket denial. The actor holds the same stored role
+  // themselves, so handing it to somebody else grants nothing beyond what
+  // they already have.
+  const roles = [{ id: "r_tickets", permissions: ["sales.tickets.view"], scopes: {} }];
+  const actorAccess = effectivePermissions({ collaborator: { roleIds: ["r_tickets"] }, roles });
+  const result = escalates(actorAccess, { roleIds: ["r_tickets"] }, roles);
+  t.equal(result, null, "an actor who genuinely holds the right may still hand it out");
+}
+
+export async function testEscalatesRefusesAnUnmappedPersonalOverrideToo(t) {
+  // The other carrier escalates() reads: assignment.overrides.allow. Every
+  // real call site pre-filters this via cleanAssignment/cleanRole, so it is
+  // always already-valid by the time escalates() sees it — but the fix routes
+  // it through resolveGrant too rather than trusting that every future caller
+  // remembers to pre-filter. An actor holding nothing may not grant a
+  // permission via a personal override either.
+  const actorAccess = effectivePermissions({ collaborator: { roleIds: [] }, roles: [] });
+  const result = escalates(actorAccess, { overrides: { allow: ["sales.tickets.view"], deny: [] } }, []);
+  t.equal(result?.error, "escalation", "an unmapped personal override still cannot grant beyond what the actor holds");
+}
+
+export async function testEscalationAndEffectivePermissionsAgreeOnTheSameStoredKey(t) {
+  // THE "SAME FOOTING" PROPERTY the fix exists to guarantee: escalates()'s
+  // `granting` set and effectivePermissions()'s `held` set must resolve an
+  // IDENTICAL stored key to the IDENTICAL result, or the two doors are
+  // comparing different vocabularies. Build one role, give one actor that
+  // role, and confirm handing that same role to somebody else is a no-op
+  // escalation-wise — the two functions have to agree that what is held and
+  // what is being granted are the same thing.
+  const roles = [{ id: "r_tickets", permissions: ["sales.tickets.view"], scopes: {} }];
+  const actorAccess = effectivePermissions({ collaborator: { roleIds: ["r_tickets"] }, roles });
+  t.equal(actorAccess.has("sales.tickets.view"), true, "effectivePermissions resolves the stored key");
+  t.equal(escalates(actorAccess, { roleIds: ["r_tickets"] }, roles), null, "escalates() resolves it to the same key, so granting what is already held is allowed");
+
+  // The dependency both functions share: once Task 4 renames the area, this
+  // is the value resolveGrant's fallback starts returning on BOTH sides at
+  // once, keeping them in agreement without either function changing again.
+  t.equal(mapPermissionKey("sales.tickets.view"), "crmSales.tickets.view", "both doors fall back to the same post-rename target");
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -297,6 +380,10 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testAnUnknownGrantStillGrantsNothing,
       testAPersonalOverrideSurvivesTheRename,
       testScopeForResolvesAnUnmigratedAreaKey,
+      testEscalatesRefusesAStoredRoleTheActorDoesNotHold,
+      testEscalatesAllowsAStoredRoleTheActorDoesHold,
+      testEscalatesRefusesAnUnmappedPersonalOverrideToo,
+      testEscalationAndEffectivePermissionsAgreeOnTheSameStoredKey,
     ];
     let totalFails = 0;
     for (const test of tests) {

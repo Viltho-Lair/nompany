@@ -116,6 +116,46 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
 
 // ---- resolution ------------------------------------------------------------
 
+// STORED GRANTS ARE READ THROUGH THE RESTRUCTURE MAP, and this is not
+// belt-and-braces. A role (or an assignment being checked for escalation)
+// stores literal permission strings; the P0 restructure renames the areas
+// those strings name; and isPermission DROPS keys it does not recognise.
+// Without this, the rename empties every role in every studio, default deny
+// (invariant 4) takes over, and nobody can open anything — with nothing
+// logged, because nothing failed.
+//
+// MODULE-LEVEL AND SHARED, not a closure re-declared per caller. escalates()
+// compares a GRANTING set against an actor's HELD set — the actor's own
+// access came from effectivePermissions below — and a comparison is only
+// meaningful if both sides speak the same vocabulary. A second, only-slightly-
+// different copy of this resolution living inside escalates() would be
+// exactly the kind of drift invariant 3 exists to rule out: one door reading
+// the map, the other still reading raw strings, comparing two different
+// vocabularies and calling it a security check.
+//
+// THE RAW STRING IS CHECKED FIRST, and the mapped one is a FALLBACK, not the
+// other way round — this is what makes it safe to land this file BEFORE the
+// catalogue is renamed, not only after. Today the catalogue still recognises
+// "sales.tickets.view", so isPermission(raw) succeeds and this resolves
+// exactly as it always has — mapping it unconditionally would have turned
+// mapPermissionKey's own output ("crmSales.tickets.view", an area the
+// catalogue does not have yet) into the ONLY candidate checked, silently
+// dropping every current grant the moment this file lands — the lockout this
+// task exists to prevent, arriving one task early instead of one task late.
+// Once Task 4 renames the areas, isPermission(raw) starts failing for the old
+// string, and this SAME line falls through to the mapped form, which by then
+// is what the catalogue recognises. No further change to either caller is
+// needed when that happens — the fallback is already here, in front of it.
+//
+// It stays after the data migration (Task 7) too. A role exported before the
+// rename and re-imported after it is the same problem arriving later, and one
+// map lookup is cheaper than the incident.
+function resolveGrant(raw: string): PermissionKey | null {
+  if (isPermission(raw)) return raw;
+  const mapped = mapPermissionKey(raw);
+  return isPermission(mapped) ? mapped : null;
+}
+
 // Everything this person may do in this studio, as a flat Set of keys.
 //
 // Roles and personal overrides, and nothing else. There is no fallback: a
@@ -134,35 +174,6 @@ export function effectivePermissions({ collaborator, roles = [] }: Subject): Per
   // which is what stops a new permission reaching anyone by accident.
   if (mine.some((r) => r.wildcard)) return new Set(ALL_PERMISSIONS);
 
-  // STORED GRANTS ARE READ THROUGH THE RESTRUCTURE MAP, and this is not
-  // belt-and-braces. A role stores literal permission strings; the P0 restructure
-  // renames the areas those strings name; and isPermission DROPS keys it does
-  // not recognise. Without this line, the rename empties every role in every
-  // studio, default deny (invariant 4) takes over, and nobody can open anything —
-  // with nothing logged, because nothing failed.
-  //
-  // THE RAW STRING IS CHECKED FIRST, and the mapped one is a FALLBACK, not the
-  // other way round — this is what makes it safe to land this file BEFORE the
-  // catalogue is renamed, not only after. Today the catalogue still recognises
-  // "sales.tickets.view", so isPermission(raw) succeeds and this resolves
-  // exactly as it always has — mapping it unconditionally would have turned
-  // mapPermissionKey's own output ("crmSales.tickets.view", an area the
-  // catalogue does not have yet) into the ONLY candidate checked, silently
-  // dropping every current grant the moment this file lands — the lockout this
-  // task exists to prevent, arriving one task early instead of one task late.
-  // Once Task 4 renames the areas, isPermission(raw) starts failing for the old
-  // string, and this SAME line falls through to the mapped form, which by then
-  // is what the catalogue recognises. No further change to this function is
-  // needed when that happens — the fallback is already here, in front of it.
-  //
-  // It stays after the data migration (Task 7) too. A role exported before the
-  // rename and re-imported after it is the same problem arriving later, and one
-  // map lookup is cheaper than the incident.
-  const resolveGrant = (raw: string): PermissionKey | null => {
-    if (isPermission(raw)) return raw;
-    const mapped = mapPermissionKey(raw);
-    return isPermission(mapped) ? mapped : null;
-  };
   for (const r of mine) for (const raw of r.permissions || []) { const k = resolveGrant(raw); if (k) held.add(k); }
 
   // Personal exceptions, applied last and stored as a DIFF from the role. Deny
@@ -361,13 +372,34 @@ export function escalates(
   assignment: Assignment | null | undefined,
   roles: readonly Role[] = [],
 ): { error: string; keys: string[] } | null {
-  const granting = new Set<PermissionKey>(assignment?.overrides?.allow || []);
+  // BOTH SIDES OF THIS COMPARISON GO THROUGH resolveGrant — the same function
+  // effectivePermissions uses to build actorAccess. THIS WAS THE GAP: reading
+  // role.permissions straight through isPermission, unmapped, while the
+  // actor's own access was already being resolved through the map, meant that
+  // once Task 4 renames the areas — and before Task 7's data migration has
+  // rewritten every stored role — a role still holding the pre-rename
+  // "sales.tickets.view" would have that string DROPPED here (isPermission
+  // rejects it) before ever reaching `granting`, so an actor who does not
+  // hold the equivalent "crmSales.tickets.view" would see nothing to object
+  // to and the assignment would be waved through — invariant 5, "nobody
+  // grants what they do not hold," breached at the one door built to enforce
+  // it, in the exact window this restructure creates.
+  //
+  // `assignment.overrides.allow` is typed as PermissionKey[] and every call
+  // site builds it via cleanAssignment/cleanRole, which already filter
+  // through isPermission before this function ever sees them — so today
+  // nothing here NEEDS mapping. It is still run through resolveGrant, because
+  // "every call site happens to pre-filter" is exactly the kind of assumption
+  // a future caller can quietly break, and the cost of being consistent is
+  // one function call.
+  const granting = new Set<PermissionKey>();
+  for (const raw of assignment?.overrides?.allow || []) { const k = resolveGrant(raw); if (k) granting.add(k); }
   for (const id of assignment?.roleIds || []) {
     const role = roles.find((r) => r.id === id);
     if (!role) continue;
     // Handing somebody the wildcard is handing them everything.
     if (role.wildcard) { for (const k of ALL_PERMISSIONS) granting.add(k); continue; }
-    for (const k of role.permissions || []) if (isPermission(k)) granting.add(k);
+    for (const raw of role.permissions || []) { const k = resolveGrant(raw); if (k) granting.add(k); }
   }
   const beyond = [...granting].filter((k) => !actorAccess?.has?.(k));
   return beyond.length ? { error: "escalation", keys: beyond.slice(0, 5) } : null;
