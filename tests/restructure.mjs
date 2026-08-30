@@ -35,6 +35,7 @@ const {
 const { SECTION_DEFS, ALL_SECTION_KEYS } = await import("../src/platform/db/keys.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
 const { effectivePermissions, scopeFor, escalates } = await import("../src/platform/access/resolve.ts");
+const { sectionName } = await import("../src/shared/studio/sections.ts");
 
 export async function testEveryOldSectionKeyIsAccountedFor(t) {
   // The twelve departments' keys as they stand before the rename. Every one must
@@ -539,6 +540,32 @@ export async function testEscalationAndEffectivePermissionsAgreeOnTheSameStoredK
   t.equal(mapPermissionKey("sales.tickets.view"), "crmSales.tickets.view", "both doors fall back to the same post-rename target");
 }
 
+// Task 6: every one of the seventeen roots and their children must render an
+// Arabic sidebar row, not an English fallback — sectionName()'s whole reason
+// to exist. A missing key here is invisible to tsc and to next build; it only
+// shows up as English text in an Arabic studio, which is exactly the bug
+// sections.ts's opening comment records having shipped once already.
+//
+// RFQ, SLA, AWB, BOQ and HSE are initialisms an Arabic speaker says as-is —
+// see the "Kept as the initialism" comment beside engineering-docs-rfq in
+// sections.ts for the reasoning. They are named here EXPLICITLY and stripped
+// before the Latin-letter check, rather than the check being loosened to "skip
+// if it contains Latin" — that would let a genuine untranslated English name
+// through silently, which is the one failure mode this test exists to catch.
+const PERMITTED_INITIALISMS = ["RFQ", "SLA", "AWB", "BOQ", "HSE"];
+export async function testEverySectionHasAnArabicName(t) {
+  for (const key of ALL_SECTION_KEYS) {
+    const ar = sectionName(key, "", "ar");
+    t.equal(ar.length > 0, true, `${key} has an Arabic name`);
+    let withoutInitialisms = ar;
+    for (const word of PERMITTED_INITIALISMS) {
+      withoutInitialisms = withoutInitialisms.replaceAll(word, "");
+    }
+    t.equal(/[A-Za-z]/.test(withoutInitialisms), false,
+      `${key}'s Arabic name is not English text (got "${ar}")`);
+  }
+}
+
 // ---- harness ----------------------------------------------------------------
 // Same non-throwing, accumulate-and-report shape as tests/suite.mjs's own
 // ok(): one bad assertion must not hide the rest, which matters more here than
@@ -588,6 +615,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEscalatesAllowsAStoredRoleTheActorDoesHold,
       testEscalatesRefusesAnUnmappedPersonalOverrideToo,
       testEscalationAndEffectivePermissionsAgreeOnTheSameStoredKey,
+      testEverySectionHasAnArabicName,
     ];
     let totalFails = 0;
     for (const test of tests) {
