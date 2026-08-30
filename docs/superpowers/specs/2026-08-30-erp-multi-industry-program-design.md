@@ -19,10 +19,10 @@ several are expensive to reverse.
 
 | # | Decision | Consequence |
 |---|---|---|
-| D1 | **Full blueprint scope.** All 15 sections, all 95 subsections, all 7 templates. No pilot cut. | ~60–66 weeks of sequential work. Timeline is the dependent variable; scope is fixed. |
+| D1 | **Full blueprint scope.** All 15 sections, all 95 subsections, all 7 templates. No pilot cut. | ~62–68 weeks of sequential work. Timeline is the dependent variable; scope is fixed. |
 | D2 | **Template A (Contracting / Project) first.** | Build order is A-shaped; B–G activate later off the same container. |
 | D3 | **Engine before surface.** | Nothing new appears in the nav until the deal container is real. |
-| D4 | **Full 15-section restructure**, not additive. | Section keys change; every stored record's `section_id` is rewritten; permission keys remap. |
+| D4 | **Full 15-section restructure**, not additive, and **done in full BEFORE the store swap** as its own phase (P0). | Section keys change; every stored record's `section_id` is rewritten; permission keys remap. Sequencing it ahead of P1 is what keeps "goldens byte-identical" a true pass condition for the migration — see §3.3. |
 | D5 | **Finance is statutory and jurisdiction-neutral**, worldwide, with country adapters (ZATCA first). | A configurable tax engine, not a Saudi tax module. |
 | D6 | **Cloud SQL for PostgreSQL 18**, pulled forward *before* Finance. Everything moves to SQL; Redis becomes cache, pub/sub and the event stream only. | `CLAUDE.md`'s "SQL Server next" is superseded and corrected in the same commit as P1. |
 | D7 | **Only test/demo studios hold live data.** | Migration needs an export and a proof, not a zero-downtime dual-read window. |
@@ -103,8 +103,8 @@ Schema rules, pinned because violating any of them is expensive later:
   `row_version`. **`row_version` is how invariant 8 survives the move** — optimistic
   concurrency replaces the `editArr`/`editJSON` compare-and-set, and the function patch in
   `updateRow` becomes a conditional UPDATE guarded on the version.
-- **Transactional DDL** is load-bearing for P1: the restructure migration either lands
-  entirely or rolls back entirely.
+- **Transactional DDL** is load-bearing for P1: schema creation and the bulk load either
+  land entirely or roll back entirely, so a failed migration leaves nothing half-built.
 - **Row-level security on `tenant_id`, as defence in depth only.** Access is still resolved
   once in `effectivePermissions` (invariant 3). RLS exists so that a forgotten tenant
   predicate is a database error rather than a cross-tenant leak.
@@ -131,8 +131,12 @@ rewrites. This single fact is what makes D6 a five-week phase instead of a five-
 
 - **The 139 golden responses must come out byte-identical through P1.** They are the
   instrument that proves a store swap changed no behaviour. If a golden moves during P1,
-  the migration is wrong — not the golden. Deliberate re-recording happens only in P2/P3
-  where response shapes genuinely change, in its own commit, with a stated reason.
+  the migration is wrong — not the golden.
+- **This is exactly why P0 exists.** Renamed section keys appear in response payloads, so a
+  restructure bundled into P1 would change goldens *and* change the store at once, and the
+  detector would be gone. P0 re-records the goldens deliberately, in its own commit, with a
+  stated reason — and P1 then has a clean baseline it must not move. Further deliberate
+  re-recording happens only in P2/P3, where response shapes genuinely change.
 - **Hop counting becomes query counting.** The existing ceiling discipline is preserved:
   a route regressing from 2 statements to 8 fails the build.
 - `npm test`, `tsc --noEmit`, `tsc --noEmit -p tsconfig.strict.json`, `next build` and the
@@ -144,29 +148,79 @@ rewrites. This single fact is what makes D6 a five-week phase instead of a five-
 
 ## 4 — The phases
 
+### P0 — The restructure (≈2 weeks)
+
+The 12 → 15 section move, in full, on the current Redis store. Done first and alone (D4),
+for the reason §3.3 gives: it is the only phase allowed to move the goldens, so P1 inherits
+a clean baseline.
+
+**The section map.** Nine sections keep their key and change only their label; six are new;
+five bodies of existing data move to a different owner. Main and Tasks survive alongside the
+blueprint's fifteen — Main is the home surface and Tasks is a cross-cutting control, and
+neither is a blueprint section.
+
+| Today | Becomes | Note |
+|---|---|---|
+| `main` | Main | Unchanged. Not a blueprint section. |
+| `sales` | **CRM & Sales** (`crm-sales`) | Gains Quotations. |
+| — | **Tendering & Estimating** (`tendering`) | New. |
+| `technical` | **Engineering & Documents** (`engineering-docs`) | Keeps RFQ; gains the document register. |
+| `projects` | **Projects** (`projects`) | Key unchanged; gains the planner. |
+| — | **Procurement & Subcontracting** (`procurement`) | New. Receives orders/vendors from Inventory. |
+| `inventory` | **Inventory & Warehouse** (`inventory`) | Key unchanged, label widens. |
+| — | **Manufacturing & Production** (`manufacturing`) | New, empty until P6. |
+| `operations` | **Field Operations & Service** (`field-service`) | Operations splits; keeps schedule and tracking. |
+| — | **Logistics & Fleet** (`logistics`) | New. Receives AWB. |
+| — | **Assets & Equipment** (`assets`) | New. Operational register beside Finance's fixed assets. |
+| `quality` | **Quality & HSE** (`quality-hse`) | Loses documents, gains inspections/NCR/HSE in P5. |
+| `hr` | **Human Resources** (`hr`) | Key unchanged. |
+| `finance` | **Finance & Accounting** (`finance`) | Key unchanged. Keeps Fixed Assets as the financial face. |
+| — | **Reports & BI** (`reports`) | New, empty until P7. |
+| People / Access | **Administration & Settings** (`administration`) | Absorbs members, roles, master data. |
+| `tasks` | Tasks | Unchanged. Not a blueprint section. |
+
+**The five data moves** — these carry records, not just labels, and are the risk in P0:
+
+1. `technical-quotations` → **CRM & Sales**. The blueprint puts Quotations in §3.1; Tendering
+   contributes the BOQ face of the same record.
+2. `technical-rfq` stays in **Engineering & Documents** — it is the internal
+   Sales→Technical request, distinct from the *supplier* RFQ that Procurement gets in P4a.
+3. `quality-documents` → **Engineering & Documents**. The controlled-document register is
+   §3.4's, not §3.11's. Quality & HSE keeps inspections, NCR, audits, incidents and permits.
+4. `inventory-awb` → **Logistics & Fleet**.
+5. `operations-planner` → **Projects** (it is project scheduling); `operations` permits →
+   **Quality & HSE** (permits to work); `operations` locations → **Administration** master
+   data.
+
+**Also in P0:** the permission catalogue remaps its ~102 keys onto the new section keys in
+the same commit; the nav renders the new tree; **the Arabic copy is written for every new and
+renamed section** (`src/shared/studio/`, one module per surface — no barrel); goldens are
+re-recorded in their own commit with the reason stated.
+
+**Procedure** — per invariant 17, twice-confirmed before it runs: export first, rewrite by
+explicit key map, re-scan to prove the result. Never a broad-prefix operation.
+
+**Acceptance:** every suite green; no record left pointing at a retired section key; the
+permission matrix test passes on the new keys; goldens re-recorded once, deliberately, and
+stable thereafter.
+
 ### P1 — Foundation (≈5 weeks)
 
-Postgres schema, the repository implementation, the full data migration, and the
-15-section restructure **as one migration**. Doing them separately would migrate every
-record twice.
+The store swap, and nothing else. Postgres schema, the repository implementation, the full
+data migration.
 
 - Schema for every existing collection, per §3.1's rules.
 - `repo<T>` implemented over Postgres; the Redis implementation retires from the write path.
-- Section keys move 12 → 15 (`sales` → `crm-sales`, `technical` → `engineering-docs`,
-  `operations` split three ways, plus new keys for Procurement, Assets, Field Service,
-  Manufacturing, Logistics, Tendering, Reports and Administration). Every record's
-  `section_id` is rewritten by an explicit map; the permission catalogue remaps in the same
-  commit.
-- RLS policies, pooling, and the query-count harness.
+- RLS policies, pooling, and the query-count harness replacing hop counting.
 - Vercel Blob store created; the coded media work ships (D10).
 - `CLAUDE.md` corrected: PostgreSQL 18, not SQL Server.
 
 **Migration procedure** — per invariant 17, and twice-confirmed before it runs: export
-first, rewrite by explicit key map inside a transaction, re-scan to prove the result. Never
-a broad-prefix operation.
+first, load by explicit collection list inside a transaction, re-scan to prove the result.
+Never a broad-prefix operation.
 
-**Acceptance:** all 139 goldens byte-identical; query counts within ceilings; every suite
-green; the restructured nav renders with no orphaned records.
+**Acceptance:** all 139 goldens **byte-identical** to the P0 baseline; query counts within
+ceilings; every suite green.
 
 ### P2 — Engine (≈8.5 weeks)
 
@@ -307,7 +361,7 @@ capacity planner, mobile field view, payroll run, financial statements, report b
   real deal per template, the deal screen tells its whole story start to finish.
 - **Readiness** (1w) — performance pass, onboarding and spreadsheet import, docs.
 
-**Programme total: ≈60–66 weeks.** The band is honest, not decorative: P4a and P6 carry the
+**Programme total: ≈62–68 weeks** (P0 2 + P1 5 + P2 8.5 + P3 7 + P4a 14 + P4b 4 + P5 8 + P6 11 + P7 6 ≈ 65.5). The band is honest, not decorative: P4a and P6 carry the
 most estimation risk.
 
 ---
@@ -355,6 +409,6 @@ Stated in words, because a silent gap reads as a finished feature.
 
 ## 8 — Next step
 
-This spec becomes implementation plans, one per phase, via the writing-plans skill. P1 is
-written first and in full; later phases are planned at their own boundaries, when the
+This spec becomes implementation plans, one per phase, via the writing-plans skill. P0 and
+P1 are written first and in full; later phases are planned at their own boundaries, when the
 preceding phase's actuals are known.
