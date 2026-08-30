@@ -206,39 +206,45 @@ export async function testNoRetiredSectionKeySurvivesInSource(t) {
 // effectivePermissions takes ONE Subject argument, `{ collaborator, roles }` —
 // not the two-argument shape an earlier draft of this task described.
 //
-// A NOTE ON WHAT THESE CAN ACTUALLY OBSERVE RIGHT NOW: catalogue.ts has not
-// been renamed yet — that is Task 4, not this one — so isPermission still only
-// recognises "sales.tickets.view", never "crmSales.tickets.view". An earlier
-// draft of this suite asserted the MAPPED key directly (eff.has("crmSales.
-// tickets.view") === true), which cannot pass today no matter how resolve.ts
-// is written, and which would only have been made to pass by mapping every
-// stored key forward UNCONDITIONALLY — exactly the change that empties every
-// role the moment THIS file lands, one task earlier than the incident this
-// task exists to prevent. resolve.ts checks the raw string first and falls
-// back to the mapped one only when the raw string is no longer recognised
-// (see its comment), so what these assert instead is: (a) today, nothing
-// regresses — old-vintage grants still resolve to themselves, exactly as
-// before this task touched the file, and (b) the fallback this task adds is
-// wired to the exact function Task 4's rename will make necessary — proven by
-// asserting mapPermissionKey's own contract, which is the one thing resolve.ts
-// consumes and the one thing that changes what gets held once Task 4 lands.
+// UPDATED BY TASK 5, NOW THAT TASK 4 HAS RENAMED THE CATALOGUE. When this
+// suite was written (Task 3), catalogue.ts had not been renamed yet, so
+// isPermission still only recognised the pre-rename spelling of an area, and
+// four sub-assertions below checked that an old-vintage grant resolved to
+// ITSELF — the only thing observable at the time. That was deliberate, not an
+// oversight: an earlier draft that asserted the MAPPED key directly could
+// only have been made to pass by mapping every stored key forward
+// UNCONDITIONALLY, which would have emptied every role in every studio the
+// moment that file landed, one task earlier than the incident this alias
+// exists to prevent. resolve.ts checks the raw string first and falls back to
+// the mapped one only when the raw string is no longer recognised (see its
+// comment) — so before Task 4, "raw resolves" and "mapped resolves" were the
+// same observable fact, and the sub-assertions could only check the former.
+// Now that Task 4 has renamed the areas, isPermission rejects the pre-rename
+// spelling, and the SAME fallback line in resolve.ts is what makes the old
+// stored key resolve to its MAPPED form instead — which is what these
+// sub-assertions check today, per the Task 4 implementer's and reviewer's
+// shared verdict that they were superseded, not masking a regression: a
+// permanently-red assertion for an unrecorded reason is exactly the kind of
+// noise that would hide the next real failure. (Both the implementer's own
+// recommendation and the reviewer's independent confirmation are recorded in
+// docs/progress.md under Task 4.)
 
 export async function testAnOldStoredGrantStillResolves(t) {
-  // A role holds "sales.tickets.view" under TODAY's catalogue, before the
-  // rename. It must still resolve to itself — this is the regression this
-  // task must not cause. (It becomes the guard against the OTHER incident:
-  // if resolve.ts mapped every key forward unconditionally instead of
-  // trying the raw string first, this would fail today, because
-  // "crmSales.tickets.view" is not yet an area isPermission recognises.)
+  // A role holds "sales.tickets.view" — written against the catalogue as it
+  // stood before this restructure. Now that Task 4 has renamed the area, that
+  // raw string is no longer a permission isPermission recognises, so
+  // resolveGrant's fallback is what carries it forward: the grant must
+  // resolve to its MAPPED, current-catalogue spelling, `crmSales.tickets.view`
+  // — a role written under the old catalogue keeps working, silently, exactly
+  // as invariant 4 (default deny) requires it not to instead go dark.
   const roles = [{ id: "r1", permissions: ["sales.tickets.view", "sales.tickets.create"], scopes: {} }];
   const eff = effectivePermissions({ collaborator: { roleIds: ["r1"] }, roles });
-  t.equal(eff.has("sales.tickets.view"), true, "an old-vintage grant still resolves under today's catalogue");
-  t.equal(eff.has("sales.tickets.create"), true, "every verb still carries across");
+  t.equal(eff.has("crmSales.tickets.view"), true, "an old-vintage grant now resolves to its post-rename spelling");
+  t.equal(eff.has("crmSales.tickets.create"), true, "every verb still carries across");
 
-  // The dependency this task consumes: once Task 4 renames the area, this is
-  // the value resolve.ts's fallback will start returning for the same stored
-  // string, with no further change to resolve.ts needed.
-  t.equal(mapPermissionKey("sales.tickets.view"), "crmSales.tickets.view", "the map this task falls back to already names the post-rename key");
+  // The dependency this fact rests on: mapPermissionKey names exactly the
+  // target resolveGrant's fallback produced above.
+  t.equal(mapPermissionKey("sales.tickets.view"), "crmSales.tickets.view", "the map this fallback consumes already names the post-rename key");
 }
 
 export async function testANewStoredGrantResolvesUnchanged(t) {
@@ -272,32 +278,35 @@ export async function testAPersonalOverrideSurvivesTheRename(t) {
   // Personal overrides are the per-person diff applied ON TOP of a role — the
   // exact same stored-string problem as role.permissions, just on
   // collaborator.overrides instead. Unmapped, every personal exception in the
-  // product is silently discarded the moment the rename lands. Both sides are
-  // exercised against TODAY's catalogue, for the same reason given above.
+  // product would have been silently discarded the moment the rename landed.
+  // Both sides are exercised against pre-rename stored strings, now resolved
+  // through the CURRENT (post-Task-4) catalogue, which is the situation every
+  // studio's real stored data is actually in until Task 7's migration tidies
+  // it up.
   const roles = [{ id: "r1", permissions: ["sales.tickets.view"], scopes: {} }];
 
-  // Allow: the role doesn't hold clients, but a personal exception adds it.
+  // Allow: the role doesn't hold clients, but a personal exception adds it —
+  // written pre-rename, resolved to its mapped, post-rename form.
   const withAllow = effectivePermissions({
     collaborator: { roleIds: ["r1"], overrides: { allow: ["sales.clients.view"], deny: [] } },
     roles,
   });
-  t.equal(withAllow.has("sales.clients.view"), true, "a personal allow still grants under today's catalogue");
+  t.equal(withAllow.has("crmSales.clients.view"), true, "a personal allow written pre-rename still grants, under its mapped key");
 
   // Deny: the role holds tickets.view, but a personal exception removes it.
   // Both sides run through the SAME resolveGrant as the role list, which is
-  // what will let a deny written pre-rename still find and remove a grant
-  // that by then resolves to its mapped, post-rename form.
+  // what lets a deny written pre-rename find and remove the grant that now
+  // resolves to its mapped, post-rename form.
   const withDeny = effectivePermissions({
     collaborator: { roleIds: ["r1"], overrides: { allow: [], deny: ["sales.tickets.view"] } },
     roles,
   });
-  t.equal(withDeny.has("sales.tickets.view"), false, "a personal deny still removes under today's catalogue");
+  t.equal(withDeny.has("crmSales.tickets.view"), false, "a personal deny written pre-rename still removes, under its mapped key");
 
-  // The two facts that together guarantee this keeps working once Task 4
-  // renames the areas: the map already names the post-rename target for both
-  // the allow and the deny key used above.
-  t.equal(mapPermissionKey("sales.clients.view"), "crmSales.clients.view", "the allow key's post-rename target is already in the map");
-  t.equal(mapPermissionKey("sales.tickets.view"), "crmSales.tickets.view", "the deny key's post-rename target is already in the map");
+  // The two facts that together explain why: the map names exactly the
+  // post-rename target both assertions above observed.
+  t.equal(mapPermissionKey("sales.clients.view"), "crmSales.clients.view", "the allow key's post-rename target is what the map names");
+  t.equal(mapPermissionKey("sales.tickets.view"), "crmSales.tickets.view", "the deny key's post-rename target is what the map names");
 }
 
 export async function testScopeForResolvesAnUnmigratedAreaKey(t) {
@@ -338,23 +347,30 @@ export async function testScopeForResolvesAnUnmigratedAreaKey(t) {
 // escalation would go through: invariant 5 ("nobody grants what they do not
 // hold") breached at the one door built to enforce it.
 //
-// A NOTE ON WHAT THESE CAN OBSERVE TODAY, for the same reason given above
-// testAnOldStoredGrantStillResolves: catalogue.ts has not been renamed yet, so
-// isPermission("sales.tickets.view") is STILL true today, and both the fixed
-// and the pre-fix code resolve that string to itself either way — there is no
-// stored key for which raw resolution and mapped resolution currently disagree,
-// so no assertion against the REAL catalogue can flip between "refused" and
-// "allowed" depending on whether resolveGrant is wired in. (Verified by hand:
-// reverting escalates() to the pre-fix `if (isPermission(k)) granting.add(k)`
-// and re-running these produces the identical pass/fail result.) This is the
-// same sequencing artifact already disclosed and accepted for the five
-// effectivePermissions tests, arrived at again on the other door for the
-// identical reason — not a new gap, and not something Task 4 gets to skip
-// re-verifying. What these tests DO prove today: escalates() and
-// effectivePermissions resolve the SAME stored key to the SAME held value
+// UPDATED BY TASK 5, NOW THAT TASK 4 HAS RENAMED THE CATALOGUE. When this
+// suite was written (Task 3's fix round), catalogue.ts had not been renamed
+// yet, so isPermission("sales.tickets.view") was STILL true, and both the
+// fixed and the pre-fix code resolved that string to itself either way —
+// there was no stored key for which raw resolution and mapped resolution
+// disagreed, so no assertion against the real catalogue could flip between
+// "refused" and "allowed" depending on whether resolveGrant was wired in.
+// (Verified by hand at the time: reverting escalates() to the pre-fix
+// `if (isPermission(k)) granting.add(k)` and re-running these produced the
+// identical pass/fail result.) That was the same sequencing artifact already
+// disclosed and accepted for the effectivePermissions tests above, arrived at
+// again on this door for the identical reason — not a gap, and not something
+// Task 4 was free to skip re-verifying.
+//
+// Now that Task 4 has renamed the areas, the raw pre-rename spelling is no
+// longer a permission isPermission recognises, so the two sub-assertions this
+// affects below now check the MAPPED key instead of the raw one — exactly the
+// branch that was structurally unreachable before and is what actually proves
+// the fix, rather than merely being consistent with it. What these tests
+// prove either way: escalates() and effectivePermissions resolve the SAME
+// stored key to the SAME held value
 // (testEscalationAndEffectivePermissionsAgreeOnTheSameStoredKey), which is
-// exactly the "same footing" property the fix depends on — and once Task 4
-// renames the areas, that agreement is what makes the refusal actually fire.
+// exactly the "same footing" property the fix depends on — that agreement is
+// what makes the refusal actually fire.
 
 export async function testEscalatesRefusesAStoredRoleTheActorDoesNotHold(t) {
   // The actor holds nothing relevant. The role being assigned (looked up by
@@ -364,7 +380,10 @@ export async function testEscalatesRefusesAStoredRoleTheActorDoesNotHold(t) {
   const actorAccess = effectivePermissions({ collaborator: { roleIds: [] }, roles: [] });
   const result = escalates(actorAccess, { roleIds: ["r_tickets"] }, roles);
   t.equal(result?.error, "escalation", "an actor holding nothing may not hand out a stored role's grant");
-  t.equal(result?.keys?.includes("sales.tickets.view"), true, "the refused key is named");
+  // Named by its MAPPED spelling — resolveGrant is what escalates() actually
+  // adds to `granting`, and now that Task 4 has renamed the area, the raw
+  // pre-rename string is never a member of that set on its own.
+  t.equal(result?.keys?.includes("crmSales.tickets.view"), true, "the refused key is named by its post-rename spelling");
 }
 
 export async function testEscalatesAllowsAStoredRoleTheActorDoesHold(t) {
@@ -400,12 +419,14 @@ export async function testEscalationAndEffectivePermissionsAgreeOnTheSameStoredK
   // what is being granted are the same thing.
   const roles = [{ id: "r_tickets", permissions: ["sales.tickets.view"], scopes: {} }];
   const actorAccess = effectivePermissions({ collaborator: { roleIds: ["r_tickets"] }, roles });
-  t.equal(actorAccess.has("sales.tickets.view"), true, "effectivePermissions resolves the stored key");
+  // Held under its MAPPED spelling now that Task 4 has renamed the area —
+  // resolveGrant is the one function both doors share, so both resolve the
+  // same pre-rename stored string to the same post-rename key.
+  t.equal(actorAccess.has("crmSales.tickets.view"), true, "effectivePermissions resolves the stored key to its post-rename spelling");
   t.equal(escalates(actorAccess, { roleIds: ["r_tickets"] }, roles), null, "escalates() resolves it to the same key, so granting what is already held is allowed");
 
-  // The dependency both functions share: once Task 4 renames the area, this
-  // is the value resolveGrant's fallback starts returning on BOTH sides at
-  // once, keeping them in agreement without either function changing again.
+  // The dependency both functions share: this is the value resolveGrant's
+  // fallback returns on BOTH sides, keeping them in agreement.
   t.equal(mapPermissionKey("sales.tickets.view"), "crmSales.tickets.view", "both doors fall back to the same post-rename target");
 }
 

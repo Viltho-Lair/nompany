@@ -35,10 +35,10 @@ console.log(`  ${ACCESS.AREAS.length} areas, ${ACCESS.ALL_PERMISSIONS.length} pe
 ok("no duplicate keys", new Set(ACCESS.ALL_PERMISSIONS).size === ACCESS.ALL_PERMISSIONS.length);
 ok("no bare parent permission exists",
   !ACCESS.ALL_PERMISSIONS.some((k) => ["crmSales", "engineeringDocs", "hr", "finance"].includes(k)));
-ok("unknown keys rejected", !ACCESS.isPermission("sales.tickets.nuke") && ACCESS.isPermission("sales.tickets.edit"));
+ok("unknown keys rejected", !ACCESS.isPermission("crmSales.tickets.nuke") && ACCESS.isPermission("crmSales.tickets.edit"));
 ok("cleanPermissions drops junk",
-  JSON.stringify(ACCESS.cleanPermissions(["sales.tickets.view", "nope", "sales.tickets.view"]))
-    === JSON.stringify(["sales.tickets.view"]));
+  JSON.stringify(ACCESS.cleanPermissions(["crmSales.tickets.view", "nope", "crmSales.tickets.view"]))
+    === JSON.stringify(["crmSales.tickets.view"]));
 
 console.log("\n== the ladder");
 // Tickets have no delete, so their ladder is none/view/edit — three rungs, not
@@ -56,7 +56,7 @@ for (const areaKey of ["crmSales.tickets", "crmSales.clients"]) {
 console.log("\n== resolution");
 const roles = [
   { id: "role_admin", wildcard: true, permissions: [] },
-  { id: "r_eng", permissions: ["sales.tickets.view", "sales.tickets.create", "sales.tickets.edit"], scopes: {} },
+  { id: "r_eng", permissions: ["crmSales.tickets.view", "crmSales.tickets.create", "crmSales.tickets.edit"], scopes: {} },
   { id: "r_hr", permissions: ["hr.employees.view"], scopes: { "hr.employees": "department" } },
 ];
 const res = (collaborator, extra = {}) =>
@@ -66,21 +66,21 @@ ok("owner gets everything", res({ role: "owner" }).size === ACCESS.ALL_PERMISSIO
 ok("admin role is a wildcard", res({ roleIds: ["role_admin"] }).size === ACCESS.ALL_PERMISSIONS.length);
 
 const eng = res({ roleIds: ["r_eng"] });
-ok("engineer can edit tickets", ACCESS.can(eng, "sales.tickets.edit"));
-ok("engineer CANNOT delete clients", !ACCESS.can(eng, "sales.clients.delete"));
-ok("engineer CANNOT touch clients", !ACCESS.can(eng, "sales.clients.view"));
-ok("no parent leak into siblings", !ACCESS.can(eng, "sales.settings.edit"));
+ok("engineer can edit tickets", ACCESS.can(eng, "crmSales.tickets.edit"));
+ok("engineer CANNOT delete clients", !ACCESS.can(eng, "crmSales.clients.delete"));
+ok("engineer CANNOT touch clients", !ACCESS.can(eng, "crmSales.clients.view"));
+ok("no parent leak into siblings", !ACCESS.can(eng, "crmSales.settings.edit"));
 
 const twoRoles = res({ roleIds: ["r_eng", "r_hr"] });
-ok("two roles union", ACCESS.can(twoRoles, "sales.tickets.edit") && ACCESS.can(twoRoles, "hr.employees.view"));
+ok("two roles union", ACCESS.can(twoRoles, "crmSales.tickets.edit") && ACCESS.can(twoRoles, "hr.employees.view"));
 
 console.log("\n== overrides are a diff");
-const withOv = res({ roleIds: ["r_eng"], overrides: { allow: ["finance.cash.view"], deny: ["sales.tickets.edit"] } });
+const withOv = res({ roleIds: ["r_eng"], overrides: { allow: ["finance.cash.view"], deny: ["crmSales.tickets.edit"] } });
 ok("override adds", ACCESS.can(withOv, "finance.cash.view"));
-ok("override removes", !ACCESS.can(withOv, "sales.tickets.edit"));
+ok("override removes", !ACCESS.can(withOv, "crmSales.tickets.edit"));
 ok("deny beats allow on the same key",
-  !ACCESS.can(res({ roleIds: ["r_eng"], overrides: { allow: ["sales.clients.delete"], deny: ["sales.clients.delete"] } }),
-    "sales.clients.delete"));
+  !ACCESS.can(res({ roleIds: ["r_eng"], overrides: { allow: ["crmSales.clients.delete"], deny: ["crmSales.clients.delete"] } }),
+    "crmSales.clients.delete"));
 
 console.log("\n== scope");
 ok("scoped area reads its role's scope", ACCESS.scopeFor({ collaborator: { roleIds: ["r_hr"] }, roles }, "hr.employees") === "department");
@@ -97,13 +97,13 @@ console.log("\n== no role means nothing");
   const nobody = res({ id: "c9", roleIds: [] });
   ok("a person with no role holds nothing", nobody.size === 0);
   ok("...and every check refuses them",
-    ACCESS.requirePermission(nobody, "sales.tickets.view")?.error === "forbidden");
+    ACCESS.requirePermission(nobody, "crmSales.tickets.view")?.error === "forbidden");
 }
 
 console.log("\n== enforcement");
-ok("requirePermission passes when held", ACCESS.requirePermission(eng, "sales.tickets.edit") === null);
-ok("...refuses when not", ACCESS.requirePermission(eng, "sales.clients.delete")?.error === "forbidden");
-ok("...catches a typo'd key", ACCESS.requirePermission(eng, "sales.tickets.remove")?.error === "unknown-permission");
+ok("requirePermission passes when held", ACCESS.requirePermission(eng, "crmSales.tickets.edit") === null);
+ok("...refuses when not", ACCESS.requirePermission(eng, "crmSales.clients.delete")?.error === "forbidden");
+ok("...catches a typo'd key", ACCESS.requirePermission(eng, "crmSales.tickets.remove")?.error === "unknown-permission");
 
 
 console.log("\n== the guard, as a service function calls it");
@@ -113,61 +113,61 @@ const guard = (access, key) => {
   return denied ? `refused (${denied.error})` : "allowed";
 };
 const viewer = res({ roleIds: ["r_eng"] });
-ok("engineer may create a ticket", guard(viewer, "sales.tickets.create") === "allowed");
-ok("engineer may NOT delete a client", guard(viewer, "sales.clients.delete") === "refused (forbidden)");
-ok("engineer may NOT touch settings", guard(viewer, "sales.settings.edit") === "refused (forbidden)");
+ok("engineer may create a ticket", guard(viewer, "crmSales.tickets.create") === "allowed");
+ok("engineer may NOT delete a client", guard(viewer, "crmSales.clients.delete") === "refused (forbidden)");
+ok("engineer may NOT touch settings", guard(viewer, "crmSales.settings.edit") === "refused (forbidden)");
 ok("a mistyped key fails loudly, not silently",
-  guard(viewer, "sales.tickets.destroy") === "refused (unknown-permission)");
+  guard(viewer, "crmSales.tickets.destroy") === "refused (unknown-permission)");
 ok("owner passes every guard",
-  ["sales.clients.delete", "hr.employees.salary", "finance.cash.delete"]
+  ["crmSales.clients.delete", "hr.employees.salary", "finance.cash.delete"]
     .every((k) => guard(res({ role: "owner" }), k) === "allowed"));
 
 
 console.log("\n== the nav reads the same source as the guards");
 {
-  const keys = ["main", "sales", "sales-tickets", "sales-clients", "sales-settings", "hr", "hr-employees"];
+  const keys = ["main", "crm-sales", "crm-sales-tickets", "crm-sales-clients", "crm-sales-settings", "hr", "hr-employees"];
   const view = (acc, k) => ACCESS.sectionViewable(acc, k, keys);
 
   const only = res({ roleIds: ["r_eng"] });          // tickets view/create/edit
-  ok("the section they hold is shown", view(only, "sales-tickets"));
-  ok("a sibling they do not hold is hidden", !view(only, "sales-clients"));
-  ok("the PARENT heading shows because a child does", view(only, "sales"));
+  ok("the section they hold is shown", view(only, "crm-sales-tickets"));
+  ok("a sibling they do not hold is hidden", !view(only, "crm-sales-clients"));
+  ok("the PARENT heading shows because a child does", view(only, "crm-sales"));
   ok("an untouched heading is hidden", !view(only, "hr"));
   ok("the dashboard home has nothing to protect", view(only, "main"));
 
-  ok("buttons appear where a write is held", ACCESS.sectionManageable(only, "sales-tickets", keys));
+  ok("buttons appear where a write is held", ACCESS.sectionManageable(only, "crm-sales-tickets", keys));
   // The bug that broke "raise an RFQ": a heading has no areas of its own, so
-  // asking whether somebody may manage "sales" answered false for EVERYONE,
+  // asking whether somebody may manage "crm-sales" answered false for EVERYONE,
   // owners included, until it started asking its children.
-  ok("a heading is manageable when a child is", ACCESS.sectionManageable(only, "sales", keys));
+  ok("a heading is manageable when a child is", ACCESS.sectionManageable(only, "crm-sales", keys));
   ok("...and not when no child is", !ACCESS.sectionManageable(only, "hr", keys));
   ok("an owner may manage a heading",
-    ACCESS.sectionManageable(res({ role: "owner" }), "sales", keys));
+    ACCESS.sectionManageable(res({ role: "owner" }), "crm-sales", keys));
   ok("...and not where only view is held",
     !ACCESS.sectionManageable(res({ roleIds: ["r_hr"] }), "hr-employees", keys));
 
   // The whole point of the rewire: one source, so these cannot disagree.
-  const canWrite = ACCESS.can(only, "sales.tickets.edit");
-  ok("nav and guard agree", ACCESS.sectionManageable(only, "sales-tickets", keys) === canWrite);
+  const canWrite = ACCESS.can(only, "crmSales.tickets.edit");
+  ok("nav and guard agree", ACCESS.sectionManageable(only, "crm-sales-tickets", keys) === canWrite);
 }
 
 
 console.log("\n== assigning access cannot escalate it");
 {
   const known = ["role_admin", "r_eng", "r_hr"];
-  const clean = ACCESS.cleanAssignment({ roleIds: ["r_eng", "made_up", "r_eng"], overrides: { allow: ["sales.clients.view", "nope"], deny: [] } }, known);
+  const clean = ACCESS.cleanAssignment({ roleIds: ["r_eng", "made_up", "r_eng"], overrides: { allow: ["crmSales.clients.view", "nope"], deny: [] } }, known);
   ok("unknown role ids dropped", JSON.stringify(clean.roleIds) === JSON.stringify(["r_eng"]));
   ok("unknown permission keys dropped",
-    JSON.stringify(clean.overrides.allow) === JSON.stringify(["sales.clients.view"]));
+    JSON.stringify(clean.overrides.allow) === JSON.stringify(["crmSales.clients.view"]));
 
   // A Sales Engineer with people.members.edit tries to widen their own access.
-  const actor = res({ roleIds: ["r_eng"], overrides: { allow: ["people.members.edit"] } });
+  const actor = res({ roleIds: ["r_eng"], overrides: { allow: ["administration.members.edit"] } });
   ok("cannot grant a permission they lack",
     ACCESS.escalates(actor, { overrides: { allow: ["finance.cash.delete"] } }, roles)?.error === "escalation");
   ok("cannot hand out the Admin wildcard",
     ACCESS.escalates(actor, { roleIds: ["role_admin"] }, roles)?.error === "escalation");
   ok("CAN grant what they do hold",
-    ACCESS.escalates(actor, { overrides: { allow: ["sales.tickets.edit"] } }, roles) === null);
+    ACCESS.escalates(actor, { overrides: { allow: ["crmSales.tickets.edit"] } }, roles) === null);
   ok("an owner may grant anything",
     ACCESS.escalates(res({ role: "owner" }), { roleIds: ["role_admin"] }, roles) === null);
 }
@@ -409,7 +409,7 @@ console.log("\n== schemas: what a department says it stores");
   refuses("...and not one without a title", TaskSchema, { ...task, title: undefined });
 
   const role = {
-    id: "rol_1", studioId: "std_1", name: "Engineer", permissions: ["sales.tickets.view"],
+    id: "rol_1", studioId: "std_1", name: "Engineer", permissions: ["crmSales.tickets.view"],
     scopes: { "hr.employees": "department" }, createdAt: "x",
   };
   accepts("a role as cleanRole writes it", RoleSchema, role);
