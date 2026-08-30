@@ -161,11 +161,13 @@ write an empty array are the SOURCE side of a collection move, and only
 **after** the destination write for those same rows has already landed — so
 a crash between the two duplicates rows rather than losing them, and
 re-running the script reconciles by de-duping on `id`. No section row is
-ever removed and no record is ever dropped. Because nothing is destroyed,
-**the pre-migration state is the rollback**: if something looks wrong after
+ever removed and no record is ever dropped. If something looks wrong after
 `--apply`, the fix is to correct the map in `restructure.ts` and run the
-script again — every target it produces maps to itself, so a second run is
-always safe — never to reach for a delete.
+script again — every target it produces maps to itself (self-mapped, not
+invertible), so the migration is safely RE-RUNNABLE FORWARD. It is not a
+rollback: the rename overwrites section keys in place, and there is no
+recorded reverse mapping to undo it with — never reach for a delete either
+way.
 
 `restructure-verify.mjs` never writes at all: it calls nothing but
 `listSections`/`readArr`.

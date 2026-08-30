@@ -2,7 +2,7 @@
 // cannot be the thing invariant 17 worries about, by construction: it calls
 // nothing but listSections/readArr.
 //
-// Eight questions, each of which has a wrong answer that is silent:
+// Ten questions, each of which has a wrong answer that is silent:
 //   1. a retired section key still sitting on a section row
 //   2. a seeded key (ALL_SECTION_KEYS) missing from a studio — the plant
 //      step skipped it or never ran
@@ -24,12 +24,31 @@
 //   8. a record whose sectionId points at a section that does not hold its
 //      collection any more — the collection move (or the plain rename that
 //      substitutes for one) landed on the wrong side, or not at all
+//   9. LEFTOVER ROWS the collection move's own two-write window can produce.
+//      restructure-sections.mjs writes the destination first and empties the
+//      source second — deliberately, so a crash between the two duplicates
+//      rows rather than losing them. That tolerance is correct, but nothing
+//      above actually reads the SOURCE side back: check #8 only walks
+//      SECTION_COLLECTIONS[s.key], and the source section's post-rename key
+//      (e.g. "field-service") does not list a moved collection (e.g.
+//      "permits") any more — so a crash landing inside that window left
+//      rows this script would otherwise call clean. This is the one failure
+//      mode the design accepts; it must also be the one the proof can see.
+//  10. two section rows in the same studio sharing one key — restructure-
+//      sections.mjs's sectionIdForKey (and this script's own lookups) pick
+//      whichever row comes first when that happens, silently. Unlikely (it
+//      needs a retired key AND its target both present, or a custom section
+//      colliding with a seeded one) but unguarded on both sides and cheap
+//      to check.
 //
-// #3 and #6 are not on the brief's original list of four; #3 is the
-// companion check for restructure-sections.mjs's re-parenting step, and #6
-// is the companion check for its collaborator-overrides step — both added
-// here so a carrier this migration writes always has a check that reads it
-// back, rather than three of five being provable and two resting on trust.
+// #3, #6, #9 and #10 are not on the brief's original list of four; #3 is the
+// companion check for restructure-sections.mjs's re-parenting step, #6 is
+// the companion check for its collaborator-overrides step, #9 is the
+// companion check for its collection-move step's OWN documented risk
+// window, and #10 guards an assumption sectionIdForKey makes silently. All
+// four were added so a carrier (or an assumption) this migration writes or
+// relies on always has a check that reads it back, rather than resting on
+// trust.
 //
 //   node scripts/migrate/restructure-verify.mjs [--studio ID] [--allow-live]
 //
@@ -51,7 +70,7 @@ if (!underTsx) {
 const { listSections } = await import("@/platform/db/sections");
 const { readArr } = await import("@/platform/db/store");
 const { S, SEC, SECTION_DEFS, SECTION_COLLECTIONS, ALL_SECTION_KEYS } = await import("@/platform/db/keys");
-const { SECTION_KEY_MAP, PERMISSION_KEY_MAP } = await import("@/platform/db/restructure");
+const { SECTION_KEY_MAP, PERMISSION_KEY_MAP, COLLECTION_MOVES, mapSectionKey } = await import("@/platform/db/restructure");
 
 const retiredSections = new Set(Object.keys(SECTION_KEY_MAP).filter((k) => SECTION_KEY_MAP[k] !== k));
 const retiredAreas = new Set(Object.keys(PERMISSION_KEY_MAP).filter((k) => PERMISSION_KEY_MAP[k] !== k));
@@ -144,6 +163,45 @@ export async function verifyStudio(studioId, label = studioId) {
         }
       }
     }
+  }
+
+  // 9 — LEFTOVER: for every COLLECTION_MOVES entry that names a real move
+  // (mapped from/to actually differ), the SOURCE side must be empty. This is
+  // the one place restructure-sections.mjs's destination-first, source-
+  // second write order can leave a visible trace of a crash between the two
+  // — check #8 above cannot see it, because the source section's CURRENT
+  // key (e.g. "field-service") no longer lists the moved collection (e.g.
+  // "permits") in SECTION_COLLECTIONS, so nothing else ever reads that key
+  // back. A row found here is reported as its own failure class, not folded
+  // into ORPHAN, because the fix is "re-run the migration" rather than
+  // "something's sectionId is wrong" — the row's sectionId is still
+  // perfectly correct for the OLD section it has not finished leaving.
+  const byKey = new Map(sections.map((s) => [s.key, s]));
+  for (const move of COLLECTION_MOVES) {
+    const fromKey = mapSectionKey(move.from);
+    const toKey = mapSectionKey(move.to);
+    if (fromKey === toKey) continue; // no real move — the rename alone relocated this collection
+    const fromSection = byKey.get(fromKey);
+    if (!fromSection) continue; // this studio never had the source section
+    const leftover = await readArr(SEC.col(studioId, fromSection.id, move.collection));
+    if (leftover.length) {
+      problems.push(
+        `LEFTOVER ${label}/${move.collection}: ${leftover.length} row(s) still under "${fromKey}" ` +
+          `(should have finished moving to "${toKey}") — re-run restructure-sections.mjs --apply`,
+      );
+    }
+  }
+
+  // 10 — no two section rows in the same studio share a key. Both
+  // restructure-sections.mjs's sectionIdForKey and this script's own byKey
+  // lookup above pick whichever row comes first when that happens, silently
+  // — unlikely (it needs a retired key AND its already-migrated target both
+  // present, or a studio-appended custom section colliding with a seeded
+  // one) but unguarded on both sides and cheap to check here.
+  const byKeyCount = new Map();
+  for (const s of sections) byKeyCount.set(s.key, (byKeyCount.get(s.key) || 0) + 1);
+  for (const [key, count] of byKeyCount) {
+    if (count > 1) problems.push(`DUPLICATE SECTION KEY ${label}/${key}: ${count} rows share this key`);
   }
 
   return problems;
