@@ -422,31 +422,86 @@ export { normEmail };
 // Shape mirrors the Old System's studio nav.
 export const SECTION_DEFS = [
   { key: "main", name: "Main" },
-  { key: "sales", name: "Sales", children: [
-    { key: "sales-tickets", name: "Tickets" },
-    { key: "sales-clients", name: "Clients" },
-    { key: "sales-live", name: "Live view" },
-    { key: "sales-settings", name: "Settings" },
+
+  // SALES BECAME CRM & SALES AND GAINED QUOTATIONS. The blueprint puts the
+  // quotation in §3.1 because the offer is a sales act; Tendering contributes
+  // its BOQ face in P4a, on the same record.
+  { key: "crm-sales", name: "CRM & Sales", children: [
+    { key: "crm-sales-tickets", name: "Tickets" },
+    { key: "crm-sales-clients", name: "Customers" },
+    { key: "crm-sales-quotations", name: "Quotations" },
+    { key: "crm-sales-live", name: "Live view" },
+    { key: "crm-sales-settings", name: "Settings" },
   ] },
-  { key: "technical", name: "Technical", children: [
-    { key: "technical-quotations", name: "Quotations" },
-    { key: "technical-rfq", name: "RFQ" },
-    { key: "technical-live", name: "Live view" },
-    { key: "technical-settings", name: "Settings" },
-  ] },
+
+  // NO CHILDREN YET, AND THAT IS DELIBERATE. Tendering's five subsections land
+  // in P4a. A nav row that opens nothing is worse than an absent one, so this
+  // root is declared for ordering and nothing else until then.
+  { key: "tendering", name: "Tendering & Estimating" },
+
   { key: "projects", name: "Projects", children: [
     { key: "projects-list", name: "Project list" },
     { key: "projects-sla", name: "SLA" },
     { key: "projects-overtimes", name: "Overtimes" },
+    // The planner is project scheduling. It sat under Operations only because
+    // that is where it was built.
+    { key: "projects-planner", name: "Planner" },
     { key: "projects-settings", name: "Settings" },
   ] },
-  { key: "inventory", name: "Inventory", children: [
-    { key: "inventory-stock", name: "Stock Management" },
-    { key: "inventory-vendors", name: "Vendors" },
-    { key: "inventory-items", name: "Registered Items" },
-    { key: "inventory-sheets", name: "Project Sheets" },
-    { key: "inventory-awb", name: "AWB Tracking" },
+
+  // TECHNICAL BECAME ENGINEERING & DOCUMENTS AND GAINED THE CONTROLLED REGISTER.
+  // The blueprint's §3.4 owns document records; §3.11 keeps inspections, NCRs,
+  // audits, incidents and permits. The register is the technical truth, not the
+  // quality evidence.
+  { key: "engineering-docs", name: "Engineering & Documents", children: [
+    // The document register OPENS FULL SCREEN (see the studio router), the
+    // way the manual and the live views do, because a document is read
+    // rather than navigated away from — carried over from when this was
+    // Quality's own Documents sub-section.
+    { key: "engineering-docs-register", name: "Document register" },
+    { key: "engineering-docs-rfq", name: "RFQ" },
+    { key: "engineering-docs-live", name: "Live view" },
+    { key: "engineering-docs-settings", name: "Settings" },
   ] },
+
+  // Procurement starts with the supplier master, which is the one part of it
+  // that already exists — it was Inventory's Vendors screen.
+  { key: "procurement", name: "Procurement & Subcontracting", children: [
+    { key: "procurement-suppliers", name: "Suppliers" },
+  ] },
+
+  { key: "inventory", name: "Inventory & Warehouse", children: [
+    { key: "inventory-stock", name: "Stock" },
+    { key: "inventory-items", name: "Items" },
+    { key: "inventory-sheets", name: "Project sheets" },
+  ] },
+
+  { key: "manufacturing", name: "Manufacturing & Production" },
+
+  // WHAT REMAINS OF OPERATIONS IS FIELD SERVICE: the rota that dispatches crews
+  // and the tracking that follows them. The planner went to Projects, permits to
+  // Quality & HSE, locations to Administration.
+  { key: "field-service", name: "Field Operations & Service", children: [
+    // The rota and the working week — the shift calendar, "schedule a shift"
+    // and the studio's work-week shading — on its own grant. It owns no
+    // collection: shifts live under the field-service root section (read
+    // through that door), so this gates the SCREEN and its writes, not a
+    // store of its own.
+    { key: "field-service-schedule", name: "Schedule" },
+    { key: "field-service-tracking", name: "Tracking" },
+    { key: "field-service-settings", name: "Settings" },
+  ] },
+
+  { key: "logistics", name: "Logistics & Fleet", children: [
+    { key: "logistics-shipments", name: "Shipments" },
+  ] },
+
+  { key: "assets", name: "Assets & Equipment" },
+
+  // Quality widens to Quality & HSE. It keeps permits to work, which were an
+  // Operations tab and are a QHSE register.
+  { key: "quality-hse", name: "Quality & HSE" },
+
   // Employees is the only HR sub-section. The Old System's Users, Careers and
   // Applications are deliberately not carried over: login accounts are the
   // studio's Collaborator rows (People & requests), and recruitment is out of
@@ -454,41 +509,30 @@ export const SECTION_DEFS = [
   { key: "hr", name: "Human Resources", children: [
     { key: "hr-employees", name: "Employees" },
   ] },
-  { key: "finance", name: "Finance", children: [
+
+  { key: "finance", name: "Finance & Accounting", children: [
+    // finance-cash is deliberately NOT renamed. Every existing invoice and
+    // expense carries its SectionID, and while a key rename does not orphan a
+    // record, the name is still what the drill-down and the insights read.
     { key: "finance-cash", name: "Cash" },
-    // The general ledger: a chart of accounts and the double-entry journal. New
-    // in Wave 4's Finance 1b. finance-cash is deliberately NOT renamed — every
-    // existing invoice and expense carries its SectionID, and a rename orphans
-    // them; the ledger is a NEW section beside it, not a reshaping of it.
     { key: "finance-ledger", name: "Ledger" },
-    // Wave 4 Finance 1b: what we owe (AP) and what we own (fixed assets), each a
-    // section beside cash and the ledger, each with its own permission.
+    // Wave 4 Finance 1b: what we owe (AP) and what we own (fixed assets), each
+    // a section beside cash and the ledger, each with its own permission.
     { key: "finance-payables", name: "Payables" },
-    { key: "finance-assets", name: "Assets" },
+    { key: "finance-assets", name: "Fixed assets" },
     { key: "finance-settings", name: "Settings" },
   ] },
-  { key: "operations", name: "Operations", children: [
-    // The rota and the working week — the shift calendar, "schedule a shift" and
-    // the studio's work-week shading — on its own grant. It owns no collection:
-    // shifts live under the operations root section (read through that door), so
-    // this gates the SCREEN and its writes, not a store of its own.
-    { key: "operations-schedule", name: "Schedule" },
-    { key: "operations-tracking", name: "Tracking" },
-    // The project planner — a full-screen app of its own (see the studio router),
-    // grantable on its own operations.planner right. It owns no section
-    // collection: plans live at the studio level so a project can reach its own
-    // without this grant, and the new-plan presets live on this section's own
-    // `settings` object, the way operations-settings does.
-    { key: "operations-planner", name: "Planner" },
-    { key: "operations-settings", name: "Settings" },
+
+  { key: "reports", name: "Reports & BI" },
+
+  // Administration absorbs People and Access, which were screens without
+  // sections, plus the master data that used to be Operations' locations tab.
+  { key: "administration", name: "Administration & Settings", children: [
+    { key: "administration-members", name: "People" },
+    { key: "administration-master", name: "Master data" },
+    { key: "administration-settings", name: "Studio settings" },
   ] },
-  // Quality owns the studio's controlled documents. Documents is a sub-section
-  // like any other — grantable, with its own SectionID — but it OPENS FULL
-  // SCREEN (see the studio router), the way the manual and the live views do,
-  // because a document is read rather than navigated away from.
-  { key: "quality", name: "Quality", children: [
-    { key: "quality-documents", name: "Documents" },
-  ] },
+
   { key: "tasks", name: "Tasks", children: [
     { key: "tasks-settings", name: "Task settings" },
   ] },
@@ -503,39 +547,53 @@ export const ALL_SECTION_KEYS = SECTION_DEFS.flatMap((d) => [d.key, ...(d.childr
 // A collection is owned by the MOST SPECIFIC section that holds it, so deleting
 // that sub-section takes its data with it. Collections that genuinely span a
 // section's sub-sections stay on the parent — `deliveries` is raised from
-// several places, and Operations' locations/permits/shifts are tabs of one
-// screen rather than separate sub-sections.
+// several places, and Field Service's shifts, Quality & HSE's permits and
+// Administration's locations are each a tab of one screen rather than a
+// separate sub-section.
 export const SECTION_COLLECTIONS = {
-  // sales
-  "sales-tickets": ["salesTickets", "generatedDocuments"],
-  "sales-clients": ["salesClients"],
-  // sales-settings has no collection of its own any more: the service
+  // crm-sales
+  "crm-sales-tickets": ["salesTickets", "generatedDocuments"],
+  "crm-sales-clients": ["salesClients"],
+  // crm-sales-settings has no collection of its own any more: the service
   // catalogue that used to live here (`salesServices`) is gone — a ticket's
   // services now name the studio's own Service Actions
   // (`studio.serviceActions`, in Studio Settings), the same field Inventory
   // and Projects already read, rather than a Sales-owned collection.
-  // technical
-  // A quotation's generated documents — the cover letter, the terms, whatever
-  // template was run against it. They live HERE rather than in Quality because
-  // the filled-in thing belongs to the record it is about; Quality owns the
+  // The quotation's generated documents travel WITH the quotation — the
+  // filled-in thing belongs to the record it is about; Quality owns the
   // blank. Otherwise the controlled register, which exists to answer "what
-  // governs this company", fills with transactional paperwork.
-  "technical-quotations": ["quotations", "generatedDocuments"],
-  "technical-rfq": ["rfqs"],
+  // governs this company", fills with transactional paperwork. The ticket's
+  // own generated documents (above) are a second, unrelated copy of the same
+  // collection name, owned by the ticket they were generated against — a
+  // ticket is not renamed into CRM & Sales, it already lived there.
+  "crm-sales-quotations": ["quotations", "generatedDocuments"],
+  // engineering-docs
+  "engineering-docs-rfq": ["rfqs"],
+  // The controlled-document register and the studio's own document taxonomy,
+  // carried over from Quality's Documents sub-section — the register is the
+  // technical truth now (blueprint §3.4); Quality keeps the evidence:
+  // inspections, NCRs, audits, incidents, permits. Revisions, templates and
+  // the distribution log join them as the screens that write them land; a
+  // name here before then is a key nothing fills.
+  "engineering-docs-register": ["qualityDocuments", "qualityTypes", "qualityRevisions",
+    "qualityAudit", "qualityAcknowledgements"],
   // projects
   "projects-list": ["projects"],
   "projects-sla": ["slas"],
   "projects-overtimes": ["overtimes"],
+  "projects-planner": ["plans"],
+  // procurement — the supplier master, carried over from Inventory's Vendors
+  // screen.
+  "procurement-suppliers": ["inventoryVendors"],
   // inventory — Project Sheets owns the sheets and their orders sub-sheet,
   // matching the Old System, where Sheets lives under Inventory (not Projects).
   inventory: ["deliveries"],
   "inventory-stock": ["inventoryStock"],
-  "inventory-vendors": ["inventoryVendors"],
   "inventory-items": ["inventoryItems"],
   "inventory-sheets": ["projectSheets", "materialOrders"],
   // AWB tracking owns the shipments it follows and the airline registry that
   // resolves a waybill's 3-digit prefix to a carrier.
-  "inventory-awb": ["awbShipments", "awbAirlines"],
+  "logistics-shipments": ["awbShipments", "awbAirlines"],
   // hr — the reference list belongs to the Employees screen; vacations are
   // studio-wide HR settings.
   //
@@ -557,18 +615,19 @@ export const SECTION_COLLECTIONS = {
   // schedule collection.
   "finance-payables": ["bills"],
   "finance-assets": ["fixedAssets"],
-  // operations — Permits/Locations are tabs of the main screen, not sub-sections.
-  operations: ["locations", "permits", "shifts"],
+  // field-service — was Operations. Permits and locations moved out (to
+  // Quality & HSE and Administration respectively); the shift rota is what
+  // stayed, still a tab of the main screen rather than a sub-section.
+  "field-service": ["shifts"],
   // One last-known position per person, never a movement trail.
-  "operations-tracking": ["trackingPositions"],
+  "field-service-tracking": ["trackingPositions"],
+  // quality-hse — permits to work were an Operations tab and are now a QHSE
+  // register.
+  "quality-hse": ["permits"],
+  // administration — locations was Operations' tab, carried over unchanged.
+  administration: ["locations"],
   // tasks
   tasks: ["tasks"],
-  // quality — the controlled-document register and the studio's own document
-  // taxonomy. Revisions, templates and the distribution log join them as the
-  // screens that write them land; a name here before then is a key nothing
-  // fills.
-  "quality-documents": ["qualityDocuments", "qualityTypes", "qualityRevisions", "qualityAudit",
-    "qualityAcknowledgements"],
 };
 
 // ---- studio slug rules -----------------------------------------------------
