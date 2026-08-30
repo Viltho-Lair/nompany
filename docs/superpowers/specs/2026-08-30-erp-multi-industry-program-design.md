@@ -93,10 +93,20 @@ Schema rules, pinned because violating any of them is expensive later:
 - **All money `NUMERIC(19,4)`. No floating point anywhere, ever.**
 - `tenant_id` leads every primary and secondary index. It is the tenancy boundary made
   physical, not a filter.
-- **`JSONB` for genuinely open bags** — section settings, template definitions, quotation
-  lines, sheet columns, engagement context. This is the reason Postgres was chosen over
-  MySQL: the existing records are document-shaped and port largely as-is while staying
-  queryable and GIN-indexable. Anything filtered or aggregated gets a real column.
+- **`json` — NOT `jsonb` — for stored row payloads.** This was corrected while planning P1
+  and it is not a preference. `jsonb` normalises key order (by length, then bytewise), and
+  this product's golden responses pin key order: `addRow` writes `id` before the spread
+  precisely because `JSON.stringify` emits insertion order, and moving that one line once
+  failed 34 goldens. `jsonb` would fail them on every row, silently and permanently. `json`
+  is text-faithful. The cost is no GIN index, which is not a real cost — every query this
+  product makes filters on a named field, and an expression index on `payload->>'field'`
+  works on `json` and serves exactly the vocabulary `repo.ts` already declares.
+- **`jsonb` remains correct for bags nothing round-trips into a pinned response** — flow
+  template definitions, section settings. The rule is: if it is serialised back to a client,
+  it is `json`.
+- Postgres is still the right choice over MySQL for the reason that survives the above:
+  document-shaped records port largely as-is, and expression indexes, partial indexes and
+  transactional DDL have no MySQL equivalent.
 - Existing ULID string IDs are preserved unchanged. New tables with no legacy id may use
   native `uuidv7()`.
 - Every table carries `created_at`, `updated_at`, `created_by_collaborator_id` and
