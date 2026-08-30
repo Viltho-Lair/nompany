@@ -22,7 +22,7 @@ several are expensive to reverse.
 | D1 | **Full blueprint scope.** All 15 sections, all 95 subsections, all 7 templates. No pilot cut. | ~62–68 weeks of sequential work. Timeline is the dependent variable; scope is fixed. |
 | D2 | **Template A (Contracting / Project) first.** | Build order is A-shaped; B–G activate later off the same container. |
 | D3 | **Engine before surface.** | Nothing new appears in the nav until the deal container is real. |
-| D4 | **Full 15-section restructure**, not additive, and **done in full BEFORE the store swap** as its own phase (P0). | Section keys change; every stored record's `section_id` is rewritten; permission keys remap. Sequencing it ahead of P1 is what keeps "goldens byte-identical" a true pass condition for the migration — see §3.3. |
+| D4 | **Full 15-section restructure**, not additive, and **done in full BEFORE the store swap** as its own phase (P0). | Section keys change and permission keys remap. Records are NOT rewritten by a rename — they carry `sectionId`, a ULID on the section row — so only the twelve collections that change owner have their `sectionId` reassigned. The expensive half is the permission keys, which roles store as literal strings: see P0's plan. Sequencing it ahead of P1 is what keeps "goldens byte-identical" a true pass condition for the migration — see §3.3. |
 | D5 | **Finance is statutory and jurisdiction-neutral**, worldwide, with country adapters (ZATCA first). | A configurable tax engine, not a Saudi tax module. |
 | D6 | **Cloud SQL for PostgreSQL 18**, pulled forward *before* Finance. Everything moves to SQL; Redis becomes cache, pub/sub and the event stream only. | `CLAUDE.md`'s "SQL Server next" is superseded and corrected in the same commit as P1. |
 | D7 | **Only test/demo studios hold live data.** | Migration needs an export and a proof, not a zero-downtime dual-read window. |
@@ -164,7 +164,14 @@ The 12 → 15 section move, in full, on the current Redis store. Done first and 
 for the reason §3.3 gives: it is the only phase allowed to move the goldens, so P1 inherits
 a clean baseline.
 
-**The section map.** Nine sections keep their key and change only their label; six are new;
+**The section map.** Records carry `sectionId` — a ULID on the section row — not the section
+key, so **a rename touches no record**; it is one field per studio. What does rewrite records
+is the twelve collections that change owner. And the genuinely dangerous half is neither:
+roles store permission keys as literal strings and `cleanPermissions` drops what it does not
+recognise, so the rename must be preceded by an alias in `effectivePermissions` or every
+studio silently loses every grant and default deny locks it out with nothing logged.
+
+Nine sections keep their key and change only their label; six are new;
 five bodies of existing data move to a different owner. Main and Tasks survive alongside the
 blueprint's fifteen — Main is the home surface and Tasks is a cross-cutting control, and
 neither is a blueprint section.
