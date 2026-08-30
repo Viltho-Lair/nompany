@@ -113,3 +113,68 @@ this script does instead, and why:
 | Map key-suffix → `id` | **Ids preserved verbatim** as the primary key — every URL and cross-reference depends on it |
 | Global key count for batching | **Per-studio** batching — a studio is the consistency and retry unit |
 | `SCAN` to iterate | `scanPrefix` (the store's existing `SCAN` wrapper) — reused, not re-implemented |
+
+---
+
+# `restructure-sections.mjs` / `restructure-verify.mjs` — the twelve-to-fifteen-section migration (P0)
+
+The data migration for the P0 restructure: renames every section key through
+`SECTION_KEY_MAP`, plants the sections with no predecessor, re-parents the five
+children whose logical department actually changed, rewrites every role's
+`permissions[]` and `scopes{}` keys and every collaborator's personal
+`overrides`, rewrites stored notification `href`s, and reassigns `sectionId`
+on the collections named in `COLLECTION_MOVES`. Everything is driven off
+`src/platform/db/restructure.ts` — never a hardcoded key pair.
+
+## Run it in this order
+
+```bash
+# 1. DRY RUN — reads only, prints exactly what would change, per studio,
+#    with a row count per collection move. Read this before anything else.
+NOMPANY_KEY_PREFIX=sandbox_ node scripts/migrate/restructure-sections.mjs
+
+# 2. APPLY — writes, only when --apply is passed.
+NOMPANY_KEY_PREFIX=sandbox_ node scripts/migrate/restructure-sections.mjs --apply
+
+# 3. VERIFY — READ-ONLY. Never calls editArr/editJSON/delPrefix; it cannot
+#    be the thing invariant 17 worries about, by construction. Checks: no
+#    retired section key survives, every current section key is present,
+#    every child sits under the parent SECTION_DEFS declares today, no role
+#    lost every grant, no role scope key or collaborator override still
+#    names a retired area, no stored notification href still points at a
+#    retired section, and no record's sectionId disagrees with the section
+#    that actually holds its collection.
+NOMPANY_KEY_PREFIX=sandbox_ node scripts/migrate/restructure-verify.mjs
+```
+
+Both scripts refuse to touch the LIVE (unprefixed) key namespace unless you
+pass `--allow-live` — run under a sandbox `NOMPANY_KEY_PREFIX` for a safe
+trial first. `--studio <id>` limits either script to one studio.
+
+## Nothing in P0 deletes anything
+
+`restructure-sections.mjs` has **no delete path at all** — not a guarded one,
+none. It renames section keys, plants new section rows, rewrites role and
+collaborator permission strings, rewrites notification hrefs, and reassigns
+`sectionId` on moved collection rows. The only `editArr` calls that ever
+write an empty array are the SOURCE side of a collection move, and only
+**after** the destination write for those same rows has already landed — so
+a crash between the two duplicates rows rather than losing them, and
+re-running the script reconciles by de-duping on `id`. No section row is
+ever removed and no record is ever dropped. Because nothing is destroyed,
+**the pre-migration state is the rollback**: if something looks wrong after
+`--apply`, the fix is to correct the map in `restructure.ts` and run the
+script again — every target it produces maps to itself, so a second run is
+always safe — never to reach for a delete.
+
+`restructure-verify.mjs` never writes at all: it calls nothing but
+`listSections`/`readArr`.
+
+## Idempotence
+
+Every map in `restructure.ts` is total — each target maps to itself (see
+`selfMap` there) — so running `--apply` twice reports real counts on the
+first pass and **zero of everything** on the second. That is what Task 7's
+own test evidence demonstrates: seed a pre-restructure studio, dry run, apply
+(non-zero counts, `verify` clean), apply again (every count zero), verify
+again (still clean).
