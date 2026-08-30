@@ -581,7 +581,6 @@ export const SECTION_COLLECTIONS = {
   "projects-list": ["projects"],
   "projects-sla": ["slas"],
   "projects-overtimes": ["overtimes"],
-  "projects-planner": ["plans"],
   // procurement — the supplier master, carried over from Inventory's Vendors
   // screen.
   "procurement-suppliers": ["inventoryVendors"],

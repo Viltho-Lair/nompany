@@ -85,7 +85,7 @@ export async function testTheFiveMovesAreDeclared(t) {
   t.equal(
     moved.join(","),
     ["awbAirlines", "awbShipments", "generatedDocuments", "locations", "permits",
-     "plans", "qualityAcknowledgements", "qualityAudit", "qualityDocuments",
+     "qualityAcknowledgements", "qualityAudit", "qualityDocuments",
      "qualityRevisions", "qualityTypes", "quotations"].sort().join(","),
     "every collection that changes owner is declared",
   );

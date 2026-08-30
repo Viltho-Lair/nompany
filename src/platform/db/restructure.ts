@@ -160,7 +160,8 @@ export const COLLECTION_MOVES: { collection: string; from: string; to: string }[
   { collection: "qualityAcknowledgements", from: "quality-documents",    to: "engineering-docs-register" },
   { collection: "awbShipments",            from: "inventory-awb",        to: "logistics-shipments" },
   { collection: "awbAirlines",             from: "inventory-awb",        to: "logistics-shipments" },
-  { collection: "plans",                   from: "operations-planner",   to: "projects-planner" },
+  // Plans are studio-scoped, not section-scoped, so the planner's restructure is
+  // a permission and navigation move only; the collection has no entry here.
   { collection: "permits",                 from: "operations",           to: "quality-hse" },
   { collection: "locations",               from: "operations",           to: "administration" },
 ];
