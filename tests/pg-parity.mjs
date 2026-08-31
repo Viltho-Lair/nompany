@@ -726,6 +726,30 @@ export async function testFunctionPatchIsReapplied(t) {
   }
 }
 
+export async function testTwentyConcurrentFlipsAllLandNoneRejected(t) {
+  // FIX ROUND 1, CRITICAL, REPRODUCED DIRECTLY: the reviewer measured the
+  // single-withTenant-per-call draft landing only 13 of 16 and 13 of 20
+  // concurrent flips, the rest rejected at pool.connect()'s
+  // connectionTimeoutMillis because holding one connection across the WHOLE
+  // retry loop capped how many writers could even enter the contest at
+  // PGPOOL_MAX. This is the assertion that would have caught it: 20
+  // concurrent increments against one row, using Promise.allSettled so a
+  // rejection shows up as data instead of aborting the whole test early.
+  const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { hits: 0 });
+  try {
+    const settled = await Promise.allSettled(Array.from({ length: 20 }, () =>
+      pgUpdateRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id, (r) => ({ hits: Number(r.hits) + 1 }))));
+    const rejected = settled.filter((s) => s.status === "rejected");
+    t.equal(rejected.length, 0,
+      `all 20 concurrent attempts resolve rather than being rejected on a queued connection` +
+      (rejected.length ? ` — first: ${rejected[0].reason?.message}` : ""));
+    const [read] = await pgReadCol(P1T4_S, P1T4_SEC, P1T4_COL);
+    t.equal(read.hits, 20, "twenty concurrent flips land exactly twenty, none lost, none rejected");
+  } finally {
+    await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id);
+  }
+}
+
 export async function testImmutableFieldsCannotBePatched(t) {
   const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "x" });
   try {
@@ -802,6 +826,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testNewestFirst,
       testBatchKeepsArrivalOrderAmongItself,
       testFunctionPatchIsReapplied,
+      testTwentyConcurrentFlipsAllLandNoneRejected,
       testImmutableFieldsCannotBePatched,
       testDeleteReportsWhetherAnythingWent,
     ];

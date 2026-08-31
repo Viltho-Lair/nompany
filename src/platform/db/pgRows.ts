@@ -29,9 +29,10 @@
 // itself. `@/platform/realtime/events` is a different platform folder, so it goes
 // through the alias, exactly like redisRows.ts does.
 import { withTenant } from "./pg";
-import { ID, TBL } from "./keys";
+import { ID, SEC, TBL } from "./keys";
 import { emit, TYPE } from "@/platform/realtime/events";
 import { bumpMainAgg } from "./mainAgg";
+import { cachedRead, invalidate } from "./requestCache";
 import type { Row } from "./store";
 
 const T = TBL.rows;
@@ -43,17 +44,30 @@ const MAX_ATTEMPTS = 64;
 const JITTER_MS = 15;
 const pause = () => new Promise((r) => setTimeout(r, Math.random() * JITTER_MS));
 
+// ROUTED THROUGH THE REQUEST-SCOPED CACHE, keyed by the identical string
+// redisReadCol reads (SEC.col) — two reads of one collection inside a request
+// must cost one round trip, exactly like getJSON's callers get for free (fix
+// round 1: this was a silent hop regression that Task 8's query-count ceilings
+// would have failed on, with the route looking guilty instead of this file).
+// Reusing SEC.col rather than inventing a parallel cache key is deliberate:
+// it is the same conceptual bucket Redis already names, built where invariant
+// 1 says keys are built, and outside a request scope cachedRead just calls
+// straight through (a cron job or a bare script pays one round trip, same as
+// today). Every write below invalidates this same key on success, exactly as
+// editJSON invalidates on a landed compare-and-set.
 export async function pgReadCol<T2 extends Row = Row>(
   studioId: string, sectionId: string, name: string,
 ): Promise<T2[]> {
-  const { rows } = await withTenant(studioId, (q) =>
-    q<{ payload: T2 }>(
-      `SELECT ${TBL.cols.payload} FROM ${T}
-        WHERE ${TBL.cols.tenant} = $1 AND ${TBL.cols.section} = $2 AND ${TBL.cols.collection} = $3
-        ORDER BY ${TBL.cols.seq} DESC`,
-      [studioId, sectionId, name],
-    ));
-  return rows.map((r) => r.payload);
+  return cachedRead(SEC.col(studioId, sectionId, name), async () => {
+    const { rows } = await withTenant(studioId, (q) =>
+      q<{ payload: T2 }>(
+        `SELECT ${TBL.cols.payload} FROM ${T}
+          WHERE ${TBL.cols.tenant} = $1 AND ${TBL.cols.section} = $2 AND ${TBL.cols.collection} = $3
+          ORDER BY ${TBL.cols.seq} DESC`,
+        [studioId, sectionId, name],
+      ));
+    return rows.map((r) => r.payload);
+  });
 }
 
 export async function pgAddRow<T2 extends Row = Row>(
@@ -67,6 +81,7 @@ export async function pgAddRow<T2 extends Row = Row>(
         VALUES ($1, $2, $3, $4, nextval('${TBL.seq}'), $5::json)`,
       [studioId, sectionId, name, created.id, JSON.stringify(created)],
     ));
+  invalidate(SEC.col(studioId, sectionId, name));
   await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name, rowId: created.id as string });
   void bumpMainAgg(studioId, sectionId, name); // best-effort rollup, never awaited (§3)
   return created;
@@ -121,6 +136,7 @@ export async function pgAddRows<T2 extends Row = Row>(
     );
   });
 
+  invalidate(SEC.col(studioId, sectionId, name));
   // NO rowId ON THE EVENT — the shape emit already supports, and the honest one:
   // this announces that the collection changed, not which row.
   await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name });
@@ -139,27 +155,42 @@ export async function pgAddRows<T2 extends Row = Row>(
 // concurrent winner's commit makes the next attempt's UPDATE affect zero rows
 // rather than clobber it.
 //
-// One withTenant call wraps the whole retry loop rather than one per attempt:
-// same-tenant re-entrancy would absorb a per-attempt withTenant into the same
-// connection anyway (pg.ts), so holding it open across a small, flat backoff
-// is not a second connection either way, and reading it this way skips the
-// nesting machinery for the common single-writer case that never retries.
-// READ COMMITTED (Postgres's default) gives each SELECT inside this
-// transaction a fresh snapshot as of that statement, so a competing writer's
-// COMMIT between attempts is visible on the retry.
+// ONE withTenant PER ATTEMPT — fix round 1, Critical. The first draft wrapped
+// the WHOLE retry loop, pause() included, in a single withTenant, reasoning
+// that same-tenant re-entrancy would make per-attempt scoping "free" anyway.
+// That reasoning only holds when an OUTER scope already exists to absorb into;
+// a standalone call — what every service does — takes its OWN dedicated
+// connection and then holds it, jitter and all. With PGPOOL_MAX connections,
+// that caps how many writers can even ENTER the contest at PGPOOL_MAX: the
+// Nth+1 writer is not losing a race, it is queuing on pool.connect() and is
+// hard-rejected at connectionTimeoutMillis before it ever reads a row.
+// Measured: 16 concurrent flips landed 13, rejected 3; 20 landed 13, rejected
+// 7. The Redis baseline (editJSON, one shared connection, N writers drain in N
+// flat-backoff rounds) lands 20 of 20.
+//
+// So each attempt takes its own scope, reads, computes, attempts the
+// compare-and-set, and RELEASES — only then does it pause before the next
+// attempt. A writer waiting on the flat backoff must not be sitting on a
+// pooled connection while it waits; that is precisely the resource the next
+// writer's own attempt needs. READ COMMITTED (Postgres's default) still gives
+// each attempt's SELECT a fresh snapshot of whatever the previous winner just
+// committed, so nothing about the retry's correctness depended on staying on
+// one connection — only its *cost* did, and wrongly.
+type UpdateAttempt<T2> = { done: true; result: T2 | null } | { done: false; result: null };
+
 export async function pgUpdateRow<T2 extends Row = Row>(
   studioId: string, sectionId: string, name: string, rowId: string,
   patch: Row | ((row: T2) => Row),
 ): Promise<T2 | null> {
-  return withTenant(studioId, async (q) => {
-    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const outcome = await withTenant(studioId, async (q): Promise<UpdateAttempt<T2>> => {
       const { rows } = await q<{ payload: T2; row_version: number }>(
         `SELECT ${TBL.cols.payload}, ${TBL.cols.version} FROM ${T}
           WHERE ${TBL.cols.tenant} = $1 AND ${TBL.cols.section} = $2 AND ${TBL.cols.collection} = $3 AND ${TBL.cols.id} = $4`,
         [studioId, sectionId, name, rowId],
       );
       const current = rows[0];
-      if (!current) return null;
+      if (!current) return { done: true, result: null };
 
       const changes = typeof patch === "function" ? patch(current.payload) : patch;
       // The four restated after the spread are the immutable ones, exactly as
@@ -175,16 +206,28 @@ export async function pgUpdateRow<T2 extends Row = Row>(
             AND ${TBL.cols.version} = $6`,
         [studioId, sectionId, name, rowId, JSON.stringify(next), current.row_version],
       );
-      if (rowCount === 1) {
-        // Only a real change is announced — a lost race changed nothing to
-        // tell anyone about, and retries silently.
+      return rowCount === 1 ? { done: true, result: next } : { done: false, result: null };
+    });
+
+    if (outcome.done) {
+      if (outcome.result) {
+        // ONLY AFTER THE SCOPE ABOVE HAS RETURNED — which means its COMMIT has
+        // already happened (fix round 1, Important): emitting from inside the
+        // transaction announced a change a failed COMMIT could still have
+        // undone, and held the Postgres connection across a Redis round trip
+        // the reviewer measured stalling for seconds when Redis itself was
+        // slow to answer. The other three primitives already emitted after
+        // withTenant returned; this brings updateRow in line with them.
+        invalidate(SEC.col(studioId, sectionId, name));
         await emit(studioId, { type: TYPE.rowUpdated, sectionId, collection: name, rowId });
-        return next;
       }
-      await pause();
+      // A miss (no such row) also returns here with result === null — nothing
+      // changed, so nothing to invalidate or announce, same as before.
+      return outcome.result;
     }
-    throw new Error("pgUpdateRow: too many attempts");
-  });
+    await pause();
+  }
+  throw new Error("pgUpdateRow: too many attempts");
 }
 
 export async function pgDeleteRow(
@@ -195,6 +238,9 @@ export async function pgDeleteRow(
       `DELETE FROM ${T} WHERE ${TBL.cols.tenant} = $1 AND ${TBL.cols.section} = $2 AND ${TBL.cols.collection} = $3 AND ${TBL.cols.id} = $4`,
       [studioId, sectionId, name, rowId],
     ));
-  if (rowCount) await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name, rowId });
+  if (rowCount) {
+    invalidate(SEC.col(studioId, sectionId, name));
+    await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name, rowId });
+  }
   return rowCount > 0;
 }
