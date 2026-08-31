@@ -46,6 +46,14 @@ const MAX_BYTES = 5 * 1024 * 1024; // 5 MB per file
 
 // Built through the shared key module so the namespace applies. A literal here
 // is how the integration suite came to write live blobs.
+//
+// BOTH namespaces come from that module, not just this one. The Redis record
+// is `MEDIA.blob(id)`; the Blob object's pathname is `MEDIA.object(id)`, used
+// at the `put` below. For as long as the bytes were base64 inside the record,
+// prefixing the record WAS prefixing the bytes and one builder covered
+// everything. Moving the bytes to Blob split that in two, and the second half
+// was briefly a bare `media/${id}` literal — the same fault as the first,
+// re-committed in the new store.
 const key = (id: string) => MEDIA.blob(id);
 
 export type MediaRecord = {
@@ -87,7 +95,7 @@ export async function putMedia(
   // later is not.
   const sha256 = createHash("sha256").update(buffer).digest("hex");
 
-  const blob = await put(`media/${id}`, buffer, {
+  const blob = await put(MEDIA.object(id), buffer, {
     access: "public",
     contentType: String(contentType || "application/octet-stream"),
     // The id is already random and unguessable; Vercel's own random suffix

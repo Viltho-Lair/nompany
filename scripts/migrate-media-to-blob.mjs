@@ -67,6 +67,13 @@ await client.connect();
 // pattern is therefore not a second, unchecked place a key gets built: it is
 // reading the one shape the key builder already produces, not constructing a
 // new one to write with.
+//
+// The same holds for the `media/<id>` pathname passed to `put` below, which is
+// what MEDIA.object() builds — and for the same reason: the prefix is empty in
+// production, and the refusal above guarantees this file never runs anywhere
+// it is not. Both literals are valid ONLY because of that refusal. If this
+// script is ever made to run under a prefix, both must come from the builder,
+// or it will read prefixed records and write unprefixed objects.
 const keys = [];
 for await (const k of client.scanIterator({ MATCH: "g:media:*", COUNT: 500 })) {
   Array.isArray(k) ? keys.push(...k) : keys.push(k);

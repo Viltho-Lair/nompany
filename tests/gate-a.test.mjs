@@ -88,6 +88,7 @@ const { gateAFailures } = await import("./gate-a.mjs");
 const { readArr, delPrefix } = await import("@/platform/db/store");
 const { REG } = await import("@/platform/db/keys");
 const { sweepPgTenants } = await import("./pg-sweep.mjs");
+const { sweepBlobObjects } = await import("./blob-sweep.mjs");
 
 // CRITICAL FIX (whole-branch review): sweepPgTenants used to be called
 // unconditionally, and pg.ts's getPool() THROWS the instant DATABASE_URL is
@@ -119,6 +120,25 @@ if (!process.env.DATABASE_URL) {
   }
 }
 
+// THE BLOB SWEEP — see tests/blob-sweep.mjs. Gate A does not upload media
+// today, so this reports 0 and costs one `list` call; it is here so that the
+// day a golden covers an upload, the objects are already being reaped rather
+// than accumulating unnoticed in the live store until somebody reads a bill.
+// Guarded like the Postgres sweep above so a failure cannot stop the Redis
+// sweep below and strand this run's namespace.
+let blobSweepFailed = false;
+if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  console.warn(`skipping the Blob sweep — BLOB_READ_WRITE_TOKEN is not set (nothing was uploaded to Blob this run)`);
+} else {
+  try {
+    const blobSwept = await sweepBlobObjects(process.env.NOMPANY_KEY_PREFIX);
+    console.log(`swept ${blobSwept} blob object(s) under "${process.env.NOMPANY_KEY_PREFIX}media/"`);
+  } catch (e) {
+    blobSweepFailed = true;
+    console.error(`Blob sweep failed — continuing to the Redis sweep below so this run does not strand its namespace: ${e.message}`);
+  }
+}
+
 // Everything Gate A wrote lives under the namespace, so cleanup is one prefix
 // deletion. Runs whatever happened above — a failed assertion (Redis OR
 // Postgres) must not leave keys behind.
@@ -127,4 +147,4 @@ const swept = await delPrefix(process.env.NOMPANY_KEY_PREFIX);
 console.log(`swept ${swept} keys from "${process.env.NOMPANY_KEY_PREFIX}"`);
 await (await getRedisClient()).quit();
 
-process.exit((gateAFailures || pgSweepFailed) ? 1 : 0);
+process.exit((gateAFailures || pgSweepFailed || blobSweepFailed) ? 1 : 0);

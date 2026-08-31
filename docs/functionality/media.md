@@ -27,8 +27,26 @@ hundred bytes in Redis per file, not the file itself.
 
 This replaces base64'ing the whole file into the Redis string at `g:media:<id>` (1.34x
 inflation, no reclamation beyond a single key, and — because the key is platform-scoped —
-no studio cascade ever reaped an orphan). Measured live on 31/08/2026: **2 files, 1.41 MB**,
-both public, still in the old base64 form and not yet migrated.
+no studio cascade ever reaped an orphan). Measured live on 31/08/2026: **2 files, 1.06 MB of
+file bytes** (~1.41 MB as stored, base64 being 1.33x), both public, both personal rather than
+studio-owned, still in the old form and not yet migrated.
+
+**There are now TWO namespaces, and both are built in `keys.ts`.** `MEDIA.blob(id)` is the
+Redis record; `MEDIA.object(id)` is the Blob object's pathname. For as long as the bytes were
+base64 inside the record, prefixing the record *was* prefixing the bytes and one builder
+covered everything — moving the bytes to Blob split that in two. The second half was briefly a
+bare `` `media/${id}` `` literal, which is the same fault the `MEDIA` block's own header in
+`keys.ts` was written about, re-committed in a store that did not exist when that header was
+written. It never reached live, because the Blob store was created after it was fixed.
+
+It matters more here than in Redis or Postgres because the two halves are reaped by different
+mechanisms: `delPrefix` takes the test run's *record*, and nothing took the *object* it named.
+That leaves precisely the state `deleteMedia`'s comment calls unreachable and unreclaimable —
+billed forever, with the only pointer to it deleted. `tests/blob-sweep.mjs` is the other half,
+mirroring `tests/pg-sweep.mjs`: it **lists by this run's prefix and deletes an explicit URL
+list**, and **refuses an empty prefix outright**, because `list({ prefix: "" })` enumerates
+every production object and deleting those would be the Blob restatement of the broad-scan
+delete that once wiped this project's whole Redis instance (invariant 17).
 
 **`MAX_BYTES` stays at 5 MB**, but not for the reason it existed before. It used to bound how
 much base64 one Redis string held; Blob has no such ceiling. It survives because

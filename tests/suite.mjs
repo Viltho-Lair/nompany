@@ -247,6 +247,10 @@ import {
 // end, right before the Redis delPrefix that would otherwise erase the one
 // record (REG.studios) naming which tenants this run needs it to clean up.
 import { sweepPgTenants } from "./pg-sweep.mjs";
+// THE BLOB SWEEP (see tests/blob-sweep.mjs) — the third store's cleanup, and
+// the only one whose namespace lives in the object path rather than in a key
+// prefix or a tenant column.
+import { sweepBlobObjects } from "./blob-sweep.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -254,7 +258,7 @@ import {
 import { ttlOf, editArr, hIncrBounded, pfAdd, pfCount, hGetAll, hSet, memoryPolicy, sMembers } from "@/platform/db/store";
 import * as KEYS from "@/platform/db/keys";
 import { STAT } from "@/platform/db/keys";
-import { putMedia } from "@/lib/media";
+import { putMedia, getMedia } from "@/lib/media";
 import { hashToken } from "@/platform/auth/passwords";
 import { SERVICE_ACTIONS, FIELDS_OF_WORK, FIELD_ACTION_MATRIX, actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
 import { nextPool, cleanNextActive } from "@/modules/studioServiceActions";
@@ -3514,6 +3518,26 @@ console.log("== a private file is readable by its studio, and by nobody else");
     visibility: "private", owner: owner.id,
   });
 
+  // THE OBJECT PATHNAME CARRIES THE TEST NAMESPACE, asserted against the two
+  // things that must agree with it rather than against a literal of its own.
+  //
+  // REGRESSION: `put` was called with a bare `media/${id}` while the Redis
+  // record beside it went through MEDIA.blob() and was namespaced properly.
+  // The suite therefore wrote its fixture objects into the LIVE Blob store
+  // next to production's, and — because delPrefix then reaped the record that
+  // named them — left them unreachable and unreclaimable, billed forever, one
+  // more set per run. Both halves of the fix are asserted here: that the
+  // pathname comes from the key builder (invariant 1), and that it falls
+  // inside the scope tests/blob-sweep.mjs actually lists, since a namespaced
+  // object the sweep cannot see leaks exactly as badly as an unnamespaced one.
+  {
+    const rec = await getMedia(pub.id);
+    ok("an uploaded object's pathname comes from the key builder",
+      rec.pathname === KEYS.MEDIA.object(pub.id), rec.pathname);
+    ok("...and falls inside the scope the blob sweep lists",
+      KEY_PREFIX ? rec.pathname.startsWith(`${KEY_PREFIX}media/`) : true, `prefix "${KEY_PREFIX}"`);
+  }
+
   __signOut();
   ok("a public file is served to anyone", (await serve(pub.id)).status === 200);
   ok("a private file is refused to a stranger", (await serve(priv.id)).status === 404);
@@ -4894,6 +4918,28 @@ if (!process.env.DATABASE_URL) {
   } catch (e) {
     fails += 1;
     console.error(`Postgres sweep failed — continuing to the Redis sweep below so this run does not strand its namespace: ${e.message}`);
+  }
+}
+
+// THE BLOB SWEEP — see tests/blob-sweep.mjs. Ordered here for a different
+// reason than the Postgres one above: it does not depend on any Redis record
+// to know what it owns (the prefix is in the object pathname itself), so it
+// could run anywhere. It runs BEFORE delPrefix anyway, next to its two
+// siblings, so all three cleanups read as one block rather than one of them
+// sitting apart for no stated reason.
+//
+// Guarded the same way, for the same reason: a failure here must not stop the
+// Redis sweep below and strand the namespace. Counted as a suite failure so a
+// store that quietly stopped accepting deletes does not pass as clean.
+if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  console.warn(`skipping the Blob sweep — BLOB_READ_WRITE_TOKEN is not set (nothing was uploaded to Blob this run)`);
+} else {
+  try {
+    const blobSwept = await sweepBlobObjects(KEY_PREFIX);
+    console.log(`swept ${blobSwept} blob object(s) under "${KEY_PREFIX}media/"`);
+  } catch (e) {
+    fails += 1;
+    console.error(`Blob sweep failed — continuing to the Redis sweep below so this run does not strand its namespace: ${e.message}`);
   }
 }
 
