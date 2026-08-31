@@ -42,6 +42,7 @@ if (!process.env.DATABASE_URL) {
 // leaves it too early to see the hook.
 const { _poolForTests, pgQuery, pgTx, pgSchemaQuery, withTenant } = await import("../src/platform/db/pg.ts");
 const { TBL } = await import("../src/platform/db/keys.ts");
+const { pgReadCol, pgAddRow, pgAddRows, pgUpdateRow, pgDeleteRow } = await import("../src/platform/db/pgRows.ts");
 
 export async function testPgConnects(t) {
   const { rows } = await pgQuery("SELECT 1 AS one");
@@ -663,6 +664,87 @@ export async function testKilledConnectionDoesNotCrashTheProcess(t) {
   t.equal(rows[0].one, 1, "the pool answers a fresh query normally after surviving the killed connection");
 }
 
+// ---- Task 4: the row primitives --------------------------------------------
+//
+// One tenant/section/collection bucket per test, scoped by NOMPANY_TEST_SESSION
+// so two agent sessions running this file at once (a real occurrence in this
+// repo — see the CLAUDE.md note on shared test namespaces) do not trip over
+// each other's rows in the same bucket. Every test cleans up everything it
+// wrote, in a finally block, because collection_rows is the live database and
+// this suite must leave it exactly as it found it — empty.
+const P1T4_SESSION = process.env.NOMPANY_TEST_SESSION || "p1t4";
+const P1T4_S = `st_${P1T4_SESSION}`;
+const P1T4_SEC = `sec_${P1T4_SESSION}`;
+const P1T4_COL = "widgets";
+
+export async function testKeyOrderSurvives(t) {
+  const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "Acme", status: "Open" });
+  try {
+    const [read] = await pgReadCol(P1T4_S, P1T4_SEC, P1T4_COL);
+    t.equal(
+      JSON.stringify(read),
+      JSON.stringify({ id: row.id, name: "Acme", status: "Open", studioId: P1T4_S, sectionId: P1T4_SEC }),
+      "id first, then the item's own keys in order, then studioId and sectionId",
+    );
+  } finally {
+    await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id);
+  }
+}
+
+export async function testNewestFirst(t) {
+  const first = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "first" });
+  const second = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "second" });
+  try {
+    const rows = await pgReadCol(P1T4_S, P1T4_SEC, P1T4_COL);
+    t.equal(rows[0].name, "second", "a later add reads first");
+  } finally {
+    await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, first.id);
+    await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, second.id);
+  }
+}
+
+export async function testBatchKeepsArrivalOrderAmongItself(t) {
+  const batch = await pgAddRows(P1T4_S, P1T4_SEC, P1T4_COL, [{ name: "a" }, { name: "b" }, { name: "c" }]);
+  try {
+    const rows = await pgReadCol(P1T4_S, P1T4_SEC, P1T4_COL);
+    t.equal(rows.slice(0, 3).map((r) => r.name).join(""), "abc",
+      "the batch is newest-first as a block, arrival-ordered within itself");
+  } finally {
+    for (const row of batch) await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id);
+  }
+}
+
+export async function testFunctionPatchIsReapplied(t) {
+  const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { hits: 0 });
+  try {
+    await Promise.all(Array.from({ length: 8 }, () =>
+      pgUpdateRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id, (r) => ({ hits: Number(r.hits) + 1 }))));
+    const [read] = await pgReadCol(P1T4_S, P1T4_SEC, P1T4_COL);
+    t.equal(read.hits, 8, "eight concurrent flips all land — no lost update");
+  } finally {
+    await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id);
+  }
+}
+
+export async function testImmutableFieldsCannotBePatched(t) {
+  const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "x" });
+  try {
+    await pgUpdateRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id, { id: "hacked", studioId: "other", name: "y" });
+    const [read] = await pgReadCol(P1T4_S, P1T4_SEC, P1T4_COL);
+    t.equal(read.id, row.id, "id is immutable");
+    t.equal(read.studioId, P1T4_S, "studioId is immutable");
+    t.equal(read.name, "y", "everything else patches");
+  } finally {
+    await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id);
+  }
+}
+
+export async function testDeleteReportsWhetherAnythingWent(t) {
+  const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "gone" });
+  t.equal(await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id), true, "a real delete reports true");
+  t.equal(await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id), false, "a second reports false");
+}
+
 function makeHarness() {
   let fails = 0;
   return {
@@ -716,6 +798,12 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testReentrantWithTenantForTheSameTenantIsAbsorbed,
       testReentrantWithTenantForADifferentTenantFailsFast,
       testKilledConnectionDoesNotCrashTheProcess,
+      testKeyOrderSurvives,
+      testNewestFirst,
+      testBatchKeepsArrivalOrderAmongItself,
+      testFunctionPatchIsReapplied,
+      testImmutableFieldsCannotBePatched,
+      testDeleteReportsWhetherAnythingWent,
     ];
     let totalFails = 0;
     for (const test of tests) {
