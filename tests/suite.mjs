@@ -241,7 +241,7 @@ import {
   testKeyOrderSurvives, testNewestFirst, testBatchKeepsArrivalOrderAmongItself, testFunctionPatchIsReapplied,
   testTwentyConcurrentFlipsAllLandNoneRejected, testImmutableFieldsCannotBePatched,
   testDeleteReportsWhetherAnythingWent, testBackendDefaultsToRedis, testDispatcherParityRoundTrip,
-  testDispatcherDisagreementNamesBothValues,
+  testDispatcherDisagreementNamesBothValues, testCascadeDeleteSectionReapsRowsOutsideTheCatalogue,
 } from "./pg-parity.mjs";
 // THE POSTGRES SWEEP (Task 6) — see tests/pg-sweep.mjs. Used once, at the very
 // end, right before the Redis delPrefix that would otherwise erase the one
@@ -4857,6 +4857,7 @@ console.log("\n== the postgres seam, schema, row primitives and dispatcher (P1 P
     testBackendDefaultsToRedis,
     testDispatcherParityRoundTrip,
     testDispatcherDisagreementNamesBothValues,
+    testCascadeDeleteSectionReapsRowsOutsideTheCatalogue,
   ]) {
     await test(asT);
   }

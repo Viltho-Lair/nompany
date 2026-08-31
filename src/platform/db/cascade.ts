@@ -12,10 +12,15 @@
 // SEPARATE SYSTEM from Redis — no transaction spans both, so property 1 above
 // ("cascade = prefix deletion") has no Postgres analogue at all. What a
 // section or studio owns there is instead an EXPLICIT, BOUNDED scope: an
-// exact tenant_id, and for a section, an ENUMERATED collection list read from
-// SECTION_COLLECTIONS (see pgDeleteSectionRows/pgDeleteAllForTenant in
-// pgRows.ts) — never a predicate that could match more than the caller named
-// (invariant 17). Property 2 (children-first, registry-last) still holds
+// exact tenant_id, and for a section an exact section_id too (see
+// pgDeleteAllForSection/pgDeleteAllForTenant in pgRows.ts) — never a
+// predicate that could match more than the caller named (invariant 17). NOT
+// bounded by SECTION_COLLECTIONS, on purpose: the catalogue answers "what to
+// READ" and every parent section key plus every appendSection-minted key
+// answers "[]" to it, which under an earlier draft left exactly the rows a
+// catalogue-blind key still owns undeleted (fix round 1, Important 1 — a
+// one-store survivor measured under parity). Property 2 (children-first,
+// registry-last) still holds
 // ACROSS both stores: every section/studio cascade below reaps Postgres rows
 // and the Redis subtree — in either order between the two, since both are
 // equally "children" — before touching the Redis registry row that names the
@@ -52,8 +57,8 @@ import { REG, U, S, SEC, IX, ENG, KEY_PREFIX } from "./keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim, zRem } from "./store";
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { readEngagement, readEngagementView, detachRecord, isEngagementLocked, SLOT_TYPE } from "./engagement";
-import { listSections, deleteRow, collectionsForKey, DB_BACKEND } from "./sections";
-import { pgDeleteSectionRows, pgDeleteAllForTenant } from "./pgRows";
+import { listSections, deleteRow, DB_BACKEND } from "./sections";
+import { pgDeleteAllForSection, pgDeleteAllForTenant } from "./pgRows";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { hashToken } from "@/platform/auth/passwords";
 import { log } from "@/platform/http/observability";
@@ -85,10 +90,7 @@ const PG_HOLDS_ROWS = DB_BACKEND !== "redis";
 // have to change every time one of them grew a field it does not read.
 type Identified = { id: string };
 type CollaboratorRef = Identified & { userId: string; roleIds?: string[] };
-// `key` is read only by the Postgres path below, to look up which operational
-// collections this section owns (SECTION_COLLECTIONS is keyed by section KEY,
-// not by the minted SectionID) — nothing else here needed it before.
-type SectionRef = Identified & { parentId?: string | null; key: string };
+type SectionRef = Identified & { parentId?: string | null };
 type StudioRef = Identified & { name: string; slug: string; ownerUserId: string };
 type UserRef = Identified & { email: string };
 type SessionRef = { tokenHash?: string; token?: string };
@@ -191,13 +193,25 @@ export async function cascadeDeleteSection(studioId: string, sectionId: string):
   //    because there is nothing left to finish.
   for (const id of doomed) {
     // Postgres FIRST — see the module header for the PG_HOLDS_ROWS decision.
-    // A section is looked up by its minted id but SECTION_COLLECTIONS is keyed
-    // by the section's KEY, so the id is resolved back to its own row (in
-    // `rows`, read once above) before the lookup.
+    // pgDeleteAllForSection (NOT the catalogue-bounded pgDeleteSectionRows,
+    // fix round 1 Important 1), because deleting a section does not need to
+    // know which collections it owns — SECTION_COLLECTIONS answers "what to
+    // READ", and it answers "[]" for a parent key like crm-sales and for
+    // every key appendSection ever mints, which under the narrower call
+    // meant a section outside the catalogue reaped nothing in Postgres while
+    // Redis's delPrefix reaped everything — a one-store survivor, measured
+    // under parity. Scoped by tenant_id AND section_id, still explicit and
+    // bounded, just not catalogue-limited.
+    //
+    // THE COUNT IS LOGGED, NOT ASSERTED ON: zero is a legitimate result (this
+    // section may genuinely hold no rows), so it cannot distinguish "nothing
+    // to delete" from "the tenant/section scope silently matched nothing" —
+    // but it is the one piece of evidence pgDeleteAllForSection's own header
+    // says this caller must not discard, so a cascade that ran leaves a
+    // record of how much it actually removed.
     if (PG_HOLDS_ROWS) {
-      const sec = rows.find((s) => s.id === id);
-      const collections = sec ? collectionsForKey(sec.key) : [];
-      if (collections.length) await pgDeleteSectionRows(studioId, id, collections);
+      const pgDeleted = await pgDeleteAllForSection(studioId, id);
+      log.info(`[cascade] postgres: reaped ${pgDeleted} row(s) for section ${id}`, { studioId, sectionId: id });
     }
     // Redis: every operational collection under this id. Nothing else points
     // at a section — grants did, and grants are gone.
@@ -241,7 +255,17 @@ export async function cascadeDeleteStudio(studioId: string): Promise<boolean> {
   // holding the subtree — also fine, because the registry row is still there
   // to trigger a re-run, and this call repeats as a no-op while the Redis
   // delete (which had not run yet) completes.
-  if (PG_HOLDS_ROWS) await pgDeleteAllForTenant(studioId);
+  //
+  // THE COUNT IS LOGGED, NOT ASSERTED ON — same reasoning as the section
+  // cascade above: zero is legitimate (a studio with no operational rows
+  // yet), so it cannot on its own distinguish "nothing to delete" from "the
+  // tenant scope silently matched nothing" under a forgotten withTenant. It
+  // is still the one piece of evidence pgDeleteAllForTenant's caller must
+  // not discard, so this is the auditable record of what actually left.
+  if (PG_HOLDS_ROWS) {
+    const pgDeleted = await pgDeleteAllForTenant(studioId);
+    log.info(`[cascade] postgres: reaped ${pgDeleted} row(s) for studio ${studioId}`, { studioId });
+  }
 
   // the whole subtree in one stroke: sections + all data, collaborators,
   // notifications, settings

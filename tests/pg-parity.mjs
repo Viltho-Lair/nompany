@@ -41,9 +41,24 @@ if (!process.env.DATABASE_URL) {
 // code runs (including the register() call above), which is exactly what
 // leaves it too early to see the hook.
 const { _poolForTests, pgQuery, pgTx, pgSchemaQuery, withTenant } = await import("../src/platform/db/pg.ts");
-const { TBL } = await import("../src/platform/db/keys.ts");
+const { TBL, S } = await import("../src/platform/db/keys.ts");
 const { pgReadCol, pgAddRow, pgAddRows, pgUpdateRow, pgDeleteRow } = await import("../src/platform/db/pgRows.ts");
 const { DB_BACKEND, readCol, addRow, addRows, updateRow, deleteRow } = await import("../src/platform/db/sections.ts");
+const { readArr, editArr } = await import("../src/platform/db/store.ts");
+const { cascadeDeleteSection } = await import("../src/platform/db/cascade.ts");
+
+// One tenant/section/collection bucket for every test below that needs one,
+// scoped by NOMPANY_TEST_SESSION so two agent sessions running this file at
+// once (a real occurrence in this repo — see the CLAUDE.md note on shared
+// test namespaces) do not trip over each other's rows in the same bucket.
+// Declared here, near the top, rather than down by Task 4's own tests
+// (their original location) because several tests ABOVE Task 4's section
+// already reference these as top-level consts, which — unlike every
+// function body in this file — cannot defer the read until later.
+const P1T4_SESSION = process.env.NOMPANY_TEST_SESSION || "p1t4";
+const P1T4_S = `st_${P1T4_SESSION}`;
+const P1T4_SEC = `sec_${P1T4_SESSION}`;
+const P1T4_COL = "widgets";
 
 // ---- Task 5: the backend dispatcher ----------------------------------------
 
@@ -131,6 +146,73 @@ export async function testDispatcherDisagreementNamesBothValues(t) {
       "the postgres side's actual content is visible in the message, not just that something differed");
   } finally {
     await pgDeleteRow(P1T4_S, P1T4_SEC, P1T5_GHOST_COL, ghostId).catch(() => {});
+  }
+}
+
+// ---- fix round 1, Important 1: cascadeDeleteSection must not depend on ----
+// ---- the SECTION_COLLECTIONS catalogue to decide what to DELETE -----------
+//
+// THE REGRESSION THIS GUARDS: an earlier draft scoped the Postgres delete by
+// `collectionsForKey(section.key)`, which returns `[]` for any key the
+// catalogue does not name — every parent section (e.g. "crm-sales", which
+// owns no collection of its own) and every key appendSection ever mints,
+// since an appended section starts with no predefined collections at all.
+// Under that draft, cascading a section outside the catalogue reaped
+// nothing in Postgres while Redis's delPrefix reaped everything
+// unconditionally — measured directly: one Postgres row survived a `parity`
+// cascade with Redis left clean, exactly the one-store survivor the next
+// parity comparison would blame on the wrong store. The fix scopes the
+// Postgres delete by tenant_id + section_id alone (pgDeleteAllForSection),
+// so it is complete rather than catalogue-limited.
+//
+// This test reproduces that exact shape: a section whose `key` is
+// deliberately absent from SECTION_COLLECTIONS, holding a real row in an
+// arbitrary collection name. "sound and reproducible by me right now" is
+// not durable — this is the assertion that survives after the harness that
+// found it is gone.
+const P1FIX1_SEC = `sec_${P1T4_SESSION}_cascadefix1`;
+const P1FIX1_COL = "notInTheCatalogueAtAll";
+
+export async function testCascadeDeleteSectionReapsRowsOutsideTheCatalogue(t) {
+  if (DB_BACKEND === "redis") {
+    t.equal(true, true, "skipped — nothing to reap in Postgres under NOMPANY_DB=redis");
+    return;
+  }
+  let row = null;
+  try {
+    // A section registry row whose KEY is not one SECTION_COLLECTIONS names
+    // — the exact shape of a parent section or an appendSection-minted one.
+    await editArr(S.sections(P1T4_S), (all) => ({
+      next: [...all, {
+        id: P1FIX1_SEC, studioId: P1T4_S, key: "p1fix1-not-a-catalogue-key",
+        name: "Fix round 1 regression", parentId: null, enabled: true,
+        sortOrder: all.length, settings: {}, createdAt: new Date().toISOString(),
+      }],
+    }));
+
+    row = await addRow(P1T4_S, P1FIX1_SEC, P1FIX1_COL, { name: "outside the catalogue" });
+    const before = await pgReadCol(P1T4_S, P1FIX1_SEC, P1FIX1_COL);
+    t.equal(before.length, 1, "the row landed in Postgres before the cascade runs");
+
+    const removed = await cascadeDeleteSection(P1T4_S, P1FIX1_SEC);
+    t.equal(removed, true, "cascadeDeleteSection reports true the first time");
+
+    const after = await pgReadCol(P1T4_S, P1FIX1_SEC, P1FIX1_COL);
+    t.equal(after.length, 0, "the row is gone from Postgres even though its collection is not in SECTION_COLLECTIONS");
+    row = null;
+
+    const sectionsAfter = await readArr(S.sections(P1T4_S));
+    t.equal(sectionsAfter.some((s) => s.id === P1FIX1_SEC), false, "the section row is gone from the Redis registry too");
+
+    const removedAgain = await cascadeDeleteSection(P1T4_S, P1FIX1_SEC);
+    t.equal(removedAgain, false, "a re-run reports false (already gone) rather than erroring");
+    const afterRerun = await pgReadCol(P1T4_S, P1FIX1_SEC, P1FIX1_COL);
+    t.equal(afterRerun.length, 0, "and Postgres is still empty after the re-run — idempotent, not merely repeatable");
+  } finally {
+    // Best-effort: only fires if an assertion above threw before the cascade
+    // itself got to clean things up.
+    if (row) await pgDeleteRow(P1T4_S, P1FIX1_SEC, P1FIX1_COL, row.id).catch(() => {});
+    await editArr(S.sections(P1T4_S), (all) => ({ next: all.filter((s) => s.id !== P1FIX1_SEC) })).catch(() => {});
   }
 }
 
@@ -756,16 +838,13 @@ export async function testKilledConnectionDoesNotCrashTheProcess(t) {
 
 // ---- Task 4: the row primitives --------------------------------------------
 //
-// One tenant/section/collection bucket per test, scoped by NOMPANY_TEST_SESSION
-// so two agent sessions running this file at once (a real occurrence in this
-// repo — see the CLAUDE.md note on shared test namespaces) do not trip over
-// each other's rows in the same bucket. Every test cleans up everything it
-// wrote, in a finally block, because collection_rows is the live database and
-// this suite must leave it exactly as it found it — empty.
-const P1T4_SESSION = process.env.NOMPANY_TEST_SESSION || "p1t4";
-const P1T4_S = `st_${P1T4_SESSION}`;
-const P1T4_SEC = `sec_${P1T4_SESSION}`;
-const P1T4_COL = "widgets";
+// One tenant/section/collection bucket per test. Every test cleans up
+// everything it wrote, in a finally block, because collection_rows is the
+// live database and this suite must leave it exactly as it found it — empty.
+// (P1T4_SESSION/P1T4_S/P1T4_SEC/P1T4_COL themselves moved up near the top of
+// the file, scoped by NOMPANY_TEST_SESSION — declared early enough for the
+// fix-round-1 cascade test above, which is a top-level const and so, unlike
+// every function body in this file, cannot defer reading them until later.)
 
 export async function testKeyOrderSurvives(t) {
   const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "Acme", status: "Open" });
@@ -922,6 +1001,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testBackendDefaultsToRedis,
       testDispatcherParityRoundTrip,
       testDispatcherDisagreementNamesBothValues,
+      testCascadeDeleteSectionReapsRowsOutsideTheCatalogue,
     ];
     let totalFails = 0;
     for (const test of tests) {
