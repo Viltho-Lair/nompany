@@ -332,10 +332,15 @@ worse than none.)*
 **Waves 0–1 are complete; Gate A is green.** Wave 0 shipped (orphan-sweep guard,
 credential rate limiting, console session expiry, traffic-ingest bounds, media tenancy,
 security headers, bcrypt 12 with rehash-on-login, M-1 dead capabilities). Gate A shipped:
-139 golden responses over every surface, the 102-key permission matrix, hop counting, six
+153 golden responses over every surface, the 123-key permission matrix, hop counting, six
 architectural assertions, **per-route permission enforcement in every module**, **ESLint**
 (flat config + shrink-only warning budget), **observability** (request ids, per-request hop
 counts), and CI enforcing all of it.
+
+Both of those numbers have moved once already — 139 goldens and 102 keys before the
+fifteen-section restructure. They are stated here as MEASURED (`ls tests/goldens | wc -l`, and
+the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted from memory is
+a pass condition nobody can check.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
 service code ✅, goldens unchanged at 139 ✅, hops ≤2 for the studio route and 3 for sales
