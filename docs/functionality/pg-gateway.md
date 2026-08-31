@@ -162,18 +162,20 @@ Stated in words, because a silent gap reads as a finished feature.
 - **There is no authentication wiring** (plan Task 4): no Workload Identity pool, no
   provider for Vercel's OIDC issuer, no service account, no IAM binding. The service
   trusts whoever reaches it.
-- **It has never been deployed** (plan Task 6), and there is **no container build** — no
-  Dockerfile, no Artifact Registry image, no Cloud Run service. `cloudbuild.googleapis.com`
-  is not enabled.
-- **The deploy command in `docs/superpowers/plans/2026-09-01-pg-gateway-cloud-setup.md`
-  will not work as written, and that is worth reading before anyone runs it.** It says
-  `gcloud run deploy --source=services/pg-gateway`, which uploads only that directory —
-  but the whole point of this design is that the guards are **shared** with the app, so
-  the service imports `../../src/platform/db/sqlGuards.ts` and would not find it. The
-  build context has to be the repository root (with the service's Dockerfile naming the
-  two paths it needs), or the guards have to be vendored at build time, which reintroduces
-  the drift the sharing exists to prevent. `--source` also needs `cloudbuild.googleapis.com`,
-  which the implementation plan states is not enabled. None of this is decided.
+- **It has never been deployed** (plan Task 6): no Artifact Registry image, no Cloud Run
+  service. There IS now a `Dockerfile`, but **it has never been built** — Docker is not
+  installed on the machine that wrote it — so it is a plan for an image rather than a
+  working one. It bundles with esbuild from the repository root, which is what lets the
+  container drop `start.mjs`'s loader hook (see `src/container-entry.ts`).
+  `cloudbuild.googleapis.com` is still not enabled, and the image path does not need it.
+- **The container installs no init process and the service handles no SIGTERM.** Node runs
+  as PID 1 in that image, where it gets no default signal handling, and Cloud Run sends
+  SIGTERM before evicting an instance. Until the service installs a handler (or the image
+  gains `--init`), an eviction can cut a transaction short rather than draining it.
+- **The runbook's deploy step has been corrected since this was written.** It used to say
+  `gcloud run deploy --source=services/pg-gateway`, which uploads only that directory and
+  therefore could not see the shared guards the service imports. It now builds an image
+  with the repository root as the build context, which is the only shape that works.
 - **That same deploy command sets no environment variables**, and this service refuses to
   start without `PG_GATEWAY_INSTANCE`, `PG_GATEWAY_DB_USER` and `PG_GATEWAY_DB_NAME`.
   Refusing is the correct behaviour — nothing is hardcoded — but the command needs a

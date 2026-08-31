@@ -115,11 +115,47 @@ Ingress **internal**, and never `--allow-unauthenticated`. An unauthenticated ga
 remote SQL execution endpoint against every tenant at once — it is the single worst failure
 this design can produce, and one flag is the difference.
 
+**`--source=services/pg-gateway` does NOT work, and the reason is the whole point of the
+design.** The service imports `../../../src/platform/db/sqlGuards` and `pgClientGuard`,
+because a guard duplicated into the service is a guard that drifts from the one it mirrors.
+`--source` uploads only the directory it is given, so the build would fail on those two
+imports. The build context must be the **repository root**. (`--source` would also need
+`cloudbuild.googleapis.com`, which is not enabled.)
+
+So build an image with the repo root as context and push it to Artifact Registry:
+
+```bash
+gcloud artifacts repositories create nompany --repository-format=docker \
+  --location=me-central1 --project=nompany-application
+```
+
+```bash
+gcloud auth configure-docker me-central1-docker.pkg.dev
+```
+
+```bash
+docker build -f services/pg-gateway/Dockerfile \
+  -t me-central1-docker.pkg.dev/nompany-application/nompany/pg-gateway:v1 .
+```
+
+The trailing `.` is the build context and is load-bearing — it is what puts `src/platform/db`
+inside the image alongside the service.
+
+```bash
+docker push me-central1-docker.pkg.dev/nompany-application/nompany/pg-gateway:v1
+```
+
+Then deploy that image. **The service refuses to boot without its three required variables**,
+and equally refuses to boot if `PGPASSWORD`, `PG_GATEWAY_DB_PASSWORD` or `DATABASE_URL` is
+set — a password reaching this service at all means something has gone wrong with the IAM
+design, so it fails loudly rather than quietly using one:
+
 ```bash
 gcloud run deploy pg-gateway \
-  --source=services/pg-gateway \
+  --image=me-central1-docker.pkg.dev/nompany-application/nompany/pg-gateway:v1 \
   --region=me-central1 \
   --service-account=pg-gateway@nompany-application.iam.gserviceaccount.com \
+  --set-env-vars="PG_GATEWAY_INSTANCE=nompany-application:me-central1:nompany,PG_GATEWAY_DB_USER=pg-gateway@nompany-application.iam,PG_GATEWAY_DB_NAME=nompany,PG_GATEWAY_IP_TYPE=PRIVATE" \
   --network=default --subnet=default --vpc-egress=private-ranges-only \
   --ingress=internal --no-allow-unauthenticated \
   --project=nompany-application
@@ -157,6 +193,9 @@ was enabled on 31/08/2026 to evaluate it as an alternative and rejected (no bind
 
 - **None of this has been run.** Every command above is written from the API contracts and
   the real OIDC claims, not from a successful execution.
+- **There is no Dockerfile yet.** Step 5 names `services/pg-gateway/Dockerfile`; writing it
+  is outstanding, and it should bundle rather than copy, so the `start.mjs` loader hook that
+  currently resolves the extensionless `./keys` import can go away.
 - **No rollback procedure is written.** Reverting is `PG_TRANSPORT=direct`, but with the
   public IP already removed there is no direct path from Vercel at all, so the real rollback
   is `NOMPANY_DB=redis`.
