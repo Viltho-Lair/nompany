@@ -129,6 +129,51 @@ async function run<T>(client: Pool | PoolClient, text: string, params: readonly 
   return { rows: res.rows as T[], rowCount: res.rowCount ?? 0 };
 }
 
+// ---- the process-crash guard (fix round 2, Critical) -----------------------
+//
+// pool.connect() checks a client OUT of pg-pool's own bookkeeping, and
+// pg-pool REMOVES ITS OWN idle-error listener the moment that happens
+// (`_acquireClient`, node_modules/pg-pool/index.js) — restoring it only when
+// the client is released. So for the ENTIRE time withTenant/pgTx hold a
+// client, that client has NO listener on 'error' at all unless one is
+// attached here. Node's default behaviour for an EventEmitter 'error' event
+// with zero listeners is to THROW, uncaught, on the process itself — not to
+// fail the one request. `pgQuery` never hits this because `pool.query(...)`
+// internally wraps a `client.once('error', onError)` of its own; only the
+// two direct-`connect()` paths were exposed.
+//
+// This is not an exotic failure. Cloud SQL performs maintenance and
+// failover, the Auth Proxy restarts, an idle connection gets reaped, a
+// network blips — every one of those terminates a held connection exactly
+// this way, typically while the connection is momentarily idle between
+// queries (no in-flight query to reject through the normal error path).
+//
+// The guard returns a promise that REJECTS the instant the client errors, so
+// whatever `await` withTenant/pgTx is blocked on can be raced against it and
+// give up rather than hang forever on a connection that will never answer —
+// and a `hadError()` flag so the caller skips a doomed ROLLBACK attempt on a
+// connection already known to be dead.
+function guardAgainstConnectionError(client: PoolClient): {
+  errored: Promise<never>;
+  hadError: () => unknown;
+  detach: () => void;
+} {
+  let captured: unknown;
+  let reject!: (e: unknown) => void;
+  const errored = new Promise<never>((_, rej) => { reject = rej; });
+  const onError = (err: Error) => { captured = err; reject(err); };
+  client.on("error", onError);
+  return {
+    errored,
+    hadError: () => captured,
+    // REMOVED BEFORE release, ALWAYS. A listener left attached leaks one per
+    // checkout for the life of the pool and eventually trips Node's
+    // max-listeners warning — a real symptom that reads as an unrelated bug
+    // and sends whoever hits it looking in the wrong place.
+    detach: () => client.removeListener("error", onError),
+  };
+}
+
 // THE TENANT-AGNOSTIC PATH. Fine for health-check work and anything that
 // never touches collection_rows; refused (see assertNotTenantScoped) the
 // moment it does, because this path sets no tenant and RLS would go quiet
@@ -146,23 +191,42 @@ export async function pgQuery<T = any>(text: string, params: readonly unknown[] 
  */
 export async function pgTx<T>(fn: (q: PgQueryFn) => Promise<T>): Promise<T> {
   const client = await getPool().connect();
+  // See guardAgainstConnectionError above: without this, a connection killed
+  // while held here (Cloud SQL maintenance, proxy restart, a network blip)
+  // emits an unlistened 'error' and crashes the whole process, not just this
+  // transaction.
+  const guard = guardAgainstConnectionError(client);
   let failure: unknown;
   try {
-    await client.query({ text: "BEGIN" });
-    const q: PgQueryFn = (text, params = []) => {
-      assertNotTenantScoped(text, "pgTx");
-      return run(client, text, params);
-    };
-    const out = await fn(q);
-    await client.query({ text: "COMMIT" });
-    return out;
+    const work = (async () => {
+      await client.query({ text: "BEGIN" });
+      const q: PgQueryFn = (text, params = []) => {
+        assertNotTenantScoped(text, "pgTx");
+        return run(client, text, params);
+      };
+      const out = await fn(q);
+      await client.query({ text: "COMMIT" });
+      return out;
+    })();
+    // If `guard.errored` wins the race below, `work` is left running and may
+    // reject on its own later (its BEGIN/query/COMMIT chain still pending on
+    // a socket that will never answer) — attach a no-op handler now so that
+    // eventual rejection never surfaces as an unhandled promise rejection.
+    work.catch(() => {});
+    return await Promise.race([work, guard.errored]);
   } catch (e) {
     failure = e;
-    // ROLLBACK failing too (a dead connection) must not mask the original
-    // error — swallow it and let the caller see what actually went wrong.
-    await client.query({ text: "ROLLBACK" }).catch(() => {});
+    // A connection that already emitted 'error' cannot be trusted to run
+    // another query — attempting ROLLBACK on it would just add a second,
+    // confusing failure for a connection release(err) below destroys anyway.
+    if (!guard.hadError()) {
+      // ROLLBACK failing too (a dead connection) must not mask the original
+      // error — swallow it and let the caller see what actually went wrong.
+      await client.query({ text: "ROLLBACK" }).catch(() => {});
+    }
     throw e;
   } finally {
+    guard.detach();
     // release(err) ON ANY ERROR PATH, NOT A BARE release(). Fix round 1: a
     // `query_timeout` rejects the client-side promise without the server
     // aborting or the connection dying (see the statement_timeout/query_timeout
@@ -192,6 +256,17 @@ export async function pgTx<T>(fn: (q: PgQueryFn) => Promise<T>): Promise<T> {
  * Task 1 calls this from nowhere — no schema is applied here. It exists now
  * so Task 2's migration runner has a door to call instead of reaching for
  * pgQuery and hitting the guard, or opening a second pool of its own.
+ *
+ * UNGUARDED BY DESIGN, TRUSTED BY CONVENTION ONLY, TODAY. Nothing currently
+ * stops a service module from importing this directly and running an
+ * arbitrary query against collection_rows in production with no tenant set —
+ * the only thing standing between that and this export is that nobody would
+ * reach for a function named "schema query" to do it. Fix-round-2 review
+ * flagged this as a loophole to close, not to build on: Task 2 is expected to
+ * add a DDL-only assertion here (refusing any statement that is not
+ * CREATE/ALTER/DROP/COMMENT), narrowing this door to what its name promises.
+ * Noted here now so the next reader knows that constraint is coming rather
+ * than assuming the current permissiveness is the intended final shape.
  */
 export async function pgSchemaQuery<T = any>(text: string, params: readonly unknown[] = []): Promise<PgResult<T>> {
   return run<T>(getPool(), text, params);
@@ -275,24 +350,48 @@ export async function withTenant<T>(tenantId: string, fn: (q: PgQueryFn) => Prom
   }
 
   const client = await getPool().connect();
+  // See guardAgainstConnectionError above: a client held across a whole
+  // request (which is exactly what withTenant does) has no error listener at
+  // all once checked out of the pool — without this, a connection killed
+  // underneath a held tenant transaction (Cloud SQL maintenance, a proxy
+  // restart, a network blip) crashes the entire process, taking every
+  // tenant's in-flight request down with it, not just this one.
+  const guard = guardAgainstConnectionError(client);
   let failure: unknown;
   try {
-    await client.query({ text: "BEGIN" });
-    await client.query({
-      text: "SELECT set_config('nompany.tenant_id', $1, true)",
-      values: [tenantId],
-    });
-    // No assertNotTenantScoped in this closure: this IS the mechanism the
-    // guard exists to require callers to go through.
-    const q: PgQueryFn = (text, params = []) => run(client, text, params);
-    const out = await tenantContext.run({ tenantId, q }, () => fn(q));
-    await client.query({ text: "COMMIT" });
-    return out;
+    const work = (async () => {
+      await client.query({ text: "BEGIN" });
+      await client.query({
+        text: "SELECT set_config('nompany.tenant_id', $1, true)",
+        values: [tenantId],
+      });
+      // No assertNotTenantScoped in this closure: this IS the mechanism the
+      // guard exists to require callers to go through.
+      const q: PgQueryFn = (text, params = []) => run(client, text, params);
+      const out = await tenantContext.run({ tenantId, q }, () => fn(q));
+      await client.query({ text: "COMMIT" });
+      return out;
+    })();
+    // If the connection dies while `work` is between queries — the exact
+    // window the reviewer's repro hit — `work` is left suspended on a socket
+    // that will never answer and may reject on its own well after
+    // `guard.errored` has already won the race. A no-op catch here keeps
+    // that eventual rejection from surfacing as an unhandled promise
+    // rejection once nothing is awaiting `work` directly any more.
+    work.catch(() => {});
+    return await Promise.race([work, guard.errored]);
   } catch (e) {
     failure = e;
-    await client.query({ text: "ROLLBACK" }).catch(() => {});
+    // A connection that already emitted 'error' is in unknown state and
+    // cannot be trusted to run ROLLBACK — release(err) below destroys it
+    // either way, so attempting one would only add a second, misleading
+    // failure to the log for a connection already being torn down.
+    if (!guard.hadError()) {
+      await client.query({ text: "ROLLBACK" }).catch(() => {});
+    }
     throw e;
   } finally {
+    guard.detach();
     // release(err) on any error path — see the identical comment in pgTx.
     // This is the exact path Critical 1's leak was reached through: a
     // query_timeout (or any other mid-transaction failure) must destroy this

@@ -268,6 +268,58 @@ export async function testReentrantWithTenantForADifferentTenantFailsFast(t) {
   t.equal(elapsedMs < 1000, true, `failed in ${elapsedMs}ms, well under the ~5.6s stall it replaces`);
 }
 
+// ---- fix round 2, Critical: a killed connection must not crash the process
+
+export async function testKilledConnectionDoesNotCrashTheProcess(t) {
+  // THE ASSERTION THAT WOULD HAVE CAUGHT THE ORIGINAL BUG. pool.connect()
+  // takes a client out of pg-pool's own bookkeeping, and pg-pool removes ITS
+  // OWN idle-error listener the moment that happens — so for the whole time
+  // withTenant holds this client, an unlistened 'error' event is one dropped
+  // network packet away. Node's default behaviour for that is to throw,
+  // uncaught, ON THE PROCESS — which this very test process would not
+  // survive to report a result if the guard were missing or reverted.
+  //
+  // The kill is real, not simulated, and terminates ONLY a backend this test
+  // itself opened: `pg_backend_pid()` is read from inside the very
+  // transaction under test, and `pg_terminate_backend` is issued from a
+  // second, separate connection this test also opens (via pgQuery, the same
+  // shared pool) — never a connection this test did not create. Confirmed
+  // empirically (a throwaway script, not committed) that `viltho` may
+  // terminate its own role's backends and that the held connection then
+  // emits TWO 'error' events in sequence (57P01 "terminating connection due
+  // to administrator command", then a generic "Connection terminated
+  // unexpectedly") — guardAgainstConnectionError's plain `.on` (not `.once`)
+  // is written to tolerate exactly that.
+  const pool = _poolForTests();
+  await pgQuery("SELECT 1");
+  const before = pool.totalCount;
+
+  let caughtError = null;
+  await withTenant("tenant-killed-p1t1fix2", async (q) => {
+    const { rows } = await q("SELECT pg_backend_pid() AS pid");
+    const pid = rows[0].pid;
+    await pgQuery("SELECT pg_terminate_backend($1)", [pid]);
+    // The termination lands as a socket-level event on the HELD connection
+    // asynchronously; give it time to arrive while this callback is idle
+    // (no query in flight) — the exact window pg-pool leaves unguarded, and
+    // the window the original crash was found in.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return "should never get here — the connection is dead by now";
+  }).catch((e) => { caughtError = e; });
+
+  // Reaching this line at all is itself part of the proof: it means the
+  // process survived the killed connection instead of dying uncaught.
+  t.equal(caughtError instanceof Error, true,
+    "the caller receives a real rejected error instead of the process crashing uncaught");
+  t.equal(pool.totalCount, before,
+    "the pool's connection count returned to where it started (the dead client was destroyed cleanly, not left dangling)");
+
+  // The pool must still be usable afterward — a corrupted pool that merely
+  // failed to crash the process would still be a real regression.
+  const { rows } = await pgQuery("SELECT 1 AS one");
+  t.equal(rows[0].one, 1, "the pool answers a fresh query normally after surviving the killed connection");
+}
+
 function makeHarness() {
   let fails = 0;
   return {
@@ -302,6 +354,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testPgTxAlsoDestroysAFailedConnection,
       testReentrantWithTenantForTheSameTenantIsAbsorbed,
       testReentrantWithTenantForADifferentTenantFailsFast,
+      testKilledConnectionDoesNotCrashTheProcess,
     ];
     let totalFails = 0;
     for (const test of tests) {
