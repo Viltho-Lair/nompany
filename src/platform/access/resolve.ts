@@ -76,7 +76,6 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   hr: ["hr.dashboard"],
   finance: ["finance.dashboard"],
   "field-service": ["fieldService.dashboard"],
-  "quality-hse": ["qualityHse.dashboard"],
 
   "crm-sales-tickets": ["crmSales.tickets"],
   "crm-sales-clients": ["crmSales.clients"],
@@ -326,6 +325,16 @@ const anyKey = (access: PermissionSet, sectionKey: string, suffixes: readonly st
 //     answer to "why doesn't sectionViewable show this", not a partial one.
 export const NO_SCREEN_YET = [
   "tendering", "manufacturing", "assets", "reports",
+  // QUALITY & HSE JOINS THE PLACEHOLDERS, and it is the one that reads oddly,
+  // because it is not new — it is what is LEFT of Quality once the controlled
+  // document register moved to Engineering & Documents, where the blueprint
+  // puts it. What remains is a name: no children, no collection of its own
+  // (permits stay on the field-service screen that draws them), and no case in
+  // the studio router. Its dashboard right went with the rest — a summary of
+  // nothing is a right nobody can exercise. ITPs, NCRs, audits, incidents and
+  // the permit register arrive together in the phase that builds them, and this
+  // entry goes when they do.
+  "quality-hse",
   "administration", "administration-members", "administration-master", "administration-settings",
 ] as const;
 

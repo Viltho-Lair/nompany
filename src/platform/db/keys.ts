@@ -614,17 +614,14 @@ export const SECTION_COLLECTIONS = {
   // schedule collection.
   "finance-payables": ["bills"],
   "finance-assets": ["fixedAssets"],
-  // field-service — was Operations. Permits and locations moved out (to
-  // Quality & HSE and Administration respectively); the shift rota is what
-  // stayed, still a tab of the main screen rather than a sub-section.
-  "field-service": ["shifts"],
+  // field-service — was Operations. All three stay: permits and locations are
+  // tabs of this screen, and the shift rota is the third. The blueprint puts
+  // permits under Quality & HSE and locations under Administration's master
+  // data, and they will go there — in the phase that BUILDS those screens.
+  // Moving them now would strand real rows in sections that render nothing.
+  "field-service": ["shifts", "permits", "locations"],
   // One last-known position per person, never a movement trail.
   "field-service-tracking": ["trackingPositions"],
-  // quality-hse — permits to work were an Operations tab and are now a QHSE
-  // register.
-  "quality-hse": ["permits"],
-  // administration — locations was Operations' tab, carried over unchanged.
-  administration: ["locations"],
   // tasks
   tasks: ["tasks"],
 };

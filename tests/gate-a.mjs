@@ -223,7 +223,33 @@ console.log("== the permission matrix: one key grants exactly itself");
   // (engagements.delete) and taking the safety off one (engagements.lock)
   // became rights of their own — deliberately two keys and not one, because
   // holding the power to delete must not include the power to unlock.
-  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 124, String(ALL_PERMISSIONS.length));
+  //
+  // 123 after the fifteen-section restructure, and the arithmetic is worth
+  // stating because the restructure looks like it should have moved this number
+  // far more than it did.
+  //
+  // Renaming an area does not change the count — `sales.tickets.*` became
+  // `crmSales.tickets.*`, four keys either way — and the sections that MOVED
+  // took their areas with them: Vendors carried `inventory.vendors` to
+  // `procurement.suppliers`, AWB carried `inventory.awb` to
+  // `logistics.shipments`, quotations and the document register likewise. A
+  // restructure that only re-homes things is arithmetically invisible here, and
+  // that is the correct result.
+  //
+  // So the delta is ONE, and it is a subtraction: `qualityHse.dashboard` went.
+  // What remains of Quality & HSE once the controlled-document register moved
+  // to Engineering & Documents is a name with no children, no collection and no
+  // screen, so a dashboard right over it summarised nothing (invariant 16). It
+  // returns with the section.
+  //
+  // Two others were minted and removed again inside this phase, which is why
+  // this line read 130, then 128, before settling: `procurement.dashboard` and
+  // `logistics.dashboard` (neither root renders a summary — the SCREENS are the
+  // child sections, which have their own areas), and `administration.master`
+  // (declared for a locations screen that does not exist; `locations` no longer
+  // moves, so the right had nothing to gate). Each was a section's NAME on the
+  // blueprint mistaken for a screen existing.
+  ok("the catalogue is the size we last agreed", ALL_PERMISSIONS.length === 123, String(ALL_PERMISSIONS.length));
 
   const leaks = [];
   const missing = [];
@@ -253,16 +279,26 @@ console.log("== the permission matrix: one key grants exactly itself");
   ok("the Admin role holds everything", asAdmin.size === ALL_PERMISSIONS.length);
 
   // Overrides: allow adds, deny removes, deny wins because it is applied last.
+  //
+  // SPELLED IN TODAY'S VOCABULARY. These fixtures said `sales.tickets.view`
+  // until the fifteen-section restructure renamed the area to
+  // `crmSales.tickets`, and the rename turned each of them into an assertion
+  // about the wrong thing: resolveGrant carries a pre-rename spelling FORWARD
+  // through the restructure map, so the set genuinely holds
+  // `crmSales.tickets.view` and `.has("sales.tickets.view")` is false. The
+  // migration fallback has its own coverage in tests/restructure.mjs; what
+  // this block is for is that one key grants exactly itself, and that has to
+  // be asked in the names the catalogue actually uses.
   const withAllow = effectivePermissions({
-    studio, collaborator: { role: "member", roleIds: [], overrides: { allow: ["sales.tickets.view"] } }, roles: [],
+    studio, collaborator: { role: "member", roleIds: [], overrides: { allow: ["crmSales.tickets.view"] } }, roles: [],
   });
-  ok("a personal exception can add one right", withAllow.has("sales.tickets.view") && withAllow.size === 1);
+  ok("a personal exception can add one right", withAllow.has("crmSales.tickets.view") && withAllow.size === 1);
   const withDeny = effectivePermissions({
     studio,
-    collaborator: { role: "member", roleIds: ["r"], overrides: { deny: ["sales.tickets.view"] } },
-    roles: [{ id: "r", permissions: ["sales.tickets.view", "sales.tickets.edit"] }],
+    collaborator: { role: "member", roleIds: ["r"], overrides: { deny: ["crmSales.tickets.view"] } },
+    roles: [{ id: "r", permissions: ["crmSales.tickets.view", "crmSales.tickets.edit"] }],
   });
-  ok("...and can take one away from a role", !withDeny.has("sales.tickets.view") && withDeny.has("sales.tickets.edit"));
+  ok("...and can take one away from a role", !withDeny.has("crmSales.tickets.view") && withDeny.has("crmSales.tickets.edit"));
 
   // PINNED BEHAVIOUR, not an endorsement: the wildcard returns before overrides
   // are applied, so a personal deny cannot remove anything from an Admin. If
@@ -270,17 +306,17 @@ console.log("== the permission matrix: one key grants exactly itself");
   // itself.
   const adminDenied = effectivePermissions({
     studio,
-    collaborator: { role: "member", roleIds: [ADMIN_ROLE_ID], overrides: { deny: ["sales.tickets.view"] } },
+    collaborator: { role: "member", roleIds: [ADMIN_ROLE_ID], overrides: { deny: ["crmSales.tickets.view"] } },
     roles: [{ id: ADMIN_ROLE_ID, wildcard: true }],
   });
-  ok("a deny does not bite an Admin (current behaviour, pinned)", adminDenied.has("sales.tickets.view"));
+  ok("a deny does not bite an Admin (current behaviour, pinned)", adminDenied.has("crmSales.tickets.view"));
 
   // An unknown key cannot be stored, whatever a request says.
   const junk = effectivePermissions({
     studio, collaborator: { role: "member", roleIds: ["r"] },
-    roles: [{ id: "r", permissions: ["sales.tickets.view", "not.a.real.permission", "../../etc/passwd"] }],
+    roles: [{ id: "r", permissions: ["crmSales.tickets.view", "not.a.real.permission", "../../etc/passwd"] }],
   });
-  ok("an unrecognised key is dropped", junk.size === 1 && junk.has("sales.tickets.view"), String(junk.size));
+  ok("an unrecognised key is dropped", junk.size === 1 && junk.has("crmSales.tickets.view"), String(junk.size));
 
   // Every area's ladder stores what it grants, rather than computing it.
   const laddered = AREAS.filter((a) => a.verbs.includes("edit"));
@@ -329,7 +365,7 @@ console.log("== the architecture, asserted rather than remembered");
   //
   // Verbs are checked at AREA level because resolution composes them —
   // `access.has(`${area}.${verb}`)` in sectionViewable — so the literal
-  // "sales.tickets.view" legitimately appears nowhere. EXTRAS are always
+  // "crmSales.tickets.view" legitimately appears nowhere. EXTRAS are always
   // spelled out, which is exactly why they are the ones that die quietly.
   const orphanAreas = AREAS.filter((a) => !seenIn(a.key, "permissions.js").length);
   ok("every area is referenced by something that enforces it",
@@ -697,22 +733,42 @@ console.log("== the architecture, asserted rather than remembered");
 
   // ---- 8. every section is gated by an area -------------------------------
   //
-  // A section key with no entry in SECTION_AREAS is treated as a heading with
-  // nothing to protect, so sectionViewable returns `!own` and shows it to
-  // EVERYONE — and a leaf shown to everyone drags its parent visible too. That
-  // is a tenant-visibility leak (invariant 2), and it is one line away at all
-  // times: add a sub-section to keys.ts, forget the mapping, and a no-role user
-  // sees the department. finance-ledger did exactly this for one commit; the
-  // goldens caught it, and now so does this, by name rather than by diff.
+  // A section key with no entry in SECTION_AREAS used to be treated as a
+  // heading with nothing to protect: sectionViewable returned `!own` and showed
+  // it to EVERYONE, and a leaf shown to everyone dragged its parent visible
+  // too. That was a tenant-visibility leak (invariant 2), one line away at all
+  // times — add a sub-section to keys.ts, forget the mapping, and a no-role
+  // user sees the department. finance-ledger did exactly this for one commit;
+  // the goldens caught it, and then so did this, by name rather than by diff.
+  //
+  // THE LEAK IS CLOSED AT THE SOURCE NOW, and this check has to say what it
+  // still buys or it is a line nobody can act on. The fifteen-section
+  // restructure added seven more sections shaped like Main — a heading with
+  // nothing under it — so sectionViewable stopped inferring "no areas, no
+  // children" as "nothing to protect" and now answers `false` for every such
+  // key except the home itself (NO_SCREEN_YET in platform/access/resolve.ts
+  // names them, and tests/restructure.mjs asserts the list is complete). An
+  // unmapped leaf therefore VANISHES rather than leaking — the opposite
+  // failure, and just as silent.
+  //
+  // So the question asked here is the one that still has teeth: does every
+  // section that shows something have a right behind it? Three answers are
+  // legitimate and each is checked rather than assumed — the section has its
+  // own areas; or it is a PARENT and delegates to children that have theirs
+  // (Procurement and Logistics are exactly this: their Suppliers and Shipments
+  // screens carry the rights, and neither root renders a dashboard of its own);
+  // or it is declared, out loud, as having no screen yet.
   {
     const { ALL_SECTION_KEYS } = await import("@/platform/db/keys");
-    const { SECTION_AREAS } = await import("@/platform/access/resolve");
+    const { SECTION_AREAS, NO_SCREEN_YET } = await import("@/platform/access/resolve");
     // `main` is the studio HOME — the one section that is a heading with nothing
-    // to protect, shown to every member by design. It is the sole legitimate
-    // ungated section; anything else here is the leak above.
-    const HEADINGS = new Set(["main"]);
-    const unmapped = ALL_SECTION_KEYS.filter((k) => !SECTION_AREAS[k] && !HEADINGS.has(k));
-    ok("every section key is gated by an area mapping (bar the home)", unmapped.length === 0, unmapped.join(", "));
+    // to protect, shown to every member by design.
+    const DECLARED = new Set(["main", ...NO_SCREEN_YET]);
+    const hasChildren = (key) => ALL_SECTION_KEYS.some((k) => k.startsWith(`${key}-`));
+    const unmapped = ALL_SECTION_KEYS.filter((k) =>
+      !SECTION_AREAS[k] && !DECLARED.has(k) && !hasChildren(k));
+    ok("every section key is gated by an area mapping, delegates to children, or says it has no screen",
+      unmapped.length === 0, unmapped.join(", "));
   }
 
   // ---- 9. the dashboard widget registry and the dashboards agree ----------
@@ -1022,6 +1078,20 @@ console.log("== sales: the module's whole surface, with data in it");
 
   // ---- somebody who may do exactly one thing -----------------------------
   // Built per case so a test never depends on a role another test edited.
+  // EVERY PERMISSION NAMED THROUGH THIS HELPER IS IN TODAY'S VOCABULARY, and
+  // the reason is worth stating once for all of gate A's fixtures. `createRole`
+  // cleans what it is given through `cleanPermissions`, which DROPS any key
+  // `isPermission` does not recognise — it does NOT run the restructure map,
+  // deliberately, because the map exists so an already-STORED grant keeps
+  // resolving, not so a fresh write may use a retired spelling. So a fixture
+  // still saying `sales.tickets.view` after the fifteen-section restructure
+  // stores an EMPTY role, default deny (invariant 4) takes over, and the
+  // person under test is refused everything — which surfaces as
+  // `{ error: "forbidden" }` from the context guard rather than from the
+  // service the case is about, i.e. as the wrong enforcement branch with the
+  // right-looking word in it. That is what happened to nine Quality goldens,
+  // the Technical lock/approve chain, `sales.allowed.client` and the
+  // engagements feed at once.
   const personWith = async (permissions, alias) => {
     const u = (await createUser({ email: `g-${alias}-${rand()}@test.invalid`, passwordHash: "x" })).user;
     const role = await createRole(studio.id, { name: `role-${alias}`, permissions });
@@ -1096,7 +1166,7 @@ console.log("== sales: the module's whole surface, with data in it");
     QUOTATIONS.GET, req(`/api/studios/${slug}/sales/quotations?id=quo_doesnotexist0000`), P));
 
   // ---- refusals: the two shapes, and why they differ ---------------------
-  const viewer = await personWith(["sales.tickets.view"], "salesviewer");
+  const viewer = await personWith(["crmSales.tickets.view"], "salesviewer");
   await signIn(viewer.id);
   await shot("sales.refused.readonly.ticket", await capture(
     TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: { title: "Nope", clientId, industry: "Commercial", deadline: "2026-12-03", serviceIds: [serviceId] } }), P));
@@ -1104,7 +1174,7 @@ console.log("== sales: the module's whole surface, with data in it");
     CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, { method: "POST", body: { name: "Nope Ltd" } }), P));
 
   // A SIBLING WRITE gets past the coarse gate and is refused by the service.
-  const clerk = await personWith(["sales.clients.view", "sales.clients.create"], "salesclerk");
+  const clerk = await personWith(["crmSales.clients.view", "crmSales.clients.create"], "salesclerk");
   await signIn(clerk.id);
   await shot("sales.refused.forbidden.ticket", await capture(
     TICKETS.POST, req(`/api/studios/${slug}/sales/tickets`, { method: "POST", body: { title: "Not mine to raise", clientId, industry: "Commercial", deadline: "2026-12-03", serviceIds: [serviceId] } }), P));
@@ -1180,7 +1250,8 @@ console.log("== technical: converting, locking, and the rights that are not bigg
   // ---- convert is its own right ------------------------------------------
   // Somebody who may EDIT an RFQ but was not given `convert`. They get past the
   // coarse gate — they hold a write in this module — and the service refuses.
-  const editor = await personWith(["technical.rfq.view", "technical.rfq.create", "technical.rfq.edit"], "techeditor");
+  const editor = await personWith(
+    ["engineeringDocs.rfq.view", "engineeringDocs.rfq.create", "engineeringDocs.rfq.edit"], "techeditor");
   await signIn(editor.id);
   await shot("technical.refused.convert", await capture(
     QUOTES.POST, req(`/api/studios/${slug}/technical/quotations`, { method: "POST", body: { rfqId } }), P));
@@ -1217,7 +1288,7 @@ console.log("== technical: converting, locking, and the rights that are not bigg
 
   // ---- lock is its own right too -----------------------------------------
   const pricer = await personWith(
-    ["technical.quotations.view", "technical.quotations.create", "technical.quotations.edit"], "techpricer");
+    ["crmSales.quotations.view", "crmSales.quotations.create", "crmSales.quotations.edit"], "techpricer");
   await signIn(pricer.id);
   await shot("technical.quotation.edited.bypricer", await capture(
     QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, title: "Boardroom refit — priced" } }), P));
@@ -1263,7 +1334,7 @@ console.log("== technical: converting, locking, and the rights that are not bigg
   // Unlock is a rarer right than lock: an editor who may lock still may not
   // reopen.
   const locker = await personWith(
-    ["technical.quotations.view", "technical.quotations.edit", "technical.quotations.lock"], "techlocker");
+    ["crmSales.quotations.view", "crmSales.quotations.edit", "crmSales.quotations.lock"], "techlocker");
   await signIn(locker.id);
   const noUnlock = await shot("technical.refused.unlock", await capture(
     QUOTES.PUT, req(`/api/studios/${slug}/technical/quotations`, { method: "PUT", body: { id: quotationId, locked: false } }), P));
@@ -2350,7 +2421,7 @@ console.log("== main: the engagement view — two NEW routes, and the safety pro
   await attachToTicketEngagement(studio.id, "invoice", invoiceId, ticketId);
 
   // A person who may see the screen and the Sales stage, nothing more.
-  const viewer = await personWith(["engagements.view", "sales.tickets.view"], "engviewer");
+  const viewer = await personWith(["engagements.view", "crmSales.tickets.view"], "engviewer");
   // A person who may see the screen and NO department stage at all.
   const blind = await personWith(["engagements.view"], "engblind");
 
@@ -2542,7 +2613,8 @@ console.log("== quality: four signatures, four rights, and nobody signs twice");
   // An author who may write the document and send it for review, and nothing
   // more. Refused at both signature steps, each naming a different right.
   const author = await personWith(
-    ["quality.documents.view", "quality.documents.create", "quality.documents.edit"], "qauthor");
+    ["engineeringDocs.register.view", "engineeringDocs.register.create",
+      "engineeringDocs.register.edit"], "qauthor");
   await signIn(author.user.id);
   const noReview = await shot("quality.refused.review", await move(docId, "review"));
   ok("editing a document does not entitle you to review it",
@@ -2553,8 +2625,8 @@ console.log("== quality: four signatures, four rights, and nobody signs twice");
   // then refused their own approval — not because of what they hold, but
   // because of who signed the line above.
   const both = await personWith(
-    ["quality.documents.view", "quality.documents.edit",
-      "quality.documents.review", "quality.documents.approve"], "qboth");
+    ["engineeringDocs.register.view", "engineeringDocs.register.edit",
+      "engineeringDocs.register.review", "engineeringDocs.register.approve"], "qboth");
   await signIn(both.user.id);
 
   const reviewed = await shot("quality.reviewed", await move(docId, "review"));
@@ -2583,7 +2655,7 @@ console.log("== quality: four signatures, four rights, and nobody signs twice");
   // Pinned, not fixed: changing the gate mid-Gate-A would move goldens recorded
   // to describe today. Recorded as M-15.
   const pureApprover = await personWith(
-    ["quality.documents.view", "quality.documents.approve"], "qpureapprover");
+    ["engineeringDocs.register.view", "engineeringDocs.register.approve"], "qpureapprover");
   await signIn(pureApprover.user.id);
   const lockedOut = await shot("quality.refused.approve.pureapprover", await move(docId, "approve"));
   ok("somebody granted only view+approve cannot reach the workflow at all (M-15, pinned)",
@@ -2592,7 +2664,8 @@ console.log("== quality: four signatures, four rights, and nobody signs twice");
   // So the working approver needs an authoring right they have no use for,
   // purely to get past the gate.
   const approver = await personWith(
-    ["quality.documents.view", "quality.documents.edit", "quality.documents.approve"], "qapprover");
+    ["engineeringDocs.register.view", "engineeringDocs.register.edit",
+      "engineeringDocs.register.approve"], "qapprover");
   await signIn(approver.user.id);
   const approved = await shot("quality.approved", await move(docId, "approve"));
   ok("a second pair of hands may approve it", approved.status === 200,
@@ -3248,7 +3321,12 @@ console.log("== the audit log: who did what");
     `${before.length} then ${after.length}`);
 
   const entry = after[after.length - 1];
-  ok("the entry names the action", entry?.action === "POST sales/clients", entry?.action);
+  // "crm-sales-clients", not "sales/clients": an audit action is `${method}
+  // ${spec.name}`, and the fifteen-section restructure renamed every route
+  // spec's `name` to the section key it serves (see the sales routes' specs).
+  // The audit trail is a log rather than a response, so no golden pins it —
+  // which is exactly why the expectation is written out here instead.
+  ok("the entry names the action", entry?.action === "POST crm-sales-clients", entry?.action);
   ok("...the studio it happened in", entry?.studioId === studio.id, entry?.studioId);
   ok("...and the status the caller was told", entry?.status === "201", entry?.status);
 
@@ -3348,7 +3426,7 @@ console.log("== one row, by the id a live event named");
   const nosy = (await createUser({ email: `g-nosy-${rand()}@test.invalid`, passwordHash: "x" })).user;
   const nosyRole = await createRole(studio.id, {
     name: `role-nosy-${rand()}`,
-    permissions: ["sales.clients.view"],
+    permissions: ["crmSales.clients.view"],
   });
   await addCollaborator(studio.id, { userId: nosy.id, alias: "Nosy", role: "member", roleIds: [nosyRole.id] });
 
@@ -3356,7 +3434,7 @@ console.log("== one row, by the id a live event named");
   ok("a viewer without the node's grant is refused",
     refused.status === 403 && refused.body?.error === "forbidden",
     `${refused.status} ${JSON.stringify(refused.body)}`);
-  ok("...and is told which grant it wanted", refused.body?.key === "sales.tickets.view",
+  ok("...and is told which grant it wanted", refused.body?.key === "crmSales.tickets.view",
     JSON.stringify(refused.body?.key));
 
   // A DELETED ROW IS A 404 AND THAT IS THE USEFUL ANSWER — `row.deleted` names
@@ -4183,7 +4261,7 @@ console.log("== F1 — a collaborator with no Sales right may still resolve a Sa
 // before the work started ("quotation must have full client fields similar to
 // creating sales ticket, Client, Contact Name, Position, Email, Phone, Site
 // Name, Country, City, Map Link") and consistent with the pre-existing design
-// — createTicket (sales.ts:950) has ALWAYS gated on sales.tickets.create alone
+// — createTicket (sales.ts:950) has ALWAYS gated on crmSales.tickets.create alone
 // and called this same helper on this same collection. See "F1" in
 // .superpowers/sdd/2026-08-28-client-belongs-to-the-engagement/progress.md for
 // the full ruling. This test exists so the NEXT reviewer reads that decision
@@ -4207,13 +4285,13 @@ console.log("== F1 — a collaborator with no Sales right may still resolve a Sa
     return u;
   };
 
-  // technical.quotations.view is here only so technicalContext's own section
+  // crmSales.quotations.view is here only so technicalContext's own section
   // guard (sectionViewable — "may this person open Technical at all") lets the
   // context build; the right under test is .create. No Sales permission of any
   // kind, not even a view, so a pass here cannot be mistaken for some other
   // permission covering it.
   const techOnly = await personWith(
-    ["technical.quotations.view", "technical.quotations.create"], "f1techonly");
+    ["crmSales.quotations.view", "crmSales.quotations.create"], "f1techonly");
   await signIn(techOnly.id);
 
   const techOnlyCtx = await technicalContext(techOnly, slug);

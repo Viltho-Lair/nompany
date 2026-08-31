@@ -555,7 +555,7 @@ console.log("\n== the handler is carried, never copied");
   // able to reopen one somebody declared finished.
   await updateQuotation(lockCtx, conv.quotation?.id, { locked: true });
   const memberTech = await technicalContext(member.user, slug);
-  ok("a Member does not hold unlock", !memberTech.access.has("technical.quotations.unlock"));
+  ok("a Member does not hold unlock", !memberTech.access.has("crmSales.quotations.unlock"));
 
   const empty = await submitTicketPo(await salesContext(owner, slug), { ticketId: made.ticket?.id });
   ok("...and evidence: neither a file nor a description is refused", empty.error === "evidence", JSON.stringify(empty));
@@ -897,13 +897,13 @@ console.log("\n== the handler is carried, never copied");
   // withheld, never blanked (spec §4, "What each person sees inside").
   const salesRole = await createRole(studio.id, {
     name: `Engager ${rand()}`,
-    permissions: ["engagements.view", "sales.tickets.view", "finance.payables.view"],
+    permissions: ["engagements.view", "crmSales.tickets.view", "finance.payables.view"],
   });
   const engager = await person("Engager", null);
   await updateCollaborator(studio.id, engager.collaborator.id, { roleIds: [salesRole.id] });
   const engagerAccess = (await studioContext(engager.user, slug)).access;
-  ok("the fixture role really does hold sales.tickets.view but not finance.cash.view",
-    engagerAccess.has("sales.tickets.view") && !engagerAccess.has("finance.cash.view"),
+  ok("the fixture role really does hold crmSales.tickets.view but not finance.cash.view",
+    engagerAccess.has("crmSales.tickets.view") && !engagerAccess.has("finance.cash.view"),
     JSON.stringify([...engagerAccess]));
 
   const engagerList = await listEngagements({ studio, access: engagerAccess });
@@ -942,8 +942,8 @@ console.log("\n== the handler is carried, never copied");
   const financeOnly = await person("FinanceOnly", null);
   await updateCollaborator(studio.id, financeOnly.collaborator.id, { roleIds: [financeOnlyRole.id] });
   const financeOnlyAccess = (await studioContext(financeOnly.user, slug)).access;
-  ok("the fixture role really does hold finance.cash.view but not sales.tickets.view",
-    financeOnlyAccess.has("finance.cash.view") && !financeOnlyAccess.has("sales.tickets.view"),
+  ok("the fixture role really does hold finance.cash.view but not crmSales.tickets.view",
+    financeOnlyAccess.has("finance.cash.view") && !financeOnlyAccess.has("crmSales.tickets.view"),
     JSON.stringify([...financeOnlyAccess]));
 
   const financeOnlyBlock = await engagementBlock({ studio, access: financeOnlyAccess }, engId);
@@ -1823,7 +1823,7 @@ console.log("\n== people: assignment cannot escalate");
   // Somebody who may edit people and nothing else — the case the check exists
   // for. An owner or an Admin already holds everything and can never trip it.
   await updateCollaborator(studio.id, member.collaborator.id, {
-    overrides: { allow: ["people.members.edit"], deny: [] },
+    overrides: { allow: ["administration.members.edit"], deny: [] },
   });
 
   await signInAs(member.user.id);
@@ -2695,7 +2695,7 @@ console.log("\n== HR: departments are sections, positions are roles");
   ok("...identified by section key, not a row id", departments.every((d) => /^[a-z-]+$/.test(d.id)),
     departments.map((d) => d.id).join(", "));
   ok("...and Main is not one of them", !departments.some((d) => d.id === "main"));
-  ok("...Sales is", departments.some((d) => d.id === "sales"), departments.map((d) => d.id).join(", "));
+  ok("...Sales is", departments.some((d) => d.id === "crm-sales"), departments.map((d) => d.id).join(", "));
 
   // The starter roles the studio ships with. Admin is the built-in wildcard —
   // not something anybody created, and not HR's to rename or delete.
@@ -2719,7 +2719,7 @@ console.log("\n== HR: departments are sections, positions are roles");
 
   // A department is checked against the SECTIONS now, so a made-up one is
   // refused where an HR row id used to be looked up.
-  const placed = await saveEmployment(hr, member.collaborator.id, { departmentId: "sales" });
+  const placed = await saveEmployment(hr, member.collaborator.id, { departmentId: "crm-sales" });
   ok("somebody can be placed in a section", placed.ok === true, JSON.stringify(placed));
   const nonsense = await saveEmployment(hr, member.collaborator.id, { departmentId: "not-a-section" });
   ok("...but not in one that does not exist", nonsense.error === "department", JSON.stringify(nonsense));
@@ -2775,7 +2775,7 @@ console.log("\n== HR: departments are sections, positions are roles");
   // dead id from before the cascade existed reads as "no role yet" rather than
   // the meaningless "holds no role, which does not include this".
   const ghost = { collaborator: { alias: "Ghost", roleIds: ["role_gone_for_good"] }, roles: await listRoles(studio.id) };
-  const said = explain(ghost, "sales.tickets.view");
+  const said = explain(ghost, "crmSales.tickets.view");
   ok("a dead role id explains as having no role", said.allowed === false && said.reason.includes("no role yet"), said.reason);
 
   const freeToGo = await removeHrRole(hr, made.role?.id);
@@ -2912,32 +2912,39 @@ console.log("\n== a studio that predates a section still gets it");
 {
   const key = S.sections(studio.id);
   const before = await readArr(key);
-  // Make this studio look like one created before Quality existed.
-  await writeArr(key, before.filter((x) => !String(x.key).startsWith("quality")));
+  // Make this studio look like one created before Engineering & Documents
+  // existed. It used to be Quality that was torn out here, and the
+  // fifteen-section restructure made that the wrong choice rather than merely a
+  // renamed one: what is left of Quality & HSE has NO children — the controlled
+  // document register moved to Engineering & Documents — so tearing it out
+  // could no longer exercise the half of this guard that matters, which is that
+  // a planted parent brings its sub-sections with it. Engineering & Documents
+  // has children, so it can.
+  await writeArr(key, before.filter((x) => !String(x.key).startsWith("engineering-docs")));
   ok("the section is genuinely gone first",
-    !(await readArr(key)).some((x) => x.key === "quality"));
+    !(await readArr(key)).some((x) => x.key === "engineering-docs"));
 
   // A plain read no longer heals — it returns exactly what is stored (R2).
   const unhealed = await listSections(studio.id);
-  ok("a plain read does NOT plant on the read path any more", !unhealed.some((x) => x.key === "quality"));
+  ok("a plain read does NOT plant on the read path any more", !unhealed.some((x) => x.key === "engineering-docs"));
 
   const healed = await plantMissingSections(studio.id);
-  ok("the backfill plants the parent", healed.some((x) => x.key === "quality"));
-  ok("...and its sub-section", healed.some((x) => x.key === "quality-documents"));
-  const parent = healed.find((x) => x.key === "quality");
-  const child = healed.find((x) => x.key === "quality-documents");
+  ok("the backfill plants the parent", healed.some((x) => x.key === "engineering-docs"));
+  ok("...and its sub-section", healed.some((x) => x.key === "engineering-docs-register"));
+  const parent = healed.find((x) => x.key === "engineering-docs");
+  const child = healed.find((x) => x.key === "engineering-docs-register");
   ok("...pointing at the parent it belongs to", child?.parentId === parent?.id);
   ok("...and placed in the nav where it belongs, not at the end",
-    healed.findIndex((x) => x.key === "quality") < healed.findIndex((x) => x.key === "tasks"));
+    healed.findIndex((x) => x.key === "engineering-docs") < healed.findIndex((x) => x.key === "tasks"));
 
   // Planting must be idempotent, or every run mints a new SectionID and the
   // section's own data is orphaned behind it.
   const again = await plantMissingSections(studio.id);
   ok("running the backfill again plants nothing new", again.length === healed.length);
-  ok("...and keeps the same SectionID", again.find((x) => x.key === "quality").id === parent.id);
+  ok("...and keeps the same SectionID", again.find((x) => x.key === "engineering-docs").id === parent.id);
   // And a subsequent plain read now sees the planted section, since it is stored.
   const afterRead = await listSections(studio.id);
-  ok("a plain read sees the backfilled section", afterRead.some((x) => x.key === "quality"));
+  ok("a plain read sees the backfilled section", afterRead.some((x) => x.key === "engineering-docs"));
 }
 
 // ============================================================================
@@ -2954,8 +2961,8 @@ console.log("\n== the working copy, and the revision that freezes it");
   await updateCollaborator(studio.id, member.collaborator.id, {
     overrides: {
       allow: [
-        "quality.documents.view", "quality.documents.create", "quality.documents.edit",
-        "quality.documents.review", "quality.documents.approve",
+        "engineeringDocs.register.view", "engineeringDocs.register.create", "engineeringDocs.register.edit",
+        "engineeringDocs.register.review", "engineeringDocs.register.approve",
       ],
       deny: [],
     },
@@ -3058,7 +3065,7 @@ console.log("\n== the working copy, and the revision that freezes it");
   const flow = await workflowFor(await qualityContext(owner, slug), id, () => true);
   ok("an issued document offers withdrawal and nothing else",
     flow.moves.map((x) => x.action).join(",") === "withdraw", flow.moves.map((x) => x.action).join(","));
-  const asViewer = await workflowFor(await qualityContext(owner, slug), id, (p) => p !== "quality.documents.obsolete");
+  const asViewer = await workflowFor(await qualityContext(owner, slug), id, (p) => p !== "engineeringDocs.register.obsolete");
   ok("...and offers nothing at all to somebody without the right",
     asViewer.moves.length === 0, JSON.stringify(asViewer.moves));
 
@@ -3155,7 +3162,7 @@ console.log("\n== fields are carried, not copied, and only where they are allowe
     // Sales right is a fact about this fixture and not an assumption about what
     // a starter role happens to contain.
     await updateCollaborator(studio.id, nobody.collaborator.id, {
-      overrides: { allow: ["quality.documents.view"], deny: [] },
+      overrides: { allow: ["engineeringDocs.register.view"], deny: [] },
     });
     const viewerCtx = await qualityContext(nobody.user, slug);
     ok("fixture: a reader with Quality but not Sales", !viewerCtx.error, viewerCtx.error || "");
@@ -3423,7 +3430,7 @@ console.log("\n== a document reaches as far as the graph goes, and no further");
   // THE BUG STEP 6 INTRODUCED, kept closed. Reach with no journey to walk was
   // read as nothing to check, so a document bound to a sales ticket offered
   // Sales' own fields to somebody holding nothing in Sales.
-  const noSales = (p) => p !== "sales.tickets.view";
+  const noSales = (p) => p !== "crmSales.tickets.view";
   ok("a zero-hop reach is still permission-checked",
     reachOf("salesTicket", "salesTicket", noSales) === null);
   ok("...so its own fields are withheld too",
@@ -3972,7 +3979,7 @@ console.log("\n== Main rollup: the write path increments the rollup");
   // The fixture studio is shared across the whole suite, so earlier blocks
   // (createTicket etc.) have already bumped this section's field today —
   // assert the DELTA this block causes, not an absolute value.
-  const sec = await getSectionByKey(studio.id, "sales-tickets");
+  const sec = await getSectionByKey(studio.id, "crm-sales-tickets");
   const today = utcDay();
   const field = aggField(sec.id, today);
   const before = await hGetAll(S.mainAgg(studio.id));
@@ -4005,7 +4012,7 @@ console.log("\n== Main rollup: the reconcile rebuilds from live rows and fails c
 {
   const prevSecret = process.env.CRON_SECRET;
   process.env.CRON_SECRET = "test-secret";
-  const sec = await getSectionByKey(studio.id, "sales-tickets");
+  const sec = await getSectionByKey(studio.id, "crm-sales-tickets");
   const today = utcDay();
   // Seed three creates today, one far outside the 90-day horizon.
   await addRow(studio.id, sec.id, "salesTickets", { title: "1", createdAt: `${today}T01:00:00Z` });
@@ -4062,7 +4069,7 @@ console.log("\n== Main rollup: the oracle — rollup equals on-read, to the unit
   const prevSecret = process.env.CRON_SECRET;
   const prevFlag = process.env.MAIN_ROLLUP_READ;
   process.env.CRON_SECRET = "test-secret";
-  const sec = await getSectionByKey(studio.id, "sales-tickets");
+  const sec = await getSectionByKey(studio.id, "crm-sales-tickets");
   const today = utcDay();
   await addRow(studio.id, sec.id, "salesTickets", { title: "x", createdAt: `${today}T04:00:00Z` });
   const reconciled = await MAIN_ROLLUP(
@@ -4095,7 +4102,7 @@ console.log("\n== Main rollup: visibility survives aggregation");
   const prevSecret = process.env.CRON_SECRET;
   const prevFlag = process.env.MAIN_ROLLUP_READ;
   process.env.CRON_SECRET = "test-secret";
-  const sec = await getSectionByKey(studio.id, "sales-tickets");
+  const sec = await getSectionByKey(studio.id, "crm-sales-tickets");
   await addRow(studio.id, sec.id, "salesTickets", { title: "secret", createdAt: `${utcDay()}T05:00:00Z` });
   const reconciled = await MAIN_ROLLUP(
     new Request("http://x/api/cron/main-rollup", { headers: { authorization: "Bearer test-secret" } }),
@@ -4109,7 +4116,7 @@ console.log("\n== Main rollup: visibility survives aggregation");
   const agg = await readAggregate(noRoleCtx, utcDay());
   process.env.MAIN_ROLLUP_READ = prevFlag ?? "";
   ok("a member without the section gets no rollup activity for it",
-    !agg.activity.some((a) => a.section === "sales-tickets"), JSON.stringify(agg.activity));
+    !agg.activity.some((a) => a.section === "crm-sales-tickets"), JSON.stringify(agg.activity));
   process.env.CRON_SECRET = prevSecret;
 }
 
@@ -4118,7 +4125,7 @@ console.log("\n== Main executive: the awaiting-you queue orders by age");
 {
   const items = [
     { kind: "task", section: "tasks", id: "t2", label: "Approve PO", at: "2026-08-20T00:00:00" },
-    { kind: "quotation", section: "technical-quotations", id: "q1", label: "Q-1001", at: "2026-08-24T00:00:00" },
+    { kind: "quotation", section: "crm-sales-quotations", id: "q1", label: "Q-1001", at: "2026-08-24T00:00:00" },
     { kind: "task", section: "tasks", id: "t1", label: "Review RFQ", at: "2026-08-10T00:00:00" },
   ];
   const ranked = rankQueue(items);
@@ -4129,8 +4136,8 @@ console.log("\n== Main executive: the awaiting-you queue orders by age");
 
 // ============================================================================
 console.log("\n== Shared shell: drill-down deep-links into the department screen");
-ok("bare link is the section screen", drillHref("acme", "sales-tickets") === "/acme/sales-tickets", drillHref("acme", "sales-tickets"));
-ok("a filter rides as a query", drillHref("acme", "sales-tickets", { status: "open" }) === "/acme/sales-tickets?status=open");
+ok("bare link is the section screen", drillHref("acme", "crm-sales-tickets") === "/acme/crm-sales-tickets", drillHref("acme", "crm-sales-tickets"));
+ok("a filter rides as a query", drillHref("acme", "crm-sales-tickets", { status: "open" }) === "/acme/crm-sales-tickets?status=open");
 
 // ============================================================================
 console.log("\n== Shared shell: fiscal-aware preset ranges");
@@ -4311,13 +4318,13 @@ console.log("== service-actions: settings.edit without inventory view must never
   // A role holding ONLY studio.settings.edit — no inventory.* permission at all,
   // so inventoryContext(user, slug) for this person resolves { error: "forbidden" }.
   const settingsOnly = await createRole(studio.id, {
-    name: `SettingsOnly ${rand()}`, permissions: ["studio.settings.edit"],
+    name: `SettingsOnly ${rand()}`, permissions: ["administration.settings.edit"],
   });
   const gap = await person("GapAdmin", null);
   await updateCollaborator(studio.id, gap.collaborator.id, { roleIds: [settingsOnly.id] });
   const gapCtx = await studioContext(gap.user, slug);
-  ok("the fixture role really does hold settings.edit but not inventory view",
-    gapCtx.access.has("studio.settings.edit") && !gapCtx.access.has("inventory.items.view"),
+  ok("the fixture role really does hold administration.settings.edit but not inventory view",
+    gapCtx.access.has("administration.settings.edit") && !gapCtx.access.has("inventory.items.view"),
     JSON.stringify([...gapCtx.access]));
 
   await signInAs(gap.user.id);
@@ -4611,19 +4618,19 @@ console.log("\n== what Nova volunteers, before anybody asks");
     const mk = (kind, section, weight) => ({ id: kind, kind, tone: "info", section, href: null, vars: {}, weight });
     const rows = [
       mk("invoice.overdue", "finance-cash", 350),
-      mk("ticket.noRfq", "sales-tickets", 120),
-      mk("quotation.noItems", "technical-quotations", 230),
+      mk("ticket.noRfq", "crm-sales-tickets", 120),
+      mk("quotation.noItems", "crm-sales-quotations", 230),
     ];
     ok("with no view, the loudest thing is said first",
       COPY.rankForView(rows, "")[0].kind === "invoice.overdue");
     ok("on a screen, that screen's own section outranks a louder one elsewhere",
-      COPY.rankForView(rows, "sales-tickets")[0].kind === "ticket.noRfq");
+      COPY.rankForView(rows, "crm-sales-tickets")[0].kind === "ticket.noRfq");
     ok("a sibling section still beats an unrelated department",
       COPY.rankForView(rows, "finance-payables")[0].kind === "invoice.overdue");
     ok("nothing is dropped by the view — only reordered",
-      COPY.rankForView(rows, "sales-tickets").length === rows.length);
+      COPY.rankForView(rows, "crm-sales-tickets").length === rows.length);
     ok("a department is the key up to its first dash",
-      COPY.departmentOf("technical-quotations") === "technical" && COPY.departmentOf("tasks") === "tasks");
+      COPY.departmentOf("crm-sales-quotations") === "crm-sales" && COPY.departmentOf("tasks") === "tasks");
   }
 
   // ---- the words -----------------------------------------------------------

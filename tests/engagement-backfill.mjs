@@ -113,9 +113,9 @@ export async function testBackfillStudio() {
   assert.ok(!created.error, `fixture studio: ${created.error}`);
   const sid = created.studio.id;
 
-  const ticketsSec = await getSectionByKey(sid, "sales-tickets");
-  const clientsSec = await getSectionByKey(sid, "sales-clients");
-  const quotationsSec = await getSectionByKey(sid, "technical-quotations");
+  const ticketsSec = await getSectionByKey(sid, "crm-sales-tickets");
+  const clientsSec = await getSectionByKey(sid, "crm-sales-clients");
+  const quotationsSec = await getSectionByKey(sid, "crm-sales-quotations");
   const projectsSec = await getSectionByKey(sid, "projects-list");
   const cashSec = await getSectionByKey(sid, "finance-cash");
 
@@ -179,9 +179,9 @@ export async function testParity() {
   assert.ok(!created.error, `fixture studio: ${created.error}`);
   const sid = created.studio.id;
 
-  const ticketsSec = await getSectionByKey(sid, "sales-tickets");
-  const clientsSec = await getSectionByKey(sid, "sales-clients");
-  const quotationsSec = await getSectionByKey(sid, "technical-quotations");
+  const ticketsSec = await getSectionByKey(sid, "crm-sales-tickets");
+  const clientsSec = await getSectionByKey(sid, "crm-sales-clients");
+  const quotationsSec = await getSectionByKey(sid, "crm-sales-quotations");
   const projectsSec = await getSectionByKey(sid, "projects-list");
   const cashSec = await getSectionByKey(sid, "finance-cash");
   const tasksSec = await getSectionByKey(sid, "tasks");
@@ -260,15 +260,15 @@ export async function testVocabularyParity() {
   assert.ok(!created.error, `fixture studio: ${created.error}`);
   const sid = created.studio.id;
 
-  const ticketsSec = await getSectionByKey(sid, "sales-tickets");
-  const clientsSec = await getSectionByKey(sid, "sales-clients");
-  const rfqSec = await getSectionByKey(sid, "technical-rfq");
-  const quotationsSec = await getSectionByKey(sid, "technical-quotations");
+  const ticketsSec = await getSectionByKey(sid, "crm-sales-tickets");
+  const clientsSec = await getSectionByKey(sid, "crm-sales-clients");
+  const rfqSec = await getSectionByKey(sid, "engineering-docs-rfq");
+  const quotationsSec = await getSectionByKey(sid, "crm-sales-quotations");
   const projectsSec = await getSectionByKey(sid, "projects-list");
   const cashSec = await getSectionByKey(sid, "finance-cash");
   const sheetsSec = await getSectionByKey(sid, "inventory-sheets");   // owns materialOrders + projectSheets
   const inventorySec = await getSectionByKey(sid, "inventory");      // owns deliveries
-  const awbSec = await getSectionByKey(sid, "inventory-awb");
+  const awbSec = await getSectionByKey(sid, "logistics-shipments");
   const tasksSec = await getSectionByKey(sid, "tasks");
   const overtimesSec = await getSectionByKey(sid, "projects-overtimes");
 

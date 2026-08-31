@@ -61,9 +61,9 @@ export function testPermissionKey() {
 // blanked at every call site that filters by this list.
 export function testVisibleStageTypes() {
   // A Sales-only reader sees the ticket stage and nothing of Finance's.
-  const salesOnly = new Set(["engagements.view", "sales.tickets.view"]);
+  const salesOnly = new Set(["engagements.view", "crmSales.tickets.view"]);
   const types = visibleStageTypes(salesOnly);
-  assert.ok(types.includes("ticket"), "sales.tickets.view reveals the ticket stage");
+  assert.ok(types.includes("ticket"), "crmSales.tickets.view reveals the ticket stage");
   assert.ok(!types.includes("invoice"), "no finance right, no invoice stage");
   assert.ok(!types.includes("project"), "no projects right, no project stage");
 

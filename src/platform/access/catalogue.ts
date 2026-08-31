@@ -51,10 +51,21 @@ export const ADMIN_ROLE_ID = "role_admin";
 // any one ticket screen could also read the whole department's funnel, pipeline
 // value and win rate. A dashboard is a summary of everything underneath it,
 // which is frequently the most sensitive view in the module and exactly the one
-// a studio wants to withhold from the people doing the work. Procurement and
-// Logistics join the list for the same reason as the other six: each is a new
-// section that already backs a real screen of its own — Suppliers, Shipments —
-// so its landing page needs the same right any other module's does.
+// a studio wants to withhold from the people doing the work.
+//
+// PROCUREMENT AND LOGISTICS ARE NOT ON THIS LIST, and were for one commit. The
+// argument made for them was that each backs a real screen — Suppliers,
+// Shipments — but those screens are the CHILD sections
+// (`procurement-suppliers`, `logistics-shipments`) and each already answers to
+// its own area. Neither PARENT has a dashboard: the studio router has no
+// `screenKey === "procurement"` / `"logistics"` case, so both roots fall
+// through to the generic SectionDashboard, which renders a heading and its
+// subsection cards and gates on nothing. So `procurement.dashboard.view` and
+// `logistics.dashboard.view` were two rights nobody could exercise — invariant
+// 16, and exactly what "every area is referenced by something that enforces
+// it" caught: neither had a SECTION_AREAS entry, because there was no screen
+// for one to gate. They come back on the day either root renders a summary of
+// its own, along with the SECTION_AREAS lines that make them bite.
 //
 // VIEW ONLY, deliberately. A dashboard writes nothing — everything on it is
 // derived from records whose own areas already guard them — so create/edit/
@@ -83,7 +94,7 @@ export const ADMIN_ROLE_ID = "role_admin";
 // children as having nothing to protect: Quality & HSE would have shown for
 // everybody.
 //
-// STILL GENERATED, not written out. One row per module is the point — the ten
+// STILL GENERATED, not written out. One row per module is the point — the eight
 // are the same right with a different subject — and spelling them out to
 // satisfy the type system would trade the reason for the convenience. The
 // tuple below carries the literal types instead, and the union at the bottom
@@ -92,9 +103,8 @@ export const ADMIN_ROLE_ID = "role_admin";
 const DASHBOARD_MODULES = [
   ["crmSales", "CRM & Sales"], ["engineeringDocs", "Engineering & Documents"],
   ["projects", "Projects"], ["inventory", "Inventory & Warehouse"],
-  ["procurement", "Procurement & Subcontracting"], ["hr", "Human Resources"],
+  ["hr", "Human Resources"],
   ["finance", "Finance & Accounting"], ["fieldService", "Field Operations & Service"],
-  ["logistics", "Logistics & Fleet"], ["qualityHse", "Quality & HSE"],
 ] as const;
 type DashboardModule = (typeof DASHBOARD_MODULES)[number][0];
 
@@ -280,17 +290,16 @@ const OWN_AREAS = [
 
   { key: "administration.members", group: "Administration & Settings", label: "People & access", verbs: ["view", "edit"] },
   { key: "administration.settings", group: "Administration & Settings", label: "Studio settings", verbs: ["view", "edit"] },
-  // NEW. Locations were an Operations tab, guarded (mid-restructure) by
-  // operations.tracking alongside permits and shifts — see restructure.ts's
-  // COLLECTION_MOVES, which moves the `locations` collection itself to
-  // Administration. This is the right the locations screen will answer to once
-  // it is rebuilt under administration-master, "Master data" (keys.ts's
-  // SECTION_DEFS); until that rewire lands the screen still enforces the old
-  // key, which is exactly the gap testNoRetiredPermissionKeySurvivesInSource
-  // exists to surface and a later task to close — declaring the right here
-  // first is what keeps the catalogue and the section definitions in lockstep
-  // while that happens.
-  { key: "administration.master", group: "Administration & Settings", label: "Master data", verbs: ["view", "create", "edit", "delete"] },
+  // NO `administration.master`. It was declared for the locations screen that
+  // Master data will own — and the declaration outlived its own justification
+  // within one commit. `locations` no longer moves in this phase (see
+  // restructure.ts's COLLECTION_MOVES): the collection stays on the
+  // field-service screen that draws it, because `administration-master` renders
+  // nothing and moving rows into a section nobody can open strands them. With
+  // no screen and no collection, the right had nothing to gate — invariant 16,
+  // the third time in this restructure that a section's NAME on the blueprint
+  // was mistaken for a screen existing. It comes back with the screen.
+
 
   // THE ENGAGEMENT VIEW. One key, and deliberately unscoped: what a person sees
   // inside an engagement is decided stage by stage by the permission each stage

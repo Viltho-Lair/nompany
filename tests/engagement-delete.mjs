@@ -25,8 +25,8 @@ const sid = () => `s_${Date.now().toString(36)}_${Math.random().toString(36).sli
 // A reader who can see the whole spine. engagementBlock takes the resolved
 // permission set directly (it is not a section, so there is no module context).
 const FULL = new Set([
-  "engagements.view", "sales.tickets.view", "technical.rfq.view",
-  "technical.quotations.view", "projects.list.view",
+  "engagements.view", "crmSales.tickets.view", "engineeringDocs.rfq.view",
+  "crmSales.quotations.view", "projects.list.view",
 ]);
 const cardOf = (block, type) => (block.engagement?.cards || []).find((c) => c.type === type);
 const FULL_PLUS_TASKS = new Set([...FULL, "tasks.board.view"]);
@@ -212,7 +212,7 @@ export async function testDeletionImpactNamesOnlyWhatTheReaderMaySee() {
 
   // A Technical-only reader holds no Sales and no Projects right. Those stages
   // must be ABSENT from the answer — not zeroed, not counted, not named.
-  const technicalOnly = new Set(["technical.quotations.view"]);
+  const technicalOnly = new Set(["crmSales.quotations.view"]);
   const narrow = await deletionImpact(
     { studio: { id: s }, access: technicalOnly }, "quotation", { id: "quo_5", ticketId: "tk_5" },
   );
@@ -412,7 +412,7 @@ export async function testEngagementImpactSplitsDeletedFromSurviving() {
   // The safety property, again: a reader with no Tasks right is never told a
   // task exists on this deal — not as a survivor, not as a count.
   const noTasks = await engagementImpact(
-    { studio: { id: s }, access: new Set(["engagements.view", "sales.tickets.view"]) }, engId);
+    { studio: { id: s }, access: new Set(["engagements.view", "crmSales.tickets.view"]) }, engId);
   assert.deepEqual((noTasks.impact?.survives || []).map((x) => x.type), [],
     "no tasks right, no task named");
   assert.deepEqual((noTasks.impact?.deletes || []).map((x) => x.type), ["ticket"],

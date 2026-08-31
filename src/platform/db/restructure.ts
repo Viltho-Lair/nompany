@@ -103,7 +103,20 @@ export const PERMISSION_KEY_MAP: Record<string, string> = {
   "technical.settings": "engineeringDocs.settings",
   "technical.dashboard": "engineeringDocs.dashboard",
   "quality.documents": "engineeringDocs.register",
-  "quality.dashboard": "qualityHse.dashboard",
+  // NO ENTRY FOR `quality.dashboard`, and its absence is the point. Every other
+  // line here carries a stored grant FORWARD; this one has nowhere to carry it
+  // to. Quality's dashboard summarised the controlled-document register, and
+  // that register is Engineering & Documents' now — what is left of Quality &
+  // HSE renders nothing until its own phase builds it, so the dashboard right
+  // was removed rather than renamed (catalogue.ts, DASHBOARD_MODULES).
+  //
+  // The consequence is deliberate and worth stating plainly: a role that stored
+  // `quality.dashboard.view` loses it, because mapPermissionKey leaves the key
+  // untouched and isPermission then drops it. That is the one place in this
+  // restructure where a grant is intentionally NOT preserved — everywhere else
+  // a dropped grant is the bug this map exists to prevent. It is correct here
+  // because the capability itself is gone: keeping the right alive would be a
+  // right nobody could exercise (invariant 16). It returns with the screen.
   "operations.planner": "projects.planner",
   "operations.schedule": "fieldService.schedule",
   "operations.tracking": "fieldService.tracking",
@@ -162,8 +175,16 @@ export const COLLECTION_MOVES: { collection: string; from: string; to: string }[
   { collection: "awbAirlines",             from: "inventory-awb",        to: "logistics-shipments" },
   // Plans are studio-scoped, not section-scoped, so the planner's restructure is
   // a permission and navigation move only; the collection has no entry here.
-  { collection: "permits",                 from: "operations",           to: "quality-hse" },
-  { collection: "locations",               from: "operations",           to: "administration" },
+  // PERMITS AND LOCATIONS DELIBERATELY DO NOT MOVE, and the reason is the whole
+  // discipline of this phase: a restructure re-homes a collection only into a
+  // section that can actually OPEN it. Permits to work belong to Quality & HSE
+  // and locations to Administration's master data on the blueprint's map, and
+  // both will go there — but `quality-hse` and `administration-master` render
+  // nothing today (no case for either in the studio router), so moving them now
+  // would leave real rows alive, correct, and reachable by nobody. Stranded data
+  // is worse than data in an unfashionable place: nothing fails, so nothing gets
+  // fixed. They stay on the field-service screen that draws them and travel in
+  // the phase that builds their new homes.
 ];
 
 const selfMap = (m: Record<string, string>) => {

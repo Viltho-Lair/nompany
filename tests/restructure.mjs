@@ -33,6 +33,8 @@ const {
   mapSectionKey, mapPermissionKey,
 } = await import("../src/platform/db/restructure.ts");
 const { SECTION_DEFS, ALL_SECTION_KEYS } = await import("../src/platform/db/keys.ts");
+// Dynamic for the same reason as every import in this file — see above.
+const { departmentOf } = await import("../src/shared/studio/insights.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
 const { effectivePermissions, scopeFor, escalates, sectionViewable, SECTION_AREAS, NO_SCREEN_YET } = await import("../src/platform/access/resolve.ts");
 const { sectionName } = await import("../src/shared/studio/sections.ts");
@@ -86,9 +88,9 @@ export async function testTheFiveMovesAreDeclared(t) {
   const moved = COLLECTION_MOVES.map((m) => m.collection).sort();
   t.equal(
     moved.join(","),
-    ["awbAirlines", "awbShipments", "generatedDocuments", "locations", "permits",
-     "qualityAcknowledgements", "qualityAudit", "qualityDocuments",
-     "qualityRevisions", "qualityTypes", "quotations"].sort().join(","),
+    ["awbAirlines", "awbShipments", "generatedDocuments", "qualityAcknowledgements",
+     "qualityAudit", "qualityDocuments", "qualityRevisions", "qualityTypes",
+     "quotations"].sort().join(","),
     "every collection that changes owner is declared",
   );
 }
@@ -701,6 +703,28 @@ function gitGrepLines(execFileSync, file, patterns) {
 const NON_SECTION_TARGETS = ["people", "access", "documentation", "engagements"];
 const isKnownRouteTarget = (key) => ALL_SECTION_KEYS.includes(key) || NON_SECTION_TARGETS.includes(key);
 
+// COMPOUND_ROOTS IS A SECOND LIST THAT MUST AGREE WITH SECTION_DEFS, and its own
+// comment says a hand-kept table is a list to forget to extend — while being one.
+// It cannot be derived: shared/ holds pure values with no dependants and may not
+// reach into platform/db, which is the rule that keeps a key builder out of a
+// landing-page bundle. So the duplication is deliberate and the drift is what
+// gets asserted instead.
+//
+// What breaks without it is quiet: departmentOf falls through to a first-dash
+// split, so a new root spelled "field-ops-x" answers "field" — a department this
+// product does not have — and every insight for it sorts under nothing. No error,
+// no failing screen, just an insight that never surfaces where it belongs.
+export async function testCompoundRootsCoversEveryDashedRoot(t) {
+  const roots = SECTION_DEFS.map((d) => d.key).filter((k) => k.includes("-"));
+  for (const root of roots) {
+    t.equal(
+      departmentOf(`${root}-child`) === root,
+      true,
+      `departmentOf resolves a child of the compound root "${root}" to "${root}" — add it to COMPOUND_ROOTS in shared/studio/insights.ts`,
+    );
+  }
+}
+
 export async function testEveryContextualSectionKeyLiteralExists(t) {
   const { execFileSync } = await import("node:child_process");
   const bad = [];
@@ -857,6 +881,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEmptySectionsDoNotRender,
       testEveryKeyWithNothingToShowIsDeclared,
       testEveryContextualSectionKeyLiteralExists,
+      testCompoundRootsCoversEveryDashedRoot,
     ];
     let totalFails = 0;
     for (const test of tests) {

@@ -169,11 +169,35 @@ export function moduleContext<C extends ModuleContext = ModuleContext>(spec: Mod
 
     const keys = sections.map((s) => s.key);
 
+    // A MODULE'S OWN SUB-SECTIONS NO LONGER ALL LIVE UNDER ITS KEY.
+    //
+    // sectionViewable and sectionManageable find a section's children by KEY
+    // PREFIX — `crm-sales-tickets` is a child of `crm-sales` because it starts
+    // with it — and until the fifteen-section restructure that was the same set
+    // as `sub`, so nothing had to say which it meant. It is not any more:
+    // Engineering & Documents still SERVES quotations (technical.ts declares
+    // `quotations: "crm-sales-quotations"`) while the section itself moved to
+    // CRM & Sales, and Inventory still serves Suppliers and Shipments after
+    // `procurement-suppliers` and `logistics-shipments` moved out of its
+    // namespace. Asking only about the root's prefix-children meant somebody
+    // granted exactly `crmSales.quotations.*` could not build technicalContext
+    // at all — refused `forbidden` by this guard, before any service the grant
+    // was about, so the right was one nothing could exercise (invariant 16).
+    //
+    // `sub` is the module's own declaration of what it serves, so it is what
+    // both questions are asked over. `foreign` deliberately is NOT: those are
+    // another department's sections, and holding Sales must not open Technical.
+    const subSections = Object.values(sub)
+      .map((key) => pick(byKey, key))
+      .filter((s): s is Section => s !== null && s.key !== root);
+
     // THE VIEW GUARD, asked of the permission set rather than of legacy grants.
     // Reading grants here is what once showed a section in the nav to anybody
     // holding a role but no grant — every new hire, once roles were in use —
     // and then refused them when they opened it.
-    if (!sectionViewable(access, section.key, keys)) return { error: "forbidden" };
+    const mayOpen = sectionViewable(access, section.key, keys)
+      || subSections.some((s) => sectionViewable(access, s.key, keys));
+    if (!mayOpen) return { error: "forbidden" };
 
     const out = { studio, collaborator, access, roles, sections, section } as ModuleContext;
 
@@ -187,7 +211,14 @@ export function moduleContext<C extends ModuleContext = ModuleContext>(spec: Mod
     // Seeing the module at all is the parent grant; the per-collection grants
     // are asked of the sub-section that owns each one, which is what makes a
     // sub-section grant mean something rather than being shadowed by its parent.
-    out.canManage = sectionManageable(access, section.key, keys);
+    //
+    // OVER THE DECLARED SUB-SECTIONS TOO, for the same reason the view guard
+    // above is. `canManage` is what the route wrapper's `{ write: true }` asks,
+    // so a prefix-only answer refused the quotation pricer's own edit as
+    // "read-only" the moment quotations moved out from under Engineering &
+    // Documents' key — a refusal naming the wrong reason, on a right they held.
+    out.canManage = sectionManageable(access, section.key, keys)
+      || subSections.some((s) => sectionManageable(access, s.key, keys));
     for (const name of flags) {
       const target = (out[`${name}Section`] as Section) || section;
       const Name = name[0].toUpperCase() + name.slice(1);
