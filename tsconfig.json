@@ -38,8 +38,10 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
+  "//exclude": "services/ is EXCLUDED because it is not this application. Each folder under it is a separately deployed program with its own package.json, its own dependencies and its own tsconfig — services/pg-gateway needs @google-cloud/cloud-sql-connector, which the app neither has nor should have. `include` here is `**/*.ts`, so without this line the app's typecheck grades a service against dependencies that are not in the app's node_modules and fails on imports that are perfectly correct where they live. `next build` was never affected (Next compiles only what src/app imports); `tsc` was.",
   "exclude": [
     "node_modules",
-    "tests"
+    "tests",
+    "services"
   ]
 }
