@@ -138,10 +138,21 @@ is separately reachable.
 
 `commandCount.ts` distinguishes `queries` (a caller's own statement) from `envelope` (the
 `BEGIN`/`SET LOCAL`/`COMMIT` bookkeeping), and its header notes that "envelope's cost tracks
-how many SEPARATE `withTenant` scopes a route happens to open." Under this design **one
-`withTenant` scope is exactly one HTTPS round trip**, so `envelope` becomes the network cost
-without inventing a new measurement. Hop counts are part of the contract (CLAUDE.md), and
-this extends that contract to the gateway rather than creating an unmeasured hop.
+how many SEPARATE `withTenant` scopes a route happens to open."
+
+**This section first said "one `withTenant` scope is exactly one HTTPS round trip". That is
+wrong, and it was wrong when written.** D2 splits `pgUpdateRow` across two calls precisely
+because a function patch cannot cross the wire, and `pgAddRows` reserves its sequence values
+in a separate statement from the insert — so for those two a scope is *two* round trips, not
+one. Left as written, `envelope` would have meant "round trips, approximately", which is the
+kind of counter that reads as a measurement and is really an estimate.
+
+So `envelope` is counted **per HTTPS call**, not per scope. Each call genuinely is one remote
+`BEGIN`/`set_config`/`COMMIT`, so the name still describes what it counts, and `envelope`
+equals round trips exactly rather than nearly. `queries` stays byte-identical to the direct
+transport, which is what keeps Gate A's existing ceilings meaningful across both wires. Hop
+counts are part of the contract (CLAUDE.md), and this extends that contract to the gateway
+rather than creating an unmeasured hop or a second counter beside the one that already works.
 
 ## D5 — CI and local keep the direct transport
 
