@@ -241,9 +241,70 @@ export async function pgTx<T>(fn: (q: PgQueryFn) => Promise<T>): Promise<T> {
   }
 }
 
+// ---- the DDL-only guard (Task 2) -------------------------------------------
+//
+// pgSchemaQuery is UNGUARDED BY TENANT on purpose — schema statements have no
+// tenant — but "not tenant-scoped" must not silently mean "does anything a
+// caller likes". Fix-round-2 review flagged exactly that: nothing stopped a
+// service module importing this instead of pgQuery and running an arbitrary
+// SELECT against collection_rows in production with no tenant set, which is a
+// cross-tenant read with no guard at all standing between it and the data. A
+// hole trusted by convention ("nobody would reach for a function named
+// 'schema query' to do that") is still a hole; the fix is to make the door
+// physically unable to do anything but what its name promises.
+//
+// So every statement in the text must start with CREATE, ALTER, DROP or
+// COMMENT (after stripping `--` line comments, which is the only comment
+// style pgSchema.sql uses) — a bare SELECT, INSERT, UPDATE or DELETE is
+// refused before it ever reaches Postgres, DDL keyword or not.
+//
+// DROP remains on the allowed-keyword list — `DROP POLICY IF EXISTS` /
+// `CREATE POLICY` is how pgSchema.sql replaces a policy, and that pair is the
+// only supported way to change one — but DROP TABLE, DROP DATABASE and
+// TRUNCATE are refused UNCONDITIONALLY, regardless of an IF EXISTS or any
+// other qualifier. That refusal is deliberately not "DDL-only plus whatever
+// the caller says it needs": invariant 17 requires two confirmations *in the
+// same exchange* before anything of that shape runs against this database,
+// which is a property of a conversation this function has no way to observe,
+// so the only safe default is to never let it through this door at all. If a
+// legitimate need for one of the three ever arrives, that is a decision for a
+// person to make deliberately, not a statement this function should recognise
+// and allow.
+const DDL_KEYWORD_RE = /^(CREATE|ALTER|DROP|COMMENT)\b/i;
+const FORBIDDEN_DESTRUCTIVE_RE = /\b(DROP\s+TABLE|DROP\s+DATABASE|TRUNCATE)\b/i;
+
+function stripSqlLineComments(sql: string): string {
+  // Line comments only (`-- …` to end of line) — pgSchema.sql has no block
+  // comments, and correctly stripping `/* … */` would need to respect string
+  // literals, which nothing this function is asked to check ever requires.
+  return sql.replace(/--[^\n]*/g, "");
+}
+
+function assertDdlOnly(text: string): void {
+  const stripped = stripSqlLineComments(text);
+  if (FORBIDDEN_DESTRUCTIVE_RE.test(stripped)) {
+    throw new Error(
+      "pg: pgSchemaQuery refuses DROP TABLE / DROP DATABASE / TRUNCATE unconditionally, even " +
+        `guarded by IF EXISTS — see invariant 17.\nStatement: ${text.slice(0, 200)}`,
+    );
+  }
+  const statements = stripped.split(";").map((s) => s.trim()).filter(Boolean);
+  if (statements.length === 0) {
+    throw new Error("pg: pgSchemaQuery was given no statements to run");
+  }
+  for (const stmt of statements) {
+    if (!DDL_KEYWORD_RE.test(stmt)) {
+      throw new Error(
+        "pg: pgSchemaQuery is a DDL-only door (CREATE/ALTER/DROP/COMMENT) — refusing a " +
+          `statement that does not start with one:\n${stmt.slice(0, 200)}`,
+      );
+    }
+  }
+}
+
 /**
  * THE DDL DOOR (Important 4) — schema application ONLY. Used by the migration
- * runner that applies pgSchema.sql (Task 2/later) and nothing else. Schema
+ * runner that applies pgSchema.sql (Task 2) and nothing else. Schema
  * statements (CREATE TABLE, CREATE INDEX, ALTER TABLE …) have no tenant and
  * necessarily name collection_rows literally, which assertNotTenantScoped
  * would refuse from pgQuery/pgTx — correctly, for every OTHER caller. Rather
@@ -253,22 +314,13 @@ export async function pgTx<T>(fn: (q: PgQueryFn) => Promise<T>): Promise<T> {
  * is deliberately not tenant-scoped, and grep for its call sites to confirm
  * the migration runner is the only one.
  *
- * Task 1 calls this from nowhere — no schema is applied here. It exists now
- * so Task 2's migration runner has a door to call instead of reaching for
- * pgQuery and hitting the guard, or opening a second pool of its own.
- *
- * UNGUARDED BY DESIGN, TRUSTED BY CONVENTION ONLY, TODAY. Nothing currently
- * stops a service module from importing this directly and running an
- * arbitrary query against collection_rows in production with no tenant set —
- * the only thing standing between that and this export is that nobody would
- * reach for a function named "schema query" to do it. Fix-round-2 review
- * flagged this as a loophole to close, not to build on: Task 2 is expected to
- * add a DDL-only assertion here (refusing any statement that is not
- * CREATE/ALTER/DROP/COMMENT), narrowing this door to what its name promises.
- * Noted here now so the next reader knows that constraint is coming rather
- * than assuming the current permissiveness is the intended final shape.
+ * NARROWED TO DDL ONLY (Task 2, closing the loophole fix-round-2 flagged —
+ * see assertDdlOnly above): this no longer runs whatever text a caller hands
+ * it. A visible, enforced exception is reviewable; a trusted one is a hole
+ * waiting for a hurried afternoon.
  */
 export async function pgSchemaQuery<T = any>(text: string, params: readonly unknown[] = []): Promise<PgResult<T>> {
+  assertDdlOnly(text);
   return run<T>(getPool(), text, params);
 }
 

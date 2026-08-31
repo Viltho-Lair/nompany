@@ -2,12 +2,14 @@ import { register } from "node:module";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
-// CONNECTION SMOKE + THE TENANT SEAM (Task 1). No collection_rows table exists
-// yet (Task 2 wrote the schema; nothing has applied it) — that is deliberately
-// out of scope here. What this file proves instead is the one property Task 1
-// is responsible for: nompany.tenant_id is set INSIDE withTenant's transaction
-// and nowhere else, and a query that tries to reach the tenant-scoped table
-// without going through withTenant is refused before it reaches Postgres.
+// CONNECTION SMOKE + THE TENANT SEAM (Task 1), THEN THE SCHEMA ITSELF (Task 2).
+// Task 1's tests prove nompany.tenant_id is set INSIDE withTenant's
+// transaction and nowhere else, and that a query which tries to reach the
+// tenant-scoped table without going through withTenant is refused before it
+// reaches Postgres. Task 2 applies pgSchema.sql (scripts/migrate/pg/schema.mjs)
+// against the live database BEFORE this file runs, so collection_rows now
+// exists — the shape/RLS-enabled assertions below and the RLS-actually-filters
+// proof are what Task 2 adds; nothing here creates or drops the table itself.
 //
 // SELF-REGISTERING LOADER, same reason and shape as tests/pg-query.mjs: this
 // file runs bare (`node tests/pg-parity.mjs`) and pg.ts/keys.ts reach each
@@ -38,7 +40,7 @@ if (!process.env.DATABASE_URL) {
 // Dynamic, not static — a static `import` is resolved before ANY module-level
 // code runs (including the register() call above), which is exactly what
 // leaves it too early to see the hook.
-const { _poolForTests, pgQuery, pgTx, withTenant } = await import("../src/platform/db/pg.ts");
+const { _poolForTests, pgQuery, pgTx, pgSchemaQuery, withTenant } = await import("../src/platform/db/pg.ts");
 const { TBL } = await import("../src/platform/db/keys.ts");
 
 export async function testPgConnects(t) {
@@ -126,21 +128,25 @@ export async function testBareQueryAgainstTheTenantTableIsRefused(t) {
 
 export async function testWithinTheSeamTheTenantTableIsReachable(t) {
   // The guard must not overreach: inside withTenant the SAME query text is
-  // let through. It still fails — the table has not been created (Task 2's
-  // schema is authored, not applied) — but it must fail as Postgres's own
-  // "relation does not exist" (SQLSTATE 42P01), never as this module's guard
-  // error, which would mean the seam re-triggers the very refusal it exists
-  // to lift.
+  // let through. Task 2 has applied the schema, so the table now exists and
+  // RLS filters to the given tenant — the query succeeds and returns zero
+  // rows (nothing was ever written for this made-up tenant). The point is
+  // that the seam does not re-trigger its own guard on a query it already
+  // authorised, and that reaching the table at all no longer fails with
+  // Postgres's "relation does not exist" the way it did before Task 2.
   let code = null;
   let guardMessage = null;
+  let rows = null;
   try {
-    await withTenant("tenant-c-p1t1", (q) => q(`SELECT * FROM ${TBL.rows} LIMIT 1`));
+    const res = await withTenant("tenant-c-p1t2", (q) => q(`SELECT * FROM ${TBL.rows} LIMIT 1`));
+    rows = res.rows;
   } catch (e) {
     code = e?.code;
     guardMessage = /withTenant/.test(e?.message || "") ? e.message : null;
   }
   t.equal(guardMessage, null, "the seam does not re-apply its own guard to a query it authorised");
-  t.equal(code, "42P01", "it fails only because the table has not been created yet (Task 2/4), not because of the guard");
+  t.equal(code, null, "the query succeeds now that Task 2 has applied the schema");
+  t.equal(Array.isArray(rows) && rows.length === 0, true, "no rows exist for a tenant nothing was ever written under");
 }
 
 export async function testWithTenantRefusesAnEmptyTenantId(t) {
@@ -151,6 +157,184 @@ export async function testWithTenantRefusesAnEmptyTenantId(t) {
     threw = e;
   }
   t.equal(threw instanceof Error, true, "an empty tenant id is refused before a connection is even taken");
+}
+
+// ---- Task 2: the schema, applied ------------------------------------------
+//
+// scripts/migrate/pg/schema.mjs has already run against this database by the
+// time this file is invoked (see task-2-report.md) — everything below reads
+// back what actually landed rather than what pgSchema.sql merely asks for.
+
+export async function testSchemaShape(t) {
+  // PARAMETERISED, DELIBERATELY, where the brief's own draft inlined the
+  // table name as a string literal. `WHERE table_name = 'collection_rows'`
+  // puts the substring "collection_rows" in the QUERY TEXT itself, and
+  // assertNotTenantScoped (pg.ts) is a blunt text match with no idea this is
+  // metadata rather than data — it would refuse the call before pgQuery ever
+  // ran it. Binding the same value as $1 keeps it out of the text while
+  // asking Postgres the identical question.
+  const { rows } = await pgQuery(
+    `SELECT column_name, data_type FROM information_schema.columns
+      WHERE table_name = $1 ORDER BY ordinal_position`,
+    [TBL.rows],
+  );
+  const byName = Object.fromEntries(rows.map((r) => [r.column_name, r.data_type]));
+  t.equal(byName.payload, "json", "payload is json, NOT jsonb — key order is pinned by the goldens");
+  t.equal(byName.seq, "bigint", "seq orders the collection");
+  t.equal(byName.row_version, "integer", "row_version carries the compare-and-set");
+  t.equal(byName.tenant_id, "text", "tenant_id present");
+}
+
+export async function testRlsIsEnabled(t) {
+  // Same parameterisation reasoning as testSchemaShape above.
+  const { rows } = await pgQuery(
+    `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = $1`,
+    [TBL.rows],
+  );
+  t.equal(rows[0].relrowsecurity, true, "row-level security is on");
+  t.equal(rows[0].relforcerowsecurity, true, "and FORCED — even collection_rows's own owner is subject to it");
+}
+
+export async function testRlsFiltersRowsBetweenTenants(t) {
+  // THE PROOF THIS TASK EXISTS TO PRODUCE: with the table created, the policy
+  // can finally be exercised instead of just reasoned about. Two tenants each
+  // insert one row into the SAME section/collection bucket; each must see
+  // only its own — including under an aggregate, since a naive "RLS filters
+  // SELECT * but not COUNT" belief would pass every other test here and still
+  // leak a number.
+  const tenantA = "p1t2-rls-tenant-a";
+  const tenantB = "p1t2-rls-tenant-b";
+  const sectionId = "p1t2-rls-sec";
+  const collection = "p1t2-rls-col";
+  const rowIdA = "p1t2-rls-row-a";
+  const rowIdB = "p1t2-rls-row-b";
+  const insert = (tenantId, rowId) => (q) => q(
+    `INSERT INTO ${TBL.rows} (${TBL.cols.tenant}, ${TBL.cols.section}, ${TBL.cols.collection}, ${TBL.cols.id}, ${TBL.cols.seq}, ${TBL.cols.payload})
+     VALUES ($1, $2, $3, $4, nextval('${TBL.seq}'), $5::json)`,
+    [tenantId, sectionId, collection, rowId, JSON.stringify({ id: rowId, tenantId })],
+  );
+
+  try {
+    await withTenant(tenantA, insert(tenantA, rowIdA));
+    await withTenant(tenantB, insert(tenantB, rowIdB));
+
+    const seenByA = await withTenant(tenantA, (q) => q(
+      `SELECT ${TBL.cols.id} FROM ${TBL.rows} WHERE ${TBL.cols.section} = $1 AND ${TBL.cols.collection} = $2`,
+      [sectionId, collection],
+    ));
+    t.equal(seenByA.rows.length, 1, "tenant A sees exactly one row in the shared bucket, not tenant B's too");
+    t.equal(seenByA.rows[0][TBL.cols.id], rowIdA, "and it is specifically tenant A's own row");
+
+    const countByA = await withTenant(tenantA, (q) => q(
+      `SELECT count(*)::int AS n FROM ${TBL.rows} WHERE ${TBL.cols.section} = $1 AND ${TBL.cols.collection} = $2`,
+      [sectionId, collection],
+    ));
+    t.equal(countByA.rows[0].n, 1, "a COUNT run under tenant A cannot see tenant B's row either — RLS filters aggregates too");
+
+    const seenByB = await withTenant(tenantB, (q) => q(
+      `SELECT ${TBL.cols.id} FROM ${TBL.rows} WHERE ${TBL.cols.section} = $1 AND ${TBL.cols.collection} = $2`,
+      [sectionId, collection],
+    ));
+    t.equal(seenByB.rows.length, 1, "tenant B sees exactly one row too, symmetrically");
+    t.equal(seenByB.rows[0][TBL.cols.id], rowIdB, "and it is specifically tenant B's own row, never tenant A's");
+  } finally {
+    // CLEANUP, BY EXPLICIT KEY (invariant 17's "delete by an explicit key
+    // list" — the same rule for Postgres as for Redis). Each delete runs
+    // inside the tenant it belongs to, through withTenant, exactly like the
+    // insert did; there is deliberately no bare, tenant-agnostic delete
+    // against this table.
+    await withTenant(tenantA, (q) => q(
+      `DELETE FROM ${TBL.rows} WHERE ${TBL.cols.tenant} = $1 AND ${TBL.cols.id} = $2`,
+      [tenantA, rowIdA],
+    )).catch(() => {});
+    await withTenant(tenantB, (q) => q(
+      `DELETE FROM ${TBL.rows} WHERE ${TBL.cols.tenant} = $1 AND ${TBL.cols.id} = $2`,
+      [tenantB, rowIdB],
+    )).catch(() => {});
+  }
+}
+
+export async function testCheckConstraintRejectsEmptyTenantId(t) {
+  // testWithTenantRefusesAnEmptyTenantId (above) already proves the
+  // APPLICATION-LEVEL refusal — withTenant("") never opens a connection at
+  // all. This proves the SECOND, independent backstop: the database's own
+  // CHECK (tenant_id <> ''), for any path that reaches the table by some
+  // other route than withTenant.
+  //
+  // Reaching the table with tenant_id = '' from INSIDE withTenant is not a
+  // way to exercise this: current_setting() would then read the real
+  // (non-empty) tenant, so RLS's own WITH CHECK — tenant_id = current_setting
+  // — refuses the mismatched value FIRST (measured: SQLSTATE 42501, "new row
+  // violates row-level security policy"), before the table CHECK is ever
+  // reached. To isolate the CHECK from RLS, current_setting has to be made to
+  // MATCH '' too — exactly the scenario pgSchema.sql's own comment names
+  // ("current_setting(..., true) can genuinely return '' once a session has
+  // touched the GUC and left its scope"). That is reproduced directly here,
+  // deliberately below withTenant, since withTenant's own non-empty check
+  // makes it impossible to reach that state through the sanctioned API.
+  const pool = _poolForTests();
+  const client = await pool.connect();
+  let probeErr = null;
+  try {
+    await client.query("BEGIN");
+    await client.query({ text: "SELECT set_config('nompany.tenant_id', $1, true)", values: [""] });
+    await client.query({
+      text: `INSERT INTO ${TBL.rows} (${TBL.cols.tenant}, ${TBL.cols.section}, ${TBL.cols.collection}, ${TBL.cols.id}, ${TBL.cols.seq}, ${TBL.cols.payload})
+             VALUES ($1, $2, $3, $4, nextval('${TBL.seq}'), $5::json)`,
+      values: ["", "p1t2-check-sec", "p1t2-check-col", "p1t2-check-row", JSON.stringify({ x: 1 })],
+    });
+  } catch (e) {
+    probeErr = e;
+  } finally {
+    // ROLLBACK either way — an empty-tenant row must never actually persist,
+    // proof or no proof.
+    await client.query("ROLLBACK").catch(() => {});
+    client.release();
+  }
+  t.equal(probeErr?.code, "23514", "the empty tenant id is refused by the CHECK constraint (SQLSTATE 23514)");
+  t.equal(probeErr?.constraint, "collection_rows_tenant_id_not_empty", "and named as the constraint this task added");
+}
+
+// ---- Task 2: the DDL-only door ---------------------------------------------
+
+export async function testPgSchemaQueryRefusesANonDdlStatement(t) {
+  let threw = null;
+  try {
+    await pgSchemaQuery(`SELECT * FROM ${TBL.rows} LIMIT 1`);
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "a bare SELECT through pgSchemaQuery is refused");
+  t.equal(/DDL-only/.test(threw?.message || ""), true, "the error names what the door is, not just that it failed");
+}
+
+export async function testPgSchemaQueryRefusesDropTableEvenGuarded(t) {
+  // "Not even guarded" — an IF EXISTS on a forbidden statement must not
+  // launder it past the check. No such table exists to actually drop; this
+  // proves the refusal happens before pgSchemaQuery would ever ask Postgres.
+  let threw = null;
+  try {
+    await pgSchemaQuery("DROP TABLE IF EXISTS p1t2_never_created_by_this_test");
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "DROP TABLE is refused even guarded by IF EXISTS");
+  t.equal(/invariant 17/.test(threw?.message || ""), true, "the error points at why, not just that it failed");
+}
+
+export async function testPgSchemaQueryAcceptsRealDdl(t) {
+  // The positive case: a genuine DDL statement — COMMENT ON, which changes no
+  // data and is trivially reversible — passes straight through unaltered.
+  // Reset to NULL afterward so this test leaves nothing behind.
+  let threw = null;
+  try {
+    await pgSchemaQuery(`COMMENT ON TABLE ${TBL.rows} IS 'p1t2 ddl-guard probe'`);
+  } catch (e) {
+    threw = e;
+  } finally {
+    await pgSchemaQuery(`COMMENT ON TABLE ${TBL.rows} IS NULL`).catch(() => {});
+  }
+  t.equal(threw, null, "a genuine CREATE/ALTER/DROP/COMMENT statement is let through unmodified");
 }
 
 // ---- fix round 1, Critical 1: a failed connection must be DESTROYED, ------
@@ -350,6 +534,13 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testBareQueryAgainstTheTenantTableIsRefused,
       testWithinTheSeamTheTenantTableIsReachable,
       testWithTenantRefusesAnEmptyTenantId,
+      testSchemaShape,
+      testRlsIsEnabled,
+      testRlsFiltersRowsBetweenTenants,
+      testCheckConstraintRejectsEmptyTenantId,
+      testPgSchemaQueryRefusesANonDdlStatement,
+      testPgSchemaQueryRefusesDropTableEvenGuarded,
+      testPgSchemaQueryAcceptsRealDdl,
       testFailedTransactionDestroysItsConnectionRatherThanRecyclingIt,
       testPgTxAlsoDestroysAFailedConnection,
       testReentrantWithTenantForTheSameTenantIsAbsorbed,
