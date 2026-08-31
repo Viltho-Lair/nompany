@@ -139,7 +139,9 @@ rewrites. This single fact is what makes D6 a five-week phase instead of a five-
 
 ### 3.3 The verification contract, restated for SQL
 
-- **The 139 golden responses must come out byte-identical through P1.** They are the
+- **The 153 golden responses must come out byte-identical through P1.** (The number was 139
+  when this spec was written and 153 after P0 re-recorded them — quoted here as measured on
+  disk, not as remembered, because the phase's pass condition is stated in terms of it.) They are the
   instrument that proves a store swap changed no behaviour. If a golden moves during P1,
   the migration is wrong — not the golden.
 - **This is exactly why P0 exists.** Renamed section keys appear in response payloads, so a
@@ -236,7 +238,7 @@ data migration.
 first, load by explicit collection list inside a transaction, re-scan to prove the result.
 Never a broad-prefix operation.
 
-**Acceptance:** all 139 goldens **byte-identical** to the P0 baseline; query counts within
+**Acceptance:** all 153 goldens **byte-identical** to the P0 baseline; query counts within
 ceilings; every suite green.
 
 ### P2 — Engine (≈8.5 weeks)
@@ -403,7 +405,7 @@ entry into memory.
 | Risk | Mitigation |
 |---|---|
 | The alias and re-rooting correction touches Phase 1b dual-writes already on `main`. | Delivered as a compatibility layer over the existing deterministic ids, never a rewrite. The alias table makes both readings resolve to one deal. |
-| A store migration silently changes behaviour. | The 139 goldens are the detector, and byte-identical output is P1's pass condition. |
+| A store migration silently changes behaviour. | The 153 goldens are the detector, and byte-identical output is P1's pass condition. |
 | The record engine cannot express case fifty. | It is extracted from four real hand-built sections, and the ten bespoke screens are named in advance so the engine is never stretched over them. |
 | Transaction-mode pooling breaks prepared statements under load. | The repository implementation targets transaction-mode pooling from the first line. |
 | Scope this large drifts. | Every phase ends on a green four-command verification and a `docs/functionality` file per feature; phases are strictly sequential (D15). |

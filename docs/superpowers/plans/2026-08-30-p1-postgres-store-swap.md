@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Move every operational collection off Redis and onto Cloud SQL for PostgreSQL 18, behind the existing `repo<T>()` interface, with all 139 golden responses byte-identical.
+**Goal:** Move every operational collection off Redis and onto Cloud SQL for PostgreSQL 18, behind the existing `repo<T>()` interface, with all 153 golden responses byte-identical.
 
 **Architecture:** Wave 2's Seam B already put every module behind `repo<T>(collection)` and behind the five row primitives in `sections.ts` (`readCol`, `addRow`, `addRows`, `updateRow`, `deleteRow`). P1 writes a second implementation of those five primitives against Postgres, proves it byte-identical to the Redis one with a dual-read parity harness, then cuts over and retires the Redis write path. No service module is edited. Redis keeps the event stream, pub/sub, cache, sessions, rate limits and idempotency.
 
@@ -414,7 +414,7 @@ Run:
 NOMPANY_TEST_SESSION=p1 npm test
 ```
 
-Expected: PASS, all suites, all 139 goldens unchanged. A single golden diff here means the move was not verbatim — revert and redo it rather than re-recording.
+Expected: PASS, all suites, all 153 goldens unchanged. A single golden diff here means the move was not verbatim — revert and redo it rather than re-recording.
 
 - [ ] **Step 4: Typecheck**
 
@@ -684,7 +684,7 @@ git commit -m "Postgres answers the five row primitives, and keeps key order whi
 - Consumes: Task 3's `redis*` five, Task 4's `pg*` five.
 - Produces: `DB_BACKEND: "redis" | "postgres" | "parity"` and the five dispatched primitives under their original names.
 
-**Why a `parity` mode exists:** it runs both implementations on every call and compares. That is what lets the whole existing suite — 139 goldens included — act as the parity test, rather than trusting a purpose-built harness to have thought of everything.
+**Why a `parity` mode exists:** it runs both implementations on every call and compares. That is what lets the whole existing suite — 153 goldens included — act as the parity test, rather than trusting a purpose-built harness to have thought of everything.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -716,7 +716,7 @@ Replace the re-export block added in Task 3 with:
 //
 // `parity` is the mode that makes the migration provable. It runs BOTH
 // implementations on every call and throws on any disagreement, which turns the
-// entire existing suite — 139 goldens included — into the parity test. A
+// entire existing suite — 153 goldens included — into the parity test. A
 // purpose-built harness can only check what somebody thought of; this checks
 // what the product actually does.
 import * as R from "./redisRows";
@@ -788,7 +788,7 @@ Expected: PASS.
 - [ ] **Step 5: Run the whole suite on Redis to prove the default is unchanged**
 
 Run: `NOMPANY_TEST_SESSION=p1 npm test`
-Expected: PASS, all 139 goldens unchanged.
+Expected: PASS, all 153 goldens unchanged.
 
 - [ ] **Step 6: Commit**
 
@@ -1334,7 +1334,7 @@ git commit -m "The store can be exported, loaded and proved, and nothing is dele
 NOMPANY_DB=postgres NOMPANY_TEST_SESSION=p1 npm test
 ```
 
-Expected: PASS. **All 139 goldens byte-identical.** A single moved golden stops the cutover — it is the migration that is wrong, not the golden, and `NOMPANY_RECORD_GOLDENS` must not be set.
+Expected: PASS. **All 153 goldens byte-identical.** A single moved golden stops the cutover — it is the migration that is wrong, not the golden, and `NOMPANY_RECORD_GOLDENS` must not be set.
 
 - [ ] **Step 2: Ask for the first confirmation**
 
