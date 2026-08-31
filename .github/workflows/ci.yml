@@ -192,6 +192,20 @@ jobs:
         # set and cannot be.
         run: node tests/gate-a.test.mjs
 
+      - name: Tests — the Cloud Run pg-gateway, both halves
+        # NO DATABASE AND NO GOOGLE IN EITHER OF THESE. The gateway's own suite
+        # proves its request parsing, guards, statement order and status codes
+        # against a recording fake; the client suite proves the transport
+        # switch, the request shape (fed through the SERVER's own parser, so
+        # the two declarations of the wire cannot drift), pgTx's refusal and
+        # the token cache against a stubbed fetch. Neither needs the Postgres
+        # or Redis services above, and neither can be run by `npm test`: the
+        # client suite sets PG_TRANSPORT=gateway in its own process, and pg.ts
+        # reads that once at module scope, so folding it into the integration
+        # suite would put every other Postgres test on the gateway transport —
+        # exactly what design D5 says must not happen.
+        run: npm run test:gateway
+
       - name: Tests — Postgres + parity (NOMPANY_DB=parity)
         # THE PIECE THAT WAS PRESENT IN package.json AND ABSENT FROM THIS
         # WORKFLOW: `npm test`/the two steps above run with NOMPANY_DB unset,

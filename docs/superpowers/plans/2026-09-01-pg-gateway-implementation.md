@@ -95,9 +95,21 @@ as `JSON.stringify` text. Cheap because the comparison harness exists.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Nothing here is implemented.** No service, no transport switch, no WIF pool, no deploy.
-- **`pgTx` (multi-statement, non-tenant-scoped) is unmapped.** Its callers are schema and
-  migration paths and may stay on `direct`; the decision is open.
+- **Tasks 1–4 are written; Tasks 5 and 6 are not.** The service, the shared guards, the
+  transport switch and the auth client all exist and are tested with no database and no
+  Google in the room (`npm run test:gateway`). There is still **no WIF pool, no service
+  account, no IAM binding and no deploy**, so no statement has ever crossed this transport
+  and no parity run compares the two.
+- **Task 3 turned out smaller than this plan expected, and Task 4 larger.** `withTenant`
+  does not "collect its callback's statements per round trip" — it sends **one statement per
+  HTTPS call**, because every scope in `pgRows.ts` was walked and the only two that issue
+  more than one statement both survive being split (optimistic CAS in `pgUpdateRow`;
+  `nextval` being non-transactional in `pgAddRows`). So `pgUpdateRow` "becomes two round
+  trips" with no edit to it at all, and no batching machinery exists. See
+  `docs/functionality/pg-gateway.md`.
+- **`pgTx` is decided, and the decision is that it REFUSES under `gateway`.** So does
+  `pgSchemaQuery`, whose one-text-many-statements shape the gateway's own contract forbids.
+  Both name `PG_TRANSPORT=direct`; every caller either door has is CI or a developer's machine.
 - **Cold starts are unbudgeted.** No counter here measures a Cloud Run instance starting
   before the first query.
 - **`NOMPANY_DB` in production is unverifiable from here.** It reads `[SENSITIVE]`, so the

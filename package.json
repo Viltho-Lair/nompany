@@ -15,6 +15,7 @@
     "test": "node tests/access.test.mjs && node tests/integration.test.mjs && node tests/gate-a.test.mjs",
     "test:gate-a": "node tests/gate-a.test.mjs",
     "test:parity": "node scripts/test-parity.mjs",
+    "test:gateway": "node services/pg-gateway/test/gateway.test.mjs && node tests/pg-gateway-client.mjs",
     "lint:budget": "node scripts/lint-budget.mjs"
   },
   "dependencies": {
