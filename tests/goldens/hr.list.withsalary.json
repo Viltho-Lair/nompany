@@ -6,27 +6,39 @@
     "canAssignRoles": true,
     "nav": {
       "main": true,
-      "sales": true,
-      "sales-tickets": true,
-      "sales-clients": true,
-      "sales-live": true,
-      "sales-settings": true,
-      "technical": true,
-      "technical-quotations": true,
-      "technical-rfq": true,
-      "technical-live": true,
-      "technical-settings": true,
+      "crm-sales": true,
+      "crm-sales-tickets": true,
+      "crm-sales-clients": true,
+      "crm-sales-quotations": true,
+      "crm-sales-live": true,
+      "crm-sales-settings": true,
+      "tendering": false,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
       "projects-overtimes": true,
+      "projects-planner": true,
       "projects-settings": true,
+      "engineering-docs": true,
+      "engineering-docs-register": true,
+      "engineering-docs-rfq": true,
+      "engineering-docs-live": true,
+      "engineering-docs-settings": true,
+      "procurement": true,
+      "procurement-suppliers": true,
       "inventory": true,
       "inventory-stock": true,
-      "inventory-vendors": true,
       "inventory-items": true,
       "inventory-sheets": true,
-      "inventory-awb": true,
+      "manufacturing": false,
+      "field-service": true,
+      "field-service-schedule": true,
+      "field-service-tracking": true,
+      "field-service-settings": true,
+      "logistics": true,
+      "logistics-shipments": true,
+      "assets": false,
+      "quality-hse": false,
       "hr": true,
       "hr-employees": true,
       "finance": true,
@@ -35,39 +47,49 @@
       "finance-payables": true,
       "finance-assets": true,
       "finance-settings": true,
-      "operations": true,
-      "operations-schedule": true,
-      "operations-tracking": true,
-      "operations-planner": true,
-      "operations-settings": true,
-      "quality": true,
-      "quality-documents": true,
+      "reports": false,
+      "administration": false,
+      "administration-members": false,
+      "administration-master": false,
+      "administration-settings": false,
       "tasks": true,
       "tasks-settings": true
     },
     "manage": {
       "main": false,
-      "sales": true,
-      "sales-tickets": true,
-      "sales-clients": true,
-      "sales-live": false,
-      "sales-settings": true,
-      "technical": true,
-      "technical-quotations": true,
-      "technical-rfq": true,
-      "technical-live": false,
-      "technical-settings": true,
+      "crm-sales": true,
+      "crm-sales-tickets": true,
+      "crm-sales-clients": true,
+      "crm-sales-quotations": true,
+      "crm-sales-live": false,
+      "crm-sales-settings": true,
+      "tendering": false,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
       "projects-overtimes": true,
+      "projects-planner": true,
       "projects-settings": true,
+      "engineering-docs": true,
+      "engineering-docs-register": true,
+      "engineering-docs-rfq": true,
+      "engineering-docs-live": false,
+      "engineering-docs-settings": true,
+      "procurement": true,
+      "procurement-suppliers": true,
       "inventory": true,
       "inventory-stock": true,
-      "inventory-vendors": true,
       "inventory-items": true,
       "inventory-sheets": true,
-      "inventory-awb": true,
+      "manufacturing": false,
+      "field-service": true,
+      "field-service-schedule": true,
+      "field-service-tracking": true,
+      "field-service-settings": true,
+      "logistics": true,
+      "logistics-shipments": true,
+      "assets": false,
+      "quality-hse": false,
       "hr": true,
       "hr-employees": true,
       "finance": true,
@@ -76,13 +98,11 @@
       "finance-payables": true,
       "finance-assets": true,
       "finance-settings": true,
-      "operations": true,
-      "operations-schedule": true,
-      "operations-tracking": true,
-      "operations-planner": true,
-      "operations-settings": true,
-      "quality": true,
-      "quality-documents": true,
+      "reports": false,
+      "administration": false,
+      "administration-members": false,
+      "administration-master": false,
+      "administration-settings": false,
       "tasks": true,
       "tasks-settings": true
     },
@@ -91,8 +111,28 @@
     },
     "departments": [
       {
+        "id": "administration",
+        "name": "Administration & Settings"
+      },
+      {
+        "id": "assets",
+        "name": "Assets & Equipment"
+      },
+      {
+        "id": "crm-sales",
+        "name": "CRM & Sales"
+      },
+      {
+        "id": "engineering-docs",
+        "name": "Engineering & Documents"
+      },
+      {
+        "id": "field-service",
+        "name": "Field Operations & Service"
+      },
+      {
         "id": "finance",
-        "name": "Finance"
+        "name": "Finance & Accounting"
       },
       {
         "id": "hr",
@@ -100,31 +140,39 @@
       },
       {
         "id": "inventory",
-        "name": "Inventory"
+        "name": "Inventory & Warehouse"
       },
       {
-        "id": "operations",
-        "name": "Operations"
+        "id": "logistics",
+        "name": "Logistics & Fleet"
+      },
+      {
+        "id": "manufacturing",
+        "name": "Manufacturing & Production"
+      },
+      {
+        "id": "procurement",
+        "name": "Procurement & Subcontracting"
       },
       {
         "id": "projects",
         "name": "Projects"
       },
       {
-        "id": "quality",
-        "name": "Quality"
+        "id": "quality-hse",
+        "name": "Quality & HSE"
       },
       {
-        "id": "sales",
-        "name": "Sales"
+        "id": "reports",
+        "name": "Reports & BI"
       },
       {
         "id": "tasks",
         "name": "Tasks"
       },
       {
-        "id": "technical",
-        "name": "Technical"
+        "id": "tendering",
+        "name": "Tendering & Estimating"
       }
     ],
     "roles": [
@@ -472,15 +520,22 @@
     "expiring": [],
     "headcount": {
       "byDepartment": {
+        "administration": 0,
+        "assets": 0,
+        "crm-sales": 0,
+        "engineering-docs": 0,
+        "field-service": 0,
         "finance": 0,
         "hr": 0,
         "inventory": 0,
-        "operations": 0,
+        "logistics": 0,
+        "manufacturing": 0,
+        "procurement": 0,
         "projects": 0,
-        "quality": 0,
-        "sales": 0,
+        "quality-hse": 0,
+        "reports": 0,
         "tasks": 0,
-        "technical": 0
+        "tendering": 0
       },
       "unassigned": 10,
       "total": 10

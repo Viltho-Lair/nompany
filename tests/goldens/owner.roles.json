@@ -17,27 +17,27 @@
         "name": "Manager",
         "description": "Runs a department: full control of its work, sight of the rest.",
         "permissions": [
-          "sales.dashboard.view",
-          "technical.dashboard.view",
+          "crmSales.dashboard.view",
+          "engineeringDocs.dashboard.view",
           "projects.dashboard.view",
           "inventory.dashboard.view",
           "hr.dashboard.view",
           "finance.dashboard.view",
-          "sales.tickets.view",
-          "sales.tickets.create",
-          "sales.tickets.edit",
-          "sales.clients.view",
-          "sales.clients.create",
-          "sales.clients.edit",
-          "sales.clients.delete",
-          "sales.live.view",
-          "technical.rfq.view",
-          "technical.rfq.create",
-          "technical.rfq.edit",
-          "technical.quotations.view",
-          "technical.quotations.create",
-          "technical.quotations.edit",
-          "technical.quotations.delete",
+          "crmSales.tickets.view",
+          "crmSales.tickets.create",
+          "crmSales.tickets.edit",
+          "crmSales.clients.view",
+          "crmSales.clients.create",
+          "crmSales.clients.edit",
+          "crmSales.clients.delete",
+          "crmSales.live.view",
+          "engineeringDocs.rfq.view",
+          "engineeringDocs.rfq.create",
+          "engineeringDocs.rfq.edit",
+          "crmSales.quotations.view",
+          "crmSales.quotations.create",
+          "crmSales.quotations.edit",
+          "crmSales.quotations.delete",
           "projects.list.view",
           "projects.list.create",
           "projects.list.edit",
@@ -47,9 +47,9 @@
           "projects.sla.edit",
           "inventory.stock.view",
           "inventory.items.view",
-          "operations.tracking.view",
-          "operations.tracking.create",
-          "operations.tracking.edit",
+          "fieldService.tracking.view",
+          "fieldService.tracking.create",
+          "fieldService.tracking.edit",
           "tasks.board.view",
           "tasks.board.create",
           "tasks.board.edit",
@@ -59,7 +59,7 @@
           "hr.vacations.create",
           "hr.vacations.edit",
           "hr.vacations.approve",
-          "technical.rfq.convert"
+          "engineeringDocs.rfq.convert"
         ],
         "scopes": {
           "hr.employees": "department",
@@ -73,21 +73,21 @@
         "name": "Team Lead",
         "description": "Does the work and assigns it, without settings or deletion.",
         "permissions": [
-          "sales.dashboard.view",
-          "technical.dashboard.view",
+          "crmSales.dashboard.view",
+          "engineeringDocs.dashboard.view",
           "projects.dashboard.view",
-          "sales.tickets.view",
-          "sales.tickets.create",
-          "sales.tickets.edit",
-          "sales.clients.view",
-          "sales.clients.create",
-          "sales.clients.edit",
-          "technical.rfq.view",
-          "technical.rfq.create",
-          "technical.rfq.edit",
-          "technical.quotations.view",
-          "technical.quotations.create",
-          "technical.quotations.edit",
+          "crmSales.tickets.view",
+          "crmSales.tickets.create",
+          "crmSales.tickets.edit",
+          "crmSales.clients.view",
+          "crmSales.clients.create",
+          "crmSales.clients.edit",
+          "engineeringDocs.rfq.view",
+          "engineeringDocs.rfq.create",
+          "engineeringDocs.rfq.edit",
+          "crmSales.quotations.view",
+          "crmSales.quotations.create",
+          "crmSales.quotations.edit",
           "projects.list.view",
           "projects.list.create",
           "projects.list.edit",
@@ -96,9 +96,9 @@
           "tasks.board.edit",
           "tasks.board.delete",
           "inventory.items.view",
-          "operations.tracking.view",
-          "operations.tracking.create",
-          "operations.tracking.edit",
+          "fieldService.tracking.view",
+          "fieldService.tracking.create",
+          "fieldService.tracking.edit",
           "hr.vacations.view"
         ],
         "scopes": {
@@ -112,11 +112,11 @@
         "name": "Member",
         "description": "Does the work: raises and edits records, deletes nothing.",
         "permissions": [
-          "sales.tickets.view",
-          "sales.tickets.create",
-          "sales.tickets.edit",
-          "sales.clients.view",
-          "technical.quotations.view",
+          "crmSales.tickets.view",
+          "crmSales.tickets.create",
+          "crmSales.tickets.edit",
+          "crmSales.clients.view",
+          "crmSales.quotations.view",
           "projects.list.view",
           "tasks.board.view",
           "tasks.board.create",
@@ -137,9 +137,9 @@
         "name": "Viewer",
         "description": "Reads, changes nothing.",
         "permissions": [
-          "sales.tickets.view",
-          "sales.clients.view",
-          "technical.quotations.view",
+          "crmSales.tickets.view",
+          "crmSales.clients.view",
+          "crmSales.quotations.view",
           "projects.list.view",
           "inventory.items.view",
           "tasks.board.view"
@@ -151,16 +151,16 @@
     ],
     "areas": [
       {
-        "key": "sales.dashboard",
-        "group": "Sales",
+        "key": "crmSales.dashboard",
+        "group": "CRM & Sales",
         "label": "Dashboard",
         "verbs": [
           "view"
         ]
       },
       {
-        "key": "technical.dashboard",
-        "group": "Technical",
+        "key": "engineeringDocs.dashboard",
+        "group": "Engineering & Documents",
         "label": "Dashboard",
         "verbs": [
           "view"
@@ -176,7 +176,7 @@
       },
       {
         "key": "inventory.dashboard",
-        "group": "Inventory",
+        "group": "Inventory & Warehouse",
         "label": "Dashboard",
         "verbs": [
           "view"
@@ -192,31 +192,23 @@
       },
       {
         "key": "finance.dashboard",
-        "group": "Finance",
+        "group": "Finance & Accounting",
         "label": "Dashboard",
         "verbs": [
           "view"
         ]
       },
       {
-        "key": "operations.dashboard",
-        "group": "Operations",
+        "key": "fieldService.dashboard",
+        "group": "Field Operations & Service",
         "label": "Main screen",
         "verbs": [
           "view"
         ]
       },
       {
-        "key": "quality.dashboard",
-        "group": "Quality",
-        "label": "Dashboard",
-        "verbs": [
-          "view"
-        ]
-      },
-      {
-        "key": "sales.tickets",
-        "group": "Sales",
+        "key": "crmSales.tickets",
+        "group": "CRM & Sales",
         "label": "Tickets",
         "verbs": [
           "view",
@@ -225,8 +217,8 @@
         ]
       },
       {
-        "key": "sales.clients",
-        "group": "Sales",
+        "key": "crmSales.clients",
+        "group": "CRM & Sales",
         "label": "Clients",
         "verbs": [
           "view",
@@ -236,16 +228,16 @@
         ]
       },
       {
-        "key": "sales.live",
-        "group": "Sales",
+        "key": "crmSales.live",
+        "group": "CRM & Sales",
         "label": "Live view",
         "verbs": [
           "view"
         ]
       },
       {
-        "key": "sales.settings",
-        "group": "Sales",
+        "key": "crmSales.settings",
+        "group": "CRM & Sales",
         "label": "Settings",
         "verbs": [
           "view",
@@ -253,8 +245,8 @@
         ]
       },
       {
-        "key": "technical.rfq",
-        "group": "Technical",
+        "key": "engineeringDocs.rfq",
+        "group": "Engineering & Documents",
         "label": "RFQ",
         "verbs": [
           "view",
@@ -269,8 +261,8 @@
         ]
       },
       {
-        "key": "technical.quotations",
-        "group": "Technical",
+        "key": "crmSales.quotations",
+        "group": "CRM & Sales",
         "label": "Quotations",
         "verbs": [
           "view",
@@ -290,16 +282,16 @@
         ]
       },
       {
-        "key": "technical.live",
-        "group": "Technical",
+        "key": "engineeringDocs.live",
+        "group": "Engineering & Documents",
         "label": "Live view",
         "verbs": [
           "view"
         ]
       },
       {
-        "key": "technical.settings",
-        "group": "Technical",
+        "key": "engineeringDocs.settings",
+        "group": "Engineering & Documents",
         "label": "Settings",
         "verbs": [
           "view",
@@ -350,7 +342,7 @@
       },
       {
         "key": "inventory.stock",
-        "group": "Inventory",
+        "group": "Inventory & Warehouse",
         "label": "Stock",
         "verbs": [
           "view",
@@ -360,9 +352,9 @@
         ]
       },
       {
-        "key": "inventory.vendors",
-        "group": "Inventory",
-        "label": "Vendors",
+        "key": "procurement.suppliers",
+        "group": "Procurement & Subcontracting",
+        "label": "Suppliers",
         "verbs": [
           "view",
           "create",
@@ -372,7 +364,7 @@
       },
       {
         "key": "inventory.items",
-        "group": "Inventory",
+        "group": "Inventory & Warehouse",
         "label": "Registered items",
         "verbs": [
           "view",
@@ -383,7 +375,7 @@
       },
       {
         "key": "inventory.sheets",
-        "group": "Inventory",
+        "group": "Inventory & Warehouse",
         "label": "Project sheets",
         "verbs": [
           "view",
@@ -391,9 +383,9 @@
         ]
       },
       {
-        "key": "inventory.awb",
-        "group": "Inventory",
-        "label": "AWB tracking",
+        "key": "logistics.shipments",
+        "group": "Logistics & Fleet",
+        "label": "Shipments",
         "verbs": [
           "view",
           "create",
@@ -438,7 +430,7 @@
       },
       {
         "key": "finance.cash",
-        "group": "Finance",
+        "group": "Finance & Accounting",
         "label": "Cash",
         "verbs": [
           "view",
@@ -449,7 +441,7 @@
       },
       {
         "key": "finance.ledger",
-        "group": "Finance",
+        "group": "Finance & Accounting",
         "label": "Ledger",
         "verbs": [
           "view"
@@ -467,7 +459,7 @@
       },
       {
         "key": "finance.payables",
-        "group": "Finance",
+        "group": "Finance & Accounting",
         "label": "Payables",
         "verbs": [
           "view",
@@ -488,7 +480,7 @@
       },
       {
         "key": "finance.assets",
-        "group": "Finance",
+        "group": "Finance & Accounting",
         "label": "Fixed assets",
         "verbs": [
           "view",
@@ -504,7 +496,7 @@
       },
       {
         "key": "finance.settings",
-        "group": "Finance",
+        "group": "Finance & Accounting",
         "label": "Settings",
         "verbs": [
           "view",
@@ -512,8 +504,8 @@
         ]
       },
       {
-        "key": "operations.schedule",
-        "group": "Operations",
+        "key": "fieldService.schedule",
+        "group": "Field Operations & Service",
         "label": "Schedule",
         "verbs": [
           "view",
@@ -523,8 +515,8 @@
         ]
       },
       {
-        "key": "operations.tracking",
-        "group": "Operations",
+        "key": "fieldService.tracking",
+        "group": "Field Operations & Service",
         "label": "Tracking",
         "verbs": [
           "view",
@@ -534,8 +526,8 @@
         ]
       },
       {
-        "key": "operations.settings",
-        "group": "Operations",
+        "key": "fieldService.settings",
+        "group": "Field Operations & Service",
         "label": "Settings",
         "verbs": [
           "view",
@@ -543,8 +535,8 @@
         ]
       },
       {
-        "key": "operations.planner",
-        "group": "Operations",
+        "key": "projects.planner",
+        "group": "Projects",
         "label": "Planner",
         "verbs": [
           "view",
@@ -552,9 +544,9 @@
         ]
       },
       {
-        "key": "quality.documents",
-        "group": "Quality",
-        "label": "Documents",
+        "key": "engineeringDocs.register",
+        "group": "Engineering & Documents",
+        "label": "Document register",
         "verbs": [
           "view",
           "create",
@@ -601,8 +593,8 @@
         ]
       },
       {
-        "key": "people.members",
-        "group": "People",
+        "key": "administration.members",
+        "group": "Administration & Settings",
         "label": "People & access",
         "verbs": [
           "view",
@@ -610,8 +602,8 @@
         ]
       },
       {
-        "key": "studio.settings",
-        "group": "Studio",
+        "key": "administration.settings",
+        "group": "Administration & Settings",
         "label": "Studio settings",
         "verbs": [
           "view",
@@ -620,7 +612,7 @@
       },
       {
         "key": "engagements",
-        "group": "Engagements",
+        "group": "Main",
         "label": "Engagements",
         "verbs": [
           "view",

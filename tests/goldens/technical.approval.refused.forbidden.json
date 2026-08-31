@@ -2,6 +2,6 @@
   "status": 403,
   "body": {
     "error": "forbidden",
-    "key": "technical.quotations.edit"
+    "key": "crmSales.quotations.edit"
   }
 }

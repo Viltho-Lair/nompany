@@ -2,6 +2,6 @@
   "status": 403,
   "body": {
     "error": "forbidden",
-    "key": "quality.documents.publish"
+    "key": "engineeringDocs.register.publish"
   }
 }

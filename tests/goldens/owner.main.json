@@ -11,27 +11,39 @@
     },
     "nav": {
       "main": true,
-      "sales": true,
-      "sales-tickets": true,
-      "sales-clients": true,
-      "sales-live": true,
-      "sales-settings": true,
-      "technical": true,
-      "technical-quotations": true,
-      "technical-rfq": true,
-      "technical-live": true,
-      "technical-settings": true,
+      "crm-sales": true,
+      "crm-sales-tickets": true,
+      "crm-sales-clients": true,
+      "crm-sales-quotations": true,
+      "crm-sales-live": true,
+      "crm-sales-settings": true,
+      "tendering": false,
       "projects": true,
       "projects-list": true,
       "projects-sla": true,
       "projects-overtimes": true,
+      "projects-planner": true,
       "projects-settings": true,
+      "engineering-docs": true,
+      "engineering-docs-register": true,
+      "engineering-docs-rfq": true,
+      "engineering-docs-live": true,
+      "engineering-docs-settings": true,
+      "procurement": true,
+      "procurement-suppliers": true,
       "inventory": true,
       "inventory-stock": true,
-      "inventory-vendors": true,
       "inventory-items": true,
       "inventory-sheets": true,
-      "inventory-awb": true,
+      "manufacturing": false,
+      "field-service": true,
+      "field-service-schedule": true,
+      "field-service-tracking": true,
+      "field-service-settings": true,
+      "logistics": true,
+      "logistics-shipments": true,
+      "assets": false,
+      "quality-hse": false,
       "hr": true,
       "hr-employees": true,
       "finance": true,
@@ -40,13 +52,11 @@
       "finance-payables": true,
       "finance-assets": true,
       "finance-settings": true,
-      "operations": true,
-      "operations-schedule": true,
-      "operations-tracking": true,
-      "operations-planner": true,
-      "operations-settings": true,
-      "quality": true,
-      "quality-documents": true,
+      "reports": false,
+      "administration": false,
+      "administration-members": false,
+      "administration-master": false,
+      "administration-settings": false,
       "tasks": true,
       "tasks-settings": true
     },
@@ -57,52 +67,32 @@
         "parentId": null
       },
       {
-        "key": "sales",
-        "name": "Sales",
+        "key": "crm-sales",
+        "name": "CRM & Sales",
         "parentId": null
       },
       {
-        "key": "sales-tickets",
+        "key": "crm-sales-tickets",
         "name": "Tickets",
         "parentId": "<sec_ID>"
       },
       {
-        "key": "sales-clients",
-        "name": "Clients",
+        "key": "crm-sales-clients",
+        "name": "Customers",
         "parentId": "<sec_ID>"
       },
       {
-        "key": "sales-live",
-        "name": "Live view",
-        "parentId": "<sec_ID>"
-      },
-      {
-        "key": "sales-settings",
-        "name": "Settings",
-        "parentId": "<sec_ID>"
-      },
-      {
-        "key": "technical",
-        "name": "Technical",
-        "parentId": null
-      },
-      {
-        "key": "technical-quotations",
+        "key": "crm-sales-quotations",
         "name": "Quotations",
         "parentId": "<sec_ID>"
       },
       {
-        "key": "technical-rfq",
-        "name": "RFQ",
-        "parentId": "<sec_ID>"
-      },
-      {
-        "key": "technical-live",
+        "key": "crm-sales-live",
         "name": "Live view",
         "parentId": "<sec_ID>"
       },
       {
-        "key": "technical-settings",
+        "key": "crm-sales-settings",
         "name": "Settings",
         "parentId": "<sec_ID>"
       },
@@ -127,38 +117,98 @@
         "parentId": "<sec_ID>"
       },
       {
+        "key": "projects-planner",
+        "name": "Planner",
+        "parentId": "<sec_ID>"
+      },
+      {
         "key": "projects-settings",
         "name": "Settings",
         "parentId": "<sec_ID>"
       },
       {
+        "key": "engineering-docs",
+        "name": "Engineering & Documents",
+        "parentId": null
+      },
+      {
+        "key": "engineering-docs-register",
+        "name": "Document register",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engineering-docs-rfq",
+        "name": "RFQ",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engineering-docs-live",
+        "name": "Live view",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "engineering-docs-settings",
+        "name": "Settings",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "procurement",
+        "name": "Procurement & Subcontracting",
+        "parentId": null
+      },
+      {
+        "key": "procurement-suppliers",
+        "name": "Suppliers",
+        "parentId": "<sec_ID>"
+      },
+      {
         "key": "inventory",
-        "name": "Inventory",
+        "name": "Inventory & Warehouse",
         "parentId": null
       },
       {
         "key": "inventory-stock",
-        "name": "Stock Management",
-        "parentId": "<sec_ID>"
-      },
-      {
-        "key": "inventory-vendors",
-        "name": "Vendors",
+        "name": "Stock",
         "parentId": "<sec_ID>"
       },
       {
         "key": "inventory-items",
-        "name": "Registered Items",
+        "name": "Items",
         "parentId": "<sec_ID>"
       },
       {
         "key": "inventory-sheets",
-        "name": "Project Sheets",
+        "name": "Project sheets",
         "parentId": "<sec_ID>"
       },
       {
-        "key": "inventory-awb",
-        "name": "AWB Tracking",
+        "key": "field-service",
+        "name": "Field Operations & Service",
+        "parentId": null
+      },
+      {
+        "key": "field-service-schedule",
+        "name": "Schedule",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "field-service-tracking",
+        "name": "Tracking",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "field-service-settings",
+        "name": "Settings",
+        "parentId": "<sec_ID>"
+      },
+      {
+        "key": "logistics",
+        "name": "Logistics & Fleet",
+        "parentId": null
+      },
+      {
+        "key": "logistics-shipments",
+        "name": "Shipments",
         "parentId": "<sec_ID>"
       },
       {
@@ -173,7 +223,7 @@
       },
       {
         "key": "finance",
-        "name": "Finance",
+        "name": "Finance & Accounting",
         "parentId": null
       },
       {
@@ -193,47 +243,12 @@
       },
       {
         "key": "finance-assets",
-        "name": "Assets",
+        "name": "Fixed assets",
         "parentId": "<sec_ID>"
       },
       {
         "key": "finance-settings",
         "name": "Settings",
-        "parentId": "<sec_ID>"
-      },
-      {
-        "key": "operations",
-        "name": "Operations",
-        "parentId": null
-      },
-      {
-        "key": "operations-schedule",
-        "name": "Schedule",
-        "parentId": "<sec_ID>"
-      },
-      {
-        "key": "operations-tracking",
-        "name": "Tracking",
-        "parentId": "<sec_ID>"
-      },
-      {
-        "key": "operations-planner",
-        "name": "Planner",
-        "parentId": "<sec_ID>"
-      },
-      {
-        "key": "operations-settings",
-        "name": "Settings",
-        "parentId": "<sec_ID>"
-      },
-      {
-        "key": "quality",
-        "name": "Quality",
-        "parentId": null
-      },
-      {
-        "key": "quality-documents",
-        "name": "Documents",
         "parentId": "<sec_ID>"
       },
       {
