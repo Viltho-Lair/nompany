@@ -67,8 +67,26 @@ CREATE TABLE IF NOT EXISTS collection_rows (
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
 
-  PRIMARY KEY (tenant_id, section_id, collection, id)
+  PRIMARY KEY (tenant_id, section_id, collection, id),
+  -- pg.ts's withTenant() already refuses an empty tenantId before it ever
+  -- opens a connection, but that is application code, not the database's own
+  -- guarantee — a CHECK here is the backstop for any other path that ever
+  -- writes this table. Load-bearing for the RLS policy below: an empty string
+  -- is a valid, non-NULL value that current_setting(..., true) can genuinely
+  -- return once a session has touched the GUC and left its scope (see
+  -- tests/pg-parity.mjs), so without this CHECK a row could be written with
+  -- tenant_id = '' and then be readable by exactly the sessions the policy
+  -- means to keep out.
+  CONSTRAINT collection_rows_tenant_id_not_empty CHECK (tenant_id <> '')
 );
+
+-- NO VIEW, NO FUNCTION, NO MATERIALIZED VIEW MAY BE BUILT OVER collection_rows.
+-- pg.ts's tenant guard (assertNotTenantScoped) is a text match on this table's
+-- name, run against the query text before it reaches Postgres — it cannot see
+-- through a layer of indirection. `SELECT * FROM a_view_over_collection_rows`
+-- would sail past the guard exactly as if the table had been renamed to
+-- dodge it, and reach Postgres with no tenant set. The rule has to live here,
+-- next to the table, because nothing in pg.ts can enforce it.
 
 -- THE COLLECTION'S TOTAL ORDER lives in one sequence shared by every row this
 -- table will ever hold, rather than one sequence per collection: readCol never

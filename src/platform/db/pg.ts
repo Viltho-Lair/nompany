@@ -2,7 +2,8 @@
 // same rule applies: nothing else opens a connection, because connection count
 // is a hard ceiling on a serverless runtime and a second pool doubles it
 // invisibly. Every later task calls pgQuery/withTenant and never constructs a
-// client of its own.
+// client of its own — there is deliberately no exported "give me the pool"
+// door (see _poolForTests below for why one existed and was removed).
 //
 // TRANSACTION-MODE POOLING IS THE CONSTRAINT THIS FILE IS BUILT AROUND. PgBouncer
 // hands a different backend connection to every statement, so anything that
@@ -13,11 +14,12 @@
 // could be discovered before production, and it is why every query below is
 // built as `{ text, values }` and nothing else.
 import { Pool, type PoolClient } from "pg";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { TBL } from "./keys";
 
 let pool: Pool | null = null;
 
-export function getPgClient(): Pool {
+function getPool(): Pool {
   if (pool) return pool;
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("pg: DATABASE_URL is not set");
@@ -32,8 +34,26 @@ export function getPgClient(): Pool {
     connectionTimeoutMillis: 5_000,
     // A QUERY THAT HANGS HOLDS A POOLED CONNECTION. On Redis the equivalent
     // failure self-healed; here it starves every other request on the instance.
+    //
+    // query_timeout MUST STAY STRICTLY GREATER THAN statement_timeout — do not
+    // "tidy" these back to equal values; that was a real bug (fix round 1),
+    // not a style choice. statement_timeout is enforced BY POSTGRES: the
+    // server itself cancels the query and the connection comes back usable.
+    // query_timeout is enforced BY THE CLIENT: `pg` rejects the in-flight
+    // query's promise on its own timer WITHOUT touching the connection (see
+    // node_modules/pg/lib/client.js's query_timeout handling) — the statement
+    // may still be running server-side, and the connection is still sitting
+    // mid-transaction with whatever SET LOCAL it carried. If the client timer
+    // could win the race, `withTenant` would hand back a connection that
+    // still has nompany.tenant_id LOCAL-set for a transaction the caller
+    // thinks failed — exactly the leak this file exists to prevent. Keeping
+    // the server timeout strictly shorter means Postgres always aborts first,
+    // and query_timeout only ever fires as a backstop against a truly wedged
+    // network. (The finally-block release(err) below is the second half of
+    // this fix: even a backstop firing must destroy the connection, not
+    // recycle it.)
     statement_timeout: 15_000,
-    query_timeout: 15_000,
+    query_timeout: 20_000,
     // NO `ssl` OPTION HERE — DELIBERATELY, and do not "fix" it back in. The
     // connection reaches Postgres through the Cloud SQL Auth Proxy on
     // 127.0.0.1: a local socket that is already the encrypted tunnel.
@@ -52,6 +72,23 @@ export function getPgClient(): Pool {
   return pool;
 }
 
+// TEST-ONLY ESCAPE HATCH. This used to be `export function getPgClient()`,
+// returning the pool itself — the task brief's own interface. Review found
+// that export was a hole: `getPgClient().query("SELECT * FROM collection_rows")`
+// reaches Postgres with no tenant set and assertNotTenantScoped never runs,
+// because the guard lives in pgQuery/pgTx/withTenant, not on the Pool object
+// itself. Nothing in this codebase needs the raw pool — pgQuery, pgTx and
+// withTenant already cover every real use — so the fix is to stop handing it
+// out under an inviting name rather than to wrap it: a wrapper whose `.query`
+// re-implements the guard would just be a second copy of pgQuery with extra
+// steps. `tests/pg-parity.mjs` is the one legitimate caller, for reading pool
+// configuration (statement_timeout) and closing the pool at the end of a bare
+// run — the underscore-prefixed name is there so nobody reaches for this from
+// application code by accident.
+export function _poolForTests(): Pool {
+  return getPool();
+}
+
 // ---- the tenant guard --------------------------------------------------
 //
 // collection_rows carries FORCE ROW LEVEL SECURITY (pgSchema.sql), keyed on
@@ -66,7 +103,11 @@ export function getPgClient(): Pool {
 // So it is refused here, in code, before the query ever reaches Postgres,
 // wherever it comes in on the bare pool (pgQuery, pgTx) rather than through
 // withTenant below. `\b` word-boundaries so a substring match ("collection_rows_seq")
-// cannot false-positive.
+// cannot false-positive. This is a text match, not a parser — it cannot see
+// through a VIEW or FUNCTION built on top of collection_rows, which is exactly
+// why pgSchema.sql now carries a comment forbidding either from ever being
+// created over this table: a wrapping view would defeat this guard with no
+// change needed here at all.
 const TENANT_TABLE_RE = new RegExp(`\\b${TBL.rows}\\b`, "i");
 function assertNotTenantScoped(text: string, calledFrom: string): void {
   if (TENANT_TABLE_RE.test(text)) {
@@ -88,13 +129,14 @@ async function run<T>(client: Pool | PoolClient, text: string, params: readonly 
   return { rows: res.rows as T[], rowCount: res.rowCount ?? 0 };
 }
 
-// THE TENANT-AGNOSTIC PATH. Fine for schema/health-check work and anything
-// that never touches collection_rows; refused (see assertNotTenantScoped) the
+// THE TENANT-AGNOSTIC PATH. Fine for health-check work and anything that
+// never touches collection_rows; refused (see assertNotTenantScoped) the
 // moment it does, because this path sets no tenant and RLS would go quiet
-// rather than loud.
+// rather than loud. Schema work (CREATE TABLE and friends) is NOT this path
+// either — see pgSchemaQuery below.
 export async function pgQuery<T = any>(text: string, params: readonly unknown[] = []): Promise<PgResult<T>> {
   assertNotTenantScoped(text, "pgQuery");
-  return run<T>(getPgClient(), text, params);
+  return run<T>(getPool(), text, params);
 }
 
 /**
@@ -103,7 +145,8 @@ export async function pgQuery<T = any>(text: string, params: readonly unknown[] 
  * substitute for withTenant, it is a second door to the identical mistake.
  */
 export async function pgTx<T>(fn: (q: PgQueryFn) => Promise<T>): Promise<T> {
-  const client = await getPgClient().connect();
+  const client = await getPool().connect();
+  let failure: unknown;
   try {
     await client.query({ text: "BEGIN" });
     const q: PgQueryFn = (text, params = []) => {
@@ -114,14 +157,69 @@ export async function pgTx<T>(fn: (q: PgQueryFn) => Promise<T>): Promise<T> {
     await client.query({ text: "COMMIT" });
     return out;
   } catch (e) {
+    failure = e;
     // ROLLBACK failing too (a dead connection) must not mask the original
     // error — swallow it and let the caller see what actually went wrong.
     await client.query({ text: "ROLLBACK" }).catch(() => {});
     throw e;
   } finally {
-    client.release();
+    // release(err) ON ANY ERROR PATH, NOT A BARE release(). Fix round 1: a
+    // `query_timeout` rejects the client-side promise without the server
+    // aborting or the connection dying (see the statement_timeout/query_timeout
+    // comment above) — a plain release() would check that connection back
+    // into the pool still sitting mid-transaction, for whatever query the next
+    // caller runs on it. Passing the caught error tells pg-pool to DESTROY the
+    // physical connection instead of reusing it; a connection whose
+    // transaction state we can no longer vouch for must never go back to a
+    // different caller. `undefined` on the success path is release()'s normal
+    // "safe to reuse" signal.
+    client.release(failure as Error | undefined);
   }
 }
+
+/**
+ * THE DDL DOOR (Important 4) — schema application ONLY. Used by the migration
+ * runner that applies pgSchema.sql (Task 2/later) and nothing else. Schema
+ * statements (CREATE TABLE, CREATE INDEX, ALTER TABLE …) have no tenant and
+ * necessarily name collection_rows literally, which assertNotTenantScoped
+ * would refuse from pgQuery/pgTx — correctly, for every OTHER caller. Rather
+ * than carve an exemption into that guard (a hidden allowance for "CREATE
+ * TABLE" would just as easily have let a stray SELECT through the same hole),
+ * the exemption is this separate, clearly-named export: a reader can see it
+ * is deliberately not tenant-scoped, and grep for its call sites to confirm
+ * the migration runner is the only one.
+ *
+ * Task 1 calls this from nowhere — no schema is applied here. It exists now
+ * so Task 2's migration runner has a door to call instead of reaching for
+ * pgQuery and hitting the guard, or opening a second pool of its own.
+ */
+export async function pgSchemaQuery<T = any>(text: string, params: readonly unknown[] = []): Promise<PgResult<T>> {
+  return run<T>(getPool(), text, params);
+}
+
+// ---- re-entrancy (Important 3) -----------------------------------------
+//
+// withTenant takes a DEDICATED connection per call (pool.connect(), not
+// pool.query()) and holds it for the whole of `fn`. Nest it — Task 4's row
+// primitives calling withTenant from inside code that is itself already
+// inside a withTenant — and with no guard each nested call queues for its own
+// connection out of the same small pool its own caller is holding one from.
+// Measured against PGPOOL_MAX=3: four levels deep stalls for ~5.6s (the sum
+// of connectionTimeoutMillis retries) before pg-pool gives up with a generic
+// "timeout exceeded when trying to connect" — a request-killing stall under
+// load that reads as "the database is slow," not as what it actually is (two
+// tenant scopes nested on one call stack).
+//
+// AsyncLocalStorage tracks the innermost active tenant scope per call stack.
+// A nested call for the SAME tenant is absorbed into the caller's own
+// transaction — reusing its connection and its `q`, opening nothing new —
+// because that is a legitimate composition (a higher-level flow and the row
+// primitive it calls both wrapping themselves in withTenant for the same
+// tenant) that should cost nothing. A nested call for a DIFFERENT tenant is
+// refused immediately: one request must not hold two tenant scopes on one
+// call stack at once, and failing fast with a message naming both tenants is
+// far more debuggable than a five-second mystery stall.
+const tenantContext = new AsyncLocalStorage<{ tenantId: string; q: PgQueryFn }>();
 
 /**
  * THE SEAM REQUIREMENT A ASKS FOR — the only sanctioned way to run a query
@@ -158,7 +256,26 @@ export async function withTenant<T>(tenantId: string, fn: (q: PgQueryFn) => Prom
     // from the pool, rather than being let through to become an empty result.
     throw new Error("pg: withTenant requires a non-empty tenantId");
   }
-  const client = await getPgClient().connect();
+
+  const outer = tenantContext.getStore();
+  if (outer) {
+    if (outer.tenantId === tenantId) {
+      // Re-entrant call for the SAME tenant: absorbed into the caller's own
+      // transaction, no new connection taken.
+      return fn(outer.q);
+    }
+    // A DIFFERENT tenant while one is already active on this call stack.
+    // Refused immediately rather than queuing for a connection the pool may
+    // not have — see the comment above tenantContext for the stall this
+    // replaces.
+    throw new Error(
+      `pg: withTenant("${tenantId}") was called while withTenant("${outer.tenantId}") is already ` +
+        `active on the same call stack. One request may not hold two tenant scopes at once.`,
+    );
+  }
+
+  const client = await getPool().connect();
+  let failure: unknown;
   try {
     await client.query({ text: "BEGIN" });
     await client.query({
@@ -168,13 +285,19 @@ export async function withTenant<T>(tenantId: string, fn: (q: PgQueryFn) => Prom
     // No assertNotTenantScoped in this closure: this IS the mechanism the
     // guard exists to require callers to go through.
     const q: PgQueryFn = (text, params = []) => run(client, text, params);
-    const out = await fn(q);
+    const out = await tenantContext.run({ tenantId, q }, () => fn(q));
     await client.query({ text: "COMMIT" });
     return out;
   } catch (e) {
+    failure = e;
     await client.query({ text: "ROLLBACK" }).catch(() => {});
     throw e;
   } finally {
-    client.release();
+    // release(err) on any error path — see the identical comment in pgTx.
+    // This is the exact path Critical 1's leak was reached through: a
+    // query_timeout (or any other mid-transaction failure) must destroy this
+    // connection rather than hand it back to the pool still carrying
+    // nompany.tenant_id LOCAL-set for whichever tenant runs the next query.
+    client.release(failure as Error | undefined);
   }
 }

@@ -38,7 +38,7 @@ if (!process.env.DATABASE_URL) {
 // Dynamic, not static — a static `import` is resolved before ANY module-level
 // code runs (including the register() call above), which is exactly what
 // leaves it too early to see the hook.
-const { getPgClient, pgQuery, withTenant } = await import("../src/platform/db/pg.ts");
+const { _poolForTests, pgQuery, pgTx, withTenant } = await import("../src/platform/db/pg.ts");
 const { TBL } = await import("../src/platform/db/keys.ts");
 
 export async function testPgConnects(t) {
@@ -54,9 +54,21 @@ export async function testPgRejectsNamedPreparedStatements(t) {
   // "never pass name" rule is enforced by pg.ts's own `run()` helper always
   // building `{ text, values }` literals, which is verified by inspection in
   // task-1-report.md rather than by reflection on the pg driver's internals.
-  const client = getPgClient();
+  const client = _poolForTests();
   t.equal(typeof client.query, "function", "pool exposes query");
   t.equal(client.options?.statement_timeout > 0, true, "a statement timeout is set");
+}
+
+export async function testQueryTimeoutOutlivesStatementTimeout(t) {
+  // Fix round 1, Critical 1: the two timeouts must never be equal. If they
+  // were, which one fires is a race, and the client-side query_timeout
+  // winning leaves a connection alive-but-desynced (see the release-on-error
+  // test below for what that costs). Pinned here as a plain number
+  // comparison so a future "tidy them to match" edit fails a test instead of
+  // silently reopening the race.
+  const client = _poolForTests();
+  t.equal(client.options.query_timeout > client.options.statement_timeout, true,
+    "the client-side timeout is strictly longer, so Postgres always aborts the statement first");
 }
 
 // ---- requirement A: the tenant seam, proved rather than asserted ----------
@@ -141,6 +153,121 @@ export async function testWithTenantRefusesAnEmptyTenantId(t) {
   t.equal(threw instanceof Error, true, "an empty tenant id is refused before a connection is even taken");
 }
 
+// ---- fix round 1, Critical 1: a failed connection must be DESTROYED, ------
+// ---- never handed back to the pool mid-transaction ------------------------
+
+export async function testFailedTransactionDestroysItsConnectionRatherThanRecyclingIt(t) {
+  // THE ASSERTION THAT WOULD HAVE CAUGHT THE ORIGINAL BUG. A plain
+  // `client.release()` on an error path checks a mid-transaction connection
+  // BACK INTO THE POOL as if nothing happened — pg-pool's own bookkeeping
+  // (`totalCount`, `_clients.length`) does not change, because the client is
+  // still one of the pool's members, just idle again. `client.release(err)`
+  // instead calls the pool's `_remove`, which synchronously splices the
+  // client OUT of `_clients` before this call even returns — so `totalCount`
+  // dropping by exactly one, synchronously, on the error path IS the proof
+  // that the connection was destroyed rather than recycled with its stale
+  // `nompany.tenant_id` LOCAL setting still attached. If pg.ts regressed to a
+  // bare `client.release()`, this assertion would see totalCount UNCHANGED
+  // (or even see the pool grow, if `.connect()` had to make a new one to
+  // satisfy a later query) and fail.
+  //
+  // The forced failure is a real Postgres error (division by zero) inside the
+  // transaction — not a thrown JS error before any query ran — so it exercises
+  // the exact path a mid-transaction wire-level failure (a query_timeout, per
+  // Critical 1) would take: BEGIN and SET LOCAL both succeed, then the query
+  // itself fails, then ROLLBACK, then release(err).
+  const pool = _poolForTests();
+  await pgQuery("SELECT 1"); // ensure at least one connection exists to measure against
+  const before = pool.totalCount;
+
+  const poisonTenant = "tenant-poison-p1t1fix";
+  let threw = null;
+  try {
+    await withTenant(poisonTenant, async (q) => {
+      await q("SELECT 1/0");
+    });
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "the forced mid-transaction error surfaces to the caller");
+
+  const after = pool.totalCount;
+  t.equal(after, before - 1, "the failed connection was removed from the pool (destroyed), not left in it");
+  t.equal(pool.idleCount === 0 || pool.idleCount < before, true,
+    "the destroyed connection did not go back onto the idle list");
+
+  // And the leak itself: whichever connection answers next must not be able
+  // to see the poisoned tenant setting. Since the poisoned connection no
+  // longer exists, this also confirms a fresh/other connection was used.
+  const { rows } = await pgQuery("SELECT current_setting('nompany.tenant_id', true) AS tid");
+  t.equal(rows[0].tid === poisonTenant, false, "no later query inherits the failed transaction's tenant scope");
+}
+
+export async function testPgTxAlsoDestroysAFailedConnection(t) {
+  // Same fix, same proof, for pgTx (the non-tenant transaction helper) —
+  // Critical 1 named both call sites (pg.ts:119 and :122 in the original
+  // review).
+  const pool = _poolForTests();
+  await pgQuery("SELECT 1");
+  const before = pool.totalCount;
+
+  let threw = null;
+  try {
+    await pgTx(async (q) => {
+      await q("SELECT 1/0");
+    });
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "pgTx surfaces the forced error");
+  t.equal(pool.totalCount, before - 1, "pgTx also destroys rather than recycles a connection that failed mid-transaction");
+}
+
+// ---- fix round 1, Important 3: nesting withTenant fails fast --------------
+
+export async function testReentrantWithTenantForTheSameTenantIsAbsorbed(t) {
+  // A higher-level flow and the row primitive it calls both wrapping
+  // themselves in withTenant for the SAME tenant must not pay for (or
+  // exhaust the pool over) a second connection — the inner call reuses the
+  // outer's client and transaction.
+  const pool = _poolForTests();
+  await pgQuery("SELECT 1");
+  const before = pool.totalCount;
+
+  const seen = await withTenant("tenant-reentrant-same-p1t1fix", async (q) => {
+    return withTenant("tenant-reentrant-same-p1t1fix", async (innerQ) => {
+      const { rows } = await innerQ("SELECT current_setting('nompany.tenant_id', true) AS tid");
+      return rows[0].tid;
+    });
+  });
+  t.equal(seen, "tenant-reentrant-same-p1t1fix", "the nested call still sees the (same) tenant");
+  t.equal(pool.totalCount, before, "no second connection was taken for the re-entrant same-tenant call");
+}
+
+export async function testReentrantWithTenantForADifferentTenantFailsFast(t) {
+  // THE STALL THIS REPLACES: measured at ~5.6s for four levels of naive
+  // nesting against PGPOOL_MAX=3, ending in a generic pg-pool "timeout
+  // exceeded when trying to connect" that reads as "the database is slow."
+  // The fix must fail IMMEDIATELY (no pool wait at all) with a message that
+  // names the actual mistake.
+  const started = Date.now();
+  let threw = null;
+  try {
+    await withTenant("tenant-outer-p1t1fix", async () => {
+      await withTenant("tenant-inner-p1t1fix", async (q) => q("SELECT 1"));
+    });
+  } catch (e) {
+    threw = e;
+  }
+  const elapsedMs = Date.now() - started;
+  t.equal(threw instanceof Error, true, "nesting two different tenants is refused");
+  t.equal(/tenant-inner-p1t1fix/.test(threw?.message || "") && /tenant-outer-p1t1fix/.test(threw?.message || ""), true,
+    "the error names both tenants, not just that something failed");
+  // Generous ceiling (the naive stall was ~5,600ms) — this only needs to prove
+  // "fails fast", not pin an exact millisecond count.
+  t.equal(elapsedMs < 1000, true, `failed in ${elapsedMs}ms, well under the ~5.6s stall it replaces`);
+}
+
 function makeHarness() {
   let fails = 0;
   return {
@@ -165,11 +292,16 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     const tests = [
       testPgConnects,
       testPgRejectsNamedPreparedStatements,
+      testQueryTimeoutOutlivesStatementTimeout,
       testWithTenantSetsTheLocalTenantSetting,
       testTenantSettingDoesNotLeakAcrossTransactions,
       testBareQueryAgainstTheTenantTableIsRefused,
       testWithinTheSeamTheTenantTableIsReachable,
       testWithTenantRefusesAnEmptyTenantId,
+      testFailedTransactionDestroysItsConnectionRatherThanRecyclingIt,
+      testPgTxAlsoDestroysAFailedConnection,
+      testReentrantWithTenantForTheSameTenantIsAbsorbed,
+      testReentrantWithTenantForADifferentTenantFailsFast,
     ];
     let totalFails = 0;
     for (const test of tests) {
@@ -179,8 +311,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       totalFails += t.fails;
     }
     console.log(totalFails ? `\n${totalFails} FAILURES\n` : "\nall passed\n");
-    const { getPgClient: gp } = await import("../src/platform/db/pg.ts");
-    await gp().end();
+    await _poolForTests().end();
     process.exit(totalFails ? 1 : 0);
   })().catch(async (e) => {
     console.error(e);
