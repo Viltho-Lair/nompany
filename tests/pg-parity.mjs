@@ -43,6 +43,15 @@ if (!process.env.DATABASE_URL) {
 const { _poolForTests, pgQuery, pgTx, pgSchemaQuery, withTenant } = await import("../src/platform/db/pg.ts");
 const { TBL } = await import("../src/platform/db/keys.ts");
 const { pgReadCol, pgAddRow, pgAddRows, pgUpdateRow, pgDeleteRow } = await import("../src/platform/db/pgRows.ts");
+const { DB_BACKEND } = await import("../src/platform/db/sections.ts");
+
+// ---- Task 5: the backend dispatcher ----------------------------------------
+
+export async function testBackendDefaultsToRedis(t) {
+  // Until cutover, an unset env must mean Redis. A migration that flips the
+  // default is a migration that happened by accident.
+  t.equal(DB_BACKEND, process.env.NOMPANY_DB || "redis", "backend comes from the env, Redis by default");
+}
 
 export async function testPgConnects(t) {
   const { rows } = await pgQuery("SELECT 1 AS one");
@@ -829,6 +838,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testTwentyConcurrentFlipsAllLandNoneRejected,
       testImmutableFieldsCannotBePatched,
       testDeleteReportsWhetherAnythingWent,
+      testBackendDefaultsToRedis,
     ];
     let totalFails = 0;
     for (const test of tests) {

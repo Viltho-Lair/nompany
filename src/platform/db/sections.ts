@@ -13,6 +13,9 @@
 
 import { S, ID, SECTION_COLLECTIONS, SECTION_DEFS, ALL_SECTION_KEYS } from "./keys";
 import { readArr, editArr } from "./store";
+import type { Row } from "./store";
+import * as R from "./redisRows";
+import * as P from "./pgRows";
 
 // ---- what a section is -----------------------------------------------------
 // A SECTION IS A CONTAINER THAT OWNS COLLECTIONS, and every field here exists
@@ -190,12 +193,97 @@ export function collectionsForKey(sectionKey: string): string[] {
 // Reading is free-form; WRITING is only ever addRow/updateRow/deleteRow. There
 // is deliberately no writeCol(): a blind whole-collection write is exactly the
 // lost update those three exist to prevent, so the door is not left open.
-// The five row primitives now have two implementations. Which one answers is
-// Task 5's dispatcher; until then Redis answers, exactly as before.
-export {
-  redisReadCol as readCol, redisAddRow as addRow, redisAddRows as addRows,
-  redisUpdateRow as updateRow, redisDeleteRow as deleteRow,
-} from "./redisRows";
+//
+// WHICH STORE ANSWERS. Redis by default, deliberately: an unset variable must
+// never mean "migrate", or a migration happens by accident on the first deploy
+// that forgets it.
+//
+// `parity` is the mode that makes the migration provable. It runs BOTH
+// implementations on every call and throws on any disagreement, which turns the
+// entire existing suite — 153 goldens included — into the parity test. A
+// purpose-built harness can only check what somebody thought of; this checks
+// what the product actually does.
+export const DB_BACKEND = (process.env.NOMPANY_DB || "redis") as "redis" | "postgres" | "parity";
+
+function disagree(fn: string, a: unknown, b: unknown): never {
+  throw new Error(
+    `parity: ${fn} disagreed\n  redis:    ${JSON.stringify(a)}\n  postgres: ${JSON.stringify(b)}`,
+  );
+}
+
+// COMPARED AS JSON TEXT, not with a deep-equal. Key order is the thing most
+// likely to differ and the thing a structural comparison cannot see — which is
+// precisely the failure this whole task exists to catch.
+function same(fn: string, a: unknown, b: unknown) {
+  if (JSON.stringify(a) !== JSON.stringify(b)) disagree(fn, a, b);
+  return a;
+}
+
+// PARITY WRITES GO TO BOTH STORES, WHICH MEANS BOTH MUST END IN THE SAME
+// STATE. Redis runs first (it is the store of record until cutover); if
+// Postgres then fails, the two stores have already diverged — Redis holds the
+// write and Postgres does not — and every later parity comparison in this run
+// is comparing against a Postgres that is missing state. Swallowing that
+// failure and returning the Redis result anyway would hide exactly the defect
+// this mode exists to surface, so it is never caught here: it is rethrown,
+// named as a DIVERGENCE rather than a bare Postgres error, so whoever reads
+// the log knows the two stores need reconciling before the next comparison in
+// this run can be trusted at all.
+async function second<T>(fn: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`parity: ${fn} — redis succeeded but postgres failed, stores now diverge: ${msg}`);
+  }
+}
+
+export async function readCol<T extends Row = Row>(s: string, sec: string, n: string): Promise<T[]> {
+  if (DB_BACKEND === "postgres") return P.pgReadCol<T>(s, sec, n);
+  const a = await R.redisReadCol<T>(s, sec, n);
+  if (DB_BACKEND !== "parity") return a;
+  return same("readCol", a, await P.pgReadCol<T>(s, sec, n)) as T[];
+}
+
+export async function addRow<T extends Row = Row>(s: string, sec: string, n: string, item: Row): Promise<T> {
+  if (DB_BACKEND === "postgres") return P.pgAddRow<T>(s, sec, n, item);
+  const a = await R.redisAddRow<T>(s, sec, n, item);
+  if (DB_BACKEND !== "parity") return a;
+  // The id is minted by whichever ran first (Redis), so the second is handed
+  // it explicitly — the comparison is about SHAPE and ORDER, not about two
+  // stores independently inventing the same random id.
+  const b = await second("addRow", () => P.pgAddRow<T>(s, sec, n, { ...item, id: a.id }));
+  return same("addRow", a, b) as T;
+}
+
+export async function addRows<T extends Row = Row>(s: string, sec: string, n: string, items: readonly Row[]): Promise<T[]> {
+  if (DB_BACKEND === "postgres") return P.pgAddRows<T>(s, sec, n, items);
+  const a = await R.redisAddRows<T>(s, sec, n, items);
+  if (DB_BACKEND !== "parity") return a;
+  // Same reasoning as addRow, per row in the batch — each id came from Redis,
+  // seeded into the Postgres call rather than left to mint its own.
+  const seeded = items.map((it, i) => ({ ...it, id: a[i]?.id }));
+  const b = await second("addRows", () => P.pgAddRows<T>(s, sec, n, seeded));
+  return same("addRows", a, b) as T[];
+}
+
+export async function updateRow<T extends Row = Row>(
+  s: string, sec: string, n: string, id: string, patch: Row | ((row: T) => Row),
+): Promise<T | null> {
+  if (DB_BACKEND === "postgres") return P.pgUpdateRow<T>(s, sec, n, id, patch);
+  const a = await R.redisUpdateRow<T>(s, sec, n, id, patch);
+  if (DB_BACKEND !== "parity") return a;
+  const b = await second("updateRow", () => P.pgUpdateRow<T>(s, sec, n, id, patch));
+  return same("updateRow", a, b) as T | null;
+}
+
+export async function deleteRow(s: string, sec: string, n: string, id: string): Promise<boolean> {
+  if (DB_BACKEND === "postgres") return P.pgDeleteRow(s, sec, n, id);
+  const a = await R.redisDeleteRow(s, sec, n, id);
+  if (DB_BACKEND !== "parity") return a;
+  const b = await second("deleteRow", () => P.pgDeleteRow(s, sec, n, id));
+  return same("deleteRow", a, b) as boolean;
+}
 
 // ---- access grants (removed) -----------------------------------------------
 // listGrants/setGrant/removeGrant and the s:<StudioID>:grants key went with the
