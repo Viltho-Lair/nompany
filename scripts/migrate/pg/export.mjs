@@ -19,7 +19,20 @@
 // reproduce this order in Postgres; reversing it here would hide the very bug
 // that ordering proof exists to catch.
 //
-//   node scripts/migrate/pg/export.mjs [outDir] [--allow-live]
+// AN AUDIT PASS RUNS ALONGSIDE THE EXPORT (audit.mjs) — a fix-round-1 finding.
+// "Explicit catalogue, never a scan" (above) is about what to MIGRATE, and is
+// still true; it says nothing about whether the catalogue is COMPLETE. A row
+// planted in `salesServices` (a collection keys.ts records as deliberately
+// removed from the map, on a real section) exported, loaded and verified
+// clean while the row itself was silently left behind — every checkpoint
+// green, one row gone. audit.mjs's scoped scan (never a broad or empty
+// prefix; see its own header for why that scan is legitimate where the rule
+// above forbids a different one) reports anything Redis holds that the
+// catalogue does not name. A non-zero finding REFUSES the run by default
+// (see ALLOW_INCOMPLETE below) — a migration that reports success while
+// dropping data is worse than one that fails loudly.
+//
+//   node scripts/migrate/pg/export.mjs [outDir] [--allow-live] [--allow-incomplete]
 import { createWriteStream, readFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { register } from "node:module";
@@ -53,6 +66,7 @@ if (!process.env.REDIS_URL) {
 
 const argv = process.argv.slice(2);
 const ALLOW_LIVE = argv.includes("--allow-live");
+const ALLOW_INCOMPLETE = argv.includes("--allow-incomplete");
 const out = argv.find((a) => !a.startsWith("--")) || "./pg-export";
 
 // REFUSED UNLESS EXPLICITLY ALLOWED — same guard, same wording, as every other
@@ -76,14 +90,24 @@ const { listStudios } = await import("@/modules/main/studios");
 const { listSections } = await import("@/platform/db/sections");
 const { redisReadCol } = await import("@/platform/db/redisRows");
 const { SECTION_COLLECTIONS } = await import("@/platform/db/keys");
+const { auditStudioSections, reportAudit } = await import("./audit.mjs");
 
 await mkdir(out, { recursive: true });
 
 let studioCount = 0, rowCount = 0, colCount = 0;
+const findings = [];
 for (const studio of await listStudios()) {
   studioCount++;
+  const sections = await listSections(studio.id);
+  // AUDIT FIRST, so a studio with a genuine problem is still fully exported
+  // (nothing here withholds a WRITE based on the audit — the refusal below is
+  // the whole run declining to call itself complete, not a per-studio skip)
+  // and the operator sees exactly which studio/section/collection to fix.
+  findings.push(...await auditStudioSections(studio.id, sections));
+
   const stream = createWriteStream(`${out}/${studio.id}.ndjson`);
-  for (const section of await listSections(studio.id)) {
+  let studioRows = 0;
+  for (const section of sections) {
     for (const collection of SECTION_COLLECTIONS[section.key] || []) {
       colCount++;
       const data = await redisReadCol(studio.id, section.id, collection);
@@ -91,6 +115,7 @@ for (const studio of await listStudios()) {
       for (const row of data) {
         stream.write(`${JSON.stringify({ studioId: studio.id, sectionId: section.id, collection, row })}\n`);
         rowCount++;
+        studioRows++;
       }
     }
   }
@@ -98,9 +123,22 @@ for (const studio of await listStudios()) {
     stream.on("error", reject);
     stream.end(resolve);
   });
+  // A STUDIO'S ROW COUNT IS ALWAYS PRINTED, including zero — a fix-round-1
+  // ask. An empty .ndjson file on disk is otherwise the only trace a studio
+  // exported no rows at all, and that fact is easy to miss by inference.
+  console.log(`  ${studio.slug || studio.id}: ${studioRows} row(s)`);
 }
 
 console.log(
   `exported ${rowCount} row(s) from ${studioCount} studio(s) across ${colCount} collection(s) to ${out}`,
 );
+
+const clean = reportAudit(findings);
+if (!clean && !ALLOW_INCOMPLETE) {
+  console.error(
+    "Refusing to call this export complete — fix the catalogue (or pass --allow-incomplete " +
+      "to proceed with this run treated as a known, acknowledged gap) and re-run.",
+  );
+  process.exit(1);
+}
 process.exit(0);

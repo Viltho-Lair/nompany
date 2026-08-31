@@ -185,16 +185,25 @@ again (still clean).
 
 # `pg/export.mjs`, `pg/load.mjs`, `pg/verify.mjs` — the Redis → Postgres data migration (P1)
 
-The actual data migration for the Postgres store swap: move every row Redis
-holds today into `collection_rows` (`pgSchema.sql`, applied by `pg/schema.mjs`),
-and prove the two stores agree before anything downstream ever reads from
-Postgres. Three scripts, run in order:
+The actual data migration for the Postgres store swap. **What it moves:**
+every row of every collection named in `SECTION_COLLECTIONS` (`keys.ts`), for
+every section of every studio `listStudios()`/`listSections()` return, into
+`collection_rows` (`pgSchema.sql`, applied by `pg/schema.mjs`). **What it does
+NOT move:** anything Redis holds outside that description — a collection a
+studio's Redis keys actually contain but `SECTION_COLLECTIONS` does not name
+(three are known and named below), a section whose `key` is not in
+`ALL_SECTION_KEYS`, or a studio with real keys but no `g:studios` registry
+row. `pg/audit.mjs` exists to catch the first two of those loudly rather than
+let them pass silently (see below); the third is a registry-integrity problem
+this migration does not attempt to solve. Three scripts, run in order:
 
 ```bash
 # 1. EXPORT — READ-ONLY. Walks every studio, every section, every collection
 #    named by SECTION_COLLECTIONS, writing one newline-delimited JSON file per
-#    studio. Calls nothing but redisReadCol/listStudios/listSections — no
-#    write or delete primitive anywhere in the file.
+#    studio, and AUDITS each studio's sections against the catalogue as it
+#    goes (see "The catalogue can be incomplete" below). Calls nothing but
+#    redisReadCol/listStudios/listSections/scanPrefix — no write or delete
+#    primitive anywhere in the file.
 NOMPANY_KEY_PREFIX=sandbox_ node scripts/migrate/pg/export.mjs ./pg-export
 
 # 2. LOAD — WRITES, POSTGRES ONLY. Reads the ndjson files back and inserts
@@ -208,43 +217,83 @@ node scripts/migrate/pg/load.mjs ./pg-export
 #    compares JSON.stringify of one against the other — TEXT, not a
 #    deep-equal, because key order is exactly what a deep-equal cannot see
 #    and exactly what the 153 golden responses pin. A mismatch is reported by
-#    studio, section and collection.
+#    studio, section, collection AND the first differing row id. Also runs
+#    the same audit export.mjs runs — a clean "0 mismatched" only means the
+#    catalogued collections agree, not that the catalogue is complete.
 NOMPANY_KEY_PREFIX=sandbox_ node scripts/migrate/pg/verify.mjs
 ```
 
-Expected on a clean run: `0 mismatched`.
+Expected on a clean run: `0 mismatched` AND no audit findings. Either script
+exits non-zero — refusing to call the run complete — if the audit finds
+anything, unless `--allow-incomplete` is passed to proceed with the gap
+treated as a known, acknowledged one.
 
-## Read-only means no write or delete primitive at all
+## The catalogue can be incomplete, and that used to be invisible
 
-`export.mjs` and `verify.mjs` never call anything but `redisReadCol`,
-`pgReadCol`, `listStudios` and `listSections` — not a guarded write, not a
-conditional delete, none. `load.mjs` is the only one of the three that
-writes, and it writes **only to Postgres**: nothing in it opens a Redis
-connection, and its one statement beyond the transaction envelope and the
-sequence reservation is `INSERT … ON CONFLICT DO NOTHING`. There is no
-`--delete` flag anywhere in this trio and no path to `FLUSHDB`/`FLUSHALL`/a
-broad-scan delete — invariant 17 (CLAUDE.md) governs this migration
-absolutely, and the honest way to obey it is to have no delete path at all
-rather than a guarded one.
+`SECTION_COLLECTIONS` is hand-maintained, and every one of these three
+scripts loops over it — so a collection Redis actually holds that the map
+does not name is invisible to all three the same way: `SECTION_COLLECTIONS[
+section.key] || []` cannot report what it was never told to look for. Fix
+round 1 demonstrated this concretely: a row planted in `salesServices` — a
+collection `keys.ts`'s own comment records as **deliberately removed** from
+the map, alongside `departments` and `positions`, any of which "may still
+hold rows in studios created before the removal" — exported, loaded and
+verified with a reported `0 mismatched`, while the row itself was silently
+left behind in Redis and never reached Postgres. Every checkpoint looked
+green; one row was gone.
 
-Both `export.mjs` and `verify.mjs` also refuse to touch the LIVE (unprefixed)
-Redis namespace unless `--allow-live` is passed, matching every other script
-in this folder — reading live is still an action Task 10's owner
-double-confirms before it happens for real; this script only supplies the
-refusal, not the confirmation.
+`pg/audit.mjs` closes this with a **scoped, read-only scan** —
+`scanPrefix(SEC.prefix(studioId, sectionId))`, never an empty or top-level
+prefix — run by both `export.mjs` and `verify.mjs` for every section of
+every studio, reporting two things: any `:c:<name>` collection under a
+section that `SECTION_COLLECTIONS` does not name, and any section `key` not
+present in `ALL_SECTION_KEYS` at all (which `appendSection` could mint, or a
+future rename map could leave stale). See `audit.mjs`'s own header for why
+this scan does not conflict with "enumerate by the explicit catalogue, never
+a scan" elsewhere in these scripts — that rule is about choosing what to
+migrate; this scan only ever asserts that nothing ELSE exists, and reports
+rather than reading a single row's contents.
 
-## Nothing in P1 deletes from Redis
+**Not covered even by the audit:** a studio whose real Redis keys exist with
+no matching row in `g:studios` at all. `listStudios()` is where every one of
+these scripts starts, so such a studio is never even seen — `studios.ts`'s
+own comment on `listUserCollaborations` acknowledges this class of drift
+exists between a derived index and the registry. Auditing that would mean a
+much broader top-level scan and is out of scope here; recorded so it is not
+mistaken for something this migration already checks.
+
+## Nothing in P1 deletes from Redis, but the rollback window is not open forever
 
 **Redis is never written to and never deleted from by any of these three
-scripts, or by anything else P1 has shipped.** Every row `export.mjs` reads
-stays exactly where it was; `load.mjs` writes a second, independent copy into
-Postgres and leaves the first copy untouched. That is the entire rollback
-plan for P1: if Postgres turns out to be wrong in some way `verify.mjs`
-didn't catch, Redis is still there, complete and unmodified, and the backend
-dispatcher (`sections.ts`'s `DB_BACKEND`) can simply keep pointing at it.
-There is no "migrate and delete the source" step anywhere in this plan, by
-design — Redis staying populated is not a temporary safety net that gets
-cleaned up later, it is the rollback itself.
+scripts.** Every row `export.mjs` (and `audit.mjs`) reads stays exactly where
+it was; `load.mjs` writes a second, independent copy into Postgres and
+leaves the first copy untouched. There is no `--delete` flag anywhere in this
+trio and no path to `FLUSHDB`/`FLUSHALL`/a broad-scan delete — invariant 17
+(CLAUDE.md) governs this migration absolutely, and the honest way to obey it
+is to have no delete path at all rather than a guarded one.
+
+Redis IS still written to elsewhere in P1, and that is not a contradiction —
+it is precisely what makes the rollback work: `sections.ts`'s `DB_BACKEND`
+dispatcher writes to Redis in both `redis` mode (today, the only store of
+record) and `parity` mode (both stores, Redis first, used to verify agreement
+under live traffic before cutover). **While `DB_BACKEND` is `redis` or
+`parity`, Redis is the current, complete record of everything happening in
+the product**, and reverting `DB_BACKEND` costs nothing — nothing was ever
+routed away from it.
+
+**That stops being true the moment `DB_BACKEND` becomes `postgres`.** From
+that instant, the dispatcher no longer writes to Redis at all — a create, an
+update, a delete under `postgres` mode lands in Postgres alone. Redis at that
+point is a **point-in-time snapshot**, frozen at cutover, not a live mirror.
+Reverting `DB_BACKEND` back to `redis` or `parity` after that does not
+restore current state; it restores the snapshot and **discards every write
+made since cutover**. P0's own runbook was careful to say its rename "is not
+a rollback: … there is no recorded reverse mapping to undo it with"; P1 must
+be equally explicit rather than leaving an operator to assume the door stays
+open indefinitely. Exporting, loading and verifying again — this task's own
+three scripts — narrows that window but cannot close it to zero: there is
+always a gap between the last verify and the actual cutover moment in which
+Redis could still receive a write these scripts have not yet seen.
 
 ## Ordering, proven on real data
 
