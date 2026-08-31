@@ -243,7 +243,7 @@ every push to `main` and every pull request.
   to 8 fails the build.
 - **The bundle budget pins the regression, not the size.** Two gates, and the
   first is the one that matters: the LARGEST CHUNK is 158 KB gz against a 250 KB
-  ceiling, because that is what every route pays. Total client JS is 1568 KB gz
+  ceiling, because that is what every route pays. Total client JS is 1570 KB gz
   against 1600 KB, which catches sprawl rather than splitting. The studio’s
   department screens are `nextDynamic()` now — the chunk fell from 307 to 197 and
   the total rose 12 KB in the same commit, which is the two ceilings doing their
@@ -260,6 +260,11 @@ every push to `main` and every pull request.
   started importing the dictionaries they were already reading — three screens
   shipped with an UNBOUND `tr`, which is a runtime ReferenceError and not a
   build error, so `no-undef` is on for the untyped browser files now.
+  1568 → 1570 across the media→Blob port. `@vercel/blob` is server-only and
+  ships nothing to a browser; what moved is `keys.ts`, which a landing-page
+  component already imports (the reason `platform/db` deliberately has no
+  barrel) and which gained `MEDIA.object`. Measured, not attributed to a single
+  commit — the port landed over several.
 - Tests connect things — real repositories, real route handlers, **one assertion per
   bug that actually happened**. Each block names the defect it guards, so nobody
   deletes it later wondering what it was for.
