@@ -3,8 +3,18 @@
 Multi-tenant ERP. Next.js 16 · React 19 · Redis · Tailwind v3 + shadcn/ui + MUI v9 · Vercel.
 Three surfaces in one app: the tenant ERP at `nompany.com/<slug>/…` (rewritten by
 `src/proxy.js` → `src/app/studio`), account pages at `/{en,ar}/…`, and nompany's own
-console at `/super`. Twelve departments: Main, Sales, Technical, Projects, Inventory,
-HR, Finance, Operations, Quality, Tasks, People, Access.
+console at `/super`. **Fifteen sections** (the blueprint's), plus Main and Tasks, which are
+not sections — Main is the home surface and Tasks is a cross-cutting control: CRM & Sales,
+Tendering & Estimating, Projects, Engineering & Documents, Procurement & Subcontracting,
+Inventory & Warehouse, Manufacturing & Production, Field Operations & Service, Logistics &
+Fleet, Assets & Equipment, Quality & HSE, Human Resources, Finance & Accounting, Reports &
+BI, Administration & Settings.
+
+Five of those are declared and **render nothing yet** — Tendering, Manufacturing, Assets,
+Reports and Quality & HSE. They are listed in `NO_SCREEN_YET` (`platform/access/resolve.ts`)
+and are hidden from the sidebar rather than shown empty, and they hold no permission areas:
+a right nothing can exercise is a bug (invariant 16). Adding a screen means removing its
+entry there, and a test refuses any section that has neither a right nor a declaration.
 
 **What each thing does is written down: `docs/functionality/`, one file per system
 functionality.** Read the one file you need and start — do not re-derive it from the code,
