@@ -270,12 +270,16 @@ Stated in words, because a silent gap reads as a finished feature.
   `roles/iam.workloadIdentityUser` binding, no `run.invoker`. `pgGatewayAuth.ts` knows how
   to ask; there is nothing yet to answer, and the service still trusts whoever reaches it.
 - **`VERCEL_OIDC_TOKEN` is read from `process.env`, and a warm instance may hold a stale
-  one.** Vercel refreshes the variable per invocation, but `@vercel/functions`'s own
-  `getVercelOidcToken()` prefers the `x-vercel-oidc-token` request header and only then
-  falls back to the environment — a distinction this code cannot make, because `pg.ts` has
-  no request in scope. If a warm instance's cached ID token expires and the environment's
-  OIDC token has also lapsed, the re-mint fails loudly (an STS `invalid_grant`) rather than
-  silently; whether that ever happens in practice is unmeasured.
+  one.** Vercel's own `@vercel/oidc` — already in `node_modules` as a transitive dependency
+  of `@vercel/blob`, and read rather than remembered — does two things this code does not:
+  `getVercelOidcTokenSync()` prefers the `x-vercel-oidc-token` **request header** and only
+  falls back to the environment, and `getVercelOidcToken()` additionally **refreshes** a
+  token it finds expired. `pg.ts` has no request in scope, so it cannot make the first
+  distinction, and the second is a network call to Vercel that nothing here has exercised.
+  The consequence is bounded rather than silent: if a warm instance's cached ID token
+  expires and the environment's OIDC token has also lapsed, the re-mint fails loudly with
+  an STS `invalid_grant`. Whether that happens in practice is unmeasured, and adopting
+  `@vercel/oidc` is the obvious fix if it does.
 - **A Postgres error's `code` does not cross the wire.** The gateway answers a failure with
   `{ error: <message> }` and no SQLSTATE, so the client can only raise a plain `Error`.
   Nothing in this repo branches on `err.code` today — checked — so nothing is broken by it,
