@@ -252,7 +252,13 @@ export async function addRow<T extends Row = Row>(s: string, sec: string, n: str
   // The id is minted by whichever ran first (Redis), so the second is handed
   // it explicitly — the comparison is about SHAPE and ORDER, not about two
   // stores independently inventing the same random id.
-  const b = await second("addRow", () => P.pgAddRow<T>(s, sec, n, { ...item, id: a.id }));
+  //
+  // announce: false — Redis already fired emit and bumpMainAgg for this exact
+  // create; this second call exists to verify the DATA matches, not to
+  // re-announce a change that already happened. Found by a real assertion:
+  // "two tracked creates count as +2" landed as +4 (both stores announcing)
+  // before this flag existed. See PgWriteOpts in pgRows.ts.
+  const b = await second("addRow", () => P.pgAddRow<T>(s, sec, n, { ...item, id: a.id }, { announce: false }));
   return same("addRow", a, b) as T;
 }
 
@@ -261,9 +267,10 @@ export async function addRows<T extends Row = Row>(s: string, sec: string, n: st
   const a = await R.redisAddRows<T>(s, sec, n, items);
   if (DB_BACKEND !== "parity") return a;
   // Same reasoning as addRow, per row in the batch — each id came from Redis,
-  // seeded into the Postgres call rather than left to mint its own.
+  // seeded into the Postgres call rather than left to mint its own — and the
+  // identical announce: false, for the identical reason.
   const seeded = items.map((it, i) => ({ ...it, id: a[i]?.id }));
-  const b = await second("addRows", () => P.pgAddRows<T>(s, sec, n, seeded));
+  const b = await second("addRows", () => P.pgAddRows<T>(s, sec, n, seeded, { announce: false }));
   return same("addRows", a, b) as T[];
 }
 
@@ -273,7 +280,8 @@ export async function updateRow<T extends Row = Row>(
   if (DB_BACKEND === "postgres") return P.pgUpdateRow<T>(s, sec, n, id, patch);
   const a = await R.redisUpdateRow<T>(s, sec, n, id, patch);
   if (DB_BACKEND !== "parity") return a;
-  const b = await second("updateRow", () => P.pgUpdateRow<T>(s, sec, n, id, patch));
+  // announce: false — see addRow above.
+  const b = await second("updateRow", () => P.pgUpdateRow<T>(s, sec, n, id, patch, { announce: false }));
   return same("updateRow", a, b) as T | null;
 }
 
@@ -281,7 +289,8 @@ export async function deleteRow(s: string, sec: string, n: string, id: string): 
   if (DB_BACKEND === "postgres") return P.pgDeleteRow(s, sec, n, id);
   const a = await R.redisDeleteRow(s, sec, n, id);
   if (DB_BACKEND !== "parity") return a;
-  const b = await second("deleteRow", () => P.pgDeleteRow(s, sec, n, id));
+  // announce: false — see addRow above.
+  const b = await second("deleteRow", () => P.pgDeleteRow(s, sec, n, id, { announce: false }));
   return same("deleteRow", a, b) as boolean;
 }
 

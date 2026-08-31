@@ -44,21 +44,44 @@ const MAX_ATTEMPTS = 64;
 const JITTER_MS = 15;
 const pause = () => new Promise((r) => setTimeout(r, Math.random() * JITTER_MS));
 
-// ROUTED THROUGH THE REQUEST-SCOPED CACHE, keyed by the identical string
-// redisReadCol reads (SEC.col) — two reads of one collection inside a request
-// must cost one round trip, exactly like getJSON's callers get for free (fix
-// round 1: this was a silent hop regression that Task 8's query-count ceilings
-// would have failed on, with the route looking guilty instead of this file).
-// Reusing SEC.col rather than inventing a parallel cache key is deliberate:
-// it is the same conceptual bucket Redis already names, built where invariant
-// 1 says keys are built, and outside a request scope cachedRead just calls
-// straight through (a cron job or a bare script pays one round trip, same as
-// today). Every write below invalidates this same key on success, exactly as
-// editJSON invalidates on a landed compare-and-set.
+// ROUTED THROUGH THE REQUEST-SCOPED CACHE — two reads of one collection inside
+// a request must cost one round trip, exactly like getJSON's callers get for
+// free (fix round 1: this was a silent hop regression that Task 8's
+// query-count ceilings would have failed on, with the route looking guilty
+// instead of this file).
+//
+// NAMESPACED, NOT THE BARE SEC.col STRING — this used to reuse SEC.col(...)
+// directly, reasoning that it was "the same conceptual bucket Redis already
+// names". It is the same bucket, and that turned out to be the bug: getJSON
+// (store.ts) ALSO keys its own request-cache entry with that identical
+// string, and requestCache.ts's map is one shared AsyncLocalStorage scope
+// with no idea which store populated an entry. Under NOMPANY_DB=parity,
+// sections.ts's readCol calls redisReadCol first — which reads through
+// getJSON and caches getJSON's RAW result (`null` for a missing key, before
+// readArr's `|| []` fallback) under the bare key — and pgReadCol's own
+// cachedRead call for the identical string then found that entry already
+// there and returned Redis's cached `null` straight back as "Postgres's"
+// answer, never once querying Postgres. Measured: readCol disagreed,
+// `redis: []` (readArr's fallback papering over the same null) against
+// `postgres: null` (no fallback here, and the query never ran to produce a
+// real []). This is a cache-key collision, not a Postgres behavioural
+// difference — pgReadCol's own query, on the one occasion it is actually
+// asked, always returns `rows.map(...)`, which is `[]` for zero rows.
+// `cacheKey` below prefixes with "pg:" so this cache can never again be
+// handed an entry Redis's getJSON populated, while still collapsing a
+// second Postgres read of the same collection inside one request to zero
+// extra round trips (this is an in-process cache key, not a stored key —
+// invariant 1 governs Redis keys and SQL identifiers, neither of which this
+// touches). Every write below invalidates the identical namespaced key on
+// success, exactly as editJSON invalidates on a landed compare-and-set.
+function cacheKey(studioId: string, sectionId: string, name: string): string {
+  return `pg:${SEC.col(studioId, sectionId, name)}`;
+}
+
 export async function pgReadCol<T2 extends Row = Row>(
   studioId: string, sectionId: string, name: string,
 ): Promise<T2[]> {
-  return cachedRead(SEC.col(studioId, sectionId, name), async () => {
+  return cachedRead(cacheKey(studioId, sectionId, name), async () => {
     const { rows } = await withTenant(studioId, (q) =>
       q<{ payload: T2 }>(
         `SELECT ${TBL.cols.payload} FROM ${T}
@@ -70,8 +93,29 @@ export async function pgReadCol<T2 extends Row = Row>(
   });
 }
 
+// PgWriteOpts.announce, DEFAULT TRUE. Every write below fires two side
+// effects beyond the row itself: `emit` (the realtime stream a browser tab is
+// listening to) and `bumpMainAgg` (the dashboard rollup). Under
+// NOMPANY_DB=postgres those are this store's own job to produce, so the
+// default (announce unset, meaning true) is correct and nothing needs to ask
+// for it. Under NOMPANY_DB=parity, sections.ts's dispatcher runs Redis FIRST
+// — "the store of record until cutover" — and Redis's own primitive already
+// fired both of these for this exact logical write; Postgres's call exists
+// purely to verify the two stores agree on the DATA. Firing them again is not
+// a second, independent event — it is the same create announced twice and the
+// same rollup incremented twice, and it was only found because a `bumpMainAgg`
+// count is one of the few side effects this codebase asserts on: "two tracked
+// creates count as +2" landed as +4 under parity, 18 -> 22 not 18 -> 20,
+// before this flag existed. `emit` has the identical defect (a live studio tab
+// would receive one creation event twice during the migration's parity
+// window) with no assertion catching it only because nothing in this suite
+// counts SSE frames — recorded so it is not "found" a second time by someone
+// debugging a flicker later. The dispatcher passes `{ announce: false }` on
+// its verification call and nowhere else.
+export type PgWriteOpts = { announce?: boolean };
+
 export async function pgAddRow<T2 extends Row = Row>(
-  studioId: string, sectionId: string, name: string, item: Row,
+  studioId: string, sectionId: string, name: string, item: Row, opts: PgWriteOpts = {},
 ): Promise<T2> {
   // `id` STAYS FIRST, before the spread — see the header. Identical to addRow.
   const created = { id: (item.id as string) || ID.row(name), ...item, studioId, sectionId } as unknown as T2;
@@ -81,14 +125,21 @@ export async function pgAddRow<T2 extends Row = Row>(
         VALUES ($1, $2, $3, $4, nextval('${TBL.seq}'), $5::json)`,
       [studioId, sectionId, name, created.id, JSON.stringify(created)],
     ));
-  invalidate(SEC.col(studioId, sectionId, name));
-  await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name, rowId: created.id as string });
-  void bumpMainAgg(studioId, sectionId, name); // best-effort rollup, never awaited (§3)
+  invalidate(cacheKey(studioId, sectionId, name));
+  // ANNOUNCE UNLESS TOLD NOT TO — see PgWriteOpts below. Under NOMPANY_DB=parity
+  // the dispatcher (sections.ts) has already had Redis fire this exact
+  // announcement for this exact logical create; asking Postgres to fire it
+  // again is not "Postgres disagreeing with Redis", it is one create being
+  // announced twice.
+  if (opts.announce !== false) {
+    await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name, rowId: created.id as string });
+    void bumpMainAgg(studioId, sectionId, name); // best-effort rollup, never awaited (§3)
+  }
   return created;
 }
 
 export async function pgAddRows<T2 extends Row = Row>(
-  studioId: string, sectionId: string, name: string, items: readonly Row[],
+  studioId: string, sectionId: string, name: string, items: readonly Row[], opts: PgWriteOpts = {},
 ): Promise<T2[]> {
   if (!items.length) return [];
   const batch = items.map((item) =>
@@ -136,13 +187,16 @@ export async function pgAddRows<T2 extends Row = Row>(
     );
   });
 
-  invalidate(SEC.col(studioId, sectionId, name));
-  // NO rowId ON THE EVENT — the shape emit already supports, and the honest one:
-  // this announces that the collection changed, not which row.
-  await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name });
-  // BY THE SIZE OF THE BATCH. One write, so this fires once — a bare bump would
-  // count two hundred rows as one and leave the nightly reconcile to find it.
-  void bumpMainAgg(studioId, sectionId, name, batch.length); // best-effort, never awaited (§3)
+  invalidate(cacheKey(studioId, sectionId, name));
+  if (opts.announce !== false) {
+    // NO rowId ON THE EVENT — the shape emit already supports, and the honest
+    // one: this announces that the collection changed, not which row.
+    await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name });
+    // BY THE SIZE OF THE BATCH. One write, so this fires once — a bare bump
+    // would count two hundred rows as one and leave the nightly reconcile to
+    // find it. See PgWriteOpts above for why this is skippable at all.
+    void bumpMainAgg(studioId, sectionId, name, batch.length); // best-effort, never awaited (§3)
+  }
   return batch;
 }
 
@@ -180,7 +234,7 @@ type UpdateAttempt<T2> = { done: true; result: T2 | null } | { done: false; resu
 
 export async function pgUpdateRow<T2 extends Row = Row>(
   studioId: string, sectionId: string, name: string, rowId: string,
-  patch: Row | ((row: T2) => Row),
+  patch: Row | ((row: T2) => Row), opts: PgWriteOpts = {},
 ): Promise<T2 | null> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const outcome = await withTenant(studioId, async (q): Promise<UpdateAttempt<T2>> => {
@@ -218,8 +272,10 @@ export async function pgUpdateRow<T2 extends Row = Row>(
         // the reviewer measured stalling for seconds when Redis itself was
         // slow to answer. The other three primitives already emitted after
         // withTenant returned; this brings updateRow in line with them.
-        invalidate(SEC.col(studioId, sectionId, name));
-        await emit(studioId, { type: TYPE.rowUpdated, sectionId, collection: name, rowId });
+        invalidate(cacheKey(studioId, sectionId, name));
+        if (opts.announce !== false) {
+          await emit(studioId, { type: TYPE.rowUpdated, sectionId, collection: name, rowId });
+        }
       }
       // A miss (no such row) also returns here with result === null — nothing
       // changed, so nothing to invalidate or announce, same as before.
@@ -231,7 +287,7 @@ export async function pgUpdateRow<T2 extends Row = Row>(
 }
 
 export async function pgDeleteRow(
-  studioId: string, sectionId: string, name: string, rowId: string,
+  studioId: string, sectionId: string, name: string, rowId: string, opts: PgWriteOpts = {},
 ): Promise<boolean> {
   const { rowCount } = await withTenant(studioId, (q) =>
     q(
@@ -239,8 +295,10 @@ export async function pgDeleteRow(
       [studioId, sectionId, name, rowId],
     ));
   if (rowCount) {
-    invalidate(SEC.col(studioId, sectionId, name));
-    await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name, rowId });
+    invalidate(cacheKey(studioId, sectionId, name));
+    if (opts.announce !== false) {
+      await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name, rowId });
+    }
   }
   return rowCount > 0;
 }

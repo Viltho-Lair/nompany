@@ -76,10 +76,25 @@ await sweepExcept(process.env.NOMPANY_KEY_PREFIX, lockKeyFor(process.env.NOMPANY
 
 const { gateAFailures } = await import("./gate-a.mjs");
 
+// THE POSTGRES SWEEP (P1 Task 6) — MUST RUN BEFORE THE REDIS SWEEP BELOW, for
+// the identical reason tests/suite.mjs's own copy does: REG.studios ("g:studios")
+// is namespaced by this run's own NOMPANY_KEY_PREFIX and is the only record of
+// which studio(s) Gate A created (see tests/gate-a.mjs's "Gate A Studio")
+// before delPrefix erases that record along with everything else. Under
+// NOMPANY_DB=parity that studio's fixtures were also dual-written into
+// collection_rows, where tenant_id carries none of Redis's namespacing — see
+// tests/pg-sweep.mjs for why an explicit id list is the only safe way to find
+// and remove them once RLS is FORCED.
+const { readArr, delPrefix } = await import("@/platform/db/store");
+const { REG } = await import("@/platform/db/keys");
+const { sweepPgTenants } = await import("./pg-sweep.mjs");
+const gateAStudioIds = (await readArr(REG.studios)).map((s) => s.id).filter(Boolean);
+const pgSwept = await sweepPgTenants(gateAStudioIds);
+console.log(`swept ${pgSwept} postgres row(s) across ${gateAStudioIds.length} studio(s) created by this run`);
+
 // Everything Gate A wrote lives under the namespace, so cleanup is one prefix
 // deletion. Runs whatever happened above — a failed assertion must not leave
 // keys behind.
-const { delPrefix } = await import("@/platform/db/store");
 const { getRedisClient } = await import("@/platform/db/redis");
 const swept = await delPrefix(process.env.NOMPANY_KEY_PREFIX);
 console.log(`swept ${swept} keys from "${process.env.NOMPANY_KEY_PREFIX}"`);

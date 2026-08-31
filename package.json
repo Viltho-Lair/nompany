@@ -14,6 +14,7 @@
     "test:integration": "node tests/integration.test.mjs",
     "test": "node tests/access.test.mjs && node tests/integration.test.mjs && node tests/gate-a.test.mjs",
     "test:gate-a": "node tests/gate-a.test.mjs",
+    "test:parity": "node scripts/test-parity.mjs",
     "lint:budget": "node scripts/lint-budget.mjs"
   },
   "dependencies": {

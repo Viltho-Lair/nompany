@@ -214,6 +214,39 @@ import {
   testCountMirrorsSelectsWhereClause,
   testScopeAndCollectionAreAlwaysParameterised, testLimitIsTheLastParameter,
 } from "./pg-query.mjs";
+// THE POSTGRES SEAM, SCHEMA AND ROW PRIMITIVES, PLUS THE DISPATCHER (P1
+// Postgres store swap, Tasks 1, 2, 4 and 5), same standalone-runner shape as
+// pg-query.mjs above: self-checking when run bare via `node
+// tests/pg-parity.mjs`, folded in here so a regression shows up in the one
+// command everything else already goes through. UNLIKE pg-query.mjs this
+// touches a real, live Postgres — DATABASE_URL must be set (pg-parity.mjs
+// exits loudly if it is not) — but every fixture it writes is either a
+// synthetic tenant id cleaned up in the test's own `finally` block or, for
+// the two dispatcher round-trip tests, no-ops outside NOMPANY_DB=parity.
+import {
+  testPgConnects, testPgRejectsNamedPreparedStatements, testQueryTimeoutOutlivesStatementTimeout,
+  testWithTenantSetsTheLocalTenantSetting, testTenantSettingDoesNotLeakAcrossTransactions,
+  testBareQueryAgainstTheTenantTableIsRefused, testWithinTheSeamTheTenantTableIsReachable,
+  testWithTenantRefusesAnEmptyTenantId, testSchemaShape, testRlsIsEnabled, testRlsFiltersRowsBetweenTenants,
+  testCheckConstraintRejectsEmptyTenantId, testPgSchemaQueryRefusesANonDdlStatement,
+  testPgSchemaQueryRefusesDropTableEvenGuarded, testPgSchemaQueryRefusesDropSchema,
+  testPgSchemaQueryRefusesDropOwned, testPgSchemaQueryRefusesDropIndex,
+  testPgSchemaQueryRefusesAlterTableDropColumn, testPgSchemaQueryRefusesAlterTableRename,
+  testPgSchemaQueryRefusesAlterColumnTypeJsonb, testPgSchemaQueryRefusesDisableRls,
+  testPgSchemaQueryRefusesCreateView, testPgSchemaQueryDoesNotLaunderADropThroughAStringLiteral,
+  testPgSchemaQueryRefusesCreateTableAsSelectPlain, testPgSchemaQueryRefusesCreateTableAsSelectWithExtraParens,
+  testPgSchemaQueryAcceptsRealDdl, testFailedTransactionDestroysItsConnectionRatherThanRecyclingIt,
+  testPgTxAlsoDestroysAFailedConnection, testReentrantWithTenantForTheSameTenantIsAbsorbed,
+  testReentrantWithTenantForADifferentTenantFailsFast, testKilledConnectionDoesNotCrashTheProcess,
+  testKeyOrderSurvives, testNewestFirst, testBatchKeepsArrivalOrderAmongItself, testFunctionPatchIsReapplied,
+  testTwentyConcurrentFlipsAllLandNoneRejected, testImmutableFieldsCannotBePatched,
+  testDeleteReportsWhetherAnythingWent, testBackendDefaultsToRedis, testDispatcherParityRoundTrip,
+  testDispatcherDisagreementNamesBothValues,
+} from "./pg-parity.mjs";
+// THE POSTGRES SWEEP (Task 6) — see tests/pg-sweep.mjs. Used once, at the very
+// end, right before the Redis delPrefix that would otherwise erase the one
+// record (REG.studios) naming which tenants this run needs it to clean up.
+import { sweepPgTenants } from "./pg-sweep.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -4701,6 +4734,17 @@ console.log("\n== what Nova volunteers, before anybody asks");
   }
 }
 
+// SHARED ADAPTER for every pure, standalone-runner test file below that takes
+// its assertion object as an ARGUMENT rather than importing node:assert
+// itself (restructure.mjs, pg-query.mjs, pg-parity.mjs) — one definition
+// rather than three copies of the identical five lines.
+const asT = {
+  equal: (actual, expected, message = "") => ok(
+    message, actual === expected,
+    actual === expected ? "" : `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+  ),
+};
+
 // ============================================================================
 console.log("\n== the fifteen-section restructure map (P0 restructure, Task 1)");
 // testEveryMappedTargetActuallyExists, testEveryMappedPermissionTargetIsARealArea
@@ -4710,12 +4754,6 @@ console.log("\n== the fifteen-section restructure map (P0 restructure, Task 1)")
 // has not happened (Task 5). Do not weaken these three to make this block
 // green — them turning green for real is what proves those tasks landed.
 {
-  const asT = {
-    equal: (actual, expected, message = "") => ok(
-      message, actual === expected,
-      actual === expected ? "" : `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
-    ),
-  };
   for (const test of [
     testEveryOldSectionKeyIsAccountedFor,
     testEveryMappedTargetActuallyExists,
@@ -4735,12 +4773,6 @@ console.log("\n== the SQL query builder (P1 Postgres store swap, Task 7)");
 // tests/pg-query.mjs run bare. It runs here too so a regression shows up in
 // the one command (`npm test`) everything else already goes through.
 {
-  const asT = {
-    equal: (actual, expected, message = "") => ok(
-      message, actual === expected,
-      actual === expected ? "" : `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
-    ),
-  };
   for (const test of [
     testExactMatch,
     testUndefinedIsIgnoredNotMatched,
@@ -4769,6 +4801,81 @@ console.log("\n== the SQL query builder (P1 Postgres store swap, Task 7)");
     await test(asT);
   }
 }
+
+// ============================================================================
+console.log("\n== the postgres seam, schema, row primitives and dispatcher (P1 Postgres store swap, Tasks 1/2/4/5)");
+// A REAL, LIVE POSTGRES, UNLIKE THE BLOCK ABOVE. Same standalone-runner shape
+// (asT, no throw on a failed assertion) as tests/pg-parity.mjs run bare — this
+// is Task 6's own requirement: fold the dispatched-store proof into the one
+// command (`npm test` / `npm run test:parity`) that already runs everything
+// else, so a regression here shows up beside every other test rather than
+// only in a file nobody remembers to run separately. Every fixture is either
+// a synthetic tenant id the test itself deletes in a `finally` block, or (the
+// two dispatcher round-trip tests) a no-op outside NOMPANY_DB=parity — none of
+// this reaches the postgres sweep below, which only ever concerns the real
+// studios createStudio minted further up this file.
+{
+  for (const test of [
+    testPgConnects,
+    testPgRejectsNamedPreparedStatements,
+    testQueryTimeoutOutlivesStatementTimeout,
+    testWithTenantSetsTheLocalTenantSetting,
+    testTenantSettingDoesNotLeakAcrossTransactions,
+    testBareQueryAgainstTheTenantTableIsRefused,
+    testWithinTheSeamTheTenantTableIsReachable,
+    testWithTenantRefusesAnEmptyTenantId,
+    testSchemaShape,
+    testRlsIsEnabled,
+    testRlsFiltersRowsBetweenTenants,
+    testCheckConstraintRejectsEmptyTenantId,
+    testPgSchemaQueryRefusesANonDdlStatement,
+    testPgSchemaQueryRefusesDropTableEvenGuarded,
+    testPgSchemaQueryRefusesDropSchema,
+    testPgSchemaQueryRefusesDropOwned,
+    testPgSchemaQueryRefusesDropIndex,
+    testPgSchemaQueryRefusesAlterTableDropColumn,
+    testPgSchemaQueryRefusesAlterTableRename,
+    testPgSchemaQueryRefusesAlterColumnTypeJsonb,
+    testPgSchemaQueryRefusesDisableRls,
+    testPgSchemaQueryRefusesCreateView,
+    testPgSchemaQueryDoesNotLaunderADropThroughAStringLiteral,
+    testPgSchemaQueryRefusesCreateTableAsSelectPlain,
+    testPgSchemaQueryRefusesCreateTableAsSelectWithExtraParens,
+    testPgSchemaQueryAcceptsRealDdl,
+    testFailedTransactionDestroysItsConnectionRatherThanRecyclingIt,
+    testPgTxAlsoDestroysAFailedConnection,
+    testReentrantWithTenantForTheSameTenantIsAbsorbed,
+    testReentrantWithTenantForADifferentTenantFailsFast,
+    testKilledConnectionDoesNotCrashTheProcess,
+    testKeyOrderSurvives,
+    testNewestFirst,
+    testBatchKeepsArrivalOrderAmongItself,
+    testFunctionPatchIsReapplied,
+    testTwentyConcurrentFlipsAllLandNoneRejected,
+    testImmutableFieldsCannotBePatched,
+    testDeleteReportsWhetherAnythingWent,
+    testBackendDefaultsToRedis,
+    testDispatcherParityRoundTrip,
+    testDispatcherDisagreementNamesBothValues,
+  ]) {
+    await test(asT);
+  }
+}
+
+// ============================================================================
+// THE POSTGRES SWEEP (Task 6) — MUST RUN BEFORE THE REDIS SWEEP BELOW.
+// REG_KEYS.studios ("g:studios") is itself one of the keys delPrefix is about
+// to erase, and it is the only record of which studios THIS run created: the
+// three studios created directly above (Test/Before/Language) plus whichever
+// ones the imported engagement-backfill fixtures minted along the way. Under
+// NOMPANY_DB=parity every one of those studios also dual-wrote into
+// collection_rows; under redis/postgres-only this reports 0 and costs a few
+// no-op queries, because sections.ts never touched Postgres under those
+// backends. See tests/pg-sweep.mjs for why an explicit id list is the only
+// safe shape once RLS is FORCED.
+const studioIds = (await readArr(REG_KEYS.studios)).map((s) => s.id).filter(Boolean);
+const pgSwept = await sweepPgTenants(studioIds);
+console.log(`swept ${pgSwept} postgres row(s) across ${studioIds.length} studio(s) created by this run`);
 
 // ============================================================================
 // Everything this suite wrote lives under the namespace, so cleanup is one
