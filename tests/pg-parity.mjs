@@ -305,7 +305,8 @@ export async function testPgSchemaQueryRefusesANonDdlStatement(t) {
     threw = e;
   }
   t.equal(threw instanceof Error, true, "a bare SELECT through pgSchemaQuery is refused");
-  t.equal(/DDL-only/.test(threw?.message || ""), true, "the error names what the door is, not just that it failed");
+  t.equal(/allows the exact DDL shapes/.test(threw?.message || ""), true,
+    "the error names what the door is, not just that it failed");
 }
 
 export async function testPgSchemaQueryRefusesDropTableEvenGuarded(t) {
@@ -320,6 +321,129 @@ export async function testPgSchemaQueryRefusesDropTableEvenGuarded(t) {
   }
   t.equal(threw instanceof Error, true, "DROP TABLE is refused even guarded by IF EXISTS");
   t.equal(/invariant 17/.test(threw?.message || ""), true, "the error points at why, not just that it failed");
+}
+
+// ---- fix round 1: the denylist was unbounded — these all sailed through ---
+// ---- its old CREATE/ALTER/DROP/COMMENT keyword check ----------------------
+//
+// Every case here is asserted WITHOUT executing: assertDdlOnly runs
+// synchronously, before pgSchemaQuery's run() ever calls client.query(), so a
+// thrown error here proves Postgres was never asked — none of these targets
+// need to exist (or not exist) for the assertion to be meaningful.
+
+export async function testPgSchemaQueryRefusesDropSchema(t) {
+  let threw = null;
+  try {
+    await pgSchemaQuery("DROP SCHEMA public CASCADE");
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "DROP SCHEMA ... CASCADE is refused — the exact invariant-17 class this door exists to keep out");
+}
+
+export async function testPgSchemaQueryRefusesDropOwned(t) {
+  let threw = null;
+  try {
+    await pgSchemaQuery("DROP OWNED BY viltho");
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "DROP OWNED BY is refused");
+}
+
+export async function testPgSchemaQueryRefusesDropIndex(t) {
+  let threw = null;
+  try {
+    // IF EXISTS and a target that was never created — proves this is refused
+    // by shape, not because the index happens to exist.
+    await pgSchemaQuery(`DROP INDEX IF EXISTS p1fix1_never_created_idx`);
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "DROP INDEX is not on the allowlist — refused even guarded by IF EXISTS on a target that never existed");
+}
+
+export async function testPgSchemaQueryRefusesAlterTableDropColumn(t) {
+  let threw = null;
+  try {
+    await pgSchemaQuery(`ALTER TABLE ${TBL.rows} DROP COLUMN ${TBL.cols.payload}`);
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "ALTER TABLE ... DROP COLUMN is refused");
+}
+
+export async function testPgSchemaQueryRefusesAlterTableRename(t) {
+  let threw = null;
+  try {
+    await pgSchemaQuery(`ALTER TABLE ${TBL.rows} RENAME TO renamed_away`);
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "ALTER TABLE ... RENAME TO is refused");
+}
+
+export async function testPgSchemaQueryRefusesAlterColumnTypeJsonb(t) {
+  // THE ONE THIS TASK EXISTS TO PREVENT MOST OF ALL: jsonb normalises key
+  // order, and the 153 goldens pin it. This statement, if it ran, would
+  // rewrite every existing row's payload and silently break every one of
+  // them, forever, with no error anywhere.
+  let threw = null;
+  try {
+    await pgSchemaQuery(`ALTER TABLE ${TBL.rows} ALTER COLUMN ${TBL.cols.payload} TYPE jsonb USING ${TBL.cols.payload}::jsonb`);
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "ALTER COLUMN ... TYPE jsonb is refused — payload must never be silently rewritten to jsonb");
+}
+
+export async function testPgSchemaQueryRefusesDisableRls(t) {
+  // THE OTHER ONE: silently removes the tenant isolation this whole task
+  // exists to establish, leaving a database that LOOKS identical (same
+  // table, same columns, same policy still defined) and no longer separates
+  // tenants at all.
+  let threw = null;
+  try {
+    await pgSchemaQuery(`ALTER TABLE ${TBL.rows} DISABLE ROW LEVEL SECURITY`);
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "ALTER TABLE ... DISABLE ROW LEVEL SECURITY is refused");
+  t.equal(/invariant 17/.test(threw?.message || ""), true, "and named as the invariant-17 class of refusal, not a generic shape mismatch");
+}
+
+export async function testPgSchemaQueryRefusesCreateView(t) {
+  // pgSchema.sql's own comment (right above the table) forbids exactly this:
+  // a view over collection_rows would defeat assertNotTenantScoped's text
+  // match with no change needed on that guard's side at all.
+  let threw = null;
+  try {
+    await pgSchemaQuery(`CREATE VIEW p1fix1_never_created_view AS SELECT * FROM ${TBL.rows}`);
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "CREATE VIEW over the tenant table is refused");
+}
+
+export async function testPgSchemaQueryDoesNotLaunderADropThroughAStringLiteral(t) {
+  // THE SECOND FIX ROUND 1 BUG, reproduced directly: a leading statement that
+  // WOULD pass the allowlist on its own (a real CREATE TABLE IF NOT EXISTS),
+  // carrying a "--" inside a string literal, followed by a genuinely
+  // dangerous second statement. The old guard stripped comments with a blind
+  // regex BEFORE splitting on ';' — the "--" inside '-- x' blanked
+  // everything after it, INCLUDING the semicolon and the trailing DROP
+  // TABLE, so the old check saw one harmless CREATE TABLE while Postgres
+  // would have run the DROP TABLE right after it. The fix makes splitting
+  // and comment-awareness the same pass, so this DROP TABLE is still found.
+  const sql = `CREATE TABLE IF NOT EXISTS p1fix1_never_created (a text DEFAULT '-- x'); DROP TABLE ${TBL.rows}`;
+  let threw = null;
+  try {
+    await pgSchemaQuery(sql);
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "the smuggled DROP TABLE is still found and refused");
+  t.equal(/DROP TABLE/.test(threw?.message || ""), true, "refused specifically as the DROP TABLE hidden after the string literal, not a coincidental other failure");
 }
 
 export async function testPgSchemaQueryAcceptsRealDdl(t) {
@@ -540,6 +664,15 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testCheckConstraintRejectsEmptyTenantId,
       testPgSchemaQueryRefusesANonDdlStatement,
       testPgSchemaQueryRefusesDropTableEvenGuarded,
+      testPgSchemaQueryRefusesDropSchema,
+      testPgSchemaQueryRefusesDropOwned,
+      testPgSchemaQueryRefusesDropIndex,
+      testPgSchemaQueryRefusesAlterTableDropColumn,
+      testPgSchemaQueryRefusesAlterTableRename,
+      testPgSchemaQueryRefusesAlterColumnTypeJsonb,
+      testPgSchemaQueryRefusesDisableRls,
+      testPgSchemaQueryRefusesCreateView,
+      testPgSchemaQueryDoesNotLaunderADropThroughAStringLiteral,
       testPgSchemaQueryAcceptsRealDdl,
       testFailedTransactionDestroysItsConnectionRatherThanRecyclingIt,
       testPgTxAlsoDestroysAFailedConnection,

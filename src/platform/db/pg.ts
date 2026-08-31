@@ -241,64 +241,183 @@ export async function pgTx<T>(fn: (q: PgQueryFn) => Promise<T>): Promise<T> {
   }
 }
 
-// ---- the DDL-only guard (Task 2) -------------------------------------------
+// ---- the DDL-only guard (Task 2, tightened in fix round 1) -----------------
 //
 // pgSchemaQuery is UNGUARDED BY TENANT on purpose — schema statements have no
 // tenant — but "not tenant-scoped" must not silently mean "does anything a
 // caller likes". Fix-round-2 review flagged exactly that: nothing stopped a
 // service module importing this instead of pgQuery and running an arbitrary
 // SELECT against collection_rows in production with no tenant set, which is a
-// cross-tenant read with no guard at all standing between it and the data. A
-// hole trusted by convention ("nobody would reach for a function named
-// 'schema query' to do that") is still a hole; the fix is to make the door
-// physically unable to do anything but what its name promises.
+// cross-tenant read with no guard at all standing between it and the data.
 //
-// So every statement in the text must start with CREATE, ALTER, DROP or
-// COMMENT (after stripping `--` line comments, which is the only comment
-// style pgSchema.sql uses) — a bare SELECT, INSERT, UPDATE or DELETE is
-// refused before it ever reaches Postgres, DDL keyword or not.
+// THE FIRST VERSION OF THIS GUARD WAS A DENYLIST: any statement starting with
+// CREATE, ALTER, DROP or COMMENT was let through, with only DROP TABLE, DROP
+// DATABASE and TRUNCATE named and refused underneath it. Fix round 1 found
+// that every OTHER destructive shape with one of those four leading keywords
+// sailed straight through — DROP SCHEMA ... CASCADE (destroys the table, the
+// exact invariant-17 class this door exists to keep out), DROP OWNED BY, DROP
+// INDEX, ALTER TABLE ... DROP COLUMN, ALTER TABLE ... RENAME TO, ALTER COLUMN
+// ... TYPE jsonb (which would silently rewrite every row's payload into
+// key-order-normalised jsonb — the one column decision the whole migration
+// rests on, since the goldens pin key order), ALTER TABLE ... DISABLE ROW
+// LEVEL SECURITY (which would silently remove the tenant isolation this task
+// exists to establish, leaving a database that looks identical and no longer
+// separates tenants), and CREATE VIEW over collection_rows (which
+// pgSchema.sql's own comment forbids, because a view defeats
+// assertNotTenantScoped's text match with no change needed on that side at
+// all). A denylist of destructive DDL is unbounded — SQL always has another
+// way to destroy something — so this inverts it: ALLOWED_DDL_SHAPES below is
+// an ALLOWLIST of the exact statement shapes pgSchema.sql actually uses, and
+// anything else is refused, including forms that look harmless. Adding a new
+// shape later is a deliberate, reviewable line added here, not an exception
+// carved into a "mostly fine" regex.
 //
-// DROP remains on the allowed-keyword list — `DROP POLICY IF EXISTS` /
-// `CREATE POLICY` is how pgSchema.sql replaces a policy, and that pair is the
-// only supported way to change one — but DROP TABLE, DROP DATABASE and
-// TRUNCATE are refused UNCONDITIONALLY, regardless of an IF EXISTS or any
-// other qualifier. That refusal is deliberately not "DDL-only plus whatever
-// the caller says it needs": invariant 17 requires two confirmations *in the
-// same exchange* before anything of that shape runs against this database,
-// which is a property of a conversation this function has no way to observe,
-// so the only safe default is to never let it through this door at all. If a
-// legitimate need for one of the three ever arrives, that is a decision for a
-// person to make deliberately, not a statement this function should recognise
-// and allow.
-const DDL_KEYWORD_RE = /^(CREATE|ALTER|DROP|COMMENT)\b/i;
-const FORBIDDEN_DESTRUCTIVE_RE = /\b(DROP\s+TABLE|DROP\s+DATABASE|TRUNCATE)\b/i;
+// THE SECOND BUG FIX ROUND 1 FOUND WAS SHARPER: the old guard stripped `--`
+// comments with a blind regex BEFORE checking the leading keyword, but the
+// ORIGINAL, unstripped text is what reached Postgres — so a `--` inside a
+// string literal (e.g. a column DEFAULT containing '-- x') blanked
+// everything after it FOR THE CHECK ONLY, while the statement Postgres
+// actually ran kept going past the semicolon the check could no longer see
+// (verified: `CREATE TABLE t (a text DEFAULT '-- x'); DROP TABLE
+// collection_rows` evaluated as one harmless CREATE TABLE to the old check,
+// while Postgres would have run the DROP TABLE right after it). Whenever the
+// text a guard inspects differs from the text that will execute, that gap is
+// available to exploit. splitSqlStatements below fixes this by making
+// string/comment awareness and statement splitting the SAME pass: a
+// semicolon inside a single-quoted string, a double-quoted identifier, a
+// line comment, a slash-star block comment, or a dollar-quoted body is not a
+// statement boundary, so the statements handed to ALLOWED_DDL_SHAPES are
+// exactly the statements Postgres will run (comments aside, which Postgres
+// treats as whitespace too). Text this tokenizer cannot cleanly walk — an
+// unterminated quote, comment or dollar-quote — is refused rather than
+// guessed at.
+const ALLOWED_DDL_SHAPES: RegExp[] = [
+  // CREATE TABLE IF NOT EXISTS <name> ( ... )
+  /^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s*\([\s\S]*\)$/i,
+  // CREATE SEQUENCE IF NOT EXISTS <name>
+  /^CREATE\s+SEQUENCE\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*$/i,
+  // CREATE INDEX IF NOT EXISTS <name> ON <table> ( ... )
+  /^CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*\s*\([\s\S]*\)$/i,
+  // ALTER TABLE <name> ENABLE ROW LEVEL SECURITY
+  /^ALTER\s+TABLE\s+[A-Za-z_][A-Za-z0-9_]*\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY$/i,
+  // ALTER TABLE <name> FORCE ROW LEVEL SECURITY
+  /^ALTER\s+TABLE\s+[A-Za-z_][A-Za-z0-9_]*\s+FORCE\s+ROW\s+LEVEL\s+SECURITY$/i,
+  // DROP POLICY IF EXISTS <name> ON <table> — the only DROP this door allows,
+  // and only paired with the CREATE POLICY below (how pgSchema.sql replaces
+  // a policy).
+  /^DROP\s+POLICY\s+IF\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*$/i,
+  // CREATE POLICY <name> ON <table> USING (...) WITH CHECK (...)
+  /^CREATE\s+POLICY\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*\s+[\s\S]+$/i,
+  // COMMENT ON <object> IS ... — not used by pgSchema.sql today, allowed for
+  // the same reason the original door named it: documenting an object is the
+  // one DDL act with no destructive form at all.
+  /^COMMENT\s+ON\s+[\s\S]+$/i,
+];
 
-function stripSqlLineComments(sql: string): string {
-  // Line comments only (`-- …` to end of line) — pgSchema.sql has no block
-  // comments, and correctly stripping `/* … */` would need to respect string
-  // literals, which nothing this function is asked to check ever requires.
-  return sql.replace(/--[^\n]*/g, "");
+// A NAME FOR THE OBVIOUSLY DANGEROUS SHAPES, purely so refusing one of them
+// says why rather than just "not on the list". The actual refusal happens
+// because none of these ever appear in ALLOWED_DDL_SHAPES above — this list
+// only makes the resulting error message point at invariant 17 instead of
+// reading like a generic syntax complaint.
+function nameDangerousShape(stmt: string): string | null {
+  if (/^DROP\s+TABLE\b/i.test(stmt)) return "DROP TABLE";
+  if (/^DROP\s+DATABASE\b/i.test(stmt)) return "DROP DATABASE";
+  if (/^TRUNCATE\b/i.test(stmt)) return "TRUNCATE";
+  if (/^DROP\s+SCHEMA\b/i.test(stmt)) return "DROP SCHEMA";
+  if (/^DROP\s+OWNED\b/i.test(stmt)) return "DROP OWNED";
+  if (/DISABLE\s+ROW\s+LEVEL\s+SECURITY/i.test(stmt)) return "DISABLE ROW LEVEL SECURITY";
+  return null;
+}
+
+// Splits `sql` into individual statements, treating a `;` inside a
+// single-quoted string, a double-quoted identifier, a line comment, a
+// slash-star block comment, or a dollar-quoted body ($tag$ ... $tag$) as
+// ordinary text rather than a statement boundary — see the guard's header
+// comment for why that distinction is load-bearing rather than cosmetic.
+// Comment text is dropped from the result (Postgres treats it as whitespace
+// too, so this changes nothing the database would see differently). Throws
+// if the text ends still inside one of those states: an unterminated quote,
+// comment or dollar-quote means this function cannot say with confidence
+// where the statements end, and guessing wrong here is exactly the class of
+// bug this rewrite exists to close.
+function splitSqlStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = "";
+  let state: "NORMAL" | "SINGLE" | "DOUBLE" | "LINE_COMMENT" | "BLOCK_COMMENT" | "DOLLAR" = "NORMAL";
+  let dollarTag = "";
+  let i = 0;
+  while (i < sql.length) {
+    const c = sql[i];
+    if (state === "NORMAL") {
+      if (c === "'") { state = "SINGLE"; current += c; i++; continue; }
+      if (c === '"') { state = "DOUBLE"; current += c; i++; continue; }
+      if (c === "-" && sql[i + 1] === "-") { state = "LINE_COMMENT"; i += 2; continue; }
+      if (c === "/" && sql[i + 1] === "*") { state = "BLOCK_COMMENT"; i += 2; continue; }
+      if (c === "$") {
+        const m = /^\$[A-Za-z0-9_]*\$/.exec(sql.slice(i));
+        if (m) { dollarTag = m[0]; state = "DOLLAR"; current += dollarTag; i += dollarTag.length; continue; }
+      }
+      if (c === ";") { statements.push(current); current = ""; i++; continue; }
+      current += c; i++; continue;
+    }
+    if (state === "SINGLE") {
+      if (c === "'") {
+        if (sql[i + 1] === "'") { current += "''"; i += 2; continue; } // doubled '' escape stays inside the string
+        current += c; state = "NORMAL"; i++; continue;
+      }
+      current += c; i++; continue;
+    }
+    if (state === "DOUBLE") {
+      if (c === '"') {
+        if (sql[i + 1] === '"') { current += '""'; i += 2; continue; }
+        current += c; state = "NORMAL"; i++; continue;
+      }
+      current += c; i++; continue;
+    }
+    if (state === "LINE_COMMENT") {
+      if (c === "\n") { state = "NORMAL"; current += "\n"; i++; continue; }
+      i++; continue; // comment content is dropped, not copied into `current`
+    }
+    if (state === "BLOCK_COMMENT") {
+      if (c === "*" && sql[i + 1] === "/") { state = "NORMAL"; i += 2; continue; }
+      i++; continue;
+    }
+    if (state === "DOLLAR") {
+      if (sql.slice(i, i + dollarTag.length) === dollarTag) {
+        current += dollarTag; state = "NORMAL"; i += dollarTag.length; dollarTag = ""; continue;
+      }
+      current += c; i++; continue;
+    }
+  }
+  if (state !== "NORMAL") {
+    throw new Error(
+      `pg: pgSchemaQuery cannot confidently parse this SQL text (unterminated ${state.toLowerCase()}) — ` +
+        "refusing rather than guessing where statements end",
+    );
+  }
+  if (current.trim()) statements.push(current);
+  return statements.map((s) => s.trim()).filter(Boolean);
 }
 
 function assertDdlOnly(text: string): void {
-  const stripped = stripSqlLineComments(text);
-  if (FORBIDDEN_DESTRUCTIVE_RE.test(stripped)) {
-    throw new Error(
-      "pg: pgSchemaQuery refuses DROP TABLE / DROP DATABASE / TRUNCATE unconditionally, even " +
-        `guarded by IF EXISTS — see invariant 17.\nStatement: ${text.slice(0, 200)}`,
-    );
-  }
-  const statements = stripped.split(";").map((s) => s.trim()).filter(Boolean);
+  const statements = splitSqlStatements(text);
   if (statements.length === 0) {
     throw new Error("pg: pgSchemaQuery was given no statements to run");
   }
   for (const stmt of statements) {
-    if (!DDL_KEYWORD_RE.test(stmt)) {
+    if (ALLOWED_DDL_SHAPES.some((re) => re.test(stmt))) continue;
+    const danger = nameDangerousShape(stmt);
+    if (danger) {
       throw new Error(
-        "pg: pgSchemaQuery is a DDL-only door (CREATE/ALTER/DROP/COMMENT) — refusing a " +
-          `statement that does not start with one:\n${stmt.slice(0, 200)}`,
+        `pg: pgSchemaQuery refuses ${danger} unconditionally, even guarded by IF EXISTS — see invariant 17.\n` +
+          `Statement: ${stmt.slice(0, 200)}`,
       );
     }
+    throw new Error(
+      "pg: pgSchemaQuery only allows the exact DDL shapes pgSchema.sql uses (CREATE TABLE/SEQUENCE/INDEX " +
+        "… IF NOT EXISTS, ALTER TABLE … ENABLE|FORCE ROW LEVEL SECURITY, DROP POLICY IF EXISTS, CREATE POLICY, " +
+        `COMMENT ON) — refusing an unrecognised statement shape:\n${stmt.slice(0, 200)}`,
+    );
   }
 }
 
@@ -314,10 +433,13 @@ function assertDdlOnly(text: string): void {
  * is deliberately not tenant-scoped, and grep for its call sites to confirm
  * the migration runner is the only one.
  *
- * NARROWED TO DDL ONLY (Task 2, closing the loophole fix-round-2 flagged —
- * see assertDdlOnly above): this no longer runs whatever text a caller hands
- * it. A visible, enforced exception is reviewable; a trusted one is a hole
- * waiting for a hurried afternoon.
+ * NARROWED TO AN ALLOWLIST OF EXACT SHAPES (Task 2, tightened fix round 1 —
+ * see assertDdlOnly/ALLOWED_DDL_SHAPES above): this no longer runs whatever
+ * text a caller hands it, and it no longer trusts a leading keyword either —
+ * a denylist of destructive statements is unbounded, so only the specific
+ * statement shapes pgSchema.sql actually uses are accepted. A visible,
+ * enforced allowlist is reviewable; a trusted denylist is a hole waiting for
+ * the one destructive form nobody thought to name.
  */
 export async function pgSchemaQuery<T = any>(text: string, params: readonly unknown[] = []): Promise<PgResult<T>> {
   assertDdlOnly(text);
