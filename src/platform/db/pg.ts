@@ -91,10 +91,49 @@ export function pgTransport(): PgTransport {
 
 let pool: Pool | null = null;
 
+/**
+ * DATABASE_URL MUST BE A URL, AND SAYING SO HERE SAVES AN HOUR.
+ *
+ * `pg` ignores a connectionString it cannot parse as a URL and quietly falls
+ * back to its own defaults — localhost:5432, the OS username — so a malformed
+ * value does not fail where it is set. It fails much later as
+ * `ECONNREFUSED 127.0.0.1:5432`, which reads as "the database is down" and
+ * points nowhere near the variable that is actually wrong.
+ *
+ * The specific way this goes wrong is worth naming, because it happened: an
+ * INSTANCE CONNECTION NAME (`project:region:instance`) is what the Auth Proxy
+ * and the Cloud SQL connector take, and it looks enough like connection
+ * configuration to end up here instead. `pg` silently ignored it and the whole
+ * suite failed as a refused localhost connection, with nothing pointing back at
+ * the variable. That cost a debugging session; this check is what it bought.
+ *
+ * Exported and pure so it can be asserted without a database — the same reason
+ * sqlGuards.ts's checks are pure. `getPool` is the only caller.
+ */
+export function assertConnectionStringShape(connectionString: string): void {
+  if (/^postgres(ql)?:\/\//i.test(connectionString)) return;
+  // `project:region:instance` — three colon-separated segments, no scheme, no
+  // host separators. Narrow on purpose: a wrong guess about WHICH mistake was
+  // made is worse than saying only that the value is not a URL.
+  const looksLikeInstance = /^[^:/@\s]+:[^:/@\s]+:[^:/@\s]+$/.test(connectionString);
+  throw new Error(
+    `pg: DATABASE_URL must be a postgresql:// connection string, and this one is not.` +
+      (looksLikeInstance
+        ? ` It looks like a Cloud SQL INSTANCE CONNECTION NAME ("project:region:instance"), which is what` +
+          ` the Auth Proxy and the Cloud SQL connector take — not what pg.Pool takes. Through the proxy the` +
+          ` value wanted here is postgresql://<user>:<password>@127.0.0.1:<proxy-port>/<database>. The` +
+          ` instance connection name belongs in PG_GATEWAY_INSTANCE, which the gateway service reads.`
+        : ``) +
+      ` Left unchecked, pg would ignore it and connect to localhost:5432 instead, failing later as` +
+      ` ECONNREFUSED with nothing pointing back at this variable.`,
+  );
+}
+
 function getPool(): Pool {
   if (pool) return pool;
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("pg: DATABASE_URL is not set");
+  assertConnectionStringShape(connectionString);
   pool = new Pool({
     connectionString,
     // SMALL ON PURPOSE. Every serverless invocation holds its own pool, so the

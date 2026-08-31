@@ -527,6 +527,50 @@ export async function testEveryGatewayCallReportsIntoTheCommandCounter(t) {
 
 // ---- the runner ---------------------------------------------------------------------
 
+// REGRESSION: DATABASE_URL held a Cloud SQL INSTANCE CONNECTION NAME
+// ("project:region:instance") instead of a connection string. `pg` does not
+// reject a connectionString it cannot parse — it ignores it and connects to
+// localhost:5432 — so the whole Postgres half of the suite died as
+// ECONNREFUSED, which reads as "the database is down" and points nowhere near
+// the variable. A debugging session went into finding that. The guard is pure
+// so it can be asserted here, on the gateway transport, where getPool is never
+// called at all.
+async function testAnInstanceConnectionNameIsNamedRatherThanIgnored(t) {
+  const { assertConnectionStringShape } = await import("@/platform/db/pg");
+
+  let threw = null;
+  try { assertConnectionStringShape("nompany-application:me-central1:nompany"); }
+  catch (e) { threw = e; }
+  t.equal(threw !== null, true, "the exact broken value is refused");
+  t.equal(
+    threw !== null && /INSTANCE CONNECTION NAME/.test(threw.message), true,
+    "...and the message names what it actually is, not just 'invalid'",
+  );
+  t.equal(
+    threw !== null && /PG_GATEWAY_INSTANCE/.test(threw.message), true,
+    "...and says where an instance connection name does belong",
+  );
+
+  let plain = null;
+  try { assertConnectionStringShape("not-a-url"); }
+  catch (e) { plain = e; }
+  t.equal(plain !== null, true, "any non-URL is refused");
+  t.equal(
+    plain !== null && /INSTANCE CONNECTION NAME/.test(plain.message), false,
+    "...without guessing WHICH mistake it was — a wrong guess is worse than none",
+  );
+
+  let ok = null;
+  try { assertConnectionStringShape("postgresql://u:p@127.0.0.1:5433/nompany"); }
+  catch (e) { ok = e; }
+  t.equal(ok, null, "a real proxy connection string passes");
+
+  let scheme = null;
+  try { assertConnectionStringShape("postgres://u:p@127.0.0.1:5433/nompany"); }
+  catch (e) { scheme = e; }
+  t.equal(scheme, null, "...and so does the postgres:// spelling");
+}
+
 const TESTS = [
   testDirectIsTheDefaultTransport,
   testAnUnknownTransportRefusesRatherThanFallingBack,
@@ -563,6 +607,7 @@ const TESTS = [
   testTheExpiryComesFromTheTokenNotAGuess,
   testTheFreshnessArithmetic,
   testEveryGatewayCallReportsIntoTheCommandCounter,
+  testAnInstanceConnectionNameIsNamedRatherThanIgnored,
 ];
 
 // SAME HARNESS SHAPE AS tests/pg-query.mjs: every assertion is reported, one
