@@ -178,7 +178,16 @@ function nameDangerousShape(stmt: string): string | null {
 // comment or dollar-quote means this function cannot say with confidence
 // where the statements end, and guessing wrong here is exactly the class of
 // bug this rewrite exists to close.
-function splitSqlStatements(sql: string): string[] {
+//
+// EXPORTED FOR THE GATEWAY, which needs it for a job pg.ts never had: proving
+// that one `text` in a /tx batch is ONE statement. `pg` only uses the extended
+// (bind-parameter) protocol when a query carries values — a statement with no
+// values goes out on the simple protocol, which happily runs
+// `SELECT 1; DROP TABLE collection_rows` as a semicolon-separated batch. So the
+// gateway splits every `text` and refuses anything that is not exactly one
+// statement, rather than classifying the leading keyword and never looking at
+// what follows the first semicolon. Same tokenizer, same reason it exists.
+export function splitSqlStatements(sql: string): string[] {
   const statements: string[] = [];
   let current = "";
   let state: "NORMAL" | "SINGLE" | "DOUBLE" | "LINE_COMMENT" | "BLOCK_COMMENT" | "DOLLAR" = "NORMAL";

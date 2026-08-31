@@ -72,7 +72,13 @@ export default [
   {
     // The logger IS the writer, and the tests and scripts are run by people
     // watching a terminal.
-    files: ["src/platform/http/observability.{js,ts}", "tests/**", "scripts/**"],
+    //
+    // services/** is here for a third reason: a Cloud Run container's stdout
+    // and stderr ARE its log sink — that is how anything reaches Cloud Logging
+    // at all. The app's structured logger cannot follow, since it is built on
+    // a request context that exists only inside the Next runtime, and a
+    // separately deployed process has no such request to attach a line to.
+    files: ["src/platform/http/observability.{js,ts}", "tests/**", "scripts/**", "services/**"],
     rules: { "no-console": "off" },
   },
 
