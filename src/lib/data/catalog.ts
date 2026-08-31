@@ -211,12 +211,17 @@ export async function createCatalogItem(kind: string, body: Record<string, unkno
 
 export async function updateCatalogItem(kind: string, id: string, body: Record<string, unknown>) {
   const spec = KINDS[kind];
+  const updatedAt = now();
+  // Captured here, not inside the closure below: editArr re-invokes its function
+  // once per CAS round (store.ts:221), so a timestamp read from inside it would
+  // land at whatever moment the winning round happened to run, not at the moment
+  // the update was asked for.
   return editArr(spec.key, (rows) => {
     let updated: Record<string, unknown> | null = null;
     const next = rows.map((r) => {
       if (r.id !== id) return r;
       // Merged, not replaced: a form that sends one field must not blank the rest.
-      updated = { ...r, ...spec.clean({ ...r, ...body }), id: r.id, createdAt: r.createdAt, updatedAt: now() };
+      updated = { ...r, ...spec.clean({ ...r, ...body }), id: r.id, createdAt: r.createdAt, updatedAt };
       return updated;
     });
     return updated ? { next, result: updated } : { result: null };
@@ -231,9 +236,10 @@ export async function deleteCatalogItem(kind: string, id: string) {
   });
   // A deleted service must not linger as a dangling id inside a tier.
   if (gone && kind === "services") {
+    const updatedAt = now(); // captured outside the closure — see updateCatalogItem above.
     await editArr(REG.tiers, (rows) => ({
       next: rows.map((t) => ((t.serviceIds as string[] | undefined)?.includes(id)
-        ? { ...t, serviceIds: (t.serviceIds as string[]).filter((s) => s !== id), updatedAt: now() }
+        ? { ...t, serviceIds: (t.serviceIds as string[]).filter((s) => s !== id), updatedAt }
         : t)),
     }));
   }

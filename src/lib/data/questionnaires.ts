@@ -50,13 +50,17 @@ export async function createQuestionnaireDef(
 const WRITABLE = ["name", "route", "status", "pages"];
 
 export async function updateQuestionnaireDef(id: string, patch: Record<string, unknown>) {
+  // Captured outside editArr's closure — see catalog.ts's updateCatalogItem for why:
+  // the closure may run once per CAS retry, and a timestamp read inside it would
+  // depend on how many rounds the write took.
+  const updatedAt = now();
   return editArr(REG.questionnaires, (rows) => {
     let updated: Record<string, unknown> | null = null;
     const next = rows.map((q) => {
       if (q.id !== id) return q;
       const safe: Record<string, unknown> = {};
       for (const k of WRITABLE) if (k in (patch || {})) safe[k] = patch[k];
-      updated = { ...q, ...safe, id: q.id, createdAt: q.createdAt, updatedAt: now() } as Record<string, unknown>;
+      updated = { ...q, ...safe, id: q.id, createdAt: q.createdAt, updatedAt } as Record<string, unknown>;
       return updated;
     });
     return updated ? { next, result: updated } : { result: null };

@@ -26,8 +26,12 @@ export async function getSiteCollection(name: string) {
 // visitors submitting at the same moment is the normal case, not the edge case.
 export async function addSiteRow(name: string, row: Record<string, unknown>) {
   if (!COLLECTIONS.has(name)) throw new Error(`Unknown site collection: ${name}`);
+  // Minted outside editArr's closure — see catalog.ts's updateCatalogItem for why:
+  // the closure may run once per CAS retry, so an id minted inside it would be
+  // whichever round happened to win, not a fixed identifier for this row.
+  const mintedId = row.id || `${name.slice(0, 3)}_${Date.now().toString(36)}`;
   return editArr(SITE.collection(name), (rows: Row[]) => {
-    const record = { id: row.id || `${name.slice(0, 3)}_${Date.now().toString(36)}`, ...row };
+    const record = { id: mintedId, ...row };
     return { next: [record, ...rows], result: record };
   });
 }
