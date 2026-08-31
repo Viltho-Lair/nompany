@@ -197,6 +197,19 @@ import {
   testEveryMappedPermissionTargetIsARealArea, testMapIsIdempotent,
   testTheFiveMovesAreDeclared, testNoRetiredSectionKeySurvivesInSource,
 } from "./restructure.mjs";
+// THE SQL QUERY BUILDER (P1 Postgres store swap, Task 7), same standalone-
+// runner shape as restructure.mjs above: pure functions, no database, and
+// self-checking when run bare via `node tests/pg-query.mjs`. Importing it
+// here folds it into the one command (`npm test`) that already runs
+// everything else, even though it needs none of what integration.test.mjs's
+// bootstrap sets up for it.
+import {
+  testExactMatch, testUndefinedIsIgnoredNotMatched, testArrayMeansOneOf,
+  testContainsIsCaseInsensitive, testTextOrderUsesAnIcuCollation, testNumberOrderCasts,
+  testOrderIsMadeTotal, testDefaultOrderIsNewestFirst, testUnknownOperatorThrows,
+  testNullMeansIsNull, testNeUsesIsDistinctFrom, testCountMirrorsSelectsWhereClause,
+  testScopeAndCollectionAreAlwaysParameterised, testLimitIsTheLastParameter,
+} from "./pg-query.mjs";
 
 import {
   seedSuperAdmin, loginSuper, logoutSuper, findSuperBySession, SUPER_COOKIE, SUPER_TTL_SEC,
@@ -4706,6 +4719,39 @@ console.log("\n== the fifteen-section restructure map (P0 restructure, Task 1)")
     testMapIsIdempotent,
     testTheFiveMovesAreDeclared,
     testNoRetiredSectionKeySurvivesInSource,
+  ]) {
+    await test(asT);
+  }
+}
+
+// ============================================================================
+console.log("\n== the SQL query builder (P1 Postgres store swap, Task 7)");
+// NO REDIS, NO POSTGRES. buildSelect/buildCount are pure — this block asserts
+// the generated SQL text and parameter list only, exactly like
+// tests/pg-query.mjs run bare. It runs here too so a regression shows up in
+// the one command (`npm test`) everything else already goes through.
+{
+  const asT = {
+    equal: (actual, expected, message = "") => ok(
+      message, actual === expected,
+      actual === expected ? "" : `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    ),
+  };
+  for (const test of [
+    testExactMatch,
+    testUndefinedIsIgnoredNotMatched,
+    testArrayMeansOneOf,
+    testContainsIsCaseInsensitive,
+    testTextOrderUsesAnIcuCollation,
+    testNumberOrderCasts,
+    testOrderIsMadeTotal,
+    testDefaultOrderIsNewestFirst,
+    testUnknownOperatorThrows,
+    testNullMeansIsNull,
+    testNeUsesIsDistinctFrom,
+    testCountMirrorsSelectsWhereClause,
+    testScopeAndCollectionAreAlwaysParameterised,
+    testLimitIsTheLastParameter,
   ]) {
     await test(asT);
   }

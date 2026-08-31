@@ -639,3 +639,19 @@ export function isValidSlug(slug: unknown): boolean {
   const s = String(slug || "");
   return SLUG_RE.test(s) && !RESERVED_SLUGS.has(s);
 }
+
+// ---- SQL identifiers (Postgres store swap) ---------------------------------
+// SQL IDENTIFIERS ARE KEYS TOO. Invariant 1 says keys are built only here,
+// never a literal and never a template at a call site — the reason was that a
+// literal in lib/media.js once wrote real blobs from the test suite. A table
+// name interpolated at a call site is the same failure with a bigger blast
+// radius, so the table and its columns are named here and nowhere else.
+export const TBL = {
+  rows: "collection_rows",
+  seq: "collection_rows_seq",
+  cols: {
+    tenant: "tenant_id", section: "section_id", collection: "collection",
+    id: "id", seq: "seq", version: "row_version", payload: "payload",
+    createdAt: "created_at", updatedAt: "updated_at",
+  },
+} as const;
