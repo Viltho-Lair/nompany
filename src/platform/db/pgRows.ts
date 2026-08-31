@@ -302,3 +302,53 @@ export async function pgDeleteRow(
   }
   return rowCount > 0;
 }
+
+// ---- cascade bulk deletes ---------------------------------------------------
+// THE ONLY TWO BULK DELETES cascade.ts (invariant 11's one legal deletion path)
+// is allowed to run against this table. Both are EXPLICIT, BOUNDED scopes —
+// an exact tenant, and for the section-scoped one an ENUMERATED collection
+// list — never a predicate that could grow to match more than the caller
+// named. That is the Postgres analogue of Redis's delPrefix(SEC.prefix(...)):
+// there is no prefix scan here (RLS is FORCED and this role holds no
+// BYPASSRLS, so nothing broader than "this one tenant's rows" is even visible
+// to a query run through withTenant), so the collection list stands in for
+// the prefix — bounded by SECTION_COLLECTIONS rather than by key-space
+// structure.
+//
+// Both return the actual deleted count rather than a boolean, and the caller
+// (cascade.ts) is expected to treat that count as load-bearing evidence, not
+// a courtesy: a DELETE issued outside withTenant — or with an empty tenant id
+// — does not error under FORCE ROW LEVEL SECURITY, it silently matches zero
+// rows and reports success. Only the count tells "ran and found nothing"
+// apart from "the tenant scope silently matched nothing".
+export async function pgDeleteSectionRows(
+  studioId: string, sectionId: string, collections: readonly string[],
+): Promise<number> {
+  // An appended custom section (see sections.ts's collectionsForKey) predefines
+  // no collections at all — nothing to enumerate means nothing to delete, and
+  // running the statement with an empty array would just be a documented no-op
+  // with an extra round trip.
+  if (!collections.length) return 0;
+  const { rowCount } = await withTenant(studioId, (q) =>
+    q(
+      `DELETE FROM ${T} WHERE ${TBL.cols.tenant} = $1 AND ${TBL.cols.section} = $2 AND ${TBL.cols.collection} = ANY($3::text[])`,
+      [studioId, sectionId, collections],
+    ));
+  for (const name of collections) invalidate(cacheKey(studioId, sectionId, name));
+  return rowCount;
+}
+
+// A WHOLE STUDIO'S ROWS, ACROSS EVERY SECTION AND COLLECTION IT EVER HELD.
+// Scoped by tenant_id alone — deliberately wider than pgDeleteSectionRows —
+// because a studio cascade is removing the tenant itself, not one of its
+// sections, so "every row this tenant owns" IS the correct bound rather than
+// a predicate that happens to be broad. RLS still confines this to `studioId`
+// even without the explicit column check, but it is stated anyway (as
+// tests/pg-sweep.mjs already does for its own fixture teardown) so the query
+// reads as scoped rather than relying on an invisible policy to make a bare
+// DELETE safe.
+export async function pgDeleteAllForTenant(studioId: string): Promise<number> {
+  const { rowCount } = await withTenant(studioId, (q) =>
+    q(`DELETE FROM ${T} WHERE ${TBL.cols.tenant} = $1`, [studioId]));
+  return rowCount;
+}
