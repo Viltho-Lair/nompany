@@ -43,7 +43,7 @@ if (!process.env.DATABASE_URL) {
 const { _poolForTests, pgQuery, pgTx, pgSchemaQuery, withTenant } = await import("../src/platform/db/pg.ts");
 const { TBL } = await import("../src/platform/db/keys.ts");
 const { pgReadCol, pgAddRow, pgAddRows, pgUpdateRow, pgDeleteRow } = await import("../src/platform/db/pgRows.ts");
-const { DB_BACKEND } = await import("../src/platform/db/sections.ts");
+const { DB_BACKEND, readCol, addRow, addRows, updateRow, deleteRow } = await import("../src/platform/db/sections.ts");
 
 // ---- Task 5: the backend dispatcher ----------------------------------------
 
@@ -51,6 +51,87 @@ export async function testBackendDefaultsToRedis(t) {
   // Until cutover, an unset env must mean Redis. A migration that flips the
   // default is a migration that happened by accident.
   t.equal(DB_BACKEND, process.env.NOMPANY_DB || "redis", "backend comes from the env, Redis by default");
+}
+
+// FIX ROUND 1: everything above (and the whole rest of this file) exercises
+// pgRows.ts directly. None of it ever calls through sections.ts's DISPATCHED
+// functions, so a regression in the dispatcher itself — id-seeding order
+// flipped, second() no longer wrapping a write, disagreement no longer
+// throwing — would not fail here; it would surface later as a scatter of
+// unrelated golden mismatches with nothing pointing at the dispatcher. These
+// two tests close that gap by calling readCol/addRow/addRows/updateRow/
+// deleteRow from sections.ts, not pgRows.ts, and only mean anything under
+// parity mode — they no-op (not fail) under redis/postgres so the other two
+// runs stay green.
+const P1T5_COL = "dispatcherwidgets";
+const P1T5_GHOST_COL = "dispatcherghost";
+
+export async function testDispatcherParityRoundTrip(t) {
+  if (DB_BACKEND !== "parity") {
+    t.equal(true, true, "skipped — only meaningful under NOMPANY_DB=parity");
+    return;
+  }
+  let row = null;
+  let batch = [];
+  try {
+    row = await addRow(P1T4_S, P1T4_SEC, P1T5_COL, { name: "Acme", status: "Open" });
+    t.equal(typeof row.id === "string" && row.id.length > 0, true,
+      "sections.addRow agreed across both stores and returned a minted id");
+
+    const afterAdd = await readCol(P1T4_S, P1T4_SEC, P1T5_COL);
+    t.equal(afterAdd.length === 1 && afterAdd[0].id === row.id, true,
+      "sections.readCol agrees across both stores after addRow");
+
+    const updated = await updateRow(P1T4_S, P1T4_SEC, P1T5_COL, row.id, { status: "Closed" });
+    t.equal(updated?.status, "Closed", "sections.updateRow agrees across both stores");
+
+    batch = await addRows(P1T4_S, P1T4_SEC, P1T5_COL, [{ name: "a" }, { name: "b" }]);
+    t.equal(batch.length === 2 && Boolean(batch[0]?.id) && Boolean(batch[1]?.id), true,
+      "sections.addRows agrees across both stores, ids seeded rather than re-minted");
+
+    const deleted = await deleteRow(P1T4_S, P1T4_SEC, P1T5_COL, row.id);
+    t.equal(deleted, true, "sections.deleteRow agrees across both stores");
+    row = null;
+    for (const b of batch) await deleteRow(P1T4_S, P1T4_SEC, P1T5_COL, b.id);
+    batch = [];
+
+    const afterDelete = await readCol(P1T4_S, P1T4_SEC, P1T5_COL);
+    t.equal(afterDelete.length, 0, "the bucket is empty in both stores after the full round trip");
+  } finally {
+    // Best-effort: if an assertion above ran but a later step threw, this
+    // still leaves neither store holding what the test created.
+    if (row) await deleteRow(P1T4_S, P1T4_SEC, P1T5_COL, row.id).catch(() => {});
+    for (const b of batch) await deleteRow(P1T4_S, P1T4_SEC, P1T5_COL, b.id).catch(() => {});
+  }
+}
+
+export async function testDispatcherDisagreementNamesBothValues(t) {
+  if (DB_BACKEND !== "parity") {
+    t.equal(true, true, "skipped — only meaningful under NOMPANY_DB=parity");
+    return;
+  }
+  const ghostId = `ghost-${P1T4_SESSION}`;
+  try {
+    // Write directly to Postgres ONLY, through pgRows.ts, bypassing the
+    // dispatcher and Redis entirely — Redis has nothing in this bucket,
+    // Postgres has one row. A GENUINE cross-store disagreement, not a
+    // simulated one, is what proves the failure names itself.
+    await pgAddRow(P1T4_S, P1T4_SEC, P1T5_GHOST_COL, { id: ghostId, name: "only-in-postgres" });
+    let threw = null;
+    try {
+      await readCol(P1T4_S, P1T4_SEC, P1T5_GHOST_COL);
+    } catch (e) {
+      threw = e;
+    }
+    t.equal(threw instanceof Error, true, "a genuine cross-store disagreement throws");
+    t.equal(/disagreed/.test(threw?.message || ""), true, "the error names itself as a disagreement");
+    t.equal(/redis:/.test(threw?.message || "") && /postgres:/.test(threw?.message || ""), true,
+      "the error labels both the redis value and the postgres value");
+    t.equal((threw?.message || "").includes("only-in-postgres"), true,
+      "the postgres side's actual content is visible in the message, not just that something differed");
+  } finally {
+    await pgDeleteRow(P1T4_S, P1T4_SEC, P1T5_GHOST_COL, ghostId).catch(() => {});
+  }
 }
 
 export async function testPgConnects(t) {
@@ -839,6 +920,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testImmutableFieldsCannotBePatched,
       testDeleteReportsWhetherAnythingWent,
       testBackendDefaultsToRedis,
+      testDispatcherParityRoundTrip,
+      testDispatcherDisagreementNamesBothValues,
     ];
     let totalFails = 0;
     for (const test of tests) {
