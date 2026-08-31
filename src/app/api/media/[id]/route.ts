@@ -1,7 +1,7 @@
 import { currentUser } from "@/platform/auth/identity";
 import { getStudioById } from "@/modules/main/studios";
 import { getCollaboratorByUser } from "@/platform/auth/collaborators";
-import { getMedia } from "@/lib/media";
+import { getMedia, readMedia } from "@/lib/media";
 
 export const runtime = "nodejs";
 
@@ -38,10 +38,23 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     if (denied) return denied;
   }
 
-  return new Response(media.buffer, {
+  // THE BINARY NOW LIVES IN VERCEL BLOB, at an unguessable but PUBLIC url — see
+  // the note atop media.ts. This route fetches it server-side and streams it
+  // rather than redirecting there, for both visibilities alike, so the Blob
+  // URL never once reaches a client: the membership check above stays the only
+  // thing standing between a caller and the bytes, not one hop away from being
+  // bypassable by whoever holds a copied link.
+  const buffer = await readMedia(media);
+  if (!buffer) return new Response("Not found", { status: 404 });
+
+  // `Response` wants a DOM `BodyInit`, and TS resolves a `Buffer<ArrayBufferLike>`
+  // against the wrong arm of that union (it asks for URLSearchParams's shape).
+  // A plain `Uint8Array` view of the same bytes satisfies `ArrayBufferView`
+  // cleanly and copies nothing.
+  return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": media.contentType,
-      "Content-Length": String(media.size),
+      "Content-Length": String(buffer.length),
       "Cache-Control": media.visibility === "private" ? "private, no-store" : "public, max-age=31536000, immutable",
     },
   });
