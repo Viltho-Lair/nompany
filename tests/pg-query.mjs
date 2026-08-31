@@ -38,8 +38,12 @@ export async function testUndefinedIsIgnoredNotMatched(t) {
 }
 
 export async function testArrayMeansOneOf(t) {
-  const { text } = buildSelect(SCOPE, "tickets", { where: { status: ["Open", "Won"] } });
+  const { text, params } = buildSelect(SCOPE, "tickets", { where: { status: ["Open", "Won"] } });
   t.equal(/= ANY\(/.test(text), true, "an array reads as one-of");
+  // MINOR fix (round 1): this used to assert the SQL shape only, which would
+  // pass against a builder that never bound the array at all.
+  t.equal(Array.isArray(params[3]) && params[3].join(",") === "Open,Won", true,
+    "the array itself reaches params, not just the SQL shape");
 }
 
 export async function testContainsIsCaseInsensitive(t) {
@@ -57,8 +61,12 @@ export async function testTextOrderUsesAnIcuCollation(t) {
 }
 
 export async function testNumberOrderCasts(t) {
+  // Fix round 1: also coalesces to 0, matching orderBy's `Number(a) || 0` —
+  // see testOrderCoalescesMissingNumberToZero's sibling text-order test below
+  // for why a bare cast alone was wrong.
   const { text } = buildSelect(SCOPE, "invoices", { order: { field: "total", as: "number", dir: "desc" } });
-  t.equal(/\(payload->>'total'\)::numeric DESC/.test(text), true, "a numeric sort casts");
+  t.equal(/COALESCE\(\(payload->>'total'\)::numeric, 0\) DESC/.test(text), true,
+    "a numeric sort casts and coalesces a missing field to 0");
 }
 
 export async function testOrderIsMadeTotal(t) {
@@ -78,28 +86,125 @@ export async function testUnknownOperatorThrows(t) {
   t.equal(threw, true, "an unknown operator is refused, exactly as matchesWhere refuses it");
 }
 
-// ---- coverage beyond the brief's nine: the fixes made while translating -----
-// matchesWhere and orderBy (see pgQuery.ts's own comments on `ne` and on
-// `{ field: null }`) are exercised here so a later refactor cannot quietly
-// regress a case the brief's own list did not happen to cover.
+// ---- fix round 1 -------------------------------------------------------------
+// A review of the first version of this file found that its own `{ field: null
+// }` comment correctly diagnosed the JSON asymmetry (an ABSENT key gives
+// `undefined` in JS; `payload->>'f'` collapses an absent key AND a stored JSON
+// null to the same SQL NULL) and then shipped a translation that did not act
+// on it. The same blind spot turned up in `nin`, `ne` with a null argument,
+// and NULL-ordering. Every test below is written to FAIL against the
+// pre-fix-round-1 code — most pointedly the ABSENT-key case specifically
+// (not just the "value is JSON null" case), since that half is what was wrong.
 
-export async function testNullMeansIsNull(t) {
-  // A bare `= NULL` is never true in SQL for any row, which would silently
-  // turn "field is null" into "match nothing" — the honest translation is
-  // IS NULL, and it must take no parameter slot (there is nothing to bind).
+export async function testNullRequiresKeyPresent(t) {
+  // matchesWhere's `value !== null`: an absent key is `undefined`, and
+  // `undefined !== null` is true — so `{ field: null }` must EXCLUDE an
+  // absent key and match only a row that is PRESENT with a stored null.
+  // Pre-fix, this was a bare `field IS NULL`, true for an absent key too —
+  // the exact case this filter exists to tell apart from a present null.
   const { text, params } = buildSelect(SCOPE, "tickets", { where: { closedAt: null } });
-  t.equal(/payload->>'closedAt' IS NULL/.test(text), true, "a null filter becomes IS NULL");
-  t.equal(params.length, 3, "IS NULL binds no extra parameter");
+  t.equal(/payload->'closedAt' IS NOT NULL AND payload->>'closedAt' IS NULL/.test(text), true,
+    "a null filter requires the key present AND its value null, not merely SQL NULL");
+  t.equal(params.length, 3, "no parameter is bound — IS NULL/IS NOT NULL take none");
 }
 
 export async function testNeUsesIsDistinctFrom(t) {
   // `<>` is UNKNOWN (never true) the instant either side is SQL NULL, which
   // would make "ne" silently exclude a row whose field is simply absent.
   // matchesWhere's `v !== arg` has no such blind spot, and IS DISTINCT FROM is
-  // the operator built to agree with it.
+  // the operator built to agree with it — for a non-null argument (a null
+  // argument is its own case, tested separately below).
   const { text, params } = buildSelect(SCOPE, "tickets", { where: { status: { ne: "Closed" } } });
   t.equal(/payload->>'status' IS DISTINCT FROM \$4/.test(text), true, "ne compiles to IS DISTINCT FROM, not <>");
   t.equal(params[3], "Closed", "the excluded value is still a parameter");
+}
+
+export async function testNeNullKeepsAnAbsentKey(t) {
+  // matchesWhere's `v !== null`: an absent key is `undefined`, and
+  // `undefined !== null` is true, so `{ field: { ne: null } }` must KEEP an
+  // absent-key row. Pre-fix, `IS DISTINCT FROM NULL` folded absent and
+  // explicit-null together (both give SQL NULL from ->>'f'), wrongly
+  // excluding it. The fix routes ne:null through the same presence-aware
+  // test `{ field: null }` uses, negated.
+  const { text, params } = buildSelect(SCOPE, "tickets", { where: { closedAt: { ne: null } } });
+  t.equal(/NOT \(payload->'closedAt' IS NOT NULL AND payload->>'closedAt' IS NULL\)/.test(text), true,
+    "ne:null negates the presence-and-null test, not IS DISTINCT FROM NULL");
+  t.equal(params.length, 3, "no parameter is bound for a null argument");
+}
+
+export async function testInNullMemberRequiresKeyPresent(t) {
+  // `[null, "2024-01-01"].includes(v)` is true for a row genuinely PRESENT
+  // with a stored null, but `= ANY(['null', ...])` (pre-fix: null coerced to
+  // the STRING "null" via .map(String)) could never match a real SQL NULL —
+  // `NULL = ANY(...)` is never true, whatever the array holds. The null
+  // member needs the same presence-and-null test `{ field: null }` uses.
+  const { text, params } = buildSelect(SCOPE, "tickets", { where: { closedAt: { in: [null, "2024-01-01"] } } });
+  t.equal(/payload->'closedAt' IS NOT NULL AND payload->>'closedAt' IS NULL/.test(text), true,
+    "a null member of an `in` array matches only a PRESENT null");
+  t.equal(Array.isArray(params[3]) && params[3][0] === "2024-01-01", true,
+    "the non-null members still bind through ANY()");
+}
+
+export async function testNinKeepsAnAbsentKey(t) {
+  // The row's field is simply not there. matchesWhere's
+  // `!arg.includes(undefined)` is true for ANY array (a Comparable array
+  // never contains undefined), so nin must keep an absent-key row
+  // unconditionally. Pre-fix, `NOT (field = ANY($n))` turned an absent field
+  // into SQL NULL (three-valued logic: NULL = ANY(...) is NULL, NOT NULL is
+  // NULL), which a WHERE clause reads as excluded — the opposite of
+  // matchesWhere.
+  const { text } = buildSelect(SCOPE, "tickets", { where: { status: { nin: ["Open", "Won"] } } });
+  t.equal(/payload->'status' IS NULL/.test(text), true,
+    "nin has an explicit absent-key arm (single `->`), not just NOT(field = ANY(...))");
+}
+
+export async function testNinExcludesAnExplicitNullOnlyWhenTheArrayHasOne(t) {
+  // arg contains null: a present-and-null row must be EXCLUDED (nin has no
+  // separate "kept" arm for it in that case), while a present, non-null value
+  // absent from the array is still kept via the third arm.
+  const { text } = buildSelect(SCOPE, "tickets", { where: { closedAt: { nin: [null, "2024-01-01"] } } });
+  t.equal(/payload->>'closedAt' IS NULL/.test(text), false,
+    "when the array itself contains null, there is no separate present-and-null KEEP arm");
+  t.equal(/payload->'closedAt' IS NULL/.test(text), true, "the absent-key arm is still present");
+}
+
+export async function testOrderCoalescesMissingTextToEmptyString(t) {
+  // orderBy's default comparator is `String(a ?? "").localeCompare(...)` — a
+  // missing field sorts as empty string, not as SQL NULL (which Postgres
+  // would otherwise sort last in ASC / first in DESC, disagreeing with "as if
+  // it were an empty string").
+  const { text } = buildSelect(SCOPE, "clients", { order: "name" });
+  t.equal(/COALESCE\(payload->>'name', ''\) COLLATE "und-x-icu"/.test(text), true,
+    "a text sort coalesces a missing field to '', matching orderBy's String(a ?? \"\")");
+}
+
+export async function testContainsEscapesWildcards(t) {
+  // matchesWhere's contains is `.includes(...)` — a literal substring match.
+  // ILIKE treats %, _ and its own escape character specially; pre-fix, a
+  // client searching for "50%" matched far more than a literal "50%" would.
+  const { params } = buildSelect(SCOPE, "clients", { where: { name: { contains: "50%_x\\y" } } });
+  t.equal(params[3], "%50\\%\\_x\\\\y%",
+    "%, _ and the escape character itself are escaped before being wrapped in the search wildcards");
+}
+
+export async function testGtCastsNumericForANumberArgument(t) {
+  const { text, params } = buildSelect(SCOPE, "invoices", { where: { total: { gt: 100 } } });
+  t.equal(/\(payload->>'total'\)::numeric > \$4/.test(text), true, "a numeric argument casts to numeric");
+  t.equal(params[3], 100, "bound as a number");
+}
+
+export async function testGtUsesCollateCForAStringArgument(t) {
+  // JavaScript's `>` on two strings compares UTF-16 code units — "a" > "B" is
+  // true — which is byte order, not localeCompare's locale order. This is the
+  // OPPOSITE collation from orderClause's ICU choice: orderBy explicitly
+  // calls localeCompare; matchesWhere's gt/gte/lt/lte explicitly do not.
+  // Pre-fix, every argument was cast `::numeric`, which would either coerce a
+  // reference-number string to NaN or raise a cast error rather than compare
+  // it the way JavaScript does.
+  const { text, params } = buildSelect(SCOPE, "invoices", { where: { ref: { gt: "INV-100" } } });
+  t.equal(/payload->>'ref' COLLATE "C" > \$4/.test(text), true,
+    "a string argument compares by code-unit order (COLLATE \"C\"), not ICU, and not numeric");
+  t.equal(params[3], "INV-100", "bound as text, not cast to numeric");
 }
 
 export async function testCountMirrorsSelectsWhereClause(t) {
@@ -164,8 +269,16 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testOrderIsMadeTotal,
       testDefaultOrderIsNewestFirst,
       testUnknownOperatorThrows,
-      testNullMeansIsNull,
+      testNullRequiresKeyPresent,
       testNeUsesIsDistinctFrom,
+      testNeNullKeepsAnAbsentKey,
+      testInNullMemberRequiresKeyPresent,
+      testNinKeepsAnAbsentKey,
+      testNinExcludesAnExplicitNullOnlyWhenTheArrayHasOne,
+      testOrderCoalescesMissingTextToEmptyString,
+      testContainsEscapesWildcards,
+      testGtCastsNumericForANumberArgument,
+      testGtUsesCollateCForAStringArgument,
       testCountMirrorsSelectsWhereClause,
       testScopeAndCollectionAreAlwaysParameterised,
       testLimitIsTheLastParameter,
