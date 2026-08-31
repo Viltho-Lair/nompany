@@ -28,8 +28,21 @@ hundred bytes in Redis per file, not the file itself.
 This replaces base64'ing the whole file into the Redis string at `g:media:<id>` (1.34x
 inflation, no reclamation beyond a single key, and — because the key is platform-scoped —
 no studio cascade ever reaped an orphan). Measured live on 31/08/2026: **2 files, 1.06 MB of
-file bytes** (~1.41 MB as stored, base64 being 1.33x), both public, both personal rather than
-studio-owned, still in the old form and not yet migrated.
+file bytes, 1.41 MB as stored** (base64 being 1.33x — the script reports the second figure, so
+do not read it as file size). Both public. **Both are now COPIED to Blob and still hold their
+base64**: `--write` has run, `--reclaim` has not.
+
+That intermediate state is deliberate and is the only order that is safe to deploy through.
+`readMedia` returns null when a record carries no `url`, and the route then 404s — **there is
+no base64 fallback** — so a record that has not been copied breaks the instant this code goes
+live. Keeping `data` as well means the pre-Blob code still serves the same file, so the two
+versions can both be correct at once and the deploy needs no coordination. `--reclaim` is what
+ends that, and it is only safe once the new code is actually serving.
+
+Neither file is the personal upload it looks like. `nompany.ico` is referenced by nothing;
+`Odai Picture.png` is the **`5awa` studio's logo** (`g:studios` holds
+`logo = /api/media/b12ca79d…`) and belongs to a second account. Deleting either record rather
+than migrating it would leave that `logo` pointing at a dead id.
 
 **There are now TWO namespaces, and both are built in `keys.ts`.** `MEDIA.blob(id)` is the
 Redis record; `MEDIA.object(id)` is the Blob object's pathname. For as long as the bytes were
@@ -119,5 +132,8 @@ both public** — dry-run report only, nothing written. It has not been run with
   records before uploading, so the same file uploaded twice is stored twice.
 - **No client-side/resumable upload**, so `MAX_BYTES` stays a hard 5 MB rather than something
   Vercel's request-body ceiling would allow if the browser talked to Blob directly.
-- **The migration script's `--write`/`--reclaim` have not been run against live data.** The
-  2 live records are still base64 in Redis.
+- **`--reclaim` has not been run.** `--write` has (31/08/2026: both records copied to Blob,
+  fetched back and hash-verified against the bytes exported to `media-export/` *before* the
+  upload — not against the blob's own copy, which would be comparing the upload to itself).
+  Both records therefore still carry their base64, and Redis still holds the 1.41 MB. Running
+  `--reclaim` is what reclaims it, and it must wait until the Blob-reading code is deployed.
