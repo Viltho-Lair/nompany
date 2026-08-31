@@ -31,6 +31,37 @@ better: with no route, a cutover fails on connection timeout rather than on the 
 Secure Compute static IPs (correct, least-privilege, but a paid add-on); staying on Redis
 (safe, and remains the right interim state — see "Before any of this").
 
+### The Cloud SQL Data API was evaluated and rejected — 31/08/2026
+
+It looked like it could delete this entire design, so it was enabled
+(`settings.dataApiAccess = "ALLOW_DATA_API"`) and its contract read from the discovery
+document rather than from documentation. Two of its properties are genuinely a good fit:
+`sqlStatement` accepts "a single statement or a sequence of statements separated by
+semicolons", which is the batch shape D1 needs, and `autoIamAuthn` composes with the same
+Vercel OIDC chain D3 describes — no service to build, deploy, secure or keep warm.
+
+**It has no bind parameters.** `ExecuteSqlPayload` is
+`{ sqlStatement, database, user, passwordSecretVersion, autoIamAuthn, rowLimit, partialResultMode, application }`
+and nothing else; a scan of every schema in `sqladmin` v1 for a `param`/`bind`/`arg` field
+returns nothing. `sqlStatement` is a bare string.
+
+That is disqualifying rather than inconvenient. The pg layer uses **38 placeholders** across
+`pgRows`/`pgQuery`/`pg`/`cascade`, and the ones that matter carry tenant-authored content:
+`pgAddRow`, `pgAddRows` and `pgUpdateRow` all write `payload = $N::json`, which is whatever
+JSON a tenant's own records contain. Without binds that has to be interpolated into SQL text,
+which puts a **SQL-injection surface across the whole ERP, on precisely the data tenants
+control**. No amount of escaping discipline is worth taking that on to avoid building one
+service.
+
+It could not be tested empirically either: the instance has only `BUILT_IN` users
+(`postgres`, `viltho`), so `autoIamAuthn` has no IAM database user to authenticate as, and
+the alternative needs a Secret Manager secret holding a password.
+
+The API remains useful for what it is plainly built for — ad-hoc administrative and
+inspection queries typed by a person — and is harmless left enabled, since invoking it needs
+an IAM permission only project administrators hold. It is **not** an application data path.
+Turning it back off costs nothing if it is not being used for that.
+
 ## Shape
 
 One Cloud Run service, `pg-gateway`, in `me-central1`, with Direct VPC egress onto the
