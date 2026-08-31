@@ -446,6 +446,41 @@ export async function testPgSchemaQueryDoesNotLaunderADropThroughAStringLiteral(
   t.equal(/DROP TABLE/.test(threw?.message || ""), true, "refused specifically as the DROP TABLE hidden after the string literal, not a coincidental other failure");
 }
 
+// ---- fix round 2: CREATE TABLE ... AS SELECT slipped past the anchor ------
+//
+// The CREATE TABLE shape anchored on `... ( ... )$` with no exclusion for a
+// query — `CREATE TABLE IF NOT EXISTS foo (a text) AS SELECT * FROM (SELECT
+// * FROM collection_rows)` satisfies that anchor by wrapping the source in
+// one extra pair of parentheses, and would copy collection_rows into a
+// brand-new table with NO RLS policy on it. Both variants below are asserted
+// WITHOUT executing — assertDdlOnly throws before pgSchemaQuery's run() ever
+// calls client.query().
+
+export async function testPgSchemaQueryRefusesCreateTableAsSelectPlain(t) {
+  let threw = null;
+  try {
+    await pgSchemaQuery(`CREATE TABLE IF NOT EXISTS p1fix2_never_created AS SELECT * FROM ${TBL.rows}`);
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "a plain CREATE TABLE ... AS SELECT (no column list) is refused");
+}
+
+export async function testPgSchemaQueryRefusesCreateTableAsSelectWithExtraParens(t) {
+  // THE EXACT SHAPE THAT DEFEATED THE ORIGINAL ANCHOR: a real column list
+  // followed by AS SELECT, with the subquery's source wrapped in one extra
+  // pair of parentheses so the statement still ends in `)`.
+  let threw = null;
+  try {
+    await pgSchemaQuery(
+      `CREATE TABLE IF NOT EXISTS p1fix2_never_created (a text) AS SELECT * FROM (SELECT * FROM ${TBL.rows})`,
+    );
+  } catch (e) {
+    threw = e;
+  }
+  t.equal(threw instanceof Error, true, "CREATE TABLE (cols) AS SELECT, with the source wrapped in an extra parenthesis, is refused");
+}
+
 export async function testPgSchemaQueryAcceptsRealDdl(t) {
   // The positive case: a genuine DDL statement — COMMENT ON, which changes no
   // data and is trivially reversible — passes straight through unaltered.
@@ -673,6 +708,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testPgSchemaQueryRefusesDisableRls,
       testPgSchemaQueryRefusesCreateView,
       testPgSchemaQueryDoesNotLaunderADropThroughAStringLiteral,
+      testPgSchemaQueryRefusesCreateTableAsSelectPlain,
+      testPgSchemaQueryRefusesCreateTableAsSelectWithExtraParens,
       testPgSchemaQueryAcceptsRealDdl,
       testFailedTransactionDestroysItsConnectionRatherThanRecyclingIt,
       testPgTxAlsoDestroysAFailedConnection,

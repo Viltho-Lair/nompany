@@ -291,27 +291,49 @@ export async function pgTx<T>(fn: (q: PgQueryFn) => Promise<T>): Promise<T> {
 // treats as whitespace too). Text this tokenizer cannot cleanly walk — an
 // unterminated quote, comment or dollar-quote — is refused rather than
 // guessed at.
-const ALLOWED_DDL_SHAPES: RegExp[] = [
-  // CREATE TABLE IF NOT EXISTS <name> ( ... )
-  /^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s*\([\s\S]*\)$/i,
+// A statement that MATCHES the CREATE TABLE shape's anchor
+// (`... ( ... )$`) but contains a query is not a plain table definition —
+// `CREATE TABLE IF NOT EXISTS foo (a text) AS SELECT * FROM (SELECT * FROM
+// collection_rows)` satisfies `\([\s\S]*\)$` by wrapping the source in one
+// extra pair of parentheses, and would copy the whole table into a brand-new
+// one with NO RLS policy on it (fix round 2). This door exists to create one
+// empty table from a fixed file; it has no legitimate need for a query
+// anywhere inside a CREATE TABLE, so any CREATE TABLE statement containing
+// the word SELECT is refused outright rather than trusted to be a harmless
+// column named "select" — pgSchema.sql has no such column and never will.
+const CONTAINS_SELECT_RE = /\bSELECT\b/i;
+
+const ALLOWED_DDL_SHAPES: Array<(stmt: string) => boolean> = [
+  // CREATE TABLE IF NOT EXISTS <name> ( <column defs> ) — no SELECT anywhere,
+  // which is what rules out CREATE TABLE ... AS SELECT (see above).
+  (stmt) =>
+    /^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s*\([\s\S]*\)$/i.test(stmt) &&
+    !CONTAINS_SELECT_RE.test(stmt),
   // CREATE SEQUENCE IF NOT EXISTS <name>
-  /^CREATE\s+SEQUENCE\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*$/i,
-  // CREATE INDEX IF NOT EXISTS <name> ON <table> ( ... )
-  /^CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*\s*\([\s\S]*\)$/i,
+  (stmt) => /^CREATE\s+SEQUENCE\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*$/i.test(stmt),
+  // CREATE INDEX IF NOT EXISTS <name> ON <table> ( ... ) — Postgres has no
+  // "CREATE INDEX ... AS SELECT" form, so there is no equivalent shape to
+  // exclude here; an index expression cannot contain a subquery at all.
+  (stmt) =>
+    /^CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*\s*\([\s\S]*\)$/i.test(stmt),
   // ALTER TABLE <name> ENABLE ROW LEVEL SECURITY
-  /^ALTER\s+TABLE\s+[A-Za-z_][A-Za-z0-9_]*\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY$/i,
+  (stmt) => /^ALTER\s+TABLE\s+[A-Za-z_][A-Za-z0-9_]*\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY$/i.test(stmt),
   // ALTER TABLE <name> FORCE ROW LEVEL SECURITY
-  /^ALTER\s+TABLE\s+[A-Za-z_][A-Za-z0-9_]*\s+FORCE\s+ROW\s+LEVEL\s+SECURITY$/i,
+  (stmt) => /^ALTER\s+TABLE\s+[A-Za-z_][A-Za-z0-9_]*\s+FORCE\s+ROW\s+LEVEL\s+SECURITY$/i.test(stmt),
   // DROP POLICY IF EXISTS <name> ON <table> — the only DROP this door allows,
   // and only paired with the CREATE POLICY below (how pgSchema.sql replaces
   // a policy).
-  /^DROP\s+POLICY\s+IF\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*$/i,
-  // CREATE POLICY <name> ON <table> USING (...) WITH CHECK (...)
-  /^CREATE\s+POLICY\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*\s+[\s\S]+$/i,
+  (stmt) => /^DROP\s+POLICY\s+IF\s+EXISTS\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*$/i.test(stmt),
+  // CREATE POLICY <name> ON <table> USING (...) WITH CHECK (...). The tail is
+  // loose, but that is safe here specifically because splitSqlStatements has
+  // already separated this into its own statement before this check ever
+  // runs — a loose tail can no longer smuggle a second statement the way a
+  // loose CREATE TABLE body could smuggle a query (fix round 2 review).
+  (stmt) => /^CREATE\s+POLICY\s+[A-Za-z_][A-Za-z0-9_]*\s+ON\s+[A-Za-z_][A-Za-z0-9_]*\s+[\s\S]+$/i.test(stmt),
   // COMMENT ON <object> IS ... — not used by pgSchema.sql today, allowed for
   // the same reason the original door named it: documenting an object is the
   // one DDL act with no destructive form at all.
-  /^COMMENT\s+ON\s+[\s\S]+$/i,
+  (stmt) => /^COMMENT\s+ON\s+[\s\S]+$/i.test(stmt),
 ];
 
 // A NAME FOR THE OBVIOUSLY DANGEROUS SHAPES, purely so refusing one of them
@@ -405,7 +427,7 @@ function assertDdlOnly(text: string): void {
     throw new Error("pg: pgSchemaQuery was given no statements to run");
   }
   for (const stmt of statements) {
-    if (ALLOWED_DDL_SHAPES.some((re) => re.test(stmt))) continue;
+    if (ALLOWED_DDL_SHAPES.some((matches) => matches(stmt))) continue;
     const danger = nameDangerousShape(stmt);
     if (danger) {
       throw new Error(
