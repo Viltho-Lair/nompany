@@ -161,9 +161,16 @@ export async function deleteMedia(id: string) {
   // version of the same leak. This order leaves, at worst, a record pointing
   // at an already-deleted object, which the next `deleteMedia` call on the
   // same id (or a re-run of the migration's future reclaim step) can still
-  // clean up: `del` on an already-gone blob is a no-op, not an error.
+  // clean up.
+  //
+  // Deliberately UNCAUGHT. `del` on an already-gone blob is a no-op rather than
+  // an error, so the only thing a catch here could swallow is a real failure —
+  // network, auth, a wrong token — and swallowing it would delete the record
+  // anyway and strand the object, which is precisely the leak this ordering
+  // exists to prevent. Throwing leaves both halves in place, so a retry still
+  // cleans up.
   if (record.url) {
-    await del(record.url).catch(() => {});
+    await del(record.url);
   }
   const client = await getRedisClient();
   return (await client.del(key(id))) === 1;
