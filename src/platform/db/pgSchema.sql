@@ -22,11 +22,22 @@
 -- inside `payload` — but the rule for when one does is stated here once so it
 -- is not relearned per-column later: NUMERIC(19,4), never float/double, so a
 -- rounding error cannot appear between what was quoted and what was posted.
+-- COLLATE "C" ON THE FOUR IDENTIFIER COLUMNS. Each holds a ULID or a slug —
+-- pure ASCII, compared for exact equality or joined, never sorted for a human
+-- to read (that is `payload->>'field' COLLATE "und-x-icu"`, in pgQuery.ts,
+-- and it stays untouched). The database's default is the libc provider
+-- (`en_US.UTF8`), and libc collations are versioned by the OS, not by
+-- Postgres — an OS upgrade can silently change comparison order for text
+-- already indexed under the old one, which Postgres has no way to detect or
+-- warn about. `"C"` is byte order, which is what these four columns already
+-- get from pure ASCII content today, so pinning it changes no behaviour now
+-- and permanently removes a reordering risk that would otherwise wait for an
+-- OS upgrade to surface.
 CREATE TABLE IF NOT EXISTS collection_rows (
-  tenant_id   text   NOT NULL,
-  section_id  text   NOT NULL,
-  collection  text   NOT NULL,
-  id          text   NOT NULL,
+  tenant_id   text   COLLATE "C" NOT NULL,
+  section_id  text   COLLATE "C" NOT NULL,
+  collection  text   COLLATE "C" NOT NULL,
+  id          text   COLLATE "C" NOT NULL,
 
   -- THE COLLECTION'S ORDER, MADE EXPLICIT. addRow prepends, so a collection
   -- reads newest-first and call sites depend on it. Postgres promises no order
