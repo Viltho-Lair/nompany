@@ -115,16 +115,30 @@ jobs:
           SQL
 
       - name: Verify the CI Postgres role cannot bypass row-level security
-        # THE ASSERTION THE WORKFLOW HEADER PROMISES. Cheap, and it is the one
-        # line standing between "every RLS test in this run means something"
-        # and "every RLS test in this run passes for free" if the step above
-        # is ever edited to grant more than it should.
+        # FIX ROUND 1 (whole-branch review): the previous version of this
+        # check connected as the BOOTSTRAP SUPERUSER and asked
+        # "WHERE rolname = 'ci_app'" — a literal name lookup that proves "a
+        # role named ci_app is shaped safely" and nothing about whether
+        # DATABASE_URL (what every suite below actually connects as) still
+        # points at that role. Repoint DATABASE_URL at the bootstrap
+        # `postgres` user later — to debug something, because a step needed
+        # more privilege — and leave this step untouched, and it stays green
+        # while every suite runs as a superuser with RLS silently bypassed:
+        # the exact failure this step exists to catch, reached from the
+        # other direction.
+        #
+        # So this now connects THROUGH $DATABASE_URL itself and asks about
+        # current_user — whatever role the URL names is the one inspected,
+        # by construction, so the check cannot go stale independently of the
+        # credential downstream tests use.
         run: |
-          shape=$(PGPASSWORD=postgres psql -h localhost -U postgres -d nompany_ci -tAc \
-            "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'ci_app'")
-          echo "ci_app role shape (rolsuper|rolbypassrls): ${shape}"
-          if [ "${shape}" != "f|f" ]; then
-            echo "::error::ci_app must be rolsuper=false and rolbypassrls=false to match production (viltho) — got '${shape}'. A superuser or BYPASSRLS role would make every RLS test pass without RLS ever being enforced." >&2
+          result=$(psql "$DATABASE_URL" -tAc \
+            "SELECT current_user, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")
+          role="${result%%|*}"
+          flags="${result#*|}"
+          echo "DATABASE_URL connects as '${role}', shape (rolsuper|rolbypassrls): ${flags}"
+          if [ "${flags}" != "f|f" ]; then
+            echo "::error::the role DATABASE_URL actually connects as ('${role}') must be rolsuper=false and rolbypassrls=false to match production (viltho) — got '${flags}'. A superuser (or any role granted BYPASSRLS) silently bypasses row-level security, so every tenant-isolation test in this run would pass for a reason that does not hold in production." >&2
             exit 1
           fi
 
