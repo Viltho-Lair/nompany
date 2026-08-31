@@ -180,3 +180,89 @@ first pass and **zero of everything** on the second. That is what Task 7's
 own test evidence demonstrates: seed a pre-restructure studio, dry run, apply
 (non-zero counts, `verify` clean), apply again (every count zero), verify
 again (still clean).
+
+---
+
+# `pg/export.mjs`, `pg/load.mjs`, `pg/verify.mjs` — the Redis → Postgres data migration (P1)
+
+The actual data migration for the Postgres store swap: move every row Redis
+holds today into `collection_rows` (`pgSchema.sql`, applied by `pg/schema.mjs`),
+and prove the two stores agree before anything downstream ever reads from
+Postgres. Three scripts, run in order:
+
+```bash
+# 1. EXPORT — READ-ONLY. Walks every studio, every section, every collection
+#    named by SECTION_COLLECTIONS, writing one newline-delimited JSON file per
+#    studio. Calls nothing but redisReadCol/listStudios/listSections — no
+#    write or delete primitive anywhere in the file.
+NOMPANY_KEY_PREFIX=sandbox_ node scripts/migrate/pg/export.mjs ./pg-export
+
+# 2. LOAD — WRITES, POSTGRES ONLY. Reads the ndjson files back and inserts
+#    each row into collection_rows via withTenant + ON CONFLICT DO NOTHING.
+#    Never opens a Redis connection. Safe to re-run: a row already loaded
+#    keeps the seq it landed with, so a crash mid-run or a repeated run never
+#    duplicates a row or reshuffles order.
+node scripts/migrate/pg/load.mjs ./pg-export
+
+# 3. VERIFY — READ-ONLY. Re-reads both stores, collection by collection, and
+#    compares JSON.stringify of one against the other — TEXT, not a
+#    deep-equal, because key order is exactly what a deep-equal cannot see
+#    and exactly what the 153 golden responses pin. A mismatch is reported by
+#    studio, section and collection.
+NOMPANY_KEY_PREFIX=sandbox_ node scripts/migrate/pg/verify.mjs
+```
+
+Expected on a clean run: `0 mismatched`.
+
+## Read-only means no write or delete primitive at all
+
+`export.mjs` and `verify.mjs` never call anything but `redisReadCol`,
+`pgReadCol`, `listStudios` and `listSections` — not a guarded write, not a
+conditional delete, none. `load.mjs` is the only one of the three that
+writes, and it writes **only to Postgres**: nothing in it opens a Redis
+connection, and its one statement beyond the transaction envelope and the
+sequence reservation is `INSERT … ON CONFLICT DO NOTHING`. There is no
+`--delete` flag anywhere in this trio and no path to `FLUSHDB`/`FLUSHALL`/a
+broad-scan delete — invariant 17 (CLAUDE.md) governs this migration
+absolutely, and the honest way to obey it is to have no delete path at all
+rather than a guarded one.
+
+Both `export.mjs` and `verify.mjs` also refuse to touch the LIVE (unprefixed)
+Redis namespace unless `--allow-live` is passed, matching every other script
+in this folder — reading live is still an action Task 10's owner
+double-confirms before it happens for real; this script only supplies the
+refusal, not the confirmation.
+
+## Nothing in P1 deletes from Redis
+
+**Redis is never written to and never deleted from by any of these three
+scripts, or by anything else P1 has shipped.** Every row `export.mjs` reads
+stays exactly where it was; `load.mjs` writes a second, independent copy into
+Postgres and leaves the first copy untouched. That is the entire rollback
+plan for P1: if Postgres turns out to be wrong in some way `verify.mjs`
+didn't catch, Redis is still there, complete and unmodified, and the backend
+dispatcher (`sections.ts`'s `DB_BACKEND`) can simply keep pointing at it.
+There is no "migrate and delete the source" step anywhere in this plan, by
+design — Redis staying populated is not a temporary safety net that gets
+cleaned up later, it is the rollback itself.
+
+## Ordering, proven on real data
+
+Two orderings have to survive the round trip, and both were proven end to end
+against real fixtures (seeded, exported, loaded, verified) rather than argued
+from reading the code:
+
+- **Row order.** `readCol` returns newest-first (`addRow` prepends), so
+  `load.mjs` assigns `seq` such that the FIRST line of a given
+  (studio, section, collection) group in the ndjson file gets the HIGHEST
+  `seq` — reserving a block of sequence values in one round trip, sorting
+  them itself, and handing them out descending, the identical technique
+  `pgAddRows` (`pgRows.ts`) uses and for the identical reason: nothing in
+  Postgres promises `generate_series` rows come back in the order they were
+  produced.
+- **Key order inside `payload`.** `load.mjs` re-serialises each row with
+  `JSON.stringify` exactly once, straight off the `JSON.parse` of the ndjson
+  line — no sort, no rebuild — which is what keeps `payload` (a `json`
+  column, deliberately not `jsonb`) byte-identical to what Redis held.
+  `verify.mjs`'s JSON-text comparison is what actually proves this on a real
+  run, not the reasoning above on its own.
