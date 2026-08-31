@@ -9,7 +9,17 @@ name: CI
 # instance, isolated only by NOMPANY_KEY_PREFIX. CI gets its own ephemeral
 # `redis:8` service container instead: the prefix stays as the second line of
 # defence, never the first, and a pull request can never reach production data.
-
+#
+# POSTGRES (P1 store swap) IS PROVISIONED THE SAME WAY, WITH ONE EXTRA STEP
+# REDIS NEVER NEEDED. The `postgres:18` image's bootstrap user is a REAL
+# SUPERUSER inside the container, and a superuser BYPASSES ROW-LEVEL SECURITY
+# ENTIRELY — production's role does not (measured: rolsuper=false,
+# rolbypassrls=false against a policy declared FORCE ROW LEVEL SECURITY). If
+# this workflow connected as that bootstrap user, every tenant-isolation
+# assertion in tests/pg-parity.mjs would pass without RLS ever being enforced —
+# green for a reason that does not hold in production, which is worse than
+# red. So a dedicated, ordinary role is created below and CI connects as THAT
+# role; a step right after asserts its shape so this cannot regress silently.
 on:
   push:
     branches: [main]
@@ -37,9 +47,30 @@ jobs:
           --health-timeout 3s
           --health-retries 10
 
+      postgres:
+        image: postgres:18
+        env:
+          # The BOOTSTRAP superuser, used ONLY by the role-provisioning step
+          # below to create an ordinary role and hand it the database. No test
+          # and no application code ever connects as this user — DATABASE_URL
+          # (below) always points at the non-superuser role instead.
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nompany_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     env:
       REDIS_URL: redis://localhost:6379
       NOMPANY_KEY_PREFIX: ci_
+      # THE NON-SUPERUSER ROLE'S connection string, not the bootstrap user's.
+      # Set unconditionally — this job ALWAYS provisions Postgres, so from
+      # here on a missing/broken DATABASE_URL is a real failure this workflow
+      # should surface, not a condition any test needs to tolerate.
+      DATABASE_URL: postgresql://ci_app:ci_app_pw@localhost:5432/nompany_ci
       # The suite mints real bcrypt hashes and real AES field encryption; both
       # need a key present or they take their fail-open path and prove nothing.
       FIELD_ENCRYPTION_KEY: ci-only-not-a-real-key-0000000000
@@ -57,6 +88,53 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Provision a non-superuser Postgres role for CI (matches production's RLS posture)
+        # Connects as the container's bootstrap superuser (POSTGRES_PASSWORD
+        # above) ONE TIME to create an ordinary role and hand it the database
+        # collection_rows will live in. ci_app owns nothing it should not:
+        # NOSUPERUSER and NOBYPASSRLS are the two flags that matter (see the
+        # workflow header), NOCREATEDB/NOCREATEROLE/NOREPLICATION because it
+        # needs none of them either. Granting it the schema (rather than the
+        # bootstrap user creating the table) means ci_app itself OWNS
+        # collection_rows once schema.mjs runs — a table owner can enable/
+        # force RLS and create policies on its own objects with no BYPASSRLS
+        # grant at all, the same shape production's role has.
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d nompany_ci -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ci_app') THEN
+              CREATE ROLE ci_app LOGIN PASSWORD 'ci_app_pw'
+                NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION;
+            END IF;
+          END
+          $$;
+          GRANT ALL PRIVILEGES ON DATABASE nompany_ci TO ci_app;
+          GRANT ALL PRIVILEGES ON SCHEMA public TO ci_app;
+          SQL
+
+      - name: Verify the CI Postgres role cannot bypass row-level security
+        # THE ASSERTION THE WORKFLOW HEADER PROMISES. Cheap, and it is the one
+        # line standing between "every RLS test in this run means something"
+        # and "every RLS test in this run passes for free" if the step above
+        # is ever edited to grant more than it should.
+        run: |
+          shape=$(PGPASSWORD=postgres psql -h localhost -U postgres -d nompany_ci -tAc \
+            "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'ci_app'")
+          echo "ci_app role shape (rolsuper|rolbypassrls): ${shape}"
+          if [ "${shape}" != "f|f" ]; then
+            echo "::error::ci_app must be rolsuper=false and rolbypassrls=false to match production (viltho) — got '${shape}'. A superuser or BYPASSRLS role would make every RLS test pass without RLS ever being enforced." >&2
+            exit 1
+          fi
+
+      - name: Apply the Postgres schema
+        # BEFORE any suite that needs collection_rows — tests/pg-parity.mjs
+        # (folded into the integration suite and Gate A) reads back what this
+        # applied rather than creating anything itself. Idempotent
+        # (CREATE ... IF NOT EXISTS / DROP POLICY IF EXISTS + CREATE POLICY),
+        # so re-running it here every job costs nothing.
+        run: node scripts/migrate/pg/schema.mjs
 
       - name: Typecheck
         run: npx tsc --noEmit
@@ -86,6 +164,10 @@ jobs:
         run: node tests/access.test.mjs
 
       - name: Tests — integration suite
+        # Now also runs tests/pg-parity.mjs's schema/RLS/row-primitive/dispatcher
+        # assertions (folded in via tests/suite.mjs) against the postgres
+        # service above, as ci_app — DATABASE_URL is set job-wide, so nothing
+        # here is skipped.
         run: node tests/integration.test.mjs
 
       - name: Gate A — goldens, permission matrix, hop counts
@@ -95,6 +177,17 @@ jobs:
         # commit — it must never happen in CI, so NOMPANY_RECORD_GOLDENS is not
         # set and cannot be.
         run: node tests/gate-a.test.mjs
+
+      - name: Tests — Postgres + parity (NOMPANY_DB=parity)
+        # THE PIECE THAT WAS PRESENT IN package.json AND ABSENT FROM THIS
+        # WORKFLOW: `npm test`/the two steps above run with NOMPANY_DB unset,
+        # i.e. DB_BACKEND="redis" — the postgres and parity dispatcher branches
+        # in sections.ts, pgRows.ts's query builder ceilings
+        # (tests/gate-a.mjs's DB_BACKEND !== "redis" block), and pg-parity.mjs's
+        # 41 assertions only run under NOMPANY_DB=postgres or =parity. Without
+        # this step they ran only when a human remembered to run
+        # `npm run test:parity` locally — this makes that automatic.
+        run: npm run test:parity
 
       - name: Build
         run: npx next build

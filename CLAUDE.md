@@ -76,7 +76,7 @@ when the code looks cleaner afterwards.
 15. **Cron fails closed.** A missing `CRON_SECRET` refuses; it never opens the door.
 16. **A right nothing can exercise is a bug.**
 17. **No database is destroyed without two confirmations.** Every store is live and
-    shared — Redis now, SQL Server next — so a delete, flush, drop or mass-overwrite
+    shared — Redis now, Postgres (Cloud SQL for PostgreSQL 18) next — so a delete, flush, drop or mass-overwrite
     is unrecoverable and hits every tenant at once. A broad-scan delete
     (`delPrefix("")` / `scanPrefix("")`) once wiped the whole instance. So any such
     action waits on the user confirming it **twice in the same exchange**: the first
@@ -143,7 +143,7 @@ TypeScript as it lands. What has moved has moved for good:
 |---|---|---|
 | `src/shared/**` | Pure values with no dependants — currencies, countries, i18n, slug | TypeScript |
 | `src/platform/access/**` | The permission catalogue and the resolver | TypeScript |
-| `src/platform/db/**` | Everything that knows Redis exists — keys, store, cascade, repo, sections | TypeScript |
+| `src/platform/db/**` | Everything that knows Redis or Postgres exists — keys, store, cascade, repo, sections, `pg.ts` | TypeScript |
 | `src/platform/auth/**` | Identity, the console's own auth, passwords, OTP, devices, rate limits | JavaScript |
 | `src/platform/realtime/**` | The event stream, the pub/sub bus, live patches | JavaScript |
 | `src/platform/notify/**` | Notifications and email | JavaScript |
@@ -184,6 +184,43 @@ file. (`docs/` keeps ISO dates; the logs do not.)
 - **Gotcha:** a JS template literal normalises CRLF→LF at parse time. Files here are
   CRLF on disk, so an embedded Lua script has LF endings at runtime — a SHA-1 taken
   over the on-disk text will never match what Redis cached.
+
+---
+
+## Working against the live Postgres
+
+`DATABASE_URL` is **equally live and shared** — the P1 store swap's `collection_rows`
+table lives in the same real, shared database production will use, there is no dev
+database here either, and **`NOMPANY_KEY_PREFIX` does NOT protect it.** The prefix is a
+Redis-only mechanism: it namespaces a key string, and `collection_rows` has no such
+string to namespace — `tenant_id` there is a real studio id, exactly what a live tenant
+also uses. A developer who assumes the prefix sandboxes them the way it does for Redis is
+one command away from writing to the real table. This is why `tests/pg-sweep.mjs` deletes
+by an **explicit id list** read back from the run's own `REG.studios`, never a predicate,
+and why `withTenant` is the only door onto the table at all (RLS is FORCED, so nothing can
+even discover which tenants hold rows without one already in hand).
+
+- **`npm run test:parity` (and CI's `NOMPANY_DB=parity` step) write real rows.** Every
+  fixture `tests/pg-parity.mjs` creates is either a synthetic tenant id the test deletes
+  in its own `finally` block, or one of the studios the integration suite / Gate A create
+  for real — those are swept via `sweepPgTenants` using the exact ids `REG.studios`
+  names, the same invariant-17 shape as the Redis sweep, and it must run **before** the
+  Redis `delPrefix` that would otherwise erase that id list.
+- Locally, `DATABASE_URL` lives in `.env.local`, same as `REDIS_URL`. If it is unset,
+  `tests/pg-parity.mjs`'s assertions skip **loudly** (a banner, plus a per-test "skipped"
+  line) rather than the whole suite dying mid-run — but that also means the Postgres
+  paths are **not verified** on that run. CI always sets `DATABASE_URL`, so there the
+  absence of it is a real failure, not a skip.
+- CI connects as a dedicated **non-superuser** role (`ci_app`, `rolsuper=false`,
+  `rolbypassrls=false`) rather than the `postgres:18` image's bootstrap superuser — a
+  superuser bypasses row-level security entirely, which would make every RLS test pass
+  for a reason that does not hold in production. `.github/workflows/ci.yml` asserts the
+  role's shape as its own step.
+- **Never** `DROP TABLE`, `TRUNCATE`, `DROP DATABASE`, or disable/alter the RLS policy on
+  `collection_rows` — `pgSchemaQuery`'s DDL-only door refuses all of these unconditionally
+  (invariant 17), so reaching for them even by accident fails before Postgres is asked.
+- `payload` is `json`, never `jsonb` — `jsonb` normalises key order and the golden
+  responses pin it. Do not "fix" this column type.
 
 ---
 
@@ -343,7 +380,7 @@ the catalogue assertion in `tests/gate-a.mjs`), because a pass condition quoted 
 a pass condition nobody can check.
 
 **Wave 2 (seams + performance) is mostly done; Gate B is 2 of 3.** Zero direct `readCol` in
-service code ✅, goldens unchanged at 139 ✅, hops ≤2 for the studio route and 3 for sales
+service code ✅, goldens unchanged at 153 ✅, hops ≤2 for the studio route and 3 for sales
 (the structural floor). Done: Seam A (route wrapper, all 96 routes), Seam B (repository
 interface + the `readCol` migration across all 13 modules), Seam C (one context factory,
 killed hop 7), request-scoped cache + batched prefetch (8→2 hops), targeted live updates,

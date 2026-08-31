@@ -32,9 +32,33 @@ try {
   }
 } catch { /* CI may supply the environment directly */ }
 
-if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL is not set — tests/pg-parity.mjs needs Postgres to talk to.");
-  process.exit(1);
+// CRITICAL FIX (whole-branch review): this used to call process.exit(1)
+// here, at MODULE SCOPE — a hard kill of the whole process the instant this
+// file is imported, which is exactly what tests/suite.mjs does statically
+// (Task 6's own requirement, "fold into the one command"). CI's redis:8
+// service never set DATABASE_URL, so `npm test` died before a single
+// assertion ran, reading as a broken config rather than a failing test.
+//
+// THE DECISION: CI now always provisions Postgres (see .github/workflows/
+// ci.yml) and connects as a NON-SUPERUSER role shaped like production's, so
+// in CI a missing DATABASE_URL is a real infrastructure failure and shows up
+// as such at the workflow-provisioning step, not here. Outside CI — a
+// developer running `npm test` with no local Postgres — every Postgres-only
+// assertion below SKIPS instead, loudly (this banner, plus a per-test
+// "skipped" line so the count of skips is visible in the output), so the
+// Redis-only work in the same command is not blocked by an unrelated missing
+// dependency. A SILENT skip would let the Postgres paths quietly stop being
+// tested, which is the exact failure this fix exists to prevent.
+const HAS_DATABASE_URL = Boolean(process.env.DATABASE_URL);
+if (!HAS_DATABASE_URL) {
+  console.warn(
+    "\n" + "=".repeat(78) +
+    "\nDATABASE_URL is not set — SKIPPING every Postgres parity test in this file" +
+    "\n(schema shape, RLS enforcement, row primitives, the dispatcher, the cascade" +
+    "\nreap). These paths are NOT verified this run. CI always sets DATABASE_URL;" +
+    "\nlocally, set it in .env.local (see CLAUDE.md's Postgres section) to cover them." +
+    "\n" + "=".repeat(78) + "\n",
+  );
 }
 
 // Dynamic, not static — a static `import` is resolved before ANY module-level
@@ -82,6 +106,7 @@ const P1T5_COL = "dispatcherwidgets";
 const P1T5_GHOST_COL = "dispatcherghost";
 
 export async function testDispatcherParityRoundTrip(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   if (DB_BACKEND !== "parity") {
     t.equal(true, true, "skipped — only meaningful under NOMPANY_DB=parity");
     return;
@@ -121,6 +146,7 @@ export async function testDispatcherParityRoundTrip(t) {
 }
 
 export async function testDispatcherDisagreementNamesBothValues(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   if (DB_BACKEND !== "parity") {
     t.equal(true, true, "skipped — only meaningful under NOMPANY_DB=parity");
     return;
@@ -174,6 +200,7 @@ const P1FIX1_SEC = `sec_${P1T4_SESSION}_cascadefix1`;
 const P1FIX1_COL = "notInTheCatalogueAtAll";
 
 export async function testCascadeDeleteSectionReapsRowsOutsideTheCatalogue(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   if (DB_BACKEND === "redis") {
     t.equal(true, true, "skipped — nothing to reap in Postgres under NOMPANY_DB=redis");
     return;
@@ -217,11 +244,13 @@ export async function testCascadeDeleteSectionReapsRowsOutsideTheCatalogue(t) {
 }
 
 export async function testPgConnects(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   const { rows } = await pgQuery("SELECT 1 AS one");
   t.equal(rows[0].one, 1, "postgres answers");
 }
 
 export async function testPgRejectsNamedPreparedStatements(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // Transaction-mode pooling makes a named statement a latent production bug.
   // The module must never pass a `name` through — checked here at the level
   // the brief specified (the pool is configured with a real statement
@@ -235,6 +264,7 @@ export async function testPgRejectsNamedPreparedStatements(t) {
 }
 
 export async function testQueryTimeoutOutlivesStatementTimeout(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // Fix round 1, Critical 1: the two timeouts must never be equal. If they
   // were, which one fires is a race, and the client-side query_timeout
   // winning leaves a connection alive-but-desynced (see the release-on-error
@@ -249,6 +279,7 @@ export async function testQueryTimeoutOutlivesStatementTimeout(t) {
 // ---- requirement A: the tenant seam, proved rather than asserted ----------
 
 export async function testWithTenantSetsTheLocalTenantSetting(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   const seen = await withTenant("tenant-a-p1t1", async (q) => {
     const { rows } = await q("SELECT current_setting('nompany.tenant_id', true) AS tid");
     return rows[0].tid;
@@ -257,6 +288,7 @@ export async function testWithTenantSetsTheLocalTenantSetting(t) {
 }
 
 export async function testTenantSettingDoesNotLeakAcrossTransactions(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // Run one tenant transaction to completion (COMMIT resets SET LOCAL on
   // whichever backend connection happened to serve it), then ask a plain,
   // tenant-agnostic query what the setting reads as. If SET LOCAL had leaked
@@ -285,6 +317,7 @@ export async function testTenantSettingDoesNotLeakAcrossTransactions(t) {
 }
 
 export async function testBareQueryAgainstTheTenantTableIsRefused(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // The sharpest failure this task guards against: a caller reaches for
   // pgQuery/pgTx against collection_rows and forgets withTenant. FORCE ROW
   // LEVEL SECURITY would make that query return zero rows with no error — so
@@ -300,6 +333,7 @@ export async function testBareQueryAgainstTheTenantTableIsRefused(t) {
 }
 
 export async function testWithinTheSeamTheTenantTableIsReachable(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // The guard must not overreach: inside withTenant the SAME query text is
   // let through. Task 2 has applied the schema, so the table now exists and
   // RLS filters to the given tenant — the query succeeds and returns zero
@@ -323,6 +357,7 @@ export async function testWithinTheSeamTheTenantTableIsReachable(t) {
 }
 
 export async function testWithTenantRefusesAnEmptyTenantId(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   let threw = null;
   try {
     await withTenant("", async (q) => q("SELECT 1"));
@@ -339,6 +374,7 @@ export async function testWithTenantRefusesAnEmptyTenantId(t) {
 // back what actually landed rather than what pgSchema.sql merely asks for.
 
 export async function testSchemaShape(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // PARAMETERISED, DELIBERATELY, where the brief's own draft inlined the
   // table name as a string literal. `WHERE table_name = 'collection_rows'`
   // puts the substring "collection_rows" in the QUERY TEXT itself, and
@@ -359,6 +395,7 @@ export async function testSchemaShape(t) {
 }
 
 export async function testRlsIsEnabled(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // Same parameterisation reasoning as testSchemaShape above.
   const { rows } = await pgQuery(
     `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = $1`,
@@ -369,6 +406,7 @@ export async function testRlsIsEnabled(t) {
 }
 
 export async function testRlsFiltersRowsBetweenTenants(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // THE PROOF THIS TASK EXISTS TO PRODUCE: with the table created, the policy
   // can finally be exercised instead of just reasoned about. Two tenants each
   // insert one row into the SAME section/collection bucket; each must see
@@ -428,6 +466,7 @@ export async function testRlsFiltersRowsBetweenTenants(t) {
 }
 
 export async function testCheckConstraintRejectsEmptyTenantId(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // testWithTenantRefusesAnEmptyTenantId (above) already proves the
   // APPLICATION-LEVEL refusal — withTenant("") never opens a connection at
   // all. This proves the SECOND, independent backstop: the database's own
@@ -471,6 +510,7 @@ export async function testCheckConstraintRejectsEmptyTenantId(t) {
 // ---- Task 2: the DDL-only door ---------------------------------------------
 
 export async function testPgSchemaQueryRefusesANonDdlStatement(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   let threw = null;
   try {
     await pgSchemaQuery(`SELECT * FROM ${TBL.rows} LIMIT 1`);
@@ -483,6 +523,7 @@ export async function testPgSchemaQueryRefusesANonDdlStatement(t) {
 }
 
 export async function testPgSchemaQueryRefusesDropTableEvenGuarded(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // "Not even guarded" — an IF EXISTS on a forbidden statement must not
   // launder it past the check. No such table exists to actually drop; this
   // proves the refusal happens before pgSchemaQuery would ever ask Postgres.
@@ -505,6 +546,7 @@ export async function testPgSchemaQueryRefusesDropTableEvenGuarded(t) {
 // need to exist (or not exist) for the assertion to be meaningful.
 
 export async function testPgSchemaQueryRefusesDropSchema(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   let threw = null;
   try {
     await pgSchemaQuery("DROP SCHEMA public CASCADE");
@@ -515,6 +557,7 @@ export async function testPgSchemaQueryRefusesDropSchema(t) {
 }
 
 export async function testPgSchemaQueryRefusesDropOwned(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   let threw = null;
   try {
     await pgSchemaQuery("DROP OWNED BY viltho");
@@ -525,6 +568,7 @@ export async function testPgSchemaQueryRefusesDropOwned(t) {
 }
 
 export async function testPgSchemaQueryRefusesDropIndex(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   let threw = null;
   try {
     // IF EXISTS and a target that was never created — proves this is refused
@@ -537,6 +581,7 @@ export async function testPgSchemaQueryRefusesDropIndex(t) {
 }
 
 export async function testPgSchemaQueryRefusesAlterTableDropColumn(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   let threw = null;
   try {
     await pgSchemaQuery(`ALTER TABLE ${TBL.rows} DROP COLUMN ${TBL.cols.payload}`);
@@ -547,6 +592,7 @@ export async function testPgSchemaQueryRefusesAlterTableDropColumn(t) {
 }
 
 export async function testPgSchemaQueryRefusesAlterTableRename(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   let threw = null;
   try {
     await pgSchemaQuery(`ALTER TABLE ${TBL.rows} RENAME TO renamed_away`);
@@ -557,6 +603,7 @@ export async function testPgSchemaQueryRefusesAlterTableRename(t) {
 }
 
 export async function testPgSchemaQueryRefusesAlterColumnTypeJsonb(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // THE ONE THIS TASK EXISTS TO PREVENT MOST OF ALL: jsonb normalises key
   // order, and the 153 goldens pin it. This statement, if it ran, would
   // rewrite every existing row's payload and silently break every one of
@@ -571,6 +618,7 @@ export async function testPgSchemaQueryRefusesAlterColumnTypeJsonb(t) {
 }
 
 export async function testPgSchemaQueryRefusesDisableRls(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // THE OTHER ONE: silently removes the tenant isolation this whole task
   // exists to establish, leaving a database that LOOKS identical (same
   // table, same columns, same policy still defined) and no longer separates
@@ -586,6 +634,7 @@ export async function testPgSchemaQueryRefusesDisableRls(t) {
 }
 
 export async function testPgSchemaQueryRefusesCreateView(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // pgSchema.sql's own comment (right above the table) forbids exactly this:
   // a view over collection_rows would defeat assertNotTenantScoped's text
   // match with no change needed on that guard's side at all.
@@ -599,6 +648,7 @@ export async function testPgSchemaQueryRefusesCreateView(t) {
 }
 
 export async function testPgSchemaQueryDoesNotLaunderADropThroughAStringLiteral(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // THE SECOND FIX ROUND 1 BUG, reproduced directly: a leading statement that
   // WOULD pass the allowlist on its own (a real CREATE TABLE IF NOT EXISTS),
   // carrying a "--" inside a string literal, followed by a genuinely
@@ -630,6 +680,7 @@ export async function testPgSchemaQueryDoesNotLaunderADropThroughAStringLiteral(
 // calls client.query().
 
 export async function testPgSchemaQueryRefusesCreateTableAsSelectPlain(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   let threw = null;
   try {
     await pgSchemaQuery(`CREATE TABLE IF NOT EXISTS p1fix2_never_created AS SELECT * FROM ${TBL.rows}`);
@@ -640,6 +691,7 @@ export async function testPgSchemaQueryRefusesCreateTableAsSelectPlain(t) {
 }
 
 export async function testPgSchemaQueryRefusesCreateTableAsSelectWithExtraParens(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // THE EXACT SHAPE THAT DEFEATED THE ORIGINAL ANCHOR: a real column list
   // followed by AS SELECT, with the subquery's source wrapped in one extra
   // pair of parentheses so the statement still ends in `)`.
@@ -655,6 +707,7 @@ export async function testPgSchemaQueryRefusesCreateTableAsSelectWithExtraParens
 }
 
 export async function testPgSchemaQueryAcceptsRealDdl(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // The positive case: a genuine DDL statement — COMMENT ON, which changes no
   // data and is trivially reversible — passes straight through unaltered.
   // Reset to NULL afterward so this test leaves nothing behind.
@@ -673,6 +726,7 @@ export async function testPgSchemaQueryAcceptsRealDdl(t) {
 // ---- never handed back to the pool mid-transaction ------------------------
 
 export async function testFailedTransactionDestroysItsConnectionRatherThanRecyclingIt(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // THE ASSERTION THAT WOULD HAVE CAUGHT THE ORIGINAL BUG. A plain
   // `client.release()` on an error path checks a mid-transaction connection
   // BACK INTO THE POOL as if nothing happened — pg-pool's own bookkeeping
@@ -720,6 +774,7 @@ export async function testFailedTransactionDestroysItsConnectionRatherThanRecycl
 }
 
 export async function testPgTxAlsoDestroysAFailedConnection(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // Same fix, same proof, for pgTx (the non-tenant transaction helper) —
   // Critical 1 named both call sites (pg.ts:119 and :122 in the original
   // review).
@@ -742,6 +797,7 @@ export async function testPgTxAlsoDestroysAFailedConnection(t) {
 // ---- fix round 1, Important 3: nesting withTenant fails fast --------------
 
 export async function testReentrantWithTenantForTheSameTenantIsAbsorbed(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // A higher-level flow and the row primitive it calls both wrapping
   // themselves in withTenant for the SAME tenant must not pay for (or
   // exhaust the pool over) a second connection — the inner call reuses the
@@ -761,6 +817,7 @@ export async function testReentrantWithTenantForTheSameTenantIsAbsorbed(t) {
 }
 
 export async function testReentrantWithTenantForADifferentTenantFailsFast(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // THE STALL THIS REPLACES: measured at ~5.6s for four levels of naive
   // nesting against PGPOOL_MAX=3, ending in a generic pg-pool "timeout
   // exceeded when trying to connect" that reads as "the database is slow."
@@ -787,6 +844,7 @@ export async function testReentrantWithTenantForADifferentTenantFailsFast(t) {
 // ---- fix round 2, Critical: a killed connection must not crash the process
 
 export async function testKilledConnectionDoesNotCrashTheProcess(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // THE ASSERTION THAT WOULD HAVE CAUGHT THE ORIGINAL BUG. pool.connect()
   // takes a client out of pg-pool's own bookkeeping, and pg-pool removes ITS
   // OWN idle-error listener the moment that happens — so for the whole time
@@ -847,6 +905,7 @@ export async function testKilledConnectionDoesNotCrashTheProcess(t) {
 // every function body in this file, cannot defer reading them until later.)
 
 export async function testKeyOrderSurvives(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "Acme", status: "Open" });
   try {
     const [read] = await pgReadCol(P1T4_S, P1T4_SEC, P1T4_COL);
@@ -861,6 +920,7 @@ export async function testKeyOrderSurvives(t) {
 }
 
 export async function testNewestFirst(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   const first = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "first" });
   const second = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "second" });
   try {
@@ -873,6 +933,7 @@ export async function testNewestFirst(t) {
 }
 
 export async function testBatchKeepsArrivalOrderAmongItself(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   const batch = await pgAddRows(P1T4_S, P1T4_SEC, P1T4_COL, [{ name: "a" }, { name: "b" }, { name: "c" }]);
   try {
     const rows = await pgReadCol(P1T4_S, P1T4_SEC, P1T4_COL);
@@ -884,6 +945,7 @@ export async function testBatchKeepsArrivalOrderAmongItself(t) {
 }
 
 export async function testFunctionPatchIsReapplied(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { hits: 0 });
   try {
     await Promise.all(Array.from({ length: 8 }, () =>
@@ -896,6 +958,7 @@ export async function testFunctionPatchIsReapplied(t) {
 }
 
 export async function testTwentyConcurrentFlipsAllLandNoneRejected(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   // FIX ROUND 1, CRITICAL, REPRODUCED DIRECTLY: the reviewer measured the
   // single-withTenant-per-call draft landing only 13 of 16 and 13 of 20
   // concurrent flips, the rest rejected at pool.connect()'s
@@ -920,6 +983,7 @@ export async function testTwentyConcurrentFlipsAllLandNoneRejected(t) {
 }
 
 export async function testImmutableFieldsCannotBePatched(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "x" });
   try {
     await pgUpdateRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id, { id: "hacked", studioId: "other", name: "y" });
@@ -933,6 +997,7 @@ export async function testImmutableFieldsCannotBePatched(t) {
 }
 
 export async function testDeleteReportsWhetherAnythingWent(t) {
+  if (!HAS_DATABASE_URL) { t.equal(true, true, "skipped — DATABASE_URL not set, this test needs a live Postgres"); return; }
   const row = await pgAddRow(P1T4_S, P1T4_SEC, P1T4_COL, { name: "gone" });
   t.equal(await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id), true, "a real delete reports true");
   t.equal(await pgDeleteRow(P1T4_S, P1T4_SEC, P1T4_COL, row.id), false, "a second reports false");
@@ -1011,7 +1076,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       totalFails += t.fails;
     }
     console.log(totalFails ? `\n${totalFails} FAILURES\n` : "\nall passed\n");
-    await _poolForTests().end();
+    if (HAS_DATABASE_URL) await _poolForTests().end();
     process.exit(totalFails ? 1 : 0);
   })().catch(async (e) => {
     console.error(e);

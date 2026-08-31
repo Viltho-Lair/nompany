@@ -4874,9 +4874,28 @@ console.log("\n== the postgres seam, schema, row primitives and dispatcher (P1 P
 // no-op queries, because sections.ts never touched Postgres under those
 // backends. See tests/pg-sweep.mjs for why an explicit id list is the only
 // safe shape once RLS is FORCED.
-const studioIds = (await readArr(REG_KEYS.studios)).map((s) => s.id).filter(Boolean);
-const pgSwept = await sweepPgTenants(studioIds);
-console.log(`swept ${pgSwept} postgres row(s) across ${studioIds.length} studio(s) created by this run`);
+// CRITICAL FIX (whole-branch review): this call used to be unguarded, and
+// pg.ts's getPool() throws the instant DATABASE_URL is unset — CI's
+// redis:8-only setup left it unset, so this line died before the Redis
+// delPrefix below ever ran, stranding this run's whole namespace (the exact
+// dirty-namespace trap CLAUDE.md documents, surfacing as an unrelated wall of
+// "forbidden"/"no-section" failures in whichever run claims the prefix next).
+// Skip loudly when there is nothing to sweep (no DATABASE_URL — CI always
+// sets one); on any OTHER failure, catch it here so the Redis sweep still
+// runs, and count it as a suite failure via `fails` rather than losing it
+// silently.
+if (!process.env.DATABASE_URL) {
+  console.warn(`skipping the Postgres sweep — DATABASE_URL is not set (nothing was dual-written to collection_rows this run)`);
+} else {
+  try {
+    const studioIds = (await readArr(REG_KEYS.studios)).map((s) => s.id).filter(Boolean);
+    const pgSwept = await sweepPgTenants(studioIds);
+    console.log(`swept ${pgSwept} postgres row(s) across ${studioIds.length} studio(s) created by this run`);
+  } catch (e) {
+    fails += 1;
+    console.error(`Postgres sweep failed — continuing to the Redis sweep below so this run does not strand its namespace: ${e.message}`);
+  }
+}
 
 // ============================================================================
 // Everything this suite wrote lives under the namespace, so cleanup is one
