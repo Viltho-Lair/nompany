@@ -210,7 +210,7 @@ import {
   testNullRequiresKeyPresent, testNeUsesIsDistinctFrom, testNeNullKeepsAnAbsentKey,
   testInNullMemberRequiresKeyPresent, testNinKeepsAnAbsentKey,
   testNinExcludesAnExplicitNullOnlyWhenTheArrayHasOne, testOrderCoalescesMissingTextToEmptyString,
-  testContainsEscapesWildcards, testGtCastsNumericForANumberArgument, testGtUsesCollateCForAStringArgument,
+  testContainsEscapesWildcards, testGtCastsNumericForANumberArgument, testGtUsesCollateCForAStringArgument, testGtNullArgumentThrows,
   testCountMirrorsSelectsWhereClause,
   testScopeAndCollectionAreAlwaysParameterised, testLimitIsTheLastParameter,
 } from "./pg-query.mjs";
@@ -4761,6 +4761,7 @@ console.log("\n== the SQL query builder (P1 Postgres store swap, Task 7)");
     testContainsEscapesWildcards,
     testGtCastsNumericForANumberArgument,
     testGtUsesCollateCForAStringArgument,
+    testGtNullArgumentThrows,
     testCountMirrorsSelectsWhereClause,
     testScopeAndCollectionAreAlwaysParameterised,
     testLimitIsTheLastParameter,

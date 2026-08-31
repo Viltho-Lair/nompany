@@ -207,6 +207,28 @@ export async function testGtUsesCollateCForAStringArgument(t) {
   t.equal(params[3], "INV-100", "bound as text, not cast to numeric");
 }
 
+export async function testGtNullArgumentThrows(t) {
+  // Fix round 2: `{ gt: null }` type-checks (Comparable admits null) and is
+  // not a near-miss — matchesWhere's raw JS `>` coerces null to 0, so
+  // `5 > null` is true, while the string-comparison fallback this used to
+  // fall into compares the field's TEXT against the literal "null" and
+  // answers a different, unrelated question (a field holding "5" would read
+  // as not-greater). Every other unrecognised shape in this file already
+  // fails loudly (the unknown-operator default case) rather than guessing —
+  // this closes the one case that used to guess instead.
+  let threw = null;
+  try { buildSelect(SCOPE, "invoices", { where: { total: { gt: null } } }); } catch (e) { threw = e; }
+  t.equal(threw instanceof Error, true, "a null argument to gt/gte/lt/lte is refused, not silently mistranslated");
+  t.equal(/gt/.test(threw?.message || "") && /null/.test(threw?.message || ""), true,
+    "the error names the operator and the reason, not just that it failed");
+
+  for (const op of ["gte", "lt", "lte"]) {
+    let alsoThrew = false;
+    try { buildSelect(SCOPE, "invoices", { where: { total: { [op]: null } } }); } catch { alsoThrew = true; }
+    t.equal(alsoThrew, true, `"${op}" with a null argument is refused too, not just "gt"`);
+  }
+}
+
 export async function testCountMirrorsSelectsWhereClause(t) {
   // buildCount shares whereClauses with buildSelect — the same filter must
   // produce the same predicate, or a list screen's count and its rows could
@@ -279,6 +301,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testContainsEscapesWildcards,
       testGtCastsNumericForANumberArgument,
       testGtUsesCollateCForAStringArgument,
+      testGtNullArgumentThrows,
       testCountMirrorsSelectsWhereClause,
       testScopeAndCollectionAreAlwaysParameterised,
       testLimitIsTheLastParameter,

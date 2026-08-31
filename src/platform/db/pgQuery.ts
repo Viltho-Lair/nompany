@@ -203,6 +203,27 @@ function whereClauses(where: Where | undefined, params: unknown[]): string[] {
         // end — which is exactly why it has to be right here, on paper,
         // rather than caught by a call site's own test later.
         case "gt": case "gte": case "lt": case "lte": {
+          if (arg === null) {
+            // REFUSED, NOT GUESSED. `Comparable` admits null (`{ gt: null }`
+            // type-checks) and matchesWhere's raw `>` on it is a real,
+            // if unlikely-intentional, answer — JS coerces null to 0, so
+            // `5 > null` is true. There is no faithful SQL for that: this
+            // operator is textual-or-numeric by the ARGUMENT's type, and null
+            // is neither, so a fallback has to guess one. Guessing string
+            // compares the field's text against the literal "null", a
+            // different comparison with an unrelated answer (a field holding
+            // "5" would read as not-greater, not true). Every other
+            // unrecognised shape in this file already fails loudly (see the
+            // default case below) rather than resolving quietly — this is
+            // that same rule applied to the one ambiguous case an unexercised
+            // call site would otherwise never surface.
+            throw new Error(
+              `pgQuery: "${op}" on "${f}" was called with a null argument, which has no ` +
+              `faithful SQL translation (matchesWhere's raw JS \`>\` coerces null to 0; ` +
+              `a text comparison against the literal "null" would answer a different ` +
+              `question). Pass a number or a string, or use "ne"/the bare-field null filter instead.`,
+            );
+          }
           const sqlOp = op === "gt" ? ">" : op === "gte" ? ">=" : op === "lt" ? "<" : "<=";
           if (typeof arg === "number" || typeof arg === "boolean") {
             params.push(Number(arg));
