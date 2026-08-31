@@ -28,7 +28,7 @@ import { seedSuperAdmin, loginSuper, SUPER_COOKIE } from "@/platform/auth/superA
 import { withCommandCount } from "@/platform/db/commandCount";
 import { withRequest, requestId, redact, log } from "@/platform/http/observability";
 import { readArr, setJSON } from "@/platform/db/store";
-import { readCol } from "@/platform/db/sections";
+import { readCol, DB_BACKEND } from "@/platform/db/sections";
 import { S } from "@/platform/db/keys";
 import { __signIn, __signOut } from "./nextHeaders.mjs";
 import { golden, req, ctx, capture, RECORDING, touched } from "./goldens.mjs";
@@ -4236,6 +4236,97 @@ console.log("== hop counts: how many round trips a screen costs");
   ok("the technical route is measured at all", techCall.commands > 0);
   ok("the technical route stays under its ceiling — vocabulary.clients joined the existing Promise.all rather than adding one",
     techCall.waves <= 6, `${techCall.waves} waves: ${techCall.names.join(",")}`);
+
+  __signOut();
+}
+
+// ============================================================================
+console.log(`== Task 8 — query counts: the same ceiling, for whichever store answers (DB_BACKEND=${DB_BACKEND})`);
+// P1 moves OPERATIONAL collections (readCol/addRow/updateRow/deleteRow, behind
+// sections.ts's DB_BACKEND dispatch) off Redis and onto Postgres. The hop
+// ceilings above are Redis-only and stay meaningful only as long as Redis is
+// what answers — the moment DB_BACKEND flips, they measure the SAME Redis
+// commands (studioContext, roles, collaborators — none of that moved) and say
+// nothing about the store the migration actually changed. `queries`
+// (commandCount.ts, wired through pg.ts's `run()` in this task) is that
+// missing half: a route's Postgres cost, counted the same way, through the
+// same scope, surfacing in the same completion line.
+//
+// COUNTS A CALLER'S OWN STATEMENT ONLY — never the BEGIN/set_config/COMMIT
+// `withTenant` wraps around it (`countedQuery`'s "envelope" kind: reported,
+// not asserted on). That is decision A, made deliberately rather than by
+// omission: today, every readCol call opens its OWN withTenant scope — none of
+// pgRows.ts's calls are nested — so a screen reading six collections pays six
+// separate BEGIN/COMMIT pairs no matter how the six calls are arranged. If the
+// envelope counted toward this ceiling, a screen that started sharing one
+// transaction across those six reads (a real, available optimisation) would
+// look CHEAPER than one that did not, for having asked the database for the
+// identical data — the ceiling would be grading transaction shape, not the
+// thing it exists to catch, which is a route quietly doing N TIMES THE WORK.
+// `queries` scales 1:1 with the number of distinct collections read; `envelope`
+// scales with how many separate scopes that happened to take, which is exactly
+// the number decision A keeps out of the ceiling.
+//
+// MEANINGFUL IN WHICHEVER BACKEND IS ACTIVE, not just in Postgres's. Under
+// DB_BACKEND=redis, `queries` measures whether anything reached Postgres AT
+// ALL while Redis was supposed to be the exclusive backend — asserted at
+// exactly zero, so a stray direct pgQuery call (bypassing the dispatcher) fails
+// loudly instead of passing silently because nobody was looking. Under
+// postgres/parity, the ceiling does the job the Redis wave ceilings do above.
+// Neither branch can pass by construction: this is not "commands > 0" (true
+// the instant a counting scope exists), it is a number tied to what the route
+// actually asked the database for.
+{
+  // STUDIO/SALES ARE RE-IMPORTED HERE rather than reused from the block
+  // above: that block's `const STUDIO`/`const SALES` are scoped to its own
+  // braces, and this is a separate block by design (Task 8's counts are a
+  // distinct family of assertion from the Redis hop counts above, not a
+  // continuation of them). Node caches the module on the first import, so
+  // this costs nothing beyond the lookup.
+  const STUDIO = (await import("@/app/api/studios/[slug]/route.ts"));
+  const SALES = (await import("@/app/api/studios/[slug]/sales/route.ts"));
+
+  await signIn(owner.id);
+
+  const studioQueryCall = await withCommandCount(() => capture(STUDIO.GET, req(`/api/studios/${slug}`), ctx({ slug })));
+  console.log(`       GET /api/studios/<slug>        ${studioQueryCall.queries} queries, ${studioQueryCall.envelope} envelope`);
+  // ZERO IN EVERY BACKEND, NOT "AT MOST SOMETHING WITH HEADROOM" — and that is
+  // what makes this able to fail at all. This route resolves the studio, its
+  // collaborator, its roles and its sections, and none of those four is an
+  // operational collection: they live behind store.ts's readArr/editArr on
+  // fixed keys, which this wave of the migration never touched. A ceiling with
+  // slack (`<= 2`, say) would absorb the first several regressions that started
+  // reading an operational collection from this route silently; `=== 0` cannot.
+  ok("the studio route touches no operational collection, in every backend", studioQueryCall.queries === 0,
+    `${studioQueryCall.queries} queries: ${studioQueryCall.names.join(",")}`);
+
+  const salesQueryCall = await withCommandCount(() => capture(SALES.GET, req(`/api/studios/${slug}/sales`), ctx({ slug })));
+  console.log(`       GET /api/studios/<slug>/sales  ${salesQueryCall.queries} queries, ${salesQueryCall.envelope} envelope`);
+
+  if (DB_BACKEND === "redis") {
+    // The dispatcher (sections.ts) must send every operational read to Redis
+    // when Redis is the whole story — a stray direct pgQuery/pgTx/withTenant
+    // call from a service module would be invisible to every OTHER assertion
+    // in this file (the goldens and the permission matrix do not care which
+    // store answered) and would only ever surface here.
+    ok("the sales route touches no operational collection, when Redis answers", salesQueryCall.queries === 0,
+      `${salesQueryCall.queries} queries: ${salesQueryCall.names.join(",")}`);
+  } else {
+    // MEASURED AT 6: clients, tickets, rfqs, quotations, tasks, projects — one
+    // statement per DISTINCT collection the screen reads. listClients and
+    // listTickets BOTH ask for "clients"; the request-scoped cache
+    // (pgRows.ts's cachedRead, keyed per collection) collapses that into ONE
+    // statement, which is what proves the cache is visible in this count
+    // rather than hidden by it (Task 8, point B) — if it were not applying,
+    // this number would read 7, not 6. The ceiling sits one above the
+    // measurement, the same convention as every ceiling in this file, so
+    // losing that collapse — or adding a seventh genuinely distinct read —
+    // fails the build instead of shipping as a slower screen nobody measured.
+    ok("the sales route's Postgres reads are recorded at all", salesQueryCall.queries > 0,
+      `${salesQueryCall.queries} queries: ${salesQueryCall.names.join(",")}`);
+    ok("the sales route stays under its Postgres query ceiling", salesQueryCall.queries <= 7,
+      `${salesQueryCall.queries} queries: ${salesQueryCall.names.join(",")}`);
+  }
 
   __signOut();
 }

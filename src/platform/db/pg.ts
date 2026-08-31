@@ -16,6 +16,7 @@
 import { Pool, type PoolClient } from "pg";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TBL } from "./keys";
+import { countedQuery } from "./commandCount";
 
 let pool: Pool | null = null;
 
@@ -123,10 +124,37 @@ function assertNotTenantScoped(text: string, calledFrom: string): void {
 export type PgResult<T> = { rows: T[]; rowCount: number };
 export type PgQueryFn = <T = any>(text: string, params?: readonly unknown[]) => Promise<PgResult<T>>;
 
+// TASK 8 — QUERY COUNTING REPLACES HOP COUNTING. Every statement this module
+// sends reaches Postgres through `run`, so this is the one place to make it
+// report into commandCount.ts's counter — the identical shape `redis.ts` uses
+// for `countingClient`, so no Postgres round trip can bypass the counter the
+// way an unwrapped call site would.
+//
+// NAMED BY LEADING KEYWORD, the SQL analogue of a Redis command name (GET,
+// MGET, ...). BEGIN/COMMIT/ROLLBACK and the `set_config(...)` call that opens a
+// tenant scope are matched BY NAME rather than falling into the generic
+// "select" bucket set_config's own SQL shape would otherwise put them in —
+// `countedQuery`'s "envelope" kind (see its header in commandCount.ts) depends
+// on being able to tell them apart from a caller's own SELECT/INSERT/UPDATE/
+// DELETE, and a text match here is the only place that distinction can be made
+// once both kinds of statement are flowing through the same `run`.
+function statementKind(text: string): { name: string; envelope: boolean } {
+  const head = text.trimStart();
+  if (/^BEGIN\b/i.test(head)) return { name: "begin", envelope: true };
+  if (/^COMMIT\b/i.test(head)) return { name: "commit", envelope: true };
+  if (/^ROLLBACK\b/i.test(head)) return { name: "rollback", envelope: true };
+  if (/set_config\s*\(/i.test(head)) return { name: "set_config", envelope: true };
+  const leading = /^([A-Za-z]+)/.exec(head);
+  return { name: (leading ? leading[1] : "query").toLowerCase(), envelope: false };
+}
+
 async function run<T>(client: Pool | PoolClient, text: string, params: readonly unknown[]): Promise<PgResult<T>> {
   // `{ text, values }`, never `{ text, values, name }` — see the module header.
-  const res = await client.query({ text, values: params as unknown[] });
-  return { rows: res.rows as T[], rowCount: res.rowCount ?? 0 };
+  const { name, envelope } = statementKind(text);
+  return countedQuery(name, text, async () => {
+    const res = await client.query({ text, values: params as unknown[] });
+    return { rows: res.rows as T[], rowCount: res.rowCount ?? 0 };
+  }, envelope ? "envelope" : "data");
 }
 
 // ---- the process-crash guard (fix round 2, Critical) -----------------------
@@ -199,13 +227,13 @@ export async function pgTx<T>(fn: (q: PgQueryFn) => Promise<T>): Promise<T> {
   let failure: unknown;
   try {
     const work = (async () => {
-      await client.query({ text: "BEGIN" });
+      await run(client, "BEGIN", []);
       const q: PgQueryFn = (text, params = []) => {
         assertNotTenantScoped(text, "pgTx");
         return run(client, text, params);
       };
       const out = await fn(q);
-      await client.query({ text: "COMMIT" });
+      await run(client, "COMMIT", []);
       return out;
     })();
     // If `guard.errored` wins the race below, `work` is left running and may
@@ -222,7 +250,7 @@ export async function pgTx<T>(fn: (q: PgQueryFn) => Promise<T>): Promise<T> {
     if (!guard.hadError()) {
       // ROLLBACK failing too (a dead connection) must not mask the original
       // error — swallow it and let the caller see what actually went wrong.
-      await client.query({ text: "ROLLBACK" }).catch(() => {});
+      await run(client, "ROLLBACK", []).catch(() => {});
     }
     throw e;
   } finally {
@@ -556,16 +584,13 @@ export async function withTenant<T>(tenantId: string, fn: (q: PgQueryFn) => Prom
   let failure: unknown;
   try {
     const work = (async () => {
-      await client.query({ text: "BEGIN" });
-      await client.query({
-        text: "SELECT set_config('nompany.tenant_id', $1, true)",
-        values: [tenantId],
-      });
+      await run(client, "BEGIN", []);
+      await run(client, "SELECT set_config('nompany.tenant_id', $1, true)", [tenantId]);
       // No assertNotTenantScoped in this closure: this IS the mechanism the
       // guard exists to require callers to go through.
       const q: PgQueryFn = (text, params = []) => run(client, text, params);
       const out = await tenantContext.run({ tenantId, q }, () => fn(q));
-      await client.query({ text: "COMMIT" });
+      await run(client, "COMMIT", []);
       return out;
     })();
     // If the connection dies while `work` is between queries — the exact
@@ -583,7 +608,7 @@ export async function withTenant<T>(tenantId: string, fn: (q: PgQueryFn) => Prom
     // either way, so attempting one would only add a second, misleading
     // failure to the log for a connection already being torn down.
     if (!guard.hadError()) {
-      await client.query({ text: "ROLLBACK" }).catch(() => {});
+      await run(client, "ROLLBACK", []).catch(() => {});
     }
     throw e;
   } finally {
