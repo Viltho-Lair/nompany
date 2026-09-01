@@ -36,7 +36,7 @@
 // could not write about it is worse, and would make the audit log an outage.
 
 import { S, REG } from "@/platform/db/keys";
-import { xAdd, xAfter } from "@/platform/db/store";
+import { xAdd, xAfter, xLastId } from "@/platform/db/store";
 import { log } from "./observability";
 
 // Deep enough to answer "what happened this quarter" on a busy studio, capped
@@ -84,4 +84,22 @@ export async function record({
 export async function since(studioId: string, cursor = "", count = 100) {
   // xAfter already flattens each entry to { id, ...fields }.
   return xAfter(studioId ? S.audit(studioId) : REG.audit, cursor, count);
+}
+
+/**
+ * The newest entry's id, or the empty-log sentinel.
+ *
+ * WHY THIS EXISTS, RATHER THAN READING A PAGE AND TAKING ITS LAST ENTRY. That
+ * is the obvious thing to do and it is wrong: `since` PAGES, so it returns the
+ * OLDEST `count` entries from the cursor, and the last of that page is the
+ * newest only while the whole trail fits in one page. A caller that wants "what
+ * happens from now on" and computes its cursor that way silently starts reading
+ * from the middle of the log — which is exactly what a Gate A assertion did,
+ * and it failed by reporting fifty-six entries where one was expected.
+ *
+ * A reader who wants to follow the trail asks for this first, then passes it to
+ * `since`.
+ */
+export async function latestId(studioId: string) {
+  return xLastId(studioId ? S.audit(studioId) : REG.audit);
 }

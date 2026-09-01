@@ -3305,7 +3305,22 @@ console.log("== the audit log: who did what");
   const P = ctx({ slug });
   await signIn(owner.id);
 
-  const before = await audit.since(studio.id, "", 200);
+  // THE CURSOR IS TAKEN BEFORE THE WRITE, and both halves of that sentence were
+  // wrong once.
+  //
+  // It used to re-read the whole trail afterwards and take the LAST entry of the
+  // page, which is "the newest" only while the trail fits in one page and
+  // nothing else writes to it. Neither held: `since` pages at 200, and CI reuses
+  // one namespace across builds, so the channel outgrew a page and the assertion
+  // began failing while naming an unrelated route — which reads like the audit
+  // log recording the wrong thing rather than like the test looking in the wrong
+  // place.
+  //
+  // Then the cursor came from `latestId` but was still taken AFTER the POST, so
+  // it already included the entry it was meant to exclude and the trail looked
+  // empty. Asking "what is the newest entry right now" only means anything
+  // before the thing you are about to measure.
+  const cursor = await audit.latestId(studio.id);
 
   const made = await capture(CLIENTS.POST, req(`/api/studios/${slug}/sales/clients`, {
     method: "POST",
@@ -3313,20 +3328,6 @@ console.log("== the audit log: who did what");
   }), P);
   ok("the write happened", made.status === 201, String(made.status));
 
-  // READ FROM A CURSOR, NOT THE LAST OF A PAGE.
-  //
-  // This used to re-read the whole trail and take `after[after.length - 1]`,
-  // which is "the newest entry" only while the trail fits in one page and
-  // nothing else writes to it. Neither held: `since` pages at 200, and CI
-  // reuses one namespace across builds, so the channel outgrew a page and the
-  // assertion started failing while naming an unrelated route — which reads
-  // like the audit log recording the wrong thing rather than like the test
-  // looking in the wrong place.
-  //
-  // The cursor is what the audit API is built around, and asking it for "what
-  // happened after the entry I already saw" is both the precise question and
-  // the one immune to how long the trail is.
-  const cursor = before.length ? before[before.length - 1].id : "";
   const added = await audit.since(studio.id, cursor, 200);
   ok("...and it left exactly one entry", added.length === 1,
     `${added.length} entries after cursor ${cursor || "(start)"}`);
@@ -3355,8 +3356,7 @@ console.log("== the audit log: who did what");
   // will, and a GET is not an act somebody has to answer for.
   // Same cursor discipline as above: ask what happened after the last entry
   // already seen, rather than re-reading a page and trusting its tail.
-  const beforeRead = await audit.since(studio.id, "", 200);
-  const readCursor = beforeRead.length ? beforeRead[beforeRead.length - 1].id : "";
+  const readCursor = await audit.latestId(studio.id);
   await capture(CLIENTS.PUT, req(`/api/studios/${slug}/sales/clients`,
     { method: "PUT", body: {} }), P);
   const SALES = await import("@/app/api/studios/[slug]/sales/route.ts");
@@ -3379,15 +3379,14 @@ console.log("== the audit log: who did what");
   // the branch is one `?:` in a key builder, which is exactly the kind of thing
   // that is obviously right and silently backwards.
   {
-    const beforePlatform = await audit.since("", "", 200);
+    // Cursor BEFORE the action, and this channel needed it most: the platform
+    // log belongs to no studio, so every run in the namespace writes to the SAME
+    // channel and it outgrows a page faster than any studio's trail does.
+    const platformCursor = await audit.latestId("");
     await audit.record({
       actor: "sup_test", actorType: audit.ACTOR.SUPER,
       action: "PUT super/studios/[id]", subject: studio.id, status: 200,
     });
-    // Cursor again, and this channel needed it most: the platform log belongs to
-    // no studio, so every run in the namespace writes to the SAME channel and it
-    // outgrows a page faster than any studio's trail does.
-    const platformCursor = beforePlatform.length ? beforePlatform[beforePlatform.length - 1].id : "";
     const afterPlatform = await audit.since("", platformCursor, 200);
     ok("a console action lands in the platform log",
       afterPlatform.length === 1,
