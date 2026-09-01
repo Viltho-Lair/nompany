@@ -85,6 +85,43 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   expense:   { type: "expense",   cardinality: "many", sectionKey: "finance-cash",          permission: "finance.cash.view",        unassignable: true,  collection: "expenses",       label: "Expense",        onDelete: "keep" },
   bill:      { type: "bill",      cardinality: "many", sectionKey: "finance-payables",      permission: "finance.payables.view",    unassignable: true,  collection: "bills",          label: "Bill",           onDelete: "keep" },
   asset:     { type: "asset",     cardinality: "many", sectionKey: "finance-assets",        permission: "finance.assets.view",      unassignable: true,  collection: "fixedAssets",    label: "Fixed asset",    onDelete: "keep" },
+
+  // ---- P2's six, in Template-A order of need -------------------------------
+  //
+  // These complete the seven flow templates: every stage any of A-G names now
+  // exists here. `templateProblems` (templates.ts) asserts that, so a template
+  // can no longer reference a stage that renders as nothing.
+  //
+  // EACH REUSES AN EXISTING PERMISSION, and that is a deliberate limit rather
+  // than laziness. A new area would move the 123-key permission matrix and
+  // every golden that pins it, for stages that have no screen yet — so each
+  // sits under the right its work already answers to, and gets its own area
+  // when it gets a screen. Where that placement is a compromise it says so.
+  //
+  //   contract      the deal's value baseline, minted when a quotation is won.
+  //                 ONE per deal: a second contract is a different deal, and
+  //                 amendments are change_orders against this one.
+  //   change_order  scope moving after signature. Adjusts the contract value,
+  //                 which is why it answers to the same right the contract does.
+  //   timesheet     booked labour. The largest cost driver in A, D, E and G.
+  //   job           a work package executed on site. Template D roots deals on
+  //                 it (heads: ticket, job), so it is not merely a child.
+  //   inspection    an ITP hold point or a snag. BELONGS TO QUALITY & HSE and
+  //                 is filed under Projects instead, because quality-hse is in
+  //                 NO_SCREEN_YET and holds no rights by design — a right
+  //                 nothing can exercise is a bug (invariant 16). It moves when
+  //                 that section gets a screen; the blueprint puts this work in
+  //                 project execution either way.
+  //   payment       money actually received against an invoice. Not "keep"
+  //                 like bill/expense/asset: those exist without a deal, a
+  //                 payment settles THIS deal's invoice and has no meaning
+  //                 detached from it.
+  contract:     { type: "contract",     cardinality: "one",  sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view", unassignable: false, collection: "contracts",    label: "Contract",     onDelete: "cascade" },
+  change_order: { type: "change_order", cardinality: "many", sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view", unassignable: false, collection: "changeOrders", label: "Change order", onDelete: "cascade" },
+  timesheet:    { type: "timesheet",    cardinality: "many", sectionKey: "projects-list",        permission: "projects.list.view",       unassignable: false, collection: "timesheets",   label: "Timesheet",    onDelete: "cascade" },
+  job:          { type: "job",          cardinality: "many", sectionKey: "field-service-schedule", permission: "fieldService.schedule.view", unassignable: false, collection: "jobs",       label: "Job",          onDelete: "cascade" },
+  inspection:   { type: "inspection",   cardinality: "many", sectionKey: "projects-list",        permission: "projects.list.view",       unassignable: false, collection: "inspections",  label: "Inspection",   onDelete: "cascade" },
+  payment:      { type: "payment",      cardinality: "many", sectionKey: "finance-cash",         permission: "finance.cash.view",        unassignable: false, collection: "payments",     label: "Payment",      onDelete: "cascade" },
   // sla: HELD — its slot is reserved; added when its rules land (spec §7 Held).
 };
 

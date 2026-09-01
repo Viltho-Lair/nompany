@@ -167,6 +167,15 @@ jobs:
       - name: Tests — access rules
         run: node tests/access.test.mjs
 
+      - name: Tests — the deal model's vocabulary
+        # THREE DATA FILES THAT MUST AGREE AND DO NOT IMPORT EACH OTHER: the
+        # stage registry, the seven flow templates and the industry map. Pure
+        # functions over plain data, so this costs a second and runs before the
+        # suites that need a database — a template naming a stage that does not
+        # exist should fail here, not surface later as a stage that renders as
+        # nothing.
+        run: node tests/engagement-model.mjs
+
       - name: Tests — integration suite
         # Now also runs tests/pg-parity.mjs's schema/RLS/row-primitive/dispatcher
         # assertions (folded in via tests/suite.mjs) against the postgres
