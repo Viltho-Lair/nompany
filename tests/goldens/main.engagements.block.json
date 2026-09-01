@@ -9,6 +9,9 @@
         "title": "Engagement view fixture"
       },
       "status": "Lead",
+      "statusType": "ticket",
+      "templateId": "A",
+      "templateName": "Contracting / Project",
       "locked": true,
       "cards": [
         {
@@ -16,6 +19,7 @@
           "label": "Sales ticket",
           "present": true,
           "count": 1,
+          "offTemplate": false,
           "ref": "ENGAGEMENT-VIEW-CLIENT-001",
           "summary": "Lead"
         }
