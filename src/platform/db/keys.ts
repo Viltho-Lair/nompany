@@ -527,10 +527,11 @@ export const SECTION_DEFS = [
   // Quality & HSE, locations to Administration.
   { key: "field-service", name: "Field Operations & Service", children: [
     // The rota and the working week — the shift calendar, "schedule a shift"
-    // and the studio's work-week shading — on its own grant. It owns no
-    // collection: shifts live under the field-service root section (read
-    // through that door), so this gates the SCREEN and its writes, not a
-    // store of its own.
+    // and the studio's work-week shading — on its own grant. Shifts live under
+    // the field-service ROOT section and are read through that door, so this
+    // key gates that screen and its writes rather than owning them; what it
+    // does own is `jobs`, the short-form execution unit dispatched from here
+    // (see SECTION_COLLECTIONS below).
     { key: "field-service-schedule", name: "Schedule" },
     { key: "field-service-tracking", name: "Tracking" },
     { key: "field-service-settings", name: "Settings" },
@@ -678,6 +679,12 @@ export const SECTION_COLLECTIONS = {
   // data, and they will go there — in the phase that BUILDS those screens.
   // Moving them now would strand real rows in sections that render nothing.
   "field-service": ["shifts", "permits", "locations"],
+  // A JOB IS DISPATCHED FROM THE SCHEDULE, so it is owned by the Schedule
+  // sub-section rather than by the field-service root: a studio that deletes
+  // Schedule is a studio that stopped dispatching, and its jobs should go with
+  // it. Shifts stay on the root because they are coverage — who is at a place
+  // for a stretch of time — which the Tracking and Settings tabs read too.
+  "field-service-schedule": ["jobs"],
   // One last-known position per person, never a movement trail.
   "field-service-tracking": ["trackingPositions"],
   // tasks

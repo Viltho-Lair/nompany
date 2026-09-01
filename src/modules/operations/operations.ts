@@ -89,9 +89,12 @@ export const plannerContext = moduleContext<PlannerContext>({
 // reasoning as the planner: a person may hold the rota without the rest of
 // Operations, so gating it through operationsContext — which refuses anyone the
 // operations root is not granted to — would lock out exactly the people it was
-// granted to. It owns no collection; the shifts and locations it reads and
-// writes live under the operations ROOT section, surfaced here as the foreign
-// `operationsMainSection`, and the leave check needs HR.
+// granted to. The shifts and locations it reads and writes live under the
+// operations ROOT section, surfaced here as the foreign `operationsMainSection`,
+// and the leave check needs HR — but it is no longer collection-less: `jobs`
+// (modules/operations/jobs.ts) is owned by this key and read through
+// `ctx.section`, because a job is dispatched from the rota rather than being
+// studio-wide coverage the way a shift is.
 export const scheduleContext = moduleContext<ScheduleContext>({
   root: "field-service-schedule",
   foreign: {
