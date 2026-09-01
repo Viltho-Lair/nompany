@@ -670,4 +670,31 @@ export const TBL = {
     id: "id", seq: "seq", version: "row_version", payload: "payload",
     createdAt: "created_at", updatedAt: "updated_at",
   },
+
+  // THE DOCUMENT STORE — where every former Redis key now lives. Its primary
+  // key is a string built by the builders ABOVE this block, which is the whole
+  // reason it needs no naming scheme of its own: `u:<id>:profile` was already a
+  // namespaced hierarchy, and inventing a second one would mean rewriting every
+  // call site to gain nothing. The TABLE name is named here for the same reason
+  // `rows` is — a table name is a key, and a key literal at a call site is the
+  // failure invariant 1 exists to stop.
+  //
+  // NOT UNDER ROW-LEVEL SECURITY, unlike `rows`, and that is not an oversight:
+  // these keys are platform-scoped (`g:studios` belongs to the platform, a
+  // profile to an account), so there is no tenant column to key a policy on.
+  // pgSchema.sql's header says the same next to the table itself.
+  docs: "documents",
+  docCols: {
+    key: "key", value: "value", expiresAt: "expires_at",
+    createdAt: "created_at", updatedAt: "updated_at", version: "row_version",
+  },
+
+  // THE EVENT STREAM. `id` is a bigserial, and it is the client's cursor —
+  // invariant 12 ("the stream is truth") survives the move because monotonic
+  // insert ids give `Last-Event-ID` replay the same guarantee a Redis stream id
+  // gave it. `channel` holds what used to be the stream's key.
+  events: "events",
+  eventCols: {
+    id: "id", channel: "channel", payload: "payload", createdAt: "created_at",
+  },
 } as const;
