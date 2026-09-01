@@ -4,8 +4,28 @@
 // the attach procedure and the indexes all read from it (spec §3.7).
 export type Cardinality = "one" | "many";
 
+/**
+ * WHAT KIND OF THING A STAGE IS — blueprint §1.2, tabulated in §2.4.
+ *
+ * This is not decoration: the contribution rule (Law 4) resolves a conflict
+ * between two stages that both know a fact by ranking their classes, so a
+ * ticket's idea of the site loses to a user's explicit edit and beats a
+ * contract's. Without a class on the entry there is nothing to rank.
+ *
+ *   intent      the ask — a ticket
+ *   commitment  a promise, offered or bound — quotation, contract, order
+ *   execution   the doing — project, job, shipment
+ *   control     something that governs rather than advances — rfq, task
+ *   resource    what work consumes or costs — sheet, timesheet, asset
+ *   evidence    proof that something happened — delivery, inspection
+ *   money       claims and movements — invoice, payment, bill, expense
+ */
+export type ObjectClass =
+  | "intent" | "commitment" | "execution" | "control" | "resource" | "evidence" | "money";
+
 export type StageEntry = {
   type: string;          // key segment: s:<sid>:rec:<type>:<id>
+  objectClass: ObjectClass;
   cardinality: Cardinality;
   sectionKey: string;    // permission + section ownership (unchanged model)
   permission: string;    // the view permission for this record
@@ -46,26 +66,26 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   //   quotation the document offered on this deal (converted or internal).
   //   project   the delivery of this deal's approved quotation.
   //   sheet     the project's own cost/material sheet — no project, no sheet.
-  ticket:    { type: "ticket",    cardinality: "one",  sectionKey: "crm-sales-tickets",    permission: "crmSales.tickets.view",       unassignable: false, collection: "salesTickets",   label: "Sales ticket",   onDelete: "cascade" },
-  rfq:       { type: "rfq",       cardinality: "many", sectionKey: "engineering-docs-rfq", permission: "engineeringDocs.rfq.view",    unassignable: false, collection: "rfqs",           label: "RFQ",            onDelete: "cascade" },
-  quotation: { type: "quotation", cardinality: "many", sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view",    unassignable: false, collection: "quotations",     label: "Quotation",      onDelete: "cascade" },
-  project:   { type: "project",   cardinality: "one",  sectionKey: "projects-list",        permission: "projects.list.view",          unassignable: false, collection: "projects",       label: "Project",        onDelete: "cascade" },
-  sheet:     { type: "sheet",     cardinality: "many", sectionKey: "inventory-sheets",     permission: "inventory.sheets.view",       unassignable: false, collection: "projectSheets",  label: "Project sheet",  onDelete: "cascade" },
+  ticket:    { type: "ticket", objectClass: "intent",    cardinality: "one",  sectionKey: "crm-sales-tickets",    permission: "crmSales.tickets.view",       unassignable: false, collection: "salesTickets",   label: "Sales ticket",   onDelete: "cascade" },
+  rfq:       { type: "rfq", objectClass: "control",       cardinality: "many", sectionKey: "engineering-docs-rfq", permission: "engineeringDocs.rfq.view",    unassignable: false, collection: "rfqs",           label: "RFQ",            onDelete: "cascade" },
+  quotation: { type: "quotation", objectClass: "commitment", cardinality: "many", sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view",    unassignable: false, collection: "quotations",     label: "Quotation",      onDelete: "cascade" },
+  project:   { type: "project", objectClass: "execution",   cardinality: "one",  sectionKey: "projects-list",        permission: "projects.list.view",          unassignable: false, collection: "projects",       label: "Project",        onDelete: "cascade" },
+  sheet:     { type: "sheet", objectClass: "resource",     cardinality: "many", sectionKey: "inventory-sheets",     permission: "inventory.sheets.view",       unassignable: false, collection: "projectSheets",  label: "Project sheet",  onDelete: "cascade" },
   // RAISED TO FULFIL THIS DEAL'S PROJECT. An order is placed against its sheet,
   // a delivery records that order arriving, a shipment tracks it in transit —
   // none of the three exists as a studio-wide fact the way a vendor or an item
   // does, and each names the project it was raised for. They die with it.
-  order:     { type: "order",     cardinality: "many", sectionKey: "inventory-sheets",     permission: "inventory.sheets.view",       unassignable: false, collection: "materialOrders", label: "Material order", onDelete: "cascade" },
-  delivery:  { type: "delivery",  cardinality: "many", sectionKey: "inventory",            permission: "inventory.stock.view",        unassignable: false, collection: "deliveries",     label: "Delivery",       onDelete: "cascade" },
-  shipment:  { type: "shipment",  cardinality: "many", sectionKey: "logistics-shipments",  permission: "logistics.shipments.view",    unassignable: false, collection: "awbShipments",   label: "Shipment",       onDelete: "cascade" },
+  order:     { type: "order", objectClass: "commitment",     cardinality: "many", sectionKey: "inventory-sheets",     permission: "inventory.sheets.view",       unassignable: false, collection: "materialOrders", label: "Material order", onDelete: "cascade" },
+  delivery:  { type: "delivery", objectClass: "evidence",  cardinality: "many", sectionKey: "inventory",            permission: "inventory.stock.view",        unassignable: false, collection: "deliveries",     label: "Delivery",       onDelete: "cascade" },
+  shipment:  { type: "shipment", objectClass: "execution",  cardinality: "many", sectionKey: "logistics-shipments",  permission: "logistics.shipments.view",    unassignable: false, collection: "awbShipments",   label: "Shipment",       onDelete: "cascade" },
   // WORKED ON THIS DEAL'S PROJECT, and recorded against it — an overtime claim
   // names the project it was worked on and has no meaning without it.
-  overtime:  { type: "overtime",  cardinality: "many", sectionKey: "projects-overtimes",   permission: "projects.overtimes.view",     unassignable: false, collection: "overtimes",      label: "Overtime",       onDelete: "cascade" },
+  overtime:  { type: "overtime", objectClass: "resource",  cardinality: "many", sectionKey: "projects-overtimes",   permission: "projects.overtimes.view",     unassignable: false, collection: "overtimes",      label: "Overtime",       onDelete: "cascade" },
   // BILLED FOR THIS DEAL. The user named invoices explicitly among the things
   // that go with the engagement. Note what does NOT come back with it: the
   // invoice NUMBER stays spent (invariant 10 — reference numbers only move
   // forward), so deleting a deal can never reissue a number a client holds.
-  invoice:   { type: "invoice",   cardinality: "many", sectionKey: "finance-cash",         permission: "finance.cash.view",           unassignable: false, collection: "invoices",       label: "Invoice",        onDelete: "cascade" },
+  invoice:   { type: "invoice", objectClass: "money",   cardinality: "many", sectionKey: "finance-cash",         permission: "finance.cash.view",           unassignable: false, collection: "invoices",       label: "Invoice",        onDelete: "cascade" },
   // ---- KEPT, DELIBERATELY --------------------------------------------------
   // Every type below can exist with NO deal at all (`unassignable`), is created
   // on its own department screen, and is assigned to a deal afterwards (§3.6.2's
@@ -81,10 +101,10 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   //            occasioned it; writing it off is Finance's act, not a cascade's.
   //   asset    studio property. A generator bought for one project is still the
   //            studio's generator after the project is deleted.
-  task:      { type: "task",      cardinality: "many", sectionKey: "tasks",                 permission: "tasks.board.view",         unassignable: true,  collection: "tasks",          label: "Task",           onDelete: "keep" },
-  expense:   { type: "expense",   cardinality: "many", sectionKey: "finance-cash",          permission: "finance.cash.view",        unassignable: true,  collection: "expenses",       label: "Expense",        onDelete: "keep" },
-  bill:      { type: "bill",      cardinality: "many", sectionKey: "finance-payables",      permission: "finance.payables.view",    unassignable: true,  collection: "bills",          label: "Bill",           onDelete: "keep" },
-  asset:     { type: "asset",     cardinality: "many", sectionKey: "finance-assets",        permission: "finance.assets.view",      unassignable: true,  collection: "fixedAssets",    label: "Fixed asset",    onDelete: "keep" },
+  task:      { type: "task", objectClass: "control",      cardinality: "many", sectionKey: "tasks",                 permission: "tasks.board.view",         unassignable: true,  collection: "tasks",          label: "Task",           onDelete: "keep" },
+  expense:   { type: "expense", objectClass: "money",   cardinality: "many", sectionKey: "finance-cash",          permission: "finance.cash.view",        unassignable: true,  collection: "expenses",       label: "Expense",        onDelete: "keep" },
+  bill:      { type: "bill", objectClass: "money",      cardinality: "many", sectionKey: "finance-payables",      permission: "finance.payables.view",    unassignable: true,  collection: "bills",          label: "Bill",           onDelete: "keep" },
+  asset:     { type: "asset", objectClass: "resource",     cardinality: "many", sectionKey: "finance-assets",        permission: "finance.assets.view",      unassignable: true,  collection: "fixedAssets",    label: "Fixed asset",    onDelete: "keep" },
 
   // ---- P2's six, in Template-A order of need -------------------------------
   //
@@ -116,12 +136,12 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   //                 like bill/expense/asset: those exist without a deal, a
   //                 payment settles THIS deal's invoice and has no meaning
   //                 detached from it.
-  contract:     { type: "contract",     cardinality: "one",  sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view", unassignable: false, collection: "contracts",    label: "Contract",     onDelete: "cascade" },
-  change_order: { type: "change_order", cardinality: "many", sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view", unassignable: false, collection: "changeOrders", label: "Change order", onDelete: "cascade" },
-  timesheet:    { type: "timesheet",    cardinality: "many", sectionKey: "projects-list",        permission: "projects.list.view",       unassignable: false, collection: "timesheets",   label: "Timesheet",    onDelete: "cascade" },
-  job:          { type: "job",          cardinality: "many", sectionKey: "field-service-schedule", permission: "fieldService.schedule.view", unassignable: false, collection: "jobs",       label: "Job",          onDelete: "cascade" },
-  inspection:   { type: "inspection",   cardinality: "many", sectionKey: "projects-list",        permission: "projects.list.view",       unassignable: false, collection: "inspections",  label: "Inspection",   onDelete: "cascade" },
-  payment:      { type: "payment",      cardinality: "many", sectionKey: "finance-cash",         permission: "finance.cash.view",        unassignable: false, collection: "payments",     label: "Payment",      onDelete: "cascade" },
+  contract:     { type: "contract", objectClass: "commitment",     cardinality: "one",  sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view", unassignable: false, collection: "contracts",    label: "Contract",     onDelete: "cascade" },
+  change_order: { type: "change_order", objectClass: "commitment", cardinality: "many", sectionKey: "crm-sales-quotations", permission: "crmSales.quotations.view", unassignable: false, collection: "changeOrders", label: "Change order", onDelete: "cascade" },
+  timesheet:    { type: "timesheet", objectClass: "resource",    cardinality: "many", sectionKey: "projects-list",        permission: "projects.list.view",       unassignable: false, collection: "timesheets",   label: "Timesheet",    onDelete: "cascade" },
+  job:          { type: "job", objectClass: "execution",          cardinality: "many", sectionKey: "field-service-schedule", permission: "fieldService.schedule.view", unassignable: false, collection: "jobs",       label: "Job",          onDelete: "cascade" },
+  inspection:   { type: "inspection", objectClass: "evidence",   cardinality: "many", sectionKey: "projects-list",        permission: "projects.list.view",       unassignable: false, collection: "inspections",  label: "Inspection",   onDelete: "cascade" },
+  payment:      { type: "payment", objectClass: "money",      cardinality: "many", sectionKey: "finance-cash",         permission: "finance.cash.view",        unassignable: false, collection: "payments",     label: "Payment",      onDelete: "keep" },
   // sla: HELD — its slot is reserved; added when its rules land (spec §7 Held).
 };
 
