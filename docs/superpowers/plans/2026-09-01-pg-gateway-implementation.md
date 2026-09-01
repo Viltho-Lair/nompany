@@ -78,6 +78,13 @@ A parity run comparing `direct` and `gateway` over the same operations, in the s
 `tests/pg-parity.mjs` already uses for redis-vs-postgres: same call, both transports, compared
 as `JSON.stringify` text. Cheap because the comparison harness exists.
 
+**Done, and it did NOT need Task 6.** This plan assumed a deployed gateway; the seams Tasks
+1–4 left make a complete run possible on one machine, which is better than waiting for a
+deploy because it runs on every push. `npm run test:gateway:parity`
+(`tests/pg-transport-parity.mjs`) starts the real server against a real `pg.Pool`, points a
+child process's real client at it over loopback HTTP, and compares every `pgRows.ts`
+operation as text. See `docs/functionality/pg-gateway.md`, *Do the two transports agree?*.
+
 ## Task 6 — the owner's steps
 
 1. Create the gateway service account.
@@ -95,11 +102,22 @@ as `JSON.stringify` text. Cheap because the comparison harness exists.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Tasks 1–4 are written; Tasks 5 and 6 are not.** The service, the shared guards, the
-  transport switch and the auth client all exist and are tested with no database and no
-  Google in the room (`npm run test:gateway`). There is still **no WIF pool, no service
-  account, no IAM binding and no deploy**, so no statement has ever crossed this transport
-  and no parity run compares the two.
+- **Tasks 1–5 are written; Task 6 is not.** The service, the shared guards, the transport
+  switch and the auth client are tested with no database and no Google in the room
+  (`npm run test:gateway`), and Task 5's parity run now drives the real client over real
+  HTTP into the real server, a real Postgres and a real RLS policy
+  (`npm run test:gateway:parity`). There is still **no WIF pool, no service account, no IAM
+  binding and no deploy**, so no statement has crossed the CLOUD half of this transport —
+  the Cloud SQL connector, `authType: IAM`, STS, impersonation, Cloud Run's IAM check and
+  Direct VPC egress have never run.
+- **Task 5's brief expected `postTx`'s `deps.token` to be the injection seam. It is not
+  reachable from `pg.ts`.** `runGateway` calls `gatewayStatement(tenantId, text, params)`
+  with no `deps`, so nothing driving `pgRows.ts` can pass a token that way, and adding a
+  parameter for a test's benefit was the wrong trade. The seam actually used is the one
+  `readGatewayAuthConfig` already documents: `GCP_STS_URL` and `GCP_IAM_CREDENTIALS_URL`
+  are read from the environment, so a loopback stub answers the two auth legs and the real
+  chain carries a fixed token to the gateway unmodified. `deps.token` remains a genuine
+  seam for a caller that passes `deps` — there is not one today.
 - **Task 3 turned out smaller than this plan expected, and Task 4 larger.** `withTenant`
   does not "collect its callback's statements per round trip" — it sends **one statement per
   HTTPS call**, because every scope in `pgRows.ts` was walked and the only two that issue

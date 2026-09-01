@@ -145,6 +145,10 @@ with a `query` method, and the HTTP handler takes the transaction function as a 
 statement order, the bound parameters, the rollback, the status codes — with no Postgres
 in the room, the same shape `tests/pg-query.mjs` uses.
 
+**And then tested WITH one, end to end** — `npm run test:gateway:parity`. Those same seams
+turn out to allow a complete run with no cloud at all, which is what makes the comparison
+below possible. See *Do the two transports agree?*.
+
 ## Which wire a statement takes
 
 `PG_TRANSPORT` is `direct` (the default) or `gateway`, read **once at module scope** in
@@ -243,28 +247,100 @@ not a security boundary** — STS re-checks both against the provider's own conf
 which is where the decision lives — but STS's refusal is an opaque `invalid_grant`, and this
 names the value it saw beside the value it wanted.
 
-`node tests/pg-gateway-client.mjs` proves 35 blocks with a stubbed `fetch` and no database:
+`node tests/pg-gateway-client.mjs` proves 36 blocks with a stubbed `fetch` and no database:
 the switch's routing, the request shape (fed through the **server's own `parseTxRequest`**,
 so the client's restatement of the wire shape cannot drift silently), one-call-per-statement,
 bind parameters, re-entrancy, the refusals, the error mapping, the auth chain's order and the
 cache's arithmetic. `npm run test:gateway` runs it alongside the service's own suite, and CI
 runs both.
 
+## Do the two transports agree?
+
+Yes, for every operation in `pgRows.ts`, proven by `npm run test:gateway:parity`
+(`tests/pg-transport-parity.mjs`, plan Task 5). **This needs no deployed gateway**, which
+was the plan's own assumption and turned out to be wrong: Tasks 1–4 left the seams that
+make a full local run possible, and the run is worth more than the deploy would have been
+because it can execute on every push.
+
+| Where | What it is |
+|---|---|
+| `tests/pg-transport-parity.mjs` | The harness: starts the real server, runs the `direct` half, spawns the `gateway` half, compares |
+| `tests/pg-transport-ops.mjs` | The operations, run **twice** — one script, so anything that differs is the transport |
+| `tests/pg-transport-gateway.mjs` | The child process whose only route to Postgres is a POST |
+
+The wiring, and why each piece is the real one:
+
+- **The server is the real server.** `createGatewayServer(runTx)` takes its runner as a
+  parameter, so the harness hands it the real `withClient(pool, …)` + `runBatch` over a
+  real `pg.Pool` on `DATABASE_URL` — locally the Cloud SQL Auth Proxy as `viltho`, in CI
+  the `postgres:18` container as `ci_app`. Both are `rolsuper=false, rolbypassrls=false`,
+  so **RLS genuinely applies**; a superuser would make every isolation assertion pass for
+  a reason production does not have.
+- **The client is the real client.** `pg.ts`'s transport switch, `pgGateway.ts`'s `postTx`,
+  an unmodified `fetch`, a real socket.
+- **A child process, because `PG_TRANSPORT` is read once at module scope.** One process has
+  exactly one transport. The child is spawned with `DATABASE_URL` **deleted**, so a single
+  operation falling back to `direct` throws instead of quietly comparing two direct runs.
+  397 `POST /tx` requests reach the server in a run.
+- **No authentication bypass was added, anywhere.** `readGatewayAuthConfig` already reads
+  `GCP_STS_URL` and `GCP_IAM_CREDENTIALS_URL` from the environment, so a two-route stub on
+  loopback stands in for STS and IAM Credentials. The fixed token it returns travels
+  through the unmodified auth cache and arrives as a real `Authorization: Bearer` header,
+  which the harness reads back **off the request the server actually received**. A test
+  hook reachable in production would have been the hole this design refuses.
+
+**Compared as `JSON.stringify` TEXT, never deep-equal** — the rule `tests/pg-parity.mjs`
+sets, and for the same reason: `payload` is `json` and not `jsonb` precisely so key order
+survives, the goldens pin that order, and a deep-equal would not notice it changing.
+Fixtures carry explicit ids and both halves use the same tenant, section and collections
+sequentially, so no normalisation stands between the two texts.
+
+**The two multi-statement cases are the ones the transport actually changes**, and both
+are asserted directly rather than inferred:
+
+- `pgUpdateRow` — SELECT and UPDATE become two transactions with a network hop between
+  them. **Twenty concurrent flips land exactly twenty on both wires, none rejected**: the
+  compare-and-set is optimistic, so `WHERE row_version = $6` is what decides and one
+  winner per round survives the split.
+- `pgAddRows` — the `nextval` reservation and the INSERT likewise. `seq` is compared as
+  **ranks**, not raw values (the sequence is global on a live shared database), and the
+  batch's first element holds the largest on both, so the collection reads back
+  newest-first as a block and arrival-ordered within itself.
+
+**RLS is asserted end to end, through the server rather than around it.** A statement sent
+with a `tenantId` sees only that tenant's rows in a bucket both tenants wrote to; the same
+statement with no `tenantId` comes back **400, refused by the shared tenant guard**, not
+200 with an empty array — which is the whole point, since under FORCE ROW LEVEL SECURITY
+the untenanted form does not error, it silently matches nothing. A legal statement whose
+`WHERE` names the other tenant returns nothing (the *policy*, not the query, is what
+confines it), and an INSERT claiming another tenant's id is refused by the policy's
+`WITH CHECK` as a 500 — Postgres deciding, not the gateway.
+
+**It writes only to Postgres, under four synthetic tenant ids it names itself**, with
+`announce: false` on every write so `emit` and `bumpMainAgg` never fire and no Redis
+connection is opened by either process. The teardown is `sweepPgTenants` with that
+explicit id list (invariant 17: an explicit key list, never a predicate).
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Nothing has ever connected to a database through this service.** Not once, not in
-  CI, not locally. The IAM database user does not exist, and there is no network path
-  from a developer's machine to the private IP. So the connector call, the IAM handshake,
-  a real `set_config` under a real RLS policy, a real `COMMIT` and every Postgres error
-  path are **unverified**. Everything above about guards, ordering, binding and status
-  codes is proven; everything about *reaching Postgres* is not.
-- **No statement has ever crossed this transport.** The switch, the client and the auth
-  chain are written and tested against a stubbed `fetch`; none of it has been run against
-  a real Cloud Run service, a real STS exchange or a real IAM binding, because none of
-  those exist yet. Everything above about routing, request shape, refusals, error mapping
-  and cache arithmetic is proven; everything about *reaching Google or Cloud Run* is not.
+- **The connector, the IAM database user and the private IP are still unverified.** The
+  end-to-end run above reaches Postgres through a plain connection string, which is
+  `services/pg-gateway/src/pool.ts`'s one job and the one part of it the run replaces. So
+  `createPool`'s Cloud SQL connector call, `authType: IAM`, the short-lived per-connection
+  token, `ipType: PRIVATE` and Direct VPC egress have **never run**. Everything above the
+  socket — `runBatch`'s `BEGIN`/`set_config`/statement/`COMMIT`, the release-with-error
+  discipline, the guards, the status codes, a real `COMMIT` and a real RLS policy — is now
+  proven; everything about *how the connection is opened in production* is not. Nor is
+  `config.ts`'s boot-time refusal, which has only been asserted as a function.
+- **No statement has ever crossed the CLOUD half of this transport.** The client, the
+  switch and the wire are proven against the real service over real HTTP; the auth chain
+  is not. There is still no Workload Identity pool, no provider, no service account, no
+  `roles/iam.workloadIdentityUser` binding and no `run.invoker`, so a real Vercel OIDC
+  token has never been exchanged, no Google-signed ID token has ever been minted, and
+  Cloud Run's IAM check has never seen one. The token in the parity run is issued by a
+  loopback stub and is meaningless outside that process.
 - **The cloud half of the authentication does not exist** (plan Task 6): no Workload
   Identity pool, no provider for Vercel's OIDC issuer, no service account, no
   `roles/iam.workloadIdentityUser` binding, no `run.invoker`. `pgGatewayAuth.ts` knows how
@@ -288,7 +364,9 @@ Stated in words, because a silent gap reads as a finished feature.
 - **`pgUpdateRow` and `pgAddRows` were not modified, and did not need to be.** The design
   said `pgUpdateRow` "becomes two round trips"; under one-call-per-statement it already is,
   with no edit — each `q()` is its own call. Whether the extra round trip matters under real
-  contention is still unmeasured, exactly as the design said.
+  contention is now *correct* rather than merely assumed (twenty concurrent flips land
+  twenty on both wires) but still **unmeasured for latency**: nothing here times the
+  difference, and loopback is not a continent.
 - **`envelope` as the network budget is asserted, not observed.** The counter now reads one
   per HTTPS call by construction (`tests/pg-gateway-client.mjs` proves the arithmetic), but
   no route has been measured through a deployed gateway, and cold starts remain unbudgeted.
@@ -324,8 +402,10 @@ Stated in words, because a silent gap reads as a finished feature.
   instance serves (one STS, one impersonation) that the counter above does not record —
   they are not database round trips, and putting them in `queries` would move a ceiling for
   a reason that has nothing to do with the route.
-- **No parity run compares the two transports** (plan Task 5). The harness exists in
-  `tests/pg-parity.mjs`; the comparison does not.
+- **The parity run compares the two transports over `pgRows.ts` and nothing above it.**
+  No route, no service module and no golden response has been served through the gateway —
+  the switch is exercised at the `withTenant`/`pgQuery` layer only. A route's hop counts on
+  this transport are still asserted by construction rather than observed.
 - **No retry, no circuit breaker, no rate limit.** A failed call fails — on either side.
   The client raises whatever came back and does not retry a connection-level failure;
   whether it should, or whether the gateway should refuse a caller sending batches faster
