@@ -8,11 +8,7 @@ sits here — I work around it and come back.
 
 ## Open requests
 
-### 1. Delete the Redis Cloud instance itself — when you are ready
-
-Same reasoning, one step further, and it is the one that ends the subscription. I am not
-touching it: it is an account-level destruction outside this repo, and it should happen
-after the Postgres deploy has run for long enough that you would have noticed a problem.
+*(none)*
 
 ---
 
@@ -23,6 +19,9 @@ after the Postgres deploy has run for long enough that you would have noticed a 
 - **01/09** Restore `DATABASE_URL` to a connection string — it held an instance connection
   name, which `pg` silently ignores while falling back to localhost.
 - **01/09** Create the Vercel Blob store and its read/write token.
+- **01/09** Delete the Redis Cloud instance — done by the owner. I could not do this
+  one: it lives in Redis Cloud's own console and I hold no credential for that
+  account, only a connection string, which can delete DATA but not a subscription.
 - **01/09** Delete `REDIS_URL` from Vercel — nothing reads it; the package is uninstalled
   and the module deleted.
 - **01/09** Delete `NOMPANY_DB` from production — absence is now verifiable, and the

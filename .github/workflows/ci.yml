@@ -5,13 +5,15 @@ name: CI
 # purpose — recording the contract before the refactor rewrites the layers under
 # it — is worthless if the recording is only checked when somebody remembers.
 #
-# The suite talks to Redis. In development that is a LIVE, SHARED Redis Cloud
-# instance, isolated only by NOMPANY_KEY_PREFIX. CI gets its own ephemeral
-# `redis:8` service container instead: the prefix stays as the second line of
-# defence, never the first, and a pull request can never reach production data.
+# THE SUITE TALKS TO POSTGRES, AND ONLY TO POSTGRES. Redis is gone — the
+# package is uninstalled and no file imports it — so the `redis:8` service
+# container that used to run beside this one has gone with it. In development
+# the database is a LIVE, SHARED Cloud SQL instance isolated by
+# NOMPANY_KEY_PREFIX; CI gets its own ephemeral `postgres:18` instead, so the
+# prefix stays the second line of defence rather than the first and a pull
+# request can never reach production data.
 #
-# POSTGRES (P1 store swap) IS PROVISIONED THE SAME WAY, WITH ONE EXTRA STEP
-# REDIS NEVER NEEDED. The `postgres:18` image's bootstrap user is a REAL
+# THAT PROVISIONING TAKES ONE EXTRA STEP REDIS NEVER NEEDED. The `postgres:18` image's bootstrap user is a REAL
 # SUPERUSER inside the container, and a superuser BYPASSES ROW-LEVEL SECURITY
 # ENTIRELY — production's role does not (measured: rolsuper=false,
 # rolbypassrls=false against a policy declared FORCE ROW LEVEL SECURITY). If
@@ -36,17 +38,6 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      redis:
-        image: redis:8
-        ports: ["6379:6379"]
-        # Redis 8 is what production runs; pinning the major means a test that
-        # passes here fails there for a reason we would actually find.
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-
       postgres:
         image: postgres:18
         env:
@@ -64,7 +55,6 @@ jobs:
           --health-retries 10
 
     env:
-      REDIS_URL: redis://localhost:6379
       NOMPANY_KEY_PREFIX: ci_
       # THE NON-SUPERUSER ROLE'S connection string, not the bootstrap user's.
       # Set unconditionally — this job ALWAYS provisions Postgres, so from
@@ -225,14 +215,18 @@ jobs:
         run: npm run test:gateway:parity
 
       - name: Tests — Postgres + parity (NOMPANY_DB=parity)
-        # THE PIECE THAT WAS PRESENT IN package.json AND ABSENT FROM THIS
-        # WORKFLOW: `npm test`/the two steps above run with NOMPANY_DB unset,
-        # i.e. DB_BACKEND="redis" — the postgres and parity dispatcher branches
-        # in sections.ts, pgRows.ts's query builder ceilings
-        # (tests/gate-a.mjs's DB_BACKEND !== "redis" block), and pg-parity.mjs's
-        # 41 assertions only run under NOMPANY_DB=postgres or =parity. Without
-        # this step they ran only when a human remembered to run
-        # `npm run test:parity` locally — this makes that automatic.
+        # PARITY IS THE ONLY MODE THIS STEP STILL ADDS. With NOMPANY_DB unset
+        # the dispatcher now defaults to `postgres`, so `npm test` above already
+        # exercises collection_rows, its query builder and its RLS — which the
+        # unset default did NOT do when it meant "redis".
+        #
+        # What is left is the comparison itself: `parity` runs BOTH dispatcher
+        # implementations on every call and throws on any disagreement, turning
+        # the whole suite into the parity test. The `redis` arm now means
+        # "collections as JSON arrays in the document store" rather than a second
+        # database, so this compares two shapes in one Postgres instead of two
+        # stores — still the assertion that the operational table and the
+        # document store agree about what a collection IS.
         run: npm run test:parity
 
       - name: Build
