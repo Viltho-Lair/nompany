@@ -80,6 +80,13 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   salesClients: "SalesClient",
   generatedDocuments: "GeneratedDocument",
   quotations: "Quotation",
+  // P2's stage records. Each is a section-scoped collection like every other
+  // name here, so it takes the generic (Id, StudioId, SectionId, …, Extra)
+  // shape; the guard below is what forced them to be named at all — `contracts`
+  // and `changeOrders` reached SECTION_COLLECTIONS before this map and made the
+  // import throw, which is the guard doing exactly its job.
+  contracts: "Contract",
+  changeOrders: "ChangeOrder",
   rfqs: "Rfq",
   projects: "Project",
   slas: "Sla",
