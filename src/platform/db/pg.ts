@@ -26,6 +26,7 @@ import { guardAgainstConnectionError } from "./pgClientGuard";
 // copies.
 import { assertNotTenantScoped, assertDdlOnly } from "./sqlGuards";
 import { gatewayStatement } from "./pgGateway";
+import { log } from "@/platform/http/observability";
 
 // ---- the transport switch (plan Task 3) ------------------------------------
 //
@@ -178,7 +179,15 @@ function getPool(): Pool {
   });
   pool.on("error", (err) => {
     // Mirrors redis.ts: an idle-client error must not take the process down.
-    console.error("[pg] idle client error", err.message);
+    //
+    // Through `log`, not `console`, which is what redis.ts actually does — this
+    // line claimed to mirror it while using a bare console.error, and eslint's
+    // no-console caught the difference. The rule's own comment gives the reason
+    // it matters: a bare console.error is a line nobody can trace back to the
+    // request that produced it. An idle-pool error has no request to trace to
+    // either, but going through the same writer is what keeps it in the same
+    // log stream as everything else rather than in a second one.
+    log.error("pg idle client error", { error: err.message });
   });
   return pool;
 }
